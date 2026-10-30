@@ -74,11 +74,25 @@ RAS_FrameBuffer::RAS_FrameBuffer(unsigned int width,
 #endif
 }
 
+RAS_FrameBuffer::RAS_FrameBuffer(RAS_Rasterizer::FrameBufferType fbtype)
+    : m_frameBuffer(GPU_framebuffer_create("game_fb")),
+      m_frameBufferType(fbtype),
+      m_colorAttachment(nullptr),
+      m_depthAttachment(nullptr),
+      m_py_color(nullptr),
+      m_py_depth(nullptr)
+{
+}
+
 RAS_FrameBuffer::~RAS_FrameBuffer()
 {
   GPU_framebuffer_free(m_frameBuffer);  // it detaches attachments
-  GPU_texture_free(m_colorAttachment);
-  GPU_texture_free(m_depthAttachment);
+  if (m_colorAttachment) {
+    GPU_texture_free(m_colorAttachment);
+  }
+  if (m_depthAttachment) {
+    GPU_texture_free(m_depthAttachment);
+  }
 
 #ifdef WITH_PYTHON
   Py_XDECREF(m_py_color);
@@ -93,14 +107,24 @@ blender::gpu::FrameBuffer *RAS_FrameBuffer::GetFrameBuffer()
   return m_frameBuffer;
 }
 
+/** The color texture drawn into: its own, or the one attached by the user of a borrowing frame
+ * buffer (none yet: nullptr). */
+static blender::gpu::Texture *color_texture(blender::gpu::FrameBuffer *frame_buffer,
+                                            blender::gpu::Texture *own)
+{
+  return own ? own : GPU_framebuffer_color_texture(frame_buffer);
+}
+
 unsigned int RAS_FrameBuffer::GetWidth() const
 {
-  return GPU_texture_width(m_colorAttachment);
+  blender::gpu::Texture *color = color_texture(m_frameBuffer, m_colorAttachment);
+  return color ? GPU_texture_width(color) : 0;
 }
 
 unsigned int RAS_FrameBuffer::GetHeight() const
 {
-  return GPU_texture_height(m_colorAttachment);
+  blender::gpu::Texture *color = color_texture(m_frameBuffer, m_colorAttachment);
+  return color ? GPU_texture_height(color) : 0;
 }
 
 blender::gpu::Texture *RAS_FrameBuffer::GetColorAttachment()
@@ -115,6 +139,10 @@ blender::gpu::Texture *RAS_FrameBuffer::GetDepthAttachment()
 
 void RAS_FrameBuffer::UpdateSize(int width, int height)
 {
+  /* A borrowing frame buffer has no textures to resize. */
+  if (m_colorAttachment == nullptr) {
+    return;
+  }
   if (GPU_texture_width(m_colorAttachment) != width ||
       GPU_texture_height(m_colorAttachment) != height)
   {

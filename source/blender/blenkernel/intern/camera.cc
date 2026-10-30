@@ -14,6 +14,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_camera_types.h"
+#include "DNA_collection_types.h" /* UPBGE: Camera::game_collection. */
 #include "DNA_light_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -118,6 +119,10 @@ static void camera_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->custom_shader, IDWALK_CB_USER);
+
+  /* UPBGE: the game's Collection setting (relinked on file read, cleared when the collection is
+   * deleted). No user, as Collection RNA pointers count none. */
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, camera->game_collection, IDWALK_CB_NOP);
 }
 
 static void camera_foreach_path(ID *id, BPathForeachPathData *bpath_data)

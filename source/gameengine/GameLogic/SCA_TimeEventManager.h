@@ -49,5 +49,15 @@ class SCA_TimeEventManager : public SCA_EventManager {
   void AddTimeProperty(EXP_Value *timeval);
   void RemoveTimeProperty(EXP_Value *timeval);
 
+  /** Narrow checkpoint hooks. Reserve is the only potentially allocating operation. */
+  bool PersistenceContainsTimeProperty(const EXP_Value *timeval) const;
+  const std::vector<EXP_Value *> &PersistenceTimeProperties() const
+  {
+    return m_timevalues;
+  }
+  bool PersistenceReserveTimeProperties(size_t additional);
+  bool PersistenceAttachPreparedTimeProperty(EXP_Value *timeval);
+  bool PersistenceDetachTimeProperty(EXP_Value *timeval);
+
   std::vector<EXP_Value *> GetTimeValues();
 };

@@ -16,22 +16,34 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Value"_ustr).default_value(0.0f);
-  b.add_input<decl::Float>("From Min"_ustr).default_value(0.0f);
-  b.add_input<decl::Float>("From Max"_ustr).default_value(1.0f);
-  b.add_input<decl::Float>("To Min"_ustr).default_value(0.0f);
-  b.add_input<decl::Float>("To Max"_ustr).default_value(1.0f);
-  b.add_output<decl::Float>("Result"_ustr);
+  b.add_input<decl::Float>("Value"_ustr)
+      .default_value(0.0f)
+      .description("Value to remap from the source range");
+  b.add_input<decl::Float>("From Min"_ustr)
+      .default_value(0.0f)
+      .description("First endpoint of the source range");
+  b.add_input<decl::Float>("From Max"_ustr)
+      .default_value(1.0f)
+      .description("Second endpoint of the source range");
+  b.add_input<decl::Float>("To Min"_ustr)
+      .default_value(0.0f)
+      .description("Result when Value equals From Min");
+  b.add_input<decl::Float>("To Max"_ustr)
+      .default_value(1.0f)
+      .description("Result when Value equals From Max");
+  b.add_output<decl::Float>("Result"_ustr).description(
+      "Linearly remapped value; equal source endpoints return To Min");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout.prop(ptr, "use_clamp", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "use_clamp", UI_ITEM_NONE, "Clamp", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = 0;
+  /* Match Blender's Map Range default for newly created nodes. */
+  node->custom1 = 1;
 }
 
 static void node_register()

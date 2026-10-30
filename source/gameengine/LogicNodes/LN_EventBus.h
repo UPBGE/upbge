@@ -16,8 +16,6 @@
 #include "LN_DenseIds.h"
 #include "LN_Types.h"
 
-class KX_GameObject;
-
 enum class LN_EventPayloadLane : uint8_t {
   None = 0,
   Bool,
@@ -45,14 +43,15 @@ struct LN_EventEntry {
   std::string subject;
   LN_Value content;
   LN_EventPayloadLane payload_lane = LN_EventPayloadLane::None;
-  KX_GameObject *messenger = nullptr;
-  KX_GameObject *target = nullptr;
 };
 
 class LN_EventBus {
  public:
   void Publish(LN_EventEntry event);
-  void BeginTick();
+  /** Publish the events queued by the previous outer frame to frame-update readers. */
+  void BeginFrame();
+  /** Publish every event accumulated since the previous fixed simulation step exactly once. */
+  void BeginFixedTick();
   void ClearAll();
 
   const std::vector<LN_EventEntry> &PendingEvents() const
@@ -70,10 +69,15 @@ class LN_EventBus {
     return uint32_t(m_tickEvents.size());
   }
 
+  uint32_t PendingFixedEventCount() const
+  {
+    return uint32_t(m_pendingFixedEvents.size());
+  }
+
+  /** Events without a target match every reader; targeted events match only `target_handle`. */
   const LN_EventEntry *FindFirst(LN_EventSubjectId subject_id,
                                  const std::string &subject,
-                                 const LN_ObjectHandle &target_handle,
-                                 const KX_GameObject *target) const;
+                                 const LN_ObjectHandle &target_handle) const;
 
   uint64_t IndexedLookupCount() const
   {
@@ -90,10 +94,10 @@ class LN_EventBus {
   bool EntryMatchesFilter(const LN_EventEntry &event,
                           LN_EventSubjectId subject_id,
                           const std::string &subject,
-                          const LN_ObjectHandle &target_handle,
-                          const KX_GameObject *target) const;
+                          const LN_ObjectHandle &target_handle) const;
 
   std::vector<LN_EventEntry> m_pendingEvents;
+  std::vector<LN_EventEntry> m_pendingFixedEvents;
   std::vector<LN_EventEntry> m_tickEvents;
   std::unordered_map<uint32_t, std::vector<uint32_t>> m_subjectIndex;
   std::unordered_map<uint64_t, std::vector<uint32_t>> m_targetIndex;

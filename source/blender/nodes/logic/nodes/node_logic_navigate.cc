@@ -19,12 +19,18 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Object>("Navmesh Object"_ustr);
   b.add_input<decl::Vector>("Destination"_ustr).default_value({0.0f, 0.0f, 0.0f});
   b.add_input<decl::Bool>("Move as Dynamic"_ustr).default_value(false);
-  b.add_input<decl::Float>("Lin Speed"_ustr).default_value(1.0f);
+  b.add_input<decl::Float>("Lin Speed"_ustr)
+      .default_value(1.0f)
+      .min(0.0f)
+      .description("Movement speed in world units per second");
   b.add_input<decl::Float>("Reach Threshold"_ustr).default_value(1.0f);
   b.add_input<decl::Bool>("Look At"_ustr).default_value(true);
   b.add_input<decl::Int>("Rot Axis"_ustr).default_value(2);
   b.add_input<decl::Int>("Front"_ustr).default_value(1);
-  b.add_input<decl::Float>("Rot Speed"_ustr).default_value(1.0f);
+  b.add_input<decl::Float>("Rot Speed"_ustr)
+      .default_value(1.0f)
+      .min(0.0f)
+      .description("Maximum look-at rotation speed in radians per second");
   b.add_input<decl::Bool>("Visualize"_ustr).default_value(false);
   b.add_output<decl::Execution>("Done"_ustr);
   b.add_output<decl::Execution>("When Reached"_ustr);

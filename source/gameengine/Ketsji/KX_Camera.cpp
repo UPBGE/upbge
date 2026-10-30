@@ -36,9 +36,11 @@
 #include "GPU_viewport.hh"
 
 #include "DNA_camera_types.h"
+#include "CM_Message.h"
 #include "KX_Globals.h"
 #include "KX_PyMath.h"
 #include "KX_RayCast.h"
+#include "KX_Scene.h"
 #include "RAS_ICanvas.h"
 
 using namespace blender;
@@ -124,6 +126,8 @@ void KX_Camera::ProcessReplica()
 {
   KX_GameObject::ProcessReplica();
   m_gpuViewport = nullptr;
+  m_gpuViewportLastUse = 0.0;
+  m_usedForImageRender = false;
   // replicated camera are always registered in the scene
   m_delete_node = false;
 }
@@ -302,6 +306,10 @@ const SG_Frustum &KX_Camera::GetFrustum()
 
 void KX_Camera::EnableViewport(bool viewport)
 {
+  if (viewport && GetScene() != nullptr && GetScene()->GetOverlayCamera() == this) {
+    CM_Warning("The dedicated overlay camera cannot also use a custom viewport");
+    return;
+  }
   InvalidateProjectionMatrix(false);  // We need to reset projection matrix
   m_camdata.m_viewport = viewport;
 }
@@ -317,6 +325,20 @@ void KX_Camera::SetViewport(int left, int bottom, int right, int top)
 bool KX_Camera::GetViewport() const
 {
   return m_camdata.m_viewport;
+}
+
+bool KX_Camera::HasCircleViewport() const
+{
+  if (!m_camdata.m_viewport) {
+    return false;
+  }
+  /* Read live, as the camera's other game settings: the default camera has no Blender object. */
+  const blender::Object *object = const_cast<KX_Camera *>(this)->GetBlenderObject();
+  if (object == nullptr || object->type != blender::OB_CAMERA || object->data == nullptr) {
+    return false;
+  }
+  const blender::Camera *camera = reinterpret_cast<const blender::Camera *>(object->data);
+  return (camera->gameflag & GAME_CAM_VIEWPORT_CIRCLE) != 0;
 }
 
 int KX_Camera::GetViewportLeft() const

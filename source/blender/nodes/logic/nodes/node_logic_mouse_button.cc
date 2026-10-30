@@ -42,7 +42,7 @@ static void sync_mouse_button_socket_default(bNode &node)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>(""_ustr, "Button"_ustr)
+  b.add_input<decl::String>("Button"_ustr)
       .default_value("LEFTMOUSE")
       .custom_draw([](CustomSocketDrawParams &params) {
         if (params.socket.is_directly_linked()) {
@@ -59,6 +59,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout.prop(ptr, "input_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "use_ui_input", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

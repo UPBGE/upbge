@@ -43,6 +43,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 class PHY_IConstraint;
@@ -70,6 +71,26 @@ struct PHY_CachedCollisionContact {
   int contact_count = 0;
   std::vector<MT_Vector3> points;
   std::vector<MT_Vector3> normals;
+};
+
+/**
+ * Snapshot captured immediately before an automatically breakable rigid-body
+ * constraint is removed by the physics backend. Object names are captured
+ * rather than raw pointers because collision callbacks and scene teardown can
+ * destroy an object before the following fixed logic step consumes the event.
+ *
+ * `applied_impulse` deliberately has the same aggregate meaning as the
+ * backend's breaking threshold. `linear_impulse` and `angular_impulse` split
+ * that aggregate into the corresponding solver-lambda contributions.
+ */
+struct PHY_RigidBodyConstraintBreakEvent {
+  std::string owner_name;
+  std::string target_name;
+  std::string constraint_name;
+  MT_Vector3 anchor_position = MT_Vector3(0.0f, 0.0f, 0.0f);
+  float linear_impulse = 0.0f;
+  float angular_impulse = 0.0f;
+  float applied_impulse = 0.0f;
 };
 
 /**
@@ -105,6 +126,11 @@ struct PHY_RayQuerySettings {
   unsigned char detail_flags = PHY_RAY_QUERY_DETAIL_NONE;
   bool include_sensors = false;
   bool hit_back_faces = false;
+};
+
+enum class PHY_RayBatchExecution : uint8_t {
+  Sequential = 0,
+  Adaptive,
 };
 
 enum class PHY_ShapeCastType : uint8_t {
@@ -310,10 +336,44 @@ class PHY_IPhysicsEnvironment {
                                             bool replicate_dupli = false) = 0;
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl) = 0;
   virtual bool RemoveConstraintById(int constraintid, bool free) = 0;
+
+  /**
+   * Remove multiple constraints and report the IDs that were removed.
+   *
+   * The default implementation preserves compatibility for physics backends
+   * without a native batch API. Backends with a batch API should override this
+   * method so one call can amortize backend locking and bookkeeping.
+   *
+   * `constraintids` and `r_removed_constraintids` must be different vectors.
+   */
+  virtual void RemoveConstraintsByIds(const std::vector<int> &constraintids,
+                                      bool free,
+                                      std::vector<int> &r_removed_constraintids)
+  {
+    r_removed_constraintids.clear();
+    r_removed_constraintids.reserve(constraintids.size());
+    for (const int constraintid : constraintids) {
+      if (RemoveConstraintById(constraintid, free)) {
+        r_removed_constraintids.push_back(constraintid);
+      }
+    }
+  }
+
   virtual bool IsRigidBodyConstraintEnabled(int constraintid) = 0;
   virtual float GetAppliedImpulse(int constraintid)
   {
     return 0.0f;
+  }
+
+  /**
+   * Transfer automatic rigid-body constraint-break snapshots generated since
+   * the last call. Backends without this capability leave `r_events`
+   * unchanged. Manual constraint removal never generates these events.
+   */
+  virtual void ConsumeRigidBodyConstraintBreakEvents(
+      std::vector<PHY_RigidBodyConstraintBreakEvent> &r_events)
+  {
+    (void)r_events;
   }
 
   // complex constraint for vehicles
@@ -339,6 +399,28 @@ class PHY_IPhysicsEnvironment {
                        std::vector<PHY_RayCastResult> &results)
   {
     return false;
+  }
+
+  /**
+   * Synchronous index-preserving ray batch. Backends without a specialized implementation use
+   * the bounded single-ray query sequentially. Adaptive backends may parallelize internally, but
+   * must finish every query before returning and must never reorder output slots.
+   */
+  virtual bool RayCastBatch(const std::vector<PHY_RayQuerySettings> &settings,
+                            PHY_IRayCastFilterCallback &filterCallback,
+                            const PHY_RayBatchExecution execution,
+                            std::vector<std::vector<PHY_RayCastResult>> &results)
+  {
+    (void)execution;
+    results.clear();
+    results.resize(settings.size());
+    for (size_t index = 0; index < settings.size(); index++) {
+      if (!RayCast(settings[index], filterCallback, results[index])) {
+        results.clear();
+        return false;
+      }
+    }
+    return true;
   }
 
   /** Declare mesh data that must be retained for detailed ray-query results. */
@@ -453,6 +535,7 @@ class PHY_IPhysicsEnvironment {
       KX_GameObject *gameobj2,
       const MT_Vector3 &pivotLocal,
       const MT_Matrix3x3 &basisLocal,
-      const PHY_RigidBodyConstraintSettings &settings) = 0;
+      const PHY_RigidBodyConstraintSettings &settings,
+      const std::string &constraint_name = std::string()) = 0;
   virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) = 0;
 };

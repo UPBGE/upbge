@@ -9,9 +9,12 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::String>("Scene"_ustr).default_value("");
-  b.add_output<decl::Execution>("Done"_ustr);
+  b.add_input<decl::Execution>("Flow"_ustr).description("Incoming execution pulse");
+  b.add_input<decl::String>("Scene"_ustr)
+      .default_value("")
+      .description("Name of an inactive Blender scene to merge into this tree's runtime scene");
+  b.add_output<decl::Execution>("Done"_ustr)
+      .description("Continues after the scene merge command is issued");
 }
 
 static void node_register()

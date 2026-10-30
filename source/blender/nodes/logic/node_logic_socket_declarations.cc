@@ -255,7 +255,6 @@ bNodeSocket &Int::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &so
   }
   this->set_common_flags(socket);
   bNodeSocketValueInt &value = *static_cast<bNodeSocketValueInt *>(socket.default_value);
-  value.subtype = this->subtype;
   value.min = this->soft_min_value;
   value.max = this->soft_max_value;
   return socket;
@@ -326,6 +325,7 @@ bNodeSocket &Float::build(bNodeTree &ntree, bNode &node) const
       ntree, node, this->in_out, float_socket_idname, this->identifier.ref(), this->name.ref());
   this->set_common_flags(socket);
   bNodeSocketValueFloat &value = *static_cast<bNodeSocketValueFloat *>(socket.default_value);
+  value.subtype = this->subtype;
   value.min = this->soft_min_value;
   value.max = this->soft_max_value;
   value.value = this->default_value;
@@ -385,7 +385,11 @@ bNodeSocket &String::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
 
 bool String::can_connect(const bNodeSocket &socket) const
 {
-  return sockets_can_connect(*this, socket) && socket.type == SOCK_STRING;
+  /* A text input also takes an object or a number (as its text), as the tree's link rule
+   * allows. */
+  return sockets_can_connect(*this, socket) &&
+         (socket.type == SOCK_STRING ||
+          (this->in_out == SOCK_IN && ELEM(socket.type, SOCK_OBJECT, SOCK_INT, SOCK_FLOAT)));
 }
 
 bNodeSocket &Vector::build(bNodeTree &ntree, bNode &node) const
@@ -534,6 +538,9 @@ bNodeSocket &Generic::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket
   if (!socket_has_idname(socket, generic_socket_idname)) {
     BLI_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
+  }
+  if (StringRef(socket.name) != this->name.ref()) {
+    STRNCPY(socket.name, this->name.c_str());
   }
   this->set_common_flags(socket);
   return socket;

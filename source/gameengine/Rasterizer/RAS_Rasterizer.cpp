@@ -44,7 +44,12 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
+#include "GPU_shader.hh"
 #include "GPU_state.hh"
+
+#include "../gpu/intern/gpu_shader_create_info.hh"
+
+#include "CM_Message.h"
 
 using namespace blender;
 
@@ -87,6 +92,11 @@ inline void RAS_Rasterizer::FrameBuffers::Update(RAS_ICanvas *canvas)
 
 inline RAS_FrameBuffer *RAS_Rasterizer::FrameBuffers::GetFrameBuffer(FrameBufferType fbtype)
 {
+  if (!m_frameBuffers[fbtype] && fbtype == RAS_FRAMEBUFFER_FILTER1) {
+    /* The camera passes attach their view's own color and depth to FILTER1 before every use
+     * (KX_Scene::RenderAfterCameraSetup), so it needs no full-window textures of its own. */
+    m_frameBuffers[fbtype] = new RAS_FrameBuffer(fbtype);
+  }
   if (!m_frameBuffers[fbtype]) {
     // The offscreen need to be created now.
 
@@ -175,6 +185,10 @@ RAS_Rasterizer::RAS_Rasterizer()
 
 RAS_Rasterizer::~RAS_Rasterizer()
 {
+  /* Freed with the frame buffers, while the game's GPU context is still there. */
+  if (m_circleShader) {
+    GPU_shader_free(m_circleShader);
+  }
 }
 
 void RAS_Rasterizer::InitScreenShaders()
@@ -302,9 +316,11 @@ RAS_DebugDraw &RAS_Rasterizer::GetDebugDraw()
   return m_debugDraw;
 }
 
-void RAS_Rasterizer::FlushDebugDraw(RAS_ICanvas *canvas)
+void RAS_Rasterizer::FlushDebugDraw(RAS_ICanvas *canvas,
+                                    const RAS_DebugDraw::FixedSnapshotMode fixed_snapshot_mode,
+                                    const void *fixed_snapshot_context)
 {
-  m_debugDraw.Flush(this, canvas);
+  m_debugDraw.Flush(this, canvas, fixed_snapshot_mode, fixed_snapshot_context);
 }
 
 void RAS_Rasterizer::UpdateFrameBuffers(RAS_ICanvas *canvas)
@@ -347,6 +363,119 @@ void RAS_Rasterizer::DrawFrameBuffer(RAS_FrameBuffer *srcFrameBuffer,
 
   immUnbindProgram();
   GPU_texture_unbind(tex);
+}
+
+void RAS_Rasterizer::FillOpaqueAlpha()
+{
+  const GPUWriteMask write_mask = GPU_write_mask_get();
+  const GPUDepthTest depth_test = GPU_depth_test_get();
+  const GPUBlend blend = GPU_blend_get();
+  GPU_write_mask(GPU_WRITE_ALPHA);
+  GPU_depth_test(GPU_DEPTH_NONE);
+  GPU_blend(GPU_BLEND_NONE);
+
+  GPUVertFormat *vert_format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  GPU_matrix_reset();
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  float mat[4][4];
+  unit_m4(mat);
+  immUniformMatrix4fv("ModelViewProjectionMatrix", mat);
+  immUniformColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+  /* Full screen triangle, as in DrawFrameBuffer. */
+  immBegin(GPU_PRIM_TRIS, 3);
+  immVertex2f(pos, -1.0f, -1.0f);
+  immVertex2f(pos, 3.0f, -1.0f);
+  immVertex2f(pos, -1.0f, 3.0f);
+  immEnd();
+  immUnbindProgram();
+
+  GPU_write_mask(write_mask);
+  GPU_depth_test(depth_test);
+  GPU_blend(blend);
+}
+
+/* The circle shader: the picture inside the oval filling the viewport, premultiplied by its
+ * coverage (from the distance to the edge in pixels: a one pixel smooth edge). Plain GLSL built
+ * at run time, as the 2D filters are. */
+static const char *circle_vertex_source = R"(
+void main()
+{
+  gl_Position = vec4(pos, 0.0, 1.0);
+  uv_interp = texCoord;
+}
+)";
+
+static const char *circle_fragment_source = R"(
+void main()
+{
+  vec2 p = uv_interp * 2.0 - 1.0;
+  float d = length(p) - 1.0;
+  float coverage = clamp(0.5 - d / max(fwidth(d), 1e-6), 0.0, 1.0);
+  /* The picture over opaque black, as the rectangle's paste gives. */
+  fragColor = vec4(texture(image, uv_interp).rgb * coverage, coverage);
+}
+)";
+
+bool RAS_Rasterizer::DrawFrameBufferCircle(RAS_FrameBuffer *srcFrameBuffer)
+{
+  if (m_circleShader == nullptr) {
+    if (m_circleShaderFailed) {
+      return false;
+    }
+    using namespace blender::gpu::shader;
+    /* GPU_shader_create_from_info_python declares the samplers only for this name (as for
+     * RAS_Shader's 2D filters). */
+    ShaderCreateInfo info("pyGPU_Shader");
+    info.vertex_in(0, Type::float2_t, "pos");
+    info.vertex_in(1, Type::float2_t, "texCoord");
+    StageInterfaceInfo iface("ras_viewport_circle_iface", "");
+    iface.smooth(Type::float2_t, "uv_interp");
+    info.vertex_out(iface);
+    info.sampler(0, ImageType::Float2D, "image");
+    info.fragment_out(0, Type::float4_t, "fragColor");
+    info.vertex_source_generated = circle_vertex_source;
+    info.fragment_source_generated = circle_fragment_source;
+    m_circleShader = GPU_shader_create_from_info_python(
+        reinterpret_cast<const GPUShaderCreateInfo *>(&info), false);
+    if (m_circleShader == nullptr) {
+      m_circleShaderFailed = true;
+      CM_Error("the round viewport shader could not be built: round views are drawn whole");
+      return false;
+    }
+  }
+
+  const GPUWriteMask write_mask = GPU_write_mask_get();
+  const GPUDepthTest depth_test = GPU_depth_test_get();
+  const GPUBlend blend = GPU_blend_get();
+  GPU_write_mask(GPU_WRITE_COLOR);
+  GPU_depth_test(GPU_DEPTH_NONE);
+  /* Coverage 0 keeps what is behind (the corners), 1 replaces it with alpha 1. */
+  GPU_blend(GPU_BLEND_ALPHA_PREMULT);
+
+  GPUVertFormat *vert_format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(vert_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint texco = GPU_vertformat_attr_add(
+      vert_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
+  immBindShader(m_circleShader);
+  blender::gpu::Texture *tex = GPU_framebuffer_color_texture(srcFrameBuffer->GetFrameBuffer());
+  immBindTexture("image", tex);
+  /* Full screen triangle, as in DrawFrameBuffer. */
+  immBegin(GPU_PRIM_TRIS, 3);
+  immAttr2f(texco, 0.0f, 0.0f);
+  immVertex2f(pos, -1.0f, -1.0f);
+  immAttr2f(texco, 2.0f, 0.0f);
+  immVertex2f(pos, 3.0f, -1.0f);
+  immAttr2f(texco, 0.0f, 2.0f);
+  immVertex2f(pos, -1.0f, 3.0f);
+  immEnd();
+  immUnbindProgram();
+  GPU_texture_unbind(tex);
+
+  GPU_write_mask(write_mask);
+  GPU_depth_test(depth_test);
+  GPU_blend(blend);
+  return true;
 }
 
 void RAS_Rasterizer::DrawFrameBuffer(RAS_ICanvas *canvas, RAS_FrameBuffer *frameBuffer)
@@ -786,7 +915,7 @@ bool RAS_Rasterizer::RayHit(struct KX_ClientObjectInfo *client,
   }
 }
 
-bool RAS_Rasterizer::NeedRayCast(KX_ClientObjectInfo */*info*/, void */*data*/)
+bool RAS_Rasterizer::NeedRayCast(KX_ClientObjectInfo * /*info*/, void * /*data*/)
 {
   return true;
 }
@@ -794,7 +923,8 @@ bool RAS_Rasterizer::NeedRayCast(KX_ClientObjectInfo */*info*/, void */*data*/)
 void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[16])
 {
   if (objectdrawmode & RAS_IPolyMaterial::BILLBOARD_SCREENALIGNED ||
-      objectdrawmode & RAS_IPolyMaterial::BILLBOARD_AXISALIGNED) {
+      objectdrawmode & RAS_IPolyMaterial::BILLBOARD_AXISALIGNED)
+  {
     // rotate the billboard/halo
     // page 360/361 3D Game Engine Design, David Eberly for a discussion
     // on screen aligned and axis aligned billboards

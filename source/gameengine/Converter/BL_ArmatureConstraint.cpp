@@ -262,14 +262,24 @@ bool BL_ArmatureConstraint::Match(const std::string &posechannel, const std::str
   return ((m_posechannel->name == posechannel) && (m_constraint->name == constraint));
 }
 
+void BL_ArmatureConstraint::MarkPoseDirty()
+{
+  if (m_armature != nullptr) {
+    m_armature->MarkPoseDirty();
+  }
+}
+
 void BL_ArmatureConstraint::SetTarget(KX_GameObject *target)
 {
   if (m_blendtarget) {
     if (target != m_target) {
-      m_target->UnregisterObject(m_armature);
+      if (m_target != nullptr) {
+        m_target->UnregisterObject(m_armature);
+      }
       m_target = target;
       if (m_target)
         m_target->RegisterObject(m_armature);
+      MarkPoseDirty();
     }
   }
 }
@@ -278,10 +288,13 @@ void BL_ArmatureConstraint::SetSubtarget(KX_GameObject *subtarget)
 {
   if (m_blendsubtarget) {
     if (subtarget != m_subtarget) {
-      m_subtarget->UnregisterObject(m_armature);
+      if (m_subtarget != nullptr) {
+        m_subtarget->UnregisterObject(m_armature);
+      }
       m_subtarget = subtarget;
       if (m_subtarget)
         m_subtarget->RegisterObject(m_armature);
+      MarkPoseDirty();
     }
   }
 }
@@ -436,7 +449,7 @@ int BL_ArmatureConstraint::py_attr_setattr(EXP_PyObjectPlus *self_v,
             "constraint.enforce = float: BL_ArmatureConstraint, expected a float between 0 and 1");
         return PY_SET_ATTR_FAIL;
       }
-      constraint->enforce = dval;
+      self->SetInfluence(dval);
       return PY_SET_ATTR_SUCCESS;
 
     case BCA_HEADTAIL:
@@ -448,6 +461,7 @@ int BL_ArmatureConstraint::py_attr_setattr(EXP_PyObjectPlus *self_v,
         return PY_SET_ATTR_FAIL;
       }
       constraint->headtail = dval;
+      self->MarkPoseDirty();
       return PY_SET_ATTR_SUCCESS;
 
     case BCA_TARGET:
@@ -473,6 +487,7 @@ int BL_ArmatureConstraint::py_attr_setattr(EXP_PyObjectPlus *self_v,
       }
       self->m_constraint->flag = eBConstraint_Flags(self->m_constraint->flag & ~CONSTRAINT_OFF) |
                                  ((ival) ? eBConstraint_Flags(0) : eBConstraint_Flags(CONSTRAINT_OFF));
+      self->MarkPoseDirty();
       return PY_SET_ATTR_SUCCESS;
 
     case BCA_IKWEIGHT:
@@ -491,7 +506,7 @@ int BL_ArmatureConstraint::py_attr_setattr(EXP_PyObjectPlus *self_v,
                             "between 0 and 1");
             return PY_SET_ATTR_FAIL;
           }
-          ikconstraint->weight = dval;
+          self->SetWeight(dval);
           return PY_SET_ATTR_SUCCESS;
 
         case BCA_IKDIST:
@@ -503,6 +518,7 @@ int BL_ArmatureConstraint::py_attr_setattr(EXP_PyObjectPlus *self_v,
             return PY_SET_ATTR_FAIL;
           }
           ikconstraint->dist = dval;
+          self->MarkPoseDirty();
           return PY_SET_ATTR_SUCCESS;
 
         case BCA_IKMODE:
@@ -514,6 +530,7 @@ int BL_ArmatureConstraint::py_attr_setattr(EXP_PyObjectPlus *self_v,
             return PY_SET_ATTR_FAIL;
           }
           ikconstraint->mode = eDistLimit_Modes(ival);
+          self->MarkPoseDirty();
           return PY_SET_ATTR_SUCCESS;
       }
       // should not come here

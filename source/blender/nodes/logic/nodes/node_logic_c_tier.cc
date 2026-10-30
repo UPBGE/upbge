@@ -682,9 +682,9 @@ static void draw_get_material_socket(CustomSocketDrawParams &params)
 
 static void declare_get_bone_attribute(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Object>(""_ustr, "Object"_ustr);
-  b.add_input<decl::String>(""_ustr, "Bone Name"_ustr).default_value("Bone");
-  b.add_output<decl::String>(""_ustr, "Value"_ustr);
+  b.add_input<decl::Object>("Object"_ustr);
+  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
+  b.add_output<decl::String>("Value"_ustr);
   b.add_output<decl::Vector>("Vector"_ustr);
   b.add_output<decl::Bool>("Bool"_ustr);
 }
@@ -692,8 +692,8 @@ static void declare_get_bone_attribute(NodeDeclarationBuilder &b)
 static void declare_set_bone_attribute(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::Object>(""_ustr, "Object"_ustr);
-  b.add_input<decl::String>(""_ustr, "Bone Name"_ustr).default_value("Bone");
+  b.add_input<decl::Object>("Object"_ustr);
+  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
   b.add_input<decl::Bool>("Bool"_ustr);
   b.add_output<decl::Execution>("Done"_ustr);
 }
@@ -708,8 +708,8 @@ static void declare_set_constraint_target(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Armature"_ustr);
-  b.add_input<decl::String>(""_ustr, "Bone"_ustr).default_value("Bone");
-  b.add_input<decl::String>(""_ustr, "Constraint"_ustr).default_value("Constraint");
+  b.add_input<decl::String>("Bone"_ustr).default_value("Bone");
+  b.add_input<decl::String>("Constraint"_ustr).default_value("Constraint");
   b.add_input<decl::Object>("Target"_ustr);
   b.add_output<decl::Execution>("Done"_ustr);
 }
@@ -718,10 +718,10 @@ static void declare_set_constraint_attribute(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Armature"_ustr);
-  b.add_input<decl::String>(""_ustr, "Bone"_ustr).default_value("Bone");
-  b.add_input<decl::String>(""_ustr, "Constraint"_ustr).default_value("Constraint");
+  b.add_input<decl::String>("Bone"_ustr).default_value("Bone");
+  b.add_input<decl::String>("Constraint"_ustr).default_value("Constraint");
   b.add_input<decl::String>("Attribute"_ustr).default_value("influence");
-  b.add_input<decl::Generic>(""_ustr, "Value"_ustr);
+  b.add_input<decl::Generic>("Value"_ustr);
   b.add_output<decl::Execution>("Done"_ustr);
 }
 
@@ -1179,7 +1179,7 @@ static bool geometry_setter_tree_is_bound_to_object(const bNodeTree &tree, const
        binding != nullptr;
        binding = binding->next)
   {
-    if (STREQ(binding->tree_name, tree.id.name + 2)) {
+    if (binding->tree == &tree) {
       return true;
     }
   }
@@ -3033,7 +3033,7 @@ static void declare_vector_to_rotation(NodeDeclarationBuilder &b)
 
 static void declare_file_path(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>(""_ustr, "Value"_ustr);
+  b.add_input<decl::String>("Value"_ustr);
   b.add_output<decl::String>("Path"_ustr);
 }
 
@@ -3061,12 +3061,6 @@ static void declare_get_image(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Image>("Image"_ustr);
   b.add_output<decl::Image>("Image"_ustr);
-}
-
-static void declare_get_font(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Font>("Font"_ustr);
-  b.add_output<decl::Font>("Font"_ustr);
 }
 
 static void declare_get_object_id(NodeDeclarationBuilder &b)
@@ -3147,15 +3141,6 @@ static void declare_load_file_content(NodeDeclarationBuilder &b)
   b.add_output<decl::String>("Item"_ustr);
 }
 
-static void declare_set_custom_cursor(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::Image>("Texture"_ustr);
-  b.add_input<decl::Vector>("Size"_ustr).default_value({30.0f, 30.0f, 0.0f});
-  b.add_output<decl::Execution>("Done"_ustr);
-  b.add_output<decl::UI>("Cursor"_ustr);
-}
-
 static void setup_node_type(bke::bNodeType &ntype,
                             const char *idname,
                             const int nclass,
@@ -3176,11 +3161,21 @@ static void setup_node_type(bke::bNodeType &ntype,
     bke::node_register_type(ntype); \
   }
 
-REGISTER_C_TIER_NODE(register_get_bone_attribute,
-                     "LogicNativeGetBoneAttribute",
-                     NODE_CLASS_OP_VECTOR,
-                     declare_get_bone_attribute,
-                     layout_bone_attribute)
+/* The bone nodes are wide enough for their socket names (Bone Name, Constraint). */
+#define REGISTER_C_TIER_WIDE_NODE(func, idname, nclass, declare_fn, layout_fn) \
+  static void func() \
+  { \
+    static bke::bNodeType ntype; \
+    setup_node_type(ntype, idname, nclass, declare_fn, layout_fn); \
+    bke::node_type_size(ntype, 190, 140, NODE_DEFAULT_MAX_WIDTH); \
+    bke::node_register_type(ntype); \
+  }
+
+REGISTER_C_TIER_WIDE_NODE(register_get_bone_attribute,
+                          "LogicNativeGetBoneAttribute",
+                          NODE_CLASS_OP_VECTOR,
+                          declare_get_bone_attribute,
+                          layout_bone_attribute)
 
 static void register_set_bone_attribute()
 {
@@ -3190,20 +3185,21 @@ static void register_set_bone_attribute()
                   NODE_CLASS_OP_VECTOR,
                   declare_set_bone_attribute,
                   layout_bone_set_attribute);
+  bke::node_type_size(ntype, 190, 140, NODE_DEFAULT_MAX_WIDTH);
   ntype.initfunc = init_set_bone_attribute;
   bke::node_register_type(ntype);
 }
 
-REGISTER_C_TIER_NODE(register_set_constraint_target,
-                     "LogicNativeSetBoneConstraintTarget",
-                     NODE_CLASS_OP_VECTOR,
-                     declare_set_constraint_target,
-                     nullptr)
-REGISTER_C_TIER_NODE(register_set_constraint_attribute,
-                     "LogicNativeSetBoneConstraintAttribute",
-                     NODE_CLASS_OP_VECTOR,
-                     declare_set_constraint_attribute,
-                     nullptr)
+REGISTER_C_TIER_WIDE_NODE(register_set_constraint_target,
+                          "LogicNativeSetBoneConstraintTarget",
+                          NODE_CLASS_OP_VECTOR,
+                          declare_set_constraint_target,
+                          nullptr)
+REGISTER_C_TIER_WIDE_NODE(register_set_constraint_attribute,
+                          "LogicNativeSetBoneConstraintAttribute",
+                          NODE_CLASS_OP_VECTOR,
+                          declare_set_constraint_attribute,
+                          nullptr)
 REGISTER_C_TIER_NODE(register_get_material_from_slot,
                      "LogicNativeGetMaterialFromSlot",
                      NODE_CLASS_INPUT,
@@ -3406,8 +3402,6 @@ REGISTER_C_TIER_NODE(
     register_get_sound, "LogicNativeGetSound", NODE_CLASS_INPUT, declare_get_sound, nullptr)
 REGISTER_C_TIER_NODE(
     register_get_image, "LogicNativeGetImage", NODE_CLASS_INPUT, declare_get_image, nullptr)
-REGISTER_C_TIER_NODE(
-    register_get_font, "LogicNativeGetFont", NODE_CLASS_INPUT, declare_get_font, nullptr)
 REGISTER_C_TIER_NODE(register_get_object_id,
                      "LogicNativeGetObjectID",
                      NODE_CLASS_INPUT,
@@ -3444,11 +3438,6 @@ REGISTER_C_TIER_NODE(register_load_file_content,
                      NODE_CLASS_OP_VECTOR,
                      declare_load_file_content,
                      nullptr)
-REGISTER_C_TIER_NODE(register_set_custom_cursor,
-                     "LogicNativeSetCustomCursor",
-                     NODE_CLASS_OP_VECTOR,
-                     declare_set_custom_cursor,
-                     nullptr)
 
 #undef REGISTER_C_TIER_NODE
 
@@ -3483,7 +3472,6 @@ static void node_register()
   register_start_speaker();
   register_get_sound();
   register_get_image();
-  register_get_font();
   register_get_object_id();
   register_get_axis_vector();
   register_draw_line();
@@ -3493,7 +3481,6 @@ static void node_register()
   register_join_path();
   register_get_master_folder();
   register_load_file_content();
-  register_set_custom_cursor();
 }
 
 NOD_REGISTER_NODE(node_register)

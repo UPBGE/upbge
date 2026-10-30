@@ -171,7 +171,8 @@ class DummyPhysicsEnvironment : public PHY_IPhysicsEnvironment {
       KX_GameObject *gameobj2,
       const MT_Vector3 &pivotLocal,
       const MT_Matrix3x3 &basisLocal,
-      const PHY_RigidBodyConstraintSettings &settings) override
+      const PHY_RigidBodyConstraintSettings &settings,
+      const std::string &constraint_name = std::string()) override
   {
     return -1;
   }

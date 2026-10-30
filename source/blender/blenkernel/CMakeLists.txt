@@ -121,6 +121,9 @@ set(SRC
   intern/fluid.cc
   intern/fmodifier.cc
   intern/freestyle.cc
+  intern/game_input_map.cc
+  intern/game_inventory_rules.cc
+  intern/game_persistence.cc
   intern/geometry_compare.cc
   intern/geometry_component_curves.cc
   intern/geometry_component_edit_data.cc
@@ -409,6 +412,10 @@ set(SRC
   BKE_file_handler.hh
   BKE_fluid.h
   BKE_freestyle.h
+  BKE_game_input_map.hh
+  BKE_game_inventory_rules.hh
+  BKE_game_persistence.hh
+  BKE_game_physics.hh
   BKE_geometry_compare.hh
   BKE_geometry_fields.hh
   BKE_geometry_nodes_gizmos_transforms.hh
@@ -783,6 +790,7 @@ if(WITH_GTESTS)
     intern/deform_test.cc
     intern/fcurve_test.cc
     intern/file_handler_test.cc
+    intern/game_persistence_test.cc
     intern/grease_pencil_test.cc
     intern/idprop_serialize_test.cc
     intern/idprop_test.cc

@@ -191,6 +191,10 @@ void KX_BlenderCanvas::SetMouseState(RAS_MouseState mousestate)
      break;
     }
   }
+  /* Wayland: the engine grabs the pointer so that a hidden cursor can be moved. */
+  if (KX_KetsjiEngine *engine = KX_GetActiveEngine(); engine && engine->GetCanvas() == this) {
+    engine->CursorShown(mousestate != MOUSE_INVISIBLE);
+  }
 }
 
 //	(0,0) is top left, (width,height) is bottom right

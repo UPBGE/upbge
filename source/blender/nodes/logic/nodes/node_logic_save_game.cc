@@ -11,8 +11,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Int>("Slot"_ustr).default_value(0);
-  b.add_input<decl::String>("Path"_ustr).default_value("");
+  b.add_input<decl::String>("Path"_ustr)
+      .default_value("")
+      .description(
+          "Checkpoint file or directory; use the same explicit path in different scenes for "
+          "cross-scene loading");
   b.add_output<decl::Execution>("Done"_ustr);
+  b.add_output<decl::Bool>("Success"_ustr);
 }
 
 static void node_register()

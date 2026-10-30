@@ -18,7 +18,94 @@ const std::string &empty_debug_name()
   return empty;
 }
 
+uint32_t handle_hash(const void *pointer, const LN_DenseHandleKind kind)
+{
+  /* Fibonacci hashing: the multiply spreads the aligned pointer bits over the high bits. */
+  const uint64_t key = uint64_t(uintptr_t(pointer)) ^ uint64_t(kind);
+  return uint32_t((key * 0x9E3779B97F4A7C15ull) >> 32);
+}
+
+/** Up to this many handles, scanning them is faster than hashing (measured). */
+constexpr size_t MAX_SCANNED_HANDLES = 6;
+
 }  // namespace
+
+inline uint32_t LN_DenseIdRegistry::FindHandle(const LN_DenseHandleKind kind,
+                                               const void *pointer,
+                                               uint32_t *r_slot) const
+{
+  if (m_handleIndex.empty()) {
+    for (uint32_t index = 0; index < m_handles.size(); index++) {
+      if (m_handles[index].pointer == pointer && m_handles[index].kind == kind) {
+        return index;
+      }
+    }
+    return LN_INVALID_INDEX;
+  }
+  const uint32_t mask = uint32_t(m_handleIndex.size()) - 1;
+  for (uint32_t slot = handle_hash(pointer, kind) & mask;; slot = (slot + 1) & mask) {
+    const HandleIndexSlot &entry = m_handleIndex[slot];
+    if (entry.pointer == nullptr) {
+      return LN_INVALID_INDEX;
+    }
+    if (entry.pointer == pointer && entry.kind == kind) {
+      if (r_slot) {
+        *r_slot = slot;
+      }
+      return entry.handle_index;
+    }
+  }
+}
+
+void LN_DenseIdRegistry::IndexHandle(const uint32_t handle_index)
+{
+  const auto insert = [this](const uint32_t index) {
+    const HandleEntry &entry = m_handles[index];
+    const uint32_t mask = uint32_t(m_handleIndex.size()) - 1;
+    uint32_t slot = handle_hash(entry.pointer, entry.kind) & mask;
+    while (m_handleIndex[slot].pointer != nullptr) {
+      slot = (slot + 1) & mask;
+    }
+    m_handleIndex[slot] = {entry.pointer, index, entry.kind};
+    m_handleIndexCount++;
+  };
+  if ((m_handleIndexCount + 1) * 4 <= m_handleIndex.size()) {
+    insert(handle_index);
+    return;
+  }
+  /* Create or grow the index, then add every live entry (this includes `handle_index`) and list
+   * the free ones. */
+  m_handleIndex.assign(std::max<size_t>(32, m_handleIndex.size() * 2), HandleIndexSlot());
+  m_handleIndexCount = 0;
+  m_freeHandles.clear();
+  for (uint32_t index = 0; index < m_handles.size(); index++) {
+    if (m_handles[index].pointer != nullptr) {
+      insert(index);
+    }
+    else {
+      m_freeHandles.push_back(index);
+    }
+  }
+}
+
+void LN_DenseIdRegistry::UnindexHandleSlot(uint32_t slot)
+{
+  /* Backward-shift deletion: pull later entries of the probe run into the hole unless their home
+   * slot lies after it, so lookups never need tombstones. */
+  const uint32_t mask = uint32_t(m_handleIndex.size()) - 1;
+  for (uint32_t next = (slot + 1) & mask; m_handleIndex[next].pointer != nullptr;
+       next = (next + 1) & mask)
+  {
+    const HandleIndexSlot &entry = m_handleIndex[next];
+    const uint32_t home = handle_hash(entry.pointer, entry.kind) & mask;
+    if (((next - home) & mask) >= ((next - slot) & mask)) {
+      m_handleIndex[slot] = entry;
+      slot = next;
+    }
+  }
+  m_handleIndex[slot] = HandleIndexSlot();
+  m_handleIndexCount--;
+}
 
 template<typename IdT>
 IdT LN_DenseIdRegistry::InternInTable(std::unordered_map<std::string, uint32_t> &map,
@@ -43,46 +130,55 @@ IdT LN_DenseIdRegistry::InternInTable(std::unordered_map<std::string, uint32_t> 
   return id;
 }
 
+uint32_t LN_DenseIdRegistry::AddHandle(const LN_DenseHandleKind kind,
+                                       void *pointer,
+                                       const std::string &debug_name)
+{
+  uint32_t index = 0;
+  if (m_handleIndex.empty()) {
+    /* Few handles: reuse the first free entry, if any. */
+    while (index < m_handles.size() && m_handles[index].pointer != nullptr) {
+      index++;
+    }
+  }
+  else if (!m_freeHandles.empty()) {
+    index = m_freeHandles.back();
+    m_freeHandles.pop_back();
+  }
+  else {
+    index = uint32_t(m_handles.size());
+  }
+  if (index < m_handles.size()) {
+    HandleEntry &entry = m_handles[index];
+    entry.pointer = pointer;
+    entry.kind = kind;
+    entry.generation++;
+    entry.debug_name = debug_name;
+  }
+  else {
+    m_handles.push_back({pointer, kind, 1, debug_name});
+  }
+  if (!m_handleIndex.empty() || m_handles.size() > MAX_SCANNED_HANDLES) {
+    IndexHandle(index);
+  }
+  return index;
+}
+
 template<typename HandleT>
 HandleT LN_DenseIdRegistry::MakeHandle(const LN_DenseHandleKind kind,
                                        void *pointer,
                                        const std::string &debug_name)
 {
   HandleT handle;
+  handle.kind = kind;
   if (pointer == nullptr) {
-    handle.kind = kind;
     return handle;
   }
-
-  for (uint32_t index = 0; index < m_handles.size(); index++) {
-    HandleEntry &entry = m_handles[index];
-    if (entry.kind == kind && entry.pointer == pointer) {
-      handle.kind = kind;
-      handle.index = index;
-      handle.generation = entry.generation;
-      return handle;
-    }
+  handle.index = FindHandle(kind, pointer);
+  if (handle.index == LN_INVALID_INDEX) {
+    handle.index = AddHandle(kind, pointer, debug_name);
   }
-
-  for (uint32_t index = 0; index < m_handles.size(); index++) {
-    HandleEntry &entry = m_handles[index];
-    if (entry.pointer == nullptr) {
-      entry.pointer = pointer;
-      entry.kind = kind;
-      entry.generation++;
-      entry.debug_name = debug_name;
-      handle.kind = kind;
-      handle.index = index;
-      handle.generation = entry.generation;
-      return handle;
-    }
-  }
-
-  const uint32_t index = uint32_t(m_handles.size());
-  m_handles.push_back({pointer, kind, 1, debug_name});
-  handle.kind = kind;
-  handle.index = index;
-  handle.generation = 1;
+  handle.generation = m_handles[handle.index].generation;
   return handle;
 }
 
@@ -144,6 +240,19 @@ LN_InputCodeId LN_DenseIdRegistry::InternInputCode(const std::string &name)
 LN_ObjectHandle LN_DenseIdRegistry::MakeObjectHandle(void *pointer, const std::string &debug_name)
 {
   return MakeHandle<LN_ObjectHandle>(LN_DenseHandleKind::Object, pointer, debug_name);
+}
+
+LN_ObjectHandle LN_DenseIdRegistry::FindObjectHandle(const void *pointer) const
+{
+  LN_ObjectHandle handle;
+  if (pointer == nullptr) {
+    return handle;
+  }
+  handle.index = FindHandle(LN_DenseHandleKind::Object, pointer);
+  if (handle.index != LN_INVALID_INDEX) {
+    handle.generation = m_handles[handle.index].generation;
+  }
+  return handle;
 }
 
 LN_SceneHandle LN_DenseIdRegistry::MakeSceneHandle(void *pointer, const std::string &debug_name)
@@ -223,11 +332,17 @@ void LN_DenseIdRegistry::InvalidateHandle(const LN_DenseHandleKind kind, const v
   if (kind == LN_DenseHandleKind::None || pointer == nullptr) {
     return;
   }
-  for (HandleEntry &entry : m_handles) {
-    if (entry.kind == kind && entry.pointer == pointer) {
-      entry.pointer = nullptr;
-      entry.generation++;
-    }
+  uint32_t slot = LN_INVALID_INDEX;
+  const uint32_t index = FindHandle(kind, pointer, &slot);
+  if (index == LN_INVALID_INDEX) {
+    return;
+  }
+  HandleEntry &entry = m_handles[index];
+  entry.pointer = nullptr;
+  entry.generation++;
+  if (slot != LN_INVALID_INDEX) {
+    m_freeHandles.push_back(index);
+    UnindexHandleSlot(slot);
   }
 }
 
@@ -246,12 +361,20 @@ void LN_DenseIdRegistry::InvalidateRuntimeTree(void *pointer)
 
 void LN_DenseIdRegistry::ClearSceneLocalState()
 {
-  for (HandleEntry &entry : m_handles) {
+  /* Every entry becomes free; list them in reverse so the lowest indices are reused first. */
+  m_freeHandles.clear();
+  for (uint32_t index = uint32_t(m_handles.size()); index-- > 0;) {
+    HandleEntry &entry = m_handles[index];
     if (entry.pointer != nullptr) {
       entry.pointer = nullptr;
       entry.generation++;
     }
+    if (!m_handleIndex.empty()) {
+      m_freeHandles.push_back(index);
+    }
   }
+  std::fill(m_handleIndex.begin(), m_handleIndex.end(), HandleIndexSlot());
+  m_handleIndexCount = 0;
   for (HandleEntry &entry : m_runtimeTrees) {
     if (entry.pointer != nullptr) {
       entry.pointer = nullptr;
@@ -281,6 +404,9 @@ void LN_DenseIdRegistry::Clear()
   m_sounds.clear();
   m_inputCodes.clear();
   m_handles.clear();
+  m_handleIndex.clear();
+  m_handleIndexCount = 0;
+  m_freeHandles.clear();
   m_runtimeTrees.clear();
 }
 

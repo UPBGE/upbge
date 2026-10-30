@@ -23,7 +23,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Location"_ustr).description(
       "Offset or target position interpreted by the selected pose transform space");
   b.add_input<decl::Rotation>("Rotation"_ustr).description(
-      "Rotation interpreted by the selected pose transform space");
+      "Native Blender bone rotation interpreted by the selected pose transform space");
   b.add_output<decl::Execution>("Done"_ustr);
 }
 

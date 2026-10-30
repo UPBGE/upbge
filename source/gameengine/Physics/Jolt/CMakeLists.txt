@@ -18,11 +18,16 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
+# Stops the program before main() on a processor without the instructions Jolt is built with.
+# A library of its own, built without them (see its CMakeLists.txt).
+add_subdirectory(ProcessorCheck)
+
 # Jolt Physics headers may trigger warnings we cannot fix.
 remove_strict_flags()
 
 set(INC
   .
+  ProcessorCheck
   ../Common
   ../../Common
   ../../Converter
@@ -74,6 +79,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   PRIVATE Jolt
+  PRIVATE ge_physics_jolt_processor_check
 )
 
 if(WITH_PYTHON)
@@ -91,6 +97,7 @@ blender_add_lib(ge_physics_jolt "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 if(WITH_GTESTS)
   set(TEST_SRC
     tests/JoltConstraint_test.cpp
+    tests/JoltProcessorCheck_test.cpp
   )
   set(TEST_LIB
     ${LIB}

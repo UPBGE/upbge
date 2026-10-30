@@ -12,12 +12,16 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
 #include "DEV_InputDevice.h"
+#include "EXP_IntValue.h"
 #include "KX_GameObject.h"
+#include "LN_BonePoseRotation.h"
 #include "LN_CommandBuffer.h"
+#include "LN_Inventory.h"
 #include "LN_Manager.h"
 #include "LN_ParallelTreeExecutor.h"
 #include "LN_Program.h"
@@ -30,6 +34,20 @@
 
 class LN_RuntimeTreeTestAccess {
  public:
+  /** The Inventory node's operation on `slots`, with the list's Inventory Rules. Returns what
+   * did not fit (Leftover) and the outcome. */
+  static std::pair<int32_t, LN_InventoryOutcome> RunInventoryEdit(
+      LN_RuntimeTree &tree,
+      const LN_ValueExpression &edit,
+      std::vector<LN_Value> &slots,
+      const LN_InventoryRules *list_rules)
+  {
+    LN_TickContext context;
+    const auto result = tree.RunInventoryEdit(
+        edit, slots, context, nullptr, list_rules, nullptr, tree.m_gameObject);
+    return {result.amount, result.outcome};
+  }
+
   static void StoreCollisionPayload(LN_RuntimeTree &tree,
                                     KX_GameObject *owner,
                                     KX_GameObject *hit_object,
@@ -90,6 +108,83 @@ class LN_RuntimeTreeTestAccess {
     }
     return false;
   }
+
+  static LN_Rotation ResolveRotation(LN_RuntimeTree &tree,
+                                     const uint32_t expression_index,
+                                     const LN_Rotation &fallback,
+                                     const LN_TickContext &context)
+  {
+    return tree.ResolveRotationExpression(expression_index, fallback, context);
+  }
+
+  static float ResolveFloat(LN_RuntimeTree &tree,
+                            const uint32_t expression_index,
+                            const float fallback,
+                            const LN_TickContext &context)
+  {
+    return tree.ResolveFloatExpression(expression_index, fallback, context);
+  }
+
+  static MT_Vector3 ResolveVector(LN_RuntimeTree &tree,
+                                  const uint32_t expression_index,
+                                  const MT_Vector3 &fallback,
+                                  const LN_TickContext &context)
+  {
+    return tree.ResolveVectorExpression(expression_index, fallback, context);
+  }
+
+  static LN_Value ResolveValue(LN_RuntimeTree &tree,
+                               const uint32_t expression_index,
+                               const LN_TickContext &context)
+  {
+    return tree.ResolveValueExpression(expression_index, LN_Value(), context);
+  }
+
+  static bool ResolveBool(LN_RuntimeTree &tree,
+                          const uint32_t expression_index,
+                          const LN_TickContext &context)
+  {
+    return tree.ResolveBoolExpression(expression_index, false, context);
+  }
+
+  static int32_t ResolveInt(LN_RuntimeTree &tree,
+                            const uint32_t expression_index,
+                            const LN_TickContext &context)
+  {
+    return tree.ResolveIntExpression(expression_index, 0, context);
+  }
+
+  static LN_RuntimeRef MakeObjectRef(LN_RuntimeTree &tree, KX_GameObject &object)
+  {
+    return tree.MakeObjectRef(&object, object.GetName());
+  }
+
+  static std::vector<LN_RuntimeRef> ResolveIgnoreObjectRefs(LN_RuntimeTree &tree,
+                                                            const uint32_t object_expr_index,
+                                                            const uint32_t list_expr_index,
+                                                            const LN_TickContext &context)
+  {
+    return tree.ResolveIgnoreObjectRefs(object_expr_index, list_expr_index, context);
+  }
+
+  static const LN_QueryResult &ResolveQuery(LN_RuntimeTree &tree,
+                                            const uint32_t expression_index,
+                                            const LN_TickContext &context)
+  {
+    return tree.ResolveQueryExpression(expression_index, context);
+  }
+
+  static void SeedQueryResult(LN_RuntimeTree &tree,
+                              const uint32_t state_index,
+                              const uint64_t tick_index,
+                              const LN_QueryResult &result)
+  {
+    LN_RuntimeTree::QueryExpressionRuntimeState &state = tree.QueryExpressionState(state_index);
+    state.cached_tick = tick_index;
+    state.cached_command_execution_key = UINT64_MAX;
+    state.cached_command_ordered = false;
+    state.cached_result = result;
+  }
 };
 
 namespace {
@@ -117,6 +212,32 @@ class TestRootParentRelation : public SG_ParentRelation {
   {
     return new TestRootParentRelation();
   }
+};
+
+class PositionedGameObject {
+ public:
+  explicit PositionedGameObject(const MT_Vector3 &position = MT_Vector3(0.0f, 0.0f, 0.0f))
+      : node(&object, nullptr, callbacks)
+  {
+    node.SetParentRelation(new TestRootParentRelation());
+    object.SetSGNode(&node);
+    SetPosition(position);
+  }
+
+  ~PositionedGameObject()
+  {
+    object.SetSGNode(nullptr);
+  }
+
+  void SetPosition(const MT_Vector3 &position)
+  {
+    object.NodeSetWorldPosition(position);
+    object.NodeUpdateGS(0.0);
+  }
+
+  SG_Callbacks callbacks;
+  KX_GameObject object;
+  SG_Node node;
 };
 
 class TestCanvas : public RAS_ICanvas {
@@ -245,6 +366,21 @@ uint32_t AddBoolConstant(LN_Program &program, const bool value)
   return program.AddBoolExpression(expression);
 }
 
+uint32_t AddPersistenceCompletion(LN_Program &program)
+{
+  LN_BoolExpression expression;
+  expression.kind = LN_BoolExpressionKind::PersistenceCompleted;
+  return program.AddBoolExpression(expression);
+}
+
+uint32_t AddPersistenceSuccess(LN_Program &program, const uint32_t completion_index)
+{
+  LN_BoolExpression expression;
+  expression.kind = LN_BoolExpressionKind::PersistenceSucceeded;
+  expression.input0 = completion_index;
+  return program.AddBoolExpression(expression);
+}
+
 uint32_t AddVectorConstant(LN_Program &program, const MT_Vector3 &value)
 {
   LN_VectorExpression expression;
@@ -310,12 +446,12 @@ uint32_t AddFloatConstant(LN_Program &program, const float value)
 
 uint32_t AddLinearTweenCurveTable(LN_Program &program, const float end_value = 1.0f)
 {
-  std::array<float, LN_TWEEN_CURVE_SAMPLE_COUNT> samples{};
-  for (int sample_index = 0; sample_index < LN_TWEEN_CURVE_SAMPLE_COUNT; sample_index++) {
-    const float factor = float(sample_index) / float(LN_TWEEN_CURVE_SAMPLE_COUNT - 1);
-    samples[size_t(sample_index)] = factor * end_value;
+  LN_CurveTable table;
+  for (int sample_index = 0; sample_index < LN_CURVE_SAMPLE_COUNT; sample_index++) {
+    const float factor = float(sample_index) / float(LN_CURVE_SAMPLE_COUNT - 1);
+    table.samples[size_t(sample_index)] = factor * end_value;
   }
-  return program.AddTweenCurveTable(samples);
+  return program.AddCurveTable(table);
 }
 
 uint32_t AddOnceExpression(LN_Program &program)
@@ -348,6 +484,47 @@ uint32_t AddOncePulse(LN_Program &program,
   attempt.loop_frame_index = loop_frame_index;
   program.AddInstruction(LN_Event::OnFixedUpdate, attempt);
   return once_index;
+}
+
+uint32_t AddFlowGateState(LN_Program &program, const uint32_t start_open_index)
+{
+  LN_BoolExpression gate;
+  gate.kind = LN_BoolExpressionKind::FlowGateOpen;
+  gate.input0 = start_open_index;
+  return program.AddBoolExpression(gate);
+}
+
+void AddFlowGateControl(LN_Program &program,
+                        const uint32_t gate_index,
+                        const uint32_t guard_index,
+                        const LN_FlowGateControl control,
+                        const uint32_t loop_frame_index = LN_INVALID_INDEX)
+{
+  LN_Instruction instruction;
+  instruction.opcode = LN_OpCode::SetFlowGate;
+  instruction.bool_guard_expr_index = guard_index;
+  instruction.int_value = int32_t(gate_index);
+  instruction.secondary_int_value = int32_t(control);
+  instruction.loop_frame_index = loop_frame_index;
+  program.AddInstruction(LN_Event::OnFixedUpdate, instruction);
+}
+
+uint32_t AddFlowGateAttempt(LN_Program &program,
+                            const uint32_t gate_index,
+                            const uint32_t guard_index,
+                            const uint32_t loop_frame_index = LN_INVALID_INDEX)
+{
+  LN_Instruction attempt;
+  attempt.opcode = LN_OpCode::TryFlowGate;
+  attempt.bool_guard_expr_index = guard_index;
+  attempt.int_value = int32_t(gate_index);
+  attempt.loop_frame_index = loop_frame_index;
+  const uint32_t attempt_index = program.AddInstruction(LN_Event::OnFixedUpdate, attempt);
+
+  LN_BoolExpression accepted;
+  accepted.kind = LN_BoolExpressionKind::InstructionExecuted;
+  accepted.input0 = attempt_index;
+  return program.AddBoolExpression(accepted);
 }
 
 void AddGuardedPrint(LN_Program &program,
@@ -448,6 +625,39 @@ bool SetFloatTreeProperty(LN_RuntimeTree &runtime_tree,
   return runtime_tree.SetTreePropertyValue(property_ref_index, property_value);
 }
 
+uint32_t AddIntTreePropertyExpression(LN_Program &program,
+                                      const char *name,
+                                      const int32_t default_value,
+                                      uint32_t &r_property_ref_index)
+{
+  LN_Value value;
+  value.type = LN_ValueType::Int;
+  value.exists = true;
+  value.int_value = default_value;
+
+  LN_TreePropertyRef property_ref;
+  property_ref.name = name;
+  property_ref.value_type = LN_ValueType::Int;
+  property_ref.default_value = value;
+  r_property_ref_index = program.AddTreePropertyRef(property_ref);
+
+  LN_IntExpression expression;
+  expression.kind = LN_IntExpressionKind::RuntimeTreeProperty;
+  expression.property_ref_index = r_property_ref_index;
+  return program.AddIntExpression(expression);
+}
+
+bool SetIntTreeProperty(LN_RuntimeTree &runtime_tree,
+                        const uint32_t property_ref_index,
+                        const int32_t value)
+{
+  LN_Value property_value;
+  property_value.type = LN_ValueType::Int;
+  property_value.exists = true;
+  property_value.int_value = value;
+  return runtime_tree.SetTreePropertyValue(property_ref_index, property_value);
+}
+
 struct BooleanEdgeExpressionRefs {
   uint32_t rising = LN_INVALID_INDEX;
   uint32_t falling = LN_INVALID_INDEX;
@@ -545,6 +755,18 @@ void AddFloatPrint(LN_Program &program, const uint32_t float_expression_index)
   program.AddInstruction(LN_Event::OnFixedUpdate, print);
 }
 
+void AddIntPrint(LN_Program &program, const uint32_t int_expression_index)
+{
+  LN_ValueExpression value;
+  value.kind = LN_ValueExpressionKind::FromInt;
+  value.input0 = int_expression_index;
+
+  LN_Instruction print;
+  print.opcode = LN_OpCode::Print;
+  print.value_expr_index = program.AddValueExpression(value);
+  program.AddInstruction(LN_Event::OnFixedUpdate, print);
+}
+
 uint32_t AddDelayedPulse(LN_Program &program, const float duration)
 {
   LN_BoolExpression timer;
@@ -568,7 +790,8 @@ TweenExpressionRefs AddTweenExpressions(LN_Program &program,
                                         const float duration,
                                         const bool on_demand = false,
                                         const bool instant_reset = false,
-                                        const float curve_end_value = 1.0f)
+                                        const float curve_end_value = 1.0f,
+                                        const bool ignore_timescale = false)
 {
   TweenExpressionRefs refs;
 
@@ -576,6 +799,7 @@ TweenExpressionRefs AddTweenExpressions(LN_Program &program,
   tween.kind = LN_BoolExpressionKind::TweenValue;
   tween.input0 = forward_index;
   tween.input1 = back_index;
+  tween.input2 = AddBoolConstant(program, ignore_timescale);
   tween.float_expr_index = AddFloatConstant(program, duration);
   tween.int_expr_index = AddLinearTweenCurveTable(program, curve_end_value);
   tween.bool_value = on_demand;
@@ -674,7 +898,8 @@ const LN_CommandBuffer::Command *FindPropertyCommand(
   return nullptr;
 }
 
-std::shared_ptr<LN_Program> CreateMouseLookInputOnlyProgram(const bool center_mouse)
+std::shared_ptr<LN_Program> CreateMouseLookInputOnlyProgram(const bool center_mouse,
+                                                            const float smoothing = 0.0f)
 {
   std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
   const uint32_t empty_object_expr = AddNoneValueConstant(*program);
@@ -684,7 +909,7 @@ std::shared_ptr<LN_Program> CreateMouseLookInputOnlyProgram(const bool center_mo
                                                 MT_Vector3(-1.57079637f, 1.57079637f, 0.0f));
   const uint32_t no_cap_expr = AddBoolConstant(*program, false);
   const uint32_t sensitivity_expr = AddFloatConstant(*program, 1000.0f);
-  const uint32_t smoothing_expr = AddFloatConstant(*program, 0.0f);
+  const uint32_t smoothing_expr = AddFloatConstant(*program, smoothing);
 
   LN_Instruction mouse_look;
   mouse_look.opcode = LN_OpCode::MouseLook;
@@ -731,7 +956,30 @@ std::shared_ptr<LN_Program> CreateTimerQuitProgram(const float duration,
   LN_Instruction quit;
   quit.opcode = LN_OpCode::QuitGame;
   quit.bool_guard_expr_index = elapsed_index;
-  program->AddInstruction(LN_Event::OnFixedUpdate, quit);
+  program->AddInstruction(
+      arm_event == LN_Event::OnUpdate ? LN_Event::OnUpdate : LN_Event::OnFixedUpdate, quit);
+  return program;
+}
+
+std::shared_ptr<LN_Program> CreateWaitForNextFrameQuitProgram(const LN_Event arm_event)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const uint32_t state_index = program->AddTimeFlowState();
+
+  LN_BoolExpression completed;
+  completed.kind = LN_BoolExpressionKind::NextFrameDone;
+  completed.int_value = int32_t(state_index);
+  const uint32_t completed_index = program->AddBoolExpression(completed);
+
+  LN_Instruction arm;
+  arm.opcode = LN_OpCode::ArmNextFrame;
+  arm.int_value = int32_t(state_index);
+  program->AddInstruction(arm_event, arm);
+
+  LN_Instruction quit;
+  quit.opcode = LN_OpCode::QuitGame;
+  quit.bool_guard_expr_index = completed_index;
+  program->AddInstruction(LN_Event::OnUpdate, quit);
   return program;
 }
 
@@ -872,7 +1120,8 @@ std::shared_ptr<LN_Program> CreateDelayQuitProgram(const float duration,
   LN_Instruction quit;
   quit.opcode = LN_OpCode::QuitGame;
   quit.bool_guard_expr_index = done_index;
-  program->AddInstruction(LN_Event::OnFixedUpdate, quit);
+  program->AddInstruction(
+      arm_event == LN_Event::OnUpdate ? LN_Event::OnUpdate : LN_Event::OnFixedUpdate, quit);
   return program;
 }
 
@@ -901,7 +1150,9 @@ std::shared_ptr<LN_Program> CreatePulsifyQuitProgram(const float interval,
   LN_Instruction quit;
   quit.opcode = LN_OpCode::QuitGame;
   quit.bool_guard_expr_index = pulse_index;
-  program->AddInstruction(LN_Event::OnFixedUpdate, quit);
+  program->AddInstruction(update_event == LN_Event::OnFixedUpdate ? LN_Event::OnFixedUpdate :
+                                                                    LN_Event::OnUpdate,
+                          quit);
   return program;
 }
 
@@ -1753,19 +2004,20 @@ std::shared_ptr<LN_Program> CreateRegisterGamepadBoolInputCommandProgram()
   return program;
 }
 
-std::shared_ptr<LN_Program> CreateRegisterMouseMovedInputCommandProgram()
+std::shared_ptr<LN_Program> CreateRegisterMouseMovedInputCommandProgram(
+    const bool each_logic_tick = false, const LN_Event event = LN_Event::OnInit)
 {
   std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
 
   LN_BoolExpression mouse_moved;
   mouse_moved.kind = LN_BoolExpressionKind::MouseMoved;
-  mouse_moved.bool_value = false;
+  mouse_moved.bool_value = each_logic_tick;
   const uint32_t mouse_moved_index = program->AddBoolExpression(mouse_moved);
 
   LN_Instruction instruction;
   instruction.opcode = LN_OpCode::SetVisibility;
   instruction.bool_expr_index = mouse_moved_index;
-  program->AddInstruction(LN_Event::OnInit, instruction);
+  program->AddInstruction(event, instruction);
 
   return program;
 }
@@ -2065,6 +2317,16 @@ std::shared_ptr<LN_Program> CreateExecBlockIRCommandCoverageProgram()
   set_time_scale.float_expr_index = AddFloatConstant(*program, 0.5f);
   program->AddInstruction(LN_Event::OnFixedUpdate, set_time_scale);
 
+  LN_Instruction set_game_paused;
+  set_game_paused.opcode = LN_OpCode::SetGamePaused;
+  set_game_paused.bool_expr_index = AddBoolConstant(*program, true);
+  program->AddInstruction(LN_Event::OnFixedUpdate, set_game_paused);
+
+  LN_Instruction set_physics_paused;
+  set_physics_paused.opcode = LN_OpCode::SetPhysicsPaused;
+  set_physics_paused.bool_expr_index = AddBoolConstant(*program, false);
+  program->AddInstruction(LN_Event::OnFixedUpdate, set_physics_paused);
+
   LN_Instruction load_blend_file;
   load_blend_file.opcode = LN_OpCode::LoadBlendFile;
   load_blend_file.string_expr_index = AddStringConstant(*program, "//next_level.blend");
@@ -2074,12 +2336,20 @@ std::shared_ptr<LN_Program> CreateExecBlockIRCommandCoverageProgram()
   save_game.opcode = LN_OpCode::SaveGame;
   save_game.int_expr_index = AddIntConstant(*program, 2);
   save_game.string_expr_index = AddStringConstant(*program, "//slot2.sav");
+  save_game.bool_expr_index = AddPersistenceCompletion(*program);
   program->AddInstruction(LN_Event::OnFixedUpdate, save_game);
+
+  LN_Instruction set_save_existence;
+  set_save_existence.opcode = LN_OpCode::SetSaveExistence;
+  set_save_existence.bool_expr_index = AddBoolConstant(*program, false);
+  set_save_existence.secondary_bool_expr_index = AddPersistenceCompletion(*program);
+  program->AddInstruction(LN_Event::OnFixedUpdate, set_save_existence);
 
   LN_Instruction load_game;
   load_game.opcode = LN_OpCode::LoadGame;
   load_game.int_expr_index = AddIntConstant(*program, 3);
   load_game.string_expr_index = AddStringConstant(*program, "//slot3.sav");
+  load_game.bool_expr_index = AddPersistenceCompletion(*program);
   program->AddInstruction(LN_Event::OnFixedUpdate, load_game);
 
   LN_Instruction load_scene;
@@ -2358,7 +2628,7 @@ std::shared_ptr<LN_Program> CreateRegisterDivideSoACommandProgram()
   time_scale.kind = LN_FloatExpressionKind::SnapshotTimeScale;
   const uint32_t time_scale_index = program->AddFloatExpression(time_scale);
 
-  const float divisors[4] = {2.0f, 0.0f, 4.0f, 1.0e-25f};
+  const float divisors[4] = {2.0f, 0.0f, std::numeric_limits<float>::quiet_NaN(), 1.0e-25f};
   uint32_t divisor_indices[4];
   for (uint32_t index = 0; index < 4; index++) {
     LN_FloatExpression divisor;
@@ -2380,7 +2650,7 @@ std::shared_ptr<LN_Program> CreateRegisterDivideSoACommandProgram()
   vector.kind = LN_VectorExpressionKind::Combine;
   vector.input0 = divide_indices[0];
   vector.input1 = divide_indices[1];
-  vector.input2 = divide_indices[3];
+  vector.input2 = divide_indices[2];
   const uint32_t vector_index = program->AddVectorExpression(vector);
 
   LN_Instruction instruction;
@@ -2510,6 +2780,11 @@ void ExpectVectorNear(const MT_Vector3 &actual, const MT_Vector3 &expected)
   EXPECT_NEAR(actual.z(), expected.z(), 0.0001f);
 }
 
+void ExpectRotationEulerNear(const LN_Rotation &actual, const MT_Vector3 &expected)
+{
+  EXPECT_LE(actual.AngleTo(LN_Rotation::FromEulerXYZ(expected)), 0.0001f);
+}
+
 void ExpectColorNear(const MT_Vector4 &actual, const MT_Vector4 &expected)
 {
   EXPECT_NEAR(actual.x(), expected.x(), 0.0001f);
@@ -2527,6 +2802,7 @@ void ExpectValueEqual(const LN_Value &actual, const LN_Value &expected)
   EXPECT_NEAR(actual.float_value, expected.float_value, 0.0001f);
   ExpectVectorNear(actual.vector_value, expected.vector_value);
   ExpectColorNear(actual.color_value, expected.color_value);
+  EXPECT_LE(actual.rotation_value.AngleTo(expected.rotation_value), 0.0001f);
   EXPECT_EQ(actual.string_value, expected.string_value);
 }
 
@@ -2541,6 +2817,7 @@ void ExpectCommandEqual(const LN_CommandBuffer::Command &actual,
   EXPECT_EQ(actual.runtime_tree != nullptr, expected.runtime_tree != nullptr);
   ExpectVectorNear(actual.vector_value, expected.vector_value);
   ExpectVectorNear(actual.secondary_vector_value, expected.secondary_vector_value);
+  EXPECT_LE(actual.rotation_value.AngleTo(expected.rotation_value), 0.0001f);
   ExpectColorNear(actual.color_value, expected.color_value);
   ExpectValueEqual(actual.property_value, expected.property_value);
   EXPECT_EQ(actual.property_name, expected.property_name);
@@ -2566,6 +2843,456 @@ void ExpectCommandStreamsEqual(const std::vector<LN_CommandBuffer::Command> &act
   for (size_t index = 0; index < actual.size(); index++) {
     SCOPED_TRACE(index);
     ExpectCommandEqual(actual[index], expected[index]);
+  }
+}
+
+TEST(LN_RuntimeTree, MixValueHandlesEverySupportedTypeAndEdgeCase)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  auto add_value = [&](const LN_Value &value) {
+    LN_ValueExpression expression;
+    expression.kind = LN_ValueExpressionKind::Constant;
+    expression.value = value;
+    return program->AddValueExpression(expression);
+  };
+  auto add_mix = [&](const uint32_t a, const uint32_t b, const float factor) {
+    LN_ValueExpression expression;
+    expression.kind = LN_ValueExpressionKind::Mix;
+    expression.input0 = a;
+    expression.input1 = b;
+    expression.input2 = AddFloatConstant(*program, factor);
+    return program->AddValueExpression(expression);
+  };
+  auto make_int = [](const int32_t number) {
+    LN_Value value;
+    value.type = LN_ValueType::Int;
+    value.exists = true;
+    value.int_value = number;
+    return value;
+  };
+  auto make_float = [](const float number) {
+    LN_Value value;
+    value.type = LN_ValueType::Float;
+    value.exists = true;
+    value.float_value = number;
+    return value;
+  };
+  auto make_vector = [](const MT_Vector3 &vector) {
+    LN_Value value;
+    value.type = LN_ValueType::Vector;
+    value.exists = true;
+    value.vector_value = vector;
+    return value;
+  };
+  auto make_vector4 = [](const MT_Vector4 &vector) {
+    LN_Value value;
+    value.type = LN_ValueType::Vector4;
+    value.exists = true;
+    value.vector4_value = vector;
+    return value;
+  };
+  auto make_color = [](const MT_Vector4 &color) {
+    LN_Value value;
+    value.type = LN_ValueType::Color;
+    value.exists = true;
+    value.color_value = color;
+    return value;
+  };
+  auto make_rotation = [](const MT_Vector3 &euler) {
+    LN_Value value;
+    value.type = LN_ValueType::Rotation;
+    value.exists = true;
+    value.SetRotation(LN_Rotation::FromEulerXYZ(euler), euler);
+    return value;
+  };
+
+  const uint32_t float_a = add_value(make_float(10.0f));
+  const uint32_t float_b = add_value(make_float(30.0f));
+  const uint32_t float_mix = add_mix(float_a, float_b, 0.25f);
+  const uint32_t extrapolated_mix = add_mix(float_a, float_b, 1.5f);
+  const uint32_t negative_extrapolated_mix = add_mix(float_a, float_b, -0.5f);
+  const uint32_t nan_factor_mix = add_mix(
+      float_a, float_b, std::numeric_limits<float>::quiet_NaN());
+  const uint32_t positive_infinity_factor_mix = add_mix(
+      float_a, float_b, std::numeric_limits<float>::infinity());
+  const uint32_t negative_infinity_factor_mix = add_mix(
+      float_a, float_b, -std::numeric_limits<float>::infinity());
+
+  const uint32_t int_a = add_value(make_int(0));
+  const uint32_t int_b = add_value(make_int(5));
+  const uint32_t int_mix = add_mix(int_a, int_b, 0.5f);
+  const uint32_t negative_int_mix = add_mix(int_a, add_value(make_int(-5)), 0.5f);
+  const uint32_t saturated_int_mix = add_mix(
+      int_a, add_value(make_int(std::numeric_limits<int32_t>::max())), 2.0f);
+  const uint32_t saturated_negative_int_mix = add_mix(
+      int_a, add_value(make_int(std::numeric_limits<int32_t>::min())), 2.0f);
+  const uint32_t promoted_mix = add_mix(
+      add_value(make_int(10)), add_value(make_float(20.0f)), 0.25f);
+  const uint32_t reverse_promoted_mix = add_mix(
+      add_value(make_float(20.0f)), add_value(make_int(10)), 0.25f);
+
+  const uint32_t vector_mix = add_mix(add_value(make_vector(MT_Vector3(0.0f, 2.0f, 4.0f))),
+                                      add_value(make_vector(MT_Vector3(2.0f, 4.0f, 8.0f))),
+                                      0.5f);
+  const uint32_t vector4_mix = add_mix(
+      add_value(make_vector4(MT_Vector4(0.0f, 2.0f, 4.0f, 6.0f))),
+      add_value(make_vector4(MT_Vector4(2.0f, 4.0f, 8.0f, 10.0f))),
+      0.5f);
+  const uint32_t color_mix = add_mix(add_value(make_color(MT_Vector4(0.0f, 0.2f, 0.4f, 0.5f))),
+                                     add_value(make_color(MT_Vector4(1.0f, 0.6f, 0.8f, 1.0f))),
+                                     0.5f);
+
+  constexpr float radians_170 = 2.9670597283903604f;
+  constexpr float radians_180 = 3.1415926535897932f;
+  const uint32_t rotation_mix = add_mix(
+      add_value(make_rotation(MT_Vector3(0.0f, 0.0f, radians_170))),
+      add_value(make_rotation(MT_Vector3(0.0f, 0.0f, -radians_170))),
+      0.5f);
+  const uint32_t rotation_extrapolated_mix = add_mix(
+      add_value(make_rotation(MT_Vector3(0.0f, 0.0f, radians_170))),
+      add_value(make_rotation(MT_Vector3(0.0f, 0.0f, -radians_170))),
+      1.5f);
+
+  constexpr float tau = 6.2831853071795865f;
+  const MT_Vector3 authored_rotation_a(tau, -2.0f * tau, 3.0f * tau);
+  const MT_Vector3 authored_rotation_b(-2.0f * tau, 3.0f * tau, -4.0f * tau);
+  const uint32_t authored_rotation_a_value = add_value(make_rotation(authored_rotation_a));
+  const uint32_t authored_rotation_b_value = add_value(make_rotation(authored_rotation_b));
+  const uint32_t rotation_a_endpoint_mix = add_mix(
+      authored_rotation_a_value, authored_rotation_b_value, 0.0f);
+  const uint32_t rotation_b_endpoint_mix = add_mix(
+      authored_rotation_a_value, authored_rotation_b_value, 1.0f);
+  const uint32_t rotation_non_finite_endpoint_mix = add_mix(
+      authored_rotation_a_value,
+      authored_rotation_b_value,
+      std::numeric_limits<float>::quiet_NaN());
+
+  LN_Value rotation_without_hint = make_rotation(MT_Vector3(0.25f, -0.5f, 0.75f));
+  rotation_without_hint.rotation_euler_hint_valid = false;
+  const uint32_t rotation_without_hint_endpoint_mix = add_mix(
+      add_value(rotation_without_hint), authored_rotation_b_value, 0.0f);
+
+  const uint32_t missing_mix = add_mix(AddNoneValueConstant(*program), float_b, 0.5f);
+  LN_Value none_value;
+  none_value.type = LN_ValueType::None;
+  none_value.exists = true;
+  const uint32_t explicit_none_mix = add_mix(add_value(none_value), float_b, 0.5f);
+  const uint32_t mismatched_mix = add_mix(
+      add_value(make_vector(MT_Vector3(1.0f, 2.0f, 3.0f))),
+      add_value(make_color(MT_Vector4(1.0f, 2.0f, 3.0f, 1.0f))),
+      0.5f);
+  LN_Value bool_value;
+  bool_value.type = LN_ValueType::Bool;
+  bool_value.exists = true;
+  bool_value.bool_value = true;
+  const uint32_t unsupported_mix = add_mix(add_value(bool_value), add_value(bool_value), 0.5f);
+
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  const LN_RegisterExpressionProgram &ir = program->GetRegisterExpressionProgram();
+  ASSERT_TRUE(ir.valid);
+  EXPECT_EQ(ir.fallback_expression_count, 0u);
+  EXPECT_TRUE(std::any_of(ir.ops.begin(), ir.ops.end(), [](const LN_RegisterExpressionOp &op) {
+    return op.kind == LN_RegisterExpressionOpKind::ValueMix;
+  }));
+
+  auto verify = [&](const bool use_register_evaluator) {
+    LN_RuntimeTree tree(program, FakeGameObjectPointer(use_register_evaluator ? 286 : 285), 0, 0);
+    LN_TickContext context;
+    context.tick_index = 1;
+    context.use_register_expression_evaluator = use_register_evaluator;
+    auto resolve = [&](const uint32_t expression) {
+      return LN_RuntimeTreeTestAccess::ResolveValue(tree, expression, context);
+    };
+
+    LN_Value result = resolve(float_mix);
+    ASSERT_TRUE(result.exists);
+    EXPECT_EQ(result.type, LN_ValueType::Float);
+    EXPECT_FLOAT_EQ(result.float_value, 15.0f);
+    EXPECT_FLOAT_EQ(resolve(extrapolated_mix).float_value, 40.0f);
+    EXPECT_FLOAT_EQ(resolve(negative_extrapolated_mix).float_value, 0.0f);
+    EXPECT_FLOAT_EQ(resolve(nan_factor_mix).float_value, 10.0f);
+    EXPECT_FLOAT_EQ(resolve(positive_infinity_factor_mix).float_value, 10.0f);
+    EXPECT_FLOAT_EQ(resolve(negative_infinity_factor_mix).float_value, 10.0f);
+
+    result = resolve(int_mix);
+    ASSERT_TRUE(result.exists);
+    EXPECT_EQ(result.type, LN_ValueType::Int);
+    EXPECT_EQ(result.int_value, 3);
+    EXPECT_EQ(resolve(negative_int_mix).int_value, -3);
+    EXPECT_EQ(resolve(saturated_int_mix).int_value, std::numeric_limits<int32_t>::max());
+    EXPECT_EQ(resolve(saturated_negative_int_mix).int_value, std::numeric_limits<int32_t>::min());
+
+    result = resolve(promoted_mix);
+    ASSERT_TRUE(result.exists);
+    EXPECT_EQ(result.type, LN_ValueType::Float);
+    EXPECT_FLOAT_EQ(result.float_value, 12.5f);
+    EXPECT_FLOAT_EQ(resolve(reverse_promoted_mix).float_value, 17.5f);
+
+    result = resolve(vector_mix);
+    ASSERT_TRUE(result.exists);
+    EXPECT_EQ(result.type, LN_ValueType::Vector);
+    ExpectVectorNear(result.vector_value, MT_Vector3(1.0f, 3.0f, 6.0f));
+
+    result = resolve(vector4_mix);
+    ASSERT_TRUE(result.exists);
+    EXPECT_EQ(result.type, LN_ValueType::Vector4);
+    ExpectColorNear(result.vector4_value, MT_Vector4(1.0f, 3.0f, 6.0f, 8.0f));
+
+    result = resolve(color_mix);
+    ASSERT_TRUE(result.exists);
+    EXPECT_EQ(result.type, LN_ValueType::Color);
+    ExpectColorNear(result.color_value, MT_Vector4(0.5f, 0.4f, 0.6f, 0.75f));
+
+    result = resolve(rotation_mix);
+    ASSERT_TRUE(result.exists);
+    EXPECT_EQ(result.type, LN_ValueType::Rotation);
+    EXPECT_LE(result.rotation_value.AngleTo(
+                  LN_Rotation::FromEulerXYZ(MT_Vector3(0.0f, 0.0f, radians_180))),
+              0.0001f);
+    result = resolve(rotation_extrapolated_mix);
+    ASSERT_TRUE(result.exists);
+    EXPECT_LE(result.rotation_value.AngleTo(
+                  LN_Rotation::FromEulerXYZ(MT_Vector3(0.0f, 0.0f, -2.792526803190927f))),
+              0.0001f);
+
+    result = resolve(rotation_a_endpoint_mix);
+    ASSERT_TRUE(result.exists);
+    EXPECT_EQ(result.type, LN_ValueType::Rotation);
+    EXPECT_TRUE(result.rotation_euler_hint_valid);
+    ExpectVectorNear(result.RotationEulerRadians(), authored_rotation_a);
+    EXPECT_LE(result.rotation_value.AngleTo(LN_Rotation::FromEulerXYZ(authored_rotation_a)),
+              0.0001f);
+
+    result = resolve(rotation_b_endpoint_mix);
+    ASSERT_TRUE(result.exists);
+    EXPECT_TRUE(result.rotation_euler_hint_valid);
+    ExpectVectorNear(result.RotationEulerRadians(), authored_rotation_b);
+    EXPECT_LE(result.rotation_value.AngleTo(LN_Rotation::FromEulerXYZ(authored_rotation_b)),
+              0.0001f);
+
+    result = resolve(rotation_non_finite_endpoint_mix);
+    ASSERT_TRUE(result.exists);
+    EXPECT_TRUE(result.rotation_euler_hint_valid);
+    ExpectVectorNear(result.RotationEulerRadians(), authored_rotation_a);
+
+    result = resolve(rotation_without_hint_endpoint_mix);
+    ASSERT_TRUE(result.exists);
+    EXPECT_FALSE(result.rotation_euler_hint_valid);
+    EXPECT_LE(result.rotation_value.AngleTo(rotation_without_hint.rotation_value), 0.0001f);
+
+    EXPECT_FALSE(resolve(missing_mix).exists);
+    EXPECT_FALSE(resolve(explicit_none_mix).exists);
+    EXPECT_FALSE(resolve(mismatched_mix).exists);
+    EXPECT_FALSE(resolve(unsupported_mix).exists);
+  };
+
+  verify(false);
+  verify(true);
+}
+
+TEST(LN_RuntimeTree, FloatCurveMatchesCurveMappingSemanticsAndSanitizesEdgeCases)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  auto sampled_table = [](const auto &sample_function) {
+    LN_CurveTable table;
+    table.clip_output = false;
+    for (int sample_index = 0; sample_index < LN_CURVE_SAMPLE_COUNT; sample_index++) {
+      const float factor = float(sample_index) / float(LN_CURVE_SAMPLE_COUNT - 1);
+      table.samples[size_t(sample_index)] = sample_function(factor);
+    }
+    return table;
+  };
+  auto add_curve = [&](const LN_CurveTable &table, const float value, const float factor) {
+    LN_FloatExpression expression;
+    expression.kind = LN_FloatExpressionKind::FloatCurve;
+    expression.input0 = AddFloatConstant(*program, value);
+    expression.input1 = AddFloatConstant(*program, factor);
+    expression.int_value = int32_t(program->AddCurveTable(table));
+    return program->AddFloatExpression(expression);
+  };
+
+  const LN_CurveTable square_table = sampled_table([](const float x) { return x * x; });
+  const uint32_t full_influence = add_curve(square_table, 0.5f, 1.0f);
+  const uint32_t half_influence = add_curve(square_table, 0.5f, 0.5f);
+  const uint32_t zero_influence = add_curve(square_table, 0.5f, 0.0f);
+  const uint32_t extrapolated_influence = add_curve(square_table, 0.5f, 2.0f);
+  const uint32_t negative_influence = add_curve(square_table, 0.5f, -1.0f);
+  const uint32_t non_finite_influence = add_curve(
+      square_table, 0.5f, std::numeric_limits<float>::quiet_NaN());
+  const uint32_t infinite_influence = add_curve(
+      square_table, 0.5f, std::numeric_limits<float>::infinity());
+
+  LN_CurveTable custom_domain = sampled_table(
+      [](const float factor) { return 10.0f + factor * 10.0f; });
+  custom_domain.domain_min = -2.0f;
+  custom_domain.domain_max = 2.0f;
+  custom_domain.sample_scale = float(LN_CURVE_SAMPLE_COUNT - 1) /
+                               (custom_domain.domain_max - custom_domain.domain_min);
+  custom_domain.table_min_x = custom_domain.domain_min;
+  custom_domain.table_max_x = custom_domain.domain_max;
+  const uint32_t custom_domain_midpoint = add_curve(custom_domain, 0.0f, 1.0f);
+
+  LN_CurveTable linear_table = sampled_table([](const float x) { return x; });
+  const uint32_t extrapolated_above = add_curve(linear_table, 2.0f, 1.0f);
+  const uint32_t extrapolated_below = add_curve(linear_table, -1.0f, 1.0f);
+  LN_CurveTable horizontal_extension = linear_table;
+  horizontal_extension.extrapolate = false;
+  const uint32_t held_above = add_curve(horizontal_extension, 2.0f, 1.0f);
+  const uint32_t held_below = add_curve(horizontal_extension, -1.0f, 1.0f);
+  const uint32_t full_influence_large_input = add_curve(
+      horizontal_extension, std::numeric_limits<float>::max(), 1.0f);
+  LN_CurveTable opposite_extremes = horizontal_extension;
+  opposite_extremes.samples.back() = -std::numeric_limits<float>::max();
+  const uint32_t cancellation_safe_mix = add_curve(
+      opposite_extremes, std::numeric_limits<float>::max(), 0.5f);
+  LN_CurveTable clipped_extension = linear_table;
+  clipped_extension.clip_output = true;
+  clipped_extension.clip_min = 0.0f;
+  clipped_extension.clip_max = 1.0f;
+  const uint32_t clipped_above = add_curve(clipped_extension, 2.0f, 1.0f);
+  LN_CurveTable vertical_extension = linear_table;
+  vertical_extension.extend_out_x = 0.0f;
+  vertical_extension.extend_out_y = 1.0f;
+  const uint32_t vertical_above = add_curve(vertical_extension, 2.0f, 1.0f);
+
+  LN_CurveTable invalid_domain = square_table;
+  invalid_domain.domain_max = invalid_domain.domain_min;
+  const uint32_t invalid_domain_result = add_curve(invalid_domain, 0.5f, 1.0f);
+  LN_CurveTable overflowing_domain = square_table;
+  overflowing_domain.domain_min = -std::numeric_limits<float>::max();
+  overflowing_domain.domain_max = std::numeric_limits<float>::max();
+  const uint32_t overflowing_domain_result = add_curve(overflowing_domain, 0.5f, 1.0f);
+  LN_CurveTable invalid_clip = square_table;
+  invalid_clip.clip_output = true;
+  invalid_clip.clip_min = std::numeric_limits<float>::quiet_NaN();
+  invalid_clip.clip_max = 1.0f;
+  const uint32_t invalid_clip_result = add_curve(invalid_clip, 0.5f, 1.0f);
+  LN_CurveTable invalid_scale = square_table;
+  invalid_scale.sample_scale = 0.0f;
+  const uint32_t invalid_scale_result = add_curve(invalid_scale, 0.5f, 1.0f);
+  LN_CurveTable invalid_endpoints = square_table;
+  invalid_endpoints.table_max_x = std::numeric_limits<float>::quiet_NaN();
+  const uint32_t invalid_endpoints_result = add_curve(invalid_endpoints, 0.5f, 1.0f);
+  LN_CurveTable invalid_extension = linear_table;
+  invalid_extension.extend_out_y = std::numeric_limits<float>::quiet_NaN();
+  const uint32_t invalid_extension_result = add_curve(invalid_extension, 2.0f, 1.0f);
+
+  LN_CurveTable corrupt_sample = square_table;
+  corrupt_sample.samples[LN_CURVE_SAMPLE_COUNT / 2] = std::numeric_limits<float>::quiet_NaN();
+  const uint32_t corrupt_sample_result = add_curve(corrupt_sample, 0.5f, 1.0f);
+  const uint32_t non_finite_input = add_curve(
+      square_table, std::numeric_limits<float>::infinity(), 1.0f);
+  const uint32_t overflowing_result = add_curve(
+      horizontal_extension, std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+  LN_FloatExpression missing_table_expression;
+  missing_table_expression.kind = LN_FloatExpressionKind::FloatCurve;
+  missing_table_expression.input0 = AddFloatConstant(*program, 0.5f);
+  missing_table_expression.input1 = AddFloatConstant(*program, 1.0f);
+  missing_table_expression.int_value = -1;
+  const uint32_t missing_table = program->AddFloatExpression(missing_table_expression);
+
+  std::vector<std::string> validation_errors;
+  EXPECT_FALSE(program->ValidateInstructionPayloads(&validation_errors));
+  EXPECT_TRUE(
+      std::any_of(validation_errors.begin(), validation_errors.end(), [](const auto &error) {
+        return error.find("curve table") != std::string::npos;
+      }));
+  const LN_RegisterExpressionProgram &ir = program->GetRegisterExpressionProgram();
+  ASSERT_TRUE(ir.valid);
+  EXPECT_EQ(ir.fallback_expression_count, 0u);
+  EXPECT_TRUE(std::any_of(ir.ops.begin(), ir.ops.end(), [](const LN_RegisterExpressionOp &op) {
+    return op.kind == LN_RegisterExpressionOpKind::FloatCurve;
+  }));
+
+  auto verify = [&](const bool use_register_evaluator) {
+    LN_RuntimeTree tree(
+        program, FakeGameObjectPointer(use_register_evaluator ? 0x28a : 0x289), 0, 0);
+    LN_TickContext context;
+    context.tick_index = 1;
+    context.use_register_expression_evaluator = use_register_evaluator;
+    auto resolve = [&](const uint32_t expression_index, const float fallback = -7.0f) {
+      return LN_RuntimeTreeTestAccess::ResolveFloat(tree, expression_index, fallback, context);
+    };
+
+    EXPECT_FLOAT_EQ(resolve(full_influence), 0.25f);
+    EXPECT_FLOAT_EQ(resolve(half_influence), 0.375f);
+    EXPECT_FLOAT_EQ(resolve(zero_influence), 0.5f);
+    EXPECT_FLOAT_EQ(resolve(extrapolated_influence), 0.0f);
+    EXPECT_FLOAT_EQ(resolve(negative_influence), 0.75f);
+    EXPECT_FLOAT_EQ(resolve(non_finite_influence), 0.5f);
+    EXPECT_FLOAT_EQ(resolve(infinite_influence), 0.5f);
+    EXPECT_FLOAT_EQ(resolve(custom_domain_midpoint), 15.0f);
+    EXPECT_FLOAT_EQ(resolve(extrapolated_above), 2.0f);
+    EXPECT_FLOAT_EQ(resolve(extrapolated_below), -1.0f);
+    EXPECT_FLOAT_EQ(resolve(held_above), 1.0f);
+    EXPECT_FLOAT_EQ(resolve(held_below), 0.0f);
+    EXPECT_FLOAT_EQ(resolve(full_influence_large_input), 1.0f);
+    EXPECT_FLOAT_EQ(resolve(cancellation_safe_mix), 0.0f);
+    EXPECT_FLOAT_EQ(resolve(clipped_above), 1.0f);
+    EXPECT_FLOAT_EQ(resolve(vertical_above), -9999.0f);
+    EXPECT_FLOAT_EQ(resolve(invalid_domain_result), 0.5f);
+    EXPECT_FLOAT_EQ(resolve(overflowing_domain_result), 0.5f);
+    EXPECT_FLOAT_EQ(resolve(invalid_clip_result), 0.5f);
+    EXPECT_FLOAT_EQ(resolve(invalid_scale_result), 0.5f);
+    EXPECT_FLOAT_EQ(resolve(invalid_endpoints_result), 0.5f);
+    EXPECT_FLOAT_EQ(resolve(invalid_extension_result), 2.0f);
+    EXPECT_FLOAT_EQ(resolve(corrupt_sample_result), 0.5f);
+    EXPECT_FLOAT_EQ(resolve(non_finite_input), 0.0f);
+    EXPECT_FLOAT_EQ(resolve(overflowing_result), std::numeric_limits<float>::max());
+    EXPECT_FLOAT_EQ(resolve(missing_table), 0.5f);
+  };
+
+  verify(false);
+  verify(true);
+}
+
+TEST(LN_RuntimeTree, MixedVectorDrivesWorldOrientationThroughGenericRotationBoundary)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  auto add_vector_value = [&](const MT_Vector3 &vector) {
+    LN_ValueExpression expression;
+    expression.kind = LN_ValueExpressionKind::Constant;
+    expression.value.type = LN_ValueType::Vector;
+    expression.value.exists = true;
+    expression.value.vector_value = vector;
+    return program->AddValueExpression(expression);
+  };
+
+  LN_ValueExpression mix;
+  mix.kind = LN_ValueExpressionKind::Mix;
+  mix.input0 = add_vector_value(MT_Vector3(0.0f, 0.0f, -10.0f));
+  mix.input1 = add_vector_value(MT_Vector3(0.0f, 0.0f, 5.0f));
+  mix.input2 = AddFloatConstant(*program, 0.5f);
+
+  LN_VectorExpression rotation;
+  rotation.kind = LN_VectorExpressionKind::FromGenericValue;
+  rotation.output_type = LN_ValueType::Rotation;
+  rotation.input0 = program->AddValueExpression(mix);
+
+  LN_Instruction set_rotation;
+  set_rotation.opcode = LN_OpCode::SetTransformVector;
+  set_rotation.vector_expr_index = program->AddVectorExpression(rotation);
+  set_rotation.vector_operation_mode = uint8_t(LN_VectorOperationMode::World);
+  set_rotation.vector_operation_channel = uint8_t(LN_VectorOperationChannel::Orientation);
+  program->AddInstruction(LN_Event::OnFixedUpdate, set_rotation);
+
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  const LN_Rotation expected = LN_Rotation::FromEulerXYZ(MT_Vector3(0.0f, 0.0f, -2.5f));
+  for (const bool use_register_evaluator : {false, true}) {
+    LN_RuntimeTree runtime_tree(
+        program, FakeGameObjectPointer(use_register_evaluator ? 0x287 : 0x286), 0, 0);
+    LN_TickContext context;
+    context.tick_index = 1;
+    context.use_register_expression_evaluator = use_register_evaluator;
+    const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                                context);
+
+    ASSERT_EQ(commands.size(), 1u);
+    EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::SetWorldOrientation);
+    EXPECT_LE(commands[0].rotation_value.AngleTo(expected), 1.0e-5f);
   }
 }
 
@@ -2595,6 +3322,170 @@ TEST(LN_RuntimeTree, ExecutesHardcodedOnInitOnce)
   command_buffer.EndRecording();
 
   EXPECT_EQ(command_buffer.Size(), 0);
+}
+
+TEST(LN_RuntimeTree, UpdateAndFixedUpdateExecuteOnlyTheirOwnInstructionStreams)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  LN_Instruction update_instruction;
+  update_instruction.opcode = LN_OpCode::Print;
+  update_instruction.value_expr_index = AddIntValueConstant(*program, 1);
+  program->AddInstruction(LN_Event::OnUpdate, update_instruction);
+
+  LN_Instruction fixed_instruction;
+  fixed_instruction.opcode = LN_OpCode::Print;
+  fixed_instruction.value_expr_index = AddIntValueConstant(*program, 2);
+  program->AddInstruction(LN_Event::OnFixedUpdate, fixed_instruction);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(59), 0, 0);
+  LN_TickContext context;
+  context.use_fixed_timestep = true;
+  context.delta_time = 0.0;
+  context.unscaled_dt = 1.0 / 60.0;
+
+  context.event = LN_Event::OnUpdate;
+  context.tick_index = 0;
+  std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].property_name, "1");
+
+  context.event = LN_Event::OnFixedUpdate;
+  context.tick_index = 1;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].property_name, "2");
+}
+
+TEST(LN_RuntimeTree, WhilePausedATreeRunsOnlyItsUIEventRoutes)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_Instruction init_instruction;
+  init_instruction.opcode = LN_OpCode::Print;
+  init_instruction.value_expr_index = AddIntValueConstant(*program, 1);
+  program->AddInstruction(LN_Event::OnInit, init_instruction);
+  LN_Instruction ui_instruction;
+  ui_instruction.opcode = LN_OpCode::Print;
+  ui_instruction.value_expr_index = AddIntValueConstant(*program, 2);
+  ui_instruction.flags = LN_INSTRUCTION_FLAG_UI_EVENT_ROUTE;
+  program->AddInstruction(LN_Event::OnUpdate, ui_instruction);
+  LN_Instruction game_instruction;
+  game_instruction.opcode = LN_OpCode::Print;
+  game_instruction.value_expr_index = AddIntValueConstant(*program, 3);
+  program->AddInstruction(LN_Event::OnUpdate, game_instruction);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  EXPECT_TRUE(program->HasUIEventRoutes());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(62), 0, 0);
+  LN_TickContext context;
+  context.use_fixed_timestep = true;
+  context.event = LN_Event::OnUpdate;
+  auto printed = [&](const uint64_t tick_index) {
+    context.tick_index = tick_index;
+    std::vector<std::string> messages;
+    for (const LN_CommandBuffer::Command &command : RecordReadyCommands(runtime_tree, context)) {
+      messages.push_back(command.property_name);
+    }
+    return messages;
+  };
+
+  /* Started while paused (a menu added then): On Init runs in full and the UI route works. */
+  runtime_tree.SetUIEventRoutesOnly(true);
+  EXPECT_EQ(printed(0), (std::vector<std::string>{"1", "2"}));
+  runtime_tree.SetUIEventRoutesOnly(false);
+  EXPECT_EQ(printed(1), (std::vector<std::string>{"2", "3"}));
+  /* Paused: the UI event route runs, the rest of the frame logic waits. */
+  runtime_tree.SetUIEventRoutesOnly(true);
+  EXPECT_EQ(printed(2), (std::vector<std::string>{"2"}));
+  runtime_tree.SetUIEventRoutesOnly(false);
+  EXPECT_EQ(printed(3), (std::vector<std::string>{"2", "3"}));
+}
+
+TEST(LN_RuntimeTree, WhilePausedOnlyTimeFlowsAUIEventRouteStartedKeepTime)
+{
+  /* Clicked -> Wait for Next Frame -> Print, once from a UI route and once from game logic. */
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  auto add_next_frame = [&](const bool ui_route, const int value) {
+    const uint32_t state_index = program->AddTimeFlowState();
+    LN_BoolExpression done;
+    done.kind = LN_BoolExpressionKind::NextFrameDone;
+    done.int_value = int32_t(state_index);
+    const uint32_t done_index = program->AddBoolExpression(done);
+    LN_Instruction arm;
+    arm.opcode = LN_OpCode::ArmNextFrame;
+    arm.int_value = int32_t(state_index);
+    arm.bool_guard_expr_index = AddBoolConstant(*program, true);
+    LN_Instruction print;
+    print.opcode = LN_OpCode::Print;
+    print.value_expr_index = AddIntValueConstant(*program, value);
+    print.bool_guard_expr_index = done_index;
+    /* The continuation belongs to the route that armed it (compiler ContinuationPaths). */
+    if (ui_route) {
+      arm.flags = LN_INSTRUCTION_FLAG_UI_EVENT_ROUTE;
+      print.flags = LN_INSTRUCTION_FLAG_UI_EVENT_ROUTE;
+    }
+    program->AddInstruction(LN_Event::OnUpdate, arm);
+    program->AddInstruction(LN_Event::OnUpdate, print);
+  };
+  add_next_frame(true, 1);
+  add_next_frame(false, 2);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(63), 0, 0);
+  LN_TickContext context;
+  context.use_fixed_timestep = true;
+  context.event = LN_Event::OnUpdate;
+  auto printed = [&](const uint64_t tick_index) {
+    context.tick_index = tick_index;
+    context.phase_tick_index = tick_index;
+    std::vector<std::string> messages;
+    for (const LN_CommandBuffer::Command &command : RecordReadyCommands(runtime_tree, context)) {
+      messages.push_back(command.property_name);
+    }
+    return messages;
+  };
+
+  /* Both armed before the pause. */
+  EXPECT_TRUE(printed(0).empty());
+  /* Paused: the UI route's Next Frame completes; the game logic one waits for the game. */
+  runtime_tree.SetUIEventRoutesOnly(true);
+  EXPECT_EQ(printed(1), (std::vector<std::string>{"1"}));
+  EXPECT_EQ(printed(2), (std::vector<std::string>{"1"}));
+  runtime_tree.SetUIEventRoutesOnly(false);
+  EXPECT_EQ(printed(3), (std::vector<std::string>{"1", "2"}));
+}
+
+TEST(LN_RuntimeTree, PhaseAwareCanTickSkipsEmptyRecurringStreamsAfterInitialization)
+{
+  std::shared_ptr<LN_Program> update_program = std::make_shared<LN_Program>();
+  LN_Instruction update_instruction;
+  update_instruction.opcode = LN_OpCode::Print;
+  update_instruction.value_expr_index = AddIntValueConstant(*update_program, 1);
+  update_program->AddInstruction(LN_Event::OnUpdate, update_instruction);
+
+  KX_GameObject update_object;
+  LN_RuntimeTree update_tree(update_program, &update_object, 0, 0);
+  LN_TickContext update_context;
+  update_context.event = LN_Event::OnUpdate;
+  update_context.use_fixed_timestep = true;
+  RecordReadyCommands(update_tree, update_context);
+
+  EXPECT_TRUE(update_tree.CanTick(LN_Event::OnUpdate));
+  EXPECT_FALSE(update_tree.CanTick(LN_Event::OnFixedUpdate));
+
+  std::shared_ptr<LN_Program> fixed_program = std::make_shared<LN_Program>();
+  LN_Instruction fixed_instruction;
+  fixed_instruction.opcode = LN_OpCode::Print;
+  fixed_instruction.value_expr_index = AddIntValueConstant(*fixed_program, 2);
+  fixed_program->AddInstruction(LN_Event::OnFixedUpdate, fixed_instruction);
+
+  KX_GameObject fixed_object;
+  LN_RuntimeTree fixed_tree(fixed_program, &fixed_object, 0, 0);
+  RecordReadyCommands(fixed_tree, update_context);
+
+  EXPECT_FALSE(fixed_tree.CanTick(LN_Event::OnUpdate));
+  EXPECT_TRUE(fixed_tree.CanTick(LN_Event::OnFixedUpdate));
 }
 
 TEST(LN_RuntimeTree, StaticGamePropertyCommandUsesPropertyRefWithoutNameCopy)
@@ -2685,6 +3576,283 @@ TEST(LN_RuntimeTree, TargetedSendEventWithNullDynamicTargetDoesNotBroadcast)
   EXPECT_TRUE(commands.empty());
 }
 
+TEST(LN_RuntimeTree, PersistenceCompletionQueuesDoneAndTickAlignedSuccessResults)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const uint32_t completion_index = AddPersistenceCompletion(*program);
+  const uint32_t success_index = AddPersistenceSuccess(*program, completion_index);
+
+  LN_Instruction print_done;
+  print_done.opcode = LN_OpCode::Print;
+  print_done.bool_guard_expr_index = completion_index;
+  print_done.value_expr_index = AddIntValueConstant(*program, 1);
+  program->AddInstruction(LN_Event::OnFixedUpdate, print_done);
+
+  LN_Instruction print_success;
+  print_success.opcode = LN_OpCode::Print;
+  print_success.bool_guard_expr_index = success_index;
+  print_success.value_expr_index = AddIntValueConstant(*program, 2);
+  program->AddInstruction(LN_Event::OnFixedUpdate, print_success);
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x71), 0, 0);
+  LN_TickContext context;
+  runtime_tree.CompletePersistenceOperation(completion_index, false);
+  runtime_tree.CompletePersistenceOperation(completion_index, true);
+
+  context.tick_index = 1;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
+
+  context.tick_index = 2;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 2u);
+
+  context.tick_index = 3;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+}
+
+TEST(LN_RuntimeTree, PersistenceCompletionRejectsUnrelatedBoolState)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const uint32_t constant_index = AddBoolConstant(*program, false);
+
+  LN_Instruction print;
+  print.opcode = LN_OpCode::Print;
+  print.bool_guard_expr_index = constant_index;
+  print.value_expr_index = AddIntValueConstant(*program, 1);
+  program->AddInstruction(LN_Event::OnFixedUpdate, print);
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x72), 0, 0);
+  runtime_tree.CompletePersistenceOperation(constant_index, true);
+
+  LN_TickContext context;
+  context.tick_index = 1;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+}
+
+TEST(LN_RuntimeTree, PrintRotationUsesEditorStyleDegrees)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  LN_ValueExpression rotation;
+  rotation.kind = LN_ValueExpressionKind::Constant;
+  rotation.value.type = LN_ValueType::Rotation;
+  rotation.value.exists = true;
+  rotation.value.rotation_value = LN_Rotation::FromEulerXYZ(
+      MT_Vector3(0.0f, 0.0f, float(M_PI / 6.0)));
+  const uint32_t rotation_index = program->AddValueExpression(rotation);
+
+  LN_Instruction print;
+  print.opcode = LN_OpCode::Print;
+  print.value_expr_index = rotation_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, print);
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x73), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 1;
+  const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                              context);
+
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::Print);
+  EXPECT_EQ(commands[0].property_name, "Rotation(deg)=(0, 0, 30)");
+}
+
+TEST(LN_RuntimeTree, PrintGetParentValueUsesOwnerAndReturnsDirectParent)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  LN_ValueExpression owner;
+  owner.kind = LN_ValueExpressionKind::OwnerObject;
+  const uint32_t owner_index = program->AddValueExpression(owner);
+
+  LN_ValueExpression parent;
+  parent.kind = LN_ValueExpressionKind::ObjectParent;
+  parent.input0 = owner_index;
+
+  LN_Instruction print;
+  print.opcode = LN_OpCode::Print;
+  print.value_expr_index = program->AddValueExpression(parent);
+  program->AddInstruction(LN_Event::OnFixedUpdate, print);
+
+  KX_GameObject parent_object;
+  KX_GameObject child_object;
+  parent_object.SetName("Parent");
+  child_object.SetName("Child");
+
+  std::vector<LN_CommandBuffer::Command> commands;
+  {
+    SG_Callbacks callbacks;
+    SG_Node parent_node(&parent_object, nullptr, callbacks);
+    SG_Node child_node(&child_object, nullptr, callbacks);
+    parent_object.SetSGNode(&parent_node);
+    child_object.SetSGNode(&child_node);
+    parent_node.AddChild(&child_node);
+
+    LN_RuntimeTree runtime_tree(program, &child_object, 0, 0);
+    LN_TickContext context;
+    context.event = LN_Event::OnFixedUpdate;
+    context.tick_index = 1;
+    commands = RecordReadyCommands(runtime_tree, context);
+
+    child_node.DisconnectFromParent();
+    child_object.SetSGNode(nullptr);
+    parent_object.SetSGNode(nullptr);
+  }
+
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::Print);
+  EXPECT_EQ(commands[0].property_name, "Parent");
+}
+
+TEST(LN_RuntimeTree, PrintRotationPreservesAuthoredEulerTurnsAtGraphBoundary)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  constexpr float degrees_to_radians = float(M_PI / 180.0);
+  const MT_Vector3 authored_euler(0.0f, 0.0f, 350.0f * degrees_to_radians);
+
+  LN_ValueExpression rotation;
+  rotation.kind = LN_ValueExpressionKind::Constant;
+  rotation.value.type = LN_ValueType::Rotation;
+  rotation.value.exists = true;
+  rotation.value.SetRotation(LN_Rotation::FromEulerXYZ(authored_euler), authored_euler);
+
+  LN_Instruction print;
+  print.opcode = LN_OpCode::Print;
+  print.value_expr_index = program->AddValueExpression(rotation);
+  program->AddInstruction(LN_Event::OnFixedUpdate, print);
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x731), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 1;
+  const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                              context);
+
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].property_name, "Rotation(deg)=(0, 0, 350)");
+}
+
+TEST(LN_RuntimeTree, BoneRotationToObjectRotationConvertsOnlyAtExplicitGraphBoundary)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  LN_ValueExpression native_bone_value;
+  native_bone_value.kind = LN_ValueExpressionKind::Constant;
+  native_bone_value.value.type = LN_ValueType::Rotation;
+  native_bone_value.value.exists = true;
+  native_bone_value.value.SetRotation(LN_BlenderBoneBasisRotation(),
+                                      LN_BlenderBoneBasisRotation().ToEulerXYZ());
+  const uint32_t native_bone_value_index = program->AddValueExpression(native_bone_value);
+
+  LN_VectorExpression native_bone_rotation;
+  native_bone_rotation.kind = LN_VectorExpressionKind::FromGenericValue;
+  native_bone_rotation.output_type = LN_ValueType::Rotation;
+  native_bone_rotation.input0 = native_bone_value_index;
+  const uint32_t native_bone_rotation_index = program->AddVectorExpression(native_bone_rotation);
+
+  LN_VectorExpression object_rotation;
+  object_rotation.kind = LN_VectorExpressionKind::BoneRotationToObjectRotation;
+  object_rotation.output_type = LN_ValueType::Rotation;
+  object_rotation.input0 = native_bone_rotation_index;
+  const uint32_t object_rotation_index = program->AddVectorExpression(object_rotation);
+
+  LN_ValueExpression printable_rotation;
+  printable_rotation.kind = LN_ValueExpressionKind::FromRotation;
+  printable_rotation.input0 = object_rotation_index;
+
+  LN_Instruction print;
+  print.opcode = LN_OpCode::Print;
+  print.value_expr_index = program->AddValueExpression(printable_rotation);
+  program->AddInstruction(LN_Event::OnFixedUpdate, print);
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x732), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 1;
+
+  const LN_Rotation converted = LN_RuntimeTreeTestAccess::ResolveRotation(
+      runtime_tree, object_rotation_index, LN_Rotation::Identity(), context);
+  EXPECT_TRUE(converted.IsIdentity(1.0e-6f));
+
+  const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                              context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].property_name, "Rotation(deg)=(0, 0, 0)");
+}
+
+TEST(LN_RuntimeTree, RotationTweenPreservesEulerModeAndUsesShortestQuaternionArc)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const uint32_t duration_index = AddFloatConstant(*program, 1.0f);
+
+  LN_BoolExpression tween;
+  tween.kind = LN_BoolExpressionKind::TweenValue;
+  tween.float_expr_index = duration_index;
+  tween.bool_value = true;
+  const uint32_t tween_index = program->AddBoolExpression(tween);
+
+  constexpr float degrees_to_radians = float(M_PI / 180.0);
+  LN_VectorExpression from;
+  from.kind = LN_VectorExpressionKind::Constant;
+  from.output_type = LN_ValueType::Rotation;
+  from.vector_value = MT_Vector3(0.0f, 0.0f, 350.0f * degrees_to_radians);
+  from.rotation_value = LN_Rotation::FromEulerXYZ(from.vector_value);
+  const uint32_t from_index = program->AddVectorExpression(from);
+
+  LN_VectorExpression to;
+  to.kind = LN_VectorExpressionKind::Constant;
+  to.output_type = LN_ValueType::Rotation;
+  to.vector_value = MT_Vector3(0.0f, 0.0f, 10.0f * degrees_to_radians);
+  to.rotation_value = LN_Rotation::FromEulerXYZ(to.vector_value);
+  const uint32_t to_index = program->AddVectorExpression(to);
+
+  LN_VectorExpression euler_result;
+  euler_result.kind = LN_VectorExpressionKind::TweenRotationResult;
+  euler_result.output_type = LN_ValueType::Rotation;
+  euler_result.input0 = tween_index;
+  euler_result.input1 = from_index;
+  euler_result.input2 = to_index;
+  euler_result.property_ref_index = 0;
+  const uint32_t euler_result_index = program->AddVectorExpression(euler_result);
+
+  LN_VectorExpression quaternion_result = euler_result;
+  quaternion_result.property_ref_index = 1;
+  const uint32_t quaternion_result_index = program->AddVectorExpression(quaternion_result);
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x74), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 1;
+  context.delta_time = 0.5;
+
+  const LN_Rotation euler_rotation = LN_RuntimeTreeTestAccess::ResolveRotation(
+      runtime_tree, euler_result_index, LN_Rotation::Identity(), context);
+  const LN_Rotation quaternion_rotation = LN_RuntimeTreeTestAccess::ResolveRotation(
+      runtime_tree, quaternion_result_index, LN_Rotation::Identity(), context);
+
+  EXPECT_LE(euler_rotation.AngleTo(LN_Rotation::FromEulerXYZ(MT_Vector3(0.0f, 0.0f, float(M_PI)))),
+            1.0e-4f);
+  EXPECT_TRUE(quaternion_rotation.IsIdentity(1.0e-4f));
+}
+
+TEST(LN_RuntimeTree, RotationCacheNeverCapturesCallerFallback)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_VectorExpression unresolved;
+  unresolved.kind = LN_VectorExpressionKind::FromGenericValue;
+  unresolved.output_type = LN_ValueType::Rotation;
+  const uint32_t unresolved_index = program->AddVectorExpression(unresolved);
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x75), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 7;
+  const LN_Rotation first_fallback = LN_Rotation::FromEulerXYZ(MT_Vector3(0.2f, 0.0f, 0.0f));
+  const LN_Rotation second_fallback = LN_Rotation::FromEulerXYZ(MT_Vector3(0.0f, 0.4f, 0.0f));
+
+  const LN_Rotation first = LN_RuntimeTreeTestAccess::ResolveRotation(
+      runtime_tree, unresolved_index, first_fallback, context);
+  const LN_Rotation second = LN_RuntimeTreeTestAccess::ResolveRotation(
+      runtime_tree, unresolved_index, second_fallback, context);
+  EXPECT_LE(first.AngleTo(first_fallback), 1.0e-6f);
+  EXPECT_LE(second.AngleTo(second_fallback), 1.0e-6f);
+}
+
 TEST(LN_RuntimeTree, TargetedReceiveEventWithNullDynamicTargetDoesNotMatchBroadcast)
 {
   std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
@@ -2724,7 +3892,7 @@ TEST(LN_RuntimeTree, TargetedReceiveEventWithNullDynamicTargetDoesNotMatchBroadc
   event.content.exists = true;
   event.content.int_value = 42;
   manager.PushEvent(event);
-  const_cast<LN_EventBus &>(manager.GetEventBus()).BeginTick();
+  const_cast<LN_EventBus &>(manager.GetEventBus()).BeginFrame();
 
   LN_TickContext context;
   context.tick_index = 1;
@@ -2816,6 +3984,158 @@ TEST(LN_RuntimeTree, ValueChangedToFiresWhenElapsedTimeCrossesTarget)
   ASSERT_EQ(commands.size(), 1u);
   EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::Print);
   EXPECT_EQ(commands[0].property_name, "1.05");
+}
+
+TEST(LN_RuntimeTree, ValueChangedToDoesNotFireWhenValueLeavesTarget)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  LN_Value initial_value;
+  initial_value.type = LN_ValueType::Float;
+  initial_value.exists = true;
+  initial_value.float_value = 1.0f;
+
+  LN_TreePropertyRef property_ref;
+  property_ref.name = "watched";
+  property_ref.value_type = LN_ValueType::Float;
+  property_ref.default_value = initial_value;
+  const uint32_t property_ref_index = program->AddTreePropertyRef(property_ref);
+
+  LN_ValueExpression property_value;
+  property_value.kind = LN_ValueExpressionKind::RuntimeTreeProperty;
+  property_value.property_ref_index = property_ref_index;
+  const uint32_t property_value_index = program->AddValueExpression(property_value);
+
+  LN_BoolExpression changed_to;
+  changed_to.kind = LN_BoolExpressionKind::ValueChangedTo;
+  changed_to.input0 = property_value_index;
+  changed_to.input1 = AddFloatValueConstant(*program, 1.0f);
+  const uint32_t changed_to_index = program->AddBoolExpression(changed_to);
+
+  LN_Instruction print;
+  print.opcode = LN_OpCode::Print;
+  print.bool_guard_expr_index = changed_to_index;
+  print.value_expr_index = property_value_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, print);
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(651), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 1;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  LN_Value updated_value = initial_value;
+  updated_value.float_value = 2.0f;
+  ASSERT_TRUE(runtime_tree.SetTreePropertyValue(property_ref_index, updated_value));
+
+  context.tick_index = 2;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+}
+
+TEST(LN_RuntimeTree, ValueChangedReferenceFiresOnlyWhenIdentityChanges)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  LN_Value initial_value;
+  initial_value.type = LN_ValueType::ObjectRef;
+  initial_value.exists = true;
+  initial_value.runtime_ref.kind = LN_RuntimeRefKind::Object;
+  initial_value.runtime_ref.slot = 7;
+  initial_value.runtime_ref.generation = 3;
+  initial_value.reference_name = "First";
+
+  LN_TreePropertyRef property_ref;
+  property_ref.name = "watched_object";
+  property_ref.value_type = LN_ValueType::ObjectRef;
+  property_ref.default_value = initial_value;
+  const uint32_t property_ref_index = program->AddTreePropertyRef(property_ref);
+
+  LN_ValueExpression property_value;
+  property_value.kind = LN_ValueExpressionKind::RuntimeTreeProperty;
+  property_value.property_ref_index = property_ref_index;
+  const uint32_t property_value_index = program->AddValueExpression(property_value);
+
+  LN_BoolExpression changed;
+  changed.kind = LN_BoolExpressionKind::ValueChanged;
+  changed.input0 = property_value_index;
+  const uint32_t changed_index = program->AddBoolExpression(changed);
+
+  LN_Instruction print;
+  print.opcode = LN_OpCode::Print;
+  print.bool_guard_expr_index = changed_index;
+  print.value_expr_index = property_value_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, print);
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(652), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 1;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  context.tick_index = 2;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  LN_Value changed_value = initial_value;
+  changed_value.runtime_ref.slot = 8;
+  changed_value.reference_name = "Second";
+  ASSERT_TRUE(runtime_tree.SetTreePropertyValue(property_ref_index, changed_value));
+
+  context.tick_index = 3;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
+
+  context.tick_index = 4;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+}
+
+TEST(LN_RuntimeTree, ValueChangedCanIgnoreInitialNoneToValueTransition)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  LN_TreePropertyRef property_ref;
+  property_ref.name = "late_value";
+  property_ref.value_type = LN_ValueType::Generic;
+  const uint32_t property_ref_index = program->AddTreePropertyRef(property_ref);
+
+  LN_ValueExpression property_value;
+  property_value.kind = LN_ValueExpressionKind::RuntimeTreeProperty;
+  property_value.property_ref_index = property_ref_index;
+  const uint32_t property_value_index = program->AddValueExpression(property_value);
+
+  LN_BoolExpression changed;
+  changed.kind = LN_BoolExpressionKind::ValueChanged;
+  changed.input0 = property_value_index;
+  changed.bool_value = true;
+  const uint32_t changed_index = program->AddBoolExpression(changed);
+
+  LN_Instruction print;
+  print.opcode = LN_OpCode::Print;
+  print.bool_guard_expr_index = changed_index;
+  print.value_expr_index = property_value_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, print);
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(653), 0, 0);
+  LN_Value missing_value;
+  missing_value.type = LN_ValueType::ObjectRef;
+  missing_value.exists = false;
+  ASSERT_TRUE(runtime_tree.SetTreePropertyValue(property_ref_index, missing_value));
+
+  LN_TickContext context;
+  context.tick_index = 1;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  LN_Value first_value;
+  first_value.type = LN_ValueType::Int;
+  first_value.exists = true;
+  first_value.int_value = 10;
+  ASSERT_TRUE(runtime_tree.SetTreePropertyValue(property_ref_index, first_value));
+
+  context.tick_index = 2;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  LN_Value second_value = first_value;
+  second_value.int_value = 11;
+  ASSERT_TRUE(runtime_tree.SetTreePropertyValue(property_ref_index, second_value));
+
+  context.tick_index = 3;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
 }
 
 TEST(LN_RuntimeTree, ValueChangedOldNewAreLatchedAfterGuardEvaluation)
@@ -3075,6 +4395,217 @@ TEST(LN_RuntimeTree, RegisterExpressionEvaluatorRecordsEquivalentGenericValueCon
   EXPECT_EQ(counters.register_expression_fallback_count, 0u);
 }
 
+TEST(LN_RuntimeTree, RegisterExpressionEvaluatorRecordsEquivalentDirectTypecastCommands)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  auto add_property = [&](const char *name, const LN_Value &default_value) {
+    LN_TreePropertyRef property_ref;
+    property_ref.name = name;
+    property_ref.value_type = default_value.type;
+    property_ref.default_value = default_value;
+    return program->AddTreePropertyRef(property_ref);
+  };
+
+  LN_Value bool_value;
+  bool_value.type = LN_ValueType::Bool;
+  bool_value.exists = true;
+  bool_value.bool_value = true;
+  const uint32_t bool_property = add_property("bool_value", bool_value);
+
+  LN_Value int_value;
+  int_value.type = LN_ValueType::Int;
+  int_value.exists = true;
+  int_value.int_value = 7;
+  const uint32_t int_property = add_property("int_value", int_value);
+
+  LN_Value float_value;
+  float_value.type = LN_ValueType::Float;
+  float_value.exists = true;
+  float_value.float_value = 2.5f;
+  const uint32_t float_property = add_property("float_value", float_value);
+
+  LN_Value string_value;
+  string_value.type = LN_ValueType::String;
+  string_value.exists = true;
+  string_value.string_value = "not a number";
+  const uint32_t string_property = add_property("string_value", string_value);
+
+  LN_Value vector_value;
+  vector_value.type = LN_ValueType::Vector;
+  vector_value.exists = true;
+  vector_value.vector_value = MT_Vector3(1.0f, 2.0f, 3.0f);
+  const uint32_t vector_property = add_property("vector_value", vector_value);
+
+  LN_Value color_value;
+  color_value.type = LN_ValueType::Color;
+  color_value.exists = true;
+  color_value.color_value = MT_Vector4(0.2f, 0.4f, 0.6f, 1.0f);
+  const uint32_t color_property = add_property("color_value", color_value);
+
+  LN_BoolExpression bool_source;
+  bool_source.kind = LN_BoolExpressionKind::RuntimeTreeProperty;
+  bool_source.property_ref_index = bool_property;
+  const uint32_t bool_source_index = program->AddBoolExpression(bool_source);
+
+  LN_IntExpression int_source;
+  int_source.kind = LN_IntExpressionKind::RuntimeTreeProperty;
+  int_source.property_ref_index = int_property;
+  const uint32_t int_source_index = program->AddIntExpression(int_source);
+
+  LN_FloatExpression float_source;
+  float_source.kind = LN_FloatExpressionKind::RuntimeTreeProperty;
+  float_source.property_ref_index = float_property;
+  const uint32_t float_source_index = program->AddFloatExpression(float_source);
+
+  LN_StringExpression string_source;
+  string_source.kind = LN_StringExpressionKind::RuntimeTreeProperty;
+  string_source.property_ref_index = string_property;
+  const uint32_t string_source_index = program->AddStringExpression(string_source);
+
+  LN_VectorExpression vector_source;
+  vector_source.kind = LN_VectorExpressionKind::RuntimeTreeProperty;
+  vector_source.property_ref_index = vector_property;
+  const uint32_t vector_source_index = program->AddVectorExpression(vector_source);
+
+  LN_ColorExpression color_source;
+  color_source.kind = LN_ColorExpressionKind::RuntimeTreeProperty;
+  color_source.property_ref_index = color_property;
+  const uint32_t color_source_index = program->AddColorExpression(color_source);
+
+  LN_IntExpression int_from_bool;
+  int_from_bool.kind = LN_IntExpressionKind::FromBool;
+  int_from_bool.input0 = bool_source_index;
+  const uint32_t int_from_bool_index = program->AddIntExpression(int_from_bool);
+  LN_Instruction set_group_from_bool;
+  set_group_from_bool.opcode = LN_OpCode::SetCollisionGroup;
+  set_group_from_bool.int_expr_index = int_from_bool_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, set_group_from_bool);
+
+  LN_FloatExpression float_from_int;
+  float_from_int.kind = LN_FloatExpressionKind::FromInt;
+  float_from_int.input0 = int_source_index;
+  const uint32_t float_from_int_index = program->AddFloatExpression(float_from_int);
+  LN_Instruction set_scale_from_int;
+  set_scale_from_int.opcode = LN_OpCode::SetTimeScale;
+  set_scale_from_int.float_expr_index = float_from_int_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, set_scale_from_int);
+
+  LN_IntExpression int_from_float;
+  int_from_float.kind = LN_IntExpressionKind::FromFloat;
+  int_from_float.input0 = float_source_index;
+  int_from_float.float_to_int_mode = LN_FloatToIntMode::Round;
+  const uint32_t int_from_float_index = program->AddIntExpression(int_from_float);
+  LN_Instruction set_group_from_float;
+  set_group_from_float.opcode = LN_OpCode::SetCollisionGroup;
+  set_group_from_float.int_expr_index = int_from_float_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, set_group_from_float);
+
+  LN_FloatExpression float_from_string;
+  float_from_string.kind = LN_FloatExpressionKind::FromString;
+  float_from_string.string_expr_index = string_source_index;
+  const uint32_t float_from_string_index = program->AddFloatExpression(float_from_string);
+  LN_Instruction set_scale_from_string;
+  set_scale_from_string.opcode = LN_OpCode::SetTimeScale;
+  set_scale_from_string.float_expr_index = float_from_string_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, set_scale_from_string);
+
+  LN_VectorExpression vector_from_float;
+  vector_from_float.kind = LN_VectorExpressionKind::BroadcastFloat;
+  vector_from_float.float_expr_index = float_source_index;
+  const uint32_t vector_from_float_index = program->AddVectorExpression(vector_from_float);
+  LN_Instruction set_position_from_float;
+  set_position_from_float.opcode = LN_OpCode::SetWorldPosition;
+  set_position_from_float.vector_expr_index = vector_from_float_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, set_position_from_float);
+
+  LN_StringExpression string_from_vector;
+  string_from_vector.kind = LN_StringExpressionKind::FromVector;
+  string_from_vector.input0 = vector_source_index;
+  const uint32_t string_from_vector_index = program->AddStringExpression(string_from_vector);
+  LN_ValueExpression printable_string;
+  printable_string.kind = LN_ValueExpressionKind::FromString;
+  printable_string.input0 = string_from_vector_index;
+  const uint32_t printable_string_index = program->AddValueExpression(printable_string);
+  LN_Instruction print_vector;
+  print_vector.opcode = LN_OpCode::Print;
+  print_vector.value_expr_index = printable_string_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, print_vector);
+
+  LN_BoolExpression bool_from_color;
+  bool_from_color.kind = LN_BoolExpressionKind::FromColor;
+  bool_from_color.input0 = color_source_index;
+  const uint32_t bool_from_color_index = program->AddBoolExpression(bool_from_color);
+  LN_Instruction set_visibility_from_color;
+  set_visibility_from_color.opcode = LN_OpCode::SetVisibility;
+  set_visibility_from_color.bool_expr_index = bool_from_color_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, set_visibility_from_color);
+
+  LN_VectorExpression vector_from_color;
+  vector_from_color.kind = LN_VectorExpressionKind::FromColor;
+  vector_from_color.input0 = color_source_index;
+  const uint32_t vector_from_color_index = program->AddVectorExpression(vector_from_color);
+  LN_Instruction set_position_from_color;
+  set_position_from_color.opcode = LN_OpCode::SetWorldPosition;
+  set_position_from_color.vector_expr_index = vector_from_color_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, set_position_from_color);
+
+  const LN_RegisterExpressionProgram &ir = program->GetRegisterExpressionProgram();
+  ASSERT_TRUE(ir.valid);
+  EXPECT_EQ(ir.fallback_expression_count, 0u);
+  EXPECT_NE(ir.int_expression_registers[int_from_bool_index], LN_INVALID_INDEX);
+  EXPECT_NE(ir.float_expression_registers[float_from_int_index], LN_INVALID_INDEX);
+  EXPECT_NE(ir.int_expression_registers[int_from_float_index], LN_INVALID_INDEX);
+  EXPECT_NE(ir.float_expression_registers[float_from_string_index], LN_INVALID_INDEX);
+  EXPECT_NE(ir.vector_expression_registers[vector_from_float_index], LN_INVALID_INDEX);
+  EXPECT_NE(ir.string_expression_registers[string_from_vector_index], LN_INVALID_INDEX);
+  EXPECT_NE(ir.bool_expression_registers[bool_from_color_index], LN_INVALID_INDEX);
+  EXPECT_NE(ir.vector_expression_registers[vector_from_color_index], LN_INVALID_INDEX);
+
+  LN_TickContext reference_context;
+  reference_context.tick_index = 1;
+  reference_context.use_register_expression_evaluator = false;
+  LN_RuntimeTree reference_tree(program, FakeGameObjectPointer(84), 0, 0);
+  const std::vector<LN_CommandBuffer::Command> reference_commands = RecordReadyCommands(
+      reference_tree, reference_context);
+
+  LN_TickContext register_context = reference_context;
+  register_context.use_register_expression_evaluator = true;
+  LN_RuntimeTree register_tree(program, FakeGameObjectPointer(84), 0, 0);
+  LN_CommandBuffer command_buffer;
+  LN_RuntimeProfileCounters counters;
+  command_buffer.BeginRecording();
+  register_tree.ExecuteReady(command_buffer, register_context, &counters);
+  command_buffer.EndRecording();
+  const std::vector<LN_CommandBuffer::Command> register_commands =
+      command_buffer.TakeRecordedCommands();
+
+  ASSERT_EQ(register_commands.size(), reference_commands.size());
+  ASSERT_EQ(register_commands.size(), 8u);
+  for (size_t index = 0; index < register_commands.size(); index++) {
+    SCOPED_TRACE(index);
+    ExpectCommandEqual(register_commands[index], reference_commands[index]);
+  }
+  EXPECT_EQ(register_commands[0].type, LN_CommandBuffer::CommandType::SetCollisionGroup);
+  EXPECT_EQ(register_commands[1].type, LN_CommandBuffer::CommandType::SetTimeScale);
+  EXPECT_EQ(register_commands[2].type, LN_CommandBuffer::CommandType::SetCollisionGroup);
+  EXPECT_EQ(register_commands[3].type, LN_CommandBuffer::CommandType::SetTimeScale);
+  EXPECT_EQ(register_commands[4].type, LN_CommandBuffer::CommandType::SetWorldPosition);
+  EXPECT_EQ(register_commands[5].type, LN_CommandBuffer::CommandType::Print);
+  EXPECT_EQ(register_commands[6].type, LN_CommandBuffer::CommandType::SetVisibility);
+  EXPECT_EQ(register_commands[7].type, LN_CommandBuffer::CommandType::SetWorldPosition);
+  EXPECT_EQ(register_commands[0].int_value, 1);
+  EXPECT_NEAR(register_commands[1].scalar_value, 7.0f, 0.0001f);
+  EXPECT_EQ(register_commands[2].int_value, 3);
+  EXPECT_EQ(register_commands[3].scalar_value, 0.0f);
+  ExpectVectorNear(register_commands[4].vector_value, MT_Vector3(2.5f, 2.5f, 2.5f));
+  EXPECT_EQ(register_commands[5].property_name, "(1, 2, 3)");
+  EXPECT_TRUE(register_commands[6].bool_value);
+  ExpectVectorNear(register_commands[7].vector_value, MT_Vector3(0.2f, 0.4f, 0.6f));
+  EXPECT_GT(counters.register_expression_hit_count, 0u);
+  EXPECT_EQ(counters.register_expression_fallback_count, 0u);
+}
+
 TEST(LN_RuntimeTree, RegisterExpressionEvaluatorRecordsEquivalentPureValueProducerCommands)
 {
   std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
@@ -3135,7 +4666,7 @@ TEST(LN_RuntimeTree, RegisterExpressionEvaluatorRecordsEquivalentPureValueProduc
   rotation_constant.kind = LN_ValueExpressionKind::Constant;
   rotation_constant.value.type = LN_ValueType::Rotation;
   rotation_constant.value.exists = true;
-  rotation_constant.value.rotation_euler_value = MT_Vector3(0.1f, 0.2f, 0.3f);
+  rotation_constant.value.rotation_value = LN_Rotation::FromEulerXYZ(MT_Vector3(0.1f, 0.2f, 0.3f));
   const uint32_t rotation_constant_index = program->AddValueExpression(rotation_constant);
 
   LN_ValueExpression vector4_constant;
@@ -3602,6 +5133,56 @@ TEST(LN_RuntimeTree, BranchRouteSkipsUnselectedPulse)
   EXPECT_TRUE(commands.empty());
 }
 
+TEST(LN_RuntimeTree, InvalidOverlayRequestsCompleteFailedWithoutQueuing)
+{
+  const LN_OpCode overlay_opcodes[] = {
+      LN_OpCode::SetOverlayCollection,
+      LN_OpCode::RemoveOverlayCollection,
+  };
+
+  for (const LN_OpCode opcode : overlay_opcodes) {
+    SCOPED_TRACE(static_cast<int>(opcode));
+    std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+    const uint32_t none_value = AddNoneValueConstant(*program);
+
+    LN_BoolExpression completed;
+    completed.kind = LN_BoolExpressionKind::UICommandCompleted;
+    const uint32_t completion_index = program->AddBoolExpression(completed);
+
+    LN_Instruction overlay;
+    overlay.opcode = opcode;
+    overlay.value_expr_index = none_value;
+    overlay.property_ref_index = completion_index;
+    if (opcode == LN_OpCode::SetOverlayCollection) {
+      overlay.secondary_value_expr_index = none_value;
+    }
+    program->AddInstruction(LN_Event::OnFixedUpdate, overlay);
+
+    LN_BoolExpression succeeded;
+    succeeded.kind = LN_BoolExpressionKind::UICommandSucceeded;
+    succeeded.input0 = completion_index;
+
+    LN_Instruction quit;
+    quit.opcode = LN_OpCode::QuitGame;
+    quit.bool_guard_expr_index = program->AddBoolExpression(succeeded);
+    program->AddInstruction(LN_Event::OnFixedUpdate, quit);
+
+    ASSERT_TRUE(program->ValidateInstructionPayloads());
+    KX_GameObject owner;
+    SG_Callbacks callbacks;
+    SG_Node scene_node(&owner, nullptr, callbacks);
+    owner.SetSGNode(&scene_node);
+    {
+      LN_RuntimeTree runtime_tree(program, &owner, 0, 0);
+      LN_TickContext context;
+      context.tick_index = 1;
+
+      EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+    }
+    owner.SetSGNode(nullptr);
+  }
+}
+
 TEST(LN_RuntimeTree, BranchRoutePulseIsScopedPerLoopIteration)
 {
   std::shared_ptr<LN_Program> program = CreateLoopScopedBranchRouteQuitProgram();
@@ -3816,6 +5397,908 @@ TEST(LN_RuntimeTree, DoOnceClosedStateSurvivesDisableResume)
   EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
 }
 
+TEST(LN_RuntimeTree, FlowGateControlsPersistentStateAndFiltersEveryEnterPulse)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  uint32_t enter_ref = LN_INVALID_INDEX;
+  uint32_t toggle_ref = LN_INVALID_INDEX;
+  uint32_t open_ref = LN_INVALID_INDEX;
+  uint32_t close_ref = LN_INVALID_INDEX;
+  const uint32_t enter = AddBoolTreePropertyExpression(*program, "enter", true, enter_ref);
+  const uint32_t toggle = AddBoolTreePropertyExpression(*program, "toggle", false, toggle_ref);
+  const uint32_t open = AddBoolTreePropertyExpression(*program, "open", false, open_ref);
+  const uint32_t close = AddBoolTreePropertyExpression(*program, "close", false, close_ref);
+  const uint32_t gate = AddFlowGateState(*program, AddBoolConstant(*program, false));
+
+  AddFlowGateControl(*program, gate, toggle, LN_FlowGateControl::Toggle);
+  AddFlowGateControl(*program, gate, open, LN_FlowGateControl::Open);
+  AddFlowGateControl(*program, gate, close, LN_FlowGateControl::Close);
+  AddGuardedPrint(*program, AddFlowGateAttempt(*program, gate, enter), 1);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(269), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, open_ref, true));
+  context.tick_index = 1;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, open_ref, false));
+  context.tick_index = 2;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, close_ref, true));
+  context.tick_index = 3;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, close_ref, false));
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, toggle_ref, true));
+  context.tick_index = 4;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
+
+  /* Controls execute before Enter, and compiler-defined Close > Open > Toggle precedence wins
+   * deterministically if every control receives a pulse in the same execution scope. */
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, open_ref, true));
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, close_ref, true));
+  context.tick_index = 5;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+}
+
+TEST(LN_RuntimeTree, FlowGateSamplesStartOpenOnceOnFirstEvaluationPerRuntimeTree)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  uint32_t start_open_ref = LN_INVALID_INDEX;
+  const uint32_t start_open = AddBoolTreePropertyExpression(
+      *program, "start_open", true, start_open_ref);
+  const uint32_t gate = AddFlowGateState(*program, start_open);
+  AddGuardedPrint(
+      *program, AddFlowGateAttempt(*program, gate, AddBoolConstant(*program, true)), 1);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree first_tree(program, FakeGameObjectPointer(270), 0, 0);
+  LN_RuntimeTree second_tree(program, FakeGameObjectPointer(271), 1, 0);
+  LN_TickContext context;
+  context.tick_index = 0;
+  EXPECT_EQ(RecordReadyCommands(first_tree, context).size(), 1u);
+
+  ASSERT_TRUE(SetBoolTreeProperty(first_tree, start_open_ref, false));
+  ASSERT_TRUE(SetBoolTreeProperty(second_tree, start_open_ref, false));
+  context.tick_index = 1;
+  EXPECT_EQ(RecordReadyCommands(first_tree, context).size(), 1u);
+  EXPECT_TRUE(RecordReadyCommands(second_tree, context).empty());
+}
+
+TEST(LN_RuntimeTree, FlowGateStateSurvivesDisableResume)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const uint32_t always = AddBoolConstant(*program, true);
+  uint32_t open_ref = LN_INVALID_INDEX;
+  const uint32_t open = AddBoolTreePropertyExpression(*program, "open", true, open_ref);
+  const uint32_t gate = AddFlowGateState(*program, AddBoolConstant(*program, false));
+  AddFlowGateControl(*program, gate, open, LN_FlowGateControl::Open);
+  AddGuardedPrint(*program, AddFlowGateAttempt(*program, gate, always), 1);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(275), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 0;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, open_ref, false));
+  runtime_tree.SetEnabled(false);
+  context.tick_index = 1;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  runtime_tree.SetEnabled(true);
+  context.tick_index = 2;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
+}
+
+TEST(LN_RuntimeTree, FlowGatePreservesRepeatedTogglePulses)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const uint32_t always = AddBoolConstant(*program, true);
+  const uint32_t gate = AddFlowGateState(*program, always);
+  AddFlowGateControl(*program, gate, always, LN_FlowGateControl::Toggle);
+  AddFlowGateControl(*program, gate, always, LN_FlowGateControl::Toggle);
+  AddGuardedPrint(*program, AddFlowGateAttempt(*program, gate, always), 1);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(272), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 0;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
+  context.tick_index = 1;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
+}
+
+TEST(LN_RuntimeTree, FlowGateInstancesWithIdenticalInitialValuesKeepIndependentState)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const uint32_t always = AddBoolConstant(*program, true);
+  const uint32_t initially_closed = AddBoolConstant(*program, false);
+  const uint32_t first_gate = AddFlowGateState(*program, initially_closed);
+  const uint32_t second_gate = AddFlowGateState(*program, initially_closed);
+  ASSERT_NE(first_gate, second_gate);
+
+  AddFlowGateControl(*program, first_gate, always, LN_FlowGateControl::Open);
+  AddGuardedPrint(*program, AddFlowGateAttempt(*program, first_gate, always), 1);
+  AddGuardedPrint(*program, AddFlowGateAttempt(*program, second_gate, always), 2);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(273), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 0;
+  const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                              context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].property_name, "1");
+}
+
+TEST(LN_RuntimeTree, FlowGateAcceptedPulseDoesNotLeakIntoLaterLoopScope)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const uint32_t always = AddBoolConstant(*program, true);
+  const uint32_t gate = AddFlowGateState(*program, AddBoolConstant(*program, false));
+
+  LN_LoopFrame frame;
+  frame.kind = LN_LoopKind::Count;
+  frame.trigger_bool_expr_index = always;
+  frame.count_int_expr_index = AddIntConstant(*program, 2);
+  const uint32_t frame_index = program->AddLoopFrame(frame);
+
+  LN_IntExpression loop_index;
+  loop_index.kind = LN_IntExpressionKind::LoopIndex;
+  loop_index.int_value = int32_t(frame_index);
+  frame.loop_index_int_expr_index = program->AddIntExpression(loop_index);
+
+  LN_ValueExpression current_value;
+  current_value.kind = LN_ValueExpressionKind::LoopCurrentValue;
+  current_value.property_ref_index = frame_index;
+  frame.loop_current_value_expr_index = program->AddValueExpression(current_value);
+  program->UpdateLoopFrame(frame_index, frame);
+
+  LN_BoolExpression first_iteration;
+  first_iteration.kind = LN_BoolExpressionKind::ValueCompare;
+  first_iteration.input0 = frame.loop_current_value_expr_index;
+  first_iteration.input1 = AddIntValueConstant(*program, 0);
+  first_iteration.float_compare_operation = LN_FloatCompareOperation::Equal;
+  const uint32_t first_iteration_index = program->AddBoolExpression(first_iteration);
+
+  LN_BoolExpression second_iteration = first_iteration;
+  second_iteration.input1 = AddIntValueConstant(*program, 1);
+  const uint32_t second_iteration_index = program->AddBoolExpression(second_iteration);
+
+  AddFlowGateControl(*program, gate, first_iteration_index, LN_FlowGateControl::Open, frame_index);
+  AddFlowGateControl(
+      *program, gate, second_iteration_index, LN_FlowGateControl::Close, frame_index);
+  const uint32_t accepted = AddFlowGateAttempt(*program, gate, always, frame_index);
+  AddGuardedPrint(*program, accepted, 1, frame_index);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(274), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 0;
+  const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                              context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].property_name, "1");
+}
+
+TEST(LN_RuntimeTree, FlowRouterCyclesResetsAndScopesEachRoutePulse)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  uint32_t flow_ref = LN_INVALID_INDEX;
+  uint32_t reset_ref = LN_INVALID_INDEX;
+  const uint32_t flow = AddBoolTreePropertyExpression(*program, "flow", true, flow_ref);
+  const uint32_t reset = AddBoolTreePropertyExpression(*program, "reset", false, reset_ref);
+  const uint32_t state_index = program->AddFlowControlState();
+
+  auto add_route_expression = [&](const LN_BoolExpressionKind kind, const int32_t route) {
+    LN_BoolExpression expression;
+    expression.kind = kind;
+    expression.int_value = int32_t(state_index);
+    expression.secondary_int_value = route;
+    return program->AddBoolExpression(expression);
+  };
+  const uint32_t route_zero = add_route_expression(LN_BoolExpressionKind::FlowRouterSelected, 0);
+  const uint32_t route_one = add_route_expression(LN_BoolExpressionKind::FlowRouterSelected, 1);
+  const uint32_t route_two = add_route_expression(LN_BoolExpressionKind::FlowRouterSelected, 2);
+  const uint32_t last_route_zero = add_route_expression(LN_BoolExpressionKind::FlowRouterLastRoute,
+                                                        0);
+
+  LN_Instruction reset_router;
+  reset_router.opcode = LN_OpCode::ResetFlowRouter;
+  reset_router.bool_guard_expr_index = reset;
+  reset_router.int_value = int32_t(state_index);
+  program->AddInstruction(LN_Event::OnFixedUpdate, reset_router);
+
+  LN_Instruction route;
+  route.opcode = LN_OpCode::TryFlowRouter;
+  route.bool_guard_expr_index = flow;
+  route.int_value = int32_t(state_index);
+  route.secondary_int_value = 3;
+  program->AddInstruction(LN_Event::OnFixedUpdate, route);
+
+  AddGuardedPrint(*program, route_zero, 10);
+  AddGuardedPrint(*program, route_one, 20);
+  AddGuardedPrint(*program, route_two, 30);
+  AddGuardedPrint(*program, last_route_zero, 40);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(276), 0, 0);
+  LN_TickContext context;
+
+  context.tick_index = 0;
+  std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "10");
+  EXPECT_EQ(commands[1].property_name, "40");
+
+  context.tick_index = 1;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].property_name, "20");
+
+  context.tick_index = 2;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].property_name, "30");
+
+  context.tick_index = 3;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "10");
+  EXPECT_EQ(commands[1].property_name, "40");
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, reset_ref, true));
+  context.tick_index = 4;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "10");
+  EXPECT_EQ(commands[1].property_name, "40");
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, reset_ref, false));
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, flow_ref, false));
+  context.tick_index = 5;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].property_name, "40");
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, reset_ref, true));
+  context.tick_index = 6;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+}
+
+TEST(LN_RuntimeTree, FlowRouterRoutesEachLoopIterationWithoutLeakingItsPulse)
+{
+  constexpr int32_t iteration_count = 300;
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_LoopFrame frame;
+  frame.kind = LN_LoopKind::Count;
+  frame.trigger_bool_expr_index = AddBoolConstant(*program, true);
+  frame.count_int_expr_index = AddIntConstant(*program, iteration_count);
+  const uint32_t frame_index = program->AddLoopFrame(frame);
+
+  LN_BoolExpression loop_active;
+  loop_active.kind = LN_BoolExpressionKind::LoopActive;
+  loop_active.int_value = int32_t(frame_index);
+  frame.loop_active_bool_expr_index = program->AddBoolExpression(loop_active);
+  program->UpdateLoopFrame(frame_index, frame);
+
+  const uint32_t state_index = program->AddFlowControlState();
+  auto add_route_expression = [&](const int32_t route_index) {
+    LN_BoolExpression expression;
+    expression.kind = LN_BoolExpressionKind::FlowRouterSelected;
+    expression.int_value = int32_t(state_index);
+    expression.secondary_int_value = route_index;
+    return program->AddBoolExpression(expression);
+  };
+  const uint32_t route_a = add_route_expression(0);
+  const uint32_t route_b = add_route_expression(1);
+
+  LN_Instruction route;
+  route.opcode = LN_OpCode::TryFlowRouter;
+  route.bool_guard_expr_index = frame.loop_active_bool_expr_index;
+  route.int_value = int32_t(state_index);
+  route.secondary_int_value = 2;
+  route.loop_frame_index = frame_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, route);
+  AddGuardedPrint(*program, route_a, 10, frame_index);
+  AddGuardedPrint(*program, route_b, 20, frame_index);
+  /* The final loop pulse must not make an unrelated event-scope branch true. */
+  AddGuardedPrint(*program, route_b, 30);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(280), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 0;
+  context.use_register_expression_evaluator = true;
+  const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                              context);
+  ASSERT_EQ(commands.size(), size_t(iteration_count));
+  for (int32_t index = 0; index < iteration_count; index++) {
+    EXPECT_EQ(commands[index].property_name, (index % 2 == 0) ? "10" : "20") << index;
+  }
+}
+
+TEST(LN_RuntimeTree, FlipFlopAlternatesAndResetDefinesNextRouteAndStateOutput)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  uint32_t flow_ref = LN_INVALID_INDEX;
+  uint32_t reset_ref = LN_INVALID_INDEX;
+  const uint32_t flow = AddBoolTreePropertyExpression(*program, "flow", true, flow_ref);
+  const uint32_t reset = AddBoolTreePropertyExpression(*program, "reset", false, reset_ref);
+  const uint32_t state_index = program->AddFlowControlState();
+
+  auto add_route_expression = [&](const LN_BoolExpressionKind kind, const int32_t route) {
+    LN_BoolExpression expression;
+    expression.kind = kind;
+    expression.int_value = int32_t(state_index);
+    expression.secondary_int_value = route;
+    return program->AddBoolExpression(expression);
+  };
+  const uint32_t route_a = add_route_expression(LN_BoolExpressionKind::FlowRouterSelected, 0);
+  const uint32_t route_b = add_route_expression(LN_BoolExpressionKind::FlowRouterSelected, 1);
+  const uint32_t is_a = add_route_expression(LN_BoolExpressionKind::FlowRouterLastRoute, 0);
+
+  LN_Instruction reset_flip_flop;
+  reset_flip_flop.opcode = LN_OpCode::ResetFlowRouter;
+  reset_flip_flop.bool_guard_expr_index = reset;
+  reset_flip_flop.int_value = int32_t(state_index);
+  program->AddInstruction(LN_Event::OnFixedUpdate, reset_flip_flop);
+
+  LN_Instruction select_route;
+  select_route.opcode = LN_OpCode::TryFlowRouter;
+  select_route.bool_guard_expr_index = flow;
+  select_route.int_value = int32_t(state_index);
+  select_route.secondary_int_value = 2;
+  program->AddInstruction(LN_Event::OnFixedUpdate, select_route);
+
+  AddGuardedPrint(*program, route_a, 10);
+  AddGuardedPrint(*program, route_b, 20);
+  AddGuardedPrint(*program, is_a, 30);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(281), 0, 0);
+  LN_TickContext context;
+
+  context.tick_index = 0;
+  std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "10");
+  EXPECT_EQ(commands[1].property_name, "30");
+
+  context.tick_index = 1;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].property_name, "20");
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, reset_ref, true));
+  context.tick_index = 2;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "10");
+  EXPECT_EQ(commands[1].property_name, "30");
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, flow_ref, false));
+  context.tick_index = 3;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+}
+
+TEST(LN_RuntimeTree, RepeatLimitSamplesTheCurrentLimitAndResetsBeforeAccepting)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  uint32_t flow_ref = LN_INVALID_INDEX;
+  uint32_t reset_ref = LN_INVALID_INDEX;
+  uint32_t limit_ref = LN_INVALID_INDEX;
+  const uint32_t flow = AddBoolTreePropertyExpression(*program, "flow", true, flow_ref);
+  const uint32_t reset = AddBoolTreePropertyExpression(*program, "reset", false, reset_ref);
+  const uint32_t limit = AddIntTreePropertyExpression(*program, "limit", 2, limit_ref);
+  const uint32_t state_index = program->AddFlowControlState();
+
+  auto add_state_expression = [&](const LN_BoolExpressionKind kind) {
+    LN_BoolExpression expression;
+    expression.kind = kind;
+    expression.int_value = int32_t(state_index);
+    expression.input0 = kind == LN_BoolExpressionKind::RepeatLimitExhausted ? limit :
+                                                                              LN_INVALID_INDEX;
+    return program->AddBoolExpression(expression);
+  };
+  const uint32_t accepted = add_state_expression(LN_BoolExpressionKind::RepeatLimitAccepted);
+  const uint32_t blocked = add_state_expression(LN_BoolExpressionKind::RepeatLimitBlocked);
+  const uint32_t exhausted = add_state_expression(LN_BoolExpressionKind::RepeatLimitExhausted);
+
+  LN_IntExpression remaining_expression;
+  remaining_expression.kind = LN_IntExpressionKind::RepeatLimitRemaining;
+  remaining_expression.int_value = int32_t(state_index);
+  remaining_expression.input0 = limit;
+  const uint32_t remaining = program->AddIntExpression(remaining_expression);
+
+  LN_Instruction reset_limit;
+  reset_limit.opcode = LN_OpCode::ResetRepeatLimit;
+  reset_limit.bool_guard_expr_index = reset;
+  reset_limit.int_value = int32_t(state_index);
+  program->AddInstruction(LN_Event::OnFixedUpdate, reset_limit);
+
+  LN_Instruction attempt;
+  attempt.opcode = LN_OpCode::TryRepeatLimit;
+  attempt.bool_guard_expr_index = flow;
+  attempt.int_value = int32_t(state_index);
+  attempt.int_expr_index = limit;
+  program->AddInstruction(LN_Event::OnFixedUpdate, attempt);
+
+  AddGuardedPrint(*program, accepted, 1);
+  AddGuardedPrint(*program, blocked, 2);
+  AddGuardedPrint(*program, exhausted, 3);
+  AddIntPrint(*program, remaining);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(277), 0, 0);
+  LN_TickContext context;
+
+  context.tick_index = 0;
+  std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "1");
+  EXPECT_EQ(commands[1].property_name, "1");
+
+  context.tick_index = 1;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 3u);
+  EXPECT_EQ(commands[0].property_name, "1");
+  EXPECT_EQ(commands[1].property_name, "3");
+  EXPECT_EQ(commands[2].property_name, "0");
+
+  context.tick_index = 2;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 3u);
+  EXPECT_EQ(commands[0].property_name, "2");
+  EXPECT_EQ(commands[1].property_name, "3");
+  EXPECT_EQ(commands[2].property_name, "0");
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, reset_ref, true));
+  context.tick_index = 3;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "1");
+  EXPECT_EQ(commands[1].property_name, "1");
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, reset_ref, false));
+  ASSERT_TRUE(SetIntTreeProperty(runtime_tree, limit_ref, 0));
+  context.tick_index = 4;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 3u);
+  EXPECT_EQ(commands[0].property_name, "2");
+  EXPECT_EQ(commands[1].property_name, "3");
+  EXPECT_EQ(commands[2].property_name, "0");
+
+  ASSERT_TRUE(SetIntTreeProperty(runtime_tree, limit_ref, 5));
+  context.tick_index = 5;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "1");
+  EXPECT_EQ(commands[1].property_name, "3");
+}
+
+TEST(LN_RuntimeTree, BreakLoopStopsTheCurrentBodyAndStillEmitsCompleted)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_LoopFrame frame;
+  frame.kind = LN_LoopKind::Count;
+  frame.trigger_bool_expr_index = AddBoolConstant(*program, true);
+  frame.count_int_expr_index = AddIntConstant(*program, 5);
+  const uint32_t frame_index = program->AddLoopFrame(frame);
+
+  LN_BoolExpression loop_active;
+  loop_active.kind = LN_BoolExpressionKind::LoopActive;
+  loop_active.int_value = int32_t(frame_index);
+  frame.loop_active_bool_expr_index = program->AddBoolExpression(loop_active);
+
+  LN_IntExpression loop_index;
+  loop_index.kind = LN_IntExpressionKind::LoopIndex;
+  loop_index.int_value = int32_t(frame_index);
+  frame.loop_index_int_expr_index = program->AddIntExpression(loop_index);
+
+  LN_ValueExpression current_value;
+  current_value.kind = LN_ValueExpressionKind::LoopCurrentValue;
+  current_value.property_ref_index = frame_index;
+  frame.loop_current_value_expr_index = program->AddValueExpression(current_value);
+  program->UpdateLoopFrame(frame_index, frame);
+
+  AddGuardedPrint(*program, AddBoolConstant(*program, true), 1, frame_index);
+  LN_Instruction break_loop;
+  break_loop.opcode = LN_OpCode::BreakLoop;
+  break_loop.bool_guard_expr_index = AddBoolConstant(*program, true);
+  break_loop.int_value = int32_t(frame_index);
+  break_loop.loop_frame_index = frame_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, break_loop);
+  AddGuardedPrint(*program, AddBoolConstant(*program, true), 2, frame_index);
+
+  LN_Instruction completed;
+  completed.opcode = LN_OpCode::Print;
+  completed.bool_guard_expr_index = AddBoolConstant(*program, true);
+  completed.value_expr_index = AddIntValueConstant(*program, 3);
+  completed.completed_loop_frame_index = frame_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, completed);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(278), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 0;
+  std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "1");
+  EXPECT_EQ(commands[1].property_name, "3");
+
+  context.tick_index = 1;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "1");
+  EXPECT_EQ(commands[1].property_name, "3");
+
+  std::shared_ptr<LN_Program> zero_iteration_program = std::make_shared<LN_Program>();
+  LN_LoopFrame zero_frame;
+  zero_frame.kind = LN_LoopKind::Count;
+  zero_frame.trigger_bool_expr_index = AddBoolConstant(*zero_iteration_program, true);
+  zero_frame.count_int_expr_index = AddIntConstant(*zero_iteration_program, 0);
+  const uint32_t zero_frame_index = zero_iteration_program->AddLoopFrame(zero_frame);
+
+  LN_Instruction body;
+  body.opcode = LN_OpCode::Nop;
+  body.loop_frame_index = zero_frame_index;
+  zero_iteration_program->AddInstruction(LN_Event::OnFixedUpdate, body);
+
+  LN_Instruction zero_completed;
+  zero_completed.opcode = LN_OpCode::Print;
+  zero_completed.value_expr_index = AddIntValueConstant(*zero_iteration_program, 4);
+  zero_completed.completed_loop_frame_index = zero_frame_index;
+  zero_iteration_program->AddInstruction(LN_Event::OnFixedUpdate, zero_completed);
+  ASSERT_TRUE(zero_iteration_program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree zero_iteration_tree(zero_iteration_program, FakeGameObjectPointer(279), 0, 0);
+  context.tick_index = 0;
+  commands = RecordReadyCommands(zero_iteration_tree, context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].property_name, "4");
+}
+
+TEST(LN_RuntimeTree, BatchedCountLoopDistributesWorkAndCompletesOnTheFinalTick)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  uint32_t flow_ref = LN_INVALID_INDEX;
+  LN_LoopFrame frame;
+  frame.kind = LN_LoopKind::Count;
+  frame.trigger_bool_expr_index = AddBoolTreePropertyExpression(*program, "flow", true, flow_ref);
+  frame.count_int_expr_index = AddIntConstant(*program, 10);
+  frame.ticks_to_complete_int_expr_index = AddIntConstant(*program, 3);
+  const uint32_t frame_index = program->AddLoopFrame(frame);
+
+  LN_IntExpression loop_index;
+  loop_index.kind = LN_IntExpressionKind::LoopIndex;
+  loop_index.int_value = int32_t(frame_index);
+  frame.loop_index_int_expr_index = program->AddIntExpression(loop_index);
+
+  LN_ValueExpression current_value;
+  current_value.kind = LN_ValueExpressionKind::LoopCurrentValue;
+  current_value.property_ref_index = frame_index;
+  frame.loop_current_value_expr_index = program->AddValueExpression(current_value);
+  program->UpdateLoopFrame(frame_index, frame);
+
+  LN_Instruction body;
+  body.opcode = LN_OpCode::Print;
+  body.bool_guard_expr_index = AddBoolConstant(*program, true);
+  body.value_expr_index = frame.loop_current_value_expr_index;
+  body.loop_frame_index = frame_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, body);
+
+  LN_Instruction completed;
+  completed.opcode = LN_OpCode::Print;
+  completed.value_expr_index = AddIntValueConstant(*program, 99);
+  completed.completed_loop_frame_index = frame_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, completed);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(280), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 0;
+  std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 4u);
+  EXPECT_EQ(commands[0].property_name, "0");
+  EXPECT_EQ(commands[3].property_name, "3");
+
+  /* The trigger is sampled only when the loop starts. Its later value does not cancel the job. */
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, flow_ref, false));
+  context.tick_index = 1;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 3u);
+  EXPECT_EQ(commands[0].property_name, "4");
+  EXPECT_EQ(commands[2].property_name, "6");
+
+  context.tick_index = 2;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 4u);
+  EXPECT_EQ(commands[0].property_name, "7");
+  EXPECT_EQ(commands[2].property_name, "9");
+  EXPECT_EQ(commands[3].property_name, "99");
+
+  context.tick_index = 3;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+}
+
+TEST(LN_RuntimeTree, BatchedLoopClampsInvalidTicksAndAvoidsEmptyBatches)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  uint32_t ticks_ref = LN_INVALID_INDEX;
+  LN_LoopFrame frame;
+  frame.kind = LN_LoopKind::Count;
+  frame.trigger_bool_expr_index = AddBoolConstant(*program, true);
+  frame.count_int_expr_index = AddIntConstant(*program, 2);
+  frame.ticks_to_complete_int_expr_index = AddIntTreePropertyExpression(
+      *program, "ticks", 10, ticks_ref);
+  const uint32_t frame_index = program->AddLoopFrame(frame);
+
+  LN_ValueExpression current_value;
+  current_value.kind = LN_ValueExpressionKind::LoopCurrentValue;
+  current_value.property_ref_index = frame_index;
+  frame.loop_current_value_expr_index = program->AddValueExpression(current_value);
+  program->UpdateLoopFrame(frame_index, frame);
+
+  LN_Instruction body;
+  body.opcode = LN_OpCode::Print;
+  body.bool_guard_expr_index = AddBoolConstant(*program, true);
+  body.value_expr_index = frame.loop_current_value_expr_index;
+  body.loop_frame_index = frame_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, body);
+
+  LN_Instruction completed;
+  completed.opcode = LN_OpCode::Print;
+  completed.value_expr_index = AddIntValueConstant(*program, 99);
+  completed.completed_loop_frame_index = frame_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, completed);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_TickContext context;
+  context.tick_index = 0;
+  LN_RuntimeTree over_requested_tree(program, FakeGameObjectPointer(284), 0, 0);
+  std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(over_requested_tree,
+                                                                        context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].property_name, "0");
+
+  context.tick_index = 1;
+  commands = RecordReadyCommands(over_requested_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "1");
+  EXPECT_EQ(commands[1].property_name, "99");
+
+  LN_RuntimeTree invalid_ticks_tree(program, FakeGameObjectPointer(285), 0, 0);
+  ASSERT_TRUE(SetIntTreeProperty(invalid_ticks_tree, ticks_ref, -5));
+  context.tick_index = 0;
+  commands = RecordReadyCommands(invalid_ticks_tree, context);
+  ASSERT_EQ(commands.size(), 3u);
+  EXPECT_EQ(commands[0].property_name, "0");
+  EXPECT_EQ(commands[1].property_name, "1");
+  EXPECT_EQ(commands[2].property_name, "99");
+}
+
+TEST(LN_RuntimeTree, SynchronousLoopCarriesExcessSafetyBudgetWorkWithoutDroppingIterations)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_LoopFrame frame;
+  frame.kind = LN_LoopKind::Count;
+  frame.trigger_bool_expr_index = AddBoolConstant(*program, true);
+  frame.count_int_expr_index = AddIntConstant(*program, 10001);
+  frame.ticks_to_complete_int_expr_index = AddIntConstant(*program, 1);
+  const uint32_t frame_index = program->AddLoopFrame(frame);
+
+  LN_ValueExpression current_value;
+  current_value.kind = LN_ValueExpressionKind::LoopCurrentValue;
+  current_value.property_ref_index = frame_index;
+  frame.loop_current_value_expr_index = program->AddValueExpression(current_value);
+  program->UpdateLoopFrame(frame_index, frame);
+
+  LN_Instruction body;
+  body.opcode = LN_OpCode::Print;
+  body.bool_guard_expr_index = AddBoolConstant(*program, true);
+  body.value_expr_index = frame.loop_current_value_expr_index;
+  body.loop_frame_index = frame_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, body);
+
+  LN_Instruction completed;
+  completed.opcode = LN_OpCode::Print;
+  completed.value_expr_index = AddIntValueConstant(*program, 99);
+  completed.completed_loop_frame_index = frame_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, completed);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(304), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 0;
+  std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 10000u);
+  EXPECT_EQ(commands.front().property_name, "0");
+  EXPECT_EQ(commands.back().property_name, "9999");
+
+  context.tick_index = 1;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "10000");
+  EXPECT_EQ(commands[1].property_name, "99");
+}
+
+TEST(LN_RuntimeTree, BatchedListLoopSnapshotsItemsAndIgnoresOverlappingTriggers)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  uint32_t flow_ref = LN_INVALID_INDEX;
+  const uint32_t flow = AddBoolTreePropertyExpression(*program, "flow", true, flow_ref);
+
+  LN_Value initial_list;
+  initial_list.type = LN_ValueType::List;
+  initial_list.exists = true;
+  for (const int32_t item : {10, 20, 30, 40}) {
+    LN_Value value;
+    value.type = LN_ValueType::Int;
+    value.exists = true;
+    value.int_value = item;
+    initial_list.list_value.push_back(value);
+  }
+  LN_TreePropertyRef list_ref;
+  list_ref.name = "items";
+  list_ref.value_type = LN_ValueType::List;
+  list_ref.default_value = initial_list;
+  const uint32_t list_ref_index = program->AddTreePropertyRef(list_ref);
+
+  LN_ValueExpression list_expression;
+  list_expression.kind = LN_ValueExpressionKind::RuntimeTreeProperty;
+  list_expression.property_ref_index = list_ref_index;
+  const uint32_t list_expression_index = program->AddValueExpression(list_expression);
+
+  LN_LoopFrame frame;
+  frame.kind = LN_LoopKind::FromList;
+  frame.trigger_bool_expr_index = flow;
+  frame.list_value_expr_index = list_expression_index;
+  frame.ticks_to_complete_int_expr_index = AddIntConstant(*program, 2);
+  const uint32_t frame_index = program->AddLoopFrame(frame);
+
+  LN_ValueExpression current_value;
+  current_value.kind = LN_ValueExpressionKind::LoopCurrentValue;
+  current_value.property_ref_index = frame_index;
+  frame.loop_current_value_expr_index = program->AddValueExpression(current_value);
+  program->UpdateLoopFrame(frame_index, frame);
+
+  LN_Instruction body;
+  body.opcode = LN_OpCode::Print;
+  body.bool_guard_expr_index = AddBoolConstant(*program, true);
+  body.value_expr_index = frame.loop_current_value_expr_index;
+  body.loop_frame_index = frame_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, body);
+
+  LN_Instruction completed;
+  completed.opcode = LN_OpCode::Print;
+  completed.value_expr_index = AddIntValueConstant(*program, 99);
+  completed.completed_loop_frame_index = frame_index;
+  program->AddInstruction(LN_Event::OnFixedUpdate, completed);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(281), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 0;
+  std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "10");
+  EXPECT_EQ(commands[1].property_name, "20");
+
+  LN_Value replacement_list;
+  replacement_list.type = LN_ValueType::List;
+  replacement_list.exists = true;
+  replacement_list.list_value.push_back(initial_list.list_value.front());
+  replacement_list.list_value.front().int_value = 777;
+  ASSERT_TRUE(runtime_tree.SetTreePropertyValue(list_ref_index, replacement_list));
+
+  /* Flow remains true, but the overlapping pulse and replacement list are ignored while active. */
+  context.tick_index = 1;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 3u);
+  EXPECT_EQ(commands[0].property_name, "30");
+  EXPECT_EQ(commands[1].property_name, "40");
+  EXPECT_EQ(commands[2].property_name, "99");
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, flow_ref, false));
+  context.tick_index = 2;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+}
+
+TEST(LN_RuntimeTree, OnInitBatchedLoopDoesNotConsumeTwoBatchesOnItsFirstUpdate)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  uint32_t flow_ref = LN_INVALID_INDEX;
+  LN_LoopFrame frame;
+  frame.kind = LN_LoopKind::Count;
+  frame.trigger_bool_expr_index = AddBoolTreePropertyExpression(*program, "flow", true, flow_ref);
+  frame.count_int_expr_index = AddIntConstant(*program, 4);
+  frame.ticks_to_complete_int_expr_index = AddIntConstant(*program, 2);
+  const uint32_t frame_index = program->AddLoopFrame(frame);
+
+  LN_ValueExpression current_value;
+  current_value.kind = LN_ValueExpressionKind::LoopCurrentValue;
+  current_value.property_ref_index = frame_index;
+  frame.loop_current_value_expr_index = program->AddValueExpression(current_value);
+  program->UpdateLoopFrame(frame_index, frame);
+
+  auto add_loop_routes = [&](const LN_Event event) {
+    LN_Instruction body;
+    body.opcode = LN_OpCode::Print;
+    body.bool_guard_expr_index = AddBoolConstant(*program, true);
+    body.value_expr_index = frame.loop_current_value_expr_index;
+    body.loop_frame_index = frame_index;
+    program->AddInstruction(event, body);
+
+    LN_Instruction completed;
+    completed.opcode = LN_OpCode::Print;
+    completed.value_expr_index = AddIntValueConstant(*program, 99);
+    completed.completed_loop_frame_index = frame_index;
+    program->AddInstruction(event, completed);
+  };
+  add_loop_routes(LN_Event::OnInit);
+  add_loop_routes(LN_Event::OnUpdate);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(282), 0, 0);
+  LN_TickContext context;
+  context.event = LN_Event::OnUpdate;
+  context.tick_index = 0;
+  std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 2u);
+  EXPECT_EQ(commands[0].property_name, "0");
+  EXPECT_EQ(commands[1].property_name, "1");
+
+  ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, flow_ref, false));
+  context.tick_index = 1;
+  commands = RecordReadyCommands(runtime_tree, context);
+  ASSERT_EQ(commands.size(), 3u);
+  EXPECT_EQ(commands[0].property_name, "2");
+  EXPECT_EQ(commands[1].property_name, "3");
+  EXPECT_EQ(commands[2].property_name, "99");
+}
+
+TEST(LN_RuntimeTree, MapRangeSafeDivideMatchesBlenderForTinyAndZeroSourceRanges)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  uint32_t numerator_ref = LN_INVALID_INDEX;
+  uint32_t divisor_ref = LN_INVALID_INDEX;
+  const uint32_t numerator = AddFloatTreePropertyExpression(
+      *program, "numerator", 1.0e-25f, numerator_ref);
+  const uint32_t divisor = AddFloatTreePropertyExpression(
+      *program, "divisor", 1.0e-25f, divisor_ref);
+
+  LN_FloatExpression safe_divide;
+  safe_divide.kind = LN_FloatExpressionKind::SafeDivide;
+  safe_divide.input0 = numerator;
+  safe_divide.input1 = divisor;
+  const uint32_t safe_divide_index = program->AddFloatExpression(safe_divide);
+
+  LN_FloatExpression guarded_divide = safe_divide;
+  guarded_divide.kind = LN_FloatExpressionKind::Divide;
+  const uint32_t guarded_divide_index = program->AddFloatExpression(guarded_divide);
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(283), 0, 0);
+  LN_TickContext context;
+  EXPECT_FLOAT_EQ(
+      LN_RuntimeTreeTestAccess::ResolveFloat(runtime_tree, safe_divide_index, -1.0f, context),
+      1.0f);
+  EXPECT_FLOAT_EQ(
+      LN_RuntimeTreeTestAccess::ResolveFloat(runtime_tree, guarded_divide_index, -1.0f, context),
+      0.0f);
+
+  ASSERT_TRUE(SetFloatTreeProperty(runtime_tree, divisor_ref, 0.0f));
+  EXPECT_FLOAT_EQ(
+      LN_RuntimeTreeTestAccess::ResolveFloat(runtime_tree, safe_divide_index, -1.0f, context),
+      0.0f);
+}
+
 TEST(LN_RuntimeTree, BooleanEdgeEmitsEachTransitionOnceWithStableFanout)
 {
   std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
@@ -3911,7 +6394,7 @@ TEST(LN_RuntimeTree, CooldownAcceptsBlocksAndCompletesWithoutRestarting)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(271), 0, 0);
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
   context.tick_index = 0;
   EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 2u);
 
@@ -3953,7 +6436,7 @@ TEST(LN_RuntimeTree, IdleCooldownStateOutputsAreReadableWithoutControlFlow)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(278), 0, 0);
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 1.0;
+  context.delta_time = 1.0;
 
   for (uint64_t tick = 0; tick < 2; tick++) {
     context.tick_index = tick;
@@ -3983,7 +6466,7 @@ TEST(LN_RuntimeTree, CooldownResetPrecedesAttemptAndClearsCompletion)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(272), 0, 0);
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
   context.tick_index = 0;
   EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
 
@@ -4010,7 +6493,7 @@ TEST(LN_RuntimeTree, CooldownExpiryAndAttemptCanEmitCompletedAndAcceptedTogether
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(273), 0, 0);
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
   context.tick_index = 0;
   EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
 
@@ -4046,7 +6529,7 @@ TEST(LN_RuntimeTree, CooldownInvalidDurationsBypassWithoutCompleting)
     LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(274), 0, 0);
     LN_TickContext context;
     context.use_fixed_timestep = true;
-    context.fixed_dt = 1.0;
+    context.delta_time = 1.0;
     for (uint64_t tick = 0; tick < 2; tick++) {
       context.tick_index = tick;
       const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
@@ -4077,7 +6560,7 @@ TEST(LN_RuntimeTree, CooldownTinyPositiveDurationWaitsForAPositiveStep)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(277), 0, 0);
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = double(tiny_duration) * 0.5;
+  context.delta_time = double(tiny_duration) * 0.5;
   context.tick_index = 0;
 
   std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
@@ -4113,7 +6596,7 @@ TEST(LN_RuntimeTree, CooldownValuesUseSampledUnscaledTimeAndPauseWhileDisabled)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(275), 0, 0);
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.01;
+  context.delta_time = 0.01;
   context.unscaled_dt = 0.1;
   context.tick_index = 0;
   std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
@@ -4176,7 +6659,7 @@ TEST(LN_RuntimeTree, CooldownSamplesDurationAndClockOnlyWhenAccepted)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(276), 0, 0);
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
   context.unscaled_dt = 1.0;
   context.tick_index = 0;
   EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
@@ -4193,7 +6676,7 @@ TEST(LN_RuntimeTree, CooldownSamplesDurationAndClockOnlyWhenAccepted)
 
   /* The next accepted attempt samples the new duration and unscaled clock policy. */
   ASSERT_TRUE(SetBoolTreeProperty(runtime_tree, flow_ref, true));
-  context.fixed_dt = 0.01;
+  context.delta_time = 0.01;
   context.unscaled_dt = 0.0;
   context.tick_index = 4;
   EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
@@ -4204,6 +6687,209 @@ TEST(LN_RuntimeTree, CooldownSamplesDurationAndClockOnlyWhenAccepted)
   EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
 }
 
+TEST(LN_RuntimeTree, WaitForNextFrameFromFixedFlowPulsesExactlyOnceAtZeroDelta)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const uint32_t state_index = program->AddTimeFlowState();
+
+  LN_BoolExpression next_frame_done;
+  next_frame_done.kind = LN_BoolExpressionKind::NextFrameDone;
+  next_frame_done.int_value = int32_t(state_index);
+  const uint32_t done_index = program->AddBoolExpression(next_frame_done);
+
+  LN_Instruction arm;
+  arm.opcode = LN_OpCode::ArmNextFrame;
+  arm.int_value = int32_t(state_index);
+  program->AddInstruction(LN_Event::OnFixedUpdate, arm);
+
+  LN_Instruction quit;
+  quit.opcode = LN_OpCode::QuitGame;
+  quit.bool_guard_expr_index = done_index;
+  program->AddInstruction(LN_Event::OnUpdate, quit);
+
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(47), 4, 0);
+
+  LN_TickContext fixed_context;
+  fixed_context.event = LN_Event::OnFixedUpdate;
+  fixed_context.tick_index = 1;
+  fixed_context.phase_tick_index = 0;
+  fixed_context.delta_time = 1.0 / 60.0;
+  fixed_context.use_fixed_timestep = true;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, fixed_context).empty());
+
+  LN_TickContext update_context;
+  update_context.event = LN_Event::OnUpdate;
+  update_context.tick_index = 2;
+  update_context.phase_tick_index = 0;
+  update_context.delta_time = 0.0;
+  update_context.unscaled_dt = 0.0;
+  update_context.use_fixed_timestep = true;
+  const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                              update_context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::QuitGame);
+
+  update_context.tick_index = 3;
+  update_context.phase_tick_index = 1;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, update_context).empty());
+}
+
+TEST(LN_RuntimeTree, WaitForNextFrameOnInitDoesNotPulseDuringItsHostingUpdate)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const uint32_t state_index = program->AddTimeFlowState();
+
+  LN_BoolExpression next_frame_done;
+  next_frame_done.kind = LN_BoolExpressionKind::NextFrameDone;
+  next_frame_done.int_value = int32_t(state_index);
+  const uint32_t done_index = program->AddBoolExpression(next_frame_done);
+
+  LN_Instruction arm;
+  arm.opcode = LN_OpCode::ArmNextFrame;
+  arm.int_value = int32_t(state_index);
+  program->AddInstruction(LN_Event::OnInit, arm);
+
+  LN_Instruction quit;
+  quit.opcode = LN_OpCode::QuitGame;
+  quit.bool_guard_expr_index = done_index;
+  program->AddInstruction(LN_Event::OnUpdate, quit);
+
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(48), 4, 0);
+
+  LN_TickContext context;
+  context.event = LN_Event::OnUpdate;
+  context.tick_index = 10;
+  context.phase_tick_index = 0;
+  context.delta_time = 0.0;
+  context.unscaled_dt = 0.0;
+  context.use_fixed_timestep = true;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  context.tick_index = 11;
+  context.phase_tick_index = 1;
+  const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                              context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::QuitGame);
+}
+
+TEST(LN_RuntimeTree, WaitForNextFrameCoalescesAllPendingFixedPulses)
+{
+  std::shared_ptr<LN_Program> program = CreateWaitForNextFrameQuitProgram(LN_Event::OnFixedUpdate);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x30a), 0, 0);
+
+  LN_TickContext fixed_context;
+  fixed_context.event = LN_Event::OnFixedUpdate;
+  fixed_context.use_fixed_timestep = true;
+  fixed_context.delta_time = 1.0 / 60.0;
+  for (uint64_t fixed_tick = 0; fixed_tick < 3; fixed_tick++) {
+    fixed_context.tick_index = fixed_tick;
+    fixed_context.phase_tick_index = fixed_tick;
+    EXPECT_TRUE(RecordReadyCommands(runtime_tree, fixed_context).empty());
+  }
+
+  LN_TickContext update_context;
+  update_context.event = LN_Event::OnUpdate;
+  update_context.use_fixed_timestep = true;
+  update_context.tick_index = 3;
+  update_context.phase_tick_index = 0;
+  update_context.delta_time = 0.0;
+  update_context.unscaled_dt = 0.0;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, update_context).size(), 1u);
+
+  update_context.tick_index = 4;
+  update_context.phase_tick_index = 1;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, update_context).empty());
+}
+
+TEST(LN_RuntimeTree, WaitForNextFrameCanRearmEveryFrameWithoutLosingPulses)
+{
+  std::shared_ptr<LN_Program> program = CreateWaitForNextFrameQuitProgram(LN_Event::OnUpdate);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x30b), 0, 0);
+
+  LN_TickContext context;
+  context.event = LN_Event::OnUpdate;
+  context.use_fixed_timestep = true;
+  context.delta_time = 0.0;
+  context.unscaled_dt = 0.0;
+  context.tick_index = 0;
+  context.phase_tick_index = 0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  context.tick_index = 1;
+  context.phase_tick_index = 1;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
+
+  context.tick_index = 2;
+  context.phase_tick_index = 2;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
+}
+
+TEST(LN_RuntimeTree, WaitForNextFramePendingStateSurvivesDisableResume)
+{
+  std::shared_ptr<LN_Program> program = CreateWaitForNextFrameQuitProgram(LN_Event::OnFixedUpdate);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x30c), 0, 0);
+
+  LN_TickContext context;
+  context.event = LN_Event::OnFixedUpdate;
+  context.use_fixed_timestep = true;
+  context.tick_index = 0;
+  context.phase_tick_index = 0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  runtime_tree.SetEnabled(false);
+  context.event = LN_Event::OnUpdate;
+  context.tick_index = 1;
+  context.phase_tick_index = 0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  runtime_tree.SetEnabled(true);
+  context.tick_index = 2;
+  context.phase_tick_index = 1;
+  EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
+
+  context.tick_index = 3;
+  context.phase_tick_index = 2;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+}
+
+TEST(LN_RuntimeTree, InitLatentStateUsesItsCompiledFixedContinuationDomain)
+{
+  std::shared_ptr<LN_Program> program = CreateTimerQuitProgram(0.2f, LN_Event::OnInit);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(49), 0, 0);
+
+  LN_TickContext context;
+  context.event = LN_Event::OnUpdate;
+  context.use_fixed_timestep = true;
+  context.delta_time = 1.0;
+  context.tick_index = 20;
+  context.phase_tick_index = 0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  context.tick_index = 21;
+  context.phase_tick_index = 1;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  context.event = LN_Event::OnFixedUpdate;
+  context.delta_time = 0.1;
+  context.tick_index = 22;
+  context.phase_tick_index = 0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+  context.tick_index = 23;
+  context.phase_tick_index = 1;
+  const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                              context);
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::QuitGame);
+}
+
 TEST(LN_RuntimeTree, TimerArmedOnInitEmitsContinuationAfterFixedDelta)
 {
   std::shared_ptr<LN_Program> program = CreateTimerQuitProgram(0.2f, LN_Event::OnInit);
@@ -4211,8 +6897,9 @@ TEST(LN_RuntimeTree, TimerArmedOnInitEmitsContinuationAfterFixedDelta)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(65), 0, 0);
 
   LN_TickContext context;
+  context.event = LN_Event::OnFixedUpdate;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   context.tick_index = 0;
   EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
@@ -4227,15 +6914,16 @@ TEST(LN_RuntimeTree, TimerArmedOnInitEmitsContinuationAfterFixedDelta)
   EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
 }
 
-TEST(LN_RuntimeTree, TimerCanIgnoreTimescaleStep)
+TEST(LN_RuntimeTree, UnscaledTimerAdvancesWhenScaledFixedDeltaIsZero)
 {
   std::shared_ptr<LN_Program> program = CreateTimerQuitProgram(0.2f, LN_Event::OnInit, true);
   ASSERT_TRUE(program->ValidateInstructionPayloads());
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(165), 0, 0);
 
   LN_TickContext context;
+  context.event = LN_Event::OnFixedUpdate;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.05;
+  context.delta_time = 0.0;
   context.unscaled_dt = 0.2;
 
   context.tick_index = 0;
@@ -4255,8 +6943,9 @@ TEST(LN_RuntimeTree, ZeroDurationTimerEmitsContinuationOnArmTick)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(63), 0, 0);
 
   LN_TickContext context;
+  context.event = LN_Event::OnFixedUpdate;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
   context.tick_index = 0;
 
   const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
@@ -4281,7 +6970,7 @@ TEST(LN_RuntimeTree, TweenValueFloatResultAndFactorAdvanceFromResultSocket)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(200), 0, 0);
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   context.tick_index = 0;
   std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
@@ -4300,6 +6989,70 @@ TEST(LN_RuntimeTree, TweenValueFloatResultAndFactorAdvanceFromResultSocket)
   ASSERT_NE(factor_command, nullptr);
   EXPECT_NEAR(result_command->property_value.float_value, 20.0f, 0.0001f);
   EXPECT_NEAR(factor_command->property_value.float_value, 1.0f, 0.0001f);
+}
+
+TEST(LN_RuntimeTree, PauseContextAndUnscaledTweenUseTheRenderUpdateClock)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  LN_BoolExpression paused;
+  paused.kind = LN_BoolExpressionKind::GamePaused;
+  const uint32_t paused_index = program->AddBoolExpression(paused);
+
+  LN_FloatExpression unscaled_delta;
+  unscaled_delta.kind = LN_FloatExpressionKind::UnscaledDeltaTime;
+  const uint32_t unscaled_delta_index = program->AddFloatExpression(unscaled_delta);
+
+  const TweenExpressionRefs scaled_tween = AddTweenExpressions(
+      *program, AddBoolConstant(*program, true), AddBoolConstant(*program, false), 0.2f);
+  const TweenExpressionRefs unscaled_tween = AddTweenExpressions(*program,
+                                                                 AddBoolConstant(*program, true),
+                                                                 AddBoolConstant(*program, false),
+                                                                 0.2f,
+                                                                 false,
+                                                                 false,
+                                                                 1.0f,
+                                                                 true);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(205), 0, 0);
+  LN_TickContext context;
+  context.event = LN_Event::OnUpdate;
+  context.use_fixed_timestep = true;
+  context.game_paused = true;
+  context.delta_time = 0.0;
+  context.unscaled_dt = 0.1;
+  context.tick_index = 1;
+  context.phase_tick_index = 1;
+
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, paused_index, context));
+  EXPECT_FLOAT_EQ(
+      LN_RuntimeTreeTestAccess::ResolveFloat(runtime_tree, unscaled_delta_index, -1.0f, context),
+      0.1f);
+  EXPECT_FLOAT_EQ(LN_RuntimeTreeTestAccess::ResolveFloat(
+                      runtime_tree, scaled_tween.factor_index, -1.0f, context),
+                  0.0f);
+  EXPECT_FLOAT_EQ(LN_RuntimeTreeTestAccess::ResolveFloat(
+                      runtime_tree, unscaled_tween.factor_index, -1.0f, context),
+                  0.5f);
+
+  context.game_paused = false;
+  context.tick_index = 2;
+  context.phase_tick_index = 2;
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, paused_index, context));
+
+  LN_RuntimeTree register_runtime_tree(program, FakeGameObjectPointer(206), 0, 0);
+  context.use_register_expression_evaluator = true;
+  context.game_paused = true;
+  context.tick_index = 3;
+  context.phase_tick_index = 3;
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(register_runtime_tree, paused_index, context));
+  EXPECT_FLOAT_EQ(LN_RuntimeTreeTestAccess::ResolveFloat(
+                      register_runtime_tree, unscaled_delta_index, -1.0f, context),
+                  0.1f);
+  EXPECT_FLOAT_EQ(LN_RuntimeTreeTestAccess::ResolveFloat(
+                      register_runtime_tree, unscaled_tween.factor_index, -1.0f, context),
+                  0.5f);
 }
 
 TEST(LN_RuntimeTree, TweenValueDoneAndReachedPulseAtCompletionIndependentOfCurveEndpoint)
@@ -4323,7 +7076,7 @@ TEST(LN_RuntimeTree, TweenValueDoneAndReachedPulseAtCompletionIndependentOfCurve
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(201), 0, 0);
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   context.tick_index = 0;
   std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
@@ -4354,7 +7107,7 @@ TEST(LN_RuntimeTree, TweenValueVectorResultReversesFromBackPulse)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(202), 0, 0);
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   auto expect_vector = [&](const uint64_t tick, const double time, const MT_Vector3 &expected) {
     context.tick_index = tick;
@@ -4387,19 +7140,53 @@ TEST(LN_RuntimeTree, TweenValueOnDemandInstantResetRestartsAfterSkippedTick)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(203), 0, 0);
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   context.tick_index = 0;
+  context.phase_tick_index = 0;
   std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
   const LN_CommandBuffer::Command *command = FindPropertyCommand(commands, result_property);
   ASSERT_NE(command, nullptr);
   EXPECT_NEAR(command->property_value.float_value, 15.0f, 0.0001f);
 
   context.tick_index = 2;
+  context.phase_tick_index = 2;
   commands = RecordReadyCommands(runtime_tree, context);
   command = FindPropertyCommand(commands, result_property);
   ASSERT_NE(command, nullptr);
   EXPECT_NEAR(command->property_value.float_value, 15.0f, 0.0001f);
+}
+
+TEST(LN_RuntimeTree, TweenValueInstantResetIgnoresInterleavedSchedulerPhases)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const TweenExpressionRefs tween = AddTweenExpressions(
+      *program, LN_INVALID_INDEX, LN_INVALID_INDEX, 0.2f, true, true);
+  const uint32_t result_property = AddTweenTestPropertyRef(
+      *program, "tween_interleaved_phase", LN_ValueType::Float);
+  AddSetFloatPropertyInstruction(*program, result_property, tween.float_result_index);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(303), 0, 0);
+  LN_TickContext context;
+  context.use_fixed_timestep = true;
+  context.delta_time = 0.1;
+  context.tick_index = 10;
+  context.phase_tick_index = 20;
+
+  std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
+  const LN_CommandBuffer::Command *command = FindPropertyCommand(commands, result_property);
+  ASSERT_NE(command, nullptr);
+  EXPECT_NEAR(command->property_value.float_value, 15.0f, 0.0001f);
+
+  /* A render/update manager tick may occur between consecutive fixed-phase ticks. The global
+   * scheduler index skips, but the fixed-phase index remains consecutive and must not reset. */
+  context.tick_index = 12;
+  context.phase_tick_index = 21;
+  commands = RecordReadyCommands(runtime_tree, context);
+  command = FindPropertyCommand(commands, result_property);
+  ASSERT_NE(command, nullptr);
+  EXPECT_NEAR(command->property_value.float_value, 20.0f, 0.0001f);
 }
 
 TEST(LN_RuntimeTree, TweenValueZeroDurationReachesOnceWhileForwardIsHeld)
@@ -4418,7 +7205,7 @@ TEST(LN_RuntimeTree, TweenValueZeroDurationReachesOnceWhileForwardIsHeld)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(204), 0, 0);
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   context.tick_index = 0;
   std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree, context);
@@ -4451,12 +7238,15 @@ TEST(LN_RuntimeTree, TweenValueSanitizesNonFiniteDurationAndCurveFactor)
       *program, "tween_non_finite_factor", LN_ValueType::Float);
   AddSetFloatPropertyInstruction(*program, result_property, tween.float_result_index);
   AddSetFloatPropertyInstruction(*program, factor_property, tween.factor_index);
-  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  /* Serialized/compiler-produced programs must reject non-finite curve samples.  Continue with
+   * this deliberately malformed program to verify that the runtime still fails safely if a
+   * corrupted program reaches evaluation. */
+  ASSERT_FALSE(program->ValidateInstructionPayloads());
 
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(205), 0, 0);
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
   context.tick_index = 0;
 
   const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
@@ -4479,7 +7269,7 @@ TEST(LN_RuntimeTree, RetriggerBeforeElapsedResetsTimer)
 
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   for (uint64_t tick = 0; tick < 6; tick++) {
     context.tick_index = tick;
@@ -4494,20 +7284,21 @@ TEST(LN_RuntimeTree, DisabledTimerPausesUntilEnabled)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(65), 0, 0);
 
   LN_TickContext context;
+  context.event = LN_Event::OnFixedUpdate;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   context.tick_index = 0;
   EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
 
   runtime_tree.SetEnabled(false);
   context.tick_index = 1;
-  context.fixed_dt = 1.0;
+  context.delta_time = 1.0;
   EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
 
   runtime_tree.SetEnabled(true);
   context.tick_index = 2;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
   const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
                                                                               context);
   ASSERT_EQ(commands.size(), 1u);
@@ -4521,8 +7312,9 @@ TEST(LN_RuntimeTree, MultipleTimersElapsedSameTickRecordInInstructionOrder)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(66), 0, 0);
 
   LN_TickContext context;
+  context.event = LN_Event::OnFixedUpdate;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   context.tick_index = 0;
   EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
@@ -4542,13 +7334,15 @@ TEST(LN_RuntimeTree, IncompatibleProgramSwapCancelsActiveTimer)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(67), 0, 0);
 
   LN_TickContext context;
+  context.event = LN_Event::OnFixedUpdate;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
   context.tick_index = 0;
   EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
 
   runtime_tree.SetProgram(LN_Program::CreateDebugSetWorldPosition(MT_Vector3(4.0f, 5.0f, 6.0f)));
 
+  context.event = LN_Event::OnUpdate;
   context.tick_index = 1;
   const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
                                                                               context);
@@ -4563,8 +7357,9 @@ TEST(LN_RuntimeTree, DelayArmedOnInitEmitsDoneAfterFixedDelta)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(68), 0, 0);
 
   LN_TickContext context;
+  context.event = LN_Event::OnFixedUpdate;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   context.tick_index = 0;
   EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
@@ -4586,8 +7381,9 @@ TEST(LN_RuntimeTree, DelayCanIgnoreTimescaleStep)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(168), 0, 0);
 
   LN_TickContext context;
+  context.event = LN_Event::OnFixedUpdate;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.05;
+  context.delta_time = 0.05;
   context.unscaled_dt = 0.2;
 
   context.tick_index = 0;
@@ -4608,7 +7404,7 @@ TEST(LN_RuntimeTree, DelayQueuesRetriggersWhileActive)
 
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   context.tick_index = 0;
   EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
@@ -4634,7 +7430,7 @@ TEST(LN_RuntimeTree, PulsifyEmitsFirstPulseThenFixedIntervalPulses)
 
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   context.tick_index = 0;
   EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
@@ -4655,7 +7451,7 @@ TEST(LN_RuntimeTree, PulsifyCanIgnoreTimescaleStep)
 
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.05;
+  context.delta_time = 0.05;
   context.unscaled_dt = 0.2;
 
   context.tick_index = 0;
@@ -4671,8 +7467,9 @@ TEST(LN_RuntimeTree, PulsifyStopsWhenFlowIsAbsent)
   LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(71), 0, 0);
 
   LN_TickContext context;
+  context.event = LN_Event::OnUpdate;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   context.tick_index = 0;
   EXPECT_EQ(RecordReadyCommands(runtime_tree, context).size(), 1u);
@@ -4688,7 +7485,7 @@ TEST(LN_RuntimeTree, BarrierEmitsAfterConditionStaysTrueForDuration)
 
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   context.tick_index = 0;
   EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
@@ -4708,7 +7505,7 @@ TEST(LN_RuntimeTree, BarrierCanIgnoreTimescaleStep)
 
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.05;
+  context.delta_time = 0.05;
   context.unscaled_dt = 0.2;
 
   context.tick_index = 0;
@@ -4725,7 +7522,7 @@ TEST(LN_RuntimeTree, BarrierDoesNotEmitWhenConditionIsFalse)
 
   LN_TickContext context;
   context.use_fixed_timestep = true;
-  context.fixed_dt = 0.1;
+  context.delta_time = 0.1;
 
   for (uint64_t tick = 0; tick < 3; tick++) {
     context.tick_index = tick;
@@ -4984,6 +7781,37 @@ TEST(LN_RuntimeTree, ExecBlockIRRecordsSupportedVectorCommandDirectly)
   EXPECT_EQ(counters.exec_fallback_block_count, 0u);
   EXPECT_FALSE(runtime_tree.GetRuntimeFallbackReport().optimized_execution_partial);
   EXPECT_EQ(runtime_tree.GetRuntimeFallbackReport().fallback_instruction_count, 0u);
+}
+
+TEST(LN_RuntimeTree, ExecBlockIRRecordsShapeKeyCommandDirectly)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_Instruction instruction;
+  instruction.opcode = LN_OpCode::SetShapeKeyValue;
+  instruction.string_expr_index = AddStringConstant(*program, "Smile");
+  instruction.float_expr_index = AddFloatConstant(*program, 0.625f);
+  program->AddInstruction(LN_Event::OnFixedUpdate, instruction);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(45), 4, 0);
+  LN_TickContext context;
+  context.use_fixed_timestep = true;
+
+  LN_CommandBuffer command_buffer;
+  LN_RuntimeProfileCounters counters;
+  command_buffer.BeginRecording();
+  runtime_tree.ExecuteReady(command_buffer, context, &counters);
+  command_buffer.EndRecording();
+  const std::vector<LN_CommandBuffer::Command> commands = command_buffer.TakeRecordedCommands();
+
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::SetShapeKeyValue);
+  EXPECT_EQ(commands[0].object, FakeGameObjectPointer(45));
+  EXPECT_EQ(commands[0].property_name, "Smile");
+  EXPECT_EQ(commands[0].scalar_value, 0.625f);
+  EXPECT_EQ(counters.instruction_dispatch_count, 1u);
+  EXPECT_EQ(counters.exec_direct_instruction_count, 1u);
+  EXPECT_EQ(counters.exec_fallback_instruction_count, 0u);
 }
 
 TEST(LN_RuntimeTree, ExecBlockIRExecutesLoopBlocksDirectly)
@@ -5289,6 +8117,75 @@ TEST(LN_RuntimeTree, ExecBlockIRRecordsSetParentFromRuntimeRefDirectly)
   EXPECT_EQ(counters.exec_fallback_block_count, 0u);
 }
 
+TEST(LN_RuntimeTree, ExecBlockIRRecordsModernBoneParentOptions)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  KX_GameObject *owner = FakeGameObjectPointer(0x880);
+  KX_GameObject *parent_object = FakeGameObjectPointer(0x881);
+
+  LN_RuntimeTree runtime_tree(program, owner, 4, 0);
+  const LN_RuntimeRef parent_ref = runtime_tree.MakeObjectRef(parent_object, "armature");
+
+  LN_Instruction set_parent;
+  set_parent.opcode = LN_OpCode::SetParent;
+  set_parent.bool_value = true; /* Modern request marker. */
+  set_parent.int_value = int32_t(KX_ParentType::Bone);
+  set_parent.secondary_value_expr_index = AddObjectRefConstant(*program, parent_ref);
+  set_parent.string_expr_index = AddStringConstant(*program, "hand.R");
+  program->AddInstruction(LN_Event::OnFixedUpdate, set_parent);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_TickContext context;
+  context.use_fixed_timestep = true;
+  LN_CommandBuffer command_buffer;
+  command_buffer.BeginRecording();
+  runtime_tree.ExecuteReady(command_buffer, context, nullptr);
+  command_buffer.EndRecording();
+  const std::vector<LN_CommandBuffer::Command> commands = command_buffer.TakeRecordedCommands();
+
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::SetParentFromRef);
+  EXPECT_EQ(commands[0].object, owner);
+  ASSERT_NE(commands[0].parent_options, nullptr);
+  const KX_ParentOptions &options = *commands[0].parent_options;
+  EXPECT_EQ(options.type, KX_ParentType::Bone);
+  EXPECT_FALSE(options.compound);
+  EXPECT_EQ(options.bone_name, "hand.R");
+}
+
+TEST(LN_RuntimeTree, ExecBlockIRRecordsModernObjectCompoundOption)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  KX_GameObject *owner = FakeGameObjectPointer(0x882);
+  KX_GameObject *parent_object = FakeGameObjectPointer(0x883);
+
+  LN_RuntimeTree runtime_tree(program, owner, 4, 0);
+  const LN_RuntimeRef parent_ref = runtime_tree.MakeObjectRef(parent_object, "parent");
+
+  LN_Instruction set_parent;
+  set_parent.opcode = LN_OpCode::SetParent;
+  set_parent.bool_value = true;
+  set_parent.int_value = int32_t(KX_ParentType::Object);
+  set_parent.secondary_value_expr_index = AddObjectRefConstant(*program, parent_ref);
+  set_parent.bool_expr_index = AddBoolConstant(*program, true);
+  program->AddInstruction(LN_Event::OnFixedUpdate, set_parent);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_TickContext context;
+  context.use_fixed_timestep = true;
+  LN_CommandBuffer command_buffer;
+  command_buffer.BeginRecording();
+  runtime_tree.ExecuteReady(command_buffer, context, nullptr);
+  command_buffer.EndRecording();
+  const std::vector<LN_CommandBuffer::Command> commands = command_buffer.TakeRecordedCommands();
+
+  ASSERT_EQ(commands.size(), 1u);
+  ASSERT_NE(commands[0].parent_options, nullptr);
+  EXPECT_EQ(commands[0].parent_options->type, KX_ParentType::Object);
+  EXPECT_TRUE(commands[0].parent_options->compound);
+  EXPECT_TRUE(commands[0].parent_options->bone_name.empty());
+}
+
 TEST(LN_RuntimeTree, ExecBlockIRExecutesInputMotionNoOpDirectly)
 {
   std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
@@ -5336,6 +8233,95 @@ TEST(LN_RuntimeTree, ExecBlockIRExecutesInputMotionNoOpDirectly)
   EXPECT_EQ(counters.exec_fallback_block_count, 0u);
 }
 
+TEST(LN_RuntimeTree, TranslateTreatsSpeedAsUnitsPerSecond)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  KX_GameObject *owner = FakeGameObjectPointer(89);
+  LN_RuntimeTree runtime_tree(program, owner, 4, 0);
+
+  LN_Instruction translate;
+  translate.opcode = LN_OpCode::Translate;
+  translate.vector_expr_index = AddVectorConstant(*program, MT_Vector3(2.0f, 0.0f, 0.0f));
+  translate.float_expr_index = AddFloatConstant(*program, 3.0f);
+  translate.bool_expr_index = AddBoolConstant(*program, false);
+  program->AddInstruction(LN_Event::OnFixedUpdate, translate);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_TickContext context;
+  context.event = LN_Event::OnFixedUpdate;
+  context.delta_time = 0.25;
+  context.use_fixed_timestep = true;
+  const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                              context);
+
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::ApplyMovement);
+  EXPECT_NEAR(commands[0].vector_value.x(), 1.5f, 0.0001f);
+  EXPECT_NEAR(commands[0].vector_value.y(), 0.0f, 0.0001f);
+  EXPECT_NEAR(commands[0].vector_value.z(), 0.0f, 0.0001f);
+}
+
+TEST(LN_RuntimeTree, RotateTowardMaximumStepIsAnAngularDistanceNotAFactor)
+{
+  KX_GameObject owner;
+  SG_Callbacks callbacks;
+  SG_Node sg_node(&owner, nullptr, callbacks);
+  sg_node.SetParentRelation(new TestRootParentRelation());
+  owner.SetSGNode(&sg_node);
+  owner.NodeSetWorldPosition(MT_Vector3(0.0f, 0.0f, 0.0f));
+  owner.NodeSetLocalOrientation(MT_Matrix3x3::Identity());
+  owner.NodeUpdateGS(0.0);
+
+  LN_CommandBuffer command_buffer;
+  command_buffer.BeginRecording();
+  command_buffer.AppendRotateToward(&owner, MT_Vector3(1.0f, 0.0f, 0.0f), 0.25f, 2, 1, true, 1, 1);
+  command_buffer.EndRecording();
+  command_buffer.Flush();
+
+  const LN_Rotation actual = LN_Rotation::FromMatrix(owner.NodeGetLocalOrientation());
+  EXPECT_NEAR(actual.AngleTo(LN_Rotation::Identity()), 0.25f, 0.0001f);
+  owner.SetSGNode(nullptr);
+}
+
+TEST(LN_RuntimeTree, GamepadLookUsesAngularSpeedAndFixedDeltaTime)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  KX_GameObject owner;
+  SG_Callbacks callbacks;
+  SG_Node sg_node(&owner, nullptr, callbacks);
+  sg_node.SetParentRelation(new TestRootParentRelation());
+  owner.SetSGNode(&sg_node);
+  owner.NodeUpdateGS(0.0);
+  LN_RuntimeTree runtime_tree(program, &owner, 4, 0);
+
+  LN_Instruction look;
+  look.opcode = LN_OpCode::GamepadLook;
+  look.vector_expr_index = AddVectorConstant(*program, MT_Vector3(1.0f, 0.0f, 0.0f));
+  look.secondary_vector_expr_index = AddVectorConstant(*program, MT_Vector3(0.0f, 0.0f, 0.0f));
+  look.color_expr_index = AddVectorConstant(*program, MT_Vector3(0.0f, 0.0f, 0.0f));
+  look.int_expr_index = AddVectorConstant(*program, MT_Vector3(0.0f, 0.0f, 0.0f));
+  look.bool_expr_index = AddBoolConstant(*program, false);
+  look.secondary_bool_expr_index = AddBoolConstant(*program, false);
+  look.float_expr_index = AddFloatConstant(*program, 2.0f);
+  look.string_expr_index = AddFloatConstant(*program, 1.0f);
+  program->AddInstruction(LN_Event::OnFixedUpdate, look);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  LN_TickContext context;
+  context.event = LN_Event::OnFixedUpdate;
+  context.delta_time = 0.25;
+  context.use_fixed_timestep = true;
+  const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                              context);
+
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::SetLocalOrientation);
+  /* The stick to the right turns right: clockwise seen from above. */
+  ExpectRotationEulerNear(commands[0].rotation_value, MT_Vector3(0.0f, 0.0f, -0.5f));
+
+  owner.SetSGNode(nullptr);
+}
+
 TEST(LN_RuntimeTree, MouseLookRecordsRotationFromCapturedMouseInput)
 {
   std::shared_ptr<const LN_Program> program = CreateMouseLookInputOnlyProgram(false);
@@ -5376,9 +8362,7 @@ TEST(LN_RuntimeTree, MouseLookRecordsRotationFromCapturedMouseInput)
   ASSERT_EQ(reference_commands.size(), 1u);
   EXPECT_EQ(reference_commands[0].type, LN_CommandBuffer::CommandType::ApplyRotation);
   EXPECT_EQ(reference_commands[0].object, &reference_owner);
-  EXPECT_NEAR(reference_commands[0].vector_value.x(), 0.0f, 0.00001f);
-  EXPECT_NEAR(reference_commands[0].vector_value.y(), 0.0f, 0.00001f);
-  EXPECT_NEAR(reference_commands[0].vector_value.z(), -0.2f, 0.00001f);
+  ExpectRotationEulerNear(reference_commands[0].rotation_value, MT_Vector3(0.0f, 0.0f, -0.2f));
   EXPECT_FALSE(reference_commands[0].bool_value);
 
   KX_GameObject ir_owner;
@@ -5406,14 +8390,62 @@ TEST(LN_RuntimeTree, MouseLookRecordsRotationFromCapturedMouseInput)
   ASSERT_EQ(ir_commands.size(), reference_commands.size());
   EXPECT_EQ(ir_commands[0].type, reference_commands[0].type);
   EXPECT_EQ(ir_commands[0].object, &ir_owner);
-  EXPECT_NEAR(ir_commands[0].vector_value.x(), reference_commands[0].vector_value.x(), 0.00001f);
-  EXPECT_NEAR(ir_commands[0].vector_value.y(), reference_commands[0].vector_value.y(), 0.00001f);
-  EXPECT_NEAR(ir_commands[0].vector_value.z(), reference_commands[0].vector_value.z(), 0.00001f);
+  EXPECT_LE(ir_commands[0].rotation_value.AngleTo(reference_commands[0].rotation_value), 0.0001f);
   EXPECT_EQ(ir_commands[0].bool_value, reference_commands[0].bool_value);
   EXPECT_EQ(counters.exec_block_count, 1u);
   EXPECT_EQ(counters.exec_direct_instruction_count, 1u);
   EXPECT_EQ(counters.exec_fallback_instruction_count, 0u);
   EXPECT_EQ(counters.exec_fallback_block_count, 0u);
+}
+
+TEST(LN_RuntimeTree, MouseLookSmoothingHasTheSameTimeResponseAtDifferentFixedRates)
+{
+  auto accumulated_yaw_after_one_second = [](const int32_t tick_rate) {
+    std::shared_ptr<const LN_Program> program = CreateMouseLookInputOnlyProgram(false, 0.9f);
+    DEV_InputDevice input_device;
+    LN_InputSnapshot input_snapshot;
+    LN_TickReadContext read_context;
+    read_context.input = &input_snapshot;
+    read_context.input_channels = LN_DEP_INPUT_MOUSE;
+    read_context.has_input = true;
+
+    KX_GameObject owner;
+    LN_RuntimeTree runtime_tree(program, &owner, 4, 0);
+    const float delta_time = 1.0f / float(tick_rate);
+
+    CaptureMousePosition(input_device, input_snapshot, 0, 0);
+    read_context.tick_index = 1;
+    runtime_tree.CaptureSnapshot(&read_context, delta_time, read_context.tick_index, false);
+    LN_TickContext context;
+    context.event = LN_Event::OnFixedUpdate;
+    context.delta_time = delta_time;
+    context.use_fixed_timestep = true;
+    context.tick_index = read_context.tick_index;
+    EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+
+    double accumulated_yaw = 0.0;
+    for (int32_t tick = 0; tick < tick_rate; tick++) {
+      CaptureMousePosition(input_device, input_snapshot, 100, 0);
+      read_context.tick_index = uint64_t(tick) + 2;
+      runtime_tree.CaptureSnapshot(&read_context, delta_time, read_context.tick_index, false);
+      context.tick_index = read_context.tick_index;
+      const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                                  context);
+      for (const LN_CommandBuffer::Command &command : commands) {
+        if (command.type == LN_CommandBuffer::CommandType::ApplyRotation &&
+            command.object == &owner && !command.bool_value)
+        {
+          accumulated_yaw += double(command.rotation_value.ToEulerXYZ().z());
+        }
+      }
+    }
+    return accumulated_yaw;
+  };
+
+  const double yaw_at_60_hz = accumulated_yaw_after_one_second(60);
+  const double yaw_at_240_hz = accumulated_yaw_after_one_second(240);
+  EXPECT_NEAR(yaw_at_60_hz, yaw_at_240_hz, 0.00001);
+  EXPECT_NEAR(yaw_at_60_hz, -0.2, 0.001);
 }
 
 TEST(LN_RuntimeTree, MouseLookUsesEqualPixelScaleOnWidescreenCanvas)
@@ -5462,16 +8494,12 @@ TEST(LN_RuntimeTree, MouseLookUsesEqualPixelScaleOnWidescreenCanvas)
   ASSERT_EQ(commands.size(), 2u);
   EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::ApplyRotation);
   EXPECT_EQ(commands[0].object, &owner);
-  EXPECT_NEAR(commands[0].vector_value.x(), 0.0f, 0.00001f);
-  EXPECT_NEAR(commands[0].vector_value.y(), 0.0f, 0.00001f);
-  EXPECT_NEAR(commands[0].vector_value.z(), -0.2f, 0.00001f);
+  ExpectRotationEulerNear(commands[0].rotation_value, MT_Vector3(0.0f, 0.0f, -0.2f));
   EXPECT_FALSE(commands[0].bool_value);
 
   EXPECT_EQ(commands[1].type, LN_CommandBuffer::CommandType::ApplyRotation);
   EXPECT_EQ(commands[1].object, &owner);
-  EXPECT_NEAR(commands[1].vector_value.x(), -0.2f, 0.00001f);
-  EXPECT_NEAR(commands[1].vector_value.y(), 0.0f, 0.00001f);
-  EXPECT_NEAR(commands[1].vector_value.z(), 0.0f, 0.00001f);
+  ExpectRotationEulerNear(commands[1].rotation_value, MT_Vector3(-0.2f, 0.0f, 0.0f));
   EXPECT_TRUE(commands[1].bool_value);
 }
 
@@ -5519,9 +8547,7 @@ TEST(LN_RuntimeTree, MouseLookUsesNodePreviousPositionWhenSnapshotDeltaIsZero)
     ASSERT_EQ(commands.size(), 1u);
     EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::ApplyRotation);
     EXPECT_EQ(commands[0].object, &owner);
-    EXPECT_NEAR(commands[0].vector_value.x(), 0.0f, 0.00001f);
-    EXPECT_NEAR(commands[0].vector_value.y(), 0.0f, 0.00001f);
-    EXPECT_NEAR(commands[0].vector_value.z(), -0.2f, 0.00001f);
+    ExpectRotationEulerNear(commands[0].rotation_value, MT_Vector3(0.0f, 0.0f, -0.2f));
     EXPECT_FALSE(commands[0].bool_value);
   };
   run_case();
@@ -5638,7 +8664,7 @@ TEST(LN_RuntimeTree, CenterMouseLookSkipsInitialCenterTickThenRecordsRotation)
   ASSERT_EQ(commands.size(), 1u);
   EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::ApplyRotation);
   EXPECT_EQ(commands[0].object, &owner);
-  EXPECT_NEAR(commands[0].vector_value.z(), -0.2f, 0.00001f);
+  ExpectRotationEulerNear(commands[0].rotation_value, MT_Vector3(0.0f, 0.0f, -0.2f));
 }
 
 TEST(LN_RuntimeTree, ExecBlockIRRecordsApplyPhysicsVectorDirectly)
@@ -5723,6 +8749,33 @@ TEST(LN_RuntimeTree, ExecBlockIRRecordsApplyTransformVectorDirectly)
   EXPECT_EQ(counters.exec_fallback_block_count, 0u);
 }
 
+TEST(LN_RuntimeTree, FrameUpdateRecordsRelativeRotationForNonDynamicVisualObject)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_Instruction apply_rotation;
+  apply_rotation.opcode = LN_OpCode::ApplyTransformVector;
+  apply_rotation.vector_operation_mode = uint8_t(LN_VectorOperationMode::LocalFromBool);
+  apply_rotation.vector_operation_channel = uint8_t(LN_VectorOperationChannel::Rotation);
+  apply_rotation.vector_value = MT_Vector3(0.0f, 0.0f, 0.5f);
+  program->AddInstruction(LN_Event::OnUpdate, apply_rotation);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+
+  KX_GameObject visual_object;
+  LN_RuntimeTree runtime_tree(program, &visual_object, 4, 0);
+  LN_TickContext context;
+  context.event = LN_Event::OnUpdate;
+  context.use_fixed_timestep = true;
+  const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                              context);
+
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::ApplyRotation);
+  EXPECT_EQ(commands[0].object, &visual_object);
+  EXPECT_LE(
+      commands[0].rotation_value.AngleTo(LN_Rotation::FromEulerXYZ(MT_Vector3(0.0f, 0.0f, 0.5f))),
+      0.0001f);
+}
+
 TEST(LN_RuntimeTree, ExecBlockIRExecutesDeferredTreeControlNoTargetDirectly)
 {
   std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
@@ -5790,7 +8843,7 @@ TEST(LN_RuntimeTree, ExecBlockIRRecordsAdditionalCommandFamiliesDirectly)
   const std::vector<LN_CommandBuffer::Command> ir_commands = command_buffer.TakeRecordedCommands();
 
   ASSERT_EQ(ir_commands.size(), reference_commands.size());
-  ASSERT_EQ(ir_commands.size(), 72u);
+  ASSERT_EQ(ir_commands.size(), 75u);
   for (size_t index = 0; index < ir_commands.size(); index++) {
     ExpectCommandEqual(ir_commands[index], reference_commands[index]);
   }
@@ -5860,8 +8913,11 @@ TEST(LN_RuntimeTree, ExecBlockIRRecordsAdditionalCommandFamiliesDirectly)
       LN_CommandBuffer::CommandType::QuitGame,
       LN_CommandBuffer::CommandType::RestartGame,
       LN_CommandBuffer::CommandType::SetTimeScale,
+      LN_CommandBuffer::CommandType::SetGamePaused,
+      LN_CommandBuffer::CommandType::SetPhysicsPaused,
       LN_CommandBuffer::CommandType::LoadBlendFile,
       LN_CommandBuffer::CommandType::SaveGame,
+      LN_CommandBuffer::CommandType::SetSaveExistence,
       LN_CommandBuffer::CommandType::LoadGame,
       LN_CommandBuffer::CommandType::LoadScene,
       LN_CommandBuffer::CommandType::SetScene,
@@ -5884,9 +8940,49 @@ TEST(LN_RuntimeTree, ExecBlockIRRecordsAdditionalCommandFamiliesDirectly)
       });
   ASSERT_NE(transform_command, ir_commands.end());
   EXPECT_EQ(transform_command->vector_value.z(), 3.0f);
-  EXPECT_EQ(transform_command->secondary_vector_value.y(), 0.8f);
+  ExpectRotationEulerNear(transform_command->rotation_value, MT_Vector3(0.7f, 0.8f, 0.9f));
   EXPECT_EQ(transform_command->int_value, int(LN_BonePoseLocationSpace::World));
   EXPECT_EQ(transform_command->secondary_int_value, 1);
+  const auto set_save_existence_command = std::find_if(
+      ir_commands.begin(), ir_commands.end(), [](const LN_CommandBuffer::Command &command) {
+        return command.type == LN_CommandBuffer::CommandType::SetSaveExistence;
+      });
+  ASSERT_NE(set_save_existence_command, ir_commands.end());
+  EXPECT_EQ(set_save_existence_command->object, FakeGameObjectPointer(48));
+  EXPECT_EQ(set_save_existence_command->event_target_object, FakeGameObjectPointer(48));
+  EXPECT_FALSE(set_save_existence_command->bool_value);
+  EXPECT_NE(set_save_existence_command->property_ref_index, LN_INVALID_INDEX);
+  const auto set_game_paused_command = std::find_if(
+      ir_commands.begin(), ir_commands.end(), [](const LN_CommandBuffer::Command &command) {
+        return command.type == LN_CommandBuffer::CommandType::SetGamePaused;
+      });
+  ASSERT_NE(set_game_paused_command, ir_commands.end());
+  EXPECT_TRUE(set_game_paused_command->bool_value);
+  EXPECT_EQ(set_game_paused_command->object, nullptr);
+
+  const auto set_physics_paused_command = std::find_if(
+      ir_commands.begin(), ir_commands.end(), [](const LN_CommandBuffer::Command &command) {
+        return command.type == LN_CommandBuffer::CommandType::SetPhysicsPaused;
+      });
+  ASSERT_NE(set_physics_paused_command, ir_commands.end());
+  EXPECT_FALSE(set_physics_paused_command->bool_value);
+  EXPECT_EQ(set_physics_paused_command->object, nullptr);
+
+  const auto load_scene_command = std::find_if(
+      ir_commands.begin(), ir_commands.end(), [](const LN_CommandBuffer::Command &command) {
+        return command.type == LN_CommandBuffer::CommandType::LoadScene;
+      });
+  ASSERT_NE(load_scene_command, ir_commands.end());
+  EXPECT_EQ(load_scene_command->object, FakeGameObjectPointer(48));
+  EXPECT_EQ(load_scene_command->property_name, "LevelScene");
+
+  const auto set_scene_command = std::find_if(
+      ir_commands.begin(), ir_commands.end(), [](const LN_CommandBuffer::Command &command) {
+        return command.type == LN_CommandBuffer::CommandType::SetScene;
+      });
+  ASSERT_NE(set_scene_command, ir_commands.end());
+  EXPECT_EQ(set_scene_command->object, FakeGameObjectPointer(48));
+  EXPECT_EQ(set_scene_command->property_name, "MenuScene");
   EXPECT_EQ(counters.exec_block_count, 1u);
   EXPECT_EQ(counters.exec_direct_instruction_count,
             program->GetExecBlockProgram(LN_Event::OnFixedUpdate).direct_instruction_count);
@@ -7050,6 +10146,119 @@ TEST(LN_RuntimeTree, RegisterExpressionEvaluatorRecordsEquivalentMouseMovedInput
   EXPECT_EQ(counters.register_expression_fallback_count, 0u);
 }
 
+TEST(LN_RuntimeTree, MouseMovedDistinguishesOnceFromEachLogicTick)
+{
+  auto run_sequence = [](const bool each_logic_tick,
+                         const bool use_register_evaluator,
+                         uint64_t &r_register_hits,
+                         uint64_t &r_register_fallbacks) {
+    std::shared_ptr<const LN_Program> program = CreateRegisterMouseMovedInputCommandProgram(
+        each_logic_tick, LN_Event::OnFixedUpdate);
+    std::vector<std::string> validation_errors;
+    if (!program->ValidateInstructionPayloads(&validation_errors)) {
+      for (const std::string &error : validation_errors) {
+        ADD_FAILURE() << error;
+      }
+    }
+
+    DEV_InputDevice input_device;
+    LN_InputSnapshot input_snapshot;
+    /* Establish and release a baseline position before the observed sequence. */
+    input_device.ConvertMoveEvent(0, 0);
+    input_snapshot.Capture(&input_device, nullptr);
+    input_device.ClearInputs();
+    input_device.ReleaseMoveEvent();
+    input_snapshot.Capture(&input_device, nullptr);
+
+    LN_TickReadContext read_context;
+    read_context.input = &input_snapshot;
+    read_context.input_channels = LN_DEP_INPUT_MOUSE;
+    read_context.has_input = true;
+
+    KX_GameObject owner;
+    LN_RuntimeTree runtime_tree(program, &owner, 4, 0);
+    LN_RuntimeProfileCounters counters;
+    LN_TickContext context;
+    context.event = LN_Event::OnFixedUpdate;
+    context.use_fixed_timestep = true;
+    context.use_register_expression_evaluator = use_register_evaluator;
+
+    auto evaluate_tick = [&](const uint64_t tick) {
+      read_context.tick_index = tick;
+      runtime_tree.CaptureSnapshot(&read_context, 1.0f / 240.0f, tick, false);
+      context.tick_index = tick;
+      context.phase_tick_index = tick;
+
+      LN_CommandBuffer command_buffer;
+      command_buffer.BeginRecording();
+      runtime_tree.ExecuteReady(command_buffer, context, &counters);
+      command_buffer.EndRecording();
+      const std::vector<LN_CommandBuffer::Command> commands =
+          command_buffer.TakeRecordedCommands();
+      EXPECT_EQ(commands.size(), 1u);
+      return commands.empty() ? false : commands.front().bool_value;
+    };
+
+    std::array<bool, 5> results;
+    results[0] = evaluate_tick(0);
+
+    input_device.ClearInputs();
+    input_device.ConvertMoveEvent(10, 0);
+    input_snapshot.Capture(&input_device, nullptr);
+    results[1] = evaluate_tick(1);
+
+    /* Consecutive movement keeps the axes active without producing a second activation edge. */
+    input_device.ClearInputs();
+    input_device.ConvertMoveEvent(20, 0);
+    input_snapshot.Capture(&input_device, nullptr);
+    results[2] = evaluate_tick(2);
+
+    input_device.ClearInputs();
+    input_device.ReleaseMoveEvent();
+    input_snapshot.Capture(&input_device, nullptr);
+    results[3] = evaluate_tick(3);
+
+    input_device.ClearInputs();
+    input_device.ConvertMoveEvent(30, 0);
+    input_snapshot.Capture(&input_device, nullptr);
+    LN_InputSnapshot pending_fixed_input;
+    pending_fixed_input.CopyFrom(input_snapshot);
+    input_device.ClearInputs();
+    input_device.ReleaseMoveEvent();
+    input_snapshot.Capture(&input_device, nullptr);
+    pending_fixed_input.AccumulateFrame(input_snapshot);
+    read_context.input = &pending_fixed_input;
+    /* A complete movement/release pair between fixed ticks still retains its activation edge. */
+    results[4] = evaluate_tick(4);
+
+    r_register_hits = counters.register_expression_hit_count;
+    r_register_fallbacks = counters.register_expression_fallback_count;
+    return results;
+  };
+
+  uint64_t unused_hits = 0;
+  uint64_t unused_fallbacks = 0;
+  const std::array<bool, 5> once_reference = run_sequence(
+      false, false, unused_hits, unused_fallbacks);
+  EXPECT_EQ(once_reference, (std::array<bool, 5>{false, true, false, false, true}));
+
+  const std::array<bool, 5> each_reference = run_sequence(
+      true, false, unused_hits, unused_fallbacks);
+  EXPECT_EQ(each_reference, (std::array<bool, 5>{false, true, true, false, true}));
+
+  uint64_t once_hits = 0;
+  uint64_t once_fallbacks = 0;
+  EXPECT_EQ(run_sequence(false, true, once_hits, once_fallbacks), once_reference);
+  EXPECT_GT(once_hits, 0u);
+  EXPECT_EQ(once_fallbacks, 0u);
+
+  uint64_t each_hits = 0;
+  uint64_t each_fallbacks = 0;
+  EXPECT_EQ(run_sequence(true, true, each_hits, each_fallbacks), each_reference);
+  EXPECT_GT(each_hits, 0u);
+  EXPECT_EQ(each_fallbacks, 0u);
+}
+
 TEST(LN_RuntimeTree, RegisterExpressionEvaluatorMatchesTinyNormalizeFallback)
 {
   std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
@@ -7207,9 +10416,9 @@ TEST(LN_RuntimeTree, RegisterExpressionEvaluatorExecutesFloatDivideSoASimdBatch)
   EXPECT_EQ(register_commands[0].object, reference_commands[0].object);
   EXPECT_FLOAT_EQ(register_commands[0].vector_value.x(), reference_commands[0].vector_value.x());
   EXPECT_FLOAT_EQ(register_commands[0].vector_value.y(), reference_commands[0].vector_value.y());
-  EXPECT_FLOAT_EQ(register_commands[0].vector_value.z(), reference_commands[0].vector_value.z());
+  EXPECT_TRUE(std::isnan(reference_commands[0].vector_value.z()));
+  EXPECT_TRUE(std::isnan(register_commands[0].vector_value.z()));
   EXPECT_FLOAT_EQ(register_commands[0].vector_value.y(), 0.0f);
-  EXPECT_FLOAT_EQ(register_commands[0].vector_value.z(), 0.0f);
   EXPECT_GE(counters.register_simd_candidate_lane_count, 4u);
 #if defined(__SSE__) || defined(_M_X64) || defined(_M_IX86_FP)
   EXPECT_GT(counters.register_simd_batch_count, 0u);
@@ -7305,6 +10514,931 @@ TEST(LN_RuntimeTree, WarmQueryCacheStabilizesSnapshotQueryReads)
   EXPECT_TRUE(commands.empty());
 }
 
+TEST(LN_RuntimeTree, AverageCenterPositionVectorListReportsAllOutputsAndRejectsInvalidItems)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  LN_Value vectors;
+  vectors.type = LN_ValueType::List;
+  vectors.exists = true;
+  const auto append_vector = [&](const MT_Vector3 &value) {
+    LN_Value item;
+    item.type = LN_ValueType::Vector;
+    item.exists = true;
+    item.vector_value = value;
+    vectors.list_value.push_back(item);
+  };
+  append_vector(MT_Vector3(1.0f, 2.0f, 3.0f));
+  append_vector(MT_Vector3(3.0f, 4.0f, 5.0f));
+  append_vector(MT_Vector3(std::numeric_limits<float>::infinity(), 9.0f, 9.0f));
+  LN_Value non_vector;
+  non_vector.type = LN_ValueType::Float;
+  non_vector.exists = true;
+  non_vector.float_value = 100.0f;
+  vectors.list_value.push_back(non_vector);
+
+  LN_ValueExpression vector_list;
+  vector_list.kind = LN_ValueExpressionKind::Constant;
+  vector_list.value = vectors;
+  const uint32_t list_index = program->AddValueExpression(vector_list);
+
+  LN_QueryExpression query;
+  query.kind = LN_QueryExpressionKind::VectorAverage;
+  query.average_center_source = LN_AverageCenterSource::VectorList;
+  query.input0 = list_index;
+  const uint32_t query_index = program->AddQueryExpression(query);
+
+  LN_VectorExpression average;
+  average.kind = LN_VectorExpressionKind::QueryVectorAverage;
+  average.input0 = query_index;
+  const uint32_t average_index = program->AddVectorExpression(average);
+
+  LN_IntExpression count;
+  count.kind = LN_IntExpressionKind::QueryVectorCount;
+  count.input0 = query_index;
+  const uint32_t count_index = program->AddIntExpression(count);
+
+  LN_BoolExpression valid;
+  valid.kind = LN_BoolExpressionKind::QueryValid;
+  valid.input0 = query_index;
+  const uint32_t valid_index = program->AddBoolExpression(valid);
+
+  LN_Value empty_vectors;
+  empty_vectors.type = LN_ValueType::List;
+  empty_vectors.exists = true;
+  LN_ValueExpression empty_list;
+  empty_list.kind = LN_ValueExpressionKind::Constant;
+  empty_list.value = empty_vectors;
+  LN_QueryExpression empty_query;
+  empty_query.kind = LN_QueryExpressionKind::VectorAverage;
+  empty_query.average_center_source = LN_AverageCenterSource::VectorList;
+  empty_query.input0 = program->AddValueExpression(empty_list);
+  const uint32_t empty_query_index = program->AddQueryExpression(empty_query);
+  average.input0 = empty_query_index;
+  const uint32_t empty_average_index = program->AddVectorExpression(average);
+  count.input0 = empty_query_index;
+  const uint32_t empty_count_index = program->AddIntExpression(count);
+  valid.input0 = empty_query_index;
+  const uint32_t empty_valid_index = program->AddBoolExpression(valid);
+
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  ASSERT_TRUE(program->IsParallelEligible());
+  LN_RuntimeTree runtime_tree(program, nullptr, 0, 0);
+  LN_TickContext context;
+  context.tick_index = 1;
+
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, average_index, MT_Vector3(-1.0f, -1.0f, -1.0f), context),
+            MT_Vector3(2.0f, 3.0f, 4.0f));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveInt(runtime_tree, count_index, context), 2);
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, valid_index, context));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, empty_average_index, MT_Vector3(-1.0f, -1.0f, -1.0f), context),
+            MT_Vector3(0.0f, 0.0f, 0.0f));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveInt(runtime_tree, empty_count_index, context), 0);
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, empty_valid_index, context));
+}
+
+TEST(LN_RuntimeTree, DistanceBetweenSupportsEveryEndpointCombinationAndOutput)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const uint32_t vector_a = AddVectorConstant(*program, MT_Vector3(1.0f, 2.0f, 3.0f));
+  const uint32_t vector_b = AddVectorConstant(*program, MT_Vector3(4.0f, 6.0f, 3.0f));
+  const uint32_t position_for_object_a = AddVectorConstant(*program,
+                                                           MT_Vector3(10.0f, 6.0f, 8.0f));
+  const uint32_t position_for_object_b = AddVectorConstant(*program,
+                                                           MT_Vector3(-2.0f, 3.0f, 6.0f));
+  const uint32_t target_value = AddNoneValueConstant(*program);
+
+  struct Outputs {
+    uint32_t distance;
+    uint32_t squared_distance;
+    uint32_t valid;
+  };
+  const auto add_query = [&](const LN_DistanceEndpointMode mode_a,
+                             const uint32_t input_a,
+                             const LN_DistanceEndpointMode mode_b,
+                             const uint32_t input_b) {
+    LN_QueryExpression query;
+    query.kind = LN_QueryExpressionKind::DistanceBetween;
+    query.distance_endpoint_a = mode_a;
+    query.distance_endpoint_b = mode_b;
+    query.input0 = input_a;
+    query.input1 = input_b;
+    const uint32_t query_index = program->AddQueryExpression(query);
+
+    LN_FloatExpression distance;
+    distance.kind = LN_FloatExpressionKind::QueryDistance;
+    distance.input0 = query_index;
+    const uint32_t distance_index = program->AddFloatExpression(distance);
+    distance.kind = LN_FloatExpressionKind::QuerySquaredDistance;
+    const uint32_t squared_distance_index = program->AddFloatExpression(distance);
+    LN_BoolExpression valid;
+    valid.kind = LN_BoolExpressionKind::QueryValid;
+    valid.input0 = query_index;
+    return Outputs{distance_index, squared_distance_index, program->AddBoolExpression(valid)};
+  };
+
+  const Outputs vector_vector = add_query(
+      LN_DistanceEndpointMode::Position, vector_a, LN_DistanceEndpointMode::Position, vector_b);
+  const Outputs object_vector = add_query(LN_DistanceEndpointMode::Object,
+                                          target_value,
+                                          LN_DistanceEndpointMode::Position,
+                                          position_for_object_a);
+  const Outputs vector_object = add_query(LN_DistanceEndpointMode::Position,
+                                          position_for_object_b,
+                                          LN_DistanceEndpointMode::Object,
+                                          target_value);
+  const Outputs object_object = add_query(LN_DistanceEndpointMode::Object,
+                                          LN_INVALID_INDEX,
+                                          LN_DistanceEndpointMode::Object,
+                                          target_value);
+  const Outputs missing_target = add_query(LN_DistanceEndpointMode::Object,
+                                           LN_INVALID_INDEX,
+                                           LN_DistanceEndpointMode::Object,
+                                           LN_INVALID_INDEX);
+
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  PositionedGameObject owner(MT_Vector3(1.0f, 2.0f, 3.0f));
+  PositionedGameObject target(MT_Vector3(10.0f, 0.0f, 0.0f));
+  LN_RuntimeTree runtime_tree(program, &owner.object, 0, 0);
+
+  std::vector<LN_ValueExpression> &value_expressions =
+      const_cast<std::vector<LN_ValueExpression> &>(program->GetValueExpressions());
+  value_expressions[target_value].value.type = LN_ValueType::ObjectRef;
+  value_expressions[target_value].value.exists = true;
+  value_expressions[target_value].value.runtime_ref = LN_RuntimeTreeTestAccess::MakeObjectRef(
+      runtime_tree, target.object);
+
+  LN_TickContext context;
+  context.tick_index = 5;
+  const auto expect_outputs =
+      [&](const Outputs &outputs, const float distance, const float squared_distance) {
+        EXPECT_NEAR(
+            LN_RuntimeTreeTestAccess::ResolveFloat(runtime_tree, outputs.distance, -1.0f, context),
+            distance,
+            1.0e-5f);
+        EXPECT_NEAR(LN_RuntimeTreeTestAccess::ResolveFloat(
+                        runtime_tree, outputs.squared_distance, -1.0f, context),
+                    squared_distance,
+                    1.0e-5f);
+        EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, outputs.valid, context));
+      };
+  expect_outputs(vector_vector, 5.0f, 25.0f);
+  expect_outputs(object_vector, 10.0f, 100.0f);
+  expect_outputs(vector_object, std::sqrt(189.0f), 189.0f);
+  expect_outputs(object_object, std::sqrt(94.0f), 94.0f);
+  EXPECT_FLOAT_EQ(LN_RuntimeTreeTestAccess::ResolveFloat(
+                      runtime_tree, missing_target.distance, -1.0f, context),
+                  0.0f);
+  EXPECT_FLOAT_EQ(LN_RuntimeTreeTestAccess::ResolveFloat(
+                      runtime_tree, missing_target.squared_distance, -1.0f, context),
+                  0.0f);
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, missing_target.valid, context));
+}
+
+TEST(LN_RuntimeTree, ReadsApplyOnlyTheReadObjectsPendingTransformsInFlushOrder)
+{
+  /* A read that must see the step's earlier writes (Get Distance, raycasts) applies the read
+   * object's pending transform writes in the order the step's flush would (sort key, then record
+   * order), leaves the other objects' writes for the flush and never applies one twice. The
+   * typed streams find them through an index, the legacy stream plans every command: the same
+   * results. */
+  const auto expect_at = [](const PositionedGameObject &object, const MT_Vector3 &expected) {
+    const MT_Vector3 position = object.object.NodeGetWorldPosition();
+    EXPECT_FLOAT_EQ(position.x(), expected.x());
+    EXPECT_FLOAT_EQ(position.y(), expected.y());
+    EXPECT_FLOAT_EQ(position.z(), expected.z());
+  };
+  for (const bool typed_streams : {true, false}) {
+    SCOPED_TRACE(typed_streams ? "typed streams" : "legacy stream");
+    PositionedGameObject first;
+    PositionedGameObject second(MT_Vector3(5.0f, 0.0f, 0.0f));
+    PositionedGameObject removed;
+    LN_CommandBuffer buffer;
+    buffer.SetTypedCommandStreamsEnabled(typed_streams);
+    buffer.BeginRecording();
+    buffer.AppendSetWorldPosition(&first.object, MT_Vector3(1.0f, 0.0f, 0.0f), 20, 0);
+    buffer.AppendSetWorldPosition(&second.object, MT_Vector3(9.0f, 0.0f, 0.0f), 15, 0);
+    /* Recorded last but sorted first: the move comes before the set. */
+    buffer.AppendApplyMovement(&first.object, MT_Vector3(0.0f, 0.0f, 3.0f), false, 10, 0);
+    buffer.FlushPendingObjectHierarchyTransformCommands(&first.object);
+    expect_at(first, MT_Vector3(1.0f, 0.0f, 0.0f));
+    expect_at(second, MT_Vector3(5.0f, 0.0f, 0.0f));
+    EXPECT_EQ(buffer.Size(), 1u);
+
+    /* A write after a read is found by the next read; a read with nothing pending does nothing. */
+    buffer.AppendApplyMovement(&first.object, MT_Vector3(0.0f, 2.0f, 0.0f), false, 30, 0);
+    buffer.FlushPendingObjectTransformCommands(&first.object);
+    buffer.FlushPendingObjectTransformCommands(&first.object);
+    expect_at(first, MT_Vector3(1.0f, 2.0f, 0.0f));
+    ASSERT_EQ(buffer.GetCommandsForTests().size(), 1u);
+    EXPECT_EQ(buffer.GetCommandsForTests().front().object, &second.object);
+
+    /* Removing an object's writes moves the others in their streams. */
+    buffer.AppendSetWorldPosition(&removed.object, MT_Vector3(7.0f, 7.0f, 7.0f), 5, 0);
+    buffer.AppendApplyMovement(&first.object, MT_Vector3(1.0f, 0.0f, 0.0f), false, 40, 0);
+    buffer.RemoveCommandsForGameObject(&removed.object);
+    buffer.FlushPendingObjectTransformCommands(&first.object);
+    expect_at(first, MT_Vector3(2.0f, 2.0f, 0.0f));
+    buffer.AppendApplyMovement(&second.object, MT_Vector3(0.0f, 1.0f, 0.0f), false, 50, 0);
+
+    buffer.EndRecording();
+    EXPECT_EQ(buffer.Size(), 2u);
+    buffer.Flush();
+    EXPECT_EQ(buffer.Size(), 0u);
+    expect_at(first, MT_Vector3(2.0f, 2.0f, 0.0f));
+    expect_at(second, MT_Vector3(9.0f, 1.0f, 0.0f));
+    expect_at(removed, MT_Vector3(0.0f, 0.0f, 0.0f));
+  }
+}
+
+TEST(LN_RuntimeTree, PredictMotionPositionModeCoversSamplingSmoothingResetAndEdgeInputs)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const uint32_t source_position = AddVectorConstant(*program, MT_Vector3(0.0f, 0.0f, 0.0f));
+  const uint32_t prediction_time = AddFloatConstant(*program, 2.0f);
+  const uint32_t smoothing_time = AddFloatConstant(*program, 0.0f);
+  const uint32_t state_index = program->AddFlowControlState();
+
+  LN_Instruction sample;
+  sample.opcode = LN_OpCode::SampleMotion;
+  sample.int_value = int32_t(state_index);
+  sample.secondary_int_value = int32_t(LN_MotionSourceMode::Position);
+  sample.vector_expr_index = source_position;
+  sample.float_expr_index = prediction_time;
+  sample.secondary_float_expr_index = smoothing_time;
+  const uint32_t sample_instruction = program->AddInstruction(LN_Event::OnUpdate, sample);
+
+  LN_Instruction reset;
+  reset.opcode = LN_OpCode::ResetMotion;
+  reset.int_value = int32_t(state_index);
+  program->AddInstruction(LN_Event::OnFixedUpdate, reset);
+
+  const auto add_motion_vector = [&](const LN_VectorExpressionKind kind) {
+    LN_VectorExpression expression;
+    expression.kind = kind;
+    expression.property_ref_index = state_index;
+    return program->AddVectorExpression(expression);
+  };
+  const uint32_t position = add_motion_vector(LN_VectorExpressionKind::MotionPosition);
+  const uint32_t velocity = add_motion_vector(LN_VectorExpressionKind::MotionVelocity);
+  const uint32_t direction = add_motion_vector(LN_VectorExpressionKind::MotionDirection);
+  const uint32_t predicted = add_motion_vector(LN_VectorExpressionKind::MotionPredictedPosition);
+  LN_FloatExpression speed_expression;
+  speed_expression.kind = LN_FloatExpressionKind::MotionSpeed;
+  speed_expression.int_value = int32_t(state_index);
+  const uint32_t speed = program->AddFloatExpression(speed_expression);
+  LN_BoolExpression valid_expression;
+  valid_expression.kind = LN_BoolExpressionKind::MotionValid;
+  valid_expression.int_value = int32_t(state_index);
+  const uint32_t valid = program->AddBoolExpression(valid_expression);
+  LN_BoolExpression updated_expression;
+  updated_expression.kind = LN_BoolExpressionKind::InstructionExecuted;
+  updated_expression.input0 = sample_instruction;
+  const uint32_t updated = program->AddBoolExpression(updated_expression);
+
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  ASSERT_TRUE(program->IsParallelEligible());
+  PositionedGameObject owner;
+  LN_RuntimeTree runtime_tree(program, &owner.object, 0, 0);
+  LN_TickContext context;
+  context.event = LN_Event::OnUpdate;
+  context.tick_index = 1;
+  context.current_time = 1.0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, updated, context));
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, valid, context));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, position, MT_Vector3(-1.0f, -1.0f, -1.0f), context),
+            MT_Vector3(0.0f, 0.0f, 0.0f));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, predicted, MT_Vector3(-1.0f, -1.0f, -1.0f), context),
+            MT_Vector3(0.0f, 0.0f, 0.0f));
+
+  std::vector<LN_VectorExpression> &vector_expressions =
+      const_cast<std::vector<LN_VectorExpression> &>(program->GetVectorExpressions());
+  std::vector<LN_FloatExpression> &float_expressions =
+      const_cast<std::vector<LN_FloatExpression> &>(program->GetFloatExpressions());
+  vector_expressions[source_position].vector_value = MT_Vector3(10.0f, 0.0f, 0.0f);
+  context.tick_index = 2;
+  context.current_time = 3.0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, updated, context));
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, valid, context));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, position, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(10.0f, 0.0f, 0.0f));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, velocity, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(5.0f, 0.0f, 0.0f));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, direction, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(1.0f, 0.0f, 0.0f));
+  EXPECT_FLOAT_EQ(LN_RuntimeTreeTestAccess::ResolveFloat(runtime_tree, speed, -1.0f, context),
+                  5.0f);
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, predicted, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(20.0f, 0.0f, 0.0f));
+
+  /* A duplicate route in the same engine tick must not replace the accepted sample, even if its
+   * source becomes invalid later in that tick. */
+  vector_expressions[source_position].vector_value = MT_Vector3(
+      std::numeric_limits<float>::quiet_NaN(), 0.0f, 0.0f);
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, valid, context));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, position, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(10.0f, 0.0f, 0.0f));
+
+  /* Render updates may occur without a fixed-step time advance. Preserve the previous timed
+   * sample and include the whole displacement when simulation time advances again. */
+  vector_expressions[source_position].vector_value = MT_Vector3(12.0f, 0.0f, 0.0f);
+  context.tick_index = 3;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, valid, context));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, position, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(10.0f, 0.0f, 0.0f));
+
+  vector_expressions[source_position].vector_value = MT_Vector3(20.0f, 0.0f, 0.0f);
+  float_expressions[smoothing_time].float_value = 2.0f;
+  context.tick_index = 4;
+  context.current_time = 4.0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  const float expected_smoothed_speed = 5.0f + 5.0f * (1.0f - std::exp(-0.5f));
+  EXPECT_NEAR(LN_RuntimeTreeTestAccess::ResolveFloat(runtime_tree, speed, -1.0f, context),
+              expected_smoothed_speed,
+              1.0e-5f);
+  EXPECT_NEAR(LN_RuntimeTreeTestAccess::ResolveVector(
+                  runtime_tree, predicted, MT_Vector3(0.0f, 0.0f, 0.0f), context)
+                  .x(),
+              20.0f + expected_smoothed_speed * 2.0f,
+              1.0e-5f);
+
+  context.event = LN_Event::OnFixedUpdate;
+  context.tick_index = 5;
+  context.current_time = 5.0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, valid, context));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, velocity, MT_Vector3(-1.0f, -1.0f, -1.0f), context),
+            MT_Vector3(0.0f, 0.0f, 0.0f));
+
+  vector_expressions[source_position].vector_value = MT_Vector3(30.0f, 0.0f, 0.0f);
+  context.event = LN_Event::OnUpdate;
+  context.tick_index = 6;
+  context.current_time = 6.0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, valid, context));
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, updated, context));
+
+  vector_expressions[source_position].vector_value = MT_Vector3(40.0f, 0.0f, 0.0f);
+  float_expressions[prediction_time].float_value = -2.0f;
+  float_expressions[smoothing_time].float_value = std::numeric_limits<float>::quiet_NaN();
+  context.tick_index = 7;
+  context.current_time = 7.0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, valid, context));
+  EXPECT_FLOAT_EQ(LN_RuntimeTreeTestAccess::ResolveFloat(runtime_tree, speed, -1.0f, context),
+                  10.0f);
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, predicted, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(40.0f, 0.0f, 0.0f));
+
+  vector_expressions[source_position].vector_value = MT_Vector3(
+      std::numeric_limits<float>::infinity(), 0.0f, 0.0f);
+  context.tick_index = 8;
+  context.current_time = 8.0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, valid, context));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, position, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(40.0f, 0.0f, 0.0f));
+
+  vector_expressions[source_position].vector_value = MT_Vector3(50.0f, 0.0f, 0.0f);
+  context.tick_index = 9;
+  context.current_time = 9.0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, valid, context));
+
+  vector_expressions[source_position].vector_value = MT_Vector3(60.0f, 0.0f, 0.0f);
+  context.tick_index = 10;
+  context.current_time = 8.5;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, valid, context));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, position, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(60.0f, 0.0f, 0.0f));
+
+  vector_expressions[source_position].vector_value = MT_Vector3(70.0f, 0.0f, 0.0f);
+  float_expressions[prediction_time].float_value = std::numeric_limits<float>::max();
+  float_expressions[smoothing_time].float_value = 0.0f;
+  context.tick_index = 11;
+  context.current_time = 9.5;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, valid, context));
+  EXPECT_FLOAT_EQ(LN_RuntimeTreeTestAccess::ResolveFloat(runtime_tree, speed, -1.0f, context),
+                  10.0f);
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, predicted, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(70.0f, 0.0f, 0.0f));
+}
+
+TEST(LN_RuntimeTree, PredictMotionObjectModeSupportsExplicitObjectAndOwnerFallback)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const uint32_t object_value = AddNoneValueConstant(*program);
+  const uint32_t prediction_time = AddFloatConstant(*program, 1.0f);
+  const uint32_t smoothing_time = AddFloatConstant(*program, 0.0f);
+
+  const auto add_tracker = [&](const LN_MotionSourceMode mode, const uint32_t value_input) {
+    const uint32_t state = program->AddFlowControlState();
+    LN_Instruction sample;
+    sample.opcode = LN_OpCode::SampleMotion;
+    sample.int_value = int32_t(state);
+    sample.secondary_int_value = int32_t(mode);
+    sample.value_expr_index = value_input;
+    sample.float_expr_index = prediction_time;
+    sample.secondary_float_expr_index = smoothing_time;
+    program->AddInstruction(LN_Event::OnUpdate, sample);
+
+    LN_VectorExpression position;
+    position.kind = LN_VectorExpressionKind::MotionPosition;
+    position.property_ref_index = state;
+    const uint32_t position_index = program->AddVectorExpression(position);
+    LN_BoolExpression valid;
+    valid.kind = LN_BoolExpressionKind::MotionValid;
+    valid.int_value = int32_t(state);
+    return std::pair<uint32_t, uint32_t>(position_index, program->AddBoolExpression(valid));
+  };
+
+  const auto explicit_object = add_tracker(LN_MotionSourceMode::Object, object_value);
+  const auto owner_object = add_tracker(LN_MotionSourceMode::OwnerObject, LN_INVALID_INDEX);
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  ASSERT_FALSE(program->IsParallelEligible());
+
+  PositionedGameObject owner(MT_Vector3(1.0f, 0.0f, 0.0f));
+  PositionedGameObject target(MT_Vector3(5.0f, 0.0f, 0.0f));
+  PositionedGameObject replacement(MT_Vector3(11.0f, 0.0f, 0.0f));
+  LN_RuntimeTree runtime_tree(program, &owner.object, 0, 0);
+  std::vector<LN_ValueExpression> &value_expressions =
+      const_cast<std::vector<LN_ValueExpression> &>(program->GetValueExpressions());
+  value_expressions[object_value].value.type = LN_ValueType::ObjectRef;
+  value_expressions[object_value].value.exists = true;
+  value_expressions[object_value].value.runtime_ref = LN_RuntimeTreeTestAccess::MakeObjectRef(
+      runtime_tree, target.object);
+
+  LN_TickContext context;
+  context.event = LN_Event::OnUpdate;
+  context.tick_index = 10;
+  context.current_time = 1.0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_FALSE(
+      LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, explicit_object.second, context));
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, owner_object.second, context));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, explicit_object.first, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(5.0f, 0.0f, 0.0f));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, owner_object.first, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(1.0f, 0.0f, 0.0f));
+
+  target.SetPosition(MT_Vector3(7.0f, 0.0f, 0.0f));
+  owner.SetPosition(MT_Vector3(4.0f, 0.0f, 0.0f));
+  context.tick_index = 11;
+  context.current_time = 2.0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_TRUE(
+      LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, explicit_object.second, context));
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, owner_object.second, context));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, explicit_object.first, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(7.0f, 0.0f, 0.0f));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, owner_object.first, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(4.0f, 0.0f, 0.0f));
+
+  value_expressions[object_value].value.runtime_ref = LN_RuntimeTreeTestAccess::MakeObjectRef(
+      runtime_tree, replacement.object);
+  context.tick_index = 12;
+  context.current_time = 3.0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_FALSE(
+      LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, explicit_object.second, context));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, explicit_object.first, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            MT_Vector3(11.0f, 0.0f, 0.0f));
+
+  replacement.SetPosition(MT_Vector3(12.0f, 0.0f, 0.0f));
+  context.tick_index = 13;
+  context.current_time = 4.0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_TRUE(
+      LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, explicit_object.second, context));
+
+  runtime_tree.InvalidateObjectRef(&replacement.object);
+  context.tick_index = 14;
+  context.current_time = 5.0;
+  EXPECT_TRUE(RecordReadyCommands(runtime_tree, context).empty());
+  EXPECT_FALSE(
+      LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, explicit_object.second, context));
+}
+
+TEST(LN_RuntimeTree, RaycastFromMeshSeparatesHitDetailsFromPerRayDiagnostics)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_QueryExpression query_expression;
+  query_expression.kind = LN_QueryExpressionKind::RaycastFromMesh;
+  const uint32_t query_index = program->AddQueryExpression(query_expression);
+  ASSERT_EQ(query_index, 0u);
+  const uint32_t query_state_index =
+      program->GetQueryExpressions()[query_index].runtime_state_index;
+  ASSERT_NE(query_state_index, LN_INVALID_INDEX);
+
+  const auto add_bool = [&](const LN_BoolExpressionKind kind) {
+    LN_BoolExpression expression;
+    expression.kind = kind;
+    expression.input0 = query_index;
+    return program->AddBoolExpression(expression);
+  };
+  const auto add_int = [&](const LN_IntExpressionKind kind) {
+    LN_IntExpression expression;
+    expression.kind = kind;
+    expression.input0 = query_index;
+    return program->AddIntExpression(expression);
+  };
+  const auto add_value = [&](const LN_ValueExpressionKind kind) {
+    LN_ValueExpression expression;
+    expression.kind = kind;
+    expression.input0 = query_index;
+    return program->AddValueExpression(expression);
+  };
+
+  const uint32_t done_index = add_bool(LN_BoolExpressionKind::PhysicsQueryDone);
+  const uint32_t any_hit_index = add_bool(LN_BoolExpressionKind::PhysicsQueryHit);
+  const uint32_t all_hit_index = add_bool(LN_BoolExpressionKind::PhysicsQueryAllHit);
+  const uint32_t hit_count_index = add_int(LN_IntExpressionKind::PhysicsQueryHitCount);
+  const uint32_t ray_count_index = add_int(LN_IntExpressionKind::PhysicsQueryRayCount);
+  const std::array<LN_ValueExpressionKind, 13> list_kinds = {
+      LN_ValueExpressionKind::PhysicsQueryHits,
+      LN_ValueExpressionKind::PhysicsQueryBlockedList,
+      LN_ValueExpressionKind::PhysicsQueryObjects,
+      LN_ValueExpressionKind::PhysicsQueryPoints,
+      LN_ValueExpressionKind::PhysicsQueryNormals,
+      LN_ValueExpressionKind::PhysicsQueryDistances,
+      LN_ValueExpressionKind::PhysicsQueryFractions,
+      LN_ValueExpressionKind::PhysicsQueryFaceIndices,
+      LN_ValueExpressionKind::PhysicsQueryHasUVs,
+      LN_ValueExpressionKind::PhysicsQueryUVs,
+      LN_ValueExpressionKind::PhysicsQueryRayOrigins,
+      LN_ValueExpressionKind::PhysicsQueryRayDirections,
+      LN_ValueExpressionKind::PhysicsQueryEndPoints,
+  };
+  std::array<uint32_t, list_kinds.size()> list_indices{};
+  for (size_t index = 0; index < list_kinds.size(); index++) {
+    list_indices[index] = add_value(list_kinds[index]);
+  }
+
+  KX_GameObject hit_object;
+  hit_object.SetName("MeshRayHit");
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x7a1), 0, 0);
+  LN_QueryResult seeded;
+  LN_PhysicsQueryResult hit;
+  hit.hit = true;
+  hit.diagnostic_status = LN_QueryDiagnosticStatus::Hit;
+  hit.object_ref = LN_RuntimeTreeTestAccess::MakeObjectRef(runtime_tree, hit_object);
+  hit.hit_position = MT_Vector3(1.0f, 2.0f, 3.0f);
+  hit.hit_normal = MT_Vector3(0.0f, 0.0f, -1.0f);
+  hit.hit_distance = 2.5f;
+  hit.hit_fraction = 0.25f;
+  hit.polygon_index = 17;
+  hit.has_uv = true;
+  hit.hit_uv = MT_Vector2(0.2f, 0.7f);
+  hit.ray_origin = MT_Vector3(1.0f, 2.0f, 5.5f);
+  hit.ray_direction = MT_Vector3(0.0f, 0.0f, -1.0f);
+  hit.end_position = MT_Vector3(1.0f, 2.0f, -4.5f);
+
+  LN_PhysicsQueryResult blocker;
+  blocker.blocked = true;
+  blocker.hit_position = MT_Vector3(-1.0f, 0.0f, 4.0f);
+  blocker.hit_normal = MT_Vector3(0.0f, 0.0f, 0.0f);
+  blocker.hit_distance = 1.0f;
+  blocker.hit_fraction = 0.1f;
+  blocker.polygon_index = -1;
+  blocker.ray_origin = MT_Vector3(-1.0f, 0.0f, 5.0f);
+  blocker.ray_direction = MT_Vector3(0.0f, 0.0f, -1.0f);
+  blocker.end_position = MT_Vector3(-1.0f, 0.0f, -5.0f);
+
+  LN_PhysicsQueryResult miss;
+  miss.diagnostic_status = LN_QueryDiagnosticStatus::NoHit;
+  miss.hit_position = MT_Vector3(8.0f, 9.0f, 10.0f);
+  miss.hit_normal = MT_Vector3(0.0f, 0.0f, 0.0f);
+  miss.hit_distance = 10.0f;
+  miss.hit_fraction = 1.0f;
+  miss.polygon_index = -1;
+  miss.ray_origin = MT_Vector3(8.0f, 9.0f, 0.0f);
+  miss.ray_direction = MT_Vector3(0.0f, 0.0f, 1.0f);
+  miss.end_position = miss.hit_position;
+
+  seeded.physics_query = hit;
+  seeded.physics_query_results = {hit, blocker, miss};
+  constexpr uint64_t tick_index = 41;
+  LN_RuntimeTreeTestAccess::SeedQueryResult(runtime_tree, query_state_index, tick_index, seeded);
+  LN_TickContext context;
+  context.tick_index = tick_index;
+
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, done_index, context));
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, any_hit_index, context));
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, all_hit_index, context));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveInt(runtime_tree, hit_count_index, context), 1);
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveInt(runtime_tree, ray_count_index, context), 3);
+
+  std::array<LN_Value, list_kinds.size()> lists;
+  for (size_t index = 0; index < lists.size(); index++) {
+    lists[index] = LN_RuntimeTreeTestAccess::ResolveValue(
+        runtime_tree, list_indices[index], context);
+    ASSERT_EQ(lists[index].type, LN_ValueType::List) << index;
+  }
+  /* Per-ray masks and ray geometry retain all three generated-ray slots. */
+  for (const size_t index : {size_t(0), size_t(1), size_t(10), size_t(11), size_t(12)}) {
+    ASSERT_EQ(lists[index].list_value.size(), 3u) << index;
+  }
+  /* Collision details contain the one matching hit only. Blockers and clear misses are excluded.
+   */
+  for (size_t index = 2; index <= 9; index++) {
+    ASSERT_EQ(lists[index].list_value.size(), 1u) << index;
+  }
+  EXPECT_TRUE(lists[0].list_value[0].bool_value);
+  EXPECT_FALSE(lists[0].list_value[1].bool_value);
+  EXPECT_FALSE(lists[0].list_value[2].bool_value);
+  EXPECT_FALSE(lists[1].list_value[0].bool_value);
+  EXPECT_TRUE(lists[1].list_value[1].bool_value);
+  EXPECT_FALSE(lists[1].list_value[2].bool_value);
+  EXPECT_TRUE(lists[2].list_value[0].exists);
+  EXPECT_EQ(lists[3].list_value[0].vector_value, hit.hit_position);
+  EXPECT_EQ(lists[4].list_value[0].vector_value, hit.hit_normal);
+  EXPECT_FLOAT_EQ(lists[5].list_value[0].float_value, hit.hit_distance);
+  EXPECT_FLOAT_EQ(lists[6].list_value[0].float_value, hit.hit_fraction);
+  EXPECT_EQ(lists[7].list_value[0].int_value, hit.polygon_index);
+  EXPECT_TRUE(lists[8].list_value[0].bool_value);
+  EXPECT_EQ(lists[9].list_value[0].vector_value, MT_Vector3(0.2f, 0.7f, 0.0f));
+  EXPECT_EQ(lists[10].list_value[0].vector_value, hit.ray_origin);
+  EXPECT_EQ(lists[10].list_value[1].vector_value, blocker.ray_origin);
+  EXPECT_EQ(lists[10].list_value[2].vector_value, miss.ray_origin);
+  EXPECT_EQ(lists[11].list_value[0].vector_value, hit.ray_direction);
+  EXPECT_EQ(lists[11].list_value[1].vector_value, blocker.ray_direction);
+  EXPECT_EQ(lists[11].list_value[2].vector_value, miss.ray_direction);
+  EXPECT_EQ(lists[12].list_value[0].vector_value, hit.end_position);
+  EXPECT_EQ(lists[12].list_value[1].vector_value, blocker.end_position);
+  EXPECT_EQ(lists[12].list_value[2].vector_value, miss.end_position);
+
+  /* A batch with no matching hits must expose no collision details at all, while preserving its
+   * two diagnostic ray slots. This is the regression for Points previously returning miss ends. */
+  LN_QueryResult no_hits;
+  no_hits.physics_query = blocker;
+  no_hits.physics_query_results = {blocker, miss};
+  context.tick_index++;
+  LN_RuntimeTreeTestAccess::SeedQueryResult(
+      runtime_tree, query_state_index, context.tick_index, no_hits);
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, any_hit_index, context));
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, all_hit_index, context));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveInt(runtime_tree, hit_count_index, context), 0);
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveInt(runtime_tree, ray_count_index, context), 2);
+  for (size_t index = 2; index <= 9; index++) {
+    const LN_Value detail_list = LN_RuntimeTreeTestAccess::ResolveValue(
+        runtime_tree, list_indices[index], context);
+    EXPECT_TRUE(detail_list.list_value.empty()) << index;
+  }
+  for (const size_t index : {size_t(0), size_t(1), size_t(10), size_t(11), size_t(12)}) {
+    const LN_Value per_ray_list = LN_RuntimeTreeTestAccess::ResolveValue(
+        runtime_tree, list_indices[index], context);
+    EXPECT_EQ(per_ray_list.list_value.size(), 2u) << index;
+  }
+}
+
+TEST(LN_RuntimeTree, RaycastFromMeshDoneDoesNotFireWhenFlowIsInactive)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+
+  LN_BoolExpression inactive_flow;
+  inactive_flow.kind = LN_BoolExpressionKind::Constant;
+  inactive_flow.bool_value = false;
+  const uint32_t inactive_flow_index = program->AddBoolExpression(inactive_flow);
+
+  LN_QueryExpression query;
+  query.kind = LN_QueryExpressionKind::RaycastFromMesh;
+  query.condition_bool_expr_index = inactive_flow_index;
+  const uint32_t query_index = program->AddQueryExpression(query);
+
+  LN_BoolExpression done;
+  done.kind = LN_BoolExpressionKind::PhysicsQueryDone;
+  done.input0 = query_index;
+  const uint32_t done_index = program->AddBoolExpression(done);
+
+  LN_RuntimeTree runtime_tree(program, nullptr, 0, 0);
+  LN_TickContext context;
+  context.tick_index = 42;
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, done_index, context));
+}
+
+TEST(LN_RuntimeTree, PhysicsQueryHitVectorsAreNeutralOnMissWhileRayGeometryRemainsAvailable)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_QueryExpression query;
+  query.kind = LN_QueryExpressionKind::Raycast;
+  const uint32_t query_index = program->AddQueryExpression(query);
+  const uint32_t query_state_index =
+      program->GetQueryExpressions()[query_index].runtime_state_index;
+
+  const auto add_vector = [&](const LN_VectorExpressionKind kind) {
+    LN_VectorExpression expression;
+    expression.kind = kind;
+    expression.input0 = query_index;
+    return program->AddVectorExpression(expression);
+  };
+  const uint32_t point_index = add_vector(LN_VectorExpressionKind::PhysicsQueryPoint);
+  const uint32_t normal_index = add_vector(LN_VectorExpressionKind::PhysicsQueryNormal);
+  const uint32_t direction_index = add_vector(LN_VectorExpressionKind::PhysicsQueryDirection);
+  const uint32_t end_point_index = add_vector(LN_VectorExpressionKind::PhysicsQueryEndPoint);
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x7a2), 0, 0);
+  LN_QueryResult seeded;
+  seeded.physics_query.hit = false;
+  seeded.physics_query.hit_position = MT_Vector3(4.0f, 5.0f, 6.0f);
+  seeded.physics_query.hit_normal = MT_Vector3(0.0f, 0.0f, 1.0f);
+  seeded.physics_query.ray_direction = MT_Vector3(1.0f, 0.0f, 0.0f);
+  seeded.physics_query.end_position = MT_Vector3(20.0f, 0.0f, 0.0f);
+
+  LN_TickContext context;
+  context.tick_index = 73;
+  LN_RuntimeTreeTestAccess::SeedQueryResult(
+      runtime_tree, query_state_index, context.tick_index, seeded);
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, point_index, MT_Vector3(9.0f, 9.0f, 9.0f), context),
+            MT_Vector3(0.0f, 0.0f, 0.0f));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, normal_index, MT_Vector3(9.0f, 9.0f, 9.0f), context),
+            MT_Vector3(0.0f, 0.0f, 0.0f));
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, direction_index, MT_Vector3(9.0f, 9.0f, 9.0f), context),
+            seeded.physics_query.ray_direction);
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, end_point_index, MT_Vector3(9.0f, 9.0f, 9.0f), context),
+            seeded.physics_query.end_position);
+
+  seeded.physics_query.hit = true;
+  context.tick_index++;
+  LN_RuntimeTreeTestAccess::SeedQueryResult(
+      runtime_tree, query_state_index, context.tick_index, seeded);
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, point_index, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            seeded.physics_query.hit_position);
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveVector(
+                runtime_tree, normal_index, MT_Vector3(0.0f, 0.0f, 0.0f), context),
+            seeded.physics_query.hit_normal);
+
+  const LN_PhysicsQueryResult defaults;
+  EXPECT_EQ(defaults.hit_normal, MT_Vector3(0.0f, 0.0f, 0.0f));
+  EXPECT_EQ(defaults.ray_direction, MT_Vector3(0.0f, 0.0f, 0.0f));
+}
+
+TEST(LN_RuntimeTree, PhysicsQueryObjectIsNullOnMissAndAfterObjectRemoval)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_QueryExpression query;
+  query.kind = LN_QueryExpressionKind::MouseOver;
+  const uint32_t query_index = program->AddQueryExpression(query);
+  const uint32_t query_state_index =
+      program->GetQueryExpressions()[query_index].runtime_state_index;
+
+  LN_ValueExpression object_expression;
+  object_expression.kind = LN_ValueExpressionKind::PhysicsQueryObject;
+  object_expression.input0 = query_index;
+  const uint32_t object_index = program->AddValueExpression(object_expression);
+
+  KX_GameObject hit_object;
+  hit_object.SetName("MouseOverHit");
+  LN_RuntimeTree runtime_tree(program, nullptr, 0, 0);
+  LN_QueryResult seeded;
+  seeded.physics_query.hit = true;
+  seeded.physics_query.diagnostic_status = LN_QueryDiagnosticStatus::Hit;
+  seeded.physics_query.object_ref = LN_RuntimeTreeTestAccess::MakeObjectRef(runtime_tree,
+                                                                            hit_object);
+
+  LN_TickContext context;
+  context.tick_index = 81;
+  LN_RuntimeTreeTestAccess::SeedQueryResult(
+      runtime_tree, query_state_index, context.tick_index, seeded);
+  const LN_Value hit_value = LN_RuntimeTreeTestAccess::ResolveValue(
+      runtime_tree, object_index, context);
+  EXPECT_TRUE(hit_value.exists);
+  EXPECT_EQ(hit_value.type, LN_ValueType::ObjectRef);
+  EXPECT_EQ(hit_value.reference_name, "MouseOverHit");
+
+  seeded.physics_query.hit = false;
+  seeded.physics_query.diagnostic_status = LN_QueryDiagnosticStatus::NoHit;
+  context.tick_index++;
+  LN_RuntimeTreeTestAccess::SeedQueryResult(
+      runtime_tree, query_state_index, context.tick_index, seeded);
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveValue(runtime_tree, object_index, context).exists);
+
+  seeded.physics_query.hit = true;
+  seeded.physics_query.diagnostic_status = LN_QueryDiagnosticStatus::Hit;
+  runtime_tree.InvalidateObjectRef(&hit_object);
+  context.tick_index++;
+  LN_RuntimeTreeTestAccess::SeedQueryResult(
+      runtime_tree, query_state_index, context.tick_index, seeded);
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveValue(runtime_tree, object_index, context).exists);
+}
+
+TEST(LN_RuntimeTree, IgnoreObjectListUnionsDeduplicatesAndSkipsInvalidEntries)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x7a3), 0, 0);
+  KX_GameObject first;
+  first.SetName("FirstIgnored");
+  KX_GameObject second;
+  second.SetName("SecondIgnored");
+  KX_GameObject stale;
+  stale.SetName("StaleIgnored");
+  const LN_RuntimeRef first_ref = LN_RuntimeTreeTestAccess::MakeObjectRef(runtime_tree, first);
+  const LN_RuntimeRef second_ref = LN_RuntimeTreeTestAccess::MakeObjectRef(runtime_tree, second);
+  const LN_RuntimeRef stale_ref = LN_RuntimeTreeTestAccess::MakeObjectRef(runtime_tree, stale);
+
+  const uint32_t single_index = AddObjectRefConstant(*program, first_ref);
+  LN_Value ignore_list;
+  ignore_list.type = LN_ValueType::List;
+  ignore_list.exists = true;
+  const auto append_object = [&](const LN_RuntimeRef &ref) {
+    LN_Value item;
+    item.type = LN_ValueType::ObjectRef;
+    item.exists = true;
+    item.runtime_ref = ref;
+    ignore_list.list_value.push_back(item);
+  };
+  append_object(first_ref);
+  append_object(second_ref);
+  append_object(second_ref);
+  append_object(stale_ref);
+  LN_Value invalid;
+  invalid.type = LN_ValueType::Float;
+  invalid.exists = true;
+  invalid.float_value = 1.0f;
+  ignore_list.list_value.push_back(invalid);
+  ignore_list.list_value.push_back(LN_Value());
+
+  LN_ValueExpression list_expression;
+  list_expression.kind = LN_ValueExpressionKind::Constant;
+  list_expression.value = ignore_list;
+  const uint32_t list_index = program->AddValueExpression(list_expression);
+  runtime_tree.InvalidateObjectRef(&stale);
+
+  LN_TickContext context;
+  context.tick_index = 74;
+  const std::vector<LN_RuntimeRef> refs = LN_RuntimeTreeTestAccess::ResolveIgnoreObjectRefs(
+      runtime_tree, single_index, list_index, context);
+  ASSERT_EQ(refs.size(), 2u);
+  EXPECT_EQ(runtime_tree.ResolveObjectRef(refs[0]), &first);
+  EXPECT_EQ(runtime_tree.ResolveObjectRef(refs[1]), &second);
+}
+
+TEST(LN_RuntimeTree, ShapeCastRejectsOverflowedDerivedDistanceButAllowsOverlapQueries)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_QueryExpression query;
+  query.kind = LN_QueryExpressionKind::ShapeCast;
+  query.shape_cast_type = LN_ShapeCastType::Sphere;
+  query.vector_value = MT_Vector3(std::numeric_limits<float>::max(), 0.0f, 0.0f);
+  query.secondary_vector_value = MT_Vector3(-std::numeric_limits<float>::max(), 0.0f, 0.0f);
+  query.float_value = 0.5f;
+  query.secondary_float_value = 2.0f;
+  const uint32_t query_index = program->AddQueryExpression(query);
+
+  LN_RuntimeTree runtime_tree(program, nullptr, 0, 0);
+  LN_TickContext context;
+  context.tick_index = 75;
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ResolveQuery(runtime_tree, query_index, context)
+                .physics_query.diagnostic_status,
+            LN_QueryDiagnosticStatus::InvalidTarget);
+
+  program = std::make_shared<LN_Program>();
+  query = LN_QueryExpression();
+  query.kind = LN_QueryExpressionKind::ShapeCast;
+  query.shape_cast_type = LN_ShapeCastType::Sphere;
+  query.vector_value = MT_Vector3(1.0f, 2.0f, 3.0f);
+  query.secondary_vector_value = query.vector_value;
+  query.float_value = 0.5f;
+  query.secondary_float_value = 2.0f;
+  const uint32_t overlap_query_index = program->AddQueryExpression(query);
+  LN_RuntimeTree overlap_runtime_tree(program, nullptr, 0, 0);
+  context.tick_index++;
+  EXPECT_EQ(
+      LN_RuntimeTreeTestAccess::ResolveQuery(overlap_runtime_tree, overlap_query_index, context)
+          .physics_query.diagnostic_status,
+      LN_QueryDiagnosticStatus::MissingPhysicsWorld);
+}
+
 TEST(LN_RuntimeTree, WarmQueryCacheSkipsRaycastsThatReadLiveTransforms)
 {
   std::shared_ptr<LN_Program> program = CreateSnapshotQueryGuardProgram(
@@ -7337,6 +11471,9 @@ TEST(LN_RuntimeTree, QueryDiagnosticsDistinguishInvalidTargetAndMissingWorld)
   const LN_PhysicsQueryResult missing_world = runtime_tree.Raycast(
       MT_Vector3(0.0f, 0.0f, 0.0f), MT_Vector3(0.0f, 0.0f, 1.0f), LN_RuntimeRef(), 0u);
   EXPECT_EQ(missing_world.diagnostic_status, LN_QueryDiagnosticStatus::MissingPhysicsWorld);
+  EXPECT_EQ(missing_world.ray_origin, MT_Vector3(0.0f, 0.0f, 0.0f));
+  EXPECT_EQ(missing_world.ray_direction, MT_Vector3(0.0f, 0.0f, 1.0f));
+  EXPECT_EQ(missing_world.end_position, MT_Vector3(0.0f, 0.0f, 1.0f));
   EXPECT_NE(LN_DescribePhysicsQueryResult(missing_world).find("status=MissingPhysicsWorld"),
             std::string::npos);
 
@@ -7693,6 +11830,87 @@ TEST(LN_RuntimeTree, TreePropertiesUseDefaultsAndCanBeUpdated)
   EXPECT_FALSE(runtime_tree.SetTreePropertyValue(42, updated_value));
 }
 
+TEST(LN_RuntimeTree, UICompletionQueueNeverRefusesCommands)
+{
+  /* A menu toggled many times must keep working whether or not its result outputs are wired:
+   * unread results are not queued, and a full queue keeps the newest results. */
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_BoolExpression observed;
+  observed.kind = LN_BoolExpressionKind::UICommandCompleted;
+  observed.bool_value = true;
+  LN_BoolExpression unobserved = observed;
+  unobserved.bool_value = false;
+  const uint32_t observed_index = program->AddBoolExpression(observed);
+  const uint32_t unobserved_index = program->AddBoolExpression(unobserved);
+  LN_BoolExpression other;
+  other.kind = LN_BoolExpressionKind::Constant;
+  const uint32_t other_index = program->AddBoolExpression(other);
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x7a), 0, 0);
+
+  for (int32_t handle = 1; handle <= 200; handle++) {
+    EXPECT_TRUE(runtime_tree.CanCompleteUIOperation(observed_index));
+    EXPECT_TRUE(runtime_tree.CompleteUIOperation(observed_index, LN_UIResult::Success, handle));
+    EXPECT_TRUE(runtime_tree.CanCompleteUIOperation(unobserved_index));
+    EXPECT_TRUE(runtime_tree.CompleteUIOperation(unobserved_index, LN_UIResult::Success, handle));
+  }
+  EXPECT_FALSE(runtime_tree.CanCompleteUIOperation(other_index));
+  EXPECT_FALSE(runtime_tree.CompleteUIOperation(other_index, LN_UIResult::Success, 1));
+}
+
+TEST(LN_RuntimeTree, ActionLifecycleEventsAreExactOrderedOneTickPulses)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_BoolExpression lifecycle;
+  lifecycle.kind = LN_BoolExpressionKind::ActionLifecycleEvent;
+  const uint32_t lifecycle_index = program->AddBoolExpression(lifecycle);
+
+  const auto add_result = [&](const LN_BoolExpressionKind kind) {
+    LN_BoolExpression expression;
+    expression.kind = kind;
+    expression.input0 = lifecycle_index;
+    return program->AddBoolExpression(expression);
+  };
+  const uint32_t started_index = add_result(LN_BoolExpressionKind::ActionStarted);
+  const uint32_t completed_index = add_result(LN_BoolExpressionKind::ActionCompleted);
+  const uint32_t interrupted_index = add_result(LN_BoolExpressionKind::ActionInterrupted);
+  const uint32_t failed_index = add_result(LN_BoolExpressionKind::ActionFailed);
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x7b), 0, 0);
+  EXPECT_TRUE(runtime_tree.CompleteActionOperation(lifecycle_index, LN_ActionResult::Started));
+  EXPECT_TRUE(runtime_tree.CompleteActionOperation(lifecycle_index, LN_ActionResult::Completed));
+
+  LN_TickContext context;
+  context.tick_index = 10;
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, started_index, context));
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, completed_index, context));
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, interrupted_index, context));
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, failed_index, context));
+
+  context.tick_index++;
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, started_index, context));
+  EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, completed_index, context));
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, interrupted_index, context));
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, failed_index, context));
+
+  context.tick_index++;
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, started_index, context));
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, completed_index, context));
+}
+
+TEST(LN_RuntimeTree, ActionLifecycleQueueIsBounded)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_BoolExpression lifecycle;
+  lifecycle.kind = LN_BoolExpressionKind::ActionLifecycleEvent;
+  const uint32_t lifecycle_index = program->AddBoolExpression(lifecycle);
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(0x7c), 0, 0);
+
+  for (int index = 0; index < 64; index++) {
+    EXPECT_TRUE(runtime_tree.CompleteActionOperation(lifecycle_index, LN_ActionResult::Started));
+  }
+  EXPECT_FALSE(runtime_tree.CompleteActionOperation(lifecycle_index, LN_ActionResult::Failed));
+}
+
 TEST(LN_RuntimeTree, CompatibleProgramSwapPreservesTreeProperties)
 {
   std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
@@ -7742,6 +11960,75 @@ TEST(LN_RuntimeTree, ObjectRefsInvalidateWithGeneration)
   EXPECT_EQ(runtime_tree.ResolveObjectRef(second_ref), nullptr);
 }
 
+TEST(LN_RuntimeTree, ObjectGamePropertyReadsTargetAndFallsBackToOwner)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  KX_GameObject owner;
+  KX_GameObject target;
+  LN_RuntimeTree runtime_tree(program, &owner, 1, 0);
+
+  EXP_IntValue *target_property = new EXP_IntValue(0);
+  target.SetProperty("exit", target_property);
+  target_property->Release();
+  EXP_IntValue *owner_property = new EXP_IntValue(7);
+  owner.SetProperty("owner_only", owner_property);
+  owner_property->Release();
+
+  const uint32_t target_object = AddObjectRefConstant(
+      *program, LN_RuntimeTreeTestAccess::MakeObjectRef(runtime_tree, target));
+  const uint32_t exit_name = AddStringConstant(*program, "exit");
+  const uint32_t owner_name = AddStringConstant(*program, "owner_only");
+  const uint32_t missing_name = AddStringConstant(*program, "missing");
+
+  LN_ValueExpression target_read;
+  target_read.kind = LN_ValueExpressionKind::ObjectGameProperty;
+  target_read.input0 = target_object;
+  target_read.input1 = exit_name;
+  const uint32_t target_read_index = program->AddValueExpression(target_read);
+
+  LN_ValueExpression owner_read;
+  owner_read.kind = LN_ValueExpressionKind::ObjectGameProperty;
+  owner_read.input1 = owner_name;
+  const uint32_t owner_read_index = program->AddValueExpression(owner_read);
+
+  LN_ValueExpression missing_read;
+  missing_read.kind = LN_ValueExpressionKind::ObjectGameProperty;
+  missing_read.input0 = target_object;
+  missing_read.input1 = missing_name;
+  const uint32_t missing_read_index = program->AddValueExpression(missing_read);
+
+  std::vector<std::string> validation_errors;
+  ASSERT_TRUE(program->ValidateInstructionPayloads(&validation_errors))
+      << (validation_errors.empty() ? std::string() : validation_errors.front());
+  EXPECT_FALSE(program->IsParallelEligible());
+  EXPECT_EQ(program->GetMainThreadOnlyReason(), LN_MainThreadOnlyReason::QueryExpression);
+  EXPECT_NE(program->GetSchedulerSummary().resource_access & LN_SCHEDULER_RESOURCE_SCENE, 0u);
+
+  LN_TickContext context;
+  const LN_Value target_value = LN_RuntimeTreeTestAccess::ResolveValue(
+      runtime_tree, target_read_index, context);
+  EXPECT_TRUE(target_value.exists);
+  EXPECT_EQ(target_value.type, LN_ValueType::Int);
+  EXPECT_EQ(target_value.int_value, 0);
+
+  const LN_Value owner_value = LN_RuntimeTreeTestAccess::ResolveValue(
+      runtime_tree, owner_read_index, context);
+  EXPECT_TRUE(owner_value.exists);
+  EXPECT_EQ(owner_value.type, LN_ValueType::Int);
+  EXPECT_EQ(owner_value.int_value, 7);
+
+  const LN_Value missing_value = LN_RuntimeTreeTestAccess::ResolveValue(
+      runtime_tree, missing_read_index, context);
+  EXPECT_FALSE(missing_value.exists);
+  EXPECT_EQ(missing_value.type, LN_ValueType::None);
+
+  runtime_tree.InvalidateObjectRef(&target);
+  const LN_Value stale_value = LN_RuntimeTreeTestAccess::ResolveValue(
+      runtime_tree, target_read_index, context);
+  EXPECT_FALSE(stale_value.exists);
+  EXPECT_EQ(stale_value.type, LN_ValueType::None);
+}
+
 TEST(LN_RuntimeTree, CollisionExitPayloadUsesLifetimeSafeObjectRefs)
 {
   std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
@@ -7751,14 +12038,11 @@ TEST(LN_RuntimeTree, CollisionExitPayloadUsesLifetimeSafeObjectRefs)
 
   constexpr uint64_t hit_tick = 10;
   constexpr uint64_t exit_tick = 11;
-  LN_RuntimeTreeTestAccess::StoreCollisionPayload(
-      runtime_tree, &owner, &hit_object, hit_tick);
-  EXPECT_FALSE(
-      LN_RuntimeTreeTestAccess::PersistentPayloadContainsRawObjectPointers(runtime_tree));
+  LN_RuntimeTreeTestAccess::StoreCollisionPayload(runtime_tree, &owner, &hit_object, hit_tick);
+  EXPECT_FALSE(LN_RuntimeTreeTestAccess::PersistentPayloadContainsRawObjectPointers(runtime_tree));
 
   LN_RuntimeTreeTestAccess::MarkCollisionExit(runtime_tree, &owner, exit_tick);
-  EXPECT_EQ(LN_RuntimeTreeTestAccess::ExitHitObject(runtime_tree, &owner, exit_tick),
-            &hit_object);
+  EXPECT_EQ(LN_RuntimeTreeTestAccess::ExitHitObject(runtime_tree, &owner, exit_tick), &hit_object);
   EXPECT_EQ(LN_RuntimeTreeTestAccess::ExitHitObjectCount(runtime_tree, &owner, exit_tick), 1u);
 
   runtime_tree.InvalidateObjectRef(&hit_object);
@@ -7867,6 +12151,167 @@ TEST(LN_RuntimeTree, RuntimeFallbackReportRecordsMissingSnapshotChannelDuringExe
   EXPECT_EQ(counters.fallback_path_count, 1u);
 }
 
+TEST(LN_RuntimeTree, InventoryAndListHelpersComputeTheirOutputs)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  const auto constant = [&](const LN_Value &value) {
+    LN_ValueExpression expression;
+    expression.kind = LN_ValueExpressionKind::Constant;
+    expression.value = value;
+    return program->AddValueExpression(expression);
+  };
+  const auto text = [](const std::string &string) {
+    LN_Value value;
+    value.type = LN_ValueType::String;
+    value.exists = true;
+    value.string_value = string;
+    return value;
+  };
+  const auto list = [](std::vector<LN_Value> items) {
+    LN_Value value;
+    value.type = LN_ValueType::List;
+    value.exists = true;
+    value.list_value = std::move(items);
+    return value;
+  };
+  LN_Value three;
+  three.type = LN_ValueType::Int;
+  three.exists = true;
+  three.int_value = 3;
+  LN_Value one = three;
+  one.int_value = 1;
+  LN_Value five_coins = three;
+  five_coins.int_value = 5;
+  LN_Value truth;
+  truth.type = LN_ValueType::Bool;
+  truth.exists = true;
+  truth.bool_value = true;
+
+  const uint32_t bag = constant(
+      list({LN_MakeInventoryEntry("apple", 2), LN_MakeInventoryEntry("sword", 1)}));
+  const uint32_t apple = constant(text("apple"));
+  const uint32_t yes = constant(truth);
+  const auto inventory = [&](const LN_InventoryOperation operation,
+                             const LN_ValueExpressionKind kind,
+                             std::vector<std::pair<LN_InventoryInput, uint32_t>> inputs) {
+    LN_ValueExpression expression;
+    expression.kind = kind;
+    expression.input0 = bag;
+    expression.value.type = LN_ValueType::Int;
+    expression.value.int_value = int32_t(operation);
+    expression.input_indices.assign(LN_INVENTORY_INPUT_COUNT, LN_INVALID_INDEX);
+    for (const auto &[input, index] : inputs) {
+      expression.input_indices[input] = index;
+    }
+    return program->AddValueExpression(expression);
+  };
+  const uint32_t five = AddIntValueConstant(*program, 5);
+  const uint32_t four = AddIntValueConstant(*program, 4);
+  const uint32_t two = AddIntValueConstant(*program, 2);
+  const std::vector<std::pair<LN_InventoryInput, uint32_t>> add_inputs = {
+      {LN_INVENTORY_INPUT_ITEM, apple},
+      {LN_INVENTORY_INPUT_AMOUNT, five},
+      {LN_INVENTORY_INPUT_MAX_STACK, four},
+      {LN_INVENTORY_INPUT_STACK, yes}};
+  std::vector<std::pair<LN_InventoryInput, uint32_t>> full_inputs = add_inputs;
+  full_inputs.push_back({LN_INVENTORY_INPUT_CAPACITY, two});
+
+  LN_ValueExpression sort;
+  sort.kind = LN_ValueExpressionKind::ListSort;
+  sort.input0 = constant(list({three, text("b"), one, text("a")}));
+  const uint32_t sorted = program->AddValueExpression(sort);
+  sort.input2 = yes;
+  const uint32_t sorted_descending = program->AddValueExpression(sort);
+  LN_ValueExpression sort_by_key;
+  sort_by_key.kind = LN_ValueExpressionKind::ListSort;
+  sort_by_key.input0 = bag;
+  sort_by_key.input1 = constant(text("count"));
+  LN_ValueExpression find = sort;
+  find.kind = LN_ValueExpressionKind::ListFindIndex;
+  find.input1 = constant(text("a"));
+  LN_ValueExpression find_missing = find;
+  find_missing.input1 = five;
+  LN_ValueExpression count;
+  count.kind = LN_ValueExpressionKind::InventoryItemCount;
+  count.input0 = bag;
+  count.input1 = apple;
+  /* A slot from the inventory names its item too. */
+  LN_ValueExpression count_by_slot = count;
+  count_by_slot.input1 = constant(LN_MakeInventoryEntry("apple", 9));
+
+  LN_Value coins;
+  coins.type = LN_ValueType::Dict;
+  coins.exists = true;
+  coins.dict_value["coins"] = five_coins;
+  LN_ValueExpression add_coins;
+  add_coins.kind = LN_ValueExpressionKind::DictAddValue;
+  add_coins.input0 = constant(coins);
+  add_coins.input1 = AddStringConstant(*program, "coins");
+  add_coins.input2 = AddFloatValueConstant(*program, 2.0f);
+  LN_ValueExpression add_gems = add_coins;
+  add_gems.input0 = program->AddValueExpression(add_coins);
+  add_gems.input1 = AddStringConstant(*program, "gems");
+  add_gems.input2 = AddFloatValueConstant(*program, 3.0f);
+
+  const std::vector<std::pair<uint32_t, std::string>> expected = {
+      /* Tops up the apple stack to 4, then a new stack of 3. */
+      {inventory(LN_InventoryOperation::AddItem, LN_ValueExpressionKind::InventoryEdit, add_inputs),
+       "[{count: 4, item: apple}, {count: 1, item: sword}, {count: 3, item: apple}]"},
+      {inventory(
+           LN_InventoryOperation::AddItem, LN_ValueExpressionKind::InventoryAmount, add_inputs),
+       "0"},
+      /* Two slots at most: 3 apples do not fit. */
+      {inventory(
+           LN_InventoryOperation::AddItem, LN_ValueExpressionKind::InventoryAmount, full_inputs),
+       "3"},
+      {inventory(LN_InventoryOperation::RemoveItem,
+                 LN_ValueExpressionKind::InventoryAmount,
+                 {{LN_INVENTORY_INPUT_ITEM, apple}, {LN_INVENTORY_INPUT_AMOUNT, five}}),
+       "2"},
+      {inventory(LN_InventoryOperation::RemoveItem,
+                 LN_ValueExpressionKind::InventoryEdit,
+                 {{LN_INVENTORY_INPUT_ITEM, apple}, {LN_INVENTORY_INPUT_AMOUNT, five}}),
+       "[{count: 1, item: sword}]"},
+      {inventory(LN_InventoryOperation::Sort,
+                 LN_ValueExpressionKind::InventoryEdit,
+                 {{LN_INVENTORY_INPUT_BY_COUNT, yes}}),
+       "[{count: 1, item: sword}, {count: 2, item: apple}]"},
+      {inventory(LN_InventoryOperation::SwapSlots,
+                 LN_ValueExpressionKind::InventoryEdit,
+                 {{LN_INVENTORY_INPUT_SLOT, AddIntValueConstant(*program, 0)},
+                  {LN_INVENTORY_INPUT_OTHER_SLOT, AddIntValueConstant(*program, 1)}}),
+       "[{count: 1, item: sword}, {count: 2, item: apple}]"},
+      {program->AddValueExpression(count), "2"},
+      {program->AddValueExpression(count_by_slot), "2"},
+      /* Numbers before text in both directions. */
+      {sorted, "[1, 3, a, b]"},
+      {sorted_descending, "[3, 1, b, a]"},
+      {program->AddValueExpression(sort_by_key),
+       "[{count: 1, item: sword}, {count: 2, item: apple}]"},
+      {program->AddValueExpression(find), "3"},
+      {program->AddValueExpression(find_missing), "-1"},
+      /* Whole amounts keep counts as integers. */
+      {program->AddValueExpression(add_gems), "{coins: 7, gems: 3}"},
+  };
+  for (const auto &[value_index, message] : expected) {
+    LN_Instruction print;
+    print.opcode = LN_OpCode::Print;
+    print.value_expr_index = value_index;
+    program->AddInstruction(LN_Event::OnFixedUpdate, print);
+  }
+
+  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(65), 0, 0);
+  LN_TickContext context;
+  context.tick_index = 1;
+  const std::vector<LN_CommandBuffer::Command> commands = RecordReadyCommands(runtime_tree,
+                                                                              context);
+  ASSERT_EQ(commands.size(), expected.size());
+  for (size_t index = 0; index < expected.size(); ++index) {
+    EXPECT_EQ(commands[index].type, LN_CommandBuffer::CommandType::Print);
+    EXPECT_EQ(commands[index].property_name, expected[index].second) << "print " << index;
+  }
+}
+
 TEST(LN_RuntimeTree, ValuesCarryNativeContainersAndRefs)
 {
   LN_Value list_value;
@@ -7907,3 +12352,82 @@ TEST(LN_Program, GroupCallFramesDeduplicateByTreeAndInterface)
 }
 
 }  // namespace
+
+/* The Inventory node follows the Inventory Rules of the list it changes; Override uses its own
+ * inputs instead. What the list may hold (Accept Categories) applies either way. */
+TEST(LN_RuntimeTree, InventoryNodeFollowsTheListsRulesUnlessOverridden)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  KX_GameObject owner;
+  LN_RuntimeTree runtime_tree(program, &owner, 1, 0);
+  const auto constant = [&](const LN_Value &value) {
+    LN_ValueExpression expression;
+    expression.kind = LN_ValueExpressionKind::Constant;
+    expression.value = value;
+    return program->AddValueExpression(expression);
+  };
+  LN_Value gem = LN_MakeInventoryEntry("Gem", 1);
+  LN_Value treasure_text;
+  treasure_text.type = LN_ValueType::String;
+  treasure_text.exists = true;
+  treasure_text.string_value = "treasure";
+  gem.dict_value["category"] = treasure_text;
+  LN_Value yes;
+  yes.type = LN_ValueType::Bool;
+  yes.exists = true;
+  yes.bool_value = true;
+  LN_Value no = yes;
+  no.bool_value = false;
+  const auto add_item = [&](const bool override_rules) {
+    LN_ValueExpression edit;
+    edit.kind = LN_ValueExpressionKind::InventoryEdit;
+    edit.value.type = LN_ValueType::Int;
+    edit.value.int_value = int32_t(LN_InventoryOperation::AddItem);
+    edit.input_indices.assign(LN_INVENTORY_INPUT_COUNT, LN_INVALID_INDEX);
+    edit.input_indices[LN_INVENTORY_INPUT_ITEM] = constant(gem);
+    edit.input_indices[LN_INVENTORY_INPUT_AMOUNT] = AddIntValueConstant(*program, 3);
+    /* The node's own rules: Stack on, no Capacity. */
+    edit.input_indices[LN_INVENTORY_INPUT_STACK] = constant(yes);
+    edit.input_indices[LN_INVENTORY_INPUT_CAPACITY] = AddIntValueConstant(*program, 0);
+    edit.input_indices[LN_INVENTORY_INPUT_OVERRIDE] = constant(override_rules ? yes : no);
+    return edit;
+  };
+  /* The list's rules: no stacking, one place. */
+  LN_InventoryRules list_rules;
+  list_rules.stack = false;
+  list_rules.capacity = 1;
+
+  std::vector<LN_Value> slots;
+  auto [leftover, outcome] = LN_RuntimeTreeTestAccess::RunInventoryEdit(
+      runtime_tree, add_item(false), slots, &list_rules);
+  EXPECT_EQ(leftover, 2);
+  EXPECT_EQ(outcome, LN_InventoryOutcome::NoRoom);
+  EXPECT_EQ(slots.size(), 1u);
+
+  slots.clear();
+  std::tie(leftover, outcome) = LN_RuntimeTreeTestAccess::RunInventoryEdit(
+      runtime_tree, add_item(true), slots, &list_rules);
+  EXPECT_EQ(leftover, 0);
+  EXPECT_EQ(outcome, LN_InventoryOutcome::None);
+  ASSERT_EQ(slots.size(), 1u);
+  std::string item;
+  int32_t count = 0;
+  ASSERT_TRUE(LN_InventoryEntry(slots[0], item, count));
+  EXPECT_EQ(count, 3);
+
+  /* A list for weapons refuses the gem, with Override too: nothing goes in. */
+  list_rules.accept_categories = LN_NormalizedCategories("Weapon");
+  for (const bool override_rules : {false, true}) {
+    slots.clear();
+    std::tie(leftover, outcome) = LN_RuntimeTreeTestAccess::RunInventoryEdit(
+        runtime_tree, add_item(override_rules), slots, &list_rules);
+    EXPECT_EQ(leftover, 3);
+    EXPECT_EQ(outcome, LN_InventoryOutcome::Refused);
+    EXPECT_TRUE(slots.empty());
+  }
+  /* A list value (no object): the node's own rules. */
+  slots.clear();
+  std::tie(leftover, outcome) = LN_RuntimeTreeTestAccess::RunInventoryEdit(
+      runtime_tree, add_item(false), slots, nullptr);
+  EXPECT_EQ(leftover, 0);
+}

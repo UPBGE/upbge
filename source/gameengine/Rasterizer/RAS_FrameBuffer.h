@@ -50,6 +50,9 @@ class RAS_FrameBuffer {
   RAS_FrameBuffer(unsigned int width,
                   unsigned height,
                   RAS_Rasterizer::FrameBufferType framebufferType);
+  /** A frame buffer without textures of its own: whoever uses it attaches the textures to draw
+   * with (the camera passes attach their view's color and depth to FILTER1). */
+  explicit RAS_FrameBuffer(RAS_Rasterizer::FrameBufferType framebufferType);
   ~RAS_FrameBuffer();
 
   blender::gpu::FrameBuffer *GetFrameBuffer();

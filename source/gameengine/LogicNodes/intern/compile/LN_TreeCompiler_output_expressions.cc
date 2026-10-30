@@ -97,19 +97,21 @@ static std::optional<uint32_t> BuildBoneAttributeValueExpression(
     return std::nullopt;
   }
 
-  const std::optional<uint32_t> object_expr = BuildInputValueExpression(program,
-                                                                        node,
-                                                                        "Object",
-                                                                        node_definitions,
-                                                                        input_links,
-                                                                        value_cache,
-                                                                        bool_expression_cache,
-                                                                        int_expression_cache,
-                                                                        float_expression_cache,
-                                                                        string_expression_cache,
-                                                                        vector_expression_cache,
-                                                                        color_expression_cache,
-                                                                        value_expression_cache);
+  /* An empty Object is the owner (the runtime reads the owner when there is no object input). */
+  const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
+      program,
+      node,
+      "Object",
+      node_definitions,
+      input_links,
+      value_cache,
+      bool_expression_cache,
+      int_expression_cache,
+      float_expression_cache,
+      string_expression_cache,
+      vector_expression_cache,
+      color_expression_cache,
+      value_expression_cache);
   const std::optional<uint32_t> bone_name_expr = BuildInputStringExpression(program,
                                                                            node,
                                                                            "Bone Name",
@@ -849,6 +851,11 @@ std::optional<uint32_t> BuildOutputBoolExpression(
   if (cache_iter != bool_expression_cache.end()) {
     return cache_iter->second;
   }
+  if (const std::optional<uint32_t> compiled = FindCompiledOutput(
+          g_compiled_output_caches.bools, bool_expression_cache, output_socket))
+  {
+    return compiled;
+  }
 
   std::optional<uint32_t> result;
   const auto definition_iter = node_definitions.find(&node);
@@ -1019,6 +1026,50 @@ std::optional<uint32_t> BuildOutputBoolExpression(
                                                          try_value_cache);
       }
       break;
+    case LN_NodeKind::StringOperation: {
+      /* Contains, Starts With and Ends With: folded for constant text, else read at runtime. */
+      if (const std::optional<LN_Value> value = EvaluateOutputValue(
+              node, output_socket, node_definitions, input_links, value_cache);
+          value && value->type == LN_ValueType::Bool)
+      {
+        result = AddConstantBoolExpression(program, value->bool_value);
+        break;
+      }
+      LN_BoolExpression expression;
+      if (node.custom1 == LN_STRING_OP_CONTAINS) {
+        expression.kind = LN_BoolExpressionKind::StringContains;
+      }
+      else if (node.custom1 == LN_STRING_OP_STARTS_WITH) {
+        expression.kind = LN_BoolExpressionKind::StringStartsWith;
+      }
+      else if (node.custom1 == LN_STRING_OP_ENDS_WITH) {
+        expression.kind = LN_BoolExpressionKind::StringEndsWith;
+      }
+      else {
+        break;
+      }
+      StringExpressionCache string_expression_cache;
+      const std::optional<uint32_t> text = BuildInputStringExpression(program,
+                                                                      node,
+                                                                      "String",
+                                                                      node_definitions,
+                                                                      input_links,
+                                                                      value_cache,
+                                                                      string_expression_cache);
+      const std::optional<uint32_t> part = BuildInputStringExpression(program,
+                                                                      node,
+                                                                      "Substring",
+                                                                      node_definitions,
+                                                                      input_links,
+                                                                      value_cache,
+                                                                      string_expression_cache);
+      if (text && part) {
+        expression.input0 = *text;
+        expression.input1 = *part;
+        result = program.AddBoolExpression(expression);
+      }
+      break;
+    }
     default: {
       const std::optional<LN_Value> value = EvaluateOutputValue(node,
                                                                 output_socket,
@@ -1027,6 +1078,30 @@ std::optional<uint32_t> BuildOutputBoolExpression(
                                                                 value_cache);
       if (value && value->type == LN_ValueType::Bool) {
         result = AddConstantBoolExpression(program, value->bool_value);
+        break;
+      }
+      /* A yes/no output that its node compiles as a value (Can Craft, Found) feeds Branch and
+       * other yes/no inputs too. A request that comes back here gets nothing. */
+      bool_expression_cache[&output_socket] = std::nullopt;
+      if (const std::optional<uint32_t> value_expr = BuildOutputValueExpression(
+              program,
+              node,
+              output_socket,
+              node_definitions,
+              input_links,
+              value_cache,
+              bool_expression_cache,
+              try_int_cache,
+              float_expression_cache,
+              try_string_cache,
+              try_vector_cache,
+              try_color_cache,
+              try_value_cache))
+      {
+        LN_BoolExpression expression;
+        expression.kind = LN_BoolExpressionKind::FromGenericValue;
+        expression.input0 = *value_expr;
+        result = program.AddBoolExpression(expression);
       }
       break;
     }
@@ -1054,6 +1129,11 @@ std::optional<uint32_t> BuildOutputIntExpression(
   const auto cache_iter = int_expression_cache.find(&output_socket);
   if (cache_iter != int_expression_cache.end()) {
     return cache_iter->second;
+  }
+  if (const std::optional<uint32_t> compiled = FindCompiledOutput(
+          g_compiled_output_caches.ints, int_expression_cache, output_socket))
+  {
+    return compiled;
   }
 
   std::optional<uint32_t> result;
@@ -1185,7 +1265,7 @@ std::optional<uint32_t> BuildOutputIntExpression(
       if (!NamesMatch(output_socket.name, output_socket.identifier, "Contact Count")) {
         break;
       }
-      const std::optional<uint32_t> object_expr = BuildInputValueExpression(program,
+      const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(program,
                                                                             node,
                                                                             "Object",
                                                                             node_definitions,
@@ -1266,6 +1346,30 @@ std::optional<uint32_t> BuildOutputIntExpression(
                                                                 value_cache);
       if (value && value->type == LN_ValueType::Int) {
         result = AddConstantIntExpression(program, value->int_value);
+        break;
+      }
+      /* A whole-number output that its node compiles as a value (Item Count, Leftover, Index)
+       * feeds integer inputs too. A request that comes back here gets nothing. */
+      int_expression_cache[&output_socket] = std::nullopt;
+      if (const std::optional<uint32_t> value_expr = BuildOutputValueExpression(
+              program,
+              node,
+              output_socket,
+              node_definitions,
+              input_links,
+              value_cache,
+              bool_cache,
+              int_expression_cache,
+              float_cache,
+              string_cache,
+              vector_cache,
+              color_cache,
+              value_expr_cache))
+      {
+        LN_IntExpression expression;
+        expression.kind = LN_IntExpressionKind::FromGenericValue;
+        expression.input0 = *value_expr;
+        result = program.AddIntExpression(expression);
       }
       break;
     }
@@ -1378,6 +1482,11 @@ std::optional<uint32_t> BuildOutputFloatExpression(
   const auto cache_iter = float_expression_cache.find(&output_socket);
   if (cache_iter != float_expression_cache.end()) {
     return cache_iter->second;
+  }
+  if (const std::optional<uint32_t> compiled = FindCompiledOutput(
+          g_compiled_output_caches.floats, float_expression_cache, output_socket))
+  {
+    return compiled;
   }
 
   std::optional<uint32_t> result;
@@ -1580,7 +1689,7 @@ std::optional<uint32_t> BuildOutputFloatExpression(
       const uint32_t source_range = add_binary_expression(
           LN_FloatExpressionKind::Subtract, *from_max, *from_min);
       const uint32_t normalized_value = add_binary_expression(
-          LN_FloatExpressionKind::Divide, shifted_value, source_range);
+          LN_FloatExpressionKind::SafeDivide, shifted_value, source_range);
       const uint32_t target_range = add_binary_expression(
           LN_FloatExpressionKind::Subtract, *to_max, *to_min);
       const uint32_t scaled_value = add_binary_expression(
@@ -1840,6 +1949,30 @@ std::optional<uint32_t> BuildOutputFloatExpression(
                                                                 value_cache);
       if (value && value->type == LN_ValueType::Float) {
         result = AddConstantFloatExpression(program, value->float_value);
+        break;
+      }
+      /* A number output that its node compiles as a value feeds number inputs too. A request
+       * that comes back here gets nothing. */
+      float_expression_cache[&output_socket] = std::nullopt;
+      if (const std::optional<uint32_t> value_expr = BuildOutputValueExpression(
+              program,
+              node,
+              output_socket,
+              node_definitions,
+              input_links,
+              value_cache,
+              bool_cache,
+              try_int_cache,
+              float_expression_cache,
+              try_string_cache,
+              vector_cache,
+              try_color_cache,
+              try_value_cache))
+      {
+        LN_FloatExpression expression;
+        expression.kind = LN_FloatExpressionKind::FromGenericValue;
+        expression.input0 = *value_expr;
+        result = program.AddFloatExpression(expression);
       }
       break;
     }
@@ -1896,6 +2029,11 @@ std::optional<uint32_t> BuildOutputStringExpression(
   if (cache_iter != string_expression_cache.end()) {
     return cache_iter->second;
   }
+  if (const std::optional<uint32_t> compiled = FindCompiledOutput(
+          g_compiled_output_caches.strings, string_expression_cache, output_socket))
+  {
+    return compiled;
+  }
 
   std::optional<uint32_t> result;
   const auto definition_iter = node_definitions.find(&node);
@@ -1912,8 +2050,15 @@ std::optional<uint32_t> BuildOutputStringExpression(
   VectorExpressionCache try_vector_cache;
   ColorExpressionCache try_color_cache;
   ValueExpressionCache try_value_cache;
+  /* Generic values, objects (their name) and numbers ("Page {} / {}") read as text. Numbers go
+   * through their value: the typed builders below would give a number expression. */
   if (const LN_PinDefinition *pin = FindPinDefinition(definition.outputs, output_socket);
-      pin != nullptr && pin->value_type == LN_ValueType::Generic)
+      pin != nullptr && pin->kind != LN_PinKind::Execution &&
+      ELEM(pin->value_type,
+           LN_ValueType::Generic,
+           LN_ValueType::ObjectRef,
+           LN_ValueType::Int,
+           LN_ValueType::Float))
   {
     if (const std::optional<uint32_t> value_expr = BuildOutputValueExpression(
             program,
@@ -2277,6 +2422,30 @@ std::optional<uint32_t> BuildOutputStringExpression(
                                                                 value_cache);
       if (value && value->type == LN_ValueType::String) {
         result = AddConstantStringExpression(program, value->string_value);
+        break;
+      }
+      /* A text output that its node compiles as a value (Get Item Info, Inventory) feeds text
+       * inputs such as Formatted String too. A request that comes back here gets nothing. */
+      string_expression_cache[&output_socket] = std::nullopt;
+      if (const std::optional<uint32_t> value_expr = BuildOutputValueExpression(
+              program,
+              node,
+              output_socket,
+              node_definitions,
+              input_links,
+              value_cache,
+              try_bool_cache,
+              try_int_cache,
+              try_float_cache,
+              string_expression_cache,
+              try_vector_cache,
+              try_color_cache,
+              try_value_cache))
+      {
+        LN_StringExpression expression;
+        expression.kind = LN_StringExpressionKind::FromGenericValue;
+        expression.value_expr_index = *value_expr;
+        result = program.AddStringExpression(expression);
       }
       break;
     }
@@ -2339,21 +2508,36 @@ std::optional<uint32_t> BuildInputRotationVectorExpression(
   const auto links_iter = input_links.find(socket);
   if (links_iter != input_links.end() && !links_iter->second.empty()) {
     const ResolvedLink &link = links_iter->second.front();
-    return BuildOutputVectorExpression(program,
-                                       *link.fromnode,
-                                       *link.fromsock,
-                                       node_definitions,
-                                       input_links,
-                                       value_cache,
-                                       float_expression_cache,
-                                       vector_expression_cache);
+    const std::optional<uint32_t> source = BuildOutputVectorExpression(program,
+                                                                       *link.fromnode,
+                                                                       *link.fromsock,
+                                                                       node_definitions,
+                                                                       input_links,
+                                                                       value_cache,
+                                                                       float_expression_cache,
+                                                                       vector_expression_cache);
+    if (!source || *source >= program.GetVectorExpressions().size()) {
+      return std::nullopt;
+    }
+    const LN_VectorExpression &source_expression = program.GetVectorExpressions()[*source];
+    if (source_expression.output_type == LN_ValueType::Rotation) {
+      return source;
+    }
+    LN_VectorExpression rotation_expression = source_expression;
+    rotation_expression.output_type = LN_ValueType::Rotation;
+    if (rotation_expression.kind == LN_VectorExpressionKind::Constant) {
+      rotation_expression.rotation_value = LN_Rotation::FromEulerXYZ(
+          rotation_expression.vector_value);
+    }
+    return program.AddVectorExpression(rotation_expression);
   }
 
   const std::optional<LN_Value> default_value = ReadSocketDefault(*socket, LN_ValueType::Rotation);
   if (!default_value || default_value->type != LN_ValueType::Rotation) {
     return std::nullopt;
   }
-  return AddConstantVectorExpression(program, default_value->rotation_euler_value);
+  return AddConstantRotationExpression(
+      program, default_value->rotation_value, default_value->vector_value);
 }
 
 std::optional<uint32_t> BuildOutputVectorExpression(
@@ -2369,6 +2553,11 @@ std::optional<uint32_t> BuildOutputVectorExpression(
   const auto cache_iter = vector_expression_cache.find(&output_socket);
   if (cache_iter != vector_expression_cache.end()) {
     return cache_iter->second;
+  }
+  if (const std::optional<uint32_t> compiled = FindCompiledOutput(
+          g_compiled_output_caches.vectors, vector_expression_cache, output_socket))
+  {
+    return compiled;
   }
 
   std::optional<uint32_t> result;
@@ -2453,7 +2642,7 @@ std::optional<uint32_t> BuildOutputVectorExpression(
       StringExpressionCache string_expression_cache_local;
       ColorExpressionCache color_expression_cache_local;
       ValueExpressionCache value_expression_cache_local;
-      const std::optional<uint32_t> object_expr = BuildInputValueExpression(
+      const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
           program,
           node,
           "Object",
@@ -2617,12 +2806,18 @@ std::optional<uint32_t> BuildOutputVectorExpression(
 
       LN_VectorExpression expression;
       expression.kind = LN_VectorExpressionKind::Combine;
+      expression.output_type = definition.kind == LN_NodeKind::Euler ?
+                                   LN_ValueType::Rotation :
+                                   LN_ValueType::Vector;
       expression.input0 = *x;
       expression.input1 = *y;
       expression.input2 = z.value_or(LN_INVALID_INDEX);
       expression.vector_value = MT_Vector3(FloatExpressionConstantFallback(program, *x),
                                            FloatExpressionConstantFallback(program, *y),
                                            z ? FloatExpressionConstantFallback(program, *z) : 0.0f);
+      if (expression.output_type == LN_ValueType::Rotation) {
+        expression.rotation_value = LN_Rotation::FromEulerXYZ(expression.vector_value);
+      }
       result = program.AddVectorExpression(expression);
       break;
     }
@@ -2729,9 +2924,31 @@ std::optional<uint32_t> BuildOutputVectorExpression(
 
       LN_VectorExpression expression;
       expression.kind = LN_VectorExpressionKind::VectorToRotation;
+      expression.output_type = LN_ValueType::Rotation;
       expression.input0 = *direction;
       expression.input1 = *up;
       expression.property_ref_index = uint32_t(std::clamp(int(node.custom1), 0, 5));
+      result = program.AddVectorExpression(expression);
+      break;
+    }
+    case LN_NodeKind::BoneRotationToObjectRotation: {
+      const std::optional<uint32_t> bone_rotation = BuildInputRotationVectorExpression(
+          program,
+          node,
+          "Bone Rotation",
+          node_definitions,
+          input_links,
+          value_cache,
+          float_expression_cache,
+          vector_expression_cache);
+      if (!bone_rotation) {
+        break;
+      }
+
+      LN_VectorExpression expression;
+      expression.kind = LN_VectorExpressionKind::BoneRotationToObjectRotation;
+      expression.output_type = LN_ValueType::Rotation;
+      expression.input0 = *bone_rotation;
       result = program.AddVectorExpression(expression);
       break;
     }
@@ -2858,6 +3075,11 @@ std::optional<uint32_t> BuildOutputColorExpression(
   const auto cache_iter = color_expression_cache.find(&output_socket);
   if (cache_iter != color_expression_cache.end()) {
     return cache_iter->second;
+  }
+  if (const std::optional<uint32_t> compiled = FindCompiledOutput(
+          g_compiled_output_caches.colors, color_expression_cache, output_socket))
+  {
+    return compiled;
   }
 
   std::optional<uint32_t> result;
@@ -3019,19 +3241,42 @@ std::optional<uint32_t> BuildInputValueExpression(
   const auto links_iter = input_links.find(socket);
   if (links_iter != input_links.end() && !links_iter->second.empty()) {
     const ResolvedLink &link = links_iter->second.front();
-    return BuildOutputValueExpression(program,
-                                      *link.fromnode,
-                                      *link.fromsock,
-                                      node_definitions,
-                                      input_links,
-                                      value_cache,
-                                      bool_expression_cache,
-                                      int_expression_cache,
-                                      float_expression_cache,
-                                      string_expression_cache,
-                                      vector_expression_cache,
-                                      color_expression_cache,
-                                      value_expression_cache);
+    const std::optional<uint32_t> source = BuildOutputValueExpression(program,
+                                                                      *link.fromnode,
+                                                                      *link.fromsock,
+                                                                      node_definitions,
+                                                                      input_links,
+                                                                      value_cache,
+                                                                      bool_expression_cache,
+                                                                      int_expression_cache,
+                                                                      float_expression_cache,
+                                                                      string_expression_cache,
+                                                                      vector_expression_cache,
+                                                                      color_expression_cache,
+                                                                      value_expression_cache);
+    /* A collection linked into a list input (Loop From List, List Length...) is the list of its
+     * objects while the game runs, child collections included, as Get Collection Objects
+     * gives them. */
+    const auto to_definition = node_definitions.find(&node);
+    const auto from_definition = node_definitions.find(link.fromnode);
+    if (source && to_definition != node_definitions.end() &&
+        from_definition != node_definitions.end())
+    {
+      const LN_PinDefinition *to_pin = FindPinDefinition(to_definition->second->inputs, *socket);
+      const LN_PinDefinition *from_pin = FindPinDefinition(from_definition->second->outputs,
+                                                           *link.fromsock);
+      if (to_pin != nullptr && from_pin != nullptr &&
+          to_pin->value_type == LN_ValueType::List &&
+          from_pin->value_type == LN_ValueType::CollectionRef)
+      {
+        LN_ValueExpression expression;
+        expression.kind = LN_ValueExpressionKind::CollectionObjects;
+        expression.input0 = *source;
+        expression.bool_expr_index = AddConstantBoolExpression(program, true);
+        return program.AddValueExpression(expression);
+      }
+    }
+    return source;
   }
 
   const auto definition_iter = node_definitions.find(&node);
@@ -3181,6 +3426,11 @@ std::optional<uint32_t> BuildOutputValueExpression(
   const auto cache_iter = value_expression_cache.find(&output_socket);
   if (cache_iter != value_expression_cache.end()) {
     return cache_iter->second;
+  }
+  if (const std::optional<uint32_t> compiled = FindCompiledOutput(
+          g_compiled_output_caches.values, value_expression_cache, output_socket))
+  {
+    return compiled;
   }
 
   std::optional<uint32_t> result;
@@ -3337,7 +3587,7 @@ std::optional<uint32_t> BuildOutputValueExpression(
       VectorExpressionCache vector_expression_cache_local;
       ColorExpressionCache color_expression_cache_local;
       ValueExpressionCache value_expression_cache_local;
-      const std::optional<uint32_t> object_expr = BuildInputValueExpression(
+      const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
           program,
           node,
           "Object",
@@ -3444,9 +3694,8 @@ std::optional<uint32_t> BuildOutputValueExpression(
                                                 color_expression_cache,
                                                 value_expression_cache);
       break;
-    case LN_NodeKind::Loop:
     case LN_NodeKind::LoopFromList:
-      if (NamesMatch(output_socket.name, output_socket.identifier, "Value") &&
+      if (NamesMatch(output_socket.name, output_socket.identifier, "List Item") &&
           g_active_loop_frame_cache != nullptr)
       {
         if (const auto iter = g_active_loop_frame_cache->value_expressions.find(&node);
@@ -3556,10 +3805,8 @@ std::optional<uint32_t> BuildOutputValueExpression(
       break;
     }
     case LN_NodeKind::GetSound:
-    case LN_NodeKind::GetImage:
-    case LN_NodeKind::GetFont: {
-      const char *input_name = definition.kind == LN_NodeKind::GetSound ? "Sound File" :
-                               definition.kind == LN_NodeKind::GetImage ? "Image" : "Font";
+    case LN_NodeKind::GetImage: {
+      const char *input_name = definition.kind == LN_NodeKind::GetSound ? "Sound File" : "Image";
       result = BuildInputValueExpression(program,
                                          node,
                                          input_name,
@@ -4039,9 +4286,10 @@ std::optional<LN_Value> EvaluateOutputValue(
         LN_Value vector_value;
         if (definition.kind == LN_NodeKind::Euler) {
           vector_value.type = LN_ValueType::Rotation;
-          vector_value.rotation_euler_value = MT_Vector3(x->float_value,
-                                                         y->float_value,
-                                                         z->float_value);
+          vector_value.vector_value = MT_Vector3(
+              x->float_value, y->float_value, z->float_value);
+          vector_value.SetRotation(
+              LN_Rotation::FromEulerXYZ(vector_value.vector_value), vector_value.vector_value);
         }
         else {
           vector_value.type = LN_ValueType::Vector;
@@ -4078,10 +4326,8 @@ std::optional<LN_Value> EvaluateOutputValue(
                                 0.0f);
       }
       else if (input->type == LN_ValueType::Rotation) {
-        components = MT_Vector4(input->rotation_euler_value.x(),
-                                input->rotation_euler_value.y(),
-                                input->rotation_euler_value.z(),
-                                0.0f);
+        const MT_Vector3 euler = input->vector_value;
+        components = MT_Vector4(euler.x(), euler.y(), euler.z(), 0.0f);
       }
       else {
         break;
@@ -4134,7 +4380,9 @@ std::optional<LN_Value> EvaluateOutputValue(
         vector_value.type = node.custom1 == 1 ? LN_ValueType::Rotation : LN_ValueType::Vector;
         vector_value.exists = true;
         if (vector_value.type == LN_ValueType::Rotation) {
-          vector_value.rotation_euler_value = MT_Vector3(x, y, z);
+          vector_value.vector_value = MT_Vector3(x, y, z);
+          vector_value.SetRotation(
+              LN_Rotation::FromEulerXYZ(vector_value.vector_value), vector_value.vector_value);
         }
         else {
           vector_value.vector_value = MT_Vector3(x, y, z);
@@ -4167,9 +4415,7 @@ std::optional<LN_Value> EvaluateOutputValue(
         break;
       }
 
-      const MT_Vector3 vector = definition.kind == LN_NodeKind::SeparateEuler ?
-                                    value->rotation_euler_value :
-                                    value->vector_value;
+      const MT_Vector3 vector = value->vector_value;
       LN_Value float_value;
       float_value.type = LN_ValueType::Float;
       if (NamesMatch(output_socket.name, output_socket.identifier, "X")) {
@@ -4272,7 +4518,7 @@ std::optional<LN_Value> EvaluateOutputValue(
           to_min->type == LN_ValueType::Float && to_max &&
           to_max->type == LN_ValueType::Float) {
         const float source_range = from_max->float_value - from_min->float_value;
-        const float normalized_value = (std::fabs(source_range) <= 1.0e-20f) ?
+        const float normalized_value = (source_range == 0.0f) ?
                                            0.0f :
                                            (value->float_value - from_min->float_value) /
                                                source_range;
@@ -4448,11 +4694,11 @@ std::optional<LN_Value> EvaluateOutputValue(
       break;
     }
     case LN_NodeKind::EventOnInit:
+    case LN_NodeKind::EventOnUpdate:
     case LN_NodeKind::EventOnFixedUpdate:
     case LN_NodeKind::Branch:
     case LN_NodeKind::ToggleProperty:
     case LN_NodeKind::ModifyProperty:
-    case LN_NodeKind::ModifyPropertyClamped:
     case LN_NodeKind::SetTreeProperty:
     case LN_NodeKind::RemoveObject:
     case LN_NodeKind::AddObject:
@@ -4508,9 +4754,11 @@ std::optional<LN_Value> EvaluateOutputValue(
     case LN_NodeKind::PlayAction:
     case LN_NodeKind::StopAction:
     case LN_NodeKind::SetActionFrame:
+    case LN_NodeKind::SetShapeKeyValue:
     case LN_NodeKind::StopAllSounds:
     case LN_NodeKind::PlaySound:
     case LN_NodeKind::StopSound:
+    case LN_NodeKind::SetVolume:
     case LN_NodeKind::SetBonePoseLocation:
     case LN_NodeKind::SetBonePoseRotation:
     case LN_NodeKind::SetBonePoseScale:

@@ -26,6 +26,8 @@
 
 #include "RAS_DebugDraw.h"
 
+#include "BLI_assert.h"
+
 #include "MT_Frustum.h"
 #include "RAS_OpenGLDebugDraw.h"
 
@@ -40,9 +42,81 @@ RAS_DebugDraw::~RAS_DebugDraw()
   delete m_impl;
 }
 
-RAS_DebugDraw::Shape::Shape(const MT_Vector4 &color) : m_color(color)
+void RAS_DebugDraw::FixedStepBuffer::Clear()
 {
+  lines.clear();
+  circles.clear();
+  aabbs.clear();
+  boxes.clear();
+  solid_boxes.clear();
+  texts_2d.clear();
+  boxes_2d.clear();
+  rects_2d.clear();
+  lines_2d.clear();
 }
+
+RAS_DebugDraw::FixedStepBuffer &RAS_DebugDraw::CurrentFixedStepBuffer()
+{
+  BLI_assert(m_collectingFixedStep);
+  return m_fixedStepStaging[m_fixedStepContext];
+}
+
+void RAS_DebugDraw::ClearFrameBuffer()
+{
+  m_lines.clear();
+  m_circles.clear();
+  m_aabbs.clear();
+  m_boxes.clear();
+  m_solidBoxes.clear();
+  m_texts2D.clear();
+  m_boxes2D.clear();
+  m_rects2D.clear();
+  m_lines2D.clear();
+}
+
+void RAS_DebugDraw::BeginFixedStepSnapshot()
+{
+  BLI_assert(!m_collectingFixedStep);
+  for (auto &item : m_fixedStepStaging) {
+    item.second.Clear();
+  }
+  m_fixedStepContext = nullptr;
+  m_collectingFixedStep = true;
+}
+
+void RAS_DebugDraw::SetFixedStepSnapshotContext(const void *context)
+{
+  BLI_assert(m_collectingFixedStep);
+  m_fixedStepContext = context;
+}
+
+void RAS_DebugDraw::PublishFixedStepSnapshot()
+{
+  BLI_assert(m_collectingFixedStep);
+  m_fixedStepPublished.swap(m_fixedStepStaging);
+  m_fixedStepContext = nullptr;
+  m_collectingFixedStep = false;
+}
+
+void RAS_DebugDraw::DiscardFixedStepSnapshotContext(const void *context)
+{
+  m_fixedStepStaging.erase(context);
+  m_fixedStepPublished.erase(context);
+  if (m_fixedStepContext == context) {
+    m_fixedStepContext = nullptr;
+  }
+}
+
+void RAS_DebugDraw::Reset()
+{
+  ClearFrameBuffer();
+  m_fixedStepStaging.clear();
+  m_fixedStepPublished.clear();
+  m_fixedStepContext = nullptr;
+  m_collectingFixedStep = false;
+}
+
+RAS_DebugDraw::Shape::Shape(const MT_Vector4 &color) : m_color(color) {}
 
 RAS_DebugDraw::Line::Line(const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
     : Shape(color), m_from(from), m_to(to)
@@ -101,15 +175,20 @@ RAS_DebugDraw::Box2D::Box2D(const MT_Vector2 &pos, const MT_Vector2 &size, const
 }
 
 RAS_DebugDraw::Rect2D::Rect2D(const MT_Vector2 &pos,
-                const MT_Vector2 &size,
-                const MT_Vector4 &color)
-  : Shape(color), m_pos(pos), m_size(size)
+                              const MT_Vector2 &size,
+                              const MT_Vector4 &color)
+    : Shape(color), m_pos(pos), m_size(size)
 {
 }
 
 void RAS_DebugDraw::DrawLine(const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
 {
-  m_lines.emplace_back(from, to, color);
+  if (m_collectingFixedStep) {
+    CurrentFixedStepBuffer().lines.emplace_back(from, to, color);
+  }
+  else {
+    m_lines.emplace_back(from, to, color);
+  }
 }
 
 void RAS_DebugDraw::DrawCircle(const MT_Vector3 &center,
@@ -118,7 +197,12 @@ void RAS_DebugDraw::DrawCircle(const MT_Vector3 &center,
                                const MT_Vector3 &normal,
                                int nsector)
 {
-  m_circles.emplace_back(center, normal, radius, nsector, color);
+  if (m_collectingFixedStep) {
+    CurrentFixedStepBuffer().circles.emplace_back(center, normal, radius, nsector, color);
+  }
+  else {
+    m_circles.emplace_back(center, normal, radius, nsector, color);
+  }
 }
 
 void RAS_DebugDraw::DrawAabb(const MT_Vector3 &pos,
@@ -127,12 +211,22 @@ void RAS_DebugDraw::DrawAabb(const MT_Vector3 &pos,
                              const MT_Vector3 &max,
                              const MT_Vector4 &color)
 {
-  m_aabbs.emplace_back(pos, rot, min, max, color);
+  if (m_collectingFixedStep) {
+    CurrentFixedStepBuffer().aabbs.emplace_back(pos, rot, min, max, color);
+  }
+  else {
+    m_aabbs.emplace_back(pos, rot, min, max, color);
+  }
 }
 
 void RAS_DebugDraw::DrawBox(const std::array<MT_Vector3, 8> &vertices, const MT_Vector4 &color)
 {
-  m_boxes.emplace_back(vertices, color);
+  if (m_collectingFixedStep) {
+    CurrentFixedStepBuffer().boxes.emplace_back(vertices, color);
+  }
+  else {
+    m_boxes.emplace_back(vertices, color);
+  }
 }
 
 void RAS_DebugDraw::DrawSolidBox(const std::array<MT_Vector3, 8> &vertices,
@@ -140,7 +234,13 @@ void RAS_DebugDraw::DrawSolidBox(const std::array<MT_Vector3, 8> &vertices,
                                  const MT_Vector4 &outsideColor,
                                  const MT_Vector4 &lineColor)
 {
-  m_solidBoxes.emplace_back(insideColor, outsideColor, vertices, lineColor);
+  if (m_collectingFixedStep) {
+    CurrentFixedStepBuffer().solid_boxes.emplace_back(
+        insideColor, outsideColor, vertices, lineColor);
+  }
+  else {
+    m_solidBoxes.emplace_back(insideColor, outsideColor, vertices, lineColor);
+  }
 }
 
 void RAS_DebugDraw::DrawCameraFrustum(const MT_Matrix4x4 &persmat)
@@ -158,14 +258,24 @@ void RAS_DebugDraw::RenderBox2D(const MT_Vector2 &pos,
                                 const MT_Vector2 &size,
                                 const MT_Vector4 &color)
 {
-  m_boxes2D.emplace_back(pos, size, color);
+  if (m_collectingFixedStep) {
+    CurrentFixedStepBuffer().boxes_2d.emplace_back(pos, size, color);
+  }
+  else {
+    m_boxes2D.emplace_back(pos, size, color);
+  }
 }
 
 void RAS_DebugDraw::RenderRect2D(const MT_Vector2 &pos,
                                  const MT_Vector2 &size,
                                  const MT_Vector4 &color)
 {
-  m_rects2D.emplace_back(pos, size, color);
+  if (m_collectingFixedStep) {
+    CurrentFixedStepBuffer().rects_2d.emplace_back(pos, size, color);
+  }
+  else {
+    m_rects2D.emplace_back(pos, size, color);
+  }
 }
 
 void RAS_DebugDraw::RenderLine2D(const MT_Vector2 &from,
@@ -173,31 +283,38 @@ void RAS_DebugDraw::RenderLine2D(const MT_Vector2 &from,
                                  const MT_Vector4 &color,
                                  const float width)
 {
-  m_lines2D.emplace_back(from, to, color, width);
+  if (m_collectingFixedStep) {
+    CurrentFixedStepBuffer().lines_2d.emplace_back(from, to, color, width);
+  }
+  else {
+    m_lines2D.emplace_back(from, to, color, width);
+  }
 }
 
 void RAS_DebugDraw::RenderText2D(const std::string &text,
                                  const MT_Vector2 &size,
                                  const MT_Vector4 &color)
 {
-  m_texts2D.emplace_back(text, size, color);
+  if (m_collectingFixedStep) {
+    CurrentFixedStepBuffer().texts_2d.emplace_back(text, size, color);
+  }
+  else {
+    m_texts2D.emplace_back(text, size, color);
+  }
 }
 
-void RAS_DebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas)
+void RAS_DebugDraw::Flush(RAS_Rasterizer *rasty,
+                          RAS_ICanvas *canvas,
+                          const FixedSnapshotMode fixed_snapshot_mode,
+                          const void *fixed_snapshot_context)
 {
   /*if ((m_lines.size() + m_circles.size() + m_aabbs.size() + m_boxes.size() + m_solidBoxes.size()
   + m_texts2D.size() + m_boxes2D.size()) == 0) { return;
   }*/
 
-  m_impl->Flush(rasty, canvas, this);
+  m_impl->Flush(rasty, canvas, this, fixed_snapshot_mode, fixed_snapshot_context);
 
-  m_lines.clear();
-  m_circles.clear();
-  m_aabbs.clear();
-  m_boxes.clear();
-  m_solidBoxes.clear();
-  m_texts2D.clear();
-  m_boxes2D.clear();
-  m_rects2D.clear();
-  m_lines2D.clear();
+  /* Render/update primitives are one-frame transient. A published fixed-step snapshot is sampled
+   * by rendering and remains valid until the next fixed step atomically replaces it. */
+  ClearFrameBuffer();
 }

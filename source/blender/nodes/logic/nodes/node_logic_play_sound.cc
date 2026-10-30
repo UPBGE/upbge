@@ -27,6 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_layout(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   template_id(&layout, C, ptr, "sound", nullptr, nullptr, nullptr);
+  layout.prop(ptr, "sound_group", UI_ITEM_NONE, "Group", ICON_NONE);
 }
 
 static void node_register()

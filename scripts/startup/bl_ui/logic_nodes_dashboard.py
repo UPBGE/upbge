@@ -30,6 +30,7 @@ class NODE_PT_logic_nodes_administration(Panel):
         col = box.column()
         col.scale_y = 1.4
         col.operator("object.logic_nodes_apply_tree", text="Apply To Selected", icon='PREFERENCES')
+        col.operator("object.logic_nodes_binding_clear", text="Remove From Selected", icon='X')
 
 
 class NODE_PT_logic_nodes_object_trees(Panel):
@@ -72,13 +73,15 @@ class NODE_PT_logic_nodes_object_trees(Panel):
             box = box_over.box()
             bindings = [binding for _ob, binding in entries]
 
-            row = box.row(align=False)
+            # One row, as in the Properties editor's Logic Nodes panel: Edit keeps its own size at
+            # the right, with a small gap before the remove button.
+            row = box.row(align=True)
             row.label(text="", icon=logic_nodes_binding_enabled_icon(bindings))
             row.label(text=tree_name, icon='NODETREE')
-            row.operator("object.logic_nodes_unapply_tree", text="", icon="X").tree_name = tree_name
-
-            row = box.row(align=False)
-            row.operator("object.logic_nodes_find_tree", text="Edit", icon="NODETREE").tree_name = tree_name
+            buttons = row.row()
+            buttons.alignment = 'RIGHT'
+            buttons.operator("object.logic_nodes_find_tree", text="Edit", icon='NODETREE').tree_name = tree_name
+            buttons.operator("object.logic_nodes_unapply_tree", text="", icon='X').tree_name = tree_name
 
             status_text, status_icon = logic_nodes_binding_status(context, bindings[0])
             if status_text:
@@ -107,7 +110,8 @@ class NODE_PT_logic_nodes_tree_applied_to(Panel):
         name.prop(binding, "enabled", text="")
         name.label(text=obj.name)
 
-        buttons = row.row(align=True)
+        # A small gap between selecting the object and removing the tree from it.
+        buttons = row.row()
         buttons.alignment = 'RIGHT'
         buttons.operator(
             "object.logic_nodes_select_owner",
@@ -133,10 +137,10 @@ class NODE_PT_logic_nodes_tree_applied_to(Panel):
                 continue
             if not obj.game:
                 continue
-            if not logic_nodes_object_has_tree(obj, tree.name):
+            if not logic_nodes_object_has_tree(obj, tree):
                 continue
             for binding in obj.game.logic_node_bindings:
-                if binding.tree_name == tree.name:
+                if binding.tree == tree:
                     self.draw_owner(container, obj, binding, tree.name)
                     found = True
                     break

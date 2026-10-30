@@ -33,6 +33,10 @@
 
 #include "KX_GameObject.h"
 
+namespace blender {
+struct Curve;
+}
+
 class KX_FontObject : public KX_GameObject {
   Py_Header
 
@@ -52,6 +56,20 @@ class KX_FontObject : public KX_GameObject {
   void SetText(const std::string &text);
   /// Update text from property.
   void UpdateTextFromProperty();
+  /** While the Text property is `text`, it shows as written, braces too: the UI writes data
+   * (typed names, item names) this way. Other text set later is filtered again. */
+  void SetLiteralText(const std::string &text)
+  {
+    m_literalText = text;
+    m_hasLiteralText = true;
+  }
+
+  /** Turns a text with braces into the text shown (Logic Nodes: `{Action}` becomes a key name,
+   * `{Player.gold}` a game property's value). `revision` changes whenever the same text would come
+   * out differently; `r_live` says the text shows values that change any time (game properties),
+   * so it is filtered again on every update. */
+  using TextFilter = std::string (*)(KX_FontObject &font, const std::string &text, bool &r_live);
+  static void SetTextFilter(TextFilter filter, uint64_t revision);
 
   void SetRasterizer(RAS_Rasterizer *rasterizer);
 
@@ -71,6 +89,18 @@ class KX_FontObject : public KX_GameObject {
   blender::Object *m_object;
 
   std::string m_backupText;  // eevee
+  /** The text as written (the body, or the Text property), before the text filter. */
+  std::string m_sourceText;
+  uint64_t m_filterRevision = UINT64_MAX;
+  /** The last filtered text shows live values: filter it again on every update. */
+  bool m_filterLive = false;
+  std::string m_literalText;
+  bool m_hasLiteralText = false;
+  static TextFilter s_textFilter;
+  static uint64_t s_textFilterRevision;
+  /** A copy's own text data, and the source's it replaced. */
+  blender::Curve *m_ownCurve = nullptr;
+  blender::Curve *m_sharedCurve = nullptr;
   /// needed for drawing routine
   class RAS_Rasterizer *m_rasterizer;
 };

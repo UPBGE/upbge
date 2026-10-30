@@ -31,8 +31,13 @@
 
 #include "KX_FontObject.h"
 
+#include "BKE_context.hh"
+#include "BKE_lib_id.hh"
 #include "BLI_string_utf8.h"
 #include "DNA_curve_types.h"
+
+#include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
 
 using namespace blender;
 
@@ -63,6 +68,15 @@ KX_FontObject::~KX_FontObject()
 {
   // remove font from the scene list
   // it's handled in KX_Scene::NewRemoveObject
+  if (m_ownCurve != nullptr) {
+    /* A copy's own text data goes with it; its object is deleted next. */
+    if (blender::Object *ob = GetBlenderObject()) {
+      ob->data = &m_sharedCurve->id;
+      id_us_plus(&m_sharedCurve->id);
+    }
+    BKE_id_delete(CTX_data_main(KX_GetActiveEngine()->GetContext()), m_ownCurve);
+    return;
+  }
   UpdateCurveText(m_backupText);  // eevee
 }
 
@@ -74,6 +88,27 @@ KX_PythonProxy *KX_FontObject::NewInstance()
 void KX_FontObject::ProcessReplica()
 {
   KX_GameObject::ProcessReplica();
+  /* A copy can be shown for another player (a menu): filter its text again. */
+  m_filterRevision = UINT64_MAX;
+  /* A copy shares its source's text data, so a new text would show on every copy: it gets its own
+   * (a full copy already has its own). A copy of a copy gives back the authored text data, which
+   * lives for the whole game, not its source's own (deleted with the source). A dupli instance
+   * draws its source's object itself, so it keeps that object's data. */
+  blender::Curve *authored = m_sharedCurve;
+  m_ownCurve = nullptr;
+  m_sharedCurve = nullptr;
+  blender::Object *ob = GetBlenderObject();
+  blender::Curve *curve = ob && (ob->gameflag & OB_DUPLI_UPBGE) == 0 ?
+                              id_cast<blender::Curve *>(ob->data) :
+                              nullptr;
+  if (curve != nullptr && ID_REAL_USERS(&curve->id) > 1) {
+    m_sharedCurve = authored != nullptr ? authored : curve;
+    m_ownCurve = id_cast<blender::Curve *>(
+        BKE_id_copy(CTX_data_main(KX_GetActiveEngine()->GetContext()), &curve->id));
+    id_us_min(&curve->id);
+    /* ReplicateBlenderObject already tagged the relations update this needs. */
+    ob->data = &m_ownCurve->id;
+  }
 }
 
 void KX_FontObject::SetText(const std::string &text)
@@ -104,12 +139,51 @@ void KX_FontObject::UpdateCurveText(std::string newText)  // eevee
       &ob->id, ID_RECALC_GEOMETRY, ob->gameflag & OB_OVERLAY_COLLECTION);
 }
 
+KX_FontObject::TextFilter KX_FontObject::s_textFilter = nullptr;
+uint64_t KX_FontObject::s_textFilterRevision = 0;
+
+void KX_FontObject::SetTextFilter(const TextFilter filter, const uint64_t revision)
+{
+  s_textFilter = filter;
+  s_textFilterRevision = revision;
+}
+
 void KX_FontObject::UpdateTextFromProperty()
 {
   // Allow for some logic brick control
   EXP_Value *prop = GetProperty("Text");
-  if (prop && prop->GetText() != m_text) {
-    SetText(prop->GetText());
+  if (prop != nullptr) {
+    std::string source = prop->GetText();
+    if (s_textFilter == nullptr || source.find('{') == std::string::npos ||
+        (m_hasLiteralText && source == m_literalText))
+    {
+      if (source != m_text) {
+        SetText(source);
+        UpdateCurveText(m_text);  // eevee
+      }
+      m_sourceText = std::move(source);
+      m_filterLive = false;
+      return;
+    }
+    if (source == m_sourceText && m_filterRevision == s_textFilterRevision && !m_filterLive) {
+      return;
+    }
+    m_sourceText = std::move(source);
+  }
+  else if (s_textFilter == nullptr ||
+           (m_filterRevision == s_textFilterRevision && !m_filterLive) ||
+           m_sourceText.find('{') == std::string::npos)
+  {
+    return;
+  }
+  /* A text with braces, such as "{Grab} Move" or "Gold: {Player.gold}": shown through the
+   * filter. One with values is filtered on every update, but only set when it changed. */
+  m_filterRevision = s_textFilterRevision;
+  bool live = false;
+  const std::string shown = s_textFilter(*this, m_sourceText, live);
+  m_filterLive = live;
+  if (shown != m_text) {
+    SetText(shown);
     UpdateCurveText(m_text);  // eevee
   }
 }
@@ -127,6 +201,7 @@ void KX_FontObject::SetBlenderObject(blender::Object *obj)
     blender::Curve *text = id_cast<blender::Curve *>(obj->data);
 
     m_backupText = std::string(text->str);  // eevee
+    m_sourceText = m_backupText;
 
     SetText(text->str);
   }

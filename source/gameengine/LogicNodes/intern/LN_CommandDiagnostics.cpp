@@ -9,9 +9,12 @@
 #include "LN_CommandDiagnostics.h"
 
 #include <memory>
+#include <mutex>
 #include <sstream>
+#include <unordered_set>
 #include <vector>
 
+#include "CM_Message.h"
 #include "KX_GameObject.h"
 #include "LN_Program.h"
 #include "LN_RuntimeTree.h"
@@ -216,6 +219,20 @@ const char *LN_CommandTypeName(const LN_CommandBuffer::CommandType type)
       return "ApplyImpulse";
     case LN_CommandBuffer::CommandType::SetVisibility:
       return "SetVisibility";
+    case LN_CommandBuffer::CommandType::SetUIInteractable:
+      return "SetUIInteractable";
+    case LN_CommandBuffer::CommandType::ResetSmoothing:
+      return "ResetSmoothing";
+    case LN_CommandBuffer::CommandType::SetPlayerCamera:
+      return "SetPlayerCamera";
+    case LN_CommandBuffer::CommandType::SetSplitScreen:
+      return "SetSplitScreen";
+    case LN_CommandBuffer::CommandType::SetCameraViewport:
+      return "SetCameraViewport";
+    case LN_CommandBuffer::CommandType::SetCameraVisibility:
+      return "SetCameraVisibility";
+    case LN_CommandBuffer::CommandType::SetPlayerGamepad:
+      return "SetPlayerGamepad";
     case LN_CommandBuffer::CommandType::SetObjectColor:
       return "SetObjectColor";
     case LN_CommandBuffer::CommandType::MakeLightUnique:
@@ -236,6 +253,8 @@ const char *LN_CommandTypeName(const LN_CommandBuffer::CommandType type)
       return "ApplyTorque";
     case LN_CommandBuffer::CommandType::SetGameProperty:
       return "SetGameProperty";
+    case LN_CommandBuffer::CommandType::ModifyGameProperty:
+      return "ModifyGameProperty";
     case LN_CommandBuffer::CommandType::AddObject:
       return "AddObject";
     case LN_CommandBuffer::CommandType::AddObjectFromRef:
@@ -252,6 +271,10 @@ const char *LN_CommandTypeName(const LN_CommandBuffer::CommandType type)
       return "SetGravity";
     case LN_CommandBuffer::CommandType::SetTimeScale:
       return "SetTimeScale";
+    case LN_CommandBuffer::CommandType::SetGamePaused:
+      return "SetGamePaused";
+    case LN_CommandBuffer::CommandType::SetPhysicsPaused:
+      return "SetPhysicsPaused";
     case LN_CommandBuffer::CommandType::SetActiveCamera:
       return "SetActiveCamera";
     case LN_CommandBuffer::CommandType::SetCameraFov:
@@ -330,6 +353,8 @@ const char *LN_CommandTypeName(const LN_CommandBuffer::CommandType type)
       return "StopAction";
     case LN_CommandBuffer::CommandType::SetActionFrame:
       return "SetActionFrame";
+    case LN_CommandBuffer::CommandType::SetShapeKeyValue:
+      return "SetShapeKeyValue";
     case LN_CommandBuffer::CommandType::StopAllSounds:
       return "StopAllSounds";
     case LN_CommandBuffer::CommandType::PlaySound:
@@ -342,6 +367,8 @@ const char *LN_CommandTypeName(const LN_CommandBuffer::CommandType type)
       return "ResumeSound";
     case LN_CommandBuffer::CommandType::StopSound:
       return "StopSound";
+    case LN_CommandBuffer::CommandType::SetSoundVolume:
+      return "SetSoundVolume";
     case LN_CommandBuffer::CommandType::SetLogicTreeEnabled:
       return "SetLogicTreeEnabled";
     case LN_CommandBuffer::CommandType::InstallLogicTree:
@@ -352,12 +379,28 @@ const char *LN_CommandTypeName(const LN_CommandBuffer::CommandType type)
       return "MoveToward";
     case LN_CommandBuffer::CommandType::SlowFollow:
       return "SlowFollow";
+    case LN_CommandBuffer::CommandType::SetOverlayCollection:
+      return "SetOverlayCollection";
+    case LN_CommandBuffer::CommandType::RemoveOverlayCollection:
+      return "RemoveOverlayCollection";
+    case LN_CommandBuffer::CommandType::OpenObjectMenu:
+      return "OpenObjectMenu";
+    case LN_CommandBuffer::CommandType::CloseObjectMenu:
+      return "CloseObjectMenu";
+    case LN_CommandBuffer::CommandType::SetUIFocus:
+      return "SetUIFocus";
+    case LN_CommandBuffer::CommandType::SetPlayerPointer:
+      return "SetPlayerPointer";
+    case LN_CommandBuffer::CommandType::TakeUIControl:
+      return "TakeUIControl";
     case LN_CommandBuffer::CommandType::LoadScene:
       return "LoadScene";
     case LN_CommandBuffer::CommandType::SetScene:
       return "SetScene";
     case LN_CommandBuffer::CommandType::SaveGame:
       return "SaveGame";
+    case LN_CommandBuffer::CommandType::SetSaveExistence:
+      return "SetSaveExistence";
     case LN_CommandBuffer::CommandType::LoadGame:
       return "LoadGame";
     case LN_CommandBuffer::CommandType::AlignAxisToVector:
@@ -497,4 +540,19 @@ std::string LN_DescribeCommandFailure(const LN_CommandBuffer::Command &command,
   }
   stream << " (" << LN_DescribeCommandForDiagnostics(command) << ')';
   return stream.str();
+}
+
+void LN_WarnCommandFailureOnce(const LN_CommandBuffer::Command &command,
+                               const std::string &reason)
+{
+  const std::string message = LN_DescribeCommandFailure(command, reason);
+  static std::mutex issued_warnings_mutex;
+  static std::unordered_set<std::string> issued_warnings;
+  {
+    std::lock_guard lock(issued_warnings_mutex);
+    if (!issued_warnings.insert(message).second) {
+      return;
+    }
+  }
+  CM_Warning(message);
 }

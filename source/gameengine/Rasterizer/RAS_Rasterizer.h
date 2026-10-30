@@ -46,6 +46,7 @@
 #include "RAS_Rect.h"
 
 namespace blender::gpu {
+class Shader;
 class Texture;
 }
 
@@ -220,6 +221,11 @@ class RAS_Rasterizer {
 
   std::unique_ptr<RAS_OpenGLRasterizer> m_impl;
 
+  /** DrawFrameBufferCircle's shader, compiled at its first use (like 2D filters). */
+  blender::gpu::Shader *m_circleShader = nullptr;
+  /** The circle shader failed to compile: draw rectangles instead. */
+  bool m_circleShaderFailed = false;
+
   void InitScreenShaders();
   void ExitScreenShaders();
 
@@ -266,6 +272,17 @@ class RAS_Rasterizer {
    * \param dstindex The output off screen index.
    */
   void DrawFrameBuffer(RAS_FrameBuffer *srcfb, RAS_FrameBuffer *dstfb);
+
+  /** Sets the alpha of the bound frame buffer to 1 in the current viewport and scissor, keeping
+   * its color, depth and the GPU state. */
+  void FillOpaqueAlpha();
+
+  /** Draws a camera's picture into the current viewport keeping only the circle (an oval in a
+   * viewport that isn't square) filling it, with a one pixel smooth edge, over what is there: the
+   * corners keep it. Inside, the result is the picture over opaque black, as DrawFrameBuffer then
+   * FillOpaqueAlpha give. Keeps the GPU state. False when the shader can't be built (nothing
+   * drawn). */
+  bool DrawFrameBufferCircle(RAS_FrameBuffer *srcFrameBuffer);
 
   /** Draw off screen at the given index to screen.
    * \param canvas The canvas containing the screen viewport.
@@ -380,7 +397,10 @@ class RAS_Rasterizer {
   void SetAmbientColor(const MT_Vector3 &color);
 
   RAS_DebugDraw &GetDebugDraw();
-  void FlushDebugDraw(RAS_ICanvas *canvas);
+  void FlushDebugDraw(
+      RAS_ICanvas *canvas,
+      RAS_DebugDraw::FixedSnapshotMode fixed_snapshot_mode = RAS_DebugDraw::FixedSnapshotMode::All,
+      const void *fixed_snapshot_context = nullptr);
 
   const MT_Matrix4x4 &GetViewMatrix() const;
   const MT_Matrix4x4 &GetViewInvMatrix() const;

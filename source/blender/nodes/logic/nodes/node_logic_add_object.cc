@@ -22,6 +22,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .description("Lifetime in seconds; zero keeps the object alive until removed");
   b.add_input<decl::Bool>("Full Copy"_ustr).default_value(false);
+  b.add_input<decl::Bool>("Own Mesh"_ustr)
+      .default_value(false)
+      .description(
+          "The copy gets its own mesh and shape keys, so changing them (or its modifiers) changes "
+          "this copy alone and does not update the other copies. Full Copy also copies its "
+          "materials and actions");
   b.add_output<decl::Execution>("Done"_ustr, "Out"_ustr);
   b.add_output<decl::Object>("Added Object"_ustr, "Object"_ustr);
 }

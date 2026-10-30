@@ -37,6 +37,8 @@
 
 #include "SCA_TimeEventManager.h"
 
+#include <algorithm>
+
 #include "CM_List.h"
 #include "EXP_FloatValue.h"
 
@@ -87,12 +89,62 @@ void SCA_TimeEventManager::NextFrame(double curtime, double fixedtime)
 void SCA_TimeEventManager::AddTimeProperty(EXP_Value *timeval)
 {
   timeval->AddRef();
-  m_timevalues.push_back(timeval);
+  try {
+    m_timevalues.push_back(timeval);
+  }
+  catch (...) {
+    timeval->Release();
+    throw;
+  }
 }
 
 void SCA_TimeEventManager::RemoveTimeProperty(EXP_Value *timeval)
 {
-  CM_ListRemoveIfFound(m_timevalues, timeval);
+  if (CM_ListRemoveIfFound(m_timevalues, timeval)) {
+    timeval->Release();
+  }
+}
+
+bool SCA_TimeEventManager::PersistenceContainsTimeProperty(const EXP_Value *timeval) const
+{
+  return std::find(m_timevalues.begin(), m_timevalues.end(), timeval) != m_timevalues.end();
+}
+
+bool SCA_TimeEventManager::PersistenceReserveTimeProperties(const size_t additional)
+{
+  if (additional > m_timevalues.max_size() - m_timevalues.size()) {
+    return false;
+  }
+  try {
+    m_timevalues.reserve(m_timevalues.size() + additional);
+    return true;
+  }
+  catch (...) {
+    return false;
+  }
+}
+
+bool SCA_TimeEventManager::PersistenceAttachPreparedTimeProperty(EXP_Value *timeval)
+{
+  if (timeval == nullptr || PersistenceContainsTimeProperty(timeval) ||
+      m_timevalues.size() == m_timevalues.capacity())
+  {
+    return false;
+  }
+  timeval->AddRef();
+  m_timevalues.push_back(timeval);
+  return true;
+}
+
+bool SCA_TimeEventManager::PersistenceDetachTimeProperty(EXP_Value *timeval)
+{
+  const auto found = std::find(m_timevalues.begin(), m_timevalues.end(), timeval);
+  if (found == m_timevalues.end()) {
+    return false;
+  }
+  m_timevalues.erase(found);
+  timeval->Release();
+  return true;
 }
 
 std::vector<EXP_Value *> SCA_TimeEventManager::GetTimeValues()

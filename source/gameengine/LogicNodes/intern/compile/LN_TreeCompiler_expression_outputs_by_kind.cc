@@ -98,6 +98,71 @@ static bool GetRigidBodyAttributeUsesAxisLocksOutput(const int attribute_type)
   return attribute_type == 11;
 }
 
+struct ConstraintBreakExpressionInputs {
+  uint32_t object_expr_index = LN_INVALID_INDEX;
+  uint32_t constraint_name_expr_index = LN_INVALID_INDEX;
+  uint32_t match_any_expr_index = LN_INVALID_INDEX;
+  LN_RigidBodyConstraintMatchMode match_mode = LN_RigidBodyConstraintMatchMode::Exact;
+};
+
+static std::optional<ConstraintBreakExpressionInputs> BuildConstraintBreakExpressionInputs(
+    LN_Program &program,
+    const blender::bNode &node,
+    const NodeDefinitionMap &node_definitions,
+    const InputLinkMap &input_links,
+    ValueCache &value_cache,
+    BoolExpressionCache &bool_expression_cache,
+    IntExpressionCache &int_expression_cache,
+    FloatExpressionCache &float_expression_cache,
+    StringExpressionCache &string_expression_cache,
+    VectorExpressionCache &vector_expression_cache,
+    ColorExpressionCache &color_expression_cache,
+    ValueExpressionCache &value_expression_cache)
+{
+  const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
+      program,
+      node,
+      "Object",
+      node_definitions,
+      input_links,
+      value_cache,
+      bool_expression_cache,
+      int_expression_cache,
+      float_expression_cache,
+      string_expression_cache,
+      vector_expression_cache,
+      color_expression_cache,
+      value_expression_cache);
+  const std::optional<uint32_t> constraint_name_expr = BuildInputStringExpression(
+      program,
+      node,
+      "Constraint Name",
+      node_definitions,
+      input_links,
+      value_cache,
+      string_expression_cache);
+  if (!constraint_name_expr) {
+    return std::nullopt;
+  }
+
+  ConstraintBreakExpressionInputs result;
+  result.object_expr_index = object_expr.value_or(LN_INVALID_INDEX);
+  result.constraint_name_expr_index = *constraint_name_expr;
+  result.match_mode = node.custom1 == int(LN_RigidBodyConstraintMatchMode::Contains) ?
+                          LN_RigidBodyConstraintMatchMode::Contains :
+                          LN_RigidBodyConstraintMatchMode::Exact;
+  result.match_any_expr_index = BuildInputBoolExpression(program,
+                                                          node,
+                                                          "Match Any",
+                                                          node_definitions,
+                                                          input_links,
+                                                          value_cache,
+                                                          float_expression_cache,
+                                                          bool_expression_cache)
+                                  .value_or(LN_INVALID_INDEX);
+  return result;
+}
+
 static const char *GetObjectTransformPositionAttributeName(const int attribute_type)
 {
   return attribute_type == 14 ? "localPosition" : "worldPosition";
@@ -130,35 +195,6 @@ static bool OutputSocketIsLinked(const blender::bNode &node,
     }
   }
   return false;
-}
-
-static std::optional<uint32_t> BuildOptionalFlowCondition(
-    LN_Program &program,
-    const blender::bNode &node,
-    const NodeDefinitionMap &node_definitions,
-    const InputLinkMap &input_links,
-    ValueCache &value_cache,
-    FloatExpressionCache &float_expression_cache,
-    BoolExpressionCache &bool_expression_cache)
-{
-  const blender::bNodeSocket *socket = FindInputSocket(node, "Flow");
-  if (socket == nullptr) {
-    return AddConstantBoolExpression(program, true);
-  }
-
-  const auto links_iter = input_links.find(socket);
-  if (links_iter == input_links.end() || links_iter->second.empty()) {
-    return AddConstantBoolExpression(program, true);
-  }
-
-  return BuildInputExecutionExpression(program,
-                                       node,
-                                       "Flow",
-                                       node_definitions,
-                                       input_links,
-                                       value_cache,
-                                       float_expression_cache,
-                                       bool_expression_cache);
 }
 
 static int CollisionOutputPayloadDetail(const blender::bNode &node,
@@ -216,7 +252,47 @@ static std::optional<uint32_t> BuildGetObjectAttributeAttributeExpression(
   return AddConstantStringExpression(program, GetObjectAttributeName(node.custom1));
 }
 
-std::optional<uint32_t> TryCompileExpressionBoolOutput(
+/** Animation Status reads one action layer of an object (empty Object: the owner). */
+static bool AnimationStatusInputs(LN_Program &program,
+                                  const blender::bNode &node,
+                                  const NodeDefinitionMap &node_definitions,
+                                  const InputLinkMap &input_links,
+                                  ValueCache &value_cache,
+                                  uint32_t &r_object,
+                                  uint32_t &r_layer)
+{
+  BoolExpressionCache bool_expression_cache;
+  IntExpressionCache int_expression_cache;
+  FloatExpressionCache float_expression_cache;
+  StringExpressionCache string_expression_cache;
+  VectorExpressionCache vector_expression_cache;
+  ColorExpressionCache color_expression_cache;
+  ValueExpressionCache value_expression_cache;
+  const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
+      program,
+      node,
+      "Object",
+      node_definitions,
+      input_links,
+      value_cache,
+      bool_expression_cache,
+      int_expression_cache,
+      float_expression_cache,
+      string_expression_cache,
+      vector_expression_cache,
+      color_expression_cache,
+      value_expression_cache);
+  const std::optional<uint32_t> layer_expr = BuildInputIntExpression(
+      program, node, "Layer", node_definitions, input_links, value_cache, int_expression_cache);
+  if (!layer_expr) {
+    return false;
+  }
+  r_object = object_expr.value_or(LN_INVALID_INDEX);
+  r_layer = *layer_expr;
+  return true;
+}
+
+static std::optional<uint32_t> TryCompileExpressionBoolOutput(
     LN_Program &program,
     const blender::bNode &node,
     const blender::bNodeSocket &output_socket,
@@ -241,7 +317,42 @@ std::optional<uint32_t> TryCompileExpressionBoolOutput(
   }
 
   const LN_NodeDefinition &definition = *definition_iter->second;
-    switch (definition.kind) {
+  switch (definition.kind) {
+case LN_NodeKind::OnConstraintBreak:
+      r_handled = true;
+      {
+      if (!NamesMatch(output_socket.name, output_socket.identifier, "Broken")) {
+        break;
+      }
+      IntExpressionCache int_expression_cache;
+      StringExpressionCache string_expression_cache;
+      VectorExpressionCache vector_expression_cache;
+      ColorExpressionCache color_expression_cache;
+      ValueExpressionCache value_expression_cache;
+      if (const std::optional<ConstraintBreakExpressionInputs> inputs =
+              BuildConstraintBreakExpressionInputs(program,
+                                                   node,
+                                                   node_definitions,
+                                                   input_links,
+                                                   value_cache,
+                                                   bool_expression_cache,
+                                                   int_expression_cache,
+                                                   float_expression_cache,
+                                                   string_expression_cache,
+                                                   vector_expression_cache,
+                                                   color_expression_cache,
+                                                   value_expression_cache))
+      {
+        LN_BoolExpression expression;
+        expression.kind = LN_BoolExpressionKind::ConstraintBreak;
+        expression.input0 = inputs->object_expr_index;
+        expression.input1 = inputs->constraint_name_expr_index;
+        expression.input2 = inputs->match_any_expr_index;
+        expression.rigid_body_constraint_match_mode = inputs->match_mode;
+        result = program.AddBoolExpression(expression);
+      }
+      break;
+    }
 case LN_NodeKind::GetGamePropertyBool:
       r_handled = true;
       {
@@ -355,6 +466,9 @@ case LN_NodeKind::GetGamePropertyBool:
         expression.property_ref_index = property_ref_index;
         result = program.AddBoolExpression(expression);
       }
+      else if (name && name->type == LN_ValueType::String) {
+        result = AddConstantBoolExpression(program, false);
+      }
       break;
     }case LN_NodeKind::GetTreeProperty:
       r_handled = true;
@@ -379,11 +493,9 @@ case LN_NodeKind::GetGamePropertyBool:
         result = program.AddBoolExpression(expression);
       }
       break;
-    }case LN_NodeKind::IsNone:
-      r_handled = true;
-      case LN_NodeKind::NotNone:
-      r_handled = true;
-      {
+    }
+    case LN_NodeKind::IsNone:
+    case LN_NodeKind::NotNone: {
       r_handled = true;
       IntExpressionCache int_expression_cache;
       StringExpressionCache string_expression_cache;
@@ -424,7 +536,13 @@ case LN_NodeKind::GetGamePropertyBool:
       const bool wants_active = NamesMatch(output_socket.name,
                                            output_socket.identifier,
                                            "Active");
-      if (!wants_pulse && !wants_active) {
+      const bool wants_pressed = NamesMatch(output_socket.name,
+                                            output_socket.identifier,
+                                            "Pressed");
+      const bool wants_released = NamesMatch(output_socket.name,
+                                             output_socket.identifier,
+                                             "Released");
+      if (!wants_pulse && !wants_active && !wants_pressed && !wants_released) {
         break;
       }
       const std::optional<LN_Value> input_name = ReadInputValue(node,
@@ -445,8 +563,11 @@ case LN_NodeKind::GetGamePropertyBool:
         expression.kind = LN_BoolExpressionKind::InputStatus;
         expression.int_value = int32_t(input_code);
         expression.secondary_int_value = wants_active ? SCA_InputEvent::ACTIVE :
-                                                        MouseInputStatusFromCustom(node.custom1);
+                                         wants_pressed ? SCA_InputEvent::JUSTACTIVATED :
+                                         wants_released ? SCA_InputEvent::JUSTRELEASED :
+                                                          MouseInputStatusFromCustom(node.custom1);
         expression.string_value = normalized_name;
+        expression.bool_value = (node.custom1 & blender::LOGIC_NODE_INPUT_ALSO_UI) != 0;
         result = program.AddBoolExpression(expression);
       }
       break;
@@ -461,7 +582,13 @@ case LN_NodeKind::GetGamePropertyBool:
       const bool wants_active = NamesMatch(output_socket.name,
                                            output_socket.identifier,
                                            "Active");
-      if (!wants_pulse && !wants_active) {
+      const bool wants_pressed = NamesMatch(output_socket.name,
+                                            output_socket.identifier,
+                                            "Pressed");
+      const bool wants_released = NamesMatch(output_socket.name,
+                                             output_socket.identifier,
+                                             "Released");
+      if (!wants_pulse && !wants_active && !wants_pressed && !wants_released) {
         break;
       }
       std::string button_name;
@@ -492,8 +619,11 @@ case LN_NodeKind::GetGamePropertyBool:
         expression.kind = LN_BoolExpressionKind::InputStatus;
         expression.int_value = int32_t(input_code);
         expression.secondary_int_value = wants_active ? SCA_InputEvent::ACTIVE :
-                                                        MouseInputStatusFromCustom(node.custom1);
+                                         wants_pressed ? SCA_InputEvent::JUSTACTIVATED :
+                                         wants_released ? SCA_InputEvent::JUSTRELEASED :
+                                                          MouseInputStatusFromCustom(node.custom1);
         expression.string_value = button_name;
+        expression.bool_value = (node.custom1 & blender::LOGIC_NODE_INPUT_ALSO_UI) != 0;
         result = program.AddBoolExpression(expression);
       }
       break;
@@ -521,7 +651,8 @@ case LN_NodeKind::GetGamePropertyBool:
       if (NamesMatch(output_socket.name, output_socket.identifier, "When Scrolled")) {
         LN_BoolExpression expression;
         expression.kind = LN_BoolExpressionKind::MouseWheelMoved;
-        expression.int_value = int32_t(node.custom1) + 1;
+        expression.int_value = int32_t(node.custom1 & blender::LOGIC_NODE_INPUT_MODE_MASK) + 1;
+        expression.bool_value = (node.custom1 & blender::LOGIC_NODE_INPUT_ALSO_UI) != 0;
         result = program.AddBoolExpression(expression);
       }
       break;
@@ -530,25 +661,53 @@ case LN_NodeKind::GetGamePropertyBool:
       {
       r_handled = true;
       if (NamesMatch(output_socket.name, output_socket.identifier, "Pressed")) {
-        bool only_characters = true;
-        const std::optional<LN_Value> only_chars = ReadInputValue(node,
-                                                                  "Only Characters",
-                                                                  LN_ValueType::Bool,
-                                                                  node_definitions,
-                                                                  input_links,
-                                                                  value_cache);
-        if (only_chars && only_chars->type == LN_ValueType::Bool) {
-          only_characters = only_chars->bool_value;
+        const auto pressed = [&](const bool only_characters) {
+          LN_BoolExpression expression;
+          expression.kind = LN_BoolExpressionKind::KeyLoggerPressed;
+          expression.bool_value = only_characters;
+          return program.AddBoolExpression(expression);
+        };
+        const auto combine = [&](const LN_BoolExpressionKind kind,
+                                 const uint32_t a,
+                                 const uint32_t b) {
+          LN_BoolExpression expression;
+          expression.kind = kind;
+          expression.input0 = a;
+          expression.input1 = b;
+          return program.AddBoolExpression(expression);
+        };
+        /* A linked Only Characters is read while the game runs. */
+        std::optional<uint32_t> only;
+        if (IsInputSocketLinked(node, "Only Characters", input_links)) {
+          only = BuildInputBoolExpression(program,
+                                          node,
+                                          "Only Characters",
+                                          node_definitions,
+                                          input_links,
+                                          value_cache,
+                                          float_expression_cache,
+                                          bool_expression_cache);
         }
-        LN_BoolExpression expression;
-        expression.kind = LN_BoolExpressionKind::KeyLoggerPressed;
-        expression.bool_value = only_characters;
-        result = program.AddBoolExpression(expression);
+        if (only) {
+          const uint32_t not_only = combine(LN_BoolExpressionKind::Not, *only, LN_INVALID_INDEX);
+          result = combine(LN_BoolExpressionKind::Or,
+                           combine(LN_BoolExpressionKind::And, *only, pressed(true)),
+                           combine(LN_BoolExpressionKind::And, not_only, pressed(false)));
+        }
+        else {
+          const std::optional<LN_Value> only_chars = ReadInputValue(node,
+                                                                    "Only Characters",
+                                                                    LN_ValueType::Bool,
+                                                                    node_definitions,
+                                                                    input_links,
+                                                                    value_cache);
+          result = pressed(!only_chars || only_chars->type != LN_ValueType::Bool ||
+                           only_chars->bool_value);
+        }
       }
       break;
-    }case LN_NodeKind::MouseOver:
-      r_handled = true;
-      {
+    }
+    case LN_NodeKind::MouseOver: {
       r_handled = true;
       BoolExpressionCache bool_expression_cache_local;
       const std::optional<uint32_t> query_expr = BuildMouseOverQueryExpression(program,
@@ -771,88 +930,21 @@ case LN_NodeKind::GetGamePropertyBool:
         }
         result = program.AddBoolExpression(expression);
       }
-      else if (NamesMatch(output_socket.name, output_socket.identifier, "Content")) {
-        LN_ValueExpression expression;
-        expression.kind = LN_ValueExpressionKind::EventContent;
-        expression.input0 = *subject_expr;
-        expression.value.exists = true;
-        expression.value.bool_value = use_target;
-        if (use_target && target_expr) {
-          expression.input1 = *target_expr;
-        }
-        result = program.AddValueExpression(expression);
-      }
-      else if (NamesMatch(output_socket.name, output_socket.identifier, "Messenger")) {
-        LN_ValueExpression expression;
-        expression.kind = LN_ValueExpressionKind::EventMessenger;
-        expression.input0 = *subject_expr;
-        expression.value.exists = true;
-        expression.value.bool_value = use_target;
-        if (use_target && target_expr) {
-          expression.input1 = *target_expr;
-        }
-        result = program.AddValueExpression(expression);
-      }
       break;
     }case LN_NodeKind::AnimationStatus:
       r_handled = true;
       {
-      r_handled = true;
-      IntExpressionCache int_expression_cache;
-      StringExpressionCache string_expression_cache;
-      VectorExpressionCache vector_expression_cache;
-      ColorExpressionCache color_expression_cache;
-      ValueExpressionCache value_expression_cache;
-      const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
-          program,
-          node,
-          "Object",
-          node_definitions,
-          input_links,
-          value_cache,
-          bool_expression_cache,
-          int_expression_cache,
-          float_expression_cache,
-          string_expression_cache,
-          vector_expression_cache,
-          color_expression_cache,
-          value_expression_cache);
-      const std::optional<uint32_t> layer_expr = BuildInputIntExpression(program,
-                                                                         node,
-                                                                         "Layer",
-                                                                         node_definitions,
-                                                                         input_links,
-                                                                         value_cache,
-                                                                         int_expression_cache);
-      if (!layer_expr) {
-        break;
-      }
-      if (NamesMatch(output_socket.name, output_socket.identifier, "Is Playing")) {
+      uint32_t object_expr = LN_INVALID_INDEX;
+      uint32_t layer_expr = LN_INVALID_INDEX;
+      if (NamesMatch(output_socket.name, output_socket.identifier, "Is Playing") &&
+          AnimationStatusInputs(
+              program, node, node_definitions, input_links, value_cache, object_expr, layer_expr))
+      {
         LN_BoolExpression expression;
         expression.kind = LN_BoolExpressionKind::AnimationPlaying;
-        if (object_expr) {
-          expression.input0 = *object_expr;
-        }
-        expression.int_expr_index = *layer_expr;
+        expression.input0 = object_expr;
+        expression.int_expr_index = layer_expr;
         result = program.AddBoolExpression(expression);
-      }
-      else if (NamesMatch(output_socket.name, output_socket.identifier, "Action Name")) {
-        LN_StringExpression expression;
-        expression.kind = LN_StringExpressionKind::AnimationActionName;
-        if (object_expr) {
-          expression.input0 = *object_expr;
-        }
-        expression.int_expr_index = *layer_expr;
-        result = program.AddStringExpression(expression);
-      }
-      else if (NamesMatch(output_socket.name, output_socket.identifier, "Action Frame")) {
-        LN_FloatExpression expression;
-        expression.kind = LN_FloatExpressionKind::AnimationFrame;
-        if (object_expr) {
-          expression.input0 = *object_expr;
-        }
-        expression.input1 = *layer_expr;
-        result = program.AddFloatExpression(expression);
       }
       break;
     }case LN_NodeKind::Collision:
@@ -865,7 +957,7 @@ case LN_NodeKind::GetGamePropertyBool:
       VectorExpressionCache vector_expression_cache;
       ColorExpressionCache color_expression_cache;
       ValueExpressionCache value_expression_cache;
-      const std::optional<uint32_t> object_expr = BuildInputValueExpression(program,
+      const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(program,
                                                                             node,
                                                                             "Object",
                                                                             node_definitions,
@@ -1144,9 +1236,20 @@ case LN_NodeKind::GetGamePropertyBool:
       r_handled = true;
       {
       r_handled = true;
-      if (!NamesMatch(output_socket.name, output_socket.identifier, "Out") &&
-          !NamesMatch(output_socket.name, output_socket.identifier, "Pressed"))
-      {
+      const bool wants_trigger = NamesMatch(output_socket.name, output_socket.identifier, "Out") ||
+                                 NamesMatch(output_socket.name,
+                                            output_socket.identifier,
+                                            "Triggered");
+      const bool wants_active = NamesMatch(output_socket.name,
+                                           output_socket.identifier,
+                                           "Active");
+      const bool wants_pressed = NamesMatch(output_socket.name,
+                                            output_socket.identifier,
+                                            "Pressed");
+      const bool wants_released = NamesMatch(output_socket.name,
+                                             output_socket.identifier,
+                                             "Released");
+      if (!wants_trigger && !wants_active && !wants_pressed && !wants_released) {
         break;
       }
       IntExpressionCache int_expression_cache;
@@ -1165,9 +1268,16 @@ case LN_NodeKind::GetGamePropertyBool:
         expression.input0 = *index_expr;
         expression.int_value = target.index;
         expression.bool_value = target.is_trigger;
+        /* secondary_int_value: also what the UI used. */
+        expression.secondary_int_value = (node.custom1 & blender::LOGIC_NODE_INPUT_ALSO_UI) != 0 ?
+                                             1 :
+                                             0;
         LN_IntExpression input_type_expr;
         input_type_expr.kind = LN_IntExpressionKind::Constant;
-        input_type_expr.int_value = MouseInputStatusFromCustom(node.custom1);
+        input_type_expr.int_value = wants_active ? SCA_InputEvent::ACTIVE :
+                                    wants_pressed ? SCA_InputEvent::JUSTACTIVATED :
+                                    wants_released ? SCA_InputEvent::JUSTRELEASED :
+                                                     MouseInputStatusFromCustom(node.custom1);
         expression.int_expr_index = program.AddIntExpression(input_type_expr);
         result = program.AddBoolExpression(expression);
       }
@@ -1268,7 +1378,35 @@ case LN_NodeKind::GetGamePropertyBool:
         result = program.AddBoolExpression(expression);
       }
       break;
-    }case LN_NodeKind::ShapeCast:
+    }
+    case LN_NodeKind::RaycastFromMesh:
+      r_handled = true;
+      {
+      const bool done = NamesMatch(output_socket.name, output_socket.identifier, "Done");
+      const bool any_hit = NamesMatch(output_socket.name, output_socket.identifier, "Any Hit");
+      const bool all_hit = NamesMatch(output_socket.name, output_socket.identifier, "All Hit");
+      if (!done && !any_hit && !all_hit) {
+        break;
+      }
+      const std::optional<uint32_t> query_expr = BuildRaycastFromMeshQueryExpression(
+          program,
+          node,
+          node_definitions,
+          input_links,
+          value_cache,
+          float_expression_cache,
+          bool_expression_cache);
+      if (query_expr) {
+        LN_BoolExpression expression;
+        expression.kind = done ? LN_BoolExpressionKind::PhysicsQueryDone :
+                          all_hit ? LN_BoolExpressionKind::PhysicsQueryAllHit :
+                                    LN_BoolExpressionKind::PhysicsQueryHit;
+        expression.input0 = *query_expr;
+        result = program.AddBoolExpression(expression);
+      }
+      break;
+    }
+    case LN_NodeKind::ShapeCast:
       r_handled = true;
       {
       const bool done = NamesMatch(output_socket.name, output_socket.identifier, "Done");
@@ -1303,7 +1441,8 @@ case LN_NodeKind::GetGamePropertyBool:
         result = program.AddBoolExpression(expression);
       }
       break;
-    }case LN_NodeKind::ShapeCastAll:
+    }
+    case LN_NodeKind::ShapeCastAll:
       r_handled = true;
       {
       const bool done = NamesMatch(output_socket.name, output_socket.identifier, "Done");
@@ -1361,100 +1500,125 @@ case LN_NodeKind::GetGamePropertyBool:
         result = program.AddBoolExpression(expression);
       }
       break;
+    }case LN_NodeKind::Compare:
+      r_handled = true;
+      {
+      /* Constant inputs fold earlier; this compares values that change while the game runs. */
+      const std::optional<LN_FloatCompareOperation> operation = FloatCompareOperationFromCustom1(
+          node.custom1);
+      const std::optional<uint32_t> a = BuildInputFloatExpression(
+          program, node, "A", node_definitions, input_links, value_cache, float_expression_cache);
+      const std::optional<uint32_t> b = BuildInputFloatExpression(
+          program, node, "B", node_definitions, input_links, value_cache, float_expression_cache);
+      if (operation && a && b) {
+        result = AddFloatCompareBoolExpression(program, *a, *b, *operation);
+      }
+      break;
+    }case LN_NodeKind::WithinRange:
+      r_handled = true;
+      {
+      /* Constant inputs fold earlier; this checks values that change while the game runs.
+       * Inside: Min < Value < Max. Outside: Value < Min or Value > Max. */
+      const std::optional<LN_RangeOperation> operation = RangeOperationFromCustom1(node.custom1);
+      const std::optional<uint32_t> value = BuildInputFloatExpression(
+          program, node, "Value", node_definitions, input_links, value_cache, float_expression_cache);
+      const std::optional<uint32_t> min_value = BuildInputFloatExpression(
+          program, node, "Min", node_definitions, input_links, value_cache, float_expression_cache);
+      const std::optional<uint32_t> max_value = BuildInputFloatExpression(
+          program, node, "Max", node_definitions, input_links, value_cache, float_expression_cache);
+      if (operation && value && min_value && max_value) {
+        const bool inside = *operation == LN_RangeOperation::Inside;
+        LN_BoolExpression expression;
+        expression.kind = inside ? LN_BoolExpressionKind::And : LN_BoolExpressionKind::Or;
+        expression.input0 = inside ? AddFloatCompareBoolExpression(
+                                         program, *min_value, *value, LN_FloatCompareOperation::LessThan) :
+                                     AddFloatCompareBoolExpression(
+                                         program, *value, *min_value, LN_FloatCompareOperation::LessThan);
+        expression.input1 = AddFloatCompareBoolExpression(
+            program,
+            *value,
+            *max_value,
+            inside ? LN_FloatCompareOperation::LessThan : LN_FloatCompareOperation::GreaterThan);
+        result = program.AddBoolExpression(expression);
+      }
+      break;
     }case LN_NodeKind::Gate:
       r_handled = true;
       {
-      r_handled = true;
-      const std::optional<uint32_t> input0 = BuildInputBoolExpression(program,
-                                                                      node,
-                                                                      "Condition A",
-                                                                      node_definitions,
-                                                                      input_links,
-                                                                      value_cache,
-                                                                      float_expression_cache,
-                                                                      bool_expression_cache);
-      if (!input0) {
+      const blender::bNodeSocket *conditions = FindInputSocket(node, "Conditions");
+      if (conditions == nullptr) {
         break;
       }
 
-      if (node.custom1 == 3) {
-        result = AddNotBoolExpression(program, *input0);
-        break;
-      }
-
-      const std::optional<uint32_t> input1 = BuildInputBoolExpression(program,
-                                                                      node,
-                                                                      "Condition B",
-                                                                      node_definitions,
-                                                                      input_links,
-                                                                      value_cache,
-                                                                      float_expression_cache,
-                                                                      bool_expression_cache);
-      if (input1) {
-        result = AddLogicGateBoolExpression(program, node.custom1, *input0, *input1);
-      }
-      break;
-    }case LN_NodeKind::GateList:
-      r_handled = true;
-      {
-      r_handled = true;
-      const std::optional<uint32_t> input0 = BuildInputBoolExpression(program,
-                                                                      node,
-                                                                      "Condition A",
-                                                                      node_definitions,
-                                                                      input_links,
-                                                                      value_cache,
-                                                                      float_expression_cache,
-                                                                      bool_expression_cache);
-      if (!input0) {
-        break;
-      }
-
-      if (node.custom1 == 3) {
-        result = AddNotBoolExpression(program, *input0);
-        break;
-      }
-
-      result = input0;
-      const char *input_names[] = {"Condition B", "Condition C", "Condition D"};
-      for (const char *input_name : input_names) {
-        const std::optional<uint32_t> next = BuildInputBoolExpression(program,
-                                                                      node,
-                                                                      input_name,
-                                                                      node_definitions,
-                                                                      input_links,
-                                                                      value_cache,
-                                                                      float_expression_cache,
-                                                                      bool_expression_cache);
-        if (!next) {
-          result.reset();
+      std::vector<uint32_t> inputs;
+      const auto links_iter = input_links.find(conditions);
+      if (links_iter != input_links.end() && !links_iter->second.empty()) {
+        if (links_iter->second.size() > LN_MAX_DYNAMIC_SOCKET_COUNT) {
           break;
         }
-        result = AddLogicGateBoolExpression(program, node.custom1, *result, *next);
-        if (!result) {
-          break;
+        inputs.reserve(links_iter->second.size());
+        for (const ResolvedLink &link : links_iter->second) {
+          if (link.fromnode == nullptr || link.fromsock == nullptr) {
+            inputs.clear();
+            break;
+          }
+          const std::optional<uint32_t> input = BuildOutputBoolExpression(
+              program,
+              *link.fromnode,
+              *link.fromsock,
+              node_definitions,
+              input_links,
+              value_cache,
+              float_expression_cache,
+              bool_expression_cache);
+          if (!input) {
+            inputs.clear();
+            break;
+          }
+          inputs.push_back(*input);
         }
       }
+      else {
+        const std::optional<uint32_t> input = BuildInputBoolExpression(program,
+                                                                       node,
+                                                                       "Conditions",
+                                                                       node_definitions,
+                                                                       input_links,
+                                                                       value_cache,
+                                                                       float_expression_cache,
+                                                                       bool_expression_cache);
+        if (input) {
+          inputs.push_back(*input);
+        }
+      }
+
+      if (!inputs.empty()) {
+        result = AddLogicGateBoolExpression(program, node.custom1, inputs);
+      }
       break;
-    }case LN_NodeKind::OnNextFrame:
+    }case LN_NodeKind::OnPlayerJoin:
       r_handled = true;
       {
-      r_handled = true;
-      const std::optional<uint32_t> condition =
-          BuildPrimaryExecutionExpression(program,
-                                                            node,
-                                                            definition,
-                                                            node_definitions,
-                                                            input_links,
-                                                            value_cache,
-                                                            float_expression_cache,
-                                                            bool_expression_cache);
-      if (condition) {
+      if (NamesMatch(output_socket.name, output_socket.identifier, "Out")) {
         LN_BoolExpression expression;
-        expression.kind = LN_BoolExpressionKind::OnNextTick;
-        expression.input0 = *condition;
+        expression.kind = LN_BoolExpressionKind::PlayerJoinPulse;
         result = program.AddBoolExpression(expression);
       }
+      break;
+    }case LN_NodeKind::OnGameLoaded:
+      r_handled = true;
+      {
+      LN_BoolExpression expression;
+      if (NamesMatch(output_socket.name, output_socket.identifier, "Out")) {
+        expression.kind = LN_BoolExpressionKind::GameLoadPulse;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Success")) {
+        expression.kind = LN_BoolExpressionKind::GameLoadSucceeded;
+      }
+      else {
+        break;
+      }
+      result = program.AddBoolExpression(expression);
       break;
     }case LN_NodeKind::ValueChanged:
       r_handled = true;
@@ -1550,7 +1714,7 @@ case LN_NodeKind::GetGamePropertyBool:
   return result;
 }
 
-std::optional<uint32_t> TryCompileExpressionIntOutput(
+static std::optional<uint32_t> TryCompileExpressionIntOutput(
     LN_Program &program,
     const blender::bNode &node,
     const blender::bNodeSocket &output_socket,
@@ -1581,6 +1745,60 @@ std::optional<uint32_t> TryCompileExpressionIntOutput(
 
   const LN_NodeDefinition &definition = *definition_iter->second;
     switch (definition.kind) {
+case LN_NodeKind::OnConstraintBreak:
+      r_handled = true;
+      {
+      if (!NamesMatch(output_socket.name, output_socket.identifier, "Break Count")) {
+        break;
+      }
+      BoolExpressionCache local_bool_expression_cache;
+      FloatExpressionCache local_float_expression_cache;
+      StringExpressionCache local_string_expression_cache;
+      VectorExpressionCache local_vector_expression_cache;
+      ColorExpressionCache local_color_expression_cache;
+      ValueExpressionCache local_value_expression_cache;
+      BoolExpressionCache &constraint_break_bool_cache = bool_expression_cache ?
+                                                            *bool_expression_cache :
+                                                            local_bool_expression_cache;
+      FloatExpressionCache &constraint_break_float_cache = float_expression_cache ?
+                                                               *float_expression_cache :
+                                                               local_float_expression_cache;
+      StringExpressionCache &constraint_break_string_cache = string_expression_cache ?
+                                                                   *string_expression_cache :
+                                                                   local_string_expression_cache;
+      VectorExpressionCache &constraint_break_vector_cache = vector_expression_cache ?
+                                                                   *vector_expression_cache :
+                                                                   local_vector_expression_cache;
+      ColorExpressionCache &constraint_break_color_cache = color_expression_cache ?
+                                                                 *color_expression_cache :
+                                                                 local_color_expression_cache;
+      ValueExpressionCache &constraint_break_value_cache = value_expression_cache ?
+                                                                 *value_expression_cache :
+                                                                 local_value_expression_cache;
+      if (const std::optional<ConstraintBreakExpressionInputs> inputs =
+              BuildConstraintBreakExpressionInputs(program,
+                                                   node,
+                                                   node_definitions,
+                                                   input_links,
+                                                   value_cache,
+                                                   constraint_break_bool_cache,
+                                                   int_expression_cache,
+                                                   constraint_break_float_cache,
+                                                   constraint_break_string_cache,
+                                                   constraint_break_vector_cache,
+                                                   constraint_break_color_cache,
+                                                   constraint_break_value_cache))
+      {
+        LN_IntExpression expression;
+        expression.kind = LN_IntExpressionKind::ConstraintBreakCount;
+        expression.input0 = inputs->object_expr_index;
+        expression.input1 = inputs->constraint_name_expr_index;
+        expression.input2 = inputs->match_any_expr_index;
+        expression.rigid_body_constraint_match_mode = inputs->match_mode;
+        result = program.AddIntExpression(expression);
+      }
+      break;
+    }
 case LN_NodeKind::GetGamePropertyInt:
       r_handled = true;
       {
@@ -1740,6 +1958,19 @@ case LN_NodeKind::GetGamePropertyInt:
       }
       result = program.AddIntExpression(expression);
       break;
+    }case LN_NodeKind::OnPlayerJoin:
+      r_handled = true;
+      {
+      LN_IntExpression expression;
+      if (NamesMatch(output_socket.name, output_socket.identifier, "User")) {
+        expression.kind = LN_IntExpressionKind::PlayerJoinUser;
+        result = program.AddIntExpression(expression);
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Gamepad")) {
+        expression.kind = LN_IntExpressionKind::PlayerJoinGamepad;
+        result = program.AddIntExpression(expression);
+      }
+      break;
     }case LN_NodeKind::GetResolution:
       r_handled = true;
       {
@@ -1785,32 +2016,9 @@ case LN_NodeKind::GetGamePropertyInt:
       if (NamesMatch(output_socket.name, output_socket.identifier, "Difference")) {
         LN_IntExpression expression;
         expression.kind = LN_IntExpressionKind::MouseWheelDelta;
+        /* int_value: also what the UI used. */
+        expression.int_value = (node.custom1 & blender::LOGIC_NODE_INPUT_ALSO_UI) != 0 ? 1 : 0;
         result = program.AddIntExpression(expression);
-      }
-      break;
-    }case LN_NodeKind::KeyLogger:
-      r_handled = true;
-      {
-      r_handled = true;
-      bool only_characters = true;
-      const std::optional<LN_Value> only_chars = ReadInputValue(node,
-                                                                "Only Characters",
-                                                                LN_ValueType::Bool,
-                                                                node_definitions,
-                                                                input_links,
-                                                                value_cache);
-      if (only_chars && only_chars->type == LN_ValueType::Bool) {
-        only_characters = only_chars->bool_value;
-      }
-      LN_StringExpression expression;
-      expression.int_expr_index = AddConstantIntExpression(program, only_characters ? 1 : 0);
-      if (NamesMatch(output_socket.name, output_socket.identifier, "Character")) {
-        expression.kind = LN_StringExpressionKind::KeyLoggerCharacter;
-        result = program.AddStringExpression(expression);
-      }
-      else if (NamesMatch(output_socket.name, output_socket.identifier, "Keycode")) {
-        expression.kind = LN_StringExpressionKind::KeyLoggerKeycode;
-        result = program.AddStringExpression(expression);
       }
       break;
     }case LN_NodeKind::Raycast:
@@ -1865,7 +2073,38 @@ case LN_NodeKind::GetGamePropertyInt:
         result = program.AddIntExpression(expression);
       }
       break;
-    }case LN_NodeKind::ShapeCastAll:
+    }
+    case LN_NodeKind::RaycastFromMesh:
+      r_handled = true;
+      {
+      const bool hit_count = NamesMatch(output_socket.name, output_socket.identifier, "Hit Count");
+      const bool ray_count = NamesMatch(output_socket.name, output_socket.identifier, "Ray Count");
+      if (!hit_count && !ray_count) {
+        break;
+      }
+      BoolExpressionCache bool_cache;
+      FloatExpressionCache local_float_cache;
+      FloatExpressionCache &ray_float_cache = float_expression_cache ?
+                                                   *float_expression_cache :
+                                                   local_float_cache;
+      const std::optional<uint32_t> query_expr = BuildRaycastFromMeshQueryExpression(
+          program,
+          node,
+          node_definitions,
+          input_links,
+          value_cache,
+          ray_float_cache,
+          bool_cache);
+      if (query_expr) {
+        LN_IntExpression expression;
+        expression.kind = ray_count ? LN_IntExpressionKind::PhysicsQueryRayCount :
+                                      LN_IntExpressionKind::PhysicsQueryHitCount;
+        expression.input0 = *query_expr;
+        result = program.AddIntExpression(expression);
+      }
+      break;
+    }
+    case LN_NodeKind::ShapeCastAll:
       r_handled = true;
       {
       if (!NamesMatch(output_socket.name, output_socket.identifier, "Hit Count")) {
@@ -1891,7 +2130,8 @@ case LN_NodeKind::GetGamePropertyInt:
         result = program.AddIntExpression(expression);
       }
       break;
-    }case LN_NodeKind::ShapeCast:
+    }
+    case LN_NodeKind::ShapeCast:
       r_handled = true;
       {
       if (!NamesMatch(output_socket.name, output_socket.identifier, "Face Index")) {
@@ -1918,7 +2158,8 @@ case LN_NodeKind::GetGamePropertyInt:
         result = program.AddIntExpression(expression);
       }
       break;
-    }    default:
+    }
+    default:
       break;
   }
 
@@ -1928,7 +2169,7 @@ case LN_NodeKind::GetGamePropertyInt:
   return result;
 }
 
-std::optional<uint32_t> TryCompileExpressionFloatOutput(
+static std::optional<uint32_t> TryCompileExpressionFloatOutput(
     LN_Program &program,
     const blender::bNode &node,
     const blender::bNodeSocket &output_socket,
@@ -1958,7 +2199,80 @@ std::optional<uint32_t> TryCompileExpressionFloatOutput(
   }
 
   const LN_NodeDefinition &definition = *definition_iter->second;
-    switch (definition.kind) {
+  switch (definition.kind) {
+    case LN_NodeKind::AnimationStatus: {
+      r_handled = true;
+      uint32_t object_expr = LN_INVALID_INDEX;
+      uint32_t layer_expr = LN_INVALID_INDEX;
+      if (NamesMatch(output_socket.name, output_socket.identifier, "Action Frame") &&
+          AnimationStatusInputs(
+              program, node, node_definitions, input_links, value_cache, object_expr, layer_expr))
+      {
+        LN_FloatExpression expression;
+        expression.kind = LN_FloatExpressionKind::AnimationFrame;
+        expression.input0 = object_expr;
+        expression.input1 = layer_expr;
+        result = program.AddFloatExpression(expression);
+      }
+      break;
+    }
+    case LN_NodeKind::WhilePaused: {
+      r_handled = true;
+      if (NamesMatch(output_socket.name, output_socket.identifier, "Delta Time")) {
+        LN_FloatExpression expression;
+        expression.kind = LN_FloatExpressionKind::UnscaledDeltaTime;
+        result = program.AddFloatExpression(expression);
+      }
+      break;
+    }
+    case LN_NodeKind::OnConstraintBreak:
+      r_handled = true;
+      {
+      LN_FloatExpressionKind kind = LN_FloatExpressionKind::ConstraintBreakAppliedImpulse;
+      if (NamesMatch(output_socket.name, output_socket.identifier, "Linear Impulse")) {
+        kind = LN_FloatExpressionKind::ConstraintBreakLinearImpulse;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Angular Impulse")) {
+        kind = LN_FloatExpressionKind::ConstraintBreakAngularImpulse;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Applied Impulse")) {
+        kind = LN_FloatExpressionKind::ConstraintBreakAppliedImpulse;
+      }
+      else {
+        break;
+      }
+      BoolExpressionCache local_bool_expression_cache;
+      BoolExpressionCache &break_bool_expression_cache = bool_expression_cache ?
+                                                           *bool_expression_cache :
+                                                           local_bool_expression_cache;
+      IntExpressionCache int_expression_cache;
+      StringExpressionCache string_expression_cache;
+      ColorExpressionCache color_expression_cache;
+      ValueExpressionCache value_expression_cache;
+      if (const std::optional<ConstraintBreakExpressionInputs> inputs =
+              BuildConstraintBreakExpressionInputs(program,
+                                                   node,
+                                                   node_definitions,
+                                                   input_links,
+                                                   value_cache,
+                                                   break_bool_expression_cache,
+                                                   int_expression_cache,
+                                                   float_expression_cache,
+                                                   string_expression_cache,
+                                                   vector_cache,
+                                                   color_expression_cache,
+                                                   value_expression_cache))
+      {
+        LN_FloatExpression expression;
+        expression.kind = kind;
+        expression.input0 = inputs->object_expr_index;
+        expression.input1 = inputs->constraint_name_expr_index;
+        expression.input2 = inputs->match_any_expr_index;
+        expression.rigid_body_constraint_match_mode = inputs->match_mode;
+        result = program.AddFloatExpression(expression);
+      }
+      break;
+    }
 case LN_NodeKind::LimitRange:
       r_handled = true;
       {
@@ -2170,7 +2484,8 @@ case LN_NodeKind::LimitRange:
       }
       if (name && name->type == LN_ValueType::String && !name->string_value.empty()) {
         const uint32_t property_ref_index = AddTreePropertyRef(
-            program, name->string_value, LN_ValueType::Float, MakeDefaultValue(LN_ValueType::Float));
+            program, name->string_value, LN_ValueType::Generic,
+            MakeDefaultValue(LN_ValueType::Generic));
         LN_FloatExpression expression;
         expression.kind = LN_FloatExpressionKind::RuntimeTreeProperty;
         expression.property_ref_index = property_ref_index;
@@ -2355,12 +2670,8 @@ case LN_NodeKind::LimitRange:
       break;
     }
     case LN_NodeKind::CursorPosition:
-      r_handled = true;
-      case LN_NodeKind::CursorMovement:
-      r_handled = true;
-      case LN_NodeKind::GamepadStick:
-      r_handled = true;
-      {
+    case LN_NodeKind::CursorMovement:
+    case LN_NodeKind::GamepadStick: {
       r_handled = true;
       const char *vector_socket_name = "Vector";
       if (definition.kind == LN_NodeKind::CursorPosition) {
@@ -2446,7 +2757,8 @@ case LN_NodeKind::LimitRange:
         result = program.AddFloatExpression(expression);
       }
       break;
-    }case LN_NodeKind::ShapeCast:
+    }
+    case LN_NodeKind::ShapeCast:
       r_handled = true;
       {
       const bool distance = NamesMatch(output_socket.name, output_socket.identifier, "Distance");
@@ -2485,7 +2797,7 @@ case LN_NodeKind::LimitRange:
   return result;
 }
 
-std::optional<uint32_t> TryCompileExpressionStringOutput(
+static std::optional<uint32_t> TryCompileExpressionStringOutput(
     LN_Program &program,
     const blender::bNode &node,
     const blender::bNodeSocket &output_socket,
@@ -2510,6 +2822,99 @@ std::optional<uint32_t> TryCompileExpressionStringOutput(
 
   const LN_NodeDefinition &definition = *definition_iter->second;
     switch (definition.kind) {
+case LN_NodeKind::AnimationStatus:
+      r_handled = true;
+      {
+      uint32_t object_expr = LN_INVALID_INDEX;
+      uint32_t layer_expr = LN_INVALID_INDEX;
+      if (NamesMatch(output_socket.name, output_socket.identifier, "Action Name") &&
+          AnimationStatusInputs(
+              program, node, node_definitions, input_links, value_cache, object_expr, layer_expr))
+      {
+        LN_StringExpression expression;
+        expression.kind = LN_StringExpressionKind::AnimationActionName;
+        expression.input0 = object_expr;
+        expression.int_expr_index = layer_expr;
+        result = program.AddStringExpression(expression);
+      }
+      break;
+    }case LN_NodeKind::KeyLogger:
+      r_handled = true;
+      {
+      const bool character = NamesMatch(output_socket.name, output_socket.identifier, "Character");
+      if (!character && !NamesMatch(output_socket.name, output_socket.identifier, "Keycode")) {
+        break;
+      }
+      LN_StringExpression expression;
+      expression.kind = character ? LN_StringExpressionKind::KeyLoggerCharacter :
+                                    LN_StringExpressionKind::KeyLoggerKeycode;
+      /* Only Characters: fixed on the node, or read while the game runs when it is linked. */
+      if (IsInputSocketLinked(node, "Only Characters", input_links)) {
+        BoolExpressionCache bool_expression_cache;
+        FloatExpressionCache float_expression_cache;
+        if (const std::optional<uint32_t> only = BuildInputBoolExpression(program,
+                                                                         node,
+                                                                         "Only Characters",
+                                                                         node_definitions,
+                                                                         input_links,
+                                                                         value_cache,
+                                                                         float_expression_cache,
+                                                                         bool_expression_cache))
+        {
+          LN_IntExpression flag;
+          flag.kind = LN_IntExpressionKind::FromBool;
+          flag.input0 = *only;
+          expression.int_expr_index = program.AddIntExpression(flag);
+        }
+      }
+      if (expression.int_expr_index == LN_INVALID_INDEX) {
+        const std::optional<LN_Value> only = ReadInputValue(node,
+                                                            "Only Characters",
+                                                            LN_ValueType::Bool,
+                                                            node_definitions,
+                                                            input_links,
+                                                            value_cache);
+        const bool only_characters = !only || only->type != LN_ValueType::Bool || only->bool_value;
+        expression.int_expr_index = AddConstantIntExpression(program, only_characters ? 1 : 0);
+      }
+      result = program.AddStringExpression(expression);
+      break;
+    }case LN_NodeKind::OnConstraintBreak:
+      r_handled = true;
+      {
+      if (!NamesMatch(output_socket.name, output_socket.identifier, "Constraint Name")) {
+        break;
+      }
+      BoolExpressionCache bool_expression_cache;
+      IntExpressionCache int_expression_cache;
+      FloatExpressionCache float_expression_cache;
+      VectorExpressionCache vector_expression_cache;
+      ColorExpressionCache color_expression_cache;
+      ValueExpressionCache value_expression_cache;
+      if (const std::optional<ConstraintBreakExpressionInputs> inputs =
+              BuildConstraintBreakExpressionInputs(program,
+                                                   node,
+                                                   node_definitions,
+                                                   input_links,
+                                                   value_cache,
+                                                   bool_expression_cache,
+                                                   int_expression_cache,
+                                                   float_expression_cache,
+                                                   string_expression_cache,
+                                                   vector_expression_cache,
+                                                   color_expression_cache,
+                                                   value_expression_cache))
+      {
+        LN_StringExpression expression;
+        expression.kind = LN_StringExpressionKind::ConstraintBreakName;
+        expression.input0 = inputs->object_expr_index;
+        expression.input1 = inputs->constraint_name_expr_index;
+        expression.input2 = inputs->match_any_expr_index;
+        expression.rigid_body_constraint_match_mode = inputs->match_mode;
+        result = program.AddStringExpression(expression);
+      }
+      break;
+    }
 case LN_NodeKind::GetGamePropertyString:
       r_handled = true;
       {
@@ -2609,7 +3014,7 @@ case LN_NodeKind::GetGamePropertyString:
   return result;
 }
 
-std::optional<uint32_t> TryCompileExpressionVectorOutput(
+static std::optional<uint32_t> TryCompileExpressionVectorOutput(
     LN_Program &program,
     const blender::bNode &node,
     const blender::bNodeSocket &output_socket,
@@ -2635,19 +3040,47 @@ std::optional<uint32_t> TryCompileExpressionVectorOutput(
 
   const LN_NodeDefinition &definition = *definition_iter->second;
     switch (definition.kind) {
-case LN_NodeKind::GetBoneHeadWorld:
-      r_handled = true;
-      case LN_NodeKind::GetBoneTailWorld:
-      r_handled = true;
-      case LN_NodeKind::GetBoneCenterWorld:
-      r_handled = true;
-      case LN_NodeKind::GetBoneHeadPoseWorld:
-      r_handled = true;
-      case LN_NodeKind::GetBoneTailPoseWorld:
-      r_handled = true;
-      case LN_NodeKind::GetBoneCenterPoseWorld:
+case LN_NodeKind::OnConstraintBreak:
       r_handled = true;
       {
+      if (!NamesMatch(output_socket.name, output_socket.identifier, "Anchor Position")) {
+        break;
+      }
+      BoolExpressionCache bool_expression_cache_local;
+      IntExpressionCache int_expression_cache_local;
+      StringExpressionCache string_expression_cache_local;
+      ColorExpressionCache color_expression_cache_local;
+      ValueExpressionCache value_expression_cache_local;
+      if (const std::optional<ConstraintBreakExpressionInputs> inputs =
+              BuildConstraintBreakExpressionInputs(program,
+                                                   node,
+                                                   node_definitions,
+                                                   input_links,
+                                                   value_cache,
+                                                   bool_expression_cache_local,
+                                                   int_expression_cache_local,
+                                                   float_expression_cache,
+                                                   string_expression_cache_local,
+                                                   vector_expression_cache,
+                                                   color_expression_cache_local,
+                                                   value_expression_cache_local))
+      {
+        LN_VectorExpression expression;
+        expression.kind = LN_VectorExpressionKind::ConstraintBreakAnchorPosition;
+        expression.input0 = inputs->object_expr_index;
+        expression.input1 = inputs->constraint_name_expr_index;
+        expression.input2 = inputs->match_any_expr_index;
+        expression.rigid_body_constraint_match_mode = inputs->match_mode;
+        result = program.AddVectorExpression(expression);
+      }
+      break;
+    }
+    case LN_NodeKind::GetBoneHeadWorld:
+    case LN_NodeKind::GetBoneTailWorld:
+    case LN_NodeKind::GetBoneCenterWorld:
+    case LN_NodeKind::GetBoneHeadPoseWorld:
+    case LN_NodeKind::GetBoneTailPoseWorld:
+    case LN_NodeKind::GetBoneCenterPoseWorld: {
       r_handled = true;
       BoolExpressionCache bool_expression_cache_local;
       IntExpressionCache int_expression_cache_local;
@@ -2714,15 +3147,18 @@ case LN_NodeKind::GetBoneHeadWorld:
     }
     case LN_NodeKind::GetBonePoseScale:
     case LN_NodeKind::GetBonePoseTransform: {
-      r_handled = true;
       const bool is_transform = definition.kind == LN_NodeKind::GetBonePoseTransform;
       if ((!is_transform && !NamesMatch(output_socket.name, output_socket.identifier, "Scale")) ||
           (is_transform && !NamesMatch(output_socket.name, output_socket.identifier, "Location") &&
            !NamesMatch(output_socket.name, output_socket.identifier, "Scale")))
       {
+        /* Rotation is a quaternion-backed generic-value expression. Leave that output for
+         * BuildOutputVectorExpression's dedicated rotation path instead of claiming it here as
+         * an unhandled vector output. */
         break;
       }
 
+      r_handled = true;
       BoolExpressionCache bool_expression_cache_local;
       IntExpressionCache int_expression_cache_local;
       StringExpressionCache string_expression_cache_local;
@@ -2920,57 +3356,6 @@ case LN_NodeKind::GetBoneHeadWorld:
       expression.kind = LN_VectorExpressionKind::FromGenericValue;
       expression.input0 = value_expr_index;
       result = program.AddVectorExpression(expression);
-      break;
-    }
-    case LN_NodeKind::GetGroupCenterPosition: {
-      r_handled = true;
-      if (!NamesMatch(output_socket.name, output_socket.identifier, "Center")) {
-        break;
-      }
-      BoolExpressionCache bool_expression_cache_local;
-      IntExpressionCache int_expression_cache_local;
-      StringExpressionCache string_expression_cache_local;
-      ColorExpressionCache color_expression_cache_local;
-      ValueExpressionCache value_expression_cache_local;
-      const std::optional<uint32_t> objects_expr = BuildInputValueExpression(
-          program,
-          node,
-          "Objects",
-          node_definitions,
-          input_links,
-          value_cache,
-          bool_expression_cache_local,
-          int_expression_cache_local,
-          float_expression_cache,
-          string_expression_cache_local,
-          vector_expression_cache,
-          color_expression_cache_local,
-          value_expression_cache_local);
-      const std::optional<uint32_t> collection_expr = BuildInputValueExpression(
-          program,
-          node,
-          "Collection",
-          node_definitions,
-          input_links,
-          value_cache,
-          bool_expression_cache_local,
-          int_expression_cache_local,
-          float_expression_cache,
-          string_expression_cache_local,
-          vector_expression_cache,
-          color_expression_cache_local,
-          value_expression_cache_local);
-      if (objects_expr || collection_expr) {
-        LN_VectorExpression expression;
-        expression.kind = LN_VectorExpressionKind::GroupCenterPosition;
-        if (objects_expr) {
-          expression.input0 = *objects_expr;
-        }
-        if (collection_expr) {
-          expression.input1 = *collection_expr;
-        }
-        result = program.AddVectorExpression(expression);
-      }
       break;
     }
     case LN_NodeKind::GetCharacterInfo:
@@ -3221,11 +3606,51 @@ case LN_NodeKind::GetBoneHeadWorld:
         expression.float_expr_index = *sensitivity_expr;
         expression.float_value = FloatExpressionConstantFallback(program, *sensitivity_expr);
         result = program.AddVectorExpression(expression);
+        /* A linked Invert X / Invert Y (a Settings toggle) flips that axis while the game runs. */
+        BoolExpressionCache bool_expression_cache_local;
+        const auto runtime_sign = [&](const char *socket_name) -> uint32_t {
+          const blender::bNodeSocket *socket = FindInputSocket(node, socket_name);
+          const auto links = socket != nullptr ? input_links.find(socket) : input_links.end();
+          if (links == input_links.end() || links->second.empty()) {
+            return LN_INVALID_INDEX;
+          }
+          const std::optional<uint32_t> invert = BuildInputBoolExpression(
+              program,
+              node,
+              socket_name,
+              node_definitions,
+              input_links,
+              value_cache,
+              float_expression_cache,
+              bool_expression_cache_local);
+          if (!invert) {
+            return LN_INVALID_INDEX;
+          }
+          LN_FloatExpression sign;
+          sign.kind = LN_FloatExpressionKind::Select;
+          sign.bool_expr_index = *invert;
+          sign.input0 = AddConstantFloatExpression(program, -1.0f);
+          sign.input1 = AddConstantFloatExpression(program, 1.0f);
+          return program.AddFloatExpression(sign);
+        };
+        const uint32_t sign_x = runtime_sign("Invert X");
+        const uint32_t sign_y = runtime_sign("Invert Y");
+        if (sign_x != LN_INVALID_INDEX || sign_y != LN_INVALID_INDEX) {
+          LN_VectorExpression signs;
+          signs.kind = LN_VectorExpressionKind::Combine;
+          signs.input0 = sign_x;
+          signs.input1 = sign_y;
+          signs.vector_value = MT_Vector3(1.0f, 1.0f, 1.0f);
+          LN_VectorExpression flipped;
+          flipped.kind = LN_VectorExpressionKind::Multiply;
+          flipped.input0 = *result;
+          flipped.input1 = program.AddVectorExpression(signs);
+          result = program.AddVectorExpression(flipped);
+        }
       }
       break;
-    }case LN_NodeKind::MouseOver:
-      r_handled = true;
-      {
+    }
+    case LN_NodeKind::MouseOver: {
       r_handled = true;
       BoolExpressionCache bool_expression_cache_local;
       const std::optional<uint32_t> query_expr = BuildMouseOverQueryExpression(program,
@@ -3250,9 +3675,8 @@ case LN_NodeKind::GetBoneHeadWorld:
         result = program.AddVectorExpression(expression);
       }
       break;
-    }case LN_NodeKind::Raycast:
-      r_handled = true;
-      {
+    }
+    case LN_NodeKind::Raycast: {
       r_handled = true;
       BoolExpressionCache bool_expression_cache_local;
       const std::optional<uint32_t> query_expr = BuildRaycastQueryExpression(program,
@@ -3280,6 +3704,10 @@ case LN_NodeKind::GetBoneHeadWorld:
         expression.kind = LN_VectorExpressionKind::PhysicsQueryDirection;
         result = program.AddVectorExpression(expression);
       }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "End Point")) {
+        expression.kind = LN_VectorExpressionKind::PhysicsQueryEndPoint;
+        result = program.AddVectorExpression(expression);
+      }
       else if (NamesMatch(output_socket.name, output_socket.identifier, "UV")) {
         program.AddRayQueryDetailRequirement(
             node.identifier, LN_RAY_QUERY_DETAIL_FACE_INDEX | LN_RAY_QUERY_DETAIL_UV);
@@ -3287,9 +3715,9 @@ case LN_NodeKind::GetBoneHeadWorld:
         result = program.AddVectorExpression(expression);
       }
       break;
-    }case LN_NodeKind::RaycastAll:
+    }
+    case LN_NodeKind::RaycastAll: {
       r_handled = true;
-      {
       BoolExpressionCache bool_expression_cache_local;
       const std::optional<uint32_t> query_expr = BuildRaycastAllQueryExpression(
           program,
@@ -3316,9 +3744,9 @@ case LN_NodeKind::GetBoneHeadWorld:
       }
       result = program.AddVectorExpression(expression);
       break;
-    }case LN_NodeKind::ShapeCast:
+    }
+    case LN_NodeKind::ShapeCast: {
       r_handled = true;
-      {
       BoolExpressionCache bool_cache;
       const std::optional<uint32_t> query_expr = BuildShapeCastQueryExpression(program,
                                                                                node,
@@ -3354,10 +3782,9 @@ case LN_NodeKind::GetBoneHeadWorld:
       }
       result = program.AddVectorExpression(expression);
       break;
-    }case LN_NodeKind::MouseRay:
-    case LN_NodeKind::CameraRay:
-      r_handled = true;
-      {
+    }
+    case LN_NodeKind::MouseRay:
+    case LN_NodeKind::CameraRay: {
       r_handled = true;
       BoolExpressionCache bool_expression_cache_local;
       const std::optional<uint32_t> query_expr =
@@ -3492,7 +3919,7 @@ case LN_NodeKind::GetBoneHeadWorld:
   return result;
 }
 
-std::optional<uint32_t> TryCompileExpressionColorOutput(
+static std::optional<uint32_t> TryCompileExpressionColorOutput(
     LN_Program &program,
     const blender::bNode &node,
     const blender::bNodeSocket &output_socket,
@@ -3617,7 +4044,7 @@ std::optional<uint32_t> TryCompileExpressionColorOutput(
   return result;
 }
 
-std::optional<uint32_t> TryCompileExpressionValueOutput(
+static std::optional<uint32_t> TryCompileExpressionValueOutput(
     LN_Program &program,
     const blender::bNode &node,
     const blender::bNodeSocket &output_socket,
@@ -3648,6 +4075,85 @@ std::optional<uint32_t> TryCompileExpressionValueOutput(
 
   const LN_NodeDefinition &definition = *definition_iter->second;
     switch (definition.kind) {
+    case LN_NodeKind::ReceiveEvent: {
+      r_handled = true;
+      const bool content_output = NamesMatch(
+          output_socket.name, output_socket.identifier, "Content");
+      if (!content_output &&
+          !NamesMatch(output_socket.name, output_socket.identifier, "Messenger"))
+      {
+        break;
+      }
+      const std::optional<uint32_t> subject_expr = BuildInputStringExpression(
+          program, node, "Subject", node_definitions, input_links, value_cache,
+          string_expression_cache);
+      if (!subject_expr) {
+        break;
+      }
+      LN_ValueExpression expression;
+      expression.kind = content_output ? LN_ValueExpressionKind::EventContent :
+                                         LN_ValueExpressionKind::EventMessenger;
+      expression.input0 = *subject_expr;
+      expression.value.exists = true;
+      expression.value.bool_value = node.custom1 != 0;
+      if (expression.value.bool_value) {
+        if (const std::optional<uint32_t> target_expr = BuildInputValueExpression(
+                program,
+                node,
+                "Target",
+                node_definitions,
+                input_links,
+                value_cache,
+                bool_expression_cache,
+                int_expression_cache,
+                float_expression_cache,
+                string_expression_cache,
+                vector_expression_cache,
+                color_expression_cache,
+                value_expression_cache))
+        {
+          expression.input1 = *target_expr;
+        }
+      }
+      result = program.AddValueExpression(expression);
+      break;
+    }
+    case LN_NodeKind::OnConstraintBreak:
+      r_handled = true;
+      {
+      const bool target_object_output = NamesMatch(
+          output_socket.name, output_socket.identifier, "Target Object");
+      const bool break_events_output = NamesMatch(
+          output_socket.name, output_socket.identifier, "Break Events");
+      if (!target_object_output && !break_events_output) {
+        break;
+      }
+      if (const std::optional<ConstraintBreakExpressionInputs> inputs =
+              BuildConstraintBreakExpressionInputs(program,
+                                                   node,
+                                                   node_definitions,
+                                                   input_links,
+                                                   value_cache,
+                                                   bool_expression_cache,
+                                                   int_expression_cache,
+                                                   float_expression_cache,
+                                                   string_expression_cache,
+                                                   vector_expression_cache,
+                                                   color_expression_cache,
+                                                   value_expression_cache))
+      {
+        LN_ValueExpression expression;
+        expression.kind = target_object_output ?
+                              LN_ValueExpressionKind::ConstraintBreakTargetObject :
+                              LN_ValueExpressionKind::ConstraintBreakEvents;
+        expression.input0 = inputs->object_expr_index;
+        expression.input1 = inputs->constraint_name_expr_index;
+        expression.input2 = inputs->match_any_expr_index;
+        expression.rigid_body_constraint_match_mode = inputs->match_mode;
+        result = program.AddValueExpression(expression);
+      }
+      break;
+    }
     case LN_NodeKind::GetTreeProperty:
       r_handled = true;
       {
@@ -3664,7 +4170,8 @@ std::optional<uint32_t> TryCompileExpressionValueOutput(
       }
       if (name && name->type == LN_ValueType::String && !name->string_value.empty()) {
         const uint32_t property_ref_index = AddTreePropertyRef(
-            program, name->string_value, LN_ValueType::Float, MakeDefaultValue(LN_ValueType::Float));
+            program, name->string_value, LN_ValueType::Generic,
+            MakeDefaultValue(LN_ValueType::Generic));
         LN_ValueExpression expression;
         expression.kind = LN_ValueExpressionKind::RuntimeTreeProperty;
         expression.property_ref_index = property_ref_index;
@@ -3683,25 +4190,60 @@ std::optional<uint32_t> TryCompileExpressionValueOutput(
       r_handled = true;
       {
       r_handled = true;
-      const std::optional<uint32_t> object_expr = BuildInputValueExpression(program,
-                                                                            node,
-                                                                            "Child Object",
-                                                                            node_definitions,
-                                                                            input_links,
-                                                                            value_cache,
-                                                                            bool_expression_cache,
-                                                                            int_expression_cache,
-                                                                            float_expression_cache,
-                                                                            string_expression_cache,
-                                                                            vector_expression_cache,
-                                                                            color_expression_cache,
-                                                                            value_expression_cache);
+      const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
+          program,
+          node,
+          "Child Object",
+          node_definitions,
+          input_links,
+          value_cache,
+          bool_expression_cache,
+          int_expression_cache,
+          float_expression_cache,
+          string_expression_cache,
+          vector_expression_cache,
+          color_expression_cache,
+          value_expression_cache);
+      LN_ValueExpression expression;
+      expression.kind = LN_ValueExpressionKind::ObjectParent;
       if (object_expr) {
-        LN_ValueExpression expression;
-        expression.kind = LN_ValueExpressionKind::ObjectParent;
         expression.input0 = *object_expr;
-        result = program.AddValueExpression(expression);
       }
+      else {
+        LN_ValueExpression owner_expression;
+        owner_expression.kind = LN_ValueExpressionKind::OwnerObject;
+        expression.input0 = program.AddValueExpression(owner_expression);
+      }
+      result = program.AddValueExpression(expression);
+      break;
+    }case LN_NodeKind::Inventory:
+      r_handled = true;
+      {
+      /* What the node's last run did: its instruction keeps it in a tree property. */
+      LN_ValueExpression expression;
+      if (NamesMatch(output_socket.name, output_socket.identifier, "Inventory")) {
+        expression.kind = LN_ValueExpressionKind::InventoryEdit;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Leftover")) {
+        expression.kind = LN_ValueExpressionKind::InventoryAmount;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Removed")) {
+        expression.kind = LN_ValueExpressionKind::InventoryChanged;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Made")) {
+        expression.kind = LN_ValueExpressionKind::InventoryMade;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Outcome")) {
+        expression.kind = LN_ValueExpressionKind::InventoryOutcome;
+      }
+      else {
+        break;
+      }
+      expression.property_ref_index = AddTreePropertyRef(program,
+                                                         InventoryResultPropertyName(node),
+                                                         LN_ValueType::Dict,
+                                                         MakeDefaultValue(LN_ValueType::Dict));
+      result = program.AddValueExpression(expression);
       break;
     }case LN_NodeKind::AddObject:
       r_handled = true;
@@ -3818,9 +4360,65 @@ std::optional<uint32_t> TryCompileExpressionValueOutput(
         result = program.AddValueExpression(expression);
       }
       break;
-    }case LN_NodeKind::Raycast:
+    }
+    case LN_NodeKind::GetCollectionObjects: {
       r_handled = true;
-      {
+      if (!NamesMatch(output_socket.name, output_socket.identifier, "Objects")) {
+        break;
+      }
+      const std::optional<uint32_t> collection_expr = BuildInputValueExpression(
+          program,
+          node,
+          "Collection",
+          node_definitions,
+          input_links,
+          value_cache,
+          bool_expression_cache,
+          int_expression_cache,
+          float_expression_cache,
+          string_expression_cache,
+          vector_expression_cache,
+          color_expression_cache,
+          value_expression_cache);
+      if (collection_expr) {
+        LN_ValueExpression expression;
+        expression.kind = LN_ValueExpressionKind::CollectionObjects;
+        expression.input0 = *collection_expr;
+        expression.bool_expr_index = BuildInputBoolExpression(program,
+                                                              node,
+                                                              "Include Child Collections",
+                                                              node_definitions,
+                                                              input_links,
+                                                              value_cache,
+                                                              float_expression_cache,
+                                                              bool_expression_cache)
+                                         .value_or(LN_INVALID_INDEX);
+        result = program.AddValueExpression(expression);
+      }
+      break;
+    }
+    case LN_NodeKind::MouseOver: {
+      r_handled = true;
+      if (!NamesMatch(output_socket.name, output_socket.identifier, "Object")) {
+        break;
+      }
+
+      const std::optional<uint32_t> query_expr = BuildMouseOverQueryExpression(program,
+                                                                               node,
+                                                                               node_definitions,
+                                                                               input_links,
+                                                                               value_cache,
+                                                                               float_expression_cache,
+                                                                               bool_expression_cache);
+      if (query_expr) {
+        LN_ValueExpression expression;
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryObject;
+        expression.input0 = *query_expr;
+        result = program.AddValueExpression(expression);
+      }
+      break;
+    }
+    case LN_NodeKind::Raycast: {
       r_handled = true;
       if (!NamesMatch(output_socket.name, output_socket.identifier, "Picked Object") &&
           !NamesMatch(output_socket.name, output_socket.identifier, "Hit Object"))
@@ -3842,9 +4440,8 @@ std::optional<uint32_t> TryCompileExpressionValueOutput(
         result = program.AddValueExpression(expression);
       }
       break;
-    }case LN_NodeKind::RaycastAll:
-      r_handled = true;
-      {
+    }
+    case LN_NodeKind::RaycastAll: {
       r_handled = true;
       BoolExpressionCache bool_expression_cache_local;
       const std::optional<uint32_t> query_expr = BuildRaycastAllQueryExpression(program,
@@ -3895,7 +4492,77 @@ std::optional<uint32_t> TryCompileExpressionValueOutput(
       }
       result = program.AddValueExpression(expression);
       break;
-    }case LN_NodeKind::ShapeCast:
+    }
+    case LN_NodeKind::RaycastFromMesh:
+      r_handled = true;
+      {
+      BoolExpressionCache bool_cache;
+      const std::optional<uint32_t> query_expr = BuildRaycastFromMeshQueryExpression(
+          program,
+          node,
+          node_definitions,
+          input_links,
+          value_cache,
+          float_expression_cache,
+          bool_cache);
+      if (!query_expr) {
+        break;
+      }
+
+      LN_ValueExpression expression;
+      expression.input0 = *query_expr;
+      if (NamesMatch(output_socket.name, output_socket.identifier, "Hits")) {
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryHits;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Blocked")) {
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryBlockedList;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Hit Objects")) {
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryObjects;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Points")) {
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryPoints;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Normals")) {
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryNormals;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Distances")) {
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryDistances;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Fractions")) {
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryFractions;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Face Indices")) {
+        program.AddRayQueryDetailRequirement(node.identifier,
+                                             LN_RAY_QUERY_DETAIL_FACE_INDEX);
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryFaceIndices;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Has UVs")) {
+        program.AddRayQueryDetailRequirement(
+            node.identifier, LN_RAY_QUERY_DETAIL_FACE_INDEX | LN_RAY_QUERY_DETAIL_UV);
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryHasUVs;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "UVs")) {
+        program.AddRayQueryDetailRequirement(
+            node.identifier, LN_RAY_QUERY_DETAIL_FACE_INDEX | LN_RAY_QUERY_DETAIL_UV);
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryUVs;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Ray Origins")) {
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryRayOrigins;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Ray Directions")) {
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryRayDirections;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "End Points")) {
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryEndPoints;
+      }
+      else {
+        break;
+      }
+      result = program.AddValueExpression(expression);
+      break;
+    }
+    case LN_NodeKind::ShapeCast:
       r_handled = true;
       {
       if (!NamesMatch(output_socket.name, output_socket.identifier, "Hit Object")) {
@@ -3915,7 +4582,8 @@ std::optional<uint32_t> TryCompileExpressionValueOutput(
         result = program.AddValueExpression(expression);
       }
       break;
-    }case LN_NodeKind::ShapeCastAll:
+    }
+    case LN_NodeKind::ShapeCastAll:
       r_handled = true;
       {
       BoolExpressionCache bool_cache;

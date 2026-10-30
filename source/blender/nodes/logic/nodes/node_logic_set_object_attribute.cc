@@ -65,6 +65,12 @@ static bool uses_rotation_input(const int attribute_type)
   return attribute_type == 1 || attribute_type == 7;
 }
 
+/** Position, rotation, scale and transform: a move Smooth Motion could draw across. */
+static bool uses_teleport_input(const int attribute_type)
+{
+  return ELEM(attribute_type, 0, 1, 4, 5, 6, 7, 10, 13);
+}
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
@@ -95,6 +101,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Color>("Color"_ustr).default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Bool>("Visible"_ustr).default_value(true);
   b.add_input<decl::Bool>("Include Children"_ustr).default_value(false);
+  b.add_input<decl::Bool>("Teleport"_ustr)
+      .default_value(false)
+      .description(
+          "The move is a jump: an object with Smooth Motion (and its children) is drawn there at "
+          "once, not sliding across between two steps");
   b.add_output<decl::Execution>("Done"_ustr);
 }
 
@@ -147,6 +158,7 @@ static void node_update(bNodeTree *ntree, bNode *node)
   bNodeSocket *color_socket = node->input_by_identifier("Color"_ustr);
   bNodeSocket *visible_socket = node->input_by_identifier("Visible"_ustr);
   bNodeSocket *include_children_socket = node->input_by_identifier("Include Children"_ustr);
+  bNodeSocket *teleport_socket = node->input_by_identifier("Teleport"_ustr);
   const bool use_color = uses_color_input(node->custom1);
   const bool use_bool = uses_bool_input(node->custom1);
   const bool use_transform = uses_transform_input(node->custom1);
@@ -176,6 +188,10 @@ static void node_update(bNodeTree *ntree, bNode *node)
   }
   if (include_children_socket != nullptr) {
     bke::node_set_socket_availability(*ntree, *include_children_socket, use_bool);
+  }
+  if (teleport_socket != nullptr) {
+    bke::node_set_socket_availability(
+        *ntree, *teleport_socket, uses_teleport_input(node->custom1));
   }
 }
 

@@ -13,9 +13,13 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Bool>("A if True, else B"_ustr, "Condition"_ustr).default_value(false);
-  b.add_input<decl::Float>(""_ustr, "True"_ustr).default_value(0.0f);
-  b.add_input<decl::Float>(""_ustr, "False"_ustr).default_value(0.0f);
+  b.add_input<decl::Bool>("Condition"_ustr).default_value(false);
+  b.add_input<decl::Float>("If True"_ustr, "True"_ustr)
+      .default_value(0.0f)
+      .description("The result while Condition is on");
+  b.add_input<decl::Float>("If False"_ustr, "False"_ustr)
+      .default_value(0.0f)
+      .description("The result while Condition is off");
   b.add_output<decl::Float>("Result"_ustr, "Value"_ustr);
 }
 

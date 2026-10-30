@@ -25,7 +25,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Priority"_ustr).default_value(0);
   b.add_input<decl::Float>("Blend In"_ustr).default_value(0.0f).min(0.0f);
   b.add_input<decl::Float>("Speed"_ustr).default_value(1.0f);
-  b.add_output<decl::Execution>("Done"_ustr);
+  b.add_output<decl::Execution>("Started"_ustr)
+      .description("Pulses when this exact action playback request is accepted");
+  b.add_output<decl::Execution>("Completed"_ustr)
+      .description("Pulses when this exact non-looping playback reaches its end naturally");
+  b.add_output<decl::Execution>("Interrupted"_ustr)
+      .description("Pulses when this exact playback is stopped or replaced before completion");
+  b.add_output<decl::Execution>("Failed"_ustr)
+      .description("Pulses when the action playback request cannot start");
 }
 
 static void node_layout(ui::Layout &layout, bContext *C, PointerRNA *ptr)

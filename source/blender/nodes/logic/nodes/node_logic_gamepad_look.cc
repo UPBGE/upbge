@@ -52,16 +52,19 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(float3(0.0f, 0.0f, 0.0f))
       .description("Non-zero X or Y values invert the corresponding stick axis");
   b.add_input<decl::Int>("Index"_ustr).default_value(0).min(0);
-  b.add_input<decl::Float>("Sensitivity"_ustr).default_value(0.25f).min(0.0f);
+  b.add_input<decl::Float>("Sensitivity"_ustr)
+      .default_value(float(M_PI))
+      .min(0.0f)
+      .description("Full-stick angular speed in radians per second");
   b.add_input<decl::Float>("Exponent"_ustr).default_value(2.3f).min(0.0f);
   b.add_input<decl::Bool>("Cap Left / Right"_ustr).default_value(false);
-  b.add_input<decl::Vector>(""_ustr, "Left / Right Range"_ustr)
+  b.add_input<decl::Vector>("Left / Right Range"_ustr)
       .dimensions(2)
       .subtype(PROP_EULER)
       .default_value(float2(0.0f, 0.0f))
       .custom_draw(draw_cap_range_socket);
   b.add_input<decl::Bool>("Cap Up / Down"_ustr).default_value(false);
-  b.add_input<decl::Vector>(""_ustr, "Up / Down Range"_ustr)
+  b.add_input<decl::Vector>("Up / Down Range"_ustr)
       .dimensions(2)
       .subtype(PROP_EULER)
       .default_value(float2(DEG2RADF(-89.0f), DEG2RADF(89.0f)))
@@ -105,6 +108,8 @@ static void node_register()
   static bke::bNodeType ntype;
 
   logic_node_type_base(&ntype, "LogicNativeGamepadLook"_ustr);
+  /* Wide enough for its socket names. */
+  bke::node_type_size(ntype, 190, 140, NODE_DEFAULT_MAX_WIDTH);
   ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;

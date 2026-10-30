@@ -702,6 +702,17 @@ if(WITH_GAMEENGINE AND WITH_SDL)
 	)
 endif()
 
+# Complete Game UI example and its guide (Add > Game UI > Open Complete UI Example, Open UI
+# Guide). The guide is written from the example by release/datafiles/game_ui/make_game_ui_guide.py.
+if(WITH_GAMEENGINE AND WITH_GAMEENGINE_LOGICNODES)
+  install(
+    FILES
+      ${CMAKE_SOURCE_DIR}/release/datafiles/game_ui/game_ui_example.blend
+      ${CMAKE_SOURCE_DIR}/release/datafiles/game_ui/game_ui_guide.html
+    DESTINATION ${TARGETDIR_VER}/datafiles/game_ui
+  )
+endif()
+
 # Show helpful tip.
 set(_install_cmd "")
 if("${CMAKE_GENERATOR}" MATCHES ".*Makefiles.*")

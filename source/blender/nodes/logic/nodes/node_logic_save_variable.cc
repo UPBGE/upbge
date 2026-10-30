@@ -17,7 +17,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>("Path"_ustr).default_value("//Data");
   b.add_input<decl::String>("File"_ustr).default_value("variables");
   b.add_input<decl::String>("Name"_ustr).default_value("var");
-  b.add_input<decl::Generic>(""_ustr, "Value"_ustr);
+  b.add_input<decl::Generic>("Value"_ustr);
   b.add_output<decl::Execution>("Done"_ustr);
 }
 

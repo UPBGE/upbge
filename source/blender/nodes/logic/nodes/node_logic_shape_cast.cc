@@ -21,6 +21,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Object used for local-space conversion and self filtering; local mode uses the owner when empty");
   b.add_input<decl::Object>("Ignore Object"_ustr)
       .description("Additional object to exclude from the cast");
+  b.add_input<decl::List>("Ignore Objects"_ustr)
+      .description("Additional objects to exclude; invalid entries and duplicates are ignored");
   b.add_input<decl::Vector>("Origin"_ustr).description("Shape center at the start of the cast");
   b.add_input<decl::Vector>("Destination"_ustr)
       .default_value(float3(0.0f, 0.0f, 1.0f))
@@ -66,15 +68,21 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Condition>("Blocked"_ustr)
       .description("True when a nonmatching object stops a non-X-Ray property query");
   b.add_output<decl::Object>("Hit Object"_ustr).description("Object hit by the shape");
-  b.add_output<decl::Vector>("Point"_ustr).description("World-space contact point on the hit object");
-  b.add_output<decl::Vector>("Normal"_ustr).description("World-space surface normal pointing away from the hit object");
+  b.add_output<decl::Vector>("Hit Point"_ustr, "Point"_ustr)
+      .description("World-space contact point; zero when Has Result is false");
+  b.add_output<decl::Vector>("Hit Normal"_ustr, "Normal"_ustr)
+      .description("World-space surface normal; zero when Has Result is false");
   b.add_output<decl::Vector>("Cast Position"_ustr)
-      .description("World-space shape center at the hit, or Destination when nothing is hit");
+      .description(
+          "World-space shape center at a matching hit or filtered blocker; Destination on a "
+          "clear miss");
   b.add_output<decl::Vector>("Direction"_ustr).description("Normalized cast direction, or zero for an overlap query");
   b.add_output<decl::Float>("Distance"_ustr)
-      .description("Distance travelled before the hit, or the complete cast distance on a miss");
+      .description(
+          "Distance travelled to a matching hit or filtered blocker, or the complete cast "
+          "distance on a clear miss");
   b.add_output<decl::Float>("Fraction"_ustr)
-      .description("Hit position along the cast from 0 to 1; returns 1 on a miss");
+      .description("Position along the cast from 0 to 1; returns 1 on a clear miss");
   b.add_output<decl::Condition>("Started Overlapping"_ustr)
       .description("True when the shape starts penetrating the hit object");
   b.add_output<decl::Float>("Penetration Depth"_ustr)

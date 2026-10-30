@@ -86,6 +86,12 @@ class RAS_2DFilterManager {
   /// Get the existing filter for the given pass index.
   RAS_2DFilter *GetFilterPass(unsigned int passIndex);
 
+  /** RenderFilters has filters to draw (else it only copies the input into the target). */
+  bool HasFilters() const
+  {
+    return !m_filters.empty();
+  }
+
   void ApplyToneMap(KX_Scene *scene);
 
  private:

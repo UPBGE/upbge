@@ -133,6 +133,7 @@ class SCA_LogicManager {
 
   void RegisterGameObjectName(const std::string &gameobjname, EXP_Value *gameobj);
   void UnregisterGameObjectName(const std::string &gameobjname);
+  void UnregisterGameObjectName(const std::string &gameobjname, EXP_Value *gameobj);
   class EXP_Value *GetGameObjectByName(const std::string &gameobjname);
 
   void RegisterGameMeshName(const std::string &gamemeshname, void *blendobj);

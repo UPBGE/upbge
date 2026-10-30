@@ -22,6 +22,10 @@
 
 namespace blender {
 
+struct BlendDataReader;
+struct BlendWriter;
+struct CurveMapping;
+
 bool logic_node_poll_default(const bke::bNodeType *ntype,
                              const bNodeTree *ntree,
                              const char **r_disabled_hint);
@@ -31,6 +35,17 @@ void logic_node_type_base(bke::bNodeType *ntype,
 namespace nodes::logic {
 
 void add_input_button_status_outputs(NodeDeclarationBuilder &b);
+/** An Input Map action name: a search in the scene's Game Input Map that also takes other
+ * names. */
+void draw_input_action_socket(CustomSocketDrawParams &params);
+
+/** Shared, validated storage lifecycle for Logic Nodes that expose Blender's curve widget. */
+CurveMapping *curve_mapping_create_default();
+CurveMapping *curve_mapping_ensure(bNode &node);
+void curve_mapping_blend_write(const bNodeTree &tree,
+                               const bNode &node,
+                               BlendWriter &writer);
+void curve_mapping_blend_read(bNodeTree &tree, bNode &node, BlendDataReader &reader);
 
 }  // namespace nodes::logic
 

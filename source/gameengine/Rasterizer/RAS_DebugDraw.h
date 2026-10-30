@@ -29,6 +29,7 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "MT_Matrix4x4.h"
@@ -42,6 +43,7 @@ class RAS_OpenGLDebugDraw;
 
 class RAS_DebugDraw {
   friend RAS_OpenGLDebugDraw;
+  friend struct RAS_DebugDrawTestAccess;
 
  private:
   struct Shape {
@@ -118,6 +120,20 @@ class RAS_DebugDraw {
     float m_width;
   };
 
+  struct FixedStepBuffer {
+    std::vector<Line> lines;
+    std::vector<Circle> circles;
+    std::vector<Aabb> aabbs;
+    std::vector<Box> boxes;
+    std::vector<SolidBox> solid_boxes;
+    std::vector<Text2D> texts_2d;
+    std::vector<Box2D> boxes_2d;
+    std::vector<Rect2D> rects_2d;
+    std::vector<Line2D> lines_2d;
+
+    void Clear();
+  };
+
   std::vector<Line> m_lines;
   std::vector<Circle> m_circles;
   std::vector<Aabb> m_aabbs;
@@ -128,11 +144,33 @@ class RAS_DebugDraw {
   std::vector<Rect2D> m_rects2D;
   std::vector<Line2D> m_lines2D;
 
+  /* Simulation debug geometry is published as a fixed-step snapshot. Context keys are opaque
+   * scene pointers so the rasterizer remains independent from Ketsji scene types. */
+  std::unordered_map<const void *, FixedStepBuffer> m_fixedStepStaging;
+  std::unordered_map<const void *, FixedStepBuffer> m_fixedStepPublished;
+  const void *m_fixedStepContext = nullptr;
+  bool m_collectingFixedStep = false;
+
   RAS_OpenGLDebugDraw *m_impl;
 
+  FixedStepBuffer &CurrentFixedStepBuffer();
+  void ClearFrameBuffer();
+
  public:
+  enum class FixedSnapshotMode {
+    None,
+    Context,
+    All,
+  };
+
   RAS_DebugDraw();
   ~RAS_DebugDraw();
+
+  void BeginFixedStepSnapshot();
+  void SetFixedStepSnapshotContext(const void *context);
+  void PublishFixedStepSnapshot();
+  void DiscardFixedStepSnapshotContext(const void *context);
+  void Reset();
 
   void DrawLine(const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color);
   void DrawCircle(const MT_Vector3 &center,
@@ -173,5 +211,8 @@ class RAS_DebugDraw {
 
   void RenderText2D(const std::string &text, const MT_Vector2 &pos, const MT_Vector4 &color);
 
-  void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas);
+  void Flush(RAS_Rasterizer *rasty,
+             RAS_ICanvas *canvas,
+             FixedSnapshotMode fixed_snapshot_mode = FixedSnapshotMode::All,
+             const void *fixed_snapshot_context = nullptr);
 };

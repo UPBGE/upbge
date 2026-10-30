@@ -99,13 +99,12 @@ def logic_nodes_binding_status(context, binding):
     if binding is None:
         return "Invalid binding", 'ERROR'
 
+    tree = getattr(binding, "tree", None)
     tree_name = (binding.tree_name or "").strip()
-    if not tree_name:
-        return "No tree selected", 'INFO'
-
-    tree = bpy.data.node_groups.get(tree_name)
     if tree is None:
-        return "Missing tree", 'ERROR'
+        if tree_name:
+            return "Missing tree", 'ERROR'
+        return "No tree selected", 'INFO'
     if tree.bl_idname != "LogicNodeTree":
         return "Selected tree is not a LogicNodeTree", 'ERROR'
     if not binding.enabled:
@@ -120,11 +119,17 @@ def logic_nodes_binding_status(context, binding):
     return "", 'NONE'
 
 
-def logic_nodes_object_has_tree(ob, tree_name):
-    if not ob or not ob.game or not tree_name:
+def logic_nodes_object_has_tree(ob, tree):
+    if not ob or not ob.game or tree is None:
         return False
+    if isinstance(tree, str):
+        resolved_tree = bpy.data.node_groups.get(tree)
+        if resolved_tree is None:
+            return any(binding.tree is None and binding.tree_name == tree
+                       for binding in ob.game.logic_node_bindings)
+        tree = resolved_tree
     for binding in ob.game.logic_node_bindings:
-        if binding.tree_name == tree_name:
+        if binding.tree == tree:
             return True
     return False
 
@@ -133,16 +138,15 @@ def logic_nodes_apply_tree_to_objects(tree, objects, initial_enabled=True):
     if tree is None or tree.bl_idname != "LogicNodeTree":
         return
 
-    tree.use_fake_user = True
     touched = []
     for ob in objects:
         if ob is None or not ob.game:
             continue
 
         logic_nodes_purge_invalid_bindings(ob)
-        if logic_nodes_object_has_tree(ob, tree.name):
+        if logic_nodes_object_has_tree(ob, tree):
             for binding in ob.game.logic_node_bindings:
-                if binding.tree_name == tree.name:
+                if binding.tree == tree:
                     binding.enabled = initial_enabled
                     break
             touched.append(ob)
@@ -150,7 +154,6 @@ def logic_nodes_apply_tree_to_objects(tree, objects, initial_enabled=True):
 
         binding = ob.game.logic_node_binding_new()
         binding.tree = tree
-        binding.tree_name = tree.name
         binding.enabled = initial_enabled
         touched.append(ob)
 

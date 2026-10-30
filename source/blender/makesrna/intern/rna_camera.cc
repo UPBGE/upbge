@@ -866,19 +866,249 @@ void RNA_def_camera(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_BLOOM);
   RNA_def_property_ui_text(prop, "Disable Bloom", "Disable Bloom in Overlay Pass");*/// not in eevee-next
 
-  prop = RNA_def_property(srna, "overlay_disable_ao", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_AO);
-  RNA_def_property_ui_text(prop, "Disable AO", "Disable AO in Overlay Pass");
-
-  prop = RNA_def_property(srna, "overlay_disable_ssr", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_SSR);
-  RNA_def_property_ui_text(prop, "Disable SSR", "Disable SSR in Overlay Pass");
-
-  prop = RNA_def_property(srna, "overlay_disable_world_volumes", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OVERLAY_DISABLE_WORLD_VOLUMES);
+  prop = RNA_def_property(srna, "disable_shadows", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_DISABLE_SHADOWS);
   RNA_def_property_ui_text(
-      prop, "Disable World Volumetrics", "Disable World Volumes in Overlay Pass");
-  /*********/
+      prop,
+      "Disable Shadows",
+      "In the game, draw this camera's view without shadows. Saves GPU memory: each camera "
+      "that draws its own view (menu camera, split screen view, minimap) has its own shadow "
+      "pool (Render tab > Performance > Memory > Shadow Pool). Good for menu and HUD cameras, "
+      "whose objects need no shadows. Frame time can go either way: big views got faster in "
+      "tests, small top-down minimap views slower, so measure before using it there. "
+      "Like the other switches here, it also applies when the camera renders to a texture, "
+      "and not with Use Viewport Render");
+
+  prop = RNA_def_property(srna, "disable_ray_tracing", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_DISABLE_RAY_TRACING);
+  RNA_def_property_ui_text(prop,
+                           "Disable Ray Tracing",
+                           "In the game, draw this camera's view without ray tracing (Render "
+                           "tab > Raytracing): no screen space reflections and refraction, and "
+                           "no Fast GI, which also gives the ambient occlusion. Saves GPU time");
+
+  prop = RNA_def_property(srna, "disable_volumetric_shadows", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_DISABLE_VOLUMETRIC_SHADOWS);
+  RNA_def_property_ui_text(prop,
+                           "Disable Volumetric Shadows",
+                           "In the game, volumes such as fog and smoke in this camera's view "
+                           "cast no shadows onto volumes (Render tab > Shadows > Volume "
+                           "Shadows, very expensive when on). Solid objects still shadow them");
+
+  prop = RNA_def_property(srna, "disable_motion_blur", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_DISABLE_MOTION_BLUR);
+  RNA_def_property_ui_text(prop,
+                           "Disable Motion Blur",
+                           "In the game, draw this camera's view without motion blur (Render "
+                           "tab > Motion Blur)");
+
+  prop = RNA_def_property(srna, "disable_extra_samples", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_DISABLE_EXTRA_SAMPLES);
+  RNA_def_property_ui_text(prop,
+                           "Disable Extra Samples",
+                           "In the game, draw this camera's view once a frame, whatever the "
+                           "scene's Samples per Frame (each extra sample draws the view again)");
+
+  prop = RNA_def_property(srna, "disable_temporal_reprojection", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_DISABLE_TEMPORAL_REPROJECTION);
+  RNA_def_property_ui_text(
+      prop,
+      "Disable Temporal Reprojection",
+      "In the game, draw this camera's view without mixing in the frames before (Render tab > "
+      "Sampling > Viewport > Temporal Reprojection): a still view is the same picture every "
+      "frame, so menu and HUD text stops shimmering. Edges are rough unless the view draws "
+      "several samples (Samples per Frame; turn Extra Samples off on the other cameras to keep "
+      "them cheap). Not for views with fog, smoke, ray tracing or Dithered semi-transparent "
+      "materials, which then show a fixed grain pattern unless the view draws several samples");
+
+  /* UPBGE: Workbench views (see GAME_CAM_USE_WORKBENCH). */
+  prop = RNA_def_property(srna, "use_workbench", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gameflag", GAME_CAM_USE_WORKBENCH);
+  RNA_def_property_ui_text(
+      prop,
+      "Use Workbench",
+      "In the game, draw this camera's views with Workbench instead of EEVEE: simple shading "
+      "(flat, studio light or MatCap) without the scene's lights, shadows or material nodes, "
+      "using a small part of the GPU memory and time "
+      "(an EEVEE view keeps its own world lighting, shadows and screen-size buffers). For "
+      "minimap and menu or HUD cameras. Colors come from each material's Viewport Display "
+      "color, unless Color says otherwise. Also applies when the camera renders to a texture, "
+      "and not "
+      "with Use Viewport Render. The Turn Off switches do not apply");
+
+  static const EnumPropertyItem workbench_lighting_items[] = {
+      {0, "FLAT", 0, "Flat", "Each object's color with no lighting"},
+      {GAME_CAM_WORKBENCH_STUDIO_LIGHT,
+       "STUDIO",
+       0,
+       "Studio",
+       "Shade by which way each surface faces: the scene's Workbench studio light"},
+      {GAME_CAM_WORKBENCH_MATCAP,
+       "MATCAP",
+       0,
+       "MatCap",
+       "Shade with a material picture (MatCap): the scene's Workbench MatCap. Seen from straight "
+       "above, flat ground looks the same as with Studio; it shows on shapes, as in item "
+       "previews. About 4 MB of GPU memory while used"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "workbench_lighting", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "gameflag");
+  RNA_def_property_enum_items(prop, workbench_lighting_items);
+  /* As new cameras (Camera::gameflag); a bit-flag enum doesn't take the DNA default. */
+  RNA_def_property_enum_default(prop, GAME_CAM_WORKBENCH_STUDIO_LIGHT);
+  RNA_def_property_ui_text(
+      prop,
+      "Lighting",
+      "How this camera's Workbench views are lit. The studio light and MatCap pictures are the "
+      "scene's Workbench settings, shared by all Workbench cameras (shown below)");
+
+  prop = RNA_def_property(srna, "workbench_smooth_edges", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(
+      prop, nullptr, "gameflag", GAME_CAM_WORKBENCH_NO_SMOOTH_EDGES);
+  RNA_def_property_ui_text(prop,
+                           "Smooth Edges",
+                           "Smooth the edges in this camera's Workbench views. Off saves two "
+                           "screen-size buffers (about 130 MB for a full 4K view)");
+
+  /* UPBGE: more Workbench look per camera, stored as gameflag bits (KX_Scene sets them on the
+   * evaluated scene's Workbench settings for the camera's draw). */
+  static const EnumPropertyItem workbench_cavity_items[] = {
+      {0, "OFF", 0, "Off", "No cavity"},
+      {GAME_CAM_WORKBENCH_CAVITY_SCREEN,
+       "SCREEN",
+       0,
+       "Screen",
+       "Light up edges and darken creases, from the shapes on screen"},
+      {GAME_CAM_WORKBENCH_CAVITY_WORLD,
+       "WORLD",
+       0,
+       "World",
+       "Darken where objects meet or come close (ambient occlusion). Shows a light grain, as the "
+       "game draws one sample a frame"},
+      {GAME_CAM_WORKBENCH_CAVITY_SCREEN | GAME_CAM_WORKBENCH_CAVITY_WORLD,
+       "BOTH",
+       0,
+       "Both",
+       "Screen and World"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "workbench_cavity", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "gameflag");
+  RNA_def_property_enum_items(prop, workbench_cavity_items);
+  RNA_def_property_ui_text(prop,
+                           "Cavity",
+                           "Give shape to this camera's Workbench views: edges and creases "
+                           "(Screen), contact shade (World). Their strengths are the scene's "
+                           "Workbench settings, shared by all Workbench cameras (when both "
+                           "Screen strengths are 0, as in files from the default startup file, "
+                           "the game uses 1). Costs under 0.05 ms for a minimap");
+
+  prop = RNA_def_property(srna, "workbench_outline", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gameflag", GAME_CAM_WORKBENCH_OUTLINE);
+  RNA_def_property_ui_text(prop,
+                           "Outline",
+                           "Draw a line around each object in this camera's Workbench views. Its "
+                           "color is the scene's Workbench Outline color, shared by all "
+                           "Workbench cameras");
+
+  static const EnumPropertyItem workbench_color_items[] = {
+      {0,
+       "TEXTURE",
+       0,
+       "Texture",
+       "The material's first image, or else its Viewport Display color"},
+      {GAME_CAM_WORKBENCH_COLOR_MATERIAL,
+       "MATERIAL",
+       0,
+       "Material",
+       "The material's Viewport Display color"},
+      {GAME_CAM_WORKBENCH_COLOR_OBJECT,
+       "OBJECT",
+       0,
+       "Object",
+       "The object's color (Object properties > Viewport Display > Color), which Set Object "
+       "Attribute > Color changes while playing: markers can change color without materials"},
+      {GAME_CAM_WORKBENCH_COLOR_MATERIAL | GAME_CAM_WORKBENCH_COLOR_OBJECT,
+       "SINGLE",
+       0,
+       "Single",
+       "One color for every object: the scene's Workbench Single color, shared by all Workbench "
+       "cameras"},
+      {GAME_CAM_WORKBENCH_COLOR_MORE | GAME_CAM_WORKBENCH_COLOR_MATERIAL,
+       "ATTRIBUTE",
+       0,
+       "Attribute",
+       "The mesh's active color attribute (painted vertex or face colors): colors a low-poly map "
+       "without materials. Meshes without one show their material's Viewport Display color"},
+      {GAME_CAM_WORKBENCH_COLOR_MORE | GAME_CAM_WORKBENCH_COLOR_OBJECT,
+       "RANDOM",
+       0,
+       "Random",
+       "A color made from each object's name: every object looks different, such as each "
+       "building on a map. Each Add Object copy gets a color of its own too"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "workbench_color", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "gameflag");
+  RNA_def_property_enum_items(prop, workbench_color_items);
+  /* As new cameras (Camera::gameflag); a bit-flag enum doesn't take the DNA default. */
+  RNA_def_property_enum_default(prop, GAME_CAM_WORKBENCH_COLOR_MATERIAL);
+  RNA_def_property_ui_text(
+      prop, "Color", "Where this camera's Workbench views take each object's color from");
+
+  /* UPBGE: the shape of a camera drawn in its own viewport (KX_Scene::RenderAfterCameraSetup). */
+  static const EnumPropertyItem viewport_shape_items[] = {
+      {0, "RECTANGLE", 0, "Rectangle", "Show the whole viewport"},
+      {GAME_CAM_VIEWPORT_CIRCLE,
+       "CIRCLE",
+       0,
+       "Circle",
+       "Show only the circle filling the viewport (an oval when the viewport is not square), "
+       "with a smooth edge. The corners show what is behind, and the mouse there reaches the "
+       "view behind"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "viewport_shape", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "gameflag");
+  RNA_def_property_enum_items(prop, viewport_shape_items);
+  RNA_def_property_ui_text(prop,
+                           "Viewport Shape",
+                           "In the game, the shape of this camera's view when it draws in its "
+                           "own viewport (Set Camera Viewport), such as a round minimap. Costs "
+                           "no extra memory or drawing");
+
+  /* UPBGE: draw only a collection, or everything except it (KX_Scene::HideCameraHiddenObjects).
+   */
+  prop = RNA_def_property(srna, "game_collection", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "Collection");
+  RNA_def_property_pointer_sdna(prop, nullptr, "game_collection");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(
+      prop,
+      "Collection",
+      "In the game, this camera draws only this collection's objects (Only), or everything "
+      "except them (Hide): a minimap's markers and map, hidden from the player cameras. Child "
+      "collections count too, Add Object copies count as in their source's collections, and "
+      "the objects of a collection instance as in the instancing Empty's too. Set Collection "
+      "Member puts objects in or takes them out while playing. Lights and light probes are "
+      "never hidden");
+
+  static const EnumPropertyItem game_collection_mode_items[] = {
+      {0, "ONLY", 0, "Only", "Draw only the collection's objects"},
+      {GAME_CAM_COLLECTION_HIDE,
+       "HIDE",
+       0,
+       "Hide",
+       "Draw everything except the collection's objects"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "game_collection_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "gameflag");
+  RNA_def_property_enum_items(prop, game_collection_mode_items);
+  RNA_def_property_ui_text(
+      prop, "Collection Mode", "What this camera does with its Collection in the game");
 
   /* Stereo Settings */
   prop = RNA_def_property(srna, "stereo", PROP_POINTER, PROP_NONE);

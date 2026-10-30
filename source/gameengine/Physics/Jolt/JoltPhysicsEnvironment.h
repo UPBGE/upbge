@@ -141,6 +141,7 @@ enum class JoltDeferredOpType {
   DestroyBody,
   SetObjectLayer,
   SetMotionType,
+  SetRuntimePhysicsType,
   SetSensorFlag
 };
 
@@ -151,6 +152,12 @@ struct JoltDeferredOp {
 
   /** RestoreDynamics/SetSensorFlag: sensor flag. */
   bool ghost = false;
+
+  /** SetRuntimePhysicsType: restore the converter-authored type rather than an explicit override. */
+  bool restoreOriginalPhysicsType = false;
+
+  /** Suspend/RestoreDynamics: keep the body out of the world while physics is suspended. */
+  bool physicsSuspended = false;
 
   /** SuspendDynamics: target mode. */
   PHY_DynamicsMode dynamicsMode = PHY_DynamicsMode::Dynamic;
@@ -484,6 +491,15 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   /** Factory method matching CcdPhysicsEnvironment::Create() pattern. */
   static JoltPhysicsEnvironment *Create(blender::Scene *blenderscene, bool visualizePhysics);
 
+  /** Jolt's helper threads for the scene's Physics CPU Use: the cores physics may use
+   * (BKE_game_physics_cores, the game's own included: it runs jobs while it waits for the step)
+   * less the game's own. */
+  static int HelperThreadsForSetting(int setting, int cpuThreads);
+  /** Room Jolt keeps for body pairs or contact constraints: one per body, at least 65536, or the
+   * scene's own larger value. When it is full Jolt drops contacts and objects pass through each
+   * other, so Max Bodies is the one setting a game creator raises. */
+  static int ContactCapacityFor(int maxBodies, int setting);
+
   /* ---- PHY_IPhysicsEnvironment interface ---- */
 
   virtual bool ProceedDeltaTime(double curTime, float timeStep, float interval) override;
@@ -536,8 +552,13 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   virtual PHY_IVehicle *CreateVehicle(PHY_IPhysicsController *ctrl) override;
 
   virtual bool RemoveConstraintById(int constraintid, bool free) override;
+  virtual void RemoveConstraintsByIds(const std::vector<int> &constraintids,
+                                      bool free,
+                                      std::vector<int> &r_removed_constraintids) override;
   virtual bool IsRigidBodyConstraintEnabled(int constraintid) override;
   virtual float GetAppliedImpulse(int constraintid) override;
+  virtual void ConsumeRigidBodyConstraintBreakEvents(
+      std::vector<PHY_RigidBodyConstraintBreakEvent> &r_events) override;
 
   virtual PHY_IVehicle *GetVehicleConstraint(int constraintId) override;
   virtual PHY_IVehicle *GetVehicleConstraint(PHY_IPhysicsController *ctrl) override;
@@ -553,6 +574,10 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   virtual bool RayCast(const PHY_RayQuerySettings &settings,
                        PHY_IRayCastFilterCallback &filterCallback,
                        std::vector<PHY_RayCastResult> &results) override;
+  virtual bool RayCastBatch(const std::vector<PHY_RayQuerySettings> &settings,
+                            PHY_IRayCastFilterCallback &filterCallback,
+                            PHY_RayBatchExecution execution,
+                            std::vector<std::vector<PHY_RayCastResult>> &results) override;
   virtual void AddRayQueryDetailRequirements(unsigned char detailFlags) override;
   unsigned char GetRayQueryDetailRequirements() const
   {
@@ -622,7 +647,8 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
       KX_GameObject *gameobj2,
       const MT_Vector3 &pivotLocal,
       const MT_Matrix3x3 &basisLocal,
-      const PHY_RigidBodyConstraintSettings &settings) override;
+      const PHY_RigidBodyConstraintSettings &settings,
+      const std::string &constraint_name = std::string()) override;
   virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) override;
 
   virtual void ExportFile(const std::string &filename) override;
@@ -643,6 +669,8 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   void AddController(JoltPhysicsController *ctrl);
   bool RemoveController(JoltPhysicsController *ctrl);
+  /** True when a two-body Jolt constraint references this body. */
+  bool HasConstraintsForBody(JPH::BodyID bodyID) const;
   void RemoveConstraintsForBody(JPH::BodyID bodyID);
 
   /** Register a blender Object → controller mapping (used for soft body pin lookup). */
@@ -679,10 +707,6 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   /** Record a rigid-body AddBody call so runtime broadphase maintenance can be
    *  triggered after heavy spawn bursts. */
   void NotifyRigidBodyBodyAdded();
-
-  /** Request one global depsgraph relations refresh for soft-body modifier edits.
-   *  UpdateSoftBodies() will perform the actual tag once per frame. */
-  void RequestSoftBodyRelationsTagUpdate();
 
   /** Mark the breakable-constraint cache dirty after threshold changes. */
   void NotifyConstraintBreakingThresholdChanged();
@@ -789,6 +813,8 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   std::unordered_map<int, JoltConstraint *> m_constraintById;
   std::vector<JoltConstraint *> m_breakableConstraintsCache;
   std::vector<int> m_brokenConstraintIDsScratch;
+  std::vector<int> m_removedConstraintIDsScratch;
+  std::vector<PHY_RigidBodyConstraintBreakEvent> m_rigidBodyConstraintBreakEvents;
   std::vector<JPH::BodyID> m_constraintTopologyDirtyBodies;
   std::unordered_multimap<JPH::uint32, JoltConstraint *> m_constraintAdjacencyScratch;
   std::vector<JPH::BodyID> m_constraintComponentBodiesScratch;
@@ -857,6 +883,9 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   std::vector<JoltRemovedContactPair> m_removedContactPairsScratch;
   std::vector<JoltContactEvent> m_contactEventsScratch;
   std::unordered_map<JPH::SubShapeIDPair, JoltContactPair> m_logicActiveContactPairs;
+  /** The active pairs by sub-shape pair: logic sees the contacts of a step in the same order on
+   * every machine (the map's own order is its standard library's). */
+  std::vector<const JoltContactPair *> m_logicContactOrderScratch;
   std::vector<PHY_CachedCollisionContact> m_logicCollisionContacts;
   /** Query-generated overlaps, allocated only for Sensor/parented controllers actually
    *  requested by C++ Logic Nodes this tick. Values own stable pointer storage. */
@@ -910,7 +939,7 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
    *  while a runtime spawn burst is pending broadphase optimization. */
   int m_rigidBodyAddIdleFrames = 0;
 
-  /** True if at least one soft body requested DEG_relations_tag_update this frame. */
+  /** True if a soft-body relation refresh could not yet be performed. */
   bool m_softBodyRelationsTagDirty = false;
 
   /** Maps Blender Object* → JoltPhysicsController* for soft-body pin-object lookup. */
@@ -925,6 +954,18 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   int m_numTimeSubSteps;
   int m_debugMode;
   bool m_debugErrors = false;
+  /** EPhysicsUpdateError bits already reported: a full cache is always reported, once. */
+  uint32_t m_reportedUpdateErrors = 0;
+
+  /** Changes when Jolt's body poses were replaced wholesale (RestorePhysicsState), never 0 and
+   * unique across environments: a static body's synced pose (JoltPhysicsController) is trusted
+   * only under the epoch it was found in. */
+  uint32_t GetBodyPoseEpoch() const
+  {
+    return m_bodyPoseEpoch;
+  }
+  static uint32_t NextBodyPoseEpoch();
+  uint32_t m_bodyPoseEpoch = NextBodyPoseEpoch();
 
   float m_fixedTimeStep = 0.0f;
   float m_deactivationTime;

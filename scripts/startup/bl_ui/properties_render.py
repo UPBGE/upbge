@@ -49,6 +49,23 @@ class RENDER_PT_context(Panel):
             layout.prop(rd, "engine", text="Render Engine")
 
 
+# Logic nodes that show a collection through an overlay camera: Use Viewport Render draws only the
+# game camera, so their collections open but never show.
+_OVERLAY_UI_NODES = {"LogicNativeOpenObjectMenu", "LogicNativeSetOverlayCollection"}
+
+
+def _logic_opens_overlay_ui():
+    """Whether a logic tree kept in the file opens an object menu or sets an overlay collection
+    (a HUD)."""
+    import bpy
+    for tree in bpy.data.node_groups:
+        if tree.bl_idname != "LogicNodeTree" or tree.users == 0:
+            continue
+        if any(node.bl_idname in _OVERLAY_UI_NODES and not node.mute for node in tree.nodes):
+            return True
+    return False
+
+
 class RENDER_PT_game_resolution(RenderButtonsPanel, Panel):
     bl_label = "Game Resolution"
     COMPAT_ENGINES = {
@@ -85,9 +102,18 @@ class RENDER_PT_game_resolution(RenderButtonsPanel, Panel):
             col.prop(gs, "use_desktop")
             col.active = gs.show_fullscreen
 
+        layout.prop(gs, "free_editor_view_memory")
+
         row = layout.row()
         col = row.column()
         col.prop(gs, "use_viewport_render")
+        if gs.use_viewport_render:
+            col = layout.column(align=True)
+            col.label(text="Preview mode, not for a finished game", icon='INFO')
+            if _logic_opens_overlay_ui():
+                col.label(text="Object menus and the HUD are not drawn", icon='ERROR')
+            if any(len(ob.lod_levels) > 1 for ob in context.scene.objects):
+                col.label(text="Level of Detail does not switch", icon='ERROR')
 
         row = layout.row()
         row.active = not gs.use_viewport_render
@@ -121,6 +147,7 @@ _FRAME_TIME_GRAPH_DOMAINS = (
     ("show_frame_time_graph_domain_overhead", "Overhead"),
     ("show_frame_time_graph_domain_outside", "Outside"),
     ("show_frame_time_graph_domain_gpu_latency", "GPU Latency"),
+    ("show_frame_time_graph_domain_steps", "Steps"),
 )
 
 

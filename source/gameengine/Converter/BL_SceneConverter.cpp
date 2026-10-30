@@ -47,6 +47,7 @@ BL_SceneConverter::BL_SceneConverter()
   m_map_blender_to_gameactuator = {};
   m_map_blender_to_gamecontroller = {};
   m_pending_parent_suspends = {};
+  m_pending_jolt_transform_parenting = {};
 }
 
 BL_SceneConverter::~BL_SceneConverter()
@@ -60,12 +61,13 @@ BL_SceneConverter::~BL_SceneConverter()
   m_map_blender_to_gameactuator.clear();
   m_map_blender_to_gamecontroller.clear();
   m_pending_parent_suspends.clear();
+  m_pending_jolt_transform_parenting.clear();
 }
 
 void BL_SceneConverter::RegisterGameObject(KX_GameObject *gameobject,
                                                   blender::Object *for_blenderobject)
 {
-  if (gameobject->IsUpbgeDupliInstance()) {
+  if (gameobject->IsUpbgeDupliInstance() && !gameobject->IsShared()) {
     return;
   }
   // 	CM_FunctionDebug("object name: " << gameobject->GetName());
@@ -82,7 +84,8 @@ void BL_SceneConverter::RegisterGameObject(KX_GameObject *gameobject,
  * m_map_blender_to_gameobject is freed after conversion (not anymore in 0.3) */
 void BL_SceneConverter::UnregisterGameObject(KX_GameObject *gameobject)
 {
-  if (gameobject->IsUpbgeDupliInstance()) {
+  /* A grouped Auto object (Game Drawing) has its own Blender object. */
+  if (gameobject->IsUpbgeDupliInstance() && !gameobject->IsShared()) {
     return; // We want blenderObject dupli Base to remain accessible
   }
   blender::Object *bobp = gameobject->GetBlenderObject();
@@ -136,6 +139,31 @@ KX_BlenderMaterial *BL_SceneConverter::FindMaterial(blender::Material *mat)
   return m_map_mesh_to_polyaterial[mat];
 }
 
+void BL_SceneConverter::AdoptLookups(BL_SceneConverter &other)
+{
+  /* An entry this converter has stays; the empty ones lookups leave (operator[]) are filled. */
+  const auto adopt = [](auto &mine, const auto &theirs) {
+    for (const auto &[key, value] : theirs) {
+      if (value == nullptr) {
+        continue;
+      }
+      auto [it, inserted] = mine.insert({key, value});
+      if (!inserted && it->second == nullptr) {
+        it->second = value;
+      }
+    }
+  };
+  adopt(m_map_blender_to_gameobject, other.m_map_blender_to_gameobject);
+  adopt(m_map_mesh_to_gamemesh, other.m_map_mesh_to_gamemesh);
+  adopt(m_map_mesh_to_polyaterial, other.m_map_mesh_to_polyaterial);
+  adopt(m_map_blender_to_gameactuator, other.m_map_blender_to_gameactuator);
+  adopt(m_map_blender_to_gamecontroller, other.m_map_blender_to_gamecontroller);
+  for (std::unique_ptr<KX_BlenderMaterial> &material : other.m_owned_runtime_materials) {
+    m_owned_runtime_materials.push_back(std::move(material));
+  }
+  other.m_owned_runtime_materials.clear();
+}
+
 void BL_SceneConverter::RegisterGameActuator(SCA_IActuator *act, blender::bActuator *for_actuator)
 {
   m_map_blender_to_gameactuator[for_actuator] = act;
@@ -170,4 +198,23 @@ void BL_SceneConverter::FlushPendingSuspendDynamics()
     controller->SuspendDynamics(false);
   }
   m_pending_parent_suspends.clear();
+}
+
+void BL_SceneConverter::AddPendingJoltTransformParenting(KX_GameObject *gameobject)
+{
+  if (gameobject) {
+    m_pending_jolt_transform_parenting.push_back(gameobject);
+  }
+}
+
+void BL_SceneConverter::FlushPendingJoltTransformParenting()
+{
+  for (KX_GameObject *gameobject : m_pending_jolt_transform_parenting) {
+    if (!gameobject->BeginAuthoredTransformParenting()) {
+      CM_Warning("Jolt transform parenting was not activated for authored parented object '"
+                 << gameobject->GetName()
+                 << "'; its independently simulated body and constraints were left unchanged.");
+    }
+  }
+  m_pending_jolt_transform_parenting.clear();
 }

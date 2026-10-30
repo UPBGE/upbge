@@ -38,29 +38,57 @@
 
 #include "KX_GameObject.h"
 
+#include "EXP_ArrayValue.h"
+#include "EXP_BoolValue.h"
+#include "EXP_DictValue.h"
+#include "EXP_FloatValue.h"
+#include "EXP_IntValue.h"
+#include "EXP_StringValue.h"
+#include "EXP_Vector2Value.h"
+#include "EXP_Vector3Value.h"
+#include "EXP_Vector4Value.h"
+#include "KX_ObjectReferenceValue.h"
+
 #include "BKE_context.hh"
+#include "BKE_game_persistence.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_material.hh"
 #include "BKE_mball.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
+#include "BLI_hash.h"
+#include "BLI_listbase.h"
+#include "BLI_map.hh"
+#include "BLI_set.hh"
+#include "BLI_string.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_listbase.h"
+#include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
+#include "DNA_anim_types.h"
+#include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
 #include "WM_api.hh"
 
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <limits>
+#include <memory>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 #include "BL_Action.h"
 #include "BL_ActionManager.h"
+#include "BL_ArmatureObject.h"
 #include "BL_SceneConverter.h"
+#include "KX_BoneParentNodeRelationship.h"
 #include "KX_ClientObjectInfo.h"
 #include "KX_CollisionContactPoints.h"
 #include "KX_Globals.h"
@@ -69,6 +97,7 @@
 #include "KX_MeshProxy.h"
 #include "KX_NetworkMessageScene.h"  //Needed for sendMessage()
 #include "KX_NodeRelationships.h"
+#include "KX_PhysicsEngineEnums.h"
 #include "KX_PolyProxy.h"
 #include "KX_PyMath.h"
 #include "KX_PythonComponent.h"
@@ -197,10 +226,36 @@ KX_GameObject::ActivityCullingInfo::ActivityCullingInfo()
 
 KX_GameObject::KX_GameObject()
     : SCA_IObject(),
-      m_isReplica(false),            // eevee
-      m_forceIgnoreParentTx(false),  // eevee
-      m_previousLodLevel(-1),        // eevee
-      m_isUpbgeDupliInstance(false),    // eevee
+      m_isReplica(false),             // eevee
+      m_forceIgnoreParentTx(false),   // eevee
+      m_previousLodLevel(-1),         // eevee
+      m_isUpbgeDupliInstance(false),  // eevee
+      m_cachedRenderPosition(0.0f, 0.0f, 0.0f),
+      m_cachedRenderOrientation(MT_Matrix3x3::Identity()),
+      m_cachedRenderScale(1.0f, 1.0f, 1.0f),
+      m_cachedInterpolatedTransform(MT_Transform::Identity()),
+      m_useRenderInterpolation(false),
+      m_interpolationListRegistered(false),
+      m_renderSyncedMatrix{},
+      m_renderSyncedValid(false),
+      m_renderSyncedFrame(0),
+      m_evaluatedPoseDue(false),
+      m_smoothMotion(OB_SMOOTH_MOTION_SCENE),
+      m_smoothResetPending(false),
+      m_smoothResetBlend(0.0f),
+      m_smoothCorrectionOffset(0.0f, 0.0f, 0.0f),
+      m_smoothCorrectionTurn(0.0f, 0.0f, 0.0f, 1.0f),
+      m_smoothCorrectionLeft(0.0f),
+      m_smoothCorrectionDuration(0.0f),
+      m_smoothDrawnPosition(0.0f, 0.0f, 0.0f),
+      m_smoothDrawnOrientation(MT_Matrix3x3::Identity()),
+      m_smoothDrawnFrame(0),
+      m_persistenceSourceUuid(blender::BLI_uuid_nil()),
+      m_persistenceInstanceUuid(blender::BLI_uuid_nil()),
+      m_saveGameObjectState(false),
+      m_parentCompoundIntent(false),
+      m_parentGhostIntent(false),
+      m_parentPhysicsManaged(false),
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -209,14 +264,16 @@ KX_GameObject::KX_GameObject()
       m_bIsNegativeScaling(false),
       m_objectColor(1.0f, 1.0f, 1.0f, 1.0f),
       m_bVisible(true),
+      m_overlayVisible(false),
+      m_collectionVisible(true),
+      m_presentationVisible(true),
+      m_viewClipVisible(true),
+      m_uiInteractableOverride(-1),
       m_bOccluder(false),
       m_pPhysicsController(nullptr),
       m_pSGNode(nullptr),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
-      m_cachedRenderTransform(MT_Transform::Identity()),
-      m_cachedInterpolatedTransform(MT_Transform::Identity()),
-      m_useRenderInterpolation(false),
       m_actionManager(nullptr)
 #ifdef WITH_PYTHON
       ,
@@ -231,6 +288,11 @@ KX_GameObject::KX_GameObject()
 
 KX_GameObject::~KX_GameObject()
 {
+  ClearReferenceValues();
+  if (m_drawCull.distance_value != nullptr) {
+    m_drawCull.distance_value->Release();
+    m_drawCull.distance_value = nullptr;
+  }
 #ifdef WITH_PYTHON
 
   /* onRemove callbacks */
@@ -258,9 +320,16 @@ KX_GameObject::~KX_GameObject()
 
   blender::Object *ob = GetBlenderObject();
 
-  if (ob) {
-    /* Potential issue here with duplis instances pointing to the same blender::Object */
-    ob->gameflag &= ~OB_OVERLAY_COLLECTION;
+  if (m_replaceMeshEval && ob) {
+    /* The scene frees its mesh copies at exit: stop drawing one and evaluate the own mesh. */
+    blender::bContext *C = KX_GetActiveEngine() ? KX_GetActiveEngine()->GetContext() : nullptr;
+    blender::Depsgraph *depsgraph = C ? CTX_data_depsgraph_pointer(C) : nullptr;
+    blender::Object *ob_eval = depsgraph ? DEG_get_evaluated(depsgraph, ob) : nullptr;
+    if (ob_eval && ob_eval != ob && ob_eval->runtime->data_eval == &m_replaceMeshEval->id) {
+      BKE_object_free_derived_caches(ob_eval);
+      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    }
+    m_replaceMeshEval = nullptr;
   }
 
   if (m_pSGNode) {
@@ -357,44 +426,110 @@ void KX_GameObject::ForceIgnoreParentTx()
   m_forceIgnoreParentTx = true;
 }
 
-void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass)
+/** Blender computes the evaluated pose from other things than the original's own transform. */
+static bool pose_computed_by_blender(const blender::Object *ob)
 {
-  if (m_isUpbgeDupliInstance) {
-    if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
-      TagUpbgeDupliInstanceForTaaReset();
-      if (is_last_render_pass) {
-        GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
-      }
+  return (ob->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY) || ob->parent != nullptr ||
+         !BLI_listbase_is_empty(&ob->constraints) ||
+         (ob->adt != nullptr && !BLI_listbase_is_empty(&ob->adt->drivers));
+}
+
+bool KX_BlenderSimulatesObject(const blender::Object *ob)
+{
+  if (ELEM(ob->type, OB_ARMATURE, OB_MBALL) || ob->instance_collection != nullptr ||
+      (ob->transflag & OB_DUPLI) || ob->rigidbody_object != nullptr ||
+      ob->rigidbody_constraint != nullptr || !BLI_listbase_is_empty(&ob->particlesystem) ||
+      (ob->pd != nullptr && ob->pd->forcefield != 0))
+  {
+    return true;
+  }
+  for (const blender::ModifierData *md = static_cast<const blender::ModifierData *>(
+           ob->modifiers.first);
+       md != nullptr;
+       md = md->next)
+  {
+    if (ELEM(md->type,
+             eModifierType_Collision,
+             eModifierType_Cloth,
+             eModifierType_Softbody,
+             eModifierType_Fluid,
+             eModifierType_DynamicPaint,
+             eModifierType_ParticleSystem,
+             eModifierType_Surface))
+    {
+      return true;
     }
-    return;
   }
-  MT_Transform syncTransform = NodeGetWorldTransform();
+  return false;
+}
 
-  if (KX_GetActiveEngine()->UseViewportRender() && m_useRenderInterpolation) {
-    syncTransform = m_cachedInterpolatedTransform;
+/** Nothing of Blender's reads the object's position (other than its own geometry, which the
+ * first moves find out): its moves can skip Blender's evaluation. */
+static bool pose_can_skip_evaluation(const blender::Depsgraph *depsgraph,
+                                     const blender::Object *ob)
+{
+  if (KX_BlenderSimulatesObject(ob)) {
+    return false;
   }
+  /* Another object, a modifier's or geometry nodes' object, a material, a child... */
+  bool read_elsewhere = false;
+  DEG_foreach_dependent_ID_component(
+      depsgraph,
+      &ob->id,
+      DEG_OB_COMP_TRANSFORM,
+      DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
+      [&](blender::ID * /*id*/, blender::eDepsObjectComponentType /*component*/) {
+        read_elsewhere = true;
+      });
+  return !read_elsewhere;
+}
 
-  float object_to_world[4][4];
-  syncTransform.getValue(&object_to_world[0][0]);
-  bool staticObject = true;
-  if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
-    staticObject = false;
-    /* Wait the end of all render passes (main + custom viewports)
-     * to clear dirty render because we want the objects to
-     * be tagged for transform update for each render pass.
-     */
-    if (is_last_render_pass) {
-      GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
-    }
+bool KX_GameObject::UsesDirectPose(const RenderSyncPass &pass, blender::Object *ob_orig)
+{
+  /* A placed Dupli Base is never marked (upstream UPBGE): its creator chose it. */
+  if (m_isUpbgeDupliBase) {
+    return true;
   }
+  if (m_posePath != PosePath::Unknown) {
+    return m_posePath == PosePath::Direct;
+  }
+  if (m_poseFromBlender || !pose_can_skip_evaluation(pass.depsgraph, ob_orig)) {
+    m_posePath = PosePath::Tagged;
+    return false;
+  }
+  /* Marked once more, to see whether Blender evaluates the object's geometry with its transform
+   * (its modifiers or geometry nodes read its position): TagForTransformUpdateEvaluated decides. */
+  m_posePathProbeStart = pass.start_update;
+  return false;
+}
 
-  blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Main *bmain = CTX_data_main(C);
-  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+void KX_GameObject::NotePoseCheck(const RenderSyncPass &pass)
+{
+  if (m_poseCheckPass != pass.pass) {
+    m_poseCheckPass = pass.pass;
+    GetScene()->NotePoseCheck(this);
+  }
+}
 
+void KX_GameObject::TagForTransformUpdate(const RenderSyncPass &pass, bool is_overlay_pass)
+{
   blender::Object *ob_orig = GetBlenderObject();
 
-  bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
+  if (m_posePathRelations != pass.relations) {
+    /* Blender's relations changed since the path was chosen (a spawn, a removal, a visibility
+     * change): something may read this object's position now, or no longer. */
+    m_posePathRelations = pass.relations;
+    m_posePath = PosePath::Unknown;
+    m_posePathProbes = 0;
+    m_posePathProbeStart = 0;
+    m_poseFromBlender = !m_isUpbgeDupliInstance && pose_computed_by_blender(ob_orig);
+  }
+  if (m_poseFromBlender) {
+    NotePoseCheck(pass);
+  }
+
+  bool skip_transform = !m_isUpbgeDupliInstance &&
+                        (ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY);
   /* Don't tag non overlay collection objects in overlay collection render pass */
   skip_transform = skip_transform ||
                    ((ob_orig->gameflag & OB_OVERLAY_COLLECTION) == 0 && is_overlay_pass);
@@ -402,46 +537,126 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
   skip_transform = skip_transform ||
                    (ob_orig->gameflag & OB_OVERLAY_COLLECTION && !is_overlay_pass);
 
-  if (ob_orig && !skip_transform) {
+  /* Most objects are not drawn by a pass (the world's in the menu/HUD pass, the menu's in the
+   * others): they cost nothing more. */
+  if (skip_transform) {
+    m_forceIgnoreParentTx = false;
+    return;
+  }
 
-    bool applyTransformToOrig = GetScene()->OrigObCanBeTransformedInRealtime(ob_orig);
+  /* Nothing moves between the camera passes of a frame (split views, minimaps, a HUD): the first
+   * pass that draws the object compared it, and Blender evaluated it there if it changed. */
+  if (m_renderSyncedFrame == pass.frame) {
+    return;
+  }
+  m_renderSyncedFrame = pass.frame;
 
-    if (applyTransformToOrig) {
-      copy_m4_m4(ob_orig->runtime->object_to_world.ptr(), object_to_world);
-      BKE_object_apply_mat4(ob_orig,
-                            ob_orig->object_to_world().ptr(),
-                            false,
-                            ob_orig->parent && ob_orig->partype != PARVERT1);
+  /* Nothing wrote the node's world transform since the last compare: the same pose, as the
+   * compare would find (it built and read every still object's matrix at every frame). */
+  const bool use_interpolated = KX_GetActiveEngine()->UseViewportRender() &&
+                                m_useRenderInterpolation;
+  if (m_renderSyncedValid && !m_forceIgnoreParentTx && !use_interpolated &&
+      m_renderSyncedNode == m_pSGNode && m_pSGNode->GetWorldStamp() == m_renderSyncedStamp)
+  {
+    return;
+  }
+  m_renderSyncedNode = m_pSGNode;
+  m_renderSyncedStamp = m_pSGNode->GetWorldStamp();
+
+  MT_Transform syncTransform = NodeGetWorldTransform();
+
+  if (use_interpolated) {
+    syncTransform = m_cachedInterpolatedTransform;
+  }
+
+  float object_to_world[4][4];
+  syncTransform.getValue(&object_to_world[0][0]);
+
+  /* Blender is told of a pose only when it differs from the last one it got, once: its
+   * evaluation stays for the frame's later passes, and EEVEE compares every object's update stamp
+   * with the one it drew last, in each camera's renderer. A node being marked changed is not
+   * enough (physics, Smooth Motion and logic write the same pose again every frame), and every
+   * update makes Blender wake its worker threads and restart the renderers' anti-aliasing. */
+  const bool staticObject = m_renderSyncedValid &&
+                            equals_m4m4(m_renderSyncedMatrix, object_to_world);
+  if (!staticObject) {
+    copy_m4_m4(m_renderSyncedMatrix, object_to_world);
+    m_renderSyncedValid = true;
+  }
+
+  if (m_isUpbgeDupliInstance) {
+    if (!staticObject) {
+      TagUpbgeDupliInstanceForTaaReset();
     }
+    return;
+  }
+  /* Merged still scenery that moves leaves its batch: its own Blender object is drawn again. */
+  if (!staticObject && m_mergedBatch >= 0) {
+    LeaveMergedBatch();
+  }
 
-    if (!staticObject || m_forceIgnoreParentTx) {
-      std::vector<KX_GameObject *> children = GetChildren();
-      if (children.size() > 0) {
-        std::vector<blender::Object *> childrenObjects;
-        for (KX_GameObject *go : children) {
-          blender::Object *child = go->GetBlenderObject();
-          if (child) {
-            childrenObjects.push_back(child);
-          }
+  /* An unchanged pose needs nothing: Blender's objects hold it since it last changed. (Writing
+   * the original object again each pass cost more than the rest of the sync in a big level.) */
+  if (staticObject && !m_forceIgnoreParentTx) {
+    return;
+  }
+
+  const bool applyTransformToOrig = GetScene()->OrigObCanBeTransformedInRealtime(ob_orig);
+
+  if (applyTransformToOrig && !staticObject) {
+    /* Written on every path: Blender evaluates the object from it whenever it rebuilds. */
+    copy_m4_m4(ob_orig->runtime->object_to_world.ptr(), object_to_world);
+    BKE_object_apply_mat4(ob_orig,
+                          ob_orig->object_to_world().ptr(),
+                          false,
+                          ob_orig->parent && ob_orig->partype != PARVERT1);
+    if (UsesDirectPose(pass, ob_orig)) {
+      GetScene()->NoteDirectPose(this);
+      m_forceIgnoreParentTx = false;
+      return;
+    }
+  }
+  if (!staticObject) {
+    m_evaluatedPoseDue = true;
+    NotePoseCheck(pass);
+  }
+  if (!applyTransformToOrig && !staticObject) {
+    /* Blender never gets this object's pose (a fluid simulation would start over), only the
+     * evaluated copy does (TagForTransformUpdateEvaluated). Its shading stamp is the cheapest
+     * update the renderers notice (nothing evaluated again): EEVEE draws its shadow anew.
+     * DEG_bump_update_count would not do: its own counter, far below the evaluations' stamps,
+     * makes EEVEE take every object as changed and redraw every shadow at each frame. */
+    DEG_id_tag_update(&ob_orig->id, ID_RECALC_SHADING);
+  }
+
+  if (!staticObject || m_forceIgnoreParentTx) {
+    std::vector<KX_GameObject *> children = GetChildren();
+    if (children.size() > 0) {
+      std::vector<blender::Object *> childrenObjects;
+      for (KX_GameObject *go : children) {
+        blender::Object *child = go->GetBlenderObject();
+        if (child) {
+          childrenObjects.push_back(child);
         }
-        GetScene()->IgnoreParentTxBGE(bmain, depsgraph, CTX_data_scene(C), ob_orig, childrenObjects);
       }
+      GetScene()->IgnoreParentTxBGE(
+          pass.bmain, pass.depsgraph, pass.scene, ob_orig, childrenObjects);
     }
+  }
 
-    if (applyTransformToOrig) {
-      /* NORMAL CASE */
-      if (!staticObject && ob_orig->type != OB_MBALL) {
+  if (applyTransformToOrig) {
+    /* NORMAL CASE */
+    if (!staticObject && ob_orig->type != OB_MBALL) {
+      DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
+    }
+    /* SPECIAL CASE: EXPERIMENTAL -> TEST METABALLS (incomplete) (TODO restore elems position at
+     * ge exit) */
+    else if (!staticObject && ob_orig->type == OB_MBALL) {
+      if (!BKE_mball_is_basis(ob_orig)) {
+        DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
+      }
+      else {
         DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
-      }
-      /* SPECIAL CASE: EXPERIMENTAL -> TEST METABALLS (incomplete) (TODO restore elems position at
-       * ge exit) */
-      else if (!staticObject && ob_orig->type == OB_MBALL) {
-        if (!BKE_mball_is_basis(ob_orig)) {
-          DEG_id_tag_update(&ob_orig->id, ID_RECALC_GEOMETRY);
-        }
-        else {
-          DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
-        }
       }
     }
   }
@@ -449,35 +664,80 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
   m_forceIgnoreParentTx = false;
 }
 
-void KX_GameObject::TagForTransformUpdateEvaluated()
+void KX_GameObject::TagForTransformUpdateEvaluated(blender::Depsgraph *depsgraph,
+                                                   const bool pass_evaluated,
+                                                   const uint64_t pass_start_update)
 {
   if (m_isUpbgeDupliInstance) {
     return;
   }
+  blender::Object *ob_orig = GetBlenderObject();
+  if (ob_orig == nullptr) {
+    return;
+  }
+
+  if (ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY) {
+    SyncTransformWithDepsgraph();
+    return;
+  }
+
+  if (!m_evaluatedPoseDue && !pass_evaluated) {
+    return;
+  }
+  /* The drawn pose goes straight into the object Blender draws. Marking every object changed
+   * here re-evaluated all of them on every camera pass (and woke Blender's worker threads each
+   * time): TagForTransformUpdate marks the objects whose drawn pose changed. An object Blender
+   * did not evaluate keeps the pose written into it before. */
+  blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
+  if (ob_eval == nullptr) {
+    return;
+  }
+  /* Blender's update counts only grow (one global counter), and its evaluation stamps the count
+   * of the update it ran in (two when a Python handler asked for a second round). */
+  const bool evaluated = ob_eval == ob_orig ||
+                         ob_eval->runtime->last_update_transform > pass_start_update;
+  if (m_posePathProbeStart != 0 && ob_eval != ob_orig) {
+    /* The move marked to find the path: Blender evaluated the transform, and the geometry too if
+     * it reads the position. Geometry evaluated for another reason in the same update (the
+     * game's first frames) looks the same, so three such moves are needed to stay marked. */
+    if (ob_eval->runtime->last_update_transform > m_posePathProbeStart) {
+      if (ob_eval->runtime->last_update_geometry <= m_posePathProbeStart) {
+        m_posePath = PosePath::Direct;
+      }
+      else if (++m_posePathProbes >= 3) {
+        m_posePath = PosePath::Tagged;
+      }
+    }
+    m_posePathProbeStart = 0;
+  }
+  if (!m_evaluatedPoseDue && !evaluated) {
+    return;
+  }
+  m_evaluatedPoseDue = false;
+
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
+  BKE_object_apply_mat4(ob_eval, object_to_world, false, true);
+  copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
+}
 
-  blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-
+void KX_GameObject::WriteDirectPose(blender::Depsgraph *depsgraph)
+{
   blender::Object *ob_orig = GetBlenderObject();
-
-  bool skip_transform = ob_orig->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY;
-
-  if (skip_transform) {
-    SyncTransformWithDepsgraph();
+  blender::Object *ob_eval = ob_orig != nullptr ? DEG_get_evaluated(depsgraph, ob_orig) : nullptr;
+  /* Not in Blender's graph (hidden): Blender evaluates the written original when it comes back. */
+  if (ob_eval == nullptr || ob_eval == ob_orig) {
+    return;
   }
+  copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), m_renderSyncedMatrix);
+  /* Blender's own last transform step: the inverse, the negative-scale flag and the transform
+   * stamp, newer than every renderer's last draw thanks to the pass's mark. */
+  BKE_object_eval_transform_final(depsgraph, ob_eval);
+}
 
-  if (ob_orig && !skip_transform) {
-    BKE_object_apply_mat4(ob_orig, object_to_world, false, true);
-    DEG_id_tag_update(&ob_orig->id, ID_RECALC_TRANSFORM);
-
-    blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
-    if (ob_eval) {
-      BKE_object_apply_mat4(ob_eval, object_to_world, false, true);
-      copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
-    }
-  }
+void KX_GameObject::SetIsUpbgeDupliBase()
+{
+  m_isUpbgeDupliBase = true;
 }
 
 static bool is_realtime_compositor_enabled(blender::bContext *C)
@@ -503,23 +763,46 @@ void KX_GameObject::ReplicateBlenderObject()
   blender::Object *ob = GetBlenderObject();
 
   if (ob && ob->gameflag & OB_DUPLI_UPBGE) {
-    /* Don't do a new copy of the blender::Object if the gameobj is a dupli Base or a dupli instances
-     * All dupli instances will point to the same blender::Object (m_pBlenderObject) */
+    /* Don't do a new copy of the blender::Object if the gameobj is a dupli Base or a dupli
+     * instances All dupli instances will point to the same blender::Object (m_pBlenderObject) */
     return;
   }
 
   if (ob) {
+    m_replicaSourceUid = ob->id.session_uid;
+    m_replicaSourceData = static_cast<blender::ID *>(ob->data);
+    m_replicaSourceModifiers = BLI_listbase_count(&ob->modifiers);
+    m_blenderObjectChanged = false;
+    m_blenderObjectReusable = GetScene()->CopyReuseActive();
+    /* A removed copy of the same source kept in Blender's graph: no graph rebuild (2 copies a
+     * tick among 10,000 objects rebuilt it at every frame, 226 ms). */
+    blender::Object *parked = m_blenderObjectReusable ? GetScene()->TakeParkedCopy(ob) : nullptr;
+    if (parked != nullptr) {
+      BKE_game_persistence_identity_copy(ob->id, parked->id);
+      if (!compare_v4v4(parked->color, ob->color, 0.0f)) {
+        copy_v4_v4(parked->color, ob->color);
+        DEG_id_tag_update(&parked->id, ID_RECALC_SHADING | ID_RECALC_TRANSFORM);
+      }
+      if (m_collectionSource == nullptr) {
+        m_collectionSource = ob;
+      }
+      m_pBlenderObject = parked;
+      m_isReplica = true;
+      return;
+    }
     blender::bContext *C = KX_GetActiveEngine()->GetContext();
     blender::Main *bmain = CTX_data_main(C);
     blender::Object *newob;
     BKE_id_copy_ex(bmain, &ob->id, (blender::ID **)&newob, 0);
+    /* This is a temporary render copy, not a distinct authored identity. */
+    BKE_game_persistence_identity_copy(ob->id, newob->id);
     id_us_min(&newob->id);
     blender::Scene *scene = GetScene()->GetBlenderScene();
-    ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-    BKE_collection_object_add_from(bmain,
-                                   scene,
-                                   BKE_view_layer_camera_find(*bmain, scene, view_layer),
-                                   newob);  // add replica where is the active camera
+    /* The copy is drawn from the scene's master collection, which is always in the view layer.
+     * It used to be linked where the view layer's first camera is (not the active camera): a
+     * menu camera in a collection disabled in viewports left every Add Object and Drop Item copy
+     * undrawn. Its source's collections still decide its membership (CollectionsOf). */
+    BKE_collection_object_add(bmain, scene->master_collection, newob);
 
     /* Avoid to make instance_collections "containers" visibled
      * when replicating as we want only the instances created in DupliGroupRecuse
@@ -544,6 +827,12 @@ void KX_GameObject::ReplicateBlenderObject()
 
     GetScene()->TagForRelationsUpdate();
 
+    /* Linked to the master collection, the copy stays in its source's collections for a camera's
+     * Collection setting and the other collection queries (a copy of a copy keeps the first
+     * source). */
+    if (m_collectionSource == nullptr) {
+      m_collectionSource = ob;
+    }
     m_pBlenderObject = newob;
     m_isReplica = true;
   }
@@ -556,13 +845,29 @@ void KX_GameObject::DiscardRenderedObject()
     if (ctrl) {
       ctrl->RemoveSoftBodyModifier(ob);
     }
+    if (m_drawHidden && GetScene()) {
+      GetScene()->RemoveDrawHidden(this);
+    }
     /* 1. Rendered blender::Object is a dupli instance, just erase it from duplis list */
     if (m_isUpbgeDupliInstance) {
-      if (GetScene()) {
+      if (KX_Scene *scene = GetScene()) {
         TagUpbgeDupliInstanceForTaaReset();
-        GetScene()->RemoveUpbgeDupliInstanceFromList(this);
+        scene->RemoveUpbgeDupliInstanceFromList(this);
+        if (m_dupliDrawBase != nullptr) {
+          scene->ForgetSharedMember(this);
+          /* An Auto object's own Blender object (out of the graph, given its visibility back at
+           * the end) ends where the game left it, as an object drawn by its own would; with Undo
+           * at Exit the scene put the poses back before removing its objects. */
+          if (scene->m_isRuntime ||
+              (scene->GetBlenderScene()->gm.flag & GAME_USE_UNDO) == 0)
+          {
+            WriteOwnBlenderObject();
+          }
+        }
       }
+      ReleaseDupliDrawOriginal();
       m_isUpbgeDupliInstance = false;
+      m_dupliDrawBase = nullptr;
       return;
     }
     /* 2. Rendered blender::Object is a Replica (m_isReplica = true).
@@ -573,7 +878,21 @@ void KX_GameObject::DiscardRenderedObject()
     if (m_isReplica) {
       blender::bContext *C = KX_GetActiveEngine()->GetContext();
       blender::Main *bmain = CTX_data_main(C);
-      BKE_id_delete(bmain, ob);
+      RestoreOwnMaterials(ob, true);
+      /* A Full Copy was converted at runtime, which noted its visibility to give back at the
+       * end: the scene must not write into the deleted object then. */
+      if (GetScene()) {
+        GetScene()->ForgetVisibilityFlag(ob);
+        /* A copy a merged scene made at its conversion (a collection instance's). */
+        GetScene()->ForgetMergedLink(ob);
+        /* Kept in Blender's graph for the next copy of its source: no graph rebuild now, nor
+         * at that copy. */
+        if (CanParkBlenderObject(ob) && GetScene()->ParkCopy(ob, m_replicaSourceUid)) {
+          SetBlenderObject(nullptr);
+          return;
+        }
+      }
+      DeleteBlenderObjectWithOwnedData(bmain, ob);
       SetBlenderObject(nullptr);
       if (GetScene()) {
         GetScene()->TagForRelationsUpdate();
@@ -586,7 +905,116 @@ void KX_GameObject::DiscardRenderedObject()
     /* 3. The blender::Object is not a Replica nor a dupli Instance,
      * just hide the Original blender::Object. Its visibility flags will
      * be restored at KX_Scene exit */
+    if (m_mergedBatch >= 0) {
+      /* Its part of the batch goes for good; its own object never came back. */
+      if (KX_Scene *scene = GetScene()) {
+        scene->SetMergedPartShown(m_mergedBatch, m_mergedFirstVertex, m_mergedVertexCount, false);
+      }
+      m_mergedBatch = -1;
+      return;
+    }
     SetVisible(false, false);
+    /* Hidden in Blender's graph: the drawing's own hide works for game objects only. */
+    HideInGraph();
+    /* Its color as converted: a menu opened again starts as authored, not lit by the highlight
+     * action that was playing when it closed. */
+    if (m_hasConvertedColor && !compare_v4v4(ob->color, m_convertedColor.getValue(), 0.0f)) {
+      copy_v4_v4(ob->color, m_convertedColor.getValue());
+      DEG_id_tag_update(&ob->id, ID_RECALC_SHADING);
+    }
+    /* Its materials as authored too (material actions changed copies). */
+    RestoreOwnMaterials(ob, true);
+  }
+}
+
+blender::Material *KX_GameObject::OwnMaterial(const short slot)
+{
+  for (const OwnMaterialSlot &own : m_ownMaterials) {
+    if (own.slot == slot) {
+      return own.copy;
+    }
+  }
+  blender::Object *ob = GetBlenderObject();
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  blender::bContext *C = engine != nullptr ? engine->GetContext() : nullptr;
+  blender::Main *bmain = C != nullptr ? CTX_data_main(C) : nullptr;
+  /* A material of its own: a Merged object leaves its batch, a Shared one cannot (warned). */
+  NoteOwnDrawingNeeded();
+  if (ob == nullptr || bmain == nullptr || m_isUpbgeDupliInstance || slot < 1 ||
+      slot > ob->totcol)
+  {
+    return nullptr;
+  }
+  blender::Material *source = BKE_object_material_get(ob, slot);
+  if (source == nullptr) {
+    return nullptr;
+  }
+  /* Without the source's animation data: an action assigned to the source would be evaluated on
+   * the copy at the scene frame and undo what the game plays. */
+  blender::ID *copy_id = nullptr;
+  BKE_id_copy_ex(bmain, &source->id, &copy_id, LIB_ID_COPY_NO_ANIMDATA);
+  blender::Material *copy = reinterpret_cast<blender::Material *>(copy_id);
+  if (copy == nullptr) {
+    return nullptr;
+  }
+  OwnMaterialSlot own;
+  own.slot = slot;
+  own.source = source;
+  own.copy = copy;
+  own.matbits = ob->matbits[slot - 1];
+  own.object_material = ob->mat[slot - 1];
+  /* Linked to the object: the mesh (shared with copies of this object) keeps its material. */
+  BKE_object_material_assign(bmain, ob, copy, slot, BKE_MAT_ASSIGN_OBJECT);
+  /* The slot holds the copy's only user. */
+  id_us_min(&copy->id);
+  m_ownMaterials.push_back(own);
+  return copy;
+}
+
+blender::Material *KX_GameObject::SourceMaterial(const short slot)
+{
+  for (const OwnMaterialSlot &own : m_ownMaterials) {
+    if (own.slot == slot) {
+      return own.source;
+    }
+  }
+  blender::Object *ob = GetBlenderObject();
+  return ob != nullptr && slot >= 1 && slot <= ob->totcol ? BKE_object_material_get(ob, slot) :
+                                                             nullptr;
+}
+
+void KX_GameObject::RestoreOwnMaterials(blender::Object *ob, const bool delete_copies)
+{
+  if (m_ownMaterials.empty()) {
+    return;
+  }
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  blender::bContext *C = engine != nullptr ? engine->GetContext() : nullptr;
+  blender::Main *bmain = C != nullptr ? CTX_data_main(C) : nullptr;
+  bool restored = false;
+  for (const OwnMaterialSlot &own : m_ownMaterials) {
+    if (ob != nullptr && own.slot <= ob->totcol && ob->mat[own.slot - 1] == own.copy) {
+      id_us_min(&own.copy->id);
+      ob->mat[own.slot - 1] = own.object_material;
+      if (own.object_material != nullptr) {
+        id_us_plus(&own.object_material->id);
+      }
+      ob->matbits[own.slot - 1] = own.matbits;
+      restored = true;
+    }
+    if (delete_copies && bmain != nullptr && ID_REAL_USERS(&own.copy->id) <= 0) {
+      BKE_id_delete(bmain, own.copy);
+    }
+  }
+  m_ownMaterials.clear();
+  if (restored) {
+    DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_GEOMETRY);
+  }
+  if (GetScene() != nullptr) {
+    GetScene()->TagForRelationsUpdate();
+  }
+  else if (bmain != nullptr) {
+    DEG_relations_tag_update(bmain);
   }
 }
 
@@ -596,6 +1024,7 @@ void KX_GameObject::CreateUpbgeDupliInstanceFromExisting()
     return;
   }
   m_isUpbgeDupliInstance = true;
+  m_dupliDrawnShown = GetVisible();
 
   TagUpbgeDupliInstanceForTaaReset();
 
@@ -611,11 +1040,228 @@ void KX_GameObject::TagUpbgeDupliInstanceForTaaReset()
   /* Tag dupli Base object to reset taa samples +
    * update last_transform_update i guess - no noticeable
    * performances loss */
-  if (GetBlenderObject()->id.recalc == 0) {
-    GetScene()->AppendToIdsToUpdate(&GetBlenderObject()->id,
-                                    ID_RECALC_TRANSFORM,
-                                    GetBlenderObject()->gameflag & OB_OVERLAY_COLLECTION);
+  blender::Object *base = GetDupliDrawBase();
+  if (base->id.recalc == 0) {
+    GetScene()->AppendToIdsToUpdate(
+        &base->id, ID_RECALC_TRANSFORM, base->gameflag & OB_OVERLAY_COLLECTION);
   }
+}
+
+void KX_GameObject::MakeSharedInstance(blender::Object *base)
+{
+  /* Hidden at start: the provider skips it now; the drawing's own hide could take the group's
+   * object out of the graph later (RetireDrawHiddenObjects). */
+  if (m_drawHidden) {
+    GetScene()->RemoveDrawHidden(this);
+  }
+  m_dupliDrawBase = base;
+  m_isUpbgeDupliInstance = true;
+  m_dupliDrawnShown = GetVisible();
+  GetScene()->AddUpbgeDupliInstanceToList(this);
+  TagUpbgeDupliInstanceForTaaReset();
+}
+
+void KX_GameObject::SetMergedPart(const int batch,
+                                  const uint32_t first_vertex,
+                                  const uint32_t vertex_count)
+{
+  m_mergedBatch = batch;
+  m_mergedFirstVertex = first_vertex;
+  m_mergedVertexCount = vertex_count;
+  m_mergedPartHidden = false;
+  /* The pose it has now is the one merged: a later change is a move. */
+  NodeGetWorldTransform().getValue(&m_renderSyncedMatrix[0][0]);
+  m_renderSyncedValid = true;
+}
+
+void KX_GameObject::LeaveMergedBatch()
+{
+  if (m_mergedBatch < 0) {
+    return;
+  }
+  KX_Scene *scene = GetScene();
+  scene->SetMergedPartShown(m_mergedBatch, m_mergedFirstVertex, m_mergedVertexCount, false);
+  m_mergedBatch = -1;
+  m_mergedPartHidden = false;
+  /* Drawn by its own Blender object again, from the next pass's graph rebuild; the next compare
+   * hands it the pose. */
+  m_renderSyncedValid = false;
+  if (GetVisible()) {
+    SetGraphHidden(false);
+  }
+}
+
+float KX_GameObject::GetOwnDrawDistance()
+{
+  if (!m_drawCull.distance_value_known) {
+    m_drawCull.distance_value_known = true;
+    m_drawCull.distance_value = GetProperty("draw_distance");
+    if (m_drawCull.distance_value != nullptr) {
+      m_drawCull.distance_value->AddRef();
+    }
+  }
+  if (m_drawCull.distance_value == nullptr) {
+    return 0.0f;
+  }
+  const double distance = m_drawCull.distance_value->GetNumber();
+  return (distance > 0.0 && std::isfinite(distance)) ? float(distance) : 0.0f;
+}
+
+void KX_GameObject::PropertyMapChanged(const std::string &name)
+{
+  if (name.empty() || name == "draw_distance") {
+    if (m_drawCull.distance_value != nullptr) {
+      m_drawCull.distance_value->Release();
+      m_drawCull.distance_value = nullptr;
+    }
+    m_drawCull.distance_value_known = false;
+  }
+}
+
+void KX_GameObject::NoteOwnDrawingNeeded()
+{
+  if (m_mergedBatch >= 0) {
+    LeaveMergedBatch();
+  }
+  else if (m_dupliDrawBase != nullptr) {
+    LeaveSharedGroup();
+  }
+}
+
+void KX_GameObject::WriteOwnBlenderObject()
+{
+  blender::Object *ob = GetBlenderObject();
+  if (ob == nullptr) {
+    return;
+  }
+  /* Grouped objects have no Blender parent (KX_Scene::SetupGameDrawing). */
+  float object_to_world[4][4];
+  NodeGetWorldTransform().getValue(&object_to_world[0][0]);
+  copy_m4_m4(ob->runtime->object_to_world.ptr(), object_to_world);
+  BKE_object_apply_mat4(ob, object_to_world, false, false);
+  copy_v4_v4(ob->color, m_objectColor.getValue());
+}
+
+void KX_GameObject::LeaveSharedGroup()
+{
+  KX_Scene *scene = GetScene();
+  /* The renderers draw again without the instance. */
+  TagUpbgeDupliInstanceForTaaReset();
+  scene->RemoveUpbgeDupliInstanceFromList(this);
+  scene->ForgetSharedMember(this);
+  ReleaseDupliDrawOriginal();
+  m_isUpbgeDupliInstance = false;
+  m_dupliDrawBase = nullptr;
+  /* Its Blender object kept the pose and color it had at game start. */
+  WriteOwnBlenderObject();
+  /* The next sync compares from scratch: it hands Blender the pose and picks the pose path. */
+  m_renderSyncedValid = false;
+  m_evaluatedPoseDue = false;
+  /* Back in Blender's graph (one rebuild), or left out while hidden: showing it later brings it
+   * back. */
+  if (GetVisible()) {
+    SetGraphHidden(false);
+  }
+}
+
+void KX_GameObject::SetDupliDrawIdentity(blender::Object &drawn,
+                                         const float matrix[4][4],
+                                         const uint64_t update_count)
+{
+  blender::Object *base = GetDupliDrawBase();
+  if (base == nullptr) {
+    return;
+  }
+  /* A copy of the base, so whatever reads the drawn object's original reads the base's values;
+   * only its address differs (and stays the copy's for its life). Made whole once; what the
+   * drawing reads through the original and the game can change is copied again when it changed
+   * (2.4 KB written per copy per draw cost 1.4 ms among 10,000 copies). */
+  const uint64_t base_state = blender::get_default_hash(
+      blender::get_default_hash(base->data, base->mat, base->modifiers.first),
+      blender::get_default_hash(base->modifiers.last, base->lodlevels.first, base->currentlod),
+      blender::get_default_hash(base->id.recalc, base->type, base->mode),
+      blender::get_default_hash(base->totcol, base->gameflag, base->transflag),
+      blender::get_default_hash(base->visibility_flag, base->base_flag, base->matbits));
+  if (m_dupliDrawOriginal == nullptr) {
+    m_dupliDrawOriginal = new blender::Object(blender::dna::shallow_copy(*base));
+  }
+  else if (base_state != m_dupliDrawBaseState) {
+    blender::Object &original = *m_dupliDrawOriginal;
+    original.id.recalc = base->id.recalc;
+    original.type = base->type;
+    original.mode = base->mode;
+    original.data = base->data;
+    original.mat = base->mat;
+    original.matbits = base->matbits;
+    original.totcol = base->totcol;
+    original.modifiers = base->modifiers;
+    original.lodlevels = base->lodlevels;
+    original.currentlod = base->currentlod;
+    original.gameflag = base->gameflag;
+    original.transflag = base->transflag;
+    original.visibility_flag = base->visibility_flag;
+    original.base_flag = base->base_flag;
+  }
+  m_dupliDrawBaseState = base_state;
+  drawn.id.orig_id = &m_dupliDrawOriginal->id;
+  /* An Auto object draws with its own name: shaders' Object Info Random and Workbench's random
+   * color come from it, so it looks as it would drawn by its own Blender object. */
+  if (m_dupliDrawBase != nullptr) {
+    BLI_strncpy(drawn.id.name, m_pBlenderObject->id.name, sizeof(drawn.id.name));
+    drawn.id.lib = m_pBlenderObject->id.lib;
+  }
+  drawn.runtime->last_update_transform = UpdateDupliDrawnMove(matrix, update_count);
+}
+
+uint64_t KX_GameObject::UpdateDupliDrawnMove(const float matrix[4][4], const uint64_t update_count)
+{
+  if (!m_dupliDrawnValid || !equals_m4m4(m_dupliDrawnMatrix, matrix)) {
+    copy_m4_m4(m_dupliDrawnMatrix, matrix);
+    m_dupliDrawnValid = true;
+    m_dupliMovedUpdate = update_count;
+  }
+  return m_dupliMovedUpdate;
+}
+
+int KX_GameObject::GetDupliDrawId()
+{
+  /* Never reused while the game runs: a renderer keeps a gone copy's records under its key until
+   * its next draw, and a new copy with that key would inherit its motion. */
+  static int last_id = 0;
+  if (m_dupliDrawId == 0) {
+    last_id = (last_id >= std::numeric_limits<int>::max() - 1) ? 1 : last_id + 1;
+    m_dupliDrawId = last_id;
+  }
+  return m_dupliDrawId;
+}
+
+uint32_t KX_GameObject::GetDupliDrawRandom()
+{
+  /* What a copy's own draw entry gives Object Info Random (draw::ObjectRef::random): the hash of
+   * the entry's name, which is its Blender object's (an Auto object's own, a Dupli copy's base). */
+  if (m_dupliDrawRandomOf != m_pBlenderObject) {
+    m_dupliDrawRandomOf = m_pBlenderObject;
+    m_dupliDrawRandom = m_pBlenderObject ? BLI_hash_int_2d(
+                                               BLI_hash_string(m_pBlenderObject->id.name + 2), 0) :
+                                           0;
+  }
+  return m_dupliDrawRandom;
+}
+
+void KX_GameObject::ReleaseDupliDrawOriginal()
+{
+  if (m_dupliDrawOriginal == nullptr) {
+    return;
+  }
+  if (KX_Scene *scene = GetScene()) {
+    /* Renderers keep the address as a key until their next draw. */
+    scene->RetireDupliDrawOriginal(m_dupliDrawOriginal);
+  }
+  else {
+    delete m_dupliDrawOriginal;
+  }
+  m_dupliDrawOriginal = nullptr;
+  m_dupliDrawnValid = false;
 }
 
 void KX_GameObject::Dispose()
@@ -794,6 +1440,211 @@ bool KX_GameObject::IsReplica()
 void KX_GameObject::SetIsReplicaObject()
 {
   m_isReplica = true;
+  ClearPersistenceInstanceUuid();
+}
+
+void KX_GameObject::SetOwnedData(std::vector<blender::ID *> &&ids)
+{
+  m_ownedData = std::move(ids);
+}
+
+bool KX_GameObject::GiveOwnMesh()
+{
+  blender::Object *ob = GetBlenderObject();
+  KX_Scene *scene = GetScene();
+  if (ob == nullptr || ob->type != OB_MESH || ob->data == nullptr || !m_isReplica ||
+      m_isUpbgeDupliInstance || scene == nullptr)
+  {
+    return false;
+  }
+  if (m_hasOwnMesh) {
+    return true;
+  }
+  blender::Main *bmain = CTX_data_main(KX_GetActiveEngine()->GetContext());
+  blender::ID *mesh = static_cast<blender::ID *>(ob->data);
+  /* With its shape keys (Blender copies them with their mesh). */
+  blender::ID *own = BKE_id_copy(bmain, mesh);
+  if (own == nullptr) {
+    return false;
+  }
+  /* The copy's one user is the object now. */
+  ob->data = own;
+  id_us_min(mesh);
+  m_ownedData.push_back(own);
+  m_hasOwnMesh = true;
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  scene->TagForRelationsUpdate();
+  return true;
+}
+
+bool KX_GameObject::CanParkBlenderObject(const blender::Object *ob) const
+{
+  /* The next copy must get what a fresh copy of the source gets: only an ordinary copy the game
+   * did not change for itself, outside the camera passes' hiding (Use Viewport Render), and
+   * nothing Blender relates to other objects (a parent, constraints, a simulation, LOD levels,
+   * text data the game writes, a menu's own copies). A level of detail manager (Replace Mesh
+   * makes one) swaps the mesh Blender's evaluated copy draws. */
+  return m_replicaSourceUid != 0 && m_blenderObjectReusable && !m_blenderObjectChanged &&
+         m_ownedData.empty() && m_lodManager == nullptr &&
+         !KX_GetActiveEngine()->UseViewportRender() && ob->data == m_replicaSourceData &&
+         BLI_listbase_count(&ob->modifiers) == m_replicaSourceModifiers && ob->parent == nullptr &&
+         BLI_listbase_is_empty(&ob->constraints) && BLI_listbase_is_empty(&ob->lodlevels) &&
+         ob->type != OB_FONT && !KX_BlenderSimulatesObject(ob) &&
+         (ob->gameflag & (OB_OVERLAY_COLLECTION | OB_DUPLI_UPBGE)) == 0;
+}
+
+void KX_GameObject::DeleteBlenderObjectWithOwnedData(blender::Main *bmain, blender::Object *ob)
+{
+  if (m_ownedData.empty()) {
+    BKE_id_delete(bmain, ob);
+    return;
+  }
+  /* The object goes with every owned ID whose users are all the object and the others going: one
+   * the game gave another user stays, with what it uses. A mesh deformed on the GPU stays too:
+   * the drawing keeps it registered by address after the object is gone. */
+  blender::Set<blender::ID *> doomed = {&ob->id};
+  for (blender::ID *id : m_ownedData) {
+    const bool gpu_deformed = GS(id->name) == blender::ID_ME &&
+                              reinterpret_cast<blender::Mesh *>(id)->is_running_gpu_animation_playback;
+    if (!gpu_deformed) {
+      doomed.add(id);
+    }
+  }
+  for (bool changed = true; changed;) {
+    changed = false;
+    blender::Map<blender::ID *, int> users_inside;
+    for (blender::ID *id : doomed) {
+      blender::BKE_library_foreach_ID_link(
+          bmain,
+          id,
+          [&](blender::LibraryIDLinkCallbackData *cb_data) {
+            blender::ID *used = *cb_data->id_pointer;
+            if (used != nullptr && (cb_data->cb_flag & blender::IDWALK_CB_USER) &&
+                doomed.contains(used))
+            {
+              users_inside.lookup_or_add(used, 0)++;
+            }
+            return int(blender::IDWALK_RET_NOP);
+          },
+          nullptr,
+          blender::IDWALK_READONLY);
+    }
+    for (blender::ID *id : m_ownedData) {
+      if (!doomed.contains(id)) {
+        continue;
+      }
+      /* Shape keys belong to their mesh (Blender deletes them with it), whatever their count. */
+      const bool kept = GS(id->name) == blender::ID_KE ?
+                            !doomed.contains(reinterpret_cast<blender::Key *>(id)->from) :
+                            ID_REAL_USERS(id) > users_inside.lookup_default(id, 0);
+      if (kept) {
+        doomed.remove(id);
+        changed = true;
+      }
+    }
+  }
+  m_ownedData.clear();
+  BKE_id_multi_delete(bmain, doomed);
+}
+
+const blender::bUUID &KX_GameObject::GetPersistenceSourceUuid() const
+{
+  return m_persistenceSourceUuid;
+}
+
+void KX_GameObject::SetPersistenceSourceUuid(const blender::bUUID &uuid)
+{
+  m_persistenceSourceUuid = uuid;
+}
+
+const blender::bUUID &KX_GameObject::GetPersistenceInstanceUuid() const
+{
+  return m_persistenceInstanceUuid;
+}
+
+void KX_GameObject::SetPersistenceInstanceUuid(const blender::bUUID &uuid)
+{
+  m_persistenceInstanceUuid = uuid;
+}
+
+void KX_GameObject::ClearPersistenceInstanceUuid()
+{
+  m_persistenceInstanceUuid = blender::BLI_uuid_nil();
+}
+
+void KX_GameObject::SetSaveGameObjectState(const bool enabled)
+{
+  m_saveGameObjectState = enabled;
+}
+
+bool KX_GameObject::GetSaveGameObjectState() const
+{
+  return m_saveGameObjectState;
+}
+
+void KX_GameObject::AddSaveGameProperty(std::string name,
+                                        const SaveGamePropertyMetadata::Type type,
+                                        const bool timer)
+{
+  if (!name.empty()) {
+    m_saveGameProperties.insert_or_assign(std::move(name), SaveGamePropertyMetadata{type, timer});
+  }
+}
+
+bool KX_GameObject::IsSaveGameProperty(const std::string &name) const
+{
+  return GetSaveGamePropertyMetadata(name) != nullptr;
+}
+
+const KX_GameObject::SaveGamePropertyMetadata *KX_GameObject::GetSaveGamePropertyMetadata(
+    const std::string &name) const
+{
+  const auto found = m_saveGameProperties.find(name);
+  return found == m_saveGameProperties.end() ? nullptr : &found->second;
+}
+
+void KX_GameObject::AddReferenceValue(KX_ObjectReferenceValue *value)
+{
+  m_referenceValues.push_back(value);
+}
+
+void KX_GameObject::RemoveReferenceValue(KX_ObjectReferenceValue *value)
+{
+  std::erase(m_referenceValues, value);
+}
+
+void KX_GameObject::ClearReferenceValues()
+{
+  for (KX_ObjectReferenceValue *value : std::exchange(m_referenceValues, {})) {
+    value->m_object = nullptr;
+  }
+}
+
+bool KX_GameObject::HasSaveGameProperties() const
+{
+  return !m_saveGameProperties.empty();
+}
+
+const std::unordered_map<std::string, KX_GameObject::SaveGamePropertyMetadata> &KX_GameObject::
+    GetSaveGameProperties() const
+{
+  return m_saveGameProperties;
+}
+
+void KX_GameObject::SetInventoryRuleSet(const std::string &property, const std::string &rules)
+{
+  if (rules.empty()) {
+    m_inventoryRuleSets.erase(property);
+  }
+  else {
+    m_inventoryRuleSets.insert_or_assign(property, rules);
+  }
+}
+
+const std::string *KX_GameObject::GetInventoryRuleSet(const std::string &property) const
+{
+  const auto found = m_inventoryRuleSets.find(property);
+  return found == m_inventoryRuleSets.end() ? nullptr : &found->second;
 }
 
 /********************End of EEVEE INTEGRATION*********************/
@@ -852,6 +1703,8 @@ void KX_GameObject::RemoveDupliGroupObject()
   if (m_pDupliGroupObject) {
     m_pDupliGroupObject->Release();
     m_pDupliGroupObject = nullptr;
+    /* No longer in the collections of the Empty that instanced it. */
+    InvalidateCollectionMembership();
   }
 }
 
@@ -859,6 +1712,19 @@ void KX_GameObject::SetDupliGroupObject(KX_GameObject *obj)
 {
   obj->AddRef();
   m_pDupliGroupObject = obj;
+  /* It now also counts as in the collections of the Empty instancing it. */
+  InvalidateCollectionMembership();
+}
+
+void KX_GameObject::SetCollectionMembership(const blender::Collection *collection,
+                                            const bool member)
+{
+  /* The latest call for a collection wins and counts as the newest, as the calls apply in
+   * order (taking an object out of a parent collection, then putting it in a child of it). */
+  std::erase_if(m_collectionMemberships,
+                [collection](const auto &entry) { return entry.first == collection; });
+  m_collectionMemberships.emplace_back(collection, member);
+  InvalidateCollectionMembership();
 }
 
 void KX_GameObject::AddConstraint(blender::bRigidBodyJointConstraint *cons)
@@ -914,14 +1780,13 @@ KX_GameObject::RigidBodyConstraintData *KX_GameObject::AddRigidBodyConstraint(
   return &m_rigidbodyConstraints.back();
 }
 
-void KX_GameObject::AddRuntimeRigidBodyConstraint(
-    const std::string &name,
-    KX_GameObject *object1,
-    KX_GameObject *object2,
-    const PHY_RigidBodyConstraintSettings &settings,
-    const MT_Vector3 &pivotLocal,
-    const MT_Matrix3x3 &basisLocal,
-    int constraintId)
+void KX_GameObject::AddRuntimeRigidBodyConstraint(const std::string &name,
+                                                  KX_GameObject *object1,
+                                                  KX_GameObject *object2,
+                                                  const PHY_RigidBodyConstraintSettings &settings,
+                                                  const MT_Vector3 &pivotLocal,
+                                                  const MT_Matrix3x3 &basisLocal,
+                                                  int constraintId)
 {
   KX_Scene *scene = GetScene();
   PHY_IPhysicsEnvironment *physEnv = scene ? scene->GetPhysicsEnvironment() : nullptr;
@@ -1014,17 +1879,46 @@ void KX_GameObject::RemoveRigidBodyConstraintId(int constraintId)
     return;
   }
 
-  m_rigidbodyConstraints.erase(
-      std::remove_if(m_rigidbodyConstraints.begin(),
-                     m_rigidbodyConstraints.end(),
-                     [constraintId](const RigidBodyConstraintData &data) {
-                       return data.m_constraintId == constraintId;
-                     }),
-      m_rigidbodyConstraints.end());
+  m_rigidbodyConstraints.erase(std::remove_if(m_rigidbodyConstraints.begin(),
+                                              m_rigidbodyConstraints.end(),
+                                              [constraintId](const RigidBodyConstraintData &data) {
+                                                return data.m_constraintId == constraintId;
+                                              }),
+                               m_rigidbodyConstraints.end());
 }
 
-const std::vector<KX_GameObject::RigidBodyConstraintData> &
-KX_GameObject::GetRigidBodyConstraints() const
+void KX_GameObject::RemoveRigidBodyConstraintIds(const std::vector<int> &constraintIds)
+{
+  if (constraintIds.empty() || m_rigidbodyConstraints.empty()) {
+    return;
+  }
+  if (constraintIds.size() == 1) {
+    RemoveRigidBodyConstraintId(constraintIds.front());
+    return;
+  }
+
+  std::unordered_set<int> constraintIdSet;
+  constraintIdSet.reserve(constraintIds.size());
+  for (const int constraintId : constraintIds) {
+    if (constraintId != -1) {
+      constraintIdSet.insert(constraintId);
+    }
+  }
+  if (constraintIdSet.empty()) {
+    return;
+  }
+
+  m_rigidbodyConstraints.erase(std::remove_if(m_rigidbodyConstraints.begin(),
+                                              m_rigidbodyConstraints.end(),
+                                              [&](const RigidBodyConstraintData &data) {
+                                                return constraintIdSet.contains(
+                                                    data.m_constraintId);
+                                              }),
+                               m_rigidbodyConstraints.end());
+}
+
+const std::vector<KX_GameObject::RigidBodyConstraintData> &KX_GameObject::GetRigidBodyConstraints()
+    const
 {
   return m_rigidbodyConstraints;
 }
@@ -1054,19 +1948,17 @@ void KX_GameObject::RemoveRigidBodyConstraints()
       constraintIds.push_back(data.m_constraintId);
     }
   }
-  for (const int constraintId : constraintIds) {
-    if (physEnv->RemoveConstraintById(constraintId, true)) {
-      RemoveRigidBodyConstraintId(constraintId);
-    }
-  }
 
-  m_rigidbodyConstraints.erase(
-      std::remove_if(m_rigidbodyConstraints.begin(),
-                     m_rigidbodyConstraints.end(),
-                     [](const RigidBodyConstraintData &data) {
-                       return data.m_constraintId == -1;
-                     }),
-      m_rigidbodyConstraints.end());
+  std::vector<int> removedConstraintIds;
+  physEnv->RemoveConstraintsByIds(constraintIds, true, removedConstraintIds);
+  RemoveRigidBodyConstraintIds(removedConstraintIds);
+
+  m_rigidbodyConstraints.erase(std::remove_if(m_rigidbodyConstraints.begin(),
+                                              m_rigidbodyConstraints.end(),
+                                              [](const RigidBodyConstraintData &data) {
+                                                return data.m_constraintId == -1;
+                                              }),
+                               m_rigidbodyConstraints.end());
 }
 
 bool KX_GameObject::HasRigidBodyConstraints() const
@@ -1074,7 +1966,8 @@ bool KX_GameObject::HasRigidBodyConstraints() const
   return !m_rigidbodyConstraints.empty();
 }
 
-bool KX_GameObject::SetRigidBodyConstraintsEnabled(bool enabled, const std::string &filterObjectName)
+bool KX_GameObject::SetRigidBodyConstraintsEnabled(bool enabled,
+                                                   const std::string &filterObjectName)
 {
   if (m_rigidbodyConstraints.empty()) {
     return false;
@@ -1131,7 +2024,8 @@ void KX_GameObject::ReplicateRigidBodyConstraints(
     // O(1) hash map lookup instead of O(n) linear search
     auto it1 = objectLookup.find(data.m_object1Name);
     if (it1 == objectLookup.end()) {
-      CM_Debug("ReplicateRigidBodyConstraints: target1 '" << data.m_object1Name << "' not found for " << GetName());
+      CM_Debug("ReplicateRigidBodyConstraints: target1 '" << data.m_object1Name
+                                                          << "' not found for " << GetName());
       continue;
     }
     KX_GameObject *target1 = it1->second;
@@ -1146,13 +2040,15 @@ void KX_GameObject::ReplicateRigidBodyConstraints(
       target2 = it2->second;
     }
     else {
-      CM_Debug("ReplicateRigidBodyConstraints: target2 '" << data.m_object2Name << "' not found for " << GetName());
+      CM_Debug("ReplicateRigidBodyConstraints: target2 '" << data.m_object2Name
+                                                          << "' not found for " << GetName());
       continue;
     }
 
     int constraintId = physEnv->CreateRigidBodyConstraint(
-        target1, target2, data.m_pivotLocal, data.m_basisLocal, data.m_settings);
-    // Store any valid ID (only -1 means failure, other negative values are valid due to int overflow)
+        target1, target2, data.m_pivotLocal, data.m_basisLocal, data.m_settings, data.m_name);
+    // Store any valid ID (only -1 means failure, other negative values are valid due to int
+    // overflow)
     if (constraintId != -1) {
       data.m_constraintId = constraintId;
     }
@@ -1173,6 +2069,414 @@ KX_GameObject *KX_GameObject::GetParent()
   return result;
 }
 
+void KX_GameObject::ClearParentIntent()
+{
+  m_parentCompoundIntent = false;
+  m_parentGhostIntent = false;
+  m_parentPhysicsManaged = false;
+}
+
+bool KX_GameObject::GetParentCompoundIntent() const
+{
+  return m_parentCompoundIntent;
+}
+
+bool KX_GameObject::GetParentGhostIntent() const
+{
+  return m_parentGhostIntent;
+}
+
+bool KX_GameObject::GetParentPhysicsManaged() const
+{
+  return m_parentPhysicsManaged;
+}
+
+bool KX_GameObject::BeginAuthoredTransformParenting()
+{
+  if (m_pSGNode == nullptr || m_pSGNode->GetSGParent() == nullptr ||
+      m_pPhysicsController == nullptr)
+  {
+    return false;
+  }
+  if (m_parentPhysicsManaged) {
+    if (m_pPhysicsController->IsTransformParentingActive()) {
+      return true;
+    }
+    /* A failed or externally ended transition must not leave authored conversion
+     * permanently unable to retry its engine-only parenting setup. */
+    m_parentPhysicsManaged = false;
+  }
+  if (!m_pPhysicsController->BeginTransformParenting()) {
+    return false;
+  }
+
+  m_parentCompoundIntent = false;
+  m_parentGhostIntent = false;
+  m_parentPhysicsManaged = true;
+  return true;
+}
+
+const char *KX_ParentResultMessage(const KX_ParentResult result)
+{
+  switch (result) {
+    case KX_ParentResult::Success:
+      return "success";
+    case KX_ParentResult::InvalidRequest:
+      return "invalid child, parent, or parent type";
+    case KX_ParentResult::DifferentScene:
+      return "child and parent must belong to the same active or inactive scene list";
+    case KX_ParentResult::ParentingLoop:
+      return "parenting would create a hierarchy loop";
+    case KX_ParentResult::InvalidTransform:
+      return "parenting requires finite, non-singular transforms and non-zero scale";
+    case KX_ParentResult::ParentIsNotArmature:
+      return "Bone parenting requires an armature parent object";
+    case KX_ParentResult::BoneNotFound:
+      return "the requested pose bone was not found";
+    case KX_ParentResult::JoltRequired:
+      return "modern Set Parent requires a Jolt scene";
+    case KX_ParentResult::UnsupportedPhysicsBody:
+      return "the child physics body does not support transform parenting";
+    case KX_ParentResult::CompoundUnavailable:
+      return "Compound parenting requires a supported child collider and a compound-enabled "
+             "Jolt root collider";
+    case KX_ParentResult::PhysicsTransitionFailed:
+      return "the Jolt body could not enter its parented state or update the compound shape";
+  }
+  return "unknown parenting failure";
+}
+
+namespace {
+
+bool parent_transform_is_finite(const MT_Vector3 &position,
+                                const MT_Matrix3x3 &orientation,
+                                const MT_Vector3 &scale)
+{
+  for (int axis = 0; axis < 3; ++axis) {
+    if (!std::isfinite(position[axis]) || !std::isfinite(scale[axis]) ||
+        std::abs(scale[axis]) <= MT_Scalar(FLT_EPSILON))
+    {
+      return false;
+    }
+    for (int column = 0; column < 3; ++column) {
+      if (!std::isfinite(orientation[axis][column])) {
+        return false;
+      }
+    }
+  }
+  const MT_Scalar determinant = orientation.determinant();
+  return std::isfinite(determinant) && std::abs(determinant) > MT_Scalar(FLT_EPSILON);
+}
+
+bool vector_is_finite(const MT_Vector3 &value)
+{
+  return std::isfinite(value[0]) && std::isfinite(value[1]) && std::isfinite(value[2]);
+}
+
+bool decompose_parent_transform(const MT_Transform &transform,
+                                MT_Vector3 &r_position,
+                                MT_Matrix3x3 &r_orientation,
+                                MT_Vector3 &r_scale)
+{
+  r_position = transform.getOrigin();
+  const MT_Matrix3x3 &basis = transform.getBasis();
+  r_scale = MT_Vector3(
+      basis.getColumn(0).length(), basis.getColumn(1).length(), basis.getColumn(2).length());
+  if (!parent_transform_is_finite(r_position, basis, r_scale)) {
+    return false;
+  }
+  r_orientation = basis.scaled(1.0f / r_scale.x(), 1.0f / r_scale.y(), 1.0f / r_scale.z());
+  return parent_transform_is_finite(r_position, r_orientation, r_scale);
+}
+
+bool object_has_same_scene_membership(KX_Scene &scene,
+                                      const KX_GameObject &child,
+                                      const KX_GameObject &parent)
+{
+  EXP_ListValue<KX_GameObject> *active = scene.GetObjectList();
+  EXP_ListValue<KX_GameObject> *inactive = scene.GetInactiveList();
+  if (active == nullptr || inactive == nullptr) {
+    return false;
+  }
+  const bool child_active = active->SearchValue(const_cast<KX_GameObject *>(&child));
+  const bool child_inactive = inactive->SearchValue(const_cast<KX_GameObject *>(&child));
+  const bool parent_active = active->SearchValue(const_cast<KX_GameObject *>(&parent));
+  const bool parent_inactive = inactive->SearchValue(const_cast<KX_GameObject *>(&parent));
+  return child_active != child_inactive && parent_active != parent_inactive &&
+         child_active == parent_active;
+}
+
+struct ParentStateSnapshot {
+  SG_Node *parent = nullptr;
+  std::unique_ptr<SG_ParentRelation> relation;
+  MT_Vector3 local_position;
+  MT_Matrix3x3 local_orientation;
+  MT_Vector3 local_scale;
+  MT_Vector3 linear_velocity;
+  MT_Vector3 angular_velocity;
+  bool dynamic = false;
+  bool compound = false;
+  bool ghost = false;
+  bool physics_managed = false;
+};
+
+ParentStateSnapshot capture_parent_state(KX_GameObject &object)
+{
+  ParentStateSnapshot snapshot;
+  SG_Node *node = object.GetSGNode();
+  snapshot.parent = node != nullptr ? node->GetSGParent() : nullptr;
+  if (node != nullptr && node->GetParentRelation() != nullptr) {
+    snapshot.relation.reset(node->GetParentRelation()->NewCopy());
+  }
+  snapshot.local_position = object.NodeGetLocalPosition();
+  snapshot.local_orientation = object.NodeGetLocalOrientation();
+  snapshot.local_scale = object.NodeGetLocalScaling();
+  snapshot.compound = object.GetParentCompoundIntent();
+  snapshot.ghost = object.GetParentGhostIntent();
+  snapshot.physics_managed = object.GetParentPhysicsManaged();
+  PHY_IPhysicsController *controller = object.GetPhysicsController();
+  if (controller != nullptr && controller->IsDynamic()) {
+    snapshot.dynamic = true;
+    snapshot.linear_velocity = controller->GetLinearVelocity();
+    snapshot.angular_velocity = controller->GetAngularVelocity();
+  }
+  return snapshot;
+}
+
+PHY_IPhysicsController *root_physics_controller(const SG_Node *node)
+{
+  const SG_Node *root_node = node != nullptr ? node->GetRootSGParent() : nullptr;
+  KX_GameObject *root_object = root_node != nullptr ?
+                                   static_cast<KX_GameObject *>(root_node->GetSGClientObject()) :
+                                   nullptr;
+  return root_object != nullptr ? root_object->GetPhysicsController() : nullptr;
+}
+
+}  // namespace
+
+KX_ParentResult KX_GameObject::SetParent(KX_GameObject *obj, const KX_ParentOptions &options)
+{
+  if (obj == nullptr || obj == this || m_pSGNode == nullptr || obj->GetSGNode() == nullptr ||
+      options.type > KX_ParentType::Bone ||
+      (options.type == KX_ParentType::Bone && options.compound))
+  {
+    return KX_ParentResult::InvalidRequest;
+  }
+  KX_Scene *scene = GetScene();
+  if (scene == nullptr || obj->GetScene() != scene ||
+      !object_has_same_scene_membership(*scene, *this, *obj))
+  {
+    return KX_ParentResult::DifferentScene;
+  }
+  if (m_pSGNode->IsAncessor(obj->GetSGNode())) {
+    return KX_ParentResult::ParentingLoop;
+  }
+  if (scene->GetBlenderScene() == nullptr || scene->GetBlenderScene()->gm.physicsEngine != UseJolt)
+  {
+    return KX_ParentResult::JoltRequired;
+  }
+
+  MT_Transform parent_transform;
+  std::unique_ptr<SG_ParentRelation> relation;
+  if (options.type == KX_ParentType::Bone) {
+    if (dynamic_cast<BL_ArmatureObject *>(obj) == nullptr) {
+      return KX_ParentResult::ParentIsNotArmature;
+    }
+    auto bone_relation = std::make_unique<KX_BoneParentRelation>(options.bone_name);
+    if (!bone_relation->GetParentTransform(obj->GetSGNode(), parent_transform)) {
+      return KX_ParentResult::BoneNotFound;
+    }
+    relation = std::move(bone_relation);
+  }
+  else {
+    parent_transform = obj->NodeGetWorldTransform();
+    relation = std::make_unique<KX_NormalParentRelation>();
+  }
+
+  MT_Vector3 local_position;
+  MT_Matrix3x3 local_orientation;
+  MT_Vector3 local_scale;
+  const MT_Scalar parent_determinant = parent_transform.getBasis().determinant();
+  if (!std::isfinite(parent_determinant) || std::abs(parent_determinant) <= MT_Scalar(FLT_EPSILON))
+  {
+    return KX_ParentResult::InvalidTransform;
+  }
+  MT_Transform local_transform;
+  local_transform.multInverseLeft(parent_transform, NodeGetWorldTransform());
+  if (!decompose_parent_transform(local_transform, local_position, local_orientation, local_scale))
+  {
+    return KX_ParentResult::InvalidTransform;
+  }
+
+  PHY_IPhysicsController *compound_root_controller = nullptr;
+  if (options.compound) {
+    compound_root_controller = root_physics_controller(obj->GetSGNode());
+    if (m_pPhysicsController == nullptr || compound_root_controller == nullptr ||
+        compound_root_controller == m_pPhysicsController ||
+        !compound_root_controller->IsCompound())
+    {
+      return KX_ParentResult::CompoundUnavailable;
+    }
+  }
+
+  /* Set Parent may be evaluated on consecutive ticks. Reapplying an identical
+   * request would otherwise release and recreate the temporary Jolt parenting
+   * state every time, despite there being no scene-graph work to do. Require
+   * the actual controller state to be active as well: stale bookkeeping must
+   * still take the normal recovery path below. */
+  const bool same_direct_parent = m_pSGNode->GetSGParent() == obj->GetSGNode();
+  bool same_relation = false;
+  if (options.type == KX_ParentType::Object) {
+    same_relation = dynamic_cast<KX_NormalParentRelation *>(m_pSGNode->GetParentRelation()) !=
+                    nullptr;
+  }
+  else {
+    const auto *bone_relation = dynamic_cast<KX_BoneParentRelation *>(
+        m_pSGNode->GetParentRelation());
+    same_relation = bone_relation != nullptr && bone_relation->GetBoneName() == options.bone_name;
+  }
+  const bool physics_state_matches = m_pPhysicsController == nullptr ||
+                                     m_pPhysicsController->IsTransformParentingActive();
+  if (same_direct_parent && same_relation && m_parentCompoundIntent == options.compound &&
+      physics_state_matches)
+  {
+    return KX_ParentResult::Success;
+  }
+
+  /* An already managed controller is currently in a temporary Jolt state. RemoveParent() below
+   * restores its authored state. Legacy compound children are temporary as well, so defer their
+   * capability validation until the old compound shape has been removed. */
+  if (m_pPhysicsController != nullptr && !m_pPhysicsController->IsTransformParentingActive() &&
+      !m_parentCompoundIntent &&
+      !(options.compound ? m_pPhysicsController->SupportsCompoundParenting() :
+                           m_pPhysicsController->SupportsTransformParenting()))
+  {
+    return options.compound ? KX_ParentResult::CompoundUnavailable :
+                              KX_ParentResult::UnsupportedPhysicsBody;
+  }
+
+  ParentStateSnapshot previous = capture_parent_state(*this);
+
+  auto restore_previous_parent = [&]() {
+    bool physics_managed_restored = false;
+    bool compound_restored = previous.compound;
+    if (m_pSGNode->GetSGParent() != nullptr) {
+      RemoveParent();
+    }
+    m_pSGNode->SetParentRelation(previous.relation ? previous.relation.release() :
+                                                     new KX_NormalParentRelation());
+
+    if (previous.parent != nullptr) {
+      previous.parent->AddChild(m_pSGNode);
+      NodeSetLocalPosition(previous.local_position);
+      NodeSetLocalOrientation(previous.local_orientation);
+      NodeSetLocalScale(previous.local_scale);
+      NodeUpdateGS(0.0f);
+      EXP_ListValue<KX_GameObject> *previous_root_list = scene->GetRootParentList();
+      if (previous_root_list != nullptr && previous_root_list->RemoveValue(this)) {
+        Release();
+      }
+
+      if (m_pPhysicsController != nullptr) {
+        if (previous.physics_managed) {
+          physics_managed_restored = previous.compound ?
+                                         m_pPhysicsController->BeginCompoundParenting() :
+                                         m_pPhysicsController->BeginTransformParenting();
+          if (!physics_managed_restored) {
+            CM_Warning("Failed to restore the previous Jolt transform-parenting state for object '"
+                       << GetName() << "'");
+          }
+        }
+        else if (!m_pPhysicsController->IsKinematic() || previous.compound) {
+          m_pPhysicsController->SuspendDynamics(previous.ghost && previous.compound);
+        }
+
+        if (previous.compound) {
+          PHY_IPhysicsController *previous_root_controller = root_physics_controller(
+              previous.parent);
+          if ((previous.physics_managed && !physics_managed_restored) ||
+              previous_root_controller == nullptr || !previous_root_controller->IsCompound() ||
+              !previous_root_controller->TryAddCompoundChild(m_pPhysicsController))
+          {
+            compound_restored = false;
+            if (physics_managed_restored) {
+              m_pPhysicsController->EndTransformParenting();
+              physics_managed_restored = false;
+            }
+            else {
+              m_pPhysicsController->RestoreDynamics();
+            }
+            CM_Warning("Failed to restore the previous compound-parenting state for object '"
+                       << GetName() << "'");
+          }
+        }
+      }
+      else {
+        compound_restored = false;
+      }
+    }
+    else {
+      compound_restored = false;
+      NodeSetLocalPosition(previous.local_position);
+      NodeSetLocalOrientation(previous.local_orientation);
+      NodeSetLocalScale(previous.local_scale);
+      NodeUpdateGS(0.0f);
+      EXP_ListValue<KX_GameObject> *previous_root_list = scene->GetRootParentList();
+      if (previous_root_list != nullptr && !previous_root_list->SearchValue(this)) {
+        previous_root_list->Add(CM_AddRef(this));
+      }
+    }
+
+    m_parentCompoundIntent = compound_restored;
+    m_parentGhostIntent = compound_restored && previous.ghost;
+    m_parentPhysicsManaged = physics_managed_restored;
+    if (previous.dynamic && m_pPhysicsController != nullptr) {
+      m_pPhysicsController->SetLinearVelocity(previous.linear_velocity, false);
+      m_pPhysicsController->SetAngularVelocity(previous.angular_velocity, false);
+    }
+  };
+
+  RemoveParent();
+  m_pSGNode->SetParentRelation(relation.release());
+  obj->GetSGNode()->AddChild(m_pSGNode);
+  NodeSetLocalPosition(local_position);
+  NodeSetLocalOrientation(local_orientation);
+  NodeSetLocalScale(local_scale);
+  NodeUpdateGS(0.0f);
+
+  EXP_ListValue<KX_GameObject> *root_list = scene->GetRootParentList();
+  if (root_list != nullptr && root_list->RemoveValue(this)) {
+    Release();
+  }
+
+  bool physics_started = false;
+  if (m_pPhysicsController != nullptr) {
+    /* Claim the transition before entering Jolt so a partial failure is rolled
+     * back through EndTransformParenting(), never through the legacy dynamics
+     * restore path. */
+    m_parentPhysicsManaged = true;
+    physics_started = options.compound ? m_pPhysicsController->BeginCompoundParenting() :
+                                         m_pPhysicsController->BeginTransformParenting();
+    if (!physics_started) {
+      RemoveParent();
+      restore_previous_parent();
+      return KX_ParentResult::PhysicsTransitionFailed;
+    }
+  }
+  m_parentPhysicsManaged = physics_started;
+  m_parentCompoundIntent = false;
+  m_parentGhostIntent = false;
+
+  if (options.compound && !compound_root_controller->TryAddCompoundChild(m_pPhysicsController)) {
+    RemoveParent();
+    restore_previous_parent();
+    return KX_ParentResult::PhysicsTransitionFailed;
+  }
+  m_parentCompoundIntent = options.compound;
+
+  return KX_ParentResult::Success;
+}
+
 void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost)
 {
   // check on valid node in case a python controller holds a reference to a deleted object
@@ -1182,7 +2486,8 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
       this != obj)                                       // not the object itself
   {
     if (!(GetScene()->GetInactiveList()->SearchValue(obj) !=
-          GetScene()->GetObjectList()->SearchValue(this))) {
+          GetScene()->GetObjectList()->SearchValue(this)))
+    {
       CM_FunctionWarning(
           "child and parent are not in the same game objects list (active or inactive). This "
           "operation is forbidden.");
@@ -1193,19 +2498,24 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
     MT_Vector3 scale2 = obj->NodeGetWorldScaling();
     if (fabs(scale2[0]) < (MT_Scalar)FLT_EPSILON || fabs(scale2[1]) < (MT_Scalar)FLT_EPSILON ||
         fabs(scale2[2]) < (MT_Scalar)FLT_EPSILON || fabs(scale1[0]) < (MT_Scalar)FLT_EPSILON ||
-        fabs(scale1[1]) < (MT_Scalar)FLT_EPSILON || fabs(scale1[2]) < (MT_Scalar)FLT_EPSILON) {
+        fabs(scale1[1]) < (MT_Scalar)FLT_EPSILON || fabs(scale1[2]) < (MT_Scalar)FLT_EPSILON)
+    {
       return;
     }
 
     KX_Scene *scene = GetScene();
     // Remove us from our old parent and set our new parent
     RemoveParent();
+    GetSGNode()->SetParentRelation(new KX_NormalParentRelation());
     obj->GetSGNode()->AddChild(GetSGNode());
 
-    if (m_pPhysicsController) {
+    if (m_pPhysicsController && (!m_pPhysicsController->IsKinematic() || addToCompound)) {
       /* Parent-actuator ghost mode is only meaningful when adding the child
        * to the parent's compound setup. If compound mode is disabled, ignore
-       * any stale ghost flag value (UI can keep a disabled checkbox state). */
+       * any stale ghost flag value (UI can keep a disabled checkbox state).
+       * Authored Kinematic bodies remain active when normally parented: their
+       * world transform is already an explicit physics-step target, so there
+       * is no dynamic/scene-graph ownership conflict. */
       m_pPhysicsController->SuspendDynamics(ghost && addToCompound);
     }
     // Set us to our new scale, position, and orientation
@@ -1233,10 +2543,16 @@ void KX_GameObject::SetParent(KX_GameObject *obj, bool addToCompound, bool ghost
           (KX_GameObject *)obj->GetSGNode()->GetRootSGParent()->GetSGClientObject();
       // step 2: verify it has a physical controller and compound shape
       if (rootobj != nullptr && rootobj->m_pPhysicsController != nullptr &&
-          rootobj->m_pPhysicsController->IsCompound()) {
+          rootobj->m_pPhysicsController->IsCompound())
+      {
         rootobj->m_pPhysicsController->AddCompoundChild(m_pPhysicsController);
       }
     }
+
+    /* Record only a completed hierarchy change. Ghost has no runtime meaning when compound mode
+     * is disabled, matching the normalized argument passed to SuspendDynamics above. */
+    m_parentCompoundIntent = addToCompound;
+    m_parentGhostIntent = addToCompound && ghost;
   }
 }
 
@@ -1244,6 +2560,10 @@ void KX_GameObject::RemoveParent()
 {
   // check on valid node in case a python controller holds a reference to a deleted object
   if (GetSGNode()->GetSGParent()) {
+    const bool physics_managed =
+        m_parentPhysicsManaged ||
+        (m_pPhysicsController != nullptr && m_pPhysicsController->IsTransformParentingActive());
+    const bool compound_parent = m_parentCompoundIntent;
     // get the root object to remove us from compound object if needed
     KX_GameObject *rootobj = (KX_GameObject *)GetSGNode()->GetRootSGParent()->GetSGClientObject();
     // Set us to the right spot
@@ -1253,6 +2573,7 @@ void KX_GameObject::RemoveParent()
 
     // Remove us from our parent
     GetSGNode()->DisconnectFromParent();
+    GetSGNode()->SetParentRelation(new KX_NormalParentRelation());
     NodeUpdateGS(0.f);
 
     KX_Scene *scene = GetScene();
@@ -1263,25 +2584,175 @@ void KX_GameObject::RemoveParent()
       rootlist->Add(CM_AddRef(this));
     if (m_pPhysicsController) {
       // in case this controller was added as a child shape to the parent
-      if (rootobj != nullptr && rootobj->m_pPhysicsController != nullptr &&
-          rootobj->m_pPhysicsController->IsCompound()) {
+      if (compound_parent && rootobj != nullptr && rootobj->m_pPhysicsController != nullptr &&
+          rootobj->m_pPhysicsController->IsCompound())
+      {
         rootobj->m_pPhysicsController->RemoveCompoundChild(m_pPhysicsController);
       }
-      m_pPhysicsController->RestoreDynamics();
-      if (m_pPhysicsController->IsDynamic() &&
-          (rootobj != nullptr && rootobj->m_pPhysicsController)) {
-        // dynamic object should remember the velocity they had while being parented
-        MT_Vector3 childPoint = GetSGNode()->GetWorldPosition();
-        MT_Vector3 rootPoint = rootobj->GetSGNode()->GetWorldPosition();
-        MT_Vector3 relPoint;
-        relPoint = (childPoint - rootPoint);
-        MT_Vector3 linVel = rootobj->m_pPhysicsController->GetVelocity(relPoint);
-        MT_Vector3 angVel = rootobj->m_pPhysicsController->GetAngularVelocity();
-        m_pPhysicsController->SetLinearVelocity(linVel, false);
-        m_pPhysicsController->SetAngularVelocity(angVel, false);
+      if (physics_managed) {
+        m_pPhysicsController->EndTransformParenting();
+      }
+      else {
+        m_pPhysicsController->RestoreDynamics();
+      }
+      if (m_pPhysicsController->IsDynamic() && !m_pPhysicsController->IsDynamicsSuspended() &&
+          !m_pPhysicsController->IsPhysicsSuspended() && rootobj != nullptr &&
+          rootobj->GetSGNode() != nullptr && rootobj->m_pPhysicsController != nullptr)
+      {
+        /* A released Dynamic child inherits the velocity of its attachment point,
+         * including the parent's angular contribution at the child's world position. */
+        const MT_Vector3 relPoint = GetSGNode()->GetWorldPosition() -
+                                    rootobj->GetSGNode()->GetWorldPosition();
+        const MT_Vector3 linearVelocity = rootobj->m_pPhysicsController->GetVelocity(relPoint);
+        const MT_Vector3 angularVelocity = rootobj->m_pPhysicsController->GetAngularVelocity();
+        if (vector_is_finite(linearVelocity) && vector_is_finite(angularVelocity)) {
+          m_pPhysicsController->SetLinearVelocity(linearVelocity, false);
+          m_pPhysicsController->SetAngularVelocity(angularVelocity, false);
+        }
       }
     }
   }
+  ClearParentIntent();
+}
+
+namespace {
+
+enum class SaveObjectStateListMembership : uint8_t {
+  Invalid = 0,
+  Active,
+  Inactive,
+};
+
+SaveObjectStateListMembership save_object_state_list_membership(KX_Scene &scene,
+                                                                KX_GameObject &object)
+{
+  EXP_ListValue<KX_GameObject> *active = scene.GetObjectList();
+  EXP_ListValue<KX_GameObject> *inactive = scene.GetInactiveList();
+  if (active == nullptr || inactive == nullptr) {
+    return SaveObjectStateListMembership::Invalid;
+  }
+  const bool is_active = active->SearchValue(&object);
+  const bool is_inactive = inactive->SearchValue(&object);
+  if (is_active == is_inactive) {
+    return SaveObjectStateListMembership::Invalid;
+  }
+  return is_active ? SaveObjectStateListMembership::Active :
+                     SaveObjectStateListMembership::Inactive;
+}
+
+bool save_object_state_parent_chain_has_cycle(SG_Node *node)
+{
+  SG_Node *slow = node;
+  SG_Node *fast = node;
+  while (fast != nullptr && fast->GetSGParent() != nullptr) {
+    slow = slow->GetSGParent();
+    fast = fast->GetSGParent()->GetSGParent();
+    if (slow != nullptr && slow == fast) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool save_object_state_normal_parent_chain(SG_Node *node,
+                                           KX_Scene &scene,
+                                           const SaveObjectStateListMembership membership,
+                                           const SG_Node *forbidden)
+{
+  if (node == nullptr || save_object_state_parent_chain_has_cycle(node)) {
+    return false;
+  }
+  for (SG_Node *cursor = node; cursor != nullptr; cursor = cursor->GetSGParent()) {
+    if (cursor == forbidden || cursor->GetSGClientInfo() != &scene) {
+      return false;
+    }
+    if (void *client = cursor->GetSGClientObject()) {
+      KX_GameObject *object = static_cast<KX_GameObject *>(client);
+      if (save_object_state_list_membership(scene, *object) != membership ||
+          object->GetParentCompoundIntent() || object->GetParentGhostIntent() ||
+          object->GetParentPhysicsManaged())
+      {
+        return false;
+      }
+    }
+    if (cursor->GetSGParent() != nullptr &&
+        dynamic_cast<KX_NormalParentRelation *>(cursor->GetParentRelation()) == nullptr)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool save_object_state_nonsingular_transform(const KX_GameObject &object)
+{
+  const MT_Vector3 &position = object.NodeGetWorldPosition();
+  const MT_Matrix3x3 &orientation = object.NodeGetWorldOrientation();
+  const MT_Vector3 &scale = object.NodeGetWorldScaling();
+  for (int axis = 0; axis < 3; ++axis) {
+    if (!std::isfinite(position[axis]) || !std::isfinite(scale[axis]) ||
+        std::abs(scale[axis]) < MT_Scalar(FLT_EPSILON))
+    {
+      return false;
+    }
+    for (int column = 0; column < 3; ++column) {
+      if (!std::isfinite(orientation[axis][column])) {
+        return false;
+      }
+    }
+  }
+  const MT_Scalar determinant = orientation.determinant();
+  return std::isfinite(determinant) && std::abs(determinant) >= MT_Scalar(FLT_EPSILON);
+}
+
+}  // namespace
+
+bool KX_GameObject::RestoreSaveObjectStateParent(KX_GameObject *parent)
+{
+  if (m_pSGNode == nullptr || m_parentCompoundIntent || m_parentGhostIntent ||
+      !save_object_state_nonsingular_transform(*this))
+  {
+    return false;
+  }
+  /* Unchanged Jolt-managed parenting is already restored. */
+  if (m_parentPhysicsManaged && parent != nullptr && GetParent() == parent) {
+    return true;
+  }
+
+  KX_Scene *scene = GetScene();
+  const SaveObjectStateListMembership membership = scene != nullptr ?
+                                                       save_object_state_list_membership(*scene,
+                                                                                         *this) :
+                                                       SaveObjectStateListMembership::Invalid;
+  /* A Jolt-managed child leaves its current parent below, so only the new chain matters. */
+  if (scene == nullptr || membership == SaveObjectStateListMembership::Invalid ||
+      (!m_parentPhysicsManaged &&
+       !save_object_state_normal_parent_chain(m_pSGNode, *scene, membership, nullptr)))
+  {
+    return false;
+  }
+  if (parent != nullptr &&
+      (parent == this || parent->GetSGNode() == nullptr || parent->GetScene() != scene ||
+       save_object_state_list_membership(*scene, *parent) != membership ||
+       !save_object_state_nonsingular_transform(*parent) ||
+       !save_object_state_normal_parent_chain(parent->GetSGNode(), *scene, membership, m_pSGNode)))
+  {
+    return false;
+  }
+
+  if (m_parentPhysicsManaged) {
+    /* Leaving the parent ends Jolt-managed parenting and restores the body's own state. */
+    RemoveParent();
+  }
+  if (parent == nullptr) {
+    RemoveParent();
+    return m_pSGNode->GetSGParent() == nullptr && !m_parentCompoundIntent && !m_parentGhostIntent;
+  }
+
+  SetParent(parent, false, false);
+  return m_pSGNode->GetSGParent() == parent->GetSGNode() &&
+         dynamic_cast<KX_NormalParentRelation *>(m_pSGNode->GetParentRelation()) != nullptr &&
+         !m_parentCompoundIntent && !m_parentGhostIntent;
 }
 
 BL_ActionManager *KX_GameObject::GetActionManager()
@@ -1324,6 +2795,31 @@ bool KX_GameObject::PlayAction(const std::string &name,
                                         blend_mode);
 }
 
+BL_ActionPlayResult KX_GameObject::PlayActionTracked(const std::string &name,
+                                                     const float start,
+                                                     const float end,
+                                                     const short layer,
+                                                     const short priority,
+                                                     const float blendin,
+                                                     const short play_mode,
+                                                     const float layer_weight,
+                                                     const short ipo_flags,
+                                                     const float playback_speed,
+                                                     const short blend_mode)
+{
+  return GetActionManager()->PlayActionTracked(name,
+                                               start,
+                                               end,
+                                               layer,
+                                               priority,
+                                               blendin,
+                                               play_mode,
+                                               layer_weight,
+                                               ipo_flags,
+                                               playback_speed,
+                                               blend_mode);
+}
+
 void KX_GameObject::StopAction(short layer)
 {
   GetActionManager()->StopAction(layer);
@@ -1347,6 +2843,15 @@ bool KX_GameObject::IsActionsSuspended()
 void KX_GameObject::UpdateActionManager(float curtime, bool applyToObject)
 {
   GetActionManager()->Update(curtime, applyToObject);
+}
+
+void KX_GameObject::RebaseActionTime(const float previous_time,
+                                     const float current_time,
+                                     const bool use_pause_clock)
+{
+  if (m_actionManager != nullptr) {
+    m_actionManager->RebaseTime(previous_time, current_time, use_pause_clock);
+  }
 }
 
 float KX_GameObject::GetActionFrame(short layer)
@@ -1376,11 +2881,73 @@ void KX_GameObject::SetPlayMode(short layer, short mode)
 
 void KX_GameObject::ProcessReplica()
 {
+  /* The source's draw distance value is the source's to release; the copy finds its own. */
+  m_drawCull.distance_value = nullptr;
+  m_drawCull.distance_value_known = false;
+  m_drawCull.culled_cameras = 0;
+  m_drawCull.pending_cameras = 0;
+  m_drawCull.pass = 0;
   KX_PythonProxy::ProcessReplica();
 
+  /* Runtime interpolation bookkeeping belongs to the original scene object and must never be
+   * inherited by a replica made while the original is being rendered between fixed poses. */
+  m_cachedRenderPosition = MT_Vector3(0.0f, 0.0f, 0.0f);
+  m_cachedRenderOrientation = MT_Matrix3x3::Identity();
+  m_cachedRenderScale = MT_Vector3(1.0f, 1.0f, 1.0f);
+  m_cachedInterpolatedTransform = MT_Transform::Identity();
+  m_useRenderInterpolation = false;
+  m_interpolationListRegistered = false;
+  /* The copy's own Blender object has had nothing handed to it yet. */
+  m_renderSyncedValid = false;
+  m_renderSyncedFrame = 0;
+  m_evaluatedPoseDue = false;
+  /* Its own Blender object (or the instances' one): its own pose path. */
+  m_posePath = PosePath::Unknown;
+  m_posePathRelations = 0;
+  m_posePathProbeStart = 0;
+  m_posePathProbes = 0;
+  m_poseCheckPass = 0;
+  /* The copy keeps the Smooth Motion choice, not the source's jump, fade or drawn frame. */
+  m_smoothResetPending = false;
+  m_smoothCorrectionLeft = 0.0f;
+  m_smoothDrawnFrame = 0;
+  ClearParentIntent();
+
+  /* Replicas retain their fixed source identity and receive an instance identity only if the
+   * checkpoint registry promotes them. */
+  ClearPersistenceInstanceUuid();
+
+  /* A Scroll or Grid View clipped the source; no view owns the copy (yet). */
+  m_viewClipVisible = true;
+  /* References to the source stay with the source. */
+  m_referenceValues.clear();
+  /* The source gives its Blender object's color back; a copy draws its own (or the shared
+   * instance's) Blender object. */
+  m_hasConvertedColor = false;
+
+  blender::Object *source_object = m_pBlenderObject;
   ReplicateBlenderObject();
+  /* The source's own material copies stay its own (they go with it): a copy of its Blender
+   * object gets back what those slots held before. */
+  RestoreOwnMaterials(m_pBlenderObject != source_object ? m_pBlenderObject : nullptr, false);
+  /* A copy of a Full Copy shares its source's data; the source deletes it (or keeps it while the
+   * copy uses it). */
+  m_ownedData.clear();
+  m_hasOwnMesh = false;
 
   m_isUpbgeDupliInstance = false;
+  /* The scene lists the source; the copy's own Blender object is shown (ReplicateBlenderObject). */
+  m_drawHidden = false;
+  /* A copy of an Auto or Merged object is drawn by its own Blender object. */
+  m_dupliDrawBase = nullptr;
+  m_dupliListIndex = -1;
+  m_mergedBatch = -1;
+  m_mergedPartHidden = false;
+  /* The source's draw identity stays the source's; the copy gets its own at its first draw. */
+  m_dupliDrawOriginal = nullptr;
+  m_dupliDrawnValid = false;
+  m_dupliDrawId = 0;
+  m_dupliGroupedPass = 0;
 
   GetScene()->GetBlenderSceneConverter()->RegisterGameObject(this, m_pBlenderObject);
   CreateUpbgeDupliInstanceFromExisting();
@@ -1397,6 +2964,9 @@ void KX_GameObject::ProcessReplica()
    * See KX_Scene::DupliGroupRecurse. */
   m_pDupliGroupObject = nullptr;
   m_pInstanceObjects = nullptr;
+  /* The copy's collections are found again (KX_Scene::CollectionsOf). It keeps Set Collection
+   * Member's changes of its source. */
+  InvalidateCollectionMembership();
   m_pClient_info = new KX_ClientObjectInfo(*m_pClient_info);
   m_pClient_info->m_gameobject = this;
   m_actionManager = nullptr;
@@ -1530,12 +3100,15 @@ void KX_GameObject::ApplyMovement(const MT_Vector3 &dloc, bool local)
 
 void KX_GameObject::ApplyRotation(const MT_Vector3 &drot, bool local)
 {
-  MT_Matrix3x3 rotmat(drot);
+  ApplyRotation(MT_Matrix3x3(drot), local);
+}
 
-  GetSGNode()->RelativeRotate(rotmat, local);
+void KX_GameObject::ApplyRotation(const MT_Matrix3x3 &rotation, bool local)
+{
+  GetSGNode()->RelativeRotate(rotation, local);
 
   if (m_pPhysicsController) {  // (IsDynamic())
-    m_pPhysicsController->RelativeRotate(rotmat, local);
+    m_pPhysicsController->RelativeRotate(rotation, local);
   }
   NodeUpdateGS(0.0f);
 }
@@ -1556,9 +3129,7 @@ void KX_GameObject::UpdateBlenderObjectMatrix(blender::Object *blendobj)
   }
 }
 
-void KX_GameObject::UpdateBuckets()
-{
-}
+void KX_GameObject::UpdateBuckets() {}
 
 void KX_GameObject::RemoveMeshes()
 {
@@ -1599,14 +3170,13 @@ KX_LodManager *KX_GameObject::GetLodManager() const
   return m_lodManager;
 }
 
-void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
+void KX_GameObject::UpdateLod(const float distance2)
 {
   if (!m_lodManager) {
     return;
   }
 
   KX_Scene *scene = GetScene();
-  const float distance2 = NodeGetWorldPosition().distance2(cam_pos) * (lodfactor * lodfactor);
   KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_currentLodLevel, distance2);
 
   bool updatePhysicsShape = false;
@@ -1645,11 +3215,22 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
      * depsgraph */
     blender::Object *ob_eval = DEG_get_evaluated(depsgraph, GetBlenderObject());
 
-    blender::Object *eval_lod_ob = DEG_get_evaluated(depsgraph, currentLodLevel->GetObject());
+    blender::Object *lod_ob = currentLodLevel->GetObject();
+    blender::Object *eval_lod_ob = lod_ob ? DEG_get_evaluated(depsgraph, lod_ob) : nullptr;
     /* Try to get the object with all modifiers applied */
-    blender::Mesh *lod_mesh = (Mesh *)eval_lod_ob->runtime->data_eval;
-    if (back_to_level0 || (Mesh *)ob_eval->runtime->data_eval != lod_mesh) {
+    blender::Mesh *lod_mesh = eval_lod_ob ? (Mesh *)eval_lod_ob->runtime->data_eval : nullptr;
+    blender::Mesh *copied_mesh = nullptr;
+    if (lod_mesh == nullptr && eval_lod_ob != ob_eval) {
+      /* The depsgraph skips objects that are never drawn (Disable in Renders, a hidden
+       * collection), so a mesh borrowed from one has no evaluated version: draw a copy of it. */
+      copied_mesh = lod_mesh = scene->GetReplaceMeshEvalMesh(currentLodLevel->GetMesh());
+    }
+    /* An object outside the depsgraph (a copy made this frame) is assigned on a later pass. */
+    const bool can_assign = ob_eval != GetBlenderObject() &&
+                            (back_to_level0 || lod_mesh != nullptr);
+    if (can_assign && (back_to_level0 || (Mesh *)ob_eval->runtime->data_eval != lod_mesh)) {
       BKE_object_free_derived_caches(ob_eval);
+      m_replaceMeshEval = nullptr;
       if (back_to_level0) {
         DEG_bump_update_count(depsgraph);
         ob_eval->runtime->last_update_geometry = DEG_get_update_count(depsgraph) + 1;
@@ -1657,9 +3238,11 @@ void KX_GameObject::UpdateLod(const MT_Vector3 &cam_pos, float lodfactor)
       else {
         /* We assign lod_mesh data to ob_eval */
         BKE_object_eval_assign_data(ob_eval, &lod_mesh->id, false);
+        m_replaceMeshEval = copied_mesh;
         /* Bump depsgraph count to avoid issues with TAA + shadows problems */
         DEG_bump_update_count(depsgraph);
-        /* Never do that before UpdateDepsgraph, else last_update_geometry can still be < depsgraph counter */
+        /* Never do that before UpdateDepsgraph, else last_update_geometry can still be < depsgraph
+         * counter */
         ob_eval->runtime->last_update_geometry = DEG_get_update_count(depsgraph) + 1;
       }
     }
@@ -1703,9 +3286,10 @@ void KX_GameObject::UpdateTransform()
     m_pPhysicsController->SetTransform();
 }
 
-void KX_GameObject::UpdateTransformFunc(SG_Node *node, void *gameobj, void *scene)
+void KX_GameObject::UpdateTransformFunc(SG_Node * /*node*/, void *gameobj, void * /*scene*/)
 {
-  ((KX_GameObject *)gameobj)->UpdateTransform();
+  KX_GameObject *object = static_cast<KX_GameObject *>(gameobj);
+  object->UpdateTransform();
 }
 
 void KX_GameObject::SynchronizeTransform()
@@ -1742,7 +3326,12 @@ void KX_GameObject::UpdateIPO(float curframetime, bool recurse)
 
 bool KX_GameObject::GetVisible(void)
 {
-  return m_bVisible;
+  return GetVisibleIgnoringViewClip() && m_viewClipVisible;
+}
+
+bool KX_GameObject::GetVisibleIgnoringViewClip() const
+{
+  return (m_bVisible || m_overlayVisible) && m_collectionVisible && m_presentationVisible;
 }
 
 static void setVisible_recursive(SG_Node *node, bool v)
@@ -1760,34 +3349,147 @@ static void setVisible_recursive(SG_Node *node, bool v)
   }
 }
 
-void KX_GameObject::SetVisible(bool v, bool recursive)
+void KX_GameObject::ApplyRuntimeVisibility()
 {
   if (m_isUpbgeDupliInstance) {
-    if (recursive) {
-      setVisible_recursive(GetSGNode(), v);
+    /* bge_dupli_provider skips a hidden instance: the renderers draw again when it changes (a
+     * still frame kept showing it). */
+    if (GetVisible() != m_dupliDrawnShown) {
+      m_dupliDrawnShown = GetVisible();
+      if (GetSGNode() != nullptr && GetScene() != nullptr) {
+        TagUpbgeDupliInstanceForTaaReset();
+      }
     }
-    m_bVisible = v;
     return;
   }
 
   blender::Object *ob = GetBlenderObject();
   if (ob) {
-    GetScene()->TagForCollectionRemap();
-    if (v) {
-      ob->visibility_flag &= ~OB_HIDE_VIEWPORT;
+    const bool hidden = !GetVisible();
+    KX_Scene *scene = GetScene();
+    /* Merged: its part of the batch collapses or comes back; its own object stays hidden. */
+    if (m_mergedBatch >= 0) {
+      if (hidden != m_mergedPartHidden) {
+        m_mergedPartHidden = hidden;
+        scene->SetMergedPartShown(m_mergedBatch, m_mergedFirstVertex, m_mergedVertexCount, !hidden);
+      }
+      return;
     }
-    else {
-      ob->visibility_flag |= OB_HIDE_VIEWPORT;
+    if (m_drawHidden) {
+      if (!hidden) {
+        /* Shown again while still in Blender's graph: drawn at the next pass, nothing rebuilt. */
+        scene->RemoveDrawHidden(this);
+        scene->NoteDrawChanged(this);
+      }
+      return;
     }
-    GetScene()->AppendToIdsToUpdate(
-        &ob->id, ID_RECALC_SYNC_TO_EVAL, ob->gameflag & OB_OVERLAY_COLLECTION);
+    /* Already drawn or hidden so: nothing to sync. Logic that sets the same visibility every
+     * frame (a Set Visible polling a property) made the scene resync all collections each frame
+     * before 2026-10-15, 1.6 ms a frame in the split screen demo. */
+    if (((ob->visibility_flag & OB_HIDE_VIEWPORT) != 0) == hidden) {
+      return;
+    }
+    /* Hidden from the drawing only (each camera pass hides it, KX_Scene::HideCameraHiddenObjects):
+     * leaving Blender's graph rebuilds all of it at the next pass (32 ms among 3,000 objects,
+     * 205 ms among 10,000). Use Viewport Render draws without the camera passes' hiding. */
+    if (hidden && !KX_GetActiveEngine()->UseViewportRender()) {
+      scene->AddDrawHidden(this);
+      scene->NoteDrawChanged(this);
+      return;
+    }
+    SetGraphHidden(hidden);
   }
+}
+
+void KX_GameObject::SetGraphHidden(const bool hidden)
+{
+  blender::Object *ob = GetBlenderObject();
+  GetScene()->TagForCollectionRemap();
+  if (hidden) {
+    ob->visibility_flag |= OB_HIDE_VIEWPORT;
+  }
+  else {
+    ob->visibility_flag &= ~OB_HIDE_VIEWPORT;
+  }
+  GetScene()->AppendToIdsToUpdate(
+      &ob->id, ID_RECALC_SYNC_TO_EVAL, ob->gameflag & OB_OVERLAY_COLLECTION);
+}
+
+void KX_GameObject::HideInGraph()
+{
+  KX_Scene *scene = GetScene();
+  if (m_drawHidden && scene != nullptr) {
+    scene->RemoveDrawHidden(this);
+  }
+  blender::Object *ob = GetBlenderObject();
+  if (ob != nullptr && scene != nullptr && (ob->visibility_flag & OB_HIDE_VIEWPORT) == 0) {
+    SetGraphHidden(true);
+  }
+}
+
+void KX_GameObject::SetVisible(bool v, bool recursive)
+{
+  m_bVisible = v;
+  /* An explicit hide must still win while the object is exposed by an overlay collection. The
+   * scene can establish the overlay layer again on a later Set Overlay Collection request. */
+  if (!v) {
+    m_overlayVisible = false;
+  }
+  ApplyRuntimeVisibility();
 
   if (recursive) {
     setVisible_recursive(GetSGNode(), v);
   }
+}
 
-  m_bVisible = v;
+void KX_GameObject::SetCollectionVisible(const bool visible)
+{
+  if (m_collectionVisible == visible) {
+    return;
+  }
+  m_collectionVisible = visible;
+  ApplyRuntimeVisibility();
+}
+
+void KX_GameObject::SetOverlayVisible(const bool visible)
+{
+  if (m_overlayVisible == visible) {
+    return;
+  }
+  m_overlayVisible = visible;
+  ApplyRuntimeVisibility();
+}
+
+void KX_GameObject::SetPresentationVisible(const bool visible)
+{
+  if (m_presentationVisible == visible) {
+    return;
+  }
+  m_presentationVisible = visible;
+  ApplyRuntimeVisibility();
+}
+
+void KX_GameObject::SetViewClipVisible(const bool visible)
+{
+  if (m_viewClipVisible == visible) {
+    return;
+  }
+  m_viewClipVisible = visible;
+  ApplyRuntimeVisibility();
+}
+
+bool KX_GameObject::GetUIInteractable()
+{
+  if (m_uiInteractableOverride >= 0) {
+    return m_uiInteractableOverride != 0;
+  }
+  const blender::Object *ob = GetBlenderObject();
+  return ob == nullptr || (ob->game_ui.flag & OB_UI_DISABLED) == 0;
+}
+
+void KX_GameObject::SetUIInteractable(const bool interactable)
+{
+  m_uiInteractableOverride = interactable ? 1 : 0;
 }
 
 static void setOccluder_recursive(SG_Node *node, bool v)
@@ -1886,11 +3588,20 @@ void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
 
   m_objectColor = rgbavec;
   if (m_isUpbgeDupliInstance) {
+    /* bge_dupli_provider draws the new color: the renderers draw again. */
+    if (GetSGNode() != nullptr && GetScene() != nullptr) {
+      TagUpbgeDupliInstanceForTaaReset();
+    }
     return;
+  }
+  /* A batch draws one color: its own object shows the new one. */
+  if (m_mergedBatch >= 0) {
+    LeaveMergedBatch();
   }
   blender::Object *ob_orig = GetBlenderObject();
   if (ob_orig && GetScene()->OrigObCanBeTransformedInRealtime(ob_orig) &&
-      ELEM(ob_orig->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_MBALL)) {
+      ELEM(ob_orig->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_MBALL))
+  {
     copy_v4_v4(ob_orig->color, m_objectColor.getValue());
     DEG_id_tag_update(&ob_orig->id, ID_RECALC_SHADING | ID_RECALC_TRANSFORM);
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, &ob_orig->id);
@@ -1900,6 +3611,12 @@ void KX_GameObject::SetObjectColor(const MT_Vector4 &rgbavec)
 const MT_Vector4 &KX_GameObject::GetObjectColor()
 {
   return m_objectColor;
+}
+
+void KX_GameObject::SetConvertedColor(const MT_Vector4 &rgbavec)
+{
+  m_convertedColor = rgbavec;
+  m_hasConvertedColor = true;
 }
 
 void KX_GameObject::AlignAxisToVect(const MT_Vector3 &dir, int axis, float fac)
@@ -2141,7 +3858,8 @@ void KX_GameObject::NodeSetWorldScale(const MT_Vector3 &scale)
     // Make sure the objects have some scale
     MT_Vector3 p_scale = parent->GetWorldScaling();
     if (fabs(p_scale[0]) < (MT_Scalar)FLT_EPSILON || fabs(p_scale[1]) < (MT_Scalar)FLT_EPSILON ||
-        fabs(p_scale[2]) < (MT_Scalar)FLT_EPSILON) {
+        fabs(p_scale[2]) < (MT_Scalar)FLT_EPSILON)
+    {
       return;
     }
 
@@ -2163,7 +3881,8 @@ void KX_GameObject::NodeSetWorldPosition(const MT_Vector3 &trans)
     // Make sure the objects have some scale
     MT_Vector3 scale = parent->GetWorldScaling();
     if (fabs(scale[0]) < (MT_Scalar)FLT_EPSILON || fabs(scale[1]) < (MT_Scalar)FLT_EPSILON ||
-        fabs(scale[2]) < (MT_Scalar)FLT_EPSILON) {
+        fabs(scale[2]) < (MT_Scalar)FLT_EPSILON)
+    {
       return;
     }
     scale[0] = 1.0f / scale[0];
@@ -2220,31 +3939,11 @@ MT_Transform KX_GameObject::NodeGetWorldTransform() const
 
 MT_Transform KX_GameObject::NodeGetInterpolatedTransform(double alpha) const
 {
-  if (!m_pSGNode->HasPreviousWorldTransform()) {
-    return m_pSGNode->GetWorldTransform();
-  }
-
-  const double clampedAlpha = std::clamp(alpha, 0.0, 1.0);
-  const MT_Scalar t = MT_Scalar(clampedAlpha);
-  const MT_Scalar oneMinusT = MT_Scalar(1.0f) - t;
-
-  const MT_Vector3 &prevPos = m_pSGNode->GetPrevWorldPosition();
-  const MT_Vector3 &prevScale = m_pSGNode->GetPrevWorldScaling();
-  const MT_Matrix3x3 &prevRot = m_pSGNode->GetPrevWorldOrientation();
-
-  const MT_Vector3 &currPos = m_pSGNode->GetWorldPosition();
-  const MT_Vector3 &currScale = m_pSGNode->GetWorldScaling();
-  const MT_Matrix3x3 &currRot = m_pSGNode->GetWorldOrientation();
-
-  const MT_Vector3 pos = (prevPos * oneMinusT) + (currPos * t);
-  const MT_Vector3 scale = (prevScale * oneMinusT) + (currScale * t);
-
-  MT_Quaternion prevQuat = prevRot.getRotation();
-  MT_Quaternion currQuat = currRot.getRotation();
-  MT_Quaternion interpQuat = prevQuat.slerp(currQuat, t);
-  MT_Matrix3x3 rot(interpQuat);
-
-  return MT_Transform(pos, rot.scaled(scale[0], scale[1], scale[2]));
+  MT_Vector3 position;
+  MT_Matrix3x3 orientation;
+  MT_Vector3 scale;
+  GetPhysicsInterpolatedPose(alpha, position, orientation, scale);
+  return MT_Transform(position, orientation.scaled(scale[0], scale[1], scale[2]));
 }
 
 MT_Transform KX_GameObject::NodeGetLocalTransform() const
@@ -2261,36 +3960,233 @@ void KX_GameObject::StorePhysicsInterpolationState()
   }
 }
 
+void KX_GameObject::RebasePhysicsInterpolationState()
+{
+  if (m_pSGNode != nullptr) {
+    /* A render-frame transform is authoritative immediately. Interpolating it against the
+     * preceding fixed pose would introduce a one-frame rollback or partial movement. */
+    m_pSGNode->StorePreviousWorldTransform();
+  }
+}
+
+void KX_GameObject::GetPhysicsInterpolatedPose(double alpha,
+                                               MT_Vector3 &r_position,
+                                               MT_Matrix3x3 &r_orientation,
+                                               MT_Vector3 &r_scale) const
+{
+  if (!m_pSGNode->HasPreviousWorldTransform()) {
+    r_position = m_pSGNode->GetWorldPosition();
+    r_orientation = m_pSGNode->GetWorldOrientation();
+    r_scale = m_pSGNode->GetWorldScaling();
+    return;
+  }
+
+  /* Never allow an invalid public alpha value to poison the authoritative scene graph. */
+  const double finiteAlpha = std::isfinite(alpha) ? alpha : 1.0;
+  const MT_Scalar t = MT_Scalar(std::clamp(finiteAlpha, 0.0, 1.0));
+  const MT_Scalar oneMinusT = MT_Scalar(1.0f) - t;
+
+  r_position = (m_pSGNode->GetPrevWorldPosition() * oneMinusT) +
+               (m_pSGNode->GetWorldPosition() * t);
+  r_scale = (m_pSGNode->GetPrevWorldScaling() * oneMinusT) + (m_pSGNode->GetWorldScaling() * t);
+
+  const MT_Quaternion previous = m_pSGNode->GetPrevWorldOrientation().getRotation();
+  const MT_Quaternion current = m_pSGNode->GetWorldOrientation().getRotation();
+  r_orientation = MT_Matrix3x3(previous.slerp(current, t));
+}
+
+void KX_GameObject::GetPhysicsExtrapolatedPose(double alpha,
+                                               MT_Vector3 &r_position,
+                                               MT_Matrix3x3 &r_orientation) const
+{
+  r_position = m_pSGNode->GetWorldPosition();
+  r_orientation = m_pSGNode->GetWorldOrientation();
+  if (!m_pSGNode->HasPreviousWorldTransform()) {
+    return;
+  }
+
+  const double finiteAlpha = std::isfinite(alpha) ? alpha : 0.0;
+  const MT_Scalar t = MT_Scalar(std::clamp(finiteAlpha, 0.0, 1.0));
+  r_position += (r_position - m_pSGNode->GetPrevWorldPosition()) * t;
+
+  const MT_Quaternion previous = m_pSGNode->GetPrevWorldOrientation().getRotation();
+  const MT_Quaternion current = r_orientation.getRotation();
+  r_orientation = MT_Matrix3x3(previous.slerp(current, MT_Scalar(1.0f) + t));
+}
+
 void KX_GameObject::ApplyPhysicsInterpolation(double alpha)
+{
+  SmoothMotionFrame frame;
+  frame.interpolation = alpha;
+  ApplySmoothMotion(
+      frame, OB_SMOOTH_MOTION_INTERPOLATE, SmoothMotionFollow(), SmoothMotionReset(), nullptr);
+}
+
+static bool same_vector(const MT_Vector3 &a, const MT_Vector3 &b)
+{
+  return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
+}
+
+static bool same_matrix(const MT_Matrix3x3 &a, const MT_Matrix3x3 &b)
+{
+  return same_vector(a[0], b[0]) && same_vector(a[1], b[1]) && same_vector(a[2], b[2]);
+}
+
+void KX_GameObject::SetSmoothMotion(const char mode)
+{
+  m_smoothMotion = std::clamp<char>(mode, OB_SMOOTH_MOTION_SCENE, OB_SMOOTH_MOTION_EXTRAPOLATE);
+  if (ELEM(m_smoothMotion, OB_SMOOTH_MOTION_INTERPOLATE, OB_SMOOTH_MOTION_EXTRAPOLATE)) {
+    if (KX_Scene *scene = m_pSGNode ? GetScene() : nullptr) {
+      scene->NoteSmoothMotion();
+    }
+  }
+}
+
+void KX_GameObject::ResetSmoothing(const float blend_seconds)
+{
+  m_smoothResetPending = true;
+  m_smoothResetBlend = std::isfinite(blend_seconds) ? std::max(0.0f, blend_seconds) : 0.0f;
+}
+
+KX_GameObject::SmoothMotionReset KX_GameObject::TakeSmoothMotionReset()
+{
+  SmoothMotionReset reset;
+  reset.active = m_smoothResetPending;
+  reset.blend = m_smoothResetBlend;
+  m_smoothResetPending = false;
+  return reset;
+}
+
+void KX_GameObject::StoreSmoothMotionHistory(const bool smoothed)
 {
   if (m_pSGNode == nullptr) {
     return;
   }
+  if (smoothed) {
+    m_pSGNode->StorePreviousWorldTransform();
+  }
+  else if (m_pSGNode->HasPreviousWorldTransform()) {
+    m_pSGNode->ClearPreviousWorldTransform();
+  }
+  /* The step starts from where a snapped jump ended. A blended one waits for the next drawn
+   * frame, which fades it from where the last frame drew the object. */
+  if (m_smoothResetPending && m_smoothResetBlend <= 0.0f) {
+    m_smoothResetPending = false;
+  }
+}
 
-  if (!m_useRenderInterpolation) {
-    /* First interpolation call caches the physics pose for restoration when interpolation stops. */
-    m_cachedRenderTransform = NodeGetWorldTransform();
-    m_cachedInterpolatedTransform = m_cachedRenderTransform;
+KX_GameObject::SmoothMotionFollow KX_GameObject::ApplySmoothMotion(
+    const SmoothMotionFrame &frame,
+    const char mode,
+    const SmoothMotionFollow &parent,
+    const SmoothMotionReset &reset,
+    KX_Scene *scene)
+{
+  SmoothMotionFollow follow;
+  if (m_pSGNode == nullptr) {
+    return follow;
+  }
+  if (m_useRenderInterpolation) {
+    /* Drawn twice in one frame: start again from the real pose. */
+    ClearPhysicsInterpolationState();
   }
 
-  const MT_Transform interpTransform = NodeGetInterpolatedTransform(alpha);
-  m_cachedInterpolatedTransform = interpTransform;
-  const MT_Vector3 interpPos = interpTransform.getOrigin();
-  MT_Matrix3x3 interpBasis = interpTransform.getBasis();
+  const MT_Vector3 position = m_pSGNode->GetWorldPosition();
+  const MT_Matrix3x3 orientation = m_pSGNode->GetWorldOrientation();
+  const MT_Vector3 scale = m_pSGNode->GetWorldScaling();
+  const bool smoothed = ELEM(mode, OB_SMOOTH_MOTION_INTERPOLATE, OB_SMOOTH_MOTION_EXTRAPOLATE);
 
-  MT_Vector3 interpScale;
-  for (int i = 0; i < 3; ++i) {
-    MT_Vector3 column = interpBasis.getColumn(i);
-    interpScale[i] = column.length();
-    const MT_Scalar safeScale = (interpScale[i] > MT_Scalar(FLT_EPSILON)) ? interpScale[i] : MT_Scalar(1.0f);
-    column /= safeScale;
-    interpBasis.setColumn(i, column);
+  if (reset.active && m_pSGNode->HasPreviousWorldTransform()) {
+    /* A jump: no step history across it, for the frames until the next step too. */
+    m_pSGNode->StorePreviousWorldTransform();
   }
 
-  m_pSGNode->SetWorldPosition(interpPos);
-  m_pSGNode->SetWorldOrientation(interpBasis);
-  m_pSGNode->SetWorldScale(interpScale);
+  MT_Vector3 drawn_position = position;
+  MT_Matrix3x3 drawn_orientation = orientation;
+  MT_Vector3 drawn_scale = scale;
+  if (smoothed && !reset.active && m_pSGNode->HasPreviousWorldTransform()) {
+    /* Still since the last step: drawn where it is, exactly (no work, no write). */
+    const bool moved = !same_vector(m_pSGNode->GetPrevWorldPosition(), position) ||
+                       !same_matrix(m_pSGNode->GetPrevWorldOrientation(), orientation) ||
+                       !same_vector(m_pSGNode->GetPrevWorldScaling(), scale);
+    if (moved && mode == OB_SMOOTH_MOTION_INTERPOLATE) {
+      GetPhysicsInterpolatedPose(
+          frame.interpolation, drawn_position, drawn_orientation, drawn_scale);
+    }
+    else if (moved) {
+      GetPhysicsExtrapolatedPose(frame.interpolation, drawn_position, drawn_orientation);
+    }
+  }
+  else if (parent.moved) {
+    /* No smoothing of its own (None, no step history yet, a jump): drawn with its parent, so
+     * what is attached to a smoothed object never shakes against it. */
+    drawn_position = parent.rotation * position + parent.translation;
+    drawn_orientation = parent.rotation * orientation;
+  }
+
+  if (reset.active) {
+    m_smoothCorrectionLeft = 0.0f;
+    if (reset.blend > 0.0f && smoothed && m_smoothDrawnFrame != 0 &&
+        m_smoothDrawnFrame + 1 == frame.number)
+    {
+      /* A blended jump: drawn where the last frame showed it, then slides to its pose. */
+      m_smoothCorrectionOffset = m_smoothDrawnPosition - drawn_position;
+      m_smoothCorrectionTurn =
+          (m_smoothDrawnOrientation * drawn_orientation.transposed()).getRotation();
+      m_smoothCorrectionDuration = reset.blend;
+      m_smoothCorrectionLeft = reset.blend;
+    }
+  }
+  else if (m_smoothCorrectionLeft > 0.0f) {
+    m_smoothCorrectionLeft -= float(std::max(0.0, frame.seconds));
+  }
+  if (m_smoothCorrectionLeft > 0.0f && m_smoothCorrectionDuration > 0.0f) {
+    const float t = std::min(1.0f, m_smoothCorrectionLeft / m_smoothCorrectionDuration);
+    const MT_Scalar weight = t * t * (3.0f - 2.0f * t);
+    drawn_position += m_smoothCorrectionOffset * weight;
+    const MT_Quaternion still(0.0f, 0.0f, 0.0f, 1.0f);
+    drawn_orientation = MT_Matrix3x3(still.slerp(m_smoothCorrectionTurn, weight)) *
+                        drawn_orientation;
+  }
+  else {
+    m_smoothCorrectionLeft = 0.0f;
+  }
+
+  if (smoothed) {
+    m_smoothDrawnPosition = drawn_position;
+    m_smoothDrawnOrientation = drawn_orientation;
+    m_smoothDrawnFrame = frame.number;
+  }
+
+  if (same_vector(drawn_position, position) && same_matrix(drawn_orientation, orientation) &&
+      same_vector(drawn_scale, scale))
+  {
+    return follow;
+  }
+
+  /* Register before changing the node: a failed registration can't leave a drawn pose behind
+   * that nothing restores. */
+  if (scene != nullptr) {
+    scene->RegisterInterpolatedObject(this);
+  }
+  /* Preserve the exact TRS components. Decomposing an MT_Transform later would lose negative
+   * scale signs and can change reflected objects when interpolation is merely toggled. */
+  m_cachedRenderPosition = position;
+  m_cachedRenderOrientation = orientation;
+  m_cachedRenderScale = scale;
+  m_cachedInterpolatedTransform = MT_Transform(
+      drawn_position, drawn_orientation.scaled(drawn_scale[0], drawn_scale[1], drawn_scale[2]));
+  m_pSGNode->SetWorldPosition(drawn_position);
+  m_pSGNode->SetWorldOrientation(drawn_orientation);
+  m_pSGNode->SetWorldScale(drawn_scale);
   m_useRenderInterpolation = true;
+
+  if (!m_pSGNode->GetSGChildren().empty()) {
+    follow.moved = true;
+    follow.rotation = drawn_orientation * orientation.transposed();
+    follow.translation = drawn_position - follow.rotation * position;
+  }
+  return follow;
 }
 
 void KX_GameObject::ClearPhysicsInterpolationState()
@@ -2298,21 +4194,9 @@ void KX_GameObject::ClearPhysicsInterpolationState()
   if (m_pSGNode != nullptr) {
     if (m_useRenderInterpolation) {
       /* Restore the physics pose captured before interpolation modified the SG node. */
-      const MT_Vector3 originalPos = m_cachedRenderTransform.getOrigin();
-      MT_Matrix3x3 originalBasis = m_cachedRenderTransform.getBasis();
-
-      MT_Vector3 originalScale;
-      for (int i = 0; i < 3; ++i) {
-        MT_Vector3 column = originalBasis.getColumn(i);
-        originalScale[i] = column.length();
-        const MT_Scalar safeScale = (originalScale[i] > MT_Scalar(FLT_EPSILON)) ? originalScale[i] : MT_Scalar(1.0f);
-        column /= safeScale;
-        originalBasis.setColumn(i, column);
-      }
-
-      m_pSGNode->SetWorldPosition(originalPos);
-      m_pSGNode->SetWorldOrientation(originalBasis);
-      m_pSGNode->SetWorldScale(originalScale);
+      m_pSGNode->SetWorldPosition(m_cachedRenderPosition);
+      m_pSGNode->SetWorldOrientation(m_cachedRenderOrientation);
+      m_pSGNode->SetWorldScale(m_cachedRenderScale);
     }
     m_useRenderInterpolation = false;
     m_cachedInterpolatedTransform = MT_Transform::Identity();
@@ -2503,6 +4387,14 @@ void KX_GameObject::Relink(std::map<SCA_IObject *, SCA_IObject *> &map_parameter
   for (ait = actuatorlist.begin(); ait != actuatorlist.end(); ait++) {
     (*ait)->Relink(map_parameter);
   }
+  RelinkObjectProperties(map_parameter);
+}
+
+void KX_GameObject::RelinkObjectProperties(const std::map<SCA_IObject *, SCA_IObject *> &copies)
+{
+  for (int index = 0; index < GetPropertyCount(); index++) {
+    KX_RelinkObjectReferences(GetProperty(index), copies);
+  }
 }
 
 #ifdef WITH_PYTHON
@@ -2644,7 +4536,9 @@ static int mathutils_kxgameob_vector_set(blender::BaseMathObject *bmo, int subty
   return 0;
 }
 
-static int mathutils_kxgameob_vector_get_index(blender::BaseMathObject *bmo, int subtype, int index)
+static int mathutils_kxgameob_vector_get_index(blender::BaseMathObject *bmo,
+                                               int subtype,
+                                               int index)
 {
   /* lazy, avoid repeteing the case statement */
   if (mathutils_kxgameob_vector_get(bmo, subtype) == -1)
@@ -2652,7 +4546,9 @@ static int mathutils_kxgameob_vector_get_index(blender::BaseMathObject *bmo, int
   return 0;
 }
 
-static int mathutils_kxgameob_vector_set_index(blender::BaseMathObject *bmo, int subtype, int index)
+static int mathutils_kxgameob_vector_set_index(blender::BaseMathObject *bmo,
+                                               int subtype,
+                                               int index)
 {
   float f = bmo->data[index];
 
@@ -2758,7 +4654,7 @@ PyMethodDef KX_GameObject::Methods[] = {
     {"disableRigidBody", (PyCFunction)KX_GameObject::sPyDisableRigidBody, METH_NOARGS},
     {"applyImpulse", (PyCFunction)KX_GameObject::sPyApplyImpulse, METH_VARARGS},
     {"setCollisionMargin", (PyCFunction)KX_GameObject::sPySetCollisionMargin, METH_O},
-    {"collide", (PyCFunction) KX_GameObject::sPyCollide, METH_O},
+    {"collide", (PyCFunction)KX_GameObject::sPyCollide, METH_O},
     {"setParent", (PyCFunction)KX_GameObject::sPySetParent, METH_VARARGS | METH_KEYWORDS},
     {"setVisible", (PyCFunction)KX_GameObject::sPySetVisible, METH_VARARGS},
     {"setOcclusion", (PyCFunction)KX_GameObject::sPySetOcclusion, METH_VARARGS},
@@ -2791,6 +4687,7 @@ PyMethodDef KX_GameObject::Methods[] = {
     EXP_PYMETHODTABLE(KX_GameObject, getActionName),
     EXP_PYMETHODTABLE(KX_GameObject, setActionFrame),
     EXP_PYMETHODTABLE(KX_GameObject, isPlayingAction),
+    EXP_PYMETHODTABLE_KEYWORDS(KX_GameObject, resetSmoothing),
 
     // dict style access for props
     {"get", (PyCFunction)KX_GameObject::sPyget, METH_VARARGS},
@@ -2823,6 +4720,8 @@ PyAttributeDef KX_GameObject::Attributes[] = {
         "angularVelocityMax", KX_GameObject, pyattr_get_ang_vel_max, pyattr_set_ang_vel_max),
     EXP_PYATTRIBUTE_RW_FUNCTION("layer", KX_GameObject, pyattr_get_layer, pyattr_set_layer),
     EXP_PYATTRIBUTE_RW_FUNCTION("visible", KX_GameObject, pyattr_get_visible, pyattr_set_visible),
+    EXP_PYATTRIBUTE_RW_FUNCTION(
+        "smoothMotion", KX_GameObject, pyattr_get_smooth_motion, pyattr_set_smooth_motion),
     EXP_PYATTRIBUTE_BOOL_RW("occlusion", KX_GameObject, m_bOccluder),
 
     EXP_PYATTRIBUTE_RW_FUNCTION("physicsCullingRadius",
@@ -2944,7 +4843,8 @@ PyObject *KX_GameObject::PyReplaceMesh(PyObject *args, PyObject *kwds)
                                    const_cast<char **>(kwlist),
                                    &value,
                                    &use_gfx,
-                                   &use_phys)) {
+                                   &use_phys))
+  {
     return nullptr;
   }
 
@@ -2994,7 +4894,8 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args, PyObject *kwds)
                             mesh_py,
                             &mesh,
                             true,
-                            "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject"))) {
+                            "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject")))
+  {
     return nullptr;
   }
 
@@ -3012,7 +4913,8 @@ PyObject *KX_GameObject::PyReplacePhysicsShape(PyObject *value)
   SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
 
   if (!ConvertPythonToGameObject(
-          logicmgr, value, &gameobj, false, "gameOb.replacePhysicsShape(obj): KX_GameObject")) {
+          logicmgr, value, &gameobj, false, "gameOb.replacePhysicsShape(obj): KX_GameObject"))
+  {
     return nullptr;
   }
 
@@ -3065,6 +4967,150 @@ static PyObject *Map_GetItem(PyObject *self_v, PyObject *item)
   }
 }
 
+/** Reads exactly \a size numbers from a Python sequence such as a mathutils Vector. */
+static bool python_numbers(PyObject *value, float *r_values, const int size)
+{
+  if (PyUnicode_Check(value)) {
+    return false;
+  }
+  PyObject *sequence = PySequence_Fast(value, "");
+  if (sequence == nullptr) {
+    PyErr_Clear();
+    return false;
+  }
+  bool valid = PySequence_Fast_GET_SIZE(sequence) == size;
+  for (int index = 0; valid && index < size; index++) {
+    r_values[index] = float(PyFloat_AsDouble(PySequence_Fast_GET_ITEM(sequence, index)));
+    if (PyErr_Occurred()) {
+      PyErr_Clear();
+      valid = false;
+    }
+  }
+  Py_DECREF(sequence);
+  return valid;
+}
+
+/** Python value for a game property of the \a kind of an existing Vector, List, Dictionary or
+ * Object property, or of any kind for items of a List or Dictionary (\a kind 0). */
+static EXP_Value *python_to_property_value(PyObject *value, const int kind)
+{
+  float numbers[4];
+  switch (kind) {
+    case VALUE_VECTOR2_TYPE:
+      return python_numbers(value, numbers, 2) ?
+                 new EXP_Vector2Value(MT_Vector2(numbers[0], numbers[1])) :
+                 nullptr;
+    case VALUE_VECTOR3_TYPE:
+      return python_numbers(value, numbers, 3) ? new EXP_Vector3Value(MT_Vector3(numbers)) :
+                                                 nullptr;
+    case VALUE_VECTOR4_TYPE:
+      return python_numbers(value, numbers, 4) ? new EXP_Vector4Value(MT_Vector4(numbers)) :
+                                                 nullptr;
+    case VALUE_OBJECT_TYPE: {
+      KX_GameObject *object = nullptr;
+      if (value != Py_None) {
+        if (!PyObject_TypeCheck(value, &KX_GameObject::Type) ||
+            (object = static_cast<KX_GameObject *>(EXP_PROXY_REF(value))) == nullptr)
+        {
+          return nullptr;
+        }
+      }
+      return new KX_ObjectReferenceValue(object);
+    }
+    case VALUE_ARRAY_TYPE: {
+      if (!PyList_Check(value) && !PyTuple_Check(value)) {
+        return nullptr;
+      }
+      EXP_ArrayValue *list = new EXP_ArrayValue();
+      for (Py_ssize_t index = 0; index < PySequence_Size(value); index++) {
+        PyObject *item = PySequence_GetItem(value, index);
+        EXP_Value *converted = python_to_property_value(item, 0);
+        Py_DECREF(item);
+        if (converted == nullptr) {
+          list->Release();
+          return nullptr;
+        }
+        list->Append(converted);
+      }
+      return list;
+    }
+    case VALUE_DICT_TYPE: {
+      if (!PyDict_Check(value)) {
+        return nullptr;
+      }
+      EXP_DictValue *dict = new EXP_DictValue();
+      PyObject *key, *item;
+      Py_ssize_t position = 0;
+      while (PyDict_Next(value, &position, &key, &item)) {
+        EXP_Value *converted = PyUnicode_Check(key) ? python_to_property_value(item, 0) :
+                                                      nullptr;
+        if (converted == nullptr) {
+          dict->Release();
+          return nullptr;
+        }
+        dict->Set(_PyUnicode_AsString(key), converted);
+      }
+      return dict;
+    }
+    default:
+      break;
+  }
+  /* Items: plain values, then the kinds above by the Python type. */
+  if (PyBool_Check(value)) {
+    return new EXP_BoolValue(value == Py_True);
+  }
+  if (PyLong_Check(value)) {
+    const long long number = PyLong_AsLongLong(value);
+    if (PyErr_Occurred()) {
+      PyErr_Clear();
+      return nullptr;
+    }
+    return new EXP_IntValue(cInt(number));
+  }
+  if (PyFloat_Check(value)) {
+    const double number = PyFloat_AsDouble(value);
+    return std::abs(number) <= double(FLT_MAX) ? new EXP_FloatValue(float(number)) : nullptr;
+  }
+  if (PyUnicode_Check(value)) {
+    return new EXP_StringValue(_PyUnicode_AsString(value), "");
+  }
+  if (value == Py_None || PyObject_TypeCheck(value, &KX_GameObject::Type)) {
+    return python_to_property_value(value, VALUE_OBJECT_TYPE);
+  }
+  if (PyList_Check(value) || PyTuple_Check(value)) {
+    return python_to_property_value(value, VALUE_ARRAY_TYPE);
+  }
+  if (PyDict_Check(value)) {
+    return python_to_property_value(value, VALUE_DICT_TYPE);
+  }
+  /* Vectors such as mathutils.Vector, by their size. */
+  const Py_ssize_t size = PySequence_Check(value) ? PySequence_Size(value) : -1;
+  if (size == -1) {
+    PyErr_Clear();
+  }
+  switch (size) {
+    case 2:
+      return python_to_property_value(value, VALUE_VECTOR2_TYPE);
+    case 3:
+      return python_to_property_value(value, VALUE_VECTOR3_TYPE);
+    case 4:
+      return python_to_property_value(value, VALUE_VECTOR4_TYPE);
+    default:
+      return nullptr;
+  }
+}
+
+static bool is_structured_property(EXP_Value *property)
+{
+  return property != nullptr && ELEM(property->GetValueType(),
+                                     VALUE_VECTOR2_TYPE,
+                                     VALUE_VECTOR3_TYPE,
+                                     VALUE_VECTOR4_TYPE,
+                                     VALUE_ARRAY_TYPE,
+                                     VALUE_DICT_TYPE,
+                                     VALUE_OBJECT_TYPE);
+}
+
 static int Map_SetItem(PyObject *self_v, PyObject *key, PyObject *val)
 {
   KX_GameObject *self = static_cast<KX_GameObject *> EXP_PROXY_REF(self_v);
@@ -3103,6 +5149,25 @@ static int Map_SetItem(PyObject *self_v, PyObject *key, PyObject *val)
   }
   else { /* ob["key"] = value */
     bool set = false;
+
+    /* A Vector, List, Dictionary or Object property keeps its kind, so Logic Nodes, Save Game
+     * and the debug display still see it. New keys keep Python values as they are. */
+    EXP_Value *structured = attr_str ? self->GetProperty(attr_str) : nullptr;
+    if (is_structured_property(structured)) {
+      EXP_Value *converted = python_to_property_value(val, structured->GetValueType());
+      if (converted == nullptr) {
+        PyErr_Format(PyExc_TypeError,
+                     "gameOb[key] = value: KX_GameObject, \"%s\" can't hold this value",
+                     attr_str);
+        return -1;
+      }
+      self->SetProperty(attr_str, converted);
+      converted->Release();
+      if (self->m_attr_dict && PyDict_DelItem(self->m_attr_dict, key) != 0) {
+        PyErr_Clear();
+      }
+      return 0;
+    }
 
     /* as EXP_Value */
     if (attr_str && PyObject_TypeCheck(val, &EXP_PyObjectPlus::Type) ==
@@ -3292,6 +5357,10 @@ int KX_GameObject::pyattr_set_name(EXP_PyObjectPlus *self_v,
 
   // Change the name
   self->SetName(newname);
+  /* Lookups by name (text values such as {Player.gold}) find it under its new name. */
+  if (KX_Scene *scene = self->GetScene()) {
+    scene->NoteObjectListChanged();
+  }
 
   return PY_SET_ATTR_SUCCESS;
 }
@@ -3735,6 +5804,34 @@ int KX_GameObject::pyattr_set_visible(EXP_PyObjectPlus *self_v,
 
   self->SetVisible(param, false);
   return PY_SET_ATTR_SUCCESS;
+}
+
+/** Smooth Motion choices by their RNA names (Object > Physics > Smooth Motion). */
+static const char *const smooth_motion_names[] = {"SCENE", "NONE", "INTERPOLATE", "EXTRAPOLATE"};
+
+PyObject *KX_GameObject::pyattr_get_smooth_motion(EXP_PyObjectPlus *self_v,
+                                                  const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+  return PyUnicode_FromString(smooth_motion_names[int(self->GetSmoothMotion())]);
+}
+
+int KX_GameObject::pyattr_set_smooth_motion(EXP_PyObjectPlus *self_v,
+                                            const EXP_PYATTRIBUTE_DEF * /*attrdef*/,
+                                            PyObject *value)
+{
+  KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+  const char *name = PyUnicode_Check(value) ? PyUnicode_AsUTF8(value) : nullptr;
+  for (int mode = 0; name != nullptr && mode < int(ARRAY_SIZE(smooth_motion_names)); mode++) {
+    if (STREQ(name, smooth_motion_names[mode])) {
+      self->SetSmoothMotion(char(mode));
+      return PY_SET_ATTR_SUCCESS;
+    }
+  }
+  PyErr_SetString(PyExc_AttributeError,
+                  "gameOb.smoothMotion = str: KX_GameObject, expected 'SCENE', 'NONE', "
+                  "'INTERPOLATE' or 'EXTRAPOLATE'");
+  return PY_SET_ATTR_FAIL;
 }
 
 PyObject *KX_GameObject::pyattr_get_physicsCulling(EXP_PyObjectPlus *self_v,
@@ -4832,7 +6929,8 @@ PyObject *KX_GameObject::PySetParent(PyObject *args, PyObject *kwds)
                                    const_cast<char **>(kwlist),
                                    &pyobj,
                                    &addToCompound,
-                                   &ghost)) {
+                                   &ghost))
+  {
     return nullptr;  // Python sets a simple error
   }
   if (!ConvertPythonToGameObject(
@@ -4870,7 +6968,9 @@ PyObject *KX_GameObject::PyCollide(PyObject *value)
   KX_Scene *scene = GetScene();
   KX_GameObject *other;
 
-  if (!ConvertPythonToGameObject(scene->GetLogicManager(), value, &other, false, "gameOb.collide(obj): KX_GameObject")) {
+  if (!ConvertPythonToGameObject(
+          scene->GetLogicManager(), value, &other, false, "gameOb.collide(obj): KX_GameObject"))
+  {
     return nullptr;
   }
 
@@ -4880,7 +6980,8 @@ PyObject *KX_GameObject::PyCollide(PyObject *value)
   }
 
   PHY_IPhysicsEnvironment *env = scene->GetPhysicsEnvironment();
-  PHY_CollisionTestResult testResult = env->CheckCollision(m_pPhysicsController, other->GetPhysicsController());
+  PHY_CollisionTestResult testResult = env->CheckCollision(m_pPhysicsController,
+                                                           other->GetPhysicsController());
 
   PyObject *result = PyTuple_New(2);
   if (!testResult.collide) {
@@ -4894,8 +6995,9 @@ PyObject *KX_GameObject::PyCollide(PyObject *value)
     Py_INCREF(Py_True);
 
     if (testResult.collData) {
-      KX_CollisionContactPointList *contactPointList = new KX_CollisionContactPointList(testResult.collData, testResult.isFirst);
-      contactPointList->SetOwnsCollData(true);  /* Transfer ownership; Python GC will free it. */
+      KX_CollisionContactPointList *contactPointList = new KX_CollisionContactPointList(
+          testResult.collData, testResult.isFirst);
+      contactPointList->SetOwnsCollData(true); /* Transfer ownership; Python GC will free it. */
       PyTuple_SET_ITEM(result, 1, contactPointList->NewProxy(true));
     }
     else {
@@ -4979,7 +7081,8 @@ PyObject *KX_GameObject::PyAlignAxisToVect(PyObject *args, PyObject *kwds)
 
   static const char *kwlist[] = {"vect", "axis", "factor", nullptr};
   if (PyArg_ParseTupleAndKeywords(
-          args, kwds, "O|if:alignAxisToVect", const_cast<char **>(kwlist), &pyvect, &axis, &fac)) {
+          args, kwds, "O|if:alignAxisToVect", const_cast<char **>(kwlist), &pyvect, &axis, &fac))
+  {
     MT_Vector3 vect;
     if (PyVecTo(pyvect, vect)) {
       if (fac > 0.0f) {
@@ -5054,7 +7157,8 @@ EXP_PYMETHODDEF_DOC_O(KX_GameObject,
   SCA_LogicManager *logicmgr = GetScene()->GetLogicManager();
   KX_GameObject *other;
   if (ConvertPythonToGameObject(
-          logicmgr, value, &other, false, "gameOb.getDistanceTo(value): KX_GameObject")) {
+          logicmgr, value, &other, false, "gameOb.getDistanceTo(value): KX_GameObject"))
+  {
     return PyFloat_FromDouble(NodeGetWorldPosition().distance(other->NodeGetWorldPosition()));
   }
 
@@ -5172,7 +7276,8 @@ EXP_PYMETHODDEF_DOC(
 
   static const char *kwlist[] = {"other", "dist", "prop", nullptr};
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "O|fs:rayCastTo", const_cast<char **>(kwlist), &pyarg, &dist, &propName)) {
+          args, kwds, "O|fs:rayCastTo", const_cast<char **>(kwlist), &pyarg, &dist, &propName))
+  {
     return nullptr;  // python sets simple error
   }
 
@@ -5319,7 +7424,8 @@ EXP_PYMETHODDEF_DOC(
                                    &face,
                                    &xray,
                                    &poly,
-                                   &mask)) {
+                                   &mask))
+  {
     return nullptr;  // Python sets a simple error
   }
 
@@ -5448,7 +7554,8 @@ EXP_PYMETHODDEF_DOC(KX_GameObject,
 
   static const char *kwlist[] = {"subject", "body", "to", nullptr};
   if (!PyArg_ParseTupleAndKeywords(
-          args, kwds, "s|ss:sendMessage", const_cast<char **>(kwlist), &subject, &body, &to)) {
+          args, kwds, "s|ss:sendMessage", const_cast<char **>(kwlist), &subject, &body, &to))
+  {
     return nullptr;
   }
 
@@ -5507,7 +7614,8 @@ EXP_PYMETHODDEF_DOC(KX_GameObject,
                                    &layer_weight,
                                    &ipo_flags,
                                    &speed,
-                                   &blend_mode)) {
+                                   &blend_mode))
+  {
     return nullptr;
   }
 
@@ -5637,6 +7745,29 @@ EXP_PYMETHODDEF_DOC(KX_GameObject,
   layer_check(layer, "isPlayingAction");
 
   return PyBool_FromLong(!IsActionDone(layer));
+}
+
+EXP_PYMETHODDEF_DOC(KX_GameObject,
+                    resetSmoothing,
+                    "resetSmoothing(blend=0.0)\n"
+                    "The object's last move is a jump (a teleport): with Smooth Motion it and its\n"
+                    "children are drawn there at once, or slide there over blend seconds.\n")
+{
+  float blend = 0.0f;
+  static const char *kwlist[] = {"blend", nullptr};
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwds, "|f:resetSmoothing", const_cast<char **>(kwlist), &blend))
+  {
+    return nullptr;
+  }
+  if (!std::isfinite(blend) || blend < 0.0f) {
+    PyErr_SetString(PyExc_ValueError,
+                    "gameOb.resetSmoothing(blend): KX_GameObject, blend must be 0 or more seconds");
+    return nullptr;
+  }
+
+  ResetSmoothing(blend);
+  Py_RETURN_NONE;
 }
 
 EXP_PYMETHODDEF_DOC(KX_GameObject,

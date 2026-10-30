@@ -10,6 +10,8 @@
 
 #include "BKE_node.hh"
 
+#include "BLO_read_write.hh"
+
 #include "BLI_string.h"
 
 #include "MEM_guardedalloc.h"
@@ -108,6 +110,13 @@ static void node_copy(bNodeTree * /*tree*/, bNode *dest_node, const bNode *src_n
   dest_node->storage = src_formula != nullptr ? BLI_strdup(src_formula) : BLI_strdup("a + b");
 }
 
+static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
+{
+  /* The custom formula is a bare string (no storage struct), so write it raw. The generic untyped
+   * storage read restores the pointer. */
+  writer.write_string(static_cast<const char *>(node.storage));
+}
+
 static void node_register()
 {
   static bke::bNodeType ntype;
@@ -120,6 +129,7 @@ static void node_register()
   ntype.freefunc = node_free;
   ntype.copyfunc = node_copy;
   ntype.updatefunc = node_update;
+  ntype.blend_write_storage_content = node_blend_write;
 
   bke::node_register_type(ntype);
 }

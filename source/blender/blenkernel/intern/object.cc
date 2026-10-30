@@ -90,6 +90,7 @@
 #include "BKE_editmesh_cache.hh"
 #include "BKE_effect.h"
 #include "BKE_fcurve.hh"
+#include "BKE_game_persistence.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_global.hh"
@@ -218,6 +219,9 @@ static void object_copy_data(Main *bmain,
 {
   Object *ob_dst = id_cast<Object *>(id_dst);
   const Object *ob_src = id_cast<const Object *>(id_src);
+
+  /* Runtime render copies explicitly restore the source identity after this callback. */
+  BKE_game_persistence_identity_handle_copy(ob_src->id, ob_dst->id, flag);
 
   ob_dst->runtime = MEM_new<bke::ObjectRuntime>(__func__, *ob_src->runtime);
   BKE_object_runtime_reset_on_copy(ob_dst, flag);
@@ -361,7 +365,8 @@ static void object_free_data(ID *id)
   BKE_sca_free_controllers(&ob->controllers);
   BKE_sca_free_actuators(&ob->actuators);
   BKE_python_proxy_free_list(&ob->components);
-  BKE_logic_node_binding_free_list(&ob->logic_node_bindings);
+  /* ID user counts are managed by the generic ID free path through object_foreach_id(). */
+  BKE_logic_node_binding_free_list(&ob->logic_node_bindings, false);
   BKE_object_free_bulletsoftbody(ob);
   BKE_object_vehicle_settings_free(ob);
   BLI_freelistN(&ob->lodlevels);
@@ -487,6 +492,16 @@ static void library_foreach_particlesystemsObjectLooper(ParticleSystem * /*psys*
       data, BKE_lib_query_foreachid_process(data, id_pointer, cb_flag));
 }
 
+/** Object values of game properties, also inside Lists and Tables. */
+static void foreach_property_ID(ListBase *lb, LibraryForeachIDData *data)
+{
+  for (bProperty *prop = (bProperty *)lb->first; prop; prop = prop->next) {
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, prop->object, IDWALK_CB_NOP);
+    foreach_property_ID(&prop->items, data);
+    foreach_property_ID(&prop->columns, data);
+  }
+}
+
 static void object_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Object *object = reinterpret_cast<Object *>(id);
@@ -570,6 +585,13 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_sca_controllers_id_loop(&object->controllers, library_foreach_controllersObjectLooper, data);
   BKE_sca_actuators_id_loop(&object->actuators, library_foreach_actuatorsObjectLooper, data);
   BKE_python_proxies_id_loop(&object->components, library_foreach_proxiesObjectLooper, data);
+  foreach_property_ID(&object->prop, data);
+
+  for (LogicNodeBinding *binding :
+       ListBaseWrapper<LogicNodeBinding>(object->logic_node_bindings))
+  {
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, binding->tree, IDWALK_CB_USER);
+  }
 
   if (object->custom_object) {
     BKE_python_proxy_id_loop(object->custom_object, library_foreach_proxiesObjectLooper, data);
@@ -601,6 +623,17 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   if (object->bsoft) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->bsoft->pin_object, IDWALK_CB_NEVER_SELF);
   }
+  /* UI Element: its highlight object and widget parts. */
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->game_ui.highlight, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->game_ui.widget_object, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->game_ui.widget_part, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->game_ui.nav_up, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->game_ui.nav_down, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->game_ui.nav_left, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->game_ui.nav_right, IDWALK_CB_NOP);
+  /* UPBGE: UI Element tooltip and refused-drop objects. */
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->game_ui.tooltip, IDWALK_CB_NOP);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->game_ui.refused, IDWALK_CB_NOP);
   /****************/
 
   if (object->soft) {
@@ -793,8 +826,22 @@ static void write_properties(BlendWriter *writer, ListBase *lb)
     if (prop->poin && prop->poin != &prop->data) {
       writer->write_raw(MEM_allocN_len(prop->poin), prop->poin);
     }
+    write_properties(writer, &prop->items);
+    write_properties(writer, &prop->columns);
 
     prop = prop->next;
+  }
+}
+
+static void read_properties(BlendDataReader *reader, ListBase *lb)
+{
+  BLO_read_struct_list(reader, bProperty, lb);
+  for (bProperty *prop = (bProperty *)lb->first; prop; prop = prop->next) {
+    BLO_read_data_address(reader, &prop->poin);
+    if (prop->poin == nullptr)
+      prop->poin = &prop->data;
+    read_properties(reader, &prop->items);
+    read_properties(reader, &prop->columns);
   }
 }
 
@@ -1378,19 +1425,13 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct(reader, FluidsimSettings, &ob->fluidsimSettings); /* NT */
 
   /* UPBGE */
-  bProperty *prop;
   bSensor *sens;
   bController *cont;
   bActuator *act;
   PythonProxy *pp;
   PythonProxyProperty *pprop;
 
-  BLO_read_struct_list(reader, bProperty, &ob->prop);
-  for (prop = (bProperty *)ob->prop.first; prop; prop = prop->next) {
-    BLO_read_data_address(reader, &prop->poin);
-    if (prop->poin == nullptr)
-      prop->poin = &prop->data;
-  }
+  read_properties(reader, &ob->prop);
 
   BLO_read_struct_list(reader, bSensor, &ob->sensors);
   for (sens = (bSensor *)ob->sensors.first; sens; sens = sens->next) {

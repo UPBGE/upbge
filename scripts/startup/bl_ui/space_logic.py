@@ -60,25 +60,14 @@ class LOGIC_PT_properties(Panel):
         props = layout.operator("object.game_property_new", text="Add Game Property", icon='PLUS')
         props.name = ""
 
+        from bl_ui.properties_game import draw_game_property
+
         for i, prop in enumerate(game.properties):
 
             if is_font and i == prop_index:
                 continue
 
-            box = layout.box()
-            row = box.row()
-            row.prop(prop, "name", text="")
-            row.prop(prop, "type", text="")
-            row.prop(prop, "value", text="")
-            row.prop(prop, "show_debug", text="", toggle=True, icon='INFO')
-            sub = row.row(align=True)
-            props = sub.operator("object.game_property_move", text="", icon='TRIA_UP')
-            props.index = i
-            props.direction = 'UP'
-            props = sub.operator("object.game_property_move", text="", icon='TRIA_DOWN')
-            props.index = i
-            props.direction = 'DOWN'
-            row.operator("object.game_property_remove", text="", icon='X', emboss=False).index = i
+            draw_game_property(layout, prop, i, show_save_game=False)
 
 
 class LOGIC_MT_logicbricks_add(Menu):

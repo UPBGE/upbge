@@ -18,7 +18,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       "Armature object; defaults to the owner when unset");
   b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
   b.add_input<decl::Vector>("Scale"_ustr).default_value({1.0f, 1.0f, 1.0f}).description(
-      "Pose bone scale in normal object-style axes");
+      "Native Blender pose-channel scale in the bone's local axes");
   b.add_output<decl::Execution>("Done"_ustr);
 }
 

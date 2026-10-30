@@ -9,14 +9,25 @@
 #include "node_logic_util.hh"
 
 namespace blender::nodes::node_logic_euler_cc {
-namespace decl = blender::nodes::logic::decl;
+namespace decl = blender::nodes::decl;
+namespace logic_decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("X"_ustr).default_value(0.0f);
-  b.add_input<decl::Float>("Y"_ustr).default_value(0.0f);
-  b.add_input<decl::Float>("Z"_ustr).default_value(0.0f);
-  b.add_output<decl::Rotation>("Euler"_ustr, "Rotation"_ustr);
+  b.add_input<decl::Float>("X"_ustr)
+      .default_value(0.0f)
+      .subtype(PROP_ANGLE)
+      .description("Angle around the X axis in the XYZ Euler rotation");
+  b.add_input<decl::Float>("Y"_ustr)
+      .default_value(0.0f)
+      .subtype(PROP_ANGLE)
+      .description("Angle around the Y axis in the XYZ Euler rotation");
+  b.add_input<decl::Float>("Z"_ustr)
+      .default_value(0.0f)
+      .subtype(PROP_ANGLE)
+      .description("Angle around the Z axis in the XYZ Euler rotation");
+  b.add_output<logic_decl::Rotation>("Rotation"_ustr)
+      .description("Rotation constructed from the XYZ Euler angles");
 }
 
 static void node_register()

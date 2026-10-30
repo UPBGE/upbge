@@ -37,7 +37,11 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 namespace blender {
+
+struct Object;
 
 /* ********************* PROPERTY ************************ */
 
@@ -45,9 +49,27 @@ typedef struct bProperty {
   struct bProperty *next, *prev;
   char name[64]; /* MAX_NAME */
   short type, flag;
-  int data;   /* data should be 4 bytes to store int,float stuff */
+  int data;   /* data should be 4 bytes to store int,float stuff; Choice: the selected option */
   void *poin; /* references data unless its a string which is malloc'd */
-
+  /** Vector (XYZ) and Color (RGBA) value. */
+  float vec[4];
+  /** Object value. */
+  struct Object *object;
+  /** Choice options (their names), List items, and Table rows (#GPROP_ROW, whose items are the
+   * cells: one per column, in column order). */
+  ListBase items;
+  /** Table columns: name, type and the value of new cells. */
+  ListBase columns;
+  /** List: the type of its items. */
+  short item_type;
+  char _pad0[2];
+  /** Selected row of the item and column lists in the UI. */
+  int active_item;
+  int active_column;
+  char _pad1[4];
+  /** List and Table: the name of the scene's #GameInventoryRules this list follows; empty: the
+   * defaults. */
+  char inventory_rules[64];
 } bProperty;
 
 /* property->type XXX Game Property, not RNA */
@@ -55,11 +77,20 @@ typedef struct bProperty {
 #define GPROP_INT 1
 #define GPROP_FLOAT 2
 #define GPROP_STRING 3
-// #define GPROP_VECTOR	4  // UNUSED
+/* 4 was an old Vector type: never reuse it. */
 #define GPROP_TIME 5
+#define GPROP_VECTOR 6
+#define GPROP_COLOR 7
+#define GPROP_OBJECT 8
+#define GPROP_CHOICE 9
+#define GPROP_LIST 10
+#define GPROP_TABLE 11
+/** A Table row; never a property of its own. */
+#define GPROP_ROW 12
 
 /* property->flag */
 #define PROP_DEBUG 1
+#define PROP_SAVE_GAME (1 << 1)
 
 #define MAX_PROPSTRING 128
 

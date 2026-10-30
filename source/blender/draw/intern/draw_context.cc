@@ -3059,11 +3059,86 @@ static bool DRW_gpencil_engine_needed_viewport(Depsgraph *depsgraph, View3D *v3d
   return gpencil_any_exists(depsgraph);
 }
 
+/* UPBGE: the game's copies drawn as groups. Each group is synced once through the grouped
+ * instance drawing `foreach_obref_in_scene` uses for Blender's own instances: one draw entry made
+ * as `bge_dupli_provider`'s entry for one copy (BGEObjectData), each copy's matrix, key and
+ * Random in its DupliObject. The parent is the group object's original: it has no update stamps
+ * of its own (Blender writes those on evaluated objects), so a group redraws its shadows only
+ * when one of its copies moved, and it is never the active object, as the provider's entries. */
+static void drw_game_sync_instance_groups(DRWContext &draw_ctx,
+                                          const Span<DRWGameInstanceGroup> groups,
+                                          const bool is_overlay_pass,
+                                          DupliCacheManager &duplis,
+                                          ExtractionGraph &extraction)
+{
+  using namespace blender::draw;
+  const eEvaluationMode eval_mode = DEG_get_mode(draw_ctx.depsgraph);
+  float identity[4][4];
+  unit_m4(identity);
+
+  for (const DRWGameInstanceGroup &group : groups) {
+    if (group.object == nullptr || group.instances == nullptr || group.instances->is_empty()) {
+      continue;
+    }
+    Object *ob_orig = DEG_get_original(group.object);
+    /* The main pass draws no overlay (menu, HUD) objects, an overlay pass only those. */
+    if (((ob_orig->gameflag & OB_OVERLAY_COLLECTION) != 0) != is_overlay_pass) {
+      continue;
+    }
+    BGEObjectData entry(group.object, identity);
+    Object &ob = entry.temp_object;
+    copy_v4_v4(ob.color, group.color);
+    SET_FLAG_FROM_TEST(ob.transflag, group.negative_scale, OB_NEG_SCALE);
+    if (group.keep_shadow) {
+      ob.visibility_flag |= OB_HIDE_CAMERA;
+    }
+    ob.runtime->last_update_transform = group.last_update_transform;
+
+    /* The object list's own tests for a copy's entry. */
+    if (!DEG_iterator_object_is_visible(eval_mode, &ob) ||
+        (BKE_object_visibility(&ob, eval_mode) & OB_VISIBLE_SELF) == 0 ||
+        (draw_ctx.v3d && !BKE_object_is_visible_in_viewport(draw_ctx.v3d, &ob)))
+    {
+      continue;
+    }
+
+    for (DupliObject *dupli : *group.instances) {
+      dupli->ob = group.object;
+      dupli->ob_data = static_cast<ID *>(ob.data);
+    }
+    /* As for a copy's own entry: the batch cache's owner is the original mesh. */
+    if (ob.type == OB_MESH) {
+      Mesh *mesh_eval = id_cast<Mesh *>(ob.data);
+      MeshBatchCache *cache = static_cast<MeshBatchCache *>(mesh_eval->runtime->batch_cache);
+      if (cache) {
+        cache->mesh_owner = id_cast<Mesh *>(ob_orig->data);
+      }
+    }
+
+    if (supports_handle_ranges((*group.instances)[0], group.object, draw_ctx)) {
+      ObjectRef ob_ref(ob, ob_orig, *group.instances);
+      drw_engines_cache_populate(ob_ref, duplis, extraction);
+      continue;
+    }
+    /* Not drawable as a range (the game groups only what is): one copy at a time, as Blender's
+     * own instances of that kind. */
+    for (DupliObject *dupli : *group.instances) {
+      SET_FLAG_FROM_TEST(ob.transflag, is_negative_m4(dupli->mat), OB_NEG_SCALE);
+      ob.runtime->object_to_world = float4x4(dupli->mat);
+      ob.runtime->world_to_object = math::invert(ob.runtime->object_to_world);
+      ObjectRef ob_ref(&ob, ob_orig, dupli);
+      drw_engines_cache_populate(ob_ref, duplis, extraction);
+    }
+  }
+}
+
 void DRW_game_render_loop(bContext *C,
                           GPUViewport *viewport,
                           Depsgraph *depsgraph,
                           const rcti *window,
-                          bool is_overlay_pass)
+                          bool is_overlay_pass,
+                          bool use_workbench,
+                          const Span<DRWGameInstanceGroup> instance_groups)
 {
   using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
@@ -3087,12 +3162,25 @@ void DRW_game_render_loop(bContext *C,
 
   DRWViewData &view_data = *draw_ctx.view_data_active;
 
-  view_data.eevee.set_used(true);
+  /* UPBGE: a game camera draws with EEVEE, or with Workbench when its Use Workbench setting is on
+   * (minimaps, menu and HUD cameras: flat colors, a few screen-size buffers instead of a full EEVEE
+   * instance). The game sets the Workbench settings for the view on the evaluated scene
+   * (KX_Scene::DisableCameraEffects). */
+  if (use_workbench) {
+    view_data.workbench.set_used(true);
+  }
+  else {
+    view_data.eevee.set_used(true);
+  }
 
   if (gpencil_engine_needed) {
     view_data.grease_pencil.set_used(true);
   }
   view_data.compositor.set_used(draw_ctx.is_viewport_compositor_enabled());
+
+  /* UPBGE: free the engines this view no longer uses (as drw_draw_render_loop_3d does), so a
+   * camera switched from EEVEE to Workbench gives back its EEVEE memory. */
+  draw_ctx.engines_data_validate();
 
   auto should_draw_object = [&](Object &ob, bool /*has_duplis*/) -> DrawFilter {
     return BKE_object_is_visible_in_viewport(v3d, &ob) ? DrawFilter::Draw : DrawFilter::Skip;
@@ -3116,6 +3204,8 @@ void DRW_game_render_loop(bContext *C,
         }
       });
     }
+    /* UPBGE: the game's copies drawn as groups. */
+    drw_game_sync_instance_groups(draw_ctx, instance_groups, is_overlay_pass, duplis, extraction);
   });
 
   /* No frame-buffer allowed before drawing. */

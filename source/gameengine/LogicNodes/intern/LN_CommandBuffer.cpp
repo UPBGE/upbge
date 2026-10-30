@@ -10,21 +10,27 @@
 
 #include <algorithm>
 #include <array>
-#include <cstdint>
+#include <chrono>
 #include <cmath>
+#include <cstring>
+#include <cstdint>
 #include <cstdio>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
+#include "../../../blender/depsgraph/DEG_depsgraph.hh"
+#include "../../../blender/depsgraph/DEG_depsgraph_build.hh"
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
+#include "BKE_key.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
@@ -36,45 +42,55 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_object.hh"
+#include "DNA_ID.h"
 #include "DNA_action_types.h"
 #include "DNA_collection_types.h"
-#include "../../../blender/depsgraph/DEG_depsgraph.hh"
-#include "../../../blender/depsgraph/DEG_depsgraph_build.hh"
 #include "DNA_constraint_types.h"
-#include "DNA_ID.h"
+#include "DNA_key_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #ifdef WITH_AUDASPACE
-#  include <Exception.h>
-#  include <devices/DeviceManager.h>
-#  include <devices/IDevice.h>
-#  include <devices/I3DHandle.h>
-#  include <devices/IHandle.h>
 #  include "BKE_sound.hh"
 #  include "DNA_ID_enums.h"
 #  include "DNA_sound_types.h"
+#  include <Exception.h>
+#  include <devices/DeviceManager.h>
+#  include <devices/I3DHandle.h>
+#  include <devices/IDevice.h>
+#  include <devices/IHandle.h>
+#  include <generator/Sine.h>
 #endif
 
+#include "../../../blender/gpu/GPU_material.hh"
+#include "../../../blender/windowmanager/WM_api.hh"
+#include "../../../blender/windowmanager/WM_types.hh"
+#include "../../Converter/BL_Converter.h"
+#include "../../Converter/BL_SceneConverter.h"
+#include "../../Ketsji/KX_BlenderMaterial.h"
+#include "../../Rasterizer/RAS_MeshMaterial.h"
+#include "../../Rasterizer/RAS_MeshObject.h"
 #include "BLI_assert.h"
 #include "BLI_hash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BL_Action.h"
+#include "BL_ActionManager.h"
+#include "BL_ArmatureObject.h"
 #include "CM_Message.h"
-#include "RNA_access.hh"
 #include "DEV_InputDevice.h"
 #include "DEV_Joystick.h"
+#include "EXP_ArrayValue.h"
 #include "EXP_BoolValue.h"
-#include "EXP_FloatValue.h"
-#include "EXP_IntValue.h"
-#include "EXP_StringValue.h"
-#include "EXP_BoolValue.h"
+#include "EXP_DictValue.h"
 #include "EXP_FloatValue.h"
 #include "EXP_IntValue.h"
 #include "EXP_ListValue.h"
@@ -83,17 +99,20 @@
 #include "EXP_Vector3Value.h"
 #include "EXP_Vector4Value.h"
 #include "KX_Camera.h"
-#include "BL_Action.h"
 #include "KX_GameObject.h"
+#include "KX_ObjectReferenceValue.h"
 #include "KX_Globals.h"
-#include "KX_Camera.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_Light.h"
 #include "KX_Scene.h"
-#include "SCA_LogicManager.h"
-#include "LN_RuntimeTree.h"
+#include "LN_BonePoseRotation.h"
 #include "LN_CommandDiagnostics.h"
+#include "LN_GameStateMaterial.h"
+#include "LN_InputMap.h"
 #include "LN_Manager.h"
+#include "LN_RuntimeTree.h"
+#include "LN_SoundGroups.h"
+#include "LN_UIService.h"
 #include "MT_Matrix3x3.h"
 #include "MT_Transform.h"
 #include "PHY_ICharacter.h"
@@ -101,13 +120,8 @@
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IVehicle.h"
 #include "RAS_ICanvas.h"
-#include "../../Converter/BL_SceneConverter.h"
-#include "../../Ketsji/KX_BlenderMaterial.h"
-#include "../../Rasterizer/RAS_MeshMaterial.h"
-#include "../../Rasterizer/RAS_MeshObject.h"
-#include "../../../blender/gpu/GPU_material.hh"
-#include "../../../blender/windowmanager/WM_api.hh"
-#include "../../../blender/windowmanager/WM_types.hh"
+#include "RNA_access.hh"
+#include "SCA_LogicManager.h"
 
 namespace blender {
 extern StructRNA *RNA_Node;
@@ -119,9 +133,8 @@ extern StructRNA *RNA_Scene;
 
 namespace {
 
-using blender::GameVehicleSettings;
 using blender::G;
-using blender::Object;
+using blender::GameVehicleSettings;
 using blender::OB_VEHICLE_TYPE_CHASSIS;
 using blender::OB_VEHICLE_TYPE_MOTORCYCLE_CHASSIS;
 using blender::OB_VEHICLE_TYPE_MOTORCYCLE_WHEEL;
@@ -129,6 +142,7 @@ using blender::OB_VEHICLE_TYPE_WHEEL;
 using blender::OB_VEHICLE_WHEEL_OVERRIDE_ENGINE_FORCE;
 using blender::OB_VEHICLE_WHEEL_USE_BRAKE;
 using blender::OB_VEHICLE_WHEEL_USE_STEERING;
+using blender::Object;
 
 static bool rigid_body_lock_enabled(const float value)
 {
@@ -211,15 +225,12 @@ static void logic_node_set_cursor_position(KX_KetsjiEngine *engine,
     canvas->SetMousePosition(x, y);
   }
 
-  if (DEV_InputDevice *input_device = dynamic_cast<DEV_InputDevice *>(
-          engine->GetInputDevice()))
-  {
+  if (DEV_InputDevice *input_device = dynamic_cast<DEV_InputDevice *>(engine->GetInputDevice())) {
     input_device->ConvertMoveEvent(x, y);
   }
 }
 
-static const LN_SourceRef *logic_node_command_source_ref(
-    const LN_CommandBuffer::Command &command)
+static const LN_SourceRef *logic_node_command_source_ref(const LN_CommandBuffer::Command &command)
 {
   if (command.runtime_tree == nullptr) {
     return nullptr;
@@ -264,8 +275,7 @@ static const std::string *logic_node_command_string(const LN_CommandBuffer::Comm
 }
 
 static const std::string *logic_node_command_game_property_name(
-    const LN_CommandBuffer::Command &command,
-    const LN_Manager *logic_manager)
+    const LN_CommandBuffer::Command &command, const LN_Manager *logic_manager)
 {
   if (command.property_name_ptr != nullptr && !command.property_name_ptr->empty()) {
     return command.property_name_ptr;
@@ -310,7 +320,7 @@ static bool logic_value_exp_number(const LN_Value &value, double &r_number)
       r_number = double(value.vector_value.length());
       return true;
     case LN_ValueType::Rotation:
-      r_number = double(value.rotation_euler_value.length());
+      r_number = double(value.RotationEulerRadians().length());
       return true;
     case LN_ValueType::Vector4:
       r_number = double(value.vector4_value.length());
@@ -340,6 +350,10 @@ static bool try_update_existing_game_property_no_alloc(EXP_Value *old_value, con
   }
 
   const int old_type = old_value->GetValueType();
+  if (old_type == VALUE_OBJECT_TYPE && (!value.exists || value.type == LN_ValueType::None)) {
+    static_cast<KX_ObjectReferenceValue *>(old_value)->SetObject(nullptr);
+    return true;
+  }
   double number = 0.0;
   if (logic_value_exp_number(value, number)) {
     if (old_type == VALUE_BOOL_TYPE) {
@@ -389,7 +403,7 @@ static bool try_update_existing_game_property_no_alloc(EXP_Value *old_value, con
       break;
     case LN_ValueType::Rotation:
       if (old_type == VALUE_VECTOR3_TYPE) {
-        static_cast<EXP_Vector3Value *>(old_value)->SetVector3(value.rotation_euler_value);
+        static_cast<EXP_Vector3Value *>(old_value)->SetVector3(value.RotationEulerRadians());
         return true;
       }
       break;
@@ -420,8 +434,46 @@ static bool try_update_existing_game_property_no_alloc(EXP_Value *old_value, con
   return false;
 }
 
-static EXP_Value *make_exp_value_for_game_property(const LN_Value &value)
+/** The game object of an Object value, for a property of \a owner. */
+static KX_GameObject *resolve_property_object(const LN_Value &value,
+                                              KX_GameObject *owner,
+                                              const LN_RuntimeTree *runtime_tree)
 {
+  if (!value.exists) {
+    return nullptr;
+  }
+  if (runtime_tree != nullptr && value.runtime_ref.IsValid()) {
+    if (KX_GameObject *object = runtime_tree->ResolveObjectRef(value.runtime_ref)) {
+      return object;
+    }
+  }
+  KX_Scene *scene = owner ? owner->GetScene() : nullptr;
+  /* Without a tree (the UI service writing a list it read): a shared reference is the very
+   * object, also one of several copies with the same name. */
+  if (runtime_tree == nullptr && scene != nullptr && value.runtime_ref.shared_domain != 0) {
+    if (LN_Manager *manager = scene->GetLogicNodeManager()) {
+      if (KX_GameObject *object = manager->ResolveSharedObjectRef(value.runtime_ref)) {
+        return object;
+      }
+    }
+  }
+  /* Like other node object values: by name, also inactive objects. */
+  if (scene == nullptr || value.reference_name.empty()) {
+    return nullptr;
+  }
+  KX_GameObject *object = scene->GetObjectList()->FindValue(value.reference_name);
+  return object ? object : scene->GetInactiveList()->FindValue(value.reference_name);
+}
+
+static EXP_Value *make_exp_value_for_game_property(const LN_Value &value,
+                                                   KX_GameObject *owner,
+                                                   const LN_RuntimeTree *runtime_tree,
+                                                   const bool nested = false)
+{
+  if (nested && (!value.exists || value.type == LN_ValueType::None)) {
+    /* An empty object cell of a Table reads as None. */
+    return new KX_ObjectReferenceValue(static_cast<KX_GameObject *>(nullptr));
+  }
   switch (value.type) {
     case LN_ValueType::Bool:
       return new EXP_BoolValue(value.bool_value);
@@ -434,18 +486,42 @@ static EXP_Value *make_exp_value_for_game_property(const LN_Value &value)
     case LN_ValueType::Vector:
       return new EXP_Vector3Value(value.vector_value);
     case LN_ValueType::Rotation:
-      return new EXP_Vector3Value(value.rotation_euler_value);
+      return new EXP_Vector3Value(value.RotationEulerRadians());
     case LN_ValueType::Vector4:
       return new EXP_Vector4Value(value.vector4_value);
     case LN_ValueType::Color:
       return new EXP_Vector4Value(value.color_value);
-    case LN_ValueType::Matrix:
     case LN_ValueType::ObjectRef:
+      return new KX_ObjectReferenceValue(resolve_property_object(value, owner, runtime_tree));
+    case LN_ValueType::List: {
+      EXP_ArrayValue *list = new EXP_ArrayValue();
+      for (const LN_Value &item : value.list_value) {
+        EXP_Value *converted = make_exp_value_for_game_property(item, owner, runtime_tree, true);
+        if (converted == nullptr) {
+          list->Release();
+          return nullptr;
+        }
+        list->Append(converted);
+      }
+      return list;
+    }
+    case LN_ValueType::Dict: {
+      EXP_DictValue *dict = new EXP_DictValue();
+      for (const auto &entry : value.dict_value) {
+        EXP_Value *converted = make_exp_value_for_game_property(
+            entry.second, owner, runtime_tree, true);
+        if (converted == nullptr) {
+          dict->Release();
+          return nullptr;
+        }
+        dict->Set(entry.first, converted);
+      }
+      return dict;
+    }
+    case LN_ValueType::Matrix:
     case LN_ValueType::SceneRef:
     case LN_ValueType::CollectionRef:
     case LN_ValueType::DatablockRef:
-    case LN_ValueType::List:
-    case LN_ValueType::Dict:
     case LN_ValueType::Generic:
     case LN_ValueType::None:
       return nullptr;
@@ -454,46 +530,210 @@ static EXP_Value *make_exp_value_for_game_property(const LN_Value &value)
   return nullptr;
 }
 
+/** Numbers and text convert into each other; vectors, lists, dictionaries and objects only take
+ * their own kind. The name is for warnings. */
+static const char *property_kind_name(EXP_Value *property)
+{
+  switch (property->GetValueType()) {
+    case VALUE_BOOL_TYPE:
+    case VALUE_INT_TYPE:
+    case VALUE_FLOAT_TYPE:
+    case VALUE_STRING_TYPE:
+      return "number or text";
+    case VALUE_VECTOR2_TYPE:
+      return "2D vector";
+    case VALUE_VECTOR3_TYPE:
+      return "vector";
+    case VALUE_VECTOR4_TYPE:
+      return "color or 4D vector";
+    case VALUE_ARRAY_TYPE:
+      return "list";
+    case VALUE_DICT_TYPE:
+      return "dictionary";
+    case VALUE_OBJECT_TYPE:
+      return "object";
+    default:
+      return "other value";
+  }
+}
+
+/** Writes \a value; a property keeps its kind (see #property_kind_name). On failure \a r_reason
+ * says why. */
 static bool apply_game_property_value(KX_GameObject *object,
                                       const std::string &property_name,
-                                      const LN_Value &value)
+                                      const LN_Value &value,
+                                      const LN_RuntimeTree *runtime_tree,
+                                      std::string &r_reason)
 {
+  r_reason = "unsupported game-property payload type";
   if (object == nullptr || property_name.empty()) {
     return false;
   }
 
-  if (EXP_Value *old_value = object->GetProperty(property_name)) {
-    if (try_update_existing_game_property_no_alloc(old_value, value)) {
-      return true;
-    }
-
-    EXP_Value *new_value = make_exp_value_for_game_property(value);
-    if (new_value == nullptr) {
-      return false;
-    }
-    old_value->SetValue(new_value);
-    new_value->Release();
+  EXP_Value *old_value = object->GetProperty(property_name);
+  if (old_value != nullptr && try_update_existing_game_property_no_alloc(old_value, value)) {
     return true;
   }
-
-  EXP_Value *new_value = make_exp_value_for_game_property(value);
+  EXP_Value *new_value = make_exp_value_for_game_property(value, object, runtime_tree);
   if (new_value == nullptr) {
     return false;
   }
-  object->SetProperty(property_name, new_value);
+  if (old_value == nullptr) {
+    object->SetProperty(property_name, new_value);
+  }
+  else if (std::strcmp(property_kind_name(old_value), property_kind_name(new_value)) != 0) {
+    r_reason = "property '" + property_name + "' is a " + property_kind_name(old_value) +
+               " and can't hold a " + property_kind_name(new_value);
+    new_value->Release();
+    return false;
+  }
+  else if (std::strcmp(property_kind_name(old_value), "number or text") == 0) {
+    old_value->SetValue(new_value);
+  }
+  else {
+    object->SetProperty(property_name, new_value);
+  }
   new_value->Release();
   return true;
+}
+
+/** Same results as the float expression operations Modify Property used to compile to. */
+static float logic_node_modify_property_value(const LN_PropertyModifyOp op,
+                                              const float a,
+                                              const float b)
+{
+  switch (op) {
+    case LN_PropertyModifyOp::Add:
+      return a + b;
+    case LN_PropertyModifyOp::Subtract:
+      return a - b;
+    case LN_PropertyModifyOp::Multiply:
+      return a * b;
+    case LN_PropertyModifyOp::Divide:
+      return std::fabs(b) <= 1.0e-20f ? 0.0f : a / b;
+    case LN_PropertyModifyOp::Power:
+      return std::pow(a, b);
+    case LN_PropertyModifyOp::Modulo:
+      return std::fabs(b) <= 1.0e-20f ? 0.0f : std::fmod(a, b);
+    case LN_PropertyModifyOp::FloorDivide:
+      return std::floor(std::fabs(b) <= 1.0e-20f ? 0.0f : a / b);
+    case LN_PropertyModifyOp::Toggle:
+      return a != 0.0f ? 0.0f : 1.0f;
+    case LN_PropertyModifyOp::None:
+      break;
+  }
+  return b;
+}
+
+/** Apply Modify Property to the live value, so modifications recorded earlier in the same flush
+ * (loop iterations, other trees) are included. A missing property starts from zero. */
+static bool apply_game_property_modify(KX_GameObject *object,
+                                       const std::string &property_name,
+                                       const LN_PropertyModify &modify,
+                                       std::string &r_reason)
+{
+  r_reason = "unsupported game-property payload type";
+  if (object == nullptr || property_name.empty()) {
+    return false;
+  }
+  EXP_Value *current = object->GetProperty(property_name);
+  float result = logic_node_modify_property_value(
+      modify.op, current != nullptr ? float(current->GetNumber()) : 0.0f, modify.operand);
+  if (modify.clamped) {
+    result = std::min(std::max(result, std::min(modify.min_value, modify.max_value)),
+                      std::max(modify.min_value, modify.max_value));
+  }
+  LN_Value value;
+  value.exists = true;
+  if (modify.op == LN_PropertyModifyOp::Toggle) {
+    value.type = LN_ValueType::Bool;
+    value.bool_value = result != 0.0f;
+  }
+  else {
+    value.type = LN_ValueType::Float;
+    value.float_value = result;
+  }
+  return apply_game_property_value(object, property_name, value, nullptr, r_reason);
 }
 
 static void warn_command_failure_once(const LN_CommandBuffer::Command &command,
                                       const std::string &reason)
 {
-  const std::string message = LN_DescribeCommandFailure(command, reason);
-  static std::unordered_set<std::string> issued_warnings;
-  if (!issued_warnings.insert(message).second) {
-    return;
+  LN_WarnCommandFailureOnce(command, reason);
+}
+
+/* Keep the first four values byte-for-byte compatible with existing Set
+ * Dynamics/Set Physics State node trees. New values are explicit ownership changes handled only
+ * by backends that can perform them safely. */
+static constexpr int32_t kPhysicsStateRestorePrevious = 0;
+static constexpr int32_t kPhysicsStateStatic = 1;
+static constexpr int32_t kPhysicsStateGhost = 2;
+static constexpr int32_t kPhysicsStateNoCollision = 3;
+static constexpr int32_t kPhysicsStateRestoreOriginal = 4;
+static constexpr int32_t kPhysicsStateDynamic = 5;
+static constexpr int32_t kPhysicsStateRigidBody = 6;
+static constexpr int32_t kPhysicsStateKinematic = 7;
+
+static bool apply_set_physics_state(PHY_IPhysicsController &physics_controller,
+                                    KX_GameObject &object,
+                                    const int32_t mode,
+                                    const bool enabled)
+{
+  switch (mode) {
+    case kPhysicsStateRestorePrevious:
+      /* Preserve the legacy parent-ownership guard exactly. Transform-parented
+       * objects restore when their parent releases them, not in the middle of
+       * that ownership contract. */
+      if (!object.GetParent()) {
+        physics_controller.SetDynamicsMode(PHY_DynamicsMode::Dynamic, enabled);
+      }
+      return true;
+    case kPhysicsStateStatic:
+      if (!physics_controller.CanSetDynamicsMode(PHY_DynamicsMode::StaticCollider, enabled)) {
+        return false;
+      }
+      physics_controller.SetDynamicsMode(PHY_DynamicsMode::StaticCollider, enabled);
+      return true;
+    case kPhysicsStateGhost:
+      if (!physics_controller.CanSetDynamicsMode(PHY_DynamicsMode::Ghost, enabled)) {
+        return false;
+      }
+      physics_controller.SetDynamicsMode(PHY_DynamicsMode::Ghost, enabled);
+      return true;
+    case kPhysicsStateNoCollision:
+      physics_controller.SetDynamicsMode(PHY_DynamicsMode::NoCollision, enabled);
+      return true;
+    case kPhysicsStateRestoreOriginal:
+      return physics_controller.RestoreOriginalPhysicsType();
+    case kPhysicsStateDynamic:
+      return physics_controller.SetRuntimePhysicsType(PHY_RuntimePhysicsType::Dynamic);
+    case kPhysicsStateRigidBody:
+      return physics_controller.SetRuntimePhysicsType(PHY_RuntimePhysicsType::RigidBody);
+    case kPhysicsStateKinematic:
+      return physics_controller.SetRuntimePhysicsType(PHY_RuntimePhysicsType::Kinematic);
   }
-  CM_Warning(message);
+  return false;
+}
+
+static bool is_explicit_runtime_physics_type(const int32_t mode)
+{
+  return mode >= kPhysicsStateRestoreOriginal && mode <= kPhysicsStateKinematic;
+}
+
+static const char *set_physics_state_failure_reason(const int32_t mode)
+{
+  if (is_explicit_runtime_physics_type(mode)) {
+    return "target cannot change physics type; Jolt requires a regular body with a "
+           "moving-compatible collision shape (for example Box or Convex Hull, not Triangle "
+           "Mesh)";
+  }
+  if (mode == kPhysicsStateGhost) {
+    return "target's current physics type does not support changing Ghost";
+  }
+  if (mode == kPhysicsStateStatic) {
+    return "target's current physics type cannot become a solid Static body";
+  }
+  return nullptr;
 }
 
 static bool add_object_source_is_inactive(KX_Scene *scene, KX_GameObject *source)
@@ -519,6 +759,57 @@ static float add_object_life_seconds_to_scene_lifespan(const float life_seconds,
   return life_seconds / legacy_frame_seconds;
 }
 
+static KX_GameObject *execute_tracked_logic_nodes_add(LN_Manager *manager,
+                                                      KX_Scene *scene,
+                                                      KX_GameObject *source,
+                                                      KX_GameObject *reference,
+                                                      const float life_seconds,
+                                                      const bool full_copy,
+                                                      std::string &r_error,
+                                                      const KX_GameObject *adder = nullptr)
+{
+  if (manager == nullptr || scene == nullptr || source == nullptr || reference == nullptr) {
+    r_error = "missing scene, source, reference, or Logic Nodes manager";
+    return nullptr;
+  }
+  if (!manager->PreflightAddObjectPersistence(source, life_seconds, full_copy, r_error)) {
+    return nullptr;
+  }
+
+  const float scene_lifespan = add_object_life_seconds_to_scene_lifespan(life_seconds, full_copy);
+  std::vector<KX_GameObject *> members;
+  std::unordered_map<KX_GameObject *, KX_GameObject *> mapping;
+  /* Its copies may reuse removed copies' Blender objects (KX_Scene::ParkCopy). */
+  const KX_Scene::CopyReuseScope reuse(*scene);
+  KX_GameObject *replica = full_copy ? scene->AddFullCopyObject(
+                                           source, reference, scene_lifespan) :
+                                       scene->AddReplicaObject(source,
+                                                               reference,
+                                                               scene_lifespan,
+                                                               &members,
+                                                               nullptr,
+                                                               &mapping);
+  if (replica == nullptr) {
+    r_error = "runtime object replication failed";
+    return nullptr;
+  }
+  if (!manager->RegisterAddedObjectPersistence(
+          source, replica, members, life_seconds, full_copy, r_error))
+  {
+    if (!full_copy) {
+      /* Drop AddReplicaObject's caller reference before recursive scene destruction. The scene
+       * lists retain ownership until RemoveObject, so this avoids the zombie-object assertion. */
+      replica->Release();
+      scene->RemoveObject(replica);
+    }
+    return nullptr;
+  }
+  /* A copy of a template in an open menu belongs to that menu (to the player's copy of it that
+   * the adding logic runs in). */
+  scene->AdoptOverlayReplica(replica, members, mapping, adder != nullptr ? adder : reference);
+  return replica;
+}
+
 static std::string game_object_id_name(KX_GameObject *game_object)
 {
   if (game_object == nullptr) {
@@ -531,9 +822,9 @@ static std::string game_object_id_name(KX_GameObject *game_object)
 }
 
 static void warn_add_object_source_not_inactive(const LN_CommandBuffer::Command &command,
-                                               KX_Scene *scene,
-                                               KX_GameObject *source,
-                                               const std::string &fallback_name)
+                                                KX_Scene *scene,
+                                                KX_GameObject *source,
+                                                const std::string &fallback_name)
 {
   const LN_SourceRef *source_ref = logic_node_command_source_ref(command);
   std::ostringstream warning_key;
@@ -583,19 +874,74 @@ static void warn_add_object_source_not_inactive(const LN_CommandBuffer::Command 
 #ifdef WITH_AUDASPACE
 /**
  * Native logic sound v1 (2D / non-spatial):
- * - `PlaySound` resolves the `Sound` ID in `Main` at flush time, plays on `BKE_sound_get_device()`, and
- *   records `AUD_Handle` entries keyed by the sound's short name (two-letter ID prefix stripped).
- * - `StopSound` stops tracked handles for that name only; `StopAllSounds` clears the list then `stopAll()`.
- * - Cap evicts oldest entries; stopping releases handles only (datablocks remain in `Main`).
+ * - `PlaySound` resolves the `Sound` ID in `Main` at flush time, plays on
+ * `BKE_sound_get_device()`, and records `AUD_Handle` entries keyed by the sound's short name
+ * (two-letter ID prefix stripped).
+ * - `StopSound` stops tracked handles for that name only; `StopAllSounds` clears the list then
+ * `stopAll()`.
+ * - Each tracked sound is in a volume group (Set Volume): its volume is its own (the node's
+ *   Volume) times its group's, also while it plays. Master is the device's volume.
+ * - Finished sounds leave the list; at the cap the oldest playing one is stopped.
  */
 constexpr size_t k_logic_native_sound_handle_cap = 256;
-static std::vector<std::pair<std::string, AUD_Handle>> g_logic_native_sound_handles;
+struct LogicNativeSoundHandle {
+  /** The Sound's name: Stop, Pause and Resume Sound find it by it. */
+  std::string name;
+  AUD_Handle handle;
+  LN_SoundGroup group = LN_SoundGroup::Effects;
+  /** Its own volume, which its group's volume scales. */
+  float volume = 1.0f;
+};
+static std::vector<LogicNativeSoundHandle> g_logic_native_sound_handles;
+static LN_SoundGroupVolumes g_logic_native_sound_groups;
+/** The audio device's volume before the game first changed Master: given back when it ends (the
+ * editor plays its sounds on the same device). */
+static float g_logic_native_master_before = 1.0f;
+static bool g_logic_native_master_changed = false;
+
+static double logic_native_sound_clock()
+{
+  return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch())
+      .count();
+}
+
+static void logic_native_sound_apply_volume(const LogicNativeSoundHandle &entry)
+{
+  if (entry.handle) {
+    entry.handle->setVolume(std::max(entry.volume, 0.0f) *
+                            g_logic_native_sound_groups.Volume(entry.group));
+  }
+}
+
+static void logic_native_sound_apply_master()
+{
+  const float master = g_logic_native_sound_groups.Volume(LN_SoundGroup::Master);
+  if (!g_logic_native_master_changed && master == 1.0f) {
+    return;
+  }
+  if (auto device = aud::DeviceManager::getDevice()) {
+    if (!g_logic_native_master_changed) {
+      g_logic_native_master_before = device->getVolume();
+      g_logic_native_master_changed = true;
+    }
+    device->setVolume(master * g_logic_native_master_before);
+  }
+}
+
+/** Drops the sounds that finished (a stopped handle is no longer playing or paused). */
+static void logic_native_sound_handles_prune()
+{
+  std::erase_if(g_logic_native_sound_handles, [](const LogicNativeSoundHandle &entry) {
+    const aud::Status status = entry.handle ? entry.handle->getStatus() : aud::STATUS_INVALID;
+    return status != aud::STATUS_PLAYING && status != aud::STATUS_PAUSED;
+  });
+}
 
 static void logic_native_sound_handles_stop_all()
 {
-  for (auto &entry : g_logic_native_sound_handles) {
-    if (entry.second) {
-      entry.second->stop();
+  for (const LogicNativeSoundHandle &entry : g_logic_native_sound_handles) {
+    if (entry.handle) {
+      entry.handle->stop();
     }
   }
   g_logic_native_sound_handles.clear();
@@ -604,8 +950,8 @@ static void logic_native_sound_handles_stop_all()
 static void logic_native_sound_handles_stop_by_name(const std::string &name)
 {
   for (auto it = g_logic_native_sound_handles.begin(); it != g_logic_native_sound_handles.end();) {
-    if (it->first == name && it->second) {
-      it->second->stop();
+    if (it->name == name && it->handle) {
+      it->handle->stop();
       it = g_logic_native_sound_handles.erase(it);
     }
     else {
@@ -616,71 +962,159 @@ static void logic_native_sound_handles_stop_by_name(const std::string &name)
 
 static void logic_native_sound_handles_pause_by_name(const std::string &name)
 {
-  for (const auto &entry : g_logic_native_sound_handles) {
-    if (entry.first == name && entry.second) {
-      entry.second->pause();
+  for (const LogicNativeSoundHandle &entry : g_logic_native_sound_handles) {
+    if (entry.name == name && entry.handle) {
+      entry.handle->pause();
     }
   }
 }
 
 static void logic_native_sound_handles_resume_by_name(const std::string &name)
 {
-  for (const auto &entry : g_logic_native_sound_handles) {
-    if (entry.first == name && entry.second) {
-      entry.second->resume();
+  for (const LogicNativeSoundHandle &entry : g_logic_native_sound_handles) {
+    if (entry.name == name && entry.handle) {
+      entry.handle->resume();
     }
   }
 }
 
-#ifdef WITH_AUDASPACE
-static void logic_native_sound_apply_3d_from_speaker(const std::shared_ptr<aud::I3DHandle> &h3d,
-                                                   KX_GameObject *speaker)
+#  ifdef WITH_AUDASPACE
+/** A playing Play Sound 3D sound. Handles are relative to the listener, so each one is placed in
+ * the frame of the camera that hears it, every frame (KX_PlayerViews: one camera per player). */
+struct LogicNativeSpatialSound {
+  AUD_Handle handle;
+  std::shared_ptr<aud::I3DHandle> h3d;
+  /** Null once removed: the sound stays where the speaker was. */
+  KX_GameObject *speaker = nullptr;
+  const KX_Scene *scene = nullptr;
+  LN_SoundListener listener = LN_SoundListener::NearestPlayer;
+  int32_t user = 0;
+  /** Nearest Player: the player it is heard from now (-1 before the first choice). */
+  int32_t player = -1;
+  MT_Vector3 position = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Vector3 velocity = MT_Vector3(0.0f, 0.0f, 0.0f);
+};
+static std::vector<LogicNativeSpatialSound> g_logic_native_spatial_sounds;
+
+/** The camera that hears the sound. Nearest Player changes player only when another one's camera
+ * is clearly closer (20%), so a sound between two players doesn't jump from one ear to the
+ * other. */
+static KX_Camera *logic_native_spatial_sound_camera(LogicNativeSpatialSound &sound,
+                                                   KX_Scene &scene)
 {
-  if (!h3d || speaker == nullptr) {
-    return;
+  KX_Camera *active_camera = scene.GetActiveCamera();
+  const KX_PlayerViews &views = scene.GetPlayerViews();
+  if (sound.listener == LN_SoundListener::ActiveCamera) {
+    return active_camera;
   }
-  KX_Scene *scene = speaker->GetScene();
-  if (scene == nullptr) {
-    return;
+  if (sound.listener == LN_SoundListener::Player) {
+    KX_Camera *camera = views.GetPlayerCamera(sound.user, active_camera);
+    return camera != nullptr ? camera : active_camera;
   }
-  KX_Camera *camera = scene->GetActiveCamera();
+  std::array<int, KX_PlayerViews::MaxPlayers> players;
+  std::array<KX_Camera *, KX_PlayerViews::MaxPlayers> cameras;
+  const int count = views.CollectViews(active_camera, players, cameras);
+  int nearest = -1;
+  int current = -1;
+  float nearest_distance = 0.0f;
+  float current_distance = 0.0f;
+  for (int i = 0; i < count; ++i) {
+    const float distance = (cameras[i]->NodeGetWorldPosition() - sound.position).length2();
+    if (nearest < 0 || distance < nearest_distance) {
+      nearest = i;
+      nearest_distance = distance;
+    }
+    if (players[i] == sound.player) {
+      current = i;
+      current_distance = distance;
+    }
+  }
+  if (nearest < 0) {
+    return active_camera;
+  }
+  /* Squared distances: 0.64 is 20% closer. */
+  if (current >= 0 && !(nearest_distance < 0.64f * current_distance)) {
+    return cameras[current];
+  }
+  sound.player = players[nearest];
+  return cameras[nearest];
+}
+
+static void logic_native_spatial_sound_place(LogicNativeSpatialSound &sound)
+{
+  KX_Scene *scene = sound.speaker != nullptr ? sound.speaker->GetScene() : nullptr;
+  if (sound.speaker != nullptr && scene != nullptr) {
+    sound.position = sound.speaker->NodeGetWorldPosition();
+    sound.velocity = sound.speaker->GetLinearVelocity();
+  }
+  else {
+    scene = const_cast<KX_Scene *>(sound.scene);
+    sound.velocity = MT_Vector3(0.0f, 0.0f, 0.0f);
+  }
+  KX_Camera *camera = scene != nullptr ? logic_native_spatial_sound_camera(sound, *scene) :
+                                         nullptr;
   if (camera == nullptr) {
     return;
   }
-  const MT_Matrix3x3 camera_to_world = camera->NodeGetWorldOrientation();
-  const MT_Matrix3x3 world_to_camera = camera_to_world.inverse();
-  MT_Vector3 position = world_to_camera *
-                        (speaker->NodeGetWorldPosition() - camera->NodeGetWorldPosition());
-  float data[4];
-  position.getValue(data);
-  h3d->setLocation(aud::Vector3(data[0], data[1], data[2]));
-
-  MT_Vector3 velocity = world_to_camera *
-                        (speaker->GetLinearVelocity() - camera->GetLinearVelocity());
-  velocity.getValue(data);
-  h3d->setVelocity(aud::Vector3(data[0], data[1], data[2]));
-
-  const MT_Matrix3x3 orientation = world_to_camera * speaker->NodeGetWorldOrientation();
-  const MT_Quaternion rotation = orientation.getRotation();
-  rotation.getValue(data);
-  h3d->setOrientation(aud::Quaternion(data[0], data[1], data[2], data[3]));
+  /* No orientation: it only turns a sound cone, which these sounds don't have. */
+  const MT_Matrix3x3 world_to_camera = camera->NodeGetWorldOrientation().transposed();
+  float data[3];
+  (world_to_camera * (sound.position - camera->NodeGetWorldPosition())).getValue(data);
+  sound.h3d->setLocation(aud::Vector3(data[0], data[1], data[2]));
+  (world_to_camera * (sound.velocity - camera->GetLinearVelocity())).getValue(data);
+  sound.h3d->setVelocity(aud::Vector3(data[0], data[1], data[2]));
 }
-#endif /* WITH_AUDASPACE */
 
-static void logic_native_sound_handles_register(const std::string &name, AUD_Handle handle)
+/** Places a new 3D sound and keeps placing it every frame while it plays. */
+static void logic_native_spatial_sound_start(const AUD_Handle &handle,
+                                             const std::shared_ptr<aud::I3DHandle> &h3d,
+                                             KX_GameObject *speaker,
+                                             const int32_t listener,
+                                             const int32_t user)
+{
+  if (!h3d || speaker == nullptr || speaker->GetScene() == nullptr) {
+    return;
+  }
+  LogicNativeSpatialSound sound;
+  sound.handle = handle;
+  sound.h3d = h3d;
+  sound.speaker = speaker;
+  sound.scene = speaker->GetScene();
+  sound.listener = LN_SoundListener(std::clamp(listener,
+                                               int32_t(LN_SoundListener::NearestPlayer),
+                                               int32_t(LN_SoundListener::ActiveCamera)));
+  sound.user = user;
+  logic_native_spatial_sound_place(sound);
+  if (g_logic_native_spatial_sounds.size() >= k_logic_native_sound_handle_cap) {
+    g_logic_native_spatial_sounds.erase(g_logic_native_spatial_sounds.begin());
+  }
+  g_logic_native_spatial_sounds.push_back(std::move(sound));
+}
+#  endif /* WITH_AUDASPACE */
+
+/** Tracks a sound that started playing, in `group` at its own `volume`, and gives it the
+ * group's volume. */
+static void logic_native_sound_handles_register(const std::string &name,
+                                                AUD_Handle handle,
+                                                const LN_SoundGroup group,
+                                                const float volume)
 {
   if (!handle) {
     return;
   }
+  logic_native_sound_handles_prune();
   if (g_logic_native_sound_handles.size() >= k_logic_native_sound_handle_cap) {
-    if (!g_logic_native_sound_handles.empty()) {
-      if (g_logic_native_sound_handles.front().second) {
-        g_logic_native_sound_handles.front().second->stop();
-      }
-      g_logic_native_sound_handles.erase(g_logic_native_sound_handles.begin());
+    if (g_logic_native_sound_handles.front().handle) {
+      g_logic_native_sound_handles.front().handle->stop();
     }
+    g_logic_native_sound_handles.erase(g_logic_native_sound_handles.begin());
   }
-  g_logic_native_sound_handles.push_back({name, std::move(handle)});
+  LogicNativeSoundHandle &entry = g_logic_native_sound_handles.emplace_back();
+  entry.name = name;
+  entry.handle = std::move(handle);
+  entry.group = group;
+  entry.volume = volume;
+  logic_native_sound_apply_volume(entry);
 }
 
 /* Cache of loaded AUD_Sound objects keyed by sound datablock name.
@@ -693,6 +1127,9 @@ static AUD_Sound logic_native_sound_resolve(blender::Main *bmain, const std::str
   if (it != g_logic_native_sound_cache.end() && it->second) {
     return it->second;
   }
+  if (bmain == nullptr) {
+    return nullptr;
+  }
   blender::ID *id = BKE_libblock_find_name(bmain, int16_t(blender::ID_SO), name.c_str());
   blender::bSound *sound = reinterpret_cast<blender::bSound *>(id);
   if (sound == nullptr) {
@@ -704,6 +1141,73 @@ static AUD_Sound logic_native_sound_resolve(blender::Main *bmain, const std::str
     g_logic_native_sound_cache[name] = snd;
   }
   return snd;
+}
+
+/** The Main the game's sounds are in (the editor's, or the player's file). */
+static blender::Main *logic_native_sound_main()
+{
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  blender::bContext *ctx = engine ? engine->GetContext() : nullptr;
+  blender::Main *bmain = ctx ? CTX_data_main(ctx) : nullptr;
+  return bmain != nullptr ? bmain : G_MAIN;
+}
+
+/** Plays the Sound named `name` (Play Sound, and Play Sound 3D with a `speaker`) and tracks it in
+ * `group`. The same sound already playing stops first: a sound plays once at a time. */
+static void logic_native_sound_play(const std::string &name,
+                                    const LN_SoundGroup group,
+                                    const float volume,
+                                    const float pitch,
+                                    const bool loop,
+                                    KX_GameObject *speaker = nullptr,
+                                    const int32_t listener = 0,
+                                    const int32_t user = 0)
+{
+  if (name.empty()) {
+    return;
+  }
+  auto device = aud::DeviceManager::getDevice();
+  if (!device) {
+    return;
+  }
+  try {
+    AUD_Sound snd = logic_native_sound_resolve(logic_native_sound_main(), name);
+    if (!snd) {
+      return;
+    }
+    logic_native_sound_handles_stop_by_name(name);
+    AUD_Handle handle = device->play(snd, false);
+    if (!handle) {
+      return;
+    }
+    if (auto h3d = std::dynamic_pointer_cast<aud::I3DHandle>(handle)) {
+      h3d->setRelative(true);
+      if (speaker != nullptr) {
+        logic_native_spatial_sound_start(handle, h3d, speaker, listener, user);
+      }
+    }
+    handle->setPitch(std::max(pitch, 0.0001f));
+    if (loop) {
+      handle->setLoopCount(-1);
+    }
+    logic_native_sound_handles_register(name, std::move(handle), group, volume);
+  }
+  catch (const aud::Exception &) {
+  }
+}
+
+/** Set Volume: a group's volume, then every playing sound of it (Master: the device). */
+static void logic_native_sound_set_group_volume(const int32_t group,
+                                                const float volume,
+                                                const float fade)
+{
+  g_logic_native_sound_groups.Set(
+      LN_SoundGroupFromInt(group, true), volume, fade, logic_native_sound_clock());
+  logic_native_sound_handles_prune();
+  for (const LogicNativeSoundHandle &entry : g_logic_native_sound_handles) {
+    logic_native_sound_apply_volume(entry);
+  }
+  logic_native_sound_apply_master();
 }
 #endif /* WITH_AUDASPACE */
 
@@ -858,8 +1362,7 @@ float ConfiguredWheelEngineForce(const GameVehicleSettings *chassis_settings,
 float ConfiguredWheelBrakeTorque(const GameVehicleSettings *chassis_settings,
                                  const GameVehicleSettings *wheel_settings)
 {
-  if (wheel_settings != nullptr &&
-      (wheel_settings->wheel_flags & OB_VEHICLE_WHEEL_USE_BRAKE) != 0)
+  if (wheel_settings != nullptr && (wheel_settings->wheel_flags & OB_VEHICLE_WHEEL_USE_BRAKE) != 0)
   {
     return std::max(wheel_settings->wheel_brake, 0.0f);
   }
@@ -944,7 +1447,8 @@ std::vector<SelectedVehicleWheel> SelectVehicleWheels(KX_GameObject *chassis_gam
   for (KX_GameObject *scene_object : *scene->GetObjectList()) {
     Object *blender_object = scene_object ? scene_object->GetBlenderObject() : nullptr;
     if (blender_object == nullptr || !IsVehicleWheelObject(blender_object) ||
-        blender_object->vehicle == nullptr || blender_object->vehicle->chassis_object != chassis_object)
+        blender_object->vehicle == nullptr ||
+        blender_object->vehicle->chassis_object != chassis_object)
     {
       continue;
     }
@@ -1013,8 +1517,7 @@ blender::Material *ResolveMaterialForCommand(blender::Main *bmain,
     return nullptr;
   }
 
-  blender::ID *id = BKE_libblock_find_name(
-      bmain, int16_t(blender::ID_MA), fallback_name.c_str());
+  blender::ID *id = BKE_libblock_find_name(bmain, int16_t(blender::ID_MA), fallback_name.c_str());
   return reinterpret_cast<blender::Material *>(id);
 }
 
@@ -1027,12 +1530,9 @@ blender::bNodeTree *ResolveGeometryNodeTreeForCommand(blender::Main *bmain,
     id = runtime_tree->ResolveDatablockRef(value.runtime_ref);
   }
   if (id == nullptr && bmain != nullptr && !value.reference_name.empty()) {
-    id = BKE_libblock_find_name(
-        bmain, int16_t(blender::ID_NT), value.reference_name.c_str());
+    id = BKE_libblock_find_name(bmain, int16_t(blender::ID_NT), value.reference_name.c_str());
   }
-  if (!IdHasCode(id, int16_t(blender::ID_NT)) ||
-      (id->tag & blender::ID_TAG_MISSING) != 0)
-  {
+  if (!IdHasCode(id, int16_t(blender::ID_NT)) || (id->tag & blender::ID_TAG_MISSING) != 0) {
     return nullptr;
   }
   blender::bNodeTree *tree = reinterpret_cast<blender::bNodeTree *>(id);
@@ -1187,7 +1687,8 @@ blender::bNodeSocket *FindInputSocketByIdentifierOrName(blender::bNode &node,
     return nullptr;
   }
 
-  if (blender::bNodeSocket *socket = blender::bke::node_find_socket(node, blender::SOCK_IN, name)) {
+  if (blender::bNodeSocket *socket = blender::bke::node_find_socket(node, blender::SOCK_IN, name))
+  {
     return socket;
   }
 
@@ -1220,8 +1721,7 @@ blender::bNodeSocket *FindOutputSocketByIdentifierOrName(blender::bNode &node,
     return nullptr;
   }
 
-  if (blender::bNodeSocket *socket = blender::bke::node_find_socket(
-          node, blender::SOCK_OUT, name))
+  if (blender::bNodeSocket *socket = blender::bke::node_find_socket(node, blender::SOCK_OUT, name))
   {
     return socket;
   }
@@ -1238,17 +1738,19 @@ void ApplyRuntimeMaterialSlot(KX_GameObject *game_object,
                               blender::Material *material,
                               int slot_index);
 
+BL_ArmatureObject *ArmatureFacade(KX_GameObject *game_object)
+{
+  return game_object != nullptr && game_object->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE ?
+             static_cast<BL_ArmatureObject *>(game_object) :
+             nullptr;
+}
+
 blender::bPoseChannel *FindPoseChannel(KX_GameObject *armature_object,
                                        const std::string &bone_name)
 {
-  if (armature_object == nullptr || bone_name.empty()) {
-    return nullptr;
-  }
-  blender::Object *ob = armature_object->GetBlenderObject();
-  if (ob == nullptr || ob->type != blender::OB_ARMATURE || ob->pose == nullptr) {
-    return nullptr;
-  }
-  return BKE_pose_channel_find_name(ob->pose, bone_name.c_str());
+  BL_ArmatureObject *armature = ArmatureFacade(armature_object);
+  return armature != nullptr && !bone_name.empty() ? armature->FindPoseChannel(bone_name) :
+                                                     nullptr;
 }
 
 blender::bConstraint *FindPoseConstraint(KX_GameObject *armature_object,
@@ -1264,19 +1766,15 @@ blender::bConstraint *FindPoseConstraint(KX_GameObject *armature_object,
 
 void UpdateArmatureObjectPose(KX_GameObject *armature_object)
 {
-  blender::Object *ob = armature_object ? armature_object->GetBlenderObject() : nullptr;
-  if (ob == nullptr || ob->type != blender::OB_ARMATURE || ob->pose == nullptr) {
-    return;
+  if (BL_ArmatureObject *armature = ArmatureFacade(armature_object)) {
+    armature->ApplyPose();
   }
-  if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
-    if (blender::bContext *context = engine->GetContext()) {
-      DEG_id_tag_update(&ob->id, blender::ID_RECALC_GEOMETRY);
-      if (blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(context)) {
-        if (blender::Scene *scene = CTX_data_scene(context)) {
-          BKE_pose_where_is(depsgraph, scene, ob);
-        }
-      }
-    }
+}
+
+void MarkArmatureObjectPoseDirty(KX_GameObject *armature_object)
+{
+  if (BL_ArmatureObject *armature = ArmatureFacade(armature_object)) {
+    armature->MarkPoseDirty();
   }
 }
 
@@ -1310,28 +1808,6 @@ LN_BonePoseRotationSpace NormalizeBonePoseRotationSpace(const int32_t value)
   }
 }
 
-void MatrixToFloat3x3(const MT_Matrix3x3 &matrix, float r_matrix[3][3])
-{
-  for (int row = 0; row < 3; row++) {
-    for (int column = 0; column < 3; column++) {
-      r_matrix[row][column] = float(matrix[row][column]);
-    }
-  }
-}
-
-MT_Matrix3x3 MatrixFromFloat3x3(const float matrix[3][3])
-{
-  return MT_Matrix3x3(matrix[0][0],
-                      matrix[0][1],
-                      matrix[0][2],
-                      matrix[1][0],
-                      matrix[1][1],
-                      matrix[1][2],
-                      matrix[2][0],
-                      matrix[2][1],
-                      matrix[2][2]);
-}
-
 void VectorToFloat3(const MT_Vector3 &vector, float r_vector[3])
 {
   r_vector[0] = float(vector.x());
@@ -1339,51 +1815,93 @@ void VectorToFloat3(const MT_Vector3 &vector, float r_vector[3])
   r_vector[2] = float(vector.z());
 }
 
-MT_Vector3 ObjectAxesScaleToPoseChannelScale(const blender::bPoseChannel &pchan,
-                                             const MT_Vector3 &scale)
+bool MatrixLinearPartHasStableInverse(const float matrix[4][4])
 {
-  if (pchan.bone == nullptr) {
-    return scale;
+  double row_length_product = 1.0;
+  for (int row = 0; row < 3; row++) {
+    const double row_length = std::hypot(
+        double(matrix[row][0]), double(matrix[row][1]), double(matrix[row][2]));
+    if (!std::isfinite(row_length) || row_length <= 1.0e-30) {
+      return false;
+    }
+    row_length_product *= row_length;
   }
 
-  const float object_scale_mat[3][3] = {
-      {float(scale.x()), 0.0f, 0.0f},
-      {0.0f, float(scale.y()), 0.0f},
-      {0.0f, 0.0f, float(scale.z())},
-  };
-  float rest_basis[3][3];
-  float rest_basis_inv[3][3];
-  float tmp_mat[3][3];
-  float channel_scale_mat[3][3];
-  blender::copy_m3_m4(rest_basis, pchan.bone->arm_mat);
-  blender::normalize_m3(rest_basis);
-  blender::transpose_m3_m3(rest_basis_inv, rest_basis);
-  blender::mul_m3_m3m3(tmp_mat, object_scale_mat, rest_basis);
-  blender::mul_m3_m3m3(channel_scale_mat, rest_basis_inv, tmp_mat);
-  return MT_Vector3(
-      channel_scale_mat[0][0], channel_scale_mat[1][1], channel_scale_mat[2][2]);
+  const double determinant = double(matrix[0][0]) * (double(matrix[1][1]) * double(matrix[2][2]) -
+                                                     double(matrix[1][2]) * double(matrix[2][1])) -
+                             double(matrix[0][1]) * (double(matrix[1][0]) * double(matrix[2][2]) -
+                                                     double(matrix[1][2]) * double(matrix[2][0])) +
+                             double(matrix[0][2]) * (double(matrix[1][0]) * double(matrix[2][1]) -
+                                                     double(matrix[1][1]) * double(matrix[2][0]));
+  /* The scale-independent Hadamard ratio is one for orthogonal axes regardless of their absolute
+   * sizes and approaches zero as the axes become linearly dependent. In single-precision pose
+   * matrices, inverses below this threshold amplify representation noise into unusable results. */
+  constexpr double minimum_relative_determinant = 1.0e-6;
+  return std::isfinite(determinant) &&
+         std::fabs(determinant) > row_length_product * minimum_relative_determinant;
 }
 
-void ResolveArmatureOffsetBonePoseLocation(blender::bPoseChannel *pchan,
+bool MatrixBasisHasStableInverse(const MT_Matrix3x3 &matrix)
+{
+  double column_length_product = 1.0;
+  for (int column = 0; column < 3; column++) {
+    const double column_length = std::sqrt(double(matrix.getColumn(column).length2()));
+    if (!std::isfinite(column_length) || column_length <= 1.0e-30) {
+      return false;
+    }
+    column_length_product *= column_length;
+  }
+  const double determinant = double(matrix.determinant());
+  constexpr double minimum_relative_determinant = 1.0e-6;
+  return std::isfinite(column_length_product) && std::isfinite(determinant) &&
+         std::fabs(determinant) > column_length_product * minimum_relative_determinant;
+}
+
+bool PoseLocationToChannelLocation(blender::bPoseChannel *pchan,
+                                   const float pose_location[3],
+                                   float r_channel_location[3])
+{
+  if (pchan == nullptr || pchan->bone == nullptr) {
+    return false;
+  }
+
+  blender::BoneParentTransform channel_from_pose;
+  blender::BKE_bone_parent_transform_calc_from_pchan({pchan, pchan->bone}, &channel_from_pose);
+  /* Translation conversion uses loc_mat only. Blender's public convenience function silently
+   * applies a failed inverse, which can turn a singular parent scale into enormous finite channel
+   * values. Reject the undefined inverse before mutating the pose channel. */
+  if (!MatrixLinearPartHasStableInverse(channel_from_pose.loc_mat) ||
+      !blender::invert_m4(channel_from_pose.loc_mat))
+  {
+    return false;
+  }
+  blender::mul_v3_m4v3(r_channel_location, channel_from_pose.loc_mat, pose_location);
+  return blender::is_finite_v3(r_channel_location);
+}
+
+bool ResolveArmatureOffsetBonePoseLocation(blender::bPoseChannel *pchan,
                                            const MT_Vector3 &location,
                                            float r_location[3])
 {
-  if (pchan != nullptr && pchan->bone != nullptr) {
-    const float zero[3] = {0.0f, 0.0f, 0.0f};
-    float pose_offset[3];
-    VectorToFloat3(location, pose_offset);
-
-    float zero_channel[3];
-    float offset_channel[3];
-    blender::BKE_armature_loc_pose_to_bone({pchan, pchan->bone}, zero, zero_channel);
-    blender::BKE_armature_loc_pose_to_bone({pchan, pchan->bone}, pose_offset, offset_channel);
-    r_location[0] = offset_channel[0] - zero_channel[0];
-    r_location[1] = offset_channel[1] - zero_channel[1];
-    r_location[2] = offset_channel[2] - zero_channel[2];
-    return;
+  if (pchan == nullptr || pchan->bone == nullptr) {
+    return false;
   }
 
-  VectorToFloat3(location, r_location);
+  const float zero[3] = {0.0f, 0.0f, 0.0f};
+  float pose_offset[3];
+  VectorToFloat3(location, pose_offset);
+
+  float zero_channel[3];
+  float offset_channel[3];
+  if (!PoseLocationToChannelLocation(pchan, zero, zero_channel) ||
+      !PoseLocationToChannelLocation(pchan, pose_offset, offset_channel))
+  {
+    return false;
+  }
+  r_location[0] = offset_channel[0] - zero_channel[0];
+  r_location[1] = offset_channel[1] - zero_channel[1];
+  r_location[2] = offset_channel[2] - zero_channel[2];
+  return blender::is_finite_v3(r_location);
 }
 
 bool ResolveBoneLocalOffsetPoseLocation(blender::bPoseChannel *pchan,
@@ -1411,26 +1929,15 @@ bool ResolveBoneLocalOffsetPoseLocation(blender::bPoseChannel *pchan,
   blender::copy_m3_m4(pose_basis, pchan->pose_mat);
   blender::normalize_m3(pose_basis);
 
-  float rest_basis[3][3];
-  blender::copy_m3_m4(rest_basis, pchan->bone->arm_mat);
-  blender::normalize_m3(rest_basis);
-
-  float rest_basis_inv[3][3];
-  blender::transpose_m3_m3(rest_basis_inv, rest_basis);
-
-  float local_basis[3][3];
-  blender::mul_m3_m3m3(local_basis, pose_basis, rest_basis_inv);
-  blender::normalize_m3(local_basis);
-
   float local_offset[3];
   VectorToFloat3(location, local_offset);
   const float pose_offset[3] = {
-      local_basis[0][0] * local_offset[0] + local_basis[1][0] * local_offset[1] +
-          local_basis[2][0] * local_offset[2],
-      local_basis[0][1] * local_offset[0] + local_basis[1][1] * local_offset[1] +
-          local_basis[2][1] * local_offset[2],
-      local_basis[0][2] * local_offset[0] + local_basis[1][2] * local_offset[1] +
-          local_basis[2][2] * local_offset[2],
+      pose_basis[0][0] * local_offset[0] + pose_basis[1][0] * local_offset[1] +
+          pose_basis[2][0] * local_offset[2],
+      pose_basis[0][1] * local_offset[0] + pose_basis[1][1] * local_offset[1] +
+          pose_basis[2][1] * local_offset[2],
+      pose_basis[0][2] * local_offset[0] + pose_basis[1][2] * local_offset[1] +
+          pose_basis[2][2] * local_offset[2],
   };
 
   const float pose_location[3] = {
@@ -1438,8 +1945,7 @@ bool ResolveBoneLocalOffsetPoseLocation(blender::bPoseChannel *pchan,
       base_pose_mat[3][1] + pose_offset[1],
       base_pose_mat[3][2] + pose_offset[2],
   };
-  blender::BKE_armature_loc_pose_to_bone({pchan, pchan->bone}, pose_location, r_location);
-  return true;
+  return PoseLocationToChannelLocation(pchan, pose_location, r_location);
 }
 
 LN_BonePoseRotationSpace RotationSpaceFromTransformSpace(const LN_BonePoseLocationSpace space)
@@ -1465,8 +1971,7 @@ bool ResolveBonePoseLocation(KX_GameObject *armature_object,
                              float r_location[3])
 {
   if (space == LN_BonePoseLocationSpace::ArmatureOffset) {
-    ResolveArmatureOffsetBonePoseLocation(pchan, location, r_location);
-    return true;
+    return ResolveArmatureOffsetBonePoseLocation(pchan, location, r_location);
   }
   if (space == LN_BonePoseLocationSpace::BoneLocalOffset) {
     UpdateArmatureObjectPose(armature_object);
@@ -1483,10 +1988,17 @@ bool ResolveBonePoseLocation(KX_GameObject *armature_object,
   float pose_location[3];
   VectorToFloat3(location, pose_location);
   if (space == LN_BonePoseLocationSpace::World) {
+    const MT_Transform &armature_world = armature_object->NodeGetWorldTransform();
+    if (!MatrixBasisHasStableInverse(armature_world.getBasis())) {
+      return false;
+    }
     MT_Transform world_to_armature;
-    world_to_armature.invert(armature_object->NodeGetWorldTransform());
+    world_to_armature.invert(armature_world);
     const MT_Vector3 local_location = world_to_armature(location);
     VectorToFloat3(local_location, pose_location);
+    if (!blender::is_finite_v3(pose_location)) {
+      return false;
+    }
   }
   if (use_center) {
     pose_location[0] -= (pchan->pose_tail[0] - pchan->pose_head[0]) * 0.5f;
@@ -1494,77 +2006,455 @@ bool ResolveBonePoseLocation(KX_GameObject *armature_object,
     pose_location[2] -= (pchan->pose_tail[2] - pchan->pose_head[2]) * 0.5f;
   }
 
-  blender::BKE_armature_loc_pose_to_bone({pchan, pchan->bone}, pose_location, r_location);
+  return PoseLocationToChannelLocation(pchan, pose_location, r_location);
+}
+
+void SetNativePoseChannelRotation(blender::bPoseChannel &pchan, const LN_Rotation &rotation)
+{
+  const MT_Quaternion &quaternion = rotation.Quaternion();
+  const blender::float4 blender_quaternion(
+      float(quaternion.w()), float(quaternion.x()), float(quaternion.y()), float(quaternion.z()));
+  blender::BKE_pchan_quat_to_rot(pchan, blender_quaternion);
+}
+
+LN_Rotation NativePoseChannelRotation(const blender::bPoseChannel &pchan)
+{
+  const blender::float4 quaternion = blender::BKE_pchan_rot_to_quat(pchan);
+  return LN_Rotation(MT_Quaternion(quaternion[1], quaternion[2], quaternion[3], quaternion[0]));
+}
+
+struct PoseChannelTransformState {
+  float location[3];
+  float quaternion[4];
+  float euler[3];
+  float axis[3];
+  float angle;
+};
+
+PoseChannelTransformState SavePoseChannelTransformState(const blender::bPoseChannel &pchan)
+{
+  PoseChannelTransformState state;
+  blender::copy_v3_v3(state.location, pchan.loc);
+  blender::copy_qt_qt(state.quaternion, pchan.quat);
+  blender::copy_v3_v3(state.euler, pchan.eul);
+  blender::copy_v3_v3(state.axis, pchan.rotAxis);
+  state.angle = pchan.rotAngle;
+  return state;
+}
+
+void RestorePoseChannelTransformState(blender::bPoseChannel &pchan,
+                                      const PoseChannelTransformState &state)
+{
+  blender::copy_v3_v3(pchan.loc, state.location);
+  blender::copy_qt_qt(pchan.quat, state.quaternion);
+  blender::copy_v3_v3(pchan.eul, state.euler);
+  blender::copy_v3_v3(pchan.rotAxis, state.axis);
+  pchan.rotAngle = state.angle;
+}
+
+void PoseMatrixForChannelRotation(const blender::bPoseChannel &pchan,
+                                  const LN_Rotation &rotation,
+                                  const blender::BoneParentTransform &parent_transform,
+                                  float r_pose_mat[4][4])
+{
+  float rotation_mat[3][3];
+  float scale_mat[3][3];
+  float channel_linear[3][3];
+  LN_GameRotationMatrixToBlender(rotation.ToMatrix(), rotation_mat);
+  blender::size_to_mat3(scale_mat, pchan.scale);
+  blender::mul_m3_m3m3(channel_linear, rotation_mat, scale_mat);
+
+  float channel_mat[4][4];
+  blender::unit_m4(channel_mat);
+  blender::copy_m4_m3(channel_mat, channel_linear);
+  if ((pchan.bone->flag & blender::BONE_CONNECTED) == 0) {
+    blender::copy_v3_v3(channel_mat[3], pchan.loc);
+  }
+  blender::BKE_bone_parent_transform_apply(&parent_transform, channel_mat, r_pose_mat);
+}
+
+std::array<double, 3> PoseRotationErrorVector(const LN_Rotation &observed,
+                                              const LN_Rotation &target)
+{
+  MT_Quaternion error = target.Quaternion() * observed.Quaternion().conjugate();
+  if (error.w() < 0.0f) {
+    error = MT_Quaternion(-error.x(), -error.y(), -error.z(), -error.w());
+  }
+
+  const double x = double(error.x());
+  const double y = double(error.y());
+  const double z = double(error.z());
+  const double sine_half_angle = std::hypot(x, y, z);
+  if (sine_half_angle <= 1.0e-12) {
+    /* sin(angle / 2) approaches angle / 2. Avoid dividing two tiny values. */
+    return {2.0 * x, 2.0 * y, 2.0 * z};
+  }
+
+  const double angle = 2.0 * std::atan2(sine_half_angle, std::max(0.0, double(error.w())));
+  const double scale = angle / sine_half_angle;
+  return {x * scale, y * scale, z * scale};
+}
+
+double PoseRotationResidual(const blender::bPoseChannel &pchan,
+                            const LN_Rotation &candidate,
+                            const blender::BoneParentTransform &parent_transform,
+                            const LN_Rotation &target,
+                            std::array<double, 3> &r_error)
+{
+  float pose_mat[4][4];
+  PoseMatrixForChannelRotation(pchan, candidate, parent_transform, pose_mat);
+  r_error = PoseRotationErrorVector(LN_BlenderPoseMatrixToRotation(pose_mat), target);
+  return std::hypot(r_error[0], r_error[1], r_error[2]);
+}
+
+LN_Rotation ApplyLocalRotationDelta(const LN_Rotation &rotation,
+                                    const std::array<double, 3> &delta)
+{
+  const double angle = std::hypot(delta[0], delta[1], delta[2]);
+  if (!std::isfinite(angle) || angle <= 1.0e-15) {
+    return rotation;
+  }
+  const MT_Vector3 axis(float(delta[0] / angle), float(delta[1] / angle), float(delta[2] / angle));
+  return LN_Rotation(rotation.Quaternion() * MT_Quaternion(axis, float(angle)));
+}
+
+bool SolveLinearSystem3x3(const double matrix[3][3],
+                          const double right_hand_side[3],
+                          double r_solution[3])
+{
+  double augmented[3][4];
+  double largest_element = 0.0;
+  for (int row = 0; row < 3; row++) {
+    for (int column = 0; column < 3; column++) {
+      augmented[row][column] = matrix[row][column];
+      largest_element = std::max(largest_element, std::fabs(matrix[row][column]));
+    }
+    augmented[row][3] = right_hand_side[row];
+  }
+  if (!std::isfinite(largest_element) || largest_element <= 1.0e-30) {
+    return false;
+  }
+
+  for (int pivot_column = 0; pivot_column < 3; pivot_column++) {
+    int pivot_row = pivot_column;
+    for (int row = pivot_column + 1; row < 3; row++) {
+      if (std::fabs(augmented[row][pivot_column]) > std::fabs(augmented[pivot_row][pivot_column]))
+      {
+        pivot_row = row;
+      }
+    }
+    if (std::fabs(augmented[pivot_row][pivot_column]) <= largest_element * 1.0e-14) {
+      return false;
+    }
+    if (pivot_row != pivot_column) {
+      for (int column = pivot_column; column < 4; column++) {
+        std::swap(augmented[pivot_column][column], augmented[pivot_row][column]);
+      }
+    }
+
+    for (int row = pivot_column + 1; row < 3; row++) {
+      const double factor = augmented[row][pivot_column] / augmented[pivot_column][pivot_column];
+      for (int column = pivot_column; column < 4; column++) {
+        augmented[row][column] -= factor * augmented[pivot_column][column];
+      }
+    }
+  }
+
+  for (int row = 2; row >= 0; row--) {
+    double value = augmented[row][3];
+    for (int column = row + 1; column < 3; column++) {
+      value -= augmented[row][column] * r_solution[column];
+    }
+    r_solution[row] = value / augmented[row][row];
+    if (!std::isfinite(r_solution[row])) {
+      return false;
+    }
+  }
   return true;
 }
 
-void SetPoseChannelRotationFromEuler(blender::bPoseChannel &pchan,
-                                     const MT_Vector3 &rotation_euler)
+void RefinePoseRotationCandidate(const blender::bPoseChannel &pchan,
+                                 const blender::BoneParentTransform &parent_transform,
+                                 const LN_Rotation &target,
+                                 const LN_Rotation &seed,
+                                 const double angular_tolerance,
+                                 LN_Rotation &r_best_candidate,
+                                 float &r_best_error)
 {
-  const float euler[3] = {
-      float(rotation_euler.x()), float(rotation_euler.y()), float(rotation_euler.z())};
-  float object_axes_mat[3][3];
-  eulO_to_mat3(object_axes_mat, euler, blender::EULER_ORDER_DEFAULT);
-
-  if (pchan.bone != nullptr) {
-    float rest_mat[3][3];
-    float rest_inv[3][3];
-    float tmp_mat[3][3];
-    float channel_mat[3][3];
-    /* Pose channels are evaluated as rest-bone-basis * channel rotation. Convert object-axis
-     * input into the channel basis so X/Y/Z match normal armature/object axes, not bone axes. */
-    blender::copy_m3_m4(rest_mat, pchan.bone->arm_mat);
-    blender::normalize_m3(rest_mat);
-    blender::transpose_m3_m3(rest_inv, rest_mat);
-    blender::mul_m3_m3m3(tmp_mat, object_axes_mat, rest_mat);
-    blender::mul_m3_m3m3(channel_mat, rest_inv, tmp_mat);
-    blender::normalize_m3(channel_mat);
-    blender::BKE_pchan_mat3_to_rot(&pchan, channel_mat, false);
-    return;
+  std::array<double, 3> residual;
+  LN_Rotation candidate = seed;
+  double residual_length = PoseRotationResidual(
+      pchan, candidate, parent_transform, target, residual);
+  if (residual_length < double(r_best_error)) {
+    r_best_error = float(residual_length);
+    r_best_candidate = candidate;
   }
 
-  blender::BKE_pchan_mat3_to_rot(&pchan, object_axes_mat, false);
+  constexpr int max_solver_iterations = 12;
+  constexpr int max_damping_trials = 6;
+  constexpr int max_line_search_steps = 7;
+  constexpr double derivative_step = 1.0e-3;
+  constexpr double maximum_step = 0.75;
+  double damping = 1.0e-6;
+
+  for (int iteration = 0; iteration < max_solver_iterations && residual_length > angular_tolerance;
+       iteration++)
+  {
+    double jacobian[3][3];
+    for (int axis = 0; axis < 3; axis++) {
+      std::array<double, 3> positive_delta = {0.0, 0.0, 0.0};
+      std::array<double, 3> negative_delta = {0.0, 0.0, 0.0};
+      positive_delta[axis] = derivative_step;
+      negative_delta[axis] = -derivative_step;
+
+      std::array<double, 3> positive_residual;
+      std::array<double, 3> negative_residual;
+      PoseRotationResidual(pchan,
+                           ApplyLocalRotationDelta(candidate, positive_delta),
+                           parent_transform,
+                           target,
+                           positive_residual);
+      PoseRotationResidual(pchan,
+                           ApplyLocalRotationDelta(candidate, negative_delta),
+                           parent_transform,
+                           target,
+                           negative_residual);
+      for (int component = 0; component < 3; component++) {
+        jacobian[component][axis] = (positive_residual[component] - negative_residual[component]) /
+                                    (2.0 * derivative_step);
+      }
+    }
+
+    double normal_matrix[3][3] = {};
+    double gradient[3] = {};
+    for (int row = 0; row < 3; row++) {
+      for (int component = 0; component < 3; component++) {
+        gradient[row] += jacobian[component][row] * residual[component];
+        for (int column = 0; column < 3; column++) {
+          normal_matrix[row][column] += jacobian[component][row] * jacobian[component][column];
+        }
+      }
+    }
+
+    bool accepted = false;
+    for (int damping_trial = 0; damping_trial < max_damping_trials && !accepted; damping_trial++) {
+      double damped_matrix[3][3];
+      for (int row = 0; row < 3; row++) {
+        for (int column = 0; column < 3; column++) {
+          damped_matrix[row][column] = normal_matrix[row][column];
+        }
+        damped_matrix[row][row] += damping * (normal_matrix[row][row] + 1.0);
+      }
+      const double right_hand_side[3] = {-gradient[0], -gradient[1], -gradient[2]};
+      double solution[3] = {};
+      if (!SolveLinearSystem3x3(damped_matrix, right_hand_side, solution)) {
+        damping *= 10.0;
+        continue;
+      }
+
+      double step_length = std::hypot(solution[0], solution[1], solution[2]);
+      if (step_length > maximum_step) {
+        const double scale = maximum_step / step_length;
+        for (double &component : solution) {
+          component *= scale;
+        }
+        step_length = maximum_step;
+      }
+      if (!std::isfinite(step_length) || step_length <= 1.0e-12) {
+        break;
+      }
+
+      double line_factor = 1.0;
+      for (int line_step = 0; line_step < max_line_search_steps; line_step++) {
+        const std::array<double, 3> delta = {
+            solution[0] * line_factor,
+            solution[1] * line_factor,
+            solution[2] * line_factor,
+        };
+        const LN_Rotation trial_candidate = ApplyLocalRotationDelta(candidate, delta);
+        std::array<double, 3> trial_residual;
+        const double trial_length = PoseRotationResidual(
+            pchan, trial_candidate, parent_transform, target, trial_residual);
+        if (std::isfinite(trial_length) &&
+            trial_length < residual_length - std::max(1.0e-12, residual_length * 1.0e-8))
+        {
+          candidate = trial_candidate;
+          residual = trial_residual;
+          residual_length = trial_length;
+          if (trial_length < double(r_best_error)) {
+            r_best_error = float(trial_length);
+            r_best_candidate = candidate;
+          }
+          damping = std::max(1.0e-12, damping * 0.25);
+          accepted = true;
+          break;
+        }
+        line_factor *= 0.5;
+      }
+      if (!accepted) {
+        damping *= 10.0;
+      }
+    }
+    if (!accepted) {
+      break;
+    }
+  }
 }
 
 bool SetPoseChannelRotation(KX_GameObject *armature_object,
                             blender::Object *armature_blender_object,
                             blender::bPoseChannel *pchan,
-                            const MT_Vector3 &rotation_euler,
+                            const LN_Rotation &rotation,
                             const LN_BonePoseRotationSpace space)
 {
   if (pchan == nullptr) {
     return false;
   }
   if (space == LN_BonePoseRotationSpace::PoseChannel) {
-    SetPoseChannelRotationFromEuler(*pchan, rotation_euler);
+    SetNativePoseChannelRotation(*pchan, rotation);
     return true;
   }
   if (armature_object == nullptr || armature_blender_object == nullptr || pchan->bone == nullptr) {
     return false;
   }
-
-  const float euler[3] = {
-      float(rotation_euler.x()), float(rotation_euler.y()), float(rotation_euler.z())};
-  float pose_rot[3][3];
-  eulO_to_mat3(pose_rot, euler, blender::EULER_ORDER_DEFAULT);
-
-  if (space == LN_BonePoseRotationSpace::World) {
-    const MT_Matrix3x3 armature_to_world = armature_object->NodeGetWorldOrientation();
-    MatrixToFloat3x3(armature_to_world.inverse() * MatrixFromFloat3x3(pose_rot), pose_rot);
+  for (const float scale : pchan->scale) {
+    if (!std::isfinite(scale) || std::fabs(scale) <= 1.0e-20f) {
+      /* An evaluated orientation does not exist when the channel collapses an axis. Raw
+       * Pose-Channel rotation remains writable above, but absolute Armature/World setters must
+       * leave an undefined transform unchanged. */
+      return false;
+    }
   }
 
-  float pose_mat[4][4];
-  blender::unit_m4(pose_mat);
-  blender::copy_m4_m3(pose_mat, pose_rot);
+  LN_Rotation native_pose_rotation = rotation;
+  if (space == LN_BonePoseRotationSpace::World) {
+    const LN_Rotation armature_world_rotation = LN_Rotation::FromMatrix(
+        armature_object->NodeGetWorldOrientation());
+    native_pose_rotation = LN_Rotation(armature_world_rotation.Quaternion().conjugate() *
+                                       rotation.Quaternion());
+  }
 
-  float channel_mat[4][4];
-  blender::BKE_armature_mat_pose_to_bone_ex(
-      nullptr, armature_blender_object, pchan, pose_mat, channel_mat);
+  /* The parent/rest transform is invariant while solving this one channel. Cache both directions
+   * instead of rebuilding and reinverting the matrices on every projection step. Only the
+   * rotation/scale half is needed when mapping the corrected linear transform back to the
+   * channel, so an unusual singular location transform cannot contaminate an otherwise valid
+   * rotation solve. */
+  blender::BoneParentTransform pose_from_channel;
+  blender::BKE_bone_parent_transform_calc_from_pchan({pchan, pchan->bone}, &pose_from_channel);
+  blender::BoneParentTransform channel_from_pose = pose_from_channel;
+  if (!MatrixLinearPartHasStableInverse(channel_from_pose.rotscale_mat) ||
+      !blender::invert_m4(channel_from_pose.rotscale_mat))
+  {
+    return false;
+  }
+  blender::unit_m4(channel_from_pose.loc_mat);
+  for (int axis = 0; axis < 3; axis++) {
+    const float post_scale = channel_from_pose.post_scale[axis];
+    if (!std::isfinite(post_scale) || std::fabs(post_scale) <= 1.0e-20f) {
+      return false;
+    }
+    channel_from_pose.post_scale[axis] = 1.0f / post_scale;
+  }
 
-  float channel_rot[3][3];
-  blender::copy_m3_m4(channel_rot, channel_mat);
-  blender::normalize_m3(channel_rot);
-  blender::BKE_pchan_mat3_to_rot(pchan, channel_rot, false);
+  /* A parent with non-uniform scale can shear a child pose matrix. Simply inverse-transforming a
+   * unit target rotation and normalizing its columns does not solve that transform: evaluating
+   * the resulting channel rotation can produce a visibly different orientation.
+   *
+   * Start with a few inexpensive alternating projections. They converge immediately for ordinary
+   * orthogonal parents and most mild shear. Strong shear can make that projection oscillate, so
+   * the bounded fallback below solves the three-dimensional quaternion error with a damped
+   * Gauss-Newton step and backtracking. This keeps the common path cheap without sacrificing
+   * correctness for severely non-uniform inherited scale. No armature-wide pose evaluation is
+   * performed in either loop.
+   */
+  constexpr int max_projection_iterations = 4;
+  constexpr float angular_tolerance = 1.0e-6f;
+  LN_Rotation candidate = NativePoseChannelRotation(*pchan);
+  LN_Rotation best_candidate = candidate;
+  float best_error = std::numeric_limits<float>::infinity();
+
+  for (int iteration = 0; iteration < max_projection_iterations; iteration++) {
+    float candidate_pose_mat[4][4];
+    PoseMatrixForChannelRotation(*pchan, candidate, pose_from_channel, candidate_pose_mat);
+    const LN_Rotation observed_rotation = LN_BlenderPoseMatrixToRotation(candidate_pose_mat);
+    const float angular_error = observed_rotation.AngleTo(native_pose_rotation);
+    if (angular_error < best_error) {
+      best_error = angular_error;
+      best_candidate = candidate;
+    }
+    if (angular_error <= angular_tolerance) {
+      break;
+    }
+
+    const LN_Rotation pose_correction(native_pose_rotation.Quaternion() *
+                                      observed_rotation.Quaternion().conjugate());
+    float correction_mat[3][3];
+    float candidate_linear[3][3];
+    float target_linear[3][3];
+    LN_GameRotationMatrixToBlender(pose_correction.ToMatrix(), correction_mat);
+    blender::copy_m3_m4(candidate_linear, candidate_pose_mat);
+    blender::mul_m3_m3m3(target_linear, correction_mat, candidate_linear);
+
+    float target_pose_mat[4][4];
+    blender::copy_m4_m4(target_pose_mat, candidate_pose_mat);
+    blender::copy_m4_m3(target_pose_mat, target_linear);
+
+    float target_channel_mat[4][4];
+    blender::BKE_bone_parent_transform_apply(
+        &channel_from_pose, target_pose_mat, target_channel_mat);
+    float target_channel_linear[3][3];
+    blender::copy_m3_m4(target_channel_linear, target_channel_mat);
+    candidate = LN_BlenderMatrixToRotation(target_channel_linear);
+  }
+
+  /* Evaluate the projection produced by the final iteration as well. */
+  std::array<double, 3> residual;
+  double residual_length = PoseRotationResidual(
+      *pchan, candidate, pose_from_channel, native_pose_rotation, residual);
+  if (residual_length < double(best_error)) {
+    best_error = float(residual_length);
+    best_candidate = candidate;
+  }
+
+  if (best_error > angular_tolerance) {
+    const LN_Rotation projected_candidate = best_candidate;
+    RefinePoseRotationCandidate(*pchan,
+                                pose_from_channel,
+                                native_pose_rotation,
+                                projected_candidate,
+                                angular_tolerance,
+                                best_candidate,
+                                best_error);
+
+    float projected_pose_mat[4][4];
+    PoseMatrixForChannelRotation(
+        *pchan, projected_candidate, pose_from_channel, projected_pose_mat);
+    float projected_linear[3][3];
+    blender::copy_m3_m4(projected_linear, projected_pose_mat);
+    if (blender::determinant_m3_array(projected_linear) < 0.0f && best_error > angular_tolerance) {
+      /* A mirrored parent has several proper-rotation branches around the reflection. A local
+       * solve can converge to the wrong branch, so refine all three half-turn neighbors and retain
+       * the globally best result. This extra work is restricted to reflected, already-difficult
+       * transforms; normal rigs never pay for it. */
+      constexpr double pi = 3.14159265358979323846;
+      const std::array<std::array<double, 3>, 3> half_turn_seeds = {
+          std::array<double, 3>{pi, 0.0, 0.0},
+          std::array<double, 3>{0.0, pi, 0.0},
+          std::array<double, 3>{0.0, 0.0, pi},
+      };
+      for (const std::array<double, 3> &seed_delta : half_turn_seeds) {
+        RefinePoseRotationCandidate(*pchan,
+                                    pose_from_channel,
+                                    native_pose_rotation,
+                                    ApplyLocalRotationDelta(projected_candidate, seed_delta),
+                                    angular_tolerance,
+                                    best_candidate,
+                                    best_error);
+      }
+    }
+  }
+
+  SetNativePoseChannelRotation(*pchan, best_candidate);
   return true;
 }
 
@@ -1577,7 +2467,7 @@ bool SetPoseChannelTransform(KX_GameObject *armature_object,
                              blender::Object *armature_blender_object,
                              blender::bPoseChannel *pchan,
                              const MT_Vector3 &location,
-                             const MT_Vector3 &rotation_euler,
+                             const LN_Rotation &rotation,
                              const LN_BonePoseLocationSpace space,
                              const bool use_center)
 {
@@ -1585,18 +2475,24 @@ bool SetPoseChannelTransform(KX_GameObject *armature_object,
     return false;
   }
 
+  const PoseChannelTransformState original_state = SavePoseChannelTransformState(*pchan);
   float pose_location[3];
-  if (!ResolveBonePoseLocation(armature_object, pchan, location, space, use_center, pose_location)) {
+  if (!ResolveBonePoseLocation(armature_object, pchan, location, space, use_center, pose_location))
+  {
     return false;
   }
   pchan->loc[0] = pose_location[0];
   pchan->loc[1] = pose_location[1];
   pchan->loc[2] = pose_location[2];
+  MarkArmatureObjectPoseDirty(armature_object);
   UpdateArmatureObjectPose(armature_object);
 
   float center[3] = {0.0f, 0.0f, 0.0f};
   if (use_center) {
     if (pchan->bone == nullptr) {
+      RestorePoseChannelTransformState(*pchan, original_state);
+      MarkArmatureObjectPoseDirty(armature_object);
+      UpdateArmatureObjectPose(armature_object);
       return false;
     }
     PoseChannelCenter(*pchan, center);
@@ -1605,12 +2501,21 @@ bool SetPoseChannelTransform(KX_GameObject *armature_object,
   if (!SetPoseChannelRotation(armature_object,
                               armature_blender_object,
                               pchan,
-                              rotation_euler,
+                              rotation,
                               RotationSpaceFromTransformSpace(space)))
   {
+    RestorePoseChannelTransformState(*pchan, original_state);
+    MarkArmatureObjectPoseDirty(armature_object);
+    UpdateArmatureObjectPose(armature_object);
     return false;
   }
+  /* Center compensation needs pose_head/pose_tail after the new rotation has been evaluated,
+   * not the cached pre-rotation direction. */
+  MarkArmatureObjectPoseDirty(armature_object);
   if (use_center && !SetPoseChannelCenter(armature_object, pchan, center)) {
+    RestorePoseChannelTransformState(*pchan, original_state);
+    MarkArmatureObjectPoseDirty(armature_object);
+    UpdateArmatureObjectPose(armature_object);
     return false;
   }
   UpdateArmatureObjectPose(armature_object);
@@ -1639,7 +2544,12 @@ bool SetPoseChannelCenter(KX_GameObject *armature_object,
       target_center[1] - (pchan->pose_tail[1] - pchan->pose_head[1]) * 0.5f,
       target_center[2] - (pchan->pose_tail[2] - pchan->pose_head[2]) * 0.5f,
   };
-  blender::BKE_armature_loc_pose_to_bone({pchan, pchan->bone}, target_head, pchan->loc);
+  float channel_location[3];
+  if (!PoseLocationToChannelLocation(pchan, target_head, channel_location)) {
+    return false;
+  }
+  blender::copy_v3_v3(pchan->loc, channel_location);
+  MarkArmatureObjectPoseDirty(armature_object);
   return true;
 }
 
@@ -1724,8 +2634,7 @@ bool SocketDefaultNeedsLogicValueUpdate(LN_RuntimeTree *runtime_tree,
     case blender::SOCK_INT_VECTOR: {
       std::array<float, 4> values{};
       int available = 0;
-      auto *socket_value = static_cast<blender::bNodeSocketValueIntVector *>(
-          socket.default_value);
+      auto *socket_value = static_cast<blender::bNodeSocketValueIntVector *>(socket.default_value);
       const int dimensions = std::clamp(socket_value->dimensions, 1, 3);
       if (!LogicValueAsFloatArray(value, values, available) || available < dimensions) {
         return false;
@@ -1803,10 +2712,8 @@ bool SocketDefaultNeedsLogicValueUpdate(LN_RuntimeTree *runtime_tree,
     case blender::SOCK_MASK:
     case blender::SOCK_SOUND: {
       blender::ID *id = nullptr;
-      if (!LogicValueAsSocketId(runtime_tree,
-                                value,
-                                blender::eNodeSocketDatatype(socket.type),
-                                id))
+      if (!LogicValueAsSocketId(
+              runtime_tree, value, blender::eNodeSocketDatatype(socket.type), id))
       {
         return false;
       }
@@ -1870,8 +2777,7 @@ bool SetSocketDefaultFromLogicValue(LN_RuntimeTree *runtime_tree,
     case blender::SOCK_INT_VECTOR: {
       std::array<float, 4> values{};
       int available = 0;
-      auto *socket_value = static_cast<blender::bNodeSocketValueIntVector *>(
-          socket.default_value);
+      auto *socket_value = static_cast<blender::bNodeSocketValueIntVector *>(socket.default_value);
       const int dimensions = std::clamp(socket_value->dimensions, 1, 3);
       if (!LogicValueAsFloatArray(value, values, available) || available < dimensions) {
         return false;
@@ -1947,10 +2853,8 @@ bool SetSocketDefaultFromLogicValue(LN_RuntimeTree *runtime_tree,
     case blender::SOCK_MASK:
     case blender::SOCK_SOUND: {
       blender::ID *id = nullptr;
-      if (!LogicValueAsSocketId(runtime_tree,
-                                value,
-                                blender::eNodeSocketDatatype(socket.type),
-                                id))
+      if (!LogicValueAsSocketId(
+              runtime_tree, value, blender::eNodeSocketDatatype(socket.type), id))
       {
         return false;
       }
@@ -1964,17 +2868,6 @@ bool SetSocketDefaultFromLogicValue(LN_RuntimeTree *runtime_tree,
 void NotifyMaterialNodeTreeUpdate(blender::Main *bmain,
                                   blender::Material *material,
                                   blender::bNodeTree *ntree);
-
-bool MaterialParameterSocketSupportsObjectAttribute(const blender::bNodeSocket &socket)
-{
-  return ELEM(socket.type,
-              blender::SOCK_BOOLEAN,
-              blender::SOCK_INT,
-              blender::SOCK_FLOAT,
-              blender::SOCK_VECTOR,
-              blender::SOCK_ROTATION,
-              blender::SOCK_RGBA);
-}
 
 bool LogicValueAsMaterialParameterValues(const blender::bNodeSocket &socket,
                                          const LN_Value &value,
@@ -2034,7 +2927,8 @@ bool SocketDefaultAsMaterialParameterValues(const blender::bNodeSocket &socket,
 {
   if (socket.default_value == nullptr) {
     r_values = {0.0f, 0.0f, 0.0f, 1.0f};
-    return MaterialParameterSocketSupportsObjectAttribute(socket);
+    return upbge::logic_nodes::game_state::material_parameter_socket_supports_object_attribute(
+        socket);
   }
 
   switch (socket.type) {
@@ -2061,10 +2955,7 @@ bool SocketDefaultAsMaterialParameterValues(const blender::bNodeSocket &socket,
     case blender::SOCK_VECTOR: {
       const auto *socket_value = static_cast<const blender::bNodeSocketValueVector *>(
           socket.default_value);
-      r_values = {socket_value->value[0],
-                  socket_value->value[1],
-                  socket_value->value[2],
-                  1.0f};
+      r_values = {socket_value->value[0], socket_value->value[1], socket_value->value[2], 1.0f};
       return true;
     }
     case blender::SOCK_ROTATION: {
@@ -2105,10 +2996,9 @@ bool ObjectMaterialParameterPropertyIsValid(blender::Object *object,
   }
 
   blender::IDProperty *properties = blender::IDP_GetProperties(&object->id);
-  blender::IDProperty *property = properties ?
-                                      blender::IDP_GetPropertyFromGroup_null(
-                                          properties, property_name) :
-                                      nullptr;
+  blender::IDProperty *property = properties ? blender::IDP_GetPropertyFromGroup_null(
+                                                   properties, property_name) :
+                                               nullptr;
   if (property == nullptr || property->type != blender::IDP_ARRAY ||
       property->subtype != blender::IDP_FLOAT || property->len != 4)
   {
@@ -2131,8 +3021,8 @@ bool SetObjectMaterialParameterProperty(blender::Object *object,
     return false;
   }
 
-  blender::IDProperty *property = blender::IDP_GetPropertyFromGroup_null(
-      properties, property_name);
+  blender::IDProperty *property = blender::IDP_GetPropertyFromGroup_null(properties,
+                                                                         property_name);
   if (property != nullptr && property->type == blender::IDP_ARRAY &&
       property->subtype == blender::IDP_FLOAT && property->len == 4)
   {
@@ -2255,19 +3145,6 @@ void InitializeMaterialParameterDefaults(blender::Material *material,
   }
 }
 
-std::string MaterialParameterAttributeName(blender::Material *material,
-                                           const blender::bNode &node,
-                                           const blender::bNodeSocket &socket)
-{
-  const uint32_t material_hash = blender::BLI_hash_string(material ? material->id.name : "");
-  uint32_t socket_hash = uint32_t(node.identifier);
-  socket_hash = blender::BLI_hash_int_2d(socket_hash,
-                                         blender::BLI_hash_string(socket.identifier));
-  char name[MAX_IDPROP_NAME];
-  std::snprintf(name, sizeof(name), "_LNMP_%08x_%08x", material_hash, socket_hash);
-  return name;
-}
-
 blender::bNodeSocket *FindAttributeOutputForSocket(blender::bNode &attribute_node,
                                                    const blender::bNodeSocket &target_socket)
 {
@@ -2280,8 +3157,7 @@ blender::bNodeSocket *FindAttributeOutputForSocket(blender::bNode &attribute_nod
     case blender::SOCK_BOOLEAN:
     case blender::SOCK_INT:
     case blender::SOCK_FLOAT: {
-      if (blender::bNodeSocket *socket = FindOutputSocketByIdentifierOrName(attribute_node,
-                                                                            "Fac"))
+      if (blender::bNodeSocket *socket = FindOutputSocketByIdentifierOrName(attribute_node, "Fac"))
       {
         return socket;
       }
@@ -2327,13 +3203,15 @@ bool MaterialSocketAlreadyBoundToAttribute(blender::bNodeTree &ntree,
 }
 
 bool EnsureMaterialParameterObjectAttributeBinding(blender::Main *bmain,
-                                                  blender::Material *material,
-                                                  blender::bNodeTree &ntree,
-                                                  blender::bNode &target_node,
-                                                  blender::bNodeSocket &target_socket,
-                                                  const std::string &attribute_name)
+                                                   blender::Material *material,
+                                                   blender::bNodeTree &ntree,
+                                                   blender::bNode &target_node,
+                                                   blender::bNodeSocket &target_socket,
+                                                   const std::string &attribute_name)
 {
-  if (!MaterialParameterSocketSupportsObjectAttribute(target_socket)) {
+  if (!upbge::logic_nodes::game_state::material_parameter_socket_supports_object_attribute(
+          target_socket))
+  {
     return false;
   }
 
@@ -2353,8 +3231,8 @@ bool EnsureMaterialParameterObjectAttributeBinding(blender::Main *bmain,
     changed = true;
   }
 
-  blender::bNodeSocket *attribute_output = FindAttributeOutputForSocket(
-      *attribute_node, target_socket);
+  blender::bNodeSocket *attribute_output = FindAttributeOutputForSocket(*attribute_node,
+                                                                        target_socket);
   if (attribute_output == nullptr) {
     return false;
   }
@@ -2422,8 +3300,8 @@ bool ConstantIntExpressionValue(const LN_Program &program,
 }
 
 KX_GameObject *ConstantMaterialParameterTargetObject(LN_RuntimeTree &runtime_tree,
-                                                    const LN_Program &program,
-                                                    const uint32_t expression_index)
+                                                     const LN_Program &program,
+                                                     const uint32_t expression_index)
 {
   if (expression_index == LN_INVALID_INDEX) {
     return runtime_tree.GetGameObject();
@@ -2449,8 +3327,8 @@ int MaterialLightLayer(KX_GameObject *game_object)
 }
 
 KX_BlenderMaterial *EnsureSceneRuntimeMaterial(KX_Scene *scene,
-                                              blender::Material *material,
-                                              const int light_layer)
+                                               blender::Material *material,
+                                               const int light_layer)
 {
   if (scene == nullptr || material == nullptr) {
     return nullptr;
@@ -2520,8 +3398,7 @@ void AppendNodeTreeIdToUpdate(blender::bNodeTree *ntree)
 
   for (int scene_index = 0; scene_index < scenes->GetCount(); ++scene_index) {
     if (KX_Scene *scene = scenes->GetValue(scene_index)) {
-      scene->AppendToIdsToUpdate(
-          &ntree->id, static_cast<blender::IDRecalcFlag>(0), false);
+      scene->AppendToIdsToUpdate(&ntree->id, static_cast<blender::IDRecalcFlag>(0), false);
     }
   }
 }
@@ -2595,6 +3472,8 @@ blender::Material *EnsureObjectSlotMaterialUniqueForEdit(blender::Main *bmain,
   if (slot_index >= object->totcol) {
     return nullptr;
   }
+  /* The slot may get a material of its own: a copy of the object is not reused. */
+  game_object->NoteBlenderObjectChanged();
 
   blender::Material *material = BKE_object_material_get(object, short(slot_index + 1));
   if (material == nullptr) {
@@ -2698,13 +3577,12 @@ bool LogicValueAsFloatArray(const LN_Value &value,
                   value.vector4_value.w()};
       r_available = 4;
       return true;
-    case LN_ValueType::Rotation:
-      r_values = {value.rotation_euler_value.x(),
-                  value.rotation_euler_value.y(),
-                  value.rotation_euler_value.z(),
-                  0.0f};
+    case LN_ValueType::Rotation: {
+      const MT_Vector3 euler = value.RotationEulerRadians();
+      r_values = {euler.x(), euler.y(), euler.z(), 0.0f};
       r_available = 3;
       return true;
+    }
     case LN_ValueType::Color:
       r_values = {value.color_value.x(),
                   value.color_value.y(),
@@ -2737,6 +3615,9 @@ bool LogicValueAsString(const LN_Value &value, std::string &r_value)
 
 std::string LogicFloatToPrintString(float value)
 {
+  if (value == 0.0f) {
+    return "0";
+  }
   std::ostringstream stream;
   stream << value;
   return stream.str();
@@ -2782,10 +3663,15 @@ std::string LogicValueToPrintString(const LN_Value &value, int depth = 0)
              LogicFloatToPrintString(value.color_value.y()) + ", " +
              LogicFloatToPrintString(value.color_value.z()) + ", " +
              LogicFloatToPrintString(value.color_value.w()) + ")";
-    case LN_ValueType::Rotation:
-      return "(" + LogicFloatToPrintString(value.rotation_euler_value.x()) + ", " +
-             LogicFloatToPrintString(value.rotation_euler_value.y()) + ", " +
-             LogicFloatToPrintString(value.rotation_euler_value.z()) + ")";
+    case LN_ValueType::Rotation: {
+      const MT_Vector3 degrees = value.RotationEulerDegrees();
+      auto vector_string = [](const MT_Vector3 &vector) {
+        return "(" + LogicFloatToPrintString(vector.x()) + ", " +
+               LogicFloatToPrintString(vector.y()) + ", " + LogicFloatToPrintString(vector.z()) +
+               ")";
+      };
+      return "Rotation(deg)=" + vector_string(degrees);
+    }
     case LN_ValueType::String:
       return value.string_value;
     case LN_ValueType::ObjectRef:
@@ -3285,49 +4171,115 @@ bool IsObjectTransformCommand(const LN_CommandBuffer::CommandType type)
   }
 }
 
-void ApplyObjectTransformCommand(const LN_CommandBuffer::Command &command)
+void ApplyObjectTransform(const LN_CommandBuffer::CommandType type,
+                          KX_GameObject *object,
+                          const MT_Vector3 &vector_value,
+                          const LN_Rotation &rotation_value,
+                          const bool bool_value)
 {
-  if (command.object == nullptr) {
+  if (object == nullptr) {
     return;
   }
 
-  switch (command.type) {
+  switch (type) {
     case LN_CommandBuffer::CommandType::SetWorldPosition:
-      command.object->NodeSetWorldPosition(command.vector_value);
-      command.object->NodeUpdateGS(0.0);
+      object->NodeSetWorldPosition(vector_value);
+      object->NodeUpdateGS(0.0);
       break;
     case LN_CommandBuffer::CommandType::SetLocalPosition:
-      command.object->NodeSetLocalPosition(command.vector_value);
-      command.object->NodeUpdateGS(0.0);
+      object->NodeSetLocalPosition(vector_value);
+      object->NodeUpdateGS(0.0);
       break;
     case LN_CommandBuffer::CommandType::SetWorldOrientation:
-      command.object->NodeSetGlobalOrientation(MT_Matrix3x3(command.vector_value));
-      command.object->NodeUpdateGS(0.0);
+      object->NodeSetGlobalOrientation(rotation_value.ToMatrix());
+      object->NodeUpdateGS(0.0);
       break;
     case LN_CommandBuffer::CommandType::SetLocalOrientation:
-      command.object->NodeSetLocalOrientation(MT_Matrix3x3(command.vector_value));
-      command.object->NodeUpdateGS(0.0);
+      object->NodeSetLocalOrientation(rotation_value.ToMatrix());
+      object->NodeUpdateGS(0.0);
       break;
     case LN_CommandBuffer::CommandType::SetWorldScale:
-      command.object->NodeSetWorldScale(command.vector_value);
-      command.object->NodeUpdateGS(0.0);
+      object->NodeSetWorldScale(vector_value);
+      object->NodeUpdateGS(0.0);
       break;
     case LN_CommandBuffer::CommandType::SetLocalScale:
-      command.object->NodeSetLocalScale(command.vector_value);
-      command.object->NodeUpdateGS(0.0);
+      object->NodeSetLocalScale(vector_value);
+      object->NodeUpdateGS(0.0);
       break;
     case LN_CommandBuffer::CommandType::ApplyMovement:
-      command.object->ApplyMovement(command.vector_value, command.bool_value);
+      object->ApplyMovement(vector_value, bool_value);
       break;
     case LN_CommandBuffer::CommandType::ApplyRotation:
-      command.object->ApplyRotation(command.vector_value, command.bool_value);
+      object->ApplyRotation(rotation_value.ToMatrix(), bool_value);
       break;
     default:
       break;
   }
 }
 
+void ApplyObjectTransformCommand(const LN_CommandBuffer::Command &command)
+{
+  ApplyObjectTransform(command.type,
+                       command.object,
+                       command.vector_value,
+                       command.rotation_value,
+                       command.bool_value);
+}
+
 }  // namespace
+
+void LN_CommandBuffer::UpdateSpatialSounds(const KX_Scene *scene)
+{
+#  ifdef WITH_AUDASPACE
+  for (auto it = g_logic_native_spatial_sounds.begin(); it != g_logic_native_spatial_sounds.end();)
+  {
+    if (it->scene != scene) {
+      ++it;
+      continue;
+    }
+    const aud::Status status = it->handle ? it->handle->getStatus() : aud::STATUS_INVALID;
+    if (status != aud::STATUS_PLAYING && status != aud::STATUS_PAUSED) {
+      it = g_logic_native_spatial_sounds.erase(it);
+      continue;
+    }
+    logic_native_spatial_sound_place(*it);
+    ++it;
+  }
+#  else
+  UNUSED_VARS(scene);
+#  endif
+}
+
+void LN_CommandBuffer::ForgetSpatialSoundSpeaker(const KX_GameObject *speaker)
+{
+#  ifdef WITH_AUDASPACE
+  for (LogicNativeSpatialSound &sound : g_logic_native_spatial_sounds) {
+    if (sound.speaker == speaker) {
+      sound.speaker = nullptr;
+    }
+  }
+#  else
+  UNUSED_VARS(speaker);
+#  endif
+}
+
+void LN_CommandBuffer::ForgetSpatialSoundScene(const KX_Scene *scene)
+{
+#  ifdef WITH_AUDASPACE
+  /* The scene ends: its 3D sounds stop with it (a looping one would play on forever). */
+  std::erase_if(g_logic_native_spatial_sounds, [scene](const LogicNativeSpatialSound &sound) {
+    if (sound.scene != scene) {
+      return false;
+    }
+    if (sound.handle) {
+      sound.handle->stop();
+    }
+    return true;
+  });
+#  else
+  UNUSED_VARS(scene);
+#  endif
+}
 
 bool LN_CommandBuffer::IsAddObjectSourceInactiveCached(KX_Scene *scene, KX_GameObject *source)
 {
@@ -3366,7 +4318,8 @@ bool LN_CommandBuffer::EnsureMaterialParameterBinding(blender::Main *bmain,
     return false;
   }
 
-  const std::string attribute_name = MaterialParameterAttributeName(material, *node, *socket);
+  const std::string attribute_name =
+      upbge::logic_nodes::game_state::material_parameter_attribute_name(material, *node, *socket);
   if (!EnsureMaterialParameterObjectAttributeBinding(
           bmain, material, *ntree, *node, *socket, attribute_name))
   {
@@ -3444,11 +4397,16 @@ void LN_CommandBuffer::PrewarmMaterialParameterBindings(LN_RuntimeTree &runtime_
     blender::bNode *node = FindMaterialNodeByUserName(ntree, node_name);
     blender::bNodeSocket *socket = node ? FindInputSocketByIdentifierOrName(*node, socket_name) :
                                           nullptr;
-    if (socket == nullptr || !MaterialParameterSocketSupportsObjectAttribute(*socket)) {
+    if (socket == nullptr ||
+        !upbge::logic_nodes::game_state::material_parameter_socket_supports_object_attribute(
+            *socket))
+    {
       return;
     }
 
-    const std::string attribute_name = MaterialParameterAttributeName(material, *node, *socket);
+    const std::string attribute_name =
+        upbge::logic_nodes::game_state::material_parameter_attribute_name(
+            material, *node, *socket);
     MaterialParameterDefaultStateKey binding_key;
     binding_key.material = material;
     binding_key.attribute_name = attribute_name;
@@ -3467,6 +4425,9 @@ void LN_CommandBuffer::PrewarmMaterialParameterBindings(LN_RuntimeTree &runtime_
   };
 
   for (const LN_Instruction &instruction : program->GetInstructions(LN_Event::OnInit)) {
+    prewarm_instruction(instruction);
+  }
+  for (const LN_Instruction &instruction : program->GetInstructions(LN_Event::OnUpdate)) {
     prewarm_instruction(instruction);
   }
   for (const LN_Instruction &instruction : program->GetInstructions(LN_Event::OnFixedUpdate)) {
@@ -3499,13 +4460,22 @@ KX_GameObject *LN_CommandBuffer::ExecuteAddObjectFromRefCommand(const Command &c
     return nullptr;
   }
 
-  const float scene_lifespan = add_object_life_seconds_to_scene_lifespan(command.scalar_value,
-                                                                        command.bool_value);
-  KX_GameObject *replica = command.bool_value ?
-                               scene->AddFullCopyObject(source, command.object, scene_lifespan) :
-                               scene->AddReplicaObject(source, command.object, scene_lifespan);
+  std::string persistence_error;
+  KX_GameObject *replica = execute_tracked_logic_nodes_add(m_logicManager,
+                                                           scene,
+                                                           source,
+                                                           command.object,
+                                                           command.scalar_value,
+                                                           command.bool_value,
+                                                           persistence_error,
+                                                           command.runtime_tree->GetGameObject());
   if (replica == nullptr) {
+    warn_command_failure_once(command, persistence_error);
     return nullptr;
+  }
+  /* Own Mesh (a Full Copy has its own anyway). */
+  if (command.secondary_bool_value && !command.bool_value && !replica->GiveOwnMesh()) {
+    warn_command_failure_once(command, "Own Mesh needs an ordinary copy of a mesh object");
   }
 
   if (command.property_ref_index != LN_INVALID_INDEX) {
@@ -3522,17 +4492,18 @@ KX_GameObject *LN_CommandBuffer::ExecuteAddObjectFromRefCommand(const Command &c
 
 void LN_CommandBuffer::SortCommands(std::vector<Command> &commands)
 {
-  std::stable_sort(commands.begin(), commands.end(), [](const Command &left, const Command &right) {
-    if (left.sort_key != right.sort_key) {
-      return left.sort_key < right.sort_key;
-    }
-    if (left.record_sequence != 0 && right.record_sequence != 0 &&
-        left.record_sequence != right.record_sequence)
-    {
-      return left.record_sequence < right.record_sequence;
-    }
-    return false;
-  });
+  std::stable_sort(
+      commands.begin(), commands.end(), [](const Command &left, const Command &right) {
+        if (left.sort_key != right.sort_key) {
+          return left.sort_key < right.sort_key;
+        }
+        if (left.record_sequence != 0 && right.record_sequence != 0 &&
+            left.record_sequence != right.record_sequence)
+        {
+          return left.record_sequence < right.record_sequence;
+        }
+        return false;
+      });
 }
 
 LN_CommandBuffer::CommandSubsystem LN_CommandBuffer::GetCommandSubsystem(const CommandType type)
@@ -3574,6 +4545,8 @@ LN_CommandBuffer::CommandSubsystem LN_CommandBuffer::GetCommandSubsystem(const C
     case CommandType::SetVehicleSuspensionDamping:
     case CommandType::SetVehicleWheelFriction:
       return CommandSubsystem::ObjectPhysics;
+    case CommandType::SetUIInteractable:
+    case CommandType::ResetSmoothing:
     case CommandType::SetVisibility:
     case CommandType::SetObjectColor:
       return CommandSubsystem::ObjectState;
@@ -3583,10 +4556,14 @@ LN_CommandBuffer::CommandSubsystem LN_CommandBuffer::GetCommandSubsystem(const C
     case CommandType::SetLightShadow:
       return CommandSubsystem::Light;
     case CommandType::SetGameProperty:
+    case CommandType::ModifyGameProperty:
       return CommandSubsystem::ObjectProperty;
     case CommandType::SetTreeProperty:
     case CommandType::SetLogicTreeEnabled:
     case CommandType::InstallLogicTree:
+    case CommandType::SetUIFocus:
+    case CommandType::SetPlayerPointer:
+    case CommandType::TakeUIControl:
       return CommandSubsystem::TreeState;
     case CommandType::AddObject:
     case CommandType::AddObjectFromRef:
@@ -3594,10 +4571,16 @@ LN_CommandBuffer::CommandSubsystem LN_CommandBuffer::GetCommandSubsystem(const C
       return CommandSubsystem::ObjectLifecycle;
     case CommandType::SetGravity:
     case CommandType::SetTimeScale:
+    case CommandType::SetGamePaused:
+    case CommandType::SetPhysicsPaused:
       return CommandSubsystem::SceneState;
     case CommandType::SetActiveCamera:
     case CommandType::SetCameraFov:
     case CommandType::SetCameraOrthoScale:
+    case CommandType::SetPlayerCamera:
+    case CommandType::SetSplitScreen:
+    case CommandType::SetCameraViewport:
+    case CommandType::SetCameraVisibility:
       return CommandSubsystem::Camera;
     case CommandType::SetParent:
     case CommandType::SetParentFromRef:
@@ -3606,6 +4589,7 @@ LN_CommandBuffer::CommandSubsystem LN_CommandBuffer::GetCommandSubsystem(const C
     case CommandType::SetCursorVisibility:
     case CommandType::SetCursorPosition:
     case CommandType::SetGamepadVibration:
+    case CommandType::SetPlayerGamepad:
     case CommandType::SetWindowSize:
     case CommandType::SetFullscreen:
     case CommandType::SetVSync:
@@ -3624,6 +4608,7 @@ LN_CommandBuffer::CommandSubsystem LN_CommandBuffer::GetCommandSubsystem(const C
     case CommandType::PlayAction:
     case CommandType::StopAction:
     case CommandType::SetActionFrame:
+    case CommandType::SetShapeKeyValue:
     case CommandType::SetBonePoseLocation:
     case CommandType::SetBonePoseRotation:
     case CommandType::SetBonePoseScale:
@@ -3639,15 +4624,22 @@ LN_CommandBuffer::CommandSubsystem LN_CommandBuffer::GetCommandSubsystem(const C
     case CommandType::PauseSound:
     case CommandType::ResumeSound:
     case CommandType::StopSound:
+    case CommandType::SetSoundVolume:
       return CommandSubsystem::Sound;
     case CommandType::SendEvent:
       return CommandSubsystem::Events;
     case CommandType::MoveToward:
     case CommandType::SlowFollow:
       return CommandSubsystem::ObjectTransform;
+    case CommandType::SetOverlayCollection:
+    case CommandType::RemoveOverlayCollection:
+    case CommandType::OpenObjectMenu:
+    case CommandType::CloseObjectMenu:
+      return CommandSubsystem::SceneState;
     case CommandType::LoadScene:
     case CommandType::SetScene:
     case CommandType::SaveGame:
+    case CommandType::SetSaveExistence:
     case CommandType::LoadGame:
       return CommandSubsystem::GameLifecycle;
     case CommandType::AlignAxisToVector:
@@ -3723,12 +4715,14 @@ LN_CommandBuffer::CommandSubsystemPolicy LN_CommandBuffer::GetCommandSubsystemPo
       return {CommandThreadPolicy::SnapshotReadOnly,
               CommandThreadPolicy::MainThreadFlush,
               "KX_Scene/KX_KetsjiEngine",
-              "Scene gravity and engine timescale writes are main-thread engine commands."};
+              "Scene gravity, overlay membership, and engine time/pause writes are main-thread "
+              "engine commands."};
     case CommandSubsystem::Parenting:
-      return {CommandThreadPolicy::MainThreadQuery,
-              CommandThreadPolicy::MainThreadFlush,
-              "KX_GameObject scene graph",
-              "Hierarchy changes are flushed on the game thread after all trees finish evaluating."};
+      return {
+          CommandThreadPolicy::MainThreadQuery,
+          CommandThreadPolicy::MainThreadFlush,
+          "KX_GameObject scene graph",
+          "Hierarchy changes are flushed on the game thread after all trees finish evaluating."};
     case CommandSubsystem::Animation:
       return {CommandThreadPolicy::MainThreadQuery,
               CommandThreadPolicy::MainThreadFlush,
@@ -3757,15 +4751,17 @@ LN_CommandBuffer::CommandSubsystemPolicy LN_CommandBuffer::GetCommandSubsystemPo
               "RAS_ICanvas/RAS_2DFilterManager",
               "Render and viewport state belong to the rasterizer/canvas thread-facing services."};
     case CommandSubsystem::Window:
-      return {CommandThreadPolicy::MainThreadQuery,
-              CommandThreadPolicy::MainThreadFlush,
-              "RAS_ICanvas/DEV_Joystick",
-              "Window, cursor and device feedback commands flush through the active engine canvas."};
+      return {
+          CommandThreadPolicy::MainThreadQuery,
+          CommandThreadPolicy::MainThreadFlush,
+          "RAS_ICanvas/DEV_Joystick",
+          "Window, cursor and device feedback commands flush through the active engine canvas."};
     case CommandSubsystem::Datablock:
       return {CommandThreadPolicy::MainThreadQuery,
               CommandThreadPolicy::Unsupported,
               "LN_RuntimeRef/Blender ID",
-              "Datablock sockets may carry refs; mutation waits for resource-specific command handlers."};
+              "Datablock sockets may carry refs; mutation waits for resource-specific command "
+              "handlers."};
     case CommandSubsystem::Collection:
       return {CommandThreadPolicy::MainThreadQuery,
               CommandThreadPolicy::MainThreadFlush,
@@ -3775,7 +4771,8 @@ LN_CommandBuffer::CommandSubsystemPolicy LN_CommandBuffer::GetCommandSubsystemPo
       return {CommandThreadPolicy::MainThreadQuery,
               CommandThreadPolicy::Unsupported,
               "Mesh/Geometry data-block services",
-              "Geometry reads need an explicit snapshot or evaluated-geometry owner before worker use."};
+              "Geometry reads need an explicit snapshot or evaluated-geometry owner before worker "
+              "use."};
     case CommandSubsystem::Group:
       return {CommandThreadPolicy::Unsupported,
               CommandThreadPolicy::Unsupported,
@@ -3790,8 +4787,9 @@ LN_CommandBuffer::CommandSubsystemPolicy LN_CommandBuffer::GetCommandSubsystemPo
       return {CommandThreadPolicy::Unsupported,
               CommandThreadPolicy::MainThreadFlush,
               "KX_KetsjiEngine",
-              "Game lifecycle commands (quit, restart, load file) are fire-and-forget engine "
-              "requests that execute at the end of the flush cycle."};
+              "Game and scene lifecycle commands are deferred to the main thread; quit, restart, "
+              "and load file request launcher transitions, while checkpoint operations commit at "
+              "controlled engine boundaries."};
     case CommandSubsystem::Events:
       return {CommandThreadPolicy::SnapshotReadOnly,
               CommandThreadPolicy::MainThreadFlush,
@@ -3817,6 +4815,8 @@ LN_CommandBuffer::CommandThreadPolicy LN_CommandBuffer::GetCommandThreadPolicy(
     case CommandType::SetAngularVelocity:
     case CommandType::SetLocalAngularVelocity:
     case CommandType::ApplyImpulse:
+    case CommandType::SetUIInteractable:
+    case CommandType::ResetSmoothing:
     case CommandType::SetVisibility:
     case CommandType::SetObjectColor:
     case CommandType::MakeLightUnique:
@@ -3828,6 +4828,7 @@ LN_CommandBuffer::CommandThreadPolicy LN_CommandBuffer::GetCommandThreadPolicy(
     case CommandType::ApplyForce:
     case CommandType::ApplyTorque:
     case CommandType::SetGameProperty:
+    case CommandType::ModifyGameProperty:
     case CommandType::AddObject:
     case CommandType::AddObjectFromRef:
     case CommandType::SetParent:
@@ -3836,9 +4837,15 @@ LN_CommandBuffer::CommandThreadPolicy LN_CommandBuffer::GetCommandThreadPolicy(
     case CommandType::RemoveObject:
     case CommandType::SetGravity:
     case CommandType::SetTimeScale:
+    case CommandType::SetGamePaused:
+    case CommandType::SetPhysicsPaused:
     case CommandType::SetActiveCamera:
     case CommandType::SetCameraFov:
     case CommandType::SetCameraOrthoScale:
+    case CommandType::SetPlayerCamera:
+    case CommandType::SetSplitScreen:
+    case CommandType::SetCameraViewport:
+    case CommandType::SetCameraVisibility:
     case CommandType::SetCollisionGroup:
     case CommandType::SetPhysics:
     case CommandType::SetDynamics:
@@ -3864,6 +4871,7 @@ LN_CommandBuffer::CommandThreadPolicy LN_CommandBuffer::GetCommandThreadPolicy(
     case CommandType::SetCursorVisibility:
     case CommandType::SetCursorPosition:
     case CommandType::SetGamepadVibration:
+    case CommandType::SetPlayerGamepad:
     case CommandType::SetWindowSize:
     case CommandType::SetFullscreen:
     case CommandType::SetVSync:
@@ -3877,18 +4885,28 @@ LN_CommandBuffer::CommandThreadPolicy LN_CommandBuffer::GetCommandThreadPolicy(
     case CommandType::PlayAction:
     case CommandType::StopAction:
     case CommandType::SetActionFrame:
+    case CommandType::SetShapeKeyValue:
     case CommandType::StopAllSounds:
     case CommandType::PlaySound:
     case CommandType::PlaySound3D:
     case CommandType::PauseSound:
     case CommandType::ResumeSound:
     case CommandType::StopSound:
+    case CommandType::SetSoundVolume:
     case CommandType::SendEvent:
     case CommandType::MoveToward:
     case CommandType::SlowFollow:
+    case CommandType::SetOverlayCollection:
+    case CommandType::RemoveOverlayCollection:
+    case CommandType::OpenObjectMenu:
+    case CommandType::CloseObjectMenu:
+    case CommandType::SetUIFocus:
+    case CommandType::SetPlayerPointer:
+    case CommandType::TakeUIControl:
     case CommandType::LoadScene:
     case CommandType::SetScene:
     case CommandType::SaveGame:
+    case CommandType::SetSaveExistence:
     case CommandType::LoadGame:
     case CommandType::AlignAxisToVector:
     case CommandType::RotateToward:
@@ -3938,6 +4956,7 @@ LN_CommandBuffer::CommandClass LN_CommandBuffer::GetCommandClass(const CommandTy
     case CommandType::ApplyTorque:
       return CommandClass::RelativeObjectVector;
     case CommandType::SetGameProperty:
+    case CommandType::ModifyGameProperty:
       return CommandClass::GamePropertyWrite;
     case CommandType::SetTreeProperty:
       return CommandClass::TreePropertyWrite;
@@ -3948,6 +4967,7 @@ LN_CommandBuffer::CommandClass LN_CommandBuffer::GetCommandClass(const CommandTy
     case CommandType::PauseSound:
     case CommandType::ResumeSound:
     case CommandType::StopSound:
+    case CommandType::SetSoundVolume:
       return CommandClass::SimpleAudioSideEffect;
     case CommandType::AddObject:
     case CommandType::AddObjectFromRef:
@@ -3958,6 +4978,8 @@ LN_CommandBuffer::CommandClass LN_CommandBuffer::GetCommandClass(const CommandTy
     case CommandType::ReplaceMesh:
     case CommandType::CopyProperty:
       return CommandClass::ObjectLifecycleMutation;
+    case CommandType::SetUIInteractable:
+    case CommandType::ResetSmoothing:
     case CommandType::SetVisibility:
     case CommandType::SetObjectColor:
     case CommandType::MakeLightUnique:
@@ -3966,9 +4988,22 @@ LN_CommandBuffer::CommandClass LN_CommandBuffer::GetCommandClass(const CommandTy
     case CommandType::SetLightShadow:
     case CommandType::SetGravity:
     case CommandType::SetTimeScale:
+    case CommandType::SetGamePaused:
+    case CommandType::SetPhysicsPaused:
     case CommandType::SetActiveCamera:
     case CommandType::SetCameraFov:
     case CommandType::SetCameraOrthoScale:
+    case CommandType::SetPlayerCamera:
+    case CommandType::SetSplitScreen:
+    case CommandType::SetCameraViewport:
+    case CommandType::SetCameraVisibility:
+    case CommandType::SetOverlayCollection:
+    case CommandType::RemoveOverlayCollection:
+    case CommandType::OpenObjectMenu:
+    case CommandType::CloseObjectMenu:
+    case CommandType::SetUIFocus:
+    case CommandType::SetPlayerPointer:
+    case CommandType::TakeUIControl:
       return CommandClass::ObjectServiceMutation;
     case CommandType::ApplyImpulse:
     case CommandType::SetCollisionGroup:
@@ -4030,6 +5065,7 @@ LN_CommandBuffer::CommandBarrier LN_CommandBuffer::GetCommandBarrier(const Comma
     case CommandType::AlignAxisToVector:
     case CommandType::RotateToward:
     case CommandType::CopyProperty:
+    case CommandType::ModifyGameProperty:
       return CommandBarrier::RelativeMutation;
     case CommandType::AddObject:
     case CommandType::AddObjectFromRef:
@@ -4041,9 +5077,22 @@ LN_CommandBuffer::CommandBarrier LN_CommandBuffer::GetCommandBarrier(const Comma
       return CommandBarrier::ObjectLifecycle;
     case CommandType::SetGravity:
     case CommandType::SetTimeScale:
+    case CommandType::SetGamePaused:
+    case CommandType::SetPhysicsPaused:
     case CommandType::SetActiveCamera:
     case CommandType::SetCameraFov:
     case CommandType::SetCameraOrthoScale:
+    case CommandType::SetPlayerCamera:
+    case CommandType::SetSplitScreen:
+    case CommandType::SetCameraViewport:
+    case CommandType::SetCameraVisibility:
+    case CommandType::SetOverlayCollection:
+    case CommandType::RemoveOverlayCollection:
+    case CommandType::OpenObjectMenu:
+    case CommandType::CloseObjectMenu:
+    case CommandType::SetUIFocus:
+    case CommandType::SetPlayerPointer:
+    case CommandType::TakeUIControl:
     case CommandType::MakeLightUnique:
     case CommandType::SetLightColor:
     case CommandType::SetLightPower:
@@ -4059,6 +5108,7 @@ LN_CommandBuffer::CommandBarrier LN_CommandBuffer::GetCommandBarrier(const Comma
     case CommandType::SetNodeMute:
     case CommandType::EnableDisableModifier:
     case CommandType::SetMaterialSlot:
+    case CommandType::SetShapeKeyValue:
       return CommandBarrier::SceneDatablockMutation;
     case CommandType::SendEvent:
       return CommandBarrier::EventMessage;
@@ -4068,9 +5118,11 @@ LN_CommandBuffer::CommandBarrier LN_CommandBuffer::GetCommandBarrier(const Comma
     case CommandType::ResumeSound:
     case CommandType::StopSound:
     case CommandType::StopAllSounds:
+    case CommandType::SetSoundVolume:
     case CommandType::SetCursorVisibility:
     case CommandType::SetCursorPosition:
     case CommandType::SetGamepadVibration:
+    case CommandType::SetPlayerGamepad:
     case CommandType::SetWindowSize:
     case CommandType::SetFullscreen:
     case CommandType::SetVSync:
@@ -4078,6 +5130,7 @@ LN_CommandBuffer::CommandBarrier LN_CommandBuffer::GetCommandBarrier(const Comma
     case CommandType::RestartGame:
     case CommandType::LoadBlendFile:
     case CommandType::SaveGame:
+    case CommandType::SetSaveExistence:
     case CommandType::LoadGame:
       return CommandBarrier::ExternalSideEffect;
     case CommandType::Print:
@@ -4106,6 +5159,7 @@ LN_CommandBuffer::CoalescingPolicy LN_CommandBuffer::GetCoalescingPolicy(const C
     case CommandType::SetGameProperty:
     case CommandType::SetTreeProperty:
     case CommandType::SetMaterialParameter:
+    case CommandType::SetShapeKeyValue:
     case CommandType::SetGeometryNodesInput:
     case CommandType::SetGeometryNodeSocketValue:
     case CommandType::SetCompositorNodeSocketValue:
@@ -4120,9 +5174,12 @@ bool LN_CommandBuffer::AllowsObjectlessFlush(const CommandType type)
 {
   switch (type) {
     case CommandType::SetTreeProperty:
+    case CommandType::SetGamePaused:
+    case CommandType::SetPhysicsPaused:
     case CommandType::SetCursorVisibility:
     case CommandType::SetCursorPosition:
     case CommandType::SetGamepadVibration:
+    case CommandType::SetPlayerGamepad:
     case CommandType::SetWindowSize:
     case CommandType::SetFullscreen:
     case CommandType::SetVSync:
@@ -4133,14 +5190,13 @@ bool LN_CommandBuffer::AllowsObjectlessFlush(const CommandType type)
     case CommandType::QuitGame:
     case CommandType::RestartGame:
     case CommandType::LoadBlendFile:
-    case CommandType::LoadScene:
-    case CommandType::SetScene:
     case CommandType::StopAllSounds:
     case CommandType::PlaySound:
     case CommandType::PlaySound3D:
     case CommandType::PauseSound:
     case CommandType::ResumeSound:
     case CommandType::StopSound:
+    case CommandType::SetSoundVolume:
     case CommandType::SetMaterialParameter:
     case CommandType::SetMaterialNodeSocketValue:
     case CommandType::SetCompositorNodeSocketValue:
@@ -4203,9 +5259,8 @@ LN_CommandBuffer::CommandHeader LN_CommandBuffer::MakeCommandHeader(
 
 void LN_CommandBuffer::AppendLegacyCommand(Command command)
 {
-  const CommandHeader header = MakeCommandHeader(command.type,
-                                                 command.sort_key,
-                                                 command.source_ref_index);
+  const CommandHeader header = MakeCommandHeader(
+      command.type, command.sort_key, command.source_ref_index);
   if (!m_commands.empty() &&
       !logic_node_command_order_less_or_equal(m_commands.back().sort_key,
                                               m_commands.back().record_sequence,
@@ -4216,6 +5271,9 @@ void LN_CommandBuffer::AppendLegacyCommand(Command command)
   }
   if (header.coalescing == CoalescingPolicy::LastWriteWinsWithinBarrierSegment) {
     m_coalescibleCommandCount++;
+  }
+  if (IsObjectTransformCommand(command.type)) {
+    m_legacyTransformRecorded = true;
   }
   command.record_sequence = header.record_sequence;
   m_commands.push_back(std::move(command));
@@ -4268,9 +5326,46 @@ void LN_CommandBuffer::AppendTypedVectorCommand(const CommandType type,
   }
   else if (command.header.command_class == CommandClass::RelativeObjectVector) {
     AppendTypedCommand(m_relativeVectorCommands, command);
+    IndexAppendedTransform(m_relativeVectorCommands);
   }
   else {
     AppendTypedCommand(m_transformCommands, command);
+    IndexAppendedTransform(m_transformCommands);
+  }
+}
+
+void LN_CommandBuffer::AppendTypedRotationCommand(const CommandType type,
+                                                  KX_GameObject *gameobj,
+                                                  const LN_Rotation &value,
+                                                  const bool bool_value,
+                                                  const uint64_t sort_key,
+                                                  const uint32_t source_ref_index)
+{
+  if (!m_typedCommandStreamsEnabled) {
+    Command command;
+    command.type = type;
+    command.object = gameobj;
+    command.rotation_value = value;
+    command.bool_value = bool_value;
+    command.sort_key = sort_key;
+    command.source_ref_index = source_ref_index;
+    AppendLegacyCommand(std::move(command));
+    return;
+  }
+
+  TypedVectorCommand command;
+  command.header = MakeCommandHeader(type, sort_key, source_ref_index);
+  command.type = type;
+  command.object = gameobj;
+  command.rotation_value = value;
+  command.bool_value = bool_value;
+  if (command.header.command_class == CommandClass::RelativeObjectVector) {
+    AppendTypedCommand(m_relativeVectorCommands, command);
+    IndexAppendedTransform(m_relativeVectorCommands);
+  }
+  else {
+    AppendTypedCommand(m_transformCommands, command);
+    IndexAppendedTransform(m_transformCommands);
   }
 }
 
@@ -4359,7 +5454,7 @@ void LN_CommandBuffer::AppendTypedRuntimeServiceCommand(const CommandType type,
 
 void LN_CommandBuffer::AppendTypedAnimationCommand(const CommandType type,
                                                    KX_GameObject *gameobj,
-                                                   const std::string &action_name,
+                                                   const std::string &target_name,
                                                    const float start_frame,
                                                    const float end_frame,
                                                    const float blendin,
@@ -4370,19 +5465,25 @@ void LN_CommandBuffer::AppendTypedAnimationCommand(const CommandType type,
                                                    const int32_t priority,
                                                    const uint32_t animation_flags,
                                                    const uint64_t sort_key,
-                                                   const uint32_t source_ref_index)
+                                                   const uint32_t source_ref_index,
+                                                   LN_RuntimeTree *runtime_tree,
+                                                   const uint32_t completion_expression_index,
+                                                   const uint8_t action_output_mask)
 {
   if (!m_typedCommandStreamsEnabled) {
     Command command;
     command.type = type;
     command.object = gameobj;
-    command.property_name = action_name;
+    command.runtime_tree = runtime_tree;
+    command.property_name = target_name;
     command.vector_value = MT_Vector3(start_frame, end_frame, blendin);
     command.secondary_vector_value = MT_Vector3(layer_weight, playback_speed, 0.0f);
     command.scalar_value = frame;
     command.int_value = layer;
     command.secondary_int_value = priority;
     command.animation_flags = animation_flags;
+    command.property_ref_index = completion_expression_index;
+    command.action_output_mask = action_output_mask;
     command.sort_key = sort_key;
     command.source_ref_index = source_ref_index;
     AppendLegacyCommand(std::move(command));
@@ -4393,7 +5494,8 @@ void LN_CommandBuffer::AppendTypedAnimationCommand(const CommandType type,
   command.header = MakeCommandHeader(type, sort_key, source_ref_index);
   command.type = type;
   command.object = gameobj;
-  command.action_name = action_name;
+  command.runtime_tree = runtime_tree;
+  command.target_name = target_name;
   command.start_frame = start_frame;
   command.end_frame = end_frame;
   command.blendin = blendin;
@@ -4403,6 +5505,8 @@ void LN_CommandBuffer::AppendTypedAnimationCommand(const CommandType type,
   command.layer = layer;
   command.priority = priority;
   command.animation_flags = animation_flags;
+  command.completion_expression_index = completion_expression_index;
+  command.action_output_mask = action_output_mask;
   AppendTypedCommand(m_animationCommands, std::move(command));
 }
 
@@ -4463,6 +5567,7 @@ void LN_CommandBuffer::AppendTypedArmatureCommand(const CommandType type,
                                                   const std::string &attribute_name,
                                                   const MT_Vector3 &vector_value,
                                                   const MT_Vector3 &secondary_vector_value,
+                                                  const LN_Rotation &rotation_value,
                                                   const LN_Value &value,
                                                   const float scalar_value,
                                                   const int32_t int_value,
@@ -4480,6 +5585,7 @@ void LN_CommandBuffer::AppendTypedArmatureCommand(const CommandType type,
     command.tertiary_property_name = attribute_name;
     command.vector_value = vector_value;
     command.secondary_vector_value = secondary_vector_value;
+    command.rotation_value = rotation_value;
     command.property_value = value;
     command.scalar_value = scalar_value;
     command.int_value = int_value;
@@ -4500,6 +5606,7 @@ void LN_CommandBuffer::AppendTypedArmatureCommand(const CommandType type,
   command.attribute_name = attribute_name;
   command.vector_value = vector_value;
   command.secondary_vector_value = secondary_vector_value;
+  command.rotation_value = rotation_value;
   command.value = value;
   command.scalar_value = scalar_value;
   command.int_value = int_value;
@@ -4624,10 +5731,8 @@ struct LN_CommandCoalescingKeyHash {
   {
     size_t hash = std::hash<int>{}(int(key.type));
     hash ^= std::hash<uintptr_t>{}(key.object) + 0x9e3779b9u + (hash << 6u) + (hash >> 2u);
-    hash ^= std::hash<uintptr_t>{}(key.runtime_tree) + 0x9e3779b9u + (hash << 6u) +
-            (hash >> 2u);
-    hash ^= std::hash<uint32_t>{}(key.property_id) + 0x9e3779b9u + (hash << 6u) +
-            (hash >> 2u);
+    hash ^= std::hash<uintptr_t>{}(key.runtime_tree) + 0x9e3779b9u + (hash << 6u) + (hash >> 2u);
+    hash ^= std::hash<uint32_t>{}(key.property_id) + 0x9e3779b9u + (hash << 6u) + (hash >> 2u);
     hash ^= std::hash<uint32_t>{}(key.property_ref_index) + 0x9e3779b9u + (hash << 6u) +
             (hash >> 2u);
     hash ^= std::hash<uint32_t>{}(key.secondary_property_id) + 0x9e3779b9u + (hash << 6u) +
@@ -4638,12 +5743,12 @@ struct LN_CommandCoalescingKeyHash {
               (hash >> 2u);
     }
     if (!key.secondary_property_name.empty()) {
-      hash ^= std::hash<std::string>{}(key.secondary_property_name) + 0x9e3779b9u +
-              (hash << 6u) + (hash >> 2u);
+      hash ^= std::hash<std::string>{}(key.secondary_property_name) + 0x9e3779b9u + (hash << 6u) +
+              (hash >> 2u);
     }
     if (!key.tertiary_property_name.empty()) {
-      hash ^= std::hash<std::string>{}(key.tertiary_property_name) + 0x9e3779b9u +
-              (hash << 6u) + (hash >> 2u);
+      hash ^= std::hash<std::string>{}(key.tertiary_property_name) + 0x9e3779b9u + (hash << 6u) +
+              (hash >> 2u);
     }
     return hash;
   }
@@ -4683,6 +5788,10 @@ static LN_CommandCoalescingKey logic_node_command_coalescing_key(
     case LN_CommandBuffer::CommandType::SetTreeProperty:
       key.runtime_tree = reinterpret_cast<uintptr_t>(command.runtime_tree);
       key.property_ref_index = command.property_ref_index;
+      break;
+    case LN_CommandBuffer::CommandType::SetShapeKeyValue:
+      key.object = reinterpret_cast<uintptr_t>(command.object);
+      key.property_name = command.property_name;
       break;
     case LN_CommandBuffer::CommandType::SetMaterialParameter:
       key.object = reinterpret_cast<uintptr_t>(command.object);
@@ -4729,12 +5838,11 @@ static void logic_node_command_stream_coalesce(std::vector<LN_CommandBuffer::Com
 
   std::vector<LN_CommandBuffer::Command> coalesced;
   coalesced.reserve(commands.size());
-  std::unordered_map<LN_CommandCoalescingKey, size_t, LN_CommandCoalescingKeyHash>
-      active_slots;
+  std::unordered_map<LN_CommandCoalescingKey, size_t, LN_CommandCoalescingKeyHash> active_slots;
 
   for (LN_CommandBuffer::Command &command : commands) {
-    const LN_CommandBuffer::CoalescingPolicy policy =
-        LN_CommandBuffer::GetCoalescingPolicy(command.type);
+    const LN_CommandBuffer::CoalescingPolicy policy = LN_CommandBuffer::GetCoalescingPolicy(
+        command.type);
     if (policy != LN_CommandBuffer::CoalescingPolicy::LastWriteWinsWithinBarrierSegment) {
       coalesced.push_back(std::move(command));
       active_slots.clear();
@@ -4876,23 +5984,25 @@ void LN_CommandBuffer::RefreshCommandStreamTracking()
     }
   };
 
-  auto refresh_typed_object_service_stream = [&](const std::vector<TypedObjectServiceCommand> &stream) {
-    for (size_t index = 1; index < stream.size(); index++) {
-      track_order(stream[index - 1].header.sort_key,
-                  stream[index - 1].header.record_sequence,
-                  stream[index].header.sort_key,
-                  stream[index].header.record_sequence);
-    }
-  };
+  auto refresh_typed_object_service_stream =
+      [&](const std::vector<TypedObjectServiceCommand> &stream) {
+        for (size_t index = 1; index < stream.size(); index++) {
+          track_order(stream[index - 1].header.sort_key,
+                      stream[index - 1].header.record_sequence,
+                      stream[index].header.sort_key,
+                      stream[index].header.record_sequence);
+        }
+      };
 
-  auto refresh_typed_runtime_service_stream = [&](const std::vector<TypedRuntimeServiceCommand> &stream) {
-    for (size_t index = 1; index < stream.size(); index++) {
-      track_order(stream[index - 1].header.sort_key,
-                  stream[index - 1].header.record_sequence,
-                  stream[index].header.sort_key,
-                  stream[index].header.record_sequence);
-    }
-  };
+  auto refresh_typed_runtime_service_stream =
+      [&](const std::vector<TypedRuntimeServiceCommand> &stream) {
+        for (size_t index = 1; index < stream.size(); index++) {
+          track_order(stream[index - 1].header.sort_key,
+                      stream[index - 1].header.record_sequence,
+                      stream[index].header.sort_key,
+                      stream[index].header.record_sequence);
+        }
+      };
 
   auto refresh_typed_animation_stream = [&](const std::vector<TypedAnimationCommand> &stream) {
     for (size_t index = 1; index < stream.size(); index++) {
@@ -4967,6 +6077,29 @@ void LN_CommandBuffer::RefreshCommandStreamTracking()
   refresh_typed_motion_stream(m_motionCommands);
 }
 
+LN_CommandBuffer::Command LN_CommandBuffer::MakeArmatureCommand(
+    const TypedArmatureCommand &typed_command)
+{
+  Command command;
+  command.type = typed_command.type;
+  command.object = typed_command.object;
+  command.runtime_tree = typed_command.runtime_tree;
+  command.property_name = typed_command.bone_name;
+  command.secondary_property_name = typed_command.constraint_name;
+  command.tertiary_property_name = typed_command.attribute_name;
+  command.vector_value = typed_command.vector_value;
+  command.secondary_vector_value = typed_command.secondary_vector_value;
+  command.rotation_value = typed_command.rotation_value;
+  command.property_value = typed_command.value;
+  command.scalar_value = typed_command.scalar_value;
+  command.int_value = typed_command.int_value;
+  command.secondary_int_value = typed_command.secondary_int_value;
+  command.sort_key = typed_command.header.sort_key;
+  command.record_sequence = typed_command.header.record_sequence;
+  command.source_ref_index = typed_command.header.source_ref_index;
+  return command;
+}
+
 std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
     const bool enable_coalescing, const bool sort_commands, CommandStreamStats *r_stats) const
 {
@@ -4988,15 +6121,12 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
   stats.typed_physics_count = uint32_t(m_physicsCommands.size());
 
   const size_t total_command_count = m_commands.size() + m_transformCommands.size() +
-                                     m_velocityCommands.size() +
-                                     m_relativeVectorCommands.size() + m_motionCommands.size() +
-                                     m_propertyCommands.size() + m_eventCommands.size() +
-                                     m_audioCommands.size() +
-                                     m_lifecycleCommands.size() +
-                                     m_objectServiceCommands.size() +
-                                     m_runtimeServiceCommands.size() +
-                                     m_animationCommands.size() + m_armatureCommands.size() +
-                                     m_materialCommands.size() +
+                                     m_velocityCommands.size() + m_relativeVectorCommands.size() +
+                                     m_motionCommands.size() + m_propertyCommands.size() +
+                                     m_eventCommands.size() + m_audioCommands.size() +
+                                     m_lifecycleCommands.size() + m_objectServiceCommands.size() +
+                                     m_runtimeServiceCommands.size() + m_animationCommands.size() +
+                                     m_armatureCommands.size() + m_materialCommands.size() +
                                      m_physicsCommands.size();
 
   std::vector<Command> commands;
@@ -5007,6 +6137,7 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
     command.type = typed_command.type;
     command.object = typed_command.object;
     command.vector_value = typed_command.value;
+    command.rotation_value = typed_command.rotation_value;
     command.bool_value = typed_command.bool_value;
     command.sort_key = typed_command.header.sort_key;
     command.record_sequence = typed_command.header.record_sequence;
@@ -5026,6 +6157,7 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
     command.property_ref_index = typed_command.property_ref_index;
     command.property_name = typed_command.property_name;
     command.property_value = typed_command.value;
+    command.modify = typed_command.modify;
     command.sort_key = typed_command.header.sort_key;
     command.record_sequence = typed_command.header.record_sequence;
     command.source_ref_index = typed_command.header.source_ref_index;
@@ -5060,8 +6192,16 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
     {
       command.property_name = m_logicManager->DebugName(typed_command.sound_id);
     }
-    command.vector_value = MT_Vector3(typed_command.volume, typed_command.pitch, 0.0f);
+    /* Set Volume: (volume, fade), as AppendSetSoundVolume records it without typed streams. */
+    command.vector_value = MT_Vector3(typed_command.volume,
+                                      typed_command.type == CommandType::SetSoundVolume ?
+                                          typed_command.fade :
+                                          typed_command.pitch,
+                                      0.0f);
     command.bool_value = typed_command.loop;
+    command.int_value = typed_command.listener;
+    command.secondary_int_value = typed_command.listener_user;
+    command.sound_group = uint8_t(typed_command.group);
     command.sort_key = typed_command.header.sort_key;
     command.record_sequence = typed_command.header.record_sequence;
     command.source_ref_index = typed_command.header.source_ref_index;
@@ -5079,53 +6219,54 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
     command.property_ref_index = typed_command.property_ref_index;
     command.bool_value = typed_command.bool_value;
     command.secondary_bool_value = typed_command.secondary_bool_value;
+    command.parent_options = typed_command.parent_options;
     command.sort_key = typed_command.header.sort_key;
     command.record_sequence = typed_command.header.record_sequence;
     command.source_ref_index = typed_command.header.source_ref_index;
     commands.push_back(std::move(command));
   };
 
-  auto append_object_service_command = [&commands](const TypedObjectServiceCommand &typed_command) {
-    Command command;
-    command.type = typed_command.type;
-    command.object = typed_command.object;
-    command.vector_value = typed_command.vector_value;
-    command.color_value = typed_command.color_value;
-    command.scalar_value = typed_command.scalar_value;
-    command.bool_value = typed_command.bool_value;
-    command.secondary_bool_value = typed_command.secondary_bool_value;
-    command.sort_key = typed_command.header.sort_key;
-    command.record_sequence = typed_command.header.record_sequence;
-    command.source_ref_index = typed_command.header.source_ref_index;
-    commands.push_back(std::move(command));
-  };
+  auto append_object_service_command =
+      [&commands](const TypedObjectServiceCommand &typed_command) {
+        Command command;
+        command.type = typed_command.type;
+        command.object = typed_command.object;
+        command.vector_value = typed_command.vector_value;
+        command.color_value = typed_command.color_value;
+        command.scalar_value = typed_command.scalar_value;
+        command.bool_value = typed_command.bool_value;
+        command.secondary_bool_value = typed_command.secondary_bool_value;
+        command.sort_key = typed_command.header.sort_key;
+        command.record_sequence = typed_command.header.record_sequence;
+        command.source_ref_index = typed_command.header.source_ref_index;
+        commands.push_back(std::move(command));
+      };
 
-  auto append_runtime_service_command = [&commands](const TypedRuntimeServiceCommand &typed_command) {
-    Command command;
-    command.type = typed_command.type;
-    command.int_value = typed_command.int_value;
-    command.secondary_int_value = typed_command.secondary_int_value;
-    command.property_ref_index = typed_command.uint_value;
-    command.scalar_value = typed_command.scalar_value;
-    command.vector_value = MT_Vector3(typed_command.secondary_scalar_value, 0.0f, 0.0f);
-    command.bool_value = typed_command.bool_value;
-    command.sort_key = typed_command.header.sort_key;
-    command.record_sequence = typed_command.header.record_sequence;
-    command.source_ref_index = typed_command.header.source_ref_index;
-    commands.push_back(std::move(command));
-  };
+  auto append_runtime_service_command =
+      [&commands](const TypedRuntimeServiceCommand &typed_command) {
+        Command command;
+        command.type = typed_command.type;
+        command.int_value = typed_command.int_value;
+        command.secondary_int_value = typed_command.secondary_int_value;
+        command.property_ref_index = typed_command.uint_value;
+        command.scalar_value = typed_command.scalar_value;
+        command.vector_value = MT_Vector3(typed_command.secondary_scalar_value, 0.0f, 0.0f);
+        command.bool_value = typed_command.bool_value;
+        command.sort_key = typed_command.header.sort_key;
+        command.record_sequence = typed_command.header.record_sequence;
+        command.source_ref_index = typed_command.header.source_ref_index;
+        commands.push_back(std::move(command));
+      };
 
   auto append_animation_command = [&commands](const TypedAnimationCommand &typed_command) {
     Command command;
     command.type = typed_command.type;
     command.object = typed_command.object;
-    command.property_name = typed_command.action_name;
-    command.vector_value = MT_Vector3(typed_command.start_frame,
-                                      typed_command.end_frame,
-                                      typed_command.blendin);
-    command.secondary_vector_value = MT_Vector3(typed_command.layer_weight,
-                                                typed_command.playback_speed,
-                                                0.0f);
+    command.property_name = typed_command.target_name;
+    command.vector_value = MT_Vector3(
+        typed_command.start_frame, typed_command.end_frame, typed_command.blendin);
+    command.secondary_vector_value = MT_Vector3(
+        typed_command.layer_weight, typed_command.playback_speed, 0.0f);
     command.scalar_value = typed_command.frame;
     command.int_value = typed_command.layer;
     command.secondary_int_value = typed_command.priority;
@@ -5156,23 +6297,7 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
   };
 
   auto append_armature_command = [&commands](const TypedArmatureCommand &typed_command) {
-    Command command;
-    command.type = typed_command.type;
-    command.object = typed_command.object;
-    command.runtime_tree = typed_command.runtime_tree;
-    command.property_name = typed_command.bone_name;
-    command.secondary_property_name = typed_command.constraint_name;
-    command.tertiary_property_name = typed_command.attribute_name;
-    command.vector_value = typed_command.vector_value;
-    command.secondary_vector_value = typed_command.secondary_vector_value;
-    command.property_value = typed_command.value;
-    command.scalar_value = typed_command.scalar_value;
-    command.int_value = typed_command.int_value;
-    command.secondary_int_value = typed_command.secondary_int_value;
-    command.sort_key = typed_command.header.sort_key;
-    command.record_sequence = typed_command.header.record_sequence;
-    command.source_ref_index = typed_command.header.source_ref_index;
-    commands.push_back(std::move(command));
+    commands.push_back(MakeArmatureCommand(typed_command));
   };
 
   auto append_physics_command = [&commands](const TypedPhysicsCommand &typed_command) {
@@ -5457,15 +6582,14 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
     if (!legacy_stream_sorted() || !vector_stream_sorted(m_transformCommands) ||
         !vector_stream_sorted(m_velocityCommands) ||
         !vector_stream_sorted(m_relativeVectorCommands) ||
-        !motion_stream_sorted(m_motionCommands) ||
-        !property_stream_sorted(m_propertyCommands) || !event_stream_sorted(m_eventCommands) ||
-        !audio_stream_sorted(m_audioCommands) || !lifecycle_stream_sorted(m_lifecycleCommands) ||
+        !motion_stream_sorted(m_motionCommands) || !property_stream_sorted(m_propertyCommands) ||
+        !event_stream_sorted(m_eventCommands) || !audio_stream_sorted(m_audioCommands) ||
+        !lifecycle_stream_sorted(m_lifecycleCommands) ||
         !object_service_stream_sorted(m_objectServiceCommands) ||
         !runtime_service_stream_sorted(m_runtimeServiceCommands) ||
         !animation_stream_sorted(m_animationCommands) ||
         !armature_stream_sorted(m_armatureCommands) ||
-        !material_stream_sorted(m_materialCommands) ||
-        !physics_stream_sorted(m_physicsCommands))
+        !material_stream_sorted(m_materialCommands) || !physics_stream_sorted(m_physicsCommands))
     {
       return false;
     }
@@ -5603,11 +6727,10 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
         if (cursor.index >= cursor.size) {
           continue;
         }
-        if (selected == nullptr ||
-            logic_node_command_order_less(cursor.sort_key,
-                                          cursor.record_sequence,
-                                          selected->sort_key,
-                                          selected->record_sequence))
+        if (selected == nullptr || logic_node_command_order_less(cursor.sort_key,
+                                                                 cursor.record_sequence,
+                                                                 selected->sort_key,
+                                                                 selected->record_sequence))
         {
           selected = &cursor;
         }
@@ -5677,8 +6800,9 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
     append_commands_by_stream();
   }
 
-  const bool has_coalescible_commands =
-      enable_coalescing && logic_node_command_stream_has_coalescible_commands(commands);
+  const bool has_coalescible_commands = enable_coalescing &&
+                                        logic_node_command_stream_has_coalescible_commands(
+                                            commands);
 
   if ((sort_commands || has_coalescible_commands) && !planned_commands_sorted) {
     SortCommands(commands);
@@ -5715,6 +6839,8 @@ void LN_CommandBuffer::ClearTypedStreams()
   m_testPlannedCommands.clear();
   m_commandStreamsSorted = true;
   m_coalescibleCommandCount = 0;
+  m_appliedTransformCount = 0;
+  ForgetPendingTransformIndex();
   m_addObjectSourceInactiveCache.clear();
 }
 
@@ -5778,6 +6904,7 @@ void LN_CommandBuffer::BeginRecording()
   ClearTypedStreams();
   m_lastCommandStreamStats = CommandStreamStats();
   m_nextRecordSequence = 1;
+  m_legacyTransformRecorded = false;
   m_isRecording = true;
 }
 
@@ -5785,9 +6912,9 @@ void LN_CommandBuffer::EndRecording()
 {
   AssertMainThread();
   BLI_assert_msg(m_isRecording, "Logic Nodes command buffer cannot end recording before begin");
-  BLI_assert_msg(!m_isFlushing,
-                 "Logic Nodes command buffer cannot end recording while flushing");
+  BLI_assert_msg(!m_isFlushing, "Logic Nodes command buffer cannot end recording while flushing");
 
+  CompactAppliedTransforms();
   m_isRecording = false;
 }
 
@@ -5817,9 +6944,7 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::TakeFlushPlannedCommand
                  "Logic Nodes command buffer cannot plan flush commands while flushing");
 
   CommandStreamStats stats;
-  std::vector<Command> commands = BuildPlannedCommands(m_typedCommandStreamsEnabled,
-                                                       true,
-                                                       &stats);
+  std::vector<Command> commands = BuildPlannedCommands(m_typedCommandStreamsEnabled, true, &stats);
   m_lastCommandStreamStats = stats;
   m_commands.clear();
   ClearTypedStreams();
@@ -5831,6 +6956,9 @@ const std::vector<LN_CommandBuffer::Command> &LN_CommandBuffer::GetCommandsForTe
 {
   CommandStreamStats stats;
   m_testPlannedCommands = BuildPlannedCommands(false, false, &stats);
+  /* Transform writes a read already applied wait in their streams until the recording ends. */
+  std::erase_if(m_testPlannedCommands,
+                [](const Command &command) { return command.record_sequence == 0; });
   std::stable_sort(m_testPlannedCommands.begin(),
                    m_testPlannedCommands.end(),
                    [](const Command &left, const Command &right) {
@@ -5853,7 +6981,8 @@ void LN_CommandBuffer::AppendSetWorldPosition(KX_GameObject *gameobj,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  AppendTypedVectorCommand(CommandType::SetWorldPosition, gameobj, position, sort_key, source_ref_index);
+  AppendTypedVectorCommand(
+      CommandType::SetWorldPosition, gameobj, position, sort_key, source_ref_index);
 }
 
 void LN_CommandBuffer::AppendSetLocalLinearVelocity(KX_GameObject *gameobj,
@@ -5878,7 +7007,8 @@ void LN_CommandBuffer::AppendSetAngularVelocity(KX_GameObject *gameobj,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  AppendTypedVectorCommand(CommandType::SetAngularVelocity, gameobj, velocity, sort_key, source_ref_index);
+  AppendTypedVectorCommand(
+      CommandType::SetAngularVelocity, gameobj, velocity, sort_key, source_ref_index);
 }
 
 void LN_CommandBuffer::AppendSetLocalAngularVelocity(KX_GameObject *gameobj,
@@ -5903,7 +7033,8 @@ void LN_CommandBuffer::AppendSetLocalPosition(KX_GameObject *gameobj,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  AppendTypedVectorCommand(CommandType::SetLocalPosition, gameobj, position, sort_key, source_ref_index);
+  AppendTypedVectorCommand(
+      CommandType::SetLocalPosition, gameobj, position, sort_key, source_ref_index);
 }
 
 void LN_CommandBuffer::AppendSetWorldScale(KX_GameObject *gameobj,
@@ -5923,16 +7054,12 @@ void LN_CommandBuffer::AppendSetWorldOrientation(KX_GameObject *gameobj,
                                                  uint64_t sort_key,
                                                  uint32_t source_ref_index)
 {
-  AssertMainThread();
-  BLI_assert(m_isRecording);
-  BLI_assert(!m_isFlushing);
-
-  AppendTypedVectorCommand(
-      CommandType::SetWorldOrientation, gameobj, rotation, sort_key, source_ref_index);
+  AppendSetWorldOrientation(
+      gameobj, LN_Rotation::FromEulerXYZ(rotation), sort_key, source_ref_index);
 }
 
-void LN_CommandBuffer::AppendSetLocalOrientation(KX_GameObject *gameobj,
-                                                 const MT_Vector3 &rotation,
+void LN_CommandBuffer::AppendSetWorldOrientation(KX_GameObject *gameobj,
+                                                 const LN_Rotation &rotation,
                                                  uint64_t sort_key,
                                                  uint32_t source_ref_index)
 {
@@ -5940,8 +7067,30 @@ void LN_CommandBuffer::AppendSetLocalOrientation(KX_GameObject *gameobj,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  AppendTypedVectorCommand(
-      CommandType::SetLocalOrientation, gameobj, rotation, sort_key, source_ref_index);
+  AppendTypedRotationCommand(
+      CommandType::SetWorldOrientation, gameobj, rotation, false, sort_key, source_ref_index);
+}
+
+void LN_CommandBuffer::AppendSetLocalOrientation(KX_GameObject *gameobj,
+                                                 const MT_Vector3 &rotation,
+                                                 uint64_t sort_key,
+                                                 uint32_t source_ref_index)
+{
+  AppendSetLocalOrientation(
+      gameobj, LN_Rotation::FromEulerXYZ(rotation), sort_key, source_ref_index);
+}
+
+void LN_CommandBuffer::AppendSetLocalOrientation(KX_GameObject *gameobj,
+                                                 const LN_Rotation &rotation,
+                                                 uint64_t sort_key,
+                                                 uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+
+  AppendTypedRotationCommand(
+      CommandType::SetLocalOrientation, gameobj, rotation, false, sort_key, source_ref_index);
 }
 
 void LN_CommandBuffer::AppendSetLocalScale(KX_GameObject *gameobj,
@@ -5974,9 +7123,9 @@ void LN_CommandBuffer::AppendSetGameProperty(KX_GameObject *gameobj,
                                 m_logicManager->MakeObjectHandle(
                                     gameobj, gameobj ? gameobj->GetName() : std::string()) :
                                 LN_ObjectHandle{};
-    command.game_property_id = m_logicManager ? m_logicManager->InternGamePropertyName(
-                                                   property_name) :
-                                               LN_GamePropertyId{};
+    command.game_property_id = m_logicManager ?
+                                   m_logicManager->InternGamePropertyName(property_name) :
+                                   LN_GamePropertyId{};
     command.property_name = property_name;
     command.property_value = value;
     command.sort_key = sort_key;
@@ -5993,9 +7142,9 @@ void LN_CommandBuffer::AppendSetGameProperty(KX_GameObject *gameobj,
                               m_logicManager->MakeObjectHandle(
                                   gameobj, gameobj ? gameobj->GetName() : std::string()) :
                               LN_ObjectHandle{};
-  command.game_property_id = m_logicManager ? m_logicManager->InternGamePropertyName(
-                                                 property_name) :
-                                             LN_GamePropertyId{};
+  command.game_property_id = m_logicManager ?
+                                 m_logicManager->InternGamePropertyName(property_name) :
+                                 LN_GamePropertyId{};
   command.property_name = property_name;
   command.value = value;
   AppendTypedCommand(m_propertyCommands, std::move(command));
@@ -6057,6 +7206,64 @@ void LN_CommandBuffer::AppendSetGamePropertyRef(LN_RuntimeTree *runtime_tree,
       command.property_name_id = property_refs[property_ref_index].name_id;
       command.property_name_ptr = &property_refs[property_ref_index].name;
     }
+  }
+  AppendTypedCommand(m_propertyCommands, std::move(command));
+}
+
+void LN_CommandBuffer::AppendModifyGameProperty(LN_RuntimeTree *runtime_tree,
+                                                KX_GameObject *gameobj,
+                                                const uint32_t property_ref_index,
+                                                const LN_PropertyModify &modify,
+                                                const uint64_t sort_key,
+                                                const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+
+  if (runtime_tree == nullptr || property_ref_index == LN_INVALID_INDEX) {
+    return;
+  }
+  const std::shared_ptr<const LN_Program> program = runtime_tree->GetProgram();
+  const LN_GamePropertyRef *property_ref =
+      program != nullptr && property_ref_index < program->GetGamePropertyRefs().size() ?
+          &program->GetGamePropertyRefs()[property_ref_index] :
+          nullptr;
+  const LN_ObjectHandle object_handle = gameobj == runtime_tree->GetGameObject() ?
+                                            runtime_tree->GetOwnerObjectHandle() :
+                                            LN_ObjectHandle{};
+
+  if (!m_typedCommandStreamsEnabled) {
+    Command command;
+    command.type = CommandType::ModifyGameProperty;
+    command.object = gameobj;
+    command.object_handle = object_handle;
+    command.runtime_tree = runtime_tree;
+    command.property_ref_index = property_ref_index;
+    command.game_property_id = runtime_tree->GetGamePropertyId(property_ref_index);
+    command.modify = modify;
+    command.sort_key = sort_key;
+    command.source_ref_index = source_ref_index;
+    if (property_ref != nullptr) {
+      command.property_name_id = property_ref->name_id;
+      command.property_name_ptr = &property_ref->name;
+    }
+    AppendLegacyCommand(std::move(command));
+    return;
+  }
+
+  TypedPropertyCommand command;
+  command.header = MakeCommandHeader(CommandType::ModifyGameProperty, sort_key, source_ref_index);
+  command.type = CommandType::ModifyGameProperty;
+  command.object = gameobj;
+  command.object_handle = object_handle;
+  command.runtime_tree = runtime_tree;
+  command.property_ref_index = property_ref_index;
+  command.game_property_id = runtime_tree->GetGamePropertyId(property_ref_index);
+  command.modify = modify;
+  if (property_ref != nullptr) {
+    command.property_name_id = property_ref->name_id;
+    command.property_name_ptr = &property_ref->name;
   }
   AppendTypedCommand(m_propertyCommands, std::move(command));
 }
@@ -6174,12 +7381,86 @@ void LN_CommandBuffer::AppendAddObjectFromRef(LN_RuntimeTree *runtime_tree,
   AppendTypedCommand(m_lifecycleCommands, std::move(command));
 }
 
+KX_GameObject *LN_CommandBuffer::AddTrackedObject(LN_Manager *manager,
+                                                  KX_GameObject *source,
+                                                  KX_GameObject *reference,
+                                                  std::string &r_error)
+{
+  KX_Scene *scene = source != nullptr ? source->GetScene() : nullptr;
+  return execute_tracked_logic_nodes_add(manager, scene, source, reference, 0.0f, false, r_error);
+}
+
+void LN_CommandBuffer::UpdateSoundGroups()
+{
+#ifdef WITH_AUDASPACE
+  if (!g_logic_native_sound_groups.Fading()) {
+    return;
+  }
+  if (g_logic_native_sound_groups.Advance(logic_native_sound_clock())) {
+    logic_native_sound_handles_prune();
+    for (const LogicNativeSoundHandle &entry : g_logic_native_sound_handles) {
+      logic_native_sound_apply_volume(entry);
+    }
+    logic_native_sound_apply_master();
+  }
+#endif
+}
+
+void LN_CommandBuffer::ResetSoundGroups()
+{
+#ifdef WITH_AUDASPACE
+  g_logic_native_sound_groups.Reset();
+  if (g_logic_native_master_changed) {
+    if (auto device = aud::DeviceManager::getDevice()) {
+      device->setVolume(g_logic_native_master_before);
+    }
+    g_logic_native_master_changed = false;
+  }
+  g_logic_native_master_before = 1.0f;
+#endif
+}
+
+void LN_ResetSoundGroups()
+{
+  LN_CommandBuffer::ResetSoundGroups();
+}
+
+float LN_CommandBuffer::SoundGroupVolume(const int32_t group)
+{
+#ifdef WITH_AUDASPACE
+  return g_logic_native_sound_groups.Volume(LN_SoundGroupFromInt(group, true));
+#else
+  (void)group;
+  return 1.0f;
+#endif
+}
+
+void LN_CommandBuffer::CacheToneForTests(const std::string &name, const float frequency)
+{
+#ifdef WITH_AUDASPACE
+  g_logic_native_sound_cache[name] = std::make_shared<aud::Sine>(frequency);
+#else
+  (void)name;
+  (void)frequency;
+#endif
+}
+
+bool LN_CommandBuffer::ApplyGamePropertyValue(KX_GameObject *object,
+                                              const std::string &property_name,
+                                              const LN_Value &value,
+                                              const LN_RuntimeTree *runtime_tree,
+                                              std::string &r_reason)
+{
+  return apply_game_property_value(object, property_name, value, runtime_tree, r_reason);
+}
+
 KX_GameObject *LN_CommandBuffer::ExecuteAddObjectFromRefImmediate(
     LN_RuntimeTree *runtime_tree,
     KX_GameObject *gameobj,
     const LN_RuntimeRef &source_ref,
     const float life_time,
     const bool full_copy,
+    const bool own_mesh,
     const uint32_t property_ref_index,
     const uint32_t source_ref_index)
 {
@@ -6206,6 +7487,7 @@ KX_GameObject *LN_CommandBuffer::ExecuteAddObjectFromRefImmediate(
   command.scalar_value = life_time;
   command.runtime_ref = source_ref;
   command.bool_value = full_copy;
+  command.secondary_bool_value = own_mesh;
   command.source_ref_index = source_ref_index;
   command.property_ref_index = property_ref_index;
 
@@ -6252,6 +7534,38 @@ void LN_CommandBuffer::AppendSetParent(KX_GameObject *gameobj,
   AppendTypedCommand(m_lifecycleCommands, std::move(command));
 }
 
+void LN_CommandBuffer::AppendSetParent(KX_GameObject *gameobj,
+                                       const std::string &parent_name,
+                                       const KX_ParentOptions &options,
+                                       const uint64_t sort_key,
+                                       const uint32_t source_ref_index)
+{
+  BLI_assert(m_isRecording);
+  if (gameobj == nullptr || parent_name.empty()) {
+    return;
+  }
+  auto parent_options = std::make_shared<const KX_ParentOptions>(options);
+  if (!m_typedCommandStreamsEnabled) {
+    Command command;
+    command.type = CommandType::SetParent;
+    command.object = gameobj;
+    command.property_name = parent_name;
+    command.parent_options = std::move(parent_options);
+    command.sort_key = sort_key;
+    command.source_ref_index = source_ref_index;
+    AppendLegacyCommand(std::move(command));
+    return;
+  }
+
+  TypedLifecycleCommand command;
+  command.header = MakeCommandHeader(CommandType::SetParent, sort_key, source_ref_index);
+  command.type = CommandType::SetParent;
+  command.object = gameobj;
+  command.name = parent_name;
+  command.parent_options = std::move(parent_options);
+  AppendTypedCommand(m_lifecycleCommands, std::move(command));
+}
+
 void LN_CommandBuffer::AppendSetParentFromRef(LN_RuntimeTree *runtime_tree,
                                               KX_GameObject *gameobj,
                                               const LN_RuntimeRef &parent_ref,
@@ -6261,7 +7575,9 @@ void LN_CommandBuffer::AppendSetParentFromRef(LN_RuntimeTree *runtime_tree,
                                               const uint32_t source_ref_index)
 {
   BLI_assert(m_isRecording);
-  if (runtime_tree == nullptr || gameobj == nullptr || parent_ref.kind != LN_RuntimeRefKind::Object) {
+  if (runtime_tree == nullptr || gameobj == nullptr ||
+      parent_ref.kind != LN_RuntimeRefKind::Object)
+  {
     return;
   }
 
@@ -6287,6 +7603,43 @@ void LN_CommandBuffer::AppendSetParentFromRef(LN_RuntimeTree *runtime_tree,
   command.runtime_ref = parent_ref;
   command.bool_value = compound;
   command.secondary_bool_value = ghost;
+  AppendTypedCommand(m_lifecycleCommands, std::move(command));
+}
+
+void LN_CommandBuffer::AppendSetParentFromRef(LN_RuntimeTree *runtime_tree,
+                                              KX_GameObject *gameobj,
+                                              const LN_RuntimeRef &parent_ref,
+                                              const KX_ParentOptions &options,
+                                              const uint64_t sort_key,
+                                              const uint32_t source_ref_index)
+{
+  BLI_assert(m_isRecording);
+  if (runtime_tree == nullptr || gameobj == nullptr ||
+      parent_ref.kind != LN_RuntimeRefKind::Object)
+  {
+    return;
+  }
+  auto parent_options = std::make_shared<const KX_ParentOptions>(options);
+  if (!m_typedCommandStreamsEnabled) {
+    Command command;
+    command.type = CommandType::SetParentFromRef;
+    command.runtime_tree = runtime_tree;
+    command.object = gameobj;
+    command.runtime_ref = parent_ref;
+    command.parent_options = std::move(parent_options);
+    command.sort_key = sort_key;
+    command.source_ref_index = source_ref_index;
+    AppendLegacyCommand(std::move(command));
+    return;
+  }
+
+  TypedLifecycleCommand command;
+  command.header = MakeCommandHeader(CommandType::SetParentFromRef, sort_key, source_ref_index);
+  command.type = CommandType::SetParentFromRef;
+  command.runtime_tree = runtime_tree;
+  command.object = gameobj;
+  command.runtime_ref = parent_ref;
+  command.parent_options = std::move(parent_options);
   AppendTypedCommand(m_lifecycleCommands, std::move(command));
 }
 
@@ -6380,11 +7733,35 @@ void LN_CommandBuffer::AppendSetTimeScale(KX_GameObject *gameobj,
   AppendTypedObjectServiceCommand(CommandType::SetTimeScale,
                                   gameobj,
                                   MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f),
-                                  std::max(0.0f, timescale),
+                                  timescale,
                                   false,
                                   false,
                                   sort_key,
                                   source_ref_index);
+}
+
+void LN_CommandBuffer::AppendSetGamePaused(const bool paused,
+                                           const uint64_t sort_key,
+                                           const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+
+  AppendTypedRuntimeServiceCommand(
+      CommandType::SetGamePaused, 0, 0, 0u, 0.0f, 0.0f, paused, sort_key, source_ref_index);
+}
+
+void LN_CommandBuffer::AppendSetPhysicsPaused(const bool paused,
+                                              const uint64_t sort_key,
+                                              const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+
+  AppendTypedRuntimeServiceCommand(
+      CommandType::SetPhysicsPaused, 0, 0, 0u, 0.0f, 0.0f, paused, sort_key, source_ref_index);
 }
 
 void LN_CommandBuffer::AppendSetActiveCamera(KX_GameObject *camera,
@@ -6406,6 +7783,114 @@ void LN_CommandBuffer::AppendSetActiveCamera(KX_GameObject *camera,
                                   false,
                                   sort_key,
                                   source_ref_index);
+}
+
+void LN_CommandBuffer::AppendSetPlayerCamera(KX_GameObject *owner,
+                                             KX_GameObject *camera,
+                                             const int32_t user,
+                                             const uint64_t sort_key,
+                                             const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  if (owner == nullptr) {
+    return;
+  }
+
+  Command command;
+  command.type = CommandType::SetPlayerCamera;
+  command.subsystem = GetCommandSubsystem(command.type);
+  command.object = owner;
+  command.event_target_object = camera;
+  command.int_value = user;
+  command.sort_key = sort_key;
+  command.source_ref_index = source_ref_index;
+  AppendLegacyCommand(std::move(command));
+}
+
+void LN_CommandBuffer::AppendSetSplitScreen(KX_GameObject *owner,
+                                            const bool enabled,
+                                            const int32_t choices,
+                                            const int32_t divider,
+                                            const uint64_t sort_key,
+                                            const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  if (owner == nullptr) {
+    return;
+  }
+
+  Command command;
+  command.type = CommandType::SetSplitScreen;
+  command.subsystem = GetCommandSubsystem(command.type);
+  command.object = owner;
+  command.bool_value = enabled;
+  command.int_value = choices;
+  command.secondary_int_value = divider;
+  command.sort_key = sort_key;
+  command.source_ref_index = source_ref_index;
+  AppendLegacyCommand(std::move(command));
+}
+
+void LN_CommandBuffer::AppendSetCameraViewport(KX_GameObject *owner,
+                                               KX_GameObject *camera,
+                                               const bool enabled,
+                                               const MT_Vector4 &area,
+                                               const bool on_top,
+                                               const int32_t player,
+                                               const uint64_t sort_key,
+                                               const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  if (owner == nullptr || camera == nullptr) {
+    return;
+  }
+
+  Command command;
+  command.type = CommandType::SetCameraViewport;
+  command.int_value = player;
+  command.subsystem = GetCommandSubsystem(command.type);
+  command.object = owner;
+  command.event_target_object = camera;
+  command.bool_value = enabled;
+  command.color_value = area;
+  command.secondary_bool_value = on_top;
+  command.sort_key = sort_key;
+  command.source_ref_index = source_ref_index;
+  AppendLegacyCommand(std::move(command));
+}
+
+void LN_CommandBuffer::AppendSetCameraVisibility(KX_GameObject *object,
+                                                 KX_GameObject *camera,
+                                                 const bool visible,
+                                                 const bool keep_shadow,
+                                                 const bool include_children,
+                                                 const uint64_t sort_key,
+                                                 const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  if (object == nullptr || camera == nullptr) {
+    return;
+  }
+
+  Command command;
+  command.type = CommandType::SetCameraVisibility;
+  command.subsystem = GetCommandSubsystem(command.type);
+  command.object = object;
+  command.event_target_object = camera;
+  command.bool_value = visible;
+  command.secondary_bool_value = keep_shadow;
+  command.int_value = include_children ? 1 : 0;
+  command.sort_key = sort_key;
+  command.source_ref_index = source_ref_index;
+  AppendLegacyCommand(std::move(command));
 }
 
 void LN_CommandBuffer::AppendSetCameraFov(KX_GameObject *camera,
@@ -6520,7 +8005,7 @@ void LN_CommandBuffer::AppendSetDynamics(KX_GameObject *gameobj,
                             MT_Vector3(0.0f, 0.0f, 0.0f),
                             MT_Vector3(0.0f, 0.0f, 0.0f),
                             0.0f,
-                            std::clamp(mode, 0, 3),
+                            std::clamp(mode, kPhysicsStateRestorePrevious, kPhysicsStateKinematic),
                             0,
                             enabled,
                             false,
@@ -6958,7 +8443,8 @@ void LN_CommandBuffer::AppendSetLinearVelocity(KX_GameObject *gameobj,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  AppendTypedVectorCommand(CommandType::SetLinearVelocity, gameobj, velocity, sort_key, source_ref_index);
+  AppendTypedVectorCommand(
+      CommandType::SetLinearVelocity, gameobj, velocity, sort_key, source_ref_index);
 }
 
 void LN_CommandBuffer::AppendApplyImpulse(KX_GameObject *gameobj,
@@ -7004,6 +8490,43 @@ void LN_CommandBuffer::AppendSetVisibility(KX_GameObject *gameobj,
                                   source_ref_index);
 }
 
+void LN_CommandBuffer::AppendSetUIInteractable(KX_GameObject *gameobj,
+                                               const bool interactable,
+                                               const uint64_t sort_key,
+                                               const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+
+  AppendTypedObjectServiceCommand(CommandType::SetUIInteractable,
+                                  gameobj,
+                                  MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f),
+                                  0.0f,
+                                  interactable,
+                                  false,
+                                  sort_key,
+                                  source_ref_index);
+}
+
+void LN_CommandBuffer::AppendResetSmoothing(KX_GameObject *gameobj,
+                                            const uint64_t sort_key,
+                                            const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+
+  AppendTypedObjectServiceCommand(CommandType::ResetSmoothing,
+                                  gameobj,
+                                  MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f),
+                                  0.0f,
+                                  true,
+                                  false,
+                                  sort_key,
+                                  source_ref_index);
+}
+
 void LN_CommandBuffer::AppendSetObjectColor(KX_GameObject *gameobj,
                                             const MT_Vector4 &color,
                                             uint64_t sort_key,
@@ -7013,14 +8536,8 @@ void LN_CommandBuffer::AppendSetObjectColor(KX_GameObject *gameobj,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  AppendTypedObjectServiceCommand(CommandType::SetObjectColor,
-                                  gameobj,
-                                  color,
-                                  0.0f,
-                                  false,
-                                  false,
-                                  sort_key,
-                                  source_ref_index);
+  AppendTypedObjectServiceCommand(
+      CommandType::SetObjectColor, gameobj, color, 0.0f, false, false, sort_key, source_ref_index);
 }
 
 void LN_CommandBuffer::AppendMakeLightUnique(KX_GameObject *gameobj,
@@ -7050,14 +8567,8 @@ void LN_CommandBuffer::AppendSetLightColor(KX_GameObject *gameobj,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  AppendTypedObjectServiceCommand(CommandType::SetLightColor,
-                                  gameobj,
-                                  color,
-                                  0.0f,
-                                  false,
-                                  false,
-                                  sort_key,
-                                  source_ref_index);
+  AppendTypedObjectServiceCommand(
+      CommandType::SetLightColor, gameobj, color, 0.0f, false, false, sort_key, source_ref_index);
 }
 
 void LN_CommandBuffer::AppendSetLightPower(KX_GameObject *gameobj,
@@ -7118,28 +8629,93 @@ void LN_CommandBuffer::AppendApplyRotation(KX_GameObject *gameobj,
                                            uint64_t sort_key,
                                            uint32_t source_ref_index)
 {
+  AppendApplyRotation(
+      gameobj, LN_Rotation::FromEulerXYZ(rotation), local, sort_key, source_ref_index);
+}
+
+void LN_CommandBuffer::AppendApplyRotation(KX_GameObject *gameobj,
+                                           const LN_Rotation &rotation,
+                                           bool local,
+                                           uint64_t sort_key,
+                                           uint32_t source_ref_index)
+{
   AssertMainThread();
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  AppendTypedVectorCommand(
+  AppendTypedRotationCommand(
       CommandType::ApplyRotation, gameobj, rotation, local, sort_key, source_ref_index);
 }
 
-void LN_CommandBuffer::FlushPendingObjectTransformCommands(KX_GameObject *gameobj,
-                                                           const uint64_t max_sort_key)
+void LN_CommandBuffer::FlushPendingObjectTransformCommands(KX_GameObject *gameobj)
 {
-  FlushPendingObjectTransformCommandsInternal(gameobj, max_sort_key, false);
+  FlushPendingObjectTransformCommandsInternal(gameobj, false);
 }
 
-void LN_CommandBuffer::FlushPendingObjectHierarchyTransformCommands(KX_GameObject *gameobj,
-                                                                    const uint64_t max_sort_key)
+void LN_CommandBuffer::FlushPendingObjectHierarchyTransformCommands(KX_GameObject *gameobj)
 {
-  FlushPendingObjectTransformCommandsInternal(gameobj, max_sort_key, true);
+  FlushPendingObjectTransformCommandsInternal(gameobj, true);
+}
+
+/** In a pending transform index place: the write is in m_relativeVectorCommands. */
+static constexpr uint32_t k_relative_transform_place = 1u << 31u;
+
+void LN_CommandBuffer::IndexAppendedTransform(const std::vector<TypedVectorCommand> &stream)
+{
+  if (!m_pendingTransformsIndexed) {
+    return;
+  }
+  const TypedVectorCommand &command = stream.back();
+  if (command.object != nullptr && IsObjectTransformCommand(command.type)) {
+    const uint32_t stream_bit = &stream == &m_relativeVectorCommands ? k_relative_transform_place :
+                                                                       0u;
+    m_pendingTransforms.lookup_or_add_default(command.object)
+        .append(uint32_t(stream.size() - 1) | stream_bit);
+  }
+}
+
+void LN_CommandBuffer::IndexPendingTransforms()
+{
+  for (const std::vector<TypedVectorCommand> *stream :
+       {&m_transformCommands, &m_relativeVectorCommands})
+  {
+    const uint32_t stream_bit = stream == &m_relativeVectorCommands ? k_relative_transform_place :
+                                                                      0u;
+    for (size_t place = 0; place < stream->size(); place++) {
+      const TypedVectorCommand &command = (*stream)[place];
+      if (command.object != nullptr && IsObjectTransformCommand(command.type)) {
+        m_pendingTransforms.lookup_or_add_default(command.object)
+            .append(uint32_t(place) | stream_bit);
+      }
+    }
+  }
+  m_pendingTransformsIndexed = true;
+}
+
+void LN_CommandBuffer::ForgetPendingTransformIndex()
+{
+  if (m_pendingTransformsIndexed) {
+    m_pendingTransforms.clear_and_keep_capacity();
+    m_pendingTransformsIndexed = false;
+  }
+}
+
+void LN_CommandBuffer::CompactAppliedTransforms()
+{
+  if (m_appliedTransformCount == 0) {
+    return;
+  }
+  const auto applied = [](const TypedVectorCommand &command) {
+    return command.header.record_sequence == 0;
+  };
+  std::erase_if(m_transformCommands, applied);
+  std::erase_if(m_relativeVectorCommands, applied);
+  m_appliedTransformCount = 0;
+  ForgetPendingTransformIndex();
+  RefreshCommandStreamTracking();
 }
 
 void LN_CommandBuffer::FlushPendingObjectTransformCommandsInternal(KX_GameObject *gameobj,
-                                                                   const uint64_t max_sort_key,
                                                                    const bool include_parents)
 {
   AssertMainThread();
@@ -7155,20 +8731,60 @@ void LN_CommandBuffer::FlushPendingObjectTransformCommandsInternal(KX_GameObject
     return;
   }
 
-  std::unordered_set<KX_GameObject *> flush_objects;
-  for (KX_GameObject *object = gameobj; object != nullptr;) {
-    if (!flush_objects.insert(object).second) {
-      break;
-    }
-    if (!include_parents) {
-      break;
-    }
-    object = object->GetParent();
+  /* The object and, for a hierarchy read, its parents (a loop in the chain ends it). */
+  blender::Vector<KX_GameObject *, 8> flush_objects;
+  for (KX_GameObject *object = gameobj; object != nullptr && !flush_objects.contains(object);
+       object = include_parents ? object->GetParent() : nullptr)
+  {
+    flush_objects.append(object);
   }
 
+  if (m_typedCommandStreamsEnabled && !m_legacyTransformRecorded) {
+    /* Only these objects' writes, found through the index and applied in the order the step's
+     * flush applies them (SortCommands). They stay in their streams marked as applied (no
+     * object, record sequence 0) so the other places stay valid; EndRecording drops them. */
+    if (!m_pendingTransformsIndexed) {
+      IndexPendingTransforms();
+    }
+    blender::Vector<TypedVectorCommand *, 8> pending;
+    for (KX_GameObject *object : flush_objects) {
+      if (const std::optional<blender::Vector<uint32_t, 2>> places = m_pendingTransforms.pop_try(
+              object))
+      {
+        for (const uint32_t place : *places) {
+          std::vector<TypedVectorCommand> &stream = (place & k_relative_transform_place) ?
+                                                        m_relativeVectorCommands :
+                                                        m_transformCommands;
+          pending.append(&stream[place & ~k_relative_transform_place]);
+        }
+      }
+    }
+    std::sort(pending.begin(),
+              pending.end(),
+              [](const TypedVectorCommand *left, const TypedVectorCommand *right) {
+                if (left->header.sort_key != right->header.sort_key) {
+                  return left->header.sort_key < right->header.sort_key;
+                }
+                return left->header.record_sequence < right->header.record_sequence;
+              });
+    for (TypedVectorCommand *command : pending) {
+      ApplyObjectTransform(command->type,
+                           command->object,
+                           command->value,
+                           command->rotation_value,
+                           command->bool_value);
+      command->object = nullptr;
+      command->header.record_sequence = 0;
+    }
+    m_appliedTransformCount += uint32_t(pending.size());
+    return;
+  }
+
+  /* Transform writes in the legacy stream (typed streams off): every pending command planned. */
+  CompactAppliedTransforms();
   auto should_flush = [&](const Command &command) {
-    return command.object != nullptr && flush_objects.find(command.object) != flush_objects.end() &&
-           command.sort_key <= max_sort_key && IsObjectTransformCommand(command.type);
+    return command.object != nullptr && flush_objects.contains(command.object) &&
+           IsObjectTransformCommand(command.type);
   };
 
   CommandStreamStats stats;
@@ -7192,18 +8808,17 @@ void LN_CommandBuffer::FlushPendingObjectTransformCommandsInternal(KX_GameObject
   m_commands.erase(std::remove_if(m_commands.begin(), m_commands.end(), should_flush),
                    m_commands.end());
   auto should_flush_typed = [&](const TypedVectorCommand &command) {
-    return command.object != nullptr && flush_objects.find(command.object) != flush_objects.end() &&
-           command.header.sort_key <= max_sort_key &&
+    return command.object != nullptr && flush_objects.contains(command.object) &&
            IsObjectTransformCommand(command.type);
   };
-  m_transformCommands.erase(std::remove_if(m_transformCommands.begin(),
-                                           m_transformCommands.end(),
-                                           should_flush_typed),
-                            m_transformCommands.end());
+  m_transformCommands.erase(
+      std::remove_if(m_transformCommands.begin(), m_transformCommands.end(), should_flush_typed),
+      m_transformCommands.end());
   m_relativeVectorCommands.erase(std::remove_if(m_relativeVectorCommands.begin(),
                                                 m_relativeVectorCommands.end(),
                                                 should_flush_typed),
                                  m_relativeVectorCommands.end());
+  ForgetPendingTransformIndex();
   RefreshCommandStreamTracking();
 }
 
@@ -7237,14 +8852,15 @@ void LN_CommandBuffer::AppendApplyTorque(KX_GameObject *gameobj,
 
 void LN_CommandBuffer::AppendSetCursorVisibility(const bool visible,
                                                  const uint64_t sort_key,
-                                                 const uint32_t source_ref_index)
+                                                 const uint32_t source_ref_index,
+                                                 const bool in_menus)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
   AppendTypedRuntimeServiceCommand(CommandType::SetCursorVisibility,
-                                   0,
+                                   in_menus ? 1 : 0,
                                    0,
                                    0u,
                                    0.0f,
@@ -7263,15 +8879,20 @@ void LN_CommandBuffer::AppendSetCursorPosition(const int32_t x,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  AppendTypedRuntimeServiceCommand(CommandType::SetCursorPosition,
-                                   x,
-                                   y,
-                                   0u,
-                                   0.0f,
-                                   0.0f,
-                                   false,
-                                   sort_key,
-                                   source_ref_index);
+  AppendTypedRuntimeServiceCommand(
+      CommandType::SetCursorPosition, x, y, 0u, 0.0f, 0.0f, false, sort_key, source_ref_index);
+}
+
+void LN_CommandBuffer::AppendSetPlayerGamepad(const int32_t user,
+                                              const int32_t gamepad,
+                                              const uint64_t sort_key,
+                                              const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  AppendTypedRuntimeServiceCommand(
+      CommandType::SetPlayerGamepad, user, gamepad, 0, 0.0f, 0.0f, false, sort_key, source_ref_index);
 }
 
 void LN_CommandBuffer::AppendSetGamepadVibration(const int32_t gamepad_index,
@@ -7324,15 +8945,8 @@ void LN_CommandBuffer::AppendSetFullscreen(const bool fullscreen,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  AppendTypedRuntimeServiceCommand(CommandType::SetFullscreen,
-                                   0,
-                                   0,
-                                   0u,
-                                   0.0f,
-                                   0.0f,
-                                   fullscreen,
-                                   sort_key,
-                                   source_ref_index);
+  AppendTypedRuntimeServiceCommand(
+      CommandType::SetFullscreen, 0, 0, 0u, 0.0f, 0.0f, fullscreen, sort_key, source_ref_index);
 }
 
 void LN_CommandBuffer::AppendSetVSync(const int32_t mode,
@@ -7362,15 +8976,8 @@ void LN_CommandBuffer::AppendSetShowFramerate(const bool show,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  AppendTypedRuntimeServiceCommand(CommandType::SetShowFramerate,
-                                   0,
-                                   0,
-                                   0u,
-                                   0.0f,
-                                   0.0f,
-                                   show,
-                                   sort_key,
-                                   source_ref_index);
+  AppendTypedRuntimeServiceCommand(
+      CommandType::SetShowFramerate, 0, 0, 0u, 0.0f, 0.0f, show, sort_key, source_ref_index);
 }
 
 void LN_CommandBuffer::AppendSetShowProfile(const bool show,
@@ -7381,15 +8988,8 @@ void LN_CommandBuffer::AppendSetShowProfile(const bool show,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  AppendTypedRuntimeServiceCommand(CommandType::SetShowProfile,
-                                   0,
-                                   0,
-                                   0u,
-                                   0.0f,
-                                   0.0f,
-                                   show,
-                                   sort_key,
-                                   source_ref_index);
+  AppendTypedRuntimeServiceCommand(
+      CommandType::SetShowProfile, 0, 0, 0u, 0.0f, 0.0f, show, sort_key, source_ref_index);
 }
 
 void LN_CommandBuffer::AppendPrint(const std::string &message,
@@ -7456,6 +9056,7 @@ void LN_CommandBuffer::AppendRestartGame(const uint64_t sort_key, const uint32_t
 }
 
 void LN_CommandBuffer::AppendPlayAction(KX_GameObject *const gameobj,
+                                        LN_RuntimeTree *runtime_tree,
                                         const std::string &action_name,
                                         const float start_frame,
                                         const float end_frame,
@@ -7465,16 +9066,14 @@ void LN_CommandBuffer::AppendPlayAction(KX_GameObject *const gameobj,
                                         const float layer_weight,
                                         const uint32_t animation_flags,
                                         const float playback_speed,
+                                        const uint32_t completion_expression_index,
+                                        const uint8_t action_output_mask,
                                         const uint64_t sort_key,
                                         const uint32_t source_ref_index)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
-
-  if (gameobj == nullptr || action_name.empty()) {
-    return;
-  }
 
   AppendTypedAnimationCommand(CommandType::PlayAction,
                               gameobj,
@@ -7489,7 +9088,10 @@ void LN_CommandBuffer::AppendPlayAction(KX_GameObject *const gameobj,
                               priority,
                               animation_flags,
                               sort_key,
-                              source_ref_index);
+                              source_ref_index,
+                              runtime_tree,
+                              completion_expression_index,
+                              action_output_mask);
 }
 
 void LN_CommandBuffer::AppendStopAction(KX_GameObject *const gameobj,
@@ -7551,7 +9153,38 @@ void LN_CommandBuffer::AppendSetActionFrame(KX_GameObject *const gameobj,
                               source_ref_index);
 }
 
-void LN_CommandBuffer::AppendStopAllSounds(const uint64_t sort_key, const uint32_t source_ref_index)
+void LN_CommandBuffer::AppendSetShapeKeyValue(KX_GameObject *const gameobj,
+                                              const std::string &shape_key_name,
+                                              const float value,
+                                              const uint64_t sort_key,
+                                              const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+
+  if (gameobj == nullptr || shape_key_name.empty()) {
+    return;
+  }
+
+  AppendTypedAnimationCommand(CommandType::SetShapeKeyValue,
+                              gameobj,
+                              shape_key_name,
+                              0.0f,
+                              0.0f,
+                              0.0f,
+                              1.0f,
+                              1.0f,
+                              value,
+                              0,
+                              0,
+                              0u,
+                              sort_key,
+                              source_ref_index);
+}
+
+void LN_CommandBuffer::AppendStopAllSounds(const uint64_t sort_key,
+                                           const uint32_t source_ref_index)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -7573,11 +9206,12 @@ void LN_CommandBuffer::AppendStopAllSounds(const uint64_t sort_key, const uint32
 }
 
 void LN_CommandBuffer::AppendPlaySound(const std::string &sound_name,
-                                      const float volume,
-                                      const float pitch,
-                                      const bool loop,
-                                      const uint64_t sort_key,
-                                      const uint32_t source_ref_index)
+                                       const float volume,
+                                       const float pitch,
+                                       const bool loop,
+                                       const uint64_t sort_key,
+                                       const uint32_t source_ref_index,
+                                       const int32_t group)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -7586,6 +9220,7 @@ void LN_CommandBuffer::AppendPlaySound(const std::string &sound_name,
   if (sound_name.empty()) {
     return;
   }
+  const int32_t sound_group = int32_t(LN_SoundGroupFromInt(group, false));
 
   if (!m_typedCommandStreamsEnabled) {
     Command command;
@@ -7593,6 +9228,7 @@ void LN_CommandBuffer::AppendPlaySound(const std::string &sound_name,
     command.property_name = sound_name;
     command.vector_value = MT_Vector3(volume, pitch, 0.0f);
     command.bool_value = loop;
+    command.sound_group = uint8_t(sound_group);
     command.sort_key = sort_key;
     command.source_ref_index = source_ref_index;
     AppendLegacyCommand(std::move(command));
@@ -7607,12 +9243,44 @@ void LN_CommandBuffer::AppendPlaySound(const std::string &sound_name,
   command.volume = volume;
   command.pitch = pitch;
   command.loop = loop;
+  command.group = sound_group;
+  AppendTypedCommand(m_audioCommands, std::move(command));
+}
+
+void LN_CommandBuffer::AppendSetSoundVolume(const int32_t group,
+                                            const float volume,
+                                            const float fade,
+                                            const uint64_t sort_key,
+                                            const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+
+  const int32_t sound_group = int32_t(LN_SoundGroupFromInt(group, true));
+  if (!m_typedCommandStreamsEnabled) {
+    Command command;
+    command.type = CommandType::SetSoundVolume;
+    command.vector_value = MT_Vector3(volume, fade, 0.0f);
+    command.sound_group = uint8_t(sound_group);
+    command.sort_key = sort_key;
+    command.source_ref_index = source_ref_index;
+    AppendLegacyCommand(std::move(command));
+    return;
+  }
+
+  TypedAudioCommand command;
+  command.header = MakeCommandHeader(CommandType::SetSoundVolume, sort_key, source_ref_index);
+  command.type = CommandType::SetSoundVolume;
+  command.volume = volume;
+  command.fade = fade;
+  command.group = sound_group;
   AppendTypedCommand(m_audioCommands, std::move(command));
 }
 
 void LN_CommandBuffer::AppendStopSound(const std::string &sound_name,
-                                      const uint64_t sort_key,
-                                      const uint32_t source_ref_index)
+                                       const uint64_t sort_key,
+                                       const uint32_t source_ref_index)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -7641,12 +9309,15 @@ void LN_CommandBuffer::AppendStopSound(const std::string &sound_name,
 }
 
 void LN_CommandBuffer::AppendPlaySound3D(KX_GameObject *speaker_object,
-                                        const std::string &sound_name,
-                                        const float volume,
-                                        const float pitch,
-                                        const bool loop,
-                                        const uint64_t sort_key,
-                                        const uint32_t source_ref_index)
+                                         const std::string &sound_name,
+                                         const float volume,
+                                         const float pitch,
+                                         const bool loop,
+                                         const uint64_t sort_key,
+                                         const uint32_t source_ref_index,
+                                         const int32_t listener,
+                                         const int32_t user,
+                                         const int32_t group)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -7655,6 +9326,7 @@ void LN_CommandBuffer::AppendPlaySound3D(KX_GameObject *speaker_object,
   if (sound_name.empty()) {
     return;
   }
+  const int32_t sound_group = int32_t(LN_SoundGroupFromInt(group, false));
 
   if (!m_typedCommandStreamsEnabled) {
     Command command;
@@ -7663,6 +9335,9 @@ void LN_CommandBuffer::AppendPlaySound3D(KX_GameObject *speaker_object,
     command.property_name = sound_name;
     command.vector_value = MT_Vector3(volume, pitch, 0.0f);
     command.bool_value = loop;
+    command.int_value = listener;
+    command.secondary_int_value = user;
+    command.sound_group = uint8_t(sound_group);
     command.sort_key = sort_key;
     command.source_ref_index = source_ref_index;
     AppendLegacyCommand(std::move(command));
@@ -7678,12 +9353,15 @@ void LN_CommandBuffer::AppendPlaySound3D(KX_GameObject *speaker_object,
   command.volume = volume;
   command.pitch = pitch;
   command.loop = loop;
+  command.listener = listener;
+  command.listener_user = user;
+  command.group = sound_group;
   AppendTypedCommand(m_audioCommands, std::move(command));
 }
 
 void LN_CommandBuffer::AppendPauseSound(const std::string &sound_name,
-                                       const uint64_t sort_key,
-                                       const uint32_t source_ref_index)
+                                        const uint64_t sort_key,
+                                        const uint32_t source_ref_index)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -7712,8 +9390,8 @@ void LN_CommandBuffer::AppendPauseSound(const std::string &sound_name,
 }
 
 void LN_CommandBuffer::AppendResumeSound(const std::string &sound_name,
-                                        const uint64_t sort_key,
-                                        const uint32_t source_ref_index)
+                                         const uint64_t sort_key,
+                                         const uint32_t source_ref_index)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -7806,11 +9484,12 @@ void LN_CommandBuffer::AppendInstallLogicTree(KX_GameObject *target_object,
 }
 
 void LN_CommandBuffer::AppendSendEvent(const std::string &subject,
-                                        const LN_Value &content,
-                                        KX_GameObject *messenger,
-                                        KX_GameObject *target,
-                                        const uint64_t sort_key,
-                                        const uint32_t source_ref_index)
+                                       const LN_Value &content,
+                                       KX_GameObject *messenger,
+                                       KX_GameObject *target,
+                                       const uint64_t sort_key,
+                                       const uint32_t source_ref_index,
+                                       LN_RuntimeTree *runtime_tree)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -7820,21 +9499,14 @@ void LN_CommandBuffer::AppendSendEvent(const std::string &subject,
     return;
   }
 
+  /* Worker trees record here too, so the subject id and object handles are created when the
+   * buffer flushes on the main thread. */
   if (!m_typedCommandStreamsEnabled) {
     Command command;
     command.type = CommandType::SendEvent;
+    command.runtime_tree = runtime_tree;
     command.object = messenger;
     command.event_target_object = target;
-    command.object_handle = m_logicManager ?
-                                m_logicManager->MakeObjectHandle(
-                                    messenger, messenger ? messenger->GetName() : std::string()) :
-                                LN_ObjectHandle{};
-    command.event_target_handle = m_logicManager ?
-                                      m_logicManager->MakeObjectHandle(
-                                          target, target ? target->GetName() : std::string()) :
-                                      LN_ObjectHandle{};
-    command.event_subject_id = m_logicManager ? m_logicManager->InternEventSubject(subject) :
-                                               LN_EventSubjectId{};
     command.property_name = subject;
     command.property_value = content;
     command.sort_key = sort_key;
@@ -7845,20 +9517,11 @@ void LN_CommandBuffer::AppendSendEvent(const std::string &subject,
 
   TypedEventCommand command;
   command.header = MakeCommandHeader(CommandType::SendEvent, sort_key, source_ref_index);
-  command.event_subject_id = m_logicManager ? m_logicManager->InternEventSubject(subject) :
-                                             LN_EventSubjectId{};
+  command.runtime_tree = runtime_tree;
   command.dynamic_subject = subject;
   command.content = content;
   command.messenger = messenger;
   command.target = target;
-  command.messenger_handle = m_logicManager ?
-                                 m_logicManager->MakeObjectHandle(
-                                     messenger, messenger ? messenger->GetName() : std::string()) :
-                                 LN_ObjectHandle{};
-  command.target_handle = m_logicManager ?
-                              m_logicManager->MakeObjectHandle(
-                                  target, target ? target->GetName() : std::string()) :
-                              LN_ObjectHandle{};
   AppendTypedCommand(m_eventCommands, std::move(command));
 }
 
@@ -7982,7 +9645,246 @@ void LN_CommandBuffer::AppendSlowFollow(KX_GameObject *gameobj,
                            source_ref_index);
 }
 
-void LN_CommandBuffer::AppendLoadScene(const std::string &scene_name,
+void LN_CommandBuffer::AppendSetOverlayCollection(LN_RuntimeTree *runtime_tree,
+                                                  KX_GameObject *owner,
+                                                  KX_GameObject *camera,
+                                                  blender::Collection *collection,
+                                                  const uint32_t completion_expression_index,
+                                                  const uint64_t sort_key,
+                                                  const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+
+  if (owner == nullptr || collection == nullptr) {
+    return;
+  }
+
+  Command command;
+  command.type = CommandType::SetOverlayCollection;
+  command.runtime_tree = runtime_tree;
+  command.object = owner;
+  command.event_target_object = camera;
+  command.object_handle = m_logicManager ?
+                              m_logicManager->MakeObjectHandle(owner, owner->GetName()) :
+                              LN_ObjectHandle{};
+  command.event_target_handle = camera != nullptr && m_logicManager != nullptr ?
+                                    m_logicManager->MakeObjectHandle(camera, camera->GetName()) :
+                                    LN_ObjectHandle{};
+  command.collection = collection;
+  command.property_ref_index = completion_expression_index;
+  command.sort_key = sort_key;
+  command.source_ref_index = source_ref_index;
+  AppendLegacyCommand(std::move(command));
+}
+
+void LN_CommandBuffer::AppendRemoveOverlayCollection(LN_RuntimeTree *runtime_tree,
+                                                     KX_GameObject *owner,
+                                                     blender::Collection *collection,
+                                                     const uint32_t completion_expression_index,
+                                                     const uint64_t sort_key,
+                                                     const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+
+  if (owner == nullptr || collection == nullptr) {
+    return;
+  }
+
+  Command command;
+  command.type = CommandType::RemoveOverlayCollection;
+  command.runtime_tree = runtime_tree;
+  command.object = owner;
+  command.object_handle = m_logicManager ?
+                              m_logicManager->MakeObjectHandle(owner, owner->GetName()) :
+                              LN_ObjectHandle{};
+  command.collection = collection;
+  command.property_ref_index = completion_expression_index;
+  command.sort_key = sort_key;
+  command.source_ref_index = source_ref_index;
+  AppendLegacyCommand(std::move(command));
+}
+
+void LN_CommandBuffer::AppendOpenObjectMenu(LN_RuntimeTree *runtime_tree,
+                                            KX_GameObject *owner,
+                                            KX_GameObject *camera,
+                                            KX_GameObject *menu_owner,
+                                            blender::Collection *collection,
+                                            const LN_UIMenuRouting routing,
+                                            const std::string &input_context,
+                                            const int32_t packed_open_settings,
+                                            const uint32_t completion_expression_index,
+                                            const uint64_t sort_key,
+                                            const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  if (runtime_tree == nullptr || owner == nullptr || collection == nullptr) {
+    return;
+  }
+  Command command;
+  command.type = CommandType::OpenObjectMenu;
+  command.runtime_tree = runtime_tree;
+  command.object = owner;
+  command.event_target_object = camera;
+  command.object_handle = m_logicManager ?
+                              m_logicManager->MakeObjectHandle(owner, owner->GetName()) :
+                              LN_ObjectHandle{};
+  command.event_target_handle = camera != nullptr && m_logicManager != nullptr ?
+                                    m_logicManager->MakeObjectHandle(camera, camera->GetName()) :
+                                    LN_ObjectHandle{};
+  command.secondary_object_handle = menu_owner != nullptr && m_logicManager != nullptr ?
+                                        m_logicManager->MakeObjectHandle(menu_owner,
+                                                                         menu_owner->GetName()) :
+                                        LN_ObjectHandle{};
+  command.collection = collection;
+  command.int_value = int32_t(routing);
+  command.secondary_int_value = packed_open_settings;
+  command.property_name = input_context;
+  command.property_ref_index = completion_expression_index;
+  command.sort_key = sort_key;
+  command.source_ref_index = source_ref_index;
+  AppendLegacyCommand(std::move(command));
+}
+
+void LN_CommandBuffer::AppendCloseObjectMenu(LN_RuntimeTree *runtime_tree,
+                                             KX_GameObject *owner,
+                                             const int32_t menu_handle,
+                                             const LN_UIMenuCloseOperation operation,
+                                             const int32_t user,
+                                             const uint32_t completion_expression_index,
+                                             const uint64_t sort_key,
+                                             const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  if (runtime_tree == nullptr || owner == nullptr) {
+    return;
+  }
+  Command command;
+  command.type = CommandType::CloseObjectMenu;
+  command.runtime_tree = runtime_tree;
+  command.object = owner;
+  command.object_handle = m_logicManager ?
+                              m_logicManager->MakeObjectHandle(owner, owner->GetName()) :
+                              LN_ObjectHandle{};
+  command.int_value = menu_handle;
+  command.secondary_int_value = LN_PackUIMenuUser(int32_t(operation), user, 8);
+  command.property_ref_index = completion_expression_index;
+  command.sort_key = sort_key;
+  command.source_ref_index = source_ref_index;
+  AppendLegacyCommand(std::move(command));
+}
+
+void LN_CommandBuffer::AppendSetUIFocus(LN_RuntimeTree *runtime_tree,
+                                        KX_GameObject *owner,
+                                        KX_GameObject *target,
+                                        const int32_t user,
+                                        const std::string &input_context,
+                                        const uint32_t completion_expression_index,
+                                        const uint64_t sort_key,
+                                        const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  if (runtime_tree == nullptr || owner == nullptr) {
+    return;
+  }
+  Command command;
+  command.type = CommandType::SetUIFocus;
+  command.runtime_tree = runtime_tree;
+  command.object = owner;
+  command.event_target_object = target;
+  command.object_handle = m_logicManager ?
+                              m_logicManager->MakeObjectHandle(owner, owner->GetName()) :
+                              LN_ObjectHandle{};
+  command.event_target_handle = target != nullptr && m_logicManager != nullptr ?
+                                    m_logicManager->MakeObjectHandle(target, target->GetName()) :
+                                    LN_ObjectHandle{};
+  command.int_value = user;
+  command.property_name = input_context;
+  command.property_ref_index = completion_expression_index;
+  command.sort_key = sort_key;
+  command.source_ref_index = source_ref_index;
+  AppendLegacyCommand(std::move(command));
+}
+
+void LN_CommandBuffer::AppendSetPlayerPointer(KX_GameObject *owner,
+                                              const int32_t user,
+                                              const bool enabled,
+                                              const PlayerPointerSettings &settings,
+                                              const uint64_t sort_key,
+                                              const uint32_t source_ref_index)
+{
+  KX_GameObject *surface = settings.surface;
+  KX_GameObject *cursor = settings.cursor;
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  if (owner == nullptr || m_logicManager == nullptr) {
+    return;
+  }
+  Command command;
+  command.type = CommandType::SetPlayerPointer;
+  command.object = owner;
+  command.object_handle = m_logicManager->MakeObjectHandle(owner, owner->GetName());
+  command.event_target_handle = surface != nullptr ?
+                                    m_logicManager->MakeObjectHandle(surface, surface->GetName()) :
+                                    LN_ObjectHandle{};
+  command.secondary_object_handle = cursor != nullptr ? m_logicManager->MakeObjectHandle(
+                                                            cursor, cursor->GetName()) :
+                                                        LN_ObjectHandle{};
+  command.int_value = user;
+  command.bool_value = enabled;
+  command.secondary_bool_value = settings.aim;
+  command.property_name = settings.move_action;
+  command.secondary_property_name = settings.press_action;
+  command.scalar_value = settings.speed;
+  command.vector_value = MT_Vector3(settings.reach, 0.0f, 0.0f);
+  command.sort_key = sort_key;
+  command.source_ref_index = source_ref_index;
+  AppendLegacyCommand(std::move(command));
+}
+
+void LN_CommandBuffer::AppendTakeUIControl(LN_RuntimeTree *runtime_tree,
+                                           KX_GameObject *owner,
+                                           KX_GameObject *target,
+                                           const int32_t user,
+                                           const bool take,
+                                           const uint32_t completion_expression_index,
+                                           const uint64_t sort_key,
+                                           const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  if (runtime_tree == nullptr || owner == nullptr || m_logicManager == nullptr) {
+    return;
+  }
+  Command command;
+  command.type = CommandType::TakeUIControl;
+  command.runtime_tree = runtime_tree;
+  command.object = owner;
+  command.object_handle = m_logicManager->MakeObjectHandle(owner, owner->GetName());
+  command.event_target_handle = target != nullptr ?
+                                    m_logicManager->MakeObjectHandle(target, target->GetName()) :
+                                    LN_ObjectHandle{};
+  command.int_value = user;
+  command.bool_value = take;
+  command.property_ref_index = completion_expression_index;
+  command.sort_key = sort_key;
+  command.source_ref_index = source_ref_index;
+  AppendLegacyCommand(std::move(command));
+}
+
+void LN_CommandBuffer::AppendLoadScene(KX_GameObject *owner,
+                                       const std::string &scene_name,
                                        const uint64_t sort_key,
                                        const uint32_t source_ref_index)
 {
@@ -7990,19 +9892,21 @@ void LN_CommandBuffer::AppendLoadScene(const std::string &scene_name,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  if (scene_name.empty()) {
+  if (owner == nullptr || scene_name.empty()) {
     return;
   }
 
   Command command;
   command.type = CommandType::LoadScene;
+  command.object = owner;
   command.property_name = scene_name;
   command.sort_key = sort_key;
   command.source_ref_index = source_ref_index;
   AppendLegacyCommand(std::move(command));
 }
 
-void LN_CommandBuffer::AppendSetScene(const std::string &scene_name,
+void LN_CommandBuffer::AppendSetScene(KX_GameObject *owner,
+                                      const std::string &scene_name,
                                       const uint64_t sort_key,
                                       const uint32_t source_ref_index)
 {
@@ -8010,21 +9914,24 @@ void LN_CommandBuffer::AppendSetScene(const std::string &scene_name,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  if (scene_name.empty()) {
+  if (owner == nullptr || scene_name.empty()) {
     return;
   }
 
   Command command;
   command.type = CommandType::SetScene;
+  command.object = owner;
   command.property_name = scene_name;
   command.sort_key = sort_key;
   command.source_ref_index = source_ref_index;
   AppendLegacyCommand(std::move(command));
 }
 
-void LN_CommandBuffer::AppendSaveGame(KX_GameObject *gameobj,
+void LN_CommandBuffer::AppendSaveGame(LN_RuntimeTree *runtime_tree,
+                                      KX_GameObject *gameobj,
                                       const int32_t slot,
                                       const std::string &path,
+                                      const uint32_t completion_expression_index,
                                       const uint64_t sort_key,
                                       const uint32_t source_ref_index)
 {
@@ -8032,23 +9939,29 @@ void LN_CommandBuffer::AppendSaveGame(KX_GameObject *gameobj,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  if (gameobj == nullptr) {
+  if (runtime_tree == nullptr || gameobj == nullptr ||
+      completion_expression_index == LN_INVALID_INDEX)
+  {
     return;
   }
 
   Command command;
   command.type = CommandType::SaveGame;
   command.object = gameobj;
+  command.runtime_tree = runtime_tree;
   command.int_value = slot;
   command.property_name = path;
+  command.property_ref_index = completion_expression_index;
   command.sort_key = sort_key;
   command.source_ref_index = source_ref_index;
   AppendLegacyCommand(std::move(command));
 }
 
-void LN_CommandBuffer::AppendLoadGame(KX_GameObject *gameobj,
+void LN_CommandBuffer::AppendLoadGame(LN_RuntimeTree *runtime_tree,
+                                      KX_GameObject *gameobj,
                                       const int32_t slot,
                                       const std::string &path,
+                                      const uint32_t completion_expression_index,
                                       const uint64_t sort_key,
                                       const uint32_t source_ref_index)
 {
@@ -8056,15 +9969,47 @@ void LN_CommandBuffer::AppendLoadGame(KX_GameObject *gameobj,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  if (gameobj == nullptr) {
+  if (runtime_tree == nullptr || gameobj == nullptr ||
+      completion_expression_index == LN_INVALID_INDEX)
+  {
     return;
   }
 
   Command command;
   command.type = CommandType::LoadGame;
   command.object = gameobj;
+  command.runtime_tree = runtime_tree;
   command.int_value = slot;
   command.property_name = path;
+  command.property_ref_index = completion_expression_index;
+  command.sort_key = sort_key;
+  command.source_ref_index = source_ref_index;
+  AppendLegacyCommand(std::move(command));
+}
+
+void LN_CommandBuffer::AppendSetSaveExistence(LN_RuntimeTree *runtime_tree,
+                                              KX_GameObject *owner,
+                                              KX_GameObject *target,
+                                              const bool enabled,
+                                              const uint32_t completion_expression_index,
+                                              const uint64_t sort_key,
+                                              const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  if (runtime_tree == nullptr || owner == nullptr ||
+      completion_expression_index == LN_INVALID_INDEX)
+  {
+    return;
+  }
+  Command command;
+  command.type = CommandType::SetSaveExistence;
+  command.object = owner;
+  command.event_target_object = target;
+  command.runtime_tree = runtime_tree;
+  command.bool_value = enabled;
+  command.property_ref_index = completion_expression_index;
   command.sort_key = sort_key;
   command.source_ref_index = source_ref_index;
   AppendLegacyCommand(std::move(command));
@@ -8101,9 +10046,10 @@ void LN_CommandBuffer::AppendAlignAxisToVector(KX_GameObject *gameobj,
 
 void LN_CommandBuffer::AppendRotateToward(KX_GameObject *gameobj,
                                           const MT_Vector3 &target,
-                                          const float factor,
+                                          const float factor_or_max_step,
                                           const int32_t rot_axis,
                                           const int32_t front_axis,
+                                          const bool use_max_angular_step,
                                           const uint64_t sort_key,
                                           const uint32_t source_ref_index)
 {
@@ -8120,10 +10066,10 @@ void LN_CommandBuffer::AppendRotateToward(KX_GameObject *gameobj,
                            nullptr,
                            target,
                            MT_Vector3(0.0f, 0.0f, 0.0f),
-                           factor,
+                           factor_or_max_step,
                            rot_axis,
                            front_axis,
-                           false,
+                           use_max_angular_step,
                            false,
                            sort_key,
                            source_ref_index);
@@ -8185,6 +10131,7 @@ void LN_CommandBuffer::AppendSetBonePoseLocation(KX_GameObject *armature_object,
                              std::string(),
                              location,
                              MT_Vector3(0.0f, 0.0f, 0.0f),
+                             LN_Rotation{},
                              LN_Value{},
                              0.0f,
                              location_space,
@@ -8197,6 +10144,25 @@ void LN_CommandBuffer::AppendSetBonePoseTransform(KX_GameObject *armature_object
                                                   const std::string &bone_name,
                                                   const MT_Vector3 &location,
                                                   const MT_Vector3 &rotation_euler,
+                                                  const uint64_t sort_key,
+                                                  const uint32_t source_ref_index,
+                                                  const int32_t location_space,
+                                                  const bool use_center)
+{
+  AppendSetBonePoseTransform(armature_object,
+                             bone_name,
+                             location,
+                             LN_Rotation::FromEulerXYZ(rotation_euler),
+                             sort_key,
+                             source_ref_index,
+                             location_space,
+                             use_center);
+}
+
+void LN_CommandBuffer::AppendSetBonePoseTransform(KX_GameObject *armature_object,
+                                                  const std::string &bone_name,
+                                                  const MT_Vector3 &location,
+                                                  const LN_Rotation &rotation,
                                                   const uint64_t sort_key,
                                                   const uint32_t source_ref_index,
                                                   const int32_t location_space,
@@ -8217,7 +10183,8 @@ void LN_CommandBuffer::AppendSetBonePoseTransform(KX_GameObject *armature_object
                              std::string(),
                              std::string(),
                              location,
-                             rotation_euler,
+                             MT_Vector3(0.0f, 0.0f, 0.0f),
+                             rotation,
                              LN_Value{},
                              0.0f,
                              location_space,
@@ -8227,12 +10194,29 @@ void LN_CommandBuffer::AppendSetBonePoseTransform(KX_GameObject *armature_object
 }
 
 void LN_CommandBuffer::AppendSetBonePoseRotation(KX_GameObject *armature_object,
-                                                const std::string &bone_name,
-                                                const MT_Vector3 &rotation_euler,
-                                                const uint64_t sort_key,
-                                                const uint32_t source_ref_index,
-                                                const bool use_center,
-                                                const int32_t rotation_space)
+                                                 const std::string &bone_name,
+                                                 const MT_Vector3 &rotation_euler,
+                                                 const uint64_t sort_key,
+                                                 const uint32_t source_ref_index,
+                                                 const bool use_center,
+                                                 const int32_t rotation_space)
+{
+  AppendSetBonePoseRotation(armature_object,
+                            bone_name,
+                            LN_Rotation::FromEulerXYZ(rotation_euler),
+                            sort_key,
+                            source_ref_index,
+                            use_center,
+                            rotation_space);
+}
+
+void LN_CommandBuffer::AppendSetBonePoseRotation(KX_GameObject *armature_object,
+                                                 const std::string &bone_name,
+                                                 const LN_Rotation &rotation,
+                                                 const uint64_t sort_key,
+                                                 const uint32_t source_ref_index,
+                                                 const bool use_center,
+                                                 const int32_t rotation_space)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -8248,8 +10232,9 @@ void LN_CommandBuffer::AppendSetBonePoseRotation(KX_GameObject *armature_object,
                              bone_name,
                              std::string(),
                              std::string(),
-                             rotation_euler,
                              MT_Vector3(0.0f, 0.0f, 0.0f),
+                             MT_Vector3(0.0f, 0.0f, 0.0f),
+                             rotation,
                              LN_Value{},
                              0.0f,
                              rotation_space,
@@ -8280,6 +10265,7 @@ void LN_CommandBuffer::AppendSetBonePoseScale(KX_GameObject *armature_object,
                              std::string(),
                              scale,
                              MT_Vector3(0.0f, 0.0f, 0.0f),
+                             LN_Rotation{},
                              LN_Value{},
                              0.0f,
                              0,
@@ -8312,6 +10298,7 @@ void LN_CommandBuffer::AppendSetBoneAttribute(KX_GameObject *armature_object,
                              std::string(),
                              MT_Vector3(0.0f, 0.0f, 0.0f),
                              MT_Vector3(0.0f, 0.0f, 0.0f),
+                             LN_Rotation{},
                              value,
                              0.0f,
                              attribute,
@@ -8321,11 +10308,11 @@ void LN_CommandBuffer::AppendSetBoneAttribute(KX_GameObject *armature_object,
 }
 
 void LN_CommandBuffer::AppendSetBoneConstraintInfluence(KX_GameObject *armature_object,
-                                                       const std::string &bone_name,
-                                                       const std::string &constraint_name,
-                                                       const float influence,
-                                                       const uint64_t sort_key,
-                                                       const uint32_t source_ref_index)
+                                                        const std::string &bone_name,
+                                                        const std::string &constraint_name,
+                                                        const float influence,
+                                                        const uint64_t sort_key,
+                                                        const uint32_t source_ref_index)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -8343,6 +10330,7 @@ void LN_CommandBuffer::AppendSetBoneConstraintInfluence(KX_GameObject *armature_
                              std::string(),
                              MT_Vector3(0.0f, 0.0f, 0.0f),
                              MT_Vector3(0.0f, 0.0f, 0.0f),
+                             LN_Rotation{},
                              LN_Value{},
                              influence,
                              0,
@@ -8375,6 +10363,7 @@ void LN_CommandBuffer::AppendSetBoneConstraintTarget(LN_RuntimeTree *runtime_tre
                              std::string(),
                              MT_Vector3(0.0f, 0.0f, 0.0f),
                              MT_Vector3(0.0f, 0.0f, 0.0f),
+                             LN_Rotation{},
                              target_value,
                              0.0f,
                              0,
@@ -8410,6 +10399,7 @@ void LN_CommandBuffer::AppendSetBoneConstraintAttribute(LN_RuntimeTree *runtime_
                              attribute_name,
                              MT_Vector3(0.0f, 0.0f, 0.0f),
                              MT_Vector3(0.0f, 0.0f, 0.0f),
+                             LN_Rotation{},
                              value,
                              0.0f,
                              0,
@@ -8595,15 +10585,14 @@ void LN_CommandBuffer::AppendSetGeometryNodesInput(LN_RuntimeTree *runtime_tree,
                              source_ref_index);
 }
 
-void LN_CommandBuffer::AppendSetGeometryNodeSocketValue(
-    LN_RuntimeTree *runtime_tree,
-    KX_GameObject *gameobj,
-    const std::string &modifier_name,
-    const std::string &node_name,
-    const std::string &socket_identifier,
-    const LN_Value &value,
-    const uint64_t sort_key,
-    const uint32_t source_ref_index)
+void LN_CommandBuffer::AppendSetGeometryNodeSocketValue(LN_RuntimeTree *runtime_tree,
+                                                        KX_GameObject *gameobj,
+                                                        const std::string &modifier_name,
+                                                        const std::string &node_name,
+                                                        const std::string &socket_identifier,
+                                                        const LN_Value &value,
+                                                        const uint64_t sort_key,
+                                                        const uint32_t source_ref_index)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -8629,15 +10618,14 @@ void LN_CommandBuffer::AppendSetGeometryNodeSocketValue(
                              source_ref_index);
 }
 
-void LN_CommandBuffer::AppendSetCompositorNodeSocketValue(
-    LN_RuntimeTree *runtime_tree,
-    const int16_t target_id_code,
-    const std::string &target_name,
-    const std::string &node_name,
-    const std::string &socket_identifier,
-    const LN_Value &value,
-    const uint64_t sort_key,
-    const uint32_t source_ref_index)
+void LN_CommandBuffer::AppendSetCompositorNodeSocketValue(LN_RuntimeTree *runtime_tree,
+                                                          const int16_t target_id_code,
+                                                          const std::string &target_name,
+                                                          const std::string &node_name,
+                                                          const std::string &socket_identifier,
+                                                          const LN_Value &value,
+                                                          const uint64_t sort_key,
+                                                          const uint32_t source_ref_index)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -8672,10 +10660,8 @@ void LN_CommandBuffer::AppendMakeNodeTreeUnique(KX_GameObject *gameobj,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  if (!ELEM(editor_type, 1, 2, 3) ||
-      (editor_type != 3 && gameobj == nullptr) ||
-      (editor_type == 1 && slot < 0) ||
-      (editor_type != 1 && target_name.empty()))
+  if (!ELEM(editor_type, 1, 2, 3) || (editor_type != 3 && gameobj == nullptr) ||
+      (editor_type == 1 && slot < 0) || (editor_type != 1 && target_name.empty()))
   {
     return;
   }
@@ -8795,9 +10781,8 @@ int32_t LN_CommandBuffer::AssignGeometryNodesModifierNow(
     return 0;
   }
 
-  blender::Scene *scene = gameobj->GetScene() != nullptr ?
-                              gameobj->GetScene()->GetBlenderScene() :
-                              nullptr;
+  blender::Scene *scene = gameobj->GetScene() != nullptr ? gameobj->GetScene()->GetBlenderScene() :
+                                                           nullptr;
   blender::ModifierData *modifier = nullptr;
   bool created_modifier = false;
   if (operation == ModifierAssignmentOperation::Replace) {
@@ -8818,7 +10803,7 @@ int32_t LN_CommandBuffer::AssignGeometryNodesModifierNow(
       case ModifierTarget::Index:
         if (index_or_id < 0) {
           WarnAssignGeometryNodesModifierFailureOnce(object,
-                                                      "modifier index must be non-negative");
+                                                     "modifier index must be non-negative");
           return 0;
         }
         modifier = static_cast<blender::ModifierData *>(
@@ -8877,8 +10862,8 @@ int32_t LN_CommandBuffer::AssignGeometryNodesModifierNow(
     return 0;
   }
 
-  blender::NodesModifierData *nodes_modifier =
-      reinterpret_cast<blender::NodesModifierData *>(modifier);
+  blender::NodesModifierData *nodes_modifier = reinterpret_cast<blender::NodesModifierData *>(
+      modifier);
   const bool group_changed = nodes_modifier->node_group != node_group;
   if (group_changed &&
       !SetGeometryNodesModifierGroup(*bmain, scene, *object, *nodes_modifier, *node_group))
@@ -8987,23 +10972,60 @@ void LN_CommandBuffer::RemoveCommandsForGameObject(KX_GameObject *gameobj)
     return;
   }
 
+  const auto fail_pending_action = [](LN_RuntimeTree *runtime_tree,
+                                      const uint32_t expression_index,
+                                      const uint8_t output_mask) {
+    if (runtime_tree != nullptr && (output_mask & LN_ACTION_OUTPUT_FAILED) != 0u) {
+      runtime_tree->CompleteActionOperation(expression_index, LN_ActionResult::Failed);
+    }
+  };
+
+  /* Keep the owner's Set Save Object State command so it can publish Done/false, but remove the
+   * stale target pointer before destruction. */
+  for (Command &command : m_commands) {
+    if (command.type == CommandType::SetSaveExistence && command.event_target_object == gameobj) {
+      command.event_target_object = nullptr;
+    }
+    if (command.type == CommandType::PlayAction && command.object == gameobj) {
+      fail_pending_action(
+          command.runtime_tree, command.property_ref_index, command.action_output_mask);
+    }
+  }
+
   m_commands.erase(std::remove_if(m_commands.begin(),
                                   m_commands.end(),
-                                  [gameobj](const Command &command) {
+                                  [gameobj](Command &command) {
+                                    if (command.type == CommandType::SetOverlayCollection &&
+                                        command.event_target_object == gameobj)
+                                    {
+                                      if (command.runtime_tree != nullptr) {
+                                        command.runtime_tree->CompleteUIOperation(
+                                            command.property_ref_index,
+                                            LN_UIResult::CameraUnavailable,
+                                            0);
+                                      }
+                                      return true;
+                                    }
+                                    if ((command.type == CommandType::SendEvent ||
+                                         command.type == CommandType::SetPlayerCamera ||
+                                         command.type == CommandType::SetCameraViewport ||
+                                         command.type == CommandType::SetCameraVisibility) &&
+                                        command.event_target_object == gameobj)
+                                    {
+                                      return true;
+                                    }
                                     return command.object == gameobj;
                                   }),
                    m_commands.end());
   auto remove_typed_vector = [gameobj](const TypedVectorCommand &command) {
     return command.object == gameobj;
   };
-  m_transformCommands.erase(std::remove_if(m_transformCommands.begin(),
-                                           m_transformCommands.end(),
-                                           remove_typed_vector),
-                            m_transformCommands.end());
-  m_velocityCommands.erase(std::remove_if(m_velocityCommands.begin(),
-                                          m_velocityCommands.end(),
-                                          remove_typed_vector),
-                           m_velocityCommands.end());
+  m_transformCommands.erase(
+      std::remove_if(m_transformCommands.begin(), m_transformCommands.end(), remove_typed_vector),
+      m_transformCommands.end());
+  m_velocityCommands.erase(
+      std::remove_if(m_velocityCommands.begin(), m_velocityCommands.end(), remove_typed_vector),
+      m_velocityCommands.end());
   m_relativeVectorCommands.erase(std::remove_if(m_relativeVectorCommands.begin(),
                                                 m_relativeVectorCommands.end(),
                                                 remove_typed_vector),
@@ -9017,7 +11039,8 @@ void LN_CommandBuffer::RemoveCommandsForGameObject(KX_GameObject *gameobj)
   m_eventCommands.erase(std::remove_if(m_eventCommands.begin(),
                                        m_eventCommands.end(),
                                        [gameobj](const TypedEventCommand &command) {
-                                         return command.messenger == gameobj;
+                                         return command.messenger == gameobj ||
+                                                command.target == gameobj;
                                        }),
                         m_eventCommands.end());
   m_audioCommands.erase(std::remove_if(m_audioCommands.begin(),
@@ -9039,12 +11062,21 @@ void LN_CommandBuffer::RemoveCommandsForGameObject(KX_GameObject *gameobj)
                        return command.object == gameobj;
                      }),
       m_objectServiceCommands.end());
-  m_animationCommands.erase(std::remove_if(m_animationCommands.begin(),
-                                           m_animationCommands.end(),
-                                           [gameobj](const TypedAnimationCommand &command) {
-                                             return command.object == gameobj;
-                                           }),
-                            m_animationCommands.end());
+  m_animationCommands.erase(
+      std::remove_if(m_animationCommands.begin(),
+                     m_animationCommands.end(),
+                     [gameobj, &fail_pending_action](const TypedAnimationCommand &command) {
+                       if (command.object != gameobj) {
+                         return false;
+                       }
+                       if (command.type == CommandType::PlayAction) {
+                         fail_pending_action(command.runtime_tree,
+                                             command.completion_expression_index,
+                                             command.action_output_mask);
+                       }
+                       return true;
+                     }),
+      m_animationCommands.end());
   m_armatureCommands.erase(std::remove_if(m_armatureCommands.begin(),
                                           m_armatureCommands.end(),
                                           [gameobj](const TypedArmatureCommand &command) {
@@ -9070,6 +11102,8 @@ void LN_CommandBuffer::RemoveCommandsForGameObject(KX_GameObject *gameobj)
                                                  command.target_object == gameobj;
                                         }),
                          m_motionCommands.end());
+  /* The erases moved the other writes. */
+  ForgetPendingTransformIndex();
   RefreshCommandStreamTracking();
 }
 
@@ -9081,6 +11115,22 @@ void LN_CommandBuffer::Flush()
 
   m_removedObjectsDuringFlush.clear();
   m_isFlushing = true;
+
+  /* Set Cursor Visibility: Only in Menus gives the cursor to the UI, which shows it while a menu
+   * uses player 0's mouse; Visible takes it back. */
+  auto apply_cursor_visibility = [&](const bool in_menus, const bool visible) {
+    if (m_logicManager != nullptr) {
+      m_logicManager->GetUIService().SetCursorOnlyInMenus(in_menus);
+    }
+    if (in_menus) {
+      return;
+    }
+    if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
+      if (RAS_ICanvas *canvas = engine->GetCanvas()) {
+        canvas->SetMouseState(visible ? RAS_ICanvas::MOUSE_NORMAL : RAS_ICanvas::MOUSE_INVISIBLE);
+      }
+    }
+  };
 
   struct SceneObjectNameCacheKey {
     KX_Scene *scene = nullptr;
@@ -9097,8 +11147,8 @@ void LN_CommandBuffer::Flush()
     {
       const size_t scene_hash = std::hash<const void *>()(key.scene);
       const size_t name_hash = std::hash<std::string>()(key.name);
-      return scene_hash ^ (name_hash + 0x9e3779b97f4a7c15ULL + (scene_hash << 6) +
-                           (scene_hash >> 2));
+      return scene_hash ^
+             (name_hash + 0x9e3779b97f4a7c15ULL + (scene_hash << 6) + (scene_hash >> 2));
     }
   };
 
@@ -9107,9 +11157,7 @@ void LN_CommandBuffer::Flush()
     KX_GameObject *active_source = nullptr;
   };
 
-  std::unordered_map<SceneObjectNameCacheKey,
-                     AddObjectSourceLookup,
-                     SceneObjectNameCacheKeyHash>
+  std::unordered_map<SceneObjectNameCacheKey, AddObjectSourceLookup, SceneObjectNameCacheKeyHash>
       add_object_source_cache;
   std::unordered_map<SceneObjectNameCacheKey, KX_GameObject *, SceneObjectNameCacheKeyHash>
       active_object_name_cache;
@@ -9146,10 +11194,10 @@ void LN_CommandBuffer::Flush()
     }
 
     EXP_ListValue<KX_GameObject> *inactive_list = scene != nullptr ? scene->GetInactiveList() :
-                                                                   nullptr;
-    item->second.inactive_source = inactive_list ?
-                                       static_cast<KX_GameObject *>(inactive_list->FindValue(name)) :
-                                       nullptr;
+                                                                     nullptr;
+    item->second.inactive_source = inactive_list ? static_cast<KX_GameObject *>(
+                                                       inactive_list->FindValue(name)) :
+                                                   nullptr;
     if (item->second.inactive_source == nullptr) {
       item->second.active_source = lookup_active_object_by_name(scene, name);
     }
@@ -9173,10 +11221,10 @@ void LN_CommandBuffer::Flush()
     {
       const size_t material_hash = std::hash<const void *>()(key.material);
       size_t hash = material_hash;
-      hash ^= std::hash<std::string>()(key.node_name) + 0x9e3779b97f4a7c15ULL +
-              (hash << 6) + (hash >> 2);
-      hash ^= std::hash<std::string>()(key.socket_name) + 0x9e3779b97f4a7c15ULL +
-              (hash << 6) + (hash >> 2);
+      hash ^= std::hash<std::string>()(key.node_name) + 0x9e3779b97f4a7c15ULL + (hash << 6) +
+              (hash >> 2);
+      hash ^= std::hash<std::string>()(key.socket_name) + 0x9e3779b97f4a7c15ULL + (hash << 6) +
+              (hash >> 2);
       return hash;
     }
   };
@@ -9211,7 +11259,8 @@ void LN_CommandBuffer::Flush()
 
   auto flush_material_parameter_object_updates = [&]() {
     for (const auto &[object, game_object] : material_parameter_dirty_objects) {
-      if (object == nullptr || game_object == nullptr || object_removed_during_flush(game_object)) {
+      if (object == nullptr || game_object == nullptr || object_removed_during_flush(game_object))
+      {
         continue;
       }
       TagMaterialParameterObjectUpdate(game_object, object);
@@ -9369,14 +11418,18 @@ void LN_CommandBuffer::Flush()
     if (r_object == nullptr || command.property_name.empty()) {
       return false;
     }
-    blender::ModifierData *md = BKE_modifiers_findby_name(r_object,
-                                                          command.property_name.c_str());
+    blender::ModifierData *md = BKE_modifiers_findby_name(r_object, command.property_name.c_str());
     if (md == nullptr || md->type != blender::eModifierType_Nodes) {
       return false;
     }
     r_modifier = reinterpret_cast<blender::NodesModifierData *>(md);
     r_tree = r_modifier->node_group;
-    return r_tree != nullptr && r_tree->type == blender::NTREE_GEOMETRY;
+    if (r_tree == nullptr || r_tree->type != blender::NTREE_GEOMETRY) {
+      return false;
+    }
+    /* The object's own Blender object changes: a copy of it is not reused (KX_Scene::ParkCopy). */
+    command.object->NoteBlenderObjectChanged();
+    return true;
   };
 
   auto apply_geometry_nodes_input_command = [&](const Command &command) {
@@ -9429,12 +11482,10 @@ void LN_CommandBuffer::Flush()
     blender::PropertyRNA *type_prop = blender::RNA_struct_find_property(&input_ptr, "type");
     int value_mode = 0;
     if (type_prop == nullptr ||
-        !blender::RNA_property_enum_value(
-            context, &input_ptr, type_prop, "VALUE", &value_mode) ||
+        !blender::RNA_property_enum_value(context, &input_ptr, type_prop, "VALUE", &value_mode) ||
         blender::RNA_property_enum_get(&input_ptr, type_prop) != value_mode)
     {
-      warn_command_failure_once(command,
-                                "geometry-node interface input is not in Value mode");
+      warn_command_failure_once(command, "geometry-node interface input is not in Value mode");
       return;
     }
     blender::PropertyRNA *value_prop = blender::RNA_struct_find_property(&input_ptr, "value");
@@ -9456,8 +11507,7 @@ void LN_CommandBuffer::Flush()
     if (!SetRnaPropertyValue(
             context, command.runtime_tree, input_ptr, value_prop, command.property_value))
     {
-      warn_command_failure_once(command,
-                                "geometry-node interface input value conversion failed");
+      warn_command_failure_once(command, "geometry-node interface input value conversion failed");
       return;
     }
 
@@ -9486,7 +11536,8 @@ void LN_CommandBuffer::Flush()
                                               *node, command.tertiary_property_name) :
                                           nullptr;
     if (socket == nullptr || (socket->flag & blender::SOCK_UNAVAIL) != 0) {
-      warn_command_failure_once(command, "geometry node input socket was not found or unavailable");
+      warn_command_failure_once(command,
+                                "geometry node input socket was not found or unavailable");
       return;
     }
     ntree->ensure_topology_cache();
@@ -9542,17 +11593,16 @@ void LN_CommandBuffer::Flush()
       warn_command_failure_once(command, "unsupported compositor node-tree owner type");
       return;
     }
-    blender::ID *target_id = BKE_libblock_find_name(
-        bmain, id_code, command.property_name.c_str());
+    blender::ID *target_id = BKE_libblock_find_name(bmain, id_code, command.property_name.c_str());
     if (target_id == nullptr || (target_id->tag & blender::ID_TAG_MISSING) != 0) {
       warn_command_failure_once(command, "compositor node-tree owner was not found");
       return;
     }
 
-    blender::bNodeTree *ntree = id_code == blender::ID_SCE ?
-                                    reinterpret_cast<blender::Scene *>(target_id)
-                                        ->compositing_node_group :
-                                    reinterpret_cast<blender::bNodeTree *>(target_id);
+    blender::bNodeTree *ntree =
+        id_code == blender::ID_SCE ?
+            reinterpret_cast<blender::Scene *>(target_id)->compositing_node_group :
+            reinterpret_cast<blender::bNodeTree *>(target_id);
     if (ntree == nullptr || ntree->type != blender::NTREE_COMPOSIT) {
       warn_command_failure_once(command, "selected node tree is no longer a compositor tree");
       return;
@@ -9619,22 +11669,22 @@ void LN_CommandBuffer::Flush()
 
     if (editor_type == 2) {
       blender::Object *object = command.object != nullptr ? command.object->GetBlenderObject() :
-                                                           nullptr;
+                                                            nullptr;
       blender::ModifierData *md = object != nullptr && !command.property_name.empty() ?
-                                      BKE_modifiers_findby_name(
-                                          object, command.property_name.c_str()) :
+                                      BKE_modifiers_findby_name(object,
+                                                                command.property_name.c_str()) :
                                       nullptr;
       if (md == nullptr || md->type != blender::eModifierType_Nodes) {
         warn_command_failure_once(command, "Geometry Nodes modifier was not found");
         return;
       }
-      blender::NodesModifierData &modifier =
-          *reinterpret_cast<blender::NodesModifierData *>(md);
+      blender::NodesModifierData &modifier = *reinterpret_cast<blender::NodesModifierData *>(md);
       blender::bNodeTree *source = modifier.node_group;
       if (source == nullptr || source->type != blender::NTREE_GEOMETRY) {
         warn_command_failure_once(command, "modifier has no Geometry Nodes node group");
         return;
       }
+      command.object->NoteBlenderObjectChanged();
       if (source->id.us <= 1) {
         return;
       }
@@ -9688,8 +11738,8 @@ void LN_CommandBuffer::Flush()
     }
     id_us_min(&copy->id);
     blender::PointerRNA scene_ptr = blender::RNA_id_pointer_create(&scene->id);
-    blender::PropertyRNA *property = blender::RNA_struct_find_property(
-        &scene_ptr, "compositing_node_group");
+    blender::PropertyRNA *property = blender::RNA_struct_find_property(&scene_ptr,
+                                                                       "compositing_node_group");
     blender::PointerRNA copy_ptr = blender::RNA_id_pointer_create(&copy->id);
     if (property != nullptr) {
       blender::RNA_property_pointer_set(&scene_ptr, property, copy_ptr, nullptr);
@@ -9714,16 +11764,12 @@ void LN_CommandBuffer::Flush()
     }
 
     const int16_t id_code = int16_t(command.int_value);
-    if (!ELEM(id_code,
-              int16_t(blender::ID_MA),
-              int16_t(blender::ID_SCE),
-              int16_t(blender::ID_NT)))
+    if (!ELEM(id_code, int16_t(blender::ID_MA), int16_t(blender::ID_SCE), int16_t(blender::ID_NT)))
     {
       warn_command_failure_once(command, "unsupported node-tree owner type");
       return;
     }
-    blender::ID *target_id = BKE_libblock_find_name(
-        bmain, id_code, command.property_name.c_str());
+    blender::ID *target_id = BKE_libblock_find_name(bmain, id_code, command.property_name.c_str());
     if (target_id == nullptr || (target_id->tag & blender::ID_TAG_MISSING) != 0) {
       warn_command_failure_once(command, "node-tree owner was not found");
       return;
@@ -9742,10 +11788,8 @@ void LN_CommandBuffer::Flush()
         break;
     }
     if (ntree == nullptr ||
-        !ELEM(ntree->type,
-              blender::NTREE_SHADER,
-              blender::NTREE_GEOMETRY,
-              blender::NTREE_COMPOSIT))
+        !ELEM(
+            ntree->type, blender::NTREE_SHADER, blender::NTREE_GEOMETRY, blender::NTREE_COMPOSIT))
     {
       warn_command_failure_once(command, "selected node tree is no longer supported");
       return;
@@ -9841,6 +11885,7 @@ void LN_CommandBuffer::Flush()
     else {
       modifier->mode &= ~blender::eModifierMode_Realtime;
     }
+    command.object->NoteBlenderObjectChanged();
     if (KX_Scene *scene = command.object->GetScene()) {
       const bool overlay_only = (object->gameflag & blender::OB_OVERLAY_COLLECTION) != 0;
       scene->AppendToIdsToUpdate(&object->id, blender::ID_RECALC_GEOMETRY, overlay_only);
@@ -9879,7 +11924,8 @@ void LN_CommandBuffer::Flush()
     MaterialSocketLookup lookup = lookup_material_socket(
         material, command.secondary_property_name, command.tertiary_property_name);
     if (lookup.socket == nullptr ||
-        !MaterialParameterSocketSupportsObjectAttribute(*lookup.socket))
+        !upbge::logic_nodes::game_state::material_parameter_socket_supports_object_attribute(
+            *lookup.socket))
     {
       return;
     }
@@ -9900,11 +11946,152 @@ void LN_CommandBuffer::Flush()
     }
   };
 
+  auto apply_shape_key_value_command = [&](const Command &command) {
+    if (command.property_name.empty()) {
+      warn_command_failure_once(command, "shape key name is empty");
+      return;
+    }
+    if (!std::isfinite(command.scalar_value)) {
+      warn_command_failure_once(command, "shape key value must be finite");
+      return;
+    }
+
+    blender::Mesh *mesh = nullptr;
+    /* A copy's own mesh (Add Object's Own Mesh); the game mesh is still its source's. */
+    if (command.object->HasOwnMesh()) {
+      mesh = reinterpret_cast<blender::Mesh *>(command.object->GetBlenderObject()->data);
+    }
+    else if (command.object->GetMeshCount() > 0) {
+      if (RAS_MeshObject *mesh_object = command.object->GetMesh(0)) {
+        mesh = mesh_object->GetOrigMesh();
+      }
+    }
+    if (mesh == nullptr) {
+      blender::Object *object = command.object->GetBlenderObject();
+      if (object != nullptr && object->type == blender::OB_MESH) {
+        mesh = reinterpret_cast<blender::Mesh *>(object->data);
+      }
+    }
+    if (mesh == nullptr) {
+      warn_command_failure_once(command, "target object has no mesh");
+      return;
+    }
+
+    blender::Key *key = mesh->key;
+    if (key == nullptr) {
+      warn_command_failure_once(command, "target mesh has no shape keys");
+      return;
+    }
+    if (key->type != blender::KEY_RELATIVE) {
+      warn_command_failure_once(command, "only relative shape keys are supported");
+      return;
+    }
+
+    blender::KeyBlock *key_block = blender::BKE_keyblock_find_name(key,
+                                                                   command.property_name.c_str());
+    if (key_block == nullptr) {
+      warn_command_failure_once(command, "shape key was not found");
+      return;
+    }
+    if (key_block == key->refkey) {
+      warn_command_failure_once(command, "the relative shape key Basis cannot be assigned");
+      return;
+    }
+    if (key_block->totelem != mesh->verts_num) {
+      warn_command_failure_once(command, "shape key topology does not match the target mesh");
+      return;
+    }
+    if (!std::isfinite(key_block->slidermin) || !std::isfinite(key_block->slidermax) ||
+        key_block->slidermin > key_block->slidermax)
+    {
+      warn_command_failure_once(command, "shape key slider range is invalid");
+      return;
+    }
+
+    const float value = std::clamp(
+        command.scalar_value, key_block->slidermin, key_block->slidermax);
+    if (key_block->curval == value) {
+      return;
+    }
+
+    KX_Scene *scene = command.object->GetSGNode() != nullptr ? command.object->GetScene() :
+                                                               nullptr;
+    if (!mesh->is_running_gpu_animation_playback) {
+      if (scene == nullptr) {
+        warn_command_failure_once(command, "target object is not attached to a game scene");
+        return;
+      }
+      key_block->curval = value;
+      scene->AppendToIdsToUpdate(&mesh->id, blender::ID_RECALC_GEOMETRY, false);
+      return;
+    }
+    key_block->curval = value;
+    /* The GPU reads the value when it draws; a transform mark makes the cameras draw again (as
+     * BL_Action does for GPU-deformed meshes), or a still frame keeps the old shape. */
+    blender::Object *object = command.object->GetBlenderObject();
+    if (scene != nullptr && object != nullptr) {
+      const bool overlay_only = (object->gameflag & blender::OB_OVERLAY_COLLECTION) != 0;
+      scene->AppendToIdsToUpdate(&object->id, blender::ID_RECALC_TRANSFORM, overlay_only);
+    }
+  };
+
+  const auto queue_action_result = [](const Command &command, const LN_ActionResult result) {
+    uint8_t required_output = LN_ACTION_OUTPUT_NONE;
+    switch (result) {
+      case LN_ActionResult::Started:
+        required_output = LN_ACTION_OUTPUT_STARTED;
+        break;
+      case LN_ActionResult::Completed:
+        required_output = LN_ACTION_OUTPUT_COMPLETED;
+        break;
+      case LN_ActionResult::Interrupted:
+        required_output = LN_ACTION_OUTPUT_INTERRUPTED;
+        break;
+      case LN_ActionResult::Failed:
+        required_output = LN_ACTION_OUTPUT_FAILED;
+        break;
+    }
+    return command.runtime_tree == nullptr ||
+           (command.action_output_mask & required_output) == 0u ||
+           command.runtime_tree->CompleteActionOperation(command.property_ref_index, result);
+  };
+
   auto flush_command = [&](const Command &command) {
+    if (command.runtime_tree != nullptr &&
+        ELEM(command.type,
+             CommandType::OpenObjectMenu,
+             CommandType::CloseObjectMenu,
+             CommandType::SetUIFocus,
+             CommandType::TakeUIControl,
+             CommandType::SetOverlayCollection,
+             CommandType::RemoveOverlayCollection) &&
+        !command.runtime_tree->CanCompleteUIOperation(command.property_ref_index))
+    {
+      warn_command_failure_once(
+          command, "UI command was not applied because its bounded completion queue is full");
+      return;
+    }
     if (object_removed_during_flush(command.object)) {
+      if (command.runtime_tree != nullptr && ELEM(command.type,
+                                                  CommandType::OpenObjectMenu,
+                                                  CommandType::CloseObjectMenu,
+                                                  CommandType::SetUIFocus,
+                                                  CommandType::TakeUIControl,
+                                                  CommandType::SetOverlayCollection,
+                                                  CommandType::RemoveOverlayCollection))
+      {
+        command.runtime_tree->CompleteUIOperation(
+            command.property_ref_index, LN_UIResult::InvalidOwner, 0);
+      }
+      if (command.type == CommandType::PlayAction) {
+        queue_action_result(command, LN_ActionResult::Failed);
+      }
       return;
     }
     if (command.object == nullptr && !AllowsObjectlessFlush(command.type)) {
+      if (command.type == CommandType::PlayAction) {
+        queue_action_result(command, LN_ActionResult::Failed);
+      }
       warn_command_failure_once(command, "missing target object");
       return;
     }
@@ -9932,13 +12119,18 @@ void LN_CommandBuffer::Flush()
         break;
       case CommandType::ApplyImpulse:
         if (PHY_IPhysicsController *physics_controller = command.object->GetPhysicsController()) {
-          physics_controller->ApplyImpulse(command.secondary_vector_value,
-                                           command.vector_value,
-                                           false);
+          physics_controller->ApplyImpulse(
+              command.secondary_vector_value, command.vector_value, false);
         }
         break;
       case CommandType::SetVisibility:
         command.object->SetVisible(command.bool_value, command.secondary_bool_value);
+        break;
+      case CommandType::SetUIInteractable:
+        command.object->SetUIInteractable(command.bool_value);
+        break;
+      case CommandType::ResetSmoothing:
+        command.object->ResetSmoothing(0.0f);
         break;
       case CommandType::SetObjectColor:
         command.object->SetObjectColor(command.color_value);
@@ -9994,20 +12186,37 @@ void LN_CommandBuffer::Flush()
           m_logicManager->InternGamePropertyName(command.property_name);
         }
         const std::string *property_name = logic_node_command_game_property_name(command,
-                                                                                m_logicManager);
+                                                                                 m_logicManager);
         if (property_name == nullptr || property_name->empty()) {
           break;
         }
 
-        if (!apply_game_property_value(command.object, *property_name, command.property_value)) {
-          warn_command_failure_once(command, "unsupported game-property payload type");
+        std::string reason;
+        if (!apply_game_property_value(command.object,
+                                       *property_name,
+                                       command.property_value,
+                                       command.runtime_tree,
+                                       reason))
+        {
+          warn_command_failure_once(command, reason);
+        }
+        break;
+      }
+      case CommandType::ModifyGameProperty: {
+        const std::string *property_name = logic_node_command_game_property_name(command,
+                                                                                 m_logicManager);
+        std::string reason;
+        if (property_name != nullptr && !property_name->empty() &&
+            !apply_game_property_modify(command.object, *property_name, command.modify, reason))
+        {
+          warn_command_failure_once(command, reason);
         }
         break;
       }
       case CommandType::SetTreeProperty:
         if (command.runtime_tree != nullptr) {
           command.runtime_tree->SetTreePropertyValue(command.property_ref_index,
-                                                    command.property_value);
+                                                     command.property_value);
         }
         else {
           warn_command_failure_once(command, "missing runtime tree for tree-property write");
@@ -10023,23 +12232,23 @@ void LN_CommandBuffer::Flush()
         KX_GameObject *source = source_lookup.inactive_source;
         if (source == nullptr) {
           if (source_lookup.active_source != nullptr) {
-            warn_add_object_source_not_inactive(command,
-                                               scene,
-                                               source_lookup.active_source,
-                                               command.property_name);
+            warn_add_object_source_not_inactive(
+                command, scene, source_lookup.active_source, command.property_name);
           }
           break;
         }
 
-        const float scene_lifespan = add_object_life_seconds_to_scene_lifespan(
-          command.scalar_value, command.bool_value);
-        KX_GameObject *replica = command.bool_value ?
-                       scene->AddFullCopyObject(source,
-                                   command.object,
-                                   scene_lifespan) :
-                       scene->AddReplicaObject(source,
-                                   command.object,
-                                   scene_lifespan);
+        std::string persistence_error;
+        KX_GameObject *replica = execute_tracked_logic_nodes_add(m_logicManager,
+                                                                 scene,
+                                                                 source,
+                                                                 command.object,
+                                                                 command.scalar_value,
+                                                                 command.bool_value,
+                                                                 persistence_error);
+        if (replica == nullptr) {
+          warn_command_failure_once(command, persistence_error);
+        }
         if (replica != nullptr) {
           if (!command.bool_value) {
             replica->Release();
@@ -10062,7 +12271,16 @@ void LN_CommandBuffer::Flush()
         }
         KX_GameObject *parent = lookup_active_object_by_name(scene, command.property_name);
         if (parent != nullptr && parent != command.object) {
-          command.object->SetParent(parent, command.bool_value, command.secondary_bool_value);
+          if (command.parent_options != nullptr) {
+            const KX_ParentResult result = command.object->SetParent(parent,
+                                                                     *command.parent_options);
+            if (result != KX_ParentResult::Success) {
+              warn_command_failure_once(command, KX_ParentResultMessage(result));
+            }
+          }
+          else {
+            command.object->SetParent(parent, command.bool_value, command.secondary_bool_value);
+          }
         }
         break;
       }
@@ -10072,7 +12290,16 @@ void LN_CommandBuffer::Flush()
         }
         KX_GameObject *parent = command.runtime_tree->ResolveObjectRef(command.runtime_ref);
         if (parent != nullptr && parent != command.object) {
-          command.object->SetParent(parent, command.bool_value, command.secondary_bool_value);
+          if (command.parent_options != nullptr) {
+            const KX_ParentResult result = command.object->SetParent(parent,
+                                                                     *command.parent_options);
+            if (result != KX_ParentResult::Success) {
+              warn_command_failure_once(command, KX_ParentResultMessage(result));
+            }
+          }
+          else {
+            command.object->SetParent(parent, command.bool_value, command.secondary_bool_value);
+          }
         }
         break;
       }
@@ -10092,6 +12319,16 @@ void LN_CommandBuffer::Flush()
       case CommandType::SetTimeScale:
         if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
           engine->SetTimeScale(command.scalar_value);
+        }
+        break;
+      case CommandType::SetGamePaused:
+        if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
+          engine->SetGamePaused(command.bool_value);
+        }
+        break;
+      case CommandType::SetPhysicsPaused:
+        if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
+          engine->SetPhysicsPaused(command.bool_value);
         }
         break;
       case CommandType::SetActiveCamera:
@@ -10117,6 +12354,102 @@ void LN_CommandBuffer::Flush()
           camera->InvalidateProjectionMatrix();
         }
         break;
+      case CommandType::SetPlayerCamera: {
+        KX_Camera *camera = dynamic_cast<KX_Camera *>(command.event_target_object);
+        if (command.int_value < 1 || command.int_value >= KX_PlayerViews::MaxPlayers) {
+          warn_command_failure_once(command, "User must be 0 to 7");
+          break;
+        }
+        if (command.event_target_object != nullptr && camera == nullptr) {
+          warn_command_failure_once(command, "the object is not a camera");
+          break;
+        }
+        if (object_removed_during_flush(camera)) {
+          break;
+        }
+        /* The owner's scene: the one Set Split Screen and Get Player View use too. */
+        KX_Scene *scene = command.object->GetScene();
+        if (scene == nullptr) {
+          break;
+        }
+        if (camera != nullptr && camera->GetScene() != scene) {
+          warn_command_failure_once(command, "the camera is in another scene");
+          break;
+        }
+        if (camera != nullptr && scene->OverlayCameraMatches(camera)) {
+          warn_command_failure_once(command, "the menu camera cannot also be a player's camera");
+          break;
+        }
+        scene->GetPlayerViews().SetPlayerCamera(command.int_value, camera);
+        break;
+      }
+      case CommandType::SetSplitScreen:
+        if (KX_Scene *scene = command.object->GetScene()) {
+          const int32_t choices = command.int_value;
+          KX_PlayerViews::Layout layout;
+          layout.enabled = command.bool_value;
+          layout.two_players = KX_PlayerViews::TwoPlayers(
+              std::min(choices & LN_SPLIT_SCREEN_TWO_PLAYERS_MASK, 2));
+          layout.three_players = KX_PlayerViews::ThreePlayers(
+              (choices >> LN_SPLIT_SCREEN_THREE_PLAYERS_SHIFT) & 1);
+          layout.field_of_view = KX_PlayerViews::FieldOfView(
+              std::min((choices >> LN_SPLIT_SCREEN_FIELD_OF_VIEW_SHIFT) & 0xff, 3));
+          layout.divider = command.secondary_int_value;
+          layout.keep_mouse = (choices & LN_SPLIT_SCREEN_FREE_MOUSE) == 0;
+          scene->GetPlayerViews().SetLayout(layout);
+        }
+        break;
+      case CommandType::SetCameraViewport: {
+        KX_Camera *camera = dynamic_cast<KX_Camera *>(command.event_target_object);
+        if (camera == nullptr) {
+          warn_command_failure_once(command, "Camera is not a camera");
+          break;
+        }
+        KX_Scene *scene = command.object->GetScene();
+        if (object_removed_during_flush(camera) || scene == nullptr) {
+          break;
+        }
+        if (camera->GetScene() != scene) {
+          warn_command_failure_once(command, "the camera is in another scene");
+          break;
+        }
+        if (scene->OverlayCameraMatches(camera)) {
+          warn_command_failure_once(command, "the menu camera already draws over the whole window");
+          break;
+        }
+        KX_PlayerViews::Area area;
+        area.left = command.color_value.x();
+        area.top = command.color_value.y();
+        area.width = command.color_value.z();
+        area.height = command.color_value.w();
+        scene->GetPlayerViews().SetCameraViewport(
+            camera, command.bool_value, area, command.secondary_bool_value, command.int_value);
+        break;
+      }
+      case CommandType::SetCameraVisibility: {
+        KX_Camera *camera = dynamic_cast<KX_Camera *>(command.event_target_object);
+        if (camera == nullptr) {
+          warn_command_failure_once(command, "Camera is not a camera");
+          break;
+        }
+        KX_Scene *scene = command.object->GetScene();
+        if (object_removed_during_flush(camera) || scene == nullptr) {
+          break;
+        }
+        if (camera->GetScene() != scene) {
+          warn_command_failure_once(command, "the camera is in another scene");
+          break;
+        }
+        scene->SetCameraVisibility(
+            camera, command.object, command.bool_value, command.secondary_bool_value);
+        if (command.int_value != 0) {
+          for (KX_GameObject *child : command.object->GetChildrenRecursive()) {
+            scene->SetCameraVisibility(
+                camera, child, command.bool_value, command.secondary_bool_value);
+          }
+        }
+        break;
+      }
       case CommandType::SetCollisionGroup:
         command.object->SetCollisionGroup(static_cast<unsigned short>(command.int_value));
         break;
@@ -10130,31 +12463,36 @@ void LN_CommandBuffer::Flush()
         break;
       case CommandType::SetDynamics:
         if (PHY_IPhysicsController *physics_controller = command.object->GetPhysicsController()) {
-          if (command.int_value != int(PHY_DynamicsMode::Dynamic) || !command.object->GetParent())
+          if (!apply_set_physics_state(
+                  *physics_controller, *command.object, command.int_value, command.bool_value))
           {
-            physics_controller->SetDynamicsMode(static_cast<PHY_DynamicsMode>(command.int_value),
-                                                command.bool_value);
+            if (const char *reason = set_physics_state_failure_reason(command.int_value)) {
+              warn_command_failure_once(command, reason);
+            }
           }
+        }
+        else if (is_explicit_runtime_physics_type(command.int_value) ||
+                 command.int_value == kPhysicsStateGhost ||
+                 command.int_value == kPhysicsStateStatic)
+        {
+          warn_command_failure_once(command, "target has no physics controller");
         }
         break;
       case CommandType::RebuildCollisionShape:
         if (PHY_IPhysicsController *physics_controller = command.object->GetPhysicsController()) {
-          physics_controller->ReinstancePhysicsShape(command.object,
-                                                     command.object->GetMesh(0),
-                                                     false,
-                                                     true);
+          physics_controller->ReinstancePhysicsShape(
+              command.object, command.object->GetMesh(0), false, true);
         }
         break;
       case CommandType::SetRigidBodyAttribute:
         if (PHY_IPhysicsController *physics_controller = command.object->GetPhysicsController()) {
-          apply_rigid_body_attribute(
-              *physics_controller,
-              static_cast<LN_RigidBodyAttribute>(command.int_value),
-              command.vector_value,
-              command.secondary_vector_value,
-              command.scalar_value,
-              command.bool_value,
-              command.secondary_bool_value);
+          apply_rigid_body_attribute(*physics_controller,
+                                     static_cast<LN_RigidBodyAttribute>(command.int_value),
+                                     command.vector_value,
+                                     command.secondary_vector_value,
+                                     command.scalar_value,
+                                     command.bool_value,
+                                     command.secondary_bool_value);
         }
         break;
       case CommandType::CharacterJump:
@@ -10210,9 +12548,8 @@ void LN_CommandBuffer::Flush()
         if (KX_Scene *scene = command.object->GetScene()) {
           if (PHY_IPhysicsEnvironment *environment = scene->GetPhysicsEnvironment()) {
             if (PHY_ICharacter *character = environment->GetCharacterController(command.object)) {
-              character->SetVelocity(command.vector_value,
-                                     std::max(command.scalar_value, 0.0f),
-                                     command.bool_value);
+              character->SetVelocity(
+                  command.vector_value, std::max(command.scalar_value, 0.0f), command.bool_value);
             }
           }
         }
@@ -10223,10 +12560,8 @@ void LN_CommandBuffer::Flush()
             if (PHY_IVehicle *vehicle = environment->GetVehicleConstraint(
                     command.object->GetPhysicsController()))
             {
-              ApplyVehicleActuatorControl(command.object,
-                                          vehicle,
-                                          command.vector_value,
-                                          command.scalar_value);
+              ApplyVehicleActuatorControl(
+                  command.object, vehicle, command.vector_value, command.scalar_value);
             }
           }
         }
@@ -10244,18 +12579,19 @@ void LN_CommandBuffer::Flush()
                     command.object->GetPhysicsController()))
             {
               Object *chassis_object = command.object->GetBlenderObject();
-              const GameVehicleSettings *chassis_settings = chassis_object ? chassis_object->vehicle :
-                                                                           nullptr;
-              const auto selected_wheels = SelectVehicleWheels(command.object,
-                                                               vehicle,
-                                                               VehicleAxisFromInt(
-                                                                   command.secondary_int_value),
-                                                               command.int_value);
+              const GameVehicleSettings *chassis_settings = chassis_object ?
+                                                                chassis_object->vehicle :
+                                                                nullptr;
+              const auto selected_wheels = SelectVehicleWheels(
+                  command.object,
+                  vehicle,
+                  VehicleAxisFromInt(command.secondary_int_value),
+                  command.int_value);
               for (const SelectedVehicleWheel &wheel : selected_wheels) {
                 switch (command.type) {
                   case CommandType::VehicleApplyEngineForce: {
                     const float configured_force = ConfiguredWheelEngineForce(chassis_settings,
-                                                                             wheel.settings);
+                                                                              wheel.settings);
                     const float applied_force = configured_force > 1.0e-4f ?
                                                     command.scalar_value * configured_force :
                                                     command.scalar_value;
@@ -10276,7 +12612,7 @@ void LN_CommandBuffer::Flush()
                     const float configured_steering = ConfiguredWheelSteeringAngle(wheel.settings);
                     if (configured_steering > 1.0e-4f) {
                       vehicle->SetSteeringValue(command.scalar_value * configured_steering,
-                                               wheel.index);
+                                                wheel.index);
                     }
                     break;
                   }
@@ -10304,24 +12640,20 @@ void LN_CommandBuffer::Flush()
         }
         break;
       case CommandType::SetCursorVisibility:
-        if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
-          if (RAS_ICanvas *canvas = engine->GetCanvas()) {
-            canvas->SetMouseState(command.bool_value ? RAS_ICanvas::MOUSE_NORMAL :
-                                                       RAS_ICanvas::MOUSE_INVISIBLE);
-          }
-        }
+        apply_cursor_visibility(command.int_value != 0, command.bool_value);
         break;
       case CommandType::SetCursorPosition:
-        logic_node_set_cursor_position(KX_GetActiveEngine(),
-                                       command.int_value,
-                                       command.secondary_int_value);
+        logic_node_set_cursor_position(
+            KX_GetActiveEngine(), command.int_value, command.secondary_int_value);
+        break;
+      case CommandType::SetPlayerGamepad:
+        LN_InputMap::Get().SetUserGamepad(command.int_value, command.secondary_int_value);
         break;
       case CommandType::SetGamepadVibration:
         if (command.int_value >= 0 && command.int_value < JOYINDEX_MAX) {
           if (DEV_Joystick *joystick = DEV_Joystick::GetInstance(short(command.int_value))) {
-            joystick->RumblePlay(command.scalar_value,
-                                 command.vector_value.x(),
-                                 command.property_ref_index);
+            joystick->RumblePlay(
+                command.scalar_value, command.vector_value.x(), command.property_ref_index);
           }
         }
         break;
@@ -10381,9 +12713,14 @@ void LN_CommandBuffer::Flush()
         }
         break;
       case CommandType::SetLogicTreeEnabled:
-        if (m_logicManager != nullptr) {
-          m_logicManager->FlushSetLogicTreeEnabled(
-              command.object, command.property_name, command.bool_value);
+        if (m_logicManager != nullptr &&
+            !m_logicManager->FlushSetLogicTreeEnabled(
+                command.object, command.property_name, command.bool_value))
+        {
+          warn_command_failure_once(command,
+                                    "the object has no logic tree '" + command.property_name +
+                                        "' to start or stop: apply it to the object, or add it "
+                                        "with Install Logic Tree");
         }
         break;
       case CommandType::InstallLogicTree:
@@ -10398,33 +12735,98 @@ void LN_CommandBuffer::Flush()
           engine->RequestExit(KX_ExitRequest::START_OTHER_GAME);
         }
         break;
-      case CommandType::PlayAction:
-        if (command.object != nullptr) {
-          const int play_mode = int(command.animation_flags & 0xFFu);
-          const int blend_mode = int((command.animation_flags >> 8u) & 0xFFu);
-          const int ipo_flags = int((command.animation_flags >> 16u) & 0xFFFFu);
-          command.object->PlayAction(command.property_name,
-                                     command.vector_value.x(),
-                                     command.vector_value.y(),
-                                     short(command.int_value),
-                                     short(command.secondary_int_value),
-                                     command.vector_value.z(),
-                                     short(play_mode),
-                                     command.secondary_vector_value.x(),
-                                     short(ipo_flags),
-                                     command.secondary_vector_value.y(),
-                                     short(blend_mode));
+      case CommandType::PlayAction: {
+        const int play_mode = int(command.animation_flags & 0xFFu);
+        const int blend_mode = int((command.animation_flags >> 8u) & 0xFFu);
+        const int ipo_flags = int((command.animation_flags >> 16u) & 0xFFFFu);
+        const bool valid = !command.property_name.empty() &&
+                           std::isfinite(command.vector_value.x()) &&
+                           std::isfinite(command.vector_value.y()) &&
+                           std::isfinite(command.vector_value.z()) &&
+                           std::isfinite(command.secondary_vector_value.x()) &&
+                           std::isfinite(command.secondary_vector_value.y()) &&
+                           command.vector_value.z() >= 0.0f && command.int_value >= 0 &&
+                           command.int_value <= 7 &&
+                           command.secondary_int_value >= std::numeric_limits<short>::min() &&
+                           command.secondary_int_value <= std::numeric_limits<short>::max() &&
+                           play_mode >= 0 && play_mode < BL_Action::ACT_MODE_MAX &&
+                           blend_mode >= 0 && blend_mode < BL_Action::ACT_BLEND_MAX;
+        if (!valid) {
+          queue_action_result(command, LN_ActionResult::Failed);
+          warn_command_failure_once(command, "invalid action or playback parameters");
+          break;
+        }
+
+        constexpr uint8_t terminal_mask = LN_ACTION_OUTPUT_COMPLETED |
+                                          LN_ACTION_OUTPUT_INTERRUPTED;
+        BL_ActionPlayResult result;
+        if ((command.action_output_mask & terminal_mask) != 0u) {
+          result = command.object->PlayActionTracked(command.property_name,
+                                                     command.vector_value.x(),
+                                                     command.vector_value.y(),
+                                                     short(command.int_value),
+                                                     short(command.secondary_int_value),
+                                                     command.vector_value.z(),
+                                                     short(play_mode),
+                                                     command.secondary_vector_value.x(),
+                                                     short(ipo_flags),
+                                                     command.secondary_vector_value.y(),
+                                                     short(blend_mode));
+        }
+        else {
+          result.started = command.object->PlayAction(command.property_name,
+                                                      command.vector_value.x(),
+                                                      command.vector_value.y(),
+                                                      short(command.int_value),
+                                                      short(command.secondary_int_value),
+                                                      command.vector_value.z(),
+                                                      short(play_mode),
+                                                      command.secondary_vector_value.x(),
+                                                      short(ipo_flags),
+                                                      command.secondary_vector_value.y(),
+                                                      short(blend_mode));
+        }
+        /* Replacement or a failed lookup may have terminated the preceding exact request on this
+         * layer. Publish that terminal event before this request's Started/Failed event so one
+         * node triggered multiple times retains causal queue order. */
+        if (m_logicManager != nullptr) {
+          m_logicManager->PollActionOperations();
+        }
+        if (!result.started) {
+          queue_action_result(command, LN_ActionResult::Failed);
+          break;
+        }
+        if ((command.action_output_mask & terminal_mask) != 0u && result.playback == nullptr) {
+          queue_action_result(command, LN_ActionResult::Failed);
+          warn_command_failure_once(command, "action lifecycle tracking could not be established");
+          break;
+        }
+        if (!queue_action_result(command, LN_ActionResult::Started)) {
+          warn_command_failure_once(command, "the bounded action lifecycle queue is full");
+        }
+        if (m_logicManager != nullptr && result.playback != nullptr) {
+          m_logicManager->RegisterActionOperation(command.runtime_tree,
+                                                  command.property_ref_index,
+                                                  command.action_output_mask,
+                                                  std::move(result.playback));
         }
         break;
+      }
       case CommandType::StopAction:
         if (command.object != nullptr) {
           command.object->StopAction(short(command.int_value));
+          if (m_logicManager != nullptr) {
+            m_logicManager->PollActionOperations();
+          }
         }
         break;
       case CommandType::SetActionFrame:
         if (command.object != nullptr) {
           command.object->SetActionFrame(short(command.int_value), command.scalar_value);
         }
+        break;
+      case CommandType::SetShapeKeyValue:
+        apply_shape_key_value_command(command);
         break;
       case CommandType::StopAllSounds:
 #ifdef WITH_AUDASPACE
@@ -10435,46 +12837,18 @@ void LN_CommandBuffer::Flush()
         }
 #endif
         break;
-      case CommandType::PlaySound: {
+      case CommandType::PlaySound:
+      case CommandType::PlaySound3D: {
 #ifdef WITH_AUDASPACE
-        if (command.property_name.empty()) {
-          break;
-        }
-        KX_KetsjiEngine *engine = KX_GetActiveEngine();
-        blender::bContext *ctx = engine ? engine->GetContext() : nullptr;
-        blender::Main *bmain = ctx ? CTX_data_main(ctx) : nullptr;
-        if (bmain == nullptr) {
-          bmain = G_MAIN;
-        }
-        if (bmain == nullptr) {
-          break;
-        }
-        auto device = aud::DeviceManager::getDevice();
-        if (!device) {
-          break;
-        }
-        try {
-          AUD_Sound snd = logic_native_sound_resolve(bmain, command.property_name);
-          if (!snd) {
-            break;
-          }
-          logic_native_sound_handles_stop_by_name(command.property_name);
-          AUD_Handle handle = device->play(snd, false);
-          if (handle) {
-            auto h3d = std::dynamic_pointer_cast<aud::I3DHandle>(handle);
-            if (h3d) {
-              h3d->setRelative(true);
-            }
-            handle->setVolume(std::max(command.vector_value.x(), 0.0f));
-            handle->setPitch(std::max(command.vector_value.y(), 0.0001f));
-            if (command.bool_value) {
-              handle->setLoopCount(-1);
-            }
-            logic_native_sound_handles_register(command.property_name, std::move(handle));
-          }
-        }
-        catch (const aud::Exception &) {
-        }
+        const bool spatial = command.type == CommandType::PlaySound3D;
+        logic_native_sound_play(command.property_name,
+                                LN_SoundGroupFromInt(command.sound_group, false),
+                                command.vector_value.x(),
+                                command.vector_value.y(),
+                                command.bool_value,
+                                spatial ? command.object : nullptr,
+                                command.int_value,
+                                command.secondary_int_value);
 #endif
         break;
       }
@@ -10486,47 +12860,10 @@ void LN_CommandBuffer::Flush()
 #endif
         break;
       }
-      case CommandType::PlaySound3D: {
+      case CommandType::SetSoundVolume: {
 #ifdef WITH_AUDASPACE
-        if (command.property_name.empty()) {
-          break;
-        }
-        KX_KetsjiEngine *engine = KX_GetActiveEngine();
-        blender::bContext *ctx = engine ? engine->GetContext() : nullptr;
-        blender::Main *bmain = ctx ? CTX_data_main(ctx) : nullptr;
-        if (bmain == nullptr) {
-          bmain = G_MAIN;
-        }
-        if (bmain == nullptr) {
-          break;
-        }
-        auto device = aud::DeviceManager::getDevice();
-        if (!device) {
-          break;
-        }
-        try {
-          AUD_Sound snd = logic_native_sound_resolve(bmain, command.property_name);
-          if (!snd) {
-            break;
-          }
-          logic_native_sound_handles_stop_by_name(command.property_name);
-          AUD_Handle handle = device->play(snd, false);
-          if (handle) {
-            auto h3d = std::dynamic_pointer_cast<aud::I3DHandle>(handle);
-            if (h3d) {
-              h3d->setRelative(true);
-              logic_native_sound_apply_3d_from_speaker(h3d, command.object);
-            }
-            handle->setVolume(std::max(command.vector_value.x(), 0.0f));
-            handle->setPitch(std::max(command.vector_value.y(), 0.0001f));
-            if (command.bool_value) {
-              handle->setLoopCount(-1);
-            }
-            logic_native_sound_handles_register(command.property_name, std::move(handle));
-          }
-        }
-        catch (const aud::Exception &) {
-        }
+        logic_native_sound_set_group_volume(
+            command.sound_group, command.vector_value.x(), command.vector_value.y());
 #endif
         break;
       }
@@ -10575,8 +12912,9 @@ void LN_CommandBuffer::Flush()
                                           std::string());
         event.subject = *subject;
         event.content = command.property_value;
-        event.messenger = command.object;
-        event.target = command.event_target_object;
+        if (command.runtime_tree != nullptr) {
+          command.runtime_tree->ShareValue(event.content);
+        }
         /* Default delivery: visible to all receivers at the start of the next logic tick. */
         m_logicManager->PushEvent(std::move(event));
         break;
@@ -10625,282 +12963,365 @@ void LN_CommandBuffer::Flush()
         command.object->NodeSetWorldPosition(new_pos);
         break;
       }
-      case CommandType::LoadScene: {
-        if (command.property_name.empty()) {
+      case CommandType::SetOverlayCollection: {
+        auto complete_overlay = [&](const LN_UIResult result) {
+          if (command.runtime_tree != nullptr) {
+            command.runtime_tree->CompleteUIOperation(command.property_ref_index, result, 0);
+          }
+        };
+        KX_Scene *scene = command.object ? command.object->GetScene() : nullptr;
+        if (scene == nullptr) {
+          complete_overlay(LN_UIResult::RuntimeUnavailable);
+          warn_command_failure_once(command, "owning runtime scene is no longer available");
           break;
         }
-        KX_KetsjiEngine *engine = KX_GetActiveEngine();
-        if (engine == nullptr) {
+        KX_GameObject *camera_object = command.event_target_object;
+        if (command.event_target_handle.IsValid()) {
+          camera_object = m_logicManager ?
+                              m_logicManager->ResolveObjectHandle(command.event_target_handle) :
+                              nullptr;
+        }
+        KX_Camera *camera = dynamic_cast<KX_Camera *>(camera_object);
+        if (camera == nullptr) {
+          camera = scene->GetOverlayCameraSource();
+        }
+        if (camera != nullptr && object_removed_during_flush(camera)) {
+          complete_overlay(LN_UIResult::CameraUnavailable);
+          warn_command_failure_once(command, LN_UIResultMessage(LN_UIResult::CameraUnavailable));
           break;
         }
-        EXP_ListValue<KX_Scene> *scenes = engine->CurrentScenes();
-        if (scenes == nullptr || scenes->GetCount() == 0) {
-          break;
-        }
-        KX_Scene *current_scene = scenes->GetValue(0);
-        KX_Scene *load_scene = engine->FindScene(command.property_name);
-        if (load_scene != nullptr && current_scene != nullptr) {
-          current_scene->MergeScene(load_scene);
+        const KX_OverlayCollectionResult result = scene->AddOverlayCollection(
+            camera, command.collection, false);
+        complete_overlay(LN_MapOverlayResult(result));
+        if (!KX_OverlayCollectionResultSucceeded(result)) {
+          warn_command_failure_once(command, KX_OverlayCollectionResultMessage(result));
         }
         break;
       }
-      case CommandType::SetScene: {
-        if (command.property_name.empty()) {
+      case CommandType::RemoveOverlayCollection: {
+        auto complete_overlay = [&](const LN_UIResult result) {
+          if (command.runtime_tree != nullptr) {
+            command.runtime_tree->CompleteUIOperation(command.property_ref_index, result, 0);
+          }
+        };
+        KX_Scene *scene = command.object ? command.object->GetScene() : nullptr;
+        if (scene == nullptr) {
+          complete_overlay(LN_UIResult::RuntimeUnavailable);
+          warn_command_failure_once(command, "owning runtime scene is no longer available");
+          break;
+        }
+        const KX_OverlayCollectionResult result = scene->RemoveOverlayCollection(
+            command.collection, false);
+        complete_overlay(LN_MapOverlayResult(result));
+        if (!KX_OverlayCollectionResultSucceeded(result)) {
+          warn_command_failure_once(command, KX_OverlayCollectionResultMessage(result));
+        }
+        break;
+      }
+      case CommandType::OpenObjectMenu: {
+        if (command.runtime_tree == nullptr || m_logicManager == nullptr) {
+          break;
+        }
+        KX_GameObject *camera_object = command.event_target_handle.IsValid() ?
+                                           m_logicManager->ResolveObjectHandle(
+                                               command.event_target_handle) :
+                                           command.event_target_object;
+        KX_Camera *camera = dynamic_cast<KX_Camera *>(camera_object);
+        LN_UIService &ui_service = m_logicManager->GetUIService();
+        KX_GameObject *continuation_owner = command.runtime_tree->GetGameObject();
+        if (continuation_owner == nullptr) {
+          continuation_owner = command.object;
+        }
+        const int32_t user = LN_UnpackUIMenuUser(command.secondary_int_value, 24);
+        if (LN_UnpackUIMenuOpenMode(command.secondary_int_value) ==
+                LN_UIMenuOpenMode::ReplaceTop &&
+            ui_service.ReplaceTopWouldDestroyOwner(continuation_owner, user))
+        {
+          warn_command_failure_once(
+              command,
+              "menu navigation continuation is owned only by the collection being replaced; keep "
+              "the logic tree on a persistent main-scene controller");
+        }
+        const LN_UIService::MenuCommandResult result = ui_service.OpenMenu(
+            command.runtime_tree,
+            command.object,
+            camera,
+            command.collection,
+            static_cast<LN_UIMenuRouting>(std::clamp(command.int_value,
+                                                     int32_t(LN_UIMenuRouting::Modal),
+                                                     int32_t(LN_UIMenuRouting::PassThrough))),
+            command.property_name,
+            LN_UnpackUIMenuOpenMode(command.secondary_int_value),
+            LN_UnpackUIMenuPresentation(command.secondary_int_value),
+            LN_UnpackUIMenuBackBehavior(command.secondary_int_value),
+            true,
+            user,
+            LN_UnpackUIMenuPausesGame(command.secondary_int_value),
+            LN_UnpackUIMenuToggles(command.secondary_int_value),
+            command.secondary_object_handle.IsValid() ?
+                m_logicManager->ResolveObjectHandle(command.secondary_object_handle) :
+                nullptr,
+            LN_UnpackUIMenuInPlayerView(command.secondary_int_value));
+        const bool completion_queued = command.runtime_tree->CompleteUIOperation(
+            command.property_ref_index, result.result, result.handle);
+        /* Toggle: the menu was open and closed, which is no failure. */
+        const bool closed = result.result == LN_UIResult::Closed;
+        if (!completion_queued) {
+          if (result.Succeeded() && result.handle > 0) {
+            ui_service.CloseMenu(result.handle, LN_UIMenuCloseOperation::Specific);
+          }
+          warn_command_failure_once(command,
+                                    closed ? "object menu completion queue is full; the menu "
+                                             "closed but Closed does not run" :
+                                             "object menu completion queue is full; the new "
+                                             "session was rolled back");
+        }
+        else if (!result.Succeeded() && !closed) {
+          warn_command_failure_once(command, LN_UIResultMessage(result.result));
+        }
+        break;
+      }
+      case CommandType::CloseObjectMenu: {
+        if (command.runtime_tree == nullptr || m_logicManager == nullptr) {
+          break;
+        }
+        const LN_UIMenuCloseOperation operation = LN_UIMenuCloseOperation(
+            std::clamp(command.secondary_int_value & 0xFF,
+                       int32_t(LN_UIMenuCloseOperation::Top),
+                       int32_t(LN_UIMenuCloseOperation::All)));
+        const int32_t user = LN_UnpackUIMenuUser(command.secondary_int_value, 8);
+        LN_UIService &ui_service = m_logicManager->GetUIService();
+        KX_GameObject *continuation_owner = command.runtime_tree->GetGameObject();
+        if (continuation_owner == nullptr) {
+          continuation_owner = command.object;
+        }
+        /* A Close button inside its own menu is fine; only wired outputs would never run. */
+        if (command.runtime_tree->ReadsUIOperation(command.property_ref_index) &&
+            ui_service.ClosingWouldDestroyOwner(
+                continuation_owner, command.int_value, operation, user))
+        {
+          warn_command_failure_once(
+              command,
+              "the tree closes with its menu, so this node's Closed, Failed and Result outputs "
+              "never run; keep that logic on an object outside the menu");
+        }
+        const LN_UIService::MenuCommandResult result = ui_service.CloseMenu(
+            command.int_value, operation, user);
+        command.runtime_tree->CompleteUIOperation(
+            command.property_ref_index, result.result, result.handle);
+        if (!result.Succeeded()) {
+          warn_command_failure_once(command, LN_UIResultMessage(result.result));
+        }
+        break;
+      }
+      case CommandType::SetUIFocus: {
+        if (command.runtime_tree == nullptr || m_logicManager == nullptr) {
+          break;
+        }
+        KX_GameObject *target = command.event_target_handle.IsValid() ?
+                                    m_logicManager->ResolveObjectHandle(
+                                        command.event_target_handle) :
+                                    nullptr;
+        if (command.event_target_handle.IsValid() && target == nullptr) {
+          command.runtime_tree->CompleteUIOperation(
+              command.property_ref_index, LN_UIResult::InvalidTarget, 0);
+          warn_command_failure_once(command, "UI focus target is no longer available");
+          break;
+        }
+        const LN_UIResult result = m_logicManager->GetUIService().SetFocus(
+            command.int_value, target, command.property_name);
+        command.runtime_tree->CompleteUIOperation(command.property_ref_index, result, 0);
+        if (result != LN_UIResult::Success && result != LN_UIResult::NoChange) {
+          warn_command_failure_once(command, "UI focus target is invalid for this context");
+        }
+        break;
+      }
+      case CommandType::SetPlayerPointer: {
+        if (m_logicManager == nullptr) {
+          break;
+        }
+        if (command.int_value < 0 || command.int_value >= LN_MAX_GAMEPADS) {
+          warn_command_failure_once(command, "User must be a player from 0 to 7");
+          break;
+        }
+        /* View Center: no surface or cursor. */
+        if (command.secondary_bool_value) {
+          m_logicManager->GetUIService().SetPlayerAimPointer(command.int_value,
+                                                             command.bool_value,
+                                                             command.vector_value.x(),
+                                                             command.secondary_property_name);
+          break;
+        }
+        KX_GameObject *surface = m_logicManager->ResolveObjectHandle(command.event_target_handle);
+        KX_GameObject *cursor = m_logicManager->ResolveObjectHandle(
+            command.secondary_object_handle);
+        if (command.bool_value && surface == nullptr) {
+          warn_command_failure_once(command,
+                                    command.event_target_handle.IsValid() ?
+                                        "pointer surface is no longer available" :
+                                        "the Surface input gave no object: the pointer is off");
+        }
+        m_logicManager->GetUIService().SetPlayerPointer(command.int_value,
+                                                        command.bool_value,
+                                                        surface,
+                                                        cursor,
+                                                        command.property_name,
+                                                        command.scalar_value,
+                                                        command.secondary_property_name);
+        break;
+      }
+      case CommandType::TakeUIControl: {
+        if (command.runtime_tree == nullptr || m_logicManager == nullptr) {
+          break;
+        }
+        KX_GameObject *target = m_logicManager->ResolveObjectHandle(command.event_target_handle);
+        if (command.int_value < 0 || command.int_value >= LN_MAX_GAMEPADS) {
+          command.runtime_tree->CompleteUIOperation(
+              command.property_ref_index, LN_UIResult::InvalidTarget, 0);
+          warn_command_failure_once(command, "User must be a player from 0 to 7");
+          break;
+        }
+        const LN_UIResult result = m_logicManager->GetUIService().TakeControl(
+            target, command.int_value, command.bool_value);
+        command.runtime_tree->CompleteUIOperation(command.property_ref_index, result, 0);
+        /* Another player having it is an answer (Failed), not a mistake. */
+        if (result != LN_UIResult::Success && result != LN_UIResult::NoChange &&
+            result != LN_UIResult::ControlledByOtherPlayer)
+        {
+          warn_command_failure_once(command, LN_UIResultMessage(result));
+        }
+        break;
+      }
+      case CommandType::LoadScene: {
+        if (command.object == nullptr || command.property_name.empty()) {
           break;
         }
         KX_KetsjiEngine *engine = KX_GetActiveEngine();
         if (engine == nullptr) {
           break;
         }
-        EXP_ListValue<KX_Scene> *scenes = engine->CurrentScenes();
-        if (scenes == nullptr || scenes->GetCount() == 0) {
+        KX_Scene *source_scene = command.object->GetScene();
+        if (source_scene == nullptr) {
+          warn_command_failure_once(command, "owning runtime scene is no longer available");
           break;
         }
-        KX_Scene *current_scene = scenes->GetValue(0);
-        if (current_scene != nullptr) {
-          engine->ReplaceScene(current_scene->GetName(), command.property_name);
+        if (source_scene->GetName() == command.property_name) {
+          warn_command_failure_once(command, "cannot merge a scene into itself");
+          break;
+        }
+        if (engine->FindScene(command.property_name) != nullptr) {
+          warn_command_failure_once(command, "scene to merge is already active");
+          break;
+        }
+
+        const KX_KetsjiEngine::SceneMergeResult merge_result = engine->MergeScene(
+            source_scene, command.property_name);
+        if (merge_result == KX_KetsjiEngine::SceneMergeResult::NotFound) {
+          warn_command_failure_once(command, "scene to merge was not found");
+          break;
+        }
+        if (merge_result == KX_KetsjiEngine::SceneMergeResult::Failed) {
+          warn_command_failure_once(command, "scene contents could not be merged");
+          break;
+        }
+#ifdef WITH_GAMEENGINE_LOGICNODES
+        if (engine->IsGamePaused()) {
+          if (LN_Manager *manager = source_scene->GetLogicNodeManager()) {
+            manager->RefreshPauseProcessingObjects();
+          }
+        }
+#endif
+        break;
+      }
+      case CommandType::SetScene: {
+        if (command.object == nullptr || command.property_name.empty()) {
+          break;
+        }
+        KX_KetsjiEngine *engine = KX_GetActiveEngine();
+        if (engine == nullptr) {
+          break;
+        }
+        KX_Scene *source_scene = command.object->GetScene();
+        if (source_scene == nullptr) {
+          warn_command_failure_once(command, "owning runtime scene is no longer available");
+          break;
+        }
+        KX_Scene *active_target = engine->FindScene(command.property_name);
+        if (active_target != nullptr && active_target != source_scene) {
+          warn_command_failure_once(command, "replacement scene is already active");
+          break;
+        }
+        if (!engine->ReplaceScene(source_scene->GetName(), command.property_name)) {
+          warn_command_failure_once(command, "replacement scene was not found");
         }
         break;
       }
       case CommandType::SaveGame: {
-        KX_Scene *scene = command.object ? command.object->GetScene() : nullptr;
-        if (scene == nullptr) {
-          KX_KetsjiEngine *engine = KX_GetActiveEngine();
-          if (engine == nullptr) {
-            break;
-          }
-          EXP_ListValue<KX_Scene> *scenes = engine->CurrentScenes();
-          if (scenes == nullptr || scenes->GetCount() == 0) {
-            break;
-          }
-          scene = scenes->GetValue(0);
-        }
-        if (scene == nullptr) {
+        if (m_logicManager == nullptr || command.runtime_tree == nullptr) {
+          warn_command_failure_once(command, "missing owning Logic Nodes manager or runtime tree");
           break;
         }
-        std::string save_path = command.property_name;
-        if (save_path.empty()) {
-          save_path = "save_" + std::to_string(command.int_value) + ".sav";
+        std::string error;
+        if (!m_logicManager->FlushSaveGame(command.runtime_tree,
+                                           command.int_value,
+                                           command.property_name,
+                                           command.property_ref_index,
+                                           command.source_ref_index,
+                                           error))
+        {
+          warn_command_failure_once(command, error.c_str());
         }
-        FILE *file = fopen(save_path.c_str(), "wb");
-        if (file == nullptr) {
-          break;
+        break;
+      }
+      case CommandType::SetSaveExistence: {
+        bool success = false;
+        std::string error;
+        KX_GameObject *target = command.event_target_object;
+        if (m_logicManager == nullptr || command.runtime_tree == nullptr) {
+          error = "missing owning Logic Nodes manager or runtime tree";
         }
-        /* Write header. */
-        static constexpr char header[] = "UPBGE_SAVE";
-        fwrite(header, 1, 10, file);
-        /* Owner-scoped save: persist only the tree owner's game properties. */
-        KX_GameObject *owner = command.object;
-        const int32_t obj_count = owner != nullptr ? 1 : 0;
-        fwrite(&obj_count, sizeof(obj_count), 1, file);
-        if (owner != nullptr) {
-          const std::string &name = owner->GetName();
-          const int32_t name_len = int32_t(name.length());
-          fwrite(&name_len, sizeof(name_len), 1, file);
-          fwrite(name.c_str(), 1, name_len, file);
-          const std::vector<std::string> property_names = owner->GetPropertyNames();
-          const int32_t prop_count = int32_t(property_names.size());
-          fwrite(&prop_count, sizeof(prop_count), 1, file);
-          for (const std::string &prop_name : property_names) {
-            EXP_Value *prop = owner->GetProperty(prop_name);
-            if (prop == nullptr) {
-              continue;
-            }
-            const int32_t prop_name_len = int32_t(prop_name.length());
-            fwrite(&prop_name_len, sizeof(prop_name_len), 1, file);
-            fwrite(prop_name.c_str(), 1, prop_name_len, file);
-            /* Write type tag: 0=int, 1=float, 2=bool, 3=string. */
-            uint8_t type_tag = 3;
-            std::string prop_value;
-            if (dynamic_cast<EXP_IntValue *>(prop)) {
-              type_tag = 0;
-              prop_value = std::to_string(int(prop->GetNumber()));
-            }
-            else if (dynamic_cast<EXP_FloatValue *>(prop)) {
-              type_tag = 1;
-              prop_value = std::to_string(prop->GetNumber());
-            }
-            else if (EXP_BoolValue *bool_val = dynamic_cast<EXP_BoolValue *>(prop)) {
-              type_tag = 2;
-              prop_value = bool_val->GetBool() ? "1" : "0";
-            }
-            else {
-              prop_value = prop->GetText();
-            }
-            fwrite(&type_tag, sizeof(type_tag), 1, file);
-            const int32_t prop_value_len = int32_t(prop_value.length());
-            fwrite(&prop_value_len, sizeof(prop_value_len), 1, file);
-            fwrite(prop_value.c_str(), 1, prop_value_len, file);
-          }
+        else if (target == nullptr) {
+          error = "target did not resolve before Set Save Object State executed";
         }
-        fclose(file);
+        else if (object_removed_during_flush(target)) {
+          error = "target was removed before Set Save Object State executed";
+        }
+        else {
+          success = m_logicManager->SetTrackedSaveExistence(target, command.bool_value, error);
+        }
+        if (command.runtime_tree != nullptr) {
+          command.runtime_tree->CompletePersistenceOperation(command.property_ref_index, success);
+        }
+        if (!success) {
+          warn_command_failure_once(command, error);
+        }
         break;
       }
       case CommandType::LoadGame: {
-        KX_Scene *scene = command.object ? command.object->GetScene() : nullptr;
-        if (scene == nullptr) {
-          KX_KetsjiEngine *engine = KX_GetActiveEngine();
-          if (engine == nullptr) {
-            break;
-          }
-          EXP_ListValue<KX_Scene> *scenes = engine->CurrentScenes();
-          if (scenes == nullptr || scenes->GetCount() == 0) {
-            break;
-          }
-          scene = scenes->GetValue(0);
-        }
-        if (scene == nullptr) {
+        if (m_logicManager == nullptr || command.runtime_tree == nullptr) {
+          warn_command_failure_once(command, "missing owning Logic Nodes manager or runtime tree");
           break;
         }
-        std::string load_path = command.property_name;
-        if (load_path.empty()) {
-          load_path = "save_" + std::to_string(command.int_value) + ".sav";
-        }
-        FILE *file = fopen(load_path.c_str(), "rb");
-        if (file == nullptr) {
-          break;
-        }
-        /* Read header. */
-        char header[10];
-        if (fread(header, 1, sizeof(header), file) != sizeof(header) ||
-            memcmp(header, "UPBGE_SAVE", sizeof(header)) != 0)
+        std::string error;
+        if (!m_logicManager->FlushLoadGame(command.runtime_tree,
+                                           command.int_value,
+                                           command.property_name,
+                                           command.property_ref_index,
+                                           command.source_ref_index,
+                                           error))
         {
-          fclose(file);
-          break;
+          warn_command_failure_once(command, error.c_str());
         }
-        /* Read object count. */
-        int32_t obj_count = 0;
-        if (fread(&obj_count, sizeof(obj_count), 1, file) != 1) {
-          fclose(file);
-          break;
-        }
-        for (int i = 0; i < obj_count; i++) {
-          int32_t name_len = 0;
-          if (fread(&name_len, sizeof(name_len), 1, file) != 1) {
-            break;
-          }
-          std::string obj_name(name_len, '\0');
-          if (fread(&obj_name[0], 1, name_len, file) != size_t(name_len)) {
-            break;
-          }
-          KX_GameObject *obj = nullptr;
-          if (command.object != nullptr &&
-              (obj_name == command.object->GetName() || obj_count == 1))
-          {
-            obj = command.object;
-          }
-          if (obj == nullptr) {
-            if (SCA_LogicManager *logicmgr = scene->GetLogicManager()) {
-              obj = static_cast<KX_GameObject *>(logicmgr->GetGameObjectByName(obj_name));
-            }
-          }
-          if (obj == nullptr) {
-            EXP_ListValue<KX_GameObject> *obj_list = scene->GetObjectList();
-            if (obj_list != nullptr) {
-              for (int j = 0; j < obj_list->GetCount(); j++) {
-                KX_GameObject *candidate = obj_list->GetValue(j);
-                if (candidate != nullptr && candidate->GetName() == obj_name) {
-                  obj = candidate;
-                  break;
-                }
-              }
-            }
-          }
-          int32_t prop_count = 0;
-          if (fread(&prop_count, sizeof(prop_count), 1, file) != 1) {
-            break;
-          }
-          for (int p = 0; p < prop_count; p++) {
-            int32_t prop_name_len = 0;
-            if (fread(&prop_name_len, sizeof(prop_name_len), 1, file) != 1) {
-              break;
-            }
-            std::string prop_name(prop_name_len, '\0');
-            if (fread(&prop_name[0], 1, prop_name_len, file) != size_t(prop_name_len)) {
-              break;
-            }
-            /* Read type tag. */
-            uint8_t type_tag = 3;
-            if (fread(&type_tag, sizeof(type_tag), 1, file) != 1) {
-              break;
-            }
-            int32_t prop_value_len = 0;
-            if (fread(&prop_value_len, sizeof(prop_value_len), 1, file) != 1) {
-              break;
-            }
-            std::string prop_value(prop_value_len, '\0');
-            if (fread(&prop_value[0], 1, prop_value_len, file) != size_t(prop_value_len)) {
-              break;
-            }
-            if (obj != nullptr) {
-              EXP_Value *val = nullptr;
-              switch (type_tag) {
-                case 0:
-                  val = new EXP_IntValue(atoi(prop_value.c_str()), prop_name);
-                  break;
-                case 1:
-                  val = new EXP_FloatValue(atof(prop_value.c_str()), prop_name);
-                  break;
-                case 2:
-                  val = new EXP_BoolValue(prop_value == "1", prop_name);
-                  break;
-                default:
-                  val = new EXP_StringValue(prop_value, prop_name);
-                  break;
-              }
-              if (val != nullptr) {
-                if (EXP_Value *existing = obj->GetProperty(prop_name)) {
-                  existing->SetValue(val);
-                  val->Release();
-                }
-                else {
-                  obj->SetProperty(prop_name, val);
-                }
-              }
-            }
-          }
-        }
-        fclose(file);
         break;
       }
       case CommandType::AlignAxisToVector: {
-        if (command.object == nullptr) {
+        /* A zero vector has no direction (common for motion-derived vectors): keep the pose. */
+        if (command.object == nullptr || command.vector_value.fuzzyZero()) {
           break;
         }
-        const MT_Vector3 target_vector = command.vector_value.normalized();
-        const int32_t axis = command.int_value;
-        const float factor = std::clamp(command.scalar_value, 0.0f, 1.0f);
-        MT_Vector3 local_axis;
-        switch (axis) {
-          case 0:
-            local_axis = MT_Vector3(1.0f, 0.0f, 0.0f);
-            break;
-          case 1:
-            local_axis = MT_Vector3(0.0f, 1.0f, 0.0f);
-            break;
-          default:
-            local_axis = MT_Vector3(0.0f, 0.0f, 1.0f);
-            break;
-        }
-        const MT_Vector3 cross = local_axis.cross(target_vector);
-        const float dot = local_axis.dot(target_vector);
-        if (cross.length2() < 1e-10f) {
-          if (dot < 0.0f) {
-            MT_Vector3 perp = (fabs(local_axis.x()) < 0.9f) ?
-                                  MT_Vector3(1.0f, 0.0f, 0.0f) :
-                                  MT_Vector3(0.0f, 1.0f, 0.0f);
-            MT_Vector3 rot_axis = local_axis.cross(perp).normalized();
-            MT_Quaternion q(rot_axis, MT_Scalar(M_PI * factor));
-            command.object->NodeSetLocalOrientation(
-                MT_Matrix3x3(q) * command.object->NodeGetLocalOrientation());
-          }
-          break;
-        }
-        MT_Vector3 rot_axis = cross.normalized();
-        float angle = acos(std::clamp(dot, -1.0f, 1.0f)) * factor;
-        MT_Quaternion q(rot_axis, MT_Scalar(angle));
-        command.object->NodeSetLocalOrientation(
-            MT_Matrix3x3(q) * command.object->NodeGetLocalOrientation());
+        command.object->AlignAxisToVect(command.vector_value,
+                                        std::clamp(command.int_value, 0, 2),
+                                        std::clamp(command.scalar_value, 0.0f, 1.0f));
         break;
       }
       case CommandType::RotateToward: {
@@ -10916,7 +13337,10 @@ void LN_CommandBuffer::Flush()
 
         const int32_t rot_axis_index = std::clamp(command.int_value, 0, 2);
         const int32_t front_axis_index = std::clamp(command.secondary_int_value, 0, 5);
-        const float factor = std::clamp(command.scalar_value, 0.0f, 1.0f);
+        const bool use_max_angular_step = command.bool_value;
+        const float rotation_amount = use_max_angular_step ?
+                                          std::max(command.scalar_value, 0.0f) :
+                                          std::clamp(command.scalar_value, 0.0f, 1.0f);
 
         const MT_Matrix3x3 orientation = command.object->NodeGetWorldOrientation();
         MT_Vector3 local_rot_axis(0.0f, 0.0f, 0.0f);
@@ -10945,13 +13369,11 @@ void LN_CommandBuffer::Flush()
         const float dot = front_dir.dot(desired_dir);
         if (cross.length2() < 1e-10f) {
           if (dot < 0.0f) {
-            MT_Vector3 perp = (fabs(rot_axis_world.x()) < 0.9f) ?
-                                  MT_Vector3(1.0f, 0.0f, 0.0f) :
-                                  MT_Vector3(0.0f, 1.0f, 0.0f);
-            MT_Vector3 flip_axis = rot_axis_world.cross(perp).normalized();
-            MT_Quaternion q(flip_axis, MT_Scalar(M_PI * factor));
-            command.object->NodeSetLocalOrientation(
-                MT_Matrix3x3(q) * command.object->NodeGetLocalOrientation());
+            const float step = use_max_angular_step ? std::min(float(M_PI), rotation_amount) :
+                                                      float(M_PI) * rotation_amount;
+            MT_Quaternion q(rot_axis_world, MT_Scalar(step));
+            command.object->NodeSetLocalOrientation(MT_Matrix3x3(q) *
+                                                    command.object->NodeGetLocalOrientation());
           }
           break;
         }
@@ -10960,10 +13382,12 @@ void LN_CommandBuffer::Flush()
         if (cross.dot(rot_axis_world) < 0.0f) {
           angle = -angle;
         }
-        angle *= factor;
+        angle = use_max_angular_step ?
+                    std::copysign(std::min(std::fabs(angle), rotation_amount), angle) :
+                    angle * rotation_amount;
         MT_Quaternion q(rot_axis_world, MT_Scalar(angle));
-        command.object->NodeSetLocalOrientation(
-            MT_Matrix3x3(q) * command.object->NodeGetLocalOrientation());
+        command.object->NodeSetLocalOrientation(MT_Matrix3x3(q) *
+                                                command.object->NodeGetLocalOrientation());
         break;
       }
       case CommandType::ReplaceMesh: {
@@ -10986,7 +13410,9 @@ void LN_CommandBuffer::Flush()
         KX_GameObject *target = reinterpret_cast<KX_GameObject *>(command.runtime_tree);
         EXP_Value *prop = source->GetProperty(command.property_name);
         if (prop != nullptr) {
-          target->SetProperty(command.property_name, prop->GetReplica());
+          EXP_Value *copy = prop->GetReplica();
+          target->SetProperty(command.property_name, copy);
+          copy->Release();
         }
         break;
       }
@@ -10998,8 +13424,7 @@ void LN_CommandBuffer::Flush()
         if (ob == nullptr || ob->type != blender::OB_ARMATURE || ob->pose == nullptr) {
           break;
         }
-        blender::bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose,
-                                                                command.property_name.c_str());
+        blender::bPoseChannel *pchan = FindPoseChannel(command.object, command.property_name);
         if (pchan == nullptr) {
           break;
         }
@@ -11016,15 +13441,8 @@ void LN_CommandBuffer::Flush()
         pchan->loc[0] = location[0];
         pchan->loc[1] = location[1];
         pchan->loc[2] = location[2];
-        if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
-          if (blender::bContext *context = engine->GetContext()) {
-            if (blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(context)) {
-              if (blender::Scene *scene = CTX_data_scene(context)) {
-                BKE_pose_where_is(depsgraph, scene, ob);
-              }
-            }
-          }
-        }
+        MarkArmatureObjectPoseDirty(command.object);
+        UpdateArmatureObjectPose(command.object);
         break;
       }
       case CommandType::SetBonePoseTransform: {
@@ -11035,8 +13453,7 @@ void LN_CommandBuffer::Flush()
         if (ob == nullptr || ob->type != blender::OB_ARMATURE || ob->pose == nullptr) {
           break;
         }
-        blender::bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose,
-                                                                command.property_name.c_str());
+        blender::bPoseChannel *pchan = FindPoseChannel(command.object, command.property_name);
         if (pchan == nullptr) {
           break;
         }
@@ -11044,7 +13461,7 @@ void LN_CommandBuffer::Flush()
                                 ob,
                                 pchan,
                                 command.vector_value,
-                                command.secondary_vector_value,
+                                command.rotation_value,
                                 NormalizeBonePoseLocationSpace(command.int_value),
                                 command.secondary_int_value != 0);
         break;
@@ -11057,14 +13474,15 @@ void LN_CommandBuffer::Flush()
         if (ob == nullptr || ob->type != blender::OB_ARMATURE || ob->pose == nullptr) {
           break;
         }
-        blender::bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose,
-                                                                command.property_name.c_str());
+        blender::bPoseChannel *pchan = FindPoseChannel(command.object, command.property_name);
         if (pchan == nullptr) {
           break;
         }
         float center[3] = {0.0f, 0.0f, 0.0f};
         const bool use_center = command.secondary_int_value != 0;
+        PoseChannelTransformState original_state;
         if (use_center) {
+          original_state = SavePoseChannelTransformState(*pchan);
           if (pchan->bone == nullptr) {
             break;
           }
@@ -11077,16 +13495,18 @@ void LN_CommandBuffer::Flush()
         if (!use_center && rotation_space != LN_BonePoseRotationSpace::PoseChannel) {
           UpdateArmatureObjectPose(command.object);
         }
-        if (!SetPoseChannelRotation(command.object,
-                                    ob,
-                                    pchan,
-                                    command.vector_value,
-                                    rotation_space))
+        if (!SetPoseChannelRotation(
+                command.object, ob, pchan, command.rotation_value, rotation_space))
         {
           break;
         }
 
+        /* Force SetPoseChannelCenter() to observe the post-rotation pose direction. */
+        MarkArmatureObjectPoseDirty(command.object);
         if (use_center && !SetPoseChannelCenter(command.object, pchan, center)) {
+          RestorePoseChannelTransformState(*pchan, original_state);
+          MarkArmatureObjectPoseDirty(command.object);
+          UpdateArmatureObjectPose(command.object);
           break;
         }
         UpdateArmatureObjectPose(command.object);
@@ -11100,16 +13520,14 @@ void LN_CommandBuffer::Flush()
         if (ob == nullptr || ob->type != blender::OB_ARMATURE || ob->pose == nullptr) {
           break;
         }
-        blender::bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose,
-                                                                command.property_name.c_str());
+        blender::bPoseChannel *pchan = FindPoseChannel(command.object, command.property_name);
         if (pchan == nullptr) {
           break;
         }
-        const MT_Vector3 channel_scale = ObjectAxesScaleToPoseChannelScale(*pchan,
-                                                                           command.vector_value);
-        pchan->scale[0] = float(channel_scale.x());
-        pchan->scale[1] = float(channel_scale.y());
-        pchan->scale[2] = float(channel_scale.z());
+        pchan->scale[0] = float(command.vector_value.x());
+        pchan->scale[1] = float(command.vector_value.y());
+        pchan->scale[2] = float(command.vector_value.z());
+        MarkArmatureObjectPoseDirty(command.object);
         UpdateArmatureObjectPose(command.object);
         break;
       }
@@ -11133,9 +13551,8 @@ void LN_CommandBuffer::Flush()
                 blender::BONE_INHERIT_SCALE_ALIGNED,
                 blender::BONE_INHERIT_SCALE_AVERAGE,
             };
-            const int32_t mode = std::clamp(command.secondary_int_value,
-                                            0,
-                                            int32_t(std::size(scale_modes)) - 1);
+            const int32_t mode = std::clamp(
+                command.secondary_int_value, 0, int32_t(std::size(scale_modes)) - 1);
             bone->inherit_scale_mode = scale_modes[mode];
             changed = true;
             break;
@@ -11176,6 +13593,7 @@ void LN_CommandBuffer::Flush()
             break;
         }
         if (changed) {
+          MarkArmatureObjectPoseDirty(command.object);
           UpdateArmatureObjectPose(command.object);
         }
         break;
@@ -11190,13 +13608,13 @@ void LN_CommandBuffer::Flush()
         if (ob == nullptr || ob->type != blender::OB_ARMATURE || ob->pose == nullptr) {
           break;
         }
-        blender::bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose,
-                                                                command.property_name.c_str());
+        blender::bPoseChannel *pchan = FindPoseChannel(command.object, command.property_name);
         if (pchan == nullptr) {
           break;
         }
         blender::bConstraint *constraint = nullptr;
-        for (blender::bConstraint *con = static_cast<blender::bConstraint *>(pchan->constraints.first);
+        for (blender::bConstraint *con =
+                 static_cast<blender::bConstraint *>(pchan->constraints.first);
              con != nullptr;
              con = con->next)
         {
@@ -11209,6 +13627,7 @@ void LN_CommandBuffer::Flush()
           break;
         }
         constraint->enforce = std::clamp(command.scalar_value, 0.0f, 1.0f);
+        MarkArmatureObjectPoseDirty(command.object);
         UpdateArmatureObjectPose(command.object);
         break;
       }
@@ -11226,14 +13645,15 @@ void LN_CommandBuffer::Flush()
         if (!BKE_constraint_targets_get(constraint, &targets)) {
           break;
         }
-        for (blender::bConstraintTarget *ct = static_cast<blender::bConstraintTarget *>(
-                 targets.first);
+        for (blender::bConstraintTarget *ct =
+                 static_cast<blender::bConstraintTarget *>(targets.first);
              ct != nullptr;
              ct = ct->next)
         {
           ct->tar = target;
         }
         BKE_constraint_targets_flush(constraint, &targets, false);
+        MarkArmatureObjectPoseDirty(command.object);
         UpdateArmatureObjectPose(command.object);
         break;
       }
@@ -11248,6 +13668,7 @@ void LN_CommandBuffer::Flush()
           float influence = 0.0f;
           if (LogicValueAsFloat(command.property_value, influence)) {
             constraint->enforce = std::clamp(influence, 0.0f, 1.0f);
+            MarkArmatureObjectPoseDirty(command.object);
             UpdateArmatureObjectPose(command.object);
           }
           break;
@@ -11260,10 +13681,13 @@ void LN_CommandBuffer::Flush()
         CurrentMain(&ctx);
         blender::PointerRNA target_ptr = blender::RNA_pointer_create_discrete(
             &ob->id, blender::RNA_Constraint, constraint);
-        blender::PropertyRNA *prop = blender::RNA_struct_find_property(
-            &target_ptr, attribute.c_str());
-        if (SetRnaPropertyValue(ctx, command.runtime_tree, target_ptr, prop, command.property_value)) {
+        blender::PropertyRNA *prop = blender::RNA_struct_find_property(&target_ptr,
+                                                                       attribute.c_str());
+        if (SetRnaPropertyValue(
+                ctx, command.runtime_tree, target_ptr, prop, command.property_value))
+        {
           blender::RNA_property_update(ctx, &target_ptr, prop);
+          MarkArmatureObjectPoseDirty(command.object);
           UpdateArmatureObjectPose(command.object);
         }
         break;
@@ -11292,11 +13716,8 @@ void LN_CommandBuffer::Flush()
         {
           break;
         }
-        BKE_object_material_assign(bmain,
-                                   ob,
-                                   material,
-                                   material_slot,
-                                   blender::BKE_MAT_ASSIGN_OBJECT);
+        BKE_object_material_assign(
+            bmain, ob, material, material_slot, blender::BKE_MAT_ASSIGN_OBJECT);
         ApplyRuntimeMaterialSlot(command.object, material, command.int_value);
         if (KX_Scene *scene = command.object->GetScene()) {
           const bool overlay_only = (ob->gameflag & blender::OB_OVERLAY_COLLECTION) != 0;
@@ -11340,9 +13761,7 @@ void LN_CommandBuffer::Flush()
     }
   };
 
-  auto command_streams_sorted = [&]() {
-    return m_commandStreamsSorted;
-  };
+  auto command_streams_sorted = [&]() { return m_commandStreamsSorted; };
 
   auto typed_stream_stats = [&]() {
     CommandStreamStats stats;
@@ -11414,11 +13833,11 @@ void LN_CommandBuffer::Flush()
         object->NodeUpdateGS(0.0);
         break;
       case CommandType::SetWorldOrientation:
-        object->NodeSetGlobalOrientation(MT_Matrix3x3(typed_command.value));
+        object->NodeSetGlobalOrientation(typed_command.rotation_value.ToMatrix());
         object->NodeUpdateGS(0.0);
         break;
       case CommandType::SetLocalOrientation:
-        object->NodeSetLocalOrientation(MT_Matrix3x3(typed_command.value));
+        object->NodeSetLocalOrientation(typed_command.rotation_value.ToMatrix());
         object->NodeUpdateGS(0.0);
         break;
       case CommandType::SetWorldScale:
@@ -11445,7 +13864,7 @@ void LN_CommandBuffer::Flush()
         object->ApplyMovement(typed_command.value, typed_command.bool_value);
         break;
       case CommandType::ApplyRotation:
-        object->ApplyRotation(typed_command.value, typed_command.bool_value);
+        object->ApplyRotation(typed_command.rotation_value.ToMatrix(), typed_command.bool_value);
         break;
       case CommandType::ApplyForce:
         object->ApplyForce(typed_command.value, typed_command.bool_value);
@@ -11458,6 +13877,7 @@ void LN_CommandBuffer::Flush()
         command.type = typed_command.type;
         command.object = object;
         command.vector_value = typed_command.value;
+        command.rotation_value = typed_command.rotation_value;
         command.bool_value = typed_command.bool_value;
         command.sort_key = typed_command.header.sort_key;
         command.record_sequence = typed_command.header.record_sequence;
@@ -11544,8 +13964,17 @@ void LN_CommandBuffer::Flush()
       return;
     }
 
-    if (!apply_game_property_value(object, *property_name, typed_command.value)) {
-      warn_command_failure_once(make_warning_command(), "unsupported game-property payload type");
+    std::string reason;
+    if (typed_command.type == CommandType::ModifyGameProperty) {
+      if (!apply_game_property_modify(object, *property_name, typed_command.modify, reason)) {
+        warn_command_failure_once(make_warning_command(), reason);
+      }
+      return;
+    }
+    if (!apply_game_property_value(
+            object, *property_name, typed_command.value, typed_command.runtime_tree, reason))
+    {
+      warn_command_failure_once(make_warning_command(), reason);
     }
   };
 
@@ -11600,8 +14029,9 @@ void LN_CommandBuffer::Flush()
                                                          std::string());
     event.subject = *subject;
     event.content = typed_command.content;
-    event.messenger = typed_command.messenger;
-    event.target = typed_command.target;
+    if (typed_command.runtime_tree != nullptr) {
+      typed_command.runtime_tree->ShareValue(event.content);
+    }
     m_logicManager->PushEvent(std::move(event));
   };
 
@@ -11615,50 +14045,24 @@ void LN_CommandBuffer::Flush()
       case CommandType::PlaySound:
       case CommandType::PlaySound3D: {
 #ifdef WITH_AUDASPACE
-        if (sound_name.empty()) {
-          break;
-        }
-        KX_KetsjiEngine *engine = KX_GetActiveEngine();
-        blender::bContext *ctx = engine ? engine->GetContext() : nullptr;
-        blender::Main *bmain = ctx ? CTX_data_main(ctx) : nullptr;
-        if (bmain == nullptr) {
-          bmain = G_MAIN;
-        }
-        if (bmain == nullptr) {
-          break;
-        }
-        auto device = aud::DeviceManager::getDevice();
-        if (!device) {
-          break;
-        }
-        try {
-          AUD_Sound snd = logic_native_sound_resolve(bmain, sound_name);
-          if (!snd) {
-            break;
-          }
-          logic_native_sound_handles_stop_by_name(sound_name);
-          AUD_Handle handle = device->play(snd, false);
-          if (handle) {
-            auto h3d = std::dynamic_pointer_cast<aud::I3DHandle>(handle);
-            if (h3d) {
-              h3d->setRelative(true);
-              if (typed_command.type == CommandType::PlaySound3D) {
-                logic_native_sound_apply_3d_from_speaker(h3d, typed_command.speaker);
-              }
-            }
-            handle->setVolume(std::max(typed_command.volume, 0.0f));
-            handle->setPitch(std::max(typed_command.pitch, 0.0001f));
-            if (typed_command.loop) {
-              handle->setLoopCount(-1);
-            }
-            logic_native_sound_handles_register(sound_name, std::move(handle));
-          }
-        }
-        catch (const aud::Exception &) {
-        }
+        const bool spatial = typed_command.type == CommandType::PlaySound3D;
+        logic_native_sound_play(sound_name,
+                                LN_SoundGroupFromInt(typed_command.group, false),
+                                typed_command.volume,
+                                typed_command.pitch,
+                                typed_command.loop,
+                                spatial ? typed_command.speaker : nullptr,
+                                typed_command.listener,
+                                typed_command.listener_user);
 #endif
         break;
       }
+      case CommandType::SetSoundVolume:
+#ifdef WITH_AUDASPACE
+        logic_native_sound_set_group_volume(
+            typed_command.group, typed_command.volume, typed_command.fade);
+#endif
+        break;
       case CommandType::StopSound:
 #ifdef WITH_AUDASPACE
         if (!sound_name.empty()) {
@@ -11696,6 +14100,9 @@ void LN_CommandBuffer::Flush()
         command.property_name = sound_name;
         command.vector_value = MT_Vector3(typed_command.volume, typed_command.pitch, 0.0f);
         command.bool_value = typed_command.loop;
+        command.int_value = typed_command.listener;
+        command.secondary_int_value = typed_command.listener_user;
+        command.sound_group = uint8_t(typed_command.group);
         command.sort_key = typed_command.header.sort_key;
         command.record_sequence = typed_command.header.record_sequence;
         command.source_ref_index = typed_command.header.source_ref_index;
@@ -11716,6 +14123,7 @@ void LN_CommandBuffer::Flush()
     command.property_ref_index = typed_command.property_ref_index;
     command.bool_value = typed_command.bool_value;
     command.secondary_bool_value = typed_command.secondary_bool_value;
+    command.parent_options = typed_command.parent_options;
     command.sort_key = typed_command.header.sort_key;
     command.record_sequence = typed_command.header.record_sequence;
     command.source_ref_index = typed_command.header.source_ref_index;
@@ -11751,6 +14159,12 @@ void LN_CommandBuffer::Flush()
     switch (typed_command.type) {
       case CommandType::SetVisibility:
         object->SetVisible(typed_command.bool_value, typed_command.secondary_bool_value);
+        break;
+      case CommandType::SetUIInteractable:
+        object->SetUIInteractable(typed_command.bool_value);
+        break;
+      case CommandType::ResetSmoothing:
+        object->ResetSmoothing(0.0f);
         break;
       case CommandType::SetObjectColor:
         object->SetObjectColor(typed_command.color_value);
@@ -11846,24 +14260,30 @@ void LN_CommandBuffer::Flush()
 
   auto flush_typed_runtime_service_command = [&](const TypedRuntimeServiceCommand &typed_command) {
     switch (typed_command.type) {
-      case CommandType::SetCursorVisibility:
+      case CommandType::SetGamePaused:
         if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
-          if (RAS_ICanvas *canvas = engine->GetCanvas()) {
-            canvas->SetMouseState(typed_command.bool_value ? RAS_ICanvas::MOUSE_NORMAL :
-                                                               RAS_ICanvas::MOUSE_INVISIBLE);
-          }
+          engine->SetGamePaused(typed_command.bool_value);
         }
         break;
+      case CommandType::SetPhysicsPaused:
+        if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
+          engine->SetPhysicsPaused(typed_command.bool_value);
+        }
+        break;
+      case CommandType::SetCursorVisibility:
+        apply_cursor_visibility(typed_command.int_value != 0, typed_command.bool_value);
+        break;
       case CommandType::SetCursorPosition:
-        logic_node_set_cursor_position(KX_GetActiveEngine(),
-                                       typed_command.int_value,
-                                       typed_command.secondary_int_value);
+        logic_node_set_cursor_position(
+            KX_GetActiveEngine(), typed_command.int_value, typed_command.secondary_int_value);
+        break;
+      case CommandType::SetPlayerGamepad:
+        LN_InputMap::Get().SetUserGamepad(typed_command.int_value,
+                                          typed_command.secondary_int_value);
         break;
       case CommandType::SetGamepadVibration:
         if (typed_command.int_value >= 0 && typed_command.int_value < JOYINDEX_MAX) {
-          if (DEV_Joystick *joystick = DEV_Joystick::GetInstance(
-                  short(typed_command.int_value)))
-          {
+          if (DEV_Joystick *joystick = DEV_Joystick::GetInstance(short(typed_command.int_value))) {
             joystick->RumblePlay(typed_command.scalar_value,
                                  typed_command.secondary_scalar_value,
                                  typed_command.uint_value);
@@ -11873,8 +14293,7 @@ void LN_CommandBuffer::Flush()
       case CommandType::SetWindowSize:
         if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
           if (RAS_ICanvas *canvas = engine->GetCanvas()) {
-            canvas->ResizeWindow(typed_command.int_value,
-                                 typed_command.secondary_int_value);
+            canvas->ResizeWindow(typed_command.int_value, typed_command.secondary_int_value);
           }
         }
         break;
@@ -11912,17 +14331,18 @@ void LN_CommandBuffer::Flush()
     Command command;
     command.type = typed_command.type;
     command.object = typed_command.object;
-    command.property_name = typed_command.action_name;
-    command.vector_value = MT_Vector3(typed_command.start_frame,
-                                      typed_command.end_frame,
-                                      typed_command.blendin);
-    command.secondary_vector_value = MT_Vector3(typed_command.layer_weight,
-                                                typed_command.playback_speed,
-                                                0.0f);
+    command.runtime_tree = typed_command.runtime_tree;
+    command.property_name = typed_command.target_name;
+    command.vector_value = MT_Vector3(
+        typed_command.start_frame, typed_command.end_frame, typed_command.blendin);
+    command.secondary_vector_value = MT_Vector3(
+        typed_command.layer_weight, typed_command.playback_speed, 0.0f);
     command.scalar_value = typed_command.frame;
     command.int_value = typed_command.layer;
     command.secondary_int_value = typed_command.priority;
     command.animation_flags = typed_command.animation_flags;
+    command.property_ref_index = typed_command.completion_expression_index;
+    command.action_output_mask = typed_command.action_output_mask;
     command.sort_key = typed_command.header.sort_key;
     command.record_sequence = typed_command.header.record_sequence;
     command.source_ref_index = typed_command.header.source_ref_index;
@@ -11932,36 +14352,30 @@ void LN_CommandBuffer::Flush()
   auto flush_typed_animation_command = [&](const TypedAnimationCommand &typed_command) {
     KX_GameObject *object = typed_command.object;
     if (object_removed_during_flush(object)) {
+      if (typed_command.type == CommandType::PlayAction) {
+        flush_command(make_animation_command(typed_command));
+      }
       return;
     }
     if (object == nullptr) {
+      if (typed_command.type == CommandType::PlayAction) {
+        flush_command(make_animation_command(typed_command));
+        return;
+      }
       warn_command_failure_once(make_animation_command(typed_command), "missing target object");
       return;
     }
 
     switch (typed_command.type) {
       case CommandType::PlayAction: {
-        if (typed_command.action_name.empty()) {
-          break;
-        }
-        const int play_mode = int(typed_command.animation_flags & 0xFFu);
-        const int blend_mode = int((typed_command.animation_flags >> 8u) & 0xFFu);
-        const int ipo_flags = int((typed_command.animation_flags >> 16u) & 0xFFFFu);
-        object->PlayAction(typed_command.action_name,
-                           typed_command.start_frame,
-                           typed_command.end_frame,
-                           short(typed_command.layer),
-                           short(typed_command.priority),
-                           typed_command.blendin,
-                           short(play_mode),
-                           typed_command.layer_weight,
-                           short(ipo_flags),
-                           typed_command.playback_speed,
-                           short(blend_mode));
+        flush_command(make_animation_command(typed_command));
         break;
       }
       case CommandType::StopAction:
         object->StopAction(short(typed_command.layer));
+        if (m_logicManager != nullptr) {
+          m_logicManager->PollActionOperations();
+        }
         break;
       case CommandType::SetActionFrame:
         object->SetActionFrame(short(typed_command.layer), typed_command.frame);
@@ -11991,32 +14405,12 @@ void LN_CommandBuffer::Flush()
     return command;
   };
 
-  auto make_armature_command = [](const TypedArmatureCommand &typed_command) {
-    Command command;
-    command.type = typed_command.type;
-    command.object = typed_command.object;
-    command.runtime_tree = typed_command.runtime_tree;
-    command.property_name = typed_command.bone_name;
-    command.secondary_property_name = typed_command.constraint_name;
-    command.tertiary_property_name = typed_command.attribute_name;
-    command.vector_value = typed_command.vector_value;
-    command.secondary_vector_value = typed_command.secondary_vector_value;
-    command.property_value = typed_command.value;
-    command.scalar_value = typed_command.scalar_value;
-    command.int_value = typed_command.int_value;
-    command.secondary_int_value = typed_command.secondary_int_value;
-    command.sort_key = typed_command.header.sort_key;
-    command.record_sequence = typed_command.header.record_sequence;
-    command.source_ref_index = typed_command.header.source_ref_index;
-    return command;
-  };
-
   auto flush_typed_armature_command = [&](const TypedArmatureCommand &typed_command) {
     KX_GameObject *object = typed_command.object;
     if (object_removed_during_flush(object)) {
       return;
     }
-    flush_command(make_armature_command(typed_command));
+    flush_command(MakeArmatureCommand(typed_command));
   };
 
   auto flush_typed_material_command = [&](const TypedMaterialCommand &typed_command) {
@@ -12057,9 +14451,8 @@ void LN_CommandBuffer::Flush()
     switch (typed_command.type) {
       case CommandType::ApplyImpulse:
         if (PHY_IPhysicsController *physics_controller = object->GetPhysicsController()) {
-          physics_controller->ApplyImpulse(typed_command.secondary_vector_value,
-                                           typed_command.vector_value,
-                                           false);
+          physics_controller->ApplyImpulse(
+              typed_command.secondary_vector_value, typed_command.vector_value, false);
         }
         break;
       case CommandType::SetCollisionGroup:
@@ -12075,12 +14468,20 @@ void LN_CommandBuffer::Flush()
         break;
       case CommandType::SetDynamics:
         if (PHY_IPhysicsController *physics_controller = object->GetPhysicsController()) {
-          if (typed_command.int_value != int(PHY_DynamicsMode::Dynamic) || !object->GetParent())
+          if (!apply_set_physics_state(
+                  *physics_controller, *object, typed_command.int_value, typed_command.bool_value))
           {
-            physics_controller->SetDynamicsMode(
-                static_cast<PHY_DynamicsMode>(typed_command.int_value),
-                typed_command.bool_value);
+            if (const char *reason = set_physics_state_failure_reason(typed_command.int_value)) {
+              warn_command_failure_once(make_physics_command(typed_command), reason);
+            }
           }
+        }
+        else if (is_explicit_runtime_physics_type(typed_command.int_value) ||
+                 typed_command.int_value == kPhysicsStateGhost ||
+                 typed_command.int_value == kPhysicsStateStatic)
+        {
+          warn_command_failure_once(make_physics_command(typed_command),
+                                    "target has no physics controller");
         }
         break;
       case CommandType::RebuildCollisionShape:
@@ -12090,14 +14491,13 @@ void LN_CommandBuffer::Flush()
         break;
       case CommandType::SetRigidBodyAttribute:
         if (PHY_IPhysicsController *physics_controller = object->GetPhysicsController()) {
-          apply_rigid_body_attribute(
-              *physics_controller,
-              static_cast<LN_RigidBodyAttribute>(typed_command.int_value),
-              typed_command.vector_value,
-              typed_command.secondary_vector_value,
-              typed_command.scalar_value,
-              typed_command.bool_value,
-              typed_command.secondary_bool_value);
+          apply_rigid_body_attribute(*physics_controller,
+                                     static_cast<LN_RigidBodyAttribute>(typed_command.int_value),
+                                     typed_command.vector_value,
+                                     typed_command.secondary_vector_value,
+                                     typed_command.scalar_value,
+                                     typed_command.bool_value,
+                                     typed_command.secondary_bool_value);
         }
         break;
       case CommandType::CharacterJump:
@@ -12166,10 +14566,8 @@ void LN_CommandBuffer::Flush()
             if (PHY_IVehicle *vehicle = environment->GetVehicleConstraint(
                     object->GetPhysicsController()))
             {
-              ApplyVehicleActuatorControl(object,
-                                          vehicle,
-                                          typed_command.vector_value,
-                                          typed_command.scalar_value);
+              ApplyVehicleActuatorControl(
+                  object, vehicle, typed_command.vector_value, typed_command.scalar_value);
             }
           }
         }
@@ -12188,8 +14586,8 @@ void LN_CommandBuffer::Flush()
             {
               Object *chassis_object = object->GetBlenderObject();
               const GameVehicleSettings *chassis_settings = chassis_object ?
-                                                                 chassis_object->vehicle :
-                                                                 nullptr;
+                                                                chassis_object->vehicle :
+                                                                nullptr;
               const auto selected_wheels = SelectVehicleWheels(
                   object,
                   vehicle,
@@ -12199,10 +14597,9 @@ void LN_CommandBuffer::Flush()
                 switch (typed_command.type) {
                   case CommandType::VehicleApplyEngineForce: {
                     const float configured_force = ConfiguredWheelEngineForce(chassis_settings,
-                                                                             wheel.settings);
+                                                                              wheel.settings);
                     const float applied_force = configured_force > 1.0e-4f ?
-                                                    typed_command.scalar_value *
-                                                        configured_force :
+                                                    typed_command.scalar_value * configured_force :
                                                     typed_command.scalar_value;
                     vehicle->ApplyEngineForce(applied_force, wheel.index);
                     break;
@@ -12328,38 +14725,12 @@ void LN_CommandBuffer::Flush()
         break;
       }
       case CommandType::AlignAxisToVector: {
-        const MT_Vector3 target_vector = typed_command.vector_value.normalized();
-        const int32_t axis = typed_command.int_value;
-        const float factor = std::clamp(typed_command.scalar_value, 0.0f, 1.0f);
-        MT_Vector3 local_axis;
-        switch (axis) {
-          case 0:
-            local_axis = MT_Vector3(1.0f, 0.0f, 0.0f);
-            break;
-          case 1:
-            local_axis = MT_Vector3(0.0f, 1.0f, 0.0f);
-            break;
-          default:
-            local_axis = MT_Vector3(0.0f, 0.0f, 1.0f);
-            break;
-        }
-        const MT_Vector3 cross = local_axis.cross(target_vector);
-        const float dot = local_axis.dot(target_vector);
-        if (cross.length2() < 1e-10f) {
-          if (dot < 0.0f) {
-            MT_Vector3 perp = (fabs(local_axis.x()) < 0.9f) ?
-                                  MT_Vector3(1.0f, 0.0f, 0.0f) :
-                                  MT_Vector3(0.0f, 1.0f, 0.0f);
-            MT_Vector3 rot_axis = local_axis.cross(perp).normalized();
-            MT_Quaternion q(rot_axis, MT_Scalar(M_PI * factor));
-            object->NodeSetLocalOrientation(MT_Matrix3x3(q) * object->NodeGetLocalOrientation());
-          }
+        if (typed_command.vector_value.fuzzyZero()) {
           break;
         }
-        MT_Vector3 rot_axis = cross.normalized();
-        const float angle = acos(std::clamp(dot, -1.0f, 1.0f)) * factor;
-        MT_Quaternion q(rot_axis, MT_Scalar(angle));
-        object->NodeSetLocalOrientation(MT_Matrix3x3(q) * object->NodeGetLocalOrientation());
+        object->AlignAxisToVect(typed_command.vector_value,
+                                std::clamp(typed_command.int_value, 0, 2),
+                                std::clamp(typed_command.scalar_value, 0.0f, 1.0f));
         break;
       }
       case CommandType::RotateToward: {
@@ -12372,7 +14743,10 @@ void LN_CommandBuffer::Flush()
 
         const int32_t rot_axis_index = std::clamp(typed_command.int_value, 0, 2);
         const int32_t front_axis_index = std::clamp(typed_command.secondary_int_value, 0, 5);
-        const float factor = std::clamp(typed_command.scalar_value, 0.0f, 1.0f);
+        const bool use_max_angular_step = typed_command.bool_value;
+        const float rotation_amount = use_max_angular_step ?
+                                          std::max(typed_command.scalar_value, 0.0f) :
+                                          std::clamp(typed_command.scalar_value, 0.0f, 1.0f);
 
         const MT_Matrix3x3 orientation = object->NodeGetWorldOrientation();
         MT_Vector3 local_rot_axis(0.0f, 0.0f, 0.0f);
@@ -12401,13 +14775,10 @@ void LN_CommandBuffer::Flush()
         const float dot = front_dir.dot(desired_dir);
         if (cross.length2() < 1e-10f) {
           if (dot < 0.0f) {
-            MT_Vector3 perp = (fabs(rot_axis_world.x()) < 0.9f) ?
-                                  MT_Vector3(1.0f, 0.0f, 0.0f) :
-                                  MT_Vector3(0.0f, 1.0f, 0.0f);
-            MT_Vector3 flip_axis = rot_axis_world.cross(perp).normalized();
-            MT_Quaternion q(flip_axis, MT_Scalar(M_PI * factor));
-            object->NodeSetLocalOrientation(MT_Matrix3x3(q) *
-                                            object->NodeGetLocalOrientation());
+            const float step = use_max_angular_step ? std::min(float(M_PI), rotation_amount) :
+                                                      float(M_PI) * rotation_amount;
+            MT_Quaternion q(rot_axis_world, MT_Scalar(step));
+            object->NodeSetLocalOrientation(MT_Matrix3x3(q) * object->NodeGetLocalOrientation());
           }
           break;
         }
@@ -12416,7 +14787,9 @@ void LN_CommandBuffer::Flush()
         if (cross.dot(rot_axis_world) < 0.0f) {
           angle = -angle;
         }
-        angle *= factor;
+        angle = use_max_angular_step ?
+                    std::copysign(std::min(std::fabs(angle), rotation_amount), angle) :
+                    angle * rotation_amount;
         MT_Quaternion q(rot_axis_world, MT_Scalar(angle));
         object->NodeSetLocalOrientation(MT_Matrix3x3(q) * object->NodeGetLocalOrientation());
         break;
@@ -12443,24 +14816,30 @@ void LN_CommandBuffer::Flush()
         if (scene == nullptr) {
           break;
         }
-        const AddObjectSourceLookup &source_lookup = lookup_add_object_source(
-            scene, typed_command.name);
+        const AddObjectSourceLookup &source_lookup = lookup_add_object_source(scene,
+                                                                              typed_command.name);
         KX_GameObject *source = source_lookup.inactive_source;
         if (source == nullptr) {
           if (source_lookup.active_source != nullptr) {
             warn_add_object_source_not_inactive(make_lifecycle_command(typed_command),
-                                               scene,
-                                               source_lookup.active_source,
-                                               typed_command.name);
+                                                scene,
+                                                source_lookup.active_source,
+                                                typed_command.name);
           }
           break;
         }
 
-        const float scene_lifespan = add_object_life_seconds_to_scene_lifespan(
-            typed_command.scalar_value, typed_command.bool_value);
-        KX_GameObject *replica = typed_command.bool_value ?
-                                     scene->AddFullCopyObject(source, object, scene_lifespan) :
-                                     scene->AddReplicaObject(source, object, scene_lifespan);
+        std::string persistence_error;
+        KX_GameObject *replica = execute_tracked_logic_nodes_add(m_logicManager,
+                                                                 scene,
+                                                                 source,
+                                                                 object,
+                                                                 typed_command.scalar_value,
+                                                                 typed_command.bool_value,
+                                                                 persistence_error);
+        if (replica == nullptr) {
+          warn_command_failure_once(make_lifecycle_command(typed_command), persistence_error);
+        }
         if (replica != nullptr && !typed_command.bool_value) {
           replica->Release();
         }
@@ -12485,7 +14864,18 @@ void LN_CommandBuffer::Flush()
         }
         KX_GameObject *parent = lookup_active_object_by_name(scene, typed_command.name);
         if (parent != nullptr && parent != object) {
-          object->SetParent(parent, typed_command.bool_value, typed_command.secondary_bool_value);
+          if (typed_command.parent_options != nullptr) {
+            const KX_ParentResult result = object->SetParent(parent,
+                                                             *typed_command.parent_options);
+            if (result != KX_ParentResult::Success) {
+              warn_command_failure_once(make_lifecycle_command(typed_command),
+                                        KX_ParentResultMessage(result));
+            }
+          }
+          else {
+            object->SetParent(
+                parent, typed_command.bool_value, typed_command.secondary_bool_value);
+          }
         }
         break;
       }
@@ -12496,7 +14886,18 @@ void LN_CommandBuffer::Flush()
         KX_GameObject *parent = typed_command.runtime_tree->ResolveObjectRef(
             typed_command.runtime_ref);
         if (parent != nullptr && parent != object) {
-          object->SetParent(parent, typed_command.bool_value, typed_command.secondary_bool_value);
+          if (typed_command.parent_options != nullptr) {
+            const KX_ParentResult result = object->SetParent(parent,
+                                                             *typed_command.parent_options);
+            if (result != KX_ParentResult::Success) {
+              warn_command_failure_once(make_lifecycle_command(typed_command),
+                                        KX_ParentResultMessage(result));
+            }
+          }
+          else {
+            object->SetParent(
+                parent, typed_command.bool_value, typed_command.secondary_bool_value);
+          }
         }
         break;
       }
@@ -12512,8 +14913,7 @@ void LN_CommandBuffer::Flush()
         if (typed_command.runtime_tree == nullptr) {
           break;
         }
-        KX_GameObject *mesh_source = reinterpret_cast<KX_GameObject *>(
-            typed_command.runtime_tree);
+        KX_GameObject *mesh_source = reinterpret_cast<KX_GameObject *>(typed_command.runtime_tree);
         RAS_MeshObject *mesh = mesh_source->GetMesh(0);
         KX_Scene *scene = object->GetScene();
         if (mesh != nullptr && scene != nullptr) {
@@ -12528,7 +14928,9 @@ void LN_CommandBuffer::Flush()
         KX_GameObject *target = reinterpret_cast<KX_GameObject *>(typed_command.runtime_tree);
         EXP_Value *prop = object->GetProperty(typed_command.name);
         if (prop != nullptr) {
-          target->SetProperty(typed_command.name, prop->GetReplica());
+          EXP_Value *copy = prop->GetReplica();
+          target->SetProperty(typed_command.name, copy);
+          copy->Release();
         }
         break;
       }
@@ -12809,11 +15211,10 @@ void LN_CommandBuffer::Flush()
         if (cursor.index >= cursor.size) {
           continue;
         }
-        if (selected == nullptr ||
-            logic_node_command_order_less(cursor.sort_key,
-                                          cursor.record_sequence,
-                                          selected->sort_key,
-                                          selected->record_sequence))
+        if (selected == nullptr || logic_node_command_order_less(cursor.sort_key,
+                                                                 cursor.record_sequence,
+                                                                 selected->sort_key,
+                                                                 selected->record_sequence))
         {
           selected = &cursor;
         }
@@ -12832,14 +15233,11 @@ void LN_CommandBuffer::Flush()
   const uint32_t coalescible_command_count = CountCoalescibleCommands();
   const size_t total_command_count = Size();
   const bool enable_flush_coalescing =
-      m_typedCommandStreamsEnabled &&
-      coalescible_command_count != 0u &&
+      m_typedCommandStreamsEnabled && coalescible_command_count != 0u &&
       (coalescible_command_count >= k_logic_node_min_coalescible_commands_for_runtime_flush ||
        coalescible_command_count == total_command_count);
-  const bool direct_ordered_flush =
-      m_typedCommandStreamsEnabled &&
-      !enable_flush_coalescing &&
-      command_streams_sorted();
+  const bool direct_ordered_flush = m_typedCommandStreamsEnabled && !enable_flush_coalescing &&
+                                    command_streams_sorted();
 
   if (direct_ordered_flush) {
     CommandStreamStats stats = typed_stream_stats();

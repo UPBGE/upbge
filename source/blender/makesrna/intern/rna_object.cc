@@ -26,6 +26,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_bullet.h"
+#include "BKE_game_persistence.hh"
 #include "BKE_paint.hh"
 #include "BKE_python_proxy.hh"
 
@@ -46,6 +47,11 @@ static const EnumPropertyItem body_type_items[] = {
     {OB_BODY_TYPE_STATIC, "STATIC", 0, "Static", "Stationary object"},
     {OB_BODY_TYPE_DYNAMIC, "DYNAMIC", 0, "Dynamic", "Linear physics"},
     {OB_BODY_TYPE_RIGID, "RIGID_BODY", 0, "Rigid Body", "Linear and angular physics"},
+    {OB_BODY_TYPE_KINEMATIC,
+     "KINEMATIC",
+     0,
+     "Kinematic",
+     "Jolt body driven by game transforms that pushes Dynamic objects"},
     {OB_BODY_TYPE_SOFT, "SOFT_BODY", 0, "Soft Body", "Soft body"},
     {OB_BODY_TYPE_SENSOR,
      "SENSOR",
@@ -269,6 +275,38 @@ static const EnumPropertyItem instance_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 #ifdef RNA_RUNTIME
+
+static void rna_GameObjectSettings_persistence_update(Main *bmain,
+                                                      Scene *scene,
+                                                      PointerRNA *ptr)
+{
+  Object *object = static_cast<Object *>(ptr->data);
+  if (bmain != nullptr && object != nullptr &&
+      (object->gameflag & OB_SAVE_GAME_OBJECT_STATE) != 0)
+  {
+    BKE_game_persistence_ensure(*bmain, scene, *object);
+  }
+}
+
+static bool rna_GameObjectSettings_save_object_state_get(PointerRNA *ptr)
+{
+  const Object *object = static_cast<const Object *>(ptr->data);
+  return object != nullptr && (object->gameflag & OB_SAVE_GAME_OBJECT_STATE) != 0;
+}
+
+static void rna_GameObjectSettings_save_object_state_set(PointerRNA *ptr, const bool value)
+{
+  Object *object = static_cast<Object *>(ptr->data);
+  if (object == nullptr) {
+    return;
+  }
+  if (value) {
+    object->gameflag |= OB_SAVE_GAME_OBJECT_STATE;
+  }
+  else {
+    object->gameflag &= ~OB_SAVE_GAME_OBJECT_STATE;
+  }
+}
 static EnumPropertyItem instance_items_nogroup[] = {
     INSTANCE_ITEMS_SHARED,
     {0, nullptr, 0, nullptr, nullptr},
@@ -919,12 +957,21 @@ static int rna_Object_collision_bounds_type_get(PointerRNA *ptr)
   }
   /* OB_BOUNDS not set: return type-based default so the UI shows the correct
    * effective value (particularly important for Jolt which has no checkbox). */
-  if (ob->gameflag & OB_SOFT_BODY) return OB_BOUND_TRIANGLE_MESH;
-  if (ob->gameflag & OB_CHARACTER) return OB_BOUND_SPHERE;
+  if (ob->gameflag & OB_SOFT_BODY) {
+    return OB_BOUND_TRIANGLE_MESH;
+  }
+  if (ob->gameflag & OB_CHARACTER) {
+    return OB_BOUND_SPHERE;
+  }
   if ((ob->gameflag & OB_RIGID_BODY) && !(ob->gameflag2 & OB_HAS_VEHICLE)) {
     return OB_BOUND_BOX;
   }
-  if (ob->gameflag & OB_DYNAMIC) return OB_BOUND_SPHERE;
+  if (ob->gameflag & OB_KINEMATIC) {
+    return OB_BOUND_BOX;
+  }
+  if (ob->gameflag & OB_DYNAMIC) {
+    return OB_BOUND_SPHERE;
+  }
   return OB_BOUND_TRIANGLE_MESH; /* static / sensor */
 }
 
@@ -944,12 +991,13 @@ static const char *rna_Object_collision_bounds_triangle_mesh_description(const S
   const bool jolt_dynamic_mesh_uses_convex_hull = use_jolt &&
                                                   (ELEM(ob->body_type,
                                                         OB_BODY_TYPE_DYNAMIC,
-                                                        OB_BODY_TYPE_RIGID) ||
+                                                        OB_BODY_TYPE_RIGID,
+                                                        OB_BODY_TYPE_KINEMATIC) ||
                                                    is_vehicle);
 
   if (jolt_dynamic_mesh_uses_convex_hull) {
-    return "Use the mesh triangles for collisions. In Jolt, Dynamic, Rigid Body, and "
-           "Vehicle chassis objects are converted to Convex Hull on game start, so "
+    return "Use the mesh triangles for collisions. In Jolt, Dynamic, Rigid Body, Kinematic, "
+           "and Vehicle chassis objects are converted to Convex Hull on game start, so "
            "in-game collisions behave like Convex Hull.";
   }
 
@@ -996,7 +1044,7 @@ static const EnumPropertyItem *rna_Object_collision_bounds_itemf(bContext *C,
 }
 
 static const EnumPropertyItem *rna_GameObjectSettings_physics_type_itemf(bContext *C,
-                                                                         PointerRNA * /*ptr*/,
+                                                                         PointerRNA *ptr,
                                                                          PropertyRNA * /*prop*/,
                                                                          bool *r_free)
 {
@@ -1004,9 +1052,18 @@ static const EnumPropertyItem *rna_GameObjectSettings_physics_type_itemf(bContex
   int totitem = 0;
   const Scene *scene = C ? CTX_data_scene(C) : nullptr;
   const bool use_jolt = scene && scene->gm.physicsEngine == WOPHY_JOLT;
+  const Object *ob = ptr ? reinterpret_cast<const Object *>(ptr->owner_id) : nullptr;
+  const bool preserve_kinematic_item = ob && (ob->gameflag & OB_KINEMATIC) != 0;
 
   RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_NO_COLLISION);
   RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_STATIC);
+  /* Keep an already-authored Kinematic value representable after temporarily
+   * switching the scene to another backend. Omitting the active enum item
+   * produces a blank UI value and an RNA warning, and normalizing it would
+   * destructively lose the Jolt authoring state. */
+  if (use_jolt || preserve_kinematic_item) {
+    RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_KINEMATIC);
+  }
   RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_DYNAMIC);
   RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_RIGID);
   RNA_enum_items_add_value(&item, &totitem, body_type_items, OB_BODY_TYPE_SOFT);
@@ -1794,6 +1851,9 @@ static int rna_GameObjectSettings_physics_type_get(PointerRNA *ptr)
   else if (ob->gameflag & OB_SENSOR) {
     ob->body_type = OB_BODY_TYPE_SENSOR;
   }
+  else if (ob->gameflag & OB_KINEMATIC) {
+    ob->body_type = OB_BODY_TYPE_KINEMATIC;
+  }
   else if (!(ob->gameflag & OB_DYNAMIC)) {
     ob->body_type = OB_BODY_TYPE_STATIC;
   }
@@ -1824,6 +1884,10 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
   const int gameflag_prev = ob->gameflag;
   ob->body_type = value;
   ob->gameflag2 &= ~OB_HAS_VEHICLE;
+  /* Kinematic is a mutually-exclusive authored body type. Clear it before
+   * applying every other type so changing a Kinematic object cannot leave a
+   * stale flag that would make the getter select Kinematic again. */
+  ob->gameflag &= ~OB_KINEMATIC;
 
   switch (ob->body_type) {
     case OB_BODY_TYPE_SENSOR:
@@ -1875,6 +1939,15 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
                         OB_SENSOR | OB_NAVMESH);
       if (!(ob->gameflag & OB_BOUNDS)) {
         ob->collision_boundtype = OB_BOUND_TRIANGLE_MESH;
+      }
+      break;
+    case OB_BODY_TYPE_KINEMATIC:
+      ob->gameflag |= OB_COLLISION | OB_KINEMATIC | OB_ACTOR;
+      ob->gameflag &= ~(OB_DYNAMIC | OB_RIGID_BODY | OB_SOFT_BODY | OB_OCCLUDER | OB_CHARACTER |
+                        OB_SENSOR | OB_NAVMESH | OB_ANISOTROPIC_FRICTION | OB_DO_FH | OB_ROT_FH |
+                        OB_COLLISION_RESPONSE);
+      if (!(ob->gameflag & OB_BOUNDS)) {
+        ob->collision_boundtype = OB_BOUND_BOX;
       }
       break;
     case OB_BODY_TYPE_DYNAMIC:
@@ -2303,6 +2376,35 @@ static int rna_GameVehicle_detected_layout_length(PointerRNA *ptr)
 static std::optional<std::string> rna_GameVehicleSettings_path(const PointerRNA * /*ptr*/)
 {
   return "game.vehicle";
+}
+
+static std::optional<std::string> rna_GameObjectUISettings_path(const PointerRNA * /*ptr*/)
+{
+  return "game.ui";
+}
+
+/* A part the element hides and shows: not the element or one of its parents (both would hide the
+ * element with it). */
+static bool rna_GameObjectUISettings_part_poll(PointerRNA *ptr, PointerRNA value)
+{
+  const Object *part = static_cast<const Object *>(value.data);
+  for (const Object *ob = reinterpret_cast<const Object *>(ptr->owner_id); ob != nullptr;
+       ob = ob->parent)
+  {
+    if (ob == part) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/* A Selector or Text Field only writes text on the part, which may be the element itself (a
+ * clickable text); a check mark or a handle may not. */
+static bool rna_GameObjectUISettings_widget_part_poll(PointerRNA *ptr, PointerRNA value)
+{
+  const ObjectGameUI *ui = static_cast<const ObjectGameUI *>(ptr->data);
+  return (ui != nullptr && ELEM(ui->widget, OB_UI_WIDGET_SELECTOR, OB_UI_WIDGET_TEXT)) ||
+         rna_GameObjectUISettings_part_poll(ptr, value);
 }
 
 static void rna_GameVehicleSettings_wheel_ray_mask_get(PointerRNA *ptr, bool *values)
@@ -3546,6 +3648,465 @@ static void rna_def_game_object_activity_culling(BlenderRNA *brna)
       "Suspend logic and animation of this object by its distance to nearest camera");
 }
 
+static void rna_def_game_object_ui(BlenderRNA *brna)
+{
+  static const EnumPropertyItem pointer_items[] = {
+      {OB_UI_POINTER_BLOCK,
+       "BLOCK",
+       0,
+       "Block",
+       "Receive the pointer and keep it from what is behind: UI Elements behind this one and game "
+       "logic get none of its clicks, other mouse buttons or wheel there"},
+      {OB_UI_POINTER_PASS,
+       "PASS",
+       0,
+       "Pass Through",
+       "Receive the pointer and let what is behind receive it too: UI Elements behind this one "
+       "and game logic"},
+      {OB_UI_POINTER_IGNORE,
+       "IGNORE",
+       0,
+       "Ignore",
+       "Never take the pointer, so clicks and the wheel reach what is behind (labels, icons, "
+       "backgrounds)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem focus_items[] = {
+      {OB_UI_FOCUS_ALL,
+       "ALL",
+       0,
+       "Keyboard and Click",
+       "Reachable with arrow keys, Tab and the gamepad, and focused when clicked"},
+      {OB_UI_FOCUS_CLICK,
+       "CLICK",
+       0,
+       "Click Only",
+       "Focused when clicked, but keyboard and gamepad navigation skip it"},
+      {OB_UI_FOCUS_NONE, "NONE", 0, "None", "Never takes focus"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem anchor_items[] = {
+      {OB_UI_ANCHOR_NONE, "NONE", 0, "None", "Keep the authored position"},
+      {OB_UI_ANCHOR_TOP_LEFT, "TOP_LEFT", 0, "Top Left", ""},
+      {OB_UI_ANCHOR_TOP, "TOP", 0, "Top", ""},
+      {OB_UI_ANCHOR_TOP_RIGHT, "TOP_RIGHT", 0, "Top Right", ""},
+      {OB_UI_ANCHOR_LEFT, "LEFT", 0, "Left", ""},
+      {OB_UI_ANCHOR_CENTER, "CENTER", 0, "Center", ""},
+      {OB_UI_ANCHOR_RIGHT, "RIGHT", 0, "Right", ""},
+      {OB_UI_ANCHOR_BOTTOM_LEFT, "BOTTOM_LEFT", 0, "Bottom Left", ""},
+      {OB_UI_ANCHOR_BOTTOM, "BOTTOM", 0, "Bottom", ""},
+      {OB_UI_ANCHOR_BOTTOM_RIGHT, "BOTTOM_RIGHT", 0, "Bottom Right", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "GameObjectUISettings", nullptr);
+  RNA_def_struct_sdna(srna, "ObjectGameUI");
+  RNA_def_struct_nested(brna, srna, "Object");
+  RNA_def_struct_ui_text(
+      srna, "Game UI Element", "How the game engine treats this object as a UI control");
+  RNA_def_struct_path_func(srna, "rna_GameObjectUISettings_path");
+
+  prop = RNA_def_property(srna, "use_element", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", OB_UI_ELEMENT);
+  RNA_def_property_ui_text(prop,
+                           "UI Element",
+                           "The engine handles hover, press, click, focus and drag for this "
+                           "object; the On UI Event node reports what happened");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "interactable", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", OB_UI_DISABLED);
+  RNA_def_property_ui_text(prop,
+                           "Interactable",
+                           "Respond to the pointer, focus and drag; when off the object is shown "
+                           "but does nothing, and with Pointer Block it still keeps the pointer "
+                           "from the game (Set UI Interactable changes this during the game)");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "action", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "action");
+  RNA_def_property_ui_text(prop,
+                           "Action",
+                           "Name reported by On UI Event, so one Switch Flow can tell every "
+                           "button apart (for example \"play\", \"options\", \"exit\"). With no "
+                           "Action and Focus None the element is a background (a panel): it "
+                           "blocks clicks but takes no highlight and makes no UI sound");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "pointer", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "pointer_mode");
+  RNA_def_property_enum_items(prop, pointer_items);
+  RNA_def_property_ui_text(prop, "Pointer", "How this object affects UI objects behind it");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "focus", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "focus_mode");
+  RNA_def_property_enum_items(prop, focus_items);
+  RNA_def_property_ui_text(prop, "Focus", "How this object takes keyboard and gamepad focus");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "player", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "player");
+  RNA_def_property_range(prop, 0, 7);
+  RNA_def_property_ui_text(prop,
+                           "Player",
+                           "Outside menus, the player who uses this element (the User of the "
+                           "nodes): player 0 has the mouse, the others reach it with their "
+                           "gamepad once Set UI Focus gives them a focus. A menu's elements are "
+                           "the player's who opened it");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "use_any_player", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", OB_UI_ANY_PLAYER);
+  RNA_def_property_ui_text(prop,
+                           "Any Player",
+                           "Outside menus, every player uses this element, each with their own "
+                           "focus (Set UI Focus) and highlight; On UI Event's User tells who "
+                           "used it. For a shared character select or lobby");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "tab_order", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "tab_order");
+  RNA_def_property_ui_text(prop,
+                           "Tab Order",
+                           "Order for Tab and gamepad shoulder buttons, lowest first; a menu "
+                           "opens with the lowest value focused");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "priority", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "priority");
+  RNA_def_property_ui_text(prop,
+                           "Priority",
+                           "Wins the pointer over overlapping UI objects in the same menu with a "
+                           "lower priority, even when they are closer to the camera");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "padding", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "padding");
+  RNA_def_property_range(prop, 0.0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0, 10.0, 1, 3);
+  RNA_def_property_ui_text(
+      prop, "Padding", "Extra size around the object's bounds that still counts as a hit");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "use_draggable", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", OB_UI_DRAGGABLE);
+  RNA_def_property_ui_text(prop,
+                           "Draggable",
+                           "Pressing and moving the pointer drags this object; On UI Event "
+                           "reports Drag Start, Drag and Drop");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "follow_cursor", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", OB_UI_DRAG_NO_FOLLOW);
+  RNA_def_property_ui_text(prop,
+                           "Follow Cursor",
+                           "Move the object with the pointer while dragging and return it when "
+                           "the drag ends (set its position on Drop to keep it elsewhere); Drag "
+                           "Look says what moves");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  static const EnumPropertyItem drag_look_items[] = {
+      {OB_UI_DRAG_LOOK_ELEMENT,
+       "ELEMENT",
+       0,
+       "Whole Element",
+       "The object and its children follow the pointer, as for a card, a window or a list row; "
+       "its place stays empty until the drag ends"},
+      {OB_UI_DRAG_LOOK_ITEM,
+       "ITEM",
+       0,
+       "Item Only",
+       "A Grid View slot stays in its cell and only its item (a copy of its icon and count) "
+       "follows the pointer, as in most inventories; the cell shows what is left (the rest of a "
+       "split stack). Other UI Elements move whole"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "drag_look", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "drag_look");
+  RNA_def_property_enum_items(prop, drag_look_items);
+  RNA_def_property_ui_text(
+      prop, "Drag Look", "What follows the pointer while the object is dragged (Follow Cursor)");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "use_click_pick_up", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", OB_UI_CLICK_PICK_UP);
+  RNA_def_property_ui_text(prop,
+                           "Click to Pick Up",
+                           "A click (or Accept on the selected object) picks the object up "
+                           "instead of clicking it, and the next click puts it down, so the "
+                           "button need not be held. Pressing and moving still drags. A right "
+                           "click or Back puts it back");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "drag_threshold", PROP_FLOAT, PROP_PIXEL);
+  RNA_def_property_float_sdna(prop, nullptr, "drag_threshold");
+  RNA_def_property_range(prop, 0.0, 1000.0);
+  RNA_def_property_ui_range(prop, 0.0, 50.0, 1, 1);
+  RNA_def_property_ui_text(
+      prop, "Drag Threshold", "Pointer movement in pixels before a press becomes a drag");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "use_drop_target", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", OB_UI_DROP_TARGET);
+  RNA_def_property_ui_text(
+      prop, "Drop Target", "Dragged UI objects of the same drop group can be dropped on this one");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "drop_group", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "drop_group");
+  RNA_def_property_ui_text(prop,
+                           "Drop Group",
+                           "Drags and drop targets only match within the same group; empty "
+                           "matches any group");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "accept_categories", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "accept_categories");
+  RNA_def_property_ui_text(
+      prop,
+      "Accept Categories",
+      "Item categories this drop target takes, separated by commas (\"weapon, shield\"); "
+      "empty takes every item. An item's category is the \"category\" property of its object "
+      "in the Item Library, or of the dragged object (an item may name several). A refused item "
+      "goes back, with the Denied sound. This slot's item can be dropped only on empty cells or "
+      "on items this slot takes, since the two may swap");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  /* UPBGE: refused drop look and tooltip. */
+  prop = RNA_def_property(srna, "refused_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "refused");
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_GameObjectUISettings_part_poll");
+  RNA_def_property_ui_text(prop,
+                           "Refused Object",
+                           "Shown while a dragged item is over this drop target and its Accept "
+                           "Categories refuse it, hidden otherwise, such as a red frame; use a "
+                           "child, so grid copies get their own");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "tooltip_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "tooltip");
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_GameObjectUISettings_part_poll");
+  RNA_def_property_ui_text(prop,
+                           "Tooltip Object",
+                           "Shows the Tooltip Text while a player points at this element (under "
+                           "the mouse, or selected with keys or a gamepad): a text object, or an "
+                           "object whose first text child gets the text. A grid slot shows it "
+                           "only while it holds an item. Elements can share one tooltip");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "tooltip_text", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "tooltip_text");
+  RNA_def_property_ui_text(
+      prop,
+      "Tooltip Text",
+      "What the tooltip says; \\n starts a new line. {name}, {description}, {category}, {count} "
+      "and any other game property in braces come from the item's object in the Item Library "
+      "({item} is the item as the list holds it), or from this element when it shows no item. "
+      "Other braces work as in any text ({Action} key names). Empty: \"{name}\\n{description}\"");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  static const EnumPropertyItem tooltip_mode_items[] = {
+      {OB_UI_TOOLTIP_IN_PLACE, "IN_PLACE", 0, "In Place", "Shown where it is while pointed at"},
+      {OB_UI_TOOLTIP_BESIDE,
+       "BESIDE",
+       0,
+       "Beside",
+       "Moved next to the element by Offset, shown while it is pointed at"},
+      {OB_UI_TOOLTIP_TEXT_ONLY,
+       "TEXT_ONLY",
+       0,
+       "Text Only",
+       "Only its text changes, emptied when nothing is pointed at: an info line that stays"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "tooltip_placement", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "tooltip_mode");
+  RNA_def_property_enum_items(prop, tooltip_mode_items);
+  RNA_def_property_ui_text(prop, "Placement", "Where the tooltip shows");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "tooltip_offset", PROP_FLOAT, PROP_TRANSLATION);
+  RNA_def_property_float_sdna(prop, nullptr, "tooltip_offset");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop,
+                           "Offset",
+                           "Beside: where the tooltip goes from the element, in the space of the "
+                           "tooltip's parent (it follows a menu scaled into a player's view)");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "hover_scale", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "hover_scale");
+  RNA_def_property_range(prop, 0.01, 10.0);
+  RNA_def_property_ui_range(prop, 0.5, 2.0, 1, 2);
+  RNA_def_property_ui_text(
+      prop, "Hover Scale", "Scale while the pointer is over the object or it has focus");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "press_scale", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "press_scale");
+  RNA_def_property_range(prop, 0.01, 10.0);
+  RNA_def_property_ui_range(prop, 0.5, 2.0, 1, 2);
+  RNA_def_property_ui_text(prop, "Press Scale", "Scale while the object is pressed");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "look_time", PROP_FLOAT, PROP_TIME_ABSOLUTE);
+  RNA_def_property_float_sdna(prop, nullptr, "look_time");
+  RNA_def_property_range(prop, 0.0, 5.0);
+  RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 2);
+  RNA_def_property_ui_text(prop,
+                           "Look Time",
+                           "Seconds to blend between the normal, hover and press scales; a Bar's "
+                           "fill takes this long to move from empty to full");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "anchor", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "anchor");
+  RNA_def_property_enum_items(prop, anchor_items);
+  RNA_def_property_ui_text(prop,
+                           "Screen Anchor",
+                           "Keep this overlay object at the same distance from a screen edge or "
+                           "corner as in the camera view, whatever the window size");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "highlight_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "highlight");
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_GameObjectUISettings_part_poll");
+  RNA_def_property_ui_text(prop,
+                           "Highlight Object",
+                           "Shown while a player points at this element (under the mouse, or "
+                           "selected with keys or a gamepad) and hidden otherwise, such as a "
+                           "glowing frame; use a child, so grid copies get their own");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  static const EnumPropertyItem widget_items[] = {
+      {OB_UI_WIDGET_NONE, "NONE", 0, "None", "A plain control: game logic reacts to its events"},
+      {OB_UI_WIDGET_TOGGLE,
+       "TOGGLE",
+       0,
+       "Toggle",
+       "A click flips a Bool game property; the part is shown while it is on"},
+      {OB_UI_WIDGET_SLIDER,
+       "SLIDER",
+       0,
+       "Slider",
+       "Dragging, clicking or Left and Right set a number game property between Min and Max; "
+       "the part is the handle that moves along the element"},
+      {OB_UI_WIDGET_SELECTOR,
+       "SELECTOR",
+       0,
+       "Selector",
+       "A click or Left and Right step through a Choice game property's options; the part is a "
+       "text object that shows the option"},
+      {OB_UI_WIDGET_TEXT,
+       "TEXT",
+       0,
+       "Text Field",
+       "A click (or Accept on it) starts typing into a String game property; Enter, Back or a "
+       "click elsewhere finishes. The part is a text object that shows it"},
+      {OB_UI_WIDGET_BAR,
+       "BAR",
+       0,
+       "Bar",
+       "Shows a number game property between Min and Max, such as health: the part is the fill "
+       "(a child lying along this element), which grows from this element's start (left, or the "
+       "bottom of an upright bar). It takes no clicks or selection"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "widget", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "widget");
+  RNA_def_property_enum_items(prop, widget_items);
+  RNA_def_property_ui_text(prop, "Widget", "What the element does by itself with a game property");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "widget_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "widget_object");
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Object",
+                           "Object with the game property; empty uses this element, or its "
+                           "nearest parent that has the property (a bar or label on each enemy "
+                           "copy shows that enemy's)");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "widget_property", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "widget_property");
+  RNA_def_property_ui_text(prop, "Property", "Name of the game property it shows and changes");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "widget_max_property", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "widget_max_property");
+  RNA_def_property_ui_text(prop,
+                           "Max Property",
+                           "Bar: a game property of the same object with the value of a full "
+                           "bar, such as max_health; empty uses Max");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "widget_min", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "widget_min");
+  RNA_def_property_ui_text(prop, "Min", "Value at the start of the slider or bar");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "widget_max", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "widget_max");
+  RNA_def_property_ui_text(prop,
+                           "Max",
+                           "Value at the end of the slider or of a full bar; a Text Field's most "
+                           "characters (0: no limit)");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  prop = RNA_def_property(srna, "widget_step", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "widget_step");
+  RNA_def_property_range(prop, 0.0, FLT_MAX);
+  RNA_def_property_ui_text(
+      prop, "Step", "Change for one Left or Right press; values snap to steps (0: smooth)");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  static const char *navigation_names[4][3] = {
+      {"navigation_up", "nav_up", "Up"},
+      {"navigation_down", "nav_down", "Down"},
+      {"navigation_left", "nav_left", "Left"},
+      {"navigation_right", "nav_right", "Right"}};
+  for (const auto &names : navigation_names) {
+    prop = RNA_def_property(srna, names[0], PROP_POINTER, PROP_NONE);
+    RNA_def_property_pointer_sdna(prop, nullptr, names[1]);
+    RNA_def_property_struct_type(prop, "Object");
+    RNA_def_property_flag(prop, PROP_EDITABLE);
+    RNA_def_property_ui_text(prop,
+                             names[2],
+                             "Keyboard and gamepad navigation: the UI Element this direction "
+                             "goes to instead of the nearest one (on a grid slot, where the grid "
+                             "ends); empty is automatic");
+    RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+  }
+
+  prop = RNA_def_property(srna, "widget_part", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "widget_part");
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_GameObjectUISettings_widget_part_poll");
+  RNA_def_property_ui_text(prop,
+                           "Part",
+                           "Slider: the handle (a child) that moves along the element. Toggle: "
+                           "the check mark shown while on. Selector, Text Field: the text object "
+                           "showing the option or the text. Bar: the fill (a child)");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+}
+
 static void rna_def_game_vehicle_settings(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -4167,6 +4728,17 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "GameProperty"); /* rna_property.c */
   RNA_def_property_ui_text(prop, "Properties", "Game engine properties");
 
+  prop = RNA_def_property(srna, "use_save_game_object_state", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(prop,
+                                 "rna_GameObjectSettings_save_object_state_get",
+                                 "rna_GameObjectSettings_save_object_state_set");
+  RNA_def_property_ui_text(
+      prop,
+      "Save Object State",
+      "Save and restore this object's existence, transform, supported hierarchy, material state, "
+      "supported runtime physics state, and Set Collection Member changes");
+  RNA_def_property_update(prop, NC_LOGIC, "rna_GameObjectSettings_persistence_update");
+
   prop = RNA_def_property(srna, "custom_object", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "PythonProxy");
   RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, nullptr);
@@ -4449,6 +5021,74 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
       "Extra margin around object for collision detection, small amount required "
       "for stability");
 
+  static const EnumPropertyItem smooth_motion_items[] = {
+      {OB_SMOOTH_MOTION_SCENE,
+       "SCENE",
+       0,
+       "Scene Default",
+       "The parent's Smooth Motion, or the scene's Physics Interpolation for an object without a "
+       "parent"},
+      {OB_SMOOTH_MOTION_NONE,
+       "NONE",
+       0,
+       "None",
+       "Drawn where the last fixed step put it: no delay, but uneven on screens whose refresh "
+       "doesn't match the steps (a child still follows a smoothed parent)"},
+      {OB_SMOOTH_MOTION_INTERPOLATE,
+       "INTERPOLATE",
+       0,
+       "Interpolate",
+       "Drawn between its last two fixed steps: smooth on any screen, about one step late "
+       "(characters and vehicles the camera follows)"},
+      {OB_SMOOTH_MOTION_EXTRAPOLATE,
+       "EXTRAPOLATE",
+       0,
+       "Extrapolate",
+       "Drawn ahead of its last step along its movement: smooth with no delay, but for a frame it "
+       "overshoots a sudden stop or hit (balls, vehicles, flying objects)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "smooth_motion", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "smooth_motion");
+  RNA_def_property_enum_items(prop, smooth_motion_items);
+  RNA_def_property_ui_text(prop,
+                           "Smooth Motion",
+                           "How the object is drawn between fixed logic and physics steps. "
+                           "Only objects that use it cost anything");
+
+  static const EnumPropertyItem game_draw_as_items[] = {
+      {OB_GAME_DRAW_AUTO,
+       "AUTO",
+       0,
+       "Auto",
+       "Identical placed objects (same mesh, materials and modifiers) are drawn from one shared "
+       "Blender object: moving costs almost nothing, and the scene has fewer Blender objects. "
+       "One that gets something of its own (a material or modifier change, shape keys, Replace "
+       "Mesh) gets its own object back at that moment (a short hitch). Looks the same as Own "
+       "Object"},
+      {OB_GAME_DRAW_OWN,
+       "OWN",
+       0,
+       "Own Object",
+       "Always drawn by its own Blender object, never shared"},
+      {OB_GAME_DRAW_MERGED,
+       "MERGED",
+       0,
+       "Merged",
+       "Still scenery: merged at game start with the nearby objects set to Merged into one "
+       "Blender object, while physics, logic and properties stay per object. Hiding or removing "
+       "it costs little; moving it, or changing its color or modifiers, gives it back its own "
+       "object (a short hitch)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "draw_as", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "game_draw_as");
+  RNA_def_property_enum_items(prop, game_draw_as_items);
+  RNA_def_property_ui_text(prop,
+                           "Draw As",
+                           "How the game draws this mesh object. Auto and Merged make scenes "
+                           "with many objects faster");
+
   prop = RNA_def_property(srna, "soft_body", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "bsoft");
   RNA_def_property_ui_text(prop, "Soft Body Settings", "Settings for Bullet soft body simulation");
@@ -4642,15 +5282,22 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "ObjectActivityCulling");
   RNA_def_property_ui_text(prop, "Object Activity Culling", "");
 
+  prop = RNA_def_property(srna, "ui", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_pointer_sdna(prop, nullptr, "game_ui");
+  RNA_def_property_struct_type(prop, "GameObjectUISettings");
+  RNA_def_property_ui_text(prop, "UI Element", "Game engine UI element settings");
+
   rna_def_game_vehicle_settings(brna);
   rna_def_game_object_activity_culling(brna);
+  rna_def_game_object_ui(brna);
 
   /* rigid body ccd settings */
   prop = RNA_def_property(srna, "use_ccd_rigid_body", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "gameflag2", OB_CCD_RIGID_BODY);
   RNA_def_property_ui_text(prop,
                            "Continuous Collision Detection",
-                           "Enable Continuous Collision Detection for the rigid body");
+                           "Enable Continuous Collision Detection for the physics body");
 
   prop = RNA_def_property(srna, "ccd_motion_threshold", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "ccd_motion_threshold");

@@ -113,10 +113,14 @@ static std::map<SCA_IInputDevice::SCA_EnumInputs, std::pair<char, char>> createK
 std::map<SCA_IInputDevice::SCA_EnumInputs, std::pair<char, char>> SCA_IInputDevice::m_keyToChar =
     createKeyToCharMap();
 
-SCA_IInputDevice::SCA_IInputDevice() : m_hookExitKey(false)
+SCA_IInputDevice::SCA_IInputDevice()
+    : m_clearRevision(0), m_hookExitKey(false), m_nextPressSerial(1)
 {
   for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
     m_inputsTable[i] = SCA_InputEvent(i);
+    m_pressSerial[i] = 0;
+    m_pressConsumed[i] = false;
+    m_pressPending[i] = false;
   }
 }
 
@@ -143,6 +147,7 @@ void SCA_IInputDevice::ClearInputs()
     m_inputsTable[i].Clear();
   }
   m_text.clear();
+  ++m_clearRevision;
 }
 
 void SCA_IInputDevice::ReleaseMoveEvent()
@@ -169,6 +174,38 @@ void SCA_IInputDevice::ReleaseMoveEvent()
 const std::wstring &SCA_IInputDevice::GetText() const
 {
   return m_text;
+}
+
+void SCA_IInputDevice::NotePressTransition(const SCA_EnumInputs input)
+{
+  if (input <= NOKEY || input >= MAX_KEYS) {
+    return;
+  }
+  m_pressSerial[input] = m_nextPressSerial++;
+  m_pressConsumed[input] = false;
+  m_pressPending[input] = true;
+}
+
+bool SCA_IInputDevice::ConsumePressTransition(const SCA_EnumInputs input)
+{
+  if (input <= NOKEY || input >= MAX_KEYS || !m_pressPending[input] || m_pressConsumed[input]) {
+    return false;
+  }
+  m_pressConsumed[input] = true;
+  return true;
+}
+
+bool SCA_IInputDevice::HasUnconsumedPressTransition(const SCA_EnumInputs input) const
+{
+  return input > NOKEY && input < MAX_KEYS && m_pressPending[input] && !m_pressConsumed[input];
+}
+
+uint64_t SCA_IInputDevice::GetPressTransitionSerial(const SCA_EnumInputs input) const
+{
+  if (input <= NOKEY || input >= MAX_KEYS) {
+    return 0;
+  }
+  return m_pressSerial[input];
 }
 
 const char SCA_IInputDevice::ConvertKeyToChar(SCA_IInputDevice::SCA_EnumInputs input, bool shifted)

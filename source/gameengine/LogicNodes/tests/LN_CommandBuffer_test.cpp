@@ -6,9 +6,15 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 
+#include "DNA_key_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
+
+#include "KX_GameObject.h"
 #include "LN_CommandBuffer.h"
 #include "LN_CommandDiagnostics.h"
 #include "LN_RuntimeSemantics.h"
@@ -107,6 +113,8 @@ static constexpr CommandTypeSubsystemCase kCommandTypeSubsystems[] = {
      LN_CommandBuffer::CommandSubsystem::SceneState},
     {LN_CommandBuffer::CommandType::SetTimeScale,
      LN_CommandBuffer::CommandSubsystem::SceneState},
+    {LN_CommandBuffer::CommandType::SetGamePaused,
+     LN_CommandBuffer::CommandSubsystem::SceneState},
     {LN_CommandBuffer::CommandType::SetActiveCamera,
      LN_CommandBuffer::CommandSubsystem::Camera},
     {LN_CommandBuffer::CommandType::SetCameraFov,
@@ -117,6 +125,8 @@ static constexpr CommandTypeSubsystemCase kCommandTypeSubsystems[] = {
      LN_CommandBuffer::CommandSubsystem::ObjectPhysics},
     {LN_CommandBuffer::CommandType::SetPhysics,
      LN_CommandBuffer::CommandSubsystem::ObjectPhysics},
+    {LN_CommandBuffer::CommandType::SetPhysicsPaused,
+     LN_CommandBuffer::CommandSubsystem::SceneState},
     {LN_CommandBuffer::CommandType::SetDynamics,
      LN_CommandBuffer::CommandSubsystem::ObjectPhysics},
     {LN_CommandBuffer::CommandType::RebuildCollisionShape,
@@ -185,6 +195,8 @@ static constexpr CommandTypeSubsystemCase kCommandTypeSubsystems[] = {
      LN_CommandBuffer::CommandSubsystem::Animation},
     {LN_CommandBuffer::CommandType::SetActionFrame,
      LN_CommandBuffer::CommandSubsystem::Animation},
+    {LN_CommandBuffer::CommandType::SetShapeKeyValue,
+     LN_CommandBuffer::CommandSubsystem::Animation},
     {LN_CommandBuffer::CommandType::StopAllSounds,
      LN_CommandBuffer::CommandSubsystem::Sound},
     {LN_CommandBuffer::CommandType::PlaySound,
@@ -207,11 +219,23 @@ static constexpr CommandTypeSubsystemCase kCommandTypeSubsystems[] = {
      LN_CommandBuffer::CommandSubsystem::ObjectTransform},
     {LN_CommandBuffer::CommandType::SlowFollow,
      LN_CommandBuffer::CommandSubsystem::ObjectTransform},
+    {LN_CommandBuffer::CommandType::SetOverlayCollection,
+     LN_CommandBuffer::CommandSubsystem::SceneState},
+    {LN_CommandBuffer::CommandType::RemoveOverlayCollection,
+     LN_CommandBuffer::CommandSubsystem::SceneState},
+    {LN_CommandBuffer::CommandType::OpenObjectMenu,
+     LN_CommandBuffer::CommandSubsystem::SceneState},
+    {LN_CommandBuffer::CommandType::CloseObjectMenu,
+     LN_CommandBuffer::CommandSubsystem::SceneState},
+    {LN_CommandBuffer::CommandType::SetUIFocus,
+     LN_CommandBuffer::CommandSubsystem::TreeState},
     {LN_CommandBuffer::CommandType::LoadScene,
      LN_CommandBuffer::CommandSubsystem::GameLifecycle},
     {LN_CommandBuffer::CommandType::SetScene,
      LN_CommandBuffer::CommandSubsystem::GameLifecycle},
     {LN_CommandBuffer::CommandType::SaveGame,
+     LN_CommandBuffer::CommandSubsystem::GameLifecycle},
+    {LN_CommandBuffer::CommandType::SetSaveExistence,
      LN_CommandBuffer::CommandSubsystem::GameLifecycle},
     {LN_CommandBuffer::CommandType::LoadGame,
      LN_CommandBuffer::CommandSubsystem::GameLifecycle},
@@ -257,12 +281,26 @@ static constexpr CommandTypeSubsystemCase kCommandTypeSubsystems[] = {
      LN_CommandBuffer::CommandSubsystem::Datablock},
     {LN_CommandBuffer::CommandType::EnableDisableModifier,
      LN_CommandBuffer::CommandSubsystem::Datablock},
+    {LN_CommandBuffer::CommandType::ModifyGameProperty,
+     LN_CommandBuffer::CommandSubsystem::ObjectProperty},
+    {LN_CommandBuffer::CommandType::SetUIInteractable,
+     LN_CommandBuffer::CommandSubsystem::ObjectState},
+    {LN_CommandBuffer::CommandType::ResetSmoothing,
+     LN_CommandBuffer::CommandSubsystem::ObjectState},
+    {LN_CommandBuffer::CommandType::SetPlayerCamera, LN_CommandBuffer::CommandSubsystem::Camera},
+    {LN_CommandBuffer::CommandType::SetSplitScreen, LN_CommandBuffer::CommandSubsystem::Camera},
+    {LN_CommandBuffer::CommandType::SetCameraViewport,
+     LN_CommandBuffer::CommandSubsystem::Camera},
+    {LN_CommandBuffer::CommandType::SetCameraVisibility,
+     LN_CommandBuffer::CommandSubsystem::Camera},
+    {LN_CommandBuffer::CommandType::SetPlayerGamepad, LN_CommandBuffer::CommandSubsystem::Window},
+    {LN_CommandBuffer::CommandType::SetPlayerPointer,
+     LN_CommandBuffer::CommandSubsystem::TreeState},
+    {LN_CommandBuffer::CommandType::TakeUIControl, LN_CommandBuffer::CommandSubsystem::TreeState},
 };
 
 static_assert(sizeof(kCommandTypeSubsystems) / sizeof(kCommandTypeSubsystems[0]) ==
-                  static_cast<size_t>(
-                      LN_CommandBuffer::CommandType::EnableDisableModifier) +
-                      1,
+                  static_cast<size_t>(LN_CommandBuffer::CommandType::TakeUIControl) + 1,
               "Update command subsystem coverage when adding CommandType values");
 
 static constexpr CommandTypeRuntimeFamilyCase kCommandRuntimeFamilies[] = {
@@ -284,6 +322,12 @@ static constexpr CommandTypeRuntimeFamilyCase kCommandRuntimeFamilies[] = {
     {LN_CommandBuffer::CommandType::SetGravity,
      LN_OpCode::SetGravity,
      LN_RuntimeCommandFamily::SceneState},
+    {LN_CommandBuffer::CommandType::SetGamePaused,
+     LN_OpCode::SetGamePaused,
+     LN_RuntimeCommandFamily::SceneState},
+    {LN_CommandBuffer::CommandType::SetPhysicsPaused,
+     LN_OpCode::SetPhysicsPaused,
+     LN_RuntimeCommandFamily::SceneState},
     {LN_CommandBuffer::CommandType::SetCameraFov,
      LN_OpCode::SetCameraFov,
      LN_RuntimeCommandFamily::Camera},
@@ -299,6 +343,9 @@ static constexpr CommandTypeRuntimeFamilyCase kCommandRuntimeFamilies[] = {
     {LN_CommandBuffer::CommandType::PlayAction,
      LN_OpCode::PlayAction,
      LN_RuntimeCommandFamily::Animation},
+    {LN_CommandBuffer::CommandType::SetShapeKeyValue,
+     LN_OpCode::SetShapeKeyValue,
+     LN_RuntimeCommandFamily::Animation},
     {LN_CommandBuffer::CommandType::SetBonePoseScale,
      LN_OpCode::SetBonePoseScale,
      LN_RuntimeCommandFamily::Animation},
@@ -311,8 +358,17 @@ static constexpr CommandTypeRuntimeFamilyCase kCommandRuntimeFamilies[] = {
     {LN_CommandBuffer::CommandType::SendEvent,
      LN_OpCode::SendEvent,
      LN_RuntimeCommandFamily::Events},
+    {LN_CommandBuffer::CommandType::SetOverlayCollection,
+     LN_OpCode::SetOverlayCollection,
+     LN_RuntimeCommandFamily::Collection},
+    {LN_CommandBuffer::CommandType::RemoveOverlayCollection,
+     LN_OpCode::RemoveOverlayCollection,
+     LN_RuntimeCommandFamily::Collection},
     {LN_CommandBuffer::CommandType::LoadScene,
      LN_OpCode::LoadScene,
+     LN_RuntimeCommandFamily::GameLifecycle},
+    {LN_CommandBuffer::CommandType::RestartGame,
+     LN_OpCode::RestartGame,
      LN_RuntimeCommandFamily::GameLifecycle},
     {LN_CommandBuffer::CommandType::SetMaterialParameter,
      LN_OpCode::SetMaterialParameter,
@@ -395,6 +451,26 @@ TEST(LN_CommandBuffer, PreservesRecordOrderForEqualSortKeys)
   EXPECT_EQ(commands.back().property_value.float_value, 3.0f);
 }
 
+TEST(LN_CommandBuffer, SameRuntimeTreeKeyPreservesCrossStreamExecutionOrder)
+{
+  constexpr uint64_t runtime_tree_key = (uint64_t(7) << 32) | 3u;
+  LN_CommandBuffer command_buffer;
+  command_buffer.BeginRecording();
+  command_buffer.AppendPrint("before", runtime_tree_key, 1);
+  command_buffer.AppendSetWorldPosition(
+      FakeGameObjectPointer(1), MT_Vector3(1.0f, 2.0f, 3.0f), runtime_tree_key, 2);
+  command_buffer.AppendPrint("after", runtime_tree_key, 3);
+  command_buffer.EndRecording();
+
+  const std::vector<LN_CommandBuffer::Command> commands = command_buffer.TakeRecordedCommands();
+  ASSERT_EQ(commands.size(), 3u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::Print);
+  EXPECT_EQ(commands[0].property_name, "before");
+  EXPECT_EQ(commands[1].type, LN_CommandBuffer::CommandType::SetWorldPosition);
+  EXPECT_EQ(commands[2].type, LN_CommandBuffer::CommandType::Print);
+  EXPECT_EQ(commands[2].property_name, "after");
+}
+
 TEST(LN_CommandBuffer, RemovesCommandsForDeletedGameObject)
 {
   KX_GameObject *removed_object = FakeGameObjectPointer(1);
@@ -455,6 +531,12 @@ TEST(LN_CommandBuffer, ExistingCommandsFlushOnMainThread)
                 LN_CommandBuffer::CommandType::SetTimeScale),
             LN_CommandBuffer::CommandThreadPolicy::MainThreadFlush);
   EXPECT_EQ(LN_CommandBuffer::GetCommandThreadPolicy(
+                LN_CommandBuffer::CommandType::SetGamePaused),
+            LN_CommandBuffer::CommandThreadPolicy::MainThreadFlush);
+  EXPECT_EQ(LN_CommandBuffer::GetCommandThreadPolicy(
+                LN_CommandBuffer::CommandType::SetPhysicsPaused),
+            LN_CommandBuffer::CommandThreadPolicy::MainThreadFlush);
+  EXPECT_EQ(LN_CommandBuffer::GetCommandThreadPolicy(
           LN_CommandBuffer::CommandType::MakeLightUnique),
         LN_CommandBuffer::CommandThreadPolicy::MainThreadFlush);
     EXPECT_EQ(LN_CommandBuffer::GetCommandThreadPolicy(
@@ -462,16 +544,73 @@ TEST(LN_CommandBuffer, ExistingCommandsFlushOnMainThread)
             LN_CommandBuffer::CommandThreadPolicy::MainThreadFlush);
 }
 
-TEST(LN_CommandBuffer, AllowsOwnerlessSceneAndGlobalCommandsToFlush)
+TEST(LN_CommandBuffer, SceneTransitionsRequireOwnersWhileGlobalCommandsDoNot)
 {
   using CommandType = LN_CommandBuffer::CommandType;
 
-  EXPECT_TRUE(LN_CommandBuffer::AllowsObjectlessFlush(CommandType::LoadScene));
-  EXPECT_TRUE(LN_CommandBuffer::AllowsObjectlessFlush(CommandType::SetScene));
+  EXPECT_FALSE(LN_CommandBuffer::AllowsObjectlessFlush(CommandType::LoadScene));
+  EXPECT_FALSE(LN_CommandBuffer::AllowsObjectlessFlush(CommandType::SetScene));
+  EXPECT_FALSE(LN_CommandBuffer::AllowsObjectlessFlush(CommandType::SetOverlayCollection));
+  EXPECT_FALSE(LN_CommandBuffer::AllowsObjectlessFlush(CommandType::RemoveOverlayCollection));
+  EXPECT_TRUE(LN_CommandBuffer::AllowsObjectlessFlush(CommandType::RestartGame));
   EXPECT_TRUE(LN_CommandBuffer::AllowsObjectlessFlush(CommandType::LoadBlendFile));
   EXPECT_TRUE(LN_CommandBuffer::AllowsObjectlessFlush(CommandType::StopAllSounds));
+  EXPECT_TRUE(LN_CommandBuffer::AllowsObjectlessFlush(CommandType::SetGamePaused));
+  EXPECT_TRUE(LN_CommandBuffer::AllowsObjectlessFlush(CommandType::SetPhysicsPaused));
   EXPECT_FALSE(LN_CommandBuffer::AllowsObjectlessFlush(CommandType::SetWorldPosition));
   EXPECT_FALSE(LN_CommandBuffer::AllowsObjectlessFlush(CommandType::SetGameProperty));
+}
+
+TEST(LN_CommandBuffer, OverlayMutationsRetainOwningSceneCameraAndCollectionUntilFlush)
+{
+  KX_GameObject *owner = FakeGameObjectPointer(71);
+  KX_GameObject *camera = FakeGameObjectPointer(72);
+  blender::Collection *collection = reinterpret_cast<blender::Collection *>(uintptr_t(73));
+  LN_CommandBuffer command_buffer;
+
+  command_buffer.BeginRecording();
+  command_buffer.AppendSetOverlayCollection(
+      nullptr, owner, camera, collection, LN_INVALID_INDEX, 10, 1);
+  command_buffer.AppendSetOverlayCollection(
+      nullptr, owner, nullptr, collection, LN_INVALID_INDEX, 15, 3);
+  command_buffer.AppendRemoveOverlayCollection(
+      nullptr, owner, collection, LN_INVALID_INDEX, 20, 2);
+  command_buffer.EndRecording();
+
+  const std::vector<LN_CommandBuffer::Command> commands =
+      command_buffer.TakeRecordedCommands();
+  ASSERT_EQ(commands.size(), 3u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::SetOverlayCollection);
+  EXPECT_EQ(commands[0].object, owner);
+  EXPECT_EQ(commands[0].event_target_object, camera);
+  EXPECT_EQ(commands[0].collection, collection);
+  EXPECT_EQ(commands[1].type, LN_CommandBuffer::CommandType::SetOverlayCollection);
+  EXPECT_EQ(commands[1].event_target_object, nullptr);
+  EXPECT_EQ(commands[2].type, LN_CommandBuffer::CommandType::RemoveOverlayCollection);
+  EXPECT_EQ(commands[2].object, owner);
+  EXPECT_EQ(commands[2].collection, collection);
+}
+
+TEST(LN_CommandBuffer, RemovingOverlayCameraCancelsPendingOverlayRequest)
+{
+  KX_GameObject *owner = FakeGameObjectPointer(71);
+  KX_GameObject *camera = FakeGameObjectPointer(72);
+  blender::Collection *collection = reinterpret_cast<blender::Collection *>(uintptr_t(73));
+  LN_CommandBuffer command_buffer;
+
+  command_buffer.BeginRecording();
+  command_buffer.AppendSetOverlayCollection(
+      nullptr, owner, camera, collection, LN_INVALID_INDEX, 10, 1);
+  command_buffer.AppendRemoveOverlayCollection(
+      nullptr, owner, collection, LN_INVALID_INDEX, 20, 2);
+  command_buffer.RemoveCommandsForGameObject(camera);
+  command_buffer.EndRecording();
+
+  const std::vector<LN_CommandBuffer::Command> commands =
+      command_buffer.TakeRecordedCommands();
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::RemoveOverlayCollection);
+  EXPECT_EQ(commands[0].object, owner);
 }
 
 TEST(LN_CommandBuffer, ProvidesSubsystemPoliciesForImplementedAndDeferredFamilies)
@@ -559,14 +698,18 @@ TEST(LN_CommandBuffer, CommandThreadPoliciesAgreeWithSubsystemWritePolicies)
       CommandType::RemoveObject,
       CommandType::SetGravity,
       CommandType::SetTimeScale,
+      CommandType::SetGamePaused,
       CommandType::SetCollisionGroup,
       CommandType::SetPhysics,
+      CommandType::SetPhysicsPaused,
       CommandType::SetDynamics,
       CommandType::RebuildCollisionShape,
       CommandType::SetRigidBodyAttribute,
       CommandType::SetTreeProperty,
       CommandType::SetLogicTreeEnabled,
       CommandType::InstallLogicTree,
+      CommandType::SetOverlayCollection,
+      CommandType::RemoveOverlayCollection,
       CommandType::SetCursorVisibility,
       CommandType::SetCursorPosition,
       CommandType::SetGamepadVibration,
@@ -736,6 +879,10 @@ TEST(LN_CommandBuffer, ClassifiesTypedCommandStreamPolicies)
             LN_CommandBuffer::CommandClass::ObjectServiceMutation);
   EXPECT_EQ(LN_CommandBuffer::GetCommandClass(CommandType::SetTimeScale),
             LN_CommandBuffer::CommandClass::ObjectServiceMutation);
+  EXPECT_EQ(LN_CommandBuffer::GetCommandClass(CommandType::SetGamePaused),
+            LN_CommandBuffer::CommandClass::ObjectServiceMutation);
+  EXPECT_EQ(LN_CommandBuffer::GetCommandClass(CommandType::SetPhysicsPaused),
+            LN_CommandBuffer::CommandClass::ObjectServiceMutation);
   EXPECT_EQ(LN_CommandBuffer::GetCommandClass(CommandType::SetActiveCamera),
             LN_CommandBuffer::CommandClass::ObjectServiceMutation);
   EXPECT_EQ(LN_CommandBuffer::GetCommandClass(CommandType::ApplyImpulse),
@@ -751,9 +898,15 @@ TEST(LN_CommandBuffer, ClassifiesTypedCommandStreamPolicies)
             LN_CommandBuffer::CommandBarrier::ObjectLifecycle);
   EXPECT_EQ(LN_CommandBuffer::GetCommandBarrier(CommandType::SendEvent),
             LN_CommandBuffer::CommandBarrier::EventMessage);
+  EXPECT_EQ(LN_CommandBuffer::GetCommandBarrier(CommandType::RestartGame),
+            LN_CommandBuffer::CommandBarrier::ExternalSideEffect);
   EXPECT_EQ(LN_CommandBuffer::GetCoalescingPolicy(CommandType::SetWorldPosition),
             LN_CommandBuffer::CoalescingPolicy::LastWriteWinsWithinBarrierSegment);
   EXPECT_EQ(LN_CommandBuffer::GetCoalescingPolicy(CommandType::SetMaterialParameter),
+            LN_CommandBuffer::CoalescingPolicy::LastWriteWinsWithinBarrierSegment);
+  EXPECT_EQ(LN_CommandBuffer::GetCommandBarrier(CommandType::SetShapeKeyValue),
+            LN_CommandBuffer::CommandBarrier::SceneDatablockMutation);
+  EXPECT_EQ(LN_CommandBuffer::GetCoalescingPolicy(CommandType::SetShapeKeyValue),
             LN_CommandBuffer::CoalescingPolicy::LastWriteWinsWithinBarrierSegment);
   EXPECT_EQ(LN_CommandBuffer::GetCoalescingPolicy(CommandType::PlaySound),
             LN_CommandBuffer::CoalescingPolicy::Forbidden);
@@ -1041,7 +1194,9 @@ TEST(LN_CommandBuffer, TypedRuntimeServiceStreamsMaterializeInDeterministicOrder
   command_buffer.AppendSetWindowSize(1280, 720, 30, 1);
   command_buffer.AppendSetCursorVisibility(false, 10, 2);
   command_buffer.AppendSetCursorPosition(100, 200, 20, 3);
+  command_buffer.AppendSetGamePaused(true, 25, 9);
   command_buffer.AppendSetGamepadVibration(1, 0.25f, 0.75f, 500, 40, 4);
+  command_buffer.AppendSetPhysicsPaused(false, 45, 10);
   command_buffer.AppendSetFullscreen(true, 50, 5);
   command_buffer.AppendSetVSync(2, 60, 6);
   command_buffer.AppendSetShowFramerate(true, 70, 7);
@@ -1052,31 +1207,35 @@ TEST(LN_CommandBuffer, TypedRuntimeServiceStreamsMaterializeInDeterministicOrder
   const LN_CommandBuffer::CommandStreamStats &stats =
       command_buffer.GetLastCommandStreamStats();
 
-  ASSERT_EQ(commands.size(), 8u);
+  ASSERT_EQ(commands.size(), 10u);
   EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::SetCursorVisibility);
   EXPECT_FALSE(commands[0].bool_value);
   EXPECT_EQ(commands[1].type, LN_CommandBuffer::CommandType::SetCursorPosition);
   EXPECT_EQ(commands[1].int_value, 100);
   EXPECT_EQ(commands[1].secondary_int_value, 200);
-  EXPECT_EQ(commands[2].type, LN_CommandBuffer::CommandType::SetWindowSize);
-  EXPECT_EQ(commands[2].int_value, 1280);
-  EXPECT_EQ(commands[2].secondary_int_value, 720);
-  EXPECT_EQ(commands[3].type, LN_CommandBuffer::CommandType::SetGamepadVibration);
-  EXPECT_EQ(commands[3].int_value, 1);
-  EXPECT_EQ(commands[3].scalar_value, 0.25f);
-  EXPECT_EQ(commands[3].vector_value.x(), 0.75f);
-  EXPECT_EQ(commands[3].property_ref_index, 500u);
-  EXPECT_EQ(commands[4].type, LN_CommandBuffer::CommandType::SetFullscreen);
-  EXPECT_TRUE(commands[4].bool_value);
-  EXPECT_EQ(commands[5].type, LN_CommandBuffer::CommandType::SetVSync);
-  EXPECT_EQ(commands[5].int_value, 2);
-  EXPECT_EQ(commands[6].type, LN_CommandBuffer::CommandType::SetShowFramerate);
+  EXPECT_EQ(commands[2].type, LN_CommandBuffer::CommandType::SetGamePaused);
+  EXPECT_TRUE(commands[2].bool_value);
+  EXPECT_EQ(commands[3].type, LN_CommandBuffer::CommandType::SetWindowSize);
+  EXPECT_EQ(commands[3].int_value, 1280);
+  EXPECT_EQ(commands[3].secondary_int_value, 720);
+  EXPECT_EQ(commands[4].type, LN_CommandBuffer::CommandType::SetGamepadVibration);
+  EXPECT_EQ(commands[4].int_value, 1);
+  EXPECT_EQ(commands[4].scalar_value, 0.25f);
+  EXPECT_EQ(commands[4].vector_value.x(), 0.75f);
+  EXPECT_EQ(commands[4].property_ref_index, 500u);
+  EXPECT_EQ(commands[5].type, LN_CommandBuffer::CommandType::SetPhysicsPaused);
+  EXPECT_FALSE(commands[5].bool_value);
+  EXPECT_EQ(commands[6].type, LN_CommandBuffer::CommandType::SetFullscreen);
   EXPECT_TRUE(commands[6].bool_value);
-  EXPECT_EQ(commands[7].type, LN_CommandBuffer::CommandType::SetShowProfile);
-  EXPECT_FALSE(commands[7].bool_value);
+  EXPECT_EQ(commands[7].type, LN_CommandBuffer::CommandType::SetVSync);
+  EXPECT_EQ(commands[7].int_value, 2);
+  EXPECT_EQ(commands[8].type, LN_CommandBuffer::CommandType::SetShowFramerate);
+  EXPECT_TRUE(commands[8].bool_value);
+  EXPECT_EQ(commands[9].type, LN_CommandBuffer::CommandType::SetShowProfile);
+  EXPECT_FALSE(commands[9].bool_value);
 
   EXPECT_EQ(stats.legacy_command_count, 0u);
-  EXPECT_EQ(stats.typed_runtime_service_count, 8u);
+  EXPECT_EQ(stats.typed_runtime_service_count, 10u);
 }
 
 TEST(LN_CommandBuffer, TypedAnimationStreamsMaterializeInDeterministicOrder)
@@ -1087,6 +1246,7 @@ TEST(LN_CommandBuffer, TypedAnimationStreamsMaterializeInDeterministicOrder)
   command_buffer.BeginRecording();
   command_buffer.AppendStopAction(object, 2, 30, 1);
   command_buffer.AppendPlayAction(object,
+                                  nullptr,
                                   "Walk",
                                   1.0f,
                                   24.0f,
@@ -1096,6 +1256,8 @@ TEST(LN_CommandBuffer, TypedAnimationStreamsMaterializeInDeterministicOrder)
                                   0.8f,
                                   0x0010203u,
                                   1.5f,
+                                  LN_INVALID_INDEX,
+                                  LN_ACTION_OUTPUT_NONE,
                                   10,
                                   2);
   command_buffer.AppendSetActionFrame(object, 5, 12.5f, 20, 3);
@@ -1124,6 +1286,97 @@ TEST(LN_CommandBuffer, TypedAnimationStreamsMaterializeInDeterministicOrder)
 
   EXPECT_EQ(stats.legacy_command_count, 0u);
   EXPECT_EQ(stats.typed_animation_count, 3u);
+}
+
+TEST(LN_CommandBuffer, ShapeKeyWritesUseTypedStreamAndCoalesceByObjectAndName)
+{
+  LN_CommandBuffer command_buffer;
+  KX_GameObject *object = FakeGameObjectPointer(1);
+
+  command_buffer.BeginRecording();
+  command_buffer.AppendSetShapeKeyValue(object, "Smile", 0.25f, 10, 1);
+  command_buffer.AppendSetShapeKeyValue(object, "Smile", 0.75f, 20, 2);
+  command_buffer.AppendSetShapeKeyValue(object, "Blink", 0.5f, 30, 3);
+  command_buffer.EndRecording();
+
+  std::vector<LN_CommandBuffer::Command> commands =
+      command_buffer.TakeRecordedCommands();
+  ASSERT_EQ(commands.size(), 3u);
+  EXPECT_EQ(command_buffer.GetLastCommandStreamStats().legacy_command_count, 0u);
+  EXPECT_EQ(command_buffer.GetLastCommandStreamStats().typed_animation_count, 3u);
+
+  command_buffer.MergeRecordedCommands(std::move(commands));
+  const std::vector<LN_CommandBuffer::Command> planned =
+      command_buffer.TakeFlushPlannedCommands();
+  ASSERT_EQ(planned.size(), 2u);
+  EXPECT_EQ(planned[0].type, LN_CommandBuffer::CommandType::SetShapeKeyValue);
+  EXPECT_EQ(planned[0].object, object);
+  EXPECT_EQ(planned[0].property_name, "Smile");
+  EXPECT_EQ(planned[0].scalar_value, 0.75f);
+  EXPECT_EQ(planned[1].type, LN_CommandBuffer::CommandType::SetShapeKeyValue);
+  EXPECT_EQ(planned[1].property_name, "Blink");
+  EXPECT_EQ(planned[1].scalar_value, 0.5f);
+  EXPECT_EQ(command_buffer.GetLastCommandStreamStats().coalesced_command_count, 1u);
+}
+
+TEST(LN_CommandBuffer, ShapeKeyWriteClampsToAuthoredRange)
+{
+  blender::Mesh mesh = {};
+  mesh.verts_num = 3;
+  /* Keep this fixture independent of KX_Scene. The production CPU path differs only by
+   * enqueueing the same geometry update used by BL_Action. */
+  mesh.is_running_gpu_animation_playback = true;
+
+  blender::Key key = {};
+  key.type = blender::KEY_RELATIVE;
+  mesh.key = &key;
+
+  blender::KeyBlock basis = {};
+  basis.totelem = mesh.verts_num;
+  std::strncpy(basis.name, "Basis", sizeof(basis.name) - 1);
+  blender::KeyBlock smile = {};
+  smile.totelem = mesh.verts_num;
+  smile.slidermin = -0.25f;
+  smile.slidermax = 0.75f;
+  std::strncpy(smile.name, "Smile", sizeof(smile.name) - 1);
+  basis.next = &smile;
+  smile.prev = &basis;
+  key.block.first = &basis;
+  key.block.last = &smile;
+  key.refkey = &basis;
+
+  blender::Object blender_object = {};
+  blender_object.type = blender::OB_MESH;
+  blender_object.data = &mesh.id;
+  KX_GameObject game_object;
+  game_object.SetBlenderObject(&blender_object);
+
+  LN_CommandBuffer command_buffer;
+  command_buffer.BeginRecording();
+  command_buffer.AppendSetShapeKeyValue(&game_object, "Smile", 2.0f, 10, 1);
+  command_buffer.EndRecording();
+  command_buffer.Flush();
+
+  EXPECT_EQ(smile.curval, 0.75f);
+}
+
+TEST(LN_CommandBuffer, ShapeKeyWriteUsesLegacyFallbackWhenTypedStreamsAreDisabled)
+{
+  LN_CommandBuffer command_buffer;
+  command_buffer.SetTypedCommandStreamsEnabled(false);
+
+  command_buffer.BeginRecording();
+  command_buffer.AppendSetShapeKeyValue(FakeGameObjectPointer(1), "Smile", 0.625f, 10, 1);
+  command_buffer.EndRecording();
+
+  const std::vector<LN_CommandBuffer::Command> commands =
+      command_buffer.TakeRecordedCommands();
+  ASSERT_EQ(commands.size(), 1u);
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::SetShapeKeyValue);
+  EXPECT_EQ(commands[0].property_name, "Smile");
+  EXPECT_EQ(commands[0].scalar_value, 0.625f);
+  EXPECT_EQ(command_buffer.GetLastCommandStreamStats().legacy_command_count, 1u);
+  EXPECT_EQ(command_buffer.GetLastCommandStreamStats().typed_animation_count, 0u);
 }
 
 TEST(LN_CommandBuffer, TypedMaterialStreamsMaterializeInDeterministicOrder)
@@ -1413,11 +1666,15 @@ TEST(LN_CommandBuffer, TypedArmatureStreamsMaterializeInDeterministicOrder)
   EXPECT_EQ(commands[0].secondary_property_name, "CopyLoc");
   EXPECT_EQ(commands[0].scalar_value, 0.75f);
   EXPECT_EQ(commands[1].type, LN_CommandBuffer::CommandType::SetBonePoseRotation);
-  EXPECT_EQ(commands[1].vector_value.y(), 0.2f);
+  EXPECT_LE(commands[1].rotation_value.AngleTo(
+                LN_Rotation::FromEulerXYZ(MT_Vector3(0.1f, 0.2f, 0.3f))),
+            0.0001f);
   EXPECT_EQ(commands[1].secondary_int_value, 1);
   EXPECT_EQ(commands[2].type, LN_CommandBuffer::CommandType::SetBonePoseTransform);
   EXPECT_EQ(commands[2].vector_value.z(), 6.0f);
-  EXPECT_EQ(commands[2].secondary_vector_value.y(), 0.5f);
+  EXPECT_LE(commands[2].rotation_value.AngleTo(
+                LN_Rotation::FromEulerXYZ(MT_Vector3(0.4f, 0.5f, 0.6f))),
+            0.0001f);
   EXPECT_EQ(commands[2].int_value, int(LN_BonePoseLocationSpace::World));
   EXPECT_EQ(commands[2].secondary_int_value, 1);
   EXPECT_EQ(commands[3].type, LN_CommandBuffer::CommandType::SetBonePoseLocation);
@@ -1487,7 +1744,8 @@ TEST(LN_CommandBuffer, TypedMotionStreamsMaterializeInDeterministicOrder)
   command_buffer.AppendMoveToward(
       object, MT_Vector3(1.0f, 2.0f, 3.0f), 4.0f, 0.5f, false, true, 0.016f, 30, 1);
   command_buffer.AppendAlignAxisToVector(object, MT_Vector3(0.0f, 1.0f, 0.0f), 2, 0.25f, 10, 2);
-  command_buffer.AppendRotateToward(object, MT_Vector3(5.0f, 6.0f, 7.0f), 0.5f, 1, 4, 20, 3);
+  command_buffer.AppendRotateToward(
+      object, MT_Vector3(5.0f, 6.0f, 7.0f), 0.5f, 1, 4, false, 20, 3);
   command_buffer.AppendSlowFollow(object, target, 0.75f, 1, 40, 4);
   command_buffer.EndRecording();
 
@@ -1504,6 +1762,7 @@ TEST(LN_CommandBuffer, TypedMotionStreamsMaterializeInDeterministicOrder)
   EXPECT_EQ(commands[1].vector_value.z(), 7.0f);
   EXPECT_EQ(commands[1].int_value, 1);
   EXPECT_EQ(commands[1].secondary_int_value, 4);
+  EXPECT_FALSE(commands[1].bool_value);
   EXPECT_EQ(commands[2].type, LN_CommandBuffer::CommandType::MoveToward);
   EXPECT_EQ(commands[2].vector_value.x(), 1.0f);
   EXPECT_EQ(commands[2].secondary_vector_value.x(), 0.5f);

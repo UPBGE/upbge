@@ -13,7 +13,10 @@
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 
+#include "BKE_lib_id.hh"
+
 #include "DNA_logic_node_binding_types.h"
+#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 
 namespace blender {
@@ -46,8 +49,70 @@ void BKE_logic_node_binding_remove(Object *ob, LogicNodeBinding *binding)
     return;
   }
 
+  BKE_logic_node_binding_set_tree(binding, nullptr);
   BLI_remlink(&ob->logic_node_bindings, binding);
   MEM_delete(binding);
+}
+
+void BKE_logic_node_binding_set_tree(LogicNodeBinding *binding, bNodeTree *tree)
+{
+  if (binding == nullptr) {
+    return;
+  }
+
+  BLI_assert(tree == nullptr || tree->type == NTREE_LOGIC);
+  if (tree != nullptr && tree->type != NTREE_LOGIC) {
+    return;
+  }
+
+  if (binding->tree != tree) {
+    if (binding->tree != nullptr) {
+      id_us_min(&binding->tree->id);
+    }
+    if (tree != nullptr) {
+      id_us_plus(&tree->id);
+    }
+    binding->tree = tree;
+  }
+
+  binding->flag &= ~LOGIC_NODE_BINDING_LEGACY_NAME_FALLBACK;
+  if (tree != nullptr) {
+    STRNCPY(binding->tree_name, tree->id.name + 2);
+  }
+  else {
+    binding->tree_name[0] = '\0';
+  }
+}
+
+const char *BKE_logic_node_binding_tree_name(const LogicNodeBinding *binding)
+{
+  if (binding == nullptr) {
+    return "";
+  }
+  if (binding->tree != nullptr) {
+    return binding->tree->id.name + 2;
+  }
+  if (binding->flag & LOGIC_NODE_BINDING_LEGACY_NAME_FALLBACK) {
+    return binding->tree_name;
+  }
+  return "";
+}
+
+LogicNodeBinding *BKE_logic_node_binding_find_by_tree(Object *ob, const bNodeTree *tree)
+{
+  if (ob == nullptr || tree == nullptr) {
+    return nullptr;
+  }
+
+  for (LogicNodeBinding *binding = static_cast<LogicNodeBinding *>(ob->logic_node_bindings.first);
+       binding;
+       binding = binding->next)
+  {
+    if (binding->tree == tree) {
+      return binding;
+    }
+  }
+  return nullptr;
 }
 
 LogicNodeBinding *BKE_logic_node_binding_find_by_tree_name(Object *ob, const char *tree_name)
@@ -60,7 +125,7 @@ LogicNodeBinding *BKE_logic_node_binding_find_by_tree_name(Object *ob, const cha
        binding;
        binding = binding->next)
   {
-    if (STREQ(binding->tree_name, tree_name)) {
+    if (STREQ(BKE_logic_node_binding_tree_name(binding), tree_name)) {
       return binding;
     }
   }
@@ -81,10 +146,13 @@ void BKE_logic_node_binding_copy_list(ListBase *dst, const ListBase *src)
   }
 }
 
-void BKE_logic_node_binding_free_list(ListBase *list)
+void BKE_logic_node_binding_free_list(ListBase *list, const bool do_id_user)
 {
   LogicNodeBinding *binding;
   while ((binding = static_cast<LogicNodeBinding *>(BLI_pophead(list)))) {
+    if (do_id_user) {
+      BKE_logic_node_binding_set_tree(binding, nullptr);
+    }
     MEM_delete(binding);
   }
 }

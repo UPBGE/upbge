@@ -105,8 +105,8 @@ uint32_t logic_nodes_ratio_x100(const double optimized, const double legacy)
   if (legacy <= 0.0) {
     return UINT32_MAX;
   }
-  return uint32_t(std::min<double>(
-      double(UINT32_MAX), std::max(0.0, std::ceil((optimized * 100.0) / legacy))));
+  return uint32_t(std::min<double>(double(UINT32_MAX),
+                                   std::max(0.0, std::ceil((optimized * 100.0) / legacy))));
 }
 
 uint32_t logic_nodes_mix_checksum(uint32_t checksum, const uint32_t value)
@@ -137,14 +137,24 @@ bool logic_nodes_phase10_opcode_has_direct_exec_path(const LN_OpCode opcode)
   switch (opcode) {
     case LN_OpCode::Nop:
     case LN_OpCode::BranchRoute:
+    case LN_OpCode::SetFlowGate:
+    case LN_OpCode::TryFlowGate:
     case LN_OpCode::ArmTimer:
     case LN_OpCode::ArmDelay:
+    case LN_OpCode::ArmNextFrame:
     case LN_OpCode::UpdatePulsify:
     case LN_OpCode::UpdateBarrier:
     case LN_OpCode::TryOnce:
     case LN_OpCode::ResetOnce:
     case LN_OpCode::TryCooldown:
     case LN_OpCode::ResetCooldown:
+    case LN_OpCode::TryFlowRouter:
+    case LN_OpCode::ResetFlowRouter:
+    case LN_OpCode::TryRepeatLimit:
+    case LN_OpCode::ResetRepeatLimit:
+    case LN_OpCode::SampleMotion:
+    case LN_OpCode::ResetMotion:
+    case LN_OpCode::BreakLoop:
     case LN_OpCode::SetWorldPosition:
     case LN_OpCode::SetLocalPosition:
     case LN_OpCode::SetWorldOrientation:
@@ -190,11 +200,16 @@ bool logic_nodes_phase10_opcode_has_direct_exec_path(const LN_OpCode opcode)
     case LN_OpCode::SetVelocityVector:
     case LN_OpCode::ApplyTransformVector:
     case LN_OpCode::ApplyPhysicsVector:
+    case LN_OpCode::SetUIInteractable:
+    case LN_OpCode::ResetSmoothing:
     case LN_OpCode::SetVisibility:
     case LN_OpCode::SetObjectColor:
     case LN_OpCode::SetActiveCamera:
     case LN_OpCode::SetCameraFov:
     case LN_OpCode::SetCameraOrthoScale:
+    case LN_OpCode::SetSplitScreen:
+    case LN_OpCode::SetCameraViewport:
+    case LN_OpCode::SetCameraVisibility:
     case LN_OpCode::MakeLightUnique:
     case LN_OpCode::SetLightColor:
     case LN_OpCode::SetLightPower:
@@ -207,6 +222,7 @@ bool logic_nodes_phase10_opcode_has_direct_exec_path(const LN_OpCode opcode)
     case LN_OpCode::SetCursorVisibility:
     case LN_OpCode::SetCursorPosition:
     case LN_OpCode::SetGamepadVibration:
+    case LN_OpCode::SetPlayerGamepad:
     case LN_OpCode::GamepadLook:
     case LN_OpCode::MouseLook:
     case LN_OpCode::StopAllSounds:
@@ -215,9 +231,11 @@ bool logic_nodes_phase10_opcode_has_direct_exec_path(const LN_OpCode opcode)
     case LN_OpCode::PauseSound:
     case LN_OpCode::ResumeSound:
     case LN_OpCode::StopSound:
+    case LN_OpCode::SetSoundVolume:
     case LN_OpCode::PlayAction:
     case LN_OpCode::StopAction:
     case LN_OpCode::SetActionFrame:
+    case LN_OpCode::SetShapeKeyValue:
     case LN_OpCode::SetBonePoseLocation:
     case LN_OpCode::SetBonePoseRotation:
     case LN_OpCode::SetBonePoseScale:
@@ -240,8 +258,11 @@ bool logic_nodes_phase10_opcode_has_direct_exec_path(const LN_OpCode opcode)
     case LN_OpCode::QuitGame:
     case LN_OpCode::RestartGame:
     case LN_OpCode::SetTimeScale:
+    case LN_OpCode::SetGamePaused:
+    case LN_OpCode::SetPhysicsPaused:
     case LN_OpCode::LoadBlendFile:
     case LN_OpCode::SaveGame:
+    case LN_OpCode::SetSaveExistence:
     case LN_OpCode::LoadGame:
     case LN_OpCode::LoadScene:
     case LN_OpCode::SetScene:
@@ -262,11 +283,19 @@ bool logic_nodes_phase10_opcode_has_direct_exec_path(const LN_OpCode opcode)
     case LN_OpCode::SaveVariableDict:
     case LN_OpCode::ClearVariables:
     case LN_OpCode::RemoveVariable:
+    case LN_OpCode::InputMap:
     case LN_OpCode::Navigate:
     case LN_OpCode::FollowPath:
     case LN_OpCode::SetCollectionVisibility:
+    case LN_OpCode::SetCollectionMember:
     case LN_OpCode::SetOverlayCollection:
     case LN_OpCode::RemoveOverlayCollection:
+    case LN_OpCode::OpenObjectMenu:
+    case LN_OpCode::CloseObjectMenu:
+    case LN_OpCode::SetUIFocus:
+    case LN_OpCode::SetPlayerPointer:
+    case LN_OpCode::TakeUIControl:
+    case LN_OpCode::ScreenAnchor:
     case LN_OpCode::DrawLine:
     case LN_OpCode::DrawArrow:
     case LN_OpCode::DrawPath:
@@ -275,8 +304,10 @@ bool logic_nodes_phase10_opcode_has_direct_exec_path(const LN_OpCode opcode)
     case LN_OpCode::DrawAxis:
     case LN_OpCode::AddPhysicsConstraint:
     case LN_OpCode::RemovePhysicsConstraint:
-    case LN_OpCode::SpawnPoolCreate:
-    case LN_OpCode::SpawnPoolSpawn:
+    case LN_OpCode::InventoryEdit:
+    case LN_OpCode::DropItem:
+    case LN_OpCode::ScrollObjectView:
+    case LN_OpCode::ShowMessage:
       return true;
     default:
       return false;
@@ -327,20 +358,31 @@ LN_RuntimeFallbackReason logic_nodes_phase10_opcode_fallback_reason(
     case LN_OpCode::SaveVariableDict:
     case LN_OpCode::ClearVariables:
     case LN_OpCode::RemoveVariable:
+    case LN_OpCode::InputMap:
     case LN_OpCode::SaveGame:
+    case LN_OpCode::SetSaveExistence:
     case LN_OpCode::LoadGame:
     case LN_OpCode::AddObject:
     case LN_OpCode::AddPhysicsConstraint:
     case LN_OpCode::RemovePhysicsConstraint:
-    case LN_OpCode::SpawnPoolCreate:
-    case LN_OpCode::SpawnPoolSpawn:
     case LN_OpCode::RunLogicTreeOnce:
     case LN_OpCode::SetLogicTreeEnabled:
     case LN_OpCode::InstallLogicTree:
-      return LN_RuntimeFallbackReason::CommandBarrier;
-    case LN_OpCode::SetCollectionVisibility:
     case LN_OpCode::SetOverlayCollection:
     case LN_OpCode::RemoveOverlayCollection:
+    case LN_OpCode::OpenObjectMenu:
+    case LN_OpCode::CloseObjectMenu:
+    case LN_OpCode::SetUIFocus:
+    case LN_OpCode::SetPlayerPointer:
+    case LN_OpCode::TakeUIControl:
+    case LN_OpCode::ScreenAnchor:
+    case LN_OpCode::InventoryEdit:
+    case LN_OpCode::DropItem:
+    case LN_OpCode::ScrollObjectView:
+    case LN_OpCode::ShowMessage:
+      return LN_RuntimeFallbackReason::CommandBarrier;
+    case LN_OpCode::SetCollectionVisibility:
+    case LN_OpCode::SetCollectionMember:
     case LN_OpCode::DrawLine:
     case LN_OpCode::DrawArrow:
     case LN_OpCode::DrawPath:
@@ -448,7 +490,8 @@ const char *logic_nodes_phase10_expression_fallback_removal_condition(
       return "Replace dynamic string, generic value, or Python-facing conversion semantics with "
              "typed registers or keep the scalar path as a documented compatibility fallback.";
     case LN_RuntimeFallbackReason::MainThreadLiveRead:
-      return "Represent the live engine read with a captured snapshot channel or an engine-service "
+      return "Represent the live engine read with a captured snapshot channel or an "
+             "engine-service "
              "fixture before enabling register IR.";
     case LN_RuntimeFallbackReason::CommandBarrier:
       return "Keep command-barrier semantics outside expression IR and remove this classification "
@@ -457,7 +500,8 @@ const char *logic_nodes_phase10_expression_fallback_removal_condition(
       return "Move the resource read behind a safe snapshot or service boundary before register "
              "lowering.";
     case LN_RuntimeFallbackReason::MissingSnapshotChannel:
-      return "Declare and capture the snapshot channel required by this expression before register "
+      return "Declare and capture the snapshot channel required by this expression before "
+             "register "
              "lowering.";
     case LN_RuntimeFallbackReason::StaleHandle:
       return "Refresh the cached runtime handle through generation-checked dense ids before "
@@ -477,9 +521,8 @@ bool logic_nodes_phase10_fallback_is_permanent_without_semantic_change(
     const uint32_t fallback_requirements)
 {
   return (fallback_requirements &
-          (LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION |
-           LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP | LN_RUNTIME_FALLBACK_MAIN_THREAD_LIVE_READ |
-           LN_RUNTIME_FALLBACK_UNSUPPORTED_RUNTIME |
+          (LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION | LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP |
+           LN_RUNTIME_FALLBACK_MAIN_THREAD_LIVE_READ | LN_RUNTIME_FALLBACK_UNSUPPORTED_RUNTIME |
            LN_RUNTIME_FALLBACK_MISSING_SNAPSHOT_CHANNEL | LN_RUNTIME_FALLBACK_STALE_HANDLE |
            LN_RUNTIME_FALLBACK_ENGINE_SERVICE_BOUNDARY)) != 0u;
 }
@@ -544,14 +587,14 @@ LN_Phase10ConversionPath logic_nodes_phase10_target_opcode_path(
   return LN_Phase10ConversionPath::ExecBlockIR;
 }
 
-bool logic_nodes_phase10_expression_kind_has_register_path(
-    const LN_RuntimeExpressionFamily family,
-    const uint32_t kind)
+bool logic_nodes_phase10_expression_kind_has_register_path(const LN_RuntimeExpressionFamily family,
+                                                           const uint32_t kind)
 {
   switch (family) {
     case LN_RuntimeExpressionFamily::Bool:
       switch (LN_BoolExpressionKind(kind)) {
         case LN_BoolExpressionKind::Constant:
+        case LN_BoolExpressionKind::GamePaused:
         case LN_BoolExpressionKind::RuntimeTreeProperty:
         case LN_BoolExpressionKind::SnapshotGameProperty:
         case LN_BoolExpressionKind::SnapshotGamePropertyExists:
@@ -582,6 +625,7 @@ bool logic_nodes_phase10_expression_kind_has_register_path(
     case LN_RuntimeExpressionFamily::Float:
       switch (LN_FloatExpressionKind(kind)) {
         case LN_FloatExpressionKind::Constant:
+        case LN_FloatExpressionKind::UnscaledDeltaTime:
         case LN_FloatExpressionKind::RuntimeTreeProperty:
         case LN_FloatExpressionKind::SnapshotGameProperty:
         case LN_FloatExpressionKind::SnapshotTimeScale:
@@ -595,6 +639,7 @@ bool logic_nodes_phase10_expression_kind_has_register_path(
         case LN_FloatExpressionKind::Subtract:
         case LN_FloatExpressionKind::Multiply:
         case LN_FloatExpressionKind::Divide:
+        case LN_FloatExpressionKind::SafeDivide:
         case LN_FloatExpressionKind::Power:
         case LN_FloatExpressionKind::Minimum:
         case LN_FloatExpressionKind::Maximum:
@@ -619,6 +664,7 @@ bool logic_nodes_phase10_expression_kind_has_register_path(
         case LN_FloatExpressionKind::ColorComponent:
         case LN_FloatExpressionKind::Random:
         case LN_FloatExpressionKind::Formula:
+        case LN_FloatExpressionKind::FloatCurve:
         case LN_FloatExpressionKind::FromGenericValue:
           return true;
         default:
@@ -719,6 +765,7 @@ bool logic_nodes_phase10_expression_kind_has_register_path(
         case LN_ValueExpressionKind::SnapshotGameProperty:
         case LN_ValueExpressionKind::RuntimeTreeProperty:
         case LN_ValueExpressionKind::Select:
+        case LN_ValueExpressionKind::Mix:
         case LN_ValueExpressionKind::FromBool:
         case LN_ValueExpressionKind::FromInt:
         case LN_ValueExpressionKind::FromFloat:
@@ -834,8 +881,8 @@ double logic_nodes_benchmark_base_ms(const LN_SyntheticBenchmarkDriver &driver)
                                   double(driver.instruction_count_per_tree) * 0.001;
   const double expression_work = double(driver.tree_count) *
                                  double(driver.expression_count_per_tree) * 0.00035;
-  const double command_work = double(driver.tree_count) *
-                              double(driver.command_count_per_tree) * 0.0012;
+  const double command_work = double(driver.tree_count) * double(driver.command_count_per_tree) *
+                              0.0012;
   const double event_work = double(driver.event_count_per_tick) * 0.00008;
   const double snapshot_work = double(driver.snapshot_object_count) * 0.00012;
   return instruction_work + expression_work + command_work + event_work + snapshot_work;
@@ -901,12 +948,10 @@ LN_TickProfileMetrics logic_nodes_make_benchmark_metrics(const LN_BenchmarkFixtu
   metrics.scheduler_snapshot_only_tree_count = driver.command_count_per_tree == 0 ?
                                                    driver.tree_count :
                                                    0u;
-  metrics.scheduler_command_record_only_tree_count = total_command_count != 0 ?
-                                                        driver.tree_count :
-                                                        0u;
+  metrics.scheduler_command_record_only_tree_count = total_command_count != 0 ? driver.tree_count :
+                                                                                0u;
   metrics.scheduler_job_count = metrics.scheduler_worker_batch_count +
-                                metrics.scheduler_main_thread_batch_count +
-                                (parallel ? 0u : 1u);
+                                metrics.scheduler_main_thread_batch_count + (parallel ? 0u : 1u);
   metrics.instruction_count = total_instruction_count;
   metrics.exec_block_count = optimized ? driver.tree_count : 0u;
   metrics.exec_direct_instruction_count = optimized ? total_instruction_count : 0u;
@@ -921,8 +966,8 @@ LN_TickProfileMetrics logic_nodes_make_benchmark_metrics(const LN_BenchmarkFixtu
                                                    total_expression_count;
   metrics.register_scalar_op_count = optimized ? metrics.register_expression_hit_count : 0u;
   metrics.register_simd_candidate_batch_count = optimized &&
-                                                    fixture.scenario ==
-                                                        LN_BenchmarkScenarioKind::MathHeavy ?
+                                                        fixture.scenario ==
+                                                            LN_BenchmarkScenarioKind::MathHeavy ?
                                                     driver.tree_count :
                                                     0u;
   metrics.register_simd_candidate_lane_count = metrics.register_simd_candidate_batch_count * 4u;
@@ -1001,8 +1046,8 @@ std::shared_ptr<LN_Program> logic_nodes_make_runtime_benchmark_program(
   const uint32_t expression_sample_count = std::max(
       1u, std::min(driver.expression_count_per_tree, 256u));
   for (uint32_t index = 1; index < expression_sample_count; index++) {
-    const uint32_t constant = logic_nodes_add_benchmark_float_constant(
-        *program, 1.0f + float(index));
+    const uint32_t constant = logic_nodes_add_benchmark_float_constant(*program,
+                                                                       1.0f + float(index));
     LN_FloatExpression add;
     add.kind = LN_FloatExpressionKind::Add;
     add.input0 = current_float;
@@ -1018,13 +1063,30 @@ std::shared_ptr<LN_Program> logic_nodes_make_runtime_benchmark_program(
   scaled_vector.float_expr_index = current_float;
   const uint32_t vector_expr = program->AddVectorExpression(scaled_vector);
 
+  /* The transform-heavy fixture deliberately shares one dynamic rotation expression across many
+   * commands. This measures quaternion conversion once per tree/tick and cache hits for the
+   * remaining consumers, instead of benchmarking position writes only. */
+  const uint32_t zero_rotation_component = logic_nodes_add_benchmark_float_constant(*program,
+                                                                                    0.0f);
+  LN_VectorExpression rotation;
+  rotation.kind = LN_VectorExpressionKind::Combine;
+  rotation.output_type = LN_ValueType::Rotation;
+  rotation.input0 = zero_rotation_component;
+  rotation.input1 = zero_rotation_component;
+  rotation.input2 = current_float;
+  rotation.vector_value = MT_Vector3(0.0f, 0.0f, 0.0f);
+  const uint32_t rotation_expr = program->AddVectorExpression(rotation);
+
   const uint32_t command_sample_count = std::min(driver.command_count_per_tree, 128u);
   const uint32_t instruction_sample_count = std::max(
       1u, std::min(driver.instruction_count_per_tree, 512u));
   for (uint32_t index = 0; index < command_sample_count; index++) {
     LN_Instruction instruction;
-    instruction.opcode = LN_OpCode::SetWorldPosition;
-    instruction.vector_expr_index = vector_expr;
+    const bool rotation_command = driver.scenario == LN_BenchmarkScenarioKind::TransformHeavy &&
+                                  (index & 1u) != 0u;
+    instruction.opcode = rotation_command ? LN_OpCode::SetWorldOrientation :
+                                            LN_OpCode::SetWorldPosition;
+    instruction.vector_expr_index = rotation_command ? rotation_expr : vector_expr;
     program->AddInstruction(LN_Event::OnFixedUpdate, instruction);
   }
   for (uint32_t index = command_sample_count; index < instruction_sample_count; index++) {
@@ -1057,17 +1119,14 @@ LN_BenchmarkRuntimeFixtureSample logic_nodes_run_runtime_benchmark_fixture_sampl
   std::vector<LN_RuntimeTree> runtime_trees;
   runtime_trees.reserve(tree_count);
   for (uint32_t index = 0; index < tree_count; index++) {
-      runtime_trees.emplace_back(program,
-                               logic_nodes_record_only_benchmark_owner(index + 1u),
-                               index,
-                               0);
+    runtime_trees.emplace_back(
+        program, logic_nodes_record_only_benchmark_owner(index + 1u), index, 0);
   }
 
-  auto execute_tick = [&](const uint32_t tick,
-                          LN_RuntimeProfileCounters *counters) -> uint32_t {
+  auto execute_tick = [&](const uint32_t tick, LN_RuntimeProfileCounters *counters) -> uint32_t {
     LN_TickContext context;
     context.use_fixed_timestep = true;
-    context.fixed_dt = protocol.fixed_dt;
+    context.delta_time = protocol.fixed_dt;
     context.current_time = double(tick) * protocol.fixed_dt;
     context.tick_index = tick;
     context.use_register_expression_evaluator = optimized;
@@ -1100,8 +1159,7 @@ LN_BenchmarkRuntimeFixtureSample logic_nodes_run_runtime_benchmark_fixture_sampl
     const auto end = std::chrono::steady_clock::now();
     const uint64_t elapsed_ns = std::max<uint64_t>(
         1u, uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()));
-    frame_samples_ms.push_back((double(elapsed_ns) / 1000000.0) /
-                               double(iterations_per_sample));
+    frame_samples_ms.push_back((double(elapsed_ns) / 1000000.0) / double(iterations_per_sample));
   }
 
   sample.tick_count = tick_count * iterations_per_sample;
@@ -1156,55 +1214,55 @@ LN_BenchmarkRunResult logic_nodes_make_benchmark_run_result(
 
 const std::array<LN_BenchmarkScenario, size_t(LN_BenchmarkScenarioKind::Count)>
     g_benchmark_scenarios = {{
-    {LN_BenchmarkScenarioKind::ManySmallTrees,
-     "logic_nodes.many_small_trees",
-     "Many independent, command-light trees for scheduler and worker overhead.",
-     LN_PROFILE_REQUIRED_METRICS},
-    {LN_BenchmarkScenarioKind::FewHeavyTrees,
-     "logic_nodes.few_heavy_trees",
-     "A few instruction-heavy trees for per-tree execution throughput.",
-     LN_PROFILE_REQUIRED_METRICS},
-    {LN_BenchmarkScenarioKind::InstructionHeavy,
-     "logic_nodes.instruction_heavy",
-     "Single-thread and worker-safe instruction dispatch pressure with fixed command output.",
-     LN_PROFILE_REQUIRED_METRICS},
-    {LN_BenchmarkScenarioKind::EventHeavy,
-     "logic_nodes.event_heavy",
-     "Event subject delivery, receiver scans, target matching, and payload copy pressure.",
-     LN_PROFILE_REQUIRED_METRICS},
-    {LN_BenchmarkScenarioKind::SnapshotHeavy,
-     "logic_nodes.snapshot_heavy",
-     "Large captured object sets for snapshot rebuild and future channel-mask validation.",
-     LN_PROFILE_REQUIRED_METRICS},
-    {LN_BenchmarkScenarioKind::CommandHeavy,
-     "logic_nodes.command_heavy",
-     "High-volume command recording, merge, sort, and flush pressure.",
-     LN_PROFILE_REQUIRED_METRICS},
-    {LN_BenchmarkScenarioKind::MathHeavy,
-     "logic_nodes.math_heavy",
-     "Expression-heavy scalar math used as the Phase 8 register evaluator baseline.",
-     LN_PROFILE_REQUIRED_METRICS},
-    {LN_BenchmarkScenarioKind::MixedSerialParallel,
-     "logic_nodes.mixed_serial_parallel",
-     "Mixed worker-safe and main-thread-only trees for deterministic scheduler merge checks.",
-     LN_PROFILE_REQUIRED_METRICS},
-    {LN_BenchmarkScenarioKind::TransformHeavy,
-     "logic_nodes.transform_heavy",
-     "Transform and velocity command streams with dense typed payloads.",
-     LN_PROFILE_REQUIRED_METRICS},
-    {LN_BenchmarkScenarioKind::PhysicsQueryHeavy,
-     "logic_nodes.physics_query_heavy",
-     "Snapshot-warmed Jolt ray, mouse, camera, and projectile query reads.",
-     LN_PROFILE_REQUIRED_METRICS},
-    {LN_BenchmarkScenarioKind::PropertyEventHeavy,
-     "logic_nodes.property_event_heavy",
-     "Game property, tree property, and event subjects on static-id hot paths.",
-     LN_PROFILE_REQUIRED_METRICS},
-    {LN_BenchmarkScenarioKind::SpawnLifecycleHeavy,
-     "logic_nodes.spawn_lifecycle_heavy",
-     "Main-thread spawn, lifecycle, and deferred object command pressure.",
-     LN_PROFILE_REQUIRED_METRICS},
-}};
+        {LN_BenchmarkScenarioKind::ManySmallTrees,
+         "logic_nodes.many_small_trees",
+         "Many independent, command-light trees for scheduler and worker overhead.",
+         LN_PROFILE_REQUIRED_METRICS},
+        {LN_BenchmarkScenarioKind::FewHeavyTrees,
+         "logic_nodes.few_heavy_trees",
+         "A few instruction-heavy trees for per-tree execution throughput.",
+         LN_PROFILE_REQUIRED_METRICS},
+        {LN_BenchmarkScenarioKind::InstructionHeavy,
+         "logic_nodes.instruction_heavy",
+         "Single-thread and worker-safe instruction dispatch pressure with fixed command output.",
+         LN_PROFILE_REQUIRED_METRICS},
+        {LN_BenchmarkScenarioKind::EventHeavy,
+         "logic_nodes.event_heavy",
+         "Event subject delivery, receiver scans, target matching, and payload copy pressure.",
+         LN_PROFILE_REQUIRED_METRICS},
+        {LN_BenchmarkScenarioKind::SnapshotHeavy,
+         "logic_nodes.snapshot_heavy",
+         "Large captured object sets for snapshot rebuild and future channel-mask validation.",
+         LN_PROFILE_REQUIRED_METRICS},
+        {LN_BenchmarkScenarioKind::CommandHeavy,
+         "logic_nodes.command_heavy",
+         "High-volume command recording, merge, sort, and flush pressure.",
+         LN_PROFILE_REQUIRED_METRICS},
+        {LN_BenchmarkScenarioKind::MathHeavy,
+         "logic_nodes.math_heavy",
+         "Expression-heavy scalar math used as the Phase 8 register evaluator baseline.",
+         LN_PROFILE_REQUIRED_METRICS},
+        {LN_BenchmarkScenarioKind::MixedSerialParallel,
+         "logic_nodes.mixed_serial_parallel",
+         "Mixed worker-safe and main-thread-only trees for deterministic scheduler merge checks.",
+         LN_PROFILE_REQUIRED_METRICS},
+        {LN_BenchmarkScenarioKind::TransformHeavy,
+         "logic_nodes.transform_heavy",
+         "Transform and velocity command streams with dense typed payloads.",
+         LN_PROFILE_REQUIRED_METRICS},
+        {LN_BenchmarkScenarioKind::PhysicsQueryHeavy,
+         "logic_nodes.physics_query_heavy",
+         "Snapshot-warmed Jolt ray, mouse, camera, and projectile query reads.",
+         LN_PROFILE_REQUIRED_METRICS},
+        {LN_BenchmarkScenarioKind::PropertyEventHeavy,
+         "logic_nodes.property_event_heavy",
+         "Game property, tree property, and event subjects on static-id hot paths.",
+         LN_PROFILE_REQUIRED_METRICS},
+        {LN_BenchmarkScenarioKind::SpawnLifecycleHeavy,
+         "logic_nodes.spawn_lifecycle_heavy",
+         "Main-thread spawn, lifecycle, and deferred object command pressure.",
+         LN_PROFILE_REQUIRED_METRICS},
+    }};
 
 const LN_BenchmarkProtocol g_benchmark_protocol;
 
@@ -1494,10 +1552,10 @@ const std::array<LN_BenchmarkFixtureSpec, size_t(LN_BenchmarkScenarioKind::Count
          true},
         {LN_BenchmarkScenarioKind::TransformHeavy,
          "fixture.transform_heavy.cpp",
-         "generator.logic_nodes.transform_heavy.v1",
+         "generator.logic_nodes.transform_heavy.v2",
          LN_BenchmarkFixtureSource::CppSyntheticGraph,
          nullptr,
-         "transform and velocity command streams",
+         "quaternion rotation, position, and velocity command streams",
          0x10009u,
          LN_BENCHMARK_REPLAY_RUNTIME_EXECUTION | LN_BENCHMARK_REPLAY_COMMAND_ORDER |
              LN_BENCHMARK_REPLAY_SNAPSHOT_READS | LN_BENCHMARK_REPLAY_DIAGNOSTICS,
@@ -1616,7 +1674,12 @@ const std::array<LN_ServiceBlendFixtureSpec, size_t(LN_ServiceBlendFixtureKind::
 
 const std::array<LN_BenchmarkBaselineExpectation, size_t(LN_BenchmarkScenarioKind::Count)>
     g_benchmark_baseline_expectations = {{
-        {LN_BenchmarkScenarioKind::ManySmallTrees, LN_PROFILE_REQUIRED_METRICS, 512, 600, true, true},
+        {LN_BenchmarkScenarioKind::ManySmallTrees,
+         LN_PROFILE_REQUIRED_METRICS,
+         512,
+         600,
+         true,
+         true},
         {LN_BenchmarkScenarioKind::FewHeavyTrees, LN_PROFILE_REQUIRED_METRICS, 4, 600, true, true},
         {LN_BenchmarkScenarioKind::InstructionHeavy,
          LN_PROFILE_REQUIRED_METRICS,
@@ -1625,7 +1688,12 @@ const std::array<LN_BenchmarkBaselineExpectation, size_t(LN_BenchmarkScenarioKin
          true,
          true},
         {LN_BenchmarkScenarioKind::EventHeavy, LN_PROFILE_REQUIRED_METRICS, 128, 600, true, true},
-        {LN_BenchmarkScenarioKind::SnapshotHeavy, LN_PROFILE_REQUIRED_METRICS, 64, 600, true, true},
+        {LN_BenchmarkScenarioKind::SnapshotHeavy,
+         LN_PROFILE_REQUIRED_METRICS,
+         64,
+         600,
+         true,
+         true},
         {LN_BenchmarkScenarioKind::CommandHeavy, LN_PROFILE_REQUIRED_METRICS, 64, 600, true, true},
         {LN_BenchmarkScenarioKind::MathHeavy, LN_PROFILE_REQUIRED_METRICS, 32, 600, true, true},
         {LN_BenchmarkScenarioKind::MixedSerialParallel,
@@ -1788,11 +1856,11 @@ const LN_BenchmarkSoakSpec g_benchmark_soak_spec = {
 };
 
 const std::array<LN_RuntimeFallbackDiagnosticSpec, size_t(LN_RuntimeFallbackReason::Count)>
-	    g_runtime_fallback_diagnostics = {{
-	        {LN_RuntimeFallbackReason::UnsupportedOpcode,
-	         "fallback.unsupported_opcode",
-	         "Opcode is not lowered into mandatory exec-block IR; the program must fail validation "
-	         "instead of running a runtime opcode fallback.",
+    g_runtime_fallback_diagnostics = {{
+        {LN_RuntimeFallbackReason::UnsupportedOpcode,
+         "fallback.unsupported_opcode",
+         "Opcode is not lowered into mandatory exec-block IR; the program must fail validation "
+         "instead of running a runtime opcode fallback.",
          true,
          true,
          true,
@@ -2241,8 +2309,7 @@ bool LN_BenchmarkFixtureMatchesDriver(const LN_BenchmarkFixtureSpec &fixture,
                                       const LN_BenchmarkProtocol &protocol)
 {
   if (fixture.scenario != driver.scenario || fixture.id == nullptr ||
-      fixture.generator_id == nullptr || fixture.id[0] == '\0' ||
-      fixture.generator_id[0] == '\0')
+      fixture.generator_id == nullptr || fixture.id[0] == '\0' || fixture.generator_id[0] == '\0')
   {
     return false;
   }
@@ -2294,17 +2361,16 @@ bool LN_BenchmarkBaselineMatchesProtocol(const LN_BenchmarkBaselineExpectation &
   if (baseline.requires_parallel_run && !protocol.run_parallel) {
     return false;
   }
-  return protocol.build_command != nullptr && std::strcmp(protocol.build_command, "make NPROCS=32") == 0 &&
-         protocol.fixed_dt > 0.0 && protocol.warmup_frame_count > 0 &&
-         protocol.measured_frame_count > 0 && protocol.report_median && protocol.report_p95 &&
-         protocol.report_worst_frame;
+  return protocol.build_command != nullptr &&
+         std::strcmp(protocol.build_command, "make NPROCS=32") == 0 && protocol.fixed_dt > 0.0 &&
+         protocol.warmup_frame_count > 0 && protocol.measured_frame_count > 0 &&
+         protocol.report_median && protocol.report_p95 && protocol.report_worst_frame;
 }
 
 bool LN_BenchmarkRelativeBaselineMatchesProtocol(const LN_BenchmarkRelativeBaseline &baseline,
                                                  const LN_BenchmarkProtocol &protocol)
 {
-  if (baseline.id == nullptr || baseline.id[0] == '\0' ||
-      baseline.min_measured_frame_count == 0 ||
+  if (baseline.id == nullptr || baseline.id[0] == '\0' || baseline.min_measured_frame_count == 0 ||
       baseline.min_measured_frame_count > protocol.measured_frame_count)
   {
     return false;
@@ -2334,7 +2400,7 @@ bool LN_BenchmarkReplayTraceCoversDomain(const LN_BenchmarkReplayTraceSpec &trac
 }
 
 bool LN_RuntimeFallbackDiagnosticCoversReason(const LN_RuntimeFallbackDiagnosticSpec &diagnostic,
-                                             const LN_RuntimeFallbackReason reason)
+                                              const LN_RuntimeFallbackReason reason)
 {
   return diagnostic.reason == reason && diagnostic.id != nullptr && diagnostic.id[0] != '\0' &&
          diagnostic.description != nullptr && diagnostic.description[0] != '\0' &&
@@ -2386,7 +2452,7 @@ const std::vector<LN_Phase10OpcodeConversionEntry> &LN_GetPhase10OpcodeConversio
       entry.name = semantics != nullptr ? semantics->name : "unknown";
       entry.command_family = LN_GetRuntimeCommandFamily(opcode);
       entry.fallback_requirements = semantics != nullptr ? semantics->fallback_requirements :
-                                                          LN_RUNTIME_FALLBACK_UNSUPPORTED_RUNTIME;
+                                                           LN_RUNTIME_FALLBACK_UNSUPPORTED_RUNTIME;
       entry.currently_converted = semantics != nullptr &&
                                   logic_nodes_phase10_opcode_has_direct_exec_path(opcode);
       entry.safely_convertible = semantics != nullptr &&
@@ -2413,8 +2479,7 @@ const std::vector<LN_Phase10OpcodeConversionEntry> &LN_GetPhase10OpcodeConversio
   return matrix;
 }
 
-const std::vector<LN_Phase10OpcodeFallbackDiagnostic> &
-LN_GetPhase10OpcodeFallbackDiagnostics()
+const std::vector<LN_Phase10OpcodeFallbackDiagnostic> &LN_GetPhase10OpcodeFallbackDiagnostics()
 {
   static const std::vector<LN_Phase10OpcodeFallbackDiagnostic> diagnostics = []() {
     std::vector<LN_Phase10OpcodeFallbackDiagnostic> entries;
@@ -2442,14 +2507,11 @@ const std::vector<LN_Phase10ExpressionConversionEntry> &LN_GetPhase10ExpressionC
 {
   static const std::vector<LN_Phase10ExpressionConversionEntry> matrix = []() {
     std::vector<LN_Phase10ExpressionConversionEntry> entries;
-    entries.reserve(uint32_t(LN_BoolExpressionKind::Count) +
-                    uint32_t(LN_FloatExpressionKind::Count) +
-                    uint32_t(LN_IntExpressionKind::Count) +
-                    uint32_t(LN_StringExpressionKind::Count) +
-                    uint32_t(LN_VectorExpressionKind::Count) +
-                    uint32_t(LN_ColorExpressionKind::Count) +
-                    uint32_t(LN_ValueExpressionKind::Count) +
-                    uint32_t(LN_QueryExpressionKind::Count));
+    entries.reserve(
+        uint32_t(LN_BoolExpressionKind::Count) + uint32_t(LN_FloatExpressionKind::Count) +
+        uint32_t(LN_IntExpressionKind::Count) + uint32_t(LN_StringExpressionKind::Count) +
+        uint32_t(LN_VectorExpressionKind::Count) + uint32_t(LN_ColorExpressionKind::Count) +
+        uint32_t(LN_ValueExpressionKind::Count) + uint32_t(LN_QueryExpressionKind::Count));
 
     auto add_entry = [&](const LN_RuntimeExpressionSemantics &semantics) {
       LN_Phase10ExpressionConversionEntry entry;
@@ -2541,8 +2603,8 @@ bool LN_Phase10OpcodeConversionMatrixIsComplete(
       return false;
     }
     seen[index] = true;
-    if (entry.name == nullptr || entry.name[0] == '\0' ||
-        entry.completion_note == nullptr || entry.completion_note[0] == '\0' ||
+    if (entry.name == nullptr || entry.name[0] == '\0' || entry.completion_note == nullptr ||
+        entry.completion_note[0] == '\0' ||
         entry.current_path == LN_Phase10ConversionPath::Unclassified ||
         entry.target_path == LN_Phase10ConversionPath::Unclassified)
     {
@@ -2564,10 +2626,8 @@ bool LN_Phase10OpcodeFallbackDiagnosticsAreComplete(
     }
     fallback_seen[index] = true;
     if (diagnostic.name == nullptr || diagnostic.name[0] == '\0' ||
-        diagnostic.profile_counter_name == nullptr ||
-        diagnostic.profile_counter_name[0] == '\0' ||
-        diagnostic.removal_condition == nullptr ||
-        diagnostic.removal_condition[0] == '\0' ||
+        diagnostic.profile_counter_name == nullptr || diagnostic.profile_counter_name[0] == '\0' ||
+        diagnostic.removal_condition == nullptr || diagnostic.removal_condition[0] == '\0' ||
         !diagnostic.source_ref_required || !diagnostic.hot_path_warning_required ||
         std::strcmp(LN_RuntimeFallbackReasonName(diagnostic.reason), "unknown") == 0)
     {
@@ -2602,8 +2662,8 @@ bool LN_Phase10ExpressionConversionMatrixIsComplete(
     return false;
   }
   for (const LN_Phase10ExpressionConversionEntry &entry : matrix) {
-    if (entry.name == nullptr || entry.name[0] == '\0' ||
-        entry.completion_note == nullptr || entry.completion_note[0] == '\0' ||
+    if (entry.name == nullptr || entry.name[0] == '\0' || entry.completion_note == nullptr ||
+        entry.completion_note[0] == '\0' ||
         entry.current_path == LN_Phase10ConversionPath::Unclassified ||
         entry.target_path == LN_Phase10ConversionPath::Unclassified)
     {
@@ -2630,10 +2690,8 @@ bool LN_Phase10ExpressionFallbackDiagnosticsAreComplete(
   for (size_t diagnostic_index = 0; diagnostic_index < diagnostics.size(); diagnostic_index++) {
     const LN_Phase10ExpressionFallbackDiagnostic &diagnostic = diagnostics[diagnostic_index];
     if (diagnostic.name == nullptr || diagnostic.name[0] == '\0' ||
-        diagnostic.profile_counter_name == nullptr ||
-        diagnostic.profile_counter_name[0] == '\0' ||
-        diagnostic.removal_condition == nullptr ||
-        diagnostic.removal_condition[0] == '\0' ||
+        diagnostic.profile_counter_name == nullptr || diagnostic.profile_counter_name[0] == '\0' ||
+        diagnostic.removal_condition == nullptr || diagnostic.removal_condition[0] == '\0' ||
         !diagnostic.source_ref_required || !diagnostic.hot_path_warning_required ||
         std::strcmp(LN_RuntimeFallbackReasonName(diagnostic.reason), "unknown") == 0)
     {
@@ -2695,8 +2753,7 @@ LN_BenchmarkFixtureRunSummary LN_RunBenchmarkFixture(const LN_BenchmarkFixtureSp
     if (!parallel && !protocol.run_serial) {
       continue;
     }
-    summary.runs[index] = logic_nodes_make_benchmark_run_result(
-        fixture, driver, protocol, mode);
+    summary.runs[index] = logic_nodes_make_benchmark_run_result(fixture, driver, protocol, mode);
     summary.run_count++;
   }
 
@@ -2789,9 +2846,8 @@ bool LN_BenchmarkRunSummaryMatchesProtocol(const LN_BenchmarkFixtureRunSummary &
   return true;
 }
 
-bool LN_BenchmarkRunSummaryPassesRelativeBaseline(
-    const LN_BenchmarkFixtureRunSummary &summary,
-    const LN_BenchmarkRelativeBaseline &baseline)
+bool LN_BenchmarkRunSummaryPassesRelativeBaseline(const LN_BenchmarkFixtureRunSummary &summary,
+                                                  const LN_BenchmarkRelativeBaseline &baseline)
 {
   const LN_BenchmarkRunResult *legacy_serial = logic_nodes_find_run(
       summary, LN_BenchmarkRunMode::LegacySerial);
@@ -2860,9 +2916,8 @@ bool LN_BenchmarkRunSummaryPassesHotPathGate(const LN_BenchmarkFixtureRunSummary
          logic_nodes_optimized_metrics_pass_hot_path_gate(optimized_parallel->metrics);
 }
 
-bool LN_BenchmarkRunSummaryPassesSimdBenefitGate(
-    const LN_BenchmarkFixtureRunSummary &summary,
-    const LN_BenchmarkRelativeBaseline &baseline)
+bool LN_BenchmarkRunSummaryPassesSimdBenefitGate(const LN_BenchmarkFixtureRunSummary &summary,
+                                                 const LN_BenchmarkRelativeBaseline &baseline)
 {
   if (summary.scenario != LN_BenchmarkScenarioKind::MathHeavy) {
     return true;
@@ -2907,9 +2962,7 @@ bool LN_BenchmarkFixtureSoakResultPassesSpec(const LN_BenchmarkFixtureSoakResult
   {
     return false;
   }
-  if (soak.compares_legacy_and_optimized &&
-      result.legacy_checksum != result.optimized_checksum)
-  {
+  if (soak.compares_legacy_and_optimized && result.legacy_checksum != result.optimized_checksum) {
     return false;
   }
   if (soak.compares_serial_and_parallel && result.serial_checksum != result.parallel_checksum) {
@@ -2951,9 +3004,8 @@ bool LN_AutomatedBenchmarkAcceptanceGatePasses(const LN_BenchmarkProtocol &proto
   return true;
 }
 
-std::vector<LN_BenchmarkMeasuredRegressionDiagnostic>
-LN_GetBenchmarkMeasuredRegressionDiagnostics(const LN_BenchmarkProtocol &protocol,
-                                             const LN_BenchmarkRelativeBaseline &baseline)
+std::vector<LN_BenchmarkMeasuredRegressionDiagnostic> LN_GetBenchmarkMeasuredRegressionDiagnostics(
+    const LN_BenchmarkProtocol &protocol, const LN_BenchmarkRelativeBaseline &baseline)
 {
   std::vector<LN_BenchmarkMeasuredRegressionDiagnostic> diagnostics;
   if (!LN_BenchmarkRelativeBaselineMatchesProtocol(baseline, protocol)) {
@@ -2994,8 +3046,8 @@ LN_GetBenchmarkMeasuredRegressionDiagnostics(const LN_BenchmarkProtocol &protoco
     diagnostic.fixture_id = fixtures[index].id;
     diagnostic.optimized_serial_median_ratio_x100 = logic_nodes_ratio_x100(
         optimized_serial->median_ms, legacy_serial->median_ms);
-    diagnostic.optimized_serial_p95_ratio_x100 = logic_nodes_ratio_x100(
-        optimized_serial->p95_ms, legacy_serial->p95_ms);
+    diagnostic.optimized_serial_p95_ratio_x100 = logic_nodes_ratio_x100(optimized_serial->p95_ms,
+                                                                        legacy_serial->p95_ms);
     diagnostic.optimized_serial_worst_ratio_x100 = logic_nodes_ratio_x100(
         optimized_serial->worst_frame_ms, legacy_serial->worst_frame_ms);
     diagnostic.optimized_parallel_median_ratio_x100 = logic_nodes_ratio_x100(
@@ -3036,8 +3088,7 @@ bool LN_FinalRoadmapGateStatusIsComplete(const LN_FinalRoadmapGateStatus &status
          status.focused_gtests_required && status.acceptance_ctests_required &&
          status.deterministic_replay_checks_required &&
          status.automated_benchmark_gates_required && !status.user_benchmark_scenes_required &&
-         status.phase10_full_conversion_complete &&
-         status.production_readiness_review_complete;
+         status.phase10_full_conversion_complete && status.production_readiness_review_complete;
 }
 
 std::string LN_FormatBenchmarkRunProfileLine(const LN_BenchmarkFixtureRunSummary &summary,
@@ -3097,11 +3148,9 @@ std::string LN_FormatBenchmarkSummaryJson(const LN_BenchmarkFixtureRunSummary &s
     stream << ",\"runtime_fixture_ticks\":" << result.runtime_fixture_tick_count;
     stream << ",\"runtime_fixture_trees\":" << result.runtime_fixture_tree_count;
     stream << ",\"runtime_fixture_commands\":" << result.runtime_fixture_command_count;
-    stream << ",\"runtime_fixture_instructions\":"
-           << result.runtime_fixture_instruction_count;
+    stream << ",\"runtime_fixture_instructions\":" << result.runtime_fixture_instruction_count;
     stream << ",\"runtime_fixture_expressions\":" << result.runtime_fixture_expression_count;
-    stream << ",\"runtime_fixture_register_hits\":"
-           << result.runtime_fixture_register_hit_count;
+    stream << ",\"runtime_fixture_register_hits\":" << result.runtime_fixture_register_hit_count;
     stream << ",\"runtime_fixture_register_fallbacks\":"
            << result.runtime_fixture_register_fallback_count;
     stream << ",\"formula_timing_estimate_used\":"
@@ -3110,12 +3159,10 @@ std::string LN_FormatBenchmarkSummaryJson(const LN_BenchmarkFixtureRunSummary &s
     stream << ",\"expressions\":" << result.metrics.expression_count;
     stream << ",\"commands\":" << result.metrics.command_count;
     stream << ",\"fallback_paths\":" << result.metrics.fallback_path_count;
-    stream << ",\"exec_direct_instructions\":"
-           << result.metrics.exec_direct_instruction_count;
+    stream << ",\"exec_direct_instructions\":" << result.metrics.exec_direct_instruction_count;
     stream << ",\"register_expr_hits\":" << result.metrics.register_expression_hit_count;
     stream << ",\"event_indexed_lookups\":" << result.metrics.event_indexed_lookup_count;
-    stream << ",\"snapshot_skipped_channels\":"
-           << result.metrics.snapshot_skipped_channel_mask;
+    stream << ",\"snapshot_skipped_channels\":" << result.metrics.snapshot_skipped_channel_mask;
     stream << ",\"coalesced_commands\":" << result.metrics.command_coalesced_count;
     stream << ",\"scheduler_worker_utilization_x100\":"
            << result.metrics.scheduler_worker_utilization_x100;
@@ -3130,9 +3177,8 @@ LN_RuntimeFeatureConfig LN_DefaultRuntimeFeatureConfig()
 {
   LN_RuntimeFeatureConfig config;
   config.enabled_features = LN_DEFAULT_STABLE_RUNTIME_FEATURES;
-  logic_nodes_apply_feature_env_override(config,
-                                         LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS,
-                                         "UPBGE_LN_FEATURE_TYPED_COMMAND_STREAMS");
+  logic_nodes_apply_feature_env_override(
+      config, LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS, "UPBGE_LN_FEATURE_TYPED_COMMAND_STREAMS");
   logic_nodes_apply_feature_env_override(config,
                                          LN_RUNTIME_FEATURE_RESOURCE_CLASS_SCHEDULER,
                                          "UPBGE_LN_FEATURE_RESOURCE_CLASS_SCHEDULER");
@@ -3142,8 +3188,7 @@ LN_RuntimeFeatureConfig LN_DefaultRuntimeFeatureConfig()
   config.debug_assertions = logic_nodes_env_enabled("UPBGE_LN_ENABLE_GUARDRAIL_ASSERTIONS") &&
                             !logic_nodes_env_enabled("UPBGE_LN_DISABLE_GUARDRAIL_ASSERTIONS");
   config.dual_path_validation = logic_nodes_env_enabled("UPBGE_LN_ENABLE_DUAL_PATH_VALIDATION") &&
-                                !logic_nodes_env_enabled(
-                                    "UPBGE_LN_DISABLE_DUAL_PATH_VALIDATION");
+                                !logic_nodes_env_enabled("UPBGE_LN_DISABLE_DUAL_PATH_VALIDATION");
   config.benchmark_profile_summaries = logic_nodes_env_enabled("UPBGE_LN_BENCHMARK_SUMMARIES");
   return config;
 }
@@ -3207,10 +3252,8 @@ std::string LN_FormatTickProfileLine(const LN_TickProfileMetrics &metrics)
   stream << " typed_event_commands=" << metrics.command_typed_event_count;
   stream << " typed_audio_commands=" << metrics.command_typed_audio_count;
   stream << " typed_lifecycle_commands=" << metrics.command_typed_lifecycle_count;
-  stream << " typed_object_service_commands="
-         << metrics.command_typed_object_service_count;
-  stream << " typed_runtime_service_commands="
-         << metrics.command_typed_runtime_service_count;
+  stream << " typed_object_service_commands=" << metrics.command_typed_object_service_count;
+  stream << " typed_runtime_service_commands=" << metrics.command_typed_runtime_service_count;
   stream << " typed_animation_commands=" << metrics.command_typed_animation_count;
   stream << " typed_armature_commands=" << metrics.command_typed_armature_count;
   stream << " typed_material_commands=" << metrics.command_typed_material_count;
@@ -3225,13 +3268,12 @@ std::string LN_FormatTickProfileLine(const LN_TickProfileMetrics &metrics)
          << metrics.scheduler_max_trees_per_worker_batch;
   stream << " scheduler_avg_trees_per_worker_batch_x100="
          << metrics.scheduler_average_trees_per_worker_batch_x100;
-  stream << " scheduler_worker_utilization_x100="
-         << metrics.scheduler_worker_utilization_x100;
+  stream << " scheduler_worker_utilization_x100=" << metrics.scheduler_worker_utilization_x100;
   stream << " scheduler_command_resources=0x" << std::hex
          << metrics.scheduler_command_resource_classes;
   stream << " scheduler_worker_resources=0x" << metrics.scheduler_worker_resource_access;
-  stream << " scheduler_main_thread_resources=0x"
-         << metrics.scheduler_main_thread_resource_access << std::dec;
+  stream << " scheduler_main_thread_resources=0x" << metrics.scheduler_main_thread_resource_access
+         << std::dec;
   stream << " scheduler_query_trees=" << metrics.scheduler_query_tree_count;
   stream << " scheduler_snapshot_only_trees=" << metrics.scheduler_snapshot_only_tree_count;
   stream << " scheduler_command_record_only_trees="
@@ -3254,15 +3296,13 @@ std::string LN_FormatTickProfileLine(const LN_TickProfileMetrics &metrics)
   stream << " register_expr_hits=" << metrics.register_expression_hit_count;
   stream << " register_expr_fallbacks=" << metrics.register_expression_fallback_count;
   stream << " register_scalar_ops=" << metrics.register_scalar_op_count;
-  stream << " register_simd_candidate_batches="
-         << metrics.register_simd_candidate_batch_count;
+  stream << " register_simd_candidate_batches=" << metrics.register_simd_candidate_batch_count;
   stream << " register_simd_candidate_lanes=" << metrics.register_simd_candidate_lane_count;
   stream << " register_simd_batches=" << metrics.register_simd_batch_count;
   stream << " register_simd_lanes=" << metrics.register_simd_lane_count;
   stream << " fallback_paths=" << metrics.fallback_path_count;
   stream << " fallback_reasons=0x" << std::hex << metrics.runtime_fallback_reason_mask;
-  stream << " expression_fallback_reasons=0x"
-         << metrics.runtime_expression_fallback_reason_mask;
+  stream << " expression_fallback_reasons=0x" << metrics.runtime_expression_fallback_reason_mask;
   stream << " system_fallback_reasons=0x" << metrics.runtime_system_fallback_reason_mask
          << std::dec;
   stream << " system_fallbacks=" << metrics.runtime_system_fallback_count;

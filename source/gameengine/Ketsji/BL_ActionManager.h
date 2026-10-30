@@ -26,8 +26,10 @@
 
 #pragma once
 
+#include <cstdint>
 #include <iostream>
 #include <map>
+#include <memory>
 
 #include "DNA_action_types.h"
 
@@ -38,6 +40,53 @@
 
 class BL_Action;
 
+enum class BL_ActionPlaybackStatus : uint8_t {
+  Playing = 0,
+  Completed,
+  Interrupted,
+};
+
+/**
+ * Stable identity and terminal state for one accepted action playback.
+ *
+ * The action manager owns the mutable instance while the playback is current. Deferred systems
+ * retain a const shared reference, allowing the exact request to outlive replacement, stopping,
+ * or destruction of the action layer without retaining the game object itself.
+ */
+class BL_ActionPlayback {
+ public:
+  uint64_t GetId() const
+  {
+    return m_id;
+  }
+
+  short GetLayer() const
+  {
+    return m_layer;
+  }
+
+  BL_ActionPlaybackStatus GetStatus() const
+  {
+    return m_status;
+  }
+
+ private:
+  BL_ActionPlayback(uint64_t id, short layer) : m_id(id), m_layer(layer)
+  {
+  }
+
+  uint64_t m_id = 0;
+  short m_layer = 0;
+  BL_ActionPlaybackStatus m_status = BL_ActionPlaybackStatus::Playing;
+
+  friend class BL_ActionManager;
+};
+
+struct BL_ActionPlayResult {
+  bool started = false;
+  std::shared_ptr<const BL_ActionPlayback> playback;
+};
+
 /**
  * BL_ActionManager is responsible for handling a KX_GameObject's actions.
  */
@@ -47,6 +96,8 @@ class BL_ActionManager {
 
   class KX_GameObject *m_obj;
   BL_ActionMap m_layers;
+  std::map<short, std::shared_ptr<BL_ActionPlayback>> m_playbacks;
+  uint64_t m_nextPlaybackId = 1;
 
   // Suspend action update?
   bool m_suspended;
@@ -55,6 +106,19 @@ class BL_ActionManager {
    * Check if an action exists
    */
   BL_Action *GetAction(short layer);
+  void FinishPlayback(short layer, BL_ActionPlaybackStatus status);
+  BL_ActionPlayResult PlayActionInternal(const std::string &name,
+                                         float start,
+                                         float end,
+                                         short layer,
+                                         short priority,
+                                         float blendin,
+                                         short play_mode,
+                                         float layer_weight,
+                                         short ipo_flags,
+                                         float playback_speed,
+                                         short blend_mode,
+                                         bool track_playback);
 
  public:
   BL_ActionManager(class KX_GameObject *obj);
@@ -71,6 +135,18 @@ class BL_ActionManager {
                   short ipo_flags = 0,
                   float playback_speed = 1.f,
                   short blend_mode = 0);
+  /** Play an action and return an exact lifecycle token when the request is accepted. */
+  BL_ActionPlayResult PlayActionTracked(const std::string &name,
+                                        float start,
+                                        float end,
+                                        short layer = 0,
+                                        short priority = 0,
+                                        float blendin = 0.f,
+                                        short play_mode = 0,
+                                        float layer_weight = 0.f,
+                                        short ipo_flags = 0,
+                                        float playback_speed = 1.f,
+                                        short blend_mode = 0);
   /**
    * Gets the current frame of an action
    */
@@ -122,4 +198,5 @@ class BL_ActionManager {
    * manages actions' frames.
    */
   void Update(float curtime, bool applyToObject);
+  void RebaseTime(float previous_time, float current_time, bool use_pause_clock);
 };

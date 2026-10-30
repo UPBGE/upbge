@@ -15,6 +15,8 @@
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_subdiv_modifier.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_span.hh"        /* UPBGE */
+#include "BLI_vector_list.hh" /* UPBGE */
 #include "DNA_object_enums.h"
 #include "DNA_object_types.h"
 
@@ -452,11 +454,37 @@ struct DRWContext {
 const DRWContext *DRW_context_get();
 
 /*****************************UPBGE***********************************/
+/**
+ * Game copies (Dupli Base copies, Draw As Auto objects) drawn as one group: synced once, through
+ * the grouped instance drawing Blender uses for its own instances.
+ */
+struct DRWGameInstanceGroup {
+  /** The evaluated object every copy draws (a Dupli Base, an Auto group's object). */
+  Object *object = nullptr;
+  /** Its copies: each one's matrix, stable `persistent_id` (its motion and shadow records) and
+   * `random_id` (Object Info Random). `ob` and `ob_data` are set by the drawing. */
+  VectorList<DupliObject *> *instances = nullptr;
+  float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  /** The newest move of its copies: the renderers redraw the group's shadows when it is newer
+   * than their last draw. */
+  uint64_t last_update_transform = 0;
+  bool negative_scale = false;
+  /** Drawn only into shadows and reflections (Set Camera Visibility's Keep Shadow). */
+  bool keep_shadow = false;
+};
+
+/**
+ * Draw one game camera view into `viewport`.
+ * `use_workbench`: draw it with Workbench instead of EEVEE (the camera's Use Workbench setting).
+ * `instance_groups`: the game's copies drawn as groups (the game's object list leaves them out).
+ */
 void DRW_game_render_loop(struct bContext *C,
                           struct GPUViewport *viewport,
                           struct Depsgraph *depsgraph,
                           const struct rcti *window,
-                          bool is_overlay_pass);
+                          bool is_overlay_pass,
+                          bool use_workbench,
+                          Span<DRWGameInstanceGroup> instance_groups = {});
 
 void DRW_game_python_loop_end(struct ViewLayer *view_layer);
 void DRW_game_viewport_render_loop_end();

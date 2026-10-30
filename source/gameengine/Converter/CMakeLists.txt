@@ -68,6 +68,7 @@ set(SRC
   BL_ConvertProperties.cpp
   BL_ConvertSensors.cpp
   BL_DataConversion.cpp
+  BL_GameStateReconstruction.cpp
   BL_ScalarInterpolator.cpp
   BL_SceneConverter.cpp
   #BL_IpoConvert.cpp (everything inside BL_IpoConvert.h)
@@ -82,6 +83,8 @@ set(SRC
   BL_ConvertProperties.h
   BL_ConvertSensors.h
   BL_DataConversion.h
+  BL_GameStateReconstruction.h
+  BL_GameStateReconstructionInternal.h
   BL_IpoConvert.h
   BL_ScalarInterpolator.h
   BL_SceneConverter.h

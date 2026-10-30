@@ -12,7 +12,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Object"_ustr);
   b.add_input<decl::Vector>("Target"_ustr).default_value({1.0f, 0.0f, 0.0f});
-  b.add_input<decl::Float>("Factor"_ustr).default_value(1.0f).min(0.0f).max(1.0f);
+  b.add_input<decl::Float>("Factor"_ustr)
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(1.0f)
+      .description("Fraction of the required rotation applied on each fixed step");
   b.add_input<decl::Int>("Rot Axis"_ustr).default_value(2).min(0).max(2);
   b.add_input<decl::Int>("Front"_ustr, "Front Axis"_ustr).default_value(1).min(0).max(5);
   b.add_output<decl::Execution>("Done"_ustr);

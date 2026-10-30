@@ -45,7 +45,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
   layout.prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
   layout.prop(ptr, "clamp", UI_ITEM_NONE, "Clamp", ICON_NONE);
 }

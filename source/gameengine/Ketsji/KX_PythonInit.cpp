@@ -283,6 +283,31 @@ static PyObject *gPyGetProfileInfo(PyObject *)
   return KX_GetActiveEngine()->GetPyProfileDict();
 }
 
+PyDoc_STRVAR(gPyGetFramePacingInfo_doc,
+             "getFramePacingInfo()\n"
+             "How the last frame was paced: a dictionary with frameSteps (fixed steps run before "
+             "it), tick (fixed steps since the start), interpolation (share of a step since the "
+             "last step), frameTime and clockOffset (seconds), pacing ('LIMIT', 'VSYNC', 'FREE' "
+             "or 'VARIABLE'), frameLimit and refreshRate (Hz, 0 when off or unknown)");
+static PyObject *gPyGetFramePacingInfo(PyObject *)
+{
+  const KX_KetsjiEngine::FramePacingInfo info = KX_GetActiveEngine()->GetFramePacingInfo();
+  PyObject *dict = PyDict_New();
+  const auto set = [dict](const char *key, PyObject *value) {
+    PyDict_SetItemString(dict, key, value);
+    Py_DECREF(value);
+  };
+  set("frameSteps", PyLong_FromLong(info.frame_steps));
+  set("tick", PyLong_FromUnsignedLongLong(info.tick));
+  set("interpolation", PyFloat_FromDouble(info.interpolation));
+  set("frameTime", PyFloat_FromDouble(info.frame_time));
+  set("clockOffset", PyFloat_FromDouble(info.clock_offset));
+  set("pacing", PyUnicode_FromString(info.pacing));
+  set("frameLimit", PyFloat_FromDouble(info.frame_limit));
+  set("refreshRate", PyFloat_FromDouble(info.refresh_rate));
+  return dict;
+}
+
 PyDoc_STRVAR(gPySendMessage_doc,
              "sendMessage(subject, [body, to, from])\n"
              "sends a message in same manner as a message actuator"
@@ -376,6 +401,14 @@ static PyObject *gPySetMaxLogicFrame(PyObject *, PyObject *args)
   if (!PyArg_ParseTuple(args, "i:setMaxLogicFrame", &frame))
     return nullptr;
 
+  if (frame < 1 || frame > KX_KetsjiEngine::MAX_SCHEDULED_STEPS) {
+    PyErr_Format(PyExc_ValueError,
+                 "setMaxLogicFrame expected a value in [1, %d], got %d",
+                 KX_KetsjiEngine::MAX_SCHEDULED_STEPS,
+                 frame);
+    return nullptr;
+  }
+
   KX_GetActiveEngine()->SetMaxLogicFrame(frame);
   Py_RETURN_NONE;
 }
@@ -390,6 +423,14 @@ static PyObject *gPySetMaxPhysicsFrame(PyObject *, PyObject *args)
   int frame;
   if (!PyArg_ParseTuple(args, "i:setMaxPhysicsFrame", &frame))
     return nullptr;
+
+  if (frame < 1 || frame > KX_KetsjiEngine::MAX_SCHEDULED_STEPS) {
+    PyErr_Format(PyExc_ValueError,
+                 "setMaxPhysicsFrame expected a value in [1, %d], got %d",
+                 KX_KetsjiEngine::MAX_SCHEDULED_STEPS,
+                 frame);
+    return nullptr;
+  }
 
   KX_GetActiveEngine()->SetMaxPhysicsFrame(frame);
   Py_RETURN_NONE;
@@ -969,6 +1010,10 @@ static struct PyMethodDef game_methods[] = {
      METH_NOARGS,
      (const char *)"Render next frame (if Python has control)"},
     {"getProfileInfo", (PyCFunction)gPyGetProfileInfo, METH_NOARGS, gPyGetProfileInfo_doc},
+    {"getFramePacingInfo",
+     (PyCFunction)gPyGetFramePacingInfo,
+     METH_NOARGS,
+     gPyGetFramePacingInfo_doc},
     /* library functions */
     {"LibLoad", (PyCFunction)gLibLoad, METH_VARARGS | METH_KEYWORDS, (const char *)""},
     {"LibNew", (PyCFunction)gLibNew, METH_VARARGS, (const char *)""},

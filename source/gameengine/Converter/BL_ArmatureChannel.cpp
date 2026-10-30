@@ -120,6 +120,39 @@ PyAttributeDef BL_ArmatureChannel::Attributes[] = {
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
+/*
+ * AttributesPtr writes into the proxy's bPoseChannel pointer, while the post-write callback must
+ * run on the owning BL_ArmatureChannel. The generic EXP_*_CHECK macros intentionally use one class
+ * for both, so keep these narrowly scoped bridge definitions here.
+ */
+#  define BCA_PYATTRIBUTE_FLOAT_VECTOR_RW_DIRTY(name, min, max, field, length) \
+    { \
+      name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, length, min, max, true, false, \
+          offsetof(blender::bPoseChannel, field), sizeof(((blender::bPoseChannel *)0)->field), 1, \
+          &BL_ArmatureChannel::py_attr_pose_updated, nullptr, nullptr, \
+      { \
+        nullptr, nullptr, nullptr, ((blender::bPoseChannel *)0)->field, nullptr, nullptr, nullptr \
+      } \
+    }
+#  define BCA_PYATTRIBUTE_ENUM_RW_DIRTY(name, min, max, field) \
+    { \
+      name, EXP_PYATTRIBUTE_TYPE_ENUM, EXP_PYATTRIBUTE_RW, min, max, 0.f, 0.f, false, false, \
+          offsetof(blender::bPoseChannel, field), sizeof(((blender::bPoseChannel *)0)->field), 1, \
+          &BL_ArmatureChannel::py_attr_pose_updated, nullptr, nullptr, \
+      { \
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr \
+      } \
+    }
+#  define BCA_PYATTRIBUTE_FLOAT_RW_DIRTY(name, min, max, field) \
+    { \
+      name, EXP_PYATTRIBUTE_TYPE_FLOAT, EXP_PYATTRIBUTE_RW, 0, 0, min, max, true, false, \
+          offsetof(blender::bPoseChannel, field), 0, 1, \
+          &BL_ArmatureChannel::py_attr_pose_updated, nullptr, nullptr, \
+      { \
+        nullptr, nullptr, nullptr, &((blender::bPoseChannel *)0)->field, nullptr, nullptr, nullptr \
+      } \
+    }
+
 /* attributes directly taken from blender::bPoseChannel */
 PyAttributeDef BL_ArmatureChannel::AttributesPtr[] = {
     EXP_PYATTRIBUTE_CHAR_RO("name", blender::bPoseChannel, name),
@@ -132,17 +165,14 @@ PyAttributeDef BL_ArmatureChannel::AttributesPtr[] = {
     EXP_PYATTRIBUTE_FLAG_RO("ik_limit_z", blender::bPoseChannel, ikflag, BONE_IK_ZLIMIT),
     EXP_PYATTRIBUTE_FLAG_RO("ik_rot_control", blender::bPoseChannel, ikflag, BONE_IK_ROTCTL),
     EXP_PYATTRIBUTE_FLAG_RO("ik_lin_control", blender::bPoseChannel, ikflag, BONE_IK_LINCTL),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("location", -FLT_MAX, FLT_MAX, blender::bPoseChannel, loc, 3),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("scale", -FLT_MAX, FLT_MAX, blender::bPoseChannel, scale, 3),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW(
-        "rotation_quaternion", -1.0f, 1.0f, blender::bPoseChannel, quat, 4),
-    EXP_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_euler", -10.f, 10.f, blender::bPoseChannel, eul, 3),
-    EXP_PYATTRIBUTE_ENUM_RW("rotation_mode",
-                             blender::eRotationModes::ROT_MODE_MIN,
-                             blender::eRotationModes::ROT_MODE_MAX,
-                             false,
-                             blender::bPoseChannel,
-                             rotmode),
+    BCA_PYATTRIBUTE_FLOAT_VECTOR_RW_DIRTY("location", -FLT_MAX, FLT_MAX, loc, 3),
+    BCA_PYATTRIBUTE_FLOAT_VECTOR_RW_DIRTY("scale", -FLT_MAX, FLT_MAX, scale, 3),
+    BCA_PYATTRIBUTE_FLOAT_VECTOR_RW_DIRTY("rotation_quaternion", -1.0f, 1.0f, quat, 4),
+    BCA_PYATTRIBUTE_FLOAT_VECTOR_RW_DIRTY("rotation_euler", -10.f, 10.f, eul, 3),
+    BCA_PYATTRIBUTE_ENUM_RW_DIRTY("rotation_mode",
+                                  blender::eRotationModes::ROT_MODE_MIN,
+                                  blender::eRotationModes::ROT_MODE_MAX,
+                                  rotmode),
     EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("channel_matrix", blender::bPoseChannel, chan_mat, 4),
     EXP_PYATTRIBUTE_FLOAT_MATRIX_RO("pose_matrix", blender::bPoseChannel, pose_mat, 4),
     EXP_PYATTRIBUTE_FLOAT_VECTOR_RO("pose_head", blender::bPoseChannel, pose_head, 3),
@@ -157,14 +187,18 @@ PyAttributeDef BL_ArmatureChannel::AttributesPtr[] = {
     EXP_PYATTRIBUTE_FLOAT_RO("ik_stiffness_y", blender::bPoseChannel, stiffness[1]),
     EXP_PYATTRIBUTE_FLOAT_RO("ik_stiffness_z", blender::bPoseChannel, stiffness[2]),
     EXP_PYATTRIBUTE_FLOAT_RO("ik_stretch", blender::bPoseChannel, ikstretch),
-    EXP_PYATTRIBUTE_FLOAT_RW("ik_rot_weight", 0, 1.0f, blender::bPoseChannel, ikrotweight),
-    EXP_PYATTRIBUTE_FLOAT_RW("ik_lin_weight", 0, 1.0f, blender::bPoseChannel, iklinweight),
+    BCA_PYATTRIBUTE_FLOAT_RW_DIRTY("ik_rot_weight", 0, 1.0f, ikrotweight),
+    BCA_PYATTRIBUTE_FLOAT_RW_DIRTY("ik_lin_weight", 0, 1.0f, iklinweight),
     EXP_PYATTRIBUTE_RW_FUNCTION("joint_rotation",
                                 BL_ArmatureChannel,
                                 py_attr_get_joint_rotation,
                                 py_attr_set_joint_rotation),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
+
+#  undef BCA_PYATTRIBUTE_FLOAT_VECTOR_RW_DIRTY
+#  undef BCA_PYATTRIBUTE_ENUM_RW_DIRTY
+#  undef BCA_PYATTRIBUTE_FLOAT_RW_DIRTY
 
 PyObject *BL_ArmatureChannel::py_attr_getattr(EXP_PyObjectPlus *self_v,
                                               const struct EXP_PYATTRIBUTE_DEF *attrdef)
@@ -219,6 +253,16 @@ int BL_ArmatureChannel::py_attr_setattr(EXP_PyObjectPlus *self_v,
 
   PyErr_SetString(PyExc_AttributeError, "channel unknown attribute");
   return PY_SET_ATTR_FAIL;
+}
+
+int BL_ArmatureChannel::py_attr_pose_updated(
+    EXP_PyObjectPlus *self_v, const struct EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  BL_ArmatureChannel *self = static_cast<BL_ArmatureChannel *>(self_v);
+  if (self->m_armature != nullptr) {
+    self->m_armature->MarkPoseDirty();
+  }
+  return 0;
 }
 
 PyObject *BL_ArmatureChannel::py_attr_get_joint_rotation(EXP_PyObjectPlus *self_v,
@@ -398,6 +442,9 @@ int BL_ArmatureChannel::py_attr_set_joint_rotation(EXP_PyObjectPlus *self_v,
   }
   else
     copy_qt_qt(pchan->quat, quat);
+  if (self->m_armature != nullptr) {
+    self->m_armature->MarkPoseDirty();
+  }
   return PY_SET_ATTR_SUCCESS;
 }
 

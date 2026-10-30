@@ -9,14 +9,22 @@
 #include "node_logic_util.hh"
 
 namespace blender::nodes::node_logic_separate_euler_cc {
-namespace decl = blender::nodes::logic::decl;
+namespace decl = blender::nodes::decl;
+namespace logic_decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Rotation>("Rotation"_ustr);
-  b.add_output<decl::Float>("X"_ustr);
-  b.add_output<decl::Float>("Y"_ustr);
-  b.add_output<decl::Float>("Z"_ustr);
+  b.add_input<logic_decl::Rotation>("Rotation"_ustr)
+      .description("Rotation to express as equivalent XYZ Euler angles");
+  b.add_output<decl::Float>("X"_ustr)
+      .subtype(PROP_ANGLE)
+      .description("Equivalent angle around the X axis in XYZ Euler order");
+  b.add_output<decl::Float>("Y"_ustr)
+      .subtype(PROP_ANGLE)
+      .description("Equivalent angle around the Y axis in XYZ Euler order");
+  b.add_output<decl::Float>("Z"_ustr)
+      .subtype(PROP_ANGLE)
+      .description("Equivalent angle around the Z axis in XYZ Euler order");
 }
 
 static void node_register()

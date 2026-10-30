@@ -13,10 +13,14 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Execution>("Flow"_ustr).is_default_link_socket();
-  b.add_output<decl::Execution>("Out"_ustr)
+  b.add_input<decl::Execution>("Flow"_ustr)
       .is_default_link_socket()
-      .description("Relay with one frame delay");
+      .description("Flow to defer until the next Frame Update");
+  b.add_output<decl::Execution>("Completed"_ustr)
+      .is_default_link_socket()
+      .description(
+          "Emits once during the next Frame Update, before rendering; incoming pulses while "
+          "pending merge into one");
 }
 
 static void node_register()
@@ -24,7 +28,7 @@ static void node_register()
   static bke::bNodeType ntype;
 
   logic_node_type_base(&ntype, "LogicNativeOnNextFrame"_ustr);
-  ntype.nclass = NODE_CLASS_INPUT;
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
 
   bke::node_register_type(ntype);

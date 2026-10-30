@@ -39,8 +39,12 @@ JPH_SUPPRESS_WARNINGS
 #include <Jolt/Physics/Constraints/SixDOFConstraint.h>
 #include <Jolt/Physics/Constraints/SliderConstraint.h>
 #include <Jolt/Physics/Constraints/SwingTwistConstraint.h>
+#include <Jolt/Physics/Constraints/TwoBodyConstraint.h>
 
+#include "JoltMathUtils.h"
+#include "JoltPhysicsController.h"
 #include "JoltPhysicsEnvironment.h"
+#include "KX_GameObject.h"
 
 #include <cfloat>
 #include <cmath>
@@ -68,6 +72,15 @@ JoltConstraint::~JoltConstraint()
 {
   /* Constraint lifetime is managed by PhysicsSystem. The constraint is
    * removed from the system in RemoveConstraintById() before deletion. */
+}
+
+void JoltConstraint::SetRigidBodyConstraintMetadata(KX_GameObject *owner,
+                                                     KX_GameObject *target,
+                                                     const std::string &name)
+{
+  m_rigidBodyConstraintOwner = owner;
+  m_rigidBodyConstraintTarget = target;
+  m_rigidBodyConstraintName = name;
 }
 
 /** \} */
@@ -327,50 +340,142 @@ bool JoltConstraint::CheckBreaking() const
 
 float JoltConstraint::GetAppliedImpulse() const
 {
+  float linearImpulse = 0.0f;
+  float angularImpulse = 0.0f;
+  float appliedImpulse = 0.0f;
+  return GetImpulseComponents(linearImpulse, angularImpulse, appliedImpulse) ? appliedImpulse : 0.0f;
+}
+
+bool JoltConstraint::GetImpulseComponents(float &r_linear_impulse,
+                                          float &r_angular_impulse,
+                                          float &r_applied_impulse) const
+{
+  r_linear_impulse = 0.0f;
+  r_angular_impulse = 0.0f;
+  r_applied_impulse = 0.0f;
+
   if (!m_constraint || !m_constraint->GetEnabled() || !m_constraint->IsActive()) {
-    return 0.0f;
+    return false;
   }
 
+  /* Keep r_applied_impulse in the exact accumulation order that the original
+   * breaking-threshold implementation used. It is a compatibility aggregate,
+   * not a physically dimensioned sum of the two public component outputs. */
   switch (m_constraint->GetSubType()) {
     case JPH::EConstraintSubType::Point: {
       JPH::PointConstraint *pc = static_cast<JPH::PointConstraint *>(m_constraint);
-      return pc->GetTotalLambdaPosition().Length();
+      r_linear_impulse = pc->GetTotalLambdaPosition().Length();
+      r_applied_impulse = r_linear_impulse;
+      break;
     }
     case JPH::EConstraintSubType::Hinge: {
       JPH::HingeConstraint *hc = static_cast<JPH::HingeConstraint *>(m_constraint);
-      return hc->GetTotalLambdaPosition().Length() +
-             hc->GetTotalLambdaRotation().Length() +
-             std::abs(hc->GetTotalLambdaRotationLimits()) +
-             std::abs(hc->GetTotalLambdaMotor());
+      const float position = hc->GetTotalLambdaPosition().Length();
+      const float rotation = hc->GetTotalLambdaRotation().Length();
+      const float rotation_limits = std::abs(hc->GetTotalLambdaRotationLimits());
+      const float motor = std::abs(hc->GetTotalLambdaMotor());
+      r_linear_impulse = position;
+      r_angular_impulse = rotation + rotation_limits + motor;
+      r_applied_impulse = position + rotation + rotation_limits + motor;
+      break;
     }
     case JPH::EConstraintSubType::Cone: {
       JPH::ConeConstraint *cone = static_cast<JPH::ConeConstraint *>(m_constraint);
-      return cone->GetTotalLambdaPosition().Length() +
-             std::abs(cone->GetTotalLambdaRotation());
+      r_linear_impulse = cone->GetTotalLambdaPosition().Length();
+      r_angular_impulse = std::abs(cone->GetTotalLambdaRotation());
+      r_applied_impulse = r_linear_impulse + r_angular_impulse;
+      break;
     }
     case JPH::EConstraintSubType::SixDOF: {
       JPH::SixDOFConstraint *sixdof = static_cast<JPH::SixDOFConstraint *>(m_constraint);
-      return sixdof->GetTotalLambdaPosition().Length() +
-             sixdof->GetTotalLambdaRotation().Length() +
-             sixdof->GetTotalLambdaMotorTranslation().Length() +
-             sixdof->GetTotalLambdaMotorRotation().Length();
+      const float position = sixdof->GetTotalLambdaPosition().Length();
+      const float rotation = sixdof->GetTotalLambdaRotation().Length();
+      const float motor_translation = sixdof->GetTotalLambdaMotorTranslation().Length();
+      const float motor_rotation = sixdof->GetTotalLambdaMotorRotation().Length();
+      r_linear_impulse = position + motor_translation;
+      r_angular_impulse = rotation + motor_rotation;
+      r_applied_impulse = position + rotation + motor_translation + motor_rotation;
+      break;
     }
     case JPH::EConstraintSubType::Fixed: {
       JPH::FixedConstraint *fixed = static_cast<JPH::FixedConstraint *>(m_constraint);
-      return fixed->GetTotalLambdaPosition().Length() +
-             fixed->GetTotalLambdaRotation().Length();
+      r_linear_impulse = fixed->GetTotalLambdaPosition().Length();
+      r_angular_impulse = fixed->GetTotalLambdaRotation().Length();
+      r_applied_impulse = r_linear_impulse + r_angular_impulse;
+      break;
     }
     case JPH::EConstraintSubType::Slider: {
       JPH::SliderConstraint *slider = static_cast<JPH::SliderConstraint *>(m_constraint);
-      return slider->GetTotalLambdaPosition().Length() +
-             std::abs(slider->GetTotalLambdaPositionLimits()) +
-             slider->GetTotalLambdaRotation().Length() +
-             std::abs(slider->GetTotalLambdaMotor());
+      const float position = slider->GetTotalLambdaPosition().Length();
+      const float position_limits = std::abs(slider->GetTotalLambdaPositionLimits());
+      const float rotation = slider->GetTotalLambdaRotation().Length();
+      const float motor = std::abs(slider->GetTotalLambdaMotor());
+      r_linear_impulse = position + position_limits + motor;
+      r_angular_impulse = rotation;
+      r_applied_impulse = position + position_limits + rotation + motor;
+      break;
     }
     default: {
-      return 0.0f;
+      return false;
     }
   }
+
+  return true;
+}
+
+bool JoltConstraint::BuildRigidBodyConstraintBreakEvent(
+    PHY_RigidBodyConstraintBreakEvent &r_event) const
+{
+  if (m_rigidBodyConstraintOwner == nullptr || m_rigidBodyConstraintTarget == nullptr ||
+      m_rigidBodyConstraintName.empty() || m_constraint == nullptr ||
+      m_constraint->GetType() != JPH::EConstraintType::TwoBodyConstraint)
+  {
+    return false;
+  }
+
+  float linearImpulse = 0.0f;
+  float angularImpulse = 0.0f;
+  float appliedImpulse = 0.0f;
+  if (!GetImpulseComponents(linearImpulse, angularImpulse, appliedImpulse) ||
+      !std::isfinite(linearImpulse) || !std::isfinite(angularImpulse) ||
+      !std::isfinite(appliedImpulse))
+  {
+    return false;
+  }
+
+  const JPH::TwoBodyConstraint *twoBody =
+      static_cast<const JPH::TwoBodyConstraint *>(m_constraint);
+  const JPH::Body *anchor_body = twoBody->GetBody1();
+  JPH::Mat44 constraint_to_anchor_body = twoBody->GetConstraintToBody1Matrix();
+  if (anchor_body == nullptr) {
+    return false;
+  }
+
+  /* Slider constraints may intentionally swap Jolt's body order to favor the
+   * heavier/static body. Keep the public anchor tied to UPBGE's authored owner
+   * (object A), rather than silently changing its frame in that special case. */
+  if (const auto *owner_controller = dynamic_cast<const JoltPhysicsController *>(
+          m_rigidBodyConstraintOwner->GetPhysicsController());
+      owner_controller != nullptr && owner_controller->GetBodyID() == twoBody->GetBody2()->GetID())
+  {
+    anchor_body = twoBody->GetBody2();
+    constraint_to_anchor_body = twoBody->GetConstraintToBody2Matrix();
+  }
+
+  /* This is the constraint reference-frame origin in world space, not a
+   * collision-contact point. This matches Jolt's own debug-frame transform. */
+  const JPH::RMat44 anchorToWorld = anchor_body->GetCenterOfMassTransform() *
+                                    constraint_to_anchor_body;
+
+  r_event = PHY_RigidBodyConstraintBreakEvent();
+  r_event.owner_name = m_rigidBodyConstraintOwner->GetName();
+  r_event.target_name = m_rigidBodyConstraintTarget->GetName();
+  r_event.constraint_name = m_rigidBodyConstraintName;
+  r_event.anchor_position = JoltMath::ToMT(anchorToWorld.GetTranslation());
+  r_event.linear_impulse = linearImpulse;
+  r_event.angular_impulse = angularImpulse;
+  r_event.applied_impulse = appliedImpulse;
+  return true;
 }
 
 /** \} */

@@ -1668,6 +1668,21 @@ if(WITH_GAMEENGINE_LOGICNODES)
   )
   set_tests_properties(logic_nodes_descriptor_socket_audit PROPERTIES LABELS "logic_nodes")
 
+  # The same audit on the nodes Blender creates: their sockets match the descriptors and every
+  # socket has a name.
+  add_blender_test_impl(
+    "logic_nodes_descriptor_socket_audit_blender"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/logic_nodes_descriptor_socket_audit.py"
+    --
+    --blender
+  )
+
   # The legacy Python Logic Nodes add-ons are enabled by default in UPBGE and can abort under
   # --debug-memory during shutdown. Keep Python exit-code checking, but avoid debug-memory here so
   # this native editor serialization probe is judged by the script result.
@@ -1682,6 +1697,21 @@ if(WITH_GAMEENGINE_LOGICNODES)
     --python "${CMAKE_CURRENT_LIST_DIR}/gameengine_logic_nodes_editor_tree.py"
     --
     --output-dir "${TEST_OUT_DIR}/logic_nodes"
+  )
+
+  # The UI guide (game_ui_guide.html) is enough to rebuild the Complete UI Example: a file built
+  # only from what it shows is compared with the example. Starts from a new file by itself.
+  add_blender_test_impl(
+    "game_ui_guide_rebuild"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/game_ui_guide_rebuild_test.py"
+    --
+    --output-dir "${TEST_OUT_DIR}/game_ui"
   )
 
 endif()
@@ -1703,11 +1733,12 @@ if(WITH_GAMEENGINE_LOGICNODES AND WITH_UI_TESTS)
 endif()
 
 if(WITH_GAMEENGINE_LOGICNODES AND
+  WITH_GAMEENGINE_LOGICNODES_INTERACTIVE_TESTS AND
   NOT WITH_UI_TESTS AND
   (DEFINED ENV{DISPLAY} OR DEFINED ENV{WAYLAND_DISPLAY}))
-  # Focused local runtime coverage for builds that can open a UI but do not enable Blender's
-  # full UI test wrapper. The acceptance harness intentionally uses the view3d runner because
-  # background logic-sensor setup and blenderplayer restarts are not stable enough in this tree.
+  # This uses the in-editor view3d game runner and opens temporary blend files in that process.
+  # Keep it opt-in so a regular local CTest run never takes over a developer's active desktop.
+  # Run it only from an isolated display/session; the full UI test wrapper covers CI usage.
   add_blender_test_impl(
     "logic_nodes_runtime_acceptance_focused"
     ""
@@ -1720,11 +1751,14 @@ if(WITH_GAMEENGINE_LOGICNODES AND
     --output-dir "${TEST_OUT_DIR}/logic_nodes_focused"
     --runner view3d
     --only logic_gate
+    --only execution_flow
     --only euler
     --only object_actions
     --only property_writes
     --only property_advanced
     --only tree_properties
+    --only bone_parent
+    --only bone_pose
     --only input_nodes
     --only values_math
     --only c_tier_values
@@ -1733,10 +1767,12 @@ if(WITH_GAMEENGINE_LOGICNODES AND
     --only vehicle_control_compile
     --only time_state
     --only scene_state
+    --only inactive_overlay_collection
     --only camera_state
     --only render_state
     --only light_state
     --only physics_state
+    --only raycast_from_mesh
     --only object_lifecycle
     --only phase6_events
     --only phase6_move_toward
@@ -1747,7 +1783,11 @@ if(WITH_GAMEENGINE_LOGICNODES AND
     --only phase6_collision
     --only phase6_objects_colliding
     --only phase6_animation_status
+    --only phase6_cross_scene_save_load
     --only phase6_save_load
+    --only phase6_save_load_structure
+    --only phase6_save_load_material
+    --only phase6_save_load_existence
     --only phase6_align_axis
     --only phase6_slow_follow
     --only phase6_replace_mesh

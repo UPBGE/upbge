@@ -82,6 +82,10 @@ set(INTERPROCEDURAL_OPTIMIZATION ON CACHE BOOL "Enable Jolt IPO/LTO" FORCE)
 # Let Jolt use its own default CMAKE_CXX_FLAGS instead of overriding.
 set(OVERRIDE_CXX_FLAGS OFF CACHE BOOL "Don't let Jolt override CXX flags" FORCE)
 
+# Jolt's helper threads trap invalid float math when this is on (MSVC Debug and Release builds
+# only): one NaN in a step would crash a Windows game. It is a debugging aid for Jolt's tests.
+set(FLOATING_POINT_EXCEPTIONS_ENABLED OFF CACHE BOOL "No floating point exceptions in Jolt's threads" FORCE)
+
 FetchContent_MakeAvailable(JoltPhysics)
 
 # The Jolt library target is named "Jolt" after FetchContent.

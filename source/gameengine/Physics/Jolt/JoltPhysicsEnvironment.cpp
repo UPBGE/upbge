@@ -56,6 +56,7 @@ JPH_SUPPRESS_WARNINGS
 #include <Jolt/Physics/Body/BodyFilter.h>
 #include <Jolt/Physics/Body/MotionProperties.h>
 #include <Jolt/Physics/Constraints/ConeConstraint.h>
+#include <Jolt/Physics/Constraints/ContactConstraintManager.h>
 #include <Jolt/Physics/Constraints/TwoBodyConstraint.h>
 #include <Jolt/Physics/Constraints/FixedConstraint.h>
 #include <Jolt/Physics/Constraints/HingeConstraint.h>
@@ -76,14 +77,17 @@ JPH_SUPPRESS_WARNINGS
 #include "JoltVehicle.h"
 #include "JoltMathUtils.h"
 #include "JoltPhysicsController.h"
+#include "JoltProcessorCheck.h"
 #include "JoltShapeBuilder.h"
 
 #include "BKE_context.hh"
 #include "BKE_effect.h"
 #include "BKE_deform.hh"
+#include "BKE_game_physics.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
+#include "BKE_scene.hh"
 #include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -120,6 +124,7 @@ JPH_SUPPRESS_WARNINGS
 #include <cstdlib>
 #include <cstdarg>
 #include <iterator>
+#include <string>
 #include <unordered_set>
 
 static int g_joltConstraintUid = 1;
@@ -443,11 +448,42 @@ class JoltRayCastBodyFilter : public JPH::BodyFilter {
   bool m_includeSensors;
 };
 
+class JoltRayCastSnapshotBodyFilter final : public JPH::BodyFilter {
+ public:
+  JoltRayCastSnapshotBodyFilter(
+      const std::unordered_set<PHY_IPhysicsController *> &allowedControllers,
+      const bool includeSensors)
+      : m_allowedControllers(allowedControllers), m_includeSensors(includeSensors)
+  {
+  }
+
+  bool ShouldCollideLocked(const JPH::Body &body) const override
+  {
+    if (!m_includeSensors && body.IsSensor()) {
+      return false;
+    }
+    KX_ClientObjectInfo *clientInfo = JoltGetClientInfo(body);
+    if (!clientInfo || (!m_includeSensors && clientInfo->isSensor())) {
+      return false;
+    }
+    PHY_IPhysicsController *controller = JoltGetPhysicsController(clientInfo);
+    return controller && m_allowedControllers.find(controller) != m_allowedControllers.end();
+  }
+
+ private:
+  const std::unordered_set<PHY_IPhysicsController *> &m_allowedControllers;
+  bool m_includeSensors;
+};
+
 class JoltBoundedRayCastCollector final : public JPH::CastRayCollector {
  public:
   explicit JoltBoundedRayCastCollector(const uint32_t maxHits) : m_maxHits(maxHits)
   {
-    m_hits.reserve(maxHits);
+    /* Raycast from Mesh always asks for the closest hit. Keep that result inline so a batch does
+     * not perform one collector allocation per ray; retain the bounded heap for multi-hit casts. */
+    if (maxHits > 1) {
+      m_hits.reserve(maxHits);
+    }
   }
 
   void OnBody(const JPH::Body & /*body*/) override
@@ -472,7 +508,14 @@ class JoltBoundedRayCastCollector final : public JPH::CastRayCollector {
       return;
     }
 
-    if (m_hits.size() < m_maxHits) {
+    if (m_maxHits == 1) {
+      if (!m_hasSingleHit || HitIsCloser(m_currentHit, m_singleHit)) {
+        m_singleHit = m_currentHit;
+        m_hasSingleHit = true;
+      }
+      UpdateEarlyOutFraction(m_singleHit.mFraction);
+    }
+    else if (m_hits.size() < m_maxHits) {
       m_hits.push_back(m_currentHit);
       std::push_heap(m_hits.begin(), m_hits.end(), HitIsCloser);
     }
@@ -482,7 +525,7 @@ class JoltBoundedRayCastCollector final : public JPH::CastRayCollector {
       std::push_heap(m_hits.begin(), m_hits.end(), HitIsCloser);
     }
 
-    if (m_hits.size() == m_maxHits) {
+    if (m_maxHits > 1 && m_hits.size() == m_maxHits) {
       UpdateEarlyOutFraction(m_hits.front().mFraction);
     }
   }
@@ -492,7 +535,16 @@ class JoltBoundedRayCastCollector final : public JPH::CastRayCollector {
     std::sort(m_hits.begin(), m_hits.end(), HitIsCloser);
   }
 
-  JPH::Array<JPH::RayCastResult> m_hits;
+  size_t GetHitCount() const
+  {
+    return m_maxHits == 1 ? size_t(m_hasSingleHit) : m_hits.size();
+  }
+
+  const JPH::RayCastResult &GetHit(const size_t index) const
+  {
+    JPH_ASSERT(index < GetHitCount());
+    return m_maxHits == 1 ? m_singleHit : m_hits[index];
+  }
 
  private:
   static bool HitIsCloser(const JPH::RayCastResult &a, const JPH::RayCastResult &b)
@@ -504,8 +556,11 @@ class JoltBoundedRayCastCollector final : public JPH::CastRayCollector {
   }
 
   uint32_t m_maxHits;
+  JPH::Array<JPH::RayCastResult> m_hits;
+  JPH::RayCastResult m_singleHit;
   float m_previousEarlyOutFraction = 1.0f;
   JPH::RayCastResult m_currentHit;
+  bool m_hasSingleHit = false;
   bool m_currentHadHit = false;
 };
 
@@ -1474,37 +1529,57 @@ JoltPhysicsEnvironment::~JoltPhysicsEnvironment()
    * memory growth from thread-stack caching and heap fragmentation. */
 }
 
+int JoltPhysicsEnvironment::HelperThreadsForSetting(const int setting, const int cpuThreads)
+{
+  return blender::BKE_game_physics_cores(setting, cpuThreads) - 1;
+}
+
+int JoltPhysicsEnvironment::ContactCapacityFor(const int maxBodies, const int setting)
+{
+  return std::max({65536, maxBodies, setting});
+}
+
+uint32_t JoltPhysicsEnvironment::NextBodyPoseEpoch()
+{
+  static std::atomic<uint32_t> epochs{0};
+  uint32_t epoch = ++epochs;
+  while (epoch == 0) {
+    epoch = ++epochs;
+  }
+  return epoch;
+}
+
 JoltPhysicsEnvironment *JoltPhysicsEnvironment::Create(blender::Scene *blenderscene,
                                                        bool visualizePhysics)
 {
+  /* On Linux and Windows the check already ran before main(); elsewhere this is the only one.
+   * The call also keeps the check linked into every program using Jolt. */
+  JoltStopOnUnsupportedProcessor();
+
   /* Read configuration from scene's GameData. */
-  int numThreads = blenderscene->gm.jolt_physics_threads;
-  if (numThreads <= 0) {
-    numThreads = std::max(1, (int)std::thread::hardware_concurrency() - 1);
-  }
-  numThreads = std::clamp(numThreads, 1, (int)std::thread::hardware_concurrency());
+  const int numThreads = HelperThreadsForSetting(blenderscene->gm.jolt_physics_threads,
+                                                 (int)std::thread::hardware_concurrency());
 
   int maxBodies = blenderscene->gm.jolt_max_bodies;
   if (maxBodies <= 0) {
     maxBodies = 65536;
   }
 
-  int maxBodyPairs = blenderscene->gm.jolt_max_body_pairs;
-  if (maxBodyPairs <= 0) {
-    maxBodyPairs = 10240;
-  }
+  const int maxBodyPairs = ContactCapacityFor(maxBodies, blenderscene->gm.jolt_max_body_pairs);
+  const int maxContactConstraints = ContactCapacityFor(
+      maxBodies, blenderscene->gm.jolt_max_contact_constraints);
 
-  int maxContactConstraints = blenderscene->gm.jolt_max_contact_constraints;
-  if (maxContactConstraints <= 0) {
-    maxContactConstraints = 10240;
-  }
-
-  /* Temp allocator needs memory for:
-   * - Body pairs (maxBodyPairs * ~200 bytes)
-   * - Contact constraints (maxContactConstraints * ~64 bytes)
-   * - Per-body temp data (maxBodies * ~900 bytes)
-   * Use a safe multiplier to avoid OOM during collision detection. */
-  int tempAllocatorMB = std::max(64, (int)((int64_t)maxBodies * 2048 / (1024 * 1024)) + 32);
+  /* Scratch memory for one step: Jolt aborts the program when it runs out. Every step reserves
+   * room for all contact constraints (cMaxConstraintSize bytes each, plus two indices), the rest
+   * grows with the bodies (islands, the large-island splitter, body pairs in flight). Keep the
+   * generous per-body share, and room for every contact when contacts outgrow it. */
+  const int64_t bodyShareBytes = (int64_t)maxBodies * 2048;
+  const int64_t contactShareBytes = (int64_t)maxContactConstraints *
+                                        (JPH::ContactConstraintManager::cMaxConstraintSize +
+                                         2 * sizeof(uint32_t)) +
+                                    (int64_t)maxBodies * 64;
+  const int tempAllocatorMB = std::max(
+      64, (int)(std::max(bodyShareBytes, contactShareBytes) / (1024 * 1024)) + 32);
   JoltPhysicsEnvironment *env = new JoltPhysicsEnvironment(blenderscene,
                                                            numThreads,
                                                            maxBodies,
@@ -1538,9 +1613,14 @@ JoltPhysicsEnvironment *JoltPhysicsEnvironment::Create(blender::Scene *blendersc
 
 bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, float interval)
 {
-  if (timeStep <= 0.0f) {
+  if (!std::isfinite(timeStep) || timeStep <= 0.0f) {
     return false;
   }
+
+  /* A break snapshot is consumed by the fixed logic phase immediately before
+   * this next simulation step. Clear unconsumed records here as a bounded
+   * fallback for builds/scenes that do not run Logic Nodes. */
+  m_rigidBodyConstraintBreakEvents.clear();
 
   using PerfClock = std::chrono::steady_clock;
   const bool perfProbeEnabled = m_perfProbeEnabled;
@@ -1716,7 +1796,8 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
   }
 
   for (JoltPhysicsController *ctrl : GetControllersForIteration()) {
-    ctrl->WriteMotionStateToDynamics(true);  /* nondynaonly = true → only kinematic/static */
+    ctrl->WriteMotionStateToDynamics(
+        true, timeStep);  /* nondynaonly = true → only kinematic/static */
   }
 
   if (perfProbeEnabled) {
@@ -1872,8 +1953,28 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
                        .count();
   }
 
-  if (m_debugErrors && updateErr != JPH::EPhysicsUpdateError::None) {
-    printf("Jolt: Update returned error %d\n", (int)updateErr);
+  if (updateErr != JPH::EPhysicsUpdateError::None) {
+    if (m_debugErrors) {
+      printf("Jolt: Update returned error %d\n", (int)updateErr);
+    }
+    /* Dropped contacts let objects fall through each other: always say so, once per kind. */
+    const uint32_t newErrors = (uint32_t)updateErr & ~m_reportedUpdateErrors;
+    if (newErrors != 0) {
+      m_reportedUpdateErrors |= newErrors;
+      std::string full;
+      const auto note = [&](const JPH::EPhysicsUpdateError bit, const char *name) {
+        if (newErrors & (uint32_t)bit) {
+          full += full.empty() ? name : std::string(", ") + name;
+        }
+      };
+      note(JPH::EPhysicsUpdateError::BodyPairCacheFull, "body pairs");
+      note(JPH::EPhysicsUpdateError::ManifoldCacheFull, "contact cache");
+      note(JPH::EPhysicsUpdateError::ContactConstraintsFull, "contact constraints");
+      printf("Warning: Jolt physics ran out of room for contacts (%s): some contacts were "
+             "dropped, so objects can pass through each other. Raise Max Bodies in Scene > Game "
+             "Physics; the room for contacts grows with it.\n",
+             full.c_str());
+    }
   }
 
   /* Process any deferred operations that were queued during the physics update. */
@@ -2033,13 +2134,27 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
     }
   }
 
+  /* The cache is rebuilt from an unordered map, so stabilize both the event
+   * order and removal order. Duplicate IDs are defensive only. */
+  std::sort(m_brokenConstraintIDsScratch.begin(), m_brokenConstraintIDsScratch.end());
+  m_brokenConstraintIDsScratch.erase(
+      std::unique(m_brokenConstraintIDsScratch.begin(), m_brokenConstraintIDsScratch.end()),
+      m_brokenConstraintIDsScratch.end());
   for (int constraintID : m_brokenConstraintIDsScratch) {
-    RemoveConstraintById(constraintID, true);
+    const auto found = m_constraintById.find(constraintID);
+    if (found != m_constraintById.end() && found->second != nullptr) {
+      PHY_RigidBodyConstraintBreakEvent event;
+      if (found->second->BuildRigidBodyConstraintBreakEvent(event)) {
+        m_rigidBodyConstraintBreakEvents.push_back(std::move(event));
+      }
+    }
   }
+  RemoveConstraintsByIds(
+      m_brokenConstraintIDsScratch, true, m_removedConstraintIDsScratch);
 
   if (perfProbeEnabled) {
     perfBreakableChecked = m_breakableConstraintsCache.size();
-    perfBroken = m_brokenConstraintIDsScratch.size();
+    perfBroken = m_removedConstraintIDsScratch.size();
     perfBreakCheckUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
                            PerfClock::now() - breakCheckStart)
                            .count();
@@ -2216,7 +2331,7 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
 
       printf(
           "JoltPerfProbeSoftBody: calls=%zu frame_avg=%.3fms call_avg=%.3fms "
-          "call_breakdown[depsgraph=%.3fms filter=%.3fms mesh=%.3fms rel_tag=%.3fms] "
+          "call_breakdown[depsgraph=%.3fms filter=%.3fms mesh=%.3fms graph_prep=%.3fms] "
           "counts_per_call[total=%.1f candidates=%.1f updated=%.1f]\n",
           m_perfProbeUpdateSoftBodiesCallsAccum,
           updateSoftBodiesFrameAvgMS,
@@ -2709,11 +2824,6 @@ void JoltPhysicsEnvironment::NotifyRigidBodyBodyAdded()
   ++m_rigidBodyAddsSinceLastStep;
 }
 
-void JoltPhysicsEnvironment::RequestSoftBodyRelationsTagUpdate()
-{
-  m_softBodyRelationsTagDirty = true;
-}
-
 void JoltPhysicsEnvironment::NotifyConstraintBreakingThresholdChanged()
 {
   m_breakableConstraintsCacheDirty = true;
@@ -3203,7 +3313,57 @@ void JoltPhysicsEnvironment::UpdateSoftBodies()
                            .count();
     }
 
+    bool graphReadyForMeshUpdate = depsgraph != nullptr;
     if (depsgraph) {
+      /* Prepare every original modifier stack before evaluating any of them.
+       * A dependency-graph evaluation is global and may visit an earlier soft
+       * body while a later one is still being prepared. Leaving even one new
+       * modifier out of the relation graph creates a null operation lookup in
+       * depsgraph visibility evaluation.
+       *
+       * This phase deliberately runs before BodyLockMultiRead: graph evaluation
+       * may dispatch worker jobs and callbacks and must not extend the time for
+       * which all candidate Jolt bodies are locked. */
+      PerfClock::time_point graphPrepareStart;
+      if (perfProbeEnabled) {
+        graphPrepareStart = PerfClock::now();
+      }
+
+      bool geometryChanged = false;
+      bool relationsChanged = m_softBodyRelationsTagDirty;
+      for (JoltSoftBody *sb : m_softBodiesToMeshUpdateScratch) {
+        const JoltSoftBody::MeshUpdatePreparation preparation = sb->PrepareMeshUpdate();
+        geometryChanged |= preparation.geometryChanged;
+        relationsChanged |= preparation.relationsChanged;
+      }
+
+      if (geometryChanged || relationsChanged) {
+        blender::Main *bmain = C ? CTX_data_main(C) : nullptr;
+        if (!bmain) {
+          /* Keep a relation request pending and do not use an evaluated object
+           * whose operation topology may now be stale. */
+          m_softBodyRelationsTagDirty |= relationsChanged;
+          graphReadyForMeshUpdate = false;
+        }
+        else {
+          if (relationsChanged) {
+            DEG_relations_tag_update(bmain);
+            m_softBodyRelationsTagDirty = false;
+          }
+          /* One synchronous update covers all render-level overrides and all
+           * newly inserted deformation modifiers in this frame. */
+          BKE_scene_graph_update_tagged(depsgraph, bmain);
+        }
+      }
+
+      if (perfProbeEnabled) {
+        perfRelTagUS += (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                            PerfClock::now() - graphPrepareStart)
+                            .count();
+      }
+    }
+
+    if (graphReadyForMeshUpdate) {
       PerfClock::time_point meshStart;
       if (perfProbeEnabled) {
         meshStart = PerfClock::now();
@@ -3232,19 +3392,20 @@ void JoltPhysicsEnvironment::UpdateSoftBodies()
     }
   }
 
-  if (m_softBodyRelationsTagDirty && C) {
+  blender::Main *pendingRelationsMain = C ? CTX_data_main(C) : nullptr;
+  if (m_softBodyRelationsTagDirty && pendingRelationsMain) {
     PerfClock::time_point relTagStart;
     if (perfProbeEnabled) {
       relTagStart = PerfClock::now();
     }
 
-    DEG_relations_tag_update(CTX_data_main(C));
+    DEG_relations_tag_update(pendingRelationsMain);
     m_softBodyRelationsTagDirty = false;
 
     if (perfProbeEnabled) {
-      perfRelTagUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
-                          PerfClock::now() - relTagStart)
-                          .count();
+      perfRelTagUS += (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                           PerfClock::now() - relTagStart)
+                           .count();
     }
   }
 
@@ -3757,6 +3918,29 @@ PHY_IVehicle *JoltPhysicsEnvironment::CreateVehicle(PHY_IPhysicsController *ctrl
   return vehicle;
 }
 
+bool JoltPhysicsEnvironment::HasConstraintsForBody(JPH::BodyID bodyID) const
+{
+  if (bodyID.IsInvalid() || m_constraintById.empty()) {
+    return false;
+  }
+
+  for (const auto &item : m_constraintById) {
+    JoltConstraint *wrapper = item.second;
+    JPH::Constraint *constraint = wrapper ? wrapper->GetConstraint() : nullptr;
+    if (!constraint || constraint->GetType() != JPH::EConstraintType::TwoBodyConstraint) {
+      continue;
+    }
+
+    const JPH::TwoBodyConstraint *twoBody =
+        static_cast<const JPH::TwoBodyConstraint *>(constraint);
+    if (twoBody->GetBody1()->GetID() == bodyID || twoBody->GetBody2()->GetID() == bodyID) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void JoltPhysicsEnvironment::RemoveConstraintsForBody(JPH::BodyID bodyID)
 {
   if (bodyID.IsInvalid() || m_constraintById.empty()) {
@@ -3779,9 +3963,7 @@ void JoltPhysicsEnvironment::RemoveConstraintsForBody(JPH::BodyID bodyID)
     }
   }
 
-  for (const int constraintID : constraintIDs) {
-    RemoveConstraintById(constraintID, true);
-  }
+  RemoveConstraintsByIds(constraintIDs, true, m_removedConstraintIDsScratch);
 }
 
 bool JoltPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)
@@ -3789,18 +3971,18 @@ bool JoltPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)
   auto it = m_constraintById.find(constraintid);
   if (it != m_constraintById.end()) {
     JoltConstraint *wrapper = it->second;
-    JPH::Constraint *joltCon = wrapper->GetConstraint();
-    KX_GameObject *owner = wrapper->GetRigidBodyConstraintOwner();
+    JPH::Constraint *joltCon = wrapper ? wrapper->GetConstraint() : nullptr;
+    KX_GameObject *owner = wrapper ? wrapper->GetRigidBodyConstraintOwner() : nullptr;
     JPH::BodyID bodyID1;
     JPH::BodyID bodyID2;
 
     /* Remove no-collide pair from group filter before removing the constraint,
      * while the body references are still valid. */
-    if (joltCon) {
+    if (joltCon && joltCon->GetType() == JPH::EConstraintType::TwoBodyConstraint) {
       JPH::TwoBodyConstraint *tbc = static_cast<JPH::TwoBodyConstraint *>(joltCon);
       bodyID1 = tbc->GetBody1()->GetID();
       bodyID2 = tbc->GetBody2()->GetID();
-      if (wrapper->GetDisableCollision()) {
+      if (wrapper && wrapper->GetDisableCollision()) {
         m_constraintGroupFilter->EnableCollision(bodyID1.GetIndexAndSequenceNumber(),
                                                  bodyID2.GetIndexAndSequenceNumber());
       }
@@ -3821,10 +4003,10 @@ bool JoltPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)
     /* Constraint graph changes must wake both bodies so the next physics step
      * rebuilds and solves the affected islands immediately. */
     JPH::BodyInterface &bodyInterface = GetBodyInterface();
-    if (!bodyID1.IsInvalid()) {
+    if (!bodyID1.IsInvalid() && bodyInterface.IsAdded(bodyID1)) {
       bodyInterface.ActivateBody(bodyID1);
     }
-    if (!bodyID2.IsInvalid()) {
+    if (!bodyID2.IsInvalid() && bodyInterface.IsAdded(bodyID2)) {
       bodyInterface.ActivateBody(bodyID2);
     }
 
@@ -3849,6 +4031,183 @@ bool JoltPhysicsEnvironment::RemoveConstraintById(int constraintid, bool free)
   return false;
 }
 
+void JoltPhysicsEnvironment::RemoveConstraintsByIds(
+    const std::vector<int> &constraintids,
+    bool free,
+    std::vector<int> &r_removed_constraintids)
+{
+  r_removed_constraintids.clear();
+  r_removed_constraintids.reserve(constraintids.size());
+  if (constraintids.empty()) {
+    return;
+  }
+
+  /* Preserve the allocation-free single-removal fast path. */
+  if (constraintids.size() == 1) {
+    if (RemoveConstraintById(constraintids.front(), free)) {
+      r_removed_constraintids.push_back(constraintids.front());
+    }
+    return;
+  }
+
+  struct ConstraintRemoval {
+    int id;
+    JoltConstraint *wrapper;
+    KX_GameObject *owner;
+    JPH::BodyID bodyID1;
+    JPH::BodyID bodyID2;
+  };
+
+  std::vector<ConstraintRemoval> removals;
+  std::vector<JPH::Constraint *> nativeConstraints;
+  std::unordered_set<int> requestedIDs;
+  removals.reserve(std::min(constraintids.size(), m_constraintById.size()));
+  nativeConstraints.reserve(removals.capacity());
+  requestedIDs.reserve(constraintids.size());
+
+  for (const int constraintID : constraintids) {
+    if (!requestedIDs.insert(constraintID).second) {
+      continue;
+    }
+
+    const auto found = m_constraintById.find(constraintID);
+    if (found == m_constraintById.end()) {
+      continue;
+    }
+
+    JoltConstraint *wrapper = found->second;
+    JPH::Constraint *constraint = wrapper ? wrapper->GetConstraint() : nullptr;
+    ConstraintRemoval removal{
+        constraintID,
+        wrapper,
+        wrapper ? wrapper->GetRigidBodyConstraintOwner() : nullptr,
+        JPH::BodyID(),
+        JPH::BodyID(),
+    };
+
+    if (constraint && constraint->GetType() == JPH::EConstraintType::TwoBodyConstraint) {
+      JPH::TwoBodyConstraint *twoBody =
+          static_cast<JPH::TwoBodyConstraint *>(constraint);
+      removal.bodyID1 = twoBody->GetBody1()->GetID();
+      removal.bodyID2 = twoBody->GetBody2()->GetID();
+
+      /* Restore collision filtering while both body references are valid. */
+      if (wrapper->GetDisableCollision()) {
+        m_constraintGroupFilter->EnableCollision(
+            removal.bodyID1.GetIndexAndSequenceNumber(),
+            removal.bodyID2.GetIndexAndSequenceNumber());
+      }
+    }
+
+    if (constraint) {
+      nativeConstraints.push_back(constraint);
+    }
+    removals.push_back(removal);
+  }
+
+  if (nativeConstraints.size() == 1) {
+    m_physicsSystem->RemoveConstraint(nativeConstraints.front());
+  }
+  else if (!nativeConstraints.empty()) {
+    /* Jolt's batch API takes the constraint-manager lock once for the full
+     * operation instead of once per constraint. */
+    m_physicsSystem->RemoveConstraints(nativeConstraints.data(),
+                                       int(nativeConstraints.size()));
+  }
+
+  std::vector<JPH::BodyID> affectedBodyIDs;
+  std::unordered_set<JPH::uint32> affectedBodyKeys;
+  std::unordered_map<KX_GameObject *, std::vector<int>> removedIDsByOwner;
+  KX_GameObject *soleOwner = nullptr;
+  bool hasMultipleOwners = false;
+  affectedBodyIDs.reserve(2 * removals.size());
+  affectedBodyKeys.reserve(2 * removals.size());
+
+  for (const ConstraintRemoval &removal : removals) {
+    if (!removal.owner) {
+      continue;
+    }
+    if (!soleOwner) {
+      soleOwner = removal.owner;
+    }
+    else if (soleOwner != removal.owner) {
+      hasMultipleOwners = true;
+      break;
+    }
+  }
+  if (hasMultipleOwners) {
+    removedIDsByOwner.reserve(removals.size());
+  }
+
+  auto addAffectedBody = [&](const JPH::BodyID bodyID) {
+    if (!bodyID.IsInvalid() &&
+        affectedBodyKeys.insert(bodyID.GetIndexAndSequenceNumber()).second)
+    {
+      affectedBodyIDs.push_back(bodyID);
+    }
+  };
+
+  for (const ConstraintRemoval &removal : removals) {
+    addAffectedBody(removal.bodyID1);
+    addAffectedBody(removal.bodyID2);
+    if (hasMultipleOwners && removal.owner) {
+      removedIDsByOwner[removal.owner].push_back(removal.id);
+    }
+
+    m_constraintById.erase(removal.id);
+    if (free) {
+      delete removal.wrapper;
+    }
+    r_removed_constraintids.push_back(removal.id);
+  }
+
+  if (!removals.empty()) {
+    m_breakableConstraintsCacheDirty = true;
+    m_constraintTopologyDirtyBodies.insert(m_constraintTopologyDirtyBodies.end(),
+                                           affectedBodyIDs.begin(),
+                                           affectedBodyIDs.end());
+  }
+
+  if (hasMultipleOwners) {
+    for (auto &item : removedIDsByOwner) {
+      item.first->RemoveRigidBodyConstraintIds(item.second);
+    }
+  }
+  else if (soleOwner) {
+    soleOwner->RemoveRigidBodyConstraintIds(r_removed_constraintids);
+  }
+
+  /* Wake each surviving affected body once, using Jolt's multi-body lock path. */
+  if (!affectedBodyIDs.empty()) {
+    JPH::BodyInterface &bodyInterface = GetBodyInterface();
+    size_t addedBodyCount = 0;
+    for (const JPH::BodyID bodyID : affectedBodyIDs) {
+      if (bodyInterface.IsAdded(bodyID)) {
+        affectedBodyIDs[addedBodyCount++] = bodyID;
+      }
+    }
+    if (addedBodyCount != 0) {
+      bodyInterface.ActivateBodies(affectedBodyIDs.data(), int(addedBodyCount));
+    }
+  }
+
+  /* Vehicle constraints are not JPH::Constraint objects. Remove requested
+   * vehicles in one stable compaction pass instead of repeated linear scans. */
+  size_t writeIndex = 0;
+  for (JoltVehicle *vehicle : m_vehicles) {
+    const int constraintID = vehicle->GetUserConstraintId();
+    if (requestedIDs.contains(constraintID)) {
+      r_removed_constraintids.push_back(constraintID);
+      if (free) {
+        delete vehicle;
+      }
+      continue;
+    }
+    m_vehicles[writeIndex++] = vehicle;
+  }
+  m_vehicles.resize(writeIndex);
+}
+
 bool JoltPhysicsEnvironment::IsRigidBodyConstraintEnabled(int constraintid)
 {
   auto it = m_constraintById.find(constraintid);
@@ -3866,6 +4225,25 @@ float JoltPhysicsEnvironment::GetAppliedImpulse(int constraintid)
   }
 
   return it->second->GetAppliedImpulse();
+}
+
+void JoltPhysicsEnvironment::ConsumeRigidBodyConstraintBreakEvents(
+    std::vector<PHY_RigidBodyConstraintBreakEvent> &r_events)
+{
+  if (m_rigidBodyConstraintBreakEvents.empty()) {
+    return;
+  }
+
+  if (r_events.empty()) {
+    r_events.swap(m_rigidBodyConstraintBreakEvents);
+    return;
+  }
+
+  r_events.reserve(r_events.size() + m_rigidBodyConstraintBreakEvents.size());
+  r_events.insert(r_events.end(),
+                  std::make_move_iterator(m_rigidBodyConstraintBreakEvents.begin()),
+                  std::make_move_iterator(m_rigidBodyConstraintBreakEvents.end()));
+  m_rigidBodyConstraintBreakEvents.clear();
 }
 
 PHY_IVehicle *JoltPhysicsEnvironment::GetVehicleConstraint(int constraintId)
@@ -3957,14 +4335,16 @@ PHY_IPhysicsController *JoltPhysicsEnvironment::RayTest(
   return ctrl;
 }
 
-bool JoltPhysicsEnvironment::RayCast(const PHY_RayQuerySettings &settings,
-                                     PHY_IRayCastFilterCallback &filterCallback,
-                                     std::vector<PHY_RayCastResult> &results)
+template<typename BodyFilter>
+static void JoltExecuteBoundedRayCast(const JPH::PhysicsSystem &physicsSystem,
+                                      const PHY_RayQuerySettings &settings,
+                                      const BodyFilter &bodyFilter,
+                                      std::vector<PHY_RayCastResult> &results)
 {
   results.clear();
   const MT_Vector3 displacement = settings.destination - settings.origin;
   if (displacement.length2() <= MT_EPSILON * MT_EPSILON) {
-    return true;
+    return;
   }
 
   const uint32_t maxResults = std::clamp(settings.max_results, 1u, 257u);
@@ -3977,14 +4357,14 @@ bool JoltPhysicsEnvironment::RayCast(const PHY_RayQuerySettings &settings,
   }
   raySettings.mTreatConvexAsSolid = true;
 
-  JoltRayCastBodyFilter bodyFilter(filterCallback, settings.include_sensors);
   JoltBoundedRayCastCollector collector(maxResults);
-  m_physicsSystem->GetNarrowPhaseQuery().CastRay(ray, raySettings, collector, {}, {}, bodyFilter);
+  physicsSystem.GetNarrowPhaseQuery().CastRay(ray, raySettings, collector, {}, {}, bodyFilter);
   collector.Sort();
 
-  results.reserve(collector.m_hits.size());
-  const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
-  for (const JPH::RayCastResult &hit : collector.m_hits) {
+  results.reserve(collector.GetHitCount());
+  const JPH::BodyLockInterface &lockInterface = physicsSystem.GetBodyLockInterface();
+  for (size_t hitIndex = 0; hitIndex < collector.GetHitCount(); hitIndex++) {
+    const JPH::RayCastResult &hit = collector.GetHit(hitIndex);
     JPH::BodyLockRead lock(lockInterface, hit.mBodyID);
     if (!lock.Succeeded()) {
       continue;
@@ -4017,6 +4397,94 @@ bool JoltPhysicsEnvironment::RayCast(const PHY_RayQuerySettings &settings,
     result.m_hitUVOK = hasUV ? 1 : 0;
     results.push_back(result);
   }
+}
+
+bool JoltPhysicsEnvironment::RayCast(const PHY_RayQuerySettings &settings,
+                                     PHY_IRayCastFilterCallback &filterCallback,
+                                     std::vector<PHY_RayCastResult> &results)
+{
+  JoltRayCastBodyFilter bodyFilter(filterCallback, settings.include_sensors);
+  JoltExecuteBoundedRayCast(*m_physicsSystem, settings, bodyFilter, results);
+  return true;
+}
+
+bool JoltPhysicsEnvironment::RayCastBatch(
+    const std::vector<PHY_RayQuerySettings> &settings,
+    PHY_IRayCastFilterCallback &filterCallback,
+    const PHY_RayBatchExecution execution,
+    std::vector<std::vector<PHY_RayCastResult>> &results)
+{
+  results.clear();
+  results.resize(settings.size());
+  if (settings.empty()) {
+    return true;
+  }
+
+  const auto executeSequentialRange = [&](const size_t begin, const size_t end) {
+    for (size_t index = begin; index < end; index++) {
+      JoltRayCastBodyFilter bodyFilter(filterCallback, settings[index].include_sensors);
+      JoltExecuteBoundedRayCast(*m_physicsSystem, settings[index], bodyFilter, results[index]);
+    }
+  };
+
+  constexpr size_t minimumRaysPerJob = 8;
+  const size_t concurrency = m_jobSystem ?
+                                 size_t(std::max(1, m_jobSystem->GetMaxConcurrency())) :
+                                 1;
+  const size_t jobCount = std::min(concurrency, settings.size() / minimumRaysPerJob);
+  if (execution == PHY_RayBatchExecution::Sequential || jobCount <= 1 ||
+      m_isPhysicsUpdating)
+  {
+    executeSequentialRange(0, settings.size());
+    return true;
+  }
+
+  /* Jolt owns a bounded barrier pool and explicitly returns nullptr when it is exhausted. Acquire
+   * the barrier before evaluating the callback or creating dependency-held jobs, so failure is a
+   * clean sequential fallback with the same callback behavior as any other sequential batch. */
+  JPH::JobSystem::Barrier *barrier = m_jobSystem->CreateBarrier();
+  if (!barrier) {
+    executeSequentialRange(0, settings.size());
+    return true;
+  }
+
+  /* The gameplay callback reads KX objects and properties and is not worker-safe. For a genuinely
+   * parallel batch, evaluate it exactly once per current controller on the caller/main thread.
+   * Workers then consult only this immutable snapshot. Small/sequential batches deliberately use
+   * the regular broad-phase callback above, avoiding an O(world body count) setup cost. */
+  std::unordered_set<PHY_IPhysicsController *> allowedControllers;
+  const std::vector<JoltPhysicsController *> &controllers = GetControllersForIteration();
+  allowedControllers.reserve(controllers.size());
+  for (JoltPhysicsController *controller : controllers) {
+    if (controller && filterCallback.needBroadphaseRayCast(controller)) {
+      allowedControllers.insert(controller);
+    }
+  }
+
+  const auto executeParallelRange = [&](const size_t begin, const size_t end) {
+    for (size_t index = begin; index < end; index++) {
+      JoltRayCastSnapshotBodyFilter bodyFilter(allowedControllers,
+                                               settings[index].include_sensors);
+      JoltExecuteBoundedRayCast(*m_physicsSystem, settings[index], bodyFilter, results[index]);
+    }
+  };
+
+  std::vector<JPH::JobSystem::JobHandle> jobs;
+  jobs.reserve(jobCount);
+  for (size_t jobIndex = 0; jobIndex < jobCount; jobIndex++) {
+    const size_t begin = settings.size() * jobIndex / jobCount;
+    const size_t end = settings.size() * (jobIndex + 1) / jobCount;
+    jobs.push_back(m_jobSystem->CreateJob(
+        "Raycast from Mesh",
+        JPH::Color::sBlue,
+        [&, begin, end]() { executeParallelRange(begin, end); },
+        1));
+  }
+
+  barrier->AddJobs(jobs.data(), JPH::uint(jobs.size()));
+  JPH::JobSystem::JobHandle::sRemoveDependencies(jobs.data(), JPH::uint(jobs.size()));
+  m_jobSystem->WaitForJobs(barrier);
+  m_jobSystem->DestroyBarrier(barrier);
   return true;
 }
 
@@ -4318,8 +4786,8 @@ bool JoltPhysicsEnvironment::GetCachedCollisionContactRefs(
     return false;
   }
 
-  /* Sensor and parented child shapes are queried on demand. This avoids one narrow-phase
-   * query per object per tick when collision nodes target only a subset (or none). */
+  /* Sensor shapes are queried on demand. This avoids one narrow-phase query per object per tick
+   * when collision nodes target only a subset (or none). */
   JoltPhysicsController *joltCtrl = static_cast<JoltPhysicsController *>(ctrl);
   if (!m_isPhysicsUpdating && m_controllers.find(joltCtrl) != m_controllers.end() &&
       joltCtrl->IsLogicCollisionQueryActive())
@@ -4631,6 +5099,7 @@ PHY_IPhysicsController *JoltPhysicsEnvironment::CreateSphereController(
   ctrl->SetSensorFlag(true);
   ctrl->SetOriginalMotionType(JPH::EMotionType::Kinematic);
   ctrl->SetBroadPhaseCategory(JOLT_BP_SENSOR);
+  ctrl->CaptureOriginalPhysicsType();
   ctrl->SetShape(result.Get(), nullptr);
 
   AddController(ctrl);
@@ -4676,6 +5145,7 @@ PHY_IPhysicsController *JoltPhysicsEnvironment::CreateConeController(float coner
   ctrl->SetSensorFlag(true);
   ctrl->SetOriginalMotionType(JPH::EMotionType::Kinematic);
   ctrl->SetBroadPhaseCategory(JOLT_BP_SENSOR);
+  ctrl->CaptureOriginalPhysicsType();
   ctrl->SetShape(shape, builder.GetShapeQueryData());
 
   AddController(ctrl);
@@ -4689,6 +5159,11 @@ void JoltPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env
   if (!other) {
     return;
   }
+
+  /* A break notification belongs to the pre-merge simulation timeline. Never
+   * replay it after object/body identities have been rebuilt. */
+  m_rigidBodyConstraintBreakEvents.clear();
+  other->m_rigidBodyConstraintBreakEvents.clear();
 
   m_rayQueryDetailRequirements |= other->m_rayQueryDetailRequirements;
 
@@ -4852,7 +5327,9 @@ void JoltPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env
     JoltConstraint *newJoltCon = new JoltConstraint(
         newCon, srcCon->GetType(), srcCon->GetIdentifier(),
         srcCon->GetDisableCollision(), this);
-    newJoltCon->SetRigidBodyConstraintOwner(srcCon->GetRigidBodyConstraintOwner());
+    newJoltCon->SetRigidBodyConstraintMetadata(srcCon->GetRigidBodyConstraintOwner(),
+                                                srcCon->GetRigidBodyConstraintTarget(),
+                                                srcCon->GetRigidBodyConstraintName());
     newJoltCon->SetBreakingThreshold(srcCon->GetBreakingThreshold());
     newJoltCon->SetEnabled(srcCon->GetEnabled());
     m_constraintById[srcCon->GetIdentifier()] = newJoltCon;
@@ -4976,7 +5453,12 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   bool isCharacter = (blenderobject->gameflag & OB_CHARACTER) != 0;
   bool isSoftBody = (blenderobject->gameflag & OB_SOFT_BODY) != 0;
   bool isRigidBody = (blenderobject->gameflag & OB_RIGID_BODY) != 0;
-  bool useGimpact = ((isDyna || isSensor) && !isSoftBody);
+  /* Kinematic is authoring-exclusive with Dynamic and the special body types.
+   * Treat malformed legacy data as its established type rather than allowing a
+   * stale Kinematic bit to silently override it. */
+  bool isKinematic = (blenderobject->gameflag & OB_KINEMATIC) != 0 && !isDyna && !isSensor &&
+                     !isCharacter && !isSoftBody;
+  bool useGimpact = ((isDyna || isKinematic || isSensor) && !isSoftBody);
 
   /* Determine bounds type. */
   char boundsType;
@@ -4988,6 +5470,8 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     else if (blenderobject->gameflag & OB_CHARACTER)
       boundsType = OB_BOUND_SPHERE;
     else if (isRigidBody && !(blenderobject->gameflag2 & OB_HAS_VEHICLE))
+      boundsType = OB_BOUND_BOX;
+    else if (isKinematic)
       boundsType = OB_BOUND_BOX;
     else if (isDyna)
       boundsType = OB_BOUND_SPHERE;
@@ -5105,6 +5589,7 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     ctrl->SetCompoundFlag(false);
     ctrl->SetOriginalMotionType(JPH::EMotionType::Dynamic);
     ctrl->SetBroadPhaseCategory(JOLT_BP_DYNAMIC);
+    ctrl->CaptureOriginalPhysicsType();
     ctrl->SetMargin(margin);
     ctrl->SetRadius(blenderobject->inertia);
     ctrl->SetCollisionGroup(collGroup);
@@ -5340,6 +5825,18 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
       return;
     }
 
+    /* A MeshShape (or a compound containing one) is static-only in Jolt.
+     * Static children are normally built as triangle meshes, but a compound
+     * rooted at a Dynamic/Kinematic body moves as one body. Rebuild such a
+     * child as its convex-hull equivalent before it enters the compound. */
+    if ((parentCtrl->IsDynamic() || parentCtrl->IsKinematic()) && shape->MustBeStatic()) {
+      shape = shapeBuilder.Build(true, scaling);
+      if (!shape || shape->MustBeStatic()) {
+        delete motionstate;
+        return;
+      }
+    }
+
     /* Compute relative transform (position + rotation) of the child
      * in the parent's local space, matching Bullet's compound child logic. */
     SG_Node *childNode = gameobj->GetSGNode();
@@ -5409,6 +5906,10 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     motionType = JPH::EMotionType::Static;
     bpCategory = JOLT_BP_SENSOR;
   }
+  else if (isKinematic) {
+    motionType = JPH::EMotionType::Kinematic;
+    bpCategory = JOLT_BP_DYNAMIC;
+  }
   else if (isCharacter || isDyna) {
     motionType = JPH::EMotionType::Dynamic;
     bpCategory = JOLT_BP_DYNAMIC;
@@ -5418,21 +5919,36 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     bpCategory = JOLT_BP_STATIC;
   }
 
+  /* Jolt can change a Static body to Dynamic/Kinematic without recreating it,
+   * but only when motion properties were allocated at creation time and the
+   * collision shape is legal for moving bodies. Opt regular primitive/convex
+   * colliders into that path up front. Keep triangle meshes, compound roots,
+   * vehicles, Characters, and Sensor physics types on their specialized
+   * lifecycles instead of hiding a shape/body rebuild in a Logic Node command. */
+  const bool runtimePhysicsTypeSupported = (blenderobject->gameflag & OB_COLLISION) != 0 &&
+                                           !isSensor && !isCharacter && !isSoftBody &&
+                                           (blenderobject->gameflag2 & OB_HAS_VEHICLE) == 0 &&
+                                           !hasCompoundChildren && boundsType != OB_BOUND_EMPTY &&
+                                           !shape->MustBeStatic();
+  const bool authoredStaticRuntimeBody = motionType == JPH::EMotionType::Static &&
+                                         runtimePhysicsTypeSupported;
+  const float bodyMass = (isDyna || isKinematic || authoredStaticRuntimeBody) ?
+                             blenderobject->mass :
+                             0.0f;
+
   unsigned short col_group = blenderobject->col_group & JOLT_COLLISION_LAYER_MASK;
   unsigned short col_mask = blenderobject->col_mask;
   JPH::ObjectLayer objectLayer = JoltMakeObjectLayer(col_group, col_mask, bpCategory);
 
   JPH::BodyCreationSettings bodySettings(
-      shape,
-      JoltMath::ToJolt(pos),
-      JoltMath::ToJolt(quat),
-      motionType,
-      objectLayer);
+      shape, JoltMath::ToJolt(pos), JoltMath::ToJolt(quat), motionType, objectLayer);
 
-  /* Set mass for dynamic bodies. */
-  if (mass > 0.0f) {
+  /* Preserve the authored mass for every body that can later become Dynamic.
+   * Static and Kinematic bodies do not use it while they own their transform,
+   * but the cached Jolt motion properties do after a runtime type change. */
+  if (bodyMass > 0.0f) {
     bodySettings.mOverrideMassProperties = JPH::EOverrideMassProperties::CalculateInertia;
-    bodySettings.mMassPropertiesOverride.mMass = mass;
+    bodySettings.mMassPropertiesOverride.mMass = bodyMass;
   }
 
   /* Friction, restitution, damping. */
@@ -5451,7 +5967,9 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
 
   /* Per-body gravity multiplier. */
   bodySettings.mGravityFactor = blenderobject->gravity_factor;
-  if (isDyna && (blenderobject->gameflag2 & OB_JOLT_OVERRIDE_SOLVER_ITERATIONS)) {
+  if ((isDyna || authoredStaticRuntimeBody) &&
+      (blenderobject->gameflag2 & OB_JOLT_OVERRIDE_SOLVER_ITERATIONS))
+  {
     bodySettings.mNumVelocityStepsOverride = (JPH::uint)std::clamp(
         int(blenderobject->jolt_velocity_solver_iterations), 1, 255);
     bodySettings.mNumPositionStepsOverride = (JPH::uint)std::clamp(
@@ -5459,7 +5977,7 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   }
 
   /* Inertia multiplier from form factor (Bullet used formfactor / 0.4). */
-  if (mass > 0.0f) {
+  if (bodyMass > 0.0f) {
     bodySettings.mInertiaMultiplier = blenderobject->formfactor / 0.4f;
   }
 
@@ -5472,14 +5990,20 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   if (isSensor || (blenderobject->gameflag & OB_GHOST)) {
     bodySettings.mIsSensor = true;
   }
-
-  /* Allow switching dynamic↔static for SuspendDynamics/RestoreDynamics. */
-  if (isDyna || isCharacter) {
-    bodySettings.mAllowDynamicOrKinematic = true;
+  /* A Ghost Kinematic body is a moving trigger. Opt only that explicit sensor
+   * case into Kinematic-vs-Static/Kinematic narrow phase; enabling it for every
+   * Kinematic body would add CPU cost without producing a physical response. */
+  if (isKinematic && (blenderobject->gameflag & OB_GHOST)) {
+    bodySettings.mCollideKinematicVsNonDynamic = true;
   }
 
-  /* CCD for fast-moving dynamic bodies. */
-  if ((blenderobject->gameflag2 & OB_CCD_RIGID_BODY) && isDyna) {
+  /* This flag is meaningful when the initial motion type is Static: it makes
+   * Jolt allocate MotionProperties once during conversion so gameplay type
+   * changes remain allocation-free and reuse the existing body and shape. */
+  bodySettings.mAllowDynamicOrKinematic = authoredStaticRuntimeBody;
+
+  /* Jolt LinearCast CCD is implemented only for Dynamic non-sensor bodies. */
+  if ((blenderobject->gameflag2 & OB_CCD_RIGID_BODY) && (isDyna || authoredStaticRuntimeBody)) {
     bodySettings.mMotionQuality = JPH::EMotionQuality::LinearCast;
   }
 
@@ -5498,15 +6022,15 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     if (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_AXIS)
       dofs &= ~JPH::EAllowedDOFs::TranslationX;
     if (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_AXIS)
-      dofs &= ~JPH::EAllowedDOFs::TranslationZ;  /* Blender Y → Jolt Z */
+      dofs &= ~JPH::EAllowedDOFs::TranslationZ; /* Blender Y → Jolt Z */
     if (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_AXIS)
-      dofs &= ~JPH::EAllowedDOFs::TranslationY;  /* Blender Z → Jolt Y */
+      dofs &= ~JPH::EAllowedDOFs::TranslationY; /* Blender Z → Jolt Y */
     if (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_ROT_AXIS)
       dofs &= ~JPH::EAllowedDOFs::RotationX;
     if (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_ROT_AXIS)
-      dofs &= ~JPH::EAllowedDOFs::RotationZ;     /* Blender Y → Jolt Z */
+      dofs &= ~JPH::EAllowedDOFs::RotationZ; /* Blender Y → Jolt Z */
     if (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_ROT_AXIS)
-      dofs &= ~JPH::EAllowedDOFs::RotationY;     /* Blender Z → Jolt Y */
+      dofs &= ~JPH::EAllowedDOFs::RotationY; /* Blender Z → Jolt Y */
     /* Non-rigid dynamic bodies lock all rotation. */
     if (!isRigidBody) {
       dofs &= ~(JPH::EAllowedDOFs::RotationX | JPH::EAllowedDOFs::RotationY |
@@ -5519,8 +6043,7 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   JPH::BodyInterface &bi = GetBodyInterface();
   JPH::Body *body = bi.CreateBody(bodySettings);
   if (!body) {
-    printf("Jolt: ConvertObject FAILED to create body for '%s'\n",
-           gameobj->GetName().c_str());
+    printf("Jolt: ConvertObject FAILED to create body for '%s'\n", gameobj->GetName().c_str());
     delete motionstate;
     return;
   }
@@ -5531,32 +6054,46 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   ctrl->SetMotionState(motionstate);
   ctrl->SetEnvironment(this);
   ctrl->SetDynamic(isDyna);
+  ctrl->SetKinematic(isKinematic);
   ctrl->SetRigidBodyFlag(isDyna && isRigidBody);
   ctrl->SetSensorFlag(bodySettings.mIsSensor);
+  ctrl->SetSensorPhysicsType(isSensor);
+  ctrl->SetGhostToggleSupported(!isSensor && !isCharacter && !isSoftBody &&
+                                (blenderobject->gameflag2 & OB_HAS_VEHICLE) == 0);
   ctrl->SetCompoundFlag(hasCompoundChildren);
   ctrl->SetOriginalMotionType(motionType);
   ctrl->SetBroadPhaseCategory(bpCategory);
+  ctrl->SetRuntimePhysicsTypeSupported(runtimePhysicsTypeSupported);
+  ctrl->CaptureOriginalPhysicsType();
   ctrl->SetShape(shape, shapeBuilder.GetShapeQueryData());
-  if (isDyna) {
+  /* Keep the conversion-time mass/inertia template for every body that can
+   * become Dynamic, including an authored Static primitive/convex collider. */
+  if (runtimePhysicsTypeSupported) {
     ctrl->SetMassPropertiesTemplate(bodySettings.GetMassProperties());
   }
   ctrl->SetMargin(margin);
   ctrl->SetRadius(blenderobject->inertia);
   ctrl->SetRigidBodyAxisLockState(
-      (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_AXIS) != 0,
-      (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_AXIS) != 0,
-      (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_AXIS) != 0,
-      (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_ROT_AXIS) != 0,
-      (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_ROT_AXIS) != 0,
-      (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_ROT_AXIS) != 0);
+      (isDyna || authoredStaticRuntimeBody) &&
+          (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_AXIS) != 0,
+      (isDyna || authoredStaticRuntimeBody) &&
+          (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_AXIS) != 0,
+      (isDyna || authoredStaticRuntimeBody) &&
+          (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_AXIS) != 0,
+      (isDyna || authoredStaticRuntimeBody) &&
+          (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_ROT_AXIS) != 0,
+      (isDyna || authoredStaticRuntimeBody) &&
+          (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_ROT_AXIS) != 0,
+      (isDyna || authoredStaticRuntimeBody) &&
+          (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_ROT_AXIS) != 0);
   ctrl->SetFhEnabled((blenderobject->gameflag & OB_DO_FH) != 0);
   ctrl->SetFhRotEnabled((blenderobject->gameflag & OB_ROT_FH) != 0);
   ctrl->SetFhSpring(blenderobject->fh);
   ctrl->SetFhDamping(blenderobject->xyfrict);
   ctrl->SetFhDistance(blenderobject->fhdist);
   ctrl->SetFhNormal((blenderobject->dynamode & OB_FH_NOR) != 0);
-  ctrl->SetBuoyancyVolumeEnabled(
-      isSensor && (blenderobject->gameflag2 & OB_JOLT_BUOYANCY_VOLUME) != 0);
+  ctrl->SetBuoyancyVolumeEnabled(isSensor &&
+                                 (blenderobject->gameflag2 & OB_JOLT_BUOYANCY_VOLUME) != 0);
   ctrl->SetLogicObjectSensorIncludeStatic(
       isSensor && (blenderobject->gameflag2 & OB_JOLT_SENSOR_INCLUDE_STATIC) != 0);
   ctrl->SetBuoyancy(blenderobject->jolt_buoyancy);
@@ -5634,13 +6171,18 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   /* Register blender object → controller mapping so soft-body pin_object lookup works. */
   RegisterControllerForObject(blenderobject, ctrl);
 
-  /* Suspend dynamics for parented objects. */
+  /* Dynamic transform children enter the same engine-owned Jolt lifecycle as
+   * runtime node parenting, but only after authored constraints are available
+   * for its non-destructive preflight. */
   blender::Object *blenderRoot = blenderobject->parent;
   while (blenderRoot && blenderRoot->parent) {
     blenderRoot = blenderRoot->parent;
   }
-  if (blenderRoot && converter) {
-    converter->AddPendingSuspendDynamics(ctrl);
+  /* Dynamic children cannot simultaneously be solver-driven and parent-driven.
+   * Kinematic children have no such ownership conflict: their parent-composed
+   * world transform is exactly the target submitted to MoveKinematic. */
+  if (blenderRoot && converter && !isKinematic) {
+    converter->AddPendingJoltTransformParenting(gameobj);
   }
 }
 
@@ -5727,7 +6269,8 @@ int JoltPhysicsEnvironment::CreateRigidBodyConstraint(
     KX_GameObject *gameobj2,
     const MT_Vector3 &pivotLocal,
     const MT_Matrix3x3 &basisLocal,
-    const PHY_RigidBodyConstraintSettings &settings)
+    const PHY_RigidBodyConstraintSettings &settings,
+    const std::string &constraint_name)
 {
   if (!gameobj1 || !gameobj2 || gameobj1 == gameobj2) {
     return -1;
@@ -5847,7 +6390,8 @@ int JoltPhysicsEnvironment::CreateRigidBodyConstraint(
     return -1;
   }
 
-  static_cast<JoltConstraint *>(constraint)->SetRigidBodyConstraintOwner(gameobj1);
+  static_cast<JoltConstraint *>(constraint)->SetRigidBodyConstraintMetadata(
+      gameobj1, gameobj2, constraint_name);
 
   if (settings.flags & PHY_RB_CONSTRAINT_USE_BREAKING) {
     constraint->SetBreakingThreshold(settings.breaking_threshold);
@@ -6114,6 +6658,9 @@ bool JoltPhysicsEnvironment::RestorePhysicsState(const std::vector<uint8_t> &inB
     }
   }
 
+  /* Bodies move without their controllers (a failed restore may have moved some): no static
+   * body is known in sync any more. */
+  m_bodyPoseEpoch = NextBodyPoseEpoch();
   if (!m_physicsSystem->RestoreState(recorder)) {
     return false;
   }
@@ -6136,6 +6683,7 @@ bool JoltPhysicsEnvironment::RestorePhysicsState(const std::vector<uint8_t> &inB
   m_logicObjectSensorOverlapsByController.clear();
   m_logicCollisionContactsByController.clear();
   m_logicCollisionContactsByObject.clear();
+  m_rigidBodyConstraintBreakEvents.clear();
 
   if (m_collectContactsForLogicNodes.load(std::memory_order_relaxed)) {
     const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
@@ -6768,8 +7316,19 @@ void JoltPhysicsEnvironment::CallbackTriggers()
       return &m_logicCollisionContacts.back();
     };
 
+    m_logicContactOrderScratch.clear();
+    m_logicContactOrderScratch.reserve(m_logicActiveContactPairs.size());
     for (const auto &activePairItem : m_logicActiveContactPairs) {
-      const JoltContactPair &pair = activePairItem.second;
+      m_logicContactOrderScratch.push_back(&activePairItem.second);
+    }
+    std::sort(m_logicContactOrderScratch.begin(),
+              m_logicContactOrderScratch.end(),
+              [](const JoltContactPair *a, const JoltContactPair *b) {
+                return a->subShapePair < b->subShapePair;
+              });
+
+    for (const JoltContactPair *orderedPair : m_logicContactOrderScratch) {
+      const JoltContactPair &pair = *orderedPair;
       const PHY_CachedCollisionContact *rootContact = appendCachedContact(
           pair, pair.object1, pair.object2);
       m_logicCollisionContactsByController[pair.ctrl1].push_back(rootContact);
@@ -7234,13 +7793,33 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
     return bodyIDs;
   };
 
+  auto liveControllerForOperation =
+      [&](const JoltDeferredOp &deferredOp) -> JoltPhysicsController * {
+    JoltPhysicsController *controller = deferredOp.controller;
+    /* Controller destruction can queue a later DestroyBody operation while an
+     * earlier add/restore operation is still pending. Compare pointer identity
+     * in the live set before dereferencing it, then reject allocator address
+     * reuse by also matching the full BodyID generation. */
+    if (!controller || m_controllers.find(controller) == m_controllers.end()) {
+      return nullptr;
+    }
+    return controller->GetBodyID() == deferredOp.bodyID ? controller : nullptr;
+  };
+
   size_t i = 0;
   while (i < ops.size()) {
     const JoltDeferredOp &op = ops[i];
 
     switch (op.type) {
       case JoltDeferredOpType::AddBody: {
+        const size_t runStart = i;
         std::vector<JPH::BodyID> bodyIDs = collectRunUniqueBodyIDs(i, JoltDeferredOpType::AddBody);
+        for (size_t opIndex = runStart; opIndex < i; ++opIndex) {
+          JoltPhysicsController *controller = liveControllerForOperation(ops[opIndex]);
+          if (controller && controller->IsKinematic()) {
+            controller->SynchronizeKinematicPose();
+          }
+        }
         std::vector<JPH::BodyID> addBodyIDs;
         addBodyIDs.reserve(bodyIDs.size());
         for (const JPH::BodyID bodyID : bodyIDs) {
@@ -7290,7 +7869,7 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
           break;
         }
 
-        if (!bi.IsAdded(op.bodyID)) {
+        if (!op.physicsSuspended && !bi.IsAdded(op.bodyID)) {
           std::vector<JPH::BodyID> addBodyIDs = {op.bodyID};
           addBodiesBatch(addBodyIDs, JPH::EActivation::DontActivate);
         }
@@ -7305,7 +7884,12 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
         {
           JPH::BodyLockWrite lock(m_physicsSystem->GetBodyLockInterface(), op.bodyID);
           if (lock.Succeeded()) {
-            lock.GetBody().SetIsSensor(sensor);
+            JPH::Body &body = lock.GetBody();
+            body.SetIsSensor(sensor);
+            JoltPhysicsController *controller = liveControllerForOperation(op);
+            if (controller && controller->IsKinematic()) {
+              body.SetCollideKinematicVsNonDynamic(sensor);
+            }
           }
         }
         bi.SetObjectLayer(op.bodyID,
@@ -7321,8 +7905,16 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
 
         RemoveLogicActiveContactsForBody(op.bodyID);
 
-        /* If body is not in the world (removed on suspend), add it back. */
-        if (!bi.IsAdded(op.bodyID)) {
+        JoltPhysicsController *controller = liveControllerForOperation(op);
+        if (controller && controller->IsKinematic()) {
+          controller->SynchronizeKinematicPose();
+        }
+
+        /* If body is not independently physics-suspended, add it back. Dedicated Sensor physics
+         * objects retain their demand-driven broadphase lifecycle across No Collision restore. */
+        const bool sensorNeedsRegistration =
+            controller && controller->IsSensorPhysicsType() && !controller->Registered();
+        if (!op.physicsSuspended && !sensorNeedsRegistration && !bi.IsAdded(op.bodyID)) {
           std::vector<JPH::BodyID> addBodyIDs = {op.bodyID};
           addBodiesBatch(addBodyIDs, JPH::EActivation::Activate);
         }
@@ -7335,22 +7927,26 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
         {
           JPH::BodyLockWrite lock(m_physicsSystem->GetBodyLockInterface(), op.bodyID);
           if (lock.Succeeded()) {
-            lock.GetBody().SetIsSensor(op.ghost);
+            JPH::Body &body = lock.GetBody();
+            body.SetIsSensor(op.ghost);
+            if (controller && controller->IsKinematic()) {
+              body.SetCollideKinematicVsNonDynamic(op.ghost);
+            }
           }
         }
 
-        /* Restore layer. */
-        if (bi.IsAdded(op.bodyID)) {
-          bi.SetObjectLayer(
-              op.bodyID, JoltMakeObjectLayer(op.collisionGroup, op.collisionMask, op.bpCategory));
-        }
+        /* Restore the layer even while removed so a later RestorePhysics uses the right layer. */
+        bi.SetObjectLayer(
+            op.bodyID, JoltMakeObjectLayer(op.collisionGroup, op.collisionMask, op.bpCategory));
         break;
       }
 
       case JoltDeferredOpType::SetObjectLayer: {
         ++i;
-        if (!op.bodyID.IsInvalid() && bi.IsAdded(op.bodyID)) {
-          RemoveLogicActiveContactsForBody(op.bodyID);
+        if (!op.bodyID.IsInvalid()) {
+          if (bi.IsAdded(op.bodyID)) {
+            RemoveLogicActiveContactsForBody(op.bodyID);
+          }
           bi.SetObjectLayer(op.bodyID, op.objectLayer);
         }
         break;
@@ -7362,6 +7958,14 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
           RemoveLogicActiveContactsForBody(op.bodyID);
           bi.SetMotionType(op.bodyID, op.motionType, JPH::EActivation::Activate);
           NotifyConstraintBodyMotionTypeChanged(op.bodyID);
+        }
+        break;
+      }
+
+      case JoltDeferredOpType::SetRuntimePhysicsType: {
+        ++i;
+        if (JoltPhysicsController *controller = liveControllerForOperation(op)) {
+          controller->ApplyDeferredRuntimePhysicsType(op.restoreOriginalPhysicsType);
         }
         break;
       }
@@ -7379,6 +7983,10 @@ void JoltPhysicsEnvironment::ProcessDeferredOperations()
             JPH::Body &body = lock.GetBody();
             changed = body.IsSensor() != op.ghost;
             body.SetIsSensor(op.ghost);
+            JoltPhysicsController *controller = liveControllerForOperation(op);
+            if (controller && controller->IsKinematic()) {
+              body.SetCollideKinematicVsNonDynamic(op.ghost);
+            }
           }
         }
 

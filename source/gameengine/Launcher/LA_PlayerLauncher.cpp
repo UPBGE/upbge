@@ -150,6 +150,7 @@ void LA_PlayerLauncher::ExitEngine()
 
 bool LA_PlayerLauncher::EngineNextFrame()
 {
+  ProcessEventsBeforeFrame();
   if (m_inputDevice->GetInput(SCA_IInputDevice::WINRESIZE).Find(SCA_InputEvent::ACTIVE)) {
     GHOST_Rect bnds;
     m_mainWindow->getClientBounds(bnds);

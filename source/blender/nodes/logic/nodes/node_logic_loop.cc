@@ -13,11 +13,22 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::Int>("Count"_ustr).default_value(1).min(0);
-  b.add_output<decl::Execution>("Loop"_ustr);
-  b.add_output<decl::Int>("Index"_ustr);
-  b.add_output<decl::Generic>("Value"_ustr);
+  b.add_input<decl::Execution>("Flow"_ustr).description(
+      "Starts the loop; pulses received while a multi-tick loop is active are ignored");
+  b.add_input<decl::Int>("Count"_ustr)
+      .default_value(1)
+      .min(0)
+      .description("Number of iterations, sampled when the loop starts");
+  b.add_input<decl::Int>("Ticks to Complete"_ustr)
+      .default_value(1)
+      .min(1)
+      .description(
+          "Logic ticks over which to distribute the iterations; 1 requests synchronous "
+          "completion, subject to the runtime runaway-loop safety budget");
+  b.add_output<decl::Execution>("Loop"_ustr).description("Pulses once for each iteration");
+  b.add_output<decl::Execution>("Completed"_ustr).description(
+      "Pulses once after all iterations, zero iterations, or Break Loop");
+  b.add_output<decl::Int>("Index"_ustr).description("Zero-based index of the current iteration");
 }
 
 static void node_register()

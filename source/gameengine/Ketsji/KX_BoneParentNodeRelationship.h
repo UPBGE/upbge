@@ -32,8 +32,14 @@
 
 #pragma once
 
+#include <string>
+
 #include "SG_ParentRelation.h"
-namespace blender { struct Bone; }
+
+namespace blender {
+struct Bone;
+}
+class MT_Transform;
 
 /**
  *  blender::Bone parent relationship parents a child SG_Node frame to a
@@ -42,11 +48,17 @@ namespace blender { struct Bone; }
 class KX_BoneParentRelation : public SG_ParentRelation {
 
  private:
-  blender::Bone *m_bone;
+  std::string m_boneName;
 
  public:
   KX_BoneParentRelation(blender::Bone *bone);
+  explicit KX_BoneParentRelation(std::string bone_name);
   virtual ~KX_BoneParentRelation();
+
+  const std::string &GetBoneName() const;
+
+  /** Resolve the current Blender-compatible bone-tail frame in world space. */
+  bool GetParentTransform(const SG_Node *parent, MT_Transform &r_transform) const;
 
   /**
    *  Updates the childs world coordinates relative to the parent's
@@ -54,8 +66,10 @@ class KX_BoneParentRelation : public SG_ParentRelation {
    *
    *  Parent should be a BL_ArmatureObject.
    */
-  bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool &parentUpdated);
+  bool UpdateChildCoordinates(SG_Node *child,
+                              const SG_Node *parent,
+                              bool &parentUpdated) override;
 
   /// Create a copy of this relationship
-  virtual SG_ParentRelation *NewCopy();
+  SG_ParentRelation *NewCopy() override;
 };

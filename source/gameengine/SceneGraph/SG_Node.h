@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -315,10 +316,23 @@ class SG_Node : public SG_QList {
   const MT_Vector3 &GetPrevWorldScaling() const { return m_prevWorldScaling; }
   bool HasPreviousWorldTransform() const { return m_hasPreviousWorldTransform; }
   void StorePreviousWorldTransform();
+  /** No step history: the object is drawn where it is until a step stores one. */
+  void ClearPreviousWorldTransform() { m_hasPreviousWorldTransform = false; }
+  /**
+   * While On Update logic runs between the fixed steps, a world transform change moves the stored
+   * step history along with it (Smooth Motion): the change shows at once and the steps' own motion
+   * stays smooth. KX_Scene turns it on around a scene's frame update.
+   */
+  static void SetHistoryFollowsUpdates(bool follow);
 
   void SetWorldFromLocalTransform();
   MT_Transform GetWorldTransform() const;
   MT_Transform GetLocalTransform() const;
+  /** Counts the writes of the world transform: while it stays, so does the world transform. */
+  uint64_t GetWorldStamp() const
+  {
+    return m_worldStamp;
+  }
 
   bool ComputeWorldTransforms(const SG_Node *parent, bool &parentUpdated);
 
@@ -348,6 +362,11 @@ class SG_Node : public SG_QList {
   bool UpdateSpatialData(const SG_Node *parent, double time, bool &parentUpdated);
 
  private:
+  /** The step history takes the change from the given world transform to the current one. */
+  void MoveHistoryWith(const MT_Vector3 &position_before,
+                       const MT_Matrix3x3 &rotation_before,
+                       const MT_Vector3 &scaling_before);
+
   void UpdateWorldDataThreadSchedule(double time, bool parentUpdated = false);
 
   void ProcessSGReplica(SG_Node **replica);
@@ -374,6 +393,7 @@ class SG_Node : public SG_QList {
   MT_Vector3 m_worldPosition;
   MT_Matrix3x3 m_worldRotation;
   MT_Vector3 m_worldScaling;
+  uint64_t m_worldStamp = 0;
 
   MT_Vector3 m_prevWorldPosition;
   MT_Matrix3x3 m_prevWorldRotation;

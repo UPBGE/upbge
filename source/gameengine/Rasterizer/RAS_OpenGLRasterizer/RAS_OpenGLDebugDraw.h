@@ -27,10 +27,10 @@
 #pragma once
 
 #include "MT_Matrix4x4.h"
+#include "RAS_DebugDraw.h"
 
 class RAS_Rasterizer;
 class RAS_ICanvas;
-class RAS_DebugDraw;
 
 class RAS_OpenGLDebugDraw {
 
@@ -45,5 +45,9 @@ class RAS_OpenGLDebugDraw {
   void UnbindVBO();
   void DrawDebugLinesBatch(const std::vector<RAS_DebugDraw::Line> &lines);
 
-  void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw);
+  void Flush(RAS_Rasterizer *rasty,
+             RAS_ICanvas *canvas,
+             RAS_DebugDraw *debugDraw,
+             RAS_DebugDraw::FixedSnapshotMode fixed_snapshot_mode,
+             const void *fixed_snapshot_context);
 };

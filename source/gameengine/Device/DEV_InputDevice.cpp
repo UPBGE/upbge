@@ -199,11 +199,16 @@ void DEV_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type,
     event.m_queue.push_back((val > 0) ? SCA_InputEvent::JUSTACTIVATED :
                                         SCA_InputEvent::JUSTRELEASED);
     event.m_values.push_back(val);
-    event.m_unicode = unicode;
 
-    // Avoid pushing nullptr string character.
-    if (val > 0 && unicode != 0) {
-      m_text += (wchar_t)unicode;
+    if (val > 0) {
+      NotePressTransition(type);
+      /* GHOST associates text with key-down only. Preserve that character across a key-up in the
+       * same outer frame so edge-based consumers can still identify a quick tap. A later key-down
+       * (including a non-character key with unicode == 0) replaces it normally. */
+      event.m_unicode = unicode;
+      if (unicode != 0) {
+        m_text += (wchar_t)unicode;
+      }
     }
   }
 }

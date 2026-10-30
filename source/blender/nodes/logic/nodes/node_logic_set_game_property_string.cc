@@ -16,7 +16,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Object"_ustr);
   b.add_input<decl::String>("Property"_ustr).default_value("property");
-  b.add_input<decl::String>(""_ustr, "Value"_ustr);
+  b.add_input<decl::String>("Value"_ustr);
   b.add_output<decl::Execution>("Done"_ustr);
 }
 

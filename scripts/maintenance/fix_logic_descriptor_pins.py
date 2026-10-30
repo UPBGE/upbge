@@ -133,7 +133,6 @@ def main() -> None:
     }
     DONE_ONLY_REPLACE = {
         "LogicNativeModifyProperty",
-        "LogicNativeModifyPropertyClamped",
     }
 
     for idname in OUT_AND_DONE:

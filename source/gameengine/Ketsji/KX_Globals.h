@@ -35,6 +35,10 @@ class KX_KetsjiEngine;
 class KX_Scene;
 class PHY_IPhysicsEnvironment;
 
+/** Reset state that lives for one game launch and, like bge.logic.globalDict, survives restarts
+ * and Start Other Game within it. */
+void KX_ResetLaunchState();
+
 void KX_SetActiveEngine(KX_KetsjiEngine *engine);
 void KX_SetActiveScene(KX_Scene *scene);
 void KX_SetMainPath(const std::string &path);

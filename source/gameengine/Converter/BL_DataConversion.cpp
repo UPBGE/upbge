@@ -50,6 +50,7 @@
 #define THREADED_DAG_WORKAROUND
 
 #include "BL_DataConversion.h"
+#include "BL_GameStateReconstructionInternal.h"
 
 #include <algorithm>
 #include <array>
@@ -74,6 +75,7 @@
 
 /* This list includes only data type definitions */
 #include "BKE_armature.hh"
+#include "BKE_collection.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -95,6 +97,7 @@
 #include "DNA_curve_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_node_types.h"
 #ifdef WITH_GAMEENGINE_LOGICNODES
 #  include "DNA_node_types.h"
 #endif
@@ -130,6 +133,7 @@
 #include "PHY_IVehicle.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Vertex.h"
+#include "SCA_TimeEventManager.h"
 #ifdef WITH_BULLET
 #  include "CcdPhysicsEnvironment.h"
 #endif
@@ -787,12 +791,32 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject *gameobj,
                         isCompoundChild,
                         hasCompoundChildren);
 
-  bool isActor = (blenderobject->gameflag & OB_ACTOR) != 0;
+  /* Kinematic bodies participate in Actor-targeted collision sensors even if
+   * a file was authored by an earlier implementation that did not yet persist
+   * OB_ACTOR alongside OB_KINEMATIC. Keep this runtime normalization on the
+   * game-engine side rather than rewriting Blender data during load. */
+  bool isActor = (blenderobject->gameflag & (OB_ACTOR | OB_KINEMATIC)) != 0;
   bool isSensor = (blenderobject->gameflag & OB_SENSOR) != 0;
   gameobj->getClientInfo()->m_type = (isSensor) ? ((isActor) ? KX_ClientObjectInfo::OBACTORSENSOR :
                                                                KX_ClientObjectInfo::OBSENSOR) :
                                      (isActor)  ? KX_ClientObjectInfo::ACTOR :
                                                   KX_ClientObjectInfo::STATIC;
+}
+
+void BL_CreateGameStatePhysicsObject(KX_GameObject *game_object,
+                                     blender::Object *render_object,
+                                     RAS_MeshObject *mesh_object,
+                                     KX_Scene *scene,
+                                     const int active_layer_bits,
+                                     BL_SceneConverter *converter)
+{
+  BL_CreatePhysicsObjectNew(game_object,
+                            render_object,
+                            mesh_object,
+                            scene,
+                            active_layer_bits,
+                            converter,
+                            false);
 }
 
 static int BL_vehicle_axis_to_index(short axis)
@@ -1537,6 +1561,7 @@ static KX_GameObject *BL_gameobject_from_blenderobject(blender::Object *ob,
     }
 
     gameobj->SetObjectColor(MT_Vector4(ob->color));
+    gameobj->SetConvertedColor(MT_Vector4(ob->color));
     /* set the visibility state based on the objects render option in the outliner */
     /* I think this flag was used as visibility option for physics shape in 2.7,
      * and it seems it can still be used for this purpose in checking it in outliner
@@ -1742,6 +1767,8 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter *converter,
   BL_ConvertProperties(blenderobject, gameobj, timemgr, kxscene, isInActiveLayer);
 
   gameobj->SetName(blenderobject->id.name + 2);
+  /* How it is drawn between fixed steps (the scene notes an object that chose it). */
+  gameobj->SetSmoothMotion(blenderobject->smooth_motion);
 
   // Update children/parent hierarchy
   if (blenderobject->parent != 0) {
@@ -1810,6 +1837,8 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter *converter,
 
   if (isInActiveLayer) {
     objectlist->Add(CM_AddRef(gameobj));
+    /* Runtime conversion (a full-copy Add Object) also joins the object list. */
+    kxscene->NoteObjectListChanged();
     // tf.Add(gameobj->GetSGNode());
 
     gameobj->NodeUpdateGS(0);
@@ -1915,7 +1944,7 @@ static int bl_find_logic_node_scene_object_index(EXP_ListValue<KX_GameObject> *o
 
 struct BL_PreparedLogicNodeBindings {
   std::vector<LN_AppliedTreeDesc> applied_trees;
-  std::map<std::string, std::shared_ptr<LN_Program>> compiled_trees;
+  std::map<const bNodeTree *, std::shared_ptr<LN_Program>> compiled_trees;
   unsigned char ray_query_detail_requirements = 0;
 };
 
@@ -1965,10 +1994,12 @@ static std::unique_ptr<BL_PreparedLogicNodeBindings> bl_prepare_logic_node_bindi
 
   LN_TreeCompiler compiler;
   std::set<std::string> reported_missing_trees;
-  std::set<std::string> reported_compile_reports;
+  std::set<const bNodeTree *> reported_compile_reports;
 
-  for (const LN_AppliedTreeDesc &applied_tree : prepared->applied_trees) {
-    bNodeTree *tree = bl_find_logic_node_tree(bmain, applied_tree.tree_name);
+  for (LN_AppliedTreeDesc &applied_tree : prepared->applied_trees) {
+    bNodeTree *tree = applied_tree.tree != nullptr ?
+                          applied_tree.tree :
+                          bl_find_logic_node_tree(bmain, applied_tree.tree_name);
     if (tree == nullptr) {
       if (reported_missing_trees.insert(applied_tree.tree_name).second) {
         CM_Warning("Logic Nodes binding skipped: missing LogicNodeTree '"
@@ -1976,12 +2007,18 @@ static std::unique_ptr<BL_PreparedLogicNodeBindings> bl_prepare_logic_node_bindi
       }
       continue;
     }
+    if (tree->type != NTREE_LOGIC) {
+      continue;
+    }
+
+    applied_tree.tree = tree;
+    applied_tree.tree_name = tree->id.name + 2;
 
     std::shared_ptr<LN_Program> program;
-    auto program_iter = prepared->compiled_trees.find(applied_tree.tree_name);
+    auto program_iter = prepared->compiled_trees.find(tree);
     if (program_iter == prepared->compiled_trees.end()) {
       program = compiler.Compile(*tree);
-      prepared->compiled_trees.emplace(applied_tree.tree_name, program);
+      prepared->compiled_trees.emplace(tree, program);
     }
     else {
       program = program_iter->second;
@@ -1992,7 +2029,7 @@ static std::unique_ptr<BL_PreparedLogicNodeBindings> bl_prepare_logic_node_bindi
     }
 
     const LN_CompileReport &report = program->GetCompileReport();
-    if (!report.IsEmpty() && reported_compile_reports.insert(applied_tree.tree_name).second) {
+    if (!report.IsEmpty() && reported_compile_reports.insert(tree).second) {
       bl_log_logic_node_compile_report(*program);
     }
 
@@ -2019,7 +2056,7 @@ static void bl_register_logic_node_bindings(
   }
 
   for (const LN_AppliedTreeDesc &applied_tree : prepared->applied_trees) {
-    const auto program_iter = prepared->compiled_trees.find(applied_tree.tree_name);
+    const auto program_iter = prepared->compiled_trees.find(applied_tree.tree);
     if (program_iter == prepared->compiled_trees.end() || program_iter->second == nullptr ||
         program_iter->second->GetCompileReport().HasErrors())
     {
@@ -2143,6 +2180,147 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     }
   }
 
+  /* Collections that Logic Nodes open as menus (Open Object Menu, with the collection set on the
+   * node, in a tree in use): at the start of the game their objects are inactive, as the
+   * templates the menu's copies are made from, even while the collection is shown in the viewport
+   * to edit it. Shown, they would also be live objects of the world, with their trees running
+   * before the menu opens. Objects also in another collection of the scene, the cameras menus are
+   * shown with, and objects whose own trees open the menu they are in stay in the world. (Set
+   * Overlay Collection also takes a HUD whose objects live from the start, so its collections
+   * stay as they are.) Objects converted later (a library load, a full copy) are added live.
+   * The cameras menus and HUDs are shown with (the Camera of Open Object Menu and Set Overlay
+   * Collection) start live even in a collection disabled or hidden in the viewport, where a
+   * creator keeps them with the rest of the UI: their own trees show the HUD and open the menus.
+   * Not a camera inside the collection its node shows: that overlay copies it with the rest. */
+  std::unordered_set<const blender::Object *> menu_objects;
+  std::unordered_set<const blender::Object *> menu_cameras;
+  if (!single_object) {
+    std::unordered_set<const blender::Collection *> menu_collections;
+    std::unordered_map<const blender::bNodeTree *, std::vector<const blender::Collection *>>
+        tree_menus;
+    std::unordered_set<const blender::Object *> keep;
+    for (blender::bNodeTree *ntree = static_cast<blender::bNodeTree *>(maggie->nodetrees.first);
+         ntree != nullptr;
+         ntree = static_cast<blender::bNodeTree *>(ntree->id.next))
+    {
+      if (ntree->type != blender::NTREE_LOGIC || ID_REAL_USERS(&ntree->id) <= 0) {
+        continue;
+      }
+      /* As the Logic Nodes compiler: muted links are not there, muted nodes still run. */
+      std::unordered_set<const blender::bNodeSocket *> linked;
+      for (const blender::bNodeLink *link = static_cast<const blender::bNodeLink *>(
+               ntree->links.first);
+           link != nullptr;
+           link = link->next)
+      {
+        if ((link->flag & blender::NODE_LINK_MUTED) == 0) {
+          linked.insert(link->tosock);
+        }
+      }
+      for (blender::bNode *node = static_cast<blender::bNode *>(ntree->nodes.first);
+           node != nullptr;
+           node = node->next)
+      {
+        const bool opens_menu = STREQ(node->idname, "LogicNativeOpenObjectMenu");
+        if (!opens_menu && !STREQ(node->idname, "LogicNativeSetOverlayCollection")) {
+          continue;
+        }
+        const blender::Object *camera = nullptr;
+        blender::Collection *collection = nullptr;
+        for (blender::bNodeSocket *socket = static_cast<blender::bNodeSocket *>(
+                 node->inputs.first);
+             socket != nullptr;
+             socket = socket->next)
+        {
+          if (socket->default_value == nullptr || linked.count(socket) != 0) {
+            continue;
+          }
+          if (socket->type == blender::SOCK_OBJECT && STREQ(socket->identifier, "Camera")) {
+            camera = static_cast<blender::bNodeSocketValueObject *>(socket->default_value)->value;
+          }
+          else if (socket->type == blender::SOCK_COLLECTION &&
+                   STREQ(socket->identifier, "Collection"))
+          {
+            collection =
+                static_cast<blender::bNodeSocketValueCollection *>(socket->default_value)->value;
+          }
+        }
+        if (camera != nullptr && camera->type == blender::OB_CAMERA) {
+          keep.insert(camera);
+          /* A camera inside the collection it shows is part of that overlay: copied with it from
+           * its template, which stays asleep. */
+          if (collection == nullptr ||
+              !blender::BKE_collection_has_object_recursive(
+                  collection, const_cast<blender::Object *>(camera)))
+          {
+            menu_cameras.insert(camera);
+          }
+        }
+        if (opens_menu && collection != nullptr) {
+          menu_collections.insert(collection);
+          tree_menus[ntree].push_back(collection);
+        }
+      }
+    }
+    for (const blender::Collection *collection : menu_collections) {
+      FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (const_cast<blender::Collection *>(collection),
+                                                 object)
+      {
+        menu_objects.insert(object);
+      }
+      FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+    }
+    if (!menu_objects.empty()) {
+      /* The scene's collections and those of its set scenes, without the menus. */
+      std::vector<const blender::Collection *> world;
+      for (const blender::Scene *scene = blenderscene; scene != nullptr; scene = scene->set) {
+        world.push_back(scene->master_collection);
+        if (scene->set == blenderscene) {
+          break;
+        }
+      }
+      while (!world.empty()) {
+        const blender::Collection *collection = world.back();
+        world.pop_back();
+        if (collection == nullptr || menu_collections.count(collection) != 0) {
+          continue;
+        }
+        for (const blender::CollectionObject *item =
+                 static_cast<const blender::CollectionObject *>(collection->gobject.first);
+             item != nullptr;
+             item = item->next)
+        {
+          menu_objects.erase(item->ob);
+        }
+        for (const blender::CollectionChild *child =
+                 static_cast<const blender::CollectionChild *>(collection->children.first);
+             child != nullptr;
+             child = child->next)
+        {
+          world.push_back(child->collection);
+        }
+      }
+      keep.insert(blenderscene->camera);
+      for (auto object = menu_objects.begin(); object != menu_objects.end();) {
+        bool opens_own_menu = false;
+        for (const blender::LogicNodeBinding &binding : (*object)->logic_node_bindings) {
+          const auto menus = binding.tree != nullptr ? tree_menus.find(binding.tree) :
+                                                       tree_menus.end();
+          if (binding.enabled && menus != tree_menus.end()) {
+            for (const blender::Collection *collection : menus->second) {
+              opens_own_menu = opens_own_menu ||
+                               blender::BKE_collection_has_object_recursive(
+                                   const_cast<blender::Collection *>(collection),
+                                   const_cast<blender::Object *>(*object));
+            }
+          }
+        }
+        object = keep.count(*object) != 0 || opens_own_menu ? menu_objects.erase(object) :
+                                                              std::next(object);
+      }
+    }
+  }
+
   int activeLayerBitInfo = blenderscene->lay;
 
   // list of all object converted, active and inactive
@@ -2187,6 +2365,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
 
   bool converting_during_runtime = single_object != nullptr;
   bool converting_instance_col_at_runtime = single_object && single_object->instance_collection && converter->FindGameObject(single_object) == nullptr;
+  std::vector<blender::Object *> disabled_dupli_bases;
 
   // Let's support scene set.
   // Beware of name conflict in linked data, it will not crash but will create confusion
@@ -2205,6 +2384,10 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     if (blenderobject == kxscene->GetGameDefaultCamera()) {
       continue;
     }
+    /* An Auto group's Blender object only draws its members. */
+    if (kxscene->IsSharedDrawBase(blenderobject)) {
+      continue;
+    }
 
     if (single_object) {
       if (blenderobject != single_object) {
@@ -2212,14 +2395,25 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
       }
     }
 
-    bool isInActiveLayer = (blenderobject->base_flag &
-                            (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
-                             BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0;
+    bool isInActiveLayer = ((blenderobject->base_flag &
+                             (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
+                              BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT)) != 0 ||
+                            menu_cameras.count(blenderobject) != 0) &&
+                           menu_objects.count(blenderobject) == 0;
     blenderobject->lay = isInActiveLayer ? blenderscene->lay : 0;
 
     register_rigidbody_constraint_object(blenderobject);
     if (is_rigidbody_constraint_helper(blenderobject)) {
       continue;
+    }
+
+    /* Disabled in viewports (its own setting or its collections'), a Dupli Base is outside
+     * Blender's graph, which its copies are drawn from: brought in after this loop (the loop walks
+     * the view layer's bases, which linking it to a collection reorders). */
+    if (!converting_during_runtime && (blenderobject->gameflag & OB_DUPLI_UPBGE) &&
+        (base->flag & BASE_ENABLED_VIEWPORT) == 0)
+    {
+      disabled_dupli_bases.push_back(blenderobject);
     }
 
     kxscene->BackupVisibilityFlag(blenderobject, blenderobject->visibility_flag);
@@ -2254,6 +2448,17 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
         grouplist.insert(blenderobject->instance_collection);
       }
 
+      if (blenderobject->gameflag & OB_DUPLI_UPBGE && isInActiveLayer) {
+        /* When the object is an upbge dupli base (not not an upbge dupli instance),
+         * as there is not behaviour defined when this base in an active layer (visibled
+         * at conversion time), we choose, for convenience, to make this kind of blenderobject
+         * unsynced with depsgraph (for transform updates - As bge SceneGraph is already abled
+         * to handle most transforms as well as Depsgraph).
+         * Here we just mark it as an upbge dupli base.
+         */
+        gameobj->SetIsUpbgeDupliBase();
+      }
+
       /* Note about memory leak issues:
        * When a EXP_Value derived class is created, m_refcount is initialized to 1
        * so the class must be released after being used to make sure that it won't
@@ -2263,6 +2468,21 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
        * Do the same for any object derived from EXP_Value, EXP_Expression and NG_NetworkMessage
        */
       gameobj->Release();
+    }
+  }
+
+  /* A scene converted to be merged (Load Scene) is deleted after the merge, which brings its Dupli
+   * Bases into the other scene's graph (KX_Scene::AdoptMergedScene); LibLoad's data lives in a
+   * Main of its own, which that graph cannot hold. */
+  for (blender::Object *dupli_base : disabled_dupli_bases) {
+    if (kxscene->IsMergeSource() && !libloading) {
+      continue;
+    }
+    if (libloading || !kxscene->KeepDupliBaseInGraph(dupli_base)) {
+      CM_Warning("Dupli Base \"" << dupli_base->id.name + 2
+                                 << "\" is disabled in viewports and could not be kept in "
+                                    "Blender's graph, so its copies will not move on screen: "
+                                    "hide it with its own eye icon instead");
     }
   }
 
@@ -2589,7 +2809,8 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
                                                                                gameobj2,
                                                                                pivotLocal,
                                                                                basisLocal,
-                                                                               constraintData->m_settings) :
+                                                                               constraintData->m_settings,
+                                                                               constraintData->m_name) :
                                             -1;
         /* Store any valid ID (only -1 means failure, other negative values are valid due to int overflow). */
         if (constraintId != -1) {
@@ -2650,6 +2871,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   }
 
   converter->FlushPendingSuspendDynamics();
+  converter->FlushPendingJoltTransformParenting();
 
   /* Link pin-object controllers to any soft bodies that have a pin_object set.
    * Must happen after all objects are converted so the target controller exists. */
@@ -2759,6 +2981,14 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     // set the init state to all objects
     gameobj->SetInitState((blenderobj->init_state) ? blenderobj->init_state : blenderobj->state);
   }
+  /* Object properties refer to game objects, which all exist now. */
+  for (KX_GameObject *gameobj : logicbrick_conversionlist) {
+    blender::Object *blenderobj = gameobj->GetBlenderObject();
+    if (single_object && !converting_instance_col_at_runtime && blenderobj != single_object) {
+      continue;
+    }
+    BL_ResolvePropertyObjects(blenderobj, gameobj, *converter);
+  }
   // apply the initial state to controllers, only on the active objects as this registers the
   // sensors
   for (KX_GameObject *gameobj : objectlist) {
@@ -2844,4 +3074,29 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
       }
     }
   }
+
+  /* Placed objects drawn as Auto groups or Merged batches (Game Drawing), now that all exist. A
+   * scene converted to be merged is set up by the merge, in the scene that keeps its objects: its
+   * groups' Blender objects would go with it. */
+  if (single_object == nullptr && !converting_instance_col_at_runtime && !libloading &&
+      !kxscene->IsMergeSource())
+  {
+    std::vector<KX_GameObject *> placed;
+    for (KX_GameObject *gameobj : *kxscene->GetObjectList()) {
+      placed.push_back(gameobj);
+    }
+    kxscene->SetupGameDrawing(depsgraph, placed);
+  }
+
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  if (single_object == nullptr && !converting_instance_col_at_runtime) {
+    if (LN_Manager *logic_node_manager = kxscene->GetLogicNodeManager()) {
+      std::string persistence_error;
+      if (!logic_node_manager->InitializeGameStateRegistry(persistence_error)) {
+        CM_Warning("C++ Logic Nodes checkpoint registry is unavailable for scene '"
+                   << kxscene->GetName() << "': " << persistence_error);
+      }
+    }
+  }
+#endif
 }

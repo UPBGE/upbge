@@ -16,8 +16,8 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Object>(""_ustr, "Object"_ustr);
-  b.add_input<decl::String>(""_ustr, "Bone Name"_ustr).default_value("Bone");
+  b.add_input<decl::Object>("Object"_ustr);
+  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
   b.add_output<decl::Vector>("Position"_ustr)
       .description("Bone pose tail vector in the selected space after pose evaluation");
 }
@@ -38,6 +38,8 @@ static void node_register()
 
   logic_node_type_base(
       &ntype, "LogicNativeGetBoneTailPoseWorld"_ustr);
+  /* Wide enough for its socket names. */
+  bke::node_type_size(ntype, 190, 140, NODE_DEFAULT_MAX_WIDTH);
   ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;

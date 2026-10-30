@@ -1226,23 +1226,76 @@ class OBJECT_OT_logic_nodes_binding_remove(Operator):
 
 
 class OBJECT_OT_logic_nodes_binding_clear(Operator):
-    """Remove all native Logic Nodes bindings from the active object"""
+    """Take every logic tree off the selected objects. The trees stay in the file and can be """ \
+        """applied again: one that no object uses any more gets a fake user, so saving keeps it"""
     bl_idname = "object.logic_nodes_binding_clear"
-    bl_label = "Clear Logic Nodes Bindings"
+    bl_label = "Remove Logic Trees From Selected"
     bl_options = {'REGISTER', 'UNDO'}
+
+    @staticmethod
+    def _targets(context):
+        """The selected objects that have logic trees (and can be edited), and their trees' names."""
+        objects = [
+            ob for ob in logic_nodes_selected_objects(context)
+            if ob.game and len(ob.game.logic_node_bindings) > 0 and ob.is_editable
+        ]
+        tree_names = {
+            (binding.tree_name or "").strip()
+            for ob in objects
+            for binding in ob.game.logic_node_bindings
+        }
+        tree_names.discard("")
+        return objects, tree_names
 
     @classmethod
     def poll(cls, context):
-        ob = context.active_object
-        return ob and ob.game and len(ob.game.logic_node_bindings) > 0
+        objects, _tree_names = cls._targets(context)
+        if not objects:
+            cls.poll_message_set("No selected object has a logic tree")
+            return False
+        return True
+
+    def invoke(self, context, event):
+        objects, tree_names = self._targets(context)
+        trees = len(tree_names) or len(objects)
+        return context.window_manager.invoke_confirm(
+            self,
+            event,
+            title="Remove Logic Trees",
+            message="Remove {:d} logic tree{:s} from {:d} selected object{:s}? The trees stay in "
+                    "the file and can be applied again.".format(
+                        trees, "" if trees == 1 else "s",
+                        len(objects), "" if len(objects) == 1 else "s"),
+            confirm_text="Remove",
+            icon='WARNING',
+        )
 
     def execute(self, context):
-        logic_nodes_clear_bindings(context.active_object)
+        objects, tree_names = self._targets(context)
+        if not objects:
+            return {'CANCELLED'}
+        for ob in objects:
+            logic_nodes_clear_bindings(ob)
+        # Taking a tree off its last object must not delete it: Blender does not save data that
+        # nothing uses.
+        kept = 0
+        for name in tree_names:
+            tree = bpy.data.node_groups.get(name)
+            if (tree is not None and tree.users == 0 and not tree.use_fake_user and
+                    tree.is_editable):
+                tree.use_fake_user = True
+                kept += 1
+        message = "Removed the logic trees of {:d} object{:s}".format(
+            len(objects), "" if len(objects) == 1 else "s")
+        if kept:
+            message += " ({:d} kept with a fake user)".format(kept)
+        self.report({'INFO'}, message)
         return {'FINISHED'}
 
 
 class OBJECT_OT_logic_nodes_apply_tree(Operator):
-    """Apply the active LogicNodeTree to selected objects"""
+    """Apply the active LogicNodeTree to selected objects. The tree gets a fake user, so saving """ \
+        """keeps it even when it is later removed from every object"""
     bl_idname = "object.logic_nodes_apply_tree"
     bl_label = "Apply Logic Tree To Selected"
     bl_options = {'REGISTER', 'UNDO'}
@@ -1268,6 +1321,9 @@ class OBJECT_OT_logic_nodes_apply_tree(Operator):
             return {'CANCELLED'}
 
         logic_nodes_apply_tree_to_objects(tree, selected, initial_enabled=True)
+        # A tree in use is work worth keeping: Blender does not save data that nothing uses.
+        if not tree.use_fake_user and tree.is_editable:
+            tree.use_fake_user = True
         return {'FINISHED'}
 
 

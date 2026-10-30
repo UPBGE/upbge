@@ -90,6 +90,14 @@ inline bool IsNearlyIdentityRotation(const MT_Matrix3x3 &m, float eps = 1.0e-6f)
           std::abs((float)m[2][2] - 1.0f) <= eps);
 }
 
+inline bool IsNearlySamePosition(const JPH::RVec3 &a, const JPH::RVec3 &b)
+{
+  const double dx = double(a.GetX()) - double(b.GetX());
+  const double dy = double(a.GetY()) - double(b.GetY());
+  const double dz = double(a.GetZ()) - double(b.GetZ());
+  return dx * dx + dy * dy + dz * dz <= 1.0e-18;
+}
+
 inline uint64_t MakeRotationCacheKey(const MT_Matrix3x3 &rotationDelta)
 {
   MT_Quaternion q = rotationDelta.getRotation();
@@ -199,8 +207,21 @@ static void JoltRestoreSoftBodyRenderSubsurfLevels(
     return;
   }
 
+  /* Modifier nodes can be removed through game-side Python while the game is
+   * running. Compare stored addresses against the live list before dereferencing
+   * them so shutdown does not turn an external modifier edit into a use-after-free. */
   for (const std::pair<SubsurfModifierData *, short> &item : overrides) {
-    item.first->levels = item.second;
+    if (!ob) {
+      break;
+    }
+    for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+      if (md == (ModifierData *)item.first) {
+        if (md->type == eModifierType_Subsurf) {
+          ((SubsurfModifierData *)md)->levels = item.second;
+        }
+        break;
+      }
+    }
   }
   overrides.clear();
 
@@ -684,19 +705,21 @@ void JoltSoftBody::ApplySpawnTransform(const MT_Vector3 &posDelta, const MT_Matr
   const MT_Vector3 newOrigin = oldOrigin + posDelta;
 
   /* Rotate runtime particle data (position + velocity) in local space. */
-  const JPH::BodyLockInterface &lockIf =
-      m_env->GetPhysicsSystem()->GetBodyLockInterfaceNoLock();
-  JPH::BodyLockWrite lock(lockIf, m_bodyID);
-  if (lock.Succeeded() && lock.GetBody().IsSoftBody()) {
+  if (!IsNearlyIdentityRotation(rotationDelta)) {
+    const JPH::BodyLockInterface &lockIf =
+        m_env->GetPhysicsSystem()->GetBodyLockInterfaceNoLock();
+    JPH::BodyLockWrite lock(lockIf, m_bodyID);
+    if (!lock.Succeeded() || !lock.GetBody().IsSoftBody()) {
+      return;
+    }
     JPH::SoftBodyMotionProperties *mp =
         static_cast<JPH::SoftBodyMotionProperties *>(lock.GetBody().GetMotionProperties());
+    if (mp == nullptr) {
+      return;
+    }
     for (JPH::SoftBodyVertex &v : mp->GetVertices()) {
-      MT_Vector3 localPos = JoltMath::ToMT(v.mPosition);
-      MT_Vector3 localVel = JoltMath::ToMT(v.mVelocity);
-
-      localPos = rotationDelta * localPos;
-      localVel = rotationDelta * localVel;
-
+      const MT_Vector3 localPos = rotationDelta * JoltMath::ToMT(v.mPosition);
+      const MT_Vector3 localVel = rotationDelta * JoltMath::ToMT(v.mVelocity);
       v.mPosition = JoltMath::ToJolt(localPos);
       v.mVelocity = JoltMath::ToJolt(localVel);
     }
@@ -709,8 +732,19 @@ void JoltSoftBody::ApplySpawnTransform(const MT_Vector3 &posDelta, const MT_Matr
    * during simulation.  Only the runtime particle data (SoftBodyVertex in
    * SoftBodyMotionProperties) needs to be rotated — which was done above. */
 
-  /* Rotate cached COM->origin offset so motion-state sync stays coherent. */
+  /* Rotate cached COM->origin offset so motion-state sync stays coherent, then immediately move
+   * the Jolt body to the transformed origin. Callers also synchronize the general motion state,
+   * but keeping this soft-body operation complete avoids a transient scene/physics mismatch. */
   m_bodyOriginOffset = rotationDelta * m_bodyOriginOffset;
+  const MT_Vector3 newBodyPosition = newOrigin + m_bodyOriginOffset;
+  const JPH::RVec3 targetBodyPosition = JoltMath::ToJolt(newBodyPosition);
+  if (!IsNearlySamePosition(oldBodyPos, targetBodyPosition)) {
+    m_env->RemoveLogicActiveContactsForBody(m_bodyID);
+    bi.SetPosition(m_bodyID,
+                   targetBodyPosition,
+                   bi.IsAdded(m_bodyID) ? JPH::EActivation::Activate :
+                                          JPH::EActivation::DontActivate);
+  }
 
   /* Re-express the pin frame in the new spawned frame.
    * Pinned local offsets remain valid in that frame and do not need per-vertex updates. */
@@ -1001,8 +1035,29 @@ void JoltSoftBody::UpdatePinnedVertices(const MT_Vector3 &pinPos, const MT_Matri
 
 void JoltSoftBody::UpdateMesh(blender::Depsgraph *depsgraph)
 {
-  if (m_bodyID.IsInvalid() || !m_env) {
+  if (m_bodyID.IsInvalid() || !m_env || !depsgraph) {
     return;
+  }
+
+  /* Keep the single-body entry point safe even though the environment normally
+   * uses the batched path below. Never evaluate a graph after changing an
+   * original modifier stack without rebuilding its operation relations first. */
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  blender::bContext *C = engine ? engine->GetContext() : nullptr;
+  if (!C) {
+    return;
+  }
+  blender::Main *bmain = CTX_data_main(C);
+  if (!bmain) {
+    return;
+  }
+
+  const MeshUpdatePreparation preparation = PrepareMeshUpdate();
+  if (preparation.relationsChanged) {
+    DEG_relations_tag_update(bmain);
+  }
+  if (preparation.geometryChanged || preparation.relationsChanged) {
+    BKE_scene_graph_update_tagged(depsgraph, bmain);
   }
 
   const JPH::BodyLockInterface &lockInterface =
@@ -1013,6 +1068,78 @@ void JoltSoftBody::UpdateMesh(blender::Depsgraph *depsgraph)
   }
 
   UpdateMeshLocked(depsgraph, lock.GetBody());
+}
+
+JoltSoftBody::MeshUpdatePreparation JoltSoftBody::PrepareMeshUpdate()
+{
+  MeshUpdatePreparation result;
+
+  /* Hidden-layer templates share authored data with their live replicas and must
+   * never install or drive a runtime deformation modifier themselves. */
+  if (!m_isActive || !m_gameobj || !m_meshObject || !m_env) {
+    return result;
+  }
+
+  Object *ob = m_gameobj->GetBlenderObject();
+  if (!ob || ob->type != OB_MESH) {
+    return result;
+  }
+
+  /* The modifier is the preparation-complete marker. This makes the per-frame
+   * fast path O(1): modifier-stack scanning only happens once per soft body. */
+  if (m_sbModifier) {
+    return result;
+  }
+
+  bool subsurf_changed = false;
+  if (JoltEnsureSoftBodyRenderSubsurfLevels(
+          ob, m_subsurfLevelOverrides, subsurf_changed))
+  {
+    m_useRenderSubsurfControl = true;
+  }
+  if (subsurf_changed) {
+    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    result.geometryChanged = true;
+  }
+
+  m_sbModifier = (SimpleDeformModifierDataBGE *)BKE_modifier_new(
+      eModifierType_SimpleDeformBGE);
+  if (!m_sbModifier) {
+    return result;
+  }
+
+  STRNCPY(m_sbModifier->modifier.name, "joltSbModifier");
+  JoltInsertSoftBodyModifier(ob, m_sbModifier, m_useRenderSubsurfControl);
+  BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)m_sbModifier);
+  BKE_modifiers_persistent_uid_init(*ob, m_sbModifier->modifier);
+
+  /* In render-subdivision mode the runtime modifier deforms the original
+   * control mesh, whose topology is available without evaluating the graph.
+   * Allocate and attach a rest-pose buffer now so the batched graph rebuild
+   * never evaluates a modifier with a null coordinate pointer. The Jolt-locked
+   * phase updates this same shared buffer after evaluation. */
+  if (m_useRenderSubsurfControl) {
+    Mesh *deform_me = (Mesh *)ob->data;
+    m_numBlenderVerts = deform_me ? deform_me->verts_num : 0;
+    if (m_numBlenderVerts > 0) {
+      m_sbCoords = (float(*)[3])MEM_new_zeroed(
+          sizeof(float[3]) * (size_t)m_numBlenderVerts, "JoltSoftBody.sbCoords");
+      const Span<float3> restPos = deform_me->vert_positions();
+      for (int v = 0; v < m_numBlenderVerts && v < (int)restPos.size(); ++v) {
+        m_sbCoords[v][0] = restPos[v][0];
+        m_sbCoords[v][1] = restPos[v][1];
+        m_sbCoords[v][2] = restPos[v][2];
+      }
+      m_sbModifier->vertcoos = m_sbCoords;
+    }
+  }
+
+  /* A new modifier changes both operation topology and evaluated geometry.
+   * The environment consumes these flags after all candidates are prepared. */
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  result.geometryChanged = true;
+  result.relationsChanged = true;
+  return result;
 }
 
 void JoltSoftBody::UpdateMeshLocked(blender::Depsgraph *depsgraph, const JPH::Body &body)
@@ -1036,22 +1163,19 @@ void JoltSoftBody::UpdateMeshLocked(blender::Depsgraph *depsgraph, const JPH::Bo
     return;
   }
 
-  /* 1. Get the evaluated Blender object for modifier and mesh access. */
+  /* Modifier topology must be stable before entering this physics-locked phase.
+   * In particular, no dependency-graph evaluation is allowed between inserting
+   * two different soft-body modifiers. */
+  if (!m_sbModifier) {
+    return;
+  }
+
+  /* 1. Get the evaluated Blender object for mesh access. */
   blender::Object *ob = m_gameobj->GetBlenderObject();
-  bool subsurf_changed = false;
-  const bool ensured_render_subsurf = JoltEnsureSoftBodyRenderSubsurfLevels(
-      ob, m_subsurfLevelOverrides, subsurf_changed);
-  if (ensured_render_subsurf) {
-    m_useRenderSubsurfControl = true;
+  if (!ob || ob->type != OB_MESH) {
+    return;
   }
   const bool use_render_subsurf = m_useRenderSubsurfControl;
-  if (subsurf_changed) {
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    KX_KetsjiEngine *engine = KX_GetActiveEngine();
-    if (engine && engine->GetContext()) {
-      BKE_scene_graph_update_tagged(depsgraph, CTX_data_main(engine->GetContext()));
-    }
-  }
 
   blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   if (!ob_eval) {
@@ -1068,23 +1192,19 @@ void JoltSoftBody::UpdateMeshLocked(blender::Depsgraph *depsgraph, const JPH::Bo
   if (m_numVisualVerts > 0 && visual_verts != m_numVisualVerts) {
     return;
   }
-
-  /* 2. First time: create the deform modifier and allocate the coord buffer. */
-  if (!m_sbModifier) {
-    blender::Mesh *deform_me = use_render_subsurf ? (blender::Mesh *)ob->data : me;
+  if (m_numVisualVerts == 0) {
     m_numVisualVerts = visual_verts;
+  }
+
+  /* 2. First upload: allocate the coord buffer when it could not be prepared
+   * from the original control mesh. The modifier itself was inserted before the
+   * batched dependency-graph synchronization. */
+  if (!m_sbCoords) {
+    blender::Mesh *deform_me = use_render_subsurf ? (blender::Mesh *)ob->data : me;
     m_numBlenderVerts = deform_me ? deform_me->verts_num : 0;
     if (m_numBlenderVerts <= 0) {
       return;
     }
-
-    m_sbModifier = (blender::SimpleDeformModifierDataBGE *)BKE_modifier_new(
-        eModifierType_SimpleDeformBGE);
-    STRNCPY(m_sbModifier->modifier.name, "joltSbModifier");
-    JoltInsertSoftBodyModifier(ob, m_sbModifier, use_render_subsurf);
-    BKE_modifier_unique_name(&ob->modifiers, (ModifierData *)m_sbModifier);
-    BKE_modifiers_persistent_uid_init(*ob, m_sbModifier->modifier);
-    m_env->RequestSoftBodyRelationsTagUpdate();
 
     m_sbCoords = (float(*)[3])MEM_new_zeroed(
         sizeof(float[3]) * (size_t)m_numBlenderVerts, "JoltSoftBody.sbCoords");
@@ -1236,26 +1356,45 @@ void JoltSoftBody::UpdateMeshLocked(blender::Depsgraph *depsgraph, const JPH::Bo
 
 void JoltSoftBody::CleanupModifier(blender::Object *ob)
 {
+  bool removed_modifier = false;
   if (m_sbModifier && ob) {
-    /* Null the coord pointer first so any concurrent deform_verts evaluation
-     * sees nullptr and returns early instead of reading freed memory. */
-    m_sbModifier->vertcoos = nullptr;
-    BLI_remlink(&ob->modifiers, m_sbModifier);
-    BKE_modifier_free((ModifierData *)m_sbModifier);
+    /* The modifier can be removed by game-side Python. Verify that our stored
+     * address is still in this object's live list before dereferencing it. */
+    ModifierData *live_modifier = nullptr;
+    for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+      if (md == (ModifierData *)m_sbModifier && JoltIsSoftBodyModifier(md)) {
+        live_modifier = md;
+        break;
+      }
+    }
+
+    if (live_modifier) {
+      /* Null the coord pointer first so any concurrent deform_verts evaluation
+       * sees nullptr and returns early instead of reading freed memory. */
+      ((SimpleDeformModifierDataBGE *)live_modifier)->vertcoos = nullptr;
+      BLI_remlink(&ob->modifiers, live_modifier);
+      BKE_modifier_free(live_modifier);
+      removed_modifier = true;
+    }
     m_sbModifier = nullptr;
 
     /* Invalidate the depsgraph so the embedded Blender session does not keep
      * a cached evaluated mesh that still contains the soft-body deformation.
      * Without this, the second game run reads the old deformed rest-pose and
      * produces stretched/wrong vertex positions from the very first frame. */
-    KX_KetsjiEngine *engine = KX_GetActiveEngine();
-    if (engine) {
-      blender::bContext *C = engine->GetContext();
-      if (C) {
-        DEG_relations_tag_update(CTX_data_main(C));
+    if (removed_modifier) {
+      KX_KetsjiEngine *engine = KX_GetActiveEngine();
+      if (engine) {
+        blender::bContext *C = engine->GetContext();
+        if (C) {
+          DEG_relations_tag_update(CTX_data_main(C));
+        }
       }
+      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     }
-    DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  }
+  else {
+    m_sbModifier = nullptr;
   }
   JoltRestoreSoftBodyRenderSubsurfLevels(ob, m_subsurfLevelOverrides);
   /* Free coord buffer only after the modifier is gone. */

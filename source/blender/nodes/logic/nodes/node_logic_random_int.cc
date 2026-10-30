@@ -14,7 +14,7 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Min"_ustr).default_value(0);
-  b.add_input<decl::Int>("Max"_ustr).default_value(0);
+  b.add_input<decl::Int>("Max"_ustr).default_value(100);
   b.add_output<decl::Int>("Value"_ustr);
 }
 

@@ -8,13 +8,18 @@
 
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "LN_DenseIds.h"
 #include "LN_EventBus.h"
+#include "LN_Inventory.h"
 #include "LN_NodeStateArena.h"
 #include "LN_Performance.h"
 #include "LN_Program.h"
@@ -35,11 +40,23 @@ class PHY_IPhysicsController;
 class PHY_IVehicle;
 struct PHY_RayQuerySettings;
 struct PHY_ShapeCastSettings;
+struct LN_RigidBodyConstraintBreakEvent;
 
 namespace blender {
 struct Collection;
 struct ID;
 }  // namespace blender
+
+/** Forget all Global Properties and which categories were read from disk. Called when a game
+ * launch starts; the values persist across restarts and scene changes within one launch. */
+void LN_ClearGlobalProperties();
+
+class EXP_Value;
+/** A game property's value as Logic Nodes read it, for code without a tree (the UI service):
+ * objects in it become references of \a manager's shared domain, the very objects that
+ * LN_CommandBuffer::ApplyGamePropertyValue without a tree writes back (by name without a
+ * manager). An empty value when \a property is null. Main thread only. */
+LN_Value LN_GamePropertyValue(EXP_Value *property, LN_Manager *manager);
 
 class LN_RuntimeTree {
  public:
@@ -53,6 +70,10 @@ class LN_RuntimeTree {
                        uint64_t tick_index = UINT64_MAX,
                        bool force_disabled = false);
   size_t WarmQueryCache(const LN_TickContext &context);
+  /** Register object scroll/grid layout before dependent interactable bounds are collected. */
+  void CollectUIViews(const LN_TickContext &context);
+  /** Forget values cached while collecting, before the UI resolved and consumed input. */
+  void InvalidateUICollectionCaches();
   bool ShouldCaptureSnapshot() const;
   bool ShouldCaptureSnapshotForForcedUpdate() const;
   void ExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
@@ -63,6 +84,19 @@ class LN_RuntimeTree {
                     LN_RuntimeProfileCounters *profile_counters = nullptr);
 
   bool CanTick() const;
+  /** Return whether this tree has work in the requested recurring phase. */
+  bool CanTick(LN_Event event) const;
+  /** Object UI declarations stay registered every frame, even while this tree is paused or has
+   * no wired output, so hover, focus and scroll state never reset behind the user's back. */
+  bool CollectsObjectUI() const;
+  /** While the game is paused, a tree that While Paused does not keep running still runs its
+   * UI event routes (button clicks...), and only those. Set before each Frame Update. */
+  void SetUIEventRoutesOnly(const bool ui_event_routes_only)
+  {
+    m_uiEventRoutesOnly = ui_event_routes_only;
+  }
+  /** Resolve statically-authored While Paused scopes before paused trees are scheduled. */
+  void CollectPauseProcessingObjects(std::vector<KX_GameObject *> &r_objects);
   bool OwnsGameObject(KX_GameObject *gameobj) const;
   void DetachGameObject();
   void SetProgram(std::shared_ptr<const LN_Program> program);
@@ -70,6 +104,10 @@ class LN_RuntimeTree {
   void BindDenseIds(LN_DenseIdRegistry &registry);
   LN_RuntimeRef MakeObjectRef(KX_GameObject *gameobj, const std::string &debug_name = "");
   KX_GameObject *ResolveObjectRef(const LN_RuntimeRef &runtime_ref) const;
+  /** Convert references to tree-independent form before storing a value where other trees read
+   * it. May create object handles, so worker trees must not call it (event content is shared
+   * when the command buffer flushes). */
+  void ShareValue(LN_Value &value);
   void InvalidateObjectRef(KX_GameObject *gameobj);
   LN_RuntimeRef MakeSceneRef(KX_Scene *scene, const std::string &debug_name = "");
   KX_Scene *ResolveSceneRef(const LN_RuntimeRef &runtime_ref) const;
@@ -84,13 +122,17 @@ class LN_RuntimeTree {
       const LN_PhysicsControllerHandle &handle) const;
   PHY_ICharacter *ResolveCharacterController(const LN_RuntimeRef &object_ref) const;
   PHY_IVehicle *ResolveVehicleController(const LN_RuntimeRef &object_ref) const;
-  LN_PhysicsQueryResult Raycast(const MT_Vector3 &from,
-                                const MT_Vector3 &to,
-                                const LN_RuntimeRef &ignore_object_ref,
-                                uint32_t collision_mask,
-                                const std::string &property_name = std::string(),
-                                bool xray = false,
-                                const LN_RuntimeRef &extra_ignore_object_ref = LN_RuntimeRef());
+  LN_PhysicsQueryResult Raycast(
+      const MT_Vector3 &from,
+      const MT_Vector3 &to,
+      const LN_RuntimeRef &ignore_object_ref,
+      uint32_t collision_mask,
+      const std::string &property_name = std::string(),
+      bool xray = false,
+      const std::vector<LN_RuntimeRef> &extra_ignore_object_refs = {},
+      LN_InteractionDomain interaction_domain = LN_InteractionDomain::Any,
+      bool respect_runtime_visibility = false,
+      const KX_Camera *view_camera = nullptr);
   std::vector<LN_PhysicsQueryResult> RaycastAll(
       const MT_Vector3 &from,
       const MT_Vector3 &to,
@@ -98,14 +140,14 @@ class LN_RuntimeTree {
       uint32_t collision_mask,
       const std::string &property_name = std::string(),
       bool xray = false,
-      const LN_RuntimeRef &extra_ignore_object_ref = LN_RuntimeRef());
+      const std::vector<LN_RuntimeRef> &extra_ignore_object_refs = {});
   std::vector<LN_PhysicsQueryResult> RayCast(
       const PHY_RayQuerySettings &settings,
       const LN_RuntimeRef &ignore_object_ref,
       uint32_t collision_mask,
       const std::string &property_name,
       bool xray,
-      const LN_RuntimeRef &extra_ignore_object_ref,
+      const std::vector<LN_RuntimeRef> &extra_ignore_object_refs,
       bool &r_blocked,
       LN_PhysicsQueryResult &r_blocker,
       bool &r_supported);
@@ -115,13 +157,22 @@ class LN_RuntimeTree {
       uint32_t collision_mask,
       const std::string &property_name,
       bool xray,
-      const LN_RuntimeRef &extra_ignore_object_ref,
+      const std::vector<LN_RuntimeRef> &extra_ignore_object_refs,
       bool &r_blocked,
       LN_PhysicsQueryResult &r_blocker,
       bool &r_supported);
 
   const LN_Value *GetTreePropertyValue(uint32_t property_ref_index) const;
   bool SetTreePropertyValue(uint32_t property_ref_index, const LN_Value &value);
+  void CompletePersistenceOperation(uint32_t expression_index, bool success);
+  /** Whether one deferred UI result can be accepted without dropping an older result. */
+  bool CanCompleteUIOperation(uint32_t expression_index) const;
+  /** Whether the graph reads a UI command's result: one of the node's outputs is wired. */
+  bool ReadsUIOperation(uint32_t expression_index) const;
+  /** Queue a deferred UI command result. Returns false when the bounded result queue is full. */
+  bool CompleteUIOperation(uint32_t expression_index, LN_UIResult result, int32_t handle);
+  /** Queue one lifecycle event for an exact Play Action request. */
+  bool CompleteActionOperation(uint32_t expression_index, LN_ActionResult result);
 
   bool IsAttached() const
   {
@@ -138,6 +189,16 @@ class LN_RuntimeTree {
     return m_program;
   }
 
+  uint64_t GetProgramRevision() const
+  {
+    return m_programRevision;
+  }
+
+  /** A UI widget changed a game property of the owner after the snapshot: read them again. */
+  void RefreshSnapshotGameProperties()
+  {
+    m_snapshot.RefreshGameProperties(m_gameObject, m_program.get());
+  }
   const LN_Snapshot &GetSnapshot() const
   {
     return m_snapshot;
@@ -255,6 +316,12 @@ class LN_RuntimeTree {
 
  private:
   static constexpr int kMaxPathLength = 128;
+  /**
+   * Deterministic per-tree budget for loop body executions in one scheduler tick. Excess work is
+   * retained and resumed on later fixed ticks instead of freezing the main thread or dropping
+   * iterations.
+   */
+  static constexpr size_t kMaxLoopIterationsPerTick = 10000;
 
   struct InstructionRuntimeState {
     uint64_t last_execution_tick = UINT64_MAX;
@@ -267,6 +334,14 @@ class LN_RuntimeTree {
     int32_t mouse_look_previous_y = 0;
     bool mouse_look_initialized = false;
     bool mouse_look_has_previous_position = false;
+    /** LN_TickContext::mouse_ui_serial at its last run, and whether it held the cursor then. */
+    uint64_t mouse_look_ui_serial = 0;
+    bool mouse_look_centered = false;
+    /** Seconds Mouse Look still holds the cursor without turning after it started (over): the
+     * system may report where its pointer really is a moment later (Wayland, a window that just
+     * opened or got the pointer back). */
+    float mouse_look_settle = 0.0f;
+    int mouse_look_settle_runs = 0;
     int path_len = 0;
     int waypoint_index = -1;
     int list_point_index = 0;
@@ -291,6 +366,31 @@ class LN_RuntimeTree {
     LN_Value stored_old_value;
     LN_Value stored_new_value;
     uint64_t last_update_tick = UINT64_MAX;
+    uint64_t last_update_phase_tick = UINT64_MAX;
+    uint64_t pending_persistence_results = 0;
+    uint8_t pending_persistence_count = 0;
+    bool last_persistence_success = false;
+  };
+
+  struct UICommandCompletion {
+    LN_UIResult result = LN_UIResult::RuntimeUnavailable;
+    int32_t handle = 0;
+  };
+
+  struct UICommandCompletionState {
+    std::deque<UICommandCompletion> pending;
+    UICommandCompletion current;
+    uint64_t current_tick = UINT64_MAX;
+    bool has_current = false;
+    /** Value outputs retain the most recently completed result after the one-tick flow pulse. */
+    bool has_value = false;
+  };
+
+  struct ActionCompletionState {
+    std::deque<LN_ActionResult> pending;
+    LN_ActionResult current = LN_ActionResult::Failed;
+    uint64_t current_tick = UINT64_MAX;
+    bool has_current = false;
   };
 
   struct FloatExpressionRuntimeState {
@@ -301,6 +401,7 @@ class LN_RuntimeTree {
 
   enum class TimeFlowRuntimeKind : uint8_t {
     None = 0,
+    NextFrame,
     Timer,
     Delay,
     Pulsify,
@@ -320,24 +421,57 @@ class LN_RuntimeTree {
     double accumulated_time = 0.0;
     uint64_t pulse_tick = UINT64_MAX;
     uint64_t last_update_tick = UINT64_MAX;
+    uint64_t last_update_phase_tick = UINT64_MAX;
     uint64_t accepted_scope_serial = 0;
     uint64_t blocked_scope_serial = 0;
     std::vector<PendingPulse> pending_pulses;
     std::vector<LN_Value> active_tree_properties;
     bool has_active_tree_properties = false;
     bool ignore_timescale = false;
+    /** Armed by a UI event route: still ticked while only UI event routes run (paused game). */
+    bool ui_event_route = false;
+    LN_Event event = LN_Event::OnUpdate;
+  };
+
+  /** Persistent, fixed-size state for routing and bounded flow-control nodes. */
+  struct FlowControlRuntimeState {
+    uint32_t next_route_index = 0;
+    uint32_t last_route_index = LN_INVALID_INDEX;
+    uint32_t accepted_count = 0;
+    uint64_t routed_scope_serial = 0;
+    uint64_t accepted_scope_serial = 0;
+    uint64_t blocked_scope_serial = 0;
+
+    bool motion_initialized = false;
+    bool motion_valid = false;
+    int32_t motion_source_mode = int32_t(LN_MotionSourceMode::Position);
+    uint64_t motion_last_sample_tick = UINT64_MAX;
+    double motion_last_sample_time = 0.0;
+    LN_RuntimeRef motion_source_ref;
+    MT_Vector3 motion_position = MT_Vector3(0.0f, 0.0f, 0.0f);
+    MT_Vector3 motion_previous_position = MT_Vector3(0.0f, 0.0f, 0.0f);
+    MT_Vector3 motion_velocity = MT_Vector3(0.0f, 0.0f, 0.0f);
+    MT_Vector3 motion_direction = MT_Vector3(0.0f, 0.0f, 0.0f);
+    MT_Vector3 motion_predicted_position = MT_Vector3(0.0f, 0.0f, 0.0f);
+    float motion_speed = 0.0f;
   };
 
   struct QueryExpressionRuntimeState {
+    struct HoverRuntimeState {
+      uint64_t baseline_tick = UINT64_MAX;
+      bool initialized = false;
+      bool previous = false;
+      bool baseline_initialized = false;
+      bool baseline_previous = false;
+    };
+
     uint64_t cached_tick = UINT64_MAX;
-    uint64_t cached_command_sort_key = UINT64_MAX;
+    uint64_t cached_command_execution_key = UINT64_MAX;
     LN_QueryResult cached_result;
-    uint64_t hover_baseline_tick = UINT64_MAX;
     bool cached_command_ordered = false;
-    bool hover_initialized = false;
-    bool hover_previous = false;
-    bool hover_baseline_initialized = false;
-    bool hover_baseline_previous = false;
+    std::array<HoverRuntimeState, 3> hover_by_event;
+    /** On UI Event: which of this frame's matching events the query reports (0: the first). */
+    uint32_t ui_event_cursor = 0;
   };
 
   struct RegisterExpressionRuntimeState {
@@ -393,53 +527,29 @@ class LN_RuntimeTree {
     uint64_t exit_tick = UINT64_MAX;
   };
 
-  struct SpawnPoolTimedObject {
-    KX_GameObject *object = nullptr;
-    double destroy_time = 0.0;
-  };
-
-  struct SpawnPoolRuntimeState {
-    std::vector<KX_GameObject *> pooled_objects;
-    std::vector<SpawnPoolTimedObject> timed_objects;
-    KX_GameObject *spawner = nullptr;
-    MT_Vector3 reset_position = MT_Vector3(0.0f, 0.0f, -100.0f);
-    float lifetime = 3.0f;
-    int32_t spawn_type = 0;
-    uint32_t raycast_mask = 65535;
-    bool visualize = false;
-    size_t next_spawn_index = 0;
-    uint64_t spawned_tick = UINT64_MAX;
-    uint64_t hit_tick = UINT64_MAX;
-    KX_GameObject *hit_object = nullptr;
-    MT_Vector3 hit_point = MT_Vector3(0.0f, 0.0f, 0.0f);
-    MT_Vector3 hit_normal = MT_Vector3(0.0f, 0.0f, 1.0f);
-    MT_Vector3 hit_direction = MT_Vector3(0.0f, 0.0f, 1.0f);
-  };
-
-  struct SpawnPoolBulletRuntimeState {
-    int32_t pool_index = 0;
-    KX_GameObject *object = nullptr;
-    MT_Vector3 position = MT_Vector3(0.0f, 0.0f, 0.0f);
-    MT_Vector3 direction = MT_Vector3(0.0f, 1.0f, 0.0f);
-    float speed = 0.0f;
-    int32_t spawn_type = 0;
-    double destroy_time = 0.0;
-    uint32_t raycast_mask = 65535;
-    bool visualize = false;
-  };
-
-  void UpdateSpawnPoolBullets(const LN_TickContext &context);
   bool UpdateTweenValue(uint32_t tween_expr_index, const LN_TickContext &context);
+  bool EvaluateMouseMoved(bool each_logic_tick) const;
+  float EvaluateCurveTable(uint32_t table_index, float input, float influence) const;
   float ResolveTweenMappedFactor(uint32_t tween_expr_index, const LN_TickContext &context);
 
   struct LoopRuntimeState {
     bool active = false;
+    bool triggered = false;
+    bool break_requested = false;
     bool trigger_previous = false;
     size_t iteration_index = 0;
     size_t iteration_count = 0;
+    size_t batch_index = 0;
+    size_t batch_count = 1;
+    size_t batch_end_iteration = 0;
+    uint64_t last_batch_tick_index = UINT64_MAX;
+    uint64_t completed_scope_serial = 0;
     std::vector<LN_Value> items;
     LN_Value current_value;
   };
+
+  size_t m_remainingLoopIterationBudget = kMaxLoopIterationsPerTick;
+  uint64_t m_loopIterationBudgetTick = UINT64_MAX;
 
   struct ObjectRefSlot {
     KX_GameObject *object = nullptr;
@@ -461,19 +571,18 @@ class LN_RuntimeTree {
   void EnsureBoolExpressionStateSize();
   void EnsureFloatExpressionStateSize();
   void EnsureTimeFlowStateSize(bool preserve_existing);
+  void EnsureFlowControlStateSize(bool preserve_existing);
   void EnsureQueryExpressionStateSize();
   void EnsureTreePropertyStateSize(bool preserve_existing);
-  void EnsureSpawnPoolStateSize(bool preserve_existing);
   void RefreshOptimizedPathEligibility();
   BoolExpressionRuntimeState &BoolExpressionState(uint32_t expression_index);
   FloatExpressionRuntimeState &FloatExpressionState(uint32_t expression_index);
   TimeFlowRuntimeState *FindTimeFlowState(uint32_t state_index);
   const TimeFlowRuntimeState *FindTimeFlowState(uint32_t state_index) const;
+  FlowControlRuntimeState *FindFlowControlState(uint32_t state_index);
+  const FlowControlRuntimeState *FindFlowControlState(uint32_t state_index) const;
   void TickLatentTimeFlowStates(const LN_TickContext &context);
   QueryExpressionRuntimeState &QueryExpressionState(uint32_t state_index);
-  SpawnPoolRuntimeState *FindSpawnPoolState(uint32_t state_index);
-  const SpawnPoolRuntimeState *FindSpawnPoolState(uint32_t state_index) const;
-  SpawnPoolRuntimeState &EnsureSpawnPoolState(uint32_t state_index);
   uint32_t InstructionStateIndex(LN_Event event, uint32_t instruction_index) const;
   bool ResolvePathMoveTarget(InstructionRuntimeState &state,
                              KX_GameObject *target,
@@ -547,7 +656,7 @@ class LN_RuntimeTree {
                              const LN_TickContext &context);
   int32_t ResolveIntExpression(uint32_t expression_index,
                                int32_t fallback,
-             const LN_TickContext &context = LN_TickContext());
+                               const LN_TickContext &context = LN_TickContext());
   float ResolveFloatExpression(uint32_t expression_index,
                                float fallback,
                                const LN_TickContext &context);
@@ -560,22 +669,90 @@ class LN_RuntimeTree {
                                   const LN_TickContext &context);
   const LN_QueryResult &ResolveQueryExpression(uint32_t expression_index,
                                                const LN_TickContext &context);
-  const CollisionResult &ResolveCollisionResult(uint32_t object_expr_index,
-                                                uint32_t property_expr_index,
-                                                uint32_t material_expr_index,
-                                                const LN_TickContext &context,
-                                                CollisionResult::Detail detail =
-                                                    CollisionResult::Detail::StateOnly,
-                                                bool allow_exit_payload = true);
+  const CollisionResult &ResolveCollisionResult(
+      uint32_t object_expr_index,
+      uint32_t property_expr_index,
+      uint32_t material_expr_index,
+      const LN_TickContext &context,
+      CollisionResult::Detail detail = CollisionResult::Detail::StateOnly,
+      bool allow_exit_payload = true);
+  bool ResolveRigidBodyConstraintBreakEventQuery(uint32_t object_expr_index,
+                                                 uint32_t constraint_name_expr_index,
+                                                 uint32_t match_any_expr_index,
+                                                 LN_RigidBodyConstraintMatchMode match_mode,
+                                                 const LN_TickContext &context,
+                                                 KX_GameObject *&r_owner,
+                                                 std::string &r_constraint_name,
+                                                 LN_RigidBodyConstraintMatchMode &r_match_mode);
+  const LN_RigidBodyConstraintBreakEvent *ResolveRigidBodyConstraintBreakEvent(
+      uint32_t object_expr_index,
+      uint32_t constraint_name_expr_index,
+      uint32_t match_any_expr_index,
+      LN_RigidBodyConstraintMatchMode match_mode,
+      const LN_TickContext &context);
+  int32_t ResolveRigidBodyConstraintBreakEventCount(uint32_t object_expr_index,
+                                                    uint32_t constraint_name_expr_index,
+                                                    uint32_t match_any_expr_index,
+                                                    LN_RigidBodyConstraintMatchMode match_mode,
+                                                    const LN_TickContext &context);
+  LN_Value ResolveRigidBodyConstraintBreakEvents(uint32_t object_expr_index,
+                                                 uint32_t constraint_name_expr_index,
+                                                 uint32_t match_any_expr_index,
+                                                 LN_RigidBodyConstraintMatchMode match_mode,
+                                                 const LN_TickContext &context);
   MT_Vector3 ResolveVectorExpression(uint32_t expression_index,
                                      const MT_Vector3 &fallback,
                                      const LN_TickContext &context);
+  LN_Rotation ResolveRotationExpression(uint32_t expression_index,
+                                        const LN_Rotation &fallback,
+                                        const LN_TickContext &context);
   MT_Vector4 ResolveColorExpression(uint32_t expression_index,
                                     const MT_Vector4 &fallback,
                                     const LN_TickContext &context);
   KX_Camera *GetActiveCamera() const;
   KX_Camera *ResolveCameraValue(const LN_Value &value) const;
   KX_GameObject *ResolveObjectValue(const LN_Value &value, bool include_inactive = false) const;
+  /** Like ResolveObjectValue, but a reference to an object that is gone stays gone: it does not
+   * find another object of the same name. */
+  KX_GameObject *ResolveLiveObjectValue(const LN_Value &value, bool include_inactive = false) const;
+  /** An item value: text (one of it), an inventory slot, or an object, which is its `item` and
+   * `count` game properties (else its name and one). */
+  bool ItemOf(const LN_Value &value, std::string &r_item, int32_t &r_count) const;
+  std::string ItemNameOf(const LN_Value &value) const;
+  /** Where a Library input is empty: the scene's Item Library (Scene > Items and UI). */
+  const blender::Collection *SceneItemLibrary() const;
+  struct InventoryEditResult {
+    int32_t amount = 0;
+    /** Add Item: how many it was asked to add (all left over when the edit cannot be kept). */
+    int32_t requested = 0;
+    std::string made;
+    LN_InventoryOutcome outcome = LN_InventoryOutcome::None;
+    bool craft = false;
+    /** The Removed output: how many it removed or crafted; Add Item: how many went in. */
+    int32_t Changed(const LN_InventoryOperation operation) const
+    {
+      return operation == LN_InventoryOperation::AddItem ? std::max(0, requested - amount) :
+                                                           amount;
+    }
+  };
+  /** The Inventory node's operation on `slots`, with the inputs `edit` holds. Amount 0 means all:
+   * the whole slot, every one of the item, or the count an added slot or object carries.
+   * `other_slots`: Move To Slot into that other inventory. `list_rules` / `other_list_rules`:
+   * the Inventory Rules of the two lists (of `owner`), used unless the node's Override is on;
+   * null (a list value, no object) uses the node's own inputs. Their Accept Categories always
+   * apply. */
+  InventoryEditResult RunInventoryEdit(const LN_ValueExpression &edit,
+                                       std::vector<LN_Value> &slots,
+                                       const LN_TickContext &context,
+                                       std::vector<LN_Value> *other_slots = nullptr,
+                                       const LN_InventoryRules *list_rules = nullptr,
+                                       const LN_InventoryRules *other_list_rules = nullptr,
+                                       KX_GameObject *owner = nullptr);
+  /** Convert references back into this tree's tables after reading a shared value. */
+  void LocalizeValue(LN_Value &value);
+  std::vector<LN_RuntimeRef> ResolveIgnoreObjectRefs(uint32_t object_expr_index,
+                                                     uint32_t list_expr_index,
+                                                     const LN_TickContext &context);
   PHY_IPhysicsController *ResolveRigidBodyAttributeController(uint32_t object_expr_index,
                                                               const LN_TickContext &context);
   KX_GameObject *FindSceneObjectByName(const std::string &name,
@@ -583,8 +760,27 @@ class LN_RuntimeTree {
   LN_PhysicsQueryResult RaycastMouseOverTarget(const MT_Vector3 &from,
                                                const MT_Vector3 &to,
                                                KX_GameObject *target_object,
-                                               const LN_RuntimeRef &ignore_object_ref);
-  bool ComputeMouseRay(float distance, MT_Vector3 &r_from, MT_Vector3 &r_to) const;
+                                               KX_Camera *camera,
+                                               const LN_RuntimeRef &ignore_object_ref,
+                                               LN_InteractionDomain interaction_domain,
+                                               uint64_t command_execution_key);
+  LN_PhysicsQueryResult RaycastPointer(const MT_Vector3 &from,
+                                       const MT_Vector3 &to,
+                                       KX_Camera *camera,
+                                       const LN_RuntimeRef &ignore_object_ref,
+                                       uint32_t collision_mask,
+                                       const std::string &property_name,
+                                       bool xray,
+                                       LN_InteractionDomain interaction_domain,
+                                       uint64_t command_execution_key);
+  /** The main-world camera under the mouse (null outside player 0's view while the window is
+   * split: the mouse is theirs); for the object a held mouse press drags, that press's camera,
+   * so the drag goes on past the view's edge. */
+  KX_Camera *PointerWorldCamera(KX_Scene *scene, const KX_GameObject *target = nullptr) const;
+  bool ComputeMouseRay(KX_Camera *camera,
+                       float distance,
+                       MT_Vector3 &r_from,
+                       MT_Vector3 &r_to) const;
   bool ProjectWorldToScreen(KX_Camera *camera,
                             const MT_Vector3 &world_position,
                             MT_Vector3 &r_screen_position) const;
@@ -593,6 +789,12 @@ class LN_RuntimeTree {
                             float screen_y,
                             float depth,
                             MT_Vector3 &r_world_position) const;
+  bool ProjectCanvasPixelToWorld(KX_Camera *camera,
+                                 float pixel_x,
+                                 float pixel_y,
+                                 float depth,
+                                 MT_Vector3 &r_world_position) const;
+  /** Stable cross-tree ordering key; intra-tree order is command-record order. */
   uint64_t CommandSortKey(uint32_t instruction_index, uint32_t command_sequence) const;
   const std::vector<LN_Value> *DelayTreePropertySnapshotForGuard(uint32_t bool_expr_index,
                                                                  uint64_t tick_index) const;
@@ -607,6 +809,7 @@ class LN_RuntimeTree {
                                                   uint64_t tick_index);
 
   std::shared_ptr<const LN_Program> m_program;
+  uint64_t m_programRevision = 1;
   KX_GameObject *m_gameObject = nullptr;
   LN_Manager *m_logicManager = nullptr;
   uint32_t m_sceneObjectIndex = 0;
@@ -614,21 +817,28 @@ class LN_RuntimeTree {
   bool m_enabled = true;
   bool m_runtimeActive = true;
   bool m_initExecuted = false;
+  bool m_uiEventRoutesOnly = false;
   uint64_t m_snapshotTick = UINT64_MAX;
   uint64_t m_queryCacheWarmTick = UINT64_MAX;
   uint64_t m_executionScopeSerial = 0;
   uint64_t m_activeExecutionScopeSerial = 0;
+  /** Monotonic execution point for command-ordered query cache invalidation. */
+  uint64_t m_commandExecutionSerial = 0;
   bool m_registerExpressionIRHasProductionBenefit = false;
   LN_SnapshotChannelMask m_snapshotChannelMask = LN_SNAPSHOT_CHANNEL_NONE;
   bool m_hasTimeFlowRuntimeState = false;
   bool m_hasQueryExpressions = false;
-  bool m_hasSpawnPoolRuntimeState = false;
   std::vector<InstructionRuntimeState> m_instructionStates;
   std::vector<BoolExpressionRuntimeState> m_boolExpressionStates;
+  std::unordered_map<uint32_t, UICommandCompletionState> m_uiCommandCompletions;
+  std::unordered_map<uint32_t, ActionCompletionState> m_actionCompletions;
   std::vector<FloatExpressionRuntimeState> m_floatExpressionStates;
   std::vector<TimeFlowRuntimeState> m_timeFlowStates;
+  std::vector<FlowControlRuntimeState> m_flowControlStates;
   std::vector<QueryExpressionRuntimeState> m_queryExpressionStates;
   RegisterExpressionRuntimeState m_registerExpressionState;
+  std::vector<LN_Rotation> m_rotationExpressionValues;
+  std::vector<uint64_t> m_rotationExpressionTicks;
   uint64_t m_collisionResultsTick = UINT64_MAX;
   std::vector<CollisionResult> m_collisionResults;
   std::vector<CollisionEventPayload> m_collisionEventPayloads;
@@ -637,8 +847,6 @@ class LN_RuntimeTree {
   std::vector<RuntimeRefSlot> m_runtimeRefs;
   std::vector<LN_Value> m_treeProperties;
   std::vector<LoopRuntimeState> m_loopStates;
-  std::vector<SpawnPoolRuntimeState> m_spawnPools;
-  std::vector<SpawnPoolBulletRuntimeState> m_spawnPoolBullets;
   LN_RuntimeTreeId m_denseRuntimeTreeId;
   LN_ObjectHandle m_ownerObjectHandle;
   std::vector<LN_SharedStringId> m_sharedStringIds;

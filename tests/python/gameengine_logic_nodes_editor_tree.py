@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import argparse
+import math
 import re
 import sys
 from pathlib import Path
@@ -65,6 +66,7 @@ LOGIC_SOCKET_COLORS = {
     "NodeSocketLogicInt": (0.349, 0.549, 0.361, 1.0),
     "NodeSocketLogicCollisionLayers": (0.349, 0.549, 0.361, 1.0),
     "NodeSocketLogicFloat": (0.631, 0.631, 0.631, 1.0),
+    "NodeSocketFloatAngle": (0.63, 0.63, 0.63, 1.0),
     "NodeSocketLogicString": (0.439, 0.698, 1.0, 1.0),
     "NodeSocketLogicVector": (0.388, 0.388, 0.78, 1.0),
     "NodeSocketLogicRotation": (0.651, 0.388, 0.78, 1.0),
@@ -139,17 +141,78 @@ EXPECTED_LOGIC_STRING_OPERATION_OPERATIONS = {
 
 EXPECTED_LOGIC_VSYNC_MODES = {"OFF", "ON", "ADAPTIVE"}
 EXPECTED_LOGIC_VEHICLE_AXES = {"REAR", "FRONT", "ALL"}
+EXPECTED_LOGIC_CONSTRAINT_BREAK_MATCH_MODES = {"EXACT", "CONTAINS"}
 
 EXPECTED_SOCKET_IDNAMES = {
     "LogicNativeOnInit": {
         "outputs": {"Out": "NodeSocketLogicExecution"},
     },
+    "LogicNativeOnGameLoaded": {
+        "outputs": {
+            "Out": "NodeSocketLogicExecution",
+            "Success": "NodeSocketLogicBool",
+        },
+    },
     "LogicNativeOnUpdate": {
         "outputs": {"Out": "NodeSocketLogicExecution"},
     },
+    "LogicNativeWhilePaused": {
+        "inputs": {
+            "Object": "NodeSocketLogicObject",
+            "Collection": "NodeSocketLogicCollection",
+        },
+        "outputs": {
+            "Update": "NodeSocketLogicExecution",
+            "Delta Time": "NodeSocketLogicFloat",
+        },
+        "rna_enums": {"pause_scope": {"OWNER", "OBJECT_HIERARCHY", "COLLECTION", "SCENE"}},
+    },
+    "LogicNativeOnFixedUpdate": {
+        "outputs": {"Out": "NodeSocketLogicExecution"},
+    },
+    "LogicNativeOnConstraintBreak": {
+        "inputs": {
+            "Object": "NodeSocketLogicObject",
+            "Constraint Name": "NodeSocketLogicString",
+            "Match Any": "NodeSocketLogicBool",
+        },
+        "outputs": {
+            "Broken": "NodeSocketLogicExecution",
+            "Constraint Name": "NodeSocketLogicString",
+            "Target Object": "NodeSocketLogicObject",
+            "Anchor Position": "NodeSocketLogicVector",
+            "Linear Impulse": "NodeSocketLogicFloat",
+            "Angular Impulse": "NodeSocketLogicFloat",
+            "Applied Impulse": "NodeSocketLogicFloat",
+            "Break Count": "NodeSocketLogicInt",
+            "Break Events": "NodeSocketLogicList",
+        },
+    },
+    "LogicNativePlayAction": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Object": "NodeSocketLogicObject",
+            "Start Frame": "NodeSocketLogicFloat",
+            "End Frame": "NodeSocketLogicFloat",
+            "Layer": "NodeSocketLogicInt",
+            "Priority": "NodeSocketLogicInt",
+            "Blend In": "NodeSocketLogicFloat",
+            "Speed": "NodeSocketLogicFloat",
+        },
+        "outputs": {
+            "Started": "NodeSocketLogicExecution",
+            "Completed": "NodeSocketLogicExecution",
+            "Interrupted": "NodeSocketLogicExecution",
+            "Failed": "NodeSocketLogicExecution",
+        },
+        "rna_enums": {
+            "play_mode": {"PLAY", "LOOP", "PING_PONG"},
+            "blend_mode": {"BLEND", "ADD"},
+        },
+    },
     "LogicNativeOnNextFrame": {
         "inputs": {"Flow": "NodeSocketLogicExecution"},
-        "outputs": {"Out": "NodeSocketLogicExecution"},
+        "outputs": {"Completed": "NodeSocketLogicExecution"},
     },
     "LogicNativeBranch": {
         "inputs": {
@@ -161,20 +224,32 @@ EXPECTED_SOCKET_IDNAMES = {
             "False": "NodeSocketLogicExecution",
         },
     },
-    "LogicNativeGate": {
+    "LogicNativeFlowGate": {
         "inputs": {
-            "Condition A": "NodeSocketLogicCondition",
-            "Condition B": "NodeSocketLogicCondition",
+            "Enter": "NodeSocketLogicExecution",
+            "Toggle": "NodeSocketLogicExecution",
+            "Open": "NodeSocketLogicExecution",
+            "Close": "NodeSocketLogicExecution",
+            "Start Open": "NodeSocketLogicBool",
         },
-        "outputs": {"Result": "NodeSocketLogicCondition"},
+        "outputs": {
+            "Exit": "NodeSocketLogicExecution",
+            "Is Open": "NodeSocketLogicBool",
+        },
     },
-    "LogicNativeGateList": {
-        "inputs": {
-            "Condition A": "NodeSocketLogicCondition",
-            "Condition B": "NodeSocketLogicCondition",
-            "Condition C": "NodeSocketLogicCondition",
-            "Condition D": "NodeSocketLogicCondition",
+    "LogicNativeAnyFlow": {
+        "inputs": {"In": "NodeSocketLogicExecution"},
+        "outputs": {"Out": "NodeSocketLogicExecution"},
+    },
+    "LogicNativeSequence": {
+        "inputs": {"Flow": "NodeSocketLogicExecution"},
+        "outputs": {
+            "Then 0": "NodeSocketLogicExecution",
+            "Then 1": "NodeSocketLogicExecution",
         },
+    },
+    "LogicNativeGate": {
+        "inputs": {"Conditions": "NodeSocketLogicCondition"},
         "outputs": {"Result": "NodeSocketLogicCondition"},
     },
     "LogicNativeOnce": {
@@ -303,11 +378,15 @@ EXPECTED_SOCKET_IDNAMES = {
     "LogicNativeValueVector": {"outputs": {"Vector": "NodeSocketLogicVector"}},
     "LogicNativeEuler": {
         "inputs": {
-            "X": "NodeSocketLogicFloat",
-            "Y": "NodeSocketLogicFloat",
-            "Z": "NodeSocketLogicFloat",
+            "X": "NodeSocketFloatAngle",
+            "Y": "NodeSocketFloatAngle",
+            "Z": "NodeSocketFloatAngle",
         },
         "outputs": {"Rotation": "NodeSocketLogicRotation"},
+    },
+    "LogicNativeBoneRotationToObjectRotation": {
+        "inputs": {"Bone Rotation": "NodeSocketLogicRotation"},
+        "outputs": {"Object Rotation": "NodeSocketLogicRotation"},
     },
     "LogicNativeCombineXY": {
         "inputs": {
@@ -334,9 +413,9 @@ EXPECTED_SOCKET_IDNAMES = {
     "LogicNativeSeparateEuler": {
         "inputs": {"Rotation": "NodeSocketLogicRotation"},
         "outputs": {
-            "X": "NodeSocketLogicFloat",
-            "Y": "NodeSocketLogicFloat",
-            "Z": "NodeSocketLogicFloat",
+            "X": "NodeSocketFloatAngle",
+            "Y": "NodeSocketFloatAngle",
+            "Z": "NodeSocketFloatAngle",
         },
     },
     "LogicNativeSeparateXYZ": {
@@ -405,6 +484,13 @@ EXPECTED_SOCKET_IDNAMES = {
         },
         "outputs": {"Result": "NodeSocketLogicFloat"},
     },
+    "LogicNativeFloatCurve": {
+        "inputs": {
+            "Factor": "NodeSocketLogicFloat",
+            "Value": "NodeSocketLogicFloat",
+        },
+        "outputs": {"Value": "NodeSocketLogicFloat"},
+    },
     "LogicNativeMath": {
         "inputs": {"A": "NodeSocketLogicFloat", "B": "NodeSocketLogicFloat"},
         "outputs": {"Result": "NodeSocketLogicFloat"},
@@ -427,6 +513,50 @@ EXPECTED_SOCKET_IDNAMES = {
             "Orientation": "NodeSocketLogicRotation",
             "Scale": "NodeSocketLogicVector",
             "Color": "NodeSocketLogicColor",
+        },
+    },
+    "LogicNativeGetDistance": {
+        "inputs": {
+            "Object A": "NodeSocketLogicObject",
+            "Position A": "NodeSocketLogicVector",
+            "Object B": "NodeSocketLogicObject",
+            "Position B": "NodeSocketLogicVector",
+        },
+        "outputs": {
+            "Distance": "NodeSocketLogicFloat",
+            "Squared Distance": "NodeSocketLogicFloat",
+            "Valid": "NodeSocketLogicCondition",
+        },
+    },
+    "LogicNativeGetAverageCenterPosition": {
+        "inputs": {
+            "Vectors": "NodeSocketLogicList",
+            "Objects": "NodeSocketLogicList",
+            "Collection": "NodeSocketLogicCollection",
+        },
+        "outputs": {
+            "Center": "NodeSocketLogicVector",
+            "Count": "NodeSocketLogicInt",
+            "Valid": "NodeSocketLogicCondition",
+        },
+    },
+    "LogicNativePredictMotion": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Reset": "NodeSocketLogicExecution",
+            "Object": "NodeSocketLogicObject",
+            "Position": "NodeSocketLogicVector",
+            "Prediction Time": "NodeSocketLogicFloat",
+            "Smoothing Time": "NodeSocketLogicFloat",
+        },
+        "outputs": {
+            "Updated": "NodeSocketLogicExecution",
+            "Position": "NodeSocketLogicVector",
+            "Velocity": "NodeSocketLogicVector",
+            "Direction": "NodeSocketLogicVector",
+            "Speed": "NodeSocketLogicFloat",
+            "Predicted Position": "NodeSocketLogicVector",
+            "Valid": "NodeSocketLogicCondition",
         },
     },
     "LogicNativeGetLightColor": {
@@ -632,6 +762,13 @@ EXPECTED_SOCKET_IDNAMES = {
             "Timescale": "NodeSocketLogicFloat",
         },
     },
+    "LogicNativeSetGamePaused": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Paused": "NodeSocketLogicBool",
+        },
+        "outputs": {"Done": "NodeSocketLogicExecution"},
+    },
     "LogicNativeSetCamera": {
         "inputs": {
             "Flow": "NodeSocketLogicExecution",
@@ -701,6 +838,13 @@ EXPECTED_SOCKET_IDNAMES = {
             "Object": "NodeSocketLogicObject",
             "Active": "NodeSocketLogicBool",
         },
+    },
+    "LogicNativeSetPhysicsPaused": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Paused": "NodeSocketLogicBool",
+        },
+        "outputs": {"Done": "NodeSocketLogicExecution"},
     },
     "LogicNativeSetDynamics": {
         "inputs": {
@@ -869,7 +1013,9 @@ EXPECTED_SOCKET_IDNAMES = {
             "Out": "NodeSocketLogicExecution",
             "Active": "NodeSocketLogicCondition",
         },
-        "rna_enums": {"input_type": {"TAP", "DOWN", "UP"}},
+        "rna_enums": {
+            "input_type": {"TAP", "DOWN", "UP"},
+        },
     },
     "LogicNativeKeyboardActive": {
         "outputs": {"Active": "NodeSocketLogicCondition"},
@@ -884,6 +1030,7 @@ EXPECTED_SOCKET_IDNAMES = {
             "Out": "NodeSocketLogicExecution",
             "Active": "NodeSocketLogicCondition",
         },
+        "rna_enums": {},
     },
     "LogicNativeMouseMoved": {
         "outputs": {"If Moved": "NodeSocketLogicExecution"},
@@ -898,7 +1045,10 @@ EXPECTED_SOCKET_IDNAMES = {
         "rna_enums": {"wheel_direction": {"SCROLL_UP", "SCROLL_DOWN", "SCROLL_UP_OR_DOWN"}},
     },
     "LogicNativeMouseOver": {
-        "inputs": {"Object": "NodeSocketLogicObject"},
+        "inputs": {
+            "Object": "NodeSocketLogicObject",
+            "Camera": "NodeSocketLogicObject",
+        },
         "outputs": {
             "On Enter": "NodeSocketLogicExecution",
             "On Over": "NodeSocketLogicExecution",
@@ -906,8 +1056,240 @@ EXPECTED_SOCKET_IDNAMES = {
             "Entered": "NodeSocketLogicCondition",
             "Is Over": "NodeSocketLogicCondition",
             "Exited": "NodeSocketLogicCondition",
+            "Object": "NodeSocketLogicObject",
             "Point": "NodeSocketLogicVector",
             "Normal": "NodeSocketLogicVector",
+        },
+        "rna_enums": {
+            "interaction_view": {"AUTOMATIC", "MAIN", "OVERLAY", "CUSTOM_CAMERA"},
+        },
+    },
+    "LogicNativeObjectScrollView": {
+        "inputs": {
+            "Viewport Object": "NodeSocketLogicObject",
+            "Content Object": "NodeSocketLogicObject",
+            "Camera": "NodeSocketLogicObject",
+            "Minimum Offset": "NodeSocketLogicVector",
+            "Maximum Offset": "NodeSocketLogicVector",
+            "Wheel Step": "NodeSocketLogicVector",
+            "Enabled": "NodeSocketLogicBool",
+            "Horizontal": "NodeSocketLogicBool",
+            "Vertical": "NodeSocketLogicBool",
+            "Cull Outside": "NodeSocketLogicBool",
+            "Focus Follow": "NodeSocketLogicBool",
+            "User": "NodeSocketLogicInt",
+            "Priority": "NodeSocketLogicInt",
+            "Padding": "NodeSocketLogicFloat",
+            "Scrollbar": "NodeSocketLogicObject",
+        },
+        "outputs": {
+            "On Scroll": "NodeSocketLogicExecution",
+            "At Start": "NodeSocketLogicCondition",
+            "At End": "NodeSocketLogicCondition",
+            "Offset": "NodeSocketLogicVector",
+            "Normalized": "NodeSocketLogicVector",
+        },
+        "rna_enums": {"interaction_view": {"AUTOMATIC", "MAIN", "OVERLAY", "CUSTOM_CAMERA"}},
+    },
+    "LogicNativeObjectGridView": {
+        "inputs": {
+            "Viewport Object": "NodeSocketLogicObject",
+            "Camera": "NodeSocketLogicObject",
+            "Slots": "NodeSocketLogicGeneric",
+            "Items": "NodeSocketLogicGeneric",
+            "First Item": "NodeSocketLogicInt",
+            "Columns": "NodeSocketLogicInt",
+            "Wheel Rows": "NodeSocketLogicInt",
+            "Enabled": "NodeSocketLogicBool",
+            "Cull Outside": "NodeSocketLogicBool",
+            "Focus Follow": "NodeSocketLogicBool",
+            "User": "NodeSocketLogicInt",
+            "Priority": "NodeSocketLogicInt",
+            "Padding": "NodeSocketLogicFloat",
+            "Icon Library": "NodeSocketLogicCollection",
+            "Show Counts": "NodeSocketLogicBool",
+            "Slot Template": "NodeSocketLogicObject",
+            "Rows": "NodeSocketLogicInt",
+            "Spacing": "NodeSocketLogicVector",
+            "Scrollbar": "NodeSocketLogicObject",
+        },
+        "outputs": {
+            "On Scroll": "NodeSocketLogicExecution",
+            "On Rebind": "NodeSocketLogicExecution",
+            "At Start": "NodeSocketLogicCondition",
+            "At End": "NodeSocketLogicCondition",
+            "First Visible": "NodeSocketLogicInt",
+            "Last Visible": "NodeSocketLogicInt",
+            "Normalized": "NodeSocketLogicVector",
+        },
+        "rna_enums": {"interaction_view": {"AUTOMATIC", "MAIN", "OVERLAY", "CUSTOM_CAMERA"}},
+    },
+    "LogicNativeInputAction": {
+        "inputs": {
+            "Action": "NodeSocketLogicString",
+            "User": "NodeSocketLogicInt",
+        },
+        "outputs": {
+            "Out": "NodeSocketLogicExecution",
+            "Active": "NodeSocketLogicCondition",
+            "Pressed": "NodeSocketLogicCondition",
+            "Released": "NodeSocketLogicCondition",
+            "Value": "NodeSocketLogicFloat",
+            "Vector": "NodeSocketLogicVector",
+        },
+        "rna_enums": {
+            "input_type": {"TAP", "DOWN", "UP"},
+        },
+    },
+    "LogicNativeGetInputBinding": {
+        "inputs": {"Action": "NodeSocketLogicString"},
+        "outputs": {"Text": "NodeSocketLogicString"},
+        "rna_enums": {
+            "input_device": {"AUTOMATIC", "KEYBOARD_MOUSE", "GAMEPAD"},
+            "input_direction": {"UP", "DOWN", "LEFT", "RIGHT"},
+        },
+    },
+    "LogicNativeRebindInputAction": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Action": "NodeSocketLogicString",
+            "User": "NodeSocketLogicInt",
+            "Timeout": "NodeSocketLogicFloat",
+        },
+        "outputs": {
+            "Done": "NodeSocketLogicExecution",
+            "Success": "NodeSocketLogicBool",
+        },
+        "rna_enums": {
+            "rebind_device": {"KEYBOARD_MOUSE", "GAMEPAD"},
+            "input_direction": {"UP", "DOWN", "LEFT", "RIGHT"},
+        },
+    },
+    "LogicNativeInputMap": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Path": "NodeSocketLogicString",
+            "File": "NodeSocketLogicString",
+        },
+        "outputs": {
+            "Done": "NodeSocketLogicExecution",
+            "Success": "NodeSocketLogicBool",
+        },
+        "rna_enums": {
+            "input_map_operation": {"SAVE", "LOAD", "RESET"},
+        },
+    },
+    "LogicNativeSetOverlayCollection": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Camera": "NodeSocketLogicObject",
+            "Collection": "NodeSocketLogicCollection",
+        },
+        "outputs": {
+            "Success": "NodeSocketLogicExecution",
+            "Failed": "NodeSocketLogicExecution",
+            "Result": "NodeSocketLogicInt",
+        },
+    },
+    "LogicNativeRemoveOverlayCollection": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Collection": "NodeSocketLogicCollection",
+        },
+        "outputs": {
+            "Success": "NodeSocketLogicExecution",
+            "Failed": "NodeSocketLogicExecution",
+            "Result": "NodeSocketLogicInt",
+        },
+    },
+    "LogicNativeOpenObjectMenu": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Camera": "NodeSocketLogicObject",
+            "Collection": "NodeSocketLogicCollection",
+            "Input Context": "NodeSocketLogicString",
+        },
+        "outputs": {
+            "Opened": "NodeSocketLogicExecution",
+            "Failed": "NodeSocketLogicExecution",
+            "Menu": "NodeSocketLogicInt",
+            "Result": "NodeSocketLogicInt",
+        },
+        "rna_enums": {
+            "menu_routing": {"MODAL", "PASS_THROUGH"},
+            "menu_open_mode": {"PUSH", "REPLACE_TOP"},
+            "menu_presentation": {"SCREEN", "OVERLAY"},
+            "menu_back_behavior": {"CLOSE_MENU", "IGNORE", "CUSTOM"},
+        },
+    },
+    "LogicNativeCloseObjectMenu": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Menu": "NodeSocketLogicInt",
+        },
+        "outputs": {
+            "Closed": "NodeSocketLogicExecution",
+            "Failed": "NodeSocketLogicExecution",
+            "Result": "NodeSocketLogicInt",
+        },
+        "rna_enums": {"menu_close_operation": {"TOP", "SPECIFIC", "ALL"}},
+    },
+    "LogicNativeSetUIFocus": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Object": "NodeSocketLogicObject",
+            "User": "NodeSocketLogicInt",
+            "Input Context": "NodeSocketLogicString",
+        },
+        "outputs": {
+            "Done": "NodeSocketLogicExecution",
+            "Failed": "NodeSocketLogicExecution",
+            "Result": "NodeSocketLogicInt",
+        },
+    },
+    "LogicNativeGetUIFocus": {
+        "inputs": {
+            "User": "NodeSocketLogicInt",
+            "Input Context": "NodeSocketLogicString",
+        },
+        "outputs": {"Object": "NodeSocketLogicObject"},
+    },
+    "LogicNativeScreenAnchor": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Object": "NodeSocketLogicObject",
+            "Camera": "NodeSocketLogicObject",
+            "Offset Pixels": "NodeSocketLogicVector",
+            "Safe Margin Pixels": "NodeSocketLogicVector",
+            "Depth": "NodeSocketLogicFloat",
+            "Reference Resolution": "NodeSocketLogicVector",
+            "Scale Offset": "NodeSocketLogicBool",
+        },
+        "outputs": {"Done": "NodeSocketLogicExecution"},
+        "rna_enums": {
+            "screen_anchor": {
+                "TOP_LEFT", "TOP", "TOP_RIGHT", "LEFT", "CENTER", "RIGHT",
+                "BOTTOM_LEFT", "BOTTOM", "BOTTOM_RIGHT",
+            },
+        },
+    },
+    "LogicNativeMouseRay": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Camera": "NodeSocketLogicObject",
+            "Property": "NodeSocketLogicString",
+            "X-Ray": "NodeSocketLogicBool",
+            "Distance": "NodeSocketLogicFloat",
+            "Mask": "NodeSocketLogicCollisionLayers",
+        },
+        "outputs": {
+            "Has Result": "NodeSocketLogicCondition",
+            "Picked Object": "NodeSocketLogicObject",
+            "Picked Point": "NodeSocketLogicVector",
+            "Picked Normal": "NodeSocketLogicVector",
+        },
+        "rna_enums": {
+            "interaction_view": {"AUTOMATIC", "MAIN", "OVERLAY", "CUSTOM_CAMERA"},
         },
     },
     "LogicNativeCursorPosition": {
@@ -935,6 +1317,7 @@ EXPECTED_SOCKET_IDNAMES = {
         },
         "outputs": {
             "Out": "NodeSocketLogicExecution",
+            "Active": "NodeSocketLogicCondition",
             "Strength": "NodeSocketLogicFloat",
         },
         "rna_enums": {
@@ -1114,17 +1497,6 @@ EXPECTED_SOCKET_IDNAMES = {
         },
         "outputs": {"Done": "NodeSocketLogicExecution"},
     },
-    "LogicNativeModifyPropertyClamped": {
-        "inputs": {
-            "Flow": "NodeSocketLogicExecution",
-            "Object": "NodeSocketLogicObject",
-            "Property": "NodeSocketLogicString",
-            "Value": "NodeSocketLogicFloat",
-            "Min": "NodeSocketLogicFloat",
-            "Max": "NodeSocketLogicFloat",
-        },
-        "outputs": {"Done": "NodeSocketLogicExecution"},
-    },
     "LogicNativeAddObject": {
         "inputs": {
             "Flow": "NodeSocketLogicExecution",
@@ -1140,6 +1512,7 @@ EXPECTED_SOCKET_IDNAMES = {
             "Flow": "NodeSocketLogicExecution",
             "Child Object": "NodeSocketLogicObject",
             "Parent Object": "NodeSocketLogicObject",
+            "Bone Name": "NodeSocketLogicString",
             "Compound": "NodeSocketLogicBool",
             "Ghost": "NodeSocketLogicBool",
         },
@@ -1186,6 +1559,42 @@ EXPECTED_SOCKET_IDNAMES = {
             "Direction": "NodeSocketLogicVector",
         },
     },
+    "LogicNativeRaycastFromMesh": {
+        "inputs": {
+            "Flow": "NodeSocketLogicExecution",
+            "Source Object": "NodeSocketLogicObject",
+            "Ignore Object": "NodeSocketLogicObject",
+            "Start Offset": "NodeSocketLogicFloat",
+            "Max Distance": "NodeSocketLogicFloat",
+            "Max Rays": "NodeSocketLogicInt",
+            "Property": "NodeSocketLogicString",
+            "X-Ray": "NodeSocketLogicBool",
+            "Mask": "NodeSocketLogicCollisionLayers",
+            "Include Sensors": "NodeSocketLogicBool",
+            "Hit Backfaces": "NodeSocketLogicBool",
+            "Visualize": "NodeSocketLogicBool",
+        },
+        "outputs": {
+            "Done": "NodeSocketLogicExecution",
+            "Any Hit": "NodeSocketLogicCondition",
+            "All Hit": "NodeSocketLogicCondition",
+            "Hit Count": "NodeSocketLogicInt",
+            "Ray Count": "NodeSocketLogicInt",
+            "Hits": "NodeSocketLogicList",
+            "Blocked": "NodeSocketLogicList",
+            "Hit Objects": "NodeSocketLogicList",
+            "Points": "NodeSocketLogicList",
+            "Normals": "NodeSocketLogicList",
+            "Distances": "NodeSocketLogicList",
+            "Fractions": "NodeSocketLogicList",
+            "Face Indices": "NodeSocketLogicList",
+            "Has UVs": "NodeSocketLogicList",
+            "UVs": "NodeSocketLogicList",
+            "Ray Origins": "NodeSocketLogicList",
+            "Ray Directions": "NodeSocketLogicList",
+            "End Points": "NodeSocketLogicList",
+        },
+    },
 }
 
 
@@ -1210,6 +1619,12 @@ def new_logic_tree(name):
 def require(condition, message):
     if not condition:
         raise RuntimeError(message)
+
+
+def socket_by_identifier(sockets, identifier, node_idname):
+    socket = next((socket for socket in sockets if socket.identifier == identifier), None)
+    require(socket is not None, f"{node_idname} is missing socket {identifier}")
+    return socket
 
 
 def unsupported_compiler_node_idnames():
@@ -1386,12 +1801,15 @@ def validate_editor_menus():
         "Events": {
             "nodes": [
                 "LogicNativeOnInit",
+                "LogicNativeOnGameLoaded",
                 "LogicNativeOnUpdate",
-                "LogicNativeOnNextFrame",
+                "LogicNativeWhilePaused",
+                "LogicNativeOnFixedUpdate",
                 "LogicNativeValueChangedTo",
                 "LogicNativeValueChanged",
                 "LogicNativeBooleanEdge",
                 "LogicNativeOnCollision",
+                "LogicNativeOnConstraintBreak",
                 "LogicNativeOnce",
             ],
             "paths": ["Events/Custom"],
@@ -1410,11 +1828,21 @@ def validate_editor_menus():
                 "LogicNativeRestartGame",
                 "LogicNativeSaveGame",
                 "LogicNativeLoadGame",
+                "LogicNativeSetSaveExistence",
             ],
             "separators": 1,
         },
         "Input": {
             "paths": list(logic_menu_module.LOGIC_IMPORTANT_SUBMENU_PATHS["Input"]),
+        },
+        "Input/Input Map": {
+            "nodes": [
+                "LogicNativeInputAction",
+                "LogicNativeGetInputBinding",
+                "LogicNativeRebindInputAction",
+                "LogicNativeInputMap",
+            ],
+            "separators": 1,
         },
         "Input/Mouse": {
             "nodes": [
@@ -1463,6 +1891,7 @@ def validate_editor_menus():
                 "LogicNativeRandomFloat",
                 "LogicNativeRandomInt",
                 "LogicNativeTypecast",
+                "LogicNativeMixValue",
                 "LogicNativeValueSwitch",
                 "LogicNativeValueSwitchList",
                 "LogicNativeValueSwitchListCompare",
@@ -1478,10 +1907,7 @@ def validate_editor_menus():
                 "LogicNativeColorRGB",
                 "LogicNativeColorRGBA",
                 "LogicNativeValueVector",
-                "LogicNativeEuler",
-                "LogicNativeVectorToRotation",
                 "LogicNativeSeparateXY",
-                "LogicNativeSeparateEuler",
                 "LogicNativeSeparateXYZ",
                 "LogicNativeCombineXY",
                 "LogicNativeCombineXYZ",
@@ -1494,10 +1920,20 @@ def validate_editor_menus():
             ],
             "separators": 1,
         },
+        "Values/Rotation": {
+            "nodes": [
+                "LogicNativeEuler",
+                "LogicNativeSeparateEuler",
+                "LogicNativeVectorToRotation",
+                "LogicNativeBoneRotationToObjectRotation",
+            ],
+            "separators": 1,
+        },
         "Values/Properties": {
             "nodes": [
                 "LogicNativeHasProperty",
                 "LogicNativeEvaluateProperty",
+                "LogicNativeGetGameProperty",
                 "LogicNativeGetGamePropertyFloat",
                 "LogicNativeGetGamePropertyInt",
                 "LogicNativeGetGamePropertyBool",
@@ -1505,6 +1941,7 @@ def validate_editor_menus():
                 "LogicNativeGetTreeProperty",
                 "LogicNativeGetGlobalProperty",
                 "LogicNativeListGlobalProperties",
+                "LogicNativeSetGameProperty",
                 "LogicNativeSetGamePropertyFloat",
                 "LogicNativeSetGamePropertyInt",
                 "LogicNativeSetGamePropertyBool",
@@ -1521,7 +1958,6 @@ def validate_editor_menus():
                 "LogicNativeRemoveVariable",
                 "LogicNativeToggleProperty",
                 "LogicNativeModifyProperty",
-                "LogicNativeModifyPropertyClamped",
                 "LogicNativeCopyProperty",
             ],
             "separators": 5,
@@ -1622,20 +2058,15 @@ def validate_editor_menus():
         },
         "Objects": {
             "paths": list(logic_menu_module.LOGIC_IMPORTANT_SUBMENU_PATHS["Objects"]),
-            "separators": 1,
-        },
-        "Objects/Get Attribute": {
             "nodes": [
                 "LogicNativeGetObjectAttribute",
-                "LogicNativeGetObjectID",
-                "LogicNativeGetAxisVector",
-            ],
-            "separators": 1,
-        },
-        "Objects/Set Attribute": {
-            "nodes": [
                 "LogicNativeSetObjectAttribute",
             ],
+            "labels": [
+                "Get Object Attribute",
+                "Set Object Attribute",
+            ],
+            "separators": 1,
         },
         "Objects/Transformation": {
             "nodes": [
@@ -1660,15 +2091,17 @@ def validate_editor_menus():
                 "LogicNativeFindObject",
                 "LogicNativeObjectByName",
                 "LogicNativeGetOwner",
+                "LogicNativeGetObjectID",
+                "LogicNativeGetAxisVector",
                 "LogicNativeGetDistance",
-                "LogicNativeGetGroupCenterPosition",
+                "LogicNativeGetAverageCenterPosition",
+                "LogicNativePredictMotion",
                 "LogicNativeAddObject",
                 "LogicNativeSetParent",
                 "LogicNativeGetParent",
                 "LogicNativeGetChild",
                 "LogicNativeGetChildByName",
                 "LogicNativeRemoveParent",
-                "LogicNativeSpawnPool",
                 "LogicNativeRemoveObject",
                 "LogicNativeReplaceMesh",
             ],
@@ -1682,6 +2115,7 @@ def validate_editor_menus():
             "nodes": [
                 "LogicNativeGetTimescale",
                 "LogicNativeSetTimescale",
+                "LogicNativeSetGamePaused",
                 "LogicNativeLoadScene",
                 "LogicNativeSetScene",
                 "LogicNativeGetScene",
@@ -1730,15 +2164,22 @@ def validate_editor_menus():
             "paths": list(logic_menu_module.LOGIC_IMPORTANT_SUBMENU_PATHS["Logic"]),
             "nodes": [
                 "LogicNativeBranch",
+                "LogicNativeFlowGate",
+                "LogicNativeAnyFlow",
+                "LogicNativeSequence",
+                "LogicNativeSwitchFlowInt",
+                "LogicNativeSwitchFlowString",
+                "LogicNativeFlowRouter",
+                "LogicNativeFlipFlop",
+                "LogicNativeRepeatLimit",
                 "LogicNativeGate",
-                "LogicNativeGateList",
                 "LogicNativeNone",
                 "LogicNativeNotNone",
                 "LogicNativeValueValid",
                 "LogicNativeCollision",
                 "LogicNativeObjectsColliding",
             ],
-            "separators": 2,
+            "separators": 3,
         },
         "Logic/Trees": {
             "nodes": [
@@ -1749,10 +2190,17 @@ def validate_editor_menus():
                 "LogicNativeLogicTreeStatus",
             ],
         },
+        "Logic/Loops": {
+            "nodes": [
+                "LogicNativeLoop",
+                "LogicNativeBreakLoop",
+            ],
+        },
         "Time": {
             "nodes": [
                 "LogicNativeTime",
                 "LogicNativeDeltaFactor",
+                "LogicNativeOnNextFrame",
                 "LogicNativeDelay",
                 "LogicNativeTimer",
                 "LogicNativeCooldown",
@@ -1769,6 +2217,7 @@ def validate_editor_menus():
                 "LogicNativeVectorMath",
                 "LogicNativeClampValue",
                 "LogicNativeCompare",
+                "LogicNativeFloatCurve",
                 "LogicNativeMapRange",
                 "LogicNativeThreshold",
                 "LogicNativeRangedThreshold",
@@ -1785,6 +2234,7 @@ def validate_editor_menus():
                 "LogicNativeSetGravity",
                 "LogicNativeRaycast",
                 "LogicNativeRaycastAll",
+                "LogicNativeRaycastFromMesh",
                 "LogicNativeShapeCast",
                 "LogicNativeShapeCastAll",
                 "LogicNativeProjectileRay",
@@ -1793,6 +2243,7 @@ def validate_editor_menus():
                 "LogicNativeRemovePhysicsConstraint",
                 "LogicNativeObjectsColliding",
                 "LogicNativeSetPhysics",
+                "LogicNativeSetPhysicsPaused",
                 "LogicNativeSetDynamics",
                 "LogicNativeRebuildCollisionShape",
                 "LogicNativeGetRigidBodyAttribute",
@@ -1842,6 +2293,14 @@ def validate_editor_menus():
             operator_types(menu_layout) == expected_nodes,
             f"LogicNodeTree menu {menu_path} has wrong node entries: {operator_types(menu_layout)}",
         )
+
+        expected_labels = expectation.get("labels")
+        if expected_labels is not None:
+            actual_labels = [operator_call.text for operator_call in menu_layout.operator_calls]
+            require(
+                actual_labels == expected_labels,
+                f"LogicNodeTree menu {menu_path} has wrong node labels: {actual_labels}",
+            )
 
         expected_separators = expectation.get("separators", 0)
         require(
@@ -1915,6 +2374,27 @@ def validate_editor_menus():
             f"LogicNodeTree menu exposes an unregistered node idname: {item['idname']}",
         )
 
+    for retired_menu_path in ("Objects/Get Attribute", "Objects/Set Attribute"):
+        require(
+            retired_menu_path not in logic_add_menu_cls.pathing_dict,
+            f"Retired extra submenu is still registered: {retired_menu_path}",
+        )
+
+    expected_object_catalog_entries = {
+        "LogicNativeGetObjectAttribute": ("Get Object Attribute", "Objects"),
+        "LogicNativeSetObjectAttribute": ("Set Object Attribute", "Objects"),
+        "LogicNativeGetObjectID": ("Get Object ID", "Objects/Object Data"),
+        "LogicNativeGetAxisVector": ("Get Axis Vector", "Objects/Object Data"),
+    }
+    for node_idname, (expected_label, expected_path) in expected_object_catalog_entries.items():
+        entry = logic_menu_module.LOGIC_NODE_PARITY_CATALOG[node_idname]
+        require(
+            visible_node_idnames.count(node_idname) == 1,
+            f"{node_idname} must appear exactly once in the LogicNodeTree menu",
+        )
+        require(entry["label"] == expected_label, f"{node_idname} has the wrong catalog label")
+        require(entry["menu_path"] == expected_path, f"{node_idname} has the wrong menu path")
+
 
 def validate_catalog_runtime_parity():
     from bl_ui.node_add_menu_logic_catalog import (
@@ -1927,6 +2407,18 @@ def validate_catalog_runtime_parity():
     descriptors_path = repo_root / "source/blender/nodes/NOD_logic_descriptors.hh"
     registry_text = registry_path.read_text(encoding="utf-8")
     descriptors_text = descriptors_path.read_text(encoding="utf-8")
+
+    registered_idnames = set(re.findall(
+        r'\{"(LogicNative[A-Za-z0-9_]+)",\s*LN_NodeKind::',
+        registry_text,
+    ))
+    catalog_idnames = set(LOGIC_NODE_PARITY_CATALOG)
+    untracked_registry_idnames = sorted(registered_idnames - catalog_idnames)
+    if untracked_registry_idnames:
+        raise RuntimeError(
+            "Registered native nodes missing from the parity catalog: "
+            + ", ".join(untracked_registry_idnames)
+        )
 
     missing_registry = []
     missing_descriptors = []
@@ -1969,7 +2461,7 @@ def validate_logic_tree_validation_operator():
         )
 
         on_update = tree.nodes.new("LogicNativeOnUpdate")
-        unsupported = tree.nodes.new("LogicNativeSetCustomCursor")
+        unsupported = tree.nodes.new("LogicNativeLoadFileContent")
         tree.links.new(on_update.outputs["Out"], flow_input(unsupported))
         try:
             bpy.ops.node.validate_logic_tree(tree_name=tree.name)
@@ -2030,6 +2522,239 @@ def validate_catalog_execution_input_labels():
         not errors,
         "LogicNative execution input label audit failed:\n" + "\n".join(errors),
     )
+
+
+def validate_value_change_node_ui():
+    tree = bpy.data.node_groups.new("LN Value Change UI Audit", "LogicNodeTree")
+    try:
+        changed = tree.nodes.new("LogicNativeValueChanged")
+        changed_to = tree.nodes.new("LogicNativeValueChangedTo")
+
+        require(
+            "ignore_initial_none" in changed.bl_rna.properties,
+            "On Value Changed is missing the Ignore Initial None option",
+        )
+        require(
+            changed.ignore_initial_none is False,
+            "On Value Changed should observe None-to-value transitions by default",
+        )
+        changed.ignore_initial_none = True
+        require(
+            changed.ignore_initial_none is True,
+            "On Value Changed Ignore Initial None option is not writable",
+        )
+
+        target = next(
+            (socket for socket in changed_to.inputs if socket.identifier == "Target"),
+            None,
+        )
+        require(target is not None, "On Value Changed To is missing its Target input")
+        require(
+            target.name == "Target",
+            f"On Value Changed To Target input has an empty or incorrect label: {target.name!r}",
+        )
+
+        result = next(
+            (socket for socket in changed_to.outputs if socket.identifier == "Result"),
+            None,
+        )
+        require(result is not None, "On Value Changed To is missing its result output")
+        require(
+            result.name == "If Changed To",
+            f"On Value Changed To result output has an unclear label: {result.name!r}",
+        )
+    finally:
+        bpy.data.node_groups.remove(tree)
+
+
+def validate_typecast_node_ui():
+    tree = bpy.data.node_groups.new("LN Typecast UI Audit", "LogicNodeTree")
+    try:
+        node = tree.nodes.new("LogicNativeTypecast")
+        require(node.to_type == "INT", "Typecast should preserve Integer as its legacy default")
+        require(
+            "integer_rounding" in node.bl_rna.properties,
+            "Typecast is missing its Float to Integer conversion mode",
+        )
+        require(
+            node.integer_rounding == "TRUNCATE",
+            "Typecast should preserve truncation as its legacy Float to Integer behavior",
+        )
+
+        expected_outputs = {
+            "INT": ("Integer", "NodeSocketLogicInt"),
+            "BOOL": ("Boolean", "NodeSocketLogicBool"),
+            "STRING": ("String", "NodeSocketLogicString"),
+            "FLOAT": ("Float", "NodeSocketLogicFloat"),
+            "VECTOR": ("Vector", "NodeSocketLogicVector"),
+        }
+        for target, (expected_identifier, expected_idname) in expected_outputs.items():
+            node.to_type = target
+            bpy.context.view_layer.update()
+            available_outputs = [socket for socket in node.outputs if not socket.is_unavailable]
+            require(
+                len(available_outputs) == 1,
+                f"Typecast {target} should expose exactly one output, got "
+                f"{[socket.identifier for socket in available_outputs]}",
+            )
+            output = available_outputs[0]
+            require(
+                output.identifier == expected_identifier,
+                f"Typecast {target} exposed {output.identifier!r} instead of "
+                f"{expected_identifier!r}",
+            )
+            require(
+                output.bl_idname == expected_idname,
+                f"Typecast {target} output uses {output.bl_idname!r} instead of "
+                f"{expected_idname!r}",
+            )
+
+        node.to_type = "INT"
+        for mode in ("TRUNCATE", "ROUND", "FLOOR", "CEIL"):
+            node.integer_rounding = mode
+            require(
+                node.integer_rounding == mode,
+                f"Typecast Integer conversion mode {mode} is not writable",
+            )
+    finally:
+        bpy.data.node_groups.remove(tree)
+
+
+def validate_rotation_node_ui():
+    tree = bpy.data.node_groups.new("LN Rotation Node UI Audit", "LogicNodeTree")
+    try:
+        combine = tree.nodes.new("LogicNativeEuler")
+        separate = tree.nodes.new("LogicNativeSeparateEuler")
+
+        require(combine.bl_label == "Combine Rotation", "Combine Rotation has an outdated label")
+        require(
+            separate.bl_label == "Separate Rotation",
+            "Separate Rotation has an outdated label",
+        )
+        require(
+            "XYZ Euler order" in combine.bl_rna.description,
+            "Combine Rotation is missing its XYZ Euler-order description",
+        )
+        require(
+            "angles may differ while preserving the same orientation"
+            in separate.bl_rna.description,
+            "Separate Rotation should explain equivalent Euler-angle representations",
+        )
+        require(
+            [socket.identifier for socket in combine.inputs] == ["X", "Y", "Z"],
+            "Combine Rotation must preserve its X, Y, and Z input identifiers",
+        )
+        require(
+            [socket.identifier for socket in combine.outputs] == ["Rotation"],
+            "Combine Rotation must expose one Rotation output",
+        )
+        require(
+            combine.outputs["Rotation"].name == "Rotation",
+            "Combine Rotation output has an inconsistent visible label",
+        )
+        require(
+            [socket.identifier for socket in separate.inputs] == ["Rotation"],
+            "Separate Rotation must preserve its Rotation input identifier",
+        )
+        require(
+            [socket.identifier for socket in separate.outputs] == ["X", "Y", "Z"],
+            "Separate Rotation must expose X, Y, and Z outputs",
+        )
+
+        angle_sockets = [*combine.inputs, *separate.outputs]
+        for socket in angle_sockets:
+            require(
+                socket.bl_idname == "NodeSocketFloatAngle",
+                f"{socket.identifier} should use Blender's angle-aware float socket",
+            )
+            require(
+                socket.bl_rna.properties["default_value"].subtype == "ANGLE",
+                f"{socket.identifier} should display degrees while storing radians",
+            )
+        combine.inputs["X"].default_value = math.radians(90.0)
+        require(
+            math.isclose(combine.inputs["X"].default_value, math.pi / 2.0, abs_tol=1.0e-6),
+            "Combine Rotation angle storage must remain radians",
+        )
+    finally:
+        bpy.data.node_groups.remove(tree)
+
+    print("Rotation node UI checks passed")
+
+
+def validate_object_attribute_node_ui():
+    tree = new_logic_tree("LN Object Attribute UI Audit")
+    try:
+        get_attribute = tree.nodes.new("LogicNativeGetObjectAttribute")
+        set_attribute = tree.nodes.new("LogicNativeSetObjectAttribute")
+        get_id = tree.nodes.new("LogicNativeGetObjectID")
+        get_axis = tree.nodes.new("LogicNativeGetAxisVector")
+
+        expected_labels = {
+            get_attribute: "Get Object Attribute",
+            set_attribute: "Set Object Attribute",
+            get_id: "Get Object ID",
+            get_axis: "Get Axis Vector",
+        }
+        for node, expected_label in expected_labels.items():
+            require(
+                node.bl_label == expected_label,
+                f"{node.bl_idname} has the wrong visible label: {node.bl_label}",
+            )
+    finally:
+        bpy.data.node_groups.remove(tree)
+
+    print("Object attribute node UI checks passed")
+
+
+def validate_set_physics_state_node_ui():
+    tree = new_logic_tree("LN Set Physics State UI Audit")
+    try:
+        node = tree.nodes.new("LogicNativeSetDynamics")
+        expected_items = {
+            "DYNAMIC": "Restore Previous Physics State",
+            "STATIC_COLLIDER": "Static",
+            "GHOST": "Ghost",
+            "NO_COLLISION": "No Collision",
+            "RESTORE_ORIGINAL": "Restore Original Physics Type",
+            "DYNAMIC_TYPE": "Dynamic",
+            "RIGID_BODY": "Rigid Body",
+            "KINEMATIC": "Kinematic",
+        }
+        items = {
+            item.identifier: item.name
+            for item in node.bl_rna.properties["dynamics_mode"].enum_items
+            if item.identifier
+        }
+        require(
+            items == expected_items,
+            f"Set Physics State modes changed unexpectedly: {items!r}",
+        )
+        require(
+            node.bl_label == "Set Physics State",
+            "Set Physics State node has an outdated label",
+        )
+        require(
+            node.bl_rna.properties["dynamics_mode"].name == "Physics State",
+            "Set Physics State dropdown has an inaccurate label",
+        )
+        require(
+            node.dynamics_mode == "RESTORE_ORIGINAL",
+            "New Set Physics State nodes should default to Restore Original Physics Type",
+        )
+
+        enabled = next(socket for socket in node.inputs if socket.identifier == "Enabled")
+        require(enabled.is_unavailable, "Enabled should be hidden outside Ghost mode")
+        node.dynamics_mode = "GHOST"
+        bpy.context.view_layer.update()
+        require(not enabled.is_unavailable, "Ghost mode should expose Enabled")
+        node.dynamics_mode = "KINEMATIC"
+        bpy.context.view_layer.update()
+        require(enabled.is_unavailable, "Kinematic mode should hide Enabled")
+    finally:
+        bpy.data.node_groups.remove(tree)
+
+    print("Set Physics State node UI checks passed")
 
 
 def validate_logic_socket_palette():
@@ -2113,6 +2838,17 @@ def validate_logic_math_operations():
         f"LogicNativeVehicleAccelerate exposes the wrong vehicle axis set: {sorted(vehicle_axes)}",
     )
 
+    constraint_break_match_items = bpy.types.LogicNativeOnConstraintBreak.bl_rna.properties[
+        "match_mode"].enum_items
+    constraint_break_match_modes = {
+        item.identifier for item in constraint_break_match_items
+    }
+    require(
+        constraint_break_match_modes == EXPECTED_LOGIC_CONSTRAINT_BREAK_MATCH_MODES,
+        "LogicNativeOnConstraintBreak exposes the wrong match mode set: "
+        f"{sorted(constraint_break_match_modes)}",
+    )
+
     require(
         "use_local_space" in bpy.types.LogicNativeGetCharacterInfo.bl_rna.properties,
         "LogicNativeGetCharacterInfo is missing its local-space RNA property",
@@ -2155,6 +2891,7 @@ def get_or_create_cube(name):
 def build_binding_probe(linked_tree):
     binding_object = get_or_create_cube(LOGIC_NODES_BINDING_OBJECT)
     set_active_object(binding_object)
+    users_before_binding = linked_tree.users
     result = bpy.ops.object.logic_nodes_binding_add()
     require(result == {"FINISHED"}, f"Failed to add Logic Nodes binding: {result}")
     require(
@@ -2166,17 +2903,83 @@ def build_binding_probe(linked_tree):
     binding.tree = linked_tree
     binding.enabled = True
     require(binding.tree_name == linked_tree.name, "Binding tree name mismatch")
+    require(
+        linked_tree.users == users_before_binding + 1,
+        "Logic Nodes binding did not register as a real node-tree user",
+    )
+
+    original_tree_name = linked_tree.name
+    linked_tree.name = f"{original_tree_name} Rename Probe"
+    require(binding.tree == linked_tree, "Binding lost its tree pointer after a datablock rename")
+    require(
+        binding.tree_name == linked_tree.name,
+        "Binding did not expose the renamed tree name immediately",
+    )
+    linked_tree.name = original_tree_name
+    require(
+        binding.tree_name == original_tree_name,
+        "Binding did not follow a second node-tree rename",
+    )
+
+    users_before_copy = linked_tree.users
+    binding_object_copy = binding_object.copy()
+    binding_object_copy.name = f"{LOGIC_NODES_BINDING_OBJECT} Copy"
+    bpy.context.scene.collection.objects.link(binding_object_copy)
+    require(
+        len(binding_object_copy.game.logic_node_bindings) == 1
+        and binding_object_copy.game.logic_node_bindings[0].tree == linked_tree,
+        "Copying an object did not preserve its Logic Nodes tree binding",
+    )
+    require(
+        linked_tree.users == users_before_copy + 1,
+        "Copying a bound object did not register another real node-tree user",
+    )
+    bpy.data.objects.remove(binding_object_copy, do_unlink=True)
+    require(
+        linked_tree.users == users_before_copy,
+        "Removing a copied bound object did not release its node-tree user",
+    )
 
     clear_object = get_or_create_cube(LOGIC_NODES_CLEAR_OBJECT)
     set_active_object(clear_object)
     result = bpy.ops.object.logic_nodes_binding_add()
     require(result == {"FINISHED"}, f"Failed to add clear-test binding: {result}")
+    clear_object.game.logic_node_bindings[0].tree = linked_tree
+    users_before_clear = linked_tree.users
     result = bpy.ops.object.logic_nodes_binding_clear()
     require(result == {"FINISHED"}, f"Failed to clear Logic Nodes binding: {result}")
     require(
         len(clear_object.game.logic_node_bindings) == 0,
         "Logic Nodes binding clear left collection entries behind",
     )
+    require(
+        linked_tree.users == users_before_clear - 1,
+        "Clearing Logic Nodes bindings did not release the node-tree user",
+    )
+
+
+def validate_binding_remap_safety():
+    tree_name = "LN Binding Remap Probe"
+    tree = bpy.data.node_groups.new(tree_name, "LogicNodeTree")
+    obj = get_or_create_cube(tree_name)
+    binding = obj.game.logic_node_binding_new()
+    binding.tree = tree
+
+    bpy.data.node_groups.remove(tree, do_unlink=True)
+    require(binding.tree is None, "Deleting a bound node tree left a dangling binding pointer")
+    require(
+        binding.tree_name == "",
+        "Deleting a bound node tree left a stale public binding name",
+    )
+
+    replacement = bpy.data.node_groups.new(tree_name, "LogicNodeTree")
+    require(
+        binding.tree is None,
+        "Creating a same-named tree unexpectedly reconnected a deleted binding",
+    )
+
+    bpy.data.objects.remove(obj, do_unlink=True)
+    bpy.data.node_groups.remove(replacement)
 
 
 def disable_legacy_logic_addons():
@@ -2216,7 +3019,11 @@ def build_probe_trees():
 
     linked_tree = new_logic_tree("LN Linked Tree")
     on_update = linked_tree.nodes.new("LogicNativeOnUpdate")
+    on_fixed_update = linked_tree.nodes.new("LogicNativeOnFixedUpdate")
     branch = linked_tree.nodes.new("LogicNativeBranch")
+    flow_gate = linked_tree.nodes.new("LogicNativeFlowGate")
+    any_flow = linked_tree.nodes.new("LogicNativeAnyFlow")
+    sequence = linked_tree.nodes.new("LogicNativeSequence")
     gate = linked_tree.nodes.new("LogicNativeGate")
     condition = linked_tree.nodes.new("LogicNativeValueBool")
     value_a = linked_tree.nodes.new("LogicNativeValueFloat")
@@ -2237,6 +3044,7 @@ def build_probe_trees():
     clamp_value = linked_tree.nodes.new("LogicNativeClampValue")
     compare = linked_tree.nodes.new("LogicNativeCompare")
     map_range = linked_tree.nodes.new("LogicNativeMapRange")
+    float_curve = linked_tree.nodes.new("LogicNativeFloatCurve")
     threshold = linked_tree.nodes.new("LogicNativeThreshold")
     ranged_threshold = linked_tree.nodes.new("LogicNativeRangedThreshold")
     within_range = linked_tree.nodes.new("LogicNativeWithinRange")
@@ -2292,11 +3100,11 @@ def build_probe_trees():
     set_prop_int = linked_tree.nodes.new("LogicNativeSetGamePropertyInt")
     set_prop_string = linked_tree.nodes.new("LogicNativeSetGamePropertyString")
     on_next_frame = linked_tree.nodes.new("LogicNativeOnNextFrame")
-    gate_list = linked_tree.nodes.new("LogicNativeGateList")
     once = linked_tree.nodes.new("LogicNativeOnce")
     boolean_edge = linked_tree.nodes.new("LogicNativeBooleanEdge")
     value_changed = linked_tree.nodes.new("LogicNativeValueChanged")
     value_changed_to = linked_tree.nodes.new("LogicNativeValueChangedTo")
+    value_changed.ignore_initial_none = True
     delay = linked_tree.nodes.new("LogicNativeDelay")
     timer = linked_tree.nodes.new("LogicNativeTimer")
     cooldown = linked_tree.nodes.new("LogicNativeCooldown")
@@ -2309,13 +3117,23 @@ def build_probe_trees():
     has_property = linked_tree.nodes.new("LogicNativeHasProperty")
     toggle_property = linked_tree.nodes.new("LogicNativeToggleProperty")
     modify_property = linked_tree.nodes.new("LogicNativeModifyProperty")
-    modify_property_clamped = linked_tree.nodes.new("LogicNativeModifyPropertyClamped")
     keyboard_key = linked_tree.nodes.new("LogicNativeKeyboardKey")
     mouse_button = linked_tree.nodes.new("LogicNativeMouseButton")
+    gamepad_button = linked_tree.nodes.new("LogicNativeGamepadButton")
+    input_action = linked_tree.nodes.new("LogicNativeInputAction")
+    get_input_binding = linked_tree.nodes.new("LogicNativeGetInputBinding")
+    rebind_input_action = linked_tree.nodes.new("LogicNativeRebindInputAction")
+    input_map = linked_tree.nodes.new("LogicNativeInputMap")
     add_object = linked_tree.nodes.new("LogicNativeAddObject")
     set_parent = linked_tree.nodes.new("LogicNativeSetParent")
     remove_parent = linked_tree.nodes.new("LogicNativeRemoveParent")
     remove_object = linked_tree.nodes.new("LogicNativeRemoveObject")
+    raycast_from_mesh = linked_tree.nodes.new("LogicNativeRaycastFromMesh")
+    raycast_from_mesh.mesh_domain = "FACES"
+    raycast_from_mesh.ray_direction = "INVERTED_NORMALS"
+    raycast_from_mesh.inputs["Start Offset"].default_value = 0.125
+    raycast_from_mesh.inputs["Max Distance"].default_value = 42.0
+    raycast_from_mesh.inputs["Max Rays"].default_value = 17
     get_active_camera = linked_tree.nodes.new("LogicNativeGetActiveCamera")
     set_camera = linked_tree.nodes.new("LogicNativeSetCamera")
     set_camera_fov = linked_tree.nodes.new("LogicNativeSetCameraFov")
@@ -2344,6 +3162,7 @@ def build_probe_trees():
     vehicle_set_attributes = linked_tree.nodes.new("LogicNativeVehicleSetAttributes")
 
     on_update.location = (-480.0, 120.0)
+    on_fixed_update.location = (-480.0, 280.0)
     condition.location = (-480.0, -80.0)
     gate.location = (-350.0, -20.0)
     branch.location = (-220.0, 40.0)
@@ -2365,6 +3184,7 @@ def build_probe_trees():
     clamp_value.location = (-220.0, -2580.0)
     compare.location = (-220.0, -2740.0)
     map_range.location = (-220.0, -2900.0)
+    float_curve.location = (-480.0, -2900.0)
     threshold.location = (-220.0, -3060.0)
     ranged_threshold.location = (-220.0, -3220.0)
     within_range.location = (-220.0, -3380.0)
@@ -2414,7 +3234,7 @@ def build_probe_trees():
     set_prop_int.location = (300.0, -780.0)
     set_prop_string.location = (300.0, -940.0)
     on_next_frame.location = (820.0, 120.0)
-    gate_list.location = (820.0, -40.0)
+    any_flow.location = (820.0, -40.0)
     once.location = (820.0, -200.0)
     value_changed.location = (820.0, -360.0)
     value_changed_to.location = (820.0, -520.0)
@@ -2429,13 +3249,13 @@ def build_probe_trees():
     has_property.location = (1080.0, -520.0)
     toggle_property.location = (1080.0, -680.0)
     modify_property.location = (1080.0, -840.0)
-    modify_property_clamped.location = (1080.0, -1000.0)
     keyboard_key.location = (1340.0, 120.0)
     mouse_button.location = (1340.0, -40.0)
-    add_object.location = (1340.0, -200.0)
-    set_parent.location = (1340.0, -360.0)
-    remove_parent.location = (1340.0, -520.0)
-    remove_object.location = (1340.0, -680.0)
+    gamepad_button.location = (1340.0, -200.0)
+    add_object.location = (1340.0, -360.0)
+    set_parent.location = (1340.0, -520.0)
+    remove_parent.location = (1340.0, -680.0)
+    remove_object.location = (1340.0, -840.0)
     get_active_camera.location = (1600.0, 120.0)
     set_camera.location = (1600.0, -40.0)
     set_camera_fov.location = (1600.0, -200.0)
@@ -2506,6 +3326,22 @@ def build_probe_trees():
     map_range.inputs["From Max"].default_value = 1.0
     map_range.inputs["To Min"].default_value = -10.0
     map_range.inputs["To Max"].default_value = 10.0
+    float_curve.inputs["Factor"].default_value = 0.4
+    float_curve.inputs["Value"].default_value = 0.25
+    float_curve.mapping.extend = "HORIZONTAL"
+    float_curve.mapping.use_clip = False
+    float_curve.mapping.curves[0].points.new(0.5, 0.2)
+    float_curve.mapping.update()
+    float_curve.mute = True
+    require(
+        [
+            (link.from_socket.identifier, link.to_socket.identifier)
+            for link in float_curve.internal_links
+        ]
+        == [("Value", "Value")],
+        "Muted Float Curve must bypass Value, never Factor",
+    )
+    float_curve.mute = False
     threshold.operation = "LESS"
     threshold.inputs["Else 0"].default_value = False
     threshold.inputs["Value"].default_value = -2.0
@@ -2529,13 +3365,30 @@ def build_probe_trees():
     set_prop_string.inputs["Property"].default_value = "state"
     set_prop_string.inputs["Value"].default_value = "running"
     vector_math.operation = "MAXIMUM"
-    gate_list.operation = "AND"
     has_property.inputs["Name"].default_value = "enabled"
     toggle_property.inputs["Property"].default_value = "enabled"
     modify_property.inputs["Property"].default_value = "speed"
-    modify_property_clamped.inputs["Property"].default_value = "speed"
     keyboard_key.inputs["Key"].default_value = "A"
     mouse_button.inputs["Button"].default_value = "LEFTMOUSE"
+    gamepad_button.gamepad_button = "LT_L2"
+    gamepad_button.input_type = "UP"
+    # The UI-input flag shares custom1 with the input type: each keeps the other.
+    gamepad_button.use_ui_input = True
+    keyboard_key.input_type = "DOWN"
+    keyboard_key.use_ui_input = True
+    keyboard_key.input_type = "UP"
+    input_action.inputs["Action"].default_value = "Jump"
+    input_action.input_type = "DOWN"
+    input_action.use_ui_input = True
+    get_input_binding.input_device = "GAMEPAD"
+    get_input_binding.input_direction = "LEFT"
+    rebind_input_action.rebind_device = "GAMEPAD"
+    rebind_input_action.input_direction = "RIGHT"
+    input_map_path = socket_by_identifier(input_map.inputs, "Path", "LogicNativeInputMap")
+    input_map.input_map_operation = "RESET"
+    require(input_map_path.is_unavailable, "Input Map Reset still shows its Path")
+    input_map.input_map_operation = "LOAD"
+    require(not input_map_path.is_unavailable, "Input Map Load hides its Path")
     binding_object = get_or_create_cube(LOGIC_NODES_BINDING_OBJECT)
     add_object.inputs["Object to Add"].default_value = binding_object
     add_object.inputs["Copy Transform"].default_value = binding_object
@@ -2582,9 +3435,9 @@ def build_probe_trees():
     vehicle_set_attributes.inputs["Friction"].default_value = True
     vehicle_set_attributes.inputs["Friction Value"].default_value = 10.5
 
-    linked_tree.links.new(on_update.outputs["Out"], branch.inputs["Flow"])
-    linked_tree.links.new(value_output(condition), gate.inputs["Condition A"])
-    linked_tree.links.new(value_output(condition), gate.inputs["Condition B"])
+    linked_tree.links.new(on_fixed_update.outputs["Out"], branch.inputs["Flow"])
+    linked_tree.links.new(value_output(condition), gate.inputs["Conditions"])
+    linked_tree.links.new(value_output(get_prop_bool), gate.inputs["Conditions"])
     linked_tree.links.new(gate.outputs["Result"], branch.inputs["Condition"])
     linked_tree.links.new(value_output(value_a), math.inputs["A"])
     linked_tree.links.new(value_output(value_b), math.inputs["B"])
@@ -2653,6 +3506,11 @@ def build_probe_trees():
     linked_tree.links.new(get_fullscreen.outputs["Fullscreen"], set_fullscreen.inputs["Fullscreen"])
     linked_tree.links.new(get_resolution.outputs["Width"], set_resolution.inputs["X"])
     linked_tree.links.new(get_resolution.outputs["Height"], set_resolution.inputs["Y"])
+    linked_tree.links.new(on_update.outputs["Out"], sequence.inputs["Flow"])
+    linked_tree.links.new(sequence.outputs["Then 0"], flow_gate.inputs["Open"])
+    linked_tree.links.new(on_update.outputs["Out"], any_flow.inputs["In"])
+    linked_tree.links.new(sequence.outputs["Then 1"], any_flow.inputs["In"])
+    linked_tree.links.new(any_flow.outputs["Out"], flow_gate.inputs["Enter"])
 
     build_binding_probe(linked_tree)
     EXPECTED_LINKED_NODE_COUNT = len(linked_tree.nodes)
@@ -2707,12 +3565,139 @@ def validate_probe_trees():
     vector_math = find_node(linked_tree, "LogicNativeVectorMath")
     require(vector_math is not None, "Vector Math node did not survive save/load")
     require(vector_math.operation == "MAXIMUM", "Vector Math node lost operation")
+    float_curve = find_node(linked_tree, "LogicNativeFloatCurve")
+    require(float_curve is not None, "Float Curve node did not survive save/load")
+    require(
+        [socket.identifier for socket in float_curve.inputs] == ["Factor", "Value"],
+        "Float Curve input socket contract changed",
+    )
+    require(
+        [socket.identifier for socket in float_curve.outputs] == ["Value"],
+        "Float Curve output socket contract changed",
+    )
+    require(
+        abs(float_curve.inputs["Factor"].default_value - 0.4) < 1.0e-6,
+        "Float Curve lost its Factor value",
+    )
+    require(
+        abs(float_curve.inputs["Value"].default_value - 0.25) < 1.0e-6,
+        "Float Curve lost its input Value",
+    )
+    require(
+        float_curve.mapping.extend == "HORIZONTAL",
+        "Float Curve lost its horizontal extension mode",
+    )
+    require(float_curve.mapping.use_clip is False, "Float Curve lost its clipping mode")
+    curve_points = [tuple(point.location) for point in float_curve.mapping.curves[0].points]
+    require(len(curve_points) == 3, "Float Curve lost an authored control point")
+    require(
+        any(abs(x - 0.5) < 1.0e-6 and abs(y - 0.2) < 1.0e-6 for x, y in curve_points),
+        "Float Curve changed its authored control point",
+    )
     gate = find_node(linked_tree, "LogicNativeGate")
     require(gate is not None, "Gate node did not survive save/load")
     require(gate.operation == "AND", "Gate node lost operation")
+    gate_conditions = gate.inputs["Conditions"]
+    require(gate_conditions.is_multi_input, "Boolean Combine lost its multi-input socket")
+    require(
+        sum(link.to_socket == gate_conditions for link in linked_tree.links) == 2,
+        "Boolean Combine did not preserve both condition links",
+    )
+    flow_gate = find_node(linked_tree, "LogicNativeFlowGate")
+    require(flow_gate is not None, "Flow Gate node did not survive save/load")
+    require(flow_gate.inputs["Start Open"].default_value is False, "Flow Gate lost initial state")
+    any_flow = find_node(linked_tree, "LogicNativeAnyFlow")
+    require(any_flow is not None, "Any Flow node did not survive save/load")
+    any_flow_input = any_flow.inputs["In"]
+    require(any_flow_input.is_multi_input, "Any Flow lost its multi-input socket")
+    require(
+        sum(link.to_socket == any_flow_input for link in linked_tree.links) == 2,
+        "Any Flow did not preserve both execution links",
+    )
+    sequence = find_node(linked_tree, "LogicNativeSequence")
+    require(sequence is not None, "Sequence node did not survive save/load")
+    require(
+        [socket.identifier for socket in sequence.outputs] == ["Then 0", "Then 1"],
+        "Sequence did not preserve its ordered output count",
+    )
+    expected_flow_links = {
+        ("LogicNativeOnFixedUpdate", "Out", "LogicNativeBranch", "Flow"),
+        ("LogicNativeOnUpdate", "Out", "LogicNativeSequence", "Flow"),
+        ("LogicNativeSequence", "Then 0", "LogicNativeFlowGate", "Open"),
+        ("LogicNativeOnUpdate", "Out", "LogicNativeAnyFlow", "In"),
+        ("LogicNativeSequence", "Then 1", "LogicNativeAnyFlow", "In"),
+        ("LogicNativeAnyFlow", "Out", "LogicNativeFlowGate", "Enter"),
+    }
+    actual_flow_links = {
+        (
+            link.from_node.bl_idname,
+            link.from_socket.identifier,
+            link.to_node.bl_idname,
+            link.to_socket.identifier,
+        )
+        for link in linked_tree.links
+    }
+    require(
+        expected_flow_links <= actual_flow_links,
+        "Execution-flow links did not survive save/load exactly",
+    )
+    for node_idname in ("LogicNativeKeyboardKey", "LogicNativeMouseButton"):
+        input_node = find_node(linked_tree, node_idname)
+        require(input_node is not None, f"{node_idname} did not survive save/load")
+        triggered = next(socket for socket in input_node.outputs if socket.identifier == "Out")
+        require(triggered.name == "Triggered", f"{node_idname} lost event label")
+        require("Active" in input_node.outputs, f"{node_idname} lost Active state output")
+    gamepad_button = find_node(linked_tree, "LogicNativeGamepadButton")
+    require(gamepad_button is not None, "Gamepad Button node did not survive save/load")
+    gamepad_triggered = next(
+        socket for socket in gamepad_button.outputs if socket.identifier == "Out"
+    )
+    require(gamepad_triggered.name == "Triggered", "Gamepad event label changed")
+    require("Active" in gamepad_button.outputs, "Gamepad Button lost Active state output")
+    require(gamepad_button.gamepad_button == "LT_L2", "Gamepad Button lost selected trigger")
+    require(gamepad_button.input_type == "UP", "Gamepad Button lost Released mode")
+    require(gamepad_button.use_ui_input, "Gamepad Button lost Also When UI Uses It")
+    keyboard_key = find_node(linked_tree, "LogicNativeKeyboardKey")
+    require(
+        keyboard_key.input_type == "UP" and keyboard_key.use_ui_input,
+        "Keyboard Key input type and Also When UI Uses It overwrote each other",
+    )
+    input_action = find_node(linked_tree, "LogicNativeInputAction")
+    require(input_action is not None, "Input Action node did not survive save/load")
+    require(input_action.inputs["Action"].default_value == "Jump", "Input Action lost its action")
+    require(
+        input_action.input_type == "DOWN" and input_action.use_ui_input,
+        "Input Action lost its settings",
+    )
+    get_input_binding = find_node(linked_tree, "LogicNativeGetInputBinding")
+    require(
+        get_input_binding.input_device == "GAMEPAD"
+        and get_input_binding.input_direction == "LEFT",
+        "Get Input Binding lost its settings",
+    )
+    rebind_input_action = find_node(linked_tree, "LogicNativeRebindInputAction")
+    require(
+        rebind_input_action.rebind_device == "GAMEPAD"
+        and rebind_input_action.input_direction == "RIGHT",
+        "Rebind Input Action lost its settings",
+    )
+    input_map = find_node(linked_tree, "LogicNativeInputMap")
+    require(input_map.input_map_operation == "LOAD", "Input Map lost its operation")
     euler = find_node(linked_tree, "LogicNativeEuler")
-    require(euler is not None, "Euler node did not survive save/load")
-    require(abs(euler.inputs["Z"].default_value - 0.3) <= 0.0001, "Euler node lost input")
+    require(euler is not None, "Combine Rotation node did not survive save/load")
+    require(euler.bl_label == "Combine Rotation", "Combine Rotation label did not survive")
+    require(
+        euler.outputs["Rotation"].name == "Rotation",
+        "Combine Rotation output label did not survive",
+    )
+    require(
+        all(socket.bl_idname == "NodeSocketFloatAngle" for socket in euler.inputs),
+        "Combine Rotation angle socket types did not survive",
+    )
+    require(
+        abs(euler.inputs["Z"].default_value - 0.3) <= 0.0001,
+        "Combine Rotation node lost its radian input value",
+    )
     color_rgba = find_node(linked_tree, "LogicNativeColorRGBA")
     require(color_rgba is not None, "Color RGBA node did not survive save/load")
     require(abs(color_rgba.inputs["A"].default_value - 1.0) <= 0.0001, "Color RGBA lost alpha")
@@ -2736,6 +3721,22 @@ def validate_probe_trees():
     require(
         find_node(linked_tree, "LogicNativeGetGamePropertyInt") is not None,
         "Get Game Property Int node did not survive save/load",
+    )
+    value_changed = find_node(linked_tree, "LogicNativeValueChanged")
+    require(value_changed is not None, "On Value Changed node did not survive save/load")
+    require(
+        value_changed.ignore_initial_none is True,
+        "On Value Changed lost its Ignore Initial None option",
+    )
+    value_changed_to = find_node(linked_tree, "LogicNativeValueChangedTo")
+    require(value_changed_to is not None, "On Value Changed To node did not survive save/load")
+    require(
+        value_changed_to.inputs["Target"].name == "Target",
+        "On Value Changed To did not repair or preserve its Target input label",
+    )
+    require(
+        value_changed_to.outputs["Result"].name == "If Changed To",
+        "On Value Changed To did not repair or preserve its result output label",
     )
     require(
         find_node(linked_tree, "LogicNativeGetGamePropertyString") is not None,
@@ -2962,6 +3963,25 @@ def validate_probe_trees():
         find_node(linked_tree, "LogicNativeShowProfile") is not None,
         "Show Profile node did not survive save/load",
     )
+    raycast_from_mesh = find_node(linked_tree, "LogicNativeRaycastFromMesh")
+    require(raycast_from_mesh is not None, "Raycast from Mesh node did not survive save/load")
+    require(raycast_from_mesh.mesh_domain == "FACES", "Raycast from Mesh lost its mesh domain")
+    require(
+        raycast_from_mesh.ray_direction == "INVERTED_NORMALS",
+        "Raycast from Mesh lost its direction",
+    )
+    require(
+        abs(raycast_from_mesh.inputs["Start Offset"].default_value - 0.125) <= 0.0001,
+        "Raycast from Mesh lost Start Offset",
+    )
+    require(
+        abs(raycast_from_mesh.inputs["Max Distance"].default_value - 42.0) <= 0.0001,
+        "Raycast from Mesh lost Max Distance",
+    )
+    require(
+        raycast_from_mesh.inputs["Max Rays"].default_value == 17,
+        "Raycast from Mesh lost Max Rays",
+    )
 
     binding_object = bpy.data.objects.get(LOGIC_NODES_BINDING_OBJECT)
     require(binding_object is not None, "Binding probe object did not survive save/load")
@@ -2970,6 +3990,10 @@ def validate_probe_trees():
         "Logic node binding collection was not persisted",
     )
     binding = binding_object.game.logic_node_bindings[0]
+    require(
+        binding.tree == linked_tree,
+        "Logic node binding lost its node-tree identity across save/load",
+    )
     require(binding.tree_name == "LN Linked Tree", "Tree binding value was not persisted")
     require(binding.enabled is True, "Enabled binding value was not persisted")
 
@@ -3088,6 +4112,7 @@ def validate_probe_tree_socket_idnames(tree):
                 if node.bl_idname in {
                     "LogicNativeGetObjectAttribute",
                     "LogicNativeSetObjectAttribute",
+                    "LogicNativeSetParent",
                 }:
                     socket = next(
                         (socket for socket in sockets if socket.identifier == socket_name),
@@ -3110,6 +4135,187 @@ def validate_probe_tree_socket_idnames(tree):
                     f"{node.bl_idname}.{socket_name}",
                 )
 
+        for prop_name, expected_items in expected.get("rna_enums", {}).items():
+            require(
+                prop_name in node.bl_rna.properties,
+                f"{node.bl_idname} is missing RNA enum {prop_name}",
+            )
+            actual_items = {
+                item.identifier for item in node.bl_rna.properties[prop_name].enum_items
+            }
+            require(
+                actual_items == set(expected_items),
+                f"{node.bl_idname}.{prop_name} enum mismatch: {sorted(actual_items)}",
+            )
+
+
+OBJECT_UI_NAVIGATION_NODE_IDNAMES = (
+    "LogicNativeSetOverlayCollection",
+    "LogicNativeRemoveOverlayCollection",
+    "LogicNativeOpenObjectMenu",
+    "LogicNativeCloseObjectMenu",
+    "LogicNativeSetUIFocus",
+    "LogicNativeGetUIFocus",
+    "LogicNativeScreenAnchor",
+    "LogicNativeObjectScrollView",
+    "LogicNativeObjectGridView",
+)
+
+FORBIDDEN_OBJECT_UI_LAYER_SOCKETS = {
+    "UI Layer",
+    "Layer",
+    "Order",
+    "UI Order",
+    "Visual Layer",
+}
+
+
+def validate_object_ui_navigation_node_sockets():
+    tree = new_logic_tree("LN Object UI Navigation Socket Audit")
+    collection = bpy.data.collections.new("LN Overlay Menu Probe")
+    camera_data = bpy.data.cameras.new("LN Overlay Camera")
+    camera = bpy.data.objects.new("LN Overlay Camera Probe", camera_data)
+    nodes = {}
+    try:
+        for idname in OBJECT_UI_NAVIGATION_NODE_IDNAMES:
+            expected = EXPECTED_SOCKET_IDNAMES[idname]
+            node = tree.nodes.new(idname)
+            nodes[idname] = node
+            for collection_name in ("inputs", "outputs"):
+                expected_sockets = expected.get(collection_name, {})
+                sockets = getattr(node, collection_name)
+                actual_names = [socket.identifier for socket in sockets]
+                require(
+                    actual_names == list(expected_sockets),
+                    f"{idname} {collection_name} changed: {actual_names}",
+                )
+                for socket in sockets:
+                    require(
+                        socket.identifier not in FORBIDDEN_OBJECT_UI_LAYER_SOCKETS,
+                        f"{idname} shipped a visual-layer socket {socket.identifier}",
+                    )
+                    expected_idname = expected_sockets[socket.identifier]
+                    require(
+                        socket.bl_idname == expected_idname,
+                        f"{idname}.{socket.identifier} socket idname mismatch: {socket.bl_idname}",
+                    )
+                    require_color_close(
+                        socket.draw_color_simple(),
+                        LOGIC_SOCKET_COLORS[expected_idname],
+                        f"{idname}.{socket.identifier}",
+                    )
+            for prop_name, expected_items in expected.get("rna_enums", {}).items():
+                require(
+                    prop_name in node.bl_rna.properties,
+                    f"{idname} is missing RNA enum {prop_name}",
+                )
+                actual_items = {
+                    item.identifier for item in node.bl_rna.properties[prop_name].enum_items
+                }
+                require(
+                    actual_items == set(expected_items),
+                    f"{idname}.{prop_name} enum mismatch: {sorted(actual_items)}",
+                )
+
+        set_overlay = nodes["LogicNativeSetOverlayCollection"]
+        remove_overlay = nodes["LogicNativeRemoveOverlayCollection"]
+        open_menu = nodes["LogicNativeOpenObjectMenu"]
+        close_menu = nodes["LogicNativeCloseObjectMenu"]
+        set_focus = nodes["LogicNativeSetUIFocus"]
+        screen_anchor = nodes["LogicNativeScreenAnchor"]
+
+        require("Done" not in set_overlay.outputs, "Set Overlay Collection must not expose Done")
+        require(
+            "Done" not in remove_overlay.outputs,
+            "Remove Overlay Collection must not expose Done",
+        )
+        require(open_menu.menu_routing == "MODAL", "Open Object Menu routing should default to Modal")
+        require(open_menu.menu_open_mode == "PUSH", "Open Object Menu should default to Push")
+        require(
+            open_menu.menu_presentation == "SCREEN",
+            "Open Object Menu should default to Screen",
+        )
+        require(
+            open_menu.menu_back_behavior == "CLOSE_MENU",
+            "Open Object Menu should default to Close Menu",
+        )
+        open_menu.menu_open_mode = "REPLACE_TOP"
+        open_menu.menu_presentation = "OVERLAY"
+        open_menu.menu_back_behavior = "CUSTOM"
+        open_menu.menu_routing = "PASS_THROUGH"
+        require(open_menu.menu_open_mode == "REPLACE_TOP", "Open Mode did not keep Replace Top")
+        require(open_menu.menu_presentation == "OVERLAY", "Presentation did not keep Overlay")
+        require(open_menu.menu_back_behavior == "CUSTOM", "Back did not keep Custom")
+        require(open_menu.menu_routing == "PASS_THROUGH", "Routing did not keep Pass Through")
+        open_menu.menu_routing = "MODAL"
+        require(
+            open_menu.menu_open_mode == "REPLACE_TOP"
+            and open_menu.menu_presentation == "OVERLAY"
+            and open_menu.menu_back_behavior == "CUSTOM",
+            "Changing Routing mutated packed Open Object Menu settings",
+        )
+        open_menu.menu_back_behavior = "IGNORE"
+        require(
+            open_menu.menu_open_mode == "REPLACE_TOP" and open_menu.menu_presentation == "OVERLAY",
+            "Changing Back mutated other packed Open Object Menu settings",
+        )
+
+        require(close_menu.menu_close_operation == "TOP", "Close Object Menu should default to Top")
+        menu_socket = socket_by_identifier(close_menu.inputs, "Menu", close_menu.bl_idname)
+        require(
+            menu_socket.is_unavailable,
+            "Top Menu close should hide the Menu handle socket",
+        )
+        close_menu.menu_close_operation = "ALL"
+        bpy.context.view_layer.update()
+        require(
+            menu_socket.is_unavailable,
+            "All Menus close should hide the Menu handle socket",
+        )
+        close_menu.menu_close_operation = "SPECIFIC"
+        bpy.context.view_layer.update()
+        require(
+            not menu_socket.is_unavailable,
+            "Specific Menu close should expose the Menu handle socket",
+        )
+        close_top = tree.nodes.new("LogicNativeCloseObjectMenu")
+        close_all = tree.nodes.new("LogicNativeCloseObjectMenu")
+        close_top.menu_close_operation = "TOP"
+        close_all.menu_close_operation = "ALL"
+        bpy.context.view_layer.update()
+
+        on_init = tree.nodes.new("LogicNativeOnInit")
+        set_overlay.inputs["Collection"].default_value = collection
+        remove_overlay.inputs["Collection"].default_value = collection
+        open_menu.inputs["Collection"].default_value = collection
+        open_menu.inputs["Input Context"].default_value = ""
+        set_overlay.inputs["Camera"].default_value = None
+        open_menu.inputs["Camera"].default_value = camera
+
+        tree.links.new(on_init.outputs["Out"], flow_input(set_overlay))
+        tree.links.new(set_overlay.outputs["Success"], flow_input(remove_overlay))
+        tree.links.new(set_overlay.outputs["Failed"], flow_input(close_top))
+        tree.links.new(on_init.outputs["Out"], flow_input(open_menu))
+        tree.links.new(open_menu.outputs["Opened"], flow_input(close_menu))
+        tree.links.new(open_menu.outputs["Menu"], menu_socket)
+        tree.links.new(open_menu.outputs["Failed"], flow_input(close_all))
+        tree.links.new(set_overlay.outputs["Result"], set_focus.inputs["User"])
+        tree.links.new(on_init.outputs["Out"], flow_input(set_focus))
+        tree.links.new(on_init.outputs["Out"], flow_input(screen_anchor))
+
+        result = bpy.ops.node.validate_logic_tree(tree_name=tree.name)
+        require(
+            result == {"FINISHED"},
+            f"Object UI navigation socket tree failed validation: {result}",
+        )
+    finally:
+        bpy.data.node_groups.remove(tree)
+        bpy.data.objects.remove(camera, do_unlink=True)
+        bpy.data.cameras.remove(camera_data)
+        bpy.data.collections.remove(collection)
+
+    print("Object UI navigation socket contracts passed")
+
 
 def unload_probe_trees():
     names = {"LN Empty Tree", "LN Single Node Tree", "LN Linked Tree"}
@@ -3123,6 +4329,18 @@ def unload_probe_objects():
     for obj in list(bpy.data.objects):
         if obj.name in names:
             bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def prepare_stale_value_changed_to_socket_label():
+    linked_tree = bpy.data.node_groups.get("LN Linked Tree")
+    require(linked_tree is not None, "Linked tree is missing before stale-label save probe")
+    value_changed_to = find_node(linked_tree, "LogicNativeValueChangedTo")
+    require(value_changed_to is not None, "On Value Changed To is missing before stale-label probe")
+    value_changed_to.inputs["Target"].name = ""
+    require(
+        value_changed_to.inputs["Target"].name == "",
+        "Could not prepare the legacy empty Target label for save/load migration testing",
+    )
 
 
 def load_probe_trees(blend_path):
@@ -3212,12 +4430,494 @@ def validate_a_tier_editor_hardening():
     print("A Tier editor hardening checks passed")
 
 
+def validate_spatial_analysis_node_ui():
+    tree = new_logic_tree("LN Spatial Analysis UI Audit")
+    try:
+        distance = tree.nodes.new("LogicNativeGetDistance")
+        require(distance.bl_label == "Distance Between", "Distance node has the wrong label")
+        require(distance.endpoint_a_type == "OBJECT", "Distance A should default to Object")
+        require(distance.endpoint_b_type == "OBJECT", "Distance B should default to Object")
+        distance_inputs = {socket.identifier: socket for socket in distance.inputs}
+        require(
+            not distance_inputs["Object A"].is_unavailable
+            and distance_inputs["Position A"].is_unavailable,
+            "Distance A did not expose only its selected Object socket",
+        )
+        require(
+            not distance_inputs["Object B"].is_unavailable
+            and distance_inputs["Position B"].is_unavailable,
+            "Distance B did not expose only its selected Object socket",
+        )
+        distance.endpoint_a_type = "POSITION"
+        distance.endpoint_b_type = "POSITION"
+        bpy.context.view_layer.update()
+        distance_inputs = {socket.identifier: socket for socket in distance.inputs}
+        require(
+            distance_inputs["Object A"].is_unavailable
+            and not distance_inputs["Position A"].is_unavailable,
+            "Distance A did not switch to its Position socket",
+        )
+        require(
+            distance_inputs["Object B"].is_unavailable
+            and not distance_inputs["Position B"].is_unavailable,
+            "Distance B did not switch to its Position socket",
+        )
+
+        average = tree.nodes.new("LogicNativeGetAverageCenterPosition")
+        require(
+            average.bl_label == "Get Average Center Position",
+            "Get Average Center Position has the wrong label",
+        )
+        require(
+            average.source_type == "VECTOR_LIST",
+            "Get Average Center Position should default to Vector List",
+        )
+        average_inputs = {socket.identifier: socket for socket in average.inputs}
+        require(
+            not average_inputs["Vectors"].is_unavailable
+            and average_inputs["Objects"].is_unavailable
+            and average_inputs["Collection"].is_unavailable,
+            "Vector List mode did not expose only Vectors",
+        )
+        average.source_type = "OBJECT_LIST"
+        bpy.context.view_layer.update()
+        average_inputs = {socket.identifier: socket for socket in average.inputs}
+        require(
+            average_inputs["Vectors"].is_unavailable
+            and not average_inputs["Objects"].is_unavailable
+            and average_inputs["Collection"].is_unavailable,
+            "Object List mode did not expose only Objects",
+        )
+        average.source_type = "COLLECTION"
+        bpy.context.view_layer.update()
+        average_inputs = {socket.identifier: socket for socket in average.inputs}
+        require(
+            average_inputs["Vectors"].is_unavailable
+            and average_inputs["Objects"].is_unavailable
+            and not average_inputs["Collection"].is_unavailable,
+            "Collection mode did not expose only Collection",
+        )
+        require(
+            [socket.identifier for socket in average.outputs]
+            == ["Center", "Count", "Valid"],
+            "Get Average Center Position has the wrong output contract",
+        )
+
+        predict = tree.nodes.new("LogicNativePredictMotion")
+        require(predict.source_type == "OBJECT", "Predict Motion should default to Object")
+        predict_inputs = {socket.identifier: socket for socket in predict.inputs}
+        require(
+            not predict_inputs["Object"].is_unavailable
+            and predict_inputs["Position"].is_unavailable,
+            "Predict Motion did not expose only its selected Object source",
+        )
+        require(
+            abs(predict.inputs["Prediction Time"].default_value - 0.5) <= 1.0e-6,
+            "Predict Motion has the wrong prediction-time default",
+        )
+        require(
+            abs(predict.inputs["Smoothing Time"].default_value) <= 1.0e-6,
+            "Predict Motion should default to unsmoothed velocity",
+        )
+        predict.source_type = "POSITION"
+        bpy.context.view_layer.update()
+        predict_inputs = {socket.identifier: socket for socket in predict.inputs}
+        require(
+            predict_inputs["Object"].is_unavailable
+            and not predict_inputs["Position"].is_unavailable,
+            "Predict Motion did not switch to its Position source",
+        )
+    finally:
+        bpy.data.node_groups.remove(tree)
+
+    print("Spatial analysis node UI checks passed")
+
+
+def validate_set_parent_node_ui():
+    tree = new_logic_tree("LN Set Parent UI Audit")
+    try:
+        node = tree.nodes.new("LogicNativeSetParent")
+        inputs = {socket.identifier: socket for socket in node.inputs}
+
+        require(node.parent_type == "OBJECT", "Set Parent should default to object parenting")
+        require(
+            not hasattr(node, "initial_transform"),
+            "Set Parent should not expose an initial-transform setting",
+        )
+        require(
+            not hasattr(node, "physics_while_parented"),
+            "Set Parent should not expose a physics-policy setting",
+        )
+        require(inputs["Bone Name"].is_unavailable, "Object parenting should hide Bone Name")
+        require(
+            not inputs["Compound"].is_unavailable,
+            "Modern object parenting should expose Compound",
+        )
+        require(inputs["Compound"].default_value is False, "Compound should default off")
+        require(inputs["Ghost"].is_unavailable, "Modern Set Parent should hide legacy Ghost")
+
+        node.parent_type = "BONE"
+        bpy.context.view_layer.update()
+        require(
+            not inputs["Bone Name"].is_unavailable,
+            "Bone parenting should expose Bone Name",
+        )
+        for socket_name in ("Compound", "Ghost"):
+            require(
+                inputs[socket_name].is_unavailable,
+                f"Modern bone parenting should hide legacy {socket_name}",
+            )
+
+        node.parent_type = "OBJECT"
+        bpy.context.view_layer.update()
+        require(
+            inputs["Bone Name"].is_unavailable,
+            "Switching back to Object should hide Bone Name",
+        )
+        require(
+            not inputs["Compound"].is_unavailable,
+            "Switching back to Object should expose Compound",
+        )
+    finally:
+        bpy.data.node_groups.remove(tree)
+
+    print("Set Parent node UI checks passed")
+
+
+def validate_dynamic_flow_node_ui():
+    tree = new_logic_tree("LN Dynamic Flow UI Audit")
+    original_area_type = None
+    area = None
+    try:
+        sequence = tree.nodes.new("LogicNativeSequence")
+        require(
+            [socket.identifier for socket in sequence.outputs] == ["Then 0", "Then 1"],
+            "Sequence should start with two ordered outputs",
+        )
+
+        area = bpy.context.window.screen.areas[0]
+        original_area_type = area.type
+        area.type = "NODE_EDITOR"
+        space = area.spaces.active
+        space.tree_type = "LogicNodeTree"
+        space.node_tree = tree
+        tree.nodes.active = sequence
+        sequence.select = True
+        region = next(region for region in area.regions if region.type == "WINDOW")
+        with bpy.context.temp_override(
+            window=bpy.context.window,
+            screen=bpy.context.window.screen,
+            area=area,
+            region=region,
+        ):
+            def activate(node):
+                for candidate in tree.nodes:
+                    candidate.select = False
+                node.select = True
+                tree.nodes.active = node
+
+            result = bpy.ops.node.logic_sequence_output_count(delta=1)
+            require(result == {"FINISHED"}, "Sequence add-output operator did not finish")
+            require(
+                [socket.identifier for socket in sequence.outputs]
+                == ["Then 0", "Then 1", "Then 2"],
+                "Sequence add-output operator did not append Then 2",
+            )
+            result = bpy.ops.node.logic_sequence_output_count(delta=-1)
+            require(result == {"FINISHED"}, "Sequence remove-output operator did not finish")
+            require(
+                [socket.identifier for socket in sequence.outputs] == ["Then 0", "Then 1"],
+                "Sequence remove-output operator did not remove only the final output",
+            )
+            result = bpy.ops.node.logic_sequence_output_count(delta=-1)
+            require(result == {"CANCELLED"}, "Sequence allowed fewer than two outputs")
+
+            integer_switch = tree.nodes.new("LogicNativeSwitchFlowInt")
+            require(
+                [socket.identifier for socket in integer_switch.inputs] == ["Flow", "Index"],
+                "Integer Switch Flow should expose Flow and Index inputs",
+            )
+            require(
+                [socket.identifier for socket in integer_switch.outputs]
+                == ["Then 0", "Then 1", "Default"],
+                "Integer Switch Flow should start with two cases and Default",
+            )
+            activate(integer_switch)
+            result = bpy.ops.node.logic_switch_flow_int_case_count(delta=1)
+            require(result == {"FINISHED"}, "Integer Switch Flow add-case operator did not finish")
+            require(
+                [socket.identifier for socket in integer_switch.outputs]
+                == ["Then 0", "Then 1", "Then 2", "Default"],
+                "Integer Switch Flow did not append Then 2 before Default",
+            )
+            result = bpy.ops.node.logic_switch_flow_int_case_count(delta=-1)
+            require(result == {"FINISHED"}, "Integer Switch Flow remove-case operator did not finish")
+            result = bpy.ops.node.logic_switch_flow_int_case_count(delta=-1)
+            require(result == {"CANCELLED"}, "Integer Switch Flow allowed fewer than two cases")
+
+            string_switch = tree.nodes.new("LogicNativeSwitchFlowString")
+            require(
+                [socket.identifier for socket in string_switch.inputs]
+                == ["Flow", "Value", "Case 0", "Case 1"],
+                "String Switch Flow should start with Value and two Case inputs",
+            )
+            require(
+                [socket.identifier for socket in string_switch.outputs]
+                == ["Then 0", "Then 1", "Default"],
+                "String Switch Flow should start with two cases and Default",
+            )
+            activate(string_switch)
+            result = bpy.ops.node.logic_switch_flow_string_case_count(delta=1)
+            require(result == {"FINISHED"}, "String Switch Flow add-case operator did not finish")
+            require(
+                [socket.identifier for socket in string_switch.inputs]
+                == ["Flow", "Value", "Case 0", "Case 1", "Case 2"],
+                "String Switch Flow did not append Case 2",
+            )
+            require(
+                [socket.identifier for socket in string_switch.outputs]
+                == ["Then 0", "Then 1", "Then 2", "Default"],
+                "String Switch Flow did not append Then 2 before Default",
+            )
+            result = bpy.ops.node.logic_switch_flow_string_case_count(delta=-1)
+            require(result == {"FINISHED"}, "String Switch Flow remove-case operator did not finish")
+            result = bpy.ops.node.logic_switch_flow_string_case_count(delta=-1)
+            require(result == {"CANCELLED"}, "String Switch Flow allowed fewer than two cases")
+
+            router = tree.nodes.new("LogicNativeFlowRouter")
+            require(
+                [socket.identifier for socket in router.inputs] == ["Flow", "Reset"],
+                "Flow Router should expose Flow and Reset inputs",
+            )
+            require(
+                [socket.identifier for socket in router.outputs] == ["Then 0", "Then 1"],
+                "Flow Router should start with two ordered outputs",
+            )
+            activate(router)
+            result = bpy.ops.node.logic_flow_router_output_count(delta=1)
+            require(result == {"FINISHED"}, "Flow Router add-output operator did not finish")
+            require(
+                [socket.identifier for socket in router.outputs] == ["Then 0", "Then 1", "Then 2"],
+                "Flow Router did not append Then 2",
+            )
+            result = bpy.ops.node.logic_flow_router_output_count(delta=-1)
+            require(result == {"FINISHED"}, "Flow Router remove-output operator did not finish")
+            result = bpy.ops.node.logic_flow_router_output_count(delta=-1)
+            require(result == {"CANCELLED"}, "Flow Router allowed fewer than two outputs")
+
+            flip_flop = tree.nodes.new("LogicNativeFlipFlop")
+            require(
+                [socket.identifier for socket in flip_flop.inputs] == ["Flow", "Reset"],
+                "Flip-Flop should expose Flow and Reset inputs",
+            )
+            require(
+                [socket.identifier for socket in flip_flop.outputs] == ["A", "B", "Is A"],
+                "Flip-Flop should expose A, B, and Is A outputs",
+            )
+
+            repeat_limit = tree.nodes.new("LogicNativeRepeatLimit")
+            require(
+                [socket.identifier for socket in repeat_limit.inputs] == ["Flow", "Reset", "Limit"],
+                "Repeat Limit should expose Flow, Reset, and Limit inputs",
+            )
+            require(
+                [socket.identifier for socket in repeat_limit.outputs]
+                == ["Accepted", "Blocked", "Remaining", "Is Exhausted"],
+                "Repeat Limit should expose both routes and its state outputs",
+            )
+
+            wait_for_next_frame = tree.nodes.new("LogicNativeOnNextFrame")
+            require(
+                wait_for_next_frame.bl_label == "Wait for Next Frame",
+                "Wait for Next Frame has the wrong visible label",
+            )
+            require(
+                [socket.identifier for socket in wait_for_next_frame.inputs] == ["Flow"],
+                "Wait for Next Frame should expose only its Flow input",
+            )
+            require(
+                [socket.identifier for socket in wait_for_next_frame.outputs] == ["Completed"],
+                "Wait for Next Frame should expose only its Completed output",
+            )
+            require(
+                "does not wait for a Logic + Physics step"
+                in wait_for_next_frame.bl_description,
+                "Wait for Next Frame must document its frame-domain behavior",
+            )
+
+            break_loop = tree.nodes.new("LogicNativeBreakLoop")
+            require(
+                [socket.identifier for socket in break_loop.inputs] == ["Flow"],
+                "Break Loop should expose only its execution input",
+            )
+            require(len(break_loop.outputs) == 0, "Break Loop must not expose an execution output")
+
+            loop = tree.nodes.new("LogicNativeLoop")
+            loop_from_list = tree.nodes.new("LogicNativeLoopFromList")
+            require(
+                [socket.identifier for socket in loop.inputs]
+                == ["Flow", "Count", "Ticks to Complete"],
+                "Loop should expose its tick distribution input after Count",
+            )
+            require(
+                [socket.identifier for socket in loop_from_list.inputs]
+                == ["Flow", "List", "Ticks to Complete"],
+                "Loop From List should expose its tick distribution input after List",
+            )
+            require(
+                loop.inputs["Ticks to Complete"].default_value == 1,
+                "Loop must default to one tick",
+            )
+            require(
+                loop_from_list.inputs["Ticks to Complete"].default_value == 1,
+                "Loop From List must default to one tick",
+            )
+            require(
+                [socket.identifier for socket in loop.outputs]
+                == ["Loop", "Completed", "Index"],
+                "Loop should expose only its body, completion, and typed index outputs",
+            )
+            require(
+                [socket.identifier for socket in loop_from_list.outputs]
+                == ["Loop", "Completed", "Index", "List Item"],
+                "Loop From List should expose Completed after its body output",
+            )
+            require(
+                loop_from_list.outputs["List Item"].name == "List Item",
+                "Loop From List should expose List Item as its socket name and identifier",
+            )
+
+            map_range = tree.nodes.new("LogicNativeMapRange")
+            require(map_range.use_clamp, "New Map Range nodes should clamp by default like Blender")
+
+        combine = tree.nodes.new("LogicNativeGate")
+        require(combine.inputs["Conditions"].is_multi_input, "And should accept many conditions")
+        combine.operation = "NOT"
+        require(not combine.inputs["Conditions"].is_multi_input, "Not should accept one condition")
+        require(combine.inputs["Conditions"].name == "Condition", "Not input should be singular")
+        combine.operation = "XOR"
+        require(combine.inputs["Conditions"].is_multi_input, "Xor should accept many conditions")
+        require(combine.inputs["Conditions"].name == "Conditions", "Xor input should be plural")
+    finally:
+        if area is not None and original_area_type is not None:
+            area.type = original_area_type
+        bpy.data.node_groups.remove(tree)
+
+    print("Dynamic flow node UI checks passed")
+
+
+def validate_game_property_types(output_dir):
+    """Vector, Color, Object, Choice, List and Table game properties: editing, saving, copying."""
+    mesh = bpy.data.meshes.new("LN_GamePropertyTypesMesh")
+    owner = bpy.data.objects.new("LN_GamePropertyTypesOwner", mesh)
+    target = bpy.data.objects.new("LN_GamePropertyTypesTarget", None)
+    other = bpy.data.objects.new("LN_GamePropertyTypesOther", mesh)
+    for obj in (owner, target, other):
+        bpy.context.scene.collection.objects.link(obj)
+    bpy.context.view_layer.objects.active = owner
+
+    def run(operator, **kwargs):
+        with bpy.context.temp_override(object=owner, active_object=owner,
+                                       selected_objects=[owner, other],
+                                       selected_editable_objects=[owner, other]):
+            result = getattr(bpy.ops.object, operator)(**kwargs)
+        require(result == {'FINISHED'}, f"{operator} failed: {result}")
+
+    def add(type_, name):
+        run("game_property_new", type=type_, name=name)
+        return owner.game.properties[name]
+
+    def index(name):
+        return owner.game.properties.find(name)
+
+    add('VECTOR', "spawn").value = (1.0, 2.0, 3.0)
+    add('COLOR', "tint").value = (0.5, 0.25, 1.0, 1.0)
+    add('OBJECT', "target").value = target
+    mode = add('CHOICE', "mode")
+    require([option.name for option in mode.options] == ["A", "B"],
+            "a new Choice starts with options A and B")
+    mode.value = 'B'
+    run("game_property_item_add", index=index("mode"))
+    mode.options[-1].name = "Hard"
+    mode.active_option_index = 0
+    run("game_property_item_remove", index=index("mode"))
+    require([option.name for option in mode.options] == ["B", "Hard"] and mode.value == 'B',
+            "removing an option keeps the selected one")
+    numbers = add('LIST', "numbers")
+    numbers.item_type = 'INT'
+    for value in (3, 5, 7):
+        run("game_property_item_add", index=index("numbers"))
+        numbers.elements[-1].value = value
+    numbers.active_element_index = 2
+    run("game_property_item_move", index=index("numbers"), direction='UP')
+    require([e.value for e in numbers.elements] == [3, 7, 5], "list items move")
+    table = add('TABLE', "items")
+    for name, type_ in (("item", 'STRING'), ("count", 'INT'), ("owner", 'OBJECT')):
+        run("game_property_item_add", index=index("items"), target='COLUMN')
+        table.columns[-1].name = name
+        table.columns[-1].type = type_
+    for item, count in (("Apple", 3), ("Sword", 1)):
+        run("game_property_item_add", index=index("items"))
+        table.rows[-1].cells[0].value = item
+        table.rows[-1].cells[1].value = count
+    table.rows[0].cells[2].value = target
+    try:
+        table.columns[0].type = 'LIST'
+        require(False, "a column can't be a List")
+    except TypeError:
+        pass
+    table.active_column_index = 1
+    run("game_property_item_move", index=index("items"), target='COLUMN', direction='UP')
+    require([c.name for c in table.columns] == ["count", "item", "owner"] and
+            [cell.value for cell in table.rows[0].cells][:2] == [3, "Apple"],
+            "moving a column moves its cells")
+    table.active_column_index = 0
+    run("game_property_item_remove", index=index("items"), target='COLUMN')
+    require([c.name for c in table.columns] == ["item", "owner"] and
+            len(table.rows[1].cells) == 2, "removing a column removes its cells")
+    table.columns[0].type = 'INT'
+    require(table.rows[0].cells[0].value == 0, "a column type change resets its cells")
+    table.columns[0].type = 'STRING'
+    table.rows[0].cells[0].value = "Apple"
+    table.rows[1].cells[0].value = "Sword"
+
+    run("game_property_copy", operation='REPLACE')
+    require(other.game.properties["items"].rows[0].cells[1].value == target,
+            "copying properties copies Tables")
+
+    path = Path(output_dir) / "logic_nodes_game_property_types.blend"
+    bpy.ops.wm.save_as_mainfile(filepath=str(path), copy=True)
+    bpy.ops.wm.open_mainfile(filepath=str(path))
+    owner = bpy.data.objects["LN_GamePropertyTypesOwner"]
+    target = bpy.data.objects["LN_GamePropertyTypesTarget"]
+    props = owner.game.properties
+    require(tuple(props["spawn"].value) == (1.0, 2.0, 3.0), "vector saved")
+    require(tuple(round(v, 3) for v in props["tint"].value) == (0.5, 0.25, 1.0, 1.0),
+            "color saved")
+    require(props["target"].value == target, "object saved")
+    require(props["mode"].value == 'B' and len(props["mode"].options) == 2, "choice saved")
+    require(props["numbers"].item_type == 'INT' and
+            [e.value for e in props["numbers"].elements] == [3, 7, 5], "list saved")
+    rows = [[getattr(cell.value, "name", cell.value) for cell in row.cells]
+            for row in props["items"].rows]
+    require(rows == [["Apple", target.name], ["Sword", None]], f"table saved: {rows}")
+    bpy.data.objects.remove(target)
+    require(props["target"].value is None and props["items"].rows[0].cells[1].value is None,
+            "deleting an object clears references to it")
+    print("Game property types checks passed")
+
+
 def main():
     disable_legacy_logic_addons()
     validate_editor_menus()
     validate_catalog_runtime_parity()
     validate_logic_tree_validation_operator()
     validate_catalog_execution_input_labels()
+    validate_value_change_node_ui()
+    validate_typecast_node_ui()
+    validate_rotation_node_ui()
+    validate_object_attribute_node_ui()
+    validate_set_physics_state_node_ui()
     validate_logic_socket_palette()
     validate_logic_math_operations()
 
@@ -3228,15 +4928,22 @@ def main():
 
     build_probe_trees()
     validate_probe_trees()
+    validate_binding_remap_safety()
     validate_sound_advanced_tree_compile()
     validate_a_tier_editor_hardening()
+    validate_spatial_analysis_node_ui()
+    validate_set_parent_node_ui()
+    validate_dynamic_flow_node_ui()
+    validate_object_ui_navigation_node_sockets()
 
+    prepare_stale_value_changed_to_socket_label()
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_path), copy=True)
     unload_probe_trees()
     unload_probe_objects()
     load_probe_trees(blend_path)
     load_probe_objects(blend_path)
     validate_probe_trees()
+    validate_game_property_types(output_dir)
 
     print("LogicNodeTree editor save/load smoke passed")
 

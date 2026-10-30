@@ -224,6 +224,9 @@ void operatortypes_object()
   WM_operatortype_append(OBJECT_OT_game_property_copy);
   WM_operatortype_append(OBJECT_OT_game_property_clear);
   WM_operatortype_append(OBJECT_OT_game_property_move);
+  WM_operatortype_append(OBJECT_OT_game_property_item_add);
+  WM_operatortype_append(OBJECT_OT_game_property_item_remove);
+  WM_operatortype_append(OBJECT_OT_game_property_item_move);
   WM_operatortype_append(OBJECT_OT_logic_bricks_copy);
   WM_operatortype_append(OBJECT_OT_logic_bricks_clear);
   WM_operatortype_append(OBJECT_OT_game_physics_copy);

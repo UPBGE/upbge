@@ -173,6 +173,8 @@ class LN_DenseIdRegistry {
   LN_InputCodeId InternInputCode(const std::string &name);
 
   LN_ObjectHandle MakeObjectHandle(void *pointer, const std::string &debug_name = "");
+  /** Read-only lookup; returns an invalid handle when the object was never registered. */
+  LN_ObjectHandle FindObjectHandle(const void *pointer) const;
   LN_SceneHandle MakeSceneHandle(void *pointer, const std::string &debug_name = "");
   LN_DatablockHandle MakeDatablockHandle(void *pointer, const std::string &debug_name = "");
   LN_RuntimeTreeId MakeRuntimeTreeId(void *pointer, const std::string &debug_name = "");
@@ -208,6 +210,22 @@ class LN_DenseIdRegistry {
     std::string debug_name;
   };
 
+  /** Slot of #m_handleIndex; empty when `pointer` is null. */
+  struct HandleIndexSlot {
+    const void *pointer = nullptr;
+    uint32_t handle_index = LN_INVALID_INDEX;
+    LN_DenseHandleKind kind = LN_DenseHandleKind::None;
+  };
+
+  /** Index of the live #m_handles entry for `pointer` (not null), or LN_INVALID_INDEX. When the
+   * hash index is in use, `r_slot` receives the entry's slot in it. */
+  uint32_t FindHandle(LN_DenseHandleKind kind,
+                      const void *pointer,
+                      uint32_t *r_slot = nullptr) const;
+  uint32_t AddHandle(LN_DenseHandleKind kind, void *pointer, const std::string &debug_name);
+  void IndexHandle(uint32_t handle_index);
+  void UnindexHandleSlot(uint32_t slot);
+
   template<typename IdT>
   IdT InternInTable(std::unordered_map<std::string, uint32_t> &map,
                     std::vector<InternEntry> &entries,
@@ -237,5 +255,12 @@ class LN_DenseIdRegistry {
   std::vector<InternEntry> m_sounds;
   std::vector<InternEntry> m_inputCodes;
   std::vector<HandleEntry> m_handles;
+  /** Open-addressing index (linear probing, power-of-two size, at most a quarter full) of the live
+   * #m_handles entries by pointer and kind, so lookups and removals don't scan #m_handles. Empty
+   * while there are only a few handles, which are scanned instead. */
+  std::vector<HandleIndexSlot> m_handleIndex;
+  uint32_t m_handleIndexCount = 0;
+  /** Released #m_handles entries, reused before the table grows (kept once the index exists). */
+  std::vector<uint32_t> m_freeHandles;
   std::vector<HandleEntry> m_runtimeTrees;
 };

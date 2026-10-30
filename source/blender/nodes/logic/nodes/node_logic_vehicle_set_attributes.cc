@@ -22,13 +22,13 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Wheels"_ustr).default_value(2).min(0).description(
       "How many wheels from the selected axis group to affect");
   b.add_input<decl::Bool>("Suspension"_ustr).default_value(false);
-  b.add_input<decl::Float>(""_ustr, "Suspension Value"_ustr).default_value(0.0f);
+  b.add_input<decl::Float>("Suspension Value"_ustr).default_value(0.0f);
   b.add_input<decl::Bool>("Stiffness"_ustr).default_value(false);
-  b.add_input<decl::Float>(""_ustr, "Stiffness Value"_ustr).default_value(0.0f);
+  b.add_input<decl::Float>("Stiffness Value"_ustr).default_value(0.0f);
   b.add_input<decl::Bool>("Damping"_ustr).default_value(false);
-  b.add_input<decl::Float>(""_ustr, "Damping Value"_ustr).default_value(0.0f);
+  b.add_input<decl::Float>("Damping Value"_ustr).default_value(0.0f);
   b.add_input<decl::Bool>("Friction"_ustr).default_value(false);
-  b.add_input<decl::Float>(""_ustr, "Friction Value"_ustr).default_value(0.0f);
+  b.add_input<decl::Float>("Friction Value"_ustr).default_value(0.0f);
   b.add_output<decl::Execution>("Done"_ustr, "Out"_ustr);
 }
 
@@ -48,6 +48,8 @@ static void node_register()
 
   logic_node_type_base(&ntype,
                        "LogicNativeVehicleSetAttributes"_ustr);
+  /* Wide enough for its socket names. */
+  bke::node_type_size(ntype, 190, 140, NODE_DEFAULT_MAX_WIDTH);
   ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;

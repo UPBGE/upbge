@@ -38,3 +38,8 @@ void BL_ConvertProperties(blender::Object *object,
                           class SCA_TimeEventManager *timemgr,
                           class SCA_IScene *scene,
                           bool isInActiveLayer);
+
+/** Finds the game objects of the object's Object properties, once all objects are converted. */
+void BL_ResolvePropertyObjects(blender::Object *object,
+                               class KX_GameObject *gameobj,
+                               class BL_SceneConverter &converter);

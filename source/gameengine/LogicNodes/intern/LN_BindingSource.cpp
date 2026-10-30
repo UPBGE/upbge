@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "DNA_logic_node_binding_types.h"
+#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 
 LN_GamePropertyBindingSource::LN_GamePropertyBindingSource(
@@ -34,13 +35,26 @@ void LN_GamePropertyBindingSource::CollectAppliedTrees(
          binding;
          binding = binding->next)
     {
-      if (binding->tree_name[0] == '\0') {
+      blender::bNodeTree *tree = binding->tree;
+      if (tree != nullptr && tree->type != blender::NTREE_LOGIC) {
+        continue;
+      }
+
+      const char *tree_name = "";
+      if (tree != nullptr) {
+        tree_name = tree->id.name + 2;
+      }
+      else if (binding->flag & blender::LOGIC_NODE_BINDING_LEGACY_NAME_FALLBACK) {
+        tree_name = binding->tree_name;
+      }
+      if (tree_name[0] == '\0') {
         continue;
       }
 
       LN_AppliedTreeDesc desc;
       desc.game_object = candidate.game_object;
-      desc.tree_name = binding->tree_name;
+      desc.tree = tree;
+      desc.tree_name = tree_name;
       desc.scene_object_index = candidate.scene_object_index;
       desc.applied_tree_index = applied_tree_index++;
       desc.enabled = binding->enabled != 0;

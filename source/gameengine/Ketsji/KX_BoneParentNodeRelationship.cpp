@@ -31,16 +31,85 @@
 
 #include "KX_BoneParentNodeRelationship.h"
 
+#include <cfloat>
+#include <cmath>
+#include <utility>
+
 #include "BL_ArmatureObject.h"
+#include "DNA_armature_types.h"
+#include "MT_Matrix4x4.h"
+#include "MT_Transform.h"
 
 using namespace blender;
 
-KX_BoneParentRelation::KX_BoneParentRelation(blender::Bone *bone) : m_bone(bone)
+namespace {
+
+bool transform_is_finite_and_nonsingular(const MT_Transform &transform)
+{
+  const MT_Vector3 &origin = transform.getOrigin();
+  const MT_Matrix3x3 &basis = transform.getBasis();
+  for (int row = 0; row < 3; ++row) {
+    if (!std::isfinite(origin[row])) {
+      return false;
+    }
+    for (int column = 0; column < 3; ++column) {
+      if (!std::isfinite(basis[row][column])) {
+        return false;
+      }
+    }
+  }
+  const MT_Scalar determinant = basis.determinant();
+  return std::isfinite(determinant) && std::abs(determinant) > MT_Scalar(FLT_EPSILON);
+}
+
+}  // namespace
+
+KX_BoneParentRelation::KX_BoneParentRelation(blender::Bone *bone)
+    : m_boneName(bone != nullptr ? bone->name : "")
+{
+}
+
+KX_BoneParentRelation::KX_BoneParentRelation(std::string bone_name)
+    : m_boneName(std::move(bone_name))
 {
 }
 
 KX_BoneParentRelation::~KX_BoneParentRelation()
 {
+}
+
+const std::string &KX_BoneParentRelation::GetBoneName() const
+{
+  return m_boneName;
+}
+
+bool KX_BoneParentRelation::GetParentTransform(const SG_Node *parent,
+                                               MT_Transform &r_transform) const
+{
+  if (parent == nullptr || m_boneName.empty()) {
+    return false;
+  }
+
+  BL_ArmatureObject *armature = dynamic_cast<BL_ArmatureObject *>(
+      static_cast<KX_GameObject *>(parent->GetSGClientObject()));
+  if (armature == nullptr) {
+    return false;
+  }
+
+  MT_Matrix4x4 bone_matrix;
+  float bone_length = 0.0f;
+  if (!armature->GetBoneMatrix(m_boneName, bone_matrix, bone_length) ||
+      !std::isfinite(bone_length))
+  {
+    return false;
+  }
+
+  const MT_Transform tail_offset(MT_Vector3(0.0f, bone_length, 0.0f),
+                                 MT_Matrix3x3::Identity());
+  const MT_Matrix4x4 world_matrix = MT_Matrix4x4(parent->GetWorldTransform()) * bone_matrix *
+                                    MT_Matrix4x4(tail_offset);
+  r_transform = world_matrix.toTransform();
+  return transform_is_finite_and_nonsingular(r_transform);
 }
 
 bool KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child,
@@ -49,81 +118,41 @@ bool KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child,
 {
   BLI_assert(child != nullptr);
 
-  /* This way of accessing child coordinates is a bit cumbersome
-     be nice to have non constant reference access to these values. */
-
-  const MT_Vector3 &child_scale = child->GetLocalScale();
-  const MT_Vector3 &child_pos = child->GetLocalPosition();
-  const MT_Matrix3x3 &child_rotation = child->GetLocalOrientation();
-  // We don't know if the armature has been updated or not, assume yes
+  /* A pose may change even when the armature scene-graph transform does not. */
   parentUpdated = true;
 
-  // The childs world locations which we will update.
-
-  MT_Vector3 child_w_scale;
-  MT_Vector3 child_w_pos;
-  MT_Matrix3x3 child_w_rotation;
-
-  bool valid_parent_transform = false;
-
-  if (parent) {
-    BL_ArmatureObject *armature = (BL_ArmatureObject *)(parent->GetSGClientObject());
-    if (armature) {
-      MT_Matrix4x4 parent_matrix;
-      if (armature->GetBoneMatrix(m_bone, parent_matrix)) {
-        // Get the child's transform, and the bone matrix.
-        MT_Matrix4x4 child_transform(
-            MT_Transform(child_pos + MT_Vector3(0.0f, armature->GetBoneLength(m_bone), 0.0f),
-                         child_rotation.scaled(child_scale[0], child_scale[1], child_scale[2])));
-
-        // The child's world transform is parent * child
-        parent_matrix = MT_Matrix4x4(parent->GetWorldTransform()) * parent_matrix;
-        child_transform = parent_matrix * child_transform;
-
-        // Recompute the child transform components from the transform.
-        child_w_scale.setValue(
-            MT_Vector3(child_transform[0][0], child_transform[0][1], child_transform[0][2])
-                .length(),
-            MT_Vector3(child_transform[1][0], child_transform[1][1], child_transform[1][2])
-                .length(),
-            MT_Vector3(child_transform[2][0], child_transform[2][1], child_transform[2][2])
-                .length());
-        child_w_rotation.setValue(child_transform[0][0],
-                                  child_transform[0][1],
-                                  child_transform[0][2],
-                                  child_transform[1][0],
-                                  child_transform[1][1],
-                                  child_transform[1][2],
-                                  child_transform[2][0],
-                                  child_transform[2][1],
-                                  child_transform[2][2]);
-        child_w_rotation.scale(
-            1.0f / child_w_scale[0], 1.0f / child_w_scale[1], 1.0f / child_w_scale[2]);
-
-        child_w_pos = MT_Vector3(
-            child_transform[0][3], child_transform[1][3], child_transform[2][3]);
-
-        valid_parent_transform = true;
-      }
+  MT_Transform parent_transform;
+  const bool valid_parent_transform = GetParentTransform(parent, parent_transform);
+  bool coordinates_updated = false;
+  if (valid_parent_transform) {
+    const MT_Transform world_transform = parent_transform * child->GetLocalTransform();
+    const MT_Matrix3x3 &basis = world_transform.getBasis();
+    const MT_Vector3 world_scale(
+        basis.getColumn(0).length(), basis.getColumn(1).length(), basis.getColumn(2).length());
+    if (transform_is_finite_and_nonsingular(world_transform) &&
+        std::isfinite(world_scale.x()) && std::isfinite(world_scale.y()) &&
+        std::isfinite(world_scale.z()) && world_scale.x() > FLT_EPSILON &&
+        world_scale.y() > FLT_EPSILON && world_scale.z() > FLT_EPSILON)
+    {
+      child->SetWorldScale(world_scale);
+      child->SetWorldPosition(world_transform.getOrigin());
+      child->SetWorldOrientation(basis.scaled(1.0f / world_scale.x(),
+                                             1.0f / world_scale.y(),
+                                             1.0f / world_scale.z()));
+      coordinates_updated = true;
     }
   }
-
-  if (valid_parent_transform) {
-    child->SetWorldScale(child_w_scale);
-    child->SetWorldPosition(child_w_pos);
-    child->SetWorldOrientation(child_w_rotation);
-  }
-  else {
+  else if (parent == nullptr) {
     child->SetWorldFromLocalTransform();
+    coordinates_updated = true;
   }
   child->ClearModified();
-  // This node must always be updated, so reschedule it for next time
+  /* Bone pose changes are independent of the armature SG-node dirty flag. */
   child->ActivateRecheduleUpdateCallback();
-  return valid_parent_transform;
+  return coordinates_updated;
 }
 
 SG_ParentRelation *KX_BoneParentRelation::NewCopy()
 {
-  KX_BoneParentRelation *bone_parent = new KX_BoneParentRelation(m_bone);
-  return bone_parent;
+  return new KX_BoneParentRelation(m_boneName);
 }

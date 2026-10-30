@@ -37,8 +37,11 @@ JPH_SUPPRESS_WARNINGS
 
 #include "PHY_IConstraint.h"
 
+#include <string>
+
 class JoltPhysicsEnvironment;
 class KX_GameObject;
+struct PHY_RigidBodyConstraintBreakEvent;
 
 /**
  * JoltConstraint wraps a Jolt Constraint and implements the UPBGE PHY_IConstraint interface.
@@ -86,7 +89,13 @@ class JoltConstraint : public PHY_IConstraint {
 
   bool GetDisableCollision() const { return m_disableCollision; }
   KX_GameObject *GetRigidBodyConstraintOwner() const { return m_rigidBodyConstraintOwner; }
+  KX_GameObject *GetRigidBodyConstraintTarget() const { return m_rigidBodyConstraintTarget; }
+  const std::string &GetRigidBodyConstraintName() const { return m_rigidBodyConstraintName; }
+  /** Compatibility setter for legacy callers that only track the owner. */
   void SetRigidBodyConstraintOwner(KX_GameObject *owner) { m_rigidBodyConstraintOwner = owner; }
+  void SetRigidBodyConstraintMetadata(KX_GameObject *owner,
+                                      KX_GameObject *target,
+                                      const std::string &name);
   bool GetActive() const { return m_active; }
   void SetActive(bool active) { m_active = active; }
 
@@ -96,10 +105,19 @@ class JoltConstraint : public PHY_IConstraint {
   /** Return the constraint impulse from Jolt's last solver update. */
   float GetAppliedImpulse() const;
 
+  /** Build the automatic-break event while Jolt's constraint is still alive. */
+  bool BuildRigidBodyConstraintBreakEvent(PHY_RigidBodyConstraintBreakEvent &r_event) const;
+
  private:
+  bool GetImpulseComponents(float &r_linear_impulse,
+                            float &r_angular_impulse,
+                            float &r_applied_impulse) const;
+
   JPH::Constraint *m_constraint;
   JoltPhysicsEnvironment *m_env;
   KX_GameObject *m_rigidBodyConstraintOwner = nullptr;
+  KX_GameObject *m_rigidBodyConstraintTarget = nullptr;
+  std::string m_rigidBodyConstraintName;
   PHY_ConstraintType m_type;
   int m_id;
   bool m_disableCollision;

@@ -30,8 +30,15 @@
 
 #include "LA_Launcher.h"
 
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <thread>
+
+#include "BKE_global.hh"
 #include "BKE_main.hh"
 #include "BKE_sound.hh"
+#include "BLI_time.h"
 #include "DNA_scene_types.h"
 #include "wm_event_types.hh"
 #include "WM_api.hh"
@@ -50,6 +57,10 @@
 #include "KX_PythonMain.h"
 #include "LA_System.h"
 #include "LA_SystemCommandLine.h"
+#ifdef WITH_GAMEENGINE_LOGICNODES
+#  include "LN_InputMap.h"
+#  include "LN_SoundGroups.h"
+#endif
 
 #ifdef WITH_PYTHON
 #  include "Texture.h"  // For FreeAllTextures.
@@ -103,7 +114,8 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system,
       m_stereoMode(stereoMode),
       m_argc(argc),
       m_argv(argv),
-      m_audioDeviceIsInitialized(false)
+      m_audioDeviceIsInitialized(false),
+      m_eventsProcessedForFrame(false)
 {
   m_pythonConsole.use = false;
 }
@@ -261,12 +273,21 @@ void LA_Launcher::InitEngine()
   // Set the devices.
   m_ketsjiEngine->SetInputDevice(m_inputDevice);
   m_ketsjiEngine->SetCanvas(m_canvas);
+  /* Wayland moves the cursor only while it is grabbed hidden (Show Mouse off, above; never with
+   * --debug, which grabs nothing); later the grab follows the game showing or hiding it
+   * (KX_KetsjiEngine::CursorShown). */
+  m_ketsjiEngine->SetCursorMovable(!is_wayland || (!show_mouse && (G.debug & G_DEBUG) == 0),
+                                   is_wayland);
   m_ketsjiEngine->SetRasterizer(m_rasterizer);
   m_ketsjiEngine->SetNetworkMessageManager(m_networkMessageManager);
 
   DEV_Joystick::Init();
 
   m_ketsjiEngine->SetExitKey(BL_ConvertKeyCode(gm.exitkey));
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  /* The game's Input Map comes from the start scene, without a previous run's rebinding. */
+  LN_InputMap::Get().Load(&gm);
+#endif
 #ifdef WITH_PYTHON
   EXP_Value::SetDeprecationWarnings(nodepwarnings);
 #else
@@ -291,7 +312,11 @@ void LA_Launcher::InitEngine()
   m_ketsjiEngine->SetUseFixedFPSCap(gm.use_fixed_fps_cap != 0);
   m_ketsjiEngine->SetFixedRenderCapRate(gm.fixed_render_cap_rate);
   m_ketsjiEngine->SetPhysicsInterpolationEnabled(gm.use_fixed_physics_interpolation != 0);
-  
+  /* The screen paces frames when vsync is on or adaptive (the FPS Limit off): frame times then
+   * follow its refresh, within the jitter fix. */
+  m_ketsjiEngine->SetVsyncPacing(gm.vsync != VSYNC_OFF);
+  m_ketsjiEngine->SetJitterFix(gm.jitter_fix);
+
   /* Time scale is independent of physics mode - applies to both modes
    * uniformly. It affects both logic and physics timing by scaling the
    * timestep (values: <1.0 = slow motion, 1.0 = realtime, >1.0 = fast forward).
@@ -343,6 +368,10 @@ void LA_Launcher::InitEngine()
   }
   //}
 #endif  // WITH_AUDASPACE
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  /* Set Volume's groups start at full volume in every game. */
+  LN_ResetSoundGroups();
+#endif
 
   m_converter->SetAlwaysUseExpandFraming(GetUseAlwaysExpandFraming());
 
@@ -438,6 +467,10 @@ void LA_Launcher::ExitEngine()
     m_networkMessageManager = nullptr;
   }
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  /* Master changed the device's volume: the editor gets its own back. */
+  LN_ResetSoundGroups();
+#endif
 #ifdef WITH_AUDASPACE
   //if (m_audioDeviceIsInitialized) {
     // Stop all remaining playing sounds.
@@ -523,6 +556,16 @@ void LA_Launcher::RenderEngine()
   m_ketsjiEngine->Render();
 }
 
+void LA_Launcher::ProcessEventsBeforeFrame()
+{
+  if (m_eventsProcessedForFrame) {
+    return;
+  }
+  m_system->processEvents(false);
+  m_system->dispatchEvents();
+  m_eventsProcessedForFrame = true;
+}
+
 #ifdef WITH_PYTHON
 
 bool LA_Launcher::GetPythonMainLoopCode(std::string &pythonCode, std::string &pythonFileName)
@@ -548,42 +591,105 @@ void LA_Launcher::RunPythonMainLoop(const std::string &pythonCode)
 
 #endif  // WITH_PYTHON
 
+/**
+ * Waits `seconds` precisely: the system sleeps for most of it, the last part yields. On Windows
+ * std::this_thread::sleep_for is Sleep() rounded up to whole milliseconds and only as precise as
+ * the system timer (1 ms while SDL raises it, 15.6 ms otherwise), so a frame or step could come up
+ * to a frame late; BLI_time_sleep_precise_us uses a high-resolution waitable timer there.
+ */
+static void wait_until_work_is_due(const double seconds)
+{
+  if (!std::isfinite(seconds) || seconds <= 0.0) {
+    return;
+  }
+  using clock = std::chrono::steady_clock;
+  const double wait = std::min(seconds, 1.0);
+  const clock::time_point due = clock::now() + std::chrono::duration_cast<clock::duration>(
+                                                   std::chrono::duration<double>(wait));
+#ifdef _WIN32
+  /* The high-resolution timer wakes within about half a millisecond. */
+  constexpr double margin = 0.001;
+#else
+  constexpr double margin = 0.0002;
+#endif
+  if (wait > margin) {
+    blender::BLI_time_sleep_precise_us(int((wait - margin) * 1e6));
+  }
+  while (clock::now() < due) {
+    std::this_thread::yield();
+  }
+}
+
 bool LA_Launcher::EngineNextFrame()
 {
+  /* Input is pumped before simulation so the next eligible fixed step sees the freshest device
+   * state. Derived launchers may already have done this before resize/viewport preparation. */
+  ProcessEventsBeforeFrame();
 #ifdef WITH_PYTHON
   // Check if we can create a python console debugging.
   HandlePythonConsole();
 #endif
-  // Kick the engine.
+
+  if (m_inputDevice->GetInput(SCA_IInputDevice::WINCLOSE).Find(SCA_InputEvent::ACTIVE) ||
+      m_inputDevice->GetInput(SCA_IInputDevice::WINQUIT).Find(SCA_InputEvent::ACTIVE))
+  {
+    m_inputDevice->ConvertEvent(SCA_IInputDevice::WINCLOSE, 0, 0);
+    m_inputDevice->ConvertEvent(SCA_IInputDevice::WINQUIT, 0, 0);
+    m_exitRequested = KX_ExitRequest::OUTSIDE;
+    m_eventsProcessedForFrame = false;
+    return false;
+  }
+
+  // Kick the engine so UI can consume semantic Cancel before the Exit Key fallback.
   bool renderFrame = m_ketsjiEngine->NextFrame();
 
-  // First check if we want to exit.
+  /* UI uses Esc only in a render-frame update. A press that came in a pass without one stays
+   * pending, so the fallback waits until the UI had its chance. A game action on the Exit Key (a
+   * pause menu on Esc) takes it, as a Keyboard sensor on it does. */
+  const auto exit_key_used = [&]() {
+#ifdef WITH_GAMEENGINE_LOGICNODES
+    return LN_InputMap::Get().GameActionUsesKey(int16_t(m_ketsjiEngine->GetExitKey()));
+#else
+    return false;
+#endif
+  };
+  if (m_exitRequested == KX_ExitRequest::NO_REQUEST && m_ketsjiEngine->FrameUpdateRan() &&
+      m_inputDevice->HasUnconsumedPressTransition(
+          (SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey()) &&
+      !m_inputDevice->GetHookExitKey() && !exit_key_used())
+  {
+    m_inputDevice->ConsumePressTransition(
+        (SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey());
+    m_inputDevice->ConvertEvent(
+        (SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey(), 0, 0);
+    m_exitRequested = KX_ExitRequest::BLENDER_ESC;
+  }
+
+  if (m_exitRequested != KX_ExitRequest::NO_REQUEST) {
+    m_eventsProcessedForFrame = false;
+    return false;
+  }
+
   m_exitRequested = m_ketsjiEngine->GetExitCode();
   m_exitString = m_ketsjiEngine->GetExitString();
 
   if (m_exitRequested == KX_ExitRequest::NO_REQUEST) {
     if (renderFrame) {
       RenderEngine();
+      /* Drawn (post_draw callbacks saw the drawn poses): a Python main loop running before the
+       * next pass reads and moves the simulated objects. Before, its moves of an object drawn
+       * with Smooth Motion were undone by the restore at the next pass. */
+      m_ketsjiEngine->RestoreSimulatedPoses();
     }
   }
 
-  m_system->processEvents(false);
-  m_system->dispatchEvents();
-
-  if (m_inputDevice->GetInput((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey())
-          .Find(SCA_InputEvent::ACTIVE) &&
-      !m_inputDevice->GetHookExitKey()) {
-    m_inputDevice->ConvertEvent(
-        (SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey(), 0, 0);
-    m_exitRequested = KX_ExitRequest::BLENDER_ESC;
-  }
-  else if (m_inputDevice->GetInput(SCA_IInputDevice::WINCLOSE).Find(SCA_InputEvent::ACTIVE) ||
-           m_inputDevice->GetInput(SCA_IInputDevice::WINQUIT).Find(SCA_InputEvent::ACTIVE)) {
-    m_inputDevice->ConvertEvent(SCA_IInputDevice::WINCLOSE, 0, 0);
-    m_inputDevice->ConvertEvent(SCA_IInputDevice::WINQUIT, 0, 0);
-    m_exitRequested = KX_ExitRequest::OUTSIDE;
+  /* A capped render rate must not cap fixed simulation. Wait until the next fixed step or frame is
+   * due; the following pass pumps input again before gameplay. */
+  if (!renderFrame && m_exitRequested == KX_ExitRequest::NO_REQUEST) {
+    wait_until_work_is_due(m_ketsjiEngine->GetSuggestedIdleSeconds());
   }
 
+  m_eventsProcessedForFrame = false;
   return (m_exitRequested == KX_ExitRequest::NO_REQUEST);
 }
 

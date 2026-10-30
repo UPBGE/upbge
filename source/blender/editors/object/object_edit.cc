@@ -2406,6 +2406,114 @@ void OBJECT_OT_game_property_move(wmOperatorType *ot)
                "Direction for moving the property");
 }
 
+/* Items of a Choice, List or Table property: its options, items, rows or columns. */
+
+static const EnumPropertyItem game_property_item_targets[] = {
+    {0, "ITEM", 0, "Item", "An option, list item or table row"},
+    {1, "COLUMN", 0, "Column", "A table column"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
+static bProperty *game_property_item_owner(bContext *C, wmOperator *op)
+{
+  Object *ob = CTX_data_active_object(C);
+  return ob ? (bProperty *)BLI_findlink(&ob->prop, RNA_int_get(op->ptr, "index")) : nullptr;
+}
+
+static void game_property_item_props(wmOperatorType *ot)
+{
+  PropertyRNA *prop = RNA_def_int(
+      ot->srna, "index", 0, 0, INT_MAX, "Index", "Index of the game property", 0, INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+  RNA_def_enum(ot->srna, "target", game_property_item_targets, 0, "Target", "");
+}
+
+static wmOperatorStatus game_property_item_add_exec(bContext *C, wmOperator *op)
+{
+  bProperty *prop = game_property_item_owner(C, op);
+  if (prop == nullptr || !BKE_bproperty_item_add(prop, RNA_enum_get(op->ptr, "target") == 1)) {
+    return OPERATOR_CANCELLED;
+  }
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
+  return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_game_property_item_add(wmOperatorType *ot)
+{
+  ot->name = "Add Game Property Item";
+  ot->description = "Add an option, list item, table row or table column";
+  ot->idname = "OBJECT_OT_game_property_item_add";
+
+  ot->exec = game_property_item_add_exec;
+  ot->poll = ED_operator_object_active_editable;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  game_property_item_props(ot);
+}
+
+static wmOperatorStatus game_property_item_remove_exec(bContext *C, wmOperator *op)
+{
+  bProperty *prop = game_property_item_owner(C, op);
+  const bool column = RNA_enum_get(op->ptr, "target") == 1;
+  if (prop == nullptr ||
+      !BKE_bproperty_item_remove(prop, column, column ? prop->active_column : prop->active_item))
+  {
+    return OPERATOR_CANCELLED;
+  }
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
+  return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_game_property_item_remove(wmOperatorType *ot)
+{
+  ot->name = "Remove Game Property Item";
+  ot->description = "Remove the selected option, list item, table row or table column";
+  ot->idname = "OBJECT_OT_game_property_item_remove";
+
+  ot->exec = game_property_item_remove_exec;
+  ot->poll = ED_operator_object_active_editable;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  game_property_item_props(ot);
+}
+
+static wmOperatorStatus game_property_item_move_exec(bContext *C, wmOperator *op)
+{
+  bProperty *prop = game_property_item_owner(C, op);
+  const bool column = RNA_enum_get(op->ptr, "target") == 1;
+  /* UP is 1 in the direction enum, which moves towards the start of the list. */
+  const int step = RNA_enum_get(op->ptr, "direction") == GAME_PROPERTY_MOVE_UP ? -1 : 1;
+  if (prop == nullptr ||
+      !BKE_bproperty_item_move(
+          prop, column, column ? prop->active_column : prop->active_item, step))
+  {
+    return OPERATOR_CANCELLED;
+  }
+  WM_event_add_notifier(C, NC_LOGIC, nullptr);
+  return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_game_property_item_move(wmOperatorType *ot)
+{
+  static const EnumPropertyItem directions[] = {
+      {GAME_PROPERTY_MOVE_UP, "UP", 0, "Up", ""},
+      {GAME_PROPERTY_MOVE_DOWN, "DOWN", 0, "Down", ""},
+      {0, nullptr, 0, nullptr, nullptr}};
+
+  ot->name = "Move Game Property Item";
+  ot->description = "Move the selected option, list item, table row or table column";
+  ot->idname = "OBJECT_OT_game_property_item_move";
+
+  ot->exec = game_property_item_move_exec;
+  ot->poll = ED_operator_object_active_editable;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  game_property_item_props(ot);
+  RNA_def_enum(ot->srna, "direction", directions, GAME_PROPERTY_MOVE_UP, "Direction", "");
+}
+
 #undef GAME_PROPERTY_MOVE_UP
 #undef GAME_PROPERTY_MOVE_DOWN
 

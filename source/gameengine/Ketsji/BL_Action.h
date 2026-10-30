@@ -84,11 +84,19 @@ class BL_Action {
   /// (UpdateIPO).
   bool m_requestIpo;
   bool m_calc_localtime;
+  /** Which engine animation clock currently owns this action's absolute timestamps. */
+  bool m_usesPauseClock;
 
   // The last update time to avoid double animation update.
   float m_prevUpdate;
+  /** A material action's material slot on the object (1-based), 0 for other actions. */
+  short m_materialSlot = 0;
+  /** The action's slot is for shape keys (a Key): it plays on the object's shape keys. */
+  bool m_shapeKeyAction = false;
 
   void ClearControllerList();
+  short MaterialSlotOfAction();
+  bool ActionIsForShapeKeys();
   void InitIPO();
   void SetLocalTime(float curtime);
   void ResetStartTime(float curtime);
@@ -115,17 +123,20 @@ class BL_Action {
   void UpdateObjectAnimation(blender::Object *ob, const blender::AnimationEvalContext &animEvalContext);
   bool TryUpdateModifierActions(blender::Object *ob,
                                 KX_Scene *scene,
-                                const blender::AnimationEvalContext &animEvalContext);
+                                const blender::AnimationEvalContext &animEvalContext,
+                                const bool gpu_deformed_mesh);
   bool TryUpdateConstraintActions(blender::Object *ob,
                                   KX_Scene *scene,
                                   const blender::AnimationEvalContext &animEvalContext);
   bool TryUpdateIDPropertyActions(blender::Object *ob,
                                   KX_Scene *scene,
                                   const blender::AnimationEvalContext &animEvalContext);
+  bool TryUpdateMaterialActions(const blender::AnimationEvalContext &animEvalContext);
   bool TryUpdateNodeTreeActions(KX_Scene *scene, const blender::AnimationEvalContext &animEvalContext);
   bool TryUpdateShapeKeyActions(blender::Object *ob,
                                 KX_Scene *scene,
-                                const blender::AnimationEvalContext &animEvalContext);
+                                const blender::AnimationEvalContext &animEvalContext,
+                                const bool gpu_deformed_mesh);
   bool IsNodeTreeActionMatch(blender::bNodeTree *nodetree);
   bool IsNLAShapeKeyActionMatch(blender::Key *key);
   void ProcessShapeKeyBlending(blender::Key *key);
@@ -168,6 +179,7 @@ class BL_Action {
   // Mutators
   void SetFrame(float frame);
   void SetPlayMode(short play_mode);
+  void RebaseTime(float previous_time, float current_time, bool use_pause_clock);
 
   enum {
     ACT_MODE_PLAY = 0,

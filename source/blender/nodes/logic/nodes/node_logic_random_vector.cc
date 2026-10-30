@@ -13,7 +13,7 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>(""_ustr, "Axes"_ustr).default_value({1.0f, 1.0f, 1.0f});
+  b.add_input<decl::Vector>("Axes"_ustr).default_value({1.0f, 1.0f, 1.0f});
   b.add_output<decl::Vector>("Vector"_ustr);
 }
 

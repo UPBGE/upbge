@@ -21,6 +21,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Object used for local-space conversion and self filtering; local mode uses the owner when empty");
   b.add_input<decl::Object>("Ignore Object"_ustr)
       .description("Additional object to exclude from the cast");
+  b.add_input<decl::List>("Ignore Objects"_ustr)
+      .description("Additional objects to exclude; invalid entries and duplicates are ignored");
   b.add_input<decl::Vector>("Origin"_ustr).description("Shape center at the start of the cast");
   b.add_input<decl::Vector>("Destination"_ustr)
       .default_value(float3(0.0f, 0.0f, 1.0f))

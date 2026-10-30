@@ -44,6 +44,7 @@
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_node_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_rigidbody_types.h"
@@ -58,12 +59,14 @@
 #undef DNA_GENFILE_VERSIONING_MACROS
 
 #include "BKE_mesh_legacy_convert.hh"
+#include "BKE_game_input_map.hh"
 #include "BKE_main.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 
 #include "BLI_bounds.hh"
 #include "BLI_listbase.h"
+#include "BLI_listbase_wrapper.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -713,10 +716,56 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
   }
+
+  /* The Input Map: menus keep the keys, mouse buttons and gamepad controls they always used. */
+  if (!DNA_struct_member_exists(fd->filesdna, "GameData", "ListBase", "input_actions")) {
+    const GameData defaults;
+    for (Scene &scene : bmain->scenes) {
+      scene.gm.input_repeat_delay = defaults.input_repeat_delay;
+      scene.gm.input_repeat_interval = defaults.input_repeat_interval;
+      scene.gm.input_stick_threshold = defaults.input_stick_threshold;
+      scene.gm.input_flag = defaults.input_flag;
+      BKE_game_input_map_ensure_builtins(&scene.gm);
+    }
+  }
+  /* UI controls added after a file was saved (Grab) get their default keys. Ensuring adds only
+   * what is missing. */
+  for (Scene &scene : bmain->scenes) {
+    BKE_game_input_map_ensure_builtins(&scene.gm);
+  }
 }
 
 void do_versions_after_linking_upbge(FileData *fd, Main *bmain)
 {
+  if (!DNA_struct_member_exists(fd->filesdna, "LogicNodeBinding", "bNodeTree", "*tree")) {
+    /* Native Logic Nodes bindings used to store only an ID name. Resolve that legacy name after
+     * lib-linking, when node-tree pointers are valid. The read pipeline recomputes all ID user
+     * counts after versioning, so assigning the pointer directly here is both sufficient and
+     * avoids transient count changes. */
+    for (Object &ob : bmain->objects) {
+      for (LogicNodeBinding *binding :
+           ListBaseWrapper<LogicNodeBinding>(ob.logic_node_bindings))
+      {
+        binding->tree = nullptr;
+        binding->flag &= ~LOGIC_NODE_BINDING_LEGACY_NAME_FALLBACK;
+        if (binding->tree_name[0] == '\0') {
+          continue;
+        }
+
+        for (bNodeTree &tree : bmain->nodetrees) {
+          if (tree.type == NTREE_LOGIC && STREQ(tree.id.name + 2, binding->tree_name)) {
+            binding->tree = &tree;
+            break;
+          }
+        }
+
+        if (binding->tree == nullptr) {
+          binding->flag |= LOGIC_NODE_BINDING_LEGACY_NAME_FALLBACK;
+        }
+      }
+    }
+  }
+
   /* Vehicle migration depends on Object ID pointers being remapped first.
    * Running it in blo_do_versions_upbge() can dereference stale file addresses
    * when loading older blend files. */
@@ -910,6 +959,23 @@ void do_versions_after_linking_upbge(FileData *fd, Main *bmain)
       for (Object &ob : bmain->objects) {
         ob.logic_node_bindings = {nullptr, nullptr};
       }
+    }
+  }
+
+  if (!MAIN_VERSION_UPBGE_ATLEAST(bmain, 52, 19)) {
+    if (!DNA_struct_member_exists(fd->filesdna, "Object", "ObjectGameUI", "game_ui")) {
+      const ObjectGameUI defaults;
+      for (Object &ob : bmain->objects) {
+        ob.game_ui = defaults;
+      }
+    }
+  }
+
+  /* Frame pacing: the jitter fix while vsync paces frames, as for new files (it only moves when
+   * steps run, never their size). */
+  if (!DNA_struct_member_exists(fd->filesdna, "GameData", "float", "jitter_fix")) {
+    for (Scene &scene : bmain->scenes) {
+      scene.gm.jitter_fix = 0.5f;
     }
   }
 }

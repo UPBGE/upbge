@@ -12,14 +12,34 @@
 
 namespace blender {
 
+struct bNodeTree;
+
+enum eLogicNodeBindingFlag {
+  /**
+   * `tree_name` is an unresolved legacy reference.
+   *
+   * New bindings use the `tree` ID pointer exclusively. This flag is only needed to preserve
+   * diagnostics and compatibility for old files or scripts that explicitly assign a missing tree
+   * name.
+   */
+  LOGIC_NODE_BINDING_LEGACY_NAME_FALLBACK = (1 << 0),
+};
+
 /** Native Logic Nodes tree binding on a game object (see #Object.logic_node_bindings). */
 typedef struct LogicNodeBinding {
   struct LogicNodeBinding *next, *prev;
-  /** LogicNodeTree ID name without the two-char prefix. */
+  /**
+   * Legacy name cache without the two-character ID prefix.
+   *
+   * Do not use this as the identity of a valid binding. `tree` is authoritative so renaming and
+   * ID remapping remain safe.
+   */
   char tree_name[64];
   short enabled;
-  short _pad;
+  short flag;
   int _pad2;
+  /** Applied LogicNodeTree. This is a user-counting ID reference owned by the Object. */
+  struct bNodeTree *tree;
 } LogicNodeBinding;
 
 }  // namespace blender

@@ -31,6 +31,8 @@
 
 #pragma once
 
+#include <array>
+#include <cstdint>
 #include <string>
 
 #include "DEV_JoystickDefines.h"
@@ -51,6 +53,21 @@
 #  endif
 #endif
 
+/** Whose labels a gamepad's buttons carry, for the names players read ("Cross" on a PlayStation
+ * pad where an Xbox one says "A"). */
+enum class DEV_PadFamily : uint8_t {
+  Generic = 0,
+  Xbox360,
+  /** Xbox One and Series: View and Menu. */
+  Xbox,
+  PlayStation3,
+  PlayStation4,
+  /** DualSense: Create instead of Share. */
+  PlayStation5,
+  /** Switch: SDL reports its face buttons by their labels. */
+  Nintendo,
+};
+
 /**
  * Basic Joystick class
  * I will make this class a singleton because there should be only one joystick
@@ -62,17 +79,26 @@ class DEV_Joystick
 
 {
   static DEV_Joystick *m_instance[JOYINDEX_MAX];
+  static uint64_t m_nextInstanceSerial;
 
   class PrivateData;
-#ifdef WITH_SDL
-  PrivateData *m_private;
-#endif
+  /* In every build, so all libraries see one layout: one compiled without WITH_SDL (Logic Nodes)
+   * read every member 8 bytes off, so its gamepad sticks and buttons were wrong. */
+  PrivateData *m_private = nullptr;
   int m_joyindex;
+  uint64_t m_instanceSerial;
+  DEV_PadFamily m_padFamily = DEV_PadFamily::Generic;
 
   /**
    *support for JOYAXIS_MAX axes (in pairs)
    */
   int m_axis_array[JOYAXIS_MAX];
+  std::array<uint8_t, JOYAXIS_MAX> m_axisActive;
+  std::array<uint8_t, JOYBUT_MAX> m_buttonActive;
+  std::array<uint64_t, JOYAXIS_MAX> m_axisPressRevision;
+  std::array<uint64_t, JOYAXIS_MAX> m_axisReleaseRevision;
+  std::array<uint64_t, JOYBUT_MAX> m_buttonPressRevision;
+  std::array<uint64_t, JOYBUT_MAX> m_buttonReleaseRevision;
 
   /**
    * Precision or range of the axes
@@ -129,7 +155,8 @@ class DEV_Joystick
  public:
   static DEV_Joystick *GetInstance(short joyindex);
   static bool HandleEvents(short (&addrem)[JOYINDEX_MAX]);
-  void ReleaseInstance(short joyindex);
+  /** Release one slot without requiring a live object to dispatch the operation. */
+  static void ReleaseInstance(short joyindex);
   static void Init();
   static void Close();
 
@@ -153,6 +180,36 @@ class DEV_Joystick
   int GetAxisPosition(int index)
   {
     return m_axis_array[index];
+  }
+
+  uint64_t GetInstanceSerial() const
+  {
+    return m_instanceSerial;
+  }
+
+  DEV_PadFamily GetPadFamily() const
+  {
+    return m_padFamily;
+  }
+
+  uint64_t GetAxisPressRevision(const int index) const
+  {
+    return (index >= 0 && index < JOYAXIS_MAX) ? m_axisPressRevision[index] : 0;
+  }
+
+  uint64_t GetAxisReleaseRevision(const int index) const
+  {
+    return (index >= 0 && index < JOYAXIS_MAX) ? m_axisReleaseRevision[index] : 0;
+  }
+
+  uint64_t GetButtonPressRevision(const int index) const
+  {
+    return (index >= 0 && index < JOYBUT_MAX) ? m_buttonPressRevision[index] : 0;
+  }
+
+  uint64_t GetButtonReleaseRevision(const int index) const
+  {
+    return (index >= 0 && index < JOYBUT_MAX) ? m_buttonReleaseRevision[index] : 0;
   }
 
   bool IsTrigAxis(void)

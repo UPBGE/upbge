@@ -57,6 +57,11 @@ class KX_Camera : public KX_GameObject {
   RAS_CameraData m_camdata;
 
   blender::GPUViewport *m_gpuViewport;
+  /** When the camera's own renderer last drew (KX_Scene gives back renderers that idle). */
+  double m_gpuViewportLastUse = 0.0;
+  /** The camera has drawn into a texture (ImageRender): a texture can keep pointing at its
+   * renderer's color buffer, so that renderer is never shared nor given back while it lives. */
+  bool m_usedForImageRender = false;
 
   // Never used, I think...
 //	void MoveTo(const MT_Vector3& movevec)
@@ -113,6 +118,10 @@ class KX_Camera : public KX_GameObject {
   /** Distance factor for level of detail*/
   float m_lodDistanceFactor;
 
+  /** How big objects look in this camera's split screen view compared with the whole window
+   * (1 outside split screen). Set with the projection (KX_KetsjiEngine). */
+  float m_viewSizeScale = 1.0f;
+
   /**
    * Show Debug blender::Camera Frustum?
    */
@@ -130,6 +139,27 @@ class KX_Camera : public KX_GameObject {
 
   blender::GPUViewport *GetGPUViewport();
   void RemoveGPUViewport();
+  /** The camera's own renderer, without creating one. */
+  blender::GPUViewport *GetExistingGPUViewport() const
+  {
+    return m_gpuViewport;
+  }
+  void MarkGPUViewportUsed(double now)
+  {
+    m_gpuViewportLastUse = now;
+  }
+  double GetGPUViewportLastUse() const
+  {
+    return m_gpuViewportLastUse;
+  }
+  void SetUsedForImageRender()
+  {
+    m_usedForImageRender = true;
+  }
+  bool IsUsedForImageRender() const
+  {
+    return m_usedForImageRender;
+  }
 
   virtual KX_PythonProxy *NewInstance();
   virtual void ProcessReplica();
@@ -195,6 +225,15 @@ class KX_Camera : public KX_GameObject {
   /** Set level of detail distance factor */
   void SetLodDistanceFactor(float lodfactor);
 
+  float GetViewSizeScale() const
+  {
+    return m_viewSizeScale;
+  }
+  void SetViewSizeScale(float scale)
+  {
+    m_viewSizeScale = scale;
+  }
+
   bool GetActivityCulling() const;
   void SetActivityCulling(bool enable);
 
@@ -234,6 +273,10 @@ class KX_Camera : public KX_GameObject {
    * Gets this camera's viewport top.
    */
   int GetViewportTop() const;
+
+  /** The camera has its own viewport and its Viewport Shape is Circle: only the circle (or oval)
+   * filling the viewport is drawn (KX_Scene::RenderAfterCameraSetup) and reached by the mouse. */
+  bool HasCircleViewport() const;
 
   virtual int GetGameObjectType() const
   {

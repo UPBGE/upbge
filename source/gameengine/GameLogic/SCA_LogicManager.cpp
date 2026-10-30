@@ -67,6 +67,15 @@ void SCA_LogicManager::UnregisterGameObjectName(const std::string &gameobjname)
   m_mapStringToGameObjects.erase(gameobjname);
 }
 
+void SCA_LogicManager::UnregisterGameObjectName(const std::string &gameobjname,
+                                                EXP_Value *gameobj)
+{
+  const auto found = m_mapStringToGameObjects.find(gameobjname);
+  if (found != m_mapStringToGameObjects.end() && found->second == gameobj) {
+    m_mapStringToGameObjects.erase(found);
+  }
+}
+
 void SCA_LogicManager::RegisterGameMeshName(const std::string &gamemeshname, void *blendobj)
 {
   std::string mn = gamemeshname;

@@ -31,6 +31,8 @@ using namespace blender;
 #include "BKE_logic_node_binding.hh"
 #include "BKE_report.hh"
 
+#include "DEG_depsgraph.hh"
+
 #include "WM_api.hh"
 
 namespace blender {
@@ -52,23 +54,17 @@ static bNodeTree *logic_node_binding_find_tree(Main *bmain, const char *tree_nam
 static PointerRNA rna_LogicNodeBinding_tree_get(PointerRNA *ptr)
 {
   LogicNodeBinding *binding = static_cast<LogicNodeBinding *>(ptr->data);
-  if (G_MAIN == nullptr) {
+  if (binding->tree == nullptr) {
     return PointerRNA_NULL;
   }
-
-  bNodeTree *node_tree = logic_node_binding_find_tree(G_MAIN, binding->tree_name);
-  if (node_tree == nullptr) {
-    return PointerRNA_NULL;
-  }
-
-  return RNA_id_pointer_create(&node_tree->id);
+  return RNA_id_pointer_create(&binding->tree->id);
 }
 
 static void rna_LogicNodeBinding_tree_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
 {
   LogicNodeBinding *binding = static_cast<LogicNodeBinding *>(ptr->data);
   if (value.data == nullptr) {
-    binding->tree_name[0] = '\0';
+    BKE_logic_node_binding_set_tree(binding, nullptr);
     return;
   }
 
@@ -78,27 +74,58 @@ static void rna_LogicNodeBinding_tree_set(PointerRNA *ptr, PointerRNA value, Rep
     return;
   }
 
-  BLI_strncpy(binding->tree_name, node_tree->id.name + 2, sizeof(binding->tree_name));
+  BKE_logic_node_binding_set_tree(binding, node_tree);
+}
+
+static void rna_LogicNodeBinding_tree_name_get(PointerRNA *ptr, char *value)
+{
+  const LogicNodeBinding *binding = static_cast<const LogicNodeBinding *>(ptr->data);
+  BLI_strncpy(value,
+              BKE_logic_node_binding_tree_name(binding),
+              sizeof(LogicNodeBinding::tree_name));
+}
+
+static int rna_LogicNodeBinding_tree_name_length(PointerRNA *ptr)
+{
+  const LogicNodeBinding *binding = static_cast<const LogicNodeBinding *>(ptr->data);
+  return strlen(BKE_logic_node_binding_tree_name(binding));
 }
 
 static void rna_LogicNodeBinding_tree_name_set(PointerRNA *ptr, const char *value)
 {
   LogicNodeBinding *binding = static_cast<LogicNodeBinding *>(ptr->data);
-  BLI_strncpy(binding->tree_name, value, sizeof(binding->tree_name));
+  bNodeTree *node_tree = logic_node_binding_find_tree(G_MAIN, value);
+  BKE_logic_node_binding_set_tree(binding, node_tree);
+  if (node_tree == nullptr && value != nullptr && value[0] != '\0') {
+    BLI_strncpy(binding->tree_name, value, sizeof(binding->tree_name));
+    binding->flag |= LOGIC_NODE_BINDING_LEGACY_NAME_FALLBACK;
+  }
 }
 
 static std::optional<std::string> rna_LogicNodeBinding_path(const PointerRNA *ptr)
 {
   const LogicNodeBinding *binding = static_cast<const LogicNodeBinding *>(ptr->data);
-  if (binding->tree_name[0] == '\0') {
+  const char *tree_name = BKE_logic_node_binding_tree_name(binding);
+  if (tree_name[0] == '\0') {
     return "Logic Node Binding";
   }
-  return std::string("Logic Node Binding: ") + binding->tree_name;
+  return std::string("Logic Node Binding: ") + tree_name;
 }
 
-static void rna_LogicNodeBinding_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA * /*ptr*/)
+static void rna_LogicNodeBinding_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
+  if (ptr->owner_id != nullptr && GS(ptr->owner_id->name) == ID_OB) {
+    DEG_id_tag_update(ptr->owner_id, ID_RECALC_SYNC_TO_EVAL);
+    WM_main_add_notifier(NC_LOGIC, ptr->owner_id);
+    return;
+  }
   WM_main_add_notifier(NC_LOGIC, nullptr);
+}
+
+static void logic_node_bindings_object_update(Object *object)
+{
+  DEG_id_tag_update(&object->id, ID_RECALC_SYNC_TO_EVAL);
+  WM_main_add_notifier(NC_LOGIC, object);
 }
 
 LogicNodeBinding *rna_GameObjectSettings_logic_node_binding_new(Object *object)
@@ -107,7 +134,7 @@ LogicNodeBinding *rna_GameObjectSettings_logic_node_binding_new(Object *object)
     return nullptr;
   }
   LogicNodeBinding *binding = BKE_logic_node_binding_add(object);
-  WM_main_add_notifier(NC_LOGIC, object);
+  logic_node_bindings_object_update(object);
   return binding;
 }
 
@@ -120,7 +147,7 @@ void rna_GameObjectSettings_logic_node_binding_remove(Object *object, int index)
       BLI_findlink(&object->logic_node_bindings, index));
   if (binding != nullptr) {
     BKE_logic_node_binding_remove(object, binding);
-    WM_main_add_notifier(NC_LOGIC, object);
+    logic_node_bindings_object_update(object);
   }
 }
 
@@ -129,8 +156,8 @@ void rna_GameObjectSettings_logic_node_binding_clear(Object *object)
   if (object == nullptr) {
     return;
   }
-  BKE_logic_node_binding_free_list(&object->logic_node_bindings);
-  WM_main_add_notifier(NC_LOGIC, object);
+  BKE_logic_node_binding_free_list(&object->logic_node_bindings, true);
+  logic_node_bindings_object_update(object);
 }
 
 }  /* namespace blender */
@@ -154,12 +181,15 @@ void RNA_def_logic_node_binding(BlenderRNA *brna)
   RNA_def_property_string_sdna(prop, nullptr, "tree_name");
   RNA_def_property_string_maxlength(prop, sizeof(LogicNodeBinding::tree_name));
   RNA_def_property_ui_text(prop, "Tree Name", "Name of the applied LogicNodeTree");
-  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_LogicNodeBinding_tree_name_set");
+  RNA_def_property_string_funcs(prop,
+                                "rna_LogicNodeBinding_tree_name_get",
+                                "rna_LogicNodeBinding_tree_name_length",
+                                "rna_LogicNodeBinding_tree_name_set");
   RNA_def_property_update(prop, NC_LOGIC, "rna_LogicNodeBinding_update");
 
   prop = RNA_def_property(srna, "tree", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "LogicNodeTree");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_pointer_funcs(
       prop, "rna_LogicNodeBinding_tree_get", "rna_LogicNodeBinding_tree_set", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Tree", "Logic node tree datablock applied to this object");

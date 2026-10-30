@@ -75,6 +75,36 @@ class DATA_PT_game_camera_settings(CameraButtonsPanel, Panel):
         'BLENDER_EEVEE',
         'BLENDER_WORKBENCH'}
 
+    @staticmethod
+    def _draw_light_picker(context, layout, display, lighting):
+        # The scene's studio light or MatCap, as the Render tab's Workbench Lighting shows it
+        # (there only for the scene's own lighting, and only with the Workbench engine).
+        matcap = lighting == 'MATCAP'
+        split = layout.split(factor=0.9)
+        row = split.row()
+        row.scale_y = 0.6  # A smaller preview, as in the Render tab.
+        row.template_icon_view(display, "game_matcap" if matcap else "game_studio_light",
+                               scale_popup=3.0)
+        col = split.column()
+        col.operator("screen.userpref_show", emboss=False, text="",
+                     icon='PREFERENCES').section = 'LIGHTS'
+        if matcap:
+            col.prop(display, "game_matcap_flip", text="", icon='ARROW_LEFTRIGHT', emboss=False)
+        shading = display.shading
+        if not matcap:
+            row = layout.row(align=True)
+            row.prop(shading, "use_world_space_lighting", text="", icon='WORLD', toggle=True)
+            sub = row.row(align=True)
+            sub.active = shading.use_world_space_lighting
+            sub.prop(shading, "studiolight_rotate_z", text="Rotation")
+        name = display.game_matcap if matcap else display.game_studio_light
+        light = next((item for item in context.preferences.studio_lights
+                      if item.name == name and item.type == lighting), None)
+        row = layout.row()
+        # Only pictures with a separate specular pass have one.
+        row.active = light is not None and light.has_specular_highlight_pass
+        row.prop(shading, "show_specular_highlight", text="Specular Lighting")
+
     def draw(self, context):
         layout = self.layout
 
@@ -84,14 +114,73 @@ class DATA_PT_game_camera_settings(CameraButtonsPanel, Panel):
         col.prop(cam, "use_overlay_mouse_control")
         col = layout.column()
         col.prop(cam, "use_object_activity_culling")
+
         col = layout.column()
-        col.label(text="Overlay Pass Settings:")
+        col.label(text="Viewport Shape:")
+        col.row().prop(cam, "viewport_shape", expand=True)
+        col.prop(cam, "game_collection")
+        row = col.row()
+        row.active = cam.game_collection is not None
+        row.prop(cam, "game_collection_mode", expand=True)
+
         col = layout.column()
-        col.prop(cam, "overlay_disable_ao")
+        col.prop(cam, "use_workbench")
+        if cam.use_workbench:
+            # The pictures, strengths and colors of that look are the scene's Workbench settings,
+            # which every Workbench camera uses (the 3D view's Viewport Shading popover only sets
+            # that view).
+            scene = context.scene
+            display = scene.display
+            shading = display.shading
+            lighting = cam.workbench_lighting
+            cavity = cam.workbench_cavity
+            sub = col.column()
+            sub.row().prop(cam, "workbench_lighting", expand=True)
+            # The lighting's picture right under its choice.
+            if lighting in {'STUDIO', 'MATCAP'}:
+                box = sub.box()
+                box.label(text="Scene {:s}, for All Workbench Cameras:".format(
+                    "MatCap" if lighting == 'MATCAP' else "Studio Light"))
+                self._draw_light_picker(context, box, display, lighting)
+            sub.prop(cam, "workbench_smooth_edges")
+            sub.prop(cam, "workbench_cavity")
+            sub.prop(cam, "workbench_outline")
+            sub.prop(cam, "workbench_color")
+            if cavity != 'OFF' or cam.workbench_outline or cam.workbench_color == 'SINGLE':
+                box = sub.box()
+                box.label(text="Scene, for All Workbench Cameras:")
+                shared = []
+                if cavity in {'SCREEN', 'BOTH'}:
+                    shared += [(shading, "curvature_ridge_factor", "Screen Ridge"),
+                               (shading, "curvature_valley_factor", "Screen Valley")]
+                if cavity in {'WORLD', 'BOTH'}:
+                    shared += [(shading, "cavity_ridge_factor", "World Ridge"),
+                               (shading, "cavity_valley_factor", "World Valley"),
+                               (display, "matcap_ssao_distance", "World Distance"),
+                               (display, "matcap_ssao_attenuation", "World Attenuation"),
+                               (display, "matcap_ssao_samples", "World Samples")]
+                if cam.workbench_outline:
+                    shared.append((shading, "object_outline_color", "Outline Color"))
+                if cam.workbench_color == 'SINGLE':
+                    shared.append((shading, "single_color", "Single Color"))
+                for data, prop, text in shared:
+                    box.prop(data, prop, text=text)
+                if (cavity in {'SCREEN', 'BOTH'} and
+                        shading.curvature_ridge_factor == 0.0 and
+                        shading.curvature_valley_factor == 0.0):
+                    box.label(text="Both Screen values are 0: the game uses 1", icon='INFO')
+            sub.operator("scene.game_workbench_copy_colors", icon='COLOR')
+
         col = layout.column()
-        col.prop(cam, "overlay_disable_ssr")
-        col = layout.column()
-        col.prop(cam, "overlay_disable_world_volumes")
+        # Workbench views have none of these EEVEE effects.
+        col.active = not cam.use_workbench
+        col.label(text="Turn Off for This Camera:")
+        col.prop(cam, "disable_shadows", text="Shadows")
+        col.prop(cam, "disable_ray_tracing", text="Ray Tracing")
+        col.prop(cam, "disable_volumetric_shadows", text="Volumetric Shadows")
+        col.prop(cam, "disable_motion_blur", text="Motion Blur")
+        col.prop(cam, "disable_extra_samples", text="Extra Samples")
+        col.prop(cam, "disable_temporal_reprojection", text="Temporal Reprojection")
 
 
 class DATA_PT_lens(CameraButtonsPanel, Panel):

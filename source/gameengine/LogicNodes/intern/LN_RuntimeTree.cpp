@@ -10,22 +10,24 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
-#include <cfloat>
 #include <cctype>
+#include <cfloat>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
-#include <cwchar>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <functional>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <sstream>
 #include <string>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #if defined(__SSE__) || defined(_M_X64) || defined(_M_IX86_FP)
 #  include <xmmintrin.h>
@@ -34,14 +36,16 @@
 #  define LN_HAS_SSE_REGISTER_SIMD 0
 #endif
 
-#include "DNA_collection_types.h"
 #include "DNA_ID.h"
+#include "DNA_camera_types.h"
+#include "DNA_collection_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_speaker_types.h"
 
+#include "../../../blender/depsgraph/DEG_depsgraph.hh"
 #include "BKE_action.hh"
 #include "BKE_anim_path.h"
 #include "BKE_armature.hh"
@@ -53,26 +57,27 @@
 #include "BKE_node.hh"
 #include "BKE_node_enum.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_object.hh"
+#include "BLI_bounds.hh"
 #include "BLI_hash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_path_utils.hh"
 #include "BLI_serialize.hh"
+#include "BLI_string_utf8.h"
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_object_types.h"
 #include "DNA_modifier_types.h"
-#include "../../../blender/depsgraph/DEG_depsgraph.hh"
+#include "DNA_object_types.h"
 
 #include "../../Converter/BL_Converter.h"
-#include "LN_CommandBuffer.h"
-#include "LN_FormulaEval.hh"
-#include "LN_Manager.h"
-#include "LN_Performance.h"
-#include "LN_RuntimeSemantics.h"
+#include "BL_ArmatureObject.h"
+#include "EXP_ArrayValue.h"
+#include "EXP_DictValue.h"
 #include "EXP_Vector2Value.h"
 #include "EXP_Vector3Value.h"
+#include "CM_Message.h"
 #include "EXP_Vector4Value.h"
 #include "KX_Camera.h"
 #include "KX_ClientObjectInfo.h"
@@ -80,20 +85,36 @@
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_Light.h"
+#include "KX_NavMeshObject.h"
+#include "KX_ObjectReferenceValue.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_RayCast.h"
-#include "KX_NavMeshObject.h"
 #include "KX_Scene.h"
+#include "LN_BonePoseRotation.h"
+#include "LN_CommandBuffer.h"
+#include "LN_CommandDiagnostics.h"
+#include "LN_FormulaEval.hh"
+#include "LN_GameStateMaterial.h"
+#include "DEV_Joystick.h"
+#include "LN_InputMap.h"
+#include "LN_Inventory.h"
+#include "LN_Manager.h"
+#include "LN_Performance.h"
+#include "LN_RuntimeSemantics.h"
+#include "LN_TypeConversion.h"
+#include "LN_UIService.h"
+#include "LN_ValueInterpolation.h"
 #include "MT_Matrix3x3.h"
 #include "MT_Quaternion.h"
 #include "MT_Transform.h"
+#include "PHY_DynamicTypes.h"
 #include "PHY_ICharacter.h"
 #include "PHY_IPhysicsController.h"
-#include "PHY_DynamicTypes.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IVehicle.h"
-#include "RAS_IVertex.h"
 #include "RAS_ICanvas.h"
+#include "RAS_IDisplayArray.h"
+#include "RAS_IVertex.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 #include "RAS_Rasterizer.h"
@@ -106,6 +127,25 @@ static constexpr float LN_WAYPOINT_RADIUS = 0.25f;
 static constexpr double LN_PATH_UPDATE_PERIOD = 0.5;
 static constexpr double LN_TIME_FLOW_EPSILON = 1.0e-6;
 static constexpr int32_t LN_RAYCAST_MAX_COLLISION_MASK = (1 << 10) - 1;
+static constexpr int32_t LN_RAYCAST_FROM_MESH_MAX_RAYS = 256;
+
+static constexpr bool PhaseTickWasSkipped(const uint64_t previous_tick,
+                                          const uint64_t current_tick)
+{
+  return previous_tick != UINT64_MAX && current_tick > previous_tick &&
+         current_tick - previous_tick > 1;
+}
+
+static constexpr bool IsContinuousPhaseTick(const uint64_t previous_tick,
+                                            const uint64_t current_tick)
+{
+  return previous_tick != UINT64_MAX && !PhaseTickWasSkipped(previous_tick, current_tick);
+}
+
+static_assert(!PhaseTickWasSkipped(0, 1));
+static_assert(PhaseTickWasSkipped(0, 2));
+static_assert(IsContinuousPhaseTick(UINT64_MAX - 1, UINT64_MAX));
+static_assert(!IsContinuousPhaseTick(UINT64_MAX, 0));
 
 static bool UsesJoltPhysics(KX_GameObject *game_object)
 {
@@ -241,18 +281,24 @@ static MT_Vector3 ReadRigidBodyAxisLockAttribute(PHY_IPhysicsController &control
                                    lock_rotation_x,
                                    lock_rotation_y,
                                    lock_rotation_z);
-  return rotation_locks ?
-             MT_Vector3(lock_rotation_x ? 1.0f : 0.0f,
-                        lock_rotation_y ? 1.0f : 0.0f,
-                        lock_rotation_z ? 1.0f : 0.0f) :
-             MT_Vector3(lock_translation_x ? 1.0f : 0.0f,
-                        lock_translation_y ? 1.0f : 0.0f,
-                        lock_translation_z ? 1.0f : 0.0f);
+  return rotation_locks ? MT_Vector3(lock_rotation_x ? 1.0f : 0.0f,
+                                     lock_rotation_y ? 1.0f : 0.0f,
+                                     lock_rotation_z ? 1.0f : 0.0f) :
+                          MT_Vector3(lock_translation_x ? 1.0f : 0.0f,
+                                     lock_translation_y ? 1.0f : 0.0f,
+                                     lock_translation_z ? 1.0f : 0.0f);
 }
 
 static double TimeFlowStep(const LN_TickContext &context, const bool ignore_timescale)
 {
-  return std::max(0.0, ignore_timescale ? context.unscaled_dt : context.fixed_dt);
+  return std::max(0.0, ignore_timescale ? context.unscaled_dt : context.delta_time);
+}
+
+static LN_Event TimeFlowContinuationEvent(const LN_Event event)
+{
+  /* On Init has no recurring phase. Continue initialization-time latent work on fixed Logic +
+   * Physics steps, in lockstep with the compiler's ContinuationEvent(). */
+  return event == LN_Event::OnUpdate ? LN_Event::OnUpdate : LN_Event::OnFixedUpdate;
 }
 
 static LN_Value MakeNoneValue();
@@ -260,27 +306,27 @@ static LN_Value MakeNoneValue();
 static const LN_Phase10OpcodeFallbackDiagnostic *FindOpcodeFallbackDiagnostic(
     const LN_OpCode opcode)
 {
-  static const std::array<const LN_Phase10OpcodeFallbackDiagnostic *,
-                          size_t(LN_OpCode::Count)> diagnostics_by_opcode = []() {
-    std::array<const LN_Phase10OpcodeFallbackDiagnostic *, size_t(LN_OpCode::Count)> table = {};
-    for (const LN_Phase10OpcodeFallbackDiagnostic &diagnostic :
-         LN_GetPhase10OpcodeFallbackDiagnostics())
-    {
-      const size_t index = size_t(diagnostic.opcode);
-      if (index < table.size()) {
-        table[index] = &diagnostic;
-      }
-    }
-    return table;
-  }();
+  static const std::array<const LN_Phase10OpcodeFallbackDiagnostic *, size_t(LN_OpCode::Count)>
+      diagnostics_by_opcode = []() {
+        std::array<const LN_Phase10OpcodeFallbackDiagnostic *, size_t(LN_OpCode::Count)> table =
+            {};
+        for (const LN_Phase10OpcodeFallbackDiagnostic &diagnostic :
+             LN_GetPhase10OpcodeFallbackDiagnostics())
+        {
+          const size_t index = size_t(diagnostic.opcode);
+          if (index < table.size()) {
+            table[index] = &diagnostic;
+          }
+        }
+        return table;
+      }();
 
   const size_t index = size_t(opcode);
   return index < diagnostics_by_opcode.size() ? diagnostics_by_opcode[index] : nullptr;
 }
 
 static const LN_Phase10ExpressionFallbackDiagnostic *FindExpressionFallbackDiagnostic(
-    const LN_RuntimeExpressionFamily family,
-    const uint32_t kind)
+    const LN_RuntimeExpressionFamily family, const uint32_t kind)
 {
   for (const LN_Phase10ExpressionFallbackDiagnostic &diagnostic :
        LN_GetPhase10ExpressionFallbackDiagnostics())
@@ -292,7 +338,8 @@ static const LN_Phase10ExpressionFallbackDiagnostic *FindExpressionFallbackDiagn
   return nullptr;
 }
 
-static LN_RuntimeFallbackReason FallbackReasonFromRequirements(const uint32_t fallback_requirements)
+static LN_RuntimeFallbackReason FallbackReasonFromRequirements(
+    const uint32_t fallback_requirements)
 {
   if ((fallback_requirements & LN_RUNTIME_FALLBACK_MISSING_SNAPSHOT_CHANNEL) != 0u) {
     return LN_RuntimeFallbackReason::MissingSnapshotChannel;
@@ -329,13 +376,14 @@ static bool RegisterExpressionIRHasProductionBenefit(const LN_RegisterExpression
 
 static bool QueryExpressionNeedsCommandOrderedEvaluation(const LN_QueryExpressionKind kind)
 {
-  return kind == LN_QueryExpressionKind::Raycast ||
-         kind == LN_QueryExpressionKind::RaycastAll ||
+  return kind == LN_QueryExpressionKind::Raycast || kind == LN_QueryExpressionKind::RaycastAll ||
+         kind == LN_QueryExpressionKind::RaycastFromMesh ||
          kind == LN_QueryExpressionKind::ShapeCast ||
          kind == LN_QueryExpressionKind::ShapeCastAll ||
-         kind == LN_QueryExpressionKind::MouseOver ||
-         kind == LN_QueryExpressionKind::MouseRay ||
-         kind == LN_QueryExpressionKind::CameraRay;
+         kind == LN_QueryExpressionKind::MouseOver || kind == LN_QueryExpressionKind::MouseRay ||
+         kind == LN_QueryExpressionKind::CameraRay ||
+         kind == LN_QueryExpressionKind::VectorAverage ||
+         kind == LN_QueryExpressionKind::DistanceBetween;
 }
 
 static bool QueryExpressionCanWarmCache(const LN_QueryExpression &expression)
@@ -347,14 +395,13 @@ static void FlushPendingRaycastTransforms(KX_GameObject *game_object,
                                           const LN_TickContext &context)
 {
   if (game_object == nullptr || context.command_buffer == nullptr ||
-      context.command_sort_key == UINT64_MAX ||
+      context.command_execution_key == UINT64_MAX ||
       !context.command_buffer->CanFlushPendingObjectTransformCommands())
   {
     return;
   }
 
-  context.command_buffer->FlushPendingObjectHierarchyTransformCommands(game_object,
-                                                                       context.command_sort_key);
+  context.command_buffer->FlushPendingObjectHierarchyTransformCommands(game_object);
 }
 
 static blender::Main *CurrentMain()
@@ -396,14 +443,264 @@ static bool vector_is_finite(const MT_Vector3 &value)
   return std::isfinite(value.x()) && std::isfinite(value.y()) && std::isfinite(value.z());
 }
 
-static void accumulate_object_world_position(KX_GameObject *game_object,
-                                             double sum[3],
-                                             uint32_t &count)
+static PHY_IPhysicsController *RaycastOwningPhysicsController(KX_GameObject *object)
 {
-  if (game_object == nullptr) {
-    return;
+  /* Compound children and transform-only children can be represented by an ancestor's single
+   * physics body. Ignore that owning controller as well, otherwise a ray emitted by the child can
+   * immediately hit its own hierarchy even though the child has no controller of its own. */
+  for (KX_GameObject *candidate = object; candidate; candidate = candidate->GetParent()) {
+    if (PHY_IPhysicsController *controller = candidate->GetPhysicsController()) {
+      return controller;
+    }
   }
-  const MT_Vector3 position = game_object->NodeGetWorldPosition();
+  return nullptr;
+}
+
+struct LN_MeshRaySample {
+  MT_Vector3 position;
+  MT_Vector3 normal;
+};
+
+static bool NormalizeFinite(MT_Vector3 &vector)
+{
+  const float length_squared = vector.length2();
+  if (!vector_is_finite(vector) || !std::isfinite(length_squared) ||
+      length_squared <= MT_EPSILON * MT_EPSILON)
+  {
+    return false;
+  }
+  vector /= std::sqrt(length_squared);
+  return vector_is_finite(vector);
+}
+
+static bool MeshVertexRaySample(const RAS_MeshObject::SharedVertex &first,
+                                const std::vector<RAS_MeshObject::SharedVertex> &shared_vertices,
+                                LN_MeshRaySample &r_sample)
+{
+  if (!first.m_darray || first.m_offset < 0 ||
+      size_t(first.m_offset) >= first.m_darray->GetVertexCount())
+  {
+    return false;
+  }
+  const RAS_IVertex *first_vertex = first.m_darray->GetVertex(uint32_t(first.m_offset));
+  if (!first_vertex) {
+    return false;
+  }
+  r_sample.position = first_vertex->xyz();
+  if (!vector_is_finite(r_sample.position)) {
+    return false;
+  }
+
+  r_sample.normal = MT_Vector3(0.0f, 0.0f, 0.0f);
+  for (const RAS_MeshObject::SharedVertex &shared : shared_vertices) {
+    if (!shared.m_darray || shared.m_offset < 0 ||
+        size_t(shared.m_offset) >= shared.m_darray->GetVertexCount())
+    {
+      continue;
+    }
+    const RAS_IVertex *vertex = shared.m_darray->GetVertex(uint32_t(shared.m_offset));
+    if (vertex) {
+      const MT_Vector3 normal(vertex->getNormal());
+      if (vector_is_finite(normal)) {
+        r_sample.normal += normal;
+      }
+    }
+  }
+  return NormalizeFinite(r_sample.normal);
+}
+
+static bool MeshFaceRaySample(const RAS_Polygon &polygon, LN_MeshRaySample &r_sample)
+{
+  const int vertex_count = polygon.VertexCount();
+  if (vertex_count < 3) {
+    return false;
+  }
+  std::vector<MT_Vector3> positions;
+  positions.reserve(size_t(vertex_count));
+  r_sample.position = MT_Vector3(0.0f, 0.0f, 0.0f);
+  for (int index = 0; index < vertex_count; index++) {
+    const RAS_IVertex *vertex = polygon.GetVertex(index);
+    if (!vertex) {
+      return false;
+    }
+    const MT_Vector3 position = vertex->xyz();
+    if (!vector_is_finite(position)) {
+      return false;
+    }
+    positions.push_back(position);
+    r_sample.position += position;
+  }
+  r_sample.position /= float(vertex_count);
+
+  r_sample.normal = MT_Vector3(0.0f, 0.0f, 0.0f);
+  const MT_Vector3 &base = positions.front();
+  for (int index = 1; index + 1 < vertex_count; index++) {
+    r_sample.normal +=
+        (positions[size_t(index)] - base).cross(positions[size_t(index + 1)] - base);
+  }
+  return NormalizeFinite(r_sample.normal);
+}
+
+struct LN_MeshRayDomainBlock {
+  RAS_MeshObject *mesh = nullptr;
+  uint64_t begin = 0;
+  uint64_t end = 0;
+};
+
+static bool MeshRaySampleAt(const std::vector<LN_MeshRayDomainBlock> &blocks,
+                            const LN_MeshRayDomain domain,
+                            const uint64_t ordinal,
+                            LN_MeshRaySample &r_sample)
+{
+  const auto block = std::upper_bound(
+      blocks.begin(), blocks.end(), ordinal, [](const uint64_t value, const auto &candidate) {
+        return value < candidate.end;
+      });
+  if (block == blocks.end() || ordinal < block->begin || !block->mesh) {
+    return false;
+  }
+  const uint64_t local_index = ordinal - block->begin;
+  if (domain == LN_MeshRayDomain::Vertices) {
+    if (local_index >= block->mesh->m_sharedvertex_map.size()) {
+      return false;
+    }
+    const std::vector<RAS_MeshObject::SharedVertex> &shared =
+        block->mesh->m_sharedvertex_map[size_t(local_index)];
+    return !shared.empty() && MeshVertexRaySample(shared.front(), shared, r_sample);
+  }
+  if (local_index >= uint64_t(std::max(0, block->mesh->NumPolygons()))) {
+    return false;
+  }
+  RAS_Polygon *polygon = block->mesh->GetPolygon(int(local_index));
+  return polygon && MeshFaceRaySample(*polygon, r_sample);
+}
+
+static std::vector<LN_MeshRaySample> SampleMeshRays(KX_GameObject &source_object,
+                                                    const LN_MeshRayDomain domain,
+                                                    const size_t max_rays)
+{
+  std::vector<LN_MeshRayDomainBlock> blocks;
+  blocks.reserve(source_object.GetMeshCount());
+  uint64_t candidate_count = 0;
+  for (unsigned int mesh_index = 0; mesh_index < source_object.GetMeshCount(); mesh_index++) {
+    RAS_MeshObject *mesh = source_object.GetMesh(mesh_index);
+    if (!mesh) {
+      continue;
+    }
+    const uint64_t count = domain == LN_MeshRayDomain::Vertices ?
+                               uint64_t(mesh->m_sharedvertex_map.size()) :
+                               uint64_t(std::max(0, mesh->NumPolygons()));
+    if (count == 0 || count > std::numeric_limits<uint64_t>::max() - candidate_count) {
+      continue;
+    }
+    blocks.push_back({mesh, candidate_count, candidate_count + count});
+    candidate_count += count;
+  }
+
+  const size_t output_count = size_t(std::min<uint64_t>(candidate_count, max_rays));
+  std::vector<LN_MeshRaySample> samples;
+  samples.reserve(output_count);
+  if (output_count == 0) {
+    return samples;
+  }
+
+  /* One sample is selected from each even domain bin. Search outwards from its center only when
+   * that candidate is degenerate; regular meshes therefore read exactly Max Rays elements even
+   * when the source contains millions of vertices or triangles. Bins never overlap, so ordering
+   * and uniqueness remain deterministic. */
+  const uint64_t bin_stride = candidate_count / uint64_t(output_count);
+  const uint64_t bin_remainder = candidate_count % uint64_t(output_count);
+  const auto bin_boundary = [&](const size_t index) {
+    const uint64_t i = uint64_t(index);
+    return bin_stride * i + (bin_remainder * i) / uint64_t(output_count);
+  };
+  for (size_t output_index = 0; output_index < output_count; output_index++) {
+    const uint64_t bin_begin = bin_boundary(output_index);
+    const uint64_t bin_end = bin_boundary(output_index + 1);
+    const uint64_t center = bin_begin + (bin_end - bin_begin - 1u) / 2u;
+    LN_MeshRaySample sample;
+    if (MeshRaySampleAt(blocks, domain, center, sample)) {
+      samples.push_back(sample);
+      continue;
+    }
+    for (uint64_t offset = 1; offset < bin_end - bin_begin; offset++) {
+      const bool has_lower = offset <= center - bin_begin;
+      const bool has_upper = offset < bin_end - center;
+      if (has_lower && MeshRaySampleAt(blocks, domain, center - offset, sample)) {
+        samples.push_back(sample);
+        break;
+      }
+      if (has_upper && MeshRaySampleAt(blocks, domain, center + offset, sample)) {
+        samples.push_back(sample);
+        break;
+      }
+      if (!has_lower && !has_upper) {
+        break;
+      }
+    }
+  }
+  return samples;
+}
+
+static bool BuildMeshNormalMatrix(const MT_Matrix3x3 &basis, MT_Matrix3x3 &r_normal_matrix)
+{
+  double matrix[3][3];
+  double column_length_squared[3] = {0.0, 0.0, 0.0};
+  for (int row = 0; row < 3; row++) {
+    for (int column = 0; column < 3; column++) {
+      matrix[row][column] = double(basis[row][column]);
+      if (!std::isfinite(matrix[row][column])) {
+        return false;
+      }
+      column_length_squared[column] += matrix[row][column] * matrix[row][column];
+    }
+  }
+  const double column_length_product = std::sqrt(column_length_squared[0]) *
+                                       std::sqrt(column_length_squared[1]) *
+                                       std::sqrt(column_length_squared[2]);
+  if (!std::isfinite(column_length_product) || column_length_product == 0.0) {
+    return false;
+  }
+
+  double cofactor[3][3];
+  cofactor[0][0] = matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1];
+  cofactor[0][1] = matrix[1][2] * matrix[2][0] - matrix[1][0] * matrix[2][2];
+  cofactor[0][2] = matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0];
+  cofactor[1][0] = matrix[0][2] * matrix[2][1] - matrix[0][1] * matrix[2][2];
+  cofactor[1][1] = matrix[0][0] * matrix[2][2] - matrix[0][2] * matrix[2][0];
+  cofactor[1][2] = matrix[0][1] * matrix[2][0] - matrix[0][0] * matrix[2][1];
+  cofactor[2][0] = matrix[0][1] * matrix[1][2] - matrix[0][2] * matrix[1][1];
+  cofactor[2][1] = matrix[0][2] * matrix[1][0] - matrix[0][0] * matrix[1][2];
+  cofactor[2][2] = matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
+  const double determinant = matrix[0][0] * cofactor[0][0] + matrix[0][1] * cofactor[0][1] +
+                             matrix[0][2] * cofactor[0][2];
+  if (!std::isfinite(determinant) || std::fabs(determinant) <= column_length_product * 1.0e-8) {
+    return false;
+  }
+
+  float normal[3][3];
+  for (int row = 0; row < 3; row++) {
+    for (int column = 0; column < 3; column++) {
+      normal[row][column] = float(cofactor[row][column] / determinant);
+      if (!std::isfinite(normal[row][column])) {
+        return false;
+      }
+    }
+  }
+  r_normal_matrix = MT_Matrix3x3(normal[0][0],
+                                 normal[0][1],
+                                 normal[0][2],
+                                 normal[1][0],
+                                 normal[1][1],
+                                 normal[1][2],
+                                 normal[2][0],
+                                 normal[2][1],
+                                 normal[2][2]);
+  return true;
+}
+
+static void accumulate_finite_position(const MT_Vector3 &position, double sum[3], uint64_t &count)
+{
   if (!vector_is_finite(position)) {
     return;
   }
@@ -569,13 +866,13 @@ static blender::bNodeTree *ResolveEditorNodeValueTree(const EditorNodeValueTarge
   if (target == EditorNodeValueTarget::GeometryModifier) {
     blender::Object *object = game_object != nullptr ? game_object->GetBlenderObject() : nullptr;
     blender::ModifierData *modifier = object != nullptr && !target_name.empty() ?
-                                         BKE_modifiers_findby_name(object,
-                                                                   target_name.c_str()) :
-                                         nullptr;
+                                          BKE_modifiers_findby_name(object, target_name.c_str()) :
+                                          nullptr;
     if (modifier == nullptr || modifier->type != blender::eModifierType_Nodes) {
       return nullptr;
     }
-    blender::bNodeTree *tree = reinterpret_cast<blender::NodesModifierData *>(modifier)->node_group;
+    blender::bNodeTree *tree =
+        reinterpret_cast<blender::NodesModifierData *>(modifier)->node_group;
     return tree != nullptr && tree->type == blender::NTREE_GEOMETRY ? tree : nullptr;
   }
 
@@ -663,6 +960,15 @@ static LN_Value MakeFloatValue(const float float_value)
   value.type = LN_ValueType::Float;
   value.exists = true;
   value.float_value = float_value;
+  return value;
+}
+
+static LN_Value MakeStringValue(const std::string &string_value)
+{
+  LN_Value value;
+  value.type = LN_ValueType::String;
+  value.exists = true;
+  value.string_value = string_value;
   return value;
 }
 
@@ -764,19 +1070,19 @@ static LN_Value ReadSocketDefaultValue(const blender::bNodeSocket &socket,
       const auto *socket_value = static_cast<const blender::bNodeSocketValueVector *>(
           socket.default_value);
       value.type = LN_ValueType::Vector;
-      value.vector_value = MT_Vector3(socket_value->value[0],
-                                      socket_value->value[1],
-                                      socket_value->value[2]);
+      value.vector_value = MT_Vector3(
+          socket_value->value[0], socket_value->value[1], socket_value->value[2]);
       value.exists = true;
       return value;
     }
     case blender::SOCK_ROTATION: {
       const auto *socket_value = static_cast<const blender::bNodeSocketValueRotation *>(
           socket.default_value);
+      const MT_Vector3 euler(socket_value->value_euler[0],
+                             socket_value->value_euler[1],
+                             socket_value->value_euler[2]);
       value.type = LN_ValueType::Rotation;
-      value.rotation_euler_value = MT_Vector3(socket_value->value_euler[0],
-                                             socket_value->value_euler[1],
-                                             socket_value->value_euler[2]);
+      value.SetRotation(LN_Rotation::FromEulerXYZ(euler), euler);
       value.exists = true;
       return value;
     }
@@ -851,54 +1157,6 @@ static LN_Value ReadSocketDefaultValue(const blender::bNodeSocket &socket,
   }
 }
 
-static bool MaterialParameterSocketSupportsObjectAttribute(const blender::bNodeSocket &socket)
-{
-  return ELEM(socket.type,
-              blender::SOCK_BOOLEAN,
-              blender::SOCK_INT,
-              blender::SOCK_FLOAT,
-              blender::SOCK_VECTOR,
-              blender::SOCK_ROTATION,
-              blender::SOCK_RGBA);
-}
-
-static std::string MaterialParameterAttributeName(blender::Material *material,
-                                                  const blender::bNode &node,
-                                                  const blender::bNodeSocket &socket)
-{
-  const uint32_t material_hash = blender::BLI_hash_string(material ? material->id.name : "");
-  uint32_t socket_hash = uint32_t(node.identifier);
-  socket_hash = blender::BLI_hash_int_2d(socket_hash,
-                                         blender::BLI_hash_string(socket.identifier));
-  char name[MAX_IDPROP_NAME];
-  std::snprintf(name, sizeof(name), "_LNMP_%08x_%08x", material_hash, socket_hash);
-  return name;
-}
-
-static bool ReadObjectMaterialParameterValues(blender::Object *object,
-                                              const std::string &property_name,
-                                              std::array<float, 4> &r_values)
-{
-  if (object == nullptr || property_name.empty()) {
-    return false;
-  }
-
-  blender::IDProperty *properties = blender::IDP_GetProperties(&object->id);
-  blender::IDProperty *property = properties ?
-                                      blender::IDP_GetPropertyFromGroup_null(
-                                          properties, property_name) :
-                                      nullptr;
-  if (property == nullptr || property->type != blender::IDP_ARRAY ||
-      property->subtype != blender::IDP_FLOAT || property->len != 4)
-  {
-    return false;
-  }
-
-  const float *data = static_cast<const float *>(property->data.pointer);
-  r_values = {data[0], data[1], data[2], data[3]};
-  return true;
-}
-
 static LN_Value MaterialParameterValueFromFloats(const blender::bNodeSocket &socket,
                                                  const std::array<float, 4> &values)
 {
@@ -924,11 +1182,13 @@ static LN_Value MaterialParameterValueFromFloats(const blender::bNodeSocket &soc
       value.vector_value = MT_Vector3(values[0], values[1], values[2]);
       value.exists = true;
       return value;
-    case blender::SOCK_ROTATION:
+    case blender::SOCK_ROTATION: {
+      const MT_Vector3 euler(values[0], values[1], values[2]);
       value.type = LN_ValueType::Rotation;
-      value.rotation_euler_value = MT_Vector3(values[0], values[1], values[2]);
+      value.SetRotation(LN_Rotation::FromEulerXYZ(euler), euler);
       value.exists = true;
       return value;
+    }
     case blender::SOCK_RGBA:
       value.type = LN_ValueType::Color;
       value.color_value = MT_Vector4(values[0], values[1], values[2], values[3]);
@@ -945,13 +1205,17 @@ static LN_Value ReadMaterialParameterValue(blender::Object *object,
                                            blender::bNodeSocket &socket,
                                            LN_RuntimeTree *runtime_tree)
 {
-  if (!MaterialParameterSocketSupportsObjectAttribute(socket)) {
+  if (!upbge::logic_nodes::game_state::material_parameter_socket_supports_object_attribute(socket))
+  {
     return MakeNoneValue();
   }
 
   std::array<float, 4> values{};
-  const std::string attribute_name = MaterialParameterAttributeName(material, node, socket);
-  if (ReadObjectMaterialParameterValues(object, attribute_name, values)) {
+  const std::string attribute_name =
+      upbge::logic_nodes::game_state::material_parameter_attribute_name(material, node, socket);
+  if (upbge::logic_nodes::game_state::read_object_material_parameter_values(
+          object, attribute_name, values))
+  {
     return MaterialParameterValueFromFloats(socket, values);
   }
   return ReadSocketDefaultValue(socket, runtime_tree);
@@ -1002,8 +1266,7 @@ static bool CollectPathPoints(const LN_Value &path_value, std::vector<MT_Vector3
 
 static bool StringStartsWith(const std::string &value, const std::string &prefix)
 {
-  return prefix.size() <= value.size() &&
-         value.compare(0, prefix.size(), prefix) == 0;
+  return prefix.size() <= value.size() && value.compare(0, prefix.size(), prefix) == 0;
 }
 
 static bool StringEndsWith(const std::string &value, const std::string &suffix)
@@ -1054,8 +1317,7 @@ static std::string ToCaseString(const std::string &value, const bool uppercase)
   return result;
 }
 
-static LN_RuntimeRef MakeInvalidRef(const LN_RuntimeRefKind kind,
-                                    const std::string &debug_name)
+static LN_RuntimeRef MakeInvalidRef(const LN_RuntimeRefKind kind, const std::string &debug_name)
 {
   LN_RuntimeRef runtime_ref;
   runtime_ref.kind = kind;
@@ -1098,8 +1360,7 @@ static MT_Matrix3x3 MatrixFromFloat3x3(const float matrix[3][3])
                       matrix[2][2]);
 }
 
-static MT_Matrix3x3 MatrixFromEuler(const MT_Vector3 &euler,
-                                    const uint32_t order_index = 0)
+static MT_Matrix3x3 MatrixFromEuler(const MT_Vector3 &euler, const uint32_t order_index = 0)
 {
   float input[3] = {float(euler.x()), float(euler.y()), float(euler.z())};
   float matrix[3][3];
@@ -1107,8 +1368,7 @@ static MT_Matrix3x3 MatrixFromEuler(const MT_Vector3 &euler,
   return MatrixFromFloat3x3(matrix);
 }
 
-static MT_Vector3 EulerFromMatrix(const MT_Matrix3x3 &matrix,
-                                  const uint32_t order_index = 0)
+static MT_Vector3 EulerFromMatrix(const MT_Matrix3x3 &matrix, const uint32_t order_index = 0)
 {
   float input[3][3];
   MatrixToFloat3x3(matrix, input);
@@ -1119,26 +1379,12 @@ static MT_Vector3 EulerFromMatrix(const MT_Matrix3x3 &matrix,
 
 static MT_Vector3 InterpolateRotationEuler(const MT_Vector3 &from,
                                            const MT_Vector3 &to,
-                                           float factor,
-                                           const bool quaternion_slerp)
+                                           float factor)
 {
   if (!std::isfinite(factor)) {
     factor = 0.0f;
   }
-  if (!quaternion_slerp) {
-    return from + (to - from) * factor;
-  }
-  if (factor == 0.0f) {
-    return from;
-  }
-  if (factor == 1.0f) {
-    return to;
-  }
-
-  const MT_Quaternion from_quat = MatrixFromEuler(from).getRotation();
-  const MT_Quaternion to_quat = MatrixFromEuler(to).getRotation();
-  const MT_Quaternion result_quat = from_quat.slerp(to_quat, MT_Scalar(factor));
-  return EulerFromMatrix(MT_Matrix3x3(result_quat));
+  return from + (to - from) * factor;
 }
 
 static bool MatrixHasNonZeroElement(const MT_Matrix3x3 &matrix)
@@ -1332,19 +1578,60 @@ static std::string ResolveVariableFilePath(std::string path, std::string file_na
   return (std::filesystem::path(expanded) / file_name).string();
 }
 
+/** Variable files as last read. Load Variable can run every frame: a file is parsed again only
+ * when it changed on disk (its write time or size), also when something else wrote it. */
+struct VariableFileCacheEntry {
+  std::filesystem::file_time_type write_time;
+  uintmax_t size = 0;
+  LN_Value dict;
+};
+
+static std::mutex &VariableFileCacheMutex()
+{
+  static std::mutex mutex;
+  return mutex;
+}
+
+static std::unordered_map<std::string, VariableFileCacheEntry> &VariableFileCache()
+{
+  static std::unordered_map<std::string, VariableFileCacheEntry> cache;
+  return cache;
+}
+
 static LN_Value LoadVariableDictFromFile(const std::string &path, const std::string &file_name)
 {
   using namespace blender::io::serialize;
 
   const std::string filepath = ResolveVariableFilePath(path, file_name);
-  std::shared_ptr<Value> root = read_json_file(filepath);
-  if (!root || root->type() != eValueType::Dictionary) {
-    LN_Value empty;
-    empty.type = LN_ValueType::Dict;
-    empty.exists = true;
+  LN_Value empty;
+  empty.type = LN_ValueType::Dict;
+  empty.exists = true;
+
+  /* Locked for the whole read, as saving is for the whole write: a read on another thread never
+   * caches the old file while it is being replaced (a quick rewrite can keep the write time). */
+  std::lock_guard<std::mutex> lock(VariableFileCacheMutex());
+  std::error_code error;
+  const std::filesystem::file_time_type write_time = std::filesystem::last_write_time(filepath,
+                                                                                      error);
+  const uintmax_t size = error ? 0 : std::filesystem::file_size(filepath, error);
+  const bool readable = !error;
+  auto &cache = VariableFileCache();
+  const auto cached = cache.find(filepath);
+  if (cached != cache.end()) {
+    if (readable && cached->second.write_time == write_time && cached->second.size == size) {
+      return cached->second.dict;
+    }
+    cache.erase(cached);
+  }
+  if (!readable) {
     return empty;
   }
-  return JsonValueToValue(*root);
+
+  std::shared_ptr<Value> root = read_json_file(filepath);
+  LN_Value dict = root && root->type() == eValueType::Dictionary ? JsonValueToValue(*root) :
+                                                                    empty;
+  cache[filepath] = {write_time, size, dict};
+  return dict;
 }
 
 static void SaveVariableDictToFile(const std::string &path,
@@ -1352,6 +1639,9 @@ static void SaveVariableDictToFile(const std::string &path,
                                    const LN_Value &dict_value)
 {
   const std::string filepath = ResolveVariableFilePath(path, file_name);
+  /* The next read parses what is written now (exactly as a fresh read would). */
+  std::lock_guard<std::mutex> lock(VariableFileCacheMutex());
+  VariableFileCache().erase(filepath);
   std::filesystem::create_directories(std::filesystem::path(filepath).parent_path());
   blender::io::serialize::JsonFormatter formatter;
   formatter.indentation_len = 2;
@@ -1442,17 +1732,13 @@ static bool ValueAsVector4(const LN_Value &value, MT_Vector4 &r_vector)
     return true;
   }
   if (value.type == LN_ValueType::Vector) {
-    r_vector = MT_Vector4(value.vector_value.x(),
-                          value.vector_value.y(),
-                          value.vector_value.z(),
-                          0.0f);
+    r_vector = MT_Vector4(
+        value.vector_value.x(), value.vector_value.y(), value.vector_value.z(), 0.0f);
     return true;
   }
   if (value.type == LN_ValueType::Rotation) {
-    r_vector = MT_Vector4(value.rotation_euler_value.x(),
-                          value.rotation_euler_value.y(),
-                          value.rotation_euler_value.z(),
-                          0.0f);
+    const MT_Vector3 euler = value.RotationEulerRadians();
+    r_vector = MT_Vector4(euler.x(), euler.y(), euler.z(), 0.0f);
     return true;
   }
   if (value.type == LN_ValueType::List && value.list_value.size() >= 2) {
@@ -1490,10 +1776,8 @@ static bool ValueAsColor(const LN_Value &value, MT_Vector4 &r_color)
     return true;
   }
   if (value.type == LN_ValueType::Rotation) {
-    r_color = MT_Vector4(value.rotation_euler_value.x(),
-                         value.rotation_euler_value.y(),
-                         value.rotation_euler_value.z(),
-                         1.0f);
+    const MT_Vector3 euler = value.RotationEulerRadians();
+    r_color = MT_Vector4(euler.x(), euler.y(), euler.z(), 1.0f);
     return true;
   }
   if (value.type == LN_ValueType::List && value.list_value.size() >= 3) {
@@ -1515,14 +1799,22 @@ static bool ValueAsColor(const LN_Value &value, MT_Vector4 &r_color)
 
 static bool ValueAsVector(const LN_Value &value, MT_Vector3 &r_vector)
 {
+  if (value.type == LN_ValueType::Int) {
+    const float scalar = float(value.int_value);
+    r_vector = MT_Vector3(scalar, scalar, scalar);
+    return true;
+  }
+  if (value.type == LN_ValueType::Float) {
+    r_vector = MT_Vector3(value.float_value, value.float_value, value.float_value);
+    return true;
+  }
   if (value.type == LN_ValueType::Vector) {
     r_vector = value.vector_value;
     return true;
   }
   if (value.type == LN_ValueType::Vector4) {
-    r_vector = MT_Vector3(value.vector4_value.x(),
-                         value.vector4_value.y(),
-                         value.vector4_value.z());
+    r_vector = MT_Vector3(
+        value.vector4_value.x(), value.vector4_value.y(), value.vector4_value.z());
     return true;
   }
   if (value.type == LN_ValueType::Color) {
@@ -1530,7 +1822,7 @@ static bool ValueAsVector(const LN_Value &value, MT_Vector3 &r_vector)
     return true;
   }
   if (value.type == LN_ValueType::Rotation) {
-    r_vector = value.rotation_euler_value;
+    r_vector = value.RotationEulerRadians();
     return true;
   }
   if (value.type == LN_ValueType::List && value.list_value.size() >= 3) {
@@ -1579,14 +1871,11 @@ static void DrawDebugRaycastHitFrame(const MT_Vector3 &point,
     return;
   }
 
-  const MT_Vector3 tangent_seed = std::fabs(z_axis.z()) < 0.9f ?
-                                      MT_Vector3(0.0f, 0.0f, 1.0f) :
-                                      MT_Vector3(1.0f, 0.0f, 0.0f);
+  const MT_Vector3 tangent_seed = std::fabs(z_axis.z()) < 0.9f ? MT_Vector3(0.0f, 0.0f, 1.0f) :
+                                                                 MT_Vector3(1.0f, 0.0f, 0.0f);
   const MT_Vector3 x_axis = tangent_seed.cross(z_axis).safe_normalized();
   const MT_Vector3 y_axis = z_axis.cross(x_axis).safe_normalized();
-  if (x_axis.length2() <= MT_EPSILON * MT_EPSILON ||
-      y_axis.length2() <= MT_EPSILON * MT_EPSILON)
-  {
+  if (x_axis.length2() <= MT_EPSILON * MT_EPSILON || y_axis.length2() <= MT_EPSILON * MT_EPSILON) {
     return;
   }
 
@@ -1637,8 +1926,18 @@ static void DrawDebugBox(const MT_Vector3 &origin,
       origin + MT_Vector3(-half_x, half_y, half_z),
   };
   static constexpr int edges[12][2] = {
-      {0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6},
-      {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7},
+      {0, 1},
+      {1, 2},
+      {2, 3},
+      {3, 0},
+      {4, 5},
+      {5, 6},
+      {6, 7},
+      {7, 4},
+      {0, 4},
+      {1, 5},
+      {2, 6},
+      {3, 7},
   };
   for (const int (&edge)[2] : edges) {
     KX_RasterizerDrawDebugLine(vertices[edge[0]], vertices[edge[1]], color);
@@ -1671,8 +1970,18 @@ static void DrawDebugOrientedBox(const MT_Vector3 &center,
     vertex = DebugShapePoint(center, orientation, vertex);
   }
   static constexpr int edges[12][2] = {
-      {0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6},
-      {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7},
+      {0, 1},
+      {1, 2},
+      {2, 3},
+      {3, 0},
+      {4, 5},
+      {5, 6},
+      {6, 7},
+      {7, 4},
+      {0, 4},
+      {1, 5},
+      {2, 6},
+      {3, 7},
   };
   for (const int (&edge)[2] : edges) {
     KX_RasterizerDrawDebugLine(vertices[edge[0]], vertices[edge[1]], color);
@@ -1728,10 +2037,10 @@ static void DrawDebugRoundedBox(const MT_Vector3 &center,
           MT_Vector3 high(0.0f, 0.0f, 0.0f);
           low[axis] = -half_extents[axis];
           high[axis] = half_extents[axis];
-          low[cross_axis0] = high[cross_axis0] =
-              sign0 * (half_extents[cross_axis0] + radius * std::cos(angle));
-          low[cross_axis1] = high[cross_axis1] =
-              sign1 * (half_extents[cross_axis1] + radius * std::sin(angle));
+          low[cross_axis0] = high[cross_axis0] = sign0 * (half_extents[cross_axis0] +
+                                                          radius * std::cos(angle));
+          low[cross_axis1] = high[cross_axis1] = sign1 * (half_extents[cross_axis1] +
+                                                          radius * std::sin(angle));
 
           const MT_Vector3 world_low = DebugShapePoint(center, orientation, low);
           const MT_Vector3 world_high = DebugShapePoint(center, orientation, high);
@@ -1816,11 +2125,8 @@ static void DrawDebugShape(const PHY_ShapeCastSettings &settings,
           center, settings.orientation, settings.radius + settings.extra_radius, color);
       break;
     case PHY_ShapeCastType::Box:
-      DrawDebugRoundedBox(center,
-                          settings.orientation,
-                          settings.half_extents,
-                          settings.extra_radius,
-                          color);
+      DrawDebugRoundedBox(
+          center, settings.orientation, settings.half_extents, settings.extra_radius, color);
       break;
     case PHY_ShapeCastType::Capsule:
       DrawDebugCapsule(center,
@@ -1862,11 +2168,12 @@ static void DrawDebugShapeCast(const PHY_ShapeCastSettings &settings,
   static const MT_Vector4 hit_color(1.0f, 0.05f, 0.02f, 1.0f);
   static const MT_Vector4 blocked_color(1.0f, 0.3f, 0.0f, 1.0f);
   const bool has_hits = !hits.empty();
-  const MT_Vector3 terminal = blocker ? blocker->cast_position :
+  const MT_Vector3 terminal = blocker                  ? blocker->cast_position :
                               collect_all || !has_hits ? settings.destination :
                                                          hits.front().cast_position;
-  const MT_Vector4 &terminal_color = blocker ? blocked_color :
-                                            has_hits && !collect_all ? hit_color : miss_color;
+  const MT_Vector4 &terminal_color = blocker                  ? blocked_color :
+                                     has_hits && !collect_all ? hit_color :
+                                                                miss_color;
   const MT_Vector4 &path_color = blocker ? blocked_color : has_hits ? hit_color : miss_color;
   const bool moved = (terminal - settings.origin).length2() > MT_EPSILON * MT_EPSILON;
   if (moved) {
@@ -1887,9 +2194,7 @@ static void DrawDebugShapeCast(const PHY_ShapeCastSettings &settings,
   }
 }
 
-static void DrawDebugArrow(const MT_Vector3 &from,
-                           const MT_Vector3 &to,
-                           const MT_Vector4 &color)
+static void DrawDebugArrow(const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
 {
   KX_RasterizerDrawDebugLine(from, to, color);
   const MT_Vector3 delta = to - from;
@@ -1938,7 +2243,7 @@ static bool ValueAsMatrix(const LN_Value &value, MT_Matrix3x3 &r_matrix)
     return true;
   }
   if (value.type == LN_ValueType::Rotation) {
-    r_matrix = MatrixFromEuler(value.rotation_euler_value);
+    r_matrix = value.rotation_value.ToMatrix();
     return true;
   }
   if (value.type == LN_ValueType::Vector) {
@@ -1964,28 +2269,16 @@ static bool ValueAsMatrix(const LN_Value &value, MT_Matrix3x3 &r_matrix)
   return false;
 }
 
-static void SetCollectionObjectVisibility(KX_Scene *scene,
-                                          blender::Collection *collection,
-                                          const bool visible,
-                                          const bool recursive)
+static bool RuntimeRefsEqual(const LN_RuntimeRef &a, const LN_RuntimeRef &b)
 {
-  if (scene == nullptr || collection == nullptr) {
-    return;
+  if (a.IsValid() != b.IsValid()) {
+    return false;
   }
-  for (blender::CollectionObject &collection_object : collection->gobject) {
-    if (collection_object.ob == nullptr) {
-      continue;
-    }
-    if (KX_GameObject *game_object = scene->GetGameObjectFromObject(collection_object.ob)) {
-      game_object->SetVisible(visible, true);
-    }
+  if (!a.IsValid()) {
+    return true;
   }
-  if (!recursive) {
-    return;
-  }
-  for (blender::CollectionChild &child : collection->children) {
-    SetCollectionObjectVisibility(scene, child.collection, visible, true);
-  }
+  return a.kind == b.kind && a.slot == b.slot && a.generation == b.generation &&
+         a.shared_domain == b.shared_domain;
 }
 
 static bool ValuesEqual(const LN_Value &a, const LN_Value &b, const float tolerance = 0.0001f)
@@ -1996,6 +2289,16 @@ static bool ValuesEqual(const LN_Value &a, const LN_Value &b, const float tolera
   if (!b.exists || b.type == LN_ValueType::None) {
     return false;
   }
+  /* A whole number and a decimal one are equal when their values are (2 and 2.0). */
+  if ((a.type == LN_ValueType::Int && b.type == LN_ValueType::Float) ||
+      (a.type == LN_ValueType::Float && b.type == LN_ValueType::Int))
+  {
+    const double a_number = a.type == LN_ValueType::Int ? double(a.int_value) :
+                                                          double(a.float_value);
+    const double b_number = b.type == LN_ValueType::Int ? double(b.int_value) :
+                                                          double(b.float_value);
+    return a_number == b_number || std::fabs(a_number - b_number) <= double(tolerance);
+  }
   if (a.type != b.type) {
     return false;
   }
@@ -2005,7 +2308,8 @@ static bool ValuesEqual(const LN_Value &a, const LN_Value &b, const float tolera
     case LN_ValueType::Int:
       return a.int_value == b.int_value;
     case LN_ValueType::Float:
-      return std::fabs(a.float_value - b.float_value) <= tolerance;
+      return a.float_value == b.float_value ||
+             std::fabs(a.float_value - b.float_value) <= tolerance;
     case LN_ValueType::String:
       return a.string_value == b.string_value;
     case LN_ValueType::Vector:
@@ -2024,7 +2328,13 @@ static bool ValuesEqual(const LN_Value &a, const LN_Value &b, const float tolera
     case LN_ValueType::Color:
       return (a.color_value - b.color_value).length() <= tolerance;
     case LN_ValueType::Rotation:
-      return (a.rotation_euler_value - b.rotation_euler_value).length() <= tolerance;
+      return (a.RotationEulerRadians() - b.RotationEulerRadians()).length() <= tolerance;
+    case LN_ValueType::ObjectRef:
+    case LN_ValueType::SceneRef:
+    case LN_ValueType::CollectionRef:
+    case LN_ValueType::DatablockRef:
+      return RuntimeRefsEqual(a.runtime_ref, b.runtime_ref) &&
+             (a.runtime_ref.IsValid() || a.reference_name == b.reference_name);
     case LN_ValueType::List: {
       if (a.list_value.size() != b.list_value.size()) {
         return false;
@@ -2078,7 +2388,7 @@ static bool ValueAsBool(const LN_Value &value)
     case LN_ValueType::Color:
       return value.color_value.length2() > 0.0f;
     case LN_ValueType::Rotation:
-      return value.rotation_euler_value.length2() > 0.0f;
+      return value.RotationEulerRadians().length2() > 0.0f;
     case LN_ValueType::List:
       return !value.list_value.empty();
     case LN_ValueType::Dict:
@@ -2109,25 +2419,18 @@ static bool ValueAsFloat(const LN_Value &value, float &r_value)
       r_value = value.float_value;
       return true;
     case LN_ValueType::String: {
-      const char *text = value.string_value.c_str();
-      char *end = nullptr;
-      const float parsed = std::strtof(text, &end);
-      if (end != text) {
-        r_value = parsed;
-        return true;
-      }
-      return false;
+      return LN_TryParseTypecastFloat(value.string_value, r_value);
     }
     default:
       return false;
   }
 }
 
-static int32_t ValueAsInt(const LN_Value &value)
+static int32_t ValueAsInt(const LN_Value &value, const LN_FloatToIntMode mode)
 {
   float float_value = 0.0f;
   if (ValueAsFloat(value, float_value)) {
-    return int32_t(float_value);
+    return LN_ConvertFloatToInt(float_value, mode);
   }
   return 0;
 }
@@ -2184,6 +2487,45 @@ static bool IsNumericValueType(const LN_ValueType type)
   return type == LN_ValueType::Int || type == LN_ValueType::Float;
 }
 
+/** Numbers first, then text, then anything else; a \a key sorts dictionaries by that entry. */
+static void SortListValues(std::vector<LN_Value> &items,
+                           const std::string &key,
+                           const bool descending)
+{
+  static const LN_Value none;
+  const auto sort_value = [&](const LN_Value &item) -> const LN_Value & {
+    if (key.empty() || item.type != LN_ValueType::Dict) {
+      return item;
+    }
+    const auto entry = item.dict_value.find(key);
+    return entry != item.dict_value.end() ? entry->second : none;
+  };
+  const auto rank = [](const LN_Value &value) {
+    if (!value.exists) {
+      return 2;
+    }
+    if (IsNumericValueType(value.type) || value.type == LN_ValueType::Bool) {
+      return 0;
+    }
+    return value.type == LN_ValueType::String ? 1 : 2;
+  };
+  std::stable_sort(items.begin(), items.end(), [&](const LN_Value &a_item, const LN_Value &b_item) {
+    const LN_Value &a = sort_value(descending ? b_item : a_item);
+    const LN_Value &b = sort_value(descending ? a_item : b_item);
+    if (rank(a) != rank(b)) {
+      return descending ? rank(a) > rank(b) : rank(a) < rank(b);
+    }
+    if (rank(a) == 0) {
+      float a_float = 0.0f;
+      float b_float = 0.0f;
+      ValueAsFloat(a, a_float);
+      ValueAsFloat(b, b_float);
+      return a_float < b_float;
+    }
+    return rank(a) == 1 && a.string_value < b.string_value;
+  });
+}
+
 static bool ValueChangedToTarget(const LN_Value &old_value,
                                  const LN_Value &new_value,
                                  const LN_Value &target)
@@ -2208,9 +2550,7 @@ static bool ValueChangedToTarget(const LN_Value &old_value,
   }
 
   constexpr float tolerance = 0.0001f;
-  if (std::fabs(old_float - target_float) <= tolerance ||
-      std::fabs(new_float - target_float) <= tolerance)
-  {
+  if (std::fabs(new_float - target_float) <= tolerance) {
     return true;
   }
 
@@ -2228,25 +2568,11 @@ static bool NormalizeListIndex(const int32_t index, const size_t size, size_t &r
   return true;
 }
 
-static void UpdateArmaturePose(blender::Object *ob)
+static BL_ArmatureObject *ArmatureFacade(KX_GameObject *game_object)
 {
-  if (ob == nullptr || ob->type != blender::OB_ARMATURE || ob->pose == nullptr) {
-    return;
-  }
-  KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  if (engine == nullptr) {
-    return;
-  }
-  blender::bContext *context = engine->GetContext();
-  if (context == nullptr) {
-    return;
-  }
-  blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(context);
-  blender::Scene *scene = CTX_data_scene(context);
-  if (depsgraph == nullptr || scene == nullptr) {
-    return;
-  }
-  BKE_pose_where_is(depsgraph, scene, ob);
+  return game_object != nullptr && game_object->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE ?
+             static_cast<BL_ArmatureObject *>(game_object) :
+             nullptr;
 }
 
 enum class BonePosePoint {
@@ -2285,15 +2611,16 @@ static bool ResolveBonePosePosition(KX_GameObject *armature_object,
   if (armature_object == nullptr) {
     return false;
   }
-  blender::Object *ob = armature_object->GetBlenderObject();
+  BL_ArmatureObject *armature = ArmatureFacade(armature_object);
+  blender::Object *ob = armature ? armature->GetArmatureObject() : nullptr;
   if (ob == nullptr || ob->type != blender::OB_ARMATURE || ob->pose == nullptr) {
     return false;
   }
   if (bone_name.empty()) {
     return false;
   }
-  UpdateArmaturePose(ob);
-  blender::bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bone_name.c_str());
+  armature->ApplyPose();
+  blender::bPoseChannel *pchan = armature->FindPoseChannel(bone_name);
   if (pchan == nullptr) {
     return false;
   }
@@ -2320,13 +2647,14 @@ static bool ResolveBonePoseLocation(KX_GameObject *armature_object,
   if (armature_object == nullptr) {
     return false;
   }
-  blender::Object *ob = armature_object->GetBlenderObject();
+  BL_ArmatureObject *armature = ArmatureFacade(armature_object);
+  blender::Object *ob = armature ? armature->GetArmatureObject() : nullptr;
   if (ob == nullptr || ob->type != blender::OB_ARMATURE || ob->pose == nullptr ||
       bone_name.empty())
   {
     return false;
   }
-  blender::bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bone_name.c_str());
+  blender::bPoseChannel *pchan = armature->FindPoseChannel(bone_name);
   if (pchan == nullptr) {
     return false;
   }
@@ -2335,7 +2663,7 @@ static bool ResolveBonePoseLocation(KX_GameObject *armature_object,
     return true;
   }
 
-  UpdateArmaturePose(ob);
+  armature->ApplyPose();
   const MT_Vector3 pose_head(pchan->pose_head[0], pchan->pose_head[1], pchan->pose_head[2]);
   r_location = space == LN_BonePoseRotationSpace::World ?
                    ArmaturePointToWorld(armature_object, pose_head) :
@@ -2350,37 +2678,18 @@ static bool ResolveBonePoseScale(KX_GameObject *armature_object,
   if (armature_object == nullptr) {
     return false;
   }
-  blender::Object *ob = armature_object->GetBlenderObject();
+  BL_ArmatureObject *armature = ArmatureFacade(armature_object);
+  blender::Object *ob = armature ? armature->GetArmatureObject() : nullptr;
   if (ob == nullptr || ob->type != blender::OB_ARMATURE || ob->pose == nullptr ||
       bone_name.empty())
   {
     return false;
   }
-  blender::bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bone_name.c_str());
+  blender::bPoseChannel *pchan = armature->FindPoseChannel(bone_name);
   if (pchan == nullptr) {
     return false;
   }
-  if (pchan->bone == nullptr) {
-    r_scale = MT_Vector3(pchan->scale[0], pchan->scale[1], pchan->scale[2]);
-    return true;
-  }
-
-  const float channel_scale_mat[3][3] = {
-      {pchan->scale[0], 0.0f, 0.0f},
-      {0.0f, pchan->scale[1], 0.0f},
-      {0.0f, 0.0f, pchan->scale[2]},
-  };
-  float rest_basis[3][3];
-  float rest_basis_inv[3][3];
-  float tmp_mat[3][3];
-  float object_scale_mat[3][3];
-  blender::copy_m3_m4(rest_basis, pchan->bone->arm_mat);
-  blender::normalize_m3(rest_basis);
-  blender::transpose_m3_m3(rest_basis_inv, rest_basis);
-  blender::mul_m3_m3m3(tmp_mat, rest_basis, channel_scale_mat);
-  blender::mul_m3_m3m3(object_scale_mat, tmp_mat, rest_basis_inv);
-  r_scale = MT_Vector3(
-      object_scale_mat[0][0], object_scale_mat[1][1], object_scale_mat[2][2]);
+  r_scale = MT_Vector3(pchan->scale[0], pchan->scale[1], pchan->scale[2]);
   return true;
 }
 
@@ -2398,62 +2707,47 @@ static LN_BonePoseRotationSpace NormalizeBonePoseRotationSpace(const uint32_t va
   }
 }
 
-static MT_Vector3 PoseChannelObjectAxesRotation(const blender::bPoseChannel &pchan)
+static LN_Rotation NativePoseChannelRotation(const blender::bPoseChannel &pchan)
 {
-  float channel_mat[3][3];
-  blender::BKE_pchan_rot_to_mat3(&pchan, channel_mat);
-  blender::normalize_m3(channel_mat);
-
-  if (pchan.bone == nullptr) {
-    return EulerFromMatrix(MatrixFromFloat3x3(channel_mat));
-  }
-
-  float rest_mat[3][3];
-  float rest_inv[3][3];
-  float tmp_mat[3][3];
-  float object_axes_mat[3][3];
-  blender::copy_m3_m4(rest_mat, pchan.bone->arm_mat);
-  blender::normalize_m3(rest_mat);
-  blender::transpose_m3_m3(rest_inv, rest_mat);
-  blender::mul_m3_m3m3(tmp_mat, rest_mat, channel_mat);
-  blender::mul_m3_m3m3(object_axes_mat, tmp_mat, rest_inv);
-  blender::normalize_m3(object_axes_mat);
-  return EulerFromMatrix(MatrixFromFloat3x3(object_axes_mat));
+  const blender::float4 quaternion = blender::BKE_pchan_rot_to_quat(pchan);
+  return LN_Rotation(MT_Quaternion(quaternion[1], quaternion[2], quaternion[3], quaternion[0]));
 }
 
 static bool ResolveBonePoseRotation(KX_GameObject *armature_object,
                                     const std::string &bone_name,
                                     const LN_BonePoseRotationSpace space,
-                                    MT_Vector3 &r_rotation)
+                                    LN_Rotation &r_rotation)
 {
   if (armature_object == nullptr) {
     return false;
   }
-  blender::Object *ob = armature_object->GetBlenderObject();
+  BL_ArmatureObject *armature = ArmatureFacade(armature_object);
+  blender::Object *ob = armature ? armature->GetArmatureObject() : nullptr;
   if (ob == nullptr || ob->type != blender::OB_ARMATURE || ob->pose == nullptr) {
     return false;
   }
   if (bone_name.empty()) {
     return false;
   }
-  blender::bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bone_name.c_str());
+  blender::bPoseChannel *pchan = armature->FindPoseChannel(bone_name);
   if (pchan == nullptr) {
     return false;
   }
   if (space == LN_BonePoseRotationSpace::PoseChannel) {
-    r_rotation = PoseChannelObjectAxesRotation(*pchan);
+    r_rotation = NativePoseChannelRotation(*pchan);
     return true;
   }
 
-  UpdateArmaturePose(ob);
+  armature->ApplyPose();
   float pose_mat[3][3];
   blender::copy_m3_m4(pose_mat, pchan->pose_mat);
-  blender::normalize_m3(pose_mat);
-  MT_Matrix3x3 orientation = MatrixFromFloat3x3(pose_mat);
+  LN_Rotation orientation = LN_BlenderMatrixToRotation(pose_mat);
   if (space == LN_BonePoseRotationSpace::World) {
-    orientation = armature_object->NodeGetWorldOrientation() * orientation;
+    const LN_Rotation armature_world_rotation = LN_Rotation::FromMatrix(
+        armature_object->NodeGetWorldOrientation());
+    orientation = LN_Rotation(armature_world_rotation.Quaternion() * orientation.Quaternion());
   }
-  r_rotation = EulerFromMatrix(orientation);
+  r_rotation = orientation;
   return true;
 }
 
@@ -2473,6 +2767,30 @@ static RAS_ICanvas *ActiveCanvas()
     return engine->GetCanvas();
   }
   return nullptr;
+}
+
+/** Get Player View: where the player's split screen view is in the window; false when the
+ * player has no view on screen. */
+static bool ResolvePlayerViewArea(KX_GameObject *owner,
+                                  const int32_t user,
+                                  KX_PlayerViews::Area &r_area,
+                                  RAS_Rect *r_window = nullptr)
+{
+  KX_Scene *scene = owner != nullptr ? owner->GetScene() : nullptr;
+  if (scene == nullptr) {
+    return false;
+  }
+  /* The window the views are drawn in; the canvas before the first frame. */
+  const KX_PlayerViews &views = scene->GetPlayerViews();
+  RAS_Rect window = views.GetWindow();
+  if (window.GetWidth() <= 0 || window.GetHeight() <= 0) {
+    RAS_ICanvas *canvas = ActiveCanvas();
+    window = canvas != nullptr ? RAS_Rect(canvas->GetWidth(), canvas->GetHeight()) : RAS_Rect(1, 1);
+  }
+  if (r_window != nullptr) {
+    *r_window = window;
+  }
+  return views.GetPlayerArea(user, scene->GetActiveCamera(), window, r_area);
 }
 
 static int32_t WindowVSyncModeFromSwapInterval(const int interval)
@@ -2516,8 +2834,7 @@ static bool NormalizeSafe(MT_Vector3 &vector)
 
 static MT_Vector3 FallbackUpVector(const MT_Vector3 &axis)
 {
-  return std::fabs(axis.z()) < 0.9f ? MT_Vector3(0.0f, 0.0f, 1.0f) :
-                                      MT_Vector3(0.0f, 1.0f, 0.0f);
+  return std::fabs(axis.z()) < 0.9f ? MT_Vector3(0.0f, 0.0f, 1.0f) : MT_Vector3(0.0f, 1.0f, 0.0f);
 }
 
 static MT_Vector3 VectorToRotationEuler(MT_Vector3 direction,
@@ -2610,7 +2927,9 @@ static LN_PhysicsQueryResult BuildPhysicsQueryResult(LN_RuntimeTree &runtime_tre
   result.object_ref = runtime_tree.MakeObjectRef(hit_object, hit_object->GetName());
   result.hit_position = hit_point;
   result.hit_normal = hit_normal;
+  result.ray_origin = from;
   result.ray_direction = (to - from).safe_normalized();
+  result.end_position = to;
   result.hit_uv = hit_uv;
   result.polygon_index = hit_polygon;
   result.has_uv = hit_uv_ok != 0;
@@ -2656,29 +2975,110 @@ static bool MouseOverHitMatchesTarget(KX_GameObject *hit_object, KX_GameObject *
          GameObjectHasAncestor(target_object, hit_object);
 }
 
+/**
+ * Immutable controller lookup shared by every broad-phase callback in one query. Small ignore
+ * lists use a cache-friendly linear scan. Larger lists build a hash table once, which keeps a
+ * Raycast from Mesh batch from multiplying list-search work by every ray and broad-phase body.
+ * Concurrent reads are safe while a physics backend executes a synchronous parallel batch.
+ */
+class LN_PhysicsControllerIgnoreSet {
+ public:
+  LN_PhysicsControllerIgnoreSet(LN_RuntimeTree &runtime_tree,
+                                const std::vector<LN_RuntimeRef> &object_refs)
+  {
+    m_controllers.reserve(object_refs.size());
+    for (const LN_RuntimeRef &object_ref : object_refs) {
+      KX_GameObject *object = runtime_tree.ResolveObjectRef(object_ref);
+      if (PHY_IPhysicsController *controller = RaycastOwningPhysicsController(object)) {
+        m_controllers.push_back(controller);
+      }
+    }
+
+    const std::less<PHY_IPhysicsController *> less;
+    std::sort(m_controllers.begin(), m_controllers.end(), less);
+    m_controllers.erase(std::unique(m_controllers.begin(), m_controllers.end()),
+                        m_controllers.end());
+    if (m_controllers.size() > kLinearSearchLimit) {
+      m_controllerSet.reserve(m_controllers.size());
+      m_controllerSet.insert(m_controllers.begin(), m_controllers.end());
+    }
+  }
+
+  bool Contains(PHY_IPhysicsController *controller) const
+  {
+    if (!controller) {
+      return false;
+    }
+    if (!m_controllerSet.empty()) {
+      return m_controllerSet.find(controller) != m_controllerSet.end();
+    }
+    return std::find(m_controllers.begin(), m_controllers.end(), controller) !=
+           m_controllers.end();
+  }
+
+ private:
+  static constexpr size_t kLinearSearchLimit = 8;
+  std::vector<PHY_IPhysicsController *> m_controllers;
+  std::unordered_set<PHY_IPhysicsController *> m_controllerSet;
+};
+
+static bool InteractionQueryAllowsObject(KX_Scene *scene,
+                                         KX_GameObject *object,
+                                         const LN_InteractionDomain domain,
+                                         const bool respect_runtime_visibility,
+                                         const KX_Camera *view_camera)
+{
+  if (object == nullptr) {
+    return false;
+  }
+  if (respect_runtime_visibility && !object->GetVisible()) {
+    return false;
+  }
+  /* A pointer ray passes through what its camera does not draw (Set Camera Visibility). */
+  if (view_camera != nullptr && scene != nullptr && scene->IsHiddenForCamera(object, view_camera))
+  {
+    return false;
+  }
+  if (domain == LN_InteractionDomain::Any) {
+    return true;
+  }
+  const bool is_overlay = scene != nullptr && scene->IsOverlayRuntimeObject(object);
+  return domain == LN_InteractionDomain::Overlay ? is_overlay : !is_overlay;
+}
+
 class LN_RaycastCallback : public KX_RayCast {
  public:
   LN_RaycastCallback(LN_RuntimeTree &runtime_tree,
                      PHY_IPhysicsController *ignore_controller,
-                     PHY_IPhysicsController *extra_ignore_controller,
+                     const LN_PhysicsControllerIgnoreSet &extra_ignore_controllers,
                      const MT_Vector3 &from,
                      const MT_Vector3 &to,
                      uint32_t collision_mask,
                      std::string property_name = std::string(),
                      bool xray = false,
-                     bool collect_all = false)
+                     bool collect_all = false,
+                     KX_Scene *interaction_scene = nullptr,
+                     LN_InteractionDomain interaction_domain = LN_InteractionDomain::Any,
+                     bool respect_runtime_visibility = false,
+                     const KX_Camera *view_camera = nullptr)
       : KX_RayCast(ignore_controller, true, true),
         m_runtimeTree(runtime_tree),
-        m_extraIgnoreController(extra_ignore_controller),
+        m_extraIgnoreControllers(extra_ignore_controllers),
         m_from(from),
         m_to(to),
         m_collisionMask(collision_mask),
         m_propertyName(std::move(property_name)),
         m_xray(xray),
-        m_collectAll(collect_all)
+        m_collectAll(collect_all),
+        m_interactionScene(interaction_scene),
+        m_interactionDomain(interaction_domain),
+        m_respectRuntimeVisibility(respect_runtime_visibility),
+        m_viewCamera(view_camera)
   {
     m_hitFound = false;
+    m_result.ray_origin = m_from;
     m_result.ray_direction = (m_to - m_from).safe_normalized();
+    m_result.end_position = m_to;
   }
 
   bool RayHit(KX_ClientObjectInfo *client) override
@@ -2688,9 +3088,23 @@ class LN_RaycastCallback : public KX_RayCast {
     }
 
     KX_GameObject *hit_object = client->m_gameobject;
+    if (!InteractionQueryAllowsObject(m_interactionScene,
+                                      hit_object,
+                                      m_interactionDomain,
+                                      m_respectRuntimeVisibility,
+                                      m_viewCamera))
+    {
+      return false;
+    }
     const bool property_matches = m_propertyName.empty() ||
                                   hit_object->GetProperty(m_propertyName);
     if (!property_matches) {
+      if (!m_xray) {
+        m_result.blocked = true;
+        m_result.ray_origin = m_from;
+        m_result.ray_direction = (m_to - m_from).safe_normalized();
+        m_result.end_position = m_to;
+      }
       return m_xray ? false : true;
     }
 
@@ -2711,22 +3125,30 @@ class LN_RaycastCallback : public KX_RayCast {
   bool needBroadphaseRayCast(PHY_IPhysicsController *controller) override
   {
     if (controller == nullptr || controller == m_ignoreController ||
-        controller == m_extraIgnoreController)
+        m_extraIgnoreControllers.Contains(controller))
     {
       return false;
     }
-    if (m_collisionMask == 0 && (!m_xray || m_propertyName.empty())) {
+    if (m_collisionMask == 0 && (!m_xray || m_propertyName.empty()) &&
+        m_interactionDomain == LN_InteractionDomain::Any && !m_respectRuntimeVisibility &&
+        m_viewCamera == nullptr)
+    {
       return true;
     }
 
-    KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo *>(
-        controller->GetNewClientInfo());
+    KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo *>(controller->GetNewClientInfo());
     if (info == nullptr || info->m_gameobject == nullptr) {
       return false;
     }
-    if (m_collisionMask != 0 &&
-        (info->m_gameobject->GetCollisionGroup() & m_collisionMask) == 0)
+    if (!InteractionQueryAllowsObject(m_interactionScene,
+                                      info->m_gameobject,
+                                      m_interactionDomain,
+                                      m_respectRuntimeVisibility,
+                                      m_viewCamera))
     {
+      return false;
+    }
+    if (m_collisionMask != 0 && (info->m_gameobject->GetCollisionGroup() & m_collisionMask) == 0) {
       return false;
     }
     return !m_xray || m_propertyName.empty() || info->m_gameobject->GetProperty(m_propertyName);
@@ -2757,7 +3179,7 @@ class LN_RaycastCallback : public KX_RayCast {
   }
 
   LN_RuntimeTree &m_runtimeTree;
-  PHY_IPhysicsController *m_extraIgnoreController = nullptr;
+  const LN_PhysicsControllerIgnoreSet &m_extraIgnoreControllers;
   MT_Vector3 m_from;
   MT_Vector3 m_to;
   uint32_t m_collisionMask = 0;
@@ -2766,17 +3188,22 @@ class LN_RaycastCallback : public KX_RayCast {
   std::string m_propertyName;
   bool m_xray = false;
   bool m_collectAll = false;
+  KX_Scene *m_interactionScene = nullptr;
+  LN_InteractionDomain m_interactionDomain = LN_InteractionDomain::Any;
+  bool m_respectRuntimeVisibility = false;
+  /** A pointer ray's camera: what it does not draw is not hit. */
+  const KX_Camera *m_viewCamera = nullptr;
 };
 
 class LN_RayQueryFilterCallback final : public PHY_IRayCastFilterCallback {
  public:
   LN_RayQueryFilterCallback(PHY_IPhysicsController *ignore_controller,
-                            PHY_IPhysicsController *extra_ignore_controller,
+                            const LN_PhysicsControllerIgnoreSet &extra_ignore_controllers,
                             const uint32_t collision_mask,
                             const std::string &property_name,
                             const bool xray)
       : PHY_IRayCastFilterCallback(ignore_controller),
-        m_extraIgnoreController(extra_ignore_controller),
+        m_extraIgnoreControllers(extra_ignore_controllers),
         m_collisionMask(collision_mask),
         m_propertyName(property_name),
         m_xray(xray)
@@ -2786,30 +3213,24 @@ class LN_RayQueryFilterCallback final : public PHY_IRayCastFilterCallback {
   bool needBroadphaseRayCast(PHY_IPhysicsController *controller) override
   {
     if (!controller || controller == m_ignoreController ||
-        controller == m_extraIgnoreController)
+        m_extraIgnoreControllers.Contains(controller))
     {
       return false;
     }
-    KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo *>(
-        controller->GetNewClientInfo());
+    KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo *>(controller->GetNewClientInfo());
     if (!info || !info->m_gameobject) {
       return false;
     }
-    if (m_collisionMask != 0 &&
-        (info->m_gameobject->GetCollisionGroup() & m_collisionMask) == 0)
-    {
+    if (m_collisionMask != 0 && (info->m_gameobject->GetCollisionGroup() & m_collisionMask) == 0) {
       return false;
     }
-    return !m_xray || m_propertyName.empty() ||
-           info->m_gameobject->GetProperty(m_propertyName);
+    return !m_xray || m_propertyName.empty() || info->m_gameobject->GetProperty(m_propertyName);
   }
 
-  void reportHit(PHY_RayCastResult * /*result*/) override
-  {
-  }
+  void reportHit(PHY_RayCastResult * /*result*/) override {}
 
  private:
-  PHY_IPhysicsController *m_extraIgnoreController = nullptr;
+  const LN_PhysicsControllerIgnoreSet &m_extraIgnoreControllers;
   uint32_t m_collisionMask;
   const std::string &m_propertyName;
   bool m_xray;
@@ -2818,11 +3239,12 @@ class LN_RayQueryFilterCallback final : public PHY_IRayCastFilterCallback {
 class LN_ShapeCastFilterCallback final : public PHY_IShapeCastFilterCallback {
  public:
   LN_ShapeCastFilterCallback(PHY_IPhysicsController *ignore_controller,
-                             PHY_IPhysicsController *extra_ignore_controller,
+                             const LN_PhysicsControllerIgnoreSet &extra_ignore_controllers,
                              const uint32_t collision_mask,
                              const std::string &property_name,
                              const bool xray)
-      : PHY_IShapeCastFilterCallback(ignore_controller, extra_ignore_controller),
+      : PHY_IShapeCastFilterCallback(ignore_controller, nullptr),
+        m_extraIgnoreControllers(extra_ignore_controllers),
         m_collisionMask(collision_mask),
         m_propertyName(property_name),
         m_xray(xray)
@@ -2832,93 +3254,25 @@ class LN_ShapeCastFilterCallback final : public PHY_IShapeCastFilterCallback {
   bool needBroadphaseShapeCast(PHY_IPhysicsController *controller) override
   {
     if (!controller || controller == m_ignoreController ||
-        controller == m_extraIgnoreController)
+        m_extraIgnoreControllers.Contains(controller))
     {
       return false;
     }
-    KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo *>(
-        controller->GetNewClientInfo());
+    KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo *>(controller->GetNewClientInfo());
     if (!info || !info->m_gameobject) {
       return false;
     }
-    if (m_collisionMask != 0 &&
-        (info->m_gameobject->GetCollisionGroup() & m_collisionMask) == 0)
-    {
+    if (m_collisionMask != 0 && (info->m_gameobject->GetCollisionGroup() & m_collisionMask) == 0) {
       return false;
     }
-    return !m_xray || m_propertyName.empty() ||
-           info->m_gameobject->GetProperty(m_propertyName);
+    return !m_xray || m_propertyName.empty() || info->m_gameobject->GetProperty(m_propertyName);
   }
 
  private:
+  const LN_PhysicsControllerIgnoreSet &m_extraIgnoreControllers;
   uint32_t m_collisionMask;
   const std::string &m_propertyName;
   bool m_xray;
-};
-
-class LN_MouseOverRaycastCallback : public KX_RayCast {
- public:
-  LN_MouseOverRaycastCallback(LN_RuntimeTree &runtime_tree,
-                              KX_GameObject *target_object,
-                              PHY_IPhysicsController *ignore_controller,
-                              const MT_Vector3 &from,
-                              const MT_Vector3 &to)
-      : KX_RayCast(ignore_controller, true, true),
-        m_runtimeTree(runtime_tree),
-        m_targetObject(target_object),
-        m_from(from),
-        m_to(to)
-  {
-    m_hitFound = false;
-    m_result.ray_direction = (m_to - m_from).safe_normalized();
-  }
-
-  bool RayHit(KX_ClientObjectInfo *client) override
-  {
-    if (client == nullptr || client->m_gameobject == nullptr) {
-      return false;
-    }
-
-    KX_GameObject *hit_object = client->m_gameobject;
-    if (!MouseOverHitMatchesTarget(hit_object, m_targetObject)) {
-      m_hitFound = false;
-      return true;
-    }
-
-    m_result = BuildPhysicsQueryResult(m_runtimeTree,
-                                       hit_object,
-                                       m_from,
-                                       m_to,
-                                       m_hitPoint,
-                                       m_hitNormal,
-                                       m_hitUV,
-                                       m_hitUVOK,
-                                       m_hitPolygon);
-    m_hitFound = true;
-    return true;
-  }
-
-  bool needBroadphaseRayCast(PHY_IPhysicsController *controller) override
-  {
-    if (controller == nullptr || controller == m_ignoreController) {
-      return false;
-    }
-    KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo *>(
-        controller->GetNewClientInfo());
-    return info != nullptr && info->m_gameobject != nullptr;
-  }
-
-  const LN_PhysicsQueryResult &GetResult() const
-  {
-    return m_result;
-  }
-
- private:
-  LN_RuntimeTree &m_runtimeTree;
-  KX_GameObject *m_targetObject = nullptr;
-  MT_Vector3 m_from;
-  MT_Vector3 m_to;
-  LN_PhysicsQueryResult m_result;
 };
 
 static std::string InputCodeToName(const SCA_IInputDevice::SCA_EnumInputs input_code)
@@ -2956,15 +3310,13 @@ static std::string UnicodeToCharacterString(const uint32_t unicode)
   if (unicode == 0) {
     return "";
   }
-  if (unicode < 128) {
-    return std::string(1, char(unicode));
-  }
-  const wchar_t wchar_value = wchar_t(unicode);
-  char buffer[MB_LEN_MAX] = {};
-  const size_t length = std::wcrtomb(buffer, wchar_value, nullptr);
-  if (length == size_t(-1)) {
+  /* Unicode scalar values exclude UTF-16 surrogate code points. Reject malformed backend input
+   * deterministically instead of depending on the process locale or wcrtomb's shared state. */
+  if (unicode > 0x10ffffu || (unicode >= 0xd800u && unicode <= 0xdfffu)) {
     return "";
   }
+  char buffer[BLI_UTF8_MAX] = {};
+  const size_t length = blender::BLI_str_utf8_from_unicode(unicode, buffer, sizeof(buffer));
   return std::string(buffer, length);
 }
 
@@ -2986,8 +3338,7 @@ static KeyLoggerScanResult ScanKeyLogger(const LN_InputSnapshot &input_snapshot,
     if (!input_snapshot.GetStatus(input_code, SCA_InputEvent::JUSTACTIVATED)) {
       continue;
     }
-    const std::string character = UnicodeToCharacterString(
-        input_snapshot.GetUnicode(input_code));
+    const std::string character = UnicodeToCharacterString(input_snapshot.GetUnicode(input_code));
     if (only_characters && character.empty()) {
       continue;
     }
@@ -2999,13 +3350,32 @@ static KeyLoggerScanResult ScanKeyLogger(const LN_InputSnapshot &input_snapshot,
   return result;
 }
 
-static float InterpolateMouseLook(float current, const float target, const float smoothing)
+static float MouseLookSmoothingFactor(const float smoothing, const double delta_time)
 {
-  const float factor = 1.0f - (std::clamp(smoothing, 0.0f, 1.0f) * 0.99f);
-  return current + (target - current) * factor;
+  /* Mouse Look is fixed-only and normally always receives a positive step. Preserve an input
+   * impulse with the reference response if a diagnostic/manual caller violates that invariant. */
+  const double effective_delta_time = std::isfinite(delta_time) && delta_time > 0.0 ? delta_time :
+                                                                                      (1.0 / 60.0);
+  const float clamped_smoothing = std::isfinite(smoothing) ? std::clamp(smoothing, 0.0f, 1.0f) :
+                                                             0.0f;
+  const double retention_at_60_hz = double(clamped_smoothing) * 0.99;
+  if (retention_at_60_hz <= 0.0) {
+    return 1.0f;
+  }
+  /* Preserve the existing 60 Hz response while expressing the filter in elapsed time. A 240 Hz
+   * fixed simulation therefore performs four smaller filter advances over the same duration
+   * instead of making smoothing settle four times faster. */
+  const double retention = std::pow(retention_at_60_hz, effective_delta_time * 60.0);
+  return float(std::clamp(1.0 - retention, 0.0, 1.0));
 }
 
 static constexpr float MOUSE_LOOK_REFERENCE_PIXELS = 1000.0f;
+/* After Mouse Look starts (over), it holds the cursor this long without turning: the system may
+ * report where its pointer really is a moment later (on Wayland ~0.16 s after a game window opens
+ * or hides its cursor again), which would read as a huge mouse move. At most this many runs, so a
+ * missing time step can never stop it for good. */
+static constexpr float MOUSE_LOOK_SETTLE_SECONDS = 0.2f;
+static constexpr int MOUSE_LOOK_SETTLE_MAX_RUNS = 30;
 
 static float MouseLookCenterCoordinate(const int32_t size)
 {
@@ -3183,6 +3553,11 @@ static std::string FormatStringSlots(const std::string &format,
 
 static std::string FloatToPrintString(const float value)
 {
+  /* Keep diagnostic text deterministic and human-readable. IEEE-754 signed zero is useful
+   * internally, but "-0" is misleading in a printed transform. */
+  if (value == 0.0f) {
+    return "0";
+  }
   std::ostringstream stream;
   stream << value;
   return stream.str();
@@ -3207,9 +3582,8 @@ static std::string MatrixToPrintString(const MT_Matrix3x3 &value)
     if (row != 0) {
       result += ", ";
     }
-    result += "(" + FloatToPrintString(value[row][0]) + ", " +
-              FloatToPrintString(value[row][1]) + ", " +
-              FloatToPrintString(value[row][2]) + ")";
+    result += "(" + FloatToPrintString(value[row][0]) + ", " + FloatToPrintString(value[row][1]) +
+              ", " + FloatToPrintString(value[row][2]) + ")";
   }
   result += ")";
   return result;
@@ -3252,6 +3626,19 @@ static std::string DictToPrintString(const std::map<std::string, LN_Value> &valu
   return result;
 }
 
+/** A value linked into a text input: nothing (no item, an empty object) is empty text, so the
+ * text it sets clears; Print keeps "None". */
+static std::string ValueToText(const LN_Value &value)
+{
+  const bool empty_reference = ELEM(value.type,
+                                    LN_ValueType::ObjectRef,
+                                    LN_ValueType::SceneRef,
+                                    LN_ValueType::CollectionRef,
+                                    LN_ValueType::DatablockRef) &&
+                               value.reference_name.empty();
+  return !value.exists || empty_reference ? std::string() : ValueToPrintString(value);
+}
+
 static std::string ValueToPrintString(const LN_Value &value, const int depth)
 {
   if (!value.exists && value.type == LN_ValueType::None) {
@@ -3274,7 +3661,7 @@ static std::string ValueToPrintString(const LN_Value &value, const int depth)
     case LN_ValueType::Color:
       return ColorToPrintString(value.color_value);
     case LN_ValueType::Rotation:
-      return VectorToPrintString(value.rotation_euler_value);
+      return "Rotation(deg)=" + VectorToPrintString(value.RotationEulerDegrees());
     case LN_ValueType::String:
       return value.string_value;
     case LN_ValueType::ObjectRef:
@@ -3296,6 +3683,253 @@ static std::string ValueToPrintString(const LN_Value &value, const int depth)
 
 }  // namespace
 
+bool LN_RuntimeTree::ItemOf(const LN_Value &value, std::string &r_item, int32_t &r_count) const
+{
+  if (value.exists && value.type == LN_ValueType::ObjectRef) {
+    /* A pickup or library object: its item and count properties, else its name and one. An
+     * object that is gone is no item (not the library object of its name). */
+    KX_GameObject *object = ResolveLiveObjectValue(value, true);
+    if (object == nullptr) {
+      return false;
+    }
+    EXP_Value *item = object->GetProperty("item");
+    r_item = item != nullptr && !item->GetText().empty() ? item->GetText() : object->GetName();
+    r_count = 1;
+    if (EXP_Value *count = object->GetProperty("count")) {
+      const double number = count->GetNumber();
+      if (std::isfinite(number) && number >= 1.0) {
+        r_count = int32_t(std::min(std::round(number), 2147483647.0));
+      }
+    }
+    return !r_item.empty();
+  }
+  return LN_InventoryEntry(value, r_item, r_count);
+}
+
+std::string LN_RuntimeTree::ItemNameOf(const LN_Value &value) const
+{
+  std::string item;
+  int32_t count = 0;
+  return ItemOf(value, item, count) ? item : std::string();
+}
+
+const blender::Collection *LN_RuntimeTree::SceneItemLibrary() const
+{
+  KX_Scene *scene = m_gameObject != nullptr ? m_gameObject->GetScene() : nullptr;
+  const blender::Scene *blender_scene = scene != nullptr ? scene->GetBlenderScene() : nullptr;
+  return blender_scene != nullptr ? blender_scene->gm.item_library : nullptr;
+}
+
+LN_RuntimeTree::InventoryEditResult LN_RuntimeTree::RunInventoryEdit(
+    const LN_ValueExpression &expression,
+    std::vector<LN_Value> &slots,
+    const LN_TickContext &context,
+    std::vector<LN_Value> *other_slots,
+    const LN_InventoryRules *list_rules,
+    const LN_InventoryRules *other_list_rules,
+    KX_GameObject *owner)
+{
+  const auto input = [&](const LN_InventoryInput index) {
+    return ResolveValueExpression(index < expression.input_indices.size() ?
+                                      expression.input_indices[index] :
+                                      LN_INVALID_INDEX,
+                                  MakeNoneValue(),
+                                  context);
+  };
+  const auto int_input = [&](const LN_InventoryInput index) {
+    return ValueAsInt(input(index), LN_FloatToIntMode::Round);
+  };
+  /* Amount 0 means all of it; below 0 nothing. */
+  constexpr int32_t all = std::numeric_limits<int32_t>::max();
+  /* The node's own rules: with Override, or without a list of an object (a list value). */
+  LN_InventoryRules node_rules;
+  node_rules.capacity = int_input(LN_INVENTORY_INPUT_CAPACITY);
+  node_rules.stack = ValueAsBool(input(LN_INVENTORY_INPUT_STACK));
+  node_rules.max_stack = int_input(LN_INVENTORY_INPUT_MAX_STACK);
+  /* Keep Places: emptied slots stay empty places (both lists of a Move To Slot). */
+  node_rules.keep_places = ValueAsBool(input(LN_INVENTORY_INPUT_KEEP_PLACES));
+  if (expression.input_indices.size() > LN_INVENTORY_INPUT_LIBRARY &&
+      expression.input_indices[LN_INVENTORY_INPUT_LIBRARY] != LN_INVALID_INDEX)
+  {
+    node_rules.library = ResolveCollectionByValue(this, input(LN_INVENTORY_INPUT_LIBRARY));
+  }
+  /* The list's Inventory Rules, unless this call overrides them. Accept Categories are always
+   * the list's: what a list may hold is never overridden. */
+  const bool use_node_rules = list_rules == nullptr ||
+                              ValueAsBool(input(LN_INVENTORY_INPUT_OVERRIDE));
+  const auto rules_of = [&](const LN_InventoryRules *list) {
+    if (!use_node_rules && list != nullptr) {
+      return *list;
+    }
+    LN_InventoryRules rules = node_rules;
+    if (list != nullptr) {
+      rules.accept_categories = list->accept_categories;
+    }
+    return rules;
+  };
+  const LN_InventoryRules rules = rules_of(list_rules);
+  const LN_InventoryRules other_rules = rules_of(other_list_rules);
+  /* Empty libraries mean the scene's Item Library. The scene is only needed to find library
+   * objects. */
+  LN_InventoryLookup lookup;
+  if (expression.input1 == LN_INVENTORY_SCENE_LIBRARY) {
+    lookup.scene_library = SceneItemLibrary();
+  }
+  if (m_gameObject != nullptr &&
+      (lookup.scene_library != nullptr || rules.library != nullptr ||
+       other_rules.library != nullptr))
+  {
+    lookup.scene = m_gameObject->GetScene();
+  }
+  const LN_InventoryStackLimits limits = lookup.Limits(rules);
+  /* An item's categories: a pickup's own "category" first, else its library object's. */
+  const auto accepts = [&](const LN_InventoryRules &list, const LN_Value &value) {
+    if (list.accept_categories.empty()) {
+      return true;
+    }
+    if (value.exists && value.type == LN_ValueType::ObjectRef) {
+      KX_GameObject *object = ResolveLiveObjectValue(value, true);
+      if (EXP_Value *category = object != nullptr ? object->GetProperty("category") : nullptr) {
+        return LN_CategoriesOverlap(list.accept_categories,
+                                    LN_NormalizedCategories(category->GetText()));
+      }
+      return lookup.Accepts(list, MakeStringValue(ItemNameOf(value)));
+    }
+    return lookup.Accepts(list, value);
+  };
+  InventoryEditResult result;
+  const int32_t amount = int_input(LN_INVENTORY_INPUT_AMOUNT);
+  switch (LN_InventoryOperation(expression.value.int_value)) {
+    case LN_InventoryOperation::AddItem: {
+      std::string item;
+      int32_t carried = 1;
+      const LN_Value given = input(LN_INVENTORY_INPUT_ITEM);
+      if (!ItemOf(given, item, carried)) {
+        result.amount = std::max(0, amount);
+        break;
+      }
+      result.requested = std::max(0, amount == 0 ? carried : amount);
+      if (!accepts(rules, given)) {
+        result.amount = result.requested;
+        result.outcome = LN_InventoryOutcome::Refused;
+        break;
+      }
+      result.amount = LN_InventoryAdd(slots,
+                                      item,
+                                      amount == 0 ? carried : amount,
+                                      LN_InventoryStackLimit(item, &limits),
+                                      rules.stack,
+                                      rules.capacity);
+      result.outcome = result.amount > 0 ? LN_InventoryOutcome::NoRoom :
+                                           LN_InventoryOutcome::None;
+      break;
+    }
+    case LN_InventoryOperation::RemoveItem:
+      result.amount = LN_InventoryRemoveItem(slots,
+                                             ItemNameOf(input(LN_INVENTORY_INPUT_ITEM)),
+                                             amount == 0 ? all : amount,
+                                             rules.Layout());
+      break;
+    case LN_InventoryOperation::RemoveFromSlot:
+      result.amount = LN_InventoryRemoveFromSlot(
+          slots, int_input(LN_INVENTORY_INPUT_SLOT), amount == 0 ? all : amount, rules.Layout());
+      break;
+    case LN_InventoryOperation::SwapSlots:
+      LN_InventorySwap(
+          slots, int_input(LN_INVENTORY_INPUT_SLOT), int_input(LN_INVENTORY_INPUT_OTHER_SLOT));
+      break;
+    case LN_InventoryOperation::SplitStack:
+      LN_InventorySplit(
+          slots, int_input(LN_INVENTORY_INPUT_SLOT), amount, rules.Layout(), rules.capacity);
+      break;
+    case LN_InventoryOperation::Sort:
+      LN_InventorySort(slots,
+                       ValueAsBool(input(LN_INVENTORY_INPUT_BY_COUNT)) ?
+                           LN_InventorySortKey::Count :
+                           LN_InventorySortKey::Item,
+                       ValueAsBool(input(LN_INVENTORY_INPUT_DESCENDING)),
+                       rules.Layout());
+      break;
+    case LN_InventoryOperation::MoveToSlot: {
+      /* The same move a grid makes (LN_InventoryApplyMove), with the node's own slots. */
+      std::vector<LN_Value> &target = other_slots != nullptr ? *other_slots : slots;
+      LN_InventoryMove move;
+      move.from = int_input(LN_INVENTORY_INPUT_SLOT);
+      move.to = int_input(LN_INVENTORY_INPUT_OTHER_SLOT);
+      if (move.from >= 0 && size_t(move.from) < slots.size()) {
+        move.from_item = slots[size_t(move.from)];
+      }
+      if (move.to >= 0 && size_t(move.to) < target.size()) {
+        move.to_item = target[size_t(move.to)];
+      }
+      move.allow_swap = ValueAsBool(input(LN_INVENTORY_INPUT_SWAP));
+      move.into_list_fallback = false;
+      /* Recipes combine only inside one list: the node's (Override), else the list's. */
+      std::vector<LN_Recipe> recipes;
+      if (other_slots == nullptr) {
+        if (use_node_rules) {
+          LN_ParseRecipes(input(LN_INVENTORY_INPUT_RECIPES), recipes);
+        }
+        else if (!rules.recipes_property.empty() && owner != nullptr) {
+          if (EXP_Value *property = owner->GetProperty(rules.recipes_property)) {
+            LN_ParseRecipes(LN_GamePropertyValue(property, m_logicManager), recipes);
+          }
+        }
+      }
+      result.outcome = LN_InventoryApplyMove(move,
+                                             target,
+                                             other_slots != nullptr ? other_rules : rules,
+                                             other_slots != nullptr ? &slots : nullptr,
+                                             other_slots != nullptr ? &rules : nullptr,
+                                             recipes,
+                                             lookup,
+                                             result.made);
+      break;
+    }
+    case LN_InventoryOperation::Craft: {
+      result.craft = true;
+      const LN_Value text = input(LN_INVENTORY_INPUT_RECIPE);
+      LN_Recipe recipe;
+      if (text.exists && text.type == LN_ValueType::String &&
+          LN_ParseRecipe(text.string_value, recipe))
+      {
+        /* What a recipe makes must be what the list takes. */
+        for (const LN_RecipePart &made : recipe.results) {
+          if (!accepts(rules, MakeStringValue(made.item))) {
+            result.outcome = LN_InventoryOutcome::Refused;
+            break;
+          }
+        }
+        if (result.outcome == LN_InventoryOutcome::Refused) {
+          break;
+        }
+        /* Amount is how many times; 0 makes as many as the ingredients allow. */
+        result.outcome = LN_InventoryCraft(slots,
+                                           recipe,
+                                           LN_InventoryStackLimit,
+                                           &limits,
+                                           rules.stack,
+                                           rules.capacity,
+                                           amount,
+                                           result.amount,
+                                           rules.Layout());
+        if (result.outcome == LN_InventoryOutcome::Combined) {
+          result.made = recipe.results.front().item;
+        }
+      }
+      break;
+    }
+  }
+  return result;
+}
+
+void LN_ClearGlobalProperties()
+{
+  std::lock_guard<std::mutex> lock(GlobalPropertiesMutex());
+  GlobalProperties().clear();
+  LoadedGlobalPropertyCategories().clear();
+}
+
 LN_RuntimeTree::LN_RuntimeTree(std::shared_ptr<const LN_Program> program,
                                KX_GameObject *gameobj,
                                uint32_t scene_object_index,
@@ -3305,14 +3939,19 @@ LN_RuntimeTree::LN_RuntimeTree(std::shared_ptr<const LN_Program> program,
       m_sceneObjectIndex(scene_object_index),
       m_appliedTreeIndex(applied_tree_index)
 {
+  if (m_program != nullptr) {
+    const size_t rotation_cache_capacity = m_program->GetVectorExpressions().size();
+    m_rotationExpressionValues.reserve(rotation_cache_capacity);
+    m_rotationExpressionTicks.reserve(rotation_cache_capacity);
+  }
   RefreshOptimizedPathEligibility();
   EnsureInstructionStateSize();
   EnsureBoolExpressionStateSize();
   EnsureFloatExpressionStateSize();
   EnsureTimeFlowStateSize(false);
+  EnsureFlowControlStateSize(false);
   EnsureQueryExpressionStateSize();
   EnsureTreePropertyStateSize(false);
-  EnsureSpawnPoolStateSize(false);
 }
 
 void LN_RuntimeTree::RefreshOptimizedPathEligibility()
@@ -3321,33 +3960,31 @@ void LN_RuntimeTree::RefreshOptimizedPathEligibility()
   m_snapshotChannelMask = LN_SNAPSHOT_CHANNEL_NONE;
   m_hasTimeFlowRuntimeState = false;
   m_hasQueryExpressions = false;
-  m_hasSpawnPoolRuntimeState = false;
 
   if (m_program == nullptr) {
     return;
   }
 
-  m_registerExpressionIRHasProductionBenefit =
-      RegisterExpressionIRHasProductionBenefit(m_program->GetRegisterExpressionProgram());
+  m_registerExpressionIRHasProductionBenefit = RegisterExpressionIRHasProductionBenefit(
+      m_program->GetRegisterExpressionProgram());
   m_snapshotChannelMask = LN_SnapshotChannelMaskForProgram(m_program.get());
   m_hasTimeFlowRuntimeState = m_program->GetTimeFlowStateCount() != 0u;
   m_hasQueryExpressions = !m_program->GetQueryExpressions().empty();
-  m_hasSpawnPoolRuntimeState = m_program->GetSpawnPoolStateCount() != 0u;
 }
 
 void LN_RuntimeTree::BindDenseIds(LN_DenseIdRegistry &registry)
 {
-  m_denseRuntimeTreeId = registry.MakeRuntimeTreeId(this,
-                                                    m_program ? m_program->GetSourceTreeName() :
-                                                                std::string());
-  m_ownerObjectHandle = registry.MakeObjectHandle(m_gameObject,
-                                                  m_gameObject ? m_gameObject->GetName() :
-                                                                 std::string());
+  m_denseRuntimeTreeId = registry.MakeRuntimeTreeId(
+      this, m_program ? m_program->GetSourceTreeName() : std::string());
+  m_ownerObjectHandle = registry.MakeObjectHandle(
+      m_gameObject, m_gameObject ? m_gameObject->GetName() : std::string());
 
   m_sharedStringIds.clear();
   m_eventSubjectIds.clear();
   m_gamePropertyIds.clear();
   m_treePropertyIds.clear();
+  m_uiCommandCompletions.clear();
+  m_actionCompletions.clear();
 
   if (m_program == nullptr) {
     return;
@@ -3420,6 +4057,346 @@ void LN_RuntimeTree::CaptureSnapshot(const LN_TickReadContext *tick_context,
   m_queryCacheWarmTick = UINT64_MAX;
 }
 
+void LN_RuntimeTree::InvalidateUICollectionCaches()
+{
+  /* Collection read UI node inputs before the UI resolved. A UI query read then saw no UI state,
+   * and an input read then still held a click or key the UI has since consumed: neither may be
+   * reused by this tick's execution. */
+  m_registerExpressionState.cached_tick = UINT64_MAX;
+  if (m_program == nullptr) {
+    return;
+  }
+  const std::vector<LN_QueryExpression> &queries = m_program->GetQueryExpressions();
+  for (uint32_t query_index = 0; query_index < queries.size(); ++query_index) {
+    const LN_QueryExpression &expression = queries[query_index];
+    switch (expression.kind) {
+      case LN_QueryExpressionKind::ObjectScrollView:
+      case LN_QueryExpressionKind::ObjectGridView:
+      case LN_QueryExpressionKind::UIElementEvent:
+        QueryExpressionState(expression.runtime_state_index != LN_INVALID_INDEX ?
+                                 expression.runtime_state_index :
+                                 query_index)
+            .cached_tick = UINT64_MAX;
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+namespace {
+LN_Value MakeValueFromEXPValue(EXP_Value *property, LN_RuntimeTree *runtime_tree);
+}  // namespace
+
+void LN_RuntimeTree::CollectUIViews(const LN_TickContext &context)
+{
+  if (!m_runtimeActive || !m_enabled || m_program == nullptr || m_gameObject == nullptr ||
+      m_logicManager == nullptr)
+  {
+    return;
+  }
+  KX_Scene *scene = m_gameObject->GetScene();
+  if (scene == nullptr) {
+    return;
+  }
+
+  const std::vector<LN_QueryExpression> &queries = m_program->GetQueryExpressions();
+  for (uint32_t query_index = 0; query_index < queries.size(); ++query_index) {
+    const LN_QueryExpression &expression = queries[query_index];
+    if (expression.kind != LN_QueryExpressionKind::ObjectScrollView &&
+        expression.kind != LN_QueryExpressionKind::ObjectGridView)
+    {
+      continue;
+    }
+
+    KX_GameObject *viewport =
+        expression.input0 == LN_INVALID_INDEX ?
+            m_gameObject :
+            ResolveObjectValue(ResolveValueExpression(expression.input0, MakeNoneValue(), context),
+                               true);
+    if (viewport == nullptr || viewport->GetScene() != scene) {
+      continue;
+    }
+    const bool is_overlay = scene->IsOverlayRuntimeObject(viewport);
+    KX_Camera *camera = nullptr;
+    switch (expression.interaction_view) {
+      case LN_InteractionView::Automatic:
+        camera = is_overlay ? scene->GetOverlayCamera() : PointerWorldCamera(scene, viewport);
+        break;
+      case LN_InteractionView::Main:
+        if (!is_overlay) {
+          camera = PointerWorldCamera(scene, viewport);
+        }
+        break;
+      case LN_InteractionView::Overlay:
+        if (is_overlay) {
+          camera = scene->GetOverlayCamera();
+        }
+        break;
+      case LN_InteractionView::CustomCamera:
+        /* Scroll reserves input1 for Content Object, while Grid uses input1 for Camera. */
+        const uint32_t camera_input = expression.kind == LN_QueryExpressionKind::ObjectScrollView ?
+                                          expression.input2 :
+                                          expression.input1;
+        camera = camera_input != LN_INVALID_INDEX ? ResolveCameraValue(ResolveValueExpression(
+                                                        camera_input, MakeNoneValue(), context)) :
+                                                    nullptr;
+        break;
+    }
+    if (camera == nullptr || camera->GetScene() != scene) {
+      continue;
+    }
+
+    blender::Object *blender_object = viewport->GetBlenderObject();
+    const std::optional<blender::Bounds<blender::float3>> bounds = blender_object != nullptr ?
+                                                                       BKE_object_boundbox_get(
+                                                                           blender_object) :
+                                                                       std::nullopt;
+    if (!bounds.has_value()) {
+      continue;
+    }
+    MT_Vector3 ray_from;
+    MT_Vector3 ray_to;
+    if (!ComputeMouseRay(camera, std::max(camera->GetCameraFar(), 0.0f), ray_from, ray_to)) {
+      /* The pointer is outside the view: keep showing and binding the items for keyboard and
+       * gamepad players, but let the wheel hit nothing. */
+      ray_from = ray_to = camera->NodeGetWorldPosition();
+    }
+
+    LN_UIService::ViewRegistration registration;
+    registration.listener = {this, query_index};
+    registration.kind = expression.kind == LN_QueryExpressionKind::ObjectScrollView ?
+                            LN_UIService::ViewKind::Scroll :
+                            LN_UIService::ViewKind::Grid;
+    registration.viewport = viewport;
+    registration.camera = camera;
+    registration.ray_from = ray_from;
+    registration.ray_to = ray_to;
+    registration.bounds_min = MT_Vector3(bounds->min.x, bounds->min.y, bounds->min.z);
+    registration.bounds_max = MT_Vector3(bounds->max.x, bounds->max.y, bounds->max.z);
+    registration.world_position = viewport->NodeGetWorldPosition();
+    registration.world_orientation = viewport->NodeGetWorldOrientation();
+    registration.world_scale = viewport->NodeGetWorldScaling();
+    registration.enabled = ResolveBoolExpression(
+        expression.bool_expr_index, expression.bool_value, context);
+    registration.user = std::max(
+        0, ResolveIntExpression(expression.int_expr_index, expression.int_value, context));
+    /* In a menu: that menu's player (each player's copy of a per-player menu). */
+    if (const int32_t menu_user = m_logicManager->GetUIService().MenuUserOfObject(viewport);
+        menu_user >= 0)
+    {
+      registration.user = menu_user;
+    }
+    registration.priority = ResolveIntExpression(
+        expression.secondary_int_expr_index, expression.secondary_int_value, context);
+    registration.padding = std::max(
+        0.0f,
+        ResolveFloatExpression(expression.float_expr_index, expression.float_value, context));
+
+    if (expression.kind == LN_QueryExpressionKind::ObjectScrollView) {
+      registration.content = expression.input1 != LN_INVALID_INDEX ?
+                                 ResolveObjectValue(ResolveValueExpression(expression.input1,
+                                                                           MakeNoneValue(),
+                                                                           context),
+                                                    true) :
+                                 nullptr;
+      registration.min_offset = ResolveVectorExpression(
+          expression.input3, expression.vector_value, context);
+      registration.max_offset = ResolveVectorExpression(
+          expression.input4, expression.secondary_vector_value, context);
+      registration.wheel_step = ResolveVectorExpression(
+          expression.input5, expression.tertiary_vector_value, context);
+      registration.horizontal = ResolveBoolExpression(
+          expression.secondary_bool_expr_index, false, context);
+      registration.vertical = ResolveBoolExpression(
+          expression.tertiary_bool_expr_index, true, context);
+      registration.cull_outside = ResolveBoolExpression(
+          expression.quaternary_bool_expr_index, true, context);
+      registration.focus_follow = ResolveBoolExpression(
+          expression.quinary_bool_expr_index, true, context);
+    }
+    else {
+      const LN_Value slots = ResolveValueExpression(expression.input2, MakeNoneValue(), context);
+      auto append_slot = [&](const LN_Value &value) {
+        if (KX_GameObject *object = ResolveObjectValue(value, true)) {
+          if (object->GetScene() == scene &&
+              std::find(registration.slots.begin(), registration.slots.end(), object) ==
+                  registration.slots.end())
+          {
+            registration.slots.push_back(object);
+          }
+        }
+      };
+      if (slots.type == LN_ValueType::List) {
+        for (const LN_Value &slot : slots.list_value) {
+          append_slot(slot);
+        }
+      }
+      else {
+        append_slot(slots);
+      }
+      /* The list: Property names a game property of Object (empty: whose menu this tree's
+       * object is in, else that object), read as it is now, so the grid can write it back;
+       * Items gives it while Property is empty. */
+      const auto grid_input = [&](const LN_GridViewInput input) {
+        return input < expression.input_indices.size() ? expression.input_indices[input] :
+                                                         LN_INVALID_INDEX;
+      };
+      LN_UIService &ui = m_logicManager->GetUIService();
+      std::string list_property = ResolveStringExpression(
+          grid_input(LN_GRID_INPUT_PROPERTY), std::string(), context);
+      if (!list_property.empty()) {
+        KX_GameObject *list_object = nullptr;
+        if (const uint32_t object_input = grid_input(LN_GRID_INPUT_OBJECT);
+            object_input != LN_INVALID_INDEX)
+        {
+          list_object = ResolveObjectValue(
+              ResolveValueExpression(object_input, MakeNoneValue(), context), true);
+        }
+        else {
+          /* A menu whose owner is gone has no list: never the menu panel's own property. */
+          list_object = ui.MenuUserOfObject(m_gameObject) >= 0 ?
+                            ui.MenuOwnerOfObject(m_gameObject) :
+                            m_gameObject;
+        }
+        if (list_object != nullptr && list_object->GetScene() == scene &&
+            !m_logicManager->IsGameObjectQueuedForRemoval(list_object))
+        {
+          if (EXP_Value *property = list_object->GetProperty(list_property)) {
+            LN_Value list = MakeValueFromEXPValue(property, this);
+            if (list.exists && list.type == LN_ValueType::List) {
+              ShareValue(list);
+              registration.items = std::move(list.list_value);
+            }
+            else {
+              ui.WarnGridListNotAList(list_object, list_property);
+            }
+          }
+          registration.list_object = list_object;
+          registration.list_property = std::move(list_property);
+        }
+      }
+      else {
+        LN_Value items = ResolveValueExpression(expression.input3, MakeNoneValue(), context);
+        if (items.type == LN_ValueType::List) {
+          ShareValue(items);
+          registration.items = std::move(items.list_value);
+        }
+      }
+      LN_UIService::GridInventory &inventory = registration.inventory;
+      inventory.handle_moves = registration.list_object != nullptr &&
+                               ResolveBoolExpression(
+                                   grid_input(LN_GRID_INPUT_HANDLE_MOVES), false, context);
+      if (inventory.handle_moves) {
+        inventory.split_action = ResolveStringExpression(
+            grid_input(LN_GRID_INPUT_SPLIT_ACTION), std::string(), context);
+        inventory.split_amount = std::max(
+            0, ResolveIntExpression(grid_input(LN_GRID_INPUT_SPLIT_AMOUNT), 0, context));
+        inventory.swap = ResolveBoolExpression(grid_input(LN_GRID_INPUT_SWAP), true, context);
+        inventory.drop_into_world = ResolveBoolExpression(
+            grid_input(LN_GRID_INPUT_DROP_INTO_WORLD), false, context);
+        inventory.drop_at_pointer = ResolveBoolExpression(
+            grid_input(LN_GRID_INPUT_DROP_AT_POINTER), false, context);
+        inventory.drop_in_front = ResolveBoolExpression(
+            grid_input(LN_GRID_INPUT_DROP_IN_FRONT), false, context);
+        inventory.distance = std::max(
+            0.0f, ResolveFloatExpression(grid_input(LN_GRID_INPUT_DISTANCE), 1.5f, context));
+        inventory.hover_height = ResolveFloatExpression(
+            grid_input(LN_GRID_INPUT_HOVER_HEIGHT), 0.0f, context);
+      }
+      if (const uint32_t hint_input = grid_input(LN_GRID_INPUT_HINT_TEXT);
+          hint_input != LN_INVALID_INDEX)
+      {
+        KX_GameObject *hint = ResolveObjectValue(
+            ResolveValueExpression(hint_input, MakeNoneValue(), context), true);
+        if (hint != nullptr && hint->GetScene() == scene) {
+          inventory.hint_text = hint;
+          inventory.accept_hint = ResolveStringExpression(
+              grid_input(LN_GRID_INPUT_ACCEPT_HINT), "Put {name} here", context);
+          inventory.refuse_hint = ResolveStringExpression(
+              grid_input(LN_GRID_INPUT_REFUSE_HINT), "{name} does not fit here", context);
+        }
+      }
+      registration.show_categories = ResolveStringExpression(
+          grid_input(LN_GRID_INPUT_SHOW_CATEGORIES), std::string(), context);
+      registration.search = ResolveStringExpression(
+          grid_input(LN_GRID_INPUT_SEARCH), std::string(), context);
+      registration.use_action = ResolveStringExpression(
+          grid_input(LN_GRID_INPUT_USE_ACTION), std::string(), context);
+      registration.use_keys = ResolveStringExpression(
+          grid_input(LN_GRID_INPUT_USE_KEYS), std::string(), context);
+      registration.requested_first_index = ResolveIntExpression(
+          expression.input4, expression.int_value, context);
+      registration.wheel_rows = std::max(1, ResolveIntExpression(expression.input5, 1, context));
+      registration.columns = std::max(
+          1, ResolveIntExpression(expression.tertiary_int_expr_index, 1, context));
+      registration.cull_outside = ResolveBoolExpression(
+          expression.secondary_bool_expr_index, true, context);
+      registration.focus_follow = ResolveBoolExpression(
+          expression.tertiary_bool_expr_index, true, context);
+      /* The list's Inventory Rules (its game property's set): how the grid stacks, keeps places
+       * and combines it, and the library its icons come from (none: the scene's Item Library,
+       * like the inventory nodes). A list Items gives follows the defaults. */
+      registration.rules = m_logicManager->InventoryRulesOf(registration.list_object,
+                                                            registration.list_property);
+      registration.icon_library = const_cast<blender::Collection *>(
+          registration.rules.library != nullptr ? registration.rules.library :
+                                                  SceneItemLibrary());
+      registration.show_counts = ResolveBoolExpression(
+          expression.quaternary_bool_expr_index, true, context);
+      registration.show_names = ResolveBoolExpression(
+          expression.quinary_bool_expr_index, false, context);
+      registration.show_empty = ResolveBoolExpression(
+          expression.senary_bool_expr_index, false, context);
+      registration.slot_template = expression.input7 != LN_INVALID_INDEX ?
+                                       ResolveObjectValue(ResolveValueExpression(expression.input7,
+                                                                                 MakeNoneValue(),
+                                                                                 context),
+                                                          true) :
+                                       nullptr;
+      registration.rows = std::max(
+          0, ResolveIntExpression(expression.quaternary_int_expr_index, 0, context));
+      registration.spacing = ResolveVectorExpression(
+          expression.input8, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+      registration.horizontal = expression.grid_horizontal;
+      registration.vertical = !expression.grid_horizontal;
+    }
+    registration.overlay = is_overlay;
+    KX_GameObject *scrollbar = expression.input9 != LN_INVALID_INDEX ?
+                                   ResolveObjectValue(ResolveValueExpression(expression.input9,
+                                                                             MakeNoneValue(),
+                                                                             context),
+                                                      true) :
+                                   nullptr;
+    const auto local_bounds = [](KX_GameObject *object, MT_Vector3 &r_min, MT_Vector3 &r_max) {
+      blender::Object *blender_object = object->GetBlenderObject();
+      const std::optional<blender::Bounds<blender::float3>> object_bounds =
+          blender_object != nullptr ? BKE_object_boundbox_get(blender_object) : std::nullopt;
+      if (!object_bounds.has_value()) {
+        return false;
+      }
+      r_min = MT_Vector3(object_bounds->min.x, object_bounds->min.y, object_bounds->min.z);
+      r_max = MT_Vector3(object_bounds->max.x, object_bounds->max.y, object_bounds->max.z);
+      return true;
+    };
+    if (scrollbar != nullptr && scrollbar->GetScene() == scene &&
+        local_bounds(scrollbar, registration.scrollbar_min, registration.scrollbar_max))
+    {
+      registration.scrollbar = scrollbar;
+      /* The handle is the bar's first mesh child, as a slot's icon is the slot's. */
+      for (KX_GameObject *child : scrollbar->GetChildren()) {
+        if (child->GetGameObjectType() != SCA_IObject::OBJ_TEXT && child->GetMeshCount() > 0 &&
+            local_bounds(child, registration.handle_min, registration.handle_max))
+        {
+          registration.scrollbar_handle = child;
+          break;
+        }
+      }
+    }
+    m_logicManager->GetUIService().RegisterView(std::move(registration));
+  }
+}
+
 size_t LN_RuntimeTree::WarmQueryCache(const LN_TickContext &context)
 {
   if (!m_runtimeActive || !m_enabled || m_program == nullptr ||
@@ -3448,10 +4425,10 @@ bool LN_RuntimeTree::ShouldCaptureSnapshot() const
 
 bool LN_RuntimeTree::ShouldCaptureSnapshotForForcedUpdate() const
 {
-  const bool needs_snapshot_context =
-      m_snapshotChannelMask != LN_SNAPSHOT_CHANNEL_NONE ||
-      (m_program != nullptr &&
-       m_program->GetDependencySummary().input_channels != LN_DEP_INPUT_NONE);
+  const bool needs_snapshot_context = m_snapshotChannelMask != LN_SNAPSHOT_CHANNEL_NONE ||
+                                      (m_program != nullptr &&
+                                       m_program->GetDependencySummary().input_channels !=
+                                           LN_DEP_INPUT_NONE);
   return m_runtimeActive && m_program != nullptr && m_gameObject != nullptr &&
          !m_gameObject->IsLogicSuspended() && needs_snapshot_context;
 }
@@ -3472,9 +4449,10 @@ const LN_EventEntry *LN_RuntimeTree::FindFirstActiveEvent(const LN_EventSubjectI
   if (m_logicManager == nullptr) {
     return nullptr;
   }
-  const LN_ObjectHandle target_handle = filter_target == m_gameObject ? m_ownerObjectHandle :
-                                                                 LN_ObjectHandle();
-  return m_logicManager->GetEventBus().FindFirst(subject_id, subject, target_handle, filter_target);
+  const LN_ObjectHandle target_handle = filter_target == m_gameObject ?
+                                            m_ownerObjectHandle :
+                                            m_logicManager->FindObjectHandle(filter_target);
+  return m_logicManager->GetEventBus().FindFirst(subject_id, subject, target_handle);
 }
 
 void LN_RuntimeTree::ExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
@@ -3487,6 +4465,11 @@ void LN_RuntimeTree::ExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
   }
   if (m_gameObject->IsLogicSuspended()) {
     return;
+  }
+
+  if (context.tick_index == UINT64_MAX || m_loopIterationBudgetTick != context.tick_index) {
+    m_remainingLoopIterationBudget = kMaxLoopIterationsPerTick;
+    m_loopIterationBudgetTick = context.tick_index;
   }
 
   LN_RuntimeProfileCounters *previous_profile_counters = m_activeProfileCounters;
@@ -3506,10 +4489,8 @@ void LN_RuntimeTree::ExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
     TickLatentTimeFlowStates(context);
   }
 
-  ExecuteEvent(LN_Event::OnFixedUpdate,
-               m_program->GetInstructionHeaders(LN_Event::OnFixedUpdate),
-               command_buffer,
-               context);
+  ExecuteEvent(
+      context.event, m_program->GetInstructionHeaders(context.event), command_buffer, context);
 
   if (profile_counters != nullptr) {
     m_activeProfileCounters = previous_profile_counters;
@@ -3518,17 +4499,11 @@ void LN_RuntimeTree::ExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
 
 namespace {
 
-void ReturnSpawnPoolObjectToPool(KX_GameObject *object, const MT_Vector3 &reset_position)
-{
-  if (object == nullptr) {
-    return;
-  }
-  object->NodeSetWorldPosition(reset_position);
-  object->NodeSetWorldScale(MT_Vector3(0.001f, 0.001f, 0.001f));
-  object->SuspendPhysics(false, false);
-}
-
-LN_Value MakeValueFromEXPValue(EXP_Value *property)
+/** Without a tree, objects become references of `shared_manager`'s shared domain (any tree and
+ * the UI service find the very object), else they are kept by name. */
+LN_Value MakeValueFromEXPValue(EXP_Value *property,
+                               LN_RuntimeTree *runtime_tree,
+                               LN_Manager *shared_manager)
 {
   if (property == nullptr) {
     return LN_Value();
@@ -3567,6 +4542,32 @@ LN_Value MakeValueFromEXPValue(EXP_Value *property)
       value.type = LN_ValueType::Vector4;
       value.vector4_value = static_cast<const EXP_Vector4Value *>(property)->GetVector4();
       break;
+    case VALUE_OBJECT_TYPE: {
+      KX_GameObject *object = static_cast<KX_ObjectReferenceValue *>(property)->GetObject();
+      if (runtime_tree == nullptr && object != nullptr) {
+        /* No tree to hold a reference (LN_GamePropertyValue). */
+        value.type = LN_ValueType::ObjectRef;
+        value.reference_name = object->GetName();
+        if (shared_manager != nullptr) {
+          value.runtime_ref = shared_manager->MakeSharedObjectRef(object, value.reference_name);
+        }
+        return value;
+      }
+      return MakeObjectValue(runtime_tree, object);
+    }
+    case VALUE_ARRAY_TYPE:
+      value.type = LN_ValueType::List;
+      for (EXP_Value *item : static_cast<EXP_ArrayValue *>(property)->GetItems()) {
+        value.list_value.push_back(MakeValueFromEXPValue(item, runtime_tree, shared_manager));
+      }
+      break;
+    case VALUE_DICT_TYPE:
+      value.type = LN_ValueType::Dict;
+      for (const auto &entry : static_cast<EXP_DictValue *>(property)->GetEntries()) {
+        value.dict_value.emplace(entry.first,
+                                 MakeValueFromEXPValue(entry.second, runtime_tree, shared_manager));
+      }
+      break;
     default:
       value.type = LN_ValueType::String;
       value.string_value = property->GetText();
@@ -3575,89 +4576,16 @@ LN_Value MakeValueFromEXPValue(EXP_Value *property)
   return value;
 }
 
+LN_Value MakeValueFromEXPValue(EXP_Value *property, LN_RuntimeTree *runtime_tree)
+{
+  return MakeValueFromEXPValue(property, runtime_tree, nullptr);
+}
+
 }  // namespace
 
-void LN_RuntimeTree::UpdateSpawnPoolBullets(const LN_TickContext &context)
+LN_Value LN_GamePropertyValue(EXP_Value *property, LN_Manager *manager)
 {
-  for (SpawnPoolRuntimeState &pool : m_spawnPools) {
-    std::vector<SpawnPoolTimedObject> remaining_timed;
-    remaining_timed.reserve(pool.timed_objects.size());
-    for (const SpawnPoolTimedObject &timed : pool.timed_objects) {
-      if (timed.object == nullptr || context.current_time >= timed.destroy_time) {
-        ReturnSpawnPoolObjectToPool(timed.object, pool.reset_position);
-        continue;
-      }
-      remaining_timed.push_back(timed);
-    }
-    pool.timed_objects = std::move(remaining_timed);
-  }
-
-  if (m_spawnPoolBullets.empty()) {
-    return;
-  }
-
-  KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
-  PHY_IPhysicsEnvironment *environment = scene ? scene->GetPhysicsEnvironment() : nullptr;
-  if (environment == nullptr) {
-    m_spawnPoolBullets.clear();
-    return;
-  }
-
-  MT_Vector3 gravity(0.0f, 0.0f, -9.8f);
-  if (scene != nullptr) {
-    gravity = scene->GetGravity();
-  }
-
-  std::vector<SpawnPoolBulletRuntimeState> remaining;
-  remaining.reserve(m_spawnPoolBullets.size());
-
-  for (SpawnPoolBulletRuntimeState bullet : m_spawnPoolBullets) {
-    SpawnPoolRuntimeState *pool = bullet.pool_index >= 0 ?
-                      FindSpawnPoolState(uint32_t(bullet.pool_index)) :
-                      nullptr;
-    const MT_Vector3 reset_position = pool ? pool->reset_position :
-                                             MT_Vector3(0.0f, 0.0f, -100.0f);
-
-    if (bullet.object == nullptr || context.current_time >= bullet.destroy_time) {
-      ReturnSpawnPoolObjectToPool(bullet.object, reset_position);
-      continue;
-    }
-
-    const float step = bullet.spawn_type == 2 ? 0.05f : 1.0f;
-    MT_Vector3 target = bullet.position;
-    if (bullet.spawn_type == 2) {
-      const MT_Vector3 velocity = bullet.direction * bullet.speed * 10.0f;
-      target = ProjectilePoint(velocity, bullet.position, gravity, step);
-    }
-    else {
-      target = bullet.position + bullet.direction * bullet.speed;
-    }
-
-    LN_RuntimeRef ignore_ref = MakeObjectRef(bullet.object, bullet.object->GetName());
-    LN_PhysicsQueryResult hit = Raycast(
-        bullet.position, target, ignore_ref, bullet.raycast_mask, std::string(), false);
-    if (hit.hit) {
-      if (pool != nullptr) {
-        pool->hit_tick = context.tick_index;
-        pool->hit_point = hit.hit_position;
-        pool->hit_normal = hit.hit_normal;
-        pool->hit_direction = hit.ray_direction;
-        pool->hit_object = ResolveObjectRef(hit.object_ref);
-      }
-      ReturnSpawnPoolObjectToPool(bullet.object, reset_position);
-      continue;
-    }
-
-    if (bullet.visualize) {
-      KX_RasterizerDrawDebugLine(bullet.position, target, MT_Vector4(1.0f, 0.7f, 0.0f, 1.0f));
-    }
-
-    bullet.position = target;
-    bullet.object->NodeSetWorldPosition(target);
-    remaining.push_back(bullet);
-  }
-
-  m_spawnPoolBullets = std::move(remaining);
+  return MakeValueFromEXPValue(property, nullptr, manager);
 }
 
 void LN_RuntimeTree::ExecuteReady(LN_CommandBuffer &command_buffer,
@@ -3668,6 +4596,10 @@ void LN_RuntimeTree::ExecuteReady(LN_CommandBuffer &command_buffer,
   if (!m_runtimeActive || !m_enabled || m_program == nullptr || m_gameObject == nullptr) {
     return;
   }
+  if (context.tick_index == UINT64_MAX || m_loopIterationBudgetTick != context.tick_index) {
+    m_remainingLoopIterationBudget = kMaxLoopIterationsPerTick;
+    m_loopIterationBudgetTick = context.tick_index;
+  }
 
   LN_RuntimeProfileCounters *previous_profile_counters = m_activeProfileCounters;
   if (profile_counters != nullptr) {
@@ -3675,25 +4607,25 @@ void LN_RuntimeTree::ExecuteReady(LN_CommandBuffer &command_buffer,
   }
 
   if (!m_initExecuted) {
+    /* A tree that starts while paused (a menu added then) initializes fully, so its UI event
+     * routes work at once. On Init is setup, not game time passing. */
+    const bool ui_event_routes_only = std::exchange(m_uiEventRoutesOnly, false);
     ExecuteEvent(LN_Event::OnInit,
                  m_program->GetInstructionHeaders(LN_Event::OnInit),
                  command_buffer,
                  context);
+    m_uiEventRoutesOnly = ui_event_routes_only;
     m_initExecuted = true;
   }
 
+  /* While paused, only states that UI event routes armed are ticked. Game time is frozen then, so
+   * of those Wait for Next Frame completes and the rest advance only with Ignore Timescale. */
   if (m_hasTimeFlowRuntimeState) {
     TickLatentTimeFlowStates(context);
   }
 
-  ExecuteEvent(LN_Event::OnFixedUpdate,
-               m_program->GetInstructionHeaders(LN_Event::OnFixedUpdate),
-               command_buffer,
-               context);
-
-  if (m_hasSpawnPoolRuntimeState || !m_spawnPoolBullets.empty()) {
-    UpdateSpawnPoolBullets(context);
-  }
+  ExecuteEvent(
+      context.event, m_program->GetInstructionHeaders(context.event), command_buffer, context);
 
   if (profile_counters != nullptr) {
     m_activeProfileCounters = previous_profile_counters;
@@ -3707,6 +4639,133 @@ bool LN_RuntimeTree::CanTick() const
   }
 
   return !m_gameObject->IsLogicSuspended();
+}
+
+bool LN_RuntimeTree::CollectsObjectUI() const
+{
+  return CanTick() &&
+         (m_program->GetDependencySummary().query_channels & LN_DEP_QUERY_OBJECT_UI) != 0u;
+}
+
+bool LN_RuntimeTree::CanTick(const LN_Event event) const
+{
+  if (!CanTick()) {
+    return false;
+  }
+
+  /* Initialization is deliberately owned by the first recurring phase (normally Update), so
+   * On Init also runs for trees that have no instructions in that recurring phase. */
+  if (!m_initExecuted) {
+    return true;
+  }
+
+  if (!m_program->GetInstructionHeaders(event).empty()) {
+    return true;
+  }
+
+  if (m_hasTimeFlowRuntimeState) {
+    const bool has_phase_time_flow = std::any_of(
+        m_timeFlowStates.begin(),
+        m_timeFlowStates.end(),
+        [event](const TimeFlowRuntimeState &state) {
+          return state.event == event && (state.active || !state.pending_pulses.empty());
+        });
+    if (has_phase_time_flow) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void LN_RuntimeTree::CollectPauseProcessingObjects(std::vector<KX_GameObject *> &r_objects)
+{
+  if (!CanTick() || m_program == nullptr || !m_program->HasPauseProcessingRequests()) {
+    return;
+  }
+
+  KX_Scene *scene = m_gameObject->GetScene();
+  if (scene == nullptr) {
+    return;
+  }
+
+  /* The policy-owning object remains active so it can coordinate the selected scope. */
+  r_objects.push_back(m_gameObject);
+
+  LN_TickContext static_context;
+  static_context.event = LN_Event::OnUpdate;
+  static_context.game_paused = true;
+
+  for (const LN_PauseProcessingRequest &request : m_program->GetPauseProcessingRequests()) {
+    switch (request.scope) {
+      case LN_PauseProcessingScope::Owner:
+        break;
+      case LN_PauseProcessingScope::ObjectHierarchy: {
+        KX_GameObject *root = m_gameObject;
+        if (request.target_value_expr_index != LN_INVALID_INDEX) {
+          KX_GameObject *resolved = ResolveObjectValue(ResolveValueExpression(
+              request.target_value_expr_index, MakeNoneValue(), static_context));
+          if (resolved != nullptr) {
+            root = resolved;
+          }
+        }
+        r_objects.push_back(root);
+        const std::vector<KX_GameObject *> descendants = root->GetChildrenRecursive();
+        r_objects.insert(r_objects.end(), descendants.begin(), descendants.end());
+        break;
+      }
+      case LN_PauseProcessingScope::Collection: {
+        if (request.target_value_expr_index == LN_INVALID_INDEX) {
+          break;
+        }
+        const LN_Value collection_value = ResolveValueExpression(
+            request.target_value_expr_index, MakeNoneValue(), static_context);
+        blender::Collection *collection = ResolveCollectionByValue(this, collection_value);
+        if (collection == nullptr) {
+          break;
+        }
+
+        std::vector<blender::Collection *> pending_collections = {collection};
+        std::unordered_set<blender::Collection *> visited_collections;
+        while (!pending_collections.empty()) {
+          blender::Collection *current = pending_collections.back();
+          pending_collections.pop_back();
+          if (current == nullptr || !visited_collections.insert(current).second) {
+            continue;
+          }
+          for (blender::CollectionObject &collection_object : current->gobject) {
+            if (collection_object.ob != nullptr) {
+              if (KX_GameObject *game_object = scene->GetGameObjectFromObject(
+                      collection_object.ob))
+              {
+                r_objects.push_back(game_object);
+              }
+            }
+          }
+          for (blender::CollectionChild &child : current->children) {
+            if (child.collection != nullptr) {
+              pending_collections.push_back(child.collection);
+            }
+          }
+        }
+        /* Overlay collections can contain runtime-generated hierarchy and collection-instance
+         * members whose duplicated Blender objects are not direct collection entries. They are
+         * still part of the user's collection scope and must keep their trees and visual
+         * animations active while the game is paused. */
+        scene->AppendOverlayCollectionRuntimeObjects(collection, r_objects);
+        break;
+      }
+      case LN_PauseProcessingScope::Scene:
+        if (scene->GetObjectList() != nullptr) {
+          for (KX_GameObject *game_object : *scene->GetObjectList()) {
+            if (game_object != nullptr) {
+              r_objects.push_back(game_object);
+            }
+          }
+        }
+        break;
+    }
+  }
 }
 
 bool LN_RuntimeTree::OwnsGameObject(KX_GameObject *gameobj) const
@@ -3727,6 +4786,8 @@ void LN_RuntimeTree::SetProgram(std::shared_ptr<const LN_Program> program)
     return;
   }
 
+  m_programRevision++;
+  m_actionCompletions.clear();
   m_denseRuntimeTreeId = LN_RuntimeTreeId{};
   m_sharedStringIds.clear();
   m_eventSubjectIds.clear();
@@ -3737,17 +4798,29 @@ void LN_RuntimeTree::SetProgram(std::shared_ptr<const LN_Program> program)
       program->CanPreserveRuntimeStateWhenReplacing(*m_program))
   {
     m_program = std::move(program);
+    m_rotationExpressionValues.clear();
+    m_rotationExpressionTicks.clear();
+    const size_t rotation_cache_capacity = m_program->GetVectorExpressions().size();
+    m_rotationExpressionValues.reserve(rotation_cache_capacity);
+    m_rotationExpressionTicks.reserve(rotation_cache_capacity);
     RefreshOptimizedPathEligibility();
     m_snapshotTick = UINT64_MAX;
     m_queryCacheWarmTick = UINT64_MAX;
     EnsureTimeFlowStateSize(true);
+    EnsureFlowControlStateSize(true);
     EnsureQueryExpressionStateSize();
     EnsureTreePropertyStateSize(true);
-    EnsureSpawnPoolStateSize(true);
     return;
   }
 
   m_program = std::move(program);
+  m_rotationExpressionValues.clear();
+  m_rotationExpressionTicks.clear();
+  if (m_program != nullptr) {
+    const size_t rotation_cache_capacity = m_program->GetVectorExpressions().size();
+    m_rotationExpressionValues.reserve(rotation_cache_capacity);
+    m_rotationExpressionTicks.reserve(rotation_cache_capacity);
+  }
   RefreshOptimizedPathEligibility();
   m_initExecuted = false;
   m_snapshotTick = UINT64_MAX;
@@ -3758,17 +4831,15 @@ void LN_RuntimeTree::SetProgram(std::shared_ptr<const LN_Program> program)
   EnsureBoolExpressionStateSize();
   EnsureFloatExpressionStateSize();
   EnsureTimeFlowStateSize(false);
+  EnsureFlowControlStateSize(false);
   EnsureQueryExpressionStateSize();
   EnsureTreePropertyStateSize(false);
-  EnsureSpawnPoolStateSize(false);
   m_loopStates.clear();
-  m_spawnPoolBullets.clear();
   m_activeLoopBodyFrame = LN_INVALID_INDEX;
   m_stateArena.Clear();
 }
 
-LN_RuntimeRef LN_RuntimeTree::MakeObjectRef(KX_GameObject *gameobj,
-                                            const std::string &debug_name)
+LN_RuntimeRef LN_RuntimeTree::MakeObjectRef(KX_GameObject *gameobj, const std::string &debug_name)
 {
   if (gameobj == nullptr) {
     LN_RuntimeRef runtime_ref;
@@ -3826,6 +4897,9 @@ LN_RuntimeRef LN_RuntimeTree::MakeObjectRef(KX_GameObject *gameobj,
 
 KX_GameObject *LN_RuntimeTree::ResolveObjectRef(const LN_RuntimeRef &runtime_ref) const
 {
+  if (runtime_ref.shared_domain != 0) {
+    return m_logicManager ? m_logicManager->ResolveSharedObjectRef(runtime_ref) : nullptr;
+  }
   if (runtime_ref.kind != LN_RuntimeRefKind::Object || runtime_ref.slot >= m_objectRefs.size()) {
     if (runtime_ref.kind == LN_RuntimeRefKind::Object && runtime_ref.IsValid()) {
       RecordRuntimeSystemFallback(
@@ -4025,8 +5099,7 @@ LN_RuntimeRef LN_RuntimeTree::MakeCollectionRef(blender::Collection *collection,
   return runtime_ref;
 }
 
-blender::Collection *LN_RuntimeTree::ResolveCollectionRef(
-    const LN_RuntimeRef &runtime_ref) const
+blender::Collection *LN_RuntimeTree::ResolveCollectionRef(const LN_RuntimeRef &runtime_ref) const
 {
   if (runtime_ref.kind != LN_RuntimeRefKind::Collection ||
       runtime_ref.slot >= m_runtimeRefs.size())
@@ -4043,18 +5116,18 @@ blender::Collection *LN_RuntimeTree::ResolveCollectionRef(
   }
   const RuntimeRefSlot &slot = m_runtimeRefs[runtime_ref.slot];
   if (slot.kind != LN_RuntimeRefKind::Collection || slot.generation != runtime_ref.generation) {
-    RecordRuntimeSystemFallback(
-        LN_RuntimeFallbackReason::StaleHandle,
-        runtime_ref.debug_name.empty() ? slot.debug_name : runtime_ref.debug_name,
-        "fallback_paths",
-        "Refresh the cached collection handle after datablock mutation or generation invalidation.");
+    RecordRuntimeSystemFallback(LN_RuntimeFallbackReason::StaleHandle,
+                                runtime_ref.debug_name.empty() ? slot.debug_name :
+                                                                 runtime_ref.debug_name,
+                                "fallback_paths",
+                                "Refresh the cached collection handle after datablock mutation or "
+                                "generation invalidation.");
     return nullptr;
   }
   return static_cast<blender::Collection *>(slot.pointer);
 }
 
-LN_RuntimeRef LN_RuntimeTree::MakeDatablockRef(blender::ID *id,
-                                               const std::string &debug_name)
+LN_RuntimeRef LN_RuntimeTree::MakeDatablockRef(blender::ID *id, const std::string &debug_name)
 {
   if (id == nullptr) {
     return MakeInvalidRef(LN_RuntimeRefKind::Datablock, debug_name);
@@ -4104,7 +5177,8 @@ LN_RuntimeRef LN_RuntimeTree::MakeDatablockRef(blender::ID *id,
 
 blender::ID *LN_RuntimeTree::ResolveDatablockRef(const LN_RuntimeRef &runtime_ref) const
 {
-  if (runtime_ref.kind != LN_RuntimeRefKind::Datablock || runtime_ref.slot >= m_runtimeRefs.size()) {
+  if (runtime_ref.kind != LN_RuntimeRefKind::Datablock || runtime_ref.slot >= m_runtimeRefs.size())
+  {
     if (runtime_ref.kind == LN_RuntimeRefKind::Datablock && runtime_ref.IsValid()) {
       RecordRuntimeSystemFallback(
           LN_RuntimeFallbackReason::StaleHandle,
@@ -4117,11 +5191,12 @@ blender::ID *LN_RuntimeTree::ResolveDatablockRef(const LN_RuntimeRef &runtime_re
   }
   const RuntimeRefSlot &slot = m_runtimeRefs[runtime_ref.slot];
   if (slot.kind != LN_RuntimeRefKind::Datablock || slot.generation != runtime_ref.generation) {
-    RecordRuntimeSystemFallback(
-        LN_RuntimeFallbackReason::StaleHandle,
-        runtime_ref.debug_name.empty() ? slot.debug_name : runtime_ref.debug_name,
-        "fallback_paths",
-        "Refresh the cached datablock handle after datablock mutation or generation invalidation.");
+    RecordRuntimeSystemFallback(LN_RuntimeFallbackReason::StaleHandle,
+                                runtime_ref.debug_name.empty() ? slot.debug_name :
+                                                                 runtime_ref.debug_name,
+                                "fallback_paths",
+                                "Refresh the cached datablock handle after datablock mutation or "
+                                "generation invalidation.");
     return nullptr;
   }
   return static_cast<blender::ID *>(slot.pointer);
@@ -4177,17 +5252,22 @@ PHY_IVehicle *LN_RuntimeTree::ResolveVehicleController(const LN_RuntimeRef &obje
   KX_GameObject *gameobj = ResolveObjectRef(object_ref);
   KX_Scene *scene = gameobj ? gameobj->GetScene() : nullptr;
   PHY_IPhysicsEnvironment *environment = scene ? scene->GetPhysicsEnvironment() : nullptr;
-  return (environment && gameobj) ? environment->GetVehicleConstraint(gameobj->GetPhysicsController()) :
-                                    nullptr;
+  return (environment && gameobj) ?
+             environment->GetVehicleConstraint(gameobj->GetPhysicsController()) :
+             nullptr;
 }
 
-LN_PhysicsQueryResult LN_RuntimeTree::Raycast(const MT_Vector3 &from,
-                                              const MT_Vector3 &to,
-                                              const LN_RuntimeRef &ignore_object_ref,
-                                              const uint32_t collision_mask,
-                                              const std::string &property_name,
-                                              const bool xray,
-                                              const LN_RuntimeRef &extra_ignore_object_ref)
+LN_PhysicsQueryResult LN_RuntimeTree::Raycast(
+    const MT_Vector3 &from,
+    const MT_Vector3 &to,
+    const LN_RuntimeRef &ignore_object_ref,
+    const uint32_t collision_mask,
+    const std::string &property_name,
+    const bool xray,
+    const std::vector<LN_RuntimeRef> &extra_ignore_object_refs,
+    const LN_InteractionDomain interaction_domain,
+    const bool respect_runtime_visibility,
+    const KX_Camera *view_camera)
 {
   LN_PhysicsQueryResult result;
   const MT_Vector3 segment = to - from;
@@ -4195,7 +5275,9 @@ LN_PhysicsQueryResult LN_RuntimeTree::Raycast(const MT_Vector3 &from,
     result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidTarget;
     return result;
   }
+  result.ray_origin = from;
   result.ray_direction = segment.safe_normalized();
+  result.end_position = to;
 
   KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
   PHY_IPhysicsEnvironment *environment = scene ? scene->GetPhysicsEnvironment() : nullptr;
@@ -4205,31 +5287,100 @@ LN_PhysicsQueryResult LN_RuntimeTree::Raycast(const MT_Vector3 &from,
   }
 
   KX_GameObject *ignore_object = ResolveObjectRef(ignore_object_ref);
-  PHY_IPhysicsController *ignore_controller = ignore_object ? ignore_object->GetPhysicsController() :
-                                                              nullptr;
-  KX_GameObject *extra_ignore_object = ResolveObjectRef(extra_ignore_object_ref);
-  PHY_IPhysicsController *extra_ignore_controller = extra_ignore_object ?
-                                                       extra_ignore_object->GetPhysicsController() :
-                                                       nullptr;
+  PHY_IPhysicsController *ignore_controller = RaycastOwningPhysicsController(ignore_object);
+  const LN_PhysicsControllerIgnoreSet extra_ignore_controllers(*this, extra_ignore_object_refs);
   LN_RaycastCallback callback(*this,
                               ignore_controller,
-                              extra_ignore_controller,
+                              extra_ignore_controllers,
                               from,
                               to,
                               collision_mask,
                               property_name,
-                              xray);
+                              xray,
+                              false,
+                              scene,
+                              interaction_domain,
+                              respect_runtime_visibility,
+                              view_camera);
   if (!KX_RayCast::RayTest(environment, from, to, callback)) {
     return result;
   }
   return callback.GetResult();
 }
 
+LN_PhysicsQueryResult LN_RuntimeTree::RaycastPointer(const MT_Vector3 &from,
+                                                     const MT_Vector3 &to,
+                                                     KX_Camera *camera,
+                                                     const LN_RuntimeRef &ignore_object_ref,
+                                                     const uint32_t collision_mask,
+                                                     const std::string &property_name,
+                                                     const bool xray,
+                                                     const LN_InteractionDomain interaction_domain,
+                                                     const uint64_t command_execution_key)
+{
+  KX_GameObject *ignored_object = ResolveObjectRef(ignore_object_ref);
+  if (m_logicManager != nullptr) {
+    LN_Manager::PointerHitCacheKey key;
+    key.camera = camera;
+    key.ignored_object = ignored_object;
+    key.from = from;
+    key.to = to;
+    key.property_name = property_name;
+    key.command_execution_key = command_execution_key;
+    key.collision_mask = collision_mask;
+    key.domain = interaction_domain;
+    key.xray = xray;
+    key.respect_runtime_visibility = true;
+
+    if (const auto cached = m_logicManager->m_pointerHitCache.find(key);
+        cached != m_logicManager->m_pointerHitCache.end())
+    {
+      LN_PhysicsQueryResult result = cached->second.result;
+      if (result.hit && cached->second.hit_object != nullptr) {
+        result.object_ref = MakeObjectRef(cached->second.hit_object,
+                                          cached->second.hit_object->GetName());
+      }
+      return result;
+    }
+
+    LN_PhysicsQueryResult result = Raycast(from,
+                                           to,
+                                           ignore_object_ref,
+                                           collision_mask,
+                                           property_name,
+                                           xray,
+                                           {},
+                                           interaction_domain,
+                                           true,
+                                           camera);
+    LN_Manager::PointerHitCacheValue value;
+    value.result = result;
+    value.hit_object = result.hit ? ResolveObjectRef(result.object_ref) : nullptr;
+    value.result.object_ref = LN_RuntimeRef();
+    m_logicManager->m_pointerHitCache.emplace(std::move(key), std::move(value));
+    return result;
+  }
+
+  return Raycast(from,
+                 to,
+                 ignore_object_ref,
+                 collision_mask,
+                 property_name,
+                 xray,
+                 {},
+                 interaction_domain,
+                 true,
+                 camera);
+}
+
 LN_PhysicsQueryResult LN_RuntimeTree::RaycastMouseOverTarget(
     const MT_Vector3 &from,
     const MT_Vector3 &to,
     KX_GameObject *target_object,
-    const LN_RuntimeRef &ignore_object_ref)
+    KX_Camera *camera,
+    const LN_RuntimeRef &ignore_object_ref,
+    const LN_InteractionDomain interaction_domain,
+    const uint64_t command_execution_key)
 {
   LN_PhysicsQueryResult result;
   const MT_Vector3 segment = to - from;
@@ -4239,21 +5390,28 @@ LN_PhysicsQueryResult LN_RuntimeTree::RaycastMouseOverTarget(
   }
   result.ray_direction = segment.safe_normalized();
 
-  KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
-  PHY_IPhysicsEnvironment *environment = scene ? scene->GetPhysicsEnvironment() : nullptr;
-  if (environment == nullptr) {
-    result.diagnostic_status = LN_QueryDiagnosticStatus::MissingPhysicsWorld;
+  result = RaycastPointer(from,
+                          to,
+                          camera,
+                          ignore_object_ref,
+                          0,
+                          std::string(),
+                          false,
+                          interaction_domain,
+                          command_execution_key);
+  KX_GameObject *hit_object = result.hit ? ResolveObjectRef(result.object_ref) : nullptr;
+  if (MouseOverHitMatchesTarget(hit_object, target_object)) {
     return result;
   }
 
-  KX_GameObject *ignore_object = ResolveObjectRef(ignore_object_ref);
-  PHY_IPhysicsController *ignore_controller = ignore_object ? ignore_object->GetPhysicsController() :
-                                                              nullptr;
-  LN_MouseOverRaycastCallback callback(*this, target_object, ignore_controller, from, to);
-  if (!KX_RayCast::RayTest(environment, from, to, callback)) {
-    return result;
-  }
-  return callback.GetResult();
+  const bool was_blocked = result.hit;
+  result.hit = false;
+  result.blocked = was_blocked;
+  result.diagnostic_status = LN_QueryDiagnosticStatus::NoHit;
+  result.object_ref = LN_RuntimeRef();
+  result.hit_position = MT_Vector3(0.0f, 0.0f, 0.0f);
+  result.hit_normal = MT_Vector3(0.0f, 0.0f, 0.0f);
+  return result;
 }
 
 std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::RaycastAll(
@@ -4263,7 +5421,7 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::RaycastAll(
     const uint32_t collision_mask,
     const std::string &property_name,
     const bool xray,
-    const LN_RuntimeRef &extra_ignore_object_ref)
+    const std::vector<LN_RuntimeRef> &extra_ignore_object_refs)
 {
   const MT_Vector3 segment = to - from;
   if (segment.length2() <= MT_EPSILON * MT_EPSILON) {
@@ -4277,15 +5435,11 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::RaycastAll(
   }
 
   KX_GameObject *ignore_object = ResolveObjectRef(ignore_object_ref);
-  PHY_IPhysicsController *ignore_controller = ignore_object ? ignore_object->GetPhysicsController() :
-                                                              nullptr;
-  KX_GameObject *extra_ignore_object = ResolveObjectRef(extra_ignore_object_ref);
-  PHY_IPhysicsController *extra_ignore_controller = extra_ignore_object ?
-                                                       extra_ignore_object->GetPhysicsController() :
-                                                       nullptr;
+  PHY_IPhysicsController *ignore_controller = RaycastOwningPhysicsController(ignore_object);
+  const LN_PhysicsControllerIgnoreSet extra_ignore_controllers(*this, extra_ignore_object_refs);
   LN_RaycastCallback callback(*this,
                               ignore_controller,
-                              extra_ignore_controller,
+                              extra_ignore_controllers,
                               from,
                               to,
                               collision_mask,
@@ -4302,7 +5456,7 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::RayCast(
     const uint32_t collision_mask,
     const std::string &property_name,
     const bool xray,
-    const LN_RuntimeRef &extra_ignore_object_ref,
+    const std::vector<LN_RuntimeRef> &extra_ignore_object_refs,
     bool &r_blocked,
     LN_PhysicsQueryResult &r_blocker,
     bool &r_supported)
@@ -4317,11 +5471,9 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::RayCast(
   }
 
   KX_GameObject *ignore_object = ResolveObjectRef(ignore_object_ref);
-  KX_GameObject *extra_ignore_object = ResolveObjectRef(extra_ignore_object_ref);
-  LN_RayQueryFilterCallback filter(ignore_object ? ignore_object->GetPhysicsController() : nullptr,
-                                   extra_ignore_object ?
-                                       extra_ignore_object->GetPhysicsController() :
-                                       nullptr,
+  const LN_PhysicsControllerIgnoreSet extra_ignore_controllers(*this, extra_ignore_object_refs);
+  LN_RayQueryFilterCallback filter(RaycastOwningPhysicsController(ignore_object),
+                                   extra_ignore_controllers,
                                    collision_mask,
                                    property_name,
                                    xray);
@@ -4333,6 +5485,9 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::RayCast(
 
   const MT_Vector3 displacement = settings.destination - settings.origin;
   const float cast_length = displacement.length();
+  if (!std::isfinite(cast_length) || cast_length <= MT_EPSILON) {
+    return {};
+  }
   const MT_Vector3 direction = displacement / cast_length;
   std::vector<LN_PhysicsQueryResult> results;
   results.reserve(physics_results.size());
@@ -4345,20 +5500,28 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::RayCast(
     if (!hit_object) {
       continue;
     }
+    if (!std::isfinite(physics_result.m_fraction) || !vector_is_finite(physics_result.m_hitPoint))
+    {
+      continue;
+    }
 
     LN_PhysicsQueryResult result;
     result.hit = true;
     result.diagnostic_status = LN_QueryDiagnosticStatus::Hit;
     result.object_ref = MakeObjectRef(hit_object, hit_object->GetName());
     result.hit_position = physics_result.m_hitPoint;
-    result.hit_normal = physics_result.m_hitNormal;
+    result.hit_normal = vector_is_finite(physics_result.m_hitNormal) ?
+                            physics_result.m_hitNormal :
+                            MT_Vector3(0.0f, 0.0f, 0.0f);
+    result.ray_origin = settings.origin;
     result.ray_direction = direction;
     result.end_position = settings.destination;
-    result.hit_fraction = physics_result.m_fraction;
-    result.hit_distance = cast_length * physics_result.m_fraction;
-    result.hit_uv = physics_result.m_hitUV;
+    result.hit_fraction = std::clamp(physics_result.m_fraction, 0.0f, 1.0f);
+    result.hit_distance = cast_length * result.hit_fraction;
     result.polygon_index = physics_result.m_polygon;
-    result.has_uv = physics_result.m_hitUVOK != 0;
+    result.has_uv = physics_result.m_hitUVOK != 0 && std::isfinite(physics_result.m_hitUV.x()) &&
+                    std::isfinite(physics_result.m_hitUV.y());
+    result.hit_uv = result.has_uv ? physics_result.m_hitUV : MT_Vector2(0.0f, 0.0f);
 
     const bool property_matches = property_name.empty() || hit_object->GetProperty(property_name);
     if (!property_matches) {
@@ -4388,7 +5551,7 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::ShapeCast(
     const uint32_t collision_mask,
     const std::string &property_name,
     const bool xray,
-    const LN_RuntimeRef &extra_ignore_object_ref,
+    const std::vector<LN_RuntimeRef> &extra_ignore_object_refs,
     bool &r_blocked,
     LN_PhysicsQueryResult &r_blocker,
     bool &r_supported)
@@ -4403,11 +5566,9 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::ShapeCast(
   }
 
   KX_GameObject *ignore_object = ResolveObjectRef(ignore_object_ref);
-  KX_GameObject *extra_ignore_object = ResolveObjectRef(extra_ignore_object_ref);
-  LN_ShapeCastFilterCallback filter(ignore_object ? ignore_object->GetPhysicsController() : nullptr,
-                                    extra_ignore_object ?
-                                        extra_ignore_object->GetPhysicsController() :
-                                        nullptr,
+  const LN_PhysicsControllerIgnoreSet extra_ignore_controllers(*this, extra_ignore_object_refs);
+  LN_ShapeCastFilterCallback filter(RaycastOwningPhysicsController(ignore_object),
+                                    extra_ignore_controllers,
                                     collision_mask,
                                     property_name,
                                     xray);
@@ -4419,8 +5580,11 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::ShapeCast(
 
   const MT_Vector3 displacement = settings.destination - settings.origin;
   const float cast_length = displacement.length();
+  if (!std::isfinite(cast_length)) {
+    return {};
+  }
   const MT_Vector3 direction = cast_length > MT_EPSILON ? displacement / cast_length :
-                                                              MT_Vector3(0.0f, 0.0f, 0.0f);
+                                                          MT_Vector3(0.0f, 0.0f, 0.0f);
   std::vector<LN_PhysicsQueryResult> results;
   results.reserve(physics_results.size());
   for (const PHY_ShapeCastResult &physics_result : physics_results) {
@@ -4432,21 +5596,30 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::ShapeCast(
     if (!hit_object) {
       continue;
     }
+    if (!std::isfinite(physics_result.fraction) || !vector_is_finite(physics_result.point) ||
+        !vector_is_finite(physics_result.cast_position))
+    {
+      continue;
+    }
 
     LN_PhysicsQueryResult result;
     result.hit = true;
     result.diagnostic_status = LN_QueryDiagnosticStatus::Hit;
     result.object_ref = MakeObjectRef(hit_object, hit_object->GetName());
     result.hit_position = physics_result.point;
-    result.hit_normal = physics_result.normal;
+    result.hit_normal = vector_is_finite(physics_result.normal) ? physics_result.normal :
+                                                                  MT_Vector3(0.0f, 0.0f, 0.0f);
     result.cast_position = physics_result.cast_position;
     result.ray_direction = direction;
-    result.hit_fraction = physics_result.fraction;
-    result.hit_distance = cast_length * physics_result.fraction;
-    result.penetration_depth = physics_result.penetration_depth;
+    result.hit_fraction = std::clamp(physics_result.fraction, 0.0f, 1.0f);
+    result.hit_distance = cast_length * result.hit_fraction;
+    result.penetration_depth = std::isfinite(physics_result.penetration_depth) ?
+                                   std::max(physics_result.penetration_depth, 0.0f) :
+                                   0.0f;
     result.polygon_index = physics_result.polygon_index;
-    result.has_uv = physics_result.has_uv;
-    result.hit_uv = physics_result.hit_uv;
+    result.has_uv = physics_result.has_uv && std::isfinite(physics_result.hit_uv.x()) &&
+                    std::isfinite(physics_result.hit_uv.y());
+    result.hit_uv = result.has_uv ? physics_result.hit_uv : MT_Vector2(0.0f, 0.0f);
     result.started_overlapping = physics_result.started_overlapping;
 
     const bool property_matches = property_name.empty() || hit_object->GetProperty(property_name);
@@ -4484,8 +5657,7 @@ const LN_Value *LN_RuntimeTree::GetTreePropertyValue(const uint32_t property_ref
 }
 
 const std::vector<LN_Value> *LN_RuntimeTree::DelayTreePropertySnapshotForGuard(
-    const uint32_t bool_expr_index,
-    const uint64_t tick_index) const
+    const uint32_t bool_expr_index, const uint64_t tick_index) const
 {
   if (bool_expr_index == LN_INVALID_INDEX || tick_index == UINT64_MAX || m_program == nullptr) {
     return nullptr;
@@ -4502,21 +5674,100 @@ const std::vector<LN_Value> *LN_RuntimeTree::DelayTreePropertySnapshotForGuard(
   }
 
   const TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(expression.int_value));
-  if (state == nullptr || state->pulse_tick != tick_index ||
-      !state->has_active_tree_properties)
-  {
+  if (state == nullptr || state->pulse_tick != tick_index || !state->has_active_tree_properties) {
     return nullptr;
   }
   return &state->active_tree_properties;
 }
 
-bool LN_RuntimeTree::SetTreePropertyValue(const uint32_t property_ref_index,
-                                          const LN_Value &value)
+bool LN_RuntimeTree::SetTreePropertyValue(const uint32_t property_ref_index, const LN_Value &value)
 {
   if (property_ref_index >= m_treeProperties.size()) {
     return false;
   }
   m_treeProperties[property_ref_index] = value;
+  return true;
+}
+
+void LN_RuntimeTree::CompletePersistenceOperation(const uint32_t expression_index,
+                                                  const bool success)
+{
+  if (m_program == nullptr || expression_index >= m_program->GetBoolExpressions().size()) {
+    return;
+  }
+  if (m_program->GetBoolExpressions()[expression_index].kind !=
+      LN_BoolExpressionKind::PersistenceCompleted)
+  {
+    return;
+  }
+  BoolExpressionRuntimeState &state = BoolExpressionState(expression_index);
+  constexpr uint8_t max_pending_results = 64;
+  if (state.pending_persistence_count < max_pending_results) {
+    if (success) {
+      state.pending_persistence_results |= uint64_t(1) << state.pending_persistence_count;
+    }
+    state.pending_persistence_count++;
+  }
+  else {
+    /* An unobserved output cannot consume pulses. Keep the queue bounded while retaining the
+     * latest result for when that output is observed again. */
+    const uint64_t newest_bit = uint64_t(1) << (max_pending_results - 1);
+    state.pending_persistence_results = success ? state.pending_persistence_results | newest_bit :
+                                                  state.pending_persistence_results & ~newest_bit;
+  }
+}
+
+bool LN_RuntimeTree::CanCompleteUIOperation(const uint32_t expression_index) const
+{
+  return m_program != nullptr && expression_index < m_program->GetBoolExpressions().size() &&
+         m_program->GetBoolExpressions()[expression_index].kind ==
+             LN_BoolExpressionKind::UICommandCompleted;
+}
+
+bool LN_RuntimeTree::ReadsUIOperation(const uint32_t expression_index) const
+{
+  /* The compiler marks a completion as observed only when one of its outputs is wired. */
+  return CanCompleteUIOperation(expression_index) &&
+         m_program->GetBoolExpressions()[expression_index].bool_value;
+}
+
+bool LN_RuntimeTree::CompleteUIOperation(const uint32_t expression_index,
+                                         const LN_UIResult result,
+                                         const int32_t handle)
+{
+  if (!CanCompleteUIOperation(expression_index)) {
+    return false;
+  }
+  /* An unobserved result is never read, so queueing it would only grow without bound. */
+  if (!ReadsUIOperation(expression_index)) {
+    return true;
+  }
+  UICommandCompletionState &state = m_uiCommandCompletions[expression_index];
+  /* Results are consumed one per tick. Keep the newest ones if a graph issues commands faster
+   * than it reads them, instead of refusing the command itself. */
+  constexpr size_t max_pending_results = 64;
+  if (state.pending.size() >= max_pending_results) {
+    state.pending.pop_front();
+  }
+  state.pending.push_back(UICommandCompletion{result, handle});
+  return true;
+}
+
+bool LN_RuntimeTree::CompleteActionOperation(const uint32_t expression_index,
+                                             const LN_ActionResult result)
+{
+  if (m_program == nullptr || expression_index >= m_program->GetBoolExpressions().size() ||
+      m_program->GetBoolExpressions()[expression_index].kind !=
+          LN_BoolExpressionKind::ActionLifecycleEvent)
+  {
+    return false;
+  }
+  ActionCompletionState &state = m_actionCompletions[expression_index];
+  constexpr size_t max_pending_results = 64;
+  if (state.pending.size() >= max_pending_results) {
+    return false;
+  }
+  state.pending.push_back(result);
   return true;
 }
 
@@ -4550,9 +5801,10 @@ KX_GameObject *LN_RuntimeTree::FindSceneObjectByName(const std::string &name,
     }
   }
 
+  /* In a player's copy of a menu, the menu's names mean that copy's objects. */
   if (LN_Manager *manager = scene->GetLogicNodeManager()) {
     if (KX_GameObject *object = manager->FindObjectByName(name)) {
-      return object;
+      return scene->OverlayCounterpart(object, m_gameObject);
     }
   }
 
@@ -4562,7 +5814,7 @@ KX_GameObject *LN_RuntimeTree::FindSceneObjectByName(const std::string &name,
 
   for (KX_GameObject *game_object : *scene->GetObjectList()) {
     if (game_object_matches_name(game_object, name)) {
-      return game_object;
+      return scene->OverlayCounterpart(game_object, m_gameObject);
     }
   }
 
@@ -4576,6 +5828,15 @@ KX_Camera *LN_RuntimeTree::GetActiveCamera() const
 {
   KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
   return scene ? scene->GetActiveCamera() : nullptr;
+}
+
+KX_GameObject *LN_RuntimeTree::ResolveLiveObjectValue(const LN_Value &value,
+                                                      const bool include_inactive) const
+{
+  if (value.type == LN_ValueType::ObjectRef && value.runtime_ref.IsValid()) {
+    return ResolveObjectRef(value.runtime_ref);
+  }
+  return ResolveObjectValue(value, include_inactive);
 }
 
 KX_GameObject *LN_RuntimeTree::ResolveObjectValue(const LN_Value &value,
@@ -4597,15 +5858,100 @@ KX_GameObject *LN_RuntimeTree::ResolveObjectValue(const LN_Value &value,
   return nullptr;
 }
 
-PHY_IPhysicsController *LN_RuntimeTree::ResolveRigidBodyAttributeController(
+void LN_RuntimeTree::ShareValue(LN_Value &value)
+{
+  switch (value.type) {
+    case LN_ValueType::ObjectRef:
+      if (value.runtime_ref.shared_domain == 0 && m_logicManager != nullptr) {
+        KX_GameObject *object = ResolveObjectValue(value);
+        value.runtime_ref = object ? m_logicManager->MakeSharedObjectRef(object,
+                                                                         value.reference_name) :
+                                     LN_RuntimeRef();
+      }
+      break;
+    case LN_ValueType::SceneRef:
+    case LN_ValueType::CollectionRef:
+    case LN_ValueType::DatablockRef:
+      /* Scene and datablock names are unique, so readers resolve these by name. */
+      value.runtime_ref = LN_RuntimeRef();
+      break;
+    case LN_ValueType::List:
+      for (LN_Value &item : value.list_value) {
+        ShareValue(item);
+      }
+      break;
+    case LN_ValueType::Dict:
+      for (auto &item : value.dict_value) {
+        ShareValue(item.second);
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+void LN_RuntimeTree::LocalizeValue(LN_Value &value)
+{
+  switch (value.type) {
+    case LN_ValueType::ObjectRef:
+      if (value.runtime_ref.shared_domain != 0) {
+        KX_GameObject *object = ResolveObjectRef(value.runtime_ref);
+        value.runtime_ref = object ? MakeObjectRef(object, value.reference_name) :
+                                     LN_RuntimeRef();
+      }
+      break;
+    case LN_ValueType::List:
+      for (LN_Value &item : value.list_value) {
+        LocalizeValue(item);
+      }
+      break;
+    case LN_ValueType::Dict:
+      for (auto &item : value.dict_value) {
+        LocalizeValue(item.second);
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+std::vector<LN_RuntimeRef> LN_RuntimeTree::ResolveIgnoreObjectRefs(
     const uint32_t object_expr_index,
+    const uint32_t list_expr_index,
     const LN_TickContext &context)
+{
+  std::vector<LN_RuntimeRef> refs;
+  std::unordered_set<KX_GameObject *> seen;
+  auto append_object = [&](KX_GameObject *object) {
+    if (!object || !seen.insert(object).second) {
+      return;
+    }
+    refs.push_back(MakeObjectRef(object, object->GetName()));
+  };
+
+  if (object_expr_index != LN_INVALID_INDEX) {
+    append_object(
+        ResolveObjectValue(ResolveValueExpression(object_expr_index, MakeNoneValue(), context)));
+  }
+  if (list_expr_index != LN_INVALID_INDEX) {
+    const LN_Value list = ResolveValueExpression(list_expr_index, MakeNoneValue(), context);
+    if (list.exists && list.type == LN_ValueType::List) {
+      refs.reserve(refs.size() + list.list_value.size());
+      for (const LN_Value &item : list.list_value) {
+        append_object(ResolveObjectValue(item));
+      }
+    }
+  }
+  return refs;
+}
+
+PHY_IPhysicsController *LN_RuntimeTree::ResolveRigidBodyAttributeController(
+    const uint32_t object_expr_index, const LN_TickContext &context)
 {
   KX_GameObject *target_object = m_gameObject;
   if (object_expr_index != LN_INVALID_INDEX) {
-    target_object = ResolveObjectValue(ResolveValueExpression(object_expr_index,
-                                                              MakeNoneValue(),
-                                                              context));
+    target_object = ResolveObjectValue(
+        ResolveValueExpression(object_expr_index, MakeNoneValue(), context));
   }
   if (target_object == nullptr) {
     return nullptr;
@@ -4617,6 +5963,180 @@ PHY_IPhysicsController *LN_RuntimeTree::ResolveRigidBodyAttributeController(
   return controller;
 }
 
+bool LN_RuntimeTree::ResolveRigidBodyConstraintBreakEventQuery(
+    const uint32_t object_expr_index,
+    const uint32_t constraint_name_expr_index,
+    const uint32_t match_any_expr_index,
+    const LN_RigidBodyConstraintMatchMode match_mode,
+    const LN_TickContext &context,
+    KX_GameObject *&r_owner,
+    std::string &r_constraint_name,
+    LN_RigidBodyConstraintMatchMode &r_match_mode)
+{
+  r_owner = nullptr;
+  r_constraint_name.clear();
+  r_match_mode = ValidRigidBodyConstraintMatchMode(match_mode);
+  if (m_logicManager == nullptr) {
+    return false;
+  }
+
+  r_owner = m_gameObject;
+  if (object_expr_index != LN_INVALID_INDEX) {
+    r_owner = ResolveObjectValue(
+        ResolveValueExpression(object_expr_index, MakeNoneValue(), context));
+  }
+  if (r_owner == nullptr) {
+    return false;
+  }
+
+  const bool match_any = match_any_expr_index != LN_INVALID_INDEX &&
+                         ResolveBoolExpression(match_any_expr_index, false, context);
+  if (match_any) {
+    r_match_mode = LN_RigidBodyConstraintMatchMode::All;
+    return true;
+  }
+
+  r_constraint_name = ResolveStringExpression(constraint_name_expr_index, std::string(), context);
+  return !r_constraint_name.empty();
+}
+
+const LN_RigidBodyConstraintBreakEvent *LN_RuntimeTree::ResolveRigidBodyConstraintBreakEvent(
+    const uint32_t object_expr_index,
+    const uint32_t constraint_name_expr_index,
+    const uint32_t match_any_expr_index,
+    const LN_RigidBodyConstraintMatchMode match_mode,
+    const LN_TickContext &context)
+{
+  KX_GameObject *owner = nullptr;
+  std::string constraint_name;
+  LN_RigidBodyConstraintMatchMode resolved_match_mode = LN_RigidBodyConstraintMatchMode::Exact;
+  if (!ResolveRigidBodyConstraintBreakEventQuery(object_expr_index,
+                                                 constraint_name_expr_index,
+                                                 match_any_expr_index,
+                                                 match_mode,
+                                                 context,
+                                                 owner,
+                                                 constraint_name,
+                                                 resolved_match_mode))
+  {
+    return nullptr;
+  }
+  return m_logicManager->FindRigidBodyConstraintBreakEvent(
+      owner, constraint_name, resolved_match_mode);
+}
+
+int32_t LN_RuntimeTree::ResolveRigidBodyConstraintBreakEventCount(
+    const uint32_t object_expr_index,
+    const uint32_t constraint_name_expr_index,
+    const uint32_t match_any_expr_index,
+    const LN_RigidBodyConstraintMatchMode match_mode,
+    const LN_TickContext &context)
+{
+  KX_GameObject *owner = nullptr;
+  std::string constraint_name;
+  LN_RigidBodyConstraintMatchMode resolved_match_mode = LN_RigidBodyConstraintMatchMode::Exact;
+  if (!ResolveRigidBodyConstraintBreakEventQuery(object_expr_index,
+                                                 constraint_name_expr_index,
+                                                 match_any_expr_index,
+                                                 match_mode,
+                                                 context,
+                                                 owner,
+                                                 constraint_name,
+                                                 resolved_match_mode))
+  {
+    return 0;
+  }
+
+  if (resolved_match_mode == LN_RigidBodyConstraintMatchMode::All) {
+    return int32_t(std::min<uint32_t>(m_logicManager->RigidBodyConstraintBreakEventCount(owner),
+                                      uint32_t(std::numeric_limits<int32_t>::max())));
+  }
+
+  uint32_t count = 0;
+  for (uint32_t event_index = m_logicManager->FirstRigidBodyConstraintBreakEventIndex(owner);
+       event_index != LN_INVALID_INDEX;
+       event_index = m_logicManager->NextRigidBodyConstraintBreakEventIndex(event_index))
+  {
+    const LN_RigidBodyConstraintBreakEvent *event =
+        m_logicManager->RigidBodyConstraintBreakEventAt(event_index);
+    if (event != nullptr && RigidBodyConstraintNameMatches(
+                                event->constraint_name, constraint_name, resolved_match_mode))
+    {
+      if (count == uint32_t(std::numeric_limits<int32_t>::max())) {
+        return std::numeric_limits<int32_t>::max();
+      }
+      count++;
+    }
+  }
+  return int32_t(count);
+}
+
+LN_Value LN_RuntimeTree::ResolveRigidBodyConstraintBreakEvents(
+    const uint32_t object_expr_index,
+    const uint32_t constraint_name_expr_index,
+    const uint32_t match_any_expr_index,
+    const LN_RigidBodyConstraintMatchMode match_mode,
+    const LN_TickContext &context)
+{
+  LN_Value events;
+  events.type = LN_ValueType::List;
+  events.exists = true;
+
+  KX_GameObject *owner = nullptr;
+  std::string constraint_name;
+  LN_RigidBodyConstraintMatchMode resolved_match_mode = LN_RigidBodyConstraintMatchMode::Exact;
+  if (!ResolveRigidBodyConstraintBreakEventQuery(object_expr_index,
+                                                 constraint_name_expr_index,
+                                                 match_any_expr_index,
+                                                 match_mode,
+                                                 context,
+                                                 owner,
+                                                 constraint_name,
+                                                 resolved_match_mode))
+  {
+    return events;
+  }
+
+  /* Exact matching is normally unique. Do not reserve every event on this
+   * owner for an exact-name query: a large simultaneous break batch with a
+   * single name match should not allocate a large, mostly unused list. */
+  if (resolved_match_mode == LN_RigidBodyConstraintMatchMode::All) {
+    events.list_value.reserve(m_logicManager->RigidBodyConstraintBreakEventCount(owner));
+  }
+  else if (resolved_match_mode == LN_RigidBodyConstraintMatchMode::Exact &&
+           m_logicManager->FindRigidBodyConstraintBreakEvent(
+               owner, constraint_name, resolved_match_mode) != nullptr)
+  {
+    events.list_value.reserve(1);
+  }
+  for (uint32_t event_index = m_logicManager->FirstRigidBodyConstraintBreakEventIndex(owner);
+       event_index != LN_INVALID_INDEX;
+       event_index = m_logicManager->NextRigidBodyConstraintBreakEventIndex(event_index))
+  {
+    const LN_RigidBodyConstraintBreakEvent *event =
+        m_logicManager->RigidBodyConstraintBreakEventAt(event_index);
+    if (event == nullptr || !RigidBodyConstraintNameMatches(
+                                event->constraint_name, constraint_name, resolved_match_mode))
+    {
+      continue;
+    }
+
+    LN_Value record;
+    record.type = LN_ValueType::Dict;
+    record.exists = true;
+    record.dict_value.emplace("constraint_name", MakeStringValue(event->constraint_name));
+    record.dict_value.emplace(
+        "target_object",
+        MakeObjectValue(this, m_logicManager->ResolveObjectHandle(event->target)));
+    record.dict_value.emplace("anchor_position", MakeVectorValue(event->anchor_position));
+    record.dict_value.emplace("linear_impulse", MakeFloatValue(event->linear_impulse));
+    record.dict_value.emplace("angular_impulse", MakeFloatValue(event->angular_impulse));
+    record.dict_value.emplace("applied_impulse", MakeFloatValue(event->applied_impulse));
+    events.list_value.push_back(std::move(record));
+  }
+  return events;
+}
+
 KX_Camera *LN_RuntimeTree::ResolveCameraValue(const LN_Value &value) const
 {
   return dynamic_cast<KX_Camera *>(ResolveObjectValue(value));
@@ -4626,35 +6146,7 @@ bool LN_RuntimeTree::ProjectWorldToScreen(KX_Camera *camera,
                                           const MT_Vector3 &world_position,
                                           MT_Vector3 &r_screen_position) const
 {
-  if (camera == nullptr) {
-    return false;
-  }
-
-  const MT_Matrix4x4 world_to_camera(camera->GetWorldToCamera());
-  const MT_Matrix4x4 projection = camera->GetProjectionMatrix();
-  const MT_Vector4 world_position_h(world_position.x(),
-                                    world_position.y(),
-                                    world_position.z(),
-                                    1.0f);
-  const MT_Vector4 camera_position = world_to_camera * world_position_h;
-  const MT_Vector4 clip_position = projection * camera_position;
-  if (std::fabs(clip_position[3]) <= MT_EPSILON) {
-    return false;
-  }
-
-  const float ndc_x = clip_position[0] / clip_position[3];
-  const float ndc_y = clip_position[1] / clip_position[3];
-  const float ndc_z = clip_position[2] / clip_position[3];
-
-  if (clip_position[3] <= 0.0f || ndc_z > 1.0f) {
-    r_screen_position = MT_Vector3(FLT_MAX, FLT_MAX, 0.0f);
-    return true;
-  }
-
-  r_screen_position = MT_Vector3((ndc_x + 1.0f) * 0.5f,
-                                 1.0f - ((ndc_y + 1.0f) * 0.5f),
-                                 0.0f);
-  return true;
+  return LN_ProjectWorldToScreen(camera, world_position, r_screen_position);
 }
 
 bool LN_RuntimeTree::ProjectScreenToWorld(KX_Camera *camera,
@@ -4671,7 +6163,7 @@ bool LN_RuntimeTree::ProjectScreenToWorld(KX_Camera *camera,
   const float ndc_y = (1.0f - screen_y) * 2.0f - 1.0f;
 
   MT_Matrix4x4 inverse_projection = camera->GetProjectionMatrix();
-  inverse_projection.inverse();
+  inverse_projection.invert();
   const MT_Matrix4x4 camera_to_world(camera->GetCameraToWorld());
   const MT_Vector4 near_clip(ndc_x, ndc_y, 0.0f, 1.0f);
   const MT_Vector4 far_clip(ndc_x, ndc_y, 1.0f, 1.0f);
@@ -4684,12 +6176,10 @@ bool LN_RuntimeTree::ProjectScreenToWorld(KX_Camera *camera,
   }
 
   const MT_Vector3 camera_position = camera->NodeGetWorldPosition();
-  const MT_Vector3 near_position(near_world[0] / near_world[3],
-                                 near_world[1] / near_world[3],
-                                 near_world[2] / near_world[3]);
-  const MT_Vector3 far_position(far_world[0] / far_world[3],
-                                far_world[1] / far_world[3],
-                                far_world[2] / far_world[3]);
+  const MT_Vector3 near_position(
+      near_world[0] / near_world[3], near_world[1] / near_world[3], near_world[2] / near_world[3]);
+  const MT_Vector3 far_position(
+      far_world[0] / far_world[3], far_world[1] / far_world[3], far_world[2] / far_world[3]);
   if (camera->GetCameraData()->m_perspective) {
     MT_Vector3 ray_direction = camera_position - near_position;
     if (ray_direction.length2() <= (MT_EPSILON * MT_EPSILON)) {
@@ -4711,10 +6201,90 @@ bool LN_RuntimeTree::ProjectScreenToWorld(KX_Camera *camera,
   return true;
 }
 
-bool LN_RuntimeTree::ComputeMouseRay(const float distance, MT_Vector3 &r_from, MT_Vector3 &r_to) const
+bool LN_RuntimeTree::ProjectCanvasPixelToWorld(KX_Camera *camera,
+                                               const float pixel_x,
+                                               const float pixel_y,
+                                               const float depth,
+                                               MT_Vector3 &r_world_position) const
 {
-  KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
-  KX_Camera *camera = scene ? scene->GetActiveCamera() : nullptr;
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  RAS_ICanvas *canvas = engine ? engine->GetCanvas() : nullptr;
+  RAS_Rasterizer *rasterizer = engine ? engine->GetRasterizer() : nullptr;
+  KX_Scene *scene = camera ? camera->GetScene() : nullptr;
+  if (camera == nullptr || canvas == nullptr || rasterizer == nullptr || scene == nullptr ||
+      canvas->GetWidth() <= 0 || canvas->GetHeight() <= 0 || !std::isfinite(pixel_x) ||
+      !std::isfinite(pixel_y) || !std::isfinite(depth) || depth < 0.0f)
+  {
+    return false;
+  }
+
+  const RAS_Rect display_area = rasterizer->GetRenderArea(canvas,
+                                                          RAS_Rasterizer::RAS_STEREO_LEFTEYE);
+  RAS_Rect camera_area;
+  RAS_Rect viewport;
+  engine->GetSceneViewport(scene, camera, display_area, camera_area, viewport);
+  if (viewport.GetWidth() <= 0 || viewport.GetHeight() <= 0) {
+    return false;
+  }
+
+  const float pixel_y_bottom = float(canvas->GetHeight()) - pixel_y;
+  const int drawn_extra = LN_CameraViewportDrawnExtra(camera);
+  const float ndc_x = 2.0f * ((pixel_x - float(viewport.GetLeft())) /
+                              float(viewport.GetWidth() + drawn_extra)) -
+                      1.0f;
+  const float ndc_y = 2.0f * ((pixel_y_bottom - float(viewport.GetBottom())) /
+                              float(viewport.GetHeight() + drawn_extra)) -
+                      1.0f;
+  const MT_Matrix4x4 projection = engine->GetCameraProjectionMatrix(
+      scene, camera, RAS_Rasterizer::RAS_STEREO_LEFTEYE, viewport, camera_area);
+  MT_Matrix4x4 inverse_projection = projection;
+  inverse_projection.invert();
+  const MT_Vector4 near_camera = inverse_projection * MT_Vector4(ndc_x, ndc_y, -1.0f, 1.0f);
+  const MT_Vector4 far_camera = inverse_projection * MT_Vector4(ndc_x, ndc_y, 1.0f, 1.0f);
+  const MT_Matrix4x4 camera_to_world(camera->GetCameraToWorld());
+  const MT_Vector4 near_world = camera_to_world * near_camera;
+  const MT_Vector4 far_world = camera_to_world * far_camera;
+  if (std::fabs(near_world[3]) <= MT_EPSILON || std::fabs(far_world[3]) <= MT_EPSILON) {
+    return false;
+  }
+
+  const MT_Vector3 near_position(
+      near_world[0] / near_world[3], near_world[1] / near_world[3], near_world[2] / near_world[3]);
+  const MT_Vector3 far_position(
+      far_world[0] / far_world[3], far_world[1] / far_world[3], far_world[2] / far_world[3]);
+  const MT_Vector3 origin = camera->GetCameraData()->m_perspective ?
+                                camera->NodeGetWorldPosition() :
+                                near_position;
+  MT_Vector3 direction = camera->GetCameraData()->m_perspective ? near_position - origin :
+                                                                  far_position - near_position;
+  if (direction.length2() <= MT_EPSILON * MT_EPSILON) {
+    return false;
+  }
+  direction.normalize();
+  r_world_position = origin + direction * depth;
+  return std::isfinite(r_world_position.x()) && std::isfinite(r_world_position.y()) &&
+         std::isfinite(r_world_position.z());
+}
+
+KX_Camera *LN_RuntimeTree::PointerWorldCamera(KX_Scene *scene,
+                                              const KX_GameObject *target) const
+{
+  if (scene == nullptr) {
+    return nullptr;
+  }
+  const LN_MouseSnapshot &mouse = m_snapshot.GetInputSnapshot().GetMouse();
+  if (!mouse.has_position || m_logicManager == nullptr) {
+    return scene->GetActiveCamera();
+  }
+  return m_logicManager->GetUIService().WorldPointerCameraFor(
+      target, float(mouse.x), float(mouse.y));
+}
+
+bool LN_RuntimeTree::ComputeMouseRay(KX_Camera *camera,
+                                     const float distance,
+                                     MT_Vector3 &r_from,
+                                     MT_Vector3 &r_to) const
+{
   if (camera == nullptr) {
     return false;
   }
@@ -4723,96 +6293,15 @@ bool LN_RuntimeTree::ComputeMouseRay(const float distance, MT_Vector3 &r_from, M
   if (!mouse.has_position) {
     return false;
   }
-
-  KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  RAS_ICanvas *canvas = engine ? engine->GetCanvas() : nullptr;
-  if (canvas == nullptr || canvas->GetWidth() <= 0 || canvas->GetHeight() <= 0)
-  {
-    return false;
-  }
-
-  const RAS_Rect viewport = canvas->GetViewportArea();
-  if (viewport.GetWidth() <= 0 || viewport.GetHeight() <= 0) {
-    return false;
-  }
-
-  const float mouse_x = float(mouse.x);
-  const float mouse_y = float(mouse.y);
-  if (mouse_x < 0.0f || mouse_x > float(canvas->GetWidth()) || mouse_y < 0.0f ||
-      mouse_y > float(canvas->GetHeight()))
-  {
-    return false;
-  }
-
-  const float win_x = mouse_x + float(viewport.GetLeft());
-  const float win_y = float(viewport.GetHeight()) - mouse_y + float(viewport.GetBottom());
-  const float ndc_x = 2.0f * ((win_x - float(viewport.GetLeft())) / float(viewport.GetWidth())) -
-                      1.0f;
-  const float ndc_y = 2.0f * ((win_y - float(viewport.GetBottom())) / float(viewport.GetHeight())) -
-                      1.0f;
-  const float ndc_z = -1.0f;
-
-  float projection_values[4][4];
-  camera->GetProjectionMatrix().getValue((float *)projection_values);
-  MT_Vector3 camera_space_point;
-  if (projection_values[3][3] == 0.0f) {
-    const float divisor = projection_values[2][2] + ndc_z;
-    if (std::fabs(divisor) <= MT_EPSILON || std::fabs(projection_values[0][0]) <= MT_EPSILON ||
-        std::fabs(projection_values[1][1]) <= MT_EPSILON)
-    {
-      return false;
-    }
-    camera_space_point[2] = projection_values[3][2] / divisor;
-    camera_space_point[0] = camera_space_point[2] *
-                            ((projection_values[2][0] + ndc_x) / projection_values[0][0]);
-    camera_space_point[1] = camera_space_point[2] *
-                            ((projection_values[2][1] + ndc_y) / projection_values[1][1]);
-    camera_space_point[2] *= -1.0f;
-  }
-  else {
-    if (std::fabs(projection_values[0][0]) <= MT_EPSILON ||
-        std::fabs(projection_values[1][1]) <= MT_EPSILON ||
-        std::fabs(projection_values[2][2]) <= MT_EPSILON)
-    {
-      return false;
-    }
-    camera_space_point[0] = (-projection_values[3][0] + ndc_x) / projection_values[0][0];
-    camera_space_point[1] = (-projection_values[3][1] + ndc_y) / projection_values[1][1];
-    camera_space_point[2] = (-projection_values[3][2] + ndc_z) / projection_values[2][2];
-  }
-  if (!std::isfinite(camera_space_point.x()) || !std::isfinite(camera_space_point.y()) ||
-      !std::isfinite(camera_space_point.z()))
-  {
-    return false;
-  }
-
-  const MT_Vector4 near_world = MT_Matrix4x4(camera->GetCameraToWorld()) *
-                                MT_Vector4(camera_space_point.x(),
-                                           camera_space_point.y(),
-                                           camera_space_point.z(),
-                                           1.0f);
-  if (std::fabs(near_world[3]) <= MT_EPSILON) {
-    return false;
-  }
-  const MT_Vector3 near_position(near_world[0] / near_world[3],
-                                 near_world[1] / near_world[3],
-                                 near_world[2] / near_world[3]);
-  if (camera->GetCameraData()->m_perspective) {
-    r_from = camera->NodeGetWorldPosition();
-  }
-  else {
-    r_from = near_position;
-  }
-
-  MT_Vector3 direction = camera->GetCameraData()->m_perspective ?
-                             near_position - r_from :
-                             -camera->NodeGetWorldOrientation().getColumn(2);
-  if (direction.length2() <= MT_EPSILON * MT_EPSILON) {
-    return false;
-  }
-  direction.normalize();
-  r_to = r_from + direction * std::max(distance, 0.0f);
-  return true;
+  /* A drag held in this camera's view goes on past it into another player's view. */
+  return LN_ComputeCameraPointerRay(
+      camera,
+      float(mouse.x),
+      float(mouse.y),
+      distance,
+      r_from,
+      r_to,
+      m_logicManager != nullptr && m_logicManager->GetUIService().HoldsPointerInView(camera));
 }
 
 void LN_RuntimeTree::EnsureInstructionStateSize()
@@ -4824,6 +6313,7 @@ void LN_RuntimeTree::EnsureInstructionStateSize()
 
   const size_t instruction_count =
       m_program->GetInstructionHeaders(LN_Event::OnInit).size() +
+      m_program->GetInstructionHeaders(LN_Event::OnUpdate).size() +
       m_program->GetInstructionHeaders(LN_Event::OnFixedUpdate).size();
   m_instructionStates.assign(instruction_count, InstructionRuntimeState{});
 }
@@ -4884,8 +6374,23 @@ void LN_RuntimeTree::EnsureTimeFlowStateSize(const bool preserve_existing)
   m_timeFlowStates.assign(state_count, TimeFlowRuntimeState{});
 }
 
-LN_RuntimeTree::TimeFlowRuntimeState *LN_RuntimeTree::FindTimeFlowState(
-    const uint32_t state_index)
+void LN_RuntimeTree::EnsureFlowControlStateSize(const bool preserve_existing)
+{
+  if (m_program == nullptr) {
+    m_flowControlStates.clear();
+    return;
+  }
+
+  const size_t state_count = m_program->GetFlowControlStateCount();
+  if (preserve_existing) {
+    m_flowControlStates.resize(state_count);
+    return;
+  }
+
+  m_flowControlStates.assign(state_count, FlowControlRuntimeState{});
+}
+
+LN_RuntimeTree::TimeFlowRuntimeState *LN_RuntimeTree::FindTimeFlowState(const uint32_t state_index)
 {
   if (state_index >= m_timeFlowStates.size()) {
     return nullptr;
@@ -4902,6 +6407,24 @@ const LN_RuntimeTree::TimeFlowRuntimeState *LN_RuntimeTree::FindTimeFlowState(
   return &m_timeFlowStates[state_index];
 }
 
+LN_RuntimeTree::FlowControlRuntimeState *LN_RuntimeTree::FindFlowControlState(
+    const uint32_t state_index)
+{
+  if (state_index >= m_flowControlStates.size()) {
+    return nullptr;
+  }
+  return &m_flowControlStates[state_index];
+}
+
+const LN_RuntimeTree::FlowControlRuntimeState *LN_RuntimeTree::FindFlowControlState(
+    const uint32_t state_index) const
+{
+  if (state_index >= m_flowControlStates.size()) {
+    return nullptr;
+  }
+  return &m_flowControlStates[state_index];
+}
+
 void LN_RuntimeTree::TickLatentTimeFlowStates(const LN_TickContext &context)
 {
   if (m_timeFlowStates.empty() || context.tick_index == UINT64_MAX) {
@@ -4909,8 +6432,21 @@ void LN_RuntimeTree::TickLatentTimeFlowStates(const LN_TickContext &context)
   }
 
   for (TimeFlowRuntimeState &state : m_timeFlowStates) {
+    if (state.event != context.event || (m_uiEventRoutesOnly && !state.ui_event_route)) {
+      continue;
+    }
+
     const double step = TimeFlowStep(context, state.ignore_timescale);
     switch (state.kind) {
+      case TimeFlowRuntimeKind::NextFrame:
+        if (state.pulse_tick != context.tick_index) {
+          state.pulse_tick = UINT64_MAX;
+        }
+        if (state.active && state.last_update_tick != context.tick_index) {
+          state.active = false;
+          state.pulse_tick = context.tick_index;
+        }
+        break;
       case TimeFlowRuntimeKind::Timer:
         if (!state.active || step <= 0.0) {
           break;
@@ -4949,17 +6485,15 @@ void LN_RuntimeTree::TickLatentTimeFlowStates(const LN_TickContext &context)
         }
 
         state.active = !state.pending_pulses.empty();
-        state.remaining_time = state.active ?
-                                   state.pending_pulses.front().remaining_time :
-                                   0.0;
+        state.remaining_time = state.active ? state.pending_pulses.front().remaining_time : 0.0;
         for (const TimeFlowRuntimeState::PendingPulse &pulse : state.pending_pulses) {
           state.remaining_time = std::min(state.remaining_time, pulse.remaining_time);
         }
         break;
       }
       case TimeFlowRuntimeKind::Barrier:
-        if (state.active && state.last_update_tick != UINT64_MAX &&
-            state.last_update_tick + 1 < context.tick_index)
+        if (state.active &&
+            PhaseTickWasSkipped(state.last_update_phase_tick, context.phase_tick_index))
         {
           state.active = false;
           state.accumulated_time = 0.0;
@@ -4974,6 +6508,7 @@ void LN_RuntimeTree::TickLatentTimeFlowStates(const LN_TickContext &context)
         }
 
         state.last_update_tick = context.tick_index;
+        state.last_update_phase_tick = context.phase_tick_index;
         if (step <= 0.0) {
           break;
         }
@@ -5009,49 +6544,6 @@ LN_RuntimeTree::QueryExpressionRuntimeState &LN_RuntimeTree::QueryExpressionStat
     m_queryExpressionStates.resize(size_t(state_index) + 1);
   }
   return m_queryExpressionStates[state_index];
-}
-
-void LN_RuntimeTree::EnsureSpawnPoolStateSize(const bool preserve_existing)
-{
-  if (m_program == nullptr) {
-    m_spawnPools.clear();
-    return;
-  }
-
-  const size_t state_count = m_program->GetSpawnPoolStateCount();
-  if (preserve_existing) {
-    m_spawnPools.resize(state_count);
-    return;
-  }
-
-  m_spawnPools.assign(state_count, SpawnPoolRuntimeState{});
-}
-
-LN_RuntimeTree::SpawnPoolRuntimeState *LN_RuntimeTree::FindSpawnPoolState(
-    const uint32_t state_index)
-{
-  if (state_index >= m_spawnPools.size()) {
-    return nullptr;
-  }
-  return &m_spawnPools[state_index];
-}
-
-const LN_RuntimeTree::SpawnPoolRuntimeState *LN_RuntimeTree::FindSpawnPoolState(
-    const uint32_t state_index) const
-{
-  if (state_index >= m_spawnPools.size()) {
-    return nullptr;
-  }
-  return &m_spawnPools[state_index];
-}
-
-LN_RuntimeTree::SpawnPoolRuntimeState &LN_RuntimeTree::EnsureSpawnPoolState(
-    const uint32_t state_index)
-{
-  if (state_index >= m_spawnPools.size()) {
-    m_spawnPools.resize(size_t(state_index) + 1);
-  }
-  return m_spawnPools[state_index];
 }
 
 void LN_RuntimeTree::EnsureTreePropertyStateSize(const bool preserve_existing)
@@ -5180,8 +6672,12 @@ uint32_t LN_RuntimeTree::InstructionStateIndex(const LN_Event event,
   }
 
   uint32_t offset = 0;
-  if (event == LN_Event::OnFixedUpdate) {
+  if (event == LN_Event::OnUpdate) {
     offset = uint32_t(m_program->GetInstructionHeaders(LN_Event::OnInit).size());
+  }
+  else if (event == LN_Event::OnFixedUpdate) {
+    offset = uint32_t(m_program->GetInstructionHeaders(LN_Event::OnInit).size() +
+                      m_program->GetInstructionHeaders(LN_Event::OnUpdate).size());
   }
   return offset + instruction_index;
 }
@@ -5208,9 +6704,7 @@ void LN_RuntimeTree::ProfileInstructionDispatch(const LN_Instruction &instructio
   m_activeProfileCounters->instruction_dispatch_count++;
   const LN_RuntimeInstructionSemantics *semantics = LN_GetRuntimeInstructionSemantics(
       instruction.opcode);
-  if (semantics != nullptr &&
-      semantics->fallback_requirements != LN_RUNTIME_FALLBACK_NONE)
-  {
+  if (semantics != nullptr && semantics->fallback_requirements != LN_RUNTIME_FALLBACK_NONE) {
     m_activeProfileCounters->fallback_path_count++;
   }
 }
@@ -5237,18 +6731,18 @@ void LN_RuntimeTree::RecordMissingSnapshotChannelsForExpression(
   }
 
   const LN_SnapshotCaptureStats &stats = m_snapshot.GetCaptureStats();
-  const LN_SnapshotChannelMask declared_channels =
-      stats.declared_channels != LN_SNAPSHOT_CHANNEL_NONE ?
-          stats.declared_channels :
-          LN_SnapshotChannelMaskForProgram(m_program.get());
+  const LN_SnapshotChannelMask declared_channels = stats.declared_channels !=
+                                                           LN_SNAPSHOT_CHANNEL_NONE ?
+                                                       stats.declared_channels :
+                                                       LN_SnapshotChannelMaskForProgram(
+                                                           m_program.get());
   const LN_SnapshotChannelMask missing_channels = declared_channels & ~stats.captured_channels;
   if (missing_channels == LN_SNAPSHOT_CHANNEL_NONE) {
     return;
   }
 
   std::ostringstream debug_name;
-  debug_name << semantics.name << " missing_snapshot_channels=0x" << std::hex
-             << missing_channels;
+  debug_name << semantics.name << " missing_snapshot_channels=0x" << std::hex << missing_channels;
   RecordRuntimeSystemFallback(
       LN_RuntimeFallbackReason::MissingSnapshotChannel,
       debug_name.str(),
@@ -5289,7 +6783,8 @@ void LN_RuntimeTree::RecordRuntimeFallbackInstruction(const LN_Event event,
         "Implement direct exec-block support for the enclosing runtime control-flow block.";
 
     m_runtimeFallbackReport.optimized_execution_partial = true;
-    m_runtimeFallbackReport.reason_mask |= 1u << uint8_t(LN_RuntimeFallbackReason::UnsupportedOpcode);
+    m_runtimeFallbackReport.reason_mask |= 1u
+                                           << uint8_t(LN_RuntimeFallbackReason::UnsupportedOpcode);
 
     for (RuntimeFallbackHit &hit : m_runtimeFallbackReport.hits) {
       if (hit.opcode == instruction.opcode &&
@@ -5362,14 +6857,16 @@ void LN_RuntimeTree::RecordRegisterExpressionFallback(const LN_RuntimeExpression
         return;
       }
       kind = uint32_t(m_program->GetBoolExpressions()[expression_index].kind);
-      semantics = LN_GetRuntimeExpressionSemantics(m_program->GetBoolExpressions()[expression_index].kind);
+      semantics = LN_GetRuntimeExpressionSemantics(
+          m_program->GetBoolExpressions()[expression_index].kind);
       break;
     case LN_RuntimeExpressionFamily::Int:
       if (expression_index >= m_program->GetIntExpressions().size()) {
         return;
       }
       kind = uint32_t(m_program->GetIntExpressions()[expression_index].kind);
-      semantics = LN_GetRuntimeExpressionSemantics(m_program->GetIntExpressions()[expression_index].kind);
+      semantics = LN_GetRuntimeExpressionSemantics(
+          m_program->GetIntExpressions()[expression_index].kind);
       break;
     case LN_RuntimeExpressionFamily::Float:
       if (expression_index >= m_program->GetFloatExpressions().size()) {
@@ -5421,19 +6918,18 @@ void LN_RuntimeTree::RecordRegisterExpressionFallback(const LN_RuntimeExpression
       break;
   }
 
-  const LN_Phase10ExpressionFallbackDiagnostic *diagnostic =
-      FindExpressionFallbackDiagnostic(family, kind);
+  const LN_Phase10ExpressionFallbackDiagnostic *diagnostic = FindExpressionFallbackDiagnostic(
+      family, kind);
   if (diagnostic == nullptr && semantics.fallback_requirements == LN_RUNTIME_FALLBACK_NONE) {
     return;
   }
   const LN_RuntimeFallbackReason reason = diagnostic != nullptr ?
-                                             diagnostic->reason :
-                                             FallbackReasonFromRequirements(
-                                                 semantics.fallback_requirements);
+                                              diagnostic->reason :
+                                              FallbackReasonFromRequirements(
+                                                  semantics.fallback_requirements);
   const char *expression_name = diagnostic != nullptr ? diagnostic->name : semantics.name;
-  const char *profile_counter_name = diagnostic != nullptr ?
-                                         diagnostic->profile_counter_name :
-                                         "register_expression_fallback_count";
+  const char *profile_counter_name = diagnostic != nullptr ? diagnostic->profile_counter_name :
+                                                             "register_expression_fallback_count";
   const char *removal_condition =
       diagnostic != nullptr ?
           diagnostic->removal_condition :
@@ -5529,6 +7025,7 @@ static bool RegisterOpHasFloatSimdKernel(const LN_RegisterExpressionOpKind kind)
     case LN_RegisterExpressionOpKind::FloatSubtract:
     case LN_RegisterExpressionOpKind::FloatMultiply:
     case LN_RegisterExpressionOpKind::FloatDivide:
+    case LN_RegisterExpressionOpKind::FloatSafeDivide:
     case LN_RegisterExpressionOpKind::FloatMinimum:
     case LN_RegisterExpressionOpKind::FloatMaximum:
       return true;
@@ -5550,6 +7047,8 @@ static float EvaluateRegisterFloatKernel(const LN_RegisterExpressionOpKind kind,
       return a * b;
     case LN_RegisterExpressionOpKind::FloatDivide:
       return std::fabs(b) <= 1.0e-20f ? 0.0f : a / b;
+    case LN_RegisterExpressionOpKind::FloatSafeDivide:
+      return b == 0.0f ? 0.0f : a / b;
     case LN_RegisterExpressionOpKind::FloatMinimum:
       return std::min(a, b);
     case LN_RegisterExpressionOpKind::FloatMaximum:
@@ -5567,8 +7066,8 @@ bool LN_RuntimeTree::TryEvaluateRegisterExpressionSoABatch(const uint32_t expres
   }
 
   const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  if (!ir.valid || (m_activeProfileCounters == nullptr &&
-                    !m_registerExpressionIRHasProductionBenefit) ||
+  if (!ir.valid ||
+      (m_activeProfileCounters == nullptr && !m_registerExpressionIRHasProductionBenefit) ||
       expression_index >= ir.float_expression_registers.size())
   {
     return false;
@@ -5578,9 +7077,7 @@ bool LN_RuntimeTree::TryEvaluateRegisterExpressionSoABatch(const uint32_t expres
   if (reg == LN_INVALID_INDEX || reg >= m_registerExpressionState.float_valid.size()) {
     return false;
   }
-  if (m_registerExpressionState.float_valid[reg] ==
-      m_registerExpressionState.active_generation)
-  {
+  if (m_registerExpressionState.float_valid[reg] == m_registerExpressionState.active_generation) {
     return true;
   }
 
@@ -5595,8 +7092,7 @@ bool LN_RuntimeTree::TryEvaluateRegisterExpressionSoABatch(const uint32_t expres
     bool contains_expression = false;
     for (uint32_t op_index = batch.first_op_index; op_index < batch_end; op_index++) {
       const LN_RegisterExpressionOp &op = ir.ops[op_index];
-      if (op.output_kind == LN_RegisterValueKind::Float &&
-          op.expression_index == expression_index)
+      if (op.output_kind == LN_RegisterValueKind::Float && op.expression_index == expression_index)
       {
         contains_expression = true;
         break;
@@ -5653,14 +7149,12 @@ bool LN_RuntimeTree::TryEvaluateRegisterFloatSoABatch(const LN_RegisterExpressio
     float left[4];
     float right[4];
     for (uint32_t lane_offset = 0; lane_offset < 4u; lane_offset++) {
-      const LN_RegisterExpressionOp &op = ir.ops[batch.first_op_index + processed_lanes +
-                                                 lane_offset];
-      if (!TryResolveRegisterFloatExpression(op.input0.expression_index,
-                                             context,
-                                             left[lane_offset]) ||
-          !TryResolveRegisterFloatExpression(op.input1.expression_index,
-                                             context,
-                                             right[lane_offset]))
+      const LN_RegisterExpressionOp &op =
+          ir.ops[batch.first_op_index + processed_lanes + lane_offset];
+      if (!TryResolveRegisterFloatExpression(
+              op.input0.expression_index, context, left[lane_offset]) ||
+          !TryResolveRegisterFloatExpression(
+              op.input1.expression_index, context, right[lane_offset]))
       {
         return false;
       }
@@ -5681,10 +7175,28 @@ bool LN_RuntimeTree::TryEvaluateRegisterFloatSoABatch(const LN_RegisterExpressio
         break;
       case LN_RegisterExpressionOpKind::FloatDivide: {
         const __m128 zero = _mm_setzero_ps();
+        const __m128 one = _mm_set1_ps(1.0f);
         const __m128 epsilon = _mm_set1_ps(1.0e-20f);
         const __m128 abs_b = _mm_max_ps(b, _mm_sub_ps(zero, b));
-        const __m128 valid_divisor = _mm_cmpgt_ps(abs_b, epsilon);
-        value = _mm_and_ps(_mm_div_ps(a, b), valid_divisor);
+        /* The scalar guard treats NaN as a non-zero divisor and therefore propagates NaN. Keep
+         * SIMD behavior identical while substituting one only for finite near-zero lanes. */
+        const __m128 valid_divisor = _mm_or_ps(_mm_cmpgt_ps(abs_b, epsilon),
+                                               _mm_cmpunord_ps(b, b));
+        const __m128 safe_divisor = _mm_or_ps(_mm_and_ps(valid_divisor, b),
+                                              _mm_andnot_ps(valid_divisor, one));
+        value = _mm_and_ps(_mm_div_ps(a, safe_divisor), valid_divisor);
+        break;
+      }
+      case LN_RegisterExpressionOpKind::FloatSafeDivide: {
+        const __m128 zero = _mm_setzero_ps();
+        const __m128 one = _mm_set1_ps(1.0f);
+        const __m128 valid_divisor = _mm_cmpneq_ps(b, zero);
+        /* SSE2 division has no per-lane mask. Substitute one in zero-divisor lanes before the
+         * divide so safe-divide does not raise a spurious floating-point divide-by-zero exception,
+         * then clear those lanes to Blender's exact +0 result. */
+        const __m128 safe_divisor = _mm_or_ps(_mm_and_ps(valid_divisor, b),
+                                              _mm_andnot_ps(valid_divisor, one));
+        value = _mm_and_ps(_mm_div_ps(a, safe_divisor), valid_divisor);
         break;
       }
       case LN_RegisterExpressionOpKind::FloatMinimum:
@@ -5699,8 +7211,8 @@ bool LN_RuntimeTree::TryEvaluateRegisterFloatSoABatch(const LN_RegisterExpressio
     float output[4];
     _mm_storeu_ps(output, value);
     for (uint32_t lane_offset = 0; lane_offset < 4u; lane_offset++) {
-      const LN_RegisterExpressionOp &op = ir.ops[batch.first_op_index + processed_lanes +
-                                                 lane_offset];
+      const LN_RegisterExpressionOp &op =
+          ir.ops[batch.first_op_index + processed_lanes + lane_offset];
       m_registerExpressionState.float_values[op.output_register] = output[lane_offset];
       m_registerExpressionState.float_valid[op.output_register] =
           m_registerExpressionState.active_generation;
@@ -5802,10 +7314,8 @@ void LN_RuntimeTree::EnsureRegisterExpressionState(const LN_TickContext &context
   {
     m_registerExpressionState.profiled_tick = context.tick_index;
     m_activeProfileCounters->register_scalar_op_count += ir.scalar_op_count;
-    m_activeProfileCounters->register_simd_candidate_batch_count +=
-        ir.simd_candidate_batch_count;
-    m_activeProfileCounters->register_simd_candidate_lane_count +=
-        ir.simd_candidate_lane_count;
+    m_activeProfileCounters->register_simd_candidate_batch_count += ir.simd_candidate_batch_count;
+    m_activeProfileCounters->register_simd_candidate_lane_count += ir.simd_candidate_lane_count;
   }
 }
 
@@ -5817,8 +7327,8 @@ bool LN_RuntimeTree::TryResolveRegisterIntExpression(const uint32_t expression_i
     return false;
   }
   const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  if (!ir.valid || (m_activeProfileCounters == nullptr &&
-                    !m_registerExpressionIRHasProductionBenefit) ||
+  if (!ir.valid ||
+      (m_activeProfileCounters == nullptr && !m_registerExpressionIRHasProductionBenefit) ||
       expression_index >= ir.int_expression_registers.size())
   {
     return false;
@@ -5829,9 +7339,7 @@ bool LN_RuntimeTree::TryResolveRegisterIntExpression(const uint32_t expression_i
     ProfileRegisterExpressionFallback();
     return false;
   }
-  if (m_registerExpressionState.int_valid[reg] ==
-      m_registerExpressionState.active_generation)
-  {
+  if (m_registerExpressionState.int_valid[reg] == m_registerExpressionState.active_generation) {
     r_value = m_registerExpressionState.int_values[reg];
     ProfileRegisterExpressionHit();
     return true;
@@ -5895,7 +7403,11 @@ bool LN_RuntimeTree::TryResolveRegisterIntExpression(const uint32_t expression_i
       break;
     }
     case LN_IntExpressionKind::MouseWheelDelta:
-      r_value = m_snapshot.GetInputSnapshot().GetMouse().wheel_delta;
+      /* int_value: also what the UI used. */
+      r_value = (expression.int_value != 0 ? m_snapshot.GetRawInputSnapshot() :
+                                             m_snapshot.GetInputSnapshot())
+                    .GetMouse()
+                    .wheel_delta;
       break;
     case LN_IntExpressionKind::WindowResolutionWidth: {
       const LN_InputSnapshot &input = m_snapshot.GetInputSnapshot();
@@ -5930,7 +7442,38 @@ bool LN_RuntimeTree::TryResolveRegisterIntExpression(const uint32_t expression_i
         ProfileRegisterExpressionFallback();
         return false;
       }
-      r_value = ValueAsInt(value);
+      r_value = ValueAsInt(value, expression.float_to_int_mode);
+      break;
+    }
+    case LN_IntExpressionKind::FromBool: {
+      bool value = false;
+      if (!TryResolveRegisterBoolExpression(expression.input0, context, value)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      r_value = value ? 1 : 0;
+      break;
+    }
+    case LN_IntExpressionKind::FromFloat: {
+      float value = 0.0f;
+      if (!TryResolveRegisterFloatExpression(expression.input0, context, value)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      r_value = LN_ConvertFloatToInt(value, expression.float_to_int_mode);
+      break;
+    }
+    case LN_IntExpressionKind::FromString: {
+      std::string text;
+      float value = 0.0f;
+      if (!TryResolveRegisterStringExpression(expression.input0, context, text)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      if (!LN_TryParseTypecastFloat(text, value)) {
+        value = 0.0f;
+      }
+      r_value = LN_ConvertFloatToInt(value, expression.float_to_int_mode);
       break;
     }
     case LN_IntExpressionKind::DictLength: {
@@ -6008,8 +7551,8 @@ bool LN_RuntimeTree::TryResolveRegisterFloatExpression(const uint32_t expression
     return false;
   }
   const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  if (!ir.valid || (m_activeProfileCounters == nullptr &&
-                    !m_registerExpressionIRHasProductionBenefit) ||
+  if (!ir.valid ||
+      (m_activeProfileCounters == nullptr && !m_registerExpressionIRHasProductionBenefit) ||
       expression_index >= ir.float_expression_registers.size())
   {
     return false;
@@ -6020,16 +7563,13 @@ bool LN_RuntimeTree::TryResolveRegisterFloatExpression(const uint32_t expression
     ProfileRegisterExpressionFallback();
     return false;
   }
-  if (m_registerExpressionState.float_valid[reg] ==
-      m_registerExpressionState.active_generation)
-  {
+  if (m_registerExpressionState.float_valid[reg] == m_registerExpressionState.active_generation) {
     r_value = m_registerExpressionState.float_values[reg];
     ProfileRegisterExpressionHit();
     return true;
   }
   if (TryEvaluateRegisterExpressionSoABatch(expression_index, context) &&
-      m_registerExpressionState.float_valid[reg] ==
-          m_registerExpressionState.active_generation)
+      m_registerExpressionState.float_valid[reg] == m_registerExpressionState.active_generation)
   {
     r_value = m_registerExpressionState.float_values[reg];
     ProfileRegisterExpressionHit();
@@ -6049,6 +7589,9 @@ bool LN_RuntimeTree::TryResolveRegisterFloatExpression(const uint32_t expression
   switch (expression.kind) {
     case LN_FloatExpressionKind::Constant:
       value = expression.float_value;
+      break;
+    case LN_FloatExpressionKind::UnscaledDeltaTime:
+      value = float(std::max(0.0, context.unscaled_dt));
       break;
     case LN_FloatExpressionKind::RuntimeTreeProperty:
       if (const LN_Value *property_value = GetTreePropertyValue(expression.property_ref_index)) {
@@ -6097,16 +7640,12 @@ bool LN_RuntimeTree::TryResolveRegisterFloatExpression(const uint32_t expression
         return false;
       }
       const LN_GamepadSnapshot *gamepad = m_snapshot.GetInputSnapshot().GetGamepad(gamepad_index);
-      if (gamepad == nullptr || !gamepad->connected) {
+      if (gamepad == nullptr ||
+          !LN_TryGetGamepadTriggerStrength(*gamepad, int32_t(expression.input2), value))
+      {
         ProfileRegisterExpressionFallback();
         return false;
       }
-      const int32_t axis_index = int32_t(expression.input2);
-      if (axis_index < 0 || axis_index >= int(gamepad->axes.size())) {
-        ProfileRegisterExpressionFallback();
-        return false;
-      }
-      value = std::fabs(NormalizeGamepadAxisValue(gamepad->axes[size_t(axis_index)]));
       break;
     }
     case LN_FloatExpressionKind::FromGenericValue: {
@@ -6116,6 +7655,35 @@ bool LN_RuntimeTree::TryResolveRegisterFloatExpression(const uint32_t expression
       {
         ProfileRegisterExpressionFallback();
         return false;
+      }
+      break;
+    }
+    case LN_FloatExpressionKind::FromBool: {
+      bool source = false;
+      if (!TryResolveRegisterBoolExpression(expression.bool_expr_index, context, source)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      value = source ? 1.0f : 0.0f;
+      break;
+    }
+    case LN_FloatExpressionKind::FromInt: {
+      int32_t source = 0;
+      if (!TryResolveRegisterIntExpression(expression.input0, context, source)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      value = float(source);
+      break;
+    }
+    case LN_FloatExpressionKind::FromString: {
+      std::string source;
+      if (!TryResolveRegisterStringExpression(expression.string_expr_index, context, source)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      if (!LN_TryParseTypecastFloat(source, value)) {
+        value = 0.0f;
       }
       break;
     }
@@ -6154,6 +7722,15 @@ bool LN_RuntimeTree::TryResolveRegisterFloatExpression(const uint32_t expression
         return false;
       }
       value = std::fabs(b) <= 1.0e-20f ? 0.0f : a / b;
+      break;
+    case LN_FloatExpressionKind::SafeDivide:
+      if (!TryResolveRegisterFloatExpression(expression.input0, context, a) ||
+          !TryResolveRegisterFloatExpression(expression.input1, context, b))
+      {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      value = b == 0.0f ? 0.0f : a / b;
       break;
     case LN_FloatExpressionKind::Power:
       if (!TryResolveRegisterFloatExpression(expression.input0, context, a) ||
@@ -6360,6 +7937,16 @@ bool LN_RuntimeTree::TryResolveRegisterFloatExpression(const uint32_t expression
       value = LN::EvaluateFormula(strings[expression.string_expr_index].string_value, a, b);
       break;
     }
+    case LN_FloatExpressionKind::FloatCurve:
+      if (!TryResolveRegisterFloatExpression(expression.input0, context, a) ||
+          !TryResolveRegisterFloatExpression(expression.input1, context, b))
+      {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      value = EvaluateCurveTable(
+          expression.int_value >= 0 ? uint32_t(expression.int_value) : LN_INVALID_INDEX, a, b);
+      break;
     case LN_FloatExpressionKind::VectorComponent:
       if (!TryResolveRegisterVectorExpression(expression.input0, context, vector) ||
           expression.component_index > 2)
@@ -6424,8 +8011,8 @@ bool LN_RuntimeTree::TryResolveRegisterVectorExpression(const uint32_t expressio
     return false;
   }
   const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  if (!ir.valid || (m_activeProfileCounters == nullptr &&
-                    !m_registerExpressionIRHasProductionBenefit) ||
+  if (!ir.valid ||
+      (m_activeProfileCounters == nullptr && !m_registerExpressionIRHasProductionBenefit) ||
       expression_index >= ir.vector_expression_registers.size())
   {
     return false;
@@ -6436,9 +8023,7 @@ bool LN_RuntimeTree::TryResolveRegisterVectorExpression(const uint32_t expressio
     ProfileRegisterExpressionFallback();
     return false;
   }
-  if (m_registerExpressionState.vector_valid[reg] ==
-      m_registerExpressionState.active_generation)
-  {
+  if (m_registerExpressionState.vector_valid[reg] == m_registerExpressionState.active_generation) {
     r_value = m_registerExpressionState.vector_values[reg];
     ProfileRegisterExpressionHit();
     return true;
@@ -6459,7 +8044,7 @@ bool LN_RuntimeTree::TryResolveRegisterVectorExpression(const uint32_t expressio
     case LN_VectorExpressionKind::RuntimeTreeProperty:
       if (const LN_Value *property_value = GetTreePropertyValue(expression.property_ref_index)) {
         value = (property_value->type == LN_ValueType::Rotation) ?
-                    property_value->rotation_euler_value :
+                    property_value->RotationEulerRadians() :
                     property_value->vector_value;
         break;
       }
@@ -6484,14 +8069,14 @@ bool LN_RuntimeTree::TryResolveRegisterVectorExpression(const uint32_t expressio
         ProfileRegisterExpressionFallback();
         return false;
       }
-      value = m_snapshot.GetObjectSnapshot().world_orientation;
+      value = m_snapshot.GetObjectSnapshot().world_orientation.ToEulerXYZ();
       break;
     case LN_VectorExpressionKind::SnapshotLocalOrientation:
       if (expression.input0 != LN_INVALID_INDEX) {
         ProfileRegisterExpressionFallback();
         return false;
       }
-      value = m_snapshot.GetObjectSnapshot().local_orientation;
+      value = m_snapshot.GetObjectSnapshot().local_orientation.ToEulerXYZ();
       break;
     case LN_VectorExpressionKind::SnapshotWorldScale:
       if (expression.input0 != LN_INVALID_INDEX) {
@@ -6586,7 +8171,7 @@ bool LN_RuntimeTree::TryResolveRegisterVectorExpression(const uint32_t expressio
         ProfileRegisterExpressionFallback();
         return false;
       }
-      const MT_Matrix3x3 orientation(m_snapshot.GetObjectSnapshot().world_orientation);
+      const MT_Matrix3x3 orientation = m_snapshot.GetObjectSnapshot().world_orientation.ToMatrix();
       const int32_t axis = int32_t(expression.property_ref_index);
       value = axis == 0 || axis == 3 ? orientation * MT_Vector3(1.0f, 0.0f, 0.0f) :
               axis == 1 || axis == 4 ? orientation * MT_Vector3(0.0f, 1.0f, 0.0f) :
@@ -6664,6 +8249,33 @@ bool LN_RuntimeTree::TryResolveRegisterVectorExpression(const uint32_t expressio
         ProfileRegisterExpressionFallback();
         return false;
       }
+      break;
+    }
+    case LN_VectorExpressionKind::BroadcastFloat: {
+      float scalar = 0.0f;
+      if (!TryResolveRegisterFloatExpression(expression.float_expr_index, context, scalar)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      value = MT_Vector3(scalar, scalar, scalar);
+      break;
+    }
+    case LN_VectorExpressionKind::BroadcastInt: {
+      int32_t scalar = 0;
+      if (!TryResolveRegisterIntExpression(expression.input0, context, scalar)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      value = MT_Vector3(float(scalar), float(scalar), float(scalar));
+      break;
+    }
+    case LN_VectorExpressionKind::FromColor: {
+      MT_Vector4 source(0.0f, 0.0f, 0.0f, 1.0f);
+      if (!TryResolveRegisterColorExpression(expression.input0, context, source)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      value = MT_Vector3(source.x(), source.y(), source.z());
       break;
     }
     case LN_VectorExpressionKind::Add:
@@ -6841,15 +8453,16 @@ bool LN_RuntimeTree::TryResolveRegisterVectorExpression(const uint32_t expressio
         ProfileRegisterExpressionFallback();
         return false;
       }
-      value = MT_Vector3(a.x() != 0.0f ? HashToUnitFloat((uint64_t(expression_index) << 32) ^
-                                                         context.tick_index ^ 0x13579u) :
-                                           0.0f,
-                         a.y() != 0.0f ? HashToUnitFloat((uint64_t(expression_index) << 32) ^
-                                                         context.tick_index ^ 0x24680u) :
-                                           0.0f,
-                         a.z() != 0.0f ? HashToUnitFloat((uint64_t(expression_index) << 32) ^
-                                                         context.tick_index ^ 0xabcdefu) :
-                                           0.0f);
+      value = MT_Vector3(
+          a.x() != 0.0f ?
+              HashToUnitFloat((uint64_t(expression_index) << 32) ^ context.tick_index ^ 0x13579u) :
+              0.0f,
+          a.y() != 0.0f ?
+              HashToUnitFloat((uint64_t(expression_index) << 32) ^ context.tick_index ^ 0x24680u) :
+              0.0f,
+          a.z() != 0.0f ? HashToUnitFloat((uint64_t(expression_index) << 32) ^ context.tick_index ^
+                                          0xabcdefu) :
+                          0.0f);
       break;
     default:
       ProfileRegisterExpressionFallback();
@@ -6870,8 +8483,8 @@ bool LN_RuntimeTree::TryResolveRegisterColorExpression(const uint32_t expression
     return false;
   }
   const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  if (!ir.valid || (m_activeProfileCounters == nullptr &&
-                    !m_registerExpressionIRHasProductionBenefit) ||
+  if (!ir.valid ||
+      (m_activeProfileCounters == nullptr && !m_registerExpressionIRHasProductionBenefit) ||
       expression_index >= ir.color_expression_registers.size())
   {
     return false;
@@ -6882,9 +8495,7 @@ bool LN_RuntimeTree::TryResolveRegisterColorExpression(const uint32_t expression
     ProfileRegisterExpressionFallback();
     return false;
   }
-  if (m_registerExpressionState.color_valid[reg] ==
-      m_registerExpressionState.active_generation)
-  {
+  if (m_registerExpressionState.color_valid[reg] == m_registerExpressionState.active_generation) {
     r_value = m_registerExpressionState.color_values[reg];
     ProfileRegisterExpressionHit();
     return true;
@@ -6981,8 +8592,8 @@ bool LN_RuntimeTree::TryResolveRegisterStringExpression(const uint32_t expressio
     return false;
   }
   const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  if (!ir.valid || (m_activeProfileCounters == nullptr &&
-                    !m_registerExpressionIRHasProductionBenefit) ||
+  if (!ir.valid ||
+      (m_activeProfileCounters == nullptr && !m_registerExpressionIRHasProductionBenefit) ||
       expression_index >= ir.string_expression_registers.size() ||
       expression_index >= ir.string_expression_register_kinds.size())
   {
@@ -7023,9 +8634,7 @@ bool LN_RuntimeTree::TryResolveRegisterStringExpression(const uint32_t expressio
     return false;
   }
 
-  if (m_registerExpressionState.string_valid[reg] ==
-      m_registerExpressionState.active_generation)
-  {
+  if (m_registerExpressionState.string_valid[reg] == m_registerExpressionState.active_generation) {
     r_value = m_registerExpressionState.string_values[reg];
     ProfileRegisterExpressionHit();
     return true;
@@ -7127,7 +8736,52 @@ bool LN_RuntimeTree::TryResolveRegisterStringExpression(const uint32_t expressio
         ProfileRegisterExpressionFallback();
         return false;
       }
-      r_value = ValueToPrintString(value);
+      r_value = ValueToText(value);
+      break;
+    }
+    case LN_StringExpressionKind::FromBool: {
+      bool value = false;
+      if (!TryResolveRegisterBoolExpression(expression.input0, context, value)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      r_value = value ? "True" : "False";
+      break;
+    }
+    case LN_StringExpressionKind::FromInt: {
+      int32_t value = 0;
+      if (!TryResolveRegisterIntExpression(expression.input0, context, value)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      r_value = std::to_string(value);
+      break;
+    }
+    case LN_StringExpressionKind::FromFloat: {
+      float value = 0.0f;
+      if (!TryResolveRegisterFloatExpression(expression.input0, context, value)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      r_value = LN_TypecastFloatToString(value);
+      break;
+    }
+    case LN_StringExpressionKind::FromVector: {
+      MT_Vector3 value(0.0f, 0.0f, 0.0f);
+      if (!TryResolveRegisterVectorExpression(expression.input0, context, value)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      r_value = LN_TypecastVectorToString(value);
+      break;
+    }
+    case LN_StringExpressionKind::FromColor: {
+      MT_Vector4 value(0.0f, 0.0f, 0.0f, 1.0f);
+      if (!TryResolveRegisterColorExpression(expression.input0, context, value)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      r_value = LN_TypecastColorToString(value);
       break;
     }
     default:
@@ -7149,8 +8803,8 @@ bool LN_RuntimeTree::TryResolveRegisterValueExpression(const uint32_t expression
     return false;
   }
   const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  if (!ir.valid || (m_activeProfileCounters == nullptr &&
-                    !m_registerExpressionIRHasProductionBenefit) ||
+  if (!ir.valid ||
+      (m_activeProfileCounters == nullptr && !m_registerExpressionIRHasProductionBenefit) ||
       expression_index >= ir.value_expression_registers.size())
   {
     return false;
@@ -7161,8 +8815,7 @@ bool LN_RuntimeTree::TryResolveRegisterValueExpression(const uint32_t expression
     ProfileRegisterExpressionFallback();
     return false;
   }
-  if (m_registerExpressionState.generic_valid[reg] ==
-      m_registerExpressionState.active_generation)
+  if (m_registerExpressionState.generic_valid[reg] == m_registerExpressionState.active_generation)
   {
     r_value = m_registerExpressionState.generic_values[reg];
     ProfileRegisterExpressionHit();
@@ -7221,13 +8874,26 @@ bool LN_RuntimeTree::TryResolveRegisterValueExpression(const uint32_t expression
         ProfileRegisterExpressionFallback();
         return false;
       }
-      if (!TryResolveRegisterValueExpression(condition ? expression.input0 : expression.input1,
-                                             context,
-                                             r_value))
+      if (!TryResolveRegisterValueExpression(
+              condition ? expression.input0 : expression.input1, context, r_value))
       {
         ProfileRegisterExpressionFallback();
         return false;
       }
+      break;
+    }
+    case LN_ValueExpressionKind::Mix: {
+      LN_Value a;
+      LN_Value b;
+      float factor = 0.0f;
+      if (!TryResolveRegisterValueExpression(expression.input0, context, a) ||
+          !TryResolveRegisterValueExpression(expression.input1, context, b) ||
+          !TryResolveRegisterFloatExpression(expression.input2, context, factor))
+      {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      r_value = ln::value_interpolation::Mix(a, b, factor);
       break;
     }
     case LN_ValueExpressionKind::FromBool: {
@@ -7303,15 +8969,13 @@ bool LN_RuntimeTree::TryResolveRegisterValueExpression(const uint32_t expression
       break;
     }
     case LN_ValueExpressionKind::FromRotation: {
-      MT_Vector3 value(0.0f, 0.0f, 0.0f);
-      if (!TryResolveRegisterVectorExpression(expression.input0, context, value)) {
-        ProfileRegisterExpressionFallback();
-        return false;
-      }
       r_value = LN_Value();
       r_value.type = LN_ValueType::Rotation;
       r_value.exists = true;
-      r_value.rotation_euler_value = value;
+      const LN_Rotation rotation = ResolveRotationExpression(
+          expression.input0, LN_Rotation::Identity(), context);
+      r_value.SetRotation(
+          rotation, ResolveVectorExpression(expression.input0, rotation.ToEulerXYZ(), context));
       break;
     }
     case LN_ValueExpressionKind::CombineVector4: {
@@ -7357,8 +9021,8 @@ bool LN_RuntimeTree::TryResolveRegisterValueExpression(const uint32_t expression
       }
       else {
         r_value.type = LN_ValueType::Vector;
-        r_value.vector_value = MT_Vector3(vector.x(), vector.y(), target_size >= 3 ? vector.z() :
-                                                                                     0.0f);
+        r_value.vector_value = MT_Vector3(
+            vector.x(), vector.y(), target_size >= 3 ? vector.z() : 0.0f);
       }
       break;
     }
@@ -7391,7 +9055,7 @@ bool LN_RuntimeTree::TryResolveRegisterValueExpression(const uint32_t expression
                                                                        LN_ValueType::Vector;
       r_value.exists = true;
       if (r_value.type == LN_ValueType::Rotation) {
-        r_value.rotation_euler_value = euler;
+        r_value.SetRotation(LN_Rotation::FromMatrix(matrix), euler);
       }
       else {
         r_value.vector_value = euler;
@@ -7470,9 +9134,8 @@ bool LN_RuntimeTree::TryResolveRegisterValueExpression(const uint32_t expression
           return false;
         }
         if (list_a.type == LN_ValueType::List && list_a.exists) {
-          r_value.list_value.insert(r_value.list_value.end(),
-                                    list_a.list_value.begin(),
-                                    list_a.list_value.end());
+          r_value.list_value.insert(
+              r_value.list_value.end(), list_a.list_value.begin(), list_a.list_value.end());
         }
       }
       if (expression.input1 != LN_INVALID_INDEX) {
@@ -7482,9 +9145,8 @@ bool LN_RuntimeTree::TryResolveRegisterValueExpression(const uint32_t expression
           return false;
         }
         if (list_b.type == LN_ValueType::List && list_b.exists) {
-          r_value.list_value.insert(r_value.list_value.end(),
-                                    list_b.list_value.begin(),
-                                    list_b.list_value.end());
+          r_value.list_value.insert(
+              r_value.list_value.end(), list_b.list_value.begin(), list_b.list_value.end());
         }
       }
       break;
@@ -7560,9 +9222,9 @@ bool LN_RuntimeTree::TryResolveRegisterValueExpression(const uint32_t expression
         return false;
       }
       const auto iter = std::find_if(
-          r_value.list_value.begin(),
-          r_value.list_value.end(),
-          [&](const LN_Value &item) { return ValuesEqual(item, needle); });
+          r_value.list_value.begin(), r_value.list_value.end(), [&](const LN_Value &item) {
+            return ValuesEqual(item, needle);
+          });
       if (iter != r_value.list_value.end()) {
         r_value.list_value.erase(iter);
       }
@@ -7691,7 +9353,9 @@ bool LN_RuntimeTree::TryResolveRegisterValueExpression(const uint32_t expression
           ProfileRegisterExpressionFallback();
           return false;
         }
-        if (CompareValues(switch_value, case_value, expression.value.exists ?
+        if (CompareValues(switch_value,
+                          case_value,
+                          expression.value.exists ?
                               static_cast<LN_FloatCompareOperation>(expression.value.int_value) :
                               LN_FloatCompareOperation::Equal))
         {
@@ -7877,6 +9541,19 @@ bool LN_RuntimeTree::TryResolveRegisterValueExpression(const uint32_t expression
   return true;
 }
 
+bool LN_RuntimeTree::EvaluateMouseMoved(const bool each_logic_tick) const
+{
+  const LN_InputSnapshot &input = m_snapshot.GetInputSnapshot();
+  const bool activated = input.GetStatus(SCA_IInputDevice::MOUSEX,
+                                         SCA_InputEvent::JUSTACTIVATED) ||
+                         input.GetStatus(SCA_IInputDevice::MOUSEY, SCA_InputEvent::JUSTACTIVATED);
+  if (!each_logic_tick) {
+    return activated;
+  }
+  return activated || input.GetStatus(SCA_IInputDevice::MOUSEX, SCA_InputEvent::ACTIVE) ||
+         input.GetStatus(SCA_IInputDevice::MOUSEY, SCA_InputEvent::ACTIVE);
+}
+
 bool LN_RuntimeTree::TryResolveRegisterBoolExpression(const uint32_t expression_index,
                                                       const LN_TickContext &context,
                                                       bool &r_value)
@@ -7885,8 +9562,8 @@ bool LN_RuntimeTree::TryResolveRegisterBoolExpression(const uint32_t expression_
     return false;
   }
   const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  if (!ir.valid || (m_activeProfileCounters == nullptr &&
-                    !m_registerExpressionIRHasProductionBenefit) ||
+  if (!ir.valid ||
+      (m_activeProfileCounters == nullptr && !m_registerExpressionIRHasProductionBenefit) ||
       expression_index >= ir.bool_expression_registers.size())
   {
     return false;
@@ -7897,9 +9574,7 @@ bool LN_RuntimeTree::TryResolveRegisterBoolExpression(const uint32_t expression_
     ProfileRegisterExpressionFallback();
     return false;
   }
-  if (m_registerExpressionState.bool_valid[reg] ==
-      m_registerExpressionState.active_generation)
-  {
+  if (m_registerExpressionState.bool_valid[reg] == m_registerExpressionState.active_generation) {
     r_value = m_registerExpressionState.bool_values[reg];
     ProfileRegisterExpressionHit();
     return true;
@@ -7913,6 +9588,9 @@ bool LN_RuntimeTree::TryResolveRegisterBoolExpression(const uint32_t expression_
   switch (expression.kind) {
     case LN_BoolExpressionKind::Constant:
       value = expression.bool_value;
+      break;
+    case LN_BoolExpressionKind::GamePaused:
+      value = context.game_paused;
       break;
     case LN_BoolExpressionKind::RuntimeTreeProperty:
       if (const LN_Value *property_value = GetTreePropertyValue(expression.property_ref_index)) {
@@ -7967,7 +9645,9 @@ bool LN_RuntimeTree::TryResolveRegisterBoolExpression(const uint32_t expression_
         value = false;
       }
       else {
-        value = m_snapshot.GetInputStatus(expression.int_value, expression.secondary_int_value);
+        value = (expression.bool_value ? m_snapshot.GetRawInputSnapshot() :
+                                         m_snapshot.GetInputSnapshot())
+                    .GetStatus(expression.int_value, expression.secondary_int_value);
       }
       break;
     case LN_BoolExpressionKind::KeyboardActive:
@@ -7983,16 +9663,14 @@ bool LN_RuntimeTree::TryResolveRegisterBoolExpression(const uint32_t expression_
       break;
     }
     case LN_BoolExpressionKind::MouseMoved: {
-      if (expression.bool_value) {
-        ProfileRegisterExpressionFallback();
-        return false;
-      }
-      const LN_MouseSnapshot &mouse = m_snapshot.GetInputSnapshot().GetMouse();
-      value = mouse.delta_x != 0 || mouse.delta_y != 0;
+      value = EvaluateMouseMoved(expression.bool_value);
       break;
     }
     case LN_BoolExpressionKind::MouseWheelMoved: {
-      const int32_t wheel_delta = m_snapshot.GetInputSnapshot().GetMouse().wheel_delta;
+      const int32_t wheel_delta = (expression.bool_value ? m_snapshot.GetRawInputSnapshot() :
+                                                           m_snapshot.GetInputSnapshot())
+                                      .GetMouse()
+                                      .wheel_delta;
       if (wheel_delta == 0) {
         value = false;
         break;
@@ -8019,25 +9697,11 @@ bool LN_RuntimeTree::TryResolveRegisterBoolExpression(const uint32_t expression_
         return false;
       }
       const LN_GamepadSnapshot *gamepad = m_snapshot.GetInputSnapshot().GetGamepad(gamepad_index);
-      if (gamepad == nullptr || !gamepad->connected) {
+      if (gamepad == nullptr) {
         value = false;
         break;
       }
-      value = false;
-      for (const uint8_t button : gamepad->buttons) {
-        if (button != 0) {
-          value = true;
-          break;
-        }
-      }
-      if (!value) {
-        for (const int32_t axis : gamepad->axes) {
-          if (std::fabs(NormalizeGamepadAxisValue(axis)) >= 0.1f) {
-            value = true;
-            break;
-          }
-        }
-      }
+      value = LN_GamepadHasActiveInput(*gamepad);
       break;
     }
     case LN_BoolExpressionKind::GamepadButton: {
@@ -8046,8 +9710,11 @@ bool LN_RuntimeTree::TryResolveRegisterBoolExpression(const uint32_t expression_
         ProfileRegisterExpressionFallback();
         return false;
       }
-      const LN_GamepadSnapshot *gamepad = m_snapshot.GetInputSnapshot().GetGamepad(gamepad_index);
-      if (gamepad == nullptr || !gamepad->connected) {
+      const LN_GamepadSnapshot *gamepad = (expression.secondary_int_value != 0 ?
+                                               m_snapshot.GetRawInputSnapshot() :
+                                               m_snapshot.GetInputSnapshot())
+                                              .GetGamepad(gamepad_index);
+      if (gamepad == nullptr) {
         value = false;
         break;
       }
@@ -8058,32 +9725,8 @@ bool LN_RuntimeTree::TryResolveRegisterBoolExpression(const uint32_t expression_
         ProfileRegisterExpressionFallback();
         return false;
       }
-      if (expression.bool_value) {
-        const int32_t axis_index = expression.int_value;
-        if (axis_index < 0 || axis_index >= int(gamepad->axes.size())) {
-          value = false;
-          break;
-        }
-        const float axis_value = std::fabs(
-            NormalizeGamepadAxisValue(gamepad->axes[size_t(axis_index)]));
-        const bool active = axis_value >= 0.1f;
-        value = input_status == SCA_InputEvent::JUSTRELEASED ? !active : active;
-        break;
-      }
-      if (expression.int_value < 0 || expression.int_value >= int(gamepad->buttons.size())) {
-        value = false;
-        break;
-      }
-      const size_t button_index = size_t(expression.int_value);
-      if (input_status == SCA_InputEvent::JUSTACTIVATED) {
-        value = gamepad->pressed[button_index] != 0;
-      }
-      else if (input_status == SCA_InputEvent::JUSTRELEASED) {
-        value = gamepad->released[button_index] != 0;
-      }
-      else {
-        value = gamepad->buttons[button_index] != 0;
-      }
+      value = LN_GetGamepadControlState(
+          *gamepad, expression.int_value, expression.bool_value, input_status);
       break;
     }
     case LN_BoolExpressionKind::Not:
@@ -8188,6 +9831,51 @@ bool LN_RuntimeTree::TryResolveRegisterBoolExpression(const uint32_t expression_
       value = ValueAsBool(generic_value);
       break;
     }
+    case LN_BoolExpressionKind::FromInt: {
+      int32_t source = 0;
+      if (!TryResolveRegisterIntExpression(expression.input0, context, source)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      value = source != 0;
+      break;
+    }
+    case LN_BoolExpressionKind::FromFloat: {
+      float source = 0.0f;
+      if (!TryResolveRegisterFloatExpression(expression.input0, context, source)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      value = source != 0.0f;
+      break;
+    }
+    case LN_BoolExpressionKind::FromString: {
+      std::string source;
+      if (!TryResolveRegisterStringExpression(expression.input0, context, source)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      value = !source.empty();
+      break;
+    }
+    case LN_BoolExpressionKind::FromVector: {
+      MT_Vector3 source(0.0f, 0.0f, 0.0f);
+      if (!TryResolveRegisterVectorExpression(expression.input0, context, source)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      value = source.length2() > 0.0f;
+      break;
+    }
+    case LN_BoolExpressionKind::FromColor: {
+      MT_Vector4 source(0.0f, 0.0f, 0.0f, 0.0f);
+      if (!TryResolveRegisterColorExpression(expression.input0, context, source)) {
+        ProfileRegisterExpressionFallback();
+        return false;
+      }
+      value = source.length2() > 0.0f;
+      break;
+    }
     case LN_BoolExpressionKind::ValueCompare: {
       LN_Value a;
       LN_Value b;
@@ -8200,6 +9888,12 @@ bool LN_RuntimeTree::TryResolveRegisterBoolExpression(const uint32_t expression_
       value = CompareValues(a, b, expression.float_compare_operation);
       break;
     }
+    case LN_BoolExpressionKind::GameLoadPulse:
+      value = m_logicManager != nullptr && m_logicManager->IsGameLoadPulseActive();
+      break;
+    case LN_BoolExpressionKind::GameLoadSucceeded:
+      value = m_logicManager != nullptr && m_logicManager->DidGameLoadSucceed();
+      break;
     default:
       ProfileRegisterExpressionFallback();
       return false;
@@ -8219,8 +9913,7 @@ LN_RuntimeTree::LoopRuntimeState &LN_RuntimeTree::LoopState(const uint32_t loop_
   return m_loopStates[loop_frame_index];
 }
 
-void LN_RuntimeTree::BeginLoopFrame(const uint32_t loop_frame_index,
-                                    const LN_TickContext &context)
+void LN_RuntimeTree::BeginLoopFrame(const uint32_t loop_frame_index, const LN_TickContext &context)
 {
   if (m_program == nullptr || loop_frame_index >= m_program->GetLoopFrames().size()) {
     return;
@@ -8228,41 +9921,79 @@ void LN_RuntimeTree::BeginLoopFrame(const uint32_t loop_frame_index,
 
   const LN_LoopFrame &frame = m_program->GetLoopFrames()[loop_frame_index];
   LoopRuntimeState &state = LoopState(loop_frame_index);
+  state.triggered = false;
+
+  /* An active frame owns its continuation. Do not resample its trigger, collection, count, or
+   * requested duration, and deliberately ignore overlapping input pulses until it completes. */
+  if (state.active) {
+    return;
+  }
+  /* Multiple compiled routes for one frame must never restart it or erase its completion pulse
+   * inside the same manager tick. */
+  if (state.last_batch_tick_index == context.tick_index) {
+    return;
+  }
+  /* A mirrored route (an On Init body in Fixed Update) resumes an active frame but never starts
+   * one: its event trigger would otherwise restart the loop on every tick. */
+  if (frame.start_event_mask != 0 &&
+      (frame.start_event_mask & (1u << uint8_t(context.event))) == 0)
+  {
+    return;
+  }
+
+  state.break_requested = false;
+  state.completed_scope_serial = 0;
   const bool trigger = frame.trigger_bool_expr_index == LN_INVALID_INDEX ?
-                             true :
-                             ResolveBoolExpression(frame.trigger_bool_expr_index, false, context);
+                           true :
+                           ResolveBoolExpression(frame.trigger_bool_expr_index, false, context);
 
   if (!trigger) {
     state.active = false;
     state.trigger_previous = false;
     state.iteration_index = 0;
     state.iteration_count = 0;
+    state.batch_index = 0;
+    state.batch_count = 1;
+    state.batch_end_iteration = 0;
     state.items.clear();
+    state.current_value = MakeNoneValue();
     return;
   }
 
   state.active = true;
+  state.triggered = true;
   state.iteration_index = 0;
+  state.batch_index = 0;
+  state.batch_end_iteration = 0;
   state.items.clear();
 
   if (frame.kind == LN_LoopKind::FromList) {
-    const LN_Value list_value = frame.list_value_expr_index == LN_INVALID_INDEX ?
-                                    MakeNoneValue() :
-                                    ResolveValueExpression(frame.list_value_expr_index,
-                                                           MakeNoneValue(),
-                                                           context);
+    LN_Value list_value = frame.list_value_expr_index == LN_INVALID_INDEX ?
+                              MakeNoneValue() :
+                              ResolveValueExpression(
+                                  frame.list_value_expr_index, MakeNoneValue(), context);
     if (list_value.type == LN_ValueType::List && list_value.exists) {
-      state.items = list_value.list_value;
+      state.items = std::move(list_value.list_value);
     }
     state.iteration_count = state.items.size();
   }
   else {
     const int32_t count = frame.count_int_expr_index == LN_INVALID_INDEX ?
                               0 :
-                              std::max(0,
-                                       ResolveIntExpression(frame.count_int_expr_index, 0, context));
+                              std::max(
+                                  0, ResolveIntExpression(frame.count_int_expr_index, 0, context));
     state.iteration_count = size_t(count);
   }
+
+  const int32_t requested_ticks =
+      frame.ticks_to_complete_int_expr_index == LN_INVALID_INDEX ?
+          1 :
+          std::max(1, ResolveIntExpression(frame.ticks_to_complete_int_expr_index, 1, context));
+  /* A non-empty loop must perform at least one iteration on every active tick. Asking for more
+   * ticks than iterations therefore completes early rather than inserting empty body ticks. */
+  state.batch_count = state.iteration_count == 0 ?
+                          1 :
+                          std::min(state.iteration_count, size_t(requested_ticks));
 
   state.trigger_previous = trigger;
 }
@@ -8271,9 +10002,7 @@ bool LN_RuntimeTree::AdvanceLoopFrame(const uint32_t loop_frame_index)
 {
   LoopRuntimeState &state = LoopState(loop_frame_index);
   if (!state.active || state.iteration_index >= state.iteration_count) {
-    if (state.iteration_index >= state.iteration_count && state.iteration_count > 0) {
-      state.active = false;
-    }
+    state.active = false;
     return false;
   }
 
@@ -8321,26 +10050,33 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     return CommandSortKey(InstructionStateIndex(event, local_instruction_index),
                           local_command_sequence);
   };
+  auto next_command_execution_key = [&]() {
+    m_commandExecutionSerial++;
+    if (m_commandExecutionSerial == 0) {
+      m_commandExecutionSerial++;
+    }
+    return m_commandExecutionSerial;
+  };
   struct ScopedCommandQueryContext {
     LN_TickContext &context;
     LN_CommandBuffer *previous_command_buffer;
-    uint64_t previous_command_sort_key;
+    uint64_t previous_command_execution_key;
 
     ScopedCommandQueryContext(LN_TickContext &context,
                               LN_CommandBuffer &command_buffer,
-                              const uint64_t command_sort_key)
+                              const uint64_t command_execution_key)
         : context(context),
           previous_command_buffer(context.command_buffer),
-          previous_command_sort_key(context.command_sort_key)
+          previous_command_execution_key(context.command_execution_key)
     {
       context.command_buffer = &command_buffer;
-      context.command_sort_key = command_sort_key;
+      context.command_execution_key = command_execution_key;
     }
 
     ~ScopedCommandQueryContext()
     {
       context.command_buffer = previous_command_buffer;
-      context.command_sort_key = previous_command_sort_key;
+      context.command_execution_key = previous_command_execution_key;
     }
   };
   auto resolve_command_target = [&](const LN_Instruction &instruction) -> KX_GameObject * {
@@ -8357,6 +10093,26 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     }
 
     return ResolveObjectValue(ResolveValueExpression(expr_index, MakeNoneValue(), context));
+  };
+  auto frame_relative_transform_is_safe = [&](KX_GameObject *target,
+                                              const LN_Instruction &instruction,
+                                              const uint32_t instruction_id,
+                                              const LN_CommandBuffer::CommandType command_type) {
+    if (event != LN_Event::OnUpdate || target == nullptr || !target->IsDynamic()) {
+      return true;
+    }
+
+    LN_CommandBuffer::Command diagnostic;
+    diagnostic.type = command_type;
+    diagnostic.object = target;
+    diagnostic.runtime_tree = this;
+    diagnostic.sort_key = command_sort_key(instruction_id, command_sequence);
+    diagnostic.source_ref_index = instruction.source_ref_index;
+    LN_WarnCommandFailureOnce(
+        diagnostic,
+        "Frame Update cannot apply a relative transform to a dynamic physics body; drive the "
+        "node from Logic + Physics flow or use a non-dynamic object");
+    return false;
   };
   auto resolve_add_object_template = [&](const uint32_t expr_index) -> KX_GameObject * {
     if (expr_index == LN_INVALID_INDEX) {
@@ -8376,7 +10132,6 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
 
     return ResolveObjectValue(value, true);
   };
-  auto resolve_optional_object = resolve_required_object;
   auto resolve_object_expression = [&](const uint32_t expr_index) -> KX_GameObject * {
     if (expr_index == LN_INVALID_INDEX) {
       return m_gameObject;
@@ -8419,8 +10174,12 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     payload.string_expr_index = instruction.string_expr_index;
     payload.vector_expr_index = instruction.vector_expr_index;
     payload.color_expr_index = instruction.color_expr_index;
+    payload.modify_op = LN_PropertyModifyOp(instruction.int_value);
+    payload.modify_min_expr_index = instruction.secondary_float_expr_index;
+    payload.modify_max_expr_index = instruction.tertiary_float_expr_index;
     if (instruction.property_value_type != LN_ValueType::None &&
-        (instruction.bool_expr_index != LN_INVALID_INDEX ||
+        (payload.modify_op != LN_PropertyModifyOp::None ||
+         instruction.bool_expr_index != LN_INVALID_INDEX ||
          instruction.int_expr_index != LN_INVALID_INDEX ||
          instruction.float_expr_index != LN_INVALID_INDEX ||
          instruction.string_expr_index != LN_INVALID_INDEX ||
@@ -8435,8 +10194,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     return payload;
   };
   auto rigid_body_constraint_command_payload = [&](const LN_Instruction &instruction) {
-    if (m_program != nullptr &&
-        instruction.command_payload_index < m_program->GetRigidBodyConstraintCommandPayloads().size())
+    if (m_program != nullptr && instruction.command_payload_index <
+                                    m_program->GetRigidBodyConstraintCommandPayloads().size())
     {
       return m_program->GetRigidBodyConstraintCommandPayloads()[instruction.command_payload_index];
     }
@@ -8473,7 +10232,13 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
 
     const MouseLookInputState mouse = ReadMouseLookInputState(
         m_snapshot.GetInputSnapshot().GetMouse());
-    const bool center_mouse = instruction.bool_value;
+    /* Center Mouse holds the cursor in the middle, which needs a cursor the game can move: on
+     * Wayland only a hidden one. A shown cursor there turns the view by how far it moved, as
+     * without Center Mouse, instead of by its distance from a middle it never reaches (the view
+     * spun). */
+    const KX_KetsjiEngine *look_engine = ActiveEngine();
+    const bool cursor_movable = look_engine == nullptr || look_engine->IsCursorMovable();
+    const bool center_mouse = instruction.bool_value && cursor_movable;
     const int32_t front_axis = std::clamp(instruction.int_value, 0, 1);
 
     const LN_InputSnapshot &input_snapshot = m_snapshot.GetInputSnapshot();
@@ -8492,6 +10257,41 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     InstructionRuntimeState *state = state_index < m_instructionStates.size() ?
                                          &m_instructionStates[state_index] :
                                          nullptr;
+    /* The mouse is player 0's: while a menu or a UI in the game world uses it (or the window has
+     * no focus), the view waits and the cursor stays free. After that (or a pause) it starts over
+     * from where the cursor is, so the view does not jump. */
+    if (context.mouse_look_waits) {
+      if (state != nullptr) {
+        state->mouse_look_initialized = false;
+        state->mouse_look_has_previous_position = false;
+        state->mouse_look_smooth_x = 0.0f;
+        state->mouse_look_smooth_y = 0.0f;
+        state->mouse_look_ui_serial = context.mouse_ui_serial;
+      }
+      MarkInstructionExecuted(event, instruction_id, context.tick_index);
+      return;
+    }
+    /* Only while it turns: a menu shows the cursor while the view waits. */
+    if (instruction.bool_value && !cursor_movable) {
+      static bool warned = false;
+      if (!warned) {
+        warned = true;
+        CM_Warning("Mouse Look: the cursor cannot be held in the middle here (Wayland moves only "
+                   "a hidden cursor, and none with --debug), so turning stops at the window's "
+                   "edge; hide the cursor with Set Cursor Visibility for endless turning");
+      }
+    }
+    /* Also when it starts or stops holding the cursor (the cursor was hidden or shown). */
+    if (state != nullptr && (state->mouse_look_ui_serial != context.mouse_ui_serial ||
+                             state->mouse_look_centered != center_mouse))
+    {
+      state->mouse_look_ui_serial = context.mouse_ui_serial;
+      state->mouse_look_centered = center_mouse;
+      state->mouse_look_initialized = false;
+      state->mouse_look_has_previous_position = false;
+      state->mouse_look_smooth_x = 0.0f;
+      state->mouse_look_smooth_y = 0.0f;
+    }
     auto remember_mouse_position = [&](const int32_t x, const int32_t y) {
       if (state != nullptr) {
         state->mouse_look_previous_x = x;
@@ -8504,12 +10304,27 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         remember_mouse_position(mouse.x, mouse.y);
       }
     };
+    /* The cursor is held in the middle of the window; with split screen, in the middle of player
+     * 0's view (the mouse is theirs; Set Split Screen's Keep Mouse in View holds it there). */
+    int32_t center_x = MouseLookCenterPixel(canvas_width);
+    int32_t center_y = MouseLookCenterPixel(canvas_height);
+    if (KX_Scene *look_scene = ActiveEngine() != nullptr && m_gameObject != nullptr ?
+                                   m_gameObject->GetScene() :
+                                   nullptr)
+    {
+      RAS_Rect mouse_view;
+      const KX_PlayerViews &views = look_scene->GetPlayerViews();
+      if (views.GetMouseView(look_scene->GetActiveCamera(), views.GetWindow(), mouse_view)) {
+        center_x = (mouse_view.GetLeft() + mouse_view.GetRight()) / 2;
+        center_y = canvas_height - (mouse_view.GetBottom() + mouse_view.GetTop()) / 2;
+      }
+    }
     auto append_center_cursor_command = [&]() {
       if (canvas == nullptr) {
         return;
       }
-      const int32_t x = MouseLookCenterPixel(canvas_width);
-      const int32_t y = MouseLookCenterPixel(canvas_height);
+      const int32_t x = center_x;
+      const int32_t y = center_y;
       command_buffer.AppendSetCursorPosition(
           x, y, command_sort_key(instruction_id, command_sequence), instruction.source_ref_index);
       command_sequence++;
@@ -8522,8 +10337,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     const bool has_frame_delta = mouse.delta_x != 0 || mouse.delta_y != 0;
     const bool has_canvas_position = mouse.has_position && canvas_width > 0 && canvas_height > 0;
     if (center_mouse && has_canvas_position) {
-      offset_x = -float(mouse.x - MouseLookCenterPixel(canvas_width)) * pixel_to_rotation_scale;
-      offset_y = -float(mouse.y - MouseLookCenterPixel(canvas_height)) * pixel_to_rotation_scale;
+      offset_x = -float(mouse.x - center_x) * pixel_to_rotation_scale;
+      offset_y = -float(mouse.y - center_y) * pixel_to_rotation_scale;
     }
     else if (center_mouse && has_frame_delta) {
       offset_x = -float(mouse.delta_x) * pixel_to_rotation_scale;
@@ -8546,7 +10361,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         context);
     const MT_Vector3 cap_x = ResolveVectorExpression(
         instruction.color_expr_index,
-        MT_Vector3(instruction.secondary_vector_value.x(), instruction.secondary_vector_value.y(), 0.0f),
+        MT_Vector3(
+            instruction.secondary_vector_value.x(), instruction.secondary_vector_value.y(), 0.0f),
         context);
     const MT_Vector3 cap_y = ResolveVectorExpression(
         instruction.int_expr_index,
@@ -8556,12 +10372,15 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         instruction.bool_expr_index, instruction.secondary_vector_value.z() > 0.5f, context);
     const bool use_cap_y = ResolveBoolExpression(
         instruction.secondary_bool_expr_index, instruction.color_value.w() > 0.5f, context);
-    const float sensitivity = std::max(
-        0.0f, ResolveFloatExpression(instruction.float_expr_index, instruction.vector_value.z(), context));
-    const float smoothing = std::clamp(
-        ResolveFloatExpression(instruction.string_expr_index, instruction.color_value.z(), context),
-        0.0f,
-        1.0f);
+    const float sensitivity = std::max(0.0f,
+                                       ResolveFloatExpression(instruction.float_expr_index,
+                                                              instruction.vector_value.z(),
+                                                              context));
+    const float smoothing = std::clamp(ResolveFloatExpression(instruction.string_expr_index,
+                                                              instruction.color_value.z(),
+                                                              context),
+                                       0.0f,
+                                       1.0f);
 
     if (std::fabs(invert.x()) > 0.5f) {
       offset_x = -offset_x;
@@ -8573,11 +10392,18 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     offset_x *= sensitivity * 0.002f;
     offset_y *= sensitivity * 0.002f;
 
-    if (center_mouse && mouse.has_position && state != nullptr && !state->mouse_look_initialized)
-    {
+    /* Only a real game window has a system pointer to wait for. */
+    auto start_settling = [&]() {
+      if (canvas != nullptr) {
+        state->mouse_look_settle = MOUSE_LOOK_SETTLE_SECONDS;
+        state->mouse_look_settle_runs = MOUSE_LOOK_SETTLE_MAX_RUNS;
+      }
+    };
+    if (center_mouse && mouse.has_position && state != nullptr && !state->mouse_look_initialized) {
       state->mouse_look_initialized = true;
       state->mouse_look_smooth_x = 0.0f;
       state->mouse_look_smooth_y = 0.0f;
+      start_settling();
       append_center_cursor_command();
       MarkInstructionExecuted(event, instruction_id, context.tick_index);
       return;
@@ -8588,17 +10414,33 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       state->mouse_look_initialized = true;
       state->mouse_look_smooth_x = 0.0f;
       state->mouse_look_smooth_y = 0.0f;
+      start_settling();
       remember_current_mouse_position();
+      MarkInstructionExecuted(event, instruction_id, context.tick_index);
+      return;
+    }
+    /* Settling: the cursor is held, the view does not turn yet. */
+    if (state != nullptr && state->mouse_look_settle > 0.0f) {
+      const double step = context.unscaled_dt > 0.0 ? context.unscaled_dt : context.delta_time;
+      state->mouse_look_settle -= float(std::max(step, 0.0));
+      if (--state->mouse_look_settle_runs <= 0) {
+        state->mouse_look_settle = 0.0f;
+      }
+      if (center_mouse && mouse.has_position) {
+        append_center_cursor_command();
+      }
+      else if (!center_mouse) {
+        remember_current_mouse_position();
+      }
       MarkInstructionExecuted(event, instruction_id, context.tick_index);
       return;
     }
     if (state != nullptr) {
       const float target_x = offset_x * MOUSE_LOOK_REFERENCE_PIXELS;
       const float target_y = offset_y * MOUSE_LOOK_REFERENCE_PIXELS;
-      state->mouse_look_smooth_x = InterpolateMouseLook(
-          state->mouse_look_smooth_x, target_x, smoothing);
-      state->mouse_look_smooth_y = InterpolateMouseLook(
-          state->mouse_look_smooth_y, target_y, smoothing);
+      const float smoothing_factor = MouseLookSmoothingFactor(smoothing, context.delta_time);
+      state->mouse_look_smooth_x += (target_x - state->mouse_look_smooth_x) * smoothing_factor;
+      state->mouse_look_smooth_y += (target_y - state->mouse_look_smooth_y) * smoothing_factor;
       offset_x = state->mouse_look_smooth_x / MOUSE_LOOK_REFERENCE_PIXELS;
       offset_y = state->mouse_look_smooth_y / MOUSE_LOOK_REFERENCE_PIXELS;
       state->mouse_look_initialized = true;
@@ -8654,18 +10496,37 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
 
   auto execute_time_flow_control_instruction = [&](const LN_Instruction &instruction,
                                                    const uint32_t instruction_id) {
+    /* Whether a UI event route armed the state: only such states are ticked while paused. */
+    const bool ui_event_route = (instructions[instruction_id].flags &
+                                 LN_INSTRUCTION_FLAG_UI_EVENT_ROUTE) != 0;
     switch (instruction.opcode) {
+      case LN_OpCode::ArmNextFrame: {
+        if (instruction.int_value >= 0) {
+          if (TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(instruction.int_value))) {
+            state->kind = TimeFlowRuntimeKind::NextFrame;
+            state->ui_event_route = ui_event_route;
+            state->active = true;
+            state->event = LN_Event::OnUpdate;
+            state->ignore_timescale = true;
+            state->last_update_tick = context.tick_index;
+            state->last_update_phase_tick = context.phase_tick_index;
+          }
+        }
+        break;
+      }
       case LN_OpCode::ArmTimer: {
         if (instruction.int_value >= 0) {
           if (TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(instruction.int_value))) {
             const float duration = std::max(
-                0.0f,
-                ResolveFloatExpression(instruction.float_expr_index, 0.0f, context));
+                0.0f, ResolveFloatExpression(instruction.float_expr_index, 0.0f, context));
             state->kind = TimeFlowRuntimeKind::Timer;
+            state->ui_event_route = ui_event_route;
             state->ignore_timescale = ResolveBoolExpression(
                 instruction.secondary_bool_expr_index, false, context);
+            state->event = TimeFlowContinuationEvent(event);
             state->pulse_tick = UINT64_MAX;
             state->last_update_tick = context.tick_index;
+            state->last_update_phase_tick = context.phase_tick_index;
             state->accumulated_time = 0.0;
             if (duration <= 0.0f) {
               state->active = false;
@@ -8686,12 +10547,14 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         if (instruction.int_value >= 0) {
           if (TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(instruction.int_value))) {
             state->kind = TimeFlowRuntimeKind::Delay;
+            state->ui_event_route = ui_event_route;
             state->ignore_timescale = ResolveBoolExpression(
                 instruction.secondary_bool_expr_index, false, context);
+            state->event = TimeFlowContinuationEvent(event);
             state->last_update_tick = context.tick_index;
+            state->last_update_phase_tick = context.phase_tick_index;
             const float duration = std::max(
-                0.0f,
-                ResolveFloatExpression(instruction.float_expr_index, 0.0f, context));
+                0.0f, ResolveFloatExpression(instruction.float_expr_index, 0.0f, context));
             if (state->pulse_tick != context.tick_index) {
               state->pulse_tick = UINT64_MAX;
             }
@@ -8713,8 +10576,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
               state->pending_pulses.push_back(std::move(pulse));
               state->active = true;
               state->remaining_time = state->pending_pulses.front().remaining_time;
-              for (const TimeFlowRuntimeState::PendingPulse &queued_pulse :
-                   state->pending_pulses)
+              for (const TimeFlowRuntimeState::PendingPulse &queued_pulse : state->pending_pulses)
               {
                 state->remaining_time = std::min(state->remaining_time,
                                                  queued_pulse.remaining_time);
@@ -8728,13 +10590,15 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         if (instruction.int_value >= 0) {
           if (TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(instruction.int_value))) {
             const float interval = std::max(
-                0.0f,
-                ResolveFloatExpression(instruction.float_expr_index, 0.5f, context));
-            const bool continuous = state->active && state->last_update_tick != UINT64_MAX &&
-                                    state->last_update_tick + 1 >= context.tick_index;
+                0.0f, ResolveFloatExpression(instruction.float_expr_index, 0.5f, context));
+            const LN_Event continuation_event = TimeFlowContinuationEvent(event);
+            const bool continuous = state->active && state->event == continuation_event &&
+                                    IsContinuousPhaseTick(state->last_update_phase_tick,
+                                                          context.phase_tick_index);
             state->kind = TimeFlowRuntimeKind::Pulsify;
             state->ignore_timescale = ResolveBoolExpression(
                 instruction.secondary_bool_expr_index, false, context);
+            state->event = continuation_event;
             if (!continuous) {
               state->active = true;
               state->accumulated_time = 0.0;
@@ -8765,6 +10629,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             }
             state->remaining_time = double(interval);
             state->last_update_tick = context.tick_index;
+            state->last_update_phase_tick = context.phase_tick_index;
           }
         }
         break;
@@ -8774,14 +10639,16 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           if (TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(instruction.int_value))) {
             const bool condition = instruction.bool_expr_index == LN_INVALID_INDEX ?
                                        true :
-                                       ResolveBoolExpression(instruction.bool_expr_index,
-                                                             false,
-                                                             context);
-            const bool continuous = state->active && state->last_update_tick != UINT64_MAX &&
-                                    state->last_update_tick + 1 >= context.tick_index;
+                                       ResolveBoolExpression(
+                                           instruction.bool_expr_index, false, context);
+            const LN_Event continuation_event = TimeFlowContinuationEvent(event);
+            const bool continuous = state->active && state->event == continuation_event &&
+                                    IsContinuousPhaseTick(state->last_update_phase_tick,
+                                                          context.phase_tick_index);
             state->kind = TimeFlowRuntimeKind::Barrier;
             state->ignore_timescale = ResolveBoolExpression(
                 instruction.secondary_bool_expr_index, false, context);
+            state->event = continuation_event;
             if (!condition) {
               state->active = false;
               state->accumulated_time = 0.0;
@@ -8791,8 +10658,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             }
             else {
               const float duration = std::max(
-                  0.0f,
-                  ResolveFloatExpression(instruction.float_expr_index, 0.0f, context));
+                  0.0f, ResolveFloatExpression(instruction.float_expr_index, 0.0f, context));
               if (!continuous) {
                 state->active = true;
                 state->accumulated_time = 0.0;
@@ -8811,14 +10677,14 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
               }
             }
             state->last_update_tick = context.tick_index;
+            state->last_update_phase_tick = context.phase_tick_index;
           }
         }
         break;
       }
       case LN_OpCode::TryOnce: {
         if (instruction.int_value >= 0) {
-          BoolExpressionRuntimeState &state = BoolExpressionState(
-              uint32_t(instruction.int_value));
+          BoolExpressionRuntimeState &state = BoolExpressionState(uint32_t(instruction.int_value));
           state.cached_result = !state.active;
           if (state.cached_result) {
             state.active = true;
@@ -8830,12 +10696,59 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       }
       case LN_OpCode::ResetOnce: {
         if (instruction.int_value >= 0) {
-          BoolExpressionRuntimeState &state = BoolExpressionState(
-              uint32_t(instruction.int_value));
+          BoolExpressionRuntimeState &state = BoolExpressionState(uint32_t(instruction.int_value));
           state.active = false;
           state.cached_result = false;
           state.initialized = true;
           state.last_update_tick = 0;
+        }
+        break;
+      }
+      case LN_OpCode::SetFlowGate: {
+        if (instruction.int_value < 0 || m_program == nullptr ||
+            uint32_t(instruction.int_value) >= m_program->GetBoolExpressions().size())
+        {
+          return;
+        }
+        const uint32_t expression_index = uint32_t(instruction.int_value);
+        const LN_BoolExpression &expression = m_program->GetBoolExpressions()[expression_index];
+        if (expression.kind != LN_BoolExpressionKind::FlowGateOpen) {
+          return;
+        }
+        /* Resolve once before mutation so Start Open is sampled exactly once. */
+        (void)ResolveBoolExpression(expression_index, false, context);
+        BoolExpressionRuntimeState &state = BoolExpressionState(expression_index);
+        switch (LN_FlowGateControl(instruction.secondary_int_value)) {
+          case LN_FlowGateControl::Toggle:
+            state.active = !state.active;
+            break;
+          case LN_FlowGateControl::Open:
+            state.active = true;
+            break;
+          case LN_FlowGateControl::Close:
+            state.active = false;
+            break;
+          default:
+            return;
+        }
+        break;
+      }
+      case LN_OpCode::TryFlowGate: {
+        if (instruction.int_value < 0 || m_program == nullptr ||
+            uint32_t(instruction.int_value) >= m_program->GetBoolExpressions().size())
+        {
+          return;
+        }
+        const uint32_t expression_index = uint32_t(instruction.int_value);
+        if (m_program->GetBoolExpressions()[expression_index].kind !=
+            LN_BoolExpressionKind::FlowGateOpen)
+        {
+          return;
+        }
+        if (!ResolveBoolExpression(expression_index, false, context)) {
+          /* A rejected Enter is intentionally not marked executed; the Exit route reads this
+           * instruction's pulse and therefore remains false. */
+          return;
         }
         break;
       }
@@ -8851,17 +10764,19 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
 
             state->accepted_scope_serial = context.execution_scope_serial;
             state->blocked_scope_serial = 0;
-            float duration = ResolveFloatExpression(
-                instruction.float_expr_index, 0.0f, context);
+            state->ui_event_route = ui_event_route;
+            float duration = ResolveFloatExpression(instruction.float_expr_index, 0.0f, context);
             if (!std::isfinite(duration) || duration <= 0.0f) {
               duration = 0.0f;
             }
             state->ignore_timescale = ResolveBoolExpression(
                 instruction.secondary_bool_expr_index, false, context);
+            state->event = TimeFlowContinuationEvent(event);
             state->remaining_time = double(duration);
             /* Cooldown uses accumulated_time as its sampled total duration. */
             state->accumulated_time = double(duration);
             state->last_update_tick = context.tick_index;
+            state->last_update_phase_tick = context.phase_tick_index;
             state->active = duration > 0.0f;
             if (state->pulse_tick != context.tick_index) {
               state->pulse_tick = UINT64_MAX;
@@ -8879,11 +10794,265 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             state->accumulated_time = 0.0;
             state->pulse_tick = UINT64_MAX;
             state->last_update_tick = context.tick_index;
+            state->last_update_phase_tick = context.phase_tick_index;
             state->accepted_scope_serial = 0;
             state->blocked_scope_serial = 0;
             state->ignore_timescale = false;
+            state->event = TimeFlowContinuationEvent(event);
           }
         }
+        break;
+      }
+      case LN_OpCode::TryFlowRouter: {
+        if (instruction.int_value < 0 || instruction.secondary_int_value <= 0) {
+          return;
+        }
+        if (FlowControlRuntimeState *state = FindFlowControlState(uint32_t(instruction.int_value)))
+        {
+          const uint32_t output_count = uint32_t(instruction.secondary_int_value);
+          const uint32_t selected_index = state->next_route_index % output_count;
+          state->last_route_index = selected_index;
+          state->next_route_index = (selected_index + 1u) % output_count;
+          state->routed_scope_serial = context.execution_scope_serial;
+        }
+        break;
+      }
+      case LN_OpCode::ResetFlowRouter: {
+        if (instruction.int_value < 0) {
+          return;
+        }
+        if (FlowControlRuntimeState *state = FindFlowControlState(uint32_t(instruction.int_value)))
+        {
+          state->next_route_index = 0;
+          state->last_route_index = LN_INVALID_INDEX;
+          state->routed_scope_serial = 0;
+        }
+        break;
+      }
+      case LN_OpCode::TryRepeatLimit: {
+        if (instruction.int_value < 0 || instruction.int_expr_index == LN_INVALID_INDEX) {
+          return;
+        }
+        if (FlowControlRuntimeState *state = FindFlowControlState(uint32_t(instruction.int_value)))
+        {
+          const int32_t requested_limit = ResolveIntExpression(
+              instruction.int_expr_index, 0, context);
+          const uint32_t limit = requested_limit > 0 ? uint32_t(requested_limit) : 0u;
+          if (state->accepted_count < limit) {
+            state->accepted_count++;
+            state->accepted_scope_serial = context.execution_scope_serial;
+            state->blocked_scope_serial = 0;
+          }
+          else {
+            state->accepted_scope_serial = 0;
+            state->blocked_scope_serial = context.execution_scope_serial;
+          }
+        }
+        break;
+      }
+      case LN_OpCode::ResetRepeatLimit: {
+        if (instruction.int_value < 0) {
+          return;
+        }
+        if (FlowControlRuntimeState *state = FindFlowControlState(uint32_t(instruction.int_value)))
+        {
+          state->accepted_count = 0;
+          state->accepted_scope_serial = 0;
+          state->blocked_scope_serial = 0;
+        }
+        break;
+      }
+      case LN_OpCode::SampleMotion: {
+        if (instruction.int_value < 0) {
+          return;
+        }
+        FlowControlRuntimeState *state = FindFlowControlState(uint32_t(instruction.int_value));
+        if (state == nullptr) {
+          return;
+        }
+
+        /* A graph may route the same pulse to this node more than once. Ignore duplicate samples
+         * before resolving their source so a later branch cannot invalidate or replace the sample
+         * already accepted for this engine tick. ResetMotion clears this guard intentionally. */
+        if (state->motion_last_sample_tick == context.tick_index) {
+          break;
+        }
+
+        const LN_MotionSourceMode source_mode = LN_MotionSourceMode(
+            instruction.secondary_int_value);
+        MT_Vector3 position(0.0f, 0.0f, 0.0f);
+        LN_RuntimeRef source_ref;
+        bool source_valid = false;
+        if (source_mode == LN_MotionSourceMode::Position) {
+          if (instruction.vector_expr_index != LN_INVALID_INDEX) {
+            position = ResolveVectorExpression(
+                instruction.vector_expr_index, instruction.vector_value, context);
+            source_valid = vector_is_finite(position);
+          }
+        }
+        else if (source_mode == LN_MotionSourceMode::OwnerObject ||
+                 source_mode == LN_MotionSourceMode::Object)
+        {
+          KX_GameObject *object = source_mode == LN_MotionSourceMode::OwnerObject ? m_gameObject :
+                                                                                    nullptr;
+          if (source_mode == LN_MotionSourceMode::Object &&
+              instruction.value_expr_index != LN_INVALID_INDEX)
+          {
+            object = ResolveObjectValue(
+                ResolveValueExpression(instruction.value_expr_index, MakeNoneValue(), context));
+          }
+          if (object != nullptr) {
+            FlushPendingRaycastTransforms(object, context);
+            position = object->NodeGetWorldPosition();
+            source_ref = MakeObjectRef(object, object->GetName());
+            source_valid = vector_is_finite(position) && source_ref.IsValid();
+          }
+        }
+        else {
+          return;
+        }
+
+        if (!source_valid || !std::isfinite(context.current_time)) {
+          state->motion_initialized = false;
+          state->motion_valid = false;
+          state->motion_velocity = MT_Vector3(0.0f, 0.0f, 0.0f);
+          state->motion_direction = MT_Vector3(0.0f, 0.0f, 0.0f);
+          state->motion_speed = 0.0f;
+          state->motion_predicted_position = state->motion_position;
+          break;
+        }
+
+        const bool object_source = source_mode != LN_MotionSourceMode::Position;
+        const bool source_changed = state->motion_source_mode != int32_t(source_mode) ||
+                                    (object_source &&
+                                     !RuntimeRefsEqual(state->motion_source_ref, source_ref));
+        const double elapsed = context.current_time - state->motion_last_sample_time;
+        if (!state->motion_initialized || source_changed || !std::isfinite(elapsed) ||
+            elapsed < 0.0)
+        {
+          state->motion_initialized = true;
+          state->motion_valid = false;
+          state->motion_source_mode = int32_t(source_mode);
+          state->motion_source_ref = source_ref;
+          state->motion_last_sample_tick = context.tick_index;
+          state->motion_last_sample_time = context.current_time;
+          state->motion_position = position;
+          state->motion_previous_position = position;
+          state->motion_velocity = MT_Vector3(0.0f, 0.0f, 0.0f);
+          state->motion_direction = MT_Vector3(0.0f, 0.0f, 0.0f);
+          state->motion_predicted_position = position;
+          state->motion_speed = 0.0f;
+          break;
+        }
+
+        /* OnUpdate can run on a render frame where fixed simulation time has not advanced. Keep
+         * the last timed sample and its outputs intact; rebasing here would discard displacement
+         * and make Valid flicker at render rates above the fixed-step rate. */
+        if (elapsed <= 1.0e-9) {
+          state->motion_last_sample_tick = context.tick_index;
+          break;
+        }
+
+        const double raw_x = (double(position.x()) - double(state->motion_previous_position.x())) /
+                             elapsed;
+        const double raw_y = (double(position.y()) - double(state->motion_previous_position.y())) /
+                             elapsed;
+        const double raw_z = (double(position.z()) - double(state->motion_previous_position.z())) /
+                             elapsed;
+        MT_Vector3 velocity{float(raw_x), float(raw_y), float(raw_z)};
+        if (!vector_is_finite(velocity)) {
+          state->motion_initialized = false;
+          state->motion_valid = false;
+          state->motion_velocity = MT_Vector3(0.0f, 0.0f, 0.0f);
+          state->motion_direction = MT_Vector3(0.0f, 0.0f, 0.0f);
+          state->motion_speed = 0.0f;
+          state->motion_predicted_position = position;
+          state->motion_position = position;
+          break;
+        }
+
+        float smoothing_time = ResolveFloatExpression(instruction.secondary_float_expr_index,
+                                                      instruction.secondary_vector_value.x(),
+                                                      context);
+        if (!std::isfinite(smoothing_time) || smoothing_time < 0.0f) {
+          smoothing_time = 0.0f;
+        }
+        if (smoothing_time > 0.0f && state->motion_valid) {
+          const double alpha = -std::expm1(-elapsed / double(smoothing_time));
+          velocity = state->motion_velocity +
+                     (velocity - state->motion_velocity) * float(std::clamp(alpha, 0.0, 1.0));
+        }
+
+        const double speed_double = std::sqrt(double(velocity.x()) * double(velocity.x()) +
+                                              double(velocity.y()) * double(velocity.y()) +
+                                              double(velocity.z()) * double(velocity.z()));
+        if (!std::isfinite(speed_double) ||
+            speed_double > double(std::numeric_limits<float>::max()))
+        {
+          state->motion_initialized = false;
+          state->motion_valid = false;
+          state->motion_velocity = MT_Vector3(0.0f, 0.0f, 0.0f);
+          state->motion_direction = MT_Vector3(0.0f, 0.0f, 0.0f);
+          state->motion_speed = 0.0f;
+          state->motion_predicted_position = position;
+          state->motion_position = position;
+          break;
+        }
+
+        float prediction_time = ResolveFloatExpression(
+            instruction.float_expr_index, instruction.vector_value.x(), context);
+        if (!std::isfinite(prediction_time) || prediction_time < 0.0f) {
+          prediction_time = 0.0f;
+        }
+        const double predicted_x = double(position.x()) +
+                                   double(velocity.x()) * double(prediction_time);
+        const double predicted_y = double(position.y()) +
+                                   double(velocity.y()) * double(prediction_time);
+        const double predicted_z = double(position.z()) +
+                                   double(velocity.z()) * double(prediction_time);
+        const double max_float = double(std::numeric_limits<float>::max());
+        const bool predicted_valid = std::isfinite(predicted_x) && std::isfinite(predicted_y) &&
+                                     std::isfinite(predicted_z) &&
+                                     std::fabs(predicted_x) <= max_float &&
+                                     std::fabs(predicted_y) <= max_float &&
+                                     std::fabs(predicted_z) <= max_float;
+
+        state->motion_source_mode = int32_t(source_mode);
+        state->motion_source_ref = source_ref;
+        state->motion_last_sample_tick = context.tick_index;
+        state->motion_last_sample_time = context.current_time;
+        state->motion_position = position;
+        state->motion_previous_position = position;
+        state->motion_velocity = velocity;
+        state->motion_speed = float(speed_double);
+        state->motion_direction = speed_double > double(MT_EPSILON) ?
+                                      velocity / state->motion_speed :
+                                      MT_Vector3(0.0f, 0.0f, 0.0f);
+        state->motion_predicted_position = predicted_valid ? MT_Vector3(float(predicted_x),
+                                                                        float(predicted_y),
+                                                                        float(predicted_z)) :
+                                                             position;
+        state->motion_valid = predicted_valid;
+        break;
+      }
+      case LN_OpCode::ResetMotion: {
+        if (instruction.int_value < 0) {
+          return;
+        }
+        if (FlowControlRuntimeState *state = FindFlowControlState(uint32_t(instruction.int_value)))
+        {
+          *state = FlowControlRuntimeState{};
+        }
+        break;
+      }
+      case LN_OpCode::BreakLoop: {
+        if (instruction.int_value < 0 || instruction.loop_frame_index == LN_INVALID_INDEX ||
+            uint32_t(instruction.int_value) != instruction.loop_frame_index ||
+            m_activeLoopBodyFrame != instruction.loop_frame_index)
+        {
+          return;
+        }
+        LoopState(instruction.loop_frame_index).break_requested = true;
         break;
       }
       default:
@@ -8895,17 +11064,16 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
 
   auto execute_global_property_instruction = [&](const LN_Instruction &instruction,
                                                  const uint32_t instruction_id) {
-    const std::string category = ResolveStringExpression(instruction.string_expr_index,
-                                                         std::string(),
-                                                         context);
+    const std::string category = ResolveStringExpression(
+        instruction.string_expr_index, std::string(), context);
     const std::string property = ResolveStringExpression(
         instruction.secondary_string_expr_index, std::string(), context);
     if (category.empty() || property.empty()) {
       return;
     }
-    LN_Value value = ResolveValueExpression(instruction.value_expr_index,
-                                            MakeNoneValue(),
-                                            context);
+    LN_Value value = ResolveValueExpression(
+        instruction.value_expr_index, MakeNoneValue(), context);
+    ShareValue(value);
     const bool persistent = ResolveBoolExpression(instruction.bool_expr_index, false, context);
     {
       std::lock_guard<std::mutex> lock(GlobalPropertiesMutex());
@@ -8925,35 +11093,30 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                           const uint32_t instruction_id) {
     switch (instruction.opcode) {
       case LN_OpCode::SaveVariable: {
-        const std::string path = ResolveStringExpression(instruction.string_expr_index,
-                                                         "//Data",
-                                                         context);
+        const std::string path = ResolveStringExpression(
+            instruction.string_expr_index, "//Data", context);
         const std::string file_name = ResolveStringExpression(
             instruction.secondary_string_expr_index, "variables", context);
-        const std::string name = ResolveStringExpression(instruction.tertiary_string_expr_index,
-                                                         "var",
-                                                         context);
+        const std::string name = ResolveStringExpression(
+            instruction.tertiary_string_expr_index, "var", context);
         if (name.empty()) {
           return;
         }
         LN_Value dict = LoadVariableDictFromFile(path, file_name);
         dict.type = LN_ValueType::Dict;
         dict.exists = true;
-        dict.dict_value[name] = ResolveValueExpression(instruction.value_expr_index,
-                                                       MakeNoneValue(),
-                                                       context);
+        dict.dict_value[name] = ResolveValueExpression(
+            instruction.value_expr_index, MakeNoneValue(), context);
         SaveVariableDictToFile(path, file_name, dict);
         break;
       }
       case LN_OpCode::SaveVariableDict: {
-        const std::string path = ResolveStringExpression(instruction.string_expr_index,
-                                                         "//Data",
-                                                         context);
+        const std::string path = ResolveStringExpression(
+            instruction.string_expr_index, "//Data", context);
         const std::string file_name = ResolveStringExpression(
             instruction.secondary_string_expr_index, "variables", context);
-        LN_Value dict = ResolveValueExpression(instruction.value_expr_index,
-                                               MakeNoneValue(),
-                                               context);
+        LN_Value dict = ResolveValueExpression(
+            instruction.value_expr_index, MakeNoneValue(), context);
         if (dict.type != LN_ValueType::Dict) {
           dict.type = LN_ValueType::Dict;
           dict.exists = true;
@@ -8963,9 +11126,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::ClearVariables: {
-        const std::string path = ResolveStringExpression(instruction.string_expr_index,
-                                                         "//Data",
-                                                         context);
+        const std::string path = ResolveStringExpression(
+            instruction.string_expr_index, "//Data", context);
         const std::string file_name = ResolveStringExpression(
             instruction.secondary_string_expr_index, "variables", context);
         LN_Value dict;
@@ -8975,14 +11137,12 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::RemoveVariable: {
-        const std::string path = ResolveStringExpression(instruction.string_expr_index,
-                                                         "//Data",
-                                                         context);
+        const std::string path = ResolveStringExpression(
+            instruction.string_expr_index, "//Data", context);
         const std::string file_name = ResolveStringExpression(
             instruction.secondary_string_expr_index, "variables", context);
-        const std::string name = ResolveStringExpression(instruction.tertiary_string_expr_index,
-                                                         "var",
-                                                         context);
+        const std::string name = ResolveStringExpression(
+            instruction.tertiary_string_expr_index, "var", context);
         if (!name.empty()) {
           LN_Value dict = LoadVariableDictFromFile(path, file_name);
           if (dict.type != LN_ValueType::Dict) {
@@ -8993,6 +11153,67 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           dict.dict_value.erase(name);
           SaveVariableDictToFile(path, file_name, dict);
         }
+        break;
+      }
+      case LN_OpCode::InputMap: {
+        LN_InputMap &map = LN_InputMap::Get();
+        const LN_InputMapOperation operation = LN_InputMapOperation(instruction.int_value);
+        if (operation == LN_InputMapOperation::Rebind) {
+          const std::string action = ResolveStringExpression(
+              instruction.string_expr_index, std::string(), context);
+          if (m_logicManager == nullptr) {
+            CompletePersistenceOperation(instruction.bool_expr_index, false);
+            break;
+          }
+          /* secondary_int_value: the device class, and the direction in its second byte. */
+          m_logicManager->StartInputRebind(
+              this,
+              instruction.bool_expr_index,
+              instruction.source_ref_index,
+              map.Find(action),
+              ResolveIntExpression(instruction.int_expr_index, 0, context),
+              LN_InputDeviceClass(instruction.secondary_int_value & 0xff),
+              instruction.secondary_int_value >> 8,
+              ResolveFloatExpression(instruction.float_expr_index, 5.0f, context));
+          break;
+        }
+        bool success = true;
+        if (operation == LN_InputMapOperation::Reset) {
+          map.Reset();
+        }
+        else {
+          const std::string filepath = ResolveVariableFilePath(
+              ResolveStringExpression(instruction.string_expr_index, "//Data", context),
+              ResolveStringExpression(
+                  instruction.secondary_string_expr_index, "input_map", context));
+          if (operation == LN_InputMapOperation::Save) {
+            /* Write a temporary file and replace the old one only when all of it was written. */
+            std::error_code error;
+            std::filesystem::create_directories(std::filesystem::path(filepath).parent_path(),
+                                                error);
+            const std::string temporary = filepath + ".tmp";
+            {
+              std::ofstream stream(temporary, std::ios::trunc);
+              stream << map.Save();
+              stream.close();
+              success = !stream.fail();
+            }
+            if (success) {
+              std::filesystem::rename(temporary, filepath, error);
+              success = !error;
+            }
+            if (!success) {
+              std::filesystem::remove(temporary, error);
+            }
+          }
+          else {
+            std::ifstream stream(filepath);
+            std::stringstream contents;
+            contents << stream.rdbuf();
+            success = stream.is_open() && map.Restore(contents.str());
+          }
+        }
+        CompletePersistenceOperation(instruction.bool_expr_index, success);
         break;
       }
       default:
@@ -9006,8 +11227,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                                     const uint32_t instruction_id) {
     switch (instruction.opcode) {
       case LN_OpCode::AddPhysicsConstraint: {
-        const LN_RigidBodyConstraintCommandPayload payload =
-            rigid_body_constraint_command_payload(instruction);
+        const LN_RigidBodyConstraintCommandPayload payload = rigid_body_constraint_command_payload(
+            instruction);
         KX_GameObject *target = resolve_required_object(payload.object_value_expr_index);
         KX_GameObject *child = resolve_required_object(payload.target_value_expr_index);
         if (target == nullptr && m_gameObject != nullptr &&
@@ -9035,7 +11256,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           if (ctrl1 != nullptr && ctrl2 != nullptr) {
             auto bool_input = [&](const LN_RigidBodyConstraintBoolInput input,
                                   const bool fallback) {
-              return ResolveBoolExpression(payload.bool_expr_indices[size_t(input)], fallback, context);
+              return ResolveBoolExpression(
+                  payload.bool_expr_indices[size_t(input)], fallback, context);
             };
             auto vector_input = [&](const LN_RigidBodyConstraintVectorInput input,
                                     const MT_Vector3 &fallback) {
@@ -9052,16 +11274,18 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             MT_Matrix3x3 basis;
             if (constraint_object != nullptr) {
               const MT_Matrix3x3 target_inv = target->NodeGetWorldOrientation().inverse();
-              pivot = target_inv * (constraint_object->NodeGetWorldPosition() -
-                                    target->NodeGetWorldPosition());
+              pivot = target_inv *
+                      (constraint_object->NodeGetWorldPosition() - target->NodeGetWorldPosition());
               basis = target_inv * constraint_object->NodeGetWorldOrientation();
             }
             else {
               pivot = vector_input(LN_RigidBodyConstraintVectorInput::Pivot,
                                    MT_Vector3(0.0f, 0.0f, 0.0f));
-              const MT_Vector3 rotation = vector_input(LN_RigidBodyConstraintVectorInput::Rotation,
-                                                       MT_Vector3(0.0f, 0.0f, 0.0f));
-              basis = MT_Matrix3x3(rotation);
+              basis = ResolveRotationExpression(payload.vector_expr_indices[size_t(
+                                                    LN_RigidBodyConstraintVectorInput::Rotation)],
+                                                LN_Rotation::Identity(),
+                                                context)
+                          .ToMatrix();
               if (bool_input(LN_RigidBodyConstraintBoolInput::UseWorldSpace, false)) {
                 const MT_Matrix3x3 target_inv = target->NodeGetWorldOrientation().inverse();
                 pivot = target_inv * (pivot - target->NodeGetWorldPosition());
@@ -9229,7 +11453,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             }
 
             const int constraint_id = environment->CreateRigidBodyConstraint(
-                target, child, pivot, basis, settings);
+                target, child, pivot, basis, settings, constraint_name);
             if (constraint_id != -1) {
               target->AddRuntimeRigidBodyConstraint(
                   constraint_name, target, child, settings, pivot, basis, constraint_id);
@@ -9247,9 +11471,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             target->RemoveRigidBodyConstraints();
             break;
           }
-          std::string name = ResolveStringExpression(instruction.string_expr_index,
-                                                     "constraint",
-                                                     context);
+          std::string name = ResolveStringExpression(
+              instruction.string_expr_index, "constraint", context);
           if (name.empty()) {
             name = "constraint";
           }
@@ -9263,133 +11486,6 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     MarkInstructionExecuted(event, instruction_id, context.tick_index);
   };
 
-  auto execute_spawn_pool_instruction = [&](const LN_Instruction &instruction,
-                                            const uint32_t instruction_id) {
-    switch (instruction.opcode) {
-      case LN_OpCode::SpawnPoolCreate: {
-        const int32_t pool_index = instruction.int_value;
-        if (pool_index < 0) {
-          return;
-        }
-        SpawnPoolRuntimeState &pool = EnsureSpawnPoolState(uint32_t(pool_index));
-        pool.spawn_type = instruction.secondary_int_value;
-        pool.lifetime = float(ResolveIntExpression(instruction.secondary_int_expr_index,
-                                                   3,
-                                                   context));
-        pool.visualize = ResolveBoolExpression(instruction.bool_expr_index, false, context);
-        pool.raycast_mask = uint32_t(std::max(
-            0, ResolveIntExpression(instruction.tertiary_int_expr_index, 65535, context)));
-        pool.timed_objects.clear();
-        m_spawnPoolBullets.erase(
-            std::remove_if(m_spawnPoolBullets.begin(),
-                           m_spawnPoolBullets.end(),
-                           [pool_index](const SpawnPoolBulletRuntimeState &bullet) {
-                             return bullet.pool_index == pool_index;
-                           }),
-            m_spawnPoolBullets.end());
-        if (KX_GameObject *spawner = resolve_optional_object(instruction.secondary_value_expr_index))
-        {
-          pool.spawner = spawner;
-        }
-        if (KX_GameObject *template_object = resolve_optional_object(instruction.value_expr_index))
-        {
-          KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
-          const int amount = std::max(
-              1, ResolveIntExpression(instruction.int_expr_index, 1, context));
-          pool.pooled_objects.clear();
-          pool.next_spawn_index = 0;
-          if (scene != nullptr) {
-            for (int index = 0; index < amount; ++index) {
-              KX_GameObject *replica = scene->AddReplicaObject(template_object, nullptr, 0);
-              if (replica == nullptr) {
-                continue;
-              }
-              replica->Release();
-              replica->NodeSetWorldPosition(pool.reset_position);
-              replica->NodeSetWorldScale(MT_Vector3(0.001f, 0.001f, 0.001f));
-              replica->SuspendPhysics(false, false);
-              pool.pooled_objects.push_back(replica);
-            }
-          }
-        }
-        break;
-      }
-      case LN_OpCode::SpawnPoolSpawn: {
-        const int32_t pool_index = instruction.int_value;
-        SpawnPoolRuntimeState *pool = pool_index >= 0 ?
-                                          FindSpawnPoolState(uint32_t(pool_index)) :
-                                          nullptr;
-        if (pool != nullptr && !pool->pooled_objects.empty()) {
-          KX_GameObject *spawn_object = pool->pooled_objects[pool->next_spawn_index];
-          pool->next_spawn_index = (pool->next_spawn_index + 1) % pool->pooled_objects.size();
-          if (spawn_object != nullptr) {
-            pool->spawned_tick = context.tick_index;
-            pool->timed_objects.erase(
-                std::remove_if(pool->timed_objects.begin(),
-                               pool->timed_objects.end(),
-                               [spawn_object](const SpawnPoolTimedObject &timed) {
-                                 return timed.object == spawn_object;
-                               }),
-                pool->timed_objects.end());
-            m_spawnPoolBullets.erase(
-                std::remove_if(m_spawnPoolBullets.begin(),
-                               m_spawnPoolBullets.end(),
-                               [spawn_object](const SpawnPoolBulletRuntimeState &bullet) {
-                                 return bullet.object == spawn_object;
-                               }),
-                m_spawnPoolBullets.end());
-            if (pool->spawner != nullptr) {
-              spawn_object->NodeSetWorldPosition(pool->spawner->NodeGetWorldPosition());
-            }
-            spawn_object->RestorePhysics(false);
-            const float speed = ResolveFloatExpression(instruction.float_expr_index, 0.0f, context);
-            if (pool->spawn_type == 1 || pool->spawn_type == 2) {
-              SpawnPoolBulletRuntimeState bullet;
-              bullet.pool_index = pool_index;
-              bullet.object = spawn_object;
-              bullet.position = spawn_object->NodeGetWorldPosition();
-              bullet.direction = pool->spawner ?
-                                     pool->spawner->NodeGetWorldOrientation().getColumn(1) :
-                                     MT_Vector3(0.0f, 1.0f, 0.0f);
-              if (bullet.direction.length2() > 0.0f) {
-                bullet.direction.normalize();
-              }
-              bullet.speed = speed;
-              bullet.spawn_type = pool->spawn_type;
-              bullet.destroy_time = context.current_time + double(pool->lifetime);
-              bullet.raycast_mask = pool->raycast_mask;
-              bullet.visualize = pool->visualize;
-              m_spawnPoolBullets.push_back(bullet);
-            }
-            else {
-              if (speed > 0.0f) {
-                MT_Vector3 direction(0.0f, 1.0f, 0.0f);
-                if (pool->spawner != nullptr) {
-                  direction = pool->spawner->NodeGetWorldOrientation().getColumn(1);
-                }
-                if (direction.length2() > 0.0f) {
-                  direction.normalize();
-                }
-                spawn_object->setLinearVelocity(direction * speed, false);
-              }
-              if (pool->lifetime > 0.0f) {
-                SpawnPoolTimedObject timed;
-                timed.object = spawn_object;
-                timed.destroy_time = context.current_time + double(pool->lifetime);
-                pool->timed_objects.push_back(timed);
-              }
-            }
-          }
-        }
-        break;
-      }
-      default:
-        return;
-    }
-    command_sequence++;
-    MarkInstructionExecuted(event, instruction_id, context.tick_index);
-  };
-
   auto execute_navigation_instruction = [&](const LN_Instruction &instruction,
                                             const uint32_t instruction_id) {
     switch (instruction.opcode) {
@@ -9400,21 +11496,17 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           const float speed = ResolveFloatExpression(instruction.float_expr_index, 1.0f, context);
           const float threshold = ResolveFloatExpression(
               instruction.secondary_float_expr_index, 1.0f, context);
-          const bool move_dynamic = ResolveBoolExpression(instruction.bool_expr_index,
-                                                          false,
-                                                          context);
-          const bool look_at = ResolveBoolExpression(instruction.secondary_bool_expr_index,
-                                                     true,
-                                                     context);
-          const bool visualize = ResolveBoolExpression(instruction.tertiary_bool_expr_index,
-                                                       false,
-                                                       context);
+          const bool move_dynamic = ResolveBoolExpression(
+              instruction.bool_expr_index, false, context);
+          const bool look_at = ResolveBoolExpression(
+              instruction.secondary_bool_expr_index, true, context);
+          const bool visualize = ResolveBoolExpression(
+              instruction.tertiary_bool_expr_index, false, context);
           const int32_t rot_axis = ResolveIntExpression(instruction.int_expr_index, 2, context);
           const int32_t front_axis = ResolveIntExpression(
               instruction.secondary_int_expr_index, 1, context);
-          const float rot_speed = ResolveFloatExpression(instruction.tertiary_float_expr_index,
-                                                         1.0f,
-                                                         context);
+          const float rot_speed = ResolveFloatExpression(
+              instruction.tertiary_float_expr_index, 1.0f, context);
           KX_NavMeshObject *navmesh = nullptr;
           if (instruction.secondary_value_expr_index != LN_INVALID_INDEX) {
             const LN_Value navmesh_value = ResolveValueExpression(
@@ -9446,19 +11538,20 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                               threshold,
                                               move_dynamic,
                                               true,
-                                              float(context.fixed_dt),
+                                              float(context.delta_time),
                                               command_sort_key(instruction_id, command_sequence),
                                               instruction.source_ref_index);
               command_sequence++;
               if (look_at && rotating_object != nullptr) {
-                command_buffer.AppendRotateToward(rotating_object,
-                                                  move_target,
-                                                  rot_speed,
-                                                  rot_axis,
-                                                  front_axis,
-                                                  command_sort_key(instruction_id,
-                                                                   command_sequence),
-                                                  instruction.source_ref_index);
+                command_buffer.AppendRotateToward(
+                    rotating_object,
+                    move_target,
+                    std::max(0.0f, rot_speed) * float(std::max(0.0, context.delta_time)),
+                    rot_axis,
+                    front_axis,
+                    true,
+                    command_sort_key(instruction_id, command_sequence),
+                    instruction.source_ref_index);
               }
             }
             if (reached) {
@@ -9480,18 +11573,15 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             return;
           }
           const bool loop = ResolveBoolExpression(instruction.bool_expr_index, false, context);
-          const bool move_dynamic = ResolveBoolExpression(instruction.tertiary_bool_expr_index,
-                                                          false,
-                                                          context);
-          const bool look_at = ResolveBoolExpression(instruction.quaternary_bool_expr_index,
-                                                     true,
-                                                     context);
+          const bool move_dynamic = ResolveBoolExpression(
+              instruction.tertiary_bool_expr_index, false, context);
+          const bool look_at = ResolveBoolExpression(
+              instruction.quaternary_bool_expr_index, true, context);
           const float speed = ResolveFloatExpression(instruction.float_expr_index, 1.0f, context);
           const float threshold = ResolveFloatExpression(
               instruction.secondary_float_expr_index, 0.2f, context);
-          const float rot_speed = ResolveFloatExpression(instruction.tertiary_float_expr_index,
-                                                         1.0f,
-                                                         context);
+          const float rot_speed = ResolveFloatExpression(
+              instruction.tertiary_float_expr_index, 1.0f, context);
           const int32_t rot_axis = ResolveIntExpression(instruction.int_expr_index, 2, context);
           const int32_t front_axis = ResolveIntExpression(
               instruction.secondary_int_expr_index, 1, context);
@@ -9514,9 +11604,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             return;
           }
           InstructionRuntimeState &state = m_instructionStates[state_index];
-          if (state.list_point_index < 0 ||
-              state.list_point_index >= int(path_points.size()))
-          {
+          if (state.list_point_index < 0 || state.list_point_index >= int(path_points.size())) {
             state.list_point_index = 0;
           }
 
@@ -9532,20 +11620,21 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                               speed,
                                               threshold,
                                               move_dynamic,
-                                              false,
-                                              float(context.fixed_dt),
+                                              true,
+                                              float(context.delta_time),
                                               command_sort_key(instruction_id, command_sequence),
                                               instruction.source_ref_index);
               command_sequence++;
               if (look_at && rotating_object != nullptr) {
-                command_buffer.AppendRotateToward(rotating_object,
-                                                  move_target,
-                                                  rot_speed,
-                                                  rot_axis,
-                                                  front_axis,
-                                                  command_sort_key(instruction_id,
-                                                                   command_sequence),
-                                                  instruction.source_ref_index);
+                command_buffer.AppendRotateToward(
+                    rotating_object,
+                    move_target,
+                    std::max(0.0f, rot_speed) * float(std::max(0.0, context.delta_time)),
+                    rot_axis,
+                    front_axis,
+                    true,
+                    command_sort_key(instruction_id, command_sequence),
+                    instruction.source_ref_index);
               }
               break;
             }
@@ -9570,20 +11659,21 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                               speed,
                                               threshold,
                                               move_dynamic,
-                                              false,
-                                              float(context.fixed_dt),
+                                              true,
+                                              float(context.delta_time),
                                               command_sort_key(instruction_id, command_sequence),
                                               instruction.source_ref_index);
               command_sequence++;
               if (look_at && rotating_object != nullptr) {
-                command_buffer.AppendRotateToward(rotating_object,
-                                                  move_target,
-                                                  rot_speed,
-                                                  rot_axis,
-                                                  front_axis,
-                                                  command_sort_key(instruction_id,
-                                                                   command_sequence),
-                                                  instruction.source_ref_index);
+                command_buffer.AppendRotateToward(
+                    rotating_object,
+                    move_target,
+                    std::max(0.0f, rot_speed) * float(std::max(0.0, context.delta_time)),
+                    rot_axis,
+                    front_axis,
+                    true,
+                    command_sort_key(instruction_id, command_sequence),
+                    instruction.source_ref_index);
               }
             }
             if (reached) {
@@ -9603,61 +11693,739 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
 
   auto execute_scene_collection_instruction = [&](const LN_Instruction &instruction,
                                                   const uint32_t instruction_id) {
+    bool instruction_executed = false;
+    auto warn_scene_collection_request = [&](const LN_CommandBuffer::CommandType command_type,
+                                             const std::string &reason) {
+      LN_CommandBuffer::Command diagnostic;
+      diagnostic.type = command_type;
+      diagnostic.object = m_gameObject;
+      diagnostic.runtime_tree = this;
+      diagnostic.sort_key = command_sort_key(instruction_id, command_sequence);
+      diagnostic.source_ref_index = instruction.source_ref_index;
+      LN_WarnCommandFailureOnce(diagnostic, reason);
+    };
     switch (instruction.opcode) {
       case LN_OpCode::SetCollectionVisibility: {
-        const LN_Value collection_value = ResolveValueExpression(instruction.value_expr_index,
-                                                                 MakeNoneValue(),
-                                                                 context);
+        const LN_Value collection_value = ResolveValueExpression(
+            instruction.value_expr_index, MakeNoneValue(), context);
+        blender::Collection *collection = nullptr;
         if (collection_value.type == LN_ValueType::CollectionRef &&
             collection_value.runtime_ref.IsValid())
         {
-          blender::Collection *collection = ResolveCollectionRef(collection_value.runtime_ref);
-          const bool visible = ResolveBoolExpression(instruction.bool_expr_index, true, context);
-          const bool recursive = ResolveBoolExpression(instruction.secondary_bool_expr_index,
-                                                       false,
-                                                       context);
-          SetCollectionObjectVisibility(m_gameObject ? m_gameObject->GetScene() : nullptr,
-                                        collection,
-                                        visible,
-                                        recursive);
+          collection = ResolveCollectionRef(collection_value.runtime_ref);
         }
+        KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
+        if (scene == nullptr || collection == nullptr) {
+          warn_scene_collection_request(
+              LN_CommandBuffer::CommandType::SetVisibility,
+              "collection did not resolve in the logic-tree owner's scene");
+          break;
+        }
+        const bool visible = ResolveBoolExpression(instruction.bool_expr_index, true, context);
+        const bool include_child_collections = ResolveBoolExpression(
+            instruction.secondary_bool_expr_index, false, context);
+        if (!scene->SetRuntimeCollectionRenderVisibility(
+                collection, visible, include_child_collections))
+        {
+          warn_scene_collection_request(
+              LN_CommandBuffer::CommandType::SetVisibility,
+              "collection is not linked to the logic-tree owner's runtime scene");
+          break;
+        }
+        if (m_logicManager != nullptr) {
+          m_logicManager->InvalidatePointerHitCache();
+        }
+        instruction_executed = true;
+        break;
+      }
+      case LN_OpCode::SetCollectionMember: {
+        const LN_Value collection_value = ResolveValueExpression(
+            instruction.value_expr_index, MakeNoneValue(), context);
+        blender::Collection *collection = nullptr;
+        if (collection_value.type == LN_ValueType::CollectionRef &&
+            collection_value.runtime_ref.IsValid())
+        {
+          collection = ResolveCollectionRef(collection_value.runtime_ref);
+        }
+        /* Object: empty is the tree's own object. */
+        KX_GameObject *target = instruction.secondary_value_expr_index != LN_INVALID_INDEX ?
+                                    ResolveObjectValue(ResolveValueExpression(
+                                        instruction.secondary_value_expr_index,
+                                        MakeNoneValue(),
+                                        context)) :
+                                    m_gameObject;
+        KX_Scene *scene = target ? target->GetScene() : nullptr;
+        if (scene == nullptr || collection == nullptr) {
+          warn_scene_collection_request(
+              LN_CommandBuffer::CommandType::SetVisibility,
+              "Set Collection Member: the object or the collection did not resolve");
+          break;
+        }
+        const bool member = ResolveBoolExpression(instruction.bool_expr_index, true, context);
+        const bool include_children = ResolveBoolExpression(
+            instruction.secondary_bool_expr_index, false, context);
+        std::vector<KX_GameObject *> objects = {target};
+        if (include_children) {
+          const std::vector<KX_GameObject *> children = target->GetChildrenRecursive();
+          objects.insert(objects.end(), children.begin(), children.end());
+        }
+        bool changed = true;
+        for (KX_GameObject *object : objects) {
+          changed &= scene->SetCollectionMember(object, collection, member);
+        }
+        if (!changed) {
+          warn_scene_collection_request(
+              LN_CommandBuffer::CommandType::SetVisibility,
+              "Set Collection Member: the collection is not part of the object's scene");
+          break;
+        }
+        if (m_logicManager != nullptr) {
+          m_logicManager->InvalidatePointerHitCache();
+        }
+        instruction_executed = true;
         break;
       }
       case LN_OpCode::SetOverlayCollection: {
-        const LN_Value camera_value = ResolveValueExpression(instruction.value_expr_index,
-                                                             MakeNoneValue(),
-                                                             context);
+        const LN_Value camera_value = instruction.value_expr_index != LN_INVALID_INDEX ?
+                                          ResolveValueExpression(instruction.value_expr_index,
+                                                                 MakeNoneValue(),
+                                                                 context) :
+                                          MakeNoneValue();
         const LN_Value collection_value = ResolveValueExpression(
             instruction.secondary_value_expr_index, MakeNoneValue(), context);
-        if (KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr) {
-          KX_Camera *camera = ResolveCameraValue(camera_value);
-          if (camera == nullptr) {
-            camera = scene->GetActiveCamera();
-          }
-          blender::Collection *collection = nullptr;
-          if (collection_value.type == LN_ValueType::CollectionRef &&
-              collection_value.runtime_ref.IsValid())
-          {
-            collection = ResolveCollectionRef(collection_value.runtime_ref);
-          }
-          if (camera != nullptr && collection != nullptr) {
-            scene->AddOverlayCollection(camera, collection);
-          }
-        }
-        break;
-      }
-      case LN_OpCode::RemoveOverlayCollection: {
-        const LN_Value collection_value = ResolveValueExpression(instruction.value_expr_index,
-                                                                 MakeNoneValue(),
-                                                                 context);
+        KX_Camera *camera = dynamic_cast<KX_Camera *>(ResolveObjectValue(camera_value, true));
+        blender::Collection *collection = nullptr;
         if (collection_value.type == LN_ValueType::CollectionRef &&
             collection_value.runtime_ref.IsValid())
         {
-          if (KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr) {
-            if (blender::Collection *collection = ResolveCollectionRef(collection_value.runtime_ref)) {
-              scene->RemoveOverlayCollection(collection);
+          collection = ResolveCollectionRef(collection_value.runtime_ref);
+        }
+        KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
+        auto complete_overlay = [&](const LN_UIResult result) {
+          CompleteUIOperation(instruction.property_ref_index, result, 0);
+          instruction_executed = true;
+        };
+        if (m_gameObject == nullptr || scene == nullptr) {
+          complete_overlay(LN_UIResult::RuntimeUnavailable);
+          warn_scene_collection_request(LN_CommandBuffer::CommandType::SetOverlayCollection,
+                                        LN_UIResultMessage(LN_UIResult::RuntimeUnavailable));
+          break;
+        }
+        if (collection == nullptr) {
+          complete_overlay(LN_UIResult::InvalidCollection);
+          warn_scene_collection_request(LN_CommandBuffer::CommandType::SetOverlayCollection,
+                                        LN_UIResultMessage(LN_UIResult::InvalidCollection));
+          break;
+        }
+        const KX_OverlayCollectionResult validation = scene->ValidateAddOverlayCollection(
+            camera, collection);
+        if (validation == KX_OverlayCollectionResult::NoChange) {
+          complete_overlay(LN_UIResult::NoChange);
+          break;
+        }
+        if (!KX_OverlayCollectionResultSucceeded(validation)) {
+          complete_overlay(LN_MapOverlayResult(validation));
+          warn_scene_collection_request(LN_CommandBuffer::CommandType::SetOverlayCollection,
+                                        KX_OverlayCollectionResultMessage(validation));
+          break;
+        }
+        command_buffer.AppendSetOverlayCollection(
+            this,
+            m_gameObject,
+            camera,
+            collection,
+            instruction.property_ref_index,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
+        instruction_executed = true;
+        break;
+      }
+      case LN_OpCode::RemoveOverlayCollection: {
+        const LN_Value collection_value = ResolveValueExpression(
+            instruction.value_expr_index, MakeNoneValue(), context);
+        blender::Collection *collection = nullptr;
+        if (collection_value.type == LN_ValueType::CollectionRef &&
+            collection_value.runtime_ref.IsValid())
+        {
+          collection = ResolveCollectionRef(collection_value.runtime_ref);
+        }
+        KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
+        auto complete_overlay = [&](const LN_UIResult result) {
+          CompleteUIOperation(instruction.property_ref_index, result, 0);
+          instruction_executed = true;
+        };
+        if (m_gameObject == nullptr || scene == nullptr) {
+          complete_overlay(LN_UIResult::RuntimeUnavailable);
+          warn_scene_collection_request(LN_CommandBuffer::CommandType::RemoveOverlayCollection,
+                                        LN_UIResultMessage(LN_UIResult::RuntimeUnavailable));
+          break;
+        }
+        if (collection == nullptr) {
+          complete_overlay(LN_UIResult::InvalidCollection);
+          warn_scene_collection_request(LN_CommandBuffer::CommandType::RemoveOverlayCollection,
+                                        LN_UIResultMessage(LN_UIResult::InvalidCollection));
+          break;
+        }
+        const KX_OverlayCollectionResult validation = scene->ValidateRemoveOverlayCollection(
+            collection);
+        if (validation == KX_OverlayCollectionResult::NoChange) {
+          complete_overlay(LN_UIResult::NoChange);
+          break;
+        }
+        if (!KX_OverlayCollectionResultSucceeded(validation)) {
+          complete_overlay(LN_MapOverlayResult(validation));
+          warn_scene_collection_request(LN_CommandBuffer::CommandType::RemoveOverlayCollection,
+                                        KX_OverlayCollectionResultMessage(validation));
+          break;
+        }
+        command_buffer.AppendRemoveOverlayCollection(
+            this,
+            m_gameObject,
+            collection,
+            instruction.property_ref_index,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
+        instruction_executed = true;
+        break;
+      }
+      case LN_OpCode::OpenObjectMenu: {
+        KX_Camera *camera = instruction.value_expr_index != LN_INVALID_INDEX ?
+                                dynamic_cast<KX_Camera *>(ResolveObjectValue(
+                                    ResolveValueExpression(
+                                        instruction.value_expr_index, MakeNoneValue(), context),
+                                    true)) :
+                                nullptr;
+        const LN_Value collection_value = ResolveValueExpression(
+            instruction.secondary_value_expr_index, MakeNoneValue(), context);
+        blender::Collection *collection = collection_value.type == LN_ValueType::CollectionRef &&
+                                                  collection_value.runtime_ref.IsValid() ?
+                                              ResolveCollectionRef(collection_value.runtime_ref) :
+                                              nullptr;
+        if (m_gameObject == nullptr || collection == nullptr) {
+          CompleteUIOperation(instruction.property_ref_index,
+                              m_gameObject == nullptr ? LN_UIResult::InvalidOwner :
+                                                        LN_UIResult::InvalidCollection,
+                              0);
+          instruction_executed = true;
+          break;
+        }
+        /* Owner: whose menu it is (empty: the opener). */
+        KX_GameObject *menu_owner = instruction.tertiary_value_expr_index != LN_INVALID_INDEX ?
+                                        ResolveObjectValue(ResolveValueExpression(
+                                            instruction.tertiary_value_expr_index,
+                                            MakeNoneValue(),
+                                            context)) :
+                                        nullptr;
+        /* From inside a menu: for that menu's player (each player's copy runs this tree). */
+        const int32_t menu_user =
+            m_logicManager != nullptr ?
+                m_logicManager->GetUIService().MenuUserOfObject(m_gameObject) :
+                -1;
+        command_buffer.AppendOpenObjectMenu(
+            this,
+            m_gameObject,
+            camera,
+            menu_owner,
+            collection,
+            static_cast<LN_UIMenuRouting>(std::clamp(instruction.int_value,
+                                                     int32_t(LN_UIMenuRouting::Modal),
+                                                     int32_t(LN_UIMenuRouting::PassThrough))),
+            ResolveStringExpression(instruction.string_expr_index, std::string(), context),
+            LN_PackUIMenuUser(
+                instruction.secondary_int_value,
+                menu_user >= 0 ?
+                    menu_user :
+                    std::clamp(ResolveIntExpression(instruction.int_expr_index, 0, context),
+                               0,
+                               LN_MAX_GAMEPADS - 1),
+                24),
+            instruction.property_ref_index,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
+        instruction_executed = true;
+        break;
+      }
+      case LN_OpCode::CloseObjectMenu: {
+        if (m_gameObject == nullptr) {
+          CompleteUIOperation(instruction.property_ref_index, LN_UIResult::InvalidOwner, 0);
+          instruction_executed = true;
+          break;
+        }
+        /* From inside a menu: that menu's player's menus. */
+        const int32_t menu_user =
+            m_logicManager != nullptr ?
+                m_logicManager->GetUIService().MenuUserOfObject(m_gameObject) :
+                -1;
+        command_buffer.AppendCloseObjectMenu(
+            this,
+            m_gameObject,
+            ResolveIntExpression(instruction.int_expr_index, 0, context),
+            LN_UIMenuCloseOperation(std::clamp(instruction.int_value,
+                                               int32_t(LN_UIMenuCloseOperation::Top),
+                                               int32_t(LN_UIMenuCloseOperation::All))),
+            menu_user >= 0 ?
+                menu_user :
+                std::clamp(ResolveIntExpression(instruction.secondary_int_expr_index, 0, context),
+                           0,
+                           LN_MAX_GAMEPADS - 1),
+            instruction.property_ref_index,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
+        instruction_executed = true;
+        break;
+      }
+      case LN_OpCode::InventoryEdit: {
+        /* Read the inventory property, change it and write it back at once: a second inventory
+         * change later in this tick works on this one's result. */
+        instruction_executed = true;
+        KX_GameObject *target = instruction.value_expr_index != LN_INVALID_INDEX ?
+                                    ResolveLiveObjectValue(ResolveValueExpression(
+                                        instruction.value_expr_index, MakeNoneValue(), context)) :
+                                    m_gameObject;
+        const std::string property = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
+        const std::vector<LN_ValueExpression> &expressions = m_program->GetValueExpressions();
+        if (instruction.secondary_value_expr_index >= expressions.size()) {
+          break;
+        }
+        const LN_ValueExpression &edit = expressions[instruction.secondary_value_expr_index];
+        /* A missing property starts empty; one of another kind is not an inventory. */
+        std::string problem;
+        const auto read_inventory = [&](KX_GameObject *object, const std::string &name) {
+          LN_Value list;
+          list.type = LN_ValueType::List;
+          list.exists = true;
+          if (object == nullptr || name.empty()) {
+            problem = "Inventory needs an object and a property name";
+          }
+          else if (EXP_Value *current = object->GetProperty(name)) {
+            LN_Value value = MakeValueFromEXPValue(current, this);
+            if (value.exists && value.type == LN_ValueType::List) {
+              list = std::move(value);
+            }
+            else {
+              problem = "game property '" + name + "' is not a List or Table";
             }
           }
+          return list;
+        };
+        LN_Value inventory = read_inventory(target, property);
+        /* Move To Slot into another inventory (To Property; To Object empty: the same object). */
+        KX_GameObject *other_target = nullptr;
+        std::string other_property;
+        if (LN_InventoryOperation(edit.value.int_value) == LN_InventoryOperation::MoveToSlot &&
+            edit.input_indices.size() > LN_INVENTORY_INPUT_TO_PROPERTY)
+        {
+          const LN_Value name = ResolveValueExpression(
+              edit.input_indices[LN_INVENTORY_INPUT_TO_PROPERTY], MakeNoneValue(), context);
+          other_property = name.exists && name.type == LN_ValueType::String ? name.string_value :
+                                                                              std::string();
+          const LN_Value object = ResolveValueExpression(
+              edit.input_indices[LN_INVENTORY_INPUT_TO_OBJECT], MakeNoneValue(), context);
+          other_target = object.exists && object.type == LN_ValueType::ObjectRef ?
+                             ResolveLiveObjectValue(object) :
+                             target;
+          if (other_target == target && other_property == property) {
+            other_property.clear();
+          }
+        }
+        LN_Value other_inventory;
+        if (!other_property.empty()) {
+          other_inventory = read_inventory(other_target, other_property);
+        }
+        const std::vector<LN_Value> before = inventory.list_value;
+        const std::vector<LN_Value> other_before = other_inventory.list_value;
+        /* Each list follows its own Inventory Rules (unless the node overrides them). */
+        const LN_InventoryRules list_rules = m_logicManager != nullptr && problem.empty() ?
+                                                 m_logicManager->InventoryRulesOf(target,
+                                                                                  property) :
+                                                 LN_InventoryRules();
+        const LN_InventoryRules other_list_rules =
+            m_logicManager != nullptr && !other_property.empty() ?
+                m_logicManager->InventoryRulesOf(other_target, other_property) :
+                LN_InventoryRules();
+        InventoryEditResult result = RunInventoryEdit(
+            edit,
+            inventory.list_value,
+            context,
+            other_property.empty() ? nullptr : &other_inventory.list_value,
+            &list_rules,
+            &other_list_rules,
+            target);
+        std::string reason;
+        /* The receiving inventory first: if the source then cannot be written, it is put back. */
+        if (problem.empty() && !other_property.empty() &&
+            !LN_CommandBuffer::ApplyGamePropertyValue(
+                other_target, other_property, other_inventory, this, reason))
+        {
+          problem = reason;
+        }
+        if (problem.empty() &&
+            !LN_CommandBuffer::ApplyGamePropertyValue(target, property, inventory, this, reason))
+        {
+          problem = reason;
+          if (!other_property.empty()) {
+            other_inventory.list_value = other_before;
+            LN_CommandBuffer::ApplyGamePropertyValue(
+                other_target, other_property, other_inventory, this, reason);
+          }
+        }
+        if (!problem.empty()) {
+          /* Nothing was kept: the outputs say nothing changed (Add Item: all left over). */
+          warn_scene_collection_request(LN_CommandBuffer::CommandType::SetGameProperty, problem);
+          inventory.list_value = before;
+          result.amount = result.requested;
+          result.made.clear();
+          result.outcome = LN_InventoryOutcome::None;
+        }
+        if (instruction.property_ref_index != LN_INVALID_INDEX) {
+          LN_Value stored;
+          stored.type = LN_ValueType::Dict;
+          stored.exists = true;
+          stored.dict_value["amount"] = MakeIntValue(result.amount);
+          stored.dict_value["changed"] = MakeIntValue(
+              result.Changed(LN_InventoryOperation(edit.value.int_value)));
+          stored.dict_value["made"] = MakeStringValue(result.made);
+          stored.dict_value["outcome"] = MakeStringValue(
+              LN_InventoryOutcomeName(result.outcome, result.craft));
+          stored.dict_value["inventory"] = std::move(inventory);
+          SetTreePropertyValue(instruction.property_ref_index, stored);
+        }
+        break;
+      }
+      case LN_OpCode::DropItem: {
+        /* Done runs only when the copy is made or queued: a chain like Drop Item → Remove From
+         * Slot must not lose the item when nothing lands in the world. */
+        KX_Scene *scene = m_gameObject != nullptr ? m_gameObject->GetScene() : nullptr;
+        std::string item;
+        int32_t carried = 1;
+        if (scene == nullptr || m_logicManager == nullptr ||
+            !ItemOf(ResolveValueExpression(
+                        instruction.secondary_value_expr_index, MakeNoneValue(), context),
+                    item,
+                    carried))
+        {
+          break;
+        }
+        /* Amount 0 drops all it carries: a whole slot's count, a pickup's count. */
+        const int32_t amount = ResolveIntExpression(instruction.int_expr_index, 0, context);
+        if (amount < 0) {
+          break;
+        }
+        const blender::Collection *library =
+            instruction.value_expr_index != LN_INVALID_INDEX ?
+                ResolveCollectionByValue(
+                    this,
+                    ResolveValueExpression(instruction.value_expr_index, MakeNoneValue(), context)) :
+                nullptr;
+        if (library == nullptr) {
+          library = SceneItemLibrary();
+        }
+        KX_GameObject *source = LN_FindLibraryItem(*scene, library, item);
+        if (source == nullptr) {
+          warn_scene_collection_request(LN_CommandBuffer::CommandType::AddObjectFromRef,
+                                        "'" + item +
+                                            "' has no object in the Item Library (set it on the "
+                                            "node or in Scene > Items and UI)");
+          break;
+        }
+        std::string reason;
+        if (!m_logicManager->PreflightAddObjectPersistence(source, 0.0f, false, reason)) {
+          warn_scene_collection_request(LN_CommandBuffer::CommandType::AddObjectFromRef,
+                                        "'" + item + "' cannot be copied into the world (" +
+                                            reason + "); keep the Item Library hidden");
+          break;
+        }
+        const MT_Vector3 position = ResolveVectorExpression(
+            instruction.vector_expr_index, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+        const int32_t count = amount > 0 ? amount : carried;
+        /* Objects join the world on Logic + Physics steps: a UI route's drop waits for the next
+         * one, like Send Event does. */
+        if (event == LN_Event::OnUpdate) {
+          m_logicManager->QueueItemDrop(source, position, item, count);
+        }
+        else if (m_logicManager->SpawnItemDrop(source, position, item, count) == nullptr) {
+          break;
+        }
+        instruction_executed = true;
+        break;
+      }
+      case LN_OpCode::ScrollObjectView: {
+        /* An empty Viewport Object is the tree's own object, like the view nodes' default. The
+         * view scrolls when it next lays out. */
+        KX_GameObject *viewport = instruction.value_expr_index != LN_INVALID_INDEX ?
+                                      ResolveObjectValue(ResolveValueExpression(
+                                          instruction.value_expr_index, MakeNoneValue(), context)) :
+                                      m_gameObject;
+        if (viewport == nullptr || m_logicManager == nullptr) {
+          break;
+        }
+        const LN_UIViewScrollMode mode = LN_UIViewScrollMode(
+            std::clamp(instruction.int_value,
+                       int32_t(LN_UIViewScrollMode::ShowItem),
+                       int32_t(LN_UIViewScrollMode::Lines)));
+        /* Show Item: a number is an index; an item name, slot or object is looked for. */
+        LN_UIService::ScrollTarget target;
+        if (mode == LN_UIViewScrollMode::ShowItem) {
+          const LN_Value item = ResolveValueExpression(
+              instruction.secondary_value_expr_index, MakeNoneValue(), context);
+          if (item.exists && (item.type == LN_ValueType::Int || item.type == LN_ValueType::Float)) {
+            target.has_index = true;
+            target.index = ValueAsInt(item, LN_FloatToIntMode::Round);
+          }
+          else if (item.exists && item.type == LN_ValueType::ObjectRef) {
+            /* A grid slot (a drop's Target): the item it shows; another object: by its item. */
+            KX_GameObject *object = ResolveLiveObjectValue(item, true);
+            LN_Value bound;
+            int32_t bound_index = -1;
+            std::string bound_name;
+            int32_t bound_count = 0;
+            if (object != nullptr &&
+                m_logicManager->GetUIService().GetBoundItem(object, bound, bound_index) &&
+                bound.exists)
+            {
+              if (bound.type == LN_ValueType::ObjectRef) {
+                target.item = bound.reference_name;
+              }
+              else if (LN_InventoryShownEntry(bound, bound_name, bound_count)) {
+                target.item = bound_name;
+              }
+            }
+            else {
+              target.object = object;
+              target.item = ItemNameOf(item);
+            }
+          }
+          else if (item.exists && item.type == LN_ValueType::String) {
+            target.item = item.string_value;
+          }
+          else {
+            target.item = ItemNameOf(item);
+          }
+          if (!target.has_index && target.item.empty() && target.object == nullptr) {
+            break;
+          }
+        }
+        m_logicManager->GetUIService().RequestViewScroll(
+            viewport, mode, ResolveIntExpression(instruction.int_expr_index, 1, context), target);
+        instruction_executed = true;
+        break;
+      }
+      case LN_OpCode::ShowMessage: {
+        KX_GameObject *object = instruction.value_expr_index != LN_INVALID_INDEX ?
+                                    ResolveObjectValue(ResolveValueExpression(
+                                        instruction.value_expr_index, MakeNoneValue(), context)) :
+                                    m_gameObject;
+        if (object == nullptr || m_logicManager == nullptr) {
+          break;
+        }
+        instruction_executed = m_logicManager->GetUIService().ShowMessage(
+            object,
+            ResolveIntExpression(instruction.secondary_int_expr_index, -1, context),
+            ResolveStringExpression(instruction.string_expr_index, std::string(), context),
+            ResolveFloatExpression(instruction.float_expr_index, 3.0f, context),
+            ResolveIntExpression(instruction.int_expr_index, 4, context),
+            ResolveIntExpression(instruction.tertiary_int_expr_index, -1, context));
+        break;
+      }
+      case LN_OpCode::SetUIFocus: {
+        if (m_gameObject == nullptr) {
+          CompleteUIOperation(instruction.property_ref_index, LN_UIResult::InvalidOwner, 0);
+          instruction_executed = true;
+          break;
+        }
+        KX_GameObject *target = instruction.value_expr_index != LN_INVALID_INDEX ?
+                                    ResolveObjectValue(ResolveValueExpression(
+                                        instruction.value_expr_index, MakeNoneValue(), context)) :
+                                    nullptr;
+        command_buffer.AppendSetUIFocus(
+            this,
+            m_gameObject,
+            target,
+            ResolveIntExpression(instruction.int_expr_index, 0, context),
+            ResolveStringExpression(instruction.string_expr_index, std::string(), context),
+            instruction.property_ref_index,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
+        instruction_executed = true;
+        break;
+      }
+      case LN_OpCode::SetPlayerPointer: {
+        if (m_gameObject == nullptr) {
+          instruction_executed = true;
+          break;
+        }
+        /* Surface: an empty Surface is the tree's own object; a linked one that resolves to
+         * nothing turns the pointer off. View Center has neither. */
+        const bool aim = instruction.bool_value;
+        KX_GameObject *surface = aim ? nullptr :
+                                 instruction.value_expr_index != LN_INVALID_INDEX ?
+                                       ResolveObjectValue(ResolveValueExpression(
+                                           instruction.value_expr_index, MakeNoneValue(), context)) :
+                                       m_gameObject;
+        KX_GameObject *cursor = !aim && instruction.secondary_value_expr_index != LN_INVALID_INDEX ?
+                                    ResolveObjectValue(
+                                        ResolveValueExpression(instruction.secondary_value_expr_index,
+                                                               MakeNoneValue(),
+                                                               context)) :
+                                    nullptr;
+        LN_CommandBuffer::PlayerPointerSettings settings;
+        settings.aim = aim;
+        settings.surface = surface;
+        settings.cursor = cursor;
+        settings.move_action = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
+        settings.speed = ResolveFloatExpression(instruction.float_expr_index, 1.0f, context);
+        settings.reach = ResolveFloatExpression(
+            instruction.secondary_float_expr_index, 3.0f, context);
+        settings.press_action = ResolveStringExpression(
+            instruction.secondary_string_expr_index, std::string(), context);
+        command_buffer.AppendSetPlayerPointer(
+            m_gameObject,
+            ResolveIntExpression(instruction.int_expr_index, 0, context),
+            ResolveBoolExpression(instruction.bool_expr_index, true, context),
+            settings,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
+        instruction_executed = true;
+        break;
+      }
+      case LN_OpCode::TakeUIControl: {
+        if (m_gameObject == nullptr) {
+          CompleteUIOperation(instruction.property_ref_index, LN_UIResult::InvalidOwner, 0);
+          instruction_executed = true;
+          break;
+        }
+        KX_GameObject *target = instruction.value_expr_index != LN_INVALID_INDEX ?
+                                    ResolveObjectValue(ResolveValueExpression(
+                                        instruction.value_expr_index, MakeNoneValue(), context)) :
+                                    m_gameObject;
+        if (target == nullptr) {
+          CompleteUIOperation(instruction.property_ref_index, LN_UIResult::InvalidTarget, 0);
+          instruction_executed = true;
+          break;
+        }
+        command_buffer.AppendTakeUIControl(
+            this,
+            m_gameObject,
+            target,
+            ResolveIntExpression(instruction.int_expr_index, 0, context),
+            ResolveBoolExpression(instruction.bool_expr_index, true, context),
+            instruction.property_ref_index,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
+        instruction_executed = true;
+        break;
+      }
+      case LN_OpCode::ScreenAnchor: {
+        /* An empty Object input anchors the tree's own object, like the other UI commands. */
+        KX_GameObject *target = instruction.value_expr_index != LN_INVALID_INDEX ?
+                                    ResolveObjectValue(ResolveValueExpression(
+                                        instruction.value_expr_index, MakeNoneValue(), context)) :
+                                    m_gameObject;
+        KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
+        KX_Camera *camera = instruction.secondary_value_expr_index != LN_INVALID_INDEX ?
+                                ResolveCameraValue(
+                                    ResolveValueExpression(instruction.secondary_value_expr_index,
+                                                           MakeNoneValue(),
+                                                           context)) :
+                                nullptr;
+        /* Area Player's View: the player's split screen view in the window; nothing while the
+         * player has no view on screen. */
+        const bool in_player_view = instruction.secondary_int_value == 1;
+        const int32_t user = in_player_view ?
+                                 ResolveIntExpression(instruction.int_expr_index, 0, context) :
+                                 0;
+        KX_PlayerViews::Area player_area;
+        RAS_Rect player_window;
+        if (in_player_view &&
+            !ResolvePlayerViewArea(m_gameObject, user, player_area, &player_window))
+        {
+          break;
+        }
+        if (camera == nullptr && scene != nullptr) {
+          /* The menu camera draws over the whole window; a world object in a player's view is
+           * seen through that player's camera. */
+          if (target != nullptr && scene->IsOverlayRuntimeObject(target) &&
+              scene->GetOverlayCamera() != nullptr)
+          {
+            camera = scene->GetOverlayCamera();
+          }
+          else {
+            camera = in_player_view ? scene->GetPlayerViews().GetPlayerCamera(
+                                          user, scene->GetActiveCamera()) :
+                                      scene->GetActiveCamera();
+          }
+        }
+        const float depth = ResolveFloatExpression(instruction.float_expr_index, 1.0f, context);
+        KX_KetsjiEngine *engine = KX_GetActiveEngine();
+        RAS_ICanvas *canvas = engine ? engine->GetCanvas() : nullptr;
+        RAS_Rasterizer *rasterizer = engine ? engine->GetRasterizer() : nullptr;
+        if (target == nullptr || camera == nullptr || scene == nullptr ||
+            target->GetScene() != scene || camera->GetScene() != scene || canvas == nullptr ||
+            rasterizer == nullptr || canvas->GetWidth() <= 0 || canvas->GetHeight() <= 0 ||
+            !std::isfinite(depth) || depth < 0.0f)
+        {
+          break;
+        }
+        const RAS_Rect display_area = rasterizer->GetRenderArea(
+            canvas, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
+        RAS_Rect camera_area;
+        RAS_Rect viewport;
+        engine->GetSceneViewport(scene, camera, display_area, camera_area, viewport);
+        /* The rectangle anchored in, in canvas pixels from the top left. */
+        const int drawn_extra = LN_CameraViewportDrawnExtra(camera);
+        float width = float(viewport.GetWidth() + drawn_extra);
+        float height = float(viewport.GetHeight() + drawn_extra);
+        float area_left = float(viewport.GetLeft());
+        float area_top = float(canvas->GetHeight() - viewport.GetTop());
+        if (in_player_view) {
+          width = player_area.width * float(player_window.GetWidth());
+          height = player_area.height * float(player_window.GetHeight());
+          area_left = float(player_window.GetLeft()) +
+                      player_area.left * float(player_window.GetWidth());
+          area_top = float(canvas->GetHeight() - player_window.GetTop()) +
+                     player_area.top * float(player_window.GetHeight());
+        }
+        if (width <= 0.0f || height <= 0.0f) {
+          break;
+        }
+        MT_Vector3 offset = ResolveVectorExpression(
+            instruction.vector_expr_index, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+        const MT_Vector3 safe_margin = ResolveVectorExpression(
+            instruction.secondary_vector_expr_index, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+        MT_Vector3 reference_resolution(1920.0f, 1080.0f, 0.0f);
+        if (instruction.tertiary_value_expr_index != LN_INVALID_INDEX) {
+          ValueAsVector(ResolveValueExpression(
+                            instruction.tertiary_value_expr_index, MakeNoneValue(), context),
+                        reference_resolution);
+        }
+        if (ResolveBoolExpression(instruction.bool_expr_index, true, context) &&
+            reference_resolution.x() > 0.0f && reference_resolution.y() > 0.0f)
+        {
+          offset.x() *= width / reference_resolution.x();
+          offset.y() *= height / reference_resolution.y();
+        }
+        const int anchor = std::clamp(instruction.int_value, 0, 8);
+        const int column = anchor % 3;
+        const int row = anchor / 3;
+        const float margin_x = std::max(0.0f, safe_margin.x());
+        const float margin_y = std::max(0.0f, safe_margin.y());
+        const float pixel_x = area_left +
+                              (column == 0 ? margin_x :
+                                             (column == 1 ? width * 0.5f : width - margin_x)) +
+                              offset.x();
+        const float pixel_y = area_top +
+                              (row == 0 ? margin_y :
+                                          (row == 1 ? height * 0.5f : height - margin_y)) +
+                              offset.y();
+        MT_Vector3 position;
+        if (ProjectCanvasPixelToWorld(camera, pixel_x, pixel_y, depth, position)) {
+          command_buffer.AppendSetWorldPosition(target,
+                                                position,
+                                                command_sort_key(instruction_id, command_sequence),
+                                                instruction.source_ref_index);
+          instruction_executed = true;
         }
         break;
       }
@@ -9665,7 +12433,9 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         return;
     }
     command_sequence++;
-    MarkInstructionExecuted(event, instruction_id, context.tick_index);
+    if (instruction_executed) {
+      MarkInstructionExecuted(event, instruction_id, context.tick_index);
+    }
   };
 
   auto execute_debug_draw_instruction = [&](const LN_Instruction &instruction,
@@ -9678,28 +12448,22 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
 
     switch (instruction.opcode) {
       case LN_OpCode::DrawLine: {
-        const MT_Vector3 from = ResolveVectorExpression(instruction.vector_expr_index,
-                                                        instruction.vector_value,
-                                                        context);
-        const MT_Vector3 to = ResolveVectorExpression(instruction.secondary_vector_expr_index,
-                                                      instruction.secondary_vector_value,
-                                                      context);
-        const MT_Vector4 color = ResolveColorExpression(instruction.color_expr_index,
-                                                        instruction.color_value,
-                                                        context);
+        const MT_Vector3 from = ResolveVectorExpression(
+            instruction.vector_expr_index, instruction.vector_value, context);
+        const MT_Vector3 to = ResolveVectorExpression(
+            instruction.secondary_vector_expr_index, instruction.secondary_vector_value, context);
+        const MT_Vector4 color = ResolveColorExpression(
+            instruction.color_expr_index, instruction.color_value, context);
         KX_RasterizerDrawDebugLine(from, to, color);
         break;
       }
       case LN_OpCode::DrawArrow: {
-        const MT_Vector3 from = ResolveVectorExpression(instruction.vector_expr_index,
-                                                        instruction.vector_value,
-                                                        context);
-        const MT_Vector3 to = ResolveVectorExpression(instruction.secondary_vector_expr_index,
-                                                      instruction.secondary_vector_value,
-                                                      context);
-        const MT_Vector4 color = ResolveColorExpression(instruction.color_expr_index,
-                                                        instruction.color_value,
-                                                        context);
+        const MT_Vector3 from = ResolveVectorExpression(
+            instruction.vector_expr_index, instruction.vector_value, context);
+        const MT_Vector3 to = ResolveVectorExpression(
+            instruction.secondary_vector_expr_index, instruction.secondary_vector_value, context);
+        const MT_Vector4 color = ResolveColorExpression(
+            instruction.color_expr_index, instruction.color_value, context);
         DrawDebugArrow(from, to, color);
         break;
       }
@@ -9708,9 +12472,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             instruction.value_expr_index, MakeNoneValue(), context);
         std::vector<MT_Vector3> points;
         if (ValueAsVectorList(points_value, points)) {
-          const MT_Vector4 color = ResolveColorExpression(instruction.color_expr_index,
-                                                          instruction.color_value,
-                                                          context);
+          const MT_Vector4 color = ResolveColorExpression(
+              instruction.color_expr_index, instruction.color_value, context);
           for (size_t index = 1; index < points.size(); index++) {
             KX_RasterizerDrawDebugLine(points[index - 1], points[index], color);
           }
@@ -9718,20 +12481,20 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::DrawBox: {
-        MT_Vector3 origin = ResolveVectorExpression(instruction.vector_expr_index,
-                                                    instruction.vector_value,
-                                                    context);
-        const MT_Vector4 color = ResolveColorExpression(instruction.color_expr_index,
-                                                        instruction.color_value,
-                                                        context);
-        const float half_x = std::max(
-            0.0f, ResolveFloatExpression(instruction.float_expr_index, 1.0f, context)) *
+        MT_Vector3 origin = ResolveVectorExpression(
+            instruction.vector_expr_index, instruction.vector_value, context);
+        const MT_Vector4 color = ResolveColorExpression(
+            instruction.color_expr_index, instruction.color_value, context);
+        const float half_x =
+            std::max(0.0f, ResolveFloatExpression(instruction.float_expr_index, 1.0f, context)) *
+            0.5f;
+        const float half_y = std::max(0.0f,
+                                      ResolveFloatExpression(
+                                          instruction.secondary_float_expr_index, 1.0f, context)) *
                              0.5f;
-        const float half_y = std::max(
-            0.0f, ResolveFloatExpression(instruction.secondary_float_expr_index, 1.0f, context)) *
-                             0.5f;
-        const float half_z = std::max(
-            0.0f, ResolveFloatExpression(instruction.tertiary_float_expr_index, 1.0f, context)) *
+        const float half_z = std::max(0.0f,
+                                      ResolveFloatExpression(
+                                          instruction.tertiary_float_expr_index, 1.0f, context)) *
                              0.5f;
         if (instruction.bool_value) {
           origin += MT_Vector3(half_x, half_y, half_z);
@@ -9749,9 +12512,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           }
         }
         if (target != nullptr) {
-          const MT_Vector4 color = ResolveColorExpression(instruction.color_expr_index,
-                                                          instruction.color_value,
-                                                          context);
+          const MT_Vector4 color = ResolveColorExpression(
+              instruction.color_expr_index, instruction.color_value, context);
           const MT_Transform transform = target->NodeGetWorldTransform();
           for (int mesh_index = 0; mesh_index < target->GetMeshCount(); mesh_index++) {
             RAS_MeshObject *mesh = target->GetMesh(mesh_index);
@@ -9766,8 +12528,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
               const int vertex_count = polygon->VertexCount();
               for (int vertex_index = 0; vertex_index < vertex_count; vertex_index++) {
                 const RAS_IVertex *from_vertex = polygon->GetVertex(vertex_index);
-                const RAS_IVertex *to_vertex = polygon->GetVertex(
-                    (vertex_index + 1) % vertex_count);
+                const RAS_IVertex *to_vertex = polygon->GetVertex((vertex_index + 1) %
+                                                                  vertex_count);
                 if (from_vertex == nullptr || to_vertex == nullptr) {
                   continue;
                 }
@@ -9832,16 +12594,43 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
   auto execute_direct_vector_command = [&](const LN_Instruction &instruction,
                                            const uint32_t instruction_id) {
     const LN_VectorCommandPayload payload = vector_command_payload(instruction);
-    const MT_Vector3 value = ResolveVectorExpression(payload.vector_expr_index,
-                                                     payload.vector_value,
-                                                     context);
     const LN_VectorOperationMode mode = LN_VectorOperationMode(payload.operation_mode);
     const LN_VectorOperationChannel channel = LN_VectorOperationChannel(payload.operation_channel);
+    const bool is_orientation_command = instruction.opcode == LN_OpCode::SetWorldOrientation ||
+                                        instruction.opcode == LN_OpCode::SetLocalOrientation ||
+                                        (instruction.opcode == LN_OpCode::SetTransformVector &&
+                                         channel == LN_VectorOperationChannel::Orientation) ||
+                                        (instruction.opcode == LN_OpCode::ApplyTransformVector &&
+                                         channel == LN_VectorOperationChannel::Rotation);
+    const LN_Rotation rotation = is_orientation_command ?
+                                     ResolveRotationExpression(
+                                         payload.vector_expr_index,
+                                         LN_Rotation::FromEulerXYZ(payload.vector_value),
+                                         context) :
+                                     LN_Rotation{};
+    const MT_Vector3 value = is_orientation_command ?
+                                 MT_Vector3(0.0f, 0.0f, 0.0f) :
+                                 ResolveVectorExpression(
+                                     payload.vector_expr_index, payload.vector_value, context);
     KX_GameObject *target = resolve_object_expression(payload.object_value_expr_index);
     if (target == nullptr) {
       command_sequence++;
       MarkInstructionExecuted(event, instruction_id, context.tick_index);
       return;
+    }
+
+    if (instruction.opcode == LN_OpCode::ApplyTransformVector &&
+        (channel == LN_VectorOperationChannel::Movement ||
+         channel == LN_VectorOperationChannel::Rotation))
+    {
+      const LN_CommandBuffer::CommandType command_type =
+          channel == LN_VectorOperationChannel::Movement ?
+              LN_CommandBuffer::CommandType::ApplyMovement :
+              LN_CommandBuffer::CommandType::ApplyRotation;
+      if (!frame_relative_transform_is_safe(target, instruction, instruction_id, command_type)) {
+        command_sequence++;
+        return;
+      }
     }
 
     const uint64_t sort_key = command_sort_key(instruction_id, command_sequence);
@@ -9856,11 +12645,11 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       case LN_OpCode::SetWorldOrientation:
         command_buffer.AppendSetWorldOrientation(
-            target, value, sort_key, instruction.source_ref_index);
+            target, rotation, sort_key, instruction.source_ref_index);
         break;
       case LN_OpCode::SetLocalOrientation:
         command_buffer.AppendSetLocalOrientation(
-            target, value, sort_key, instruction.source_ref_index);
+            target, rotation, sort_key, instruction.source_ref_index);
         break;
       case LN_OpCode::SetWorldScale:
         command_buffer.AppendSetWorldScale(target, value, sort_key, instruction.source_ref_index);
@@ -9901,19 +12690,21 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         else if (channel == LN_VectorOperationChannel::Orientation) {
           if (local) {
             command_buffer.AppendSetLocalOrientation(
-                target, value, sort_key, instruction.source_ref_index);
+                target, rotation, sort_key, instruction.source_ref_index);
           }
           else {
             command_buffer.AppendSetWorldOrientation(
-                target, value, sort_key, instruction.source_ref_index);
+                target, rotation, sort_key, instruction.source_ref_index);
           }
         }
         else if (channel == LN_VectorOperationChannel::Scale) {
           if (local) {
-            command_buffer.AppendSetLocalScale(target, value, sort_key, instruction.source_ref_index);
+            command_buffer.AppendSetLocalScale(
+                target, value, sort_key, instruction.source_ref_index);
           }
           else {
-            command_buffer.AppendSetWorldScale(target, value, sort_key, instruction.source_ref_index);
+            command_buffer.AppendSetWorldScale(
+                target, value, sort_key, instruction.source_ref_index);
           }
         }
         break;
@@ -9954,7 +12745,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         }
         else if (channel == LN_VectorOperationChannel::Rotation) {
           command_buffer.AppendApplyRotation(
-              target, value, local, sort_key, instruction.source_ref_index);
+              target, rotation, local, sort_key, instruction.source_ref_index);
         }
         break;
       }
@@ -9981,9 +12772,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
 
   auto execute_direct_physics_command = [&](const LN_Instruction &instruction,
                                             const uint32_t instruction_id) {
-    auto mark_done = [&]() {
-      MarkInstructionExecuted(event, instruction_id, context.tick_index);
-    };
+    auto mark_done = [&]() { MarkInstructionExecuted(event, instruction_id, context.tick_index); };
     auto append_targeted = [&](auto &&append_fn) {
       if (KX_GameObject *target = resolve_command_target(instruction)) {
         append_fn(target, command_sort_key(instruction_id, command_sequence));
@@ -9997,11 +12786,34 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       case LN_OpCode::ApplyForce:
       case LN_OpCode::ApplyTorque: {
         const LN_VectorCommandPayload payload = vector_command_payload(instruction);
-        const MT_Vector3 value = ResolveVectorExpression(payload.vector_expr_index,
-                                                         payload.vector_value,
-                                                         context);
+        const bool is_rotation = instruction.opcode == LN_OpCode::ApplyRotation;
+        const LN_Rotation rotation = is_rotation ?
+                                         ResolveRotationExpression(
+                                             payload.vector_expr_index,
+                                             LN_Rotation::FromEulerXYZ(payload.vector_value),
+                                             context) :
+                                         LN_Rotation{};
+        const MT_Vector3 value = is_rotation ? MT_Vector3(0.0f, 0.0f, 0.0f) :
+                                               ResolveVectorExpression(payload.vector_expr_index,
+                                                                       payload.vector_value,
+                                                                       context);
         const bool local = ResolveBoolExpression(payload.bool_expr_index, false, context);
+        bool accepted = true;
         if (KX_GameObject *target = resolve_object_expression(payload.object_value_expr_index)) {
+          if (instruction.opcode == LN_OpCode::ApplyMovement ||
+              instruction.opcode == LN_OpCode::ApplyRotation)
+          {
+            const LN_CommandBuffer::CommandType command_type =
+                instruction.opcode == LN_OpCode::ApplyMovement ?
+                    LN_CommandBuffer::CommandType::ApplyMovement :
+                    LN_CommandBuffer::CommandType::ApplyRotation;
+            accepted = frame_relative_transform_is_safe(
+                target, instruction, instruction_id, command_type);
+          }
+          if (!accepted) {
+            command_sequence++;
+            break;
+          }
           const uint64_t sort_key = command_sort_key(instruction_id, command_sequence);
           switch (instruction.opcode) {
             case LN_OpCode::ApplyMovement:
@@ -10010,7 +12822,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
               break;
             case LN_OpCode::ApplyRotation:
               command_buffer.AppendApplyRotation(
-                  target, value, local, sort_key, instruction.source_ref_index);
+                  target, rotation, local, sort_key, instruction.source_ref_index);
               break;
             case LN_OpCode::ApplyForce:
               command_buffer.AppendApplyForce(
@@ -10025,17 +12837,17 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           }
         }
         command_sequence++;
-        mark_done();
+        if (accepted) {
+          mark_done();
+        }
         break;
       }
       case LN_OpCode::ApplyImpulse: {
         const LN_VectorCommandPayload payload = vector_command_payload(instruction);
-        const MT_Vector3 impulse = ResolveVectorExpression(payload.vector_expr_index,
-                                                           payload.vector_value,
-                                                           context);
-        const MT_Vector3 attach = ResolveVectorExpression(payload.secondary_vector_expr_index,
-                                                          payload.secondary_vector_value,
-                                                          context);
+        const MT_Vector3 impulse = ResolveVectorExpression(
+            payload.vector_expr_index, payload.vector_value, context);
+        const MT_Vector3 attach = ResolveVectorExpression(
+            payload.secondary_vector_expr_index, payload.secondary_vector_value, context);
         if (KX_GameObject *target = resolve_object_expression(payload.object_value_expr_index)) {
           command_buffer.AppendApplyImpulse(target,
                                             attach,
@@ -10084,14 +12896,14 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::Translate: {
-        const MT_Vector3 vector = ResolveVectorExpression(instruction.vector_expr_index,
-                                                          instruction.vector_value,
-                                                          context);
+        const MT_Vector3 vector = ResolveVectorExpression(
+            instruction.vector_expr_index, instruction.vector_value, context);
         const float speed = ResolveFloatExpression(instruction.float_expr_index, 1.0f, context);
         const bool local = ResolveBoolExpression(instruction.bool_expr_index, false, context);
         if (KX_GameObject *target = resolve_command_target(instruction)) {
+          const float tick_seconds = float(std::max(0.0, context.delta_time));
           command_buffer.AppendApplyMovement(target,
-                                             vector * speed,
+                                             vector * (speed * tick_seconds),
                                              local,
                                              command_sort_key(instruction_id, command_sequence),
                                              instruction.source_ref_index);
@@ -10107,13 +12919,37 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         const float stop_distance = ResolveFloatExpression(
             instruction.secondary_float_expr_index, 0.5f, context);
         if (KX_GameObject *target = resolve_command_target(instruction)) {
+          /* Reached (only when it is linked: the compiler then gives where the object is): this
+           * step's move ends within Stop Distance, as the flush moves by
+           * min(Speed * dt, distance - Stop Distance), or the object is already there. */
+          const float nan = std::numeric_limits<float>::quiet_NaN();
+          const MT_Vector3 position = instruction.secondary_vector_expr_index == LN_INVALID_INDEX ?
+                                          MT_Vector3(nan, nan, nan) :
+                                          ResolveVectorExpression(
+                                              instruction.secondary_vector_expr_index,
+                                              MT_Vector3(nan, nan, nan),
+                                              context);
+          const float distance = (target_pos - position).length();
+          const float step = std::max(speed * float(std::max(0.0, context.delta_time)), 0.0f);
+          const float tolerance = std::max(
+              1.0e-4f, (std::fabs(stop_distance) + float(target_pos.length())) * 1.0e-6f);
+          if (std::isfinite(distance) && std::isfinite(step) &&
+              distance <= std::max(stop_distance, 0.0f) + step + tolerance)
+          {
+            const uint32_t state_index = InstructionStateIndex(event, instruction_id);
+            if (state_index != LN_INVALID_INDEX && state_index < m_instructionStates.size()) {
+              InstructionRuntimeState &state = m_instructionStates[state_index];
+              state.last_reached_tick = context.tick_index;
+              state.last_reached_scope_serial = m_activeExecutionScopeSerial;
+            }
+          }
           command_buffer.AppendMoveToward(target,
                                           target_pos,
                                           speed,
                                           stop_distance,
                                           false,
                                           true,
-                                          float(context.fixed_dt),
+                                          float(context.delta_time),
                                           command_sort_key(instruction_id, command_sequence),
                                           instruction.source_ref_index);
         }
@@ -10137,9 +12973,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::SetDynamics: {
-        const bool enabled = ResolveBoolExpression(instruction.bool_expr_index,
-                                                   instruction.bool_value,
-                                                   context);
+        const bool enabled = ResolveBoolExpression(
+            instruction.bool_expr_index, instruction.bool_value, context);
         append_targeted([&](KX_GameObject *target, const uint64_t sort_key) {
           command_buffer.AppendSetDynamics(
               target, instruction.int_value, enabled, sort_key, instruction.source_ref_index);
@@ -10154,8 +12989,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::SetRigidBodyAttribute: {
-        const LN_RigidBodyAttribute attribute =
-            static_cast<LN_RigidBodyAttribute>(instruction.int_value);
+        const LN_RigidBodyAttribute attribute = static_cast<LN_RigidBodyAttribute>(
+            instruction.int_value);
         MT_Vector3 value = instruction.vector_value;
         MT_Vector3 secondary_value = instruction.secondary_vector_value;
         float scalar_value = 0.0f;
@@ -10171,38 +13006,32 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           case LN_RigidBodyAttribute::MinAngularVelocity:
           case LN_RigidBodyAttribute::MaxAngularVelocity:
           case LN_RigidBodyAttribute::GravityFactor:
-            scalar_value = ResolveFloatExpression(instruction.float_expr_index,
-                                                  instruction.vector_value.x(),
-                                                  context);
+            scalar_value = ResolveFloatExpression(
+                instruction.float_expr_index, instruction.vector_value.x(), context);
             break;
           case LN_RigidBodyAttribute::Damping:
             value = MT_Vector3(
-                ResolveFloatExpression(instruction.float_expr_index,
-                                       instruction.vector_value.x(),
-                                       context),
-                ResolveFloatExpression(instruction.secondary_float_expr_index,
-                                       instruction.vector_value.y(),
-                                       context),
+                ResolveFloatExpression(
+                    instruction.float_expr_index, instruction.vector_value.x(), context),
+                ResolveFloatExpression(
+                    instruction.secondary_float_expr_index, instruction.vector_value.y(), context),
                 0.0f);
             break;
           case LN_RigidBodyAttribute::Ccd:
           case LN_RigidBodyAttribute::AllowPhysicsRotation:
-            bool_value = ResolveBoolExpression(instruction.bool_expr_index,
-                                               instruction.bool_value,
-                                               context);
+            bool_value = ResolveBoolExpression(
+                instruction.bool_expr_index, instruction.bool_value, context);
             break;
           case LN_RigidBodyAttribute::Sleeping:
-            bool_value = ResolveBoolExpression(instruction.bool_expr_index,
-                                               instruction.bool_value,
-                                               context);
+            bool_value = ResolveBoolExpression(
+                instruction.bool_expr_index, instruction.bool_value, context);
             secondary_bool_value = ResolveBoolExpression(instruction.secondary_bool_expr_index,
                                                          instruction.secondary_int_value != 0,
                                                          context);
             break;
           case LN_RigidBodyAttribute::AxisLocks:
-            value = ResolveVectorExpression(instruction.vector_expr_index,
-                                            instruction.vector_value,
-                                            context);
+            value = ResolveVectorExpression(
+                instruction.vector_expr_index, instruction.vector_value, context);
             secondary_value = ResolveVectorExpression(instruction.secondary_vector_expr_index,
                                                       instruction.secondary_vector_value,
                                                       context);
@@ -10224,9 +13053,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       }
       case LN_OpCode::SetGravity: {
         const LN_VectorCommandPayload payload = vector_command_payload(instruction);
-        const MT_Vector3 gravity = ResolveVectorExpression(payload.vector_expr_index,
-                                                           payload.vector_value,
-                                                           context);
+        const MT_Vector3 gravity = ResolveVectorExpression(
+            payload.vector_expr_index, payload.vector_value, context);
         command_buffer.AppendSetGravity(m_gameObject,
                                         gravity,
                                         command_sort_key(instruction_id, command_sequence),
@@ -10243,24 +13071,22 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       }
       case LN_OpCode::SetCharacterGravity: {
         const LN_VectorCommandPayload payload = vector_command_payload(instruction);
-        const MT_Vector3 gravity = ResolveVectorExpression(payload.vector_expr_index,
-                                                           payload.vector_value,
-                                                           context);
+        const MT_Vector3 gravity = ResolveVectorExpression(
+            payload.vector_expr_index, payload.vector_value, context);
         if (KX_GameObject *target = resolve_object_expression(payload.object_value_expr_index)) {
-          command_buffer.AppendSetCharacterGravity(target,
-                                                  gravity,
-                                                  command_sort_key(instruction_id,
-                                                                   command_sequence),
-                                                  instruction.source_ref_index);
+          command_buffer.AppendSetCharacterGravity(
+              target,
+              gravity,
+              command_sort_key(instruction_id, command_sequence),
+              instruction.source_ref_index);
           command_sequence++;
         }
         mark_done();
         break;
       }
       case LN_OpCode::SetCharacterJumpSpeed: {
-        const float jump_speed = ResolveFloatExpression(instruction.float_expr_index,
-                                                        instruction.vector_value.x(),
-                                                        context);
+        const float jump_speed = ResolveFloatExpression(
+            instruction.float_expr_index, instruction.vector_value.x(), context);
         append_targeted([&](KX_GameObject *target, const uint64_t sort_key) {
           command_buffer.AppendSetCharacterJumpSpeed(
               target, jump_speed, sort_key, instruction.source_ref_index);
@@ -10268,9 +13094,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::SetCharacterMaxJumps: {
-        const int32_t max_jumps = ResolveIntExpression(instruction.int_expr_index,
-                                                       instruction.int_value,
-                                                       context);
+        const int32_t max_jumps = ResolveIntExpression(
+            instruction.int_expr_index, instruction.int_value, context);
         append_targeted([&](KX_GameObject *target, const uint64_t sort_key) {
           command_buffer.AppendSetCharacterMaxJumps(
               target, max_jumps, sort_key, instruction.source_ref_index);
@@ -10279,34 +13104,29 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       }
       case LN_OpCode::SetCharacterWalkDirection: {
         const LN_VectorCommandPayload payload = vector_command_payload(instruction);
-        const MT_Vector3 walk_direction = ResolveVectorExpression(payload.vector_expr_index,
-                                                                  payload.vector_value,
-                                                                  context);
-        const bool local = ResolveBoolExpression(payload.bool_expr_index,
-                                                 payload.bool_value,
-                                                 context);
+        const MT_Vector3 walk_direction = ResolveVectorExpression(
+            payload.vector_expr_index, payload.vector_value, context);
+        const bool local = ResolveBoolExpression(
+            payload.bool_expr_index, payload.bool_value, context);
         if (KX_GameObject *target = resolve_object_expression(payload.object_value_expr_index)) {
-          command_buffer.AppendSetCharacterWalkDirection(target,
-                                                        walk_direction,
-                                                        local,
-                                                        command_sort_key(instruction_id,
-                                                                         command_sequence),
-                                                        instruction.source_ref_index);
+          command_buffer.AppendSetCharacterWalkDirection(
+              target,
+              walk_direction,
+              local,
+              command_sort_key(instruction_id, command_sequence),
+              instruction.source_ref_index);
           command_sequence++;
         }
         mark_done();
         break;
       }
       case LN_OpCode::SetCharacterVelocity: {
-        const MT_Vector3 velocity = ResolveVectorExpression(instruction.vector_expr_index,
-                                                            instruction.vector_value,
-                                                            context);
-        const float time = ResolveFloatExpression(instruction.float_expr_index,
-                                                  instruction.secondary_vector_value.x(),
-                                                  context);
-        const bool local = ResolveBoolExpression(instruction.bool_expr_index,
-                                                 instruction.bool_value,
-                                                 context);
+        const MT_Vector3 velocity = ResolveVectorExpression(
+            instruction.vector_expr_index, instruction.vector_value, context);
+        const float time = ResolveFloatExpression(
+            instruction.float_expr_index, instruction.secondary_vector_value.x(), context);
+        const bool local = ResolveBoolExpression(
+            instruction.bool_expr_index, instruction.bool_value, context);
         append_targeted([&](KX_GameObject *target, const uint64_t sort_key) {
           command_buffer.AppendSetCharacterVelocity(
               target, velocity, time, local, sort_key, instruction.source_ref_index);
@@ -10314,12 +13134,10 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::VehicleControl: {
-        const MT_Vector3 control = ResolveVectorExpression(instruction.vector_expr_index,
-                                                           instruction.vector_value,
-                                                           context);
-        const float steering = ResolveFloatExpression(instruction.float_expr_index,
-                                                      instruction.secondary_vector_value.x(),
-                                                      context);
+        const MT_Vector3 control = ResolveVectorExpression(
+            instruction.vector_expr_index, instruction.vector_value, context);
+        const float steering = ResolveFloatExpression(
+            instruction.float_expr_index, instruction.secondary_vector_value.x(), context);
         append_targeted([&](KX_GameObject *target, const uint64_t sort_key) {
           command_buffer.AppendVehicleControl(
               target, control, steering, sort_key, instruction.source_ref_index);
@@ -10332,13 +13150,13 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         const int32_t axis = ResolveIntExpression(instruction.int_expr_index, 2, context);
         const float factor = ResolveFloatExpression(instruction.float_expr_index, 1.0f, context);
         if (KX_GameObject *target = resolve_command_target(instruction)) {
-          command_buffer.AppendAlignAxisToVector(target,
-                                                 vector,
-                                                 axis,
-                                                 factor,
-                                                 command_sort_key(instruction_id,
-                                                                  command_sequence),
-                                                 instruction.source_ref_index);
+          command_buffer.AppendAlignAxisToVector(
+              target,
+              vector,
+              axis,
+              factor,
+              command_sort_key(instruction_id, command_sequence),
+              instruction.source_ref_index);
         }
         command_sequence++;
         mark_done();
@@ -10349,15 +13167,15 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             instruction.vector_expr_index, MT_Vector3(1.0f, 0.0f, 0.0f), context);
         const float factor = ResolveFloatExpression(instruction.float_expr_index, 1.0f, context);
         const int32_t rot_axis = ResolveIntExpression(instruction.int_expr_index, 2, context);
-        const int32_t front_axis = ResolveIntExpression(instruction.secondary_int_expr_index,
-                                                        1,
-                                                        context);
+        const int32_t front_axis = ResolveIntExpression(
+            instruction.secondary_int_expr_index, 1, context);
         if (KX_GameObject *target = resolve_command_target(instruction)) {
           command_buffer.AppendRotateToward(target,
                                             target_point,
                                             factor,
                                             rot_axis,
                                             front_axis,
+                                            false,
                                             command_sort_key(instruction_id, command_sequence),
                                             instruction.source_ref_index);
         }
@@ -10367,8 +13185,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       }
       case LN_OpCode::SlowFollow: {
         if (KX_GameObject *target = resolve_command_target(instruction)) {
-          const float factor = ResolveFloatExpression(
-              instruction.float_expr_index, 1.0f, context);
+          const float factor = ResolveFloatExpression(instruction.float_expr_index, 1.0f, context);
           KX_GameObject *follow_target = nullptr;
           if (instruction.secondary_value_expr_index != LN_INVALID_INDEX) {
             const LN_Value target_val = ResolveValueExpression(
@@ -10395,15 +13212,12 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       case LN_OpCode::SetVehicleSuspensionStiffness:
       case LN_OpCode::SetVehicleSuspensionDamping:
       case LN_OpCode::SetVehicleWheelFriction: {
-        const float value = ResolveFloatExpression(instruction.float_expr_index,
-                                                   instruction.vector_value.x(),
-                                                   context);
-        const int32_t wheel_count = ResolveIntExpression(instruction.int_expr_index,
-                                                         instruction.int_value,
-                                                         context);
-        const int32_t axis = ResolveIntExpression(instruction.secondary_int_expr_index,
-                                                  instruction.secondary_int_value,
-                                                  context);
+        const float value = ResolveFloatExpression(
+            instruction.float_expr_index, instruction.vector_value.x(), context);
+        const int32_t wheel_count = ResolveIntExpression(
+            instruction.int_expr_index, instruction.int_value, context);
+        const int32_t axis = ResolveIntExpression(
+            instruction.secondary_int_expr_index, instruction.secondary_int_value, context);
         if (KX_GameObject *target = resolve_command_target(instruction)) {
           const uint64_t sort_key = command_sort_key(instruction_id, command_sequence);
           switch (instruction.opcode) {
@@ -10458,6 +13272,29 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       return;
     }
 
+    if (payload.modify_op != LN_PropertyModifyOp::None) {
+      LN_PropertyModify modify;
+      modify.op = payload.modify_op;
+      modify.operand = ResolveFloatExpression(payload.float_expr_index, 0.0f, context);
+      modify.clamped = payload.modify_min_expr_index != LN_INVALID_INDEX &&
+                       payload.modify_max_expr_index != LN_INVALID_INDEX;
+      if (modify.clamped) {
+        modify.min_value = ResolveFloatExpression(payload.modify_min_expr_index, 0.0f, context);
+        modify.max_value = ResolveFloatExpression(payload.modify_max_expr_index, 0.0f, context);
+      }
+      if (KX_GameObject *target = resolve_object_expression(payload.object_value_expr_index)) {
+        command_buffer.AppendModifyGameProperty(this,
+                                                target,
+                                                payload.property_ref_index,
+                                                modify,
+                                                command_sort_key(instruction_id, command_sequence),
+                                                instruction.source_ref_index);
+      }
+      command_sequence++;
+      MarkInstructionExecuted(event, instruction_id, context.tick_index);
+      return;
+    }
+
     LN_Value value = ResolveValueExpression(payload.value_expr_index, MakeNoneValue(), context);
     if (!value.exists && payload.value_expr_index == LN_INVALID_INDEX) {
       value.exists = true;
@@ -10503,9 +13340,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
 
   auto execute_direct_object_color_command = [&](const LN_Instruction &instruction,
                                                  const uint32_t instruction_id) {
-    const MT_Vector4 color = ResolveColorExpression(instruction.color_expr_index,
-                                                    instruction.color_value,
-                                                    context);
+    const MT_Vector4 color = ResolveColorExpression(
+        instruction.color_expr_index, instruction.color_value, context);
     if (KX_GameObject *target = resolve_command_target(instruction)) {
       command_buffer.AppendSetObjectColor(target,
                                           color,
@@ -10521,15 +13357,36 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     switch (instruction.opcode) {
       case LN_OpCode::SetVisibility: {
         const bool visible = ResolveBoolExpression(instruction.bool_expr_index, true, context);
-        const bool recursive = ResolveBoolExpression(instruction.secondary_bool_expr_index,
-                                                     false,
-                                                     context);
+        const bool recursive = ResolveBoolExpression(
+            instruction.secondary_bool_expr_index, false, context);
         if (KX_GameObject *target = resolve_command_target(instruction)) {
           command_buffer.AppendSetVisibility(target,
                                              visible,
                                              recursive,
                                              command_sort_key(instruction_id, command_sequence),
                                              instruction.source_ref_index);
+        }
+        break;
+      }
+      case LN_OpCode::SetUIInteractable: {
+        const bool interactable = ResolveBoolExpression(instruction.bool_expr_index, true, context);
+        if (KX_GameObject *target = resolve_command_target(instruction)) {
+          command_buffer.AppendSetUIInteractable(target,
+                                                 interactable,
+                                                 command_sort_key(instruction_id, command_sequence),
+                                                 instruction.source_ref_index);
+        }
+        break;
+      }
+      case LN_OpCode::ResetSmoothing: {
+        /* Set Object Attribute's Teleport, right after its write. */
+        if (!ResolveBoolExpression(instruction.bool_expr_index, false, context)) {
+          break;
+        }
+        if (KX_GameObject *target = resolve_command_target(instruction)) {
+          command_buffer.AppendResetSmoothing(target,
+                                              command_sort_key(instruction_id, command_sequence),
+                                              instruction.source_ref_index);
         }
         break;
       }
@@ -10546,9 +13403,71 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     const uint64_t sort_key = command_sort_key(instruction_id, command_sequence);
     switch (instruction.opcode) {
       case LN_OpCode::SetActiveCamera: {
-        command_buffer.AppendSetActiveCamera(camera_object,
-                                             sort_key,
-                                             instruction.source_ref_index);
+        /* User 0 sets the active camera; 1 to 7 a split screen player's camera. */
+        const int32_t user = ResolveIntExpression(instruction.int_expr_index, 0, context);
+        if (user == 0) {
+          command_buffer.AppendSetActiveCamera(
+              camera_object, sort_key, instruction.source_ref_index);
+        }
+        else {
+          command_buffer.AppendSetPlayerCamera(
+              m_gameObject, camera_object, user, sort_key, instruction.source_ref_index);
+        }
+        break;
+      }
+      case LN_OpCode::SetSplitScreen: {
+        const bool enabled = ResolveBoolExpression(instruction.bool_expr_index, true, context);
+        const int32_t divider = ResolveIntExpression(instruction.int_expr_index, 0, context);
+        const bool keep_mouse = ResolveBoolExpression(
+            instruction.secondary_bool_expr_index, true, context);
+        command_buffer.AppendSetSplitScreen(m_gameObject,
+                                            enabled,
+                                            instruction.int_value |
+                                                (keep_mouse ? 0 : LN_SPLIT_SCREEN_FREE_MOUSE),
+                                            divider,
+                                            sort_key,
+                                            instruction.source_ref_index);
+        break;
+      }
+      case LN_OpCode::SetCameraViewport: {
+        const bool enabled = ResolveBoolExpression(instruction.bool_expr_index, true, context);
+        const MT_Vector4 area(
+            ResolveFloatExpression(instruction.float_expr_index, 0.7f, context),
+            ResolveFloatExpression(instruction.secondary_float_expr_index, 0.05f, context),
+            ResolveFloatExpression(instruction.tertiary_float_expr_index, 0.25f, context),
+            ResolveFloatExpression(instruction.quaternary_float_expr_index, 0.25f, context));
+        const bool on_top = ResolveBoolExpression(
+            instruction.secondary_bool_expr_index, true, context);
+        /* Area Player's View: the rectangle is a part of that player's view (a User that is no
+         * player has no view: not drawn). */
+        const int32_t user = ResolveIntExpression(instruction.int_expr_index, 0, context);
+        const int32_t player = instruction.secondary_int_value != 1 ? -1 :
+                               user >= 0                          ? user :
+                                                                    INT32_MAX;
+        command_buffer.AppendSetCameraViewport(m_gameObject,
+                                               camera_object,
+                                               enabled,
+                                               area,
+                                               on_top,
+                                               player,
+                                               sort_key,
+                                               instruction.source_ref_index);
+        break;
+      }
+      case LN_OpCode::SetCameraVisibility: {
+        /* Object: empty is the tree's own object. */
+        KX_GameObject *target = instruction.secondary_value_expr_index != LN_INVALID_INDEX ?
+                                    resolve_required_object(
+                                        instruction.secondary_value_expr_index) :
+                                    m_gameObject;
+        command_buffer.AppendSetCameraVisibility(
+            target,
+            camera_object,
+            ResolveBoolExpression(instruction.bool_expr_index, false, context),
+            ResolveBoolExpression(instruction.secondary_bool_expr_index, false, context),
+            ResolveBoolExpression(instruction.tertiary_bool_expr_index, false, context),
+            sort_key,
+            instruction.source_ref_index);
         break;
       }
       case LN_OpCode::SetCameraFov: {
@@ -10581,23 +13500,22 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           break;
         }
         case LN_OpCode::SetLightColor: {
-          const MT_Vector4 color = ResolveColorExpression(instruction.color_expr_index,
-                                                          instruction.color_value,
-                                                          context);
+          const MT_Vector4 color = ResolveColorExpression(
+              instruction.color_expr_index, instruction.color_value, context);
           command_buffer.AppendSetLightColor(
               target, color, sort_key, instruction.source_ref_index);
           break;
         }
         case LN_OpCode::SetLightPower: {
-          const float power = ResolveFloatExpression(instruction.float_expr_index,
-                                                     instruction.vector_value.x(),
-                                                     context);
+          const float power = ResolveFloatExpression(
+              instruction.float_expr_index, instruction.vector_value.x(), context);
           command_buffer.AppendSetLightPower(
               target, power, sort_key, instruction.source_ref_index);
           break;
         }
         case LN_OpCode::SetLightShadow: {
-          const bool use_shadow = ResolveBoolExpression(instruction.bool_expr_index, true, context);
+          const bool use_shadow = ResolveBoolExpression(
+              instruction.bool_expr_index, true, context);
           command_buffer.AppendSetLightShadow(
               target, use_shadow, sort_key, instruction.source_ref_index);
           break;
@@ -10656,44 +13574,50 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         const bool visible = ResolveBoolExpression(instruction.bool_expr_index, true, context);
         command_buffer.AppendSetCursorVisibility(visible,
                                                  command_sort_key(instruction_id, command_sequence),
-                                                 instruction.source_ref_index);
+                                                 instruction.source_ref_index,
+                                                 instruction.int_value != 0);
         break;
       }
       case LN_OpCode::SetCursorPosition: {
         if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
           if (RAS_ICanvas *canvas = engine->GetCanvas()) {
-            const MT_Vector3 position = ResolveVectorExpression(instruction.vector_expr_index,
-                                                                instruction.vector_value,
-                                                                context);
-            const int32_t x = int32_t(std::lround(std::clamp(position.x(), 0.0f, 1.0f) *
-                                                  float(canvas->GetWidth())));
-            const int32_t y = int32_t(std::lround(std::clamp(position.y(), 0.0f, 1.0f) *
-                                                  float(canvas->GetHeight())));
-            command_buffer.AppendSetCursorPosition(x,
-                                                   y,
-                                                   command_sort_key(instruction_id,
-                                                                    command_sequence),
-                                                   instruction.source_ref_index);
+            const MT_Vector3 position = ResolveVectorExpression(
+                instruction.vector_expr_index, instruction.vector_value, context);
+            const int32_t x = int32_t(
+                std::lround(std::clamp(position.x(), 0.0f, 1.0f) * float(canvas->GetWidth())));
+            const int32_t y = int32_t(
+                std::lround(std::clamp(position.y(), 0.0f, 1.0f) * float(canvas->GetHeight())));
+            command_buffer.AppendSetCursorPosition(
+                x,
+                y,
+                command_sort_key(instruction_id, command_sequence),
+                instruction.source_ref_index);
           }
         }
         break;
       }
+      case LN_OpCode::SetPlayerGamepad:
+        command_buffer.AppendSetPlayerGamepad(
+            ResolveIntExpression(instruction.int_expr_index, 0, context),
+            ResolveIntExpression(instruction.secondary_int_expr_index, 0, context),
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
+        break;
       case LN_OpCode::SetGamepadVibration: {
         const int32_t gamepad_index = ResolveIntExpression(instruction.int_expr_index, 0, context);
-        const MT_Vector3 vibration = ResolveVectorExpression(instruction.vector_expr_index,
-                                                             instruction.vector_value,
-                                                             context);
+        const MT_Vector3 vibration = ResolveVectorExpression(
+            instruction.vector_expr_index, instruction.vector_value, context);
         const float left = std::clamp(vibration.x(), 0.0f, 1.0f);
         const float right = std::clamp(vibration.y(), 0.0f, 1.0f);
-        const uint32_t duration_ms = uint32_t(std::max<int32_t>(
-            0, int32_t(std::lround(std::max(vibration.z(), 0.0f) * 1000.0f))));
-        command_buffer.AppendSetGamepadVibration(gamepad_index,
-                                                 left,
-                                                 right,
-                                                 duration_ms,
-                                                 command_sort_key(instruction_id,
-                                                                  command_sequence),
-                                                 instruction.source_ref_index);
+        const uint32_t duration_ms = uint32_t(
+            std::max<int32_t>(0, int32_t(std::lround(std::max(vibration.z(), 0.0f) * 1000.0f))));
+        command_buffer.AppendSetGamepadVibration(
+            gamepad_index,
+            left,
+            right,
+            duration_ms,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
         break;
       }
       default:
@@ -10728,9 +13652,21 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     }
 
     if (instruction.opcode == LN_OpCode::GamepadLook) {
-      MT_Vector3 stick = ResolveVectorExpression(instruction.vector_expr_index,
-                                                 MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                 context);
+      /* While a menu or a UI in the game world uses the gamepad's player, the view waits. */
+      if (context.ui_input_users != 0 && instruction.secondary_int_expr_index != LN_INVALID_INDEX)
+      {
+        const int32_t user = LN_InputMap::Get().UserOfGamepad(
+            ResolveIntExpression(instruction.secondary_int_expr_index, 0, context));
+        if (user >= 0 && user < LN_MAX_GAMEPADS &&
+            (context.ui_input_users & (1u << uint32_t(user))) != 0)
+        {
+          command_sequence++;
+          MarkInstructionExecuted(event, instruction_id, context.tick_index);
+          return;
+        }
+      }
+      MT_Vector3 stick = ResolveVectorExpression(
+          instruction.vector_expr_index, MT_Vector3(0.0f, 0.0f, 0.0f), context);
       if (stick.length2() <= (MT_EPSILON * MT_EPSILON)) {
         command_sequence++;
         MarkInstructionExecuted(event, instruction_id, context.tick_index);
@@ -10743,7 +13679,9 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           context);
       const MT_Vector3 cap_x = ResolveVectorExpression(
           instruction.color_expr_index,
-          MT_Vector3(instruction.secondary_vector_value.x(), instruction.secondary_vector_value.y(), 0.0f),
+          MT_Vector3(instruction.secondary_vector_value.x(),
+                     instruction.secondary_vector_value.y(),
+                     0.0f),
           context);
       const MT_Vector3 cap_y = ResolveVectorExpression(
           instruction.int_expr_index,
@@ -10753,12 +13691,17 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           instruction.bool_expr_index, instruction.secondary_vector_value.z() > 0.5f, context);
       const bool use_cap_y = ResolveBoolExpression(
           instruction.secondary_bool_expr_index, instruction.color_value.w() > 0.5f, context);
-      const float sensitivity = std::max(
-          0.0f, ResolveFloatExpression(instruction.float_expr_index, instruction.vector_value.z(), context));
-      const float exponent = std::max(
-          0.0f, ResolveFloatExpression(instruction.string_expr_index, instruction.color_value.z(), context));
+      const float sensitivity = std::max(0.0f,
+                                         ResolveFloatExpression(instruction.float_expr_index,
+                                                                instruction.vector_value.z(),
+                                                                context));
+      const float exponent = std::max(0.0f,
+                                      ResolveFloatExpression(instruction.string_expr_index,
+                                                             instruction.color_value.z(),
+                                                             context));
 
-      float yaw_delta = stick.x();
+      /* The stick to the right turns right (clockwise seen from above), up looks up. */
+      float yaw_delta = -stick.x();
       float pitch_delta = stick.y();
       if (std::fabs(yaw_delta) > MT_EPSILON) {
         yaw_delta = std::copysign(std::pow(std::fabs(yaw_delta), exponent), yaw_delta);
@@ -10774,11 +13717,18 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         pitch_delta = -pitch_delta;
       }
 
-      yaw_delta *= sensitivity;
-      pitch_delta *= sensitivity;
+      const float tick_seconds = float(std::max(0.0, context.delta_time));
+      yaw_delta *= sensitivity * tick_seconds;
+      pitch_delta *= sensitivity * tick_seconds;
+      if (std::fabs(yaw_delta) <= MT_EPSILON && std::fabs(pitch_delta) <= MT_EPSILON) {
+        command_sequence++;
+        MarkInstructionExecuted(event, instruction_id, context.tick_index);
+        return;
+      }
 
       MT_Vector3 body_euler = OrientationToEuler(body->NodeGetLocalOrientation());
-      MT_Vector3 head_euler = (head == body) ? body_euler : OrientationToEuler(head->NodeGetLocalOrientation());
+      MT_Vector3 head_euler = (head == body) ? body_euler :
+                                               OrientationToEuler(head->NodeGetLocalOrientation());
 
       body_euler[2] += yaw_delta;
       if (use_cap_x) {
@@ -10796,22 +13746,25 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
 
       if (head == body) {
         body_euler[0] = head_euler[0];
-        command_buffer.AppendSetLocalOrientation(body,
-                                                 body_euler,
-                                                 command_sort_key(instruction_id, command_sequence),
-                                                 instruction.source_ref_index);
+        command_buffer.AppendSetLocalOrientation(
+            body,
+            body_euler,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
         command_sequence++;
       }
       else {
-        command_buffer.AppendSetLocalOrientation(body,
-                                                 body_euler,
-                                                 command_sort_key(instruction_id, command_sequence),
-                                                 instruction.source_ref_index);
+        command_buffer.AppendSetLocalOrientation(
+            body,
+            body_euler,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
         command_sequence++;
-        command_buffer.AppendSetLocalOrientation(head,
-                                                 head_euler,
-                                                 command_sort_key(instruction_id, command_sequence),
-                                                 instruction.source_ref_index);
+        command_buffer.AppendSetLocalOrientation(
+            head,
+            head_euler,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
         command_sequence++;
       }
 
@@ -10831,9 +13784,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::PlaySound: {
-        const std::string sound_name = ResolveStringExpression(instruction.string_expr_index,
-                                                               std::string(),
-                                                               context);
+        const std::string sound_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         if (sound_name.empty()) {
           return;
         }
@@ -10848,13 +13800,24 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                        pitch,
                                        loop,
                                        command_sort_key(instruction_id, command_sequence),
-                                       instruction.source_ref_index);
+                                       instruction.source_ref_index,
+                                       instruction.secondary_int_value);
+        break;
+      }
+      case LN_OpCode::SetSoundVolume: {
+        const float volume = ResolveFloatExpression(instruction.float_expr_index, 1.0f, context);
+        const float fade = ResolveFloatExpression(
+            instruction.secondary_float_expr_index, 0.0f, context);
+        command_buffer.AppendSetSoundVolume(instruction.int_value,
+                                            volume,
+                                            fade,
+                                            command_sort_key(instruction_id, command_sequence),
+                                            instruction.source_ref_index);
         break;
       }
       case LN_OpCode::StopSound: {
-        const std::string sound_name = ResolveStringExpression(instruction.string_expr_index,
-                                                               std::string(),
-                                                               context);
+        const std::string sound_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         if (sound_name.empty()) {
           return;
         }
@@ -10875,9 +13838,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         }
         float default_volume = instruction.vector_value.x();
         float default_pitch = instruction.vector_value.y();
-        std::string sound_name = ResolveStringExpression(instruction.string_expr_index,
-                                                         std::string(),
-                                                         context);
+        std::string sound_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         if (sound_name.empty()) {
           sound_name = SoundNameFromSpeakerObject(speaker, default_volume, default_pitch);
         }
@@ -10892,19 +13854,22 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                               ResolveBoolExpression(
                                   instruction.bool_expr_index, instruction.bool_value, context) :
                               ResolveIntExpression(instruction.int_expr_index, 0, context) != 0;
-        command_buffer.AppendPlaySound3D(speaker,
-                                         sound_name,
-                                         volume,
-                                         pitch,
-                                         loop,
-                                         command_sort_key(instruction_id, command_sequence),
-                                         instruction.source_ref_index);
+        command_buffer.AppendPlaySound3D(
+            speaker,
+            sound_name,
+            volume,
+            pitch,
+            loop,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index,
+            instruction.int_value,
+            ResolveIntExpression(instruction.secondary_int_expr_index, 0, context),
+            instruction.secondary_int_value);
         break;
       }
       case LN_OpCode::PauseSound: {
-        const std::string sound_name = ResolveStringExpression(instruction.string_expr_index,
-                                                               std::string(),
-                                                               context);
+        const std::string sound_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         if (!sound_name.empty()) {
           command_buffer.AppendPauseSound(sound_name,
                                           command_sort_key(instruction_id, command_sequence),
@@ -10913,9 +13878,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::ResumeSound: {
-        const std::string sound_name = ResolveStringExpression(instruction.string_expr_index,
-                                                               std::string(),
-                                                               context);
+        const std::string sound_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         if (!sound_name.empty()) {
           command_buffer.AppendResumeSound(sound_name,
                                            command_sort_key(instruction_id, command_sequence),
@@ -10933,19 +13897,15 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
   auto execute_direct_action_command = [&](const LN_Instruction &instruction,
                                            const uint32_t instruction_id) {
     KX_GameObject *target_object = resolve_command_target(instruction);
-    if (target_object == nullptr) {
+    if (target_object == nullptr && instruction.opcode != LN_OpCode::PlayAction) {
       return;
     }
 
     const uint64_t sort_key = command_sort_key(instruction_id, command_sequence);
     switch (instruction.opcode) {
       case LN_OpCode::PlayAction: {
-        const std::string action_name = ResolveStringExpression(instruction.string_expr_index,
-                                                                std::string(),
-                                                                context);
-        if (action_name.empty()) {
-          return;
-        }
+        const std::string action_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         const float start_frame = ResolveFloatExpression(
             instruction.float_expr_index, instruction.vector_value.x(), context);
         const float end_frame = ResolveFloatExpression(
@@ -10953,12 +13913,15 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         const float blendin = ResolveFloatExpression(
             instruction.tertiary_float_expr_index, instruction.vector_value.z(), context);
         const float playback_speed = ResolveFloatExpression(
-            instruction.quaternary_float_expr_index, instruction.secondary_vector_value.y(), context);
+            instruction.quaternary_float_expr_index,
+            instruction.secondary_vector_value.y(),
+            context);
         const float layer_weight = instruction.secondary_vector_value.x();
         const int32_t layer = ResolveIntExpression(instruction.int_expr_index, 0, context);
         const int32_t priority = ResolveIntExpression(
             instruction.secondary_int_expr_index, 0, context);
         command_buffer.AppendPlayAction(target_object,
+                                        this,
                                         action_name,
                                         start_frame,
                                         end_frame,
@@ -10968,6 +13931,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                         layer_weight,
                                         uint32_t(instruction.int_value),
                                         playback_speed,
+                                        instruction.property_ref_index,
+                                        uint8_t(instruction.secondary_int_value),
                                         sort_key,
                                         instruction.source_ref_index);
         break;
@@ -10988,6 +13953,18 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             target_object, layer, frame, sort_key, instruction.source_ref_index);
         break;
       }
+      case LN_OpCode::SetShapeKeyValue: {
+        const std::string shape_key_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
+        if (shape_key_name.empty()) {
+          return;
+        }
+        const float value = ResolveFloatExpression(
+            instruction.float_expr_index, instruction.vector_value.x(), context);
+        command_buffer.AppendSetShapeKeyValue(
+            target_object, shape_key_name, value, sort_key, instruction.source_ref_index);
+        break;
+      }
       default:
         break;
     }
@@ -11000,94 +13977,82 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     const uint64_t sort_key = command_sort_key(instruction_id, command_sequence);
     switch (instruction.opcode) {
       case LN_OpCode::SetBonePoseLocation: {
-        const MT_Vector3 location = ResolveVectorExpression(instruction.vector_expr_index,
-                                                            instruction.vector_value,
-                                                            context);
-        const std::string bone_name = ResolveStringExpression(instruction.string_expr_index,
-                                                              std::string(),
-                                                              context);
+        const MT_Vector3 location = ResolveVectorExpression(
+            instruction.vector_expr_index, instruction.vector_value, context);
+        const std::string bone_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         if (KX_GameObject *target = resolve_command_target(instruction)) {
           if (!bone_name.empty()) {
-            command_buffer.AppendSetBonePoseLocation(
-                target,
-                bone_name,
-                location,
-                sort_key,
-                instruction.source_ref_index,
-                instruction.int_value,
-                instruction.secondary_int_value != 0);
+            command_buffer.AppendSetBonePoseLocation(target,
+                                                     bone_name,
+                                                     location,
+                                                     sort_key,
+                                                     instruction.source_ref_index,
+                                                     instruction.int_value,
+                                                     instruction.secondary_int_value != 0);
           }
         }
         break;
       }
       case LN_OpCode::SetBonePoseTransform: {
-        const MT_Vector3 location = ResolveVectorExpression(instruction.vector_expr_index,
-                                                            instruction.vector_value,
-                                                            context);
-        const MT_Vector3 rotation = ResolveVectorExpression(instruction.secondary_vector_expr_index,
-                                                            instruction.secondary_vector_value,
-                                                            context);
-        const std::string bone_name = ResolveStringExpression(instruction.string_expr_index,
-                                                              std::string(),
-                                                              context);
+        const MT_Vector3 location = ResolveVectorExpression(
+            instruction.vector_expr_index, instruction.vector_value, context);
+        const LN_Rotation rotation = ResolveRotationExpression(
+            instruction.secondary_vector_expr_index,
+            LN_Rotation::FromEulerXYZ(instruction.secondary_vector_value),
+            context);
+        const std::string bone_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         if (KX_GameObject *target = resolve_command_target(instruction)) {
           if (!bone_name.empty()) {
-            command_buffer.AppendSetBonePoseTransform(
-                target,
-                bone_name,
-                location,
-                rotation,
-                sort_key,
-                instruction.source_ref_index,
-                instruction.int_value,
-                instruction.secondary_int_value != 0);
+            command_buffer.AppendSetBonePoseTransform(target,
+                                                      bone_name,
+                                                      location,
+                                                      rotation,
+                                                      sort_key,
+                                                      instruction.source_ref_index,
+                                                      instruction.int_value,
+                                                      instruction.secondary_int_value != 0);
           }
         }
         break;
       }
       case LN_OpCode::SetBonePoseRotation: {
-        const MT_Vector3 rotation = ResolveVectorExpression(instruction.vector_expr_index,
-                                                            instruction.vector_value,
-                                                            context);
-        const std::string bone_name = ResolveStringExpression(instruction.string_expr_index,
-                                                              std::string(),
-                                                              context);
+        const LN_Rotation rotation = ResolveRotationExpression(
+            instruction.vector_expr_index,
+            LN_Rotation::FromEulerXYZ(instruction.vector_value),
+            context);
+        const std::string bone_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         if (KX_GameObject *target = resolve_command_target(instruction)) {
           if (!bone_name.empty()) {
-            command_buffer.AppendSetBonePoseRotation(
-                target,
-                bone_name,
-                rotation,
-                sort_key,
-                instruction.source_ref_index,
-                instruction.secondary_int_value != 0,
-                instruction.int_value);
+            command_buffer.AppendSetBonePoseRotation(target,
+                                                     bone_name,
+                                                     rotation,
+                                                     sort_key,
+                                                     instruction.source_ref_index,
+                                                     instruction.secondary_int_value != 0,
+                                                     instruction.int_value);
           }
         }
         break;
       }
       case LN_OpCode::SetBonePoseScale: {
-        const MT_Vector3 scale = ResolveVectorExpression(instruction.vector_expr_index,
-                                                         instruction.vector_value,
-                                                         context);
-        const std::string bone_name = ResolveStringExpression(instruction.string_expr_index,
-                                                              std::string(),
-                                                              context);
+        const MT_Vector3 scale = ResolveVectorExpression(
+            instruction.vector_expr_index, instruction.vector_value, context);
+        const std::string bone_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         if (KX_GameObject *target = resolve_command_target(instruction)) {
           if (!bone_name.empty()) {
-            command_buffer.AppendSetBonePoseScale(target,
-                                                  bone_name,
-                                                  scale,
-                                                  sort_key,
-                                                  instruction.source_ref_index);
+            command_buffer.AppendSetBonePoseScale(
+                target, bone_name, scale, sort_key, instruction.source_ref_index);
           }
         }
         break;
       }
       case LN_OpCode::SetBoneAttribute: {
-        const std::string bone_name = ResolveStringExpression(instruction.string_expr_index,
-                                                              std::string(),
-                                                              context);
+        const std::string bone_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         KX_GameObject *target = resolve_command_target(instruction);
         LN_Value value = MakeNoneValue();
         if (instruction.secondary_value_expr_index != LN_INVALID_INDEX) {
@@ -11105,30 +14070,27 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::SetBoneConstraintInfluence: {
-        const std::string bone_name = ResolveStringExpression(instruction.string_expr_index,
-                                                              std::string(),
-                                                              context);
+        const std::string bone_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         const std::string constraint_name = ResolveStringExpression(
             instruction.secondary_string_expr_index, std::string(), context);
         const float influence = ResolveFloatExpression(
             instruction.float_expr_index, 0.0f, context);
         if (KX_GameObject *target = resolve_command_target(instruction)) {
           if (!bone_name.empty() && !constraint_name.empty()) {
-            command_buffer.AppendSetBoneConstraintInfluence(
-                target,
-                bone_name,
-                constraint_name,
-                influence,
-                sort_key,
-                instruction.source_ref_index);
+            command_buffer.AppendSetBoneConstraintInfluence(target,
+                                                            bone_name,
+                                                            constraint_name,
+                                                            influence,
+                                                            sort_key,
+                                                            instruction.source_ref_index);
           }
         }
         break;
       }
       case LN_OpCode::SetBoneConstraintTarget: {
-        const std::string bone_name = ResolveStringExpression(instruction.string_expr_index,
-                                                              std::string(),
-                                                              context);
+        const std::string bone_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         const std::string constraint_name = ResolveStringExpression(
             instruction.secondary_string_expr_index, std::string(), context);
         const LN_Value target_value = ResolveValueExpression(
@@ -11147,9 +14109,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::SetBoneConstraintAttribute: {
-        const std::string bone_name = ResolveStringExpression(instruction.string_expr_index,
-                                                              std::string(),
-                                                              context);
+        const std::string bone_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         const std::string constraint_name = ResolveStringExpression(
             instruction.secondary_string_expr_index, std::string(), context);
         const std::string attribute_name = ResolveStringExpression(
@@ -11194,9 +14155,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::SetMaterialNodeSocketValue: {
-        const std::string node_name = ResolveStringExpression(instruction.string_expr_index,
-                                                              std::string(),
-                                                              context);
+        const std::string node_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         const std::string socket_name = ResolveStringExpression(
             instruction.secondary_string_expr_index, std::string(), context);
         const LN_Value value = ResolveValueExpression(
@@ -11232,9 +14192,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::SetMaterialParameter: {
-        const std::string node_name = ResolveStringExpression(instruction.string_expr_index,
-                                                              std::string(),
-                                                              context);
+        const std::string node_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         const std::string socket_name = ResolveStringExpression(
             instruction.secondary_string_expr_index, std::string(), context);
         const LN_Value value = ResolveValueExpression(
@@ -11379,8 +14338,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             instruction.secondary_value_expr_index, MakeNoneValue(), context);
         const std::string name = ResolveStringExpression(
             instruction.string_expr_index, std::string(), context);
-        const int32_t index_or_id = ResolveIntExpression(
-            instruction.int_expr_index, 0, context);
+        const int32_t index_or_id = ResolveIntExpression(instruction.int_expr_index, 0, context);
         if (KX_GameObject *target = resolve_command_target(instruction)) {
           result.int_value = command_buffer.AssignGeometryNodesModifierNow(
               this,
@@ -11451,16 +14409,15 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             tree_property_ref != nullptr &&
             tree_property_ref->name.rfind("__native_add_object_result_", 0) == 0;
         if (print_deferred_add_object_result && m_activeTreePropertySnapshot == nullptr) {
-          command_buffer.AppendPrintTreeProperty(this,
-                                                 value_expression->property_ref_index,
-                                                 command_sort_key(instruction_id,
-                                                                  command_sequence),
-                                                 instruction.source_ref_index);
+          command_buffer.AppendPrintTreeProperty(
+              this,
+              value_expression->property_ref_index,
+              command_sort_key(instruction_id, command_sequence),
+              instruction.source_ref_index);
         }
         else {
-          const LN_Value value = ResolveValueExpression(instruction.value_expr_index,
-                                                        MakeNoneValue(),
-                                                        context);
+          const LN_Value value = ResolveValueExpression(
+              instruction.value_expr_index, MakeNoneValue(), context);
           const std::string message = ValueToPrintString(value);
           command_buffer.AppendPrint(message,
                                      command_sort_key(instruction_id, command_sequence),
@@ -11477,11 +14434,26 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                          instruction.source_ref_index);
         break;
       case LN_OpCode::SetTimeScale: {
-        const float timescale = ResolveFloatExpression(instruction.float_expr_index, 1.0f, context);
+        const float timescale = ResolveFloatExpression(
+            instruction.float_expr_index, 1.0f, context);
         command_buffer.AppendSetTimeScale(m_gameObject,
                                           timescale,
                                           command_sort_key(instruction_id, command_sequence),
                                           instruction.source_ref_index);
+        break;
+      }
+      case LN_OpCode::SetGamePaused: {
+        const bool paused = ResolveBoolExpression(instruction.bool_expr_index, true, context);
+        command_buffer.AppendSetGamePaused(paused,
+                                           command_sort_key(instruction_id, command_sequence),
+                                           instruction.source_ref_index);
+        break;
+      }
+      case LN_OpCode::SetPhysicsPaused: {
+        const bool paused = ResolveBoolExpression(instruction.bool_expr_index, true, context);
+        command_buffer.AppendSetPhysicsPaused(paused,
+                                              command_sort_key(instruction_id, command_sequence),
+                                              instruction.source_ref_index);
         break;
       }
       default:
@@ -11495,9 +14467,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                          const uint32_t instruction_id) {
     switch (instruction.opcode) {
       case LN_OpCode::LoadBlendFile: {
-        const std::string filepath = ResolveStringExpression(instruction.string_expr_index,
-                                                             std::string(),
-                                                             context);
+        const std::string filepath = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         command_buffer.AppendLoadBlendFile(filepath,
                                            command_sort_key(instruction_id, command_sequence),
                                            instruction.source_ref_index);
@@ -11505,24 +14476,38 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       }
       case LN_OpCode::SaveGame: {
         const int32_t slot = ResolveIntExpression(instruction.int_expr_index, 0, context);
-        const std::string path = ResolveStringExpression(instruction.string_expr_index,
-                                                         std::string(),
-                                                         context);
-        command_buffer.AppendSaveGame(m_gameObject,
+        const std::string path = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
+        command_buffer.AppendSaveGame(this,
+                                      m_gameObject,
                                       slot,
                                       path,
+                                      instruction.bool_expr_index,
                                       command_sort_key(instruction_id, command_sequence),
                                       instruction.source_ref_index);
         break;
       }
+      case LN_OpCode::SetSaveExistence: {
+        KX_GameObject *target = resolve_command_target(instruction);
+        const bool enabled = ResolveBoolExpression(instruction.bool_expr_index, true, context);
+        command_buffer.AppendSetSaveExistence(this,
+                                              m_gameObject,
+                                              target,
+                                              enabled,
+                                              instruction.secondary_bool_expr_index,
+                                              command_sort_key(instruction_id, command_sequence),
+                                              instruction.source_ref_index);
+        break;
+      }
       case LN_OpCode::LoadGame: {
         const int32_t slot = ResolveIntExpression(instruction.int_expr_index, 0, context);
-        const std::string path = ResolveStringExpression(instruction.string_expr_index,
-                                                         std::string(),
-                                                         context);
-        command_buffer.AppendLoadGame(m_gameObject,
+        const std::string path = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
+        command_buffer.AppendLoadGame(this,
+                                      m_gameObject,
                                       slot,
                                       path,
+                                      instruction.bool_expr_index,
                                       command_sort_key(instruction_id, command_sequence),
                                       instruction.source_ref_index);
         break;
@@ -11538,19 +14523,19 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                           const uint32_t instruction_id) {
     switch (instruction.opcode) {
       case LN_OpCode::LoadScene: {
-        const std::string scene_name = ResolveStringExpression(instruction.string_expr_index,
-                                                               std::string(),
-                                                               context);
-        command_buffer.AppendLoadScene(scene_name,
+        const std::string scene_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
+        command_buffer.AppendLoadScene(m_gameObject,
+                                       scene_name,
                                        command_sort_key(instruction_id, command_sequence),
                                        instruction.source_ref_index);
         break;
       }
       case LN_OpCode::SetScene: {
-        const std::string scene_name = ResolveStringExpression(instruction.string_expr_index,
-                                                               std::string(),
-                                                               context);
-        command_buffer.AppendSetScene(scene_name,
+        const std::string scene_name = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
+        command_buffer.AppendSetScene(m_gameObject,
+                                      scene_name,
                                       command_sort_key(instruction_id, command_sequence),
                                       instruction.source_ref_index);
         break;
@@ -11578,16 +14563,14 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         KX_GameObject *source_object = resolve_add_object_template(
             instruction.secondary_value_expr_index);
         if (reference_object != nullptr && source_object != nullptr) {
-          const uint64_t add_object_sort_key = command_sort_key(instruction_id,
-                                                                command_sequence);
-          command_buffer.FlushPendingObjectTransformCommands(reference_object,
-                                                            add_object_sort_key);
+          command_buffer.FlushPendingObjectTransformCommands(reference_object);
           command_buffer.ExecuteAddObjectFromRefImmediate(
               this,
               reference_object,
               MakeObjectRef(source_object, source_object->GetName()),
               ResolveFloatExpression(instruction.float_expr_index, 0.0f, context),
               ResolveBoolExpression(instruction.bool_expr_index, false, context),
+              ResolveBoolExpression(instruction.secondary_bool_expr_index, false, context),
               instruction.property_ref_index,
               instruction.source_ref_index);
           command_sequence++;
@@ -11626,7 +14609,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     switch (instruction.opcode) {
       case LN_OpCode::SetParent: {
         KX_GameObject *child_object = resolve_command_target(instruction);
-        if (child_object == nullptr || instruction.secondary_value_expr_index == LN_INVALID_INDEX) {
+        if (child_object == nullptr || instruction.secondary_value_expr_index == LN_INVALID_INDEX)
+        {
           MarkInstructionExecuted(event, instruction_id, context.tick_index);
           break;
         }
@@ -11641,14 +14625,37 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           {
             parent_ref = MakeObjectRef(parent_object, parent_value.reference_name);
           }
-          command_buffer.AppendSetParentFromRef(
-              this,
-              child_object,
-              parent_ref,
-              ResolveBoolExpression(instruction.bool_expr_index, true, context),
-              ResolveBoolExpression(instruction.secondary_bool_expr_index, true, context),
-              command_sort_key(instruction_id, command_sequence),
-              instruction.source_ref_index);
+          if (instruction.bool_value) {
+            KX_ParentOptions options;
+            options.type = static_cast<KX_ParentType>(instruction.int_value);
+
+            if (options.type == KX_ParentType::Object) {
+              options.compound = ResolveBoolExpression(
+                  instruction.bool_expr_index, false, context);
+            }
+            else if (options.type == KX_ParentType::Bone) {
+              options.bone_name = ResolveStringExpression(
+                  instruction.string_expr_index, std::string(), context);
+            }
+
+            command_buffer.AppendSetParentFromRef(
+                this,
+                child_object,
+                parent_ref,
+                options,
+                command_sort_key(instruction_id, command_sequence),
+                instruction.source_ref_index);
+          }
+          else {
+            command_buffer.AppendSetParentFromRef(
+                this,
+                child_object,
+                parent_ref,
+                ResolveBoolExpression(instruction.bool_expr_index, true, context),
+                ResolveBoolExpression(instruction.secondary_bool_expr_index, true, context),
+                command_sort_key(instruction_id, command_sequence),
+                instruction.source_ref_index);
+          }
           command_sequence++;
         }
         MarkInstructionExecuted(event, instruction_id, context.tick_index);
@@ -11660,7 +14667,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           if (instruction.secondary_value_expr_index != LN_INVALID_INDEX) {
             const LN_Value mesh_val = ResolveValueExpression(
                 instruction.secondary_value_expr_index, MakeNoneValue(), context);
-            mesh_obj = ResolveObjectValue(mesh_val);
+            /* A mesh library may sit in a hidden collection (inactive objects). */
+            mesh_obj = ResolveObjectValue(mesh_val, true);
           }
           if (mesh_obj) {
             command_buffer.AppendReplaceMesh(target,
@@ -11674,13 +14682,11 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::CopyProperty: {
+        /* No Source input: the owner. A linked Source that gives no object copies nothing. */
         KX_GameObject *source = m_gameObject;
         if (instruction.value_expr_index != LN_INVALID_INDEX) {
-          const LN_Value src_val = ResolveValueExpression(
-              instruction.value_expr_index, MakeNoneValue(), context);
-          if (KX_GameObject *resolved = ResolveObjectValue(src_val)) {
-            source = resolved;
-          }
+          source = ResolveObjectValue(
+              ResolveValueExpression(instruction.value_expr_index, MakeNoneValue(), context));
         }
         KX_GameObject *target = nullptr;
         if (instruction.secondary_value_expr_index != LN_INVALID_INDEX) {
@@ -11688,9 +14694,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
               instruction.secondary_value_expr_index, MakeNoneValue(), context);
           target = ResolveObjectValue(tgt_val);
         }
-        const std::string property = ResolveStringExpression(instruction.string_expr_index,
-                                                             std::string(),
-                                                             context);
+        const std::string property = ResolveStringExpression(
+            instruction.string_expr_index, std::string(), context);
         if (source && target && !property.empty()) {
           command_buffer.AppendCopyProperty(source,
                                             target,
@@ -11718,7 +14723,9 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
 
     const std::vector<LN_TreePropertyRef> &property_refs = m_program->GetTreePropertyRefs();
     LN_Value value = ResolveValueExpression(
-        instruction.value_expr_index, property_refs[instruction.property_ref_index].default_value, context);
+        instruction.value_expr_index,
+        property_refs[instruction.property_ref_index].default_value,
+        context);
     if (instruction.value_expr_index == LN_INVALID_INDEX) {
       value = property_refs[instruction.property_ref_index].default_value;
     }
@@ -11736,9 +14743,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
   auto execute_direct_tree_control_command = [&](const LN_Instruction &instruction,
                                                  const uint32_t instruction_id) {
     KX_GameObject *target_object = resolve_command_target(instruction);
-    const std::string tree_name = ResolveStringExpression(instruction.string_expr_index,
-                                                          std::string(),
-                                                          context);
+    const std::string tree_name = ResolveStringExpression(
+        instruction.string_expr_index, std::string(), context);
     if (target_object == nullptr || tree_name.empty()) {
       return;
     }
@@ -11752,11 +14758,12 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
 
     switch (instruction.opcode) {
       case LN_OpCode::SetLogicTreeEnabled:
-        command_buffer.AppendSetLogicTreeEnabled(target_object,
-                                                 tree_name,
-                                                 instruction.bool_value,
-                                                 command_sort_key(instruction_id, command_sequence),
-                                                 instruction.source_ref_index);
+        command_buffer.AppendSetLogicTreeEnabled(
+            target_object,
+            tree_name,
+            instruction.bool_value,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
         break;
       case LN_OpCode::InstallLogicTree:
         command_buffer.AppendInstallLogicTree(
@@ -11828,7 +14835,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                      messenger,
                                      target,
                                      command_sort_key(instruction_id, command_sequence),
-                                     instruction.source_ref_index);
+                                     instruction.source_ref_index,
+                                     this);
     }
     command_sequence++;
     MarkInstructionExecuted(event, instruction_id, context.tick_index);
@@ -11838,12 +14846,15 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     if (op.instruction_index >= instructions.size()) {
       return;
     }
+    if (m_uiEventRoutesOnly && !op.ui_event_route) {
+      return;
+    }
 
     const LN_Instruction &instruction = m_program->GetInstructionPayload(
         event, instructions[op.instruction_index]);
     const uint32_t instruction_id = op.instruction_index;
     ScopedCommandQueryContext command_query_context(
-        context, command_buffer, command_sort_key(instruction_id, command_sequence));
+        context, command_buffer, next_command_execution_key());
     profile_direct_exec_op(op);
 
     const std::vector<LN_Value> *guard_tree_properties = nullptr;
@@ -11855,8 +14866,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                                                 context.tick_index);
     }
 
-    const std::vector<LN_Value> *previous_tree_property_snapshot =
-        m_activeTreePropertySnapshot;
+    const std::vector<LN_Value> *previous_tree_property_snapshot = m_activeTreePropertySnapshot;
     if (guard_tree_properties != nullptr) {
       m_activeTreePropertySnapshot = guard_tree_properties;
     }
@@ -11868,9 +14878,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       case LN_ExecOpKind::BranchRoute: {
         const bool condition = instruction.bool_expr_index == LN_INVALID_INDEX ?
                                    false :
-                                   ResolveBoolExpression(instruction.bool_expr_index,
-                                                         false,
-                                                         context);
+                                   ResolveBoolExpression(
+                                       instruction.bool_expr_index, false, context);
         if (condition == instruction.bool_value) {
           MarkInstructionExecuted(event, instruction_id, context.tick_index);
         }
@@ -11960,9 +14969,6 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       case LN_ExecOpKind::PhysicsConstraintCommand:
         execute_physics_constraint_instruction(instruction, instruction_id);
         break;
-      case LN_ExecOpKind::SpawnPoolCommand:
-        execute_spawn_pool_instruction(instruction, instruction_id);
-        break;
     }
 
     m_activeTreePropertySnapshot = previous_tree_property_snapshot;
@@ -11979,35 +14985,153 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     return;
   }
 
-  for (const LN_ExecBlock &block : ir.blocks) {
-    if (m_activeProfileCounters != nullptr) {
-      m_activeProfileCounters->exec_block_count++;
-    }
-    if (block.loop_frame_index != LN_INVALID_INDEX) {
-      BeginLoopFrame(block.loop_frame_index, context);
-      while (AdvanceLoopFrame(block.loop_frame_index)) {
-        m_activeLoopBodyFrame = block.loop_frame_index;
-        context.execution_scope_serial = next_execution_scope_serial();
-        m_activeExecutionScopeSerial = context.execution_scope_serial;
+  /* Runs the blocks in the execution scope `scope_serial`. With `ui_event_state`, only the ops of
+   * that On UI Event's route: its repeat for a further event of this frame. */
+  std::vector<uint32_t> repeated_loop_frames;
+  const auto run_blocks = [&](const uint64_t scope_serial, const uint32_t ui_event_state) {
+    const auto selected = [&](const LN_ExecOp &op) {
+      return ui_event_state == LN_INVALID_INDEX || op.ui_event_state_index == ui_event_state;
+    };
+    for (const LN_ExecBlock &block : ir.blocks) {
+      if (ui_event_state != LN_INVALID_INDEX &&
+          std::none_of(ir.ops.begin() + block.first_op,
+                       ir.ops.begin() + block.first_op + block.op_count,
+                       selected))
+      {
+        continue;
+      }
+      /* A loop body that is not entirely a UI event route must not advance while paused. */
+      if (m_uiEventRoutesOnly && block.loop_frame_index != LN_INVALID_INDEX &&
+          !block.ui_event_route)
+      {
+        continue;
+      }
+      if (m_activeProfileCounters != nullptr) {
+        m_activeProfileCounters->exec_block_count++;
+      }
+      if (block.completed_loop_frame_index != LN_INVALID_INDEX) {
+        if (block.completed_loop_frame_index >= m_loopStates.size() ||
+            m_loopStates[block.completed_loop_frame_index].completed_scope_serial != scope_serial)
+        {
+          continue;
+        }
+      }
+      if (block.loop_frame_index != LN_INVALID_INDEX) {
+        /* A repeat starts a Loop of the route again, once per repeat (a body copy per incoming
+         * path shares the frame). One that still runs over more ticks keeps going instead. */
+        if (ui_event_state != LN_INVALID_INDEX &&
+            std::find(repeated_loop_frames.begin(),
+                      repeated_loop_frames.end(),
+                      block.loop_frame_index) == repeated_loop_frames.end())
+        {
+          repeated_loop_frames.push_back(block.loop_frame_index);
+          LoopRuntimeState &repeated = LoopState(block.loop_frame_index);
+          if (!repeated.active) {
+            repeated.last_batch_tick_index = UINT64_MAX;
+          }
+        }
+        BeginLoopFrame(block.loop_frame_index, context);
+        LoopRuntimeState &loop_state = LoopState(block.loop_frame_index);
+        if ((loop_state.triggered || loop_state.active) &&
+            loop_state.last_batch_tick_index != context.tick_index)
+        {
+          loop_state.last_batch_tick_index = context.tick_index;
+          if (loop_state.batch_end_iteration <= loop_state.iteration_index) {
+            const size_t base_batch_size = loop_state.iteration_count / loop_state.batch_count;
+            const size_t larger_batch_count = loop_state.iteration_count % loop_state.batch_count;
+            const size_t batch_size = base_batch_size +
+                                      (loop_state.batch_index < larger_batch_count ? 1 : 0);
+            loop_state.batch_end_iteration = std::min(loop_state.iteration_count,
+                                                      loop_state.iteration_index + batch_size);
+          }
+          const size_t remaining_in_batch = loop_state.batch_end_iteration -
+                                            loop_state.iteration_index;
+          const size_t iterations_to_run = std::min(remaining_in_batch,
+                                                    m_remainingLoopIterationBudget);
+          size_t batch_iterations = 0;
+          while (batch_iterations < iterations_to_run && AdvanceLoopFrame(block.loop_frame_index))
+          {
+            batch_iterations++;
+            const uint32_t previous_loop_body_frame = m_activeLoopBodyFrame;
+            m_activeLoopBodyFrame = block.loop_frame_index;
+            context.execution_scope_serial = next_execution_scope_serial();
+            m_activeExecutionScopeSerial = context.execution_scope_serial;
+            for (uint32_t op_index = block.first_op; op_index < block.first_op + block.op_count;
+                 op_index++)
+            {
+              if (selected(ir.ops[op_index])) {
+                execute_direct_op(ir.ops[op_index]);
+              }
+              if (loop_state.break_requested) {
+                break;
+              }
+            }
+            m_activeLoopBodyFrame = previous_loop_body_frame;
+            if (loop_state.break_requested) {
+              loop_state.active = false;
+              break;
+            }
+          }
+          m_remainingLoopIterationBudget -= batch_iterations;
+          if (loop_state.break_requested ||
+              loop_state.iteration_index >= loop_state.iteration_count)
+          {
+            loop_state.active = false;
+            loop_state.completed_scope_serial = scope_serial;
+          }
+          else if (loop_state.iteration_index >= loop_state.batch_end_iteration) {
+            loop_state.batch_index++;
+            loop_state.batch_end_iteration = 0;
+          }
+        }
+        context.execution_scope_serial = scope_serial;
+        m_activeExecutionScopeSerial = scope_serial;
+      }
+      else {
+        context.execution_scope_serial = scope_serial;
+        m_activeExecutionScopeSerial = scope_serial;
         for (uint32_t op_index = block.first_op; op_index < block.first_op + block.op_count;
              op_index++)
         {
-          execute_direct_op(ir.ops[op_index]);
+          if (selected(ir.ops[op_index])) {
+            execute_direct_op(ir.ops[op_index]);
+          }
         }
-        m_activeLoopBodyFrame = LN_INVALID_INDEX;
-      }
-      context.execution_scope_serial = event_scope_serial;
-      m_activeExecutionScopeSerial = event_scope_serial;
-    }
-    else {
-      context.execution_scope_serial = event_scope_serial;
-      m_activeExecutionScopeSerial = event_scope_serial;
-      for (uint32_t op_index = block.first_op; op_index < block.first_op + block.op_count; op_index++)
-      {
-        execute_direct_op(ir.ops[op_index]);
       }
     }
+  };
+  run_blocks(event_scope_serial, LN_INVALID_INDEX);
+
+  /* On UI Event: each further event that matches a node this frame runs the node's route again,
+   * in its own execution scope, with the node's outputs telling about that event. */
+  /* (Other per-tick query caches are not run again: a query that takes an event's output as input,
+   * such as a Projectile Ray from a drop's Point, gives the first event's answer. Raycasts are
+   * evaluated per command and are not affected.) */
+  constexpr uint32_t max_ui_event_repeats = uint32_t(LN_UIService::kMaxEventsPerNodeFrame);
+  for (const uint32_t state_index : ir.ui_event_states) {
+    /* Looked up again after each run: running can grow the state table. */
+    const QueryExpressionRuntimeState &first = QueryExpressionState(state_index);
+    if (first.cached_tick != context.tick_index || first.cached_result.ui_event_count < 2) {
+      continue;
+    }
+    const uint32_t count = std::min(first.cached_result.ui_event_count, max_ui_event_repeats);
+    for (uint32_t cursor = 1; cursor < count; ++cursor) {
+      QueryExpressionRuntimeState &state = QueryExpressionState(state_index);
+      state.ui_event_cursor = cursor;
+      state.cached_tick = UINT64_MAX;
+      m_registerExpressionState.cached_tick = UINT64_MAX;
+      repeated_loop_frames.clear();
+      const uint64_t repeat_scope_serial = next_execution_scope_serial();
+      context.execution_scope_serial = repeat_scope_serial;
+      m_activeExecutionScopeSerial = repeat_scope_serial;
+      run_blocks(repeat_scope_serial, state_index);
+    }
+    /* The next frame starts at its first event again. Until then, what reads the node's outputs
+     * keeps the topmost event (the cached result of the last run). */
+    QueryExpressionState(state_index).ui_event_cursor = 0;
   }
+  context.execution_scope_serial = event_scope_serial;
+  m_activeExecutionScopeSerial = event_scope_serial;
 }
 
 LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
@@ -12081,6 +15205,11 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       return ResolveBoolExpression(expression.bool_expr_index, false, context) ?
                  ResolveValueExpression(expression.input0, fallback, context) :
                  ResolveValueExpression(expression.input1, fallback, context);
+    case LN_ValueExpressionKind::Mix:
+      return ln::value_interpolation::Mix(
+          ResolveValueExpression(expression.input0, LN_Value(), context),
+          ResolveValueExpression(expression.input1, LN_Value(), context),
+          ResolveFloatExpression(expression.input2, 0.0f, context));
     case LN_ValueExpressionKind::FromBool: {
       LN_Value value;
       value.type = LN_ValueType::Bool;
@@ -12113,27 +15242,26 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       LN_Value value;
       value.type = LN_ValueType::Vector;
       value.exists = true;
-      value.vector_value = ResolveVectorExpression(expression.input0,
-                                                   MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                   context);
+      value.vector_value = ResolveVectorExpression(
+          expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context);
       return value;
     }
     case LN_ValueExpressionKind::FromColor: {
       LN_Value value;
       value.type = LN_ValueType::Color;
       value.exists = true;
-      value.color_value = ResolveColorExpression(expression.input0,
-                                                 MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f),
-                                                 context);
+      value.color_value = ResolveColorExpression(
+          expression.input0, MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f), context);
       return value;
     }
     case LN_ValueExpressionKind::FromRotation: {
       LN_Value value;
       value.type = LN_ValueType::Rotation;
       value.exists = true;
-      value.rotation_euler_value = ResolveVectorExpression(expression.input0,
-                                                           MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                           context);
+      const LN_Rotation rotation = ResolveRotationExpression(
+          expression.input0, LN_Rotation::Identity(), context);
+      value.SetRotation(
+          rotation, ResolveVectorExpression(expression.input0, rotation.ToEulerXYZ(), context));
       return value;
     }
     case LN_ValueExpressionKind::CombineVector4: {
@@ -12143,18 +15271,15 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       LN_Value value;
       value.type = LN_ValueType::Vector4;
       value.exists = true;
-      value.vector4_value = MT_Vector4(ResolveFloatExpression(expression.input_indices[0],
-                                                              expression.value.vector4_value.x(),
-                                                              context),
-                                      ResolveFloatExpression(expression.input_indices[1],
-                                                              expression.value.vector4_value.y(),
-                                                              context),
-                                      ResolveFloatExpression(expression.input_indices[2],
-                                                              expression.value.vector4_value.z(),
-                                                              context),
-                                      ResolveFloatExpression(expression.input_indices[3],
-                                                              expression.value.vector4_value.w(),
-                                                              context));
+      value.vector4_value = MT_Vector4(
+          ResolveFloatExpression(
+              expression.input_indices[0], expression.value.vector4_value.x(), context),
+          ResolveFloatExpression(
+              expression.input_indices[1], expression.value.vector4_value.y(), context),
+          ResolveFloatExpression(
+              expression.input_indices[2], expression.value.vector4_value.z(), context),
+          ResolveFloatExpression(
+              expression.input_indices[3], expression.value.vector4_value.w(), context));
       return value;
     }
     case LN_ValueExpressionKind::ResizeVectorValue: {
@@ -12172,14 +15297,14 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       }
       else {
         value.type = LN_ValueType::Vector;
-        value.vector_value = MT_Vector3(vector.x(), vector.y(), target_size >= 3 ? vector.z() : 0.0f);
+        value.vector_value = MT_Vector3(
+            vector.x(), vector.y(), target_size >= 3 ? vector.z() : 0.0f);
       }
       return value;
     }
     case LN_ValueExpressionKind::EulerToMatrix: {
-      const MT_Vector3 euler = ResolveVectorExpression(expression.input0,
-                                                       MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                       context);
+      const MT_Vector3 euler = ResolveVectorExpression(
+          expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context);
       LN_Value value;
       value.type = LN_ValueType::Matrix;
       value.exists = true;
@@ -12195,14 +15320,45 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       const MT_Vector3 euler = EulerFromMatrix(matrix, expression.property_ref_index);
       LN_Value value;
       value.type = expression.value.type == LN_ValueType::Rotation ? LN_ValueType::Rotation :
-                                                                    LN_ValueType::Vector;
+                                                                     LN_ValueType::Vector;
       value.exists = true;
       if (value.type == LN_ValueType::Rotation) {
-        value.rotation_euler_value = euler;
+        value.SetRotation(LN_Rotation::FromMatrix(matrix), euler);
       }
       else {
         value.vector_value = euler;
       }
+      return value;
+    }
+    case LN_ValueExpressionKind::PlayerViewCamera: {
+      KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
+      KX_Camera *camera = scene ? scene->GetPlayerViews().GetPlayerCamera(
+                                      ResolveIntExpression(expression.input0, 0, context),
+                                      scene->GetActiveCamera()) :
+                                  nullptr;
+      if (camera == nullptr) {
+        return MakeNoneValue();
+      }
+      LN_Value value;
+      value.type = LN_ValueType::ObjectRef;
+      value.exists = true;
+      value.reference_name = camera->GetName();
+      value.runtime_ref = MakeObjectRef(camera, camera->GetName());
+      return value;
+    }
+    case LN_ValueExpressionKind::MenuPlayerOwner: {
+      KX_GameObject *menu_owner = m_logicManager != nullptr && m_gameObject != nullptr ?
+                                      m_logicManager->GetUIService().MenuOwnerOfObject(
+                                          m_gameObject) :
+                                      nullptr;
+      if (menu_owner == nullptr) {
+        return MakeNoneValue();
+      }
+      LN_Value value;
+      value.type = LN_ValueType::ObjectRef;
+      value.exists = true;
+      value.reference_name = menu_owner->GetName();
+      value.runtime_ref = MakeObjectRef(menu_owner, menu_owner->GetName());
       return value;
     }
     case LN_ValueExpressionKind::ActiveCamera: {
@@ -12249,7 +15405,8 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       return value;
     }
     case LN_ValueExpressionKind::ObjectParent: {
-      const LN_Value child_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      const LN_Value child_value = ResolveValueExpression(
+          expression.input0, MakeNoneValue(), context);
       KX_GameObject *child_object = ResolveObjectValue(child_value);
       KX_GameObject *parent_object = child_object ? child_object->GetParent() : nullptr;
       if (parent_object == nullptr) {
@@ -12264,7 +15421,8 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       return value;
     }
     case LN_ValueExpressionKind::ObjectChild: {
-      const LN_Value parent_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      const LN_Value parent_value = ResolveValueExpression(
+          expression.input0, MakeNoneValue(), context);
       KX_GameObject *parent_object = ResolveObjectValue(parent_value);
       if (parent_object == nullptr) {
         return MakeNoneValue();
@@ -12289,7 +15447,8 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       return value;
     }
     case LN_ValueExpressionKind::ObjectChildByName: {
-      const LN_Value parent_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      const LN_Value parent_value = ResolveValueExpression(
+          expression.input0, MakeNoneValue(), context);
       KX_GameObject *parent_object = ResolveObjectValue(parent_value);
       KX_GameObject *child_hint = ResolveObjectValue(
           ResolveValueExpression(expression.input1, MakeNoneValue(), context));
@@ -12316,13 +15475,60 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
         return MakeNoneValue();
       }
 
+      KX_GameObject *game_object = ResolveObjectRef(query.physics_query.object_ref);
+      if (game_object == nullptr) {
+        return MakeNoneValue();
+      }
+
       LN_Value value;
       value.type = LN_ValueType::ObjectRef;
       value.exists = true;
       value.runtime_ref = query.physics_query.object_ref;
-      if (KX_GameObject *game_object = ResolveObjectRef(query.physics_query.object_ref)) {
-        value.reference_name = game_object->GetName();
+      value.reference_name = game_object->GetName();
+      return value;
+    }
+    case LN_ValueExpressionKind::UIElementEventObject:
+    case LN_ValueExpressionKind::UIElementEventTarget: {
+      const LN_QueryResult &query = ResolveQueryExpression(expression.input0, context);
+      const LN_RuntimeRef &object_ref = expression.kind ==
+                                                LN_ValueExpressionKind::UIElementEventObject ?
+                                            query.ui_source_object :
+                                            query.ui_target_object;
+      KX_GameObject *game_object = ResolveObjectRef(object_ref);
+      if (game_object == nullptr) {
+        return MakeNoneValue();
       }
+      LN_Value value;
+      value.type = LN_ValueType::ObjectRef;
+      value.exists = true;
+      value.runtime_ref = object_ref;
+      value.reference_name = game_object->GetName();
+      return value;
+    }
+    case LN_ValueExpressionKind::UIElementEventItem:
+    case LN_ValueExpressionKind::UIElementEventTargetItem: {
+      const LN_QueryResult &query = ResolveQueryExpression(expression.input0, context);
+      const std::shared_ptr<LN_Value> &item =
+          expression.kind == LN_ValueExpressionKind::UIElementEventItem ? query.ui_item :
+                                                                          query.ui_target_item;
+      return item != nullptr ? *item : MakeNoneValue();
+    }
+    case LN_ValueExpressionKind::UIFocusObject: {
+      if (m_logicManager == nullptr) {
+        return MakeNoneValue();
+      }
+      const int32_t user = ResolveIntExpression(expression.input0, 0, context);
+      const std::string input_context = ResolveStringExpression(
+          expression.input1, std::string(), context);
+      KX_GameObject *game_object = m_logicManager->GetUIService().GetFocus(user, input_context);
+      if (game_object == nullptr) {
+        return MakeNoneValue();
+      }
+      LN_Value value;
+      value.type = LN_ValueType::ObjectRef;
+      value.exists = true;
+      value.runtime_ref = MakeObjectRef(game_object, game_object->GetName());
+      value.reference_name = game_object->GetName();
       return value;
     }
     case LN_ValueExpressionKind::PhysicsQueryObjects:
@@ -12335,20 +15541,45 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
     case LN_ValueExpressionKind::PhysicsQueryStartedOverlappingList:
     case LN_ValueExpressionKind::PhysicsQueryFaceIndices:
     case LN_ValueExpressionKind::PhysicsQueryHasUVs:
-    case LN_ValueExpressionKind::PhysicsQueryUVs: {
+    case LN_ValueExpressionKind::PhysicsQueryUVs:
+    case LN_ValueExpressionKind::PhysicsQueryHits:
+    case LN_ValueExpressionKind::PhysicsQueryBlockedList:
+    case LN_ValueExpressionKind::PhysicsQueryRayOrigins:
+    case LN_ValueExpressionKind::PhysicsQueryRayDirections:
+    case LN_ValueExpressionKind::PhysicsQueryEndPoints: {
       const LN_QueryResult &query = ResolveQueryExpression(expression.input0, context);
       LN_Value value;
       value.type = LN_ValueType::List;
       value.exists = true;
       value.list_value.reserve(query.physics_query_results.size());
+      const bool hit_detail_output =
+          expression.kind == LN_ValueExpressionKind::PhysicsQueryObjects ||
+          expression.kind == LN_ValueExpressionKind::PhysicsQueryPoints ||
+          expression.kind == LN_ValueExpressionKind::PhysicsQueryNormals ||
+          expression.kind == LN_ValueExpressionKind::PhysicsQueryDistances ||
+          expression.kind == LN_ValueExpressionKind::PhysicsQueryCastPositions ||
+          expression.kind == LN_ValueExpressionKind::PhysicsQueryFractions ||
+          expression.kind == LN_ValueExpressionKind::PhysicsQueryPenetrationDepths ||
+          expression.kind == LN_ValueExpressionKind::PhysicsQueryStartedOverlappingList ||
+          expression.kind == LN_ValueExpressionKind::PhysicsQueryFaceIndices ||
+          expression.kind == LN_ValueExpressionKind::PhysicsQueryHasUVs ||
+          expression.kind == LN_ValueExpressionKind::PhysicsQueryUVs;
       for (const LN_PhysicsQueryResult &hit : query.physics_query_results) {
+        /* Raycast from Mesh retains one internal slot per generated ray so its Hits, Blocked and
+         * ray-geometry outputs can diagnose misses. Collision-detail outputs follow the regular
+         * physics-query contract, however: they contain matching hits only. In particular, never
+         * expose the placeholder end position of a miss as a hit point. */
+        if (hit_detail_output && !hit.hit) {
+          continue;
+        }
         switch (expression.kind) {
           case LN_ValueExpressionKind::PhysicsQueryObjects: {
             LN_Value object_value = MakeNoneValue();
             object_value.type = LN_ValueType::ObjectRef;
-            object_value.exists = true;
-            object_value.runtime_ref = hit.object_ref;
-            if (KX_GameObject *game_object = ResolveObjectRef(hit.object_ref)) {
+            KX_GameObject *game_object = hit.hit ? ResolveObjectRef(hit.object_ref) : nullptr;
+            object_value.exists = game_object != nullptr;
+            if (game_object) {
+              object_value.runtime_ref = hit.object_ref;
               object_value.reference_name = game_object->GetName();
             }
             value.list_value.push_back(object_value);
@@ -12385,22 +15616,25 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
             value.list_value.push_back(
                 MakeVectorValue(MT_Vector3(hit.hit_uv.x(), hit.hit_uv.y(), 0.0f)));
             break;
+          case LN_ValueExpressionKind::PhysicsQueryHits:
+            value.list_value.push_back(MakeBoolValue(hit.hit));
+            break;
+          case LN_ValueExpressionKind::PhysicsQueryBlockedList:
+            value.list_value.push_back(MakeBoolValue(hit.blocked));
+            break;
+          case LN_ValueExpressionKind::PhysicsQueryRayOrigins:
+            value.list_value.push_back(MakeVectorValue(hit.ray_origin));
+            break;
+          case LN_ValueExpressionKind::PhysicsQueryRayDirections:
+            value.list_value.push_back(MakeVectorValue(hit.ray_direction));
+            break;
+          case LN_ValueExpressionKind::PhysicsQueryEndPoints:
+            value.list_value.push_back(MakeVectorValue(hit.end_position));
+            break;
           default:
             break;
         }
       }
-      return value;
-    }
-    case LN_ValueExpressionKind::SpawnPoolHitObject: {
-      const SpawnPoolRuntimeState *pool = FindSpawnPoolState(expression.input0);
-      if (pool == nullptr || pool->hit_object == nullptr) {
-        return MakeNoneValue();
-      }
-      LN_Value value;
-      value.type = LN_ValueType::ObjectRef;
-      value.exists = true;
-      value.runtime_ref = MakeObjectRef(pool->hit_object, pool->hit_object->GetName());
-      value.reference_name = pool->hit_object->GetName();
       return value;
     }
     case LN_ValueExpressionKind::ProjectileParabola: {
@@ -12425,14 +15659,14 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       }
       ResolveBoolExpression(expression.input0, false, context);
       const BoolExpressionRuntimeState &state = BoolExpressionState(expression.input0);
-      return expression.kind == LN_ValueExpressionKind::ValueChangedOld ?
-                 state.stored_old_value :
-                 state.stored_new_value;
+      return expression.kind == LN_ValueExpressionKind::ValueChangedOld ? state.stored_old_value :
+                                                                          state.stored_new_value;
     }
     case LN_ValueExpressionKind::EventContent: {
       const LN_StringId subject_string_id = ResolveStringExpressionId(expression.input0);
       const LN_EventSubjectId subject_id = GetEventSubjectId(subject_string_id);
-      const std::string subject = ResolveStringExpression(expression.input0, std::string(), context);
+      const std::string subject = ResolveStringExpression(
+          expression.input0, std::string(), context);
       if (subject.empty()) {
         return fallback;
       }
@@ -12450,14 +15684,17 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
         filter_target = explicit_target;
       }
       if (const LN_EventEntry *event = FindFirstActiveEvent(subject_id, subject, filter_target)) {
-        return event->content;
+        LN_Value content = event->content;
+        LocalizeValue(content);
+        return content;
       }
       return fallback;
     }
     case LN_ValueExpressionKind::EventMessenger: {
       const LN_StringId subject_string_id = ResolveStringExpressionId(expression.input0);
       const LN_EventSubjectId subject_id = GetEventSubjectId(subject_string_id);
-      const std::string subject = ResolveStringExpression(expression.input0, std::string(), context);
+      const std::string subject = ResolveStringExpression(
+          expression.input0, std::string(), context);
       if (subject.empty()) {
         return fallback;
       }
@@ -12475,12 +15712,15 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
         filter_target = explicit_target;
       }
       if (const LN_EventEntry *event = FindFirstActiveEvent(subject_id, subject, filter_target)) {
-        if (event->messenger) {
+        /* The messenger may have been removed since the event was sent. */
+        if (KX_GameObject *messenger = m_logicManager->ResolveObjectHandle(
+                event->messenger_handle))
+        {
           LN_Value result;
           result.type = LN_ValueType::ObjectRef;
           result.exists = true;
-          result.reference_name = event->messenger->GetName();
-          result.runtime_ref = MakeObjectRef(event->messenger, event->messenger->GetName());
+          result.reference_name = messenger->GetName();
+          result.runtime_ref = MakeObjectRef(messenger, result.reference_name);
           return result;
         }
       }
@@ -12520,21 +15760,17 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       }
       if (attr == "worldOrientation") {
         const MT_Matrix3x3 rot = target_object->NodeGetWorldOrientation();
-        MT_Vector3 euler;
-        rot.getEuler(euler[0], euler[1], euler[2]);
         LN_Value value;
         value.type = LN_ValueType::Rotation;
-        value.rotation_euler_value = euler;
+        value.SetRotation(LN_Rotation::FromMatrix(rot));
         value.exists = true;
         return value;
       }
       if (attr == "localOrientation") {
         const MT_Matrix3x3 rot = target_object->NodeGetLocalOrientation();
-        MT_Vector3 euler;
-        rot.getEuler(euler[0], euler[1], euler[2]);
         LN_Value value;
         value.type = LN_ValueType::Rotation;
-        value.rotation_euler_value = euler;
+        value.SetRotation(LN_Rotation::FromMatrix(rot));
         value.exists = true;
         return value;
       }
@@ -12607,7 +15843,7 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       /* Try as a game property. */
       EXP_Value *prop = target_object->GetProperty(attr);
       if (prop != nullptr) {
-        return MakeValueFromEXPValue(prop);
+        return MakeValueFromEXPValue(prop, this);
       }
       return fallback;
     }
@@ -12620,10 +15856,9 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       else if (m_gameObject != nullptr) {
         target_object = m_gameObject;
       }
-      const std::string bone_name = ResolveStringExpression(expression.string_expr_index,
-                                                           std::string(),
-                                                           context);
-      MT_Vector3 rotation;
+      const std::string bone_name = ResolveStringExpression(
+          expression.string_expr_index, std::string(), context);
+      LN_Rotation rotation;
       const LN_BonePoseRotationSpace space = NormalizeBonePoseRotationSpace(
           expression.property_ref_index);
       if (!ResolveBonePoseRotation(target_object, bone_name, space, rotation)) {
@@ -12631,7 +15866,7 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       }
       LN_Value value;
       value.type = LN_ValueType::Rotation;
-      value.rotation_euler_value = rotation;
+      value.SetRotation(rotation);
       value.exists = true;
       return value;
     }
@@ -12644,16 +15879,16 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       else if (m_gameObject != nullptr) {
         target_object = m_gameObject;
       }
-      const std::string bone_name = ResolveStringExpression(expression.string_expr_index,
-                                                           std::string(),
-                                                           context);
-      blender::Object *ob = target_object ? target_object->GetBlenderObject() : nullptr;
+      const std::string bone_name = ResolveStringExpression(
+          expression.string_expr_index, std::string(), context);
+      BL_ArmatureObject *armature = ArmatureFacade(target_object);
+      blender::Object *ob = armature ? armature->GetArmatureObject() : nullptr;
       if (ob == nullptr || ob->type != blender::OB_ARMATURE || ob->pose == nullptr ||
           bone_name.empty())
       {
         return fallback;
       }
-      blender::bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bone_name.c_str());
+      blender::bPoseChannel *pchan = armature->FindPoseChannel(bone_name);
       if (pchan == nullptr || pchan->bone == nullptr) {
         return fallback;
       }
@@ -12695,14 +15930,12 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
         case 4:
           return make_rest_position_value(bone->head, bone->arm_head);
         case 5:
-          return make_position_value(MT_Vector3(bone->arm_head[0],
-                                                bone->arm_head[1],
-                                                bone->arm_head[2]));
+          return make_position_value(
+              MT_Vector3(bone->arm_head[0], bone->arm_head[1], bone->arm_head[2]));
         case 6:
-          UpdateArmaturePose(ob);
-          return make_position_value(MT_Vector3(pchan->pose_head[0],
-                                                pchan->pose_head[1],
-                                                pchan->pose_head[2]));
+          armature->ApplyPose();
+          return make_position_value(
+              MT_Vector3(pchan->pose_head[0], pchan->pose_head[1], pchan->pose_head[2]));
         case 7: {
           const float parent_center[3] = {
               (bone->head[0] + bone->tail[0]) * 0.5f,
@@ -12721,21 +15954,20 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
                                                 (bone->arm_head[1] + bone->arm_tail[1]) * 0.5f,
                                                 (bone->arm_head[2] + bone->arm_tail[2]) * 0.5f));
         case 9:
-          UpdateArmaturePose(ob);
-          return make_position_value(MT_Vector3((pchan->pose_head[0] + pchan->pose_tail[0]) * 0.5f,
-                                                (pchan->pose_head[1] + pchan->pose_tail[1]) * 0.5f,
-                                                (pchan->pose_head[2] + pchan->pose_tail[2]) * 0.5f));
+          armature->ApplyPose();
+          return make_position_value(
+              MT_Vector3((pchan->pose_head[0] + pchan->pose_tail[0]) * 0.5f,
+                         (pchan->pose_head[1] + pchan->pose_tail[1]) * 0.5f,
+                         (pchan->pose_head[2] + pchan->pose_tail[2]) * 0.5f));
         case 10:
           return make_rest_position_value(bone->tail, bone->arm_tail);
         case 11:
-          return make_position_value(MT_Vector3(bone->arm_tail[0],
-                                                bone->arm_tail[1],
-                                                bone->arm_tail[2]));
+          return make_position_value(
+              MT_Vector3(bone->arm_tail[0], bone->arm_tail[1], bone->arm_tail[2]));
         case 12:
-          UpdateArmaturePose(ob);
-          return make_position_value(MT_Vector3(pchan->pose_tail[0],
-                                                pchan->pose_tail[1],
-                                                pchan->pose_tail[2]));
+          armature->ApplyPose();
+          return make_position_value(
+              MT_Vector3(pchan->pose_tail[0], pchan->pose_tail[1], pchan->pose_tail[2]));
         case 13:
           value.type = LN_ValueType::Bool;
           value.bool_value = (bone->flag & blender::BONE_HINGE) == 0;
@@ -12795,16 +16027,13 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       }
       else {
         material = ResolveMaterialByValue(
-            this,
-            ResolveValueExpression(expression.input0, MakeNoneValue(), context));
+            this, ResolveValueExpression(expression.input0, MakeNoneValue(), context));
       }
 
-      const std::string node_name = ResolveStringExpression(expression.string_expr_index,
-                                                           std::string(),
-                                                           context);
-      const std::string socket_name = ResolveStringExpression(expression.input2,
-                                                             std::string(),
-                                                             context);
+      const std::string node_name = ResolveStringExpression(
+          expression.string_expr_index, std::string(), context);
+      const std::string socket_name = ResolveStringExpression(
+          expression.input2, std::string(), context);
       if (material == nullptr || material->nodetree == nullptr || node_name.empty() ||
           socket_name.empty())
       {
@@ -12832,17 +16061,14 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
         target_object = ResolveObjectValue(
             ResolveValueExpression(expression.input0, MakeNoneValue(), context));
       }
-      const std::string target_name = ResolveStringExpression(expression.input1,
-                                                              std::string(),
-                                                              context);
+      const std::string target_name = ResolveStringExpression(
+          expression.input1, std::string(), context);
       blender::bNodeTree *tree = ResolveEditorNodeValueTree(
           EditorNodeValueTarget(expression.property_ref_index), target_object, target_name);
-      const std::string node_name = ResolveStringExpression(expression.string_expr_index,
-                                                            std::string(),
-                                                            context);
-      const std::string socket_name = ResolveStringExpression(expression.input2,
-                                                              std::string(),
-                                                              context);
+      const std::string node_name = ResolveStringExpression(
+          expression.string_expr_index, std::string(), context);
+      const std::string socket_name = ResolveStringExpression(
+          expression.input2, std::string(), context);
       blender::bNode *node = FindNodeByUserName(tree, node_name);
       blender::bNodeSocket *socket = FindInputSocketByIdentifierOrName(node, socket_name);
       if (tree == nullptr || socket == nullptr || (socket->flag & blender::SOCK_UNAVAIL) != 0) {
@@ -12852,36 +16078,40 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       return socket->is_directly_linked() ? fallback : ReadSocketDefaultValue(*socket, this);
     }
     case LN_ValueExpressionKind::ObjectGameProperty: {
-      KX_GameObject *target_object = ResolveObjectRef(
-          ResolveValueExpression(expression.input0, MakeNoneValue(), context).runtime_ref);
+      KX_GameObject *target_object = m_gameObject;
+      if (expression.input0 != LN_INVALID_INDEX) {
+        target_object = ResolveObjectValue(
+            ResolveValueExpression(expression.input0, MakeNoneValue(), context));
+      }
       if (target_object == nullptr) {
         return fallback;
       }
-      const std::string property_name = ResolveStringExpression(expression.input1,
-                                                               std::string(),
-                                                               context);
+      const std::string property_name = ResolveStringExpression(
+          expression.input1, std::string(), context);
       if (EXP_Value *property = target_object->GetProperty(property_name)) {
-        return MakeValueFromEXPValue(property);
+        return MakeValueFromEXPValue(property, this);
       }
       return MakeNoneValue();
     }
     case LN_ValueExpressionKind::CollisionHitObject: {
-      const CollisionResult &collision_result = ResolveCollisionResult(expression.input0,
-                                                                       expression.input1,
-                                                                       expression.input2,
-                                                                       context,
-                                                                       CollisionResult::Detail::Objects);
+      const CollisionResult &collision_result = ResolveCollisionResult(
+          expression.input0,
+          expression.input1,
+          expression.input2,
+          context,
+          CollisionResult::Detail::Objects);
       if (!collision_result.hit || collision_result.hit_object == nullptr) {
         return MakeNoneValue();
       }
       return MakeObjectValue(this, collision_result.hit_object);
     }
     case LN_ValueExpressionKind::CollisionHitObjects: {
-      const CollisionResult &collision_result = ResolveCollisionResult(expression.input0,
-                                                                       expression.input1,
-                                                                       expression.input2,
-                                                                       context,
-                                                                       CollisionResult::Detail::Objects);
+      const CollisionResult &collision_result = ResolveCollisionResult(
+          expression.input0,
+          expression.input1,
+          expression.input2,
+          context,
+          CollisionResult::Detail::Objects);
       LN_Value value;
       value.type = LN_ValueType::List;
       value.exists = true;
@@ -12891,12 +16121,31 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       }
       return value;
     }
+    case LN_ValueExpressionKind::ConstraintBreakTargetObject: {
+      const LN_RigidBodyConstraintBreakEvent *event = ResolveRigidBodyConstraintBreakEvent(
+          expression.input0,
+          expression.input1,
+          expression.input2,
+          expression.rigid_body_constraint_match_mode,
+          context);
+      if (event == nullptr || m_logicManager == nullptr) {
+        return MakeNoneValue();
+      }
+      return MakeObjectValue(this, m_logicManager->ResolveObjectHandle(event->target));
+    }
+    case LN_ValueExpressionKind::ConstraintBreakEvents:
+      return ResolveRigidBodyConstraintBreakEvents(expression.input0,
+                                                   expression.input1,
+                                                   expression.input2,
+                                                   expression.rigid_body_constraint_match_mode,
+                                                   context);
     case LN_ValueExpressionKind::CollisionHitPoints: {
-      const CollisionResult &collision_result = ResolveCollisionResult(expression.input0,
-                                                                       expression.input1,
-                                                                       expression.input2,
-                                                                       context,
-                                                                       CollisionResult::Detail::Contacts);
+      const CollisionResult &collision_result = ResolveCollisionResult(
+          expression.input0,
+          expression.input1,
+          expression.input2,
+          context,
+          CollisionResult::Detail::Contacts);
       LN_Value value;
       value.type = LN_ValueType::List;
       value.exists = true;
@@ -12907,11 +16156,12 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       return value;
     }
     case LN_ValueExpressionKind::CollisionHitNormals: {
-      const CollisionResult &collision_result = ResolveCollisionResult(expression.input0,
-                                                                       expression.input1,
-                                                                       expression.input2,
-                                                                       context,
-                                                                       CollisionResult::Detail::Contacts);
+      const CollisionResult &collision_result = ResolveCollisionResult(
+          expression.input0,
+          expression.input1,
+          expression.input2,
+          context,
+          CollisionResult::Detail::Contacts);
       LN_Value value;
       value.type = LN_ValueType::List;
       value.exists = true;
@@ -12929,7 +16179,8 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       return m_loopStates[loop_frame_index].current_value;
     }
     case LN_ValueExpressionKind::ListElement: {
-      const LN_Value list_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      const LN_Value list_value = ResolveValueExpression(
+          expression.input0, MakeNoneValue(), context);
       if (list_value.type != LN_ValueType::List || !list_value.exists) {
         return fallback;
       }
@@ -12940,8 +16191,11 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       return list_value.list_value[size_t(index)];
     }
     case LN_ValueExpressionKind::ListRandomItem: {
-      const LN_Value list_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
-      if (list_value.type != LN_ValueType::List || !list_value.exists || list_value.list_value.empty()) {
+      const LN_Value list_value = ResolveValueExpression(
+          expression.input0, MakeNoneValue(), context);
+      if (list_value.type != LN_ValueType::List || !list_value.exists ||
+          list_value.list_value.empty())
+      {
         return fallback;
       }
       const uint64_t seed = (uint64_t(expression_index) << 32) ^ context.tick_index;
@@ -12963,16 +16217,18 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       return MakeNoneValue();
     }
     case LN_ValueExpressionKind::ValueSwitchListCompare: {
-      const LN_Value switch_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      const LN_Value switch_value = ResolveValueExpression(
+          expression.input0, MakeNoneValue(), context);
       const size_t pair_count = expression.input_indices.size() / 2;
       for (size_t pair_index = 0; pair_index < pair_count; pair_index++) {
         const uint32_t case_index = expression.input_indices[pair_index * 2];
         const uint32_t value_index = expression.input_indices[pair_index * 2 + 1];
         const LN_Value case_value = ResolveValueExpression(case_index, MakeNoneValue(), context);
-        if (CompareValues(switch_value, case_value, expression.value.exists ?
-                               static_cast<LN_FloatCompareOperation>(
-                                 expression.value.int_value) :
-                                                   LN_FloatCompareOperation::Equal))
+        if (CompareValues(switch_value,
+                          case_value,
+                          expression.value.exists ?
+                              static_cast<LN_FloatCompareOperation>(expression.value.int_value) :
+                              LN_FloatCompareOperation::Equal))
         {
           return ResolveValueExpression(value_index, MakeNoneValue(), context);
         }
@@ -13002,7 +16258,8 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       value.type = LN_ValueType::List;
       value.exists = true;
       if (expression.input0 != LN_INVALID_INDEX) {
-        const LN_Value source = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+        const LN_Value source = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         if (source.type == LN_ValueType::List && source.exists) {
           value.list_value = source.list_value;
         }
@@ -13014,13 +16271,15 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       value.type = LN_ValueType::Dict;
       value.exists = true;
       if (expression.input0 != LN_INVALID_INDEX) {
-        const LN_Value dict_a = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+        const LN_Value dict_a = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         if (dict_a.type == LN_ValueType::Dict && dict_a.exists) {
           value.dict_value = dict_a.dict_value;
         }
       }
       if (expression.input1 != LN_INVALID_INDEX) {
-        const LN_Value dict_b = ResolveValueExpression(expression.input1, MakeNoneValue(), context);
+        const LN_Value dict_b = ResolveValueExpression(
+            expression.input1, MakeNoneValue(), context);
         if (dict_b.type == LN_ValueType::Dict && dict_b.exists) {
           for (const auto &entry : dict_b.dict_value) {
             value.dict_value[entry.first] = entry.second;
@@ -13034,19 +16293,19 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       value.type = LN_ValueType::List;
       value.exists = true;
       if (expression.input0 != LN_INVALID_INDEX) {
-        const LN_Value list_a = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+        const LN_Value list_a = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         if (list_a.type == LN_ValueType::List && list_a.exists) {
-          value.list_value.insert(value.list_value.end(),
-                                  list_a.list_value.begin(),
-                                  list_a.list_value.end());
+          value.list_value.insert(
+              value.list_value.end(), list_a.list_value.begin(), list_a.list_value.end());
         }
       }
       if (expression.input1 != LN_INVALID_INDEX) {
-        const LN_Value list_b = ResolveValueExpression(expression.input1, MakeNoneValue(), context);
+        const LN_Value list_b = ResolveValueExpression(
+            expression.input1, MakeNoneValue(), context);
         if (list_b.type == LN_ValueType::List && list_b.exists) {
-          value.list_value.insert(value.list_value.end(),
-                                  list_b.list_value.begin(),
-                                  list_b.list_value.end());
+          value.list_value.insert(
+              value.list_value.end(), list_b.list_value.begin(), list_b.list_value.end());
         }
       }
       return value;
@@ -13056,7 +16315,8 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       value.type = LN_ValueType::List;
       value.exists = true;
       if (expression.input0 != LN_INVALID_INDEX) {
-        const LN_Value list_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+        const LN_Value list_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         if (list_value.type == LN_ValueType::List && list_value.exists) {
           value.list_value = list_value.list_value;
         }
@@ -13072,7 +16332,8 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       value.type = LN_ValueType::List;
       value.exists = true;
       if (expression.input0 != LN_INVALID_INDEX) {
-        const LN_Value list_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+        const LN_Value list_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         if (list_value.type == LN_ValueType::List && list_value.exists) {
           value.list_value = list_value.list_value;
         }
@@ -13091,17 +16352,20 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       value.type = LN_ValueType::List;
       value.exists = true;
       if (expression.input0 != LN_INVALID_INDEX) {
-        const LN_Value list_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+        const LN_Value list_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         if (list_value.type == LN_ValueType::List && list_value.exists) {
           value.list_value = list_value.list_value;
         }
       }
       const LN_Value needle = expression.input1 != LN_INVALID_INDEX ?
-                                  ResolveValueExpression(expression.input1, MakeNoneValue(), context) :
+                                  ResolveValueExpression(
+                                      expression.input1, MakeNoneValue(), context) :
                                   MakeNoneValue();
-      const auto iter = std::find_if(value.list_value.begin(),
-                                     value.list_value.end(),
-                                     [&](const LN_Value &item) { return ValuesEqual(item, needle); });
+      const auto iter = std::find_if(
+          value.list_value.begin(), value.list_value.end(), [&](const LN_Value &item) {
+            return ValuesEqual(item, needle);
+          });
       if (iter != value.list_value.end()) {
         value.list_value.erase(iter);
       }
@@ -13112,7 +16376,8 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       value.type = LN_ValueType::List;
       value.exists = true;
       if (expression.input0 != LN_INVALID_INDEX) {
-        const LN_Value list_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+        const LN_Value list_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         if (list_value.type == LN_ValueType::List && list_value.exists) {
           value.list_value = list_value.list_value;
         }
@@ -13123,24 +16388,24 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       size_t normalized_index = 0;
       if (NormalizeListIndex(index, value.list_value.size(), normalized_index)) {
         value.list_value[normalized_index] = expression.input2 != LN_INVALID_INDEX ?
-                                                ResolveValueExpression(expression.input2,
-                                                                       MakeNoneValue(),
-                                                                       context) :
-                                                MakeNoneValue();
+                                                 ResolveValueExpression(
+                                                     expression.input2, MakeNoneValue(), context) :
+                                                 MakeNoneValue();
       }
       return value;
     }
     case LN_ValueExpressionKind::DictGetKey: {
       const LN_Value dict_value = expression.input0 != LN_INVALID_INDEX ?
-                                      ResolveValueExpression(expression.input0, MakeNoneValue(), context) :
+                                      ResolveValueExpression(
+                                          expression.input0, MakeNoneValue(), context) :
                                       MakeNoneValue();
       const std::string key = expression.input1 != LN_INVALID_INDEX ?
-                                  ResolveStringExpression(expression.input1, std::string(), context) :
+                                  ResolveStringExpression(
+                                      expression.input1, std::string(), context) :
                                   std::string();
       const LN_Value default_value = expression.input2 != LN_INVALID_INDEX ?
-                                         ResolveValueExpression(expression.input2,
-                                                                MakeNoneValue(),
-                                                                context) :
+                                         ResolveValueExpression(
+                                             expression.input2, MakeNoneValue(), context) :
                                          MakeNoneValue();
       if (dict_value.type == LN_ValueType::Dict && dict_value.exists && !key.empty()) {
         const auto iter = dict_value.dict_value.find(key);
@@ -13155,11 +16420,13 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       value.type = LN_ValueType::Dict;
       value.exists = true;
       const std::string key = expression.input0 != LN_INVALID_INDEX ?
-                                  ResolveStringExpression(expression.input0, std::string(), context) :
+                                  ResolveStringExpression(
+                                      expression.input0, std::string(), context) :
                                   std::string();
       if (!key.empty()) {
         value.dict_value[key] = expression.input1 != LN_INVALID_INDEX ?
-                                    ResolveValueExpression(expression.input1, MakeNoneValue(), context) :
+                                    ResolveValueExpression(
+                                        expression.input1, MakeNoneValue(), context) :
                                     MakeNoneValue();
       }
       return value;
@@ -13169,20 +16436,283 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       value.type = LN_ValueType::Dict;
       value.exists = true;
       if (expression.input0 != LN_INVALID_INDEX) {
-        const LN_Value dict_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+        const LN_Value dict_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         if (dict_value.type == LN_ValueType::Dict && dict_value.exists) {
           value.dict_value = dict_value.dict_value;
         }
       }
       const std::string key = expression.input1 != LN_INVALID_INDEX ?
-                                  ResolveStringExpression(expression.input1, std::string(), context) :
+                                  ResolveStringExpression(
+                                      expression.input1, std::string(), context) :
                                   std::string();
       if (!key.empty()) {
         value.dict_value[key] = expression.input2 != LN_INVALID_INDEX ?
-                                    ResolveValueExpression(expression.input2, MakeNoneValue(), context) :
+                                    ResolveValueExpression(
+                                        expression.input2, MakeNoneValue(), context) :
                                     MakeNoneValue();
       }
       return value;
+    }
+    case LN_ValueExpressionKind::DictAddValue: {
+      LN_Value value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      if (value.type != LN_ValueType::Dict || !value.exists) {
+        value = LN_Value();
+        value.type = LN_ValueType::Dict;
+        value.exists = true;
+      }
+      const std::string key = ResolveStringExpression(expression.input1, std::string(), context);
+      if (key.empty()) {
+        return value;
+      }
+      float amount = 0.0f;
+      ValueAsFloat(ResolveValueExpression(expression.input2, MakeNoneValue(), context), amount);
+      LN_Value &entry = value.dict_value[key];
+      const bool was_int = entry.exists && entry.type == LN_ValueType::Int;
+      if ((was_int || !entry.exists) && std::isfinite(amount) && amount == std::trunc(amount)) {
+        /* Whole amounts keep counts as integers. */
+        const double sum = double(was_int ? entry.int_value : 0) + double(amount);
+        entry = MakeIntValue(int32_t(std::clamp(sum, double(INT32_MIN), double(INT32_MAX))));
+      }
+      else {
+        float current = 0.0f;
+        ValueAsFloat(entry, current);
+        entry = MakeFloatValue(current + amount);
+      }
+      return value;
+    }
+    case LN_ValueExpressionKind::ListSort:
+    case LN_ValueExpressionKind::ListFindIndex: {
+      LN_Value list = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      if (list.type != LN_ValueType::List || !list.exists) {
+        list = LN_Value();
+        list.type = LN_ValueType::List;
+        list.exists = true;
+      }
+      const LN_Value key = ResolveValueExpression(expression.input1, MakeNoneValue(), context);
+      if (expression.kind == LN_ValueExpressionKind::ListFindIndex) {
+        const auto iter = std::find_if(
+            list.list_value.begin(), list.list_value.end(), [&](const LN_Value &item) {
+              return ValuesEqual(item, key);
+            });
+        return MakeIntValue(iter == list.list_value.end() ?
+                                -1 :
+                                int32_t(iter - list.list_value.begin()));
+      }
+      SortListValues(list.list_value,
+                     key.exists && key.type == LN_ValueType::String ? key.string_value :
+                                                                       std::string(),
+                     ValueAsBool(ResolveValueExpression(expression.input2, MakeNoneValue(), context)));
+      return list;
+    }
+    case LN_ValueExpressionKind::InventoryEdit:
+    case LN_ValueExpressionKind::InventoryAmount:
+    case LN_ValueExpressionKind::InventoryChanged:
+    case LN_ValueExpressionKind::InventoryMade:
+    case LN_ValueExpressionKind::InventoryOutcome: {
+      const bool amount = expression.kind == LN_ValueExpressionKind::InventoryAmount ||
+                          expression.kind == LN_ValueExpressionKind::InventoryChanged;
+      const char *key = expression.kind == LN_ValueExpressionKind::InventoryAmount  ? "amount" :
+                        expression.kind == LN_ValueExpressionKind::InventoryChanged ? "changed" :
+                        expression.kind == LN_ValueExpressionKind::InventoryMade    ? "made" :
+                        expression.kind == LN_ValueExpressionKind::InventoryOutcome ?
+                                                                                    "outcome" :
+                                                                                    "inventory";
+      /* The Inventory node's outputs: what its last run did, kept in a tree property (a dict of
+       * the new list, the amount, what it made and the outcome). */
+      if (expression.property_ref_index != LN_INVALID_INDEX) {
+        const LN_Value *stored = GetTreePropertyValue(expression.property_ref_index);
+        if (stored != nullptr && stored->exists && stored->type == LN_ValueType::Dict) {
+          const auto item = stored->dict_value.find(key);
+          if (item != stored->dict_value.end()) {
+            return item->second;
+          }
+        }
+        if (amount) {
+          return MakeIntValue(0);
+        }
+        if (expression.kind != LN_ValueExpressionKind::InventoryEdit) {
+          return MakeStringValue(std::string());
+        }
+        LN_Value empty;
+        empty.type = LN_ValueType::List;
+        empty.exists = true;
+        return empty;
+      }
+      LN_Value inventory = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      if (inventory.type != LN_ValueType::List || !inventory.exists) {
+        inventory = LN_Value();
+        inventory.type = LN_ValueType::List;
+        inventory.exists = true;
+      }
+      const InventoryEditResult result = RunInventoryEdit(expression, inventory.list_value, context);
+      switch (expression.kind) {
+        case LN_ValueExpressionKind::InventoryAmount:
+          return MakeIntValue(result.amount);
+        case LN_ValueExpressionKind::InventoryChanged:
+          return MakeIntValue(result.Changed(LN_InventoryOperation(expression.value.int_value)));
+        case LN_ValueExpressionKind::InventoryMade:
+          return MakeStringValue(result.made);
+        case LN_ValueExpressionKind::InventoryOutcome:
+          return MakeStringValue(LN_InventoryOutcomeName(result.outcome, result.craft));
+        default:
+          return inventory;
+      }
+    }
+    case LN_ValueExpressionKind::InventoryItemCount: {
+      const LN_Value inventory = ResolveValueExpression(
+          expression.input0, MakeNoneValue(), context);
+      const std::string item = ItemNameOf(
+          ResolveValueExpression(expression.input1, MakeNoneValue(), context));
+      return MakeIntValue(inventory.type == LN_ValueType::List && inventory.exists ?
+                              LN_InventoryCount(inventory.list_value, item) :
+                              0);
+    }
+    case LN_ValueExpressionKind::ItemLibraryInfo: {
+      const std::string item = ItemNameOf(
+          ResolveValueExpression(expression.input1, MakeNoneValue(), context));
+      const blender::Collection *library = ResolveCollectionByValue(
+          this, ResolveValueExpression(expression.input0, MakeNoneValue(), context));
+      if (library == nullptr) {
+        library = SceneItemLibrary();
+      }
+      KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
+      KX_GameObject *object = scene ? LN_FindLibraryItem(*scene, library, item) : nullptr;
+      const auto property = [&](const std::string &name) {
+        EXP_Value *value = object ? object->GetProperty(name) : nullptr;
+        return value ? MakeValueFromEXPValue(value, this) : MakeNoneValue();
+      };
+      switch (LN_ItemInfoField(expression.value.int_value)) {
+        case LN_ItemInfoField::Found:
+          return MakeBoolValue(object != nullptr);
+        case LN_ItemInfoField::Object:
+          return MakeObjectValue(this, object);
+        case LN_ItemInfoField::Name: {
+          const LN_Value name = property("name");
+          return MakeStringValue(name.exists && name.type == LN_ValueType::String ?
+                                     name.string_value :
+                                     item);
+        }
+        case LN_ItemInfoField::MaxStack:
+          return MakeIntValue(ValueAsInt(property("max_stack"), LN_FloatToIntMode::Round));
+        case LN_ItemInfoField::Category:
+        case LN_ItemInfoField::Description: {
+          const LN_Value text = property(LN_ItemInfoField(expression.value.int_value) ==
+                                                 LN_ItemInfoField::Category ?
+                                             "category" :
+                                             "description");
+          return MakeStringValue(text.exists && text.type == LN_ValueType::String ?
+                                     text.string_value :
+                                     std::string());
+        }
+      }
+      return fallback;
+    }
+    case LN_ValueExpressionKind::RecipeInfo: {
+      const LN_Value text = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      LN_Recipe recipe;
+      const bool valid = text.exists && text.type == LN_ValueType::String &&
+                         LN_ParseRecipe(text.string_value, recipe);
+      switch (LN_RecipeInfoField(expression.value.int_value)) {
+        case LN_RecipeInfoField::Valid:
+          return MakeBoolValue(valid);
+        case LN_RecipeInfoField::Result:
+          return MakeStringValue(valid ? recipe.results.front().item : std::string());
+        case LN_RecipeInfoField::Count:
+          return MakeIntValue(valid ? recipe.results.front().count : 0);
+        case LN_RecipeInfoField::Results:
+        case LN_RecipeInfoField::Ingredients: {
+          LN_Value parts;
+          parts.type = LN_ValueType::List;
+          parts.exists = true;
+          for (const LN_RecipePart &part :
+               LN_RecipeInfoField(expression.value.int_value) == LN_RecipeInfoField::Results ?
+                   recipe.results :
+                   recipe.ingredients)
+          {
+            parts.list_value.push_back(LN_MakeInventoryEntry(part.item, part.count));
+          }
+          return parts;
+        }
+        case LN_RecipeInfoField::Station:
+          return MakeStringValue(recipe.station);
+        case LN_RecipeInfoField::CanCraft:
+        case LN_RecipeInfoField::Craftable: {
+          const LN_Value inventory = valid ? ResolveValueExpression(
+                                                 expression.input1, MakeNoneValue(), context) :
+                                             MakeNoneValue();
+          const int32_t craftable = inventory.exists && inventory.type == LN_ValueType::List ?
+                                        LN_RecipeCraftable(inventory.list_value, recipe) :
+                                        0;
+          if (LN_RecipeInfoField(expression.value.int_value) == LN_RecipeInfoField::CanCraft) {
+            return MakeBoolValue(craftable > 0);
+          }
+          return MakeIntValue(craftable);
+        }
+      }
+      return fallback;
+    }
+    case LN_ValueExpressionKind::RecipeFind: {
+      const LN_Value recipes_value = ResolveValueExpression(
+          expression.input0, MakeNoneValue(), context);
+      const LN_Value items = ResolveValueExpression(expression.input1, MakeNoneValue(), context);
+      const LN_Value station = ResolveValueExpression(expression.input2, MakeNoneValue(), context);
+      /* Trimmed like the stations of the recipe lines. */
+      std::string station_name = station.exists && station.type == LN_ValueType::String ?
+                                     station.string_value :
+                                     std::string();
+      const size_t station_start = station_name.find_first_not_of(" \t\r\n");
+      station_name = station_start == std::string::npos ?
+                         std::string() :
+                         station_name.substr(station_start,
+                                             station_name.find_last_not_of(" \t\r\n") -
+                                                 station_start + 1);
+      std::vector<LN_RecipePart> available;
+      const auto add_item = [&](const LN_Value &item) {
+        LN_RecipePart part;
+        if (item.exists && item.type == LN_ValueType::ObjectRef) {
+          part.item = item.reference_name;
+        }
+        else if (!LN_InventoryEntry(item, part.item, part.count)) {
+          return;
+        }
+        available.push_back(std::move(part));
+      };
+      if (items.exists && items.type == LN_ValueType::List) {
+        for (const LN_Value &item : items.list_value) {
+          add_item(item);
+        }
+      }
+      else {
+        add_item(items);
+      }
+      std::vector<LN_Recipe> recipes;
+      std::vector<int32_t> indices;
+      LN_ParseRecipes(recipes_value, recipes, &indices);
+      int32_t found = -1;
+      for (size_t index = 0; index < recipes.size(); ++index) {
+        if (recipes[index].station == station_name &&
+            LN_RecipeMatches(recipes[index], available))
+        {
+          found = int32_t(index);
+          break;
+        }
+      }
+      switch (LN_RecipeFindField(expression.value.int_value)) {
+        case LN_RecipeFindField::Found:
+          return MakeBoolValue(found >= 0);
+        case LN_RecipeFindField::Recipe:
+          if (found < 0) {
+            return MakeStringValue(std::string());
+          }
+          return MakeStringValue(recipes_value.type == LN_ValueType::List ?
+                                     recipes_value.list_value[size_t(indices[size_t(found)])]
+                                         .string_value :
+                                     recipes_value.string_value);
+        case LN_RecipeFindField::Index:
+          return MakeIntValue(found >= 0 ? indices[size_t(found)] : -1);
+      }
+      return fallback;
     }
     case LN_ValueExpressionKind::DictRemoveKey:
     case LN_ValueExpressionKind::DictRemoveKeyValue: {
@@ -13191,13 +16721,15 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       dict_output.exists = true;
       LN_Value removed_value = MakeNoneValue();
       if (expression.input0 != LN_INVALID_INDEX) {
-        const LN_Value dict_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+        const LN_Value dict_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         if (dict_value.type == LN_ValueType::Dict && dict_value.exists) {
           dict_output.dict_value = dict_value.dict_value;
         }
       }
       const std::string key = expression.input1 != LN_INVALID_INDEX ?
-                                  ResolveStringExpression(expression.input1, std::string(), context) :
+                                  ResolveStringExpression(
+                                      expression.input1, std::string(), context) :
                                   std::string();
       if (!key.empty()) {
         const auto iter = dict_output.dict_value.find(key);
@@ -13216,18 +16748,17 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       value.list_value.reserve(expression.input_indices.size());
       for (const uint32_t input_index : expression.input_indices) {
         if (input_index != LN_INVALID_INDEX) {
-          value.list_value.push_back(ResolveValueExpression(input_index, MakeNoneValue(), context));
+          value.list_value.push_back(
+              ResolveValueExpression(input_index, MakeNoneValue(), context));
         }
       }
       return value;
     }
     case LN_ValueExpressionKind::GetGlobalProperty: {
-      const std::string category = ResolveStringExpression(expression.input0,
-                                                           std::string(),
-                                                           context);
-      const std::string property = ResolveStringExpression(expression.input1,
-                                                           std::string(),
-                                                           context);
+      const std::string category = ResolveStringExpression(
+          expression.input0, std::string(), context);
+      const std::string property = ResolveStringExpression(
+          expression.input1, std::string(), context);
       if (!category.empty() && !property.empty()) {
         std::lock_guard<std::mutex> lock(GlobalPropertiesMutex());
         EnsureGlobalCategoryLoadedUnlocked(category);
@@ -13235,7 +16766,9 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
         if (category_iter != GlobalProperties().end()) {
           const auto property_iter = category_iter->second.find(property);
           if (property_iter != category_iter->second.end()) {
-            return property_iter->second;
+            LN_Value value = property_iter->second;
+            LocalizeValue(value);
+            return value;
           }
         }
       }
@@ -13245,9 +16778,8 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       return MakeNoneValue();
     }
     case LN_ValueExpressionKind::ListGlobalProperties: {
-      const std::string category = ResolveStringExpression(expression.input0,
-                                                           std::string(),
-                                                           context);
+      const std::string category = ResolveStringExpression(
+          expression.input0, std::string(), context);
       LN_Value value;
       value.type = LN_ValueType::Dict;
       value.exists = true;
@@ -13259,17 +16791,13 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
           value.dict_value = category_iter->second;
         }
       }
-      if (ResolveBoolExpression(expression.bool_expr_index, false, context)) {
-        std::printf("Global Properties [%s]: %zu\n", category.c_str(), value.dict_value.size());
-        for (const auto &item : value.dict_value) {
-          std::printf("  %s\n", item.first.c_str());
-        }
-      }
+      LocalizeValue(value);
       return value;
     }
     case LN_ValueExpressionKind::LoadVariable: {
       const std::string path = ResolveStringExpression(expression.input0, "//Data", context);
-      const std::string file_name = ResolveStringExpression(expression.input1, "variables", context);
+      const std::string file_name = ResolveStringExpression(
+          expression.input1, "variables", context);
       const std::string name = ResolveStringExpression(expression.input2, "var", context);
       const LN_Value dict = LoadVariableDictFromFile(path, file_name);
       if (dict.type == LN_ValueType::Dict) {
@@ -13285,12 +16813,14 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
     }
     case LN_ValueExpressionKind::LoadVariableDict: {
       const std::string path = ResolveStringExpression(expression.input0, "//Data", context);
-      const std::string file_name = ResolveStringExpression(expression.input1, "variables", context);
+      const std::string file_name = ResolveStringExpression(
+          expression.input1, "variables", context);
       return LoadVariableDictFromFile(path, file_name);
     }
     case LN_ValueExpressionKind::ListSavedVariables: {
       const std::string path = ResolveStringExpression(expression.input0, "//Data", context);
-      const std::string file_name = ResolveStringExpression(expression.input1, "variables", context);
+      const std::string file_name = ResolveStringExpression(
+          expression.input1, "variables", context);
       const LN_Value dict = LoadVariableDictFromFile(path, file_name);
       LN_Value value;
       value.type = LN_ValueType::List;
@@ -13302,12 +16832,6 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
           key.exists = true;
           key.string_value = item.first;
           value.list_value.push_back(key);
-        }
-      }
-      if (ResolveBoolExpression(expression.bool_expr_index, false, context)) {
-        std::printf("Saved Variables [%s]: %zu\n", file_name.c_str(), value.list_value.size());
-        for (const LN_Value &item : value.list_value) {
-          std::printf("  %s\n", item.string_value.c_str());
         }
       }
       return value;
@@ -13326,9 +16850,8 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
     }
     case LN_ValueExpressionKind::CollectionObjects:
     case LN_ValueExpressionKind::CollectionObjectNames: {
-      const LN_Value collection_value = ResolveValueExpression(expression.input0,
-                                                              MakeNoneValue(),
-                                                              context);
+      const LN_Value collection_value = ResolveValueExpression(
+          expression.input0, MakeNoneValue(), context);
       blender::Collection *collection = nullptr;
       if (collection_value.type == LN_ValueType::CollectionRef &&
           collection_value.runtime_ref.IsValid())
@@ -13342,26 +16865,44 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       if (collection == nullptr) {
         return value;
       }
-      for (blender::CollectionObject &collection_object : collection->gobject) {
-        if (collection_object.ob == nullptr) {
-          continue;
+      if (expression.kind == LN_ValueExpressionKind::CollectionObjects) {
+        /* The scene's objects in the collection while the game runs (KX_Scene::
+         * CollectionMembers): Add Object copies and Set Collection Member included. Before
+         * 2026-10-15 only the file's direct entries, found by name. */
+        KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
+        if (scene == nullptr) {
+          return value;
         }
-        const std::string object_name = collection_object.ob->id.name + 2;
-        if (expression.kind == LN_ValueExpressionKind::CollectionObjectNames) {
-          LN_Value item;
-          item.type = LN_ValueType::String;
-          item.exists = true;
-          item.string_value = object_name;
-          value.list_value.push_back(item);
-        }
-        else if (KX_GameObject *game_object = FindSceneObjectByName(object_name)) {
+        const bool include_children = ResolveBoolExpression(
+            expression.bool_expr_index, false, context);
+        const std::vector<KX_GameObject *> &members = scene->CollectionMembers(collection,
+                                                                               include_children);
+        value.list_value.reserve(members.size());
+        for (KX_GameObject *game_object : members) {
+          /* Logic in a player's copy of a menu sees its own copy's objects, not the other
+           * players' copies of that menu (as when this list was made by name). */
+          if (scene->OverlayCounterpart(game_object, m_gameObject) != game_object) {
+            continue;
+          }
           LN_Value item;
           item.type = LN_ValueType::ObjectRef;
           item.exists = true;
           item.reference_name = game_object->GetName();
           item.runtime_ref = MakeObjectRef(game_object, game_object->GetName());
-          value.list_value.push_back(item);
+          value.list_value.push_back(std::move(item));
         }
+        return value;
+      }
+      /* Names: the file's entries (such as a library's template names). */
+      for (blender::CollectionObject &collection_object : collection->gobject) {
+        if (collection_object.ob == nullptr) {
+          continue;
+        }
+        LN_Value item;
+        item.type = LN_ValueType::String;
+        item.exists = true;
+        item.string_value = collection_object.ob->id.name + 2;
+        value.list_value.push_back(item);
       }
       return value;
     }
@@ -13420,7 +16961,8 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
       value.type = LN_ValueType::List;
       value.exists = true;
       const LN_Value dict_value = expression.input0 != LN_INVALID_INDEX ?
-                                      ResolveValueExpression(expression.input0, MakeNoneValue(), context) :
+                                      ResolveValueExpression(
+                                          expression.input0, MakeNoneValue(), context) :
                                       MakeNoneValue();
       if (dict_value.type == LN_ValueType::Dict && dict_value.exists) {
         for (const auto &entry : dict_value.dict_value) {
@@ -13483,20 +17025,21 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
                                    expression.runtime_state_index :
                                    expression_index;
   QueryExpressionRuntimeState &state = QueryExpressionState(state_index);
-  const bool command_ordered_cache =
-      QueryExpressionNeedsCommandOrderedEvaluation(expression.kind) &&
-      context.command_buffer != nullptr && context.command_sort_key != UINT64_MAX;
-  const uint64_t command_sort_key = command_ordered_cache ? context.command_sort_key :
-                                                            UINT64_MAX;
+  const bool command_ordered_cache = QueryExpressionNeedsCommandOrderedEvaluation(
+                                         expression.kind) &&
+                                     context.command_buffer != nullptr &&
+                                     context.command_execution_key != UINT64_MAX;
+  const uint64_t command_execution_key = command_ordered_cache ? context.command_execution_key :
+                                                                 UINT64_MAX;
   if (state.cached_tick == context.tick_index &&
       state.cached_command_ordered == command_ordered_cache &&
-      (!command_ordered_cache || state.cached_command_sort_key == command_sort_key))
+      (!command_ordered_cache || state.cached_command_execution_key == command_execution_key))
   {
     return state.cached_result;
   }
 
   state.cached_tick = context.tick_index;
-  state.cached_command_sort_key = command_sort_key;
+  state.cached_command_execution_key = command_execution_key;
   state.cached_command_ordered = command_ordered_cache;
   state.cached_result = LN_QueryResult();
 
@@ -13514,12 +17057,8 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
       const LN_Value caster_value = ResolveValueExpression(
           expression.input0, MakeNoneValue(), context);
       KX_GameObject *caster_object = ResolveObjectValue(caster_value);
-      KX_GameObject *ignore_object = ResolveObjectValue(
-          ResolveValueExpression(expression.input3, MakeNoneValue(), context));
-      LN_RuntimeRef extra_ignore_ref;
-      if (ignore_object) {
-        extra_ignore_ref = MakeObjectRef(ignore_object, ignore_object->GetName());
-      }
+      const std::vector<LN_RuntimeRef> extra_ignore_refs = ResolveIgnoreObjectRefs(
+          expression.input3, expression.ignore_list_expr_index, context);
 
       MT_Vector3 origin = ResolveVectorExpression(
           expression.input1, expression.vector_value, context);
@@ -13547,8 +17086,7 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
         }
       }
 
-      const bool direction_mode =
-          expression.ray_input_mode == LN_RayInputMode::DirectionDistance;
+      const bool direction_mode = expression.ray_input_mode == LN_RayInputMode::DirectionDistance;
       const bool finite_inputs = vector_is_finite(origin) &&
                                  (direction_mode ? vector_is_finite(direction) &&
                                                        std::isfinite(requested_distance) :
@@ -13605,26 +17143,23 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
             LN_QueryDiagnosticStatus::InvalidFilter;
         break;
       }
-      const std::string property_name = ResolveStringExpression(expression.string_expr_index,
-                                                                std::string(),
-                                                                context);
-      const bool xray = ResolveBoolExpression(expression.secondary_bool_expr_index,
-                                              false,
-                                              context);
-      const int32_t max_results = collect_all ?
-                                      std::clamp(ResolveIntExpression(
-                                                     expression.secondary_int_expr_index,
-                                                     expression.secondary_int_value,
-                                                     context),
-                                                 1,
-                                                 256) :
-                                      1;
+      const std::string property_name = ResolveStringExpression(
+          expression.string_expr_index, std::string(), context);
+      const bool xray = ResolveBoolExpression(
+          expression.secondary_bool_expr_index, false, context);
+      const int32_t max_results = collect_all ? std::clamp(ResolveIntExpression(
+                                                               expression.secondary_int_expr_index,
+                                                               expression.secondary_int_value,
+                                                               context),
+                                                           1,
+                                                           256) :
+                                                1;
 
       PHY_RayQuerySettings settings;
       settings.origin = origin;
       settings.destination = destination;
-      settings.max_results = uint32_t(
-          max_results + (collect_all && !xray && !property_name.empty() ? 1 : 0));
+      settings.max_results = uint32_t(max_results +
+                                      (collect_all && !xray && !property_name.empty() ? 1 : 0));
       if ((expression.ray_query_detail_flags & LN_RAY_QUERY_DETAIL_FACE_INDEX) != 0) {
         settings.detail_flags |= PHY_RAY_QUERY_DETAIL_FACE_INDEX;
       }
@@ -13653,7 +17188,7 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
                                                           uint32_t(mask_value),
                                                           property_name,
                                                           xray,
-                                                          extra_ignore_ref,
+                                                          extra_ignore_refs,
                                                           blocked,
                                                           blocker,
                                                           supported);
@@ -13679,12 +17214,260 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
         DrawDebugRaycast(origin,
                          state.cached_result.physics_query.hit ?
                              state.cached_result.physics_query.hit_position :
-                             blocked ? blocker.hit_position : destination,
+                         blocked ? blocker.hit_position :
+                                   destination,
                          physical_stop,
                          state.cached_result.physics_query.hit ?
                              &state.cached_result.physics_query.hit_normal :
                              nullptr,
                          cast_distance);
+      }
+      break;
+    }
+    case LN_QueryExpressionKind::RaycastFromMesh: {
+      KX_GameObject *source_object = expression.input0 != LN_INVALID_INDEX ?
+                                         ResolveObjectValue(ResolveValueExpression(
+                                             expression.input0, MakeNoneValue(), context)) :
+                                         m_gameObject;
+      if (!source_object) {
+        state.cached_result.physics_query.diagnostic_status =
+            LN_QueryDiagnosticStatus::InvalidTarget;
+        break;
+      }
+
+      FlushPendingRaycastTransforms(source_object, context);
+      const float start_offset = ResolveFloatExpression(
+          expression.float_expr_index, expression.float_value, context);
+      const float max_distance = ResolveFloatExpression(
+          expression.secondary_float_expr_index, expression.secondary_float_value, context);
+      if (!std::isfinite(start_offset) || start_offset < 0.0f || !std::isfinite(max_distance) ||
+          max_distance <= MT_EPSILON)
+      {
+        state.cached_result.physics_query.diagnostic_status =
+            LN_QueryDiagnosticStatus::InvalidTarget;
+        break;
+      }
+
+      const int32_t mask_value = ResolveIntExpression(
+          expression.int_expr_index, expression.int_value, context);
+      if (mask_value < 0 || mask_value > LN_RAYCAST_MAX_COLLISION_MASK) {
+        state.cached_result.physics_query.diagnostic_status =
+            LN_QueryDiagnosticStatus::InvalidFilter;
+        break;
+      }
+      if ((expression.mesh_ray_domain != LN_MeshRayDomain::Vertices &&
+           expression.mesh_ray_domain != LN_MeshRayDomain::Faces) ||
+          (expression.mesh_ray_direction != LN_MeshRayDirection::Normals &&
+           expression.mesh_ray_direction != LN_MeshRayDirection::InvertedNormals))
+      {
+        state.cached_result.physics_query.diagnostic_status =
+            LN_QueryDiagnosticStatus::InvalidTarget;
+        break;
+      }
+      const size_t max_rays = size_t(std::clamp(
+          ResolveIntExpression(
+              expression.secondary_int_expr_index, expression.secondary_int_value, context),
+          1,
+          LN_RAYCAST_FROM_MESH_MAX_RAYS));
+
+      const MT_Transform world_transform = source_object->NodeGetWorldTransform();
+      if (!vector_is_finite(world_transform.getOrigin())) {
+        state.cached_result.physics_query.diagnostic_status =
+            LN_QueryDiagnosticStatus::InvalidTarget;
+        break;
+      }
+      MT_Matrix3x3 normal_matrix;
+      if (!BuildMeshNormalMatrix(world_transform.getBasis(), normal_matrix)) {
+        state.cached_result.physics_query.diagnostic_status =
+            LN_QueryDiagnosticStatus::InvalidTarget;
+        break;
+      }
+
+      const std::vector<LN_MeshRaySample> samples = SampleMeshRays(
+          *source_object, expression.mesh_ray_domain, max_rays);
+      if (samples.empty()) {
+        state.cached_result.physics_query.diagnostic_status =
+            LN_QueryDiagnosticStatus::InvalidTarget;
+        break;
+      }
+
+      std::vector<PHY_RayQuerySettings> settings;
+      settings.reserve(samples.size());
+      state.cached_result.physics_query_results.reserve(samples.size());
+      const bool invert_direction = expression.mesh_ray_direction ==
+                                    LN_MeshRayDirection::InvertedNormals;
+      const bool include_sensors = ResolveBoolExpression(
+          expression.quaternary_bool_expr_index, false, context);
+      const bool hit_back_faces = ResolveBoolExpression(
+          expression.quinary_bool_expr_index, false, context);
+      for (const LN_MeshRaySample &sample : samples) {
+        MT_Vector3 direction = normal_matrix * sample.normal;
+        if (!NormalizeFinite(direction)) {
+          continue;
+        }
+        if (invert_direction) {
+          direction = -direction;
+        }
+        const MT_Vector3 surface_position = world_transform * sample.position;
+        const MT_Vector3 origin = surface_position + direction * start_offset;
+        const MT_Vector3 destination = origin + direction * max_distance;
+        if (!vector_is_finite(surface_position) || !vector_is_finite(origin) ||
+            !vector_is_finite(destination))
+        {
+          continue;
+        }
+        /* Validate the segment after performing the world-space float arithmetic. At very large
+         * coordinates a finite positive Max Distance can round away entirely, while an extreme
+         * finite distance can still overflow the derived length. Report the segment that is
+         * actually sent to physics rather than the idealized input distance. */
+        MT_Vector3 cast_direction = destination - origin;
+        const float cast_distance = cast_direction.length();
+        if (!std::isfinite(cast_distance) || cast_distance <= MT_EPSILON) {
+          continue;
+        }
+        cast_direction /= cast_distance;
+        if (!vector_is_finite(cast_direction)) {
+          continue;
+        }
+
+        PHY_RayQuerySettings ray_settings;
+        ray_settings.origin = origin;
+        ray_settings.destination = destination;
+        ray_settings.max_results = 1;
+        if ((expression.ray_query_detail_flags & LN_RAY_QUERY_DETAIL_FACE_INDEX) != 0) {
+          ray_settings.detail_flags |= PHY_RAY_QUERY_DETAIL_FACE_INDEX;
+        }
+        if ((expression.ray_query_detail_flags & LN_RAY_QUERY_DETAIL_UV) != 0) {
+          ray_settings.detail_flags |= PHY_RAY_QUERY_DETAIL_UV;
+        }
+        ray_settings.include_sensors = include_sensors;
+        ray_settings.hit_back_faces = hit_back_faces;
+        settings.push_back(ray_settings);
+
+        LN_PhysicsQueryResult miss;
+        miss.diagnostic_status = LN_QueryDiagnosticStatus::NoHit;
+        miss.hit_position = destination;
+        miss.hit_normal = MT_Vector3(0.0f, 0.0f, 0.0f);
+        miss.ray_origin = origin;
+        miss.ray_direction = cast_direction;
+        miss.end_position = destination;
+        miss.hit_fraction = 1.0f;
+        miss.hit_distance = cast_distance;
+        miss.polygon_index = -1;
+        state.cached_result.physics_query_results.push_back(std::move(miss));
+      }
+      if (settings.empty()) {
+        state.cached_result.physics_query_results.clear();
+        state.cached_result.physics_query.diagnostic_status =
+            LN_QueryDiagnosticStatus::InvalidTarget;
+        break;
+      }
+
+      KX_Scene *scene = source_object->GetScene();
+      PHY_IPhysicsEnvironment *environment = scene ? scene->GetPhysicsEnvironment() : nullptr;
+      if (!environment) {
+        state.cached_result.physics_query = state.cached_result.physics_query_results.front();
+        state.cached_result.physics_query.diagnostic_status =
+            LN_QueryDiagnosticStatus::MissingPhysicsWorld;
+        break;
+      }
+
+      const std::vector<LN_RuntimeRef> extra_ignore_refs = ResolveIgnoreObjectRefs(
+          expression.input1, expression.ignore_list_expr_index, context);
+      const LN_PhysicsControllerIgnoreSet extra_ignore_controllers(*this, extra_ignore_refs);
+      const std::string property_name = ResolveStringExpression(
+          expression.string_expr_index, std::string(), context);
+      const bool xray = ResolveBoolExpression(
+          expression.secondary_bool_expr_index, false, context);
+      LN_RayQueryFilterCallback filter(RaycastOwningPhysicsController(source_object),
+                                       extra_ignore_controllers,
+                                       uint32_t(mask_value),
+                                       property_name,
+                                       xray);
+      std::vector<std::vector<PHY_RayCastResult>> physics_results;
+      if (!environment->RayCastBatch(
+              settings, filter, PHY_RayBatchExecution::Adaptive, physics_results))
+      {
+        state.cached_result.physics_query = state.cached_result.physics_query_results.front();
+        state.cached_result.physics_query.diagnostic_status =
+            LN_QueryDiagnosticStatus::UnsupportedPhysicsBackend;
+        break;
+      }
+
+      bool any_hit = false;
+      bool any_blocked = false;
+      size_t first_hit = size_t(-1);
+      const size_t result_count = std::min(physics_results.size(),
+                                           state.cached_result.physics_query_results.size());
+      for (size_t ray_index = 0; ray_index < result_count; ray_index++) {
+        LN_PhysicsQueryResult &result = state.cached_result.physics_query_results[ray_index];
+        if (physics_results[ray_index].empty()) {
+          continue;
+        }
+        const PHY_RayCastResult &physics_result = physics_results[ray_index].front();
+        KX_ClientObjectInfo *info = physics_result.m_controller ?
+                                        static_cast<KX_ClientObjectInfo *>(
+                                            physics_result.m_controller->GetNewClientInfo()) :
+                                        nullptr;
+        KX_GameObject *hit_object = info ? info->m_gameobject : nullptr;
+        if (!hit_object) {
+          continue;
+        }
+
+        if (!std::isfinite(physics_result.m_fraction) ||
+            !vector_is_finite(physics_result.m_hitPoint))
+        {
+          continue;
+        }
+        const float fraction = std::clamp(physics_result.m_fraction, 0.0f, 1.0f);
+        result.hit_position = physics_result.m_hitPoint;
+        result.hit_fraction = fraction;
+        result.hit_distance *= fraction;
+        const bool property_matches = property_name.empty() ||
+                                      hit_object->GetProperty(property_name);
+        if (!property_matches) {
+          if (!xray) {
+            result.blocked = true;
+            any_blocked = true;
+          }
+          continue;
+        }
+
+        result.hit = true;
+        result.diagnostic_status = LN_QueryDiagnosticStatus::Hit;
+        result.object_ref = MakeObjectRef(hit_object, hit_object->GetName());
+        result.hit_normal = vector_is_finite(physics_result.m_hitNormal) ?
+                                physics_result.m_hitNormal :
+                                MT_Vector3(0.0f, 0.0f, 0.0f);
+        result.polygon_index = physics_result.m_polygon;
+        result.has_uv = physics_result.m_hitUVOK != 0 &&
+                        std::isfinite(physics_result.m_hitUV.x()) &&
+                        std::isfinite(physics_result.m_hitUV.y());
+        result.hit_uv = result.has_uv ? physics_result.m_hitUV : MT_Vector2(0.0f, 0.0f);
+        any_hit = true;
+        if (first_hit == size_t(-1)) {
+          first_hit = ray_index;
+        }
+      }
+
+      state.cached_result.physics_query =
+          first_hit != size_t(-1) ? state.cached_result.physics_query_results[first_hit] :
+                                    state.cached_result.physics_query_results.front();
+      state.cached_result.physics_query.hit = any_hit;
+      state.cached_result.physics_query.blocked = any_blocked;
+      state.cached_result.physics_query.diagnostic_status = any_hit ?
+                                                                LN_QueryDiagnosticStatus::Hit :
+                                                                LN_QueryDiagnosticStatus::NoHit;
+
+      if (ResolveBoolExpression(expression.tertiary_bool_expr_index, false, context)) {
+        for (const LN_PhysicsQueryResult &result : state.cached_result.physics_query_results) {
+          const bool physical_stop = result.hit || result.blocked;
+          DrawDebugRaycast(result.ray_origin,
+                           physical_stop ? result.hit_position : result.end_position,
+                           physical_stop,
+                           result.hit ? &result.hit_normal : nullptr,
+                           max_distance);
+        }
       }
       break;
     }
@@ -13694,22 +17477,18 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
       const LN_Value caster_value = ResolveValueExpression(
           expression.input0, MakeNoneValue(), context);
       KX_GameObject *caster_object = ResolveObjectValue(caster_value);
-      KX_GameObject *ignore_object = ResolveObjectValue(
-          ResolveValueExpression(expression.input3, MakeNoneValue(), context));
-      LN_RuntimeRef extra_ignore_ref;
-      if (ignore_object) {
-        extra_ignore_ref = MakeObjectRef(ignore_object, ignore_object->GetName());
-      }
+      const std::vector<LN_RuntimeRef> extra_ignore_refs = ResolveIgnoreObjectRefs(
+          expression.input3, expression.ignore_list_expr_index, context);
 
       MT_Vector3 origin = ResolveVectorExpression(
           expression.input1, expression.vector_value, context);
       MT_Vector3 destination = ResolveVectorExpression(
           expression.input2, expression.secondary_vector_value, context);
-      const MT_Vector3 rotation = ResolveVectorExpression(
-          expression.input4, expression.tertiary_vector_value, context);
+      const LN_Rotation rotation = ResolveRotationExpression(
+          expression.input4, LN_Rotation::FromEulerXYZ(expression.tertiary_vector_value), context);
       const MT_Vector3 half_extents = ResolveVectorExpression(
           expression.input5, expression.quaternary_vector_value, context);
-      MT_Matrix3x3 orientation = MatrixFromEuler(rotation);
+      MT_Matrix3x3 orientation = rotation.ToMatrix();
       const bool local_space = ResolveBoolExpression(
           expression.bool_expr_index, expression.bool_value, context);
       if (local_space && !caster_object) {
@@ -13735,17 +17514,22 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
       const float extra_radius = ResolveFloatExpression(
           expression.tertiary_float_expr_index, expression.tertiary_float_value, context);
       const bool finite_inputs = vector_is_finite(origin) && vector_is_finite(destination) &&
-                                 vector_is_finite(rotation) && vector_is_finite(half_extents) &&
-                                 std::isfinite(radius) && std::isfinite(height) &&
-                                 std::isfinite(extra_radius);
-      const bool valid_shape =
-          expression.shape_cast_type == LN_ShapeCastType::Box ?
-              half_extents.x() > 0.0f && half_extents.y() > 0.0f &&
-                  half_extents.z() > 0.0f :
-          expression.shape_cast_type == LN_ShapeCastType::Capsule ?
-              radius > 0.0f && height > 0.0f :
-              radius > 0.0f;
+                                 vector_is_finite(half_extents) && std::isfinite(radius) &&
+                                 std::isfinite(height) && std::isfinite(extra_radius);
+      const bool valid_shape = expression.shape_cast_type == LN_ShapeCastType::Box ?
+                                   half_extents.x() > 0.0f && half_extents.y() > 0.0f &&
+                                       half_extents.z() > 0.0f :
+                               expression.shape_cast_type == LN_ShapeCastType::Capsule ?
+                                   radius > 0.0f && height > 0.0f :
+                                   radius > 0.0f;
       if (!finite_inputs || !valid_shape || extra_radius < 0.0f) {
+        state.cached_result.physics_query.diagnostic_status =
+            LN_QueryDiagnosticStatus::InvalidTarget;
+        break;
+      }
+      const MT_Vector3 cast_displacement = destination - origin;
+      const float cast_distance = cast_displacement.length();
+      if (!std::isfinite(cast_distance)) {
         state.cached_result.physics_query.diagnostic_status =
             LN_QueryDiagnosticStatus::InvalidTarget;
         break;
@@ -13758,14 +17542,13 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
             LN_QueryDiagnosticStatus::InvalidFilter;
         break;
       }
-      const int32_t max_results = collect_all ?
-                                      std::clamp(ResolveIntExpression(
-                                                     expression.secondary_int_expr_index,
-                                                     expression.secondary_int_value,
-                                                     context),
-                                                 1,
-                                                 256) :
-                                      1;
+      const int32_t max_results = collect_all ? std::clamp(ResolveIntExpression(
+                                                               expression.secondary_int_expr_index,
+                                                               expression.secondary_int_value,
+                                                               context),
+                                                           1,
+                                                           256) :
+                                                1;
       KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
       if (!scene || !scene->GetPhysicsEnvironment()) {
         state.cached_result.physics_query.diagnostic_status =
@@ -13797,15 +17580,12 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
           expression.string_expr_index, std::string(), context);
       const bool xray = ResolveBoolExpression(
           expression.secondary_bool_expr_index, false, context);
-      settings.max_results = uint32_t(
-          max_results + (collect_all && !xray && !property_name.empty() ? 1 : 0));
-      const MT_Vector3 cast_displacement = destination - origin;
-      const float cast_distance = cast_displacement.length();
+      settings.max_results = uint32_t(max_results +
+                                      (collect_all && !xray && !property_name.empty() ? 1 : 0));
       LN_PhysicsQueryResult fallback;
       fallback.cast_position = destination;
-      fallback.ray_direction = cast_distance > MT_EPSILON ?
-                                   cast_displacement / cast_distance :
-                                   MT_Vector3(0.0f, 0.0f, 0.0f);
+      fallback.ray_direction = cast_distance > MT_EPSILON ? cast_displacement / cast_distance :
+                                                            MT_Vector3(0.0f, 0.0f, 0.0f);
       fallback.hit_fraction = 1.0f;
       fallback.hit_distance = cast_distance;
       state.cached_result.physics_query = fallback;
@@ -13818,7 +17598,7 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
                                                             uint32_t(mask_value),
                                                             property_name,
                                                             xray,
-                                                            extra_ignore_ref,
+                                                            extra_ignore_refs,
                                                             blocked,
                                                             blocker,
                                                             supported);
@@ -13848,24 +17628,17 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
       break;
     }
     case LN_QueryExpressionKind::MouseRay: {
-      MT_Vector3 from;
-      MT_Vector3 to;
-      KX_Camera *camera = GetActiveCamera();
-      FlushPendingRaycastTransforms(camera, context);
-      const float distance = ResolveFloatExpression(expression.float_expr_index,
-                                                    expression.float_value,
-                                                    context);
+      const float distance = ResolveFloatExpression(
+          expression.float_expr_index, expression.float_value, context);
       if (distance < 0.0f) {
         state.cached_result.physics_query.diagnostic_status =
             LN_QueryDiagnosticStatus::InvalidTarget;
       }
-      else if (ComputeMouseRay(distance, from, to)) {
-        const std::string property_name = ResolveStringExpression(expression.string_expr_index,
-                                                                  std::string(),
-                                                                  context);
-        const bool xray = ResolveBoolExpression(expression.bool_expr_index,
-                                                expression.bool_value,
-                                                context);
+      else {
+        const std::string property_name = ResolveStringExpression(
+            expression.string_expr_index, std::string(), context);
+        const bool xray = ResolveBoolExpression(
+            expression.bool_expr_index, expression.bool_value, context);
         const int32_t mask_value = ResolveIntExpression(
             expression.int_expr_index, expression.int_value, context);
         if (mask_value < 0 || mask_value > LN_RAYCAST_MAX_COLLISION_MASK) {
@@ -13873,33 +17646,75 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
               LN_QueryDiagnosticStatus::InvalidFilter;
           break;
         }
-        LN_RuntimeRef camera_ref;
-        if (camera != nullptr) {
-          camera_ref = MakeObjectRef(camera, camera->GetName());
+
+        KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
+        auto cast_view = [&](KX_Camera *camera,
+                             const LN_InteractionDomain domain) -> LN_PhysicsQueryResult {
+          LN_PhysicsQueryResult result;
+          if (camera == nullptr || camera->GetScene() != scene) {
+            result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidTarget;
+            return result;
+          }
+          FlushPendingRaycastTransforms(camera, context);
+          MT_Vector3 from;
+          MT_Vector3 to;
+          if (!ComputeMouseRay(camera, distance, from, to)) {
+            result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidTarget;
+            return result;
+          }
+          const LN_RuntimeRef camera_ref = MakeObjectRef(camera, camera->GetName());
+          return RaycastPointer(from,
+                                to,
+                                camera,
+                                camera_ref,
+                                uint32_t(mask_value),
+                                property_name,
+                                xray,
+                                domain,
+                                context.command_execution_key);
+        };
+
+        switch (expression.interaction_view) {
+          case LN_InteractionView::Automatic: {
+            if (scene != nullptr && scene->GetOverlayCamera() != nullptr) {
+              LN_PhysicsQueryResult overlay_result = cast_view(scene->GetOverlayCamera(),
+                                                               LN_InteractionDomain::Overlay);
+              if (overlay_result.hit || overlay_result.blocked) {
+                state.cached_result.physics_query = std::move(overlay_result);
+                break;
+              }
+            }
+            state.cached_result.physics_query = cast_view(PointerWorldCamera(scene),
+                                                          LN_InteractionDomain::Main);
+            break;
+          }
+          case LN_InteractionView::Main:
+            state.cached_result.physics_query = cast_view(PointerWorldCamera(scene),
+                                                          LN_InteractionDomain::Main);
+            break;
+          case LN_InteractionView::Overlay:
+            state.cached_result.physics_query = cast_view(
+                scene ? scene->GetOverlayCamera() : nullptr, LN_InteractionDomain::Overlay);
+            break;
+          case LN_InteractionView::CustomCamera: {
+            KX_Camera *camera = expression.input0 != LN_INVALID_INDEX ?
+                                    ResolveCameraValue(ResolveValueExpression(
+                                        expression.input0, MakeNoneValue(), context)) :
+                                    nullptr;
+            state.cached_result.physics_query = cast_view(camera, LN_InteractionDomain::Any);
+            break;
+          }
         }
-        state.cached_result.physics_query = Raycast(
-            from,
-            to,
-            camera_ref,
-            uint32_t(mask_value),
-            property_name,
-            xray);
-      }
-      else {
-        state.cached_result.physics_query.diagnostic_status =
-            LN_QueryDiagnosticStatus::InvalidTarget;
       }
       break;
     }
     case LN_QueryExpressionKind::CameraRay: {
       KX_Camera *camera = GetActiveCamera();
       FlushPendingRaycastTransforms(camera, context);
-      const MT_Vector3 aim = ResolveVectorExpression(expression.input1,
-                                                     expression.vector_value,
-                                                     context);
-      const float distance = ResolveFloatExpression(expression.float_expr_index,
-                                                    expression.float_value,
-                                                    context);
+      const MT_Vector3 aim = ResolveVectorExpression(
+          expression.input1, expression.vector_value, context);
+      const float distance = ResolveFloatExpression(
+          expression.float_expr_index, expression.float_value, context);
       MT_Vector3 from;
       MT_Vector3 to;
       if (distance < 0.0f) {
@@ -13907,14 +17722,12 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
             LN_QueryDiagnosticStatus::InvalidTarget;
       }
       else if (ProjectScreenToWorld(camera, aim.x(), aim.y(), 0.0f, from) &&
-          ProjectScreenToWorld(camera, aim.x(), aim.y(), std::max(distance, 0.0f), to))
+               ProjectScreenToWorld(camera, aim.x(), aim.y(), std::max(distance, 0.0f), to))
       {
-        const std::string property_name = ResolveStringExpression(expression.string_expr_index,
-                                                                  std::string(),
-                                                                  context);
-        const bool xray = ResolveBoolExpression(expression.bool_expr_index,
-                                                expression.bool_value,
-                                                context);
+        const std::string property_name = ResolveStringExpression(
+            expression.string_expr_index, std::string(), context);
+        const bool xray = ResolveBoolExpression(
+            expression.bool_expr_index, expression.bool_value, context);
         const int32_t mask_value = ResolveIntExpression(
             expression.int_expr_index, expression.int_value, context);
         if (mask_value < 0 || mask_value > LN_RAYCAST_MAX_COLLISION_MASK) {
@@ -13927,17 +17740,111 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
           camera_ref = MakeObjectRef(camera, camera->GetName());
         }
         state.cached_result.physics_query = Raycast(
-            from,
-            to,
-            camera_ref,
-            uint32_t(mask_value),
-            property_name,
-            xray);
+            from, to, camera_ref, uint32_t(mask_value), property_name, xray);
       }
       else {
         state.cached_result.physics_query.diagnostic_status =
             LN_QueryDiagnosticStatus::InvalidTarget;
       }
+      break;
+    }
+    case LN_QueryExpressionKind::UIElementEvent: {
+      if (LN_UIElementEvent(expression.int_value) == LN_UIElementEvent::UISound) {
+        /* On UI Sound: this frame's UI sounds, one a player, heard like On UI Event's events. */
+        size_t count = 0;
+        const LN_UIService::SoundEvent *sound =
+            m_logicManager != nullptr ?
+                m_logicManager->GetUIService().FindSoundEvent(
+                    m_logicManager->GetUIService().MenuUserOfObject(m_gameObject),
+                    state.ui_event_cursor,
+                    &count) :
+                nullptr;
+        state.cached_result.ui_event_count = uint32_t(count);
+        state.cached_result.valid = sound != nullptr;
+        state.cached_result.physics_query.hit = sound != nullptr;
+        state.cached_result.physics_query.diagnostic_status =
+            sound != nullptr ? LN_QueryDiagnosticStatus::Hit : LN_QueryDiagnosticStatus::NoHit;
+        if (sound == nullptr) {
+          break;
+        }
+        state.cached_result.ui_sound = int32_t(sound->sound);
+        state.cached_result.ui_menu = sound->menu;
+        state.cached_result.ui_action = sound->action;
+        state.cached_result.ui_user = sound->user;
+        if (KX_GameObject *object = m_logicManager->ResolveObjectHandle(sound->object)) {
+          state.cached_result.ui_source_object = MakeObjectRef(object, object->GetName());
+        }
+        break;
+      }
+      /* A tree in a player's menu hears only that player's UI events (split screen: each menu's
+       * copy of the same tree); elsewhere it hears every player's. The cursor picks the event
+       * whose turn it is: the route runs again for each further one (ExecuteEvent), last event
+       * first, so the topmost element's event runs last and what it sets stays. */
+      size_t count = 0;
+      const LN_UIService::ElementEvent *event =
+          m_logicManager != nullptr ?
+              m_logicManager->GetUIService().FindElementEvent(
+                  LN_UIElementEvent(expression.int_value),
+                  ResolveStringExpression(expression.string_expr_index, std::string(), context),
+                  m_logicManager->GetUIService().MenuUserOfObject(m_gameObject),
+                  state.ui_event_cursor,
+                  &count,
+                  true) :
+              nullptr;
+      state.cached_result.ui_event_count = uint32_t(count);
+      state.cached_result.valid = event != nullptr;
+      state.cached_result.physics_query.hit = event != nullptr;
+      state.cached_result.physics_query.diagnostic_status =
+          event != nullptr ? LN_QueryDiagnosticStatus::Hit : LN_QueryDiagnosticStatus::NoHit;
+      if (event == nullptr) {
+        break;
+      }
+      state.cached_result.physics_query.hit_position = event->point;
+      state.cached_result.physics_query.hit_normal = event->normal;
+      state.cached_result.ui_action = event->action;
+      state.cached_result.ui_target_action = event->target_action;
+      state.cached_result.ui_outcome = event->outcome;
+      if (KX_GameObject *object = m_logicManager->ResolveObjectHandle(event->object)) {
+        state.cached_result.ui_source_object = MakeObjectRef(object, object->GetName());
+      }
+      if (KX_GameObject *object = m_logicManager->ResolveObjectHandle(event->target)) {
+        state.cached_result.ui_target_object = MakeObjectRef(object, object->GetName());
+      }
+      if (event->item.exists) {
+        state.cached_result.ui_item = std::make_shared<LN_Value>(event->item);
+      }
+      if (event->target_item.exists) {
+        state.cached_result.ui_target_item = std::make_shared<LN_Value>(event->target_item);
+      }
+      state.cached_result.ui_index = event->index;
+      state.cached_result.ui_amount = event->amount;
+      state.cached_result.ui_target_index = event->target_index;
+      state.cached_result.ui_user = event->user;
+      state.cached_result.ui_accepted = event->accepted;
+      break;
+    }
+    case LN_QueryExpressionKind::ObjectScrollView:
+    case LN_QueryExpressionKind::ObjectGridView: {
+      if (m_logicManager == nullptr) {
+        state.cached_result.physics_query.diagnostic_status =
+            LN_QueryDiagnosticStatus::InvalidTarget;
+        break;
+      }
+      const LN_UIService::ViewState &view = m_logicManager->GetUIService().GetViewState(
+          {this, expression_index});
+      state.cached_result.valid = view.valid;
+      state.cached_result.ui_scrolled = view.scrolled;
+      state.cached_result.ui_scroll_at_start = view.at_start;
+      state.cached_result.ui_scroll_at_end = view.at_end;
+      state.cached_result.ui_items_rebound = view.items_rebound;
+      state.cached_result.ui_first_visible_index = view.first_visible_index;
+      state.cached_result.ui_last_visible_index = view.last_visible_index;
+      state.cached_result.ui_page = view.page;
+      state.cached_result.ui_page_count = view.page_count;
+      state.cached_result.ui_scroll_offset = view.offset;
+      state.cached_result.ui_scroll_normalized = view.normalized;
+      state.cached_result.physics_query.diagnostic_status =
+          view.valid ? LN_QueryDiagnosticStatus::Hit : LN_QueryDiagnosticStatus::InvalidTarget;
       break;
     }
     case LN_QueryExpressionKind::MouseOver: {
@@ -13946,65 +17853,135 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
         target_object = m_gameObject;
       }
       else {
-        const LN_Value target_value = ResolveValueExpression(expression.input0,
-                                                            MakeNoneValue(),
-                                                            context);
+        const LN_Value target_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         target_object = ResolveObjectValue(target_value);
       }
 
       LN_PhysicsQueryResult hit_result;
       bool is_over = false;
       if (target_object != nullptr) {
-        MT_Vector3 from;
-        MT_Vector3 to;
-        KX_Camera *camera = GetActiveCamera();
-        FlushPendingRaycastTransforms(camera, context);
         FlushPendingRaycastTransforms(target_object, context);
-        const float distance = camera ? std::max(camera->GetCameraFar(), 0.0f) : 0.0f;
-        if (ComputeMouseRay(distance, from, to)) {
-          LN_RuntimeRef camera_ref;
-          if (camera != nullptr) {
-            camera_ref = MakeObjectRef(camera, camera->GetName());
+        KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
+        const bool target_is_overlay = scene != nullptr &&
+                                       scene->IsOverlayRuntimeObject(target_object);
+        const LN_InteractionDomain target_domain = target_is_overlay ?
+                                                       LN_InteractionDomain::Overlay :
+                                                       LN_InteractionDomain::Main;
+
+        auto cast_target = [&](KX_Camera *camera,
+                               const LN_InteractionDomain domain) -> LN_PhysicsQueryResult {
+          LN_PhysicsQueryResult result;
+          if (camera == nullptr || camera->GetScene() != scene) {
+            result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidTarget;
+            return result;
           }
-          hit_result = RaycastMouseOverTarget(from, to, target_object, camera_ref);
-          is_over = hit_result.hit;
+          FlushPendingRaycastTransforms(camera, context);
+          const float distance = std::max(camera->GetCameraFar(), 0.0f);
+          MT_Vector3 from;
+          MT_Vector3 to;
+          if (!ComputeMouseRay(camera, distance, from, to)) {
+            result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidTarget;
+            return result;
+          }
+          const LN_RuntimeRef camera_ref = MakeObjectRef(camera, camera->GetName());
+          return RaycastMouseOverTarget(
+              from, to, target_object, camera, camera_ref, domain, context.command_execution_key);
+        };
+
+        if (expression.interaction_view == LN_InteractionView::Automatic && !target_is_overlay &&
+            scene != nullptr && scene->GetOverlayCamera() != nullptr)
+        {
+          KX_Camera *overlay_camera = scene->GetOverlayCamera();
+          FlushPendingRaycastTransforms(overlay_camera, context);
+          const float distance = std::max(overlay_camera->GetCameraFar(), 0.0f);
+          MT_Vector3 from;
+          MT_Vector3 to;
+          if (ComputeMouseRay(overlay_camera, distance, from, to)) {
+            const LN_RuntimeRef camera_ref = MakeObjectRef(overlay_camera,
+                                                           overlay_camera->GetName());
+            LN_PhysicsQueryResult overlay_blocker = RaycastPointer(from,
+                                                                   to,
+                                                                   overlay_camera,
+                                                                   camera_ref,
+                                                                   0,
+                                                                   std::string(),
+                                                                   false,
+                                                                   LN_InteractionDomain::Overlay,
+                                                                   context.command_execution_key);
+            if (overlay_blocker.hit || overlay_blocker.blocked) {
+              overlay_blocker.hit = false;
+              overlay_blocker.blocked = true;
+              overlay_blocker.object_ref = LN_RuntimeRef();
+              hit_result = std::move(overlay_blocker);
+            }
+          }
         }
-        else {
-          hit_result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidTarget;
+
+        if (!hit_result.blocked) {
+          KX_Camera *camera = nullptr;
+          LN_InteractionDomain domain = target_domain;
+          switch (expression.interaction_view) {
+            case LN_InteractionView::Automatic:
+              camera = target_is_overlay ? (scene ? scene->GetOverlayCamera() : nullptr) :
+                                           PointerWorldCamera(scene, target_object);
+              break;
+            case LN_InteractionView::Main:
+              camera = PointerWorldCamera(scene, target_object);
+              domain = LN_InteractionDomain::Main;
+              break;
+            case LN_InteractionView::Overlay:
+              camera = scene ? scene->GetOverlayCamera() : nullptr;
+              domain = LN_InteractionDomain::Overlay;
+              break;
+            case LN_InteractionView::CustomCamera:
+              camera = expression.input1 != LN_INVALID_INDEX ?
+                           ResolveCameraValue(ResolveValueExpression(
+                               expression.input1, MakeNoneValue(), context)) :
+                           nullptr;
+              break;
+          }
+          hit_result = cast_target(camera, domain);
         }
+        is_over = hit_result.hit;
       }
       else {
         hit_result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidTarget;
       }
 
-      if (state.hover_baseline_tick != context.tick_index) {
-        state.hover_baseline_tick = context.tick_index;
-        state.hover_baseline_initialized = state.hover_initialized;
-        state.hover_baseline_previous = state.hover_previous;
+      const size_t event_index = std::min<size_t>(size_t(context.event),
+                                                  state.hover_by_event.size() - 1);
+      QueryExpressionRuntimeState::HoverRuntimeState &hover = state.hover_by_event[event_index];
+      if (hover.baseline_tick != context.tick_index) {
+        hover.baseline_tick = context.tick_index;
+        hover.baseline_initialized = hover.initialized;
+        hover.baseline_previous = hover.previous;
       }
       state.cached_result.over = is_over;
-      state.cached_result.entered = is_over && (!state.hover_baseline_initialized ||
-                                                !state.hover_baseline_previous);
-      state.cached_result.exited = !is_over && state.hover_baseline_initialized &&
-                                   state.hover_baseline_previous;
+      state.cached_result.entered = is_over &&
+                                    (!hover.baseline_initialized || !hover.baseline_previous);
+      state.cached_result.exited = !is_over && hover.baseline_initialized &&
+                                   hover.baseline_previous;
       state.cached_result.physics_query = hit_result;
-      state.hover_initialized = true;
-      state.hover_previous = is_over;
+      hover.initialized = true;
+      hover.previous = is_over;
       break;
     }
     case LN_QueryExpressionKind::ProjectileRay: {
-      const LN_Value caster_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      const LN_Value caster_value = ResolveValueExpression(
+          expression.input0, MakeNoneValue(), context);
       KX_GameObject *caster_object = ResolveObjectValue(caster_value);
       LN_RuntimeRef caster_ref;
       if (caster_object != nullptr) {
         caster_ref = MakeObjectRef(caster_object, caster_object->GetName());
       }
 
-      MT_Vector3 origin = ResolveVectorExpression(expression.input1, expression.vector_value, context);
-      MT_Vector3 aim = ResolveVectorExpression(expression.input2, expression.secondary_vector_value, context);
-      const bool local_space = ResolveBoolExpression(expression.bool_expr_index,
-                                                     expression.bool_value,
-                                                     context);
+      MT_Vector3 origin = ResolveVectorExpression(
+          expression.input1, expression.vector_value, context);
+      MT_Vector3 aim = ResolveVectorExpression(
+          expression.input2, expression.secondary_vector_value, context);
+      const bool local_space = ResolveBoolExpression(
+          expression.bool_expr_index, expression.bool_value, context);
       if (local_space && caster_object != nullptr) {
         origin = caster_object->NodeGetWorldPosition() +
                  caster_object->NodeGetWorldOrientation() * origin;
@@ -14021,9 +17998,8 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
             LN_QueryDiagnosticStatus::InvalidTarget;
         break;
       }
-      const float power = ResolveFloatExpression(expression.float_expr_index,
-                                                 expression.float_value,
-                                                 context);
+      const float power = ResolveFloatExpression(
+          expression.float_expr_index, expression.float_value, context);
       aim *= power;
 
       MT_Vector3 gravity(0.0f, 0.0f, -9.8f);
@@ -14031,29 +18007,27 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
         gravity = scene->GetGravity();
       }
 
-      const std::string property_name = ResolveStringExpression(expression.string_expr_index,
-                                                                std::string(),
-                                                                context);
-      const bool xray = ResolveBoolExpression(expression.secondary_bool_expr_index,
-                                              false,
-                                              context);
-      const int32_t mask_value = ResolveIntExpression(expression.int_expr_index,
-                                                      expression.int_value,
-                                                      context);
+      const std::string property_name = ResolveStringExpression(
+          expression.string_expr_index, std::string(), context);
+      const bool xray = ResolveBoolExpression(
+          expression.secondary_bool_expr_index, false, context);
+      const int32_t mask_value = ResolveIntExpression(
+          expression.int_expr_index, expression.int_value, context);
       if (mask_value < 0 || mask_value > LN_RAYCAST_MAX_COLLISION_MASK) {
         state.cached_result.physics_query.diagnostic_status =
             LN_QueryDiagnosticStatus::InvalidFilter;
         break;
       }
       const uint32_t collision_mask = uint32_t(mask_value);
-      const bool visualize = ResolveBoolExpression(expression.tertiary_bool_expr_index,
-                                                   false,
-                                                   context);
+      const bool visualize = ResolveBoolExpression(
+          expression.tertiary_bool_expr_index, false, context);
 
       const float distance = std::max(
           0.0f, ResolveFloatExpression(expression.secondary_float_expr_index, 100.0f, context));
       const float resolution = std::clamp(
-          ResolveFloatExpression(expression.tertiary_float_expr_index, 0.9f, context), 0.0f, 0.99f);
+          ResolveFloatExpression(expression.tertiary_float_expr_index, 0.9f, context),
+          0.0f,
+          0.99f);
       const float time_step = std::max(0.01f, 1.0f - resolution);
       float total_distance = 0.0f;
       float time_index = time_step;
@@ -14102,6 +18076,121 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
       state.cached_result.physics_query = hit_result;
       break;
     }
+    case LN_QueryExpressionKind::VectorAverage: {
+      const LN_Value source = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      double sum[3] = {0.0, 0.0, 0.0};
+      uint64_t count = 0;
+
+      switch (expression.average_center_source) {
+        case LN_AverageCenterSource::VectorList:
+          if (source.exists && source.type == LN_ValueType::List) {
+            for (const LN_Value &item : source.list_value) {
+              if (item.exists && item.type == LN_ValueType::Vector) {
+                accumulate_finite_position(item.vector_value, sum, count);
+              }
+            }
+          }
+          break;
+        case LN_AverageCenterSource::ObjectList:
+          if (source.exists && source.type == LN_ValueType::List) {
+            for (const LN_Value &item : source.list_value) {
+              if (KX_GameObject *game_object = ResolveObjectValue(item)) {
+                accumulate_finite_position(game_object->NodeGetWorldPosition(), sum, count);
+              }
+            }
+          }
+          break;
+        case LN_AverageCenterSource::Collection: {
+          blender::Collection *collection = source.exists ?
+                                                ResolveCollectionByValue(this, source) :
+                                                nullptr;
+          KX_Scene *scene = m_gameObject != nullptr ? m_gameObject->GetScene() : nullptr;
+          if (collection != nullptr && scene != nullptr) {
+            for (blender::CollectionObject &collection_object : collection->gobject) {
+              if (collection_object.ob == nullptr) {
+                continue;
+              }
+              if (KX_GameObject *game_object = scene->GetGameObjectFromObject(
+                      collection_object.ob))
+              {
+                accumulate_finite_position(game_object->NodeGetWorldPosition(), sum, count);
+              }
+            }
+          }
+          break;
+        }
+        default:
+          break;
+      }
+      if (count == 0) {
+        break;
+      }
+
+      const double inverse_count = 1.0 / double(count);
+      const MT_Vector3 average(float(sum[0] * inverse_count),
+                               float(sum[1] * inverse_count),
+                               float(sum[2] * inverse_count));
+      if (!vector_is_finite(average)) {
+        break;
+      }
+      state.cached_result.vector_average = average;
+      state.cached_result.vector_count = int32_t(
+          std::min(count, uint64_t(std::numeric_limits<int32_t>::max())));
+      state.cached_result.valid = true;
+      break;
+    }
+    case LN_QueryExpressionKind::DistanceBetween: {
+      auto resolve_endpoint = [&](const LN_DistanceEndpointMode mode,
+                                  const uint32_t input,
+                                  const bool owner_when_empty,
+                                  MT_Vector3 &r_position) {
+        if (mode == LN_DistanceEndpointMode::Position) {
+          if (input == LN_INVALID_INDEX) {
+            return false;
+          }
+          r_position = ResolveVectorExpression(input, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+          return vector_is_finite(r_position);
+        }
+        if (mode != LN_DistanceEndpointMode::Object) {
+          return false;
+        }
+
+        KX_GameObject *object = nullptr;
+        if (input != LN_INVALID_INDEX) {
+          object = ResolveObjectValue(ResolveValueExpression(input, MakeNoneValue(), context));
+        }
+        else if (owner_when_empty) {
+          object = m_gameObject;
+        }
+        if (object == nullptr) {
+          return false;
+        }
+        FlushPendingRaycastTransforms(object, context);
+        r_position = object->NodeGetWorldPosition();
+        return vector_is_finite(r_position);
+      };
+
+      MT_Vector3 a(0.0f, 0.0f, 0.0f);
+      MT_Vector3 b(0.0f, 0.0f, 0.0f);
+      if (!resolve_endpoint(expression.distance_endpoint_a, expression.input0, true, a) ||
+          !resolve_endpoint(expression.distance_endpoint_b, expression.input1, false, b))
+      {
+        break;
+      }
+
+      const double dx = double(a.x()) - double(b.x());
+      const double dy = double(a.y()) - double(b.y());
+      const double dz = double(a.z()) - double(b.z());
+      const double squared_distance = dx * dx + dy * dy + dz * dz;
+      if (!std::isfinite(squared_distance) || squared_distance < 0.0) {
+        break;
+      }
+      const double max_float = double(std::numeric_limits<float>::max());
+      state.cached_result.squared_distance = float(std::min(squared_distance, max_float));
+      state.cached_result.distance = float(std::min(std::sqrt(squared_distance), max_float));
+      state.cached_result.valid = true;
+      break;
+    }
     case LN_QueryExpressionKind::Count:
       break;
   }
@@ -14110,10 +18199,12 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
 }
 
 LN_RuntimeTree::CollisionEventPayload *LN_RuntimeTree::FindCollisionEventPayload(
-    KX_GameObject *owner,
-    const std::string &property_filter,
-    const std::string &material_filter)
+    KX_GameObject *owner, const std::string &property_filter, const std::string &material_filter)
 {
+  /* No object (a missing one) has no events; a removed owner's payload also resolves to null. */
+  if (owner == nullptr) {
+    return nullptr;
+  }
   for (CollisionEventPayload &payload : m_collisionEventPayloads) {
     const CollisionResult &result = payload.last_result;
     if (ResolveCollisionPayloadObjectRef(payload.owner_ref) == owner &&
@@ -14128,7 +18219,8 @@ LN_RuntimeTree::CollisionEventPayload *LN_RuntimeTree::FindCollisionEventPayload
 void LN_RuntimeTree::StoreCollisionEventPayload(const CollisionResult &result,
                                                 const uint64_t tick_index)
 {
-  if (!result.hit || result.owner == nullptr || result.detail == CollisionResult::Detail::StateOnly)
+  if (!result.hit || result.owner == nullptr ||
+      result.detail == CollisionResult::Detail::StateOnly)
   {
     return;
   }
@@ -14171,9 +18263,9 @@ void LN_RuntimeTree::StoreCollisionEventPayload(const CollisionResult &result,
       if (object == nullptr) {
         continue;
       }
-      payload->hit_object_refs.push_back(
-          object == result.hit_object ? payload->hit_object_ref :
-                                        MakeObjectRef(object, "collision event object"));
+      payload->hit_object_refs.push_back(object == result.hit_object ?
+                                             payload->hit_object_ref :
+                                             MakeObjectRef(object, "collision event object"));
     }
   }
 
@@ -14233,17 +18325,16 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(
     const CollisionResult::Detail detail,
     const bool allow_exit_payload)
 {
+  /* No Object input: the owner. A linked or picked object that is gone (or a link that gives no
+   * object) collides with nothing, not with the owner. */
   KX_GameObject *owner = m_gameObject;
   if (object_expr_index != LN_INVALID_INDEX) {
-    const LN_Value obj_val = ResolveValueExpression(object_expr_index, MakeNoneValue(), context);
-    if (KX_GameObject *resolved = ResolveObjectValue(obj_val)) {
-      owner = resolved;
-    }
+    owner = ResolveObjectValue(
+        ResolveValueExpression(object_expr_index, MakeNoneValue(), context));
   }
 
-  const std::string property_filter = ResolveStringExpression(property_expr_index,
-                                                              std::string(),
-                                                              context);
+  const std::string property_filter = ResolveStringExpression(
+      property_expr_index, std::string(), context);
   const std::string material_filter =
       material_expr_index != LN_INVALID_INDEX ?
           MaterialFilterNameFromValue(
@@ -14263,8 +18354,7 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(
       continue;
     }
     if (uint8_t(cached_result.detail) >= uint8_t(detail)) {
-      if (allow_exit_payload && !cached_result.hit &&
-          detail != CollisionResult::Detail::StateOnly)
+      if (allow_exit_payload && !cached_result.hit && detail != CollisionResult::Detail::StateOnly)
       {
         if (const CollisionResult *exit_payload = FindCollisionExitPayload(
                 owner, property_filter, material_filter, context.tick_index))
@@ -14352,7 +18442,8 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(
       collision_result.contact_count += std::max(contact.contact_count, 1);
 
       if (collect_contacts) {
-        const size_t contact_detail_count = std::min(contact.points.size(), contact.normals.size());
+        const size_t contact_detail_count = std::min(contact.points.size(),
+                                                     contact.normals.size());
         for (size_t contact_index = 0; contact_index < contact_detail_count; contact_index++) {
           const MT_Vector3 point = contact.points[contact_index];
           const MT_Vector3 normal = owner_is_first ? contact.normals[contact_index] :
@@ -14435,8 +18526,9 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(
           collision_result.hit_normals.push_back(normal);
         }
       }
-      collision_result.contact_count +=
-          (detail == CollisionResult::Detail::Contacts) ? std::max(pair_contact_count, 1) : 1;
+      collision_result.contact_count += (detail == CollisionResult::Detail::Contacts) ?
+                                            std::max(pair_contact_count, 1) :
+                                            1;
       delete hit.collData;
       if (detail == CollisionResult::Detail::StateOnly) {
         return collision_result;
@@ -14493,6 +18585,8 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
   switch (expression.kind) {
     case LN_BoolExpressionKind::Constant:
       return expression.bool_value;
+    case LN_BoolExpressionKind::GamePaused:
+      return context.game_paused;
     case LN_BoolExpressionKind::SnapshotGameProperty:
       if (const LN_Value *value = m_snapshot.GetGamePropertyValue(expression.property_ref_index)) {
         return value->bool_value;
@@ -14590,6 +18684,18 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       const LN_Value value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
       return ValueAsBool(value);
     }
+    case LN_BoolExpressionKind::FromInt:
+      return ResolveIntExpression(expression.input0, 0, context) != 0;
+    case LN_BoolExpressionKind::FromFloat:
+      return ResolveFloatExpression(expression.input0, 0.0f, context) != 0.0f;
+    case LN_BoolExpressionKind::FromString:
+      return !ResolveStringExpression(expression.input0, std::string(), context).empty();
+    case LN_BoolExpressionKind::FromVector:
+      return ResolveVectorExpression(expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context)
+                 .length2() > 0.0f;
+    case LN_BoolExpressionKind::FromColor:
+      return ResolveColorExpression(expression.input0, MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f), context)
+                 .length2() > 0.0f;
     case LN_BoolExpressionKind::RigidBodyAttribute: {
       PHY_IPhysicsController *controller = ResolveRigidBodyAttributeController(expression.input0,
                                                                                context);
@@ -14646,16 +18752,13 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       }
       else {
         material = ResolveMaterialByValue(
-            this,
-            ResolveValueExpression(expression.input0, MakeNoneValue(), context));
+            this, ResolveValueExpression(expression.input0, MakeNoneValue(), context));
       }
 
-      const std::string node_name = ResolveStringExpression(expression.input2,
-                                                           std::string(),
-                                                           context);
-      const std::string socket_name = ResolveStringExpression(expression.int_expr_index,
-                                                             std::string(),
-                                                             context);
+      const std::string node_name = ResolveStringExpression(
+          expression.input2, std::string(), context);
+      const std::string socket_name = ResolveStringExpression(
+          expression.int_expr_index, std::string(), context);
       if (material == nullptr || material->nodetree == nullptr || node_name.empty() ||
           socket_name.empty())
       {
@@ -14673,7 +18776,8 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
         }
       }
       if (expression.property_ref_index == 2) {
-        return MaterialParameterSocketSupportsObjectAttribute(*socket);
+        return upbge::logic_nodes::game_state::material_parameter_socket_supports_object_attribute(
+            *socket);
       }
       return ReadSocketDefaultValue(*socket, this).exists;
     }
@@ -14683,17 +18787,14 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
         target_object = ResolveObjectValue(
             ResolveValueExpression(expression.input0, MakeNoneValue(), context));
       }
-      const std::string target_name = ResolveStringExpression(expression.input1,
-                                                              std::string(),
-                                                              context);
+      const std::string target_name = ResolveStringExpression(
+          expression.input1, std::string(), context);
       blender::bNodeTree *tree = ResolveEditorNodeValueTree(
           EditorNodeValueTarget(expression.property_ref_index), target_object, target_name);
-      const std::string node_name = ResolveStringExpression(expression.input2,
-                                                            std::string(),
-                                                            context);
-      const std::string socket_name = ResolveStringExpression(expression.int_expr_index,
-                                                              std::string(),
-                                                              context);
+      const std::string node_name = ResolveStringExpression(
+          expression.input2, std::string(), context);
+      const std::string socket_name = ResolveStringExpression(
+          expression.int_expr_index, std::string(), context);
       blender::bNode *node = FindNodeByUserName(tree, node_name);
       blender::bNodeSocket *socket = FindInputSocketByIdentifierOrName(node, socket_name);
       if (tree == nullptr || socket == nullptr || (socket->flag & blender::SOCK_UNAVAIL) != 0) {
@@ -14704,10 +18805,12 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
     }
     case LN_BoolExpressionKind::DictHasKey: {
       const LN_Value dict_value = expression.input0 != LN_INVALID_INDEX ?
-                                      ResolveValueExpression(expression.input0, MakeNoneValue(), context) :
+                                      ResolveValueExpression(
+                                          expression.input0, MakeNoneValue(), context) :
                                       MakeNoneValue();
       const std::string key = expression.input1 != LN_INVALID_INDEX ?
-                                  ResolveStringExpression(expression.input1, std::string(), context) :
+                                  ResolveStringExpression(
+                                      expression.input1, std::string(), context) :
                                   std::string();
       if (dict_value.type == LN_ValueType::Dict && dict_value.exists && !key.empty()) {
         return dict_value.dict_value.find(key) != dict_value.dict_value.end();
@@ -14715,19 +18818,28 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       return false;
     }
     case LN_BoolExpressionKind::StoreValueDone: {
-      if (expression.float_expr_index == LN_INVALID_INDEX) {
+      /* Evaluated by the route on Store Value's Flow, when the flow arrives: store now. */
+      const std::vector<LN_FloatExpression> &float_expressions = m_program->GetFloatExpressions();
+      if (expression.float_expr_index >= float_expressions.size() ||
+          float_expressions[expression.float_expr_index].kind != LN_FloatExpressionKind::StoreValue)
+      {
         return fallback;
       }
-      ResolveFloatExpression(expression.float_expr_index, 0.0f, context);
-      const FloatExpressionRuntimeState &state = FloatExpressionState(expression.float_expr_index);
-      return state.last_store_tick == context.tick_index;
+      const LN_FloatExpression &store = float_expressions[expression.float_expr_index];
+      FloatExpressionRuntimeState &state = FloatExpressionState(expression.float_expr_index);
+      state.initialized = true;
+      state.stored_value = ResolveFloatExpression(store.input0, store.float_value, context);
+      state.last_store_tick = context.tick_index;
+      return true;
     }
     case LN_BoolExpressionKind::ListContains: {
       const LN_Value list_value = expression.input0 != LN_INVALID_INDEX ?
-                                      ResolveValueExpression(expression.input0, MakeNoneValue(), context) :
+                                      ResolveValueExpression(
+                                          expression.input0, MakeNoneValue(), context) :
                                       MakeNoneValue();
       const LN_Value needle = expression.input1 != LN_INVALID_INDEX ?
-                                  ResolveValueExpression(expression.input1, MakeNoneValue(), context) :
+                                  ResolveValueExpression(
+                                      expression.input1, MakeNoneValue(), context) :
                                   MakeNoneValue();
       if (list_value.type != LN_ValueType::List || !list_value.exists) {
         return false;
@@ -14768,28 +18880,39 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       if (input_code == SCA_IInputDevice::NOKEY) {
         return false;
       }
-      return m_snapshot.GetInputStatus(input_code, expression.secondary_int_value);
+      /* bool_value: also what the UI used. */
+      return (expression.bool_value ? m_snapshot.GetRawInputSnapshot() :
+                                      m_snapshot.GetInputSnapshot())
+          .GetStatus(input_code, expression.secondary_int_value);
+    }
+    case LN_BoolExpressionKind::InputActionState: {
+      const LN_InputActionState *state = m_snapshot.GetInputActionState(
+          LN_InputMap::Get().Find(
+              ResolveStringExpression(expression.input1, std::string(), context)),
+          ResolveIntExpression(expression.input0, 0, context),
+          expression.bool_value);
+      if (state == nullptr) {
+        return false;
+      }
+      switch (expression.secondary_int_value) {
+        case SCA_InputEvent::JUSTACTIVATED:
+          return state->pressed;
+        case SCA_InputEvent::JUSTRELEASED:
+          return state->released;
+        default:
+          return state->active;
+      }
     }
     case LN_BoolExpressionKind::KeyboardActive:
       return KeyboardInputIsActive(m_snapshot.GetInputSnapshot());
     case LN_BoolExpressionKind::MouseMoved: {
-      const LN_MouseSnapshot &mouse = m_snapshot.GetInputSnapshot().GetMouse();
-      const bool moved_this_tick = mouse.delta_x != 0 || mouse.delta_y != 0;
-      if (!expression.bool_value) {
-        return moved_this_tick;
-      }
-      BoolExpressionRuntimeState &state = BoolExpressionState(expression_index);
-      if (moved_this_tick) {
-        state.active = true;
-      }
-      else if (state.active) {
-        state.active = false;
-      }
-      state.initialized = true;
-      return state.active;
+      return EvaluateMouseMoved(expression.bool_value);
     }
     case LN_BoolExpressionKind::MouseWheelMoved: {
-      const int32_t wheel_delta = m_snapshot.GetInputSnapshot().GetMouse().wheel_delta;
+      const int32_t wheel_delta = (expression.bool_value ? m_snapshot.GetRawInputSnapshot() :
+                                                           m_snapshot.GetInputSnapshot())
+                                      .GetMouse()
+                                      .wheel_delta;
       if (wheel_delta == 0) {
         return false;
       }
@@ -14807,25 +18930,16 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
     case LN_BoolExpressionKind::GamepadActive: {
       const int32_t gamepad_index = ResolveIntExpression(expression.input0, 0, context);
       const LN_GamepadSnapshot *gamepad = m_snapshot.GetInputSnapshot().GetGamepad(gamepad_index);
-      if (gamepad == nullptr || !gamepad->connected) {
-        return false;
-      }
-      for (const uint8_t button : gamepad->buttons) {
-        if (button != 0) {
-          return true;
-        }
-      }
-      for (const int32_t axis : gamepad->axes) {
-        if (std::fabs(NormalizeGamepadAxisValue(axis)) >= 0.1f) {
-          return true;
-        }
-      }
-      return false;
+      return gamepad != nullptr && LN_GamepadHasActiveInput(*gamepad);
     }
     case LN_BoolExpressionKind::GamepadButton: {
       const int32_t gamepad_index = ResolveIntExpression(expression.input0, 0, context);
-      const LN_GamepadSnapshot *gamepad = m_snapshot.GetInputSnapshot().GetGamepad(gamepad_index);
-      if (gamepad == nullptr || !gamepad->connected) {
+      /* secondary_int_value: also what the UI used. */
+      const LN_GamepadSnapshot *gamepad = (expression.secondary_int_value != 0 ?
+                                               m_snapshot.GetRawInputSnapshot() :
+                                               m_snapshot.GetInputSnapshot())
+                                              .GetGamepad(gamepad_index);
+      if (gamepad == nullptr) {
         return false;
       }
       const int32_t input_status = expression.int_expr_index != LN_INVALID_INDEX ?
@@ -14833,35 +18947,14 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
                                                             SCA_InputEvent::ACTIVE,
                                                             context) :
                                        SCA_InputEvent::ACTIVE;
-      if (expression.bool_value) {
-        const int32_t axis_index = expression.int_value;
-        if (axis_index < 0 || axis_index >= int(gamepad->axes.size())) {
-          return false;
-        }
-        const float axis_value = std::fabs(
-            NormalizeGamepadAxisValue(gamepad->axes[size_t(axis_index)]));
-        const float threshold = 0.1f;
-        const bool active = axis_value >= threshold;
-        if (input_status == SCA_InputEvent::JUSTRELEASED) {
-          return !active;
-        }
-        return active;
-      }
-      if (expression.int_value < 0 || expression.int_value >= int(gamepad->buttons.size())) {
-        return false;
-      }
-      const size_t button_index = size_t(expression.int_value);
-      if (input_status == SCA_InputEvent::JUSTACTIVATED) {
-        return gamepad->pressed[button_index] != 0;
-      }
-      if (input_status == SCA_InputEvent::JUSTRELEASED) {
-        return gamepad->released[button_index] != 0;
-      }
-      return gamepad->buttons[button_index] != 0;
+      return LN_GetGamepadControlState(
+          *gamepad, expression.int_value, expression.bool_value, input_status);
     }
     case LN_BoolExpressionKind::PhysicsQueryDone:
-      ResolveQueryExpression(expression.input0, context);
-      return true;
+      /* Invalid inputs and an unavailable backend are still completed query attempts. A disabled
+       * query, however, did not receive Flow and must not emit an execution pulse. */
+      return ResolveQueryExpression(expression.input0, context).physics_query.diagnostic_status !=
+             LN_QueryDiagnosticStatus::Disabled;
     case LN_BoolExpressionKind::PhysicsQueryHit:
       return ResolveQueryExpression(expression.input0, context).physics_query.hit;
     case LN_BoolExpressionKind::PhysicsQueryBlocked:
@@ -14869,8 +18962,24 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
     case LN_BoolExpressionKind::PhysicsQueryHasUV:
       return ResolveQueryExpression(expression.input0, context).physics_query.has_uv;
     case LN_BoolExpressionKind::PhysicsQueryStartedOverlapping:
-      return ResolveQueryExpression(expression.input0, context)
-          .physics_query.started_overlapping;
+      return ResolveQueryExpression(expression.input0, context).physics_query.started_overlapping;
+    case LN_BoolExpressionKind::PhysicsQueryAllHit: {
+      const std::vector<LN_PhysicsQueryResult> &results =
+          ResolveQueryExpression(expression.input0, context).physics_query_results;
+      return !results.empty() &&
+             std::all_of(results.begin(), results.end(), [](const LN_PhysicsQueryResult &result) {
+               return result.hit;
+             });
+    }
+    case LN_BoolExpressionKind::QueryValid:
+      return ResolveQueryExpression(expression.input0, context).valid;
+    case LN_BoolExpressionKind::MotionValid: {
+      if (expression.int_value < 0) {
+        return false;
+      }
+      const FlowControlRuntimeState *state = FindFlowControlState(uint32_t(expression.int_value));
+      return state != nullptr && state->motion_valid;
+    }
     case LN_BoolExpressionKind::TweenValue: {
       return UpdateTweenValue(expression_index, context);
     }
@@ -14884,20 +18993,6 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       }
       UpdateTweenValue(expression.input0, context);
       return BoolExpressionState(expression.input0).cached_result;
-    }
-    case LN_BoolExpressionKind::SpawnPoolSpawnedPulse: {
-      if (expression.int_value < 0) {
-        return fallback;
-      }
-      const SpawnPoolRuntimeState *pool = FindSpawnPoolState(uint32_t(expression.int_value));
-      return pool != nullptr && pool->spawned_tick == context.tick_index;
-    }
-    case LN_BoolExpressionKind::SpawnPoolHitPulse: {
-      if (expression.int_value < 0) {
-        return fallback;
-      }
-      const SpawnPoolRuntimeState *pool = FindSpawnPoolState(uint32_t(expression.int_value));
-      return pool != nullptr && pool->hit_tick == context.tick_index;
     }
     case LN_BoolExpressionKind::TimerElapsed: {
       if (expression.int_value < 0 || context.tick_index == UINT64_MAX) {
@@ -14918,11 +19013,10 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
         return fallback;
       }
       const TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(expression.int_value));
-      return state != nullptr &&
-             (state->pulse_tick == context.tick_index ||
-              (state->kind == TimeFlowRuntimeKind::Pulsify &&
-               state->last_update_tick == context.tick_index &&
-               state->accumulated_time <= LN_TIME_FLOW_EPSILON));
+      return state != nullptr && (state->pulse_tick == context.tick_index ||
+                                  (state->kind == TimeFlowRuntimeKind::Pulsify &&
+                                   state->last_update_tick == context.tick_index &&
+                                   state->accumulated_time <= LN_TIME_FLOW_EPSILON));
     }
     case LN_BoolExpressionKind::BarrierPassed: {
       if (expression.int_value < 0 || context.tick_index == UINT64_MAX) {
@@ -14962,12 +19056,153 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       const TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(expression.int_value));
       return state != nullptr && !state->active;
     }
+    case LN_BoolExpressionKind::PersistenceCompleted: {
+      BoolExpressionRuntimeState &state = BoolExpressionState(expression_index);
+      if (state.last_update_tick == context.tick_index) {
+        return state.cached_result;
+      }
+      state.cached_result = state.pending_persistence_count != 0;
+      if (state.cached_result) {
+        state.last_persistence_success = (state.pending_persistence_results & uint64_t(1)) != 0;
+        state.pending_persistence_results >>= 1;
+        state.pending_persistence_count--;
+      }
+      state.last_update_tick = context.tick_index;
+      return state.cached_result;
+    }
+    case LN_BoolExpressionKind::PersistenceSucceeded: {
+      if (expression.input0 == LN_INVALID_INDEX ||
+          expression.input0 >= m_program->GetBoolExpressions().size() ||
+          m_program->GetBoolExpressions()[expression.input0].kind !=
+              LN_BoolExpressionKind::PersistenceCompleted)
+      {
+        return fallback;
+      }
+      const bool completed = ResolveBoolExpression(expression.input0, false, context);
+      return completed && BoolExpressionState(expression.input0).last_persistence_success;
+    }
+    case LN_BoolExpressionKind::UICommandCompleted: {
+      UICommandCompletionState &state = m_uiCommandCompletions[expression_index];
+      if (state.current_tick != context.tick_index) {
+        state.current_tick = context.tick_index;
+        state.has_current = !state.pending.empty();
+        if (state.has_current) {
+          state.current = state.pending.front();
+          state.pending.pop_front();
+          state.has_value = true;
+        }
+      }
+      return state.has_current;
+    }
+    case LN_BoolExpressionKind::UICommandSucceeded:
+    case LN_BoolExpressionKind::UICommandFailed:
+    case LN_BoolExpressionKind::UICommandClosed: {
+      if (expression.input0 == LN_INVALID_INDEX ||
+          expression.input0 >= m_program->GetBoolExpressions().size() ||
+          m_program->GetBoolExpressions()[expression.input0].kind !=
+              LN_BoolExpressionKind::UICommandCompleted)
+      {
+        return fallback;
+      }
+      if (!ResolveBoolExpression(expression.input0, false, context)) {
+        return false;
+      }
+      const UICommandCompletionState &state = m_uiCommandCompletions[expression.input0];
+      const bool succeeded = state.current.result == LN_UIResult::Success ||
+                             state.current.result == LN_UIResult::NoChange;
+      /* A toggled menu that closed is neither opened nor failed. */
+      const bool closed = state.current.result == LN_UIResult::Closed;
+      switch (expression.kind) {
+        case LN_BoolExpressionKind::UICommandSucceeded:
+          return succeeded;
+        case LN_BoolExpressionKind::UICommandClosed:
+          return closed;
+        default:
+          return !succeeded && !closed;
+      }
+    }
+    case LN_BoolExpressionKind::PlayerJoinPulse:
+      return m_logicManager != nullptr && m_logicManager->IsPlayerJoinActive();
+    case LN_BoolExpressionKind::PlayerGamepadConnected: {
+      const int32_t gamepad = LN_InputMap::Get().GamepadOfUser(
+          ResolveIntExpression(expression.input0, 0, context));
+      DEV_Joystick *joystick = gamepad >= 0 ? DEV_Joystick::GetInstance(short(gamepad)) :
+                                                    nullptr;
+      return joystick != nullptr && joystick->Connected();
+    }
+    case LN_BoolExpressionKind::PlayerGamepadJoined:
+      return LN_InputMap::Get().IsUserJoined(ResolveIntExpression(expression.input0, 0, context));
+    case LN_BoolExpressionKind::PlayerViewShown: {
+      KX_PlayerViews::Area area;
+      return ResolvePlayerViewArea(
+          m_gameObject, ResolveIntExpression(expression.input0, 0, context), area);
+    }
+    case LN_BoolExpressionKind::ActionLifecycleEvent: {
+      ActionCompletionState &state = m_actionCompletions[expression_index];
+      if (state.current_tick != context.tick_index) {
+        state.current_tick = context.tick_index;
+        state.has_current = !state.pending.empty();
+        if (state.has_current) {
+          state.current = state.pending.front();
+          state.pending.pop_front();
+        }
+      }
+      return state.has_current;
+    }
+    case LN_BoolExpressionKind::ActionStarted:
+    case LN_BoolExpressionKind::ActionCompleted:
+    case LN_BoolExpressionKind::ActionInterrupted:
+    case LN_BoolExpressionKind::ActionFailed: {
+      if (expression.input0 == LN_INVALID_INDEX ||
+          expression.input0 >= m_program->GetBoolExpressions().size() ||
+          m_program->GetBoolExpressions()[expression.input0].kind !=
+              LN_BoolExpressionKind::ActionLifecycleEvent)
+      {
+        return fallback;
+      }
+      if (!ResolveBoolExpression(expression.input0, false, context)) {
+        return false;
+      }
+      const LN_ActionResult result = m_actionCompletions[expression.input0].current;
+      switch (expression.kind) {
+        case LN_BoolExpressionKind::ActionStarted:
+          return result == LN_ActionResult::Started;
+        case LN_BoolExpressionKind::ActionCompleted:
+          return result == LN_ActionResult::Completed;
+        case LN_BoolExpressionKind::ActionInterrupted:
+          return result == LN_ActionResult::Interrupted;
+        case LN_BoolExpressionKind::ActionFailed:
+          return result == LN_ActionResult::Failed;
+        default:
+          return false;
+      }
+    }
+    case LN_BoolExpressionKind::GameLoadPulse:
+      return m_logicManager != nullptr && m_logicManager->IsGameLoadPulseActive();
+    case LN_BoolExpressionKind::GameLoadSucceeded:
+      return m_logicManager != nullptr && m_logicManager->DidGameLoadSucceed();
     case LN_BoolExpressionKind::MouseOverEnter:
       return ResolveQueryExpression(expression.input0, context).entered;
     case LN_BoolExpressionKind::MouseOverOver:
       return ResolveQueryExpression(expression.input0, context).over;
     case LN_BoolExpressionKind::MouseOverExit:
       return ResolveQueryExpression(expression.input0, context).exited;
+    case LN_BoolExpressionKind::UIElementEventFired:
+      return ResolveQueryExpression(expression.input0, context).valid;
+    case LN_BoolExpressionKind::UISoundFired: {
+      const LN_QueryResult &sound = ResolveQueryExpression(expression.input0, context);
+      return sound.valid && sound.ui_sound == expression.int_value;
+    }
+    case LN_BoolExpressionKind::UIElementEventAccepted:
+      return ResolveQueryExpression(expression.input0, context).ui_accepted;
+    case LN_BoolExpressionKind::UIScrolled:
+      return ResolveQueryExpression(expression.input0, context).ui_scrolled;
+    case LN_BoolExpressionKind::UIScrollAtStart:
+      return ResolveQueryExpression(expression.input0, context).ui_scroll_at_start;
+    case LN_BoolExpressionKind::UIScrollAtEnd:
+      return ResolveQueryExpression(expression.input0, context).ui_scroll_at_end;
+    case LN_BoolExpressionKind::UIItemsRebound:
+      return ResolveQueryExpression(expression.input0, context).ui_items_rebound;
     case LN_BoolExpressionKind::LogicTreeRunning: {
       KX_GameObject *target_object = nullptr;
       if (expression.input0 != LN_INVALID_INDEX) {
@@ -14978,9 +19213,8 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
         target_object = m_gameObject;
       }
       const std::string tree_name = expression.input1 != LN_INVALID_INDEX ?
-                                        ResolveStringExpression(expression.input1,
-                                                                expression.string_value,
-                                                                context) :
+                                        ResolveStringExpression(
+                                            expression.input1, expression.string_value, context) :
                                         expression.string_value;
       if (target_object == nullptr || tree_name.empty()) {
         return fallback;
@@ -15002,9 +19236,8 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
         target_object = m_gameObject;
       }
       const std::string tree_name = expression.input1 != LN_INVALID_INDEX ?
-                                        ResolveStringExpression(expression.input1,
-                                                                expression.string_value,
-                                                                context) :
+                                        ResolveStringExpression(
+                                            expression.input1, expression.string_value, context) :
                                         expression.string_value;
       if (target_object == nullptr || tree_name.empty()) {
         return fallback;
@@ -15028,7 +19261,8 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       if (target_object == nullptr) {
         return fallback;
       }
-      const int32_t layer = ResolveIntExpression(expression.int_expr_index, expression.int_value, context);
+      const int32_t layer = ResolveIntExpression(
+          expression.int_expr_index, expression.int_value, context);
       return target_object->IsActionDone(short(layer));
     }
     case LN_BoolExpressionKind::AnimationPlaying: {
@@ -15043,7 +19277,8 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       if (target_object == nullptr) {
         return fallback;
       }
-      const int32_t layer = ResolveIntExpression(expression.int_expr_index, expression.int_value, context);
+      const int32_t layer = ResolveIntExpression(
+          expression.int_expr_index, expression.int_value, context);
       const std::string action_name = target_object->GetActionName(short(layer));
       return !action_name.empty() && !target_object->IsActionDone(short(layer));
     }
@@ -15085,9 +19320,8 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
     case LN_BoolExpressionKind::EventReceived: {
       const LN_StringId subject_string_id = ResolveStringExpressionId(expression.input0);
       const LN_EventSubjectId subject_id = GetEventSubjectId(subject_string_id);
-      const std::string subject = ResolveStringExpression(expression.input0,
-                                                          expression.string_value,
-                                                          context);
+      const std::string subject = ResolveStringExpression(
+          expression.input0, expression.string_value, context);
       if (subject.empty()) {
         return false;
       }
@@ -15114,6 +19348,12 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
                                     CollisionResult::Detail::StateOnly)
           .hit;
     }
+    case LN_BoolExpressionKind::ConstraintBreak:
+      return ResolveRigidBodyConstraintBreakEvent(expression.input0,
+                                                  expression.input1,
+                                                  expression.input2,
+                                                  expression.rigid_body_constraint_match_mode,
+                                                  context) != nullptr;
     case LN_BoolExpressionKind::CollisionEnter:
     case LN_BoolExpressionKind::CollisionStay:
     case LN_BoolExpressionKind::CollisionExit: {
@@ -15131,12 +19371,8 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       else if (expression.int_value == static_cast<int>(CollisionResult::Detail::Objects)) {
         detail = CollisionResult::Detail::Objects;
       }
-      const CollisionResult &collision_query = ResolveCollisionResult(expression.input0,
-                                                                      expression.input1,
-                                                                      expression.input2,
-                                                                      context,
-                                                                      detail,
-                                                                      false);
+      const CollisionResult &collision_query = ResolveCollisionResult(
+          expression.input0, expression.input1, expression.input2, context, detail, false);
       const bool current = collision_query.hit;
       const bool previous = state.initialized ? state.previous_bool : false;
       switch (expression.kind) {
@@ -15161,13 +19397,12 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       state.last_update_tick = context.tick_index;
       return state.cached_result;
     }
-    case LN_BoolExpressionKind::OnNextTick: {
-      BoolExpressionRuntimeState &state = BoolExpressionState(expression_index);
-      const bool current = ResolveBoolExpression(expression.input0, false, context);
-      const bool result = state.initialized ? state.previous_bool : false;
-      state.previous_bool = current;
-      state.initialized = true;
-      return result;
+    case LN_BoolExpressionKind::NextFrameDone: {
+      if (expression.int_value < 0 || context.tick_index == UINT64_MAX) {
+        return fallback;
+      }
+      const TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(expression.int_value));
+      return state != nullptr && state->pulse_tick == context.tick_index;
     }
     case LN_BoolExpressionKind::BooleanEdge: {
       BoolExpressionRuntimeState &state = BoolExpressionState(expression_index);
@@ -15199,12 +19434,64 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       return scope_serial != 0 && state.initialized && state.last_update_tick == scope_serial &&
              state.cached_result;
     }
+    case LN_BoolExpressionKind::FlowGateOpen: {
+      BoolExpressionRuntimeState &state = BoolExpressionState(expression_index);
+      if (!state.initialized) {
+        state.active = ResolveBoolExpression(expression.input0, false, context);
+        state.initialized = true;
+      }
+      return state.active;
+    }
+    case LN_BoolExpressionKind::FlowRouterSelected: {
+      if (expression.int_value < 0 || expression.secondary_int_value < 0 ||
+          context.execution_scope_serial == 0)
+      {
+        return fallback;
+      }
+      const FlowControlRuntimeState *state = FindFlowControlState(uint32_t(expression.int_value));
+      return state != nullptr && state->routed_scope_serial == context.execution_scope_serial &&
+             state->last_route_index == uint32_t(expression.secondary_int_value);
+    }
+    case LN_BoolExpressionKind::FlowRouterLastRoute: {
+      if (expression.int_value < 0 || expression.secondary_int_value < 0) {
+        return fallback;
+      }
+      const FlowControlRuntimeState *state = FindFlowControlState(uint32_t(expression.int_value));
+      return state != nullptr &&
+             state->last_route_index == uint32_t(expression.secondary_int_value);
+    }
+    case LN_BoolExpressionKind::RepeatLimitAccepted:
+    case LN_BoolExpressionKind::RepeatLimitBlocked: {
+      if (expression.int_value < 0 || context.execution_scope_serial == 0) {
+        return fallback;
+      }
+      const FlowControlRuntimeState *state = FindFlowControlState(uint32_t(expression.int_value));
+      if (state == nullptr) {
+        return fallback;
+      }
+      return expression.kind == LN_BoolExpressionKind::RepeatLimitAccepted ?
+                 state->accepted_scope_serial == context.execution_scope_serial :
+                 state->blocked_scope_serial == context.execution_scope_serial;
+    }
+    case LN_BoolExpressionKind::RepeatLimitExhausted: {
+      if (expression.int_value < 0 || expression.input0 == LN_INVALID_INDEX) {
+        return fallback;
+      }
+      const FlowControlRuntimeState *state = FindFlowControlState(uint32_t(expression.int_value));
+      if (state == nullptr) {
+        return fallback;
+      }
+      const int32_t requested_limit = ResolveIntExpression(expression.input0, 0, context);
+      const uint32_t limit = requested_limit > 0 ? uint32_t(requested_limit) : 0u;
+      return state->accepted_count >= limit;
+    }
     case LN_BoolExpressionKind::Timer: {
       BoolExpressionRuntimeState &state = BoolExpressionState(expression_index);
       const bool condition = ResolveBoolExpression(expression.input0, false, context);
       const bool rising_edge = condition && (!state.initialized || !state.previous_bool);
       const float duration = std::max(
-          0.0f, ResolveFloatExpression(expression.float_expr_index, expression.float_value, context));
+          0.0f,
+          ResolveFloatExpression(expression.float_expr_index, expression.float_value, context));
 
       if (rising_edge) {
         state.active = true;
@@ -15237,7 +19524,7 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
 
       const LN_Value value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
       if (!state.has_previous_value) {
-        if (expression.bool_value && value.type == LN_ValueType::None) {
+        if (expression.bool_value && (!value.exists || value.type == LN_ValueType::None)) {
           state.cached_result = false;
           state.last_update_tick = context.tick_index;
           return false;
@@ -15262,8 +19549,7 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
         return state.cached_result;
       }
 
-      const LN_Value target = ResolveValueExpression(
-          expression.input1, MakeNoneValue(), context);
+      const LN_Value target = ResolveValueExpression(expression.input1, MakeNoneValue(), context);
       state.cached_result = changed && ValueChangedToTarget(state.stored_old_value, value, target);
       state.last_update_tick = context.tick_index;
       return state.cached_result;
@@ -15319,7 +19605,8 @@ int32_t LN_RuntimeTree::ResolveIntExpression(uint32_t expression_index,
     case LN_IntExpressionKind::SnapshotCollisionGroup:
       if (expression.input0 != LN_INVALID_INDEX) {
         if (KX_GameObject *game_object = ResolveObjectValue(
-                ResolveValueExpression(expression.input0, MakeNoneValue(), context))) {
+                ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
+        {
           LN_Snapshot snapshot;
           snapshot.Capture(game_object, nullptr);
           return snapshot.GetCollisionGroup();
@@ -15328,7 +19615,29 @@ int32_t LN_RuntimeTree::ResolveIntExpression(uint32_t expression_index,
       }
       return m_snapshot.GetCollisionGroup();
     case LN_IntExpressionKind::MouseWheelDelta:
-      return m_snapshot.GetInputSnapshot().GetMouse().wheel_delta;
+      return (expression.int_value != 0 ? m_snapshot.GetRawInputSnapshot() :
+                                          m_snapshot.GetInputSnapshot())
+          .GetMouse()
+          .wheel_delta;
+    case LN_IntExpressionKind::PlayerJoinUser:
+      return m_logicManager != nullptr && m_logicManager->IsPlayerJoinActive() ?
+                 m_logicManager->PlayerJoinUser() :
+                 fallback;
+    case LN_IntExpressionKind::PlayerJoinGamepad:
+      return m_logicManager != nullptr && m_logicManager->IsPlayerJoinActive() ?
+                 m_logicManager->PlayerJoinGamepad() :
+                 fallback;
+    case LN_IntExpressionKind::PlayerGamepad:
+      return LN_InputMap::Get().GamepadOfUser(ResolveIntExpression(expression.input0, 0, context));
+    case LN_IntExpressionKind::MenuPlayerUser:
+      return m_logicManager != nullptr && m_gameObject != nullptr ?
+                 m_logicManager->GetUIService().UserOfObject(m_gameObject) :
+                 0;
+    case LN_IntExpressionKind::PlayerViewCount:
+      if (KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr) {
+        return scene->GetPlayerViews().GetViewCount(scene->GetActiveCamera());
+      }
+      return fallback;
     case LN_IntExpressionKind::WindowResolutionWidth:
       if (RAS_ICanvas *canvas = ActiveCanvas()) {
         return canvas->GetWidth();
@@ -15379,14 +19688,16 @@ int32_t LN_RuntimeTree::ResolveIntExpression(uint32_t expression_index,
       return object_snapshot->has_character ? object_snapshot->character_jump_count : fallback;
     }
     case LN_IntExpressionKind::ListLength: {
-      const LN_Value list_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      const LN_Value list_value = ResolveValueExpression(
+          expression.input0, MakeNoneValue(), context);
       if (list_value.type == LN_ValueType::List && list_value.exists) {
         return int32_t(list_value.list_value.size());
       }
       return 0;
     }
     case LN_IntExpressionKind::DictLength: {
-      const LN_Value dict_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      const LN_Value dict_value = ResolveValueExpression(
+          expression.input0, MakeNoneValue(), context);
       if (dict_value.type == LN_ValueType::Dict && dict_value.exists) {
         return int32_t(dict_value.dict_value.size());
       }
@@ -15394,7 +19705,19 @@ int32_t LN_RuntimeTree::ResolveIntExpression(uint32_t expression_index,
     }
     case LN_IntExpressionKind::FromGenericValue: {
       const LN_Value value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
-      return ValueAsInt(value);
+      return ValueAsInt(value, expression.float_to_int_mode);
+    }
+    case LN_IntExpressionKind::FromBool:
+      return ResolveBoolExpression(expression.input0, false, context) ? 1 : 0;
+    case LN_IntExpressionKind::FromFloat:
+      return LN_ConvertFloatToInt(ResolveFloatExpression(expression.input0, 0.0f, context),
+                                  expression.float_to_int_mode);
+    case LN_IntExpressionKind::FromString: {
+      const std::string text = ResolveStringExpression(expression.input0, std::string(), context);
+      float value = 0.0f;
+      return LN_TryParseTypecastFloat(text, value) ?
+                 LN_ConvertFloatToInt(value, expression.float_to_int_mode) :
+                 0;
     }
     case LN_IntExpressionKind::Random: {
       const int32_t min_value = ResolveIntExpression(expression.input0, 0, context);
@@ -15422,9 +19745,59 @@ int32_t LN_RuntimeTree::ResolveIntExpression(uint32_t expression_index,
           .contact_count;
     case LN_IntExpressionKind::PhysicsQueryFaceIndex:
       return ResolveQueryExpression(expression.input0, context).physics_query.polygon_index;
-    case LN_IntExpressionKind::PhysicsQueryHitCount:
-      return int32_t(ResolveQueryExpression(expression.input0, context)
-                         .physics_query_results.size());
+    case LN_IntExpressionKind::PhysicsQueryHitCount: {
+      const std::vector<LN_PhysicsQueryResult> &results =
+          ResolveQueryExpression(expression.input0, context).physics_query_results;
+      return int32_t(std::count_if(
+          results.begin(), results.end(), [](const auto &result) { return result.hit; }));
+    }
+    case LN_IntExpressionKind::PhysicsQueryRayCount:
+      return int32_t(
+          ResolveQueryExpression(expression.input0, context).physics_query_results.size());
+    case LN_IntExpressionKind::QueryVectorCount:
+      return ResolveQueryExpression(expression.input0, context).vector_count;
+    case LN_IntExpressionKind::UIFirstVisibleIndex:
+      return ResolveQueryExpression(expression.input0, context).ui_first_visible_index;
+    case LN_IntExpressionKind::UILastVisibleIndex:
+      return ResolveQueryExpression(expression.input0, context).ui_last_visible_index;
+    case LN_IntExpressionKind::UIElementEventIndex:
+      return ResolveQueryExpression(expression.input0, context).ui_index;
+    case LN_IntExpressionKind::UIElementEventTargetIndex:
+      return ResolveQueryExpression(expression.input0, context).ui_target_index;
+    case LN_IntExpressionKind::UIElementEventUser:
+      return ResolveQueryExpression(expression.input0, context).ui_user;
+    case LN_IntExpressionKind::UIElementEventAmount:
+      return ResolveQueryExpression(expression.input0, context).ui_amount;
+    case LN_IntExpressionKind::UIViewPage:
+      return ResolveQueryExpression(expression.input0, context).ui_page;
+    case LN_IntExpressionKind::UIViewPageCount:
+      return ResolveQueryExpression(expression.input0, context).ui_page_count;
+    case LN_IntExpressionKind::UICommandResult:
+    case LN_IntExpressionKind::UICommandHandle: {
+      if (expression.input0 == LN_INVALID_INDEX ||
+          expression.input0 >= m_program->GetBoolExpressions().size() ||
+          m_program->GetBoolExpressions()[expression.input0].kind !=
+              LN_BoolExpressionKind::UICommandCompleted)
+      {
+        return fallback;
+      }
+      /* Advance a pending completion for this tick when the value is consumed without a connected
+       * success/failure flow, then retain the last completed value for later commands. */
+      ResolveBoolExpression(expression.input0, false, context);
+      const UICommandCompletionState &state = m_uiCommandCompletions[expression.input0];
+      if (!state.has_value) {
+        return fallback;
+      }
+      return expression.kind == LN_IntExpressionKind::UICommandHandle ?
+                 state.current.handle :
+                 int32_t(state.current.result);
+    }
+    case LN_IntExpressionKind::ConstraintBreakCount:
+      return ResolveRigidBodyConstraintBreakEventCount(expression.input0,
+                                                       expression.input1,
+                                                       expression.input2,
+                                                       expression.rigid_body_constraint_match_mode,
+                                                       context);
     case LN_IntExpressionKind::LoopIndex: {
       const uint32_t loop_frame_index = uint32_t(expression.int_value);
       if (loop_frame_index >= m_loopStates.size()) {
@@ -15435,6 +19808,22 @@ int32_t LN_RuntimeTree::ResolveIntExpression(uint32_t expression_index,
         return 0;
       }
       return int32_t(state.iteration_index - 1);
+    }
+    case LN_IntExpressionKind::RepeatLimitRemaining: {
+      if (expression.int_value < 0 || expression.input0 == LN_INVALID_INDEX) {
+        return fallback;
+      }
+      const FlowControlRuntimeState *state = FindFlowControlState(uint32_t(expression.int_value));
+      if (state == nullptr) {
+        return fallback;
+      }
+      const int32_t requested_limit = ResolveIntExpression(expression.input0, 0, context);
+      const uint32_t limit = requested_limit > 0 ? uint32_t(requested_limit) : 0u;
+      const uint32_t remaining = limit > state->accepted_count ? limit - state->accepted_count :
+                                                                 0u;
+      return remaining > uint32_t(std::numeric_limits<int32_t>::max()) ?
+                 std::numeric_limits<int32_t>::max() :
+                 int32_t(remaining);
     }
     case LN_IntExpressionKind::Count:
       break;
@@ -15457,7 +19846,7 @@ bool LN_RuntimeTree::UpdateTweenValue(const uint32_t tween_expr_index,
 
   const LN_BoolExpression &tween = bool_expressions[tween_expr_index];
   BoolExpressionRuntimeState &state = BoolExpressionState(tween_expr_index);
-  if (state.last_update_tick == context.tick_index) {
+  if (context.tick_index != UINT64_MAX && state.last_update_tick == context.tick_index) {
     return state.active || state.cached_result;
   }
 
@@ -15467,9 +19856,9 @@ bool LN_RuntimeTree::UpdateTweenValue(const uint32_t tween_expr_index,
   state.cached_result = false;
   if (on_demand) {
     forward = true;
-    if (tween.float_value > 0.0f && state.last_update_tick != UINT64_MAX &&
-        state.last_update_tick + 1 < context.tick_index)
-    {
+    const bool skipped_phase_tick = PhaseTickWasSkipped(state.last_update_phase_tick,
+                                                        context.phase_tick_index);
+    if (tween.float_value > 0.0f && skipped_phase_tick) {
       state.previous_float = 0.0f;
       state.active = false;
       state.previous_bool = true;
@@ -15485,7 +19874,8 @@ bool LN_RuntimeTree::UpdateTweenValue(const uint32_t tween_expr_index,
   if (!std::isfinite(duration) || duration < 0.0f) {
     duration = 0.0f;
   }
-  const float delta_time = float(context.fixed_dt > 0.0 ? context.fixed_dt : 0.0);
+  const bool ignore_timescale = ResolveBoolExpression(tween.input2, false, context);
+  const float delta_time = float(TimeFlowStep(context, ignore_timescale));
   const float epsilon = 1.0e-6f;
   if (duration > 0.0f) {
     state.previous_float = std::clamp(state.previous_float, 0.0f, duration);
@@ -15522,6 +19912,7 @@ bool LN_RuntimeTree::UpdateTweenValue(const uint32_t tween_expr_index,
   if (!state.active) {
     state.initialized = true;
     state.last_update_tick = context.tick_index;
+    state.last_update_phase_tick = context.phase_tick_index;
     return state.cached_result;
   }
 
@@ -15550,7 +19941,102 @@ bool LN_RuntimeTree::UpdateTweenValue(const uint32_t tween_expr_index,
 
   state.initialized = true;
   state.last_update_tick = context.tick_index;
+  state.last_update_phase_tick = context.phase_tick_index;
   return state.active || state.cached_result;
+}
+
+float LN_RuntimeTree::EvaluateCurveTable(const uint32_t table_index,
+                                         const float input,
+                                         float influence) const
+{
+  if (!std::isfinite(input)) {
+    return 0.0f;
+  }
+  if (!std::isfinite(influence)) {
+    return input;
+  }
+  if (influence == 0.0f || m_program == nullptr ||
+      table_index >= m_program->GetCurveTables().size())
+  {
+    return input;
+  }
+
+  const LN_CurveTable &table = m_program->GetCurveTables()[table_index];
+  const float domain_span = table.domain_max - table.domain_min;
+  if (!std::isfinite(table.domain_min) || !std::isfinite(table.domain_max) ||
+      !std::isfinite(domain_span) || domain_span <= 0.0f || !std::isfinite(table.sample_scale) ||
+      table.sample_scale <= 0.0f || !std::isfinite(table.table_min_x) ||
+      !std::isfinite(table.table_max_x) || table.table_min_x > table.table_max_x)
+  {
+    return input;
+  }
+  if (table.clip_output && (!std::isfinite(table.clip_min) || !std::isfinite(table.clip_max) ||
+                            table.clip_min > table.clip_max))
+  {
+    return input;
+  }
+
+  float mapped = input;
+  const float sample_position = (input - table.domain_min) * table.sample_scale;
+  if (!std::isfinite(sample_position) || sample_position < 0.0f ||
+      sample_position > float(LN_CURVE_SAMPLE_COUNT - 1))
+  {
+    if (input <= table.table_min_x) {
+      mapped = table.samples.front();
+      if (table.extrapolate) {
+        mapped = table.extend_in_x == 0.0f ?
+                     mapped + table.extend_in_y * 10000.0f :
+                     mapped + table.extend_in_y * (input - table.table_min_x) / table.extend_in_x;
+      }
+    }
+    else if (input >= table.table_max_x) {
+      mapped = table.samples.back();
+      if (table.extrapolate) {
+        mapped = table.extend_out_x == 0.0f ?
+                     mapped - table.extend_out_y * 10000.0f :
+                     mapped +
+                         table.extend_out_y * (input - table.table_max_x) / table.extend_out_x;
+      }
+    }
+    else {
+      /* Mirrors Blender's malformed rounding-gap fallback in curvemap_calc_extend(). */
+      mapped = 0.0f;
+    }
+  }
+  else {
+    const int sample_index_0 = std::min(int(sample_position), LN_CURVE_SAMPLE_COUNT - 1);
+    const int sample_index_1 = std::min(sample_index_0 + 1, LN_CURVE_SAMPLE_COUNT - 1);
+    const float blend = sample_position - float(sample_index_0);
+    mapped = table.samples[size_t(sample_index_0)] * (1.0f - blend) +
+             table.samples[size_t(sample_index_1)] * blend;
+  }
+
+  if (table.clip_output) {
+    mapped = std::clamp(mapped, table.clip_min, table.clip_max);
+  }
+  if (!std::isfinite(mapped)) {
+    return input;
+  }
+  if (influence == 1.0f) {
+    return mapped;
+  }
+
+  /* Preserve Blender's normal finite-value arithmetic exactly. If float intermediates overflow
+   * even though the mathematical result is representable, retry in double precision. */
+  const float result = (1.0f - influence) * input + influence * mapped;
+  if (std::isfinite(result)) {
+    return result;
+  }
+
+  const double precise_result = (1.0 - double(influence)) * double(input) +
+                                double(influence) * double(mapped);
+  if (!std::isfinite(precise_result) ||
+      precise_result < -double(std::numeric_limits<float>::max()) ||
+      precise_result > double(std::numeric_limits<float>::max()))
+  {
+    return input;
+  }
+  return float(precise_result);
 }
 
 float LN_RuntimeTree::ResolveTweenMappedFactor(const uint32_t tween_expr_index,
@@ -15574,20 +20060,8 @@ float LN_RuntimeTree::ResolveTweenMappedFactor(const uint32_t tween_expr_index,
   }
   const float linear_factor = duration > 0.0f ? state.previous_float / duration :
                                                 (state.previous_bool ? 1.0f : 0.0f);
-  if (tween.int_expr_index >= m_program->GetTweenCurveTables().size()) {
-    return linear_factor;
-  }
-
-  const std::array<float, LN_TWEEN_CURVE_SAMPLE_COUNT> &samples =
-      m_program->GetTweenCurveTables()[tween.int_expr_index];
   const float factor = std::clamp(linear_factor, 0.0f, 1.0f);
-  const float sample_position = factor * float(LN_TWEEN_CURVE_SAMPLE_COUNT - 1);
-  const int sample_index_0 = int(sample_position);
-  const int sample_index_1 = std::min(sample_index_0 + 1, LN_TWEEN_CURVE_SAMPLE_COUNT - 1);
-  const float blend = sample_position - float(sample_index_0);
-  const float mapped_factor = samples[size_t(sample_index_0)] * (1.0f - blend) +
-                              samples[size_t(sample_index_1)] * blend;
-  return std::isfinite(mapped_factor) ? mapped_factor : factor;
+  return EvaluateCurveTable(tween.int_expr_index, factor, 1.0f);
 }
 
 float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
@@ -15618,6 +20092,8 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
   switch (expression.kind) {
     case LN_FloatExpressionKind::Constant:
       return expression.float_value;
+    case LN_FloatExpressionKind::UnscaledDeltaTime:
+      return float(std::max(0.0, context.unscaled_dt));
     case LN_FloatExpressionKind::SnapshotGameProperty:
       if (const LN_Value *value = m_snapshot.GetGamePropertyValue(expression.property_ref_index)) {
         return value->float_value;
@@ -15636,12 +20112,23 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
       }
       return fallback;
     }
+    case LN_FloatExpressionKind::FromBool:
+      return ResolveBoolExpression(expression.bool_expr_index, false, context) ? 1.0f : 0.0f;
+    case LN_FloatExpressionKind::FromInt:
+      return float(ResolveIntExpression(expression.input0, 0, context));
+    case LN_FloatExpressionKind::FromString: {
+      const std::string text = ResolveStringExpression(
+          expression.string_expr_index, std::string(), context);
+      float value = 0.0f;
+      return LN_TryParseTypecastFloat(text, value) ? value : 0.0f;
+    }
     case LN_FloatExpressionKind::SnapshotTimeScale:
       return m_snapshot.GetTimeScale();
     case LN_FloatExpressionKind::SnapshotLightPower:
       if (expression.input0 != LN_INVALID_INDEX) {
         if (KX_GameObject *game_object = ResolveObjectValue(
-                ResolveValueExpression(expression.input0, MakeNoneValue(), context))) {
+                ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
+        {
           LN_Snapshot snapshot;
           snapshot.Capture(game_object, nullptr);
           return snapshot.GetObjectSnapshot().light_power;
@@ -15678,9 +20165,8 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
         armature_object = m_snapshot.GetObjectSnapshot().object;
       }
       else {
-        const LN_Value armature_value = ResolveValueExpression(expression.input0,
-                                                               MakeNoneValue(),
-                                                               context);
+        const LN_Value armature_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         armature_object = ResolveObjectValue(armature_value);
       }
       if (armature_object == nullptr) {
@@ -15694,9 +20180,8 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
       if (armature == nullptr) {
         return fallback;
       }
-      const std::string bone_name = ResolveStringExpression(expression.input1,
-                                                            std::string(),
-                                                            context);
+      const std::string bone_name = ResolveStringExpression(
+          expression.input1, std::string(), context);
       if (bone_name.empty()) {
         return fallback;
       }
@@ -15721,6 +20206,11 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
         return 0.0f;
       }
       return ResolveFloatExpression(expression.input0, 0.0f, context) / divisor;
+    }
+    case LN_FloatExpressionKind::SafeDivide: {
+      const float divisor = ResolveFloatExpression(expression.input1, 0.0f, context);
+      return divisor == 0.0f ? 0.0f :
+                               ResolveFloatExpression(expression.input0, 0.0f, context) / divisor;
     }
     case LN_FloatExpressionKind::Power:
       return std::pow(ResolveFloatExpression(expression.input0, 0.0f, context),
@@ -15777,9 +20267,8 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
     case LN_FloatExpressionKind::Threshold: {
       const float value = ResolveFloatExpression(expression.input0, 0.0f, context);
       const float threshold = ResolveFloatExpression(expression.input1, 0.0f, context);
-      const bool else_zero = ResolveBoolExpression(expression.bool_expr_index,
-                                                   expression.bool_value,
-                                                   context);
+      const bool else_zero = ResolveBoolExpression(
+          expression.bool_expr_index, expression.bool_value, context);
       switch (expression.threshold_operation) {
         case LN_ThresholdOperation::Greater:
           return (value > threshold) ? value : (else_zero ? 0.0f : threshold);
@@ -15801,9 +20290,8 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
       break;
     }
     case LN_FloatExpressionKind::VectorComponent: {
-      const MT_Vector3 vector = ResolveVectorExpression(expression.input0,
-                                                        MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                        context);
+      const MT_Vector3 vector = ResolveVectorExpression(
+          expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context);
       switch (expression.component_index) {
         case 0:
           return vector.x();
@@ -15815,9 +20303,8 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
       break;
     }
     case LN_FloatExpressionKind::ColorComponent: {
-      const MT_Vector4 color = ResolveColorExpression(expression.input0,
-                                                      MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f),
-                                                      context);
+      const MT_Vector4 color = ResolveColorExpression(
+          expression.input0, MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f), context);
       switch (expression.component_index) {
         case 0:
           return color.x();
@@ -15839,42 +20326,39 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
       return lower + (upper - lower) * HashToUnitFloat(seed);
     }
     case LN_FloatExpressionKind::Select: {
-      const bool condition = ResolveBoolExpression(expression.bool_expr_index,
-                                                   expression.bool_value,
-                                                   context);
-      return condition ? ResolveFloatExpression(expression.input0, expression.float_value, context) :
-                         ResolveFloatExpression(expression.input1, expression.float_value, context);
+      const bool condition = ResolveBoolExpression(
+          expression.bool_expr_index, expression.bool_value, context);
+      return condition ?
+                 ResolveFloatExpression(expression.input0, expression.float_value, context) :
+                 ResolveFloatExpression(expression.input1, expression.float_value, context);
     }
     case LN_FloatExpressionKind::StoreValue: {
+      /* The stored value. Storing happens when Flow arrives (StoreValueDone, on the node's Done
+       * route), not when the value is read: a read in another tick or event must not store. */
       FloatExpressionRuntimeState &state = FloatExpressionState(expression_index);
       if (!state.initialized) {
         state.initialized = true;
         if (expression.bool_value) {
-          state.stored_value = ResolveFloatExpression(expression.input0,
-                                                     expression.float_value,
-                                                     context);
+          state.stored_value = ResolveFloatExpression(
+              expression.input0, expression.float_value, context);
           state.last_store_tick = context.tick_index;
         }
-      }
-
-      const bool condition = ResolveBoolExpression(expression.bool_expr_index,
-                                                   expression.bool_value,
-                                                   context);
-      if (condition) {
-        state.stored_value = ResolveFloatExpression(expression.input0,
-                                                   expression.float_value,
-                                                   context);
-        state.last_store_tick = context.tick_index;
       }
       return state.stored_value;
     }
     case LN_FloatExpressionKind::Formula: {
-      const std::string formula = ResolveStringExpression(expression.string_expr_index,
-                                                          "a + b",
-                                                          context);
+      const std::string formula = ResolveStringExpression(
+          expression.string_expr_index, "a + b", context);
       const float a = ResolveFloatExpression(expression.input0, 0.0f, context);
       const float b = ResolveFloatExpression(expression.input1, 0.0f, context);
       return LN::EvaluateFormula(formula, a, b);
+    }
+    case LN_FloatExpressionKind::FloatCurve: {
+      const float input = ResolveFloatExpression(expression.input0, 1.0f, context);
+      const float influence = ResolveFloatExpression(expression.input1, 1.0f, context);
+      const uint32_t table_index = expression.int_value >= 0 ? uint32_t(expression.int_value) :
+                                                               LN_INVALID_INDEX;
+      return EvaluateCurveTable(table_index, input, influence);
     }
     case LN_FloatExpressionKind::TweenFactor:
       return ResolveTweenMappedFactor(expression.input0, context);
@@ -15887,14 +20371,31 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
     case LN_FloatExpressionKind::GamepadButtonStrength: {
       const int32_t gamepad_index = ResolveIntExpression(expression.input0, 0, context);
       const LN_GamepadSnapshot *gamepad = m_snapshot.GetInputSnapshot().GetGamepad(gamepad_index);
-      if (gamepad == nullptr || !gamepad->connected) {
+      float strength = 0.0f;
+      if (gamepad == nullptr ||
+          !LN_TryGetGamepadTriggerStrength(*gamepad, int32_t(expression.input2), strength))
+      {
         return fallback;
       }
-      const int32_t axis_index = int32_t(expression.input2);
-      if (axis_index < 0 || axis_index >= int(gamepad->axes.size())) {
-        return fallback;
+      return strength;
+    }
+    case LN_FloatExpressionKind::PlayerViewArea: {
+      KX_PlayerViews::Area area;
+      if (!ResolvePlayerViewArea(
+              m_gameObject, ResolveIntExpression(expression.input0, 0, context), area))
+      {
+        return 0.0f;
       }
-      return std::fabs(NormalizeGamepadAxisValue(gamepad->axes[size_t(axis_index)]));
+      const float components[] = {area.left, area.top, area.width, area.height};
+      return components[std::min<uint8_t>(expression.component_index, 3)];
+    }
+    case LN_FloatExpressionKind::InputActionValue: {
+      const LN_InputActionState *state = m_snapshot.GetInputActionState(
+          LN_InputMap::Get().Find(
+              ResolveStringExpression(expression.string_expr_index, std::string(), context)),
+          ResolveIntExpression(expression.input0, 0, context),
+          expression.bool_value);
+      return state != nullptr ? state->value : 0.0f;
     }
     case LN_FloatExpressionKind::ObjectDistance: {
       KX_GameObject *object = m_gameObject;
@@ -15918,6 +20419,17 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
       return ResolveQueryExpression(expression.input0, context).physics_query.hit_fraction;
     case LN_FloatExpressionKind::PhysicsQueryPenetrationDepth:
       return ResolveQueryExpression(expression.input0, context).physics_query.penetration_depth;
+    case LN_FloatExpressionKind::QueryDistance:
+      return ResolveQueryExpression(expression.input0, context).distance;
+    case LN_FloatExpressionKind::QuerySquaredDistance:
+      return ResolveQueryExpression(expression.input0, context).squared_distance;
+    case LN_FloatExpressionKind::MotionSpeed: {
+      if (expression.int_value < 0) {
+        return fallback;
+      }
+      const FlowControlRuntimeState *state = FindFlowControlState(uint32_t(expression.int_value));
+      return state != nullptr ? state->motion_speed : fallback;
+    }
     case LN_FloatExpressionKind::RigidBodyAttribute: {
       PHY_IPhysicsController *controller = ResolveRigidBodyAttributeController(expression.input0,
                                                                                context);
@@ -15928,6 +20440,30 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
           *controller,
           static_cast<LN_RigidBodyAttribute>(expression.property_ref_index),
           expression.component_index);
+    }
+    case LN_FloatExpressionKind::ConstraintBreakLinearImpulse:
+    case LN_FloatExpressionKind::ConstraintBreakAngularImpulse:
+    case LN_FloatExpressionKind::ConstraintBreakAppliedImpulse: {
+      const LN_RigidBodyConstraintBreakEvent *event = ResolveRigidBodyConstraintBreakEvent(
+          expression.input0,
+          expression.input1,
+          expression.input2,
+          expression.rigid_body_constraint_match_mode,
+          context);
+      if (event == nullptr) {
+        return fallback;
+      }
+      switch (expression.kind) {
+        case LN_FloatExpressionKind::ConstraintBreakLinearImpulse:
+          return event->linear_impulse;
+        case LN_FloatExpressionKind::ConstraintBreakAngularImpulse:
+          return event->angular_impulse;
+        case LN_FloatExpressionKind::ConstraintBreakAppliedImpulse:
+          return event->applied_impulse;
+        default:
+          break;
+      }
+      return fallback;
     }
     case LN_FloatExpressionKind::CooldownRemaining: {
       if (expression.int_value < 0) {
@@ -16023,11 +20559,30 @@ std::string LN_RuntimeTree::ResolveStringExpression(uint32_t expression_index,
       }
       return fallback;
     case LN_StringExpressionKind::FromGenericValue: {
-      const LN_Value value = ResolveValueExpression(expression.value_expr_index,
-                                                   MakeNoneValue(),
-                                                   context);
-      return ValueToPrintString(value);
+      const LN_Value value = ResolveValueExpression(
+          expression.value_expr_index, MakeNoneValue(), context);
+      return ValueToText(value);
     }
+    case LN_StringExpressionKind::FromBool:
+      return ResolveBoolExpression(expression.input0, false, context) ? "True" : "False";
+    case LN_StringExpressionKind::UIElementEventAction:
+      return ResolveQueryExpression(expression.input0, context).ui_action;
+    case LN_StringExpressionKind::UIElementEventTargetAction:
+      return ResolveQueryExpression(expression.input0, context).ui_target_action;
+    case LN_StringExpressionKind::UIElementEventOutcome:
+      return ResolveQueryExpression(expression.input0, context).ui_outcome;
+    case LN_StringExpressionKind::UIElementEventMenu:
+      return ResolveQueryExpression(expression.input0, context).ui_menu;
+    case LN_StringExpressionKind::FromInt:
+      return std::to_string(ResolveIntExpression(expression.input0, 0, context));
+    case LN_StringExpressionKind::FromFloat:
+      return LN_TypecastFloatToString(ResolveFloatExpression(expression.input0, 0.0f, context));
+    case LN_StringExpressionKind::FromVector:
+      return LN_TypecastVectorToString(
+          ResolveVectorExpression(expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context));
+    case LN_StringExpressionKind::FromColor:
+      return LN_TypecastColorToString(
+          ResolveColorExpression(expression.input0, MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f), context));
     case LN_StringExpressionKind::Join:
       return ResolveStringExpression(expression.input0, "", context) +
              ResolveStringExpression(expression.input1, "", context);
@@ -16050,29 +20605,38 @@ std::string LN_RuntimeTree::ResolveStringExpression(uint32_t expression_index,
                                ResolveStringExpression(expression.input4, "", context));
     case LN_StringExpressionKind::KeyLoggerCharacter: {
       const bool only_characters = expression.int_expr_index != LN_INVALID_INDEX ?
-                                         ResolveIntExpression(expression.int_expr_index,
-                                                              1,
-                                                              context) != 0 :
-                                         true;
+                                       ResolveIntExpression(
+                                           expression.int_expr_index, 1, context) != 0 :
+                                       true;
       const KeyLoggerScanResult scan = ScanKeyLogger(m_snapshot.GetInputSnapshot(),
                                                      only_characters);
       return scan.character;
     }
     case LN_StringExpressionKind::KeyLoggerKeycode: {
       const bool only_characters = expression.int_expr_index != LN_INVALID_INDEX ?
-                                         ResolveIntExpression(expression.int_expr_index,
-                                                              1,
-                                                              context) != 0 :
-                                         true;
+                                       ResolveIntExpression(
+                                           expression.int_expr_index, 1, context) != 0 :
+                                       true;
       const KeyLoggerScanResult scan = ScanKeyLogger(m_snapshot.GetInputSnapshot(),
                                                      only_characters);
       return scan.keycode;
+    }
+    case LN_StringExpressionKind::InputBindingText: {
+      const LN_InputMap &map = LN_InputMap::Get();
+      /* Player 0's, like Automatic: their gamepad's own button names. */
+      return map.ActionText(
+          map.Find(ResolveStringExpression(expression.input0, std::string(), context)),
+          LN_InputDeviceClass(std::clamp(ResolveIntExpression(expression.input1, 0, context),
+                                         int32_t(LN_InputDeviceClass::Automatic),
+                                         int32_t(LN_InputDeviceClass::Gamepad))),
+          ResolveIntExpression(expression.input2, 0, context),
+          map.PadFamilyOfUser(0));
     }
     case LN_StringExpressionKind::AnimationActionName: {
       KX_GameObject *target_object = nullptr;
       if (expression.input0 != LN_INVALID_INDEX) {
         target_object = ResolveObjectValue(
-        ResolveValueExpression(expression.input0, MakeNoneValue(), context));
+            ResolveValueExpression(expression.input0, MakeNoneValue(), context));
       }
       else if (m_gameObject != nullptr) {
         target_object = m_gameObject;
@@ -16084,9 +20648,8 @@ std::string LN_RuntimeTree::ResolveStringExpression(uint32_t expression_index,
       return target_object->GetActionName(short(layer));
     }
     case LN_StringExpressionKind::MasterFolder: {
-      const std::string folder_name = ResolveStringExpression(expression.input0,
-                                                              std::string(),
-                                                              context);
+      const std::string folder_name = ResolveStringExpression(
+          expression.input0, std::string(), context);
       std::filesystem::path path(KX_GetMainPath());
       if (path.empty()) {
         path = std::filesystem::current_path();
@@ -16097,7 +20660,8 @@ std::string LN_RuntimeTree::ResolveStringExpression(uint32_t expression_index,
       if (folder_name.empty()) {
         return path.string();
       }
-      for (std::filesystem::path current = path; !current.empty(); current = current.parent_path()) {
+      for (std::filesystem::path current = path; !current.empty(); current = current.parent_path())
+      {
         if (current.filename() == folder_name) {
           return current.string();
         }
@@ -16123,10 +20687,20 @@ std::string LN_RuntimeTree::ResolveStringExpression(uint32_t expression_index,
     }
     case LN_StringExpressionKind::MaterialName: {
       blender::Material *material = ResolveMaterialByValue(
-          this,
-          ResolveValueExpression(expression.input0, MakeNoneValue(), context));
+          this, ResolveValueExpression(expression.input0, MakeNoneValue(), context));
       return material ? std::string(material->id.name + 2) : fallback;
     }
+    case LN_StringExpressionKind::ConstraintBreakName:
+      if (const LN_RigidBodyConstraintBreakEvent *event = ResolveRigidBodyConstraintBreakEvent(
+              expression.input0,
+              expression.input1,
+              expression.input2,
+              expression.rigid_body_constraint_match_mode,
+              context))
+      {
+        return event->constraint_name;
+      }
+      return fallback;
     case LN_StringExpressionKind::RigidBodyConstraintName: {
       KX_GameObject *target = m_gameObject;
       if (expression.value_expr_index != LN_INVALID_INDEX) {
@@ -16142,8 +20716,8 @@ std::string LN_RuntimeTree::ResolveStringExpression(uint32_t expression_index,
                                     std::string() :
                                     ResolveStringExpression(
                                         expression.input0, std::string(), context);
-      const KX_GameObject::RigidBodyConstraintData *constraint =
-          FindRigidBodyConstraintMatch(*target, query, match_mode);
+      const KX_GameObject::RigidBodyConstraintData *constraint = FindRigidBodyConstraintMatch(
+          *target, query, match_mode);
       return constraint ? constraint->m_name : std::string();
     }
     case LN_StringExpressionKind::Count:
@@ -16151,6 +20725,155 @@ std::string LN_RuntimeTree::ResolveStringExpression(uint32_t expression_index,
   }
 
   return fallback;
+}
+
+LN_Rotation LN_RuntimeTree::ResolveRotationExpression(const uint32_t expression_index,
+                                                      const LN_Rotation &fallback,
+                                                      const LN_TickContext &context)
+{
+  if (expression_index == LN_INVALID_INDEX || m_program == nullptr) {
+    return fallback;
+  }
+
+  const std::vector<LN_VectorExpression> &expressions = m_program->GetVectorExpressions();
+  if (expression_index >= expressions.size()) {
+    return fallback;
+  }
+
+  const bool cacheable = context.tick_index != UINT64_MAX;
+  if (cacheable) {
+    if (m_rotationExpressionValues.size() != expressions.size()) {
+      m_rotationExpressionValues.assign(expressions.size(), LN_Rotation::Identity());
+      m_rotationExpressionTicks.assign(expressions.size(), UINT64_MAX);
+    }
+    if (m_rotationExpressionTicks[expression_index] == context.tick_index) {
+      return m_rotationExpressionValues[expression_index];
+    }
+  }
+
+  const LN_VectorExpression &expression = expressions[expression_index];
+  const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
+      expression.kind);
+  ProfileExpressionEvaluation(semantics.fallback_requirements);
+  RecordMissingSnapshotChannelsForExpression(semantics);
+  LN_Rotation result = fallback;
+  bool resolved = false;
+  switch (expression.kind) {
+    case LN_VectorExpressionKind::Constant:
+      result = expression.output_type == LN_ValueType::Rotation ?
+                   expression.rotation_value :
+                   LN_Rotation::FromEulerXYZ(expression.vector_value);
+      resolved = true;
+      break;
+    case LN_VectorExpressionKind::SnapshotWorldOrientation:
+      if (expression.input0 == LN_INVALID_INDEX) {
+        result = m_snapshot.GetObjectSnapshot().world_orientation;
+        resolved = true;
+      }
+      else if (KX_GameObject *object = ResolveObjectValue(
+                   ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
+      {
+        result = LN_Rotation::FromMatrix(object->NodeGetWorldOrientation());
+        resolved = true;
+      }
+      break;
+    case LN_VectorExpressionKind::SnapshotLocalOrientation:
+      if (expression.input0 == LN_INVALID_INDEX) {
+        result = m_snapshot.GetObjectSnapshot().local_orientation;
+        resolved = true;
+      }
+      else if (KX_GameObject *object = ResolveObjectValue(
+                   ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
+      {
+        result = LN_Rotation::FromMatrix(object->NodeGetLocalOrientation());
+        resolved = true;
+      }
+      break;
+    case LN_VectorExpressionKind::RuntimeTreeProperty:
+      if (const LN_Value *value = GetTreePropertyValue(expression.property_ref_index)) {
+        if (value->type == LN_ValueType::Rotation) {
+          result = value->rotation_value;
+          resolved = true;
+        }
+        else if (value->type == LN_ValueType::Vector) {
+          result = LN_Rotation::FromEulerXYZ(value->vector_value);
+          resolved = true;
+        }
+      }
+      break;
+    case LN_VectorExpressionKind::FromGenericValue: {
+      const LN_Value value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      if (value.type == LN_ValueType::Rotation) {
+        result = value.rotation_value;
+        resolved = true;
+      }
+      else {
+        MT_Vector3 euler;
+        if (ValueAsVector(value, euler)) {
+          result = LN_Rotation::FromEulerXYZ(euler);
+          resolved = true;
+        }
+      }
+      break;
+    }
+    case LN_VectorExpressionKind::Combine: {
+      const float x = ResolveFloatExpression(
+          expression.input0, expression.vector_value.x(), context);
+      const float y = ResolveFloatExpression(
+          expression.input1, expression.vector_value.y(), context);
+      const float z = ResolveFloatExpression(
+          expression.input2, expression.vector_value.z(), context);
+      result = LN_Rotation::FromEulerXYZ(MT_Vector3(x, y, z));
+      resolved = true;
+      break;
+    }
+    case LN_VectorExpressionKind::VectorToRotation:
+      result = LN_Rotation::FromEulerXYZ(VectorToRotationEuler(
+          ResolveVectorExpression(expression.input0, MT_Vector3(0.0f, 0.0f, 1.0f), context),
+          ResolveVectorExpression(expression.input1, MT_Vector3(0.0f, 1.0f, 0.0f), context),
+          int32_t(expression.property_ref_index)));
+      resolved = true;
+      break;
+    case LN_VectorExpressionKind::BoneRotationToObjectRotation:
+      result = LN_BoneRotationToObjectRotation(
+          ResolveRotationExpression(expression.input0, LN_Rotation::Identity(), context));
+      resolved = true;
+      break;
+    case LN_VectorExpressionKind::TweenRotationResult: {
+      const float factor = ResolveTweenMappedFactor(expression.input0, context);
+      if (expression.property_ref_index != 0) {
+        const LN_Rotation from = ResolveRotationExpression(
+            expression.input1, LN_Rotation::Identity(), context);
+        const LN_Rotation to = ResolveRotationExpression(
+            expression.input2, LN_Rotation::Identity(), context);
+        result = from.Slerp(to, factor);
+      }
+      else {
+        /* Euler mode is an explicit component-wise node contract. Preserve authored radians,
+         * including turns outside the canonical [-pi, pi] representation, until after the
+         * interpolation. */
+        const MT_Vector3 from = ResolveVectorExpression(
+            expression.input1, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+        const MT_Vector3 to = ResolveVectorExpression(
+            expression.input2, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+        result = LN_Rotation::FromEulerXYZ(from + (to - from) * factor);
+      }
+      resolved = true;
+      break;
+    }
+    default:
+      result = LN_Rotation::FromEulerXYZ(
+          ResolveVectorExpression(expression_index, fallback.ToEulerXYZ(), context));
+      break;
+  }
+
+  /* Never cache a caller-provided fallback. The same shared expression may be consumed by
+   * sockets with different legacy defaults in one tick. */
+  if (cacheable && resolved) {
+    m_rotationExpressionValues[expression_index] = result;
+    m_rotationExpressionTicks[expression_index] = context.tick_index;
+  }
+  return result;
 }
 
 MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_index,
@@ -16201,9 +20924,9 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
     case LN_VectorExpressionKind::SnapshotLocalPosition:
       return object_snapshot->local_position;
     case LN_VectorExpressionKind::SnapshotWorldOrientation:
-      return object_snapshot->world_orientation;
+      return object_snapshot->world_orientation.ToEulerXYZ();
     case LN_VectorExpressionKind::SnapshotLocalOrientation:
-      return object_snapshot->local_orientation;
+      return object_snapshot->local_orientation.ToEulerXYZ();
     case LN_VectorExpressionKind::SnapshotWorldScale:
       return object_snapshot->world_scale;
     case LN_VectorExpressionKind::SnapshotLocalScale:
@@ -16220,8 +20943,9 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
       return m_snapshot.GetGravity();
     case LN_VectorExpressionKind::SnapshotCharacterGravity: {
       if (const LN_ObjectSnapshot *resolved_object_snapshot = resolve_snapshot_object()) {
-        return resolved_object_snapshot->has_character ? resolved_object_snapshot->character_gravity :
-                                                         fallback;
+        return resolved_object_snapshot->has_character ?
+                   resolved_object_snapshot->character_gravity :
+                   fallback;
       }
       return fallback;
     }
@@ -16247,12 +20971,14 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
       }
       return fallback;
     case LN_VectorExpressionKind::WorldToScreen: {
-      const LN_Value camera_value = ResolveValueExpression(expression.input1, MakeNoneValue(), context);
+      const LN_Value camera_value = ResolveValueExpression(
+          expression.input1, MakeNoneValue(), context);
       KX_Camera *camera = ResolveCameraValue(camera_value);
       MT_Vector3 screen_position;
-      if (ProjectWorldToScreen(camera,
-                               ResolveVectorExpression(expression.input0, expression.vector_value, context),
-                               screen_position))
+      if (ProjectWorldToScreen(
+              camera,
+              ResolveVectorExpression(expression.input0, expression.vector_value, context),
+              screen_position))
       {
         return screen_position;
       }
@@ -16264,9 +20990,8 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
         armature_object = m_snapshot.GetObjectSnapshot().object;
       }
       else {
-        const LN_Value armature_value = ResolveValueExpression(expression.input0,
-                                                               MakeNoneValue(),
-                                                               context);
+        const LN_Value armature_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         armature_object = ResolveObjectValue(armature_value);
       }
       if (armature_object == nullptr) {
@@ -16280,9 +21005,8 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
       if (armature == nullptr) {
         return fallback;
       }
-      const std::string bone_name = ResolveStringExpression(expression.input1,
-                                                            std::string(),
-                                                            context);
+      const std::string bone_name = ResolveStringExpression(
+          expression.input1, std::string(), context);
       if (bone_name.empty()) {
         return fallback;
       }
@@ -16299,9 +21023,8 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
         armature_object = m_snapshot.GetObjectSnapshot().object;
       }
       else {
-        const LN_Value armature_value = ResolveValueExpression(expression.input0,
-                                                               MakeNoneValue(),
-                                                               context);
+        const LN_Value armature_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         armature_object = ResolveObjectValue(armature_value);
       }
       if (armature_object == nullptr) {
@@ -16315,9 +21038,8 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
       if (armature == nullptr) {
         return fallback;
       }
-      const std::string bone_name = ResolveStringExpression(expression.input1,
-                                                            std::string(),
-                                                            context);
+      const std::string bone_name = ResolveStringExpression(
+          expression.input1, std::string(), context);
       if (bone_name.empty()) {
         return fallback;
       }
@@ -16336,14 +21058,12 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
         armature_object = m_snapshot.GetObjectSnapshot().object;
       }
       else {
-        const LN_Value armature_value = ResolveValueExpression(expression.input0,
-                                                               MakeNoneValue(),
-                                                               context);
+        const LN_Value armature_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         armature_object = ResolveObjectValue(armature_value);
       }
-      const std::string bone_name = ResolveStringExpression(expression.input1,
-                                                            std::string(),
-                                                            context);
+      const std::string bone_name = ResolveStringExpression(
+          expression.input1, std::string(), context);
       MT_Vector3 pose_position;
       BonePosePoint point = BonePosePoint::Head;
       if (expression.kind == LN_VectorExpressionKind::BoneTailPoseWorld) {
@@ -16354,8 +21074,7 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
       }
       const LN_BonePosePositionSpace space = NormalizeBonePosePositionSpace(
           expression.property_ref_index);
-      if (ResolveBonePosePosition(armature_object, bone_name, point, space, pose_position))
-      {
+      if (ResolveBonePosePosition(armature_object, bone_name, point, space, pose_position)) {
         return pose_position;
       }
       return fallback;
@@ -16367,14 +21086,12 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
         armature_object = m_snapshot.GetObjectSnapshot().object;
       }
       else {
-        const LN_Value armature_value = ResolveValueExpression(expression.input0,
-                                                               MakeNoneValue(),
-                                                               context);
+        const LN_Value armature_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         armature_object = ResolveObjectValue(armature_value);
       }
-      const std::string bone_name = ResolveStringExpression(expression.input1,
-                                                            std::string(),
-                                                            context);
+      const std::string bone_name = ResolveStringExpression(
+          expression.input1, std::string(), context);
       MT_Vector3 value;
       if (expression.kind == LN_VectorExpressionKind::BonePoseScale) {
         return ResolveBonePoseScale(armature_object, bone_name, value) ? value : fallback;
@@ -16389,9 +21106,8 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
         armature_object = m_snapshot.GetObjectSnapshot().object;
       }
       else {
-        const LN_Value armature_value = ResolveValueExpression(expression.input0,
-                                                               MakeNoneValue(),
-                                                               context);
+        const LN_Value armature_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         armature_object = ResolveObjectValue(armature_value);
       }
       if (armature_object == nullptr) {
@@ -16405,9 +21121,8 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
       if (armature == nullptr) {
         return fallback;
       }
-      const std::string bone_name = ResolveStringExpression(expression.input1,
-                                                            std::string(),
-                                                            context);
+      const std::string bone_name = ResolveStringExpression(
+          expression.input1, std::string(), context);
       if (bone_name.empty()) {
         return fallback;
       }
@@ -16423,20 +21138,17 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
       return (head + tail) * 0.5f;
     }
     case LN_VectorExpressionKind::ScreenToWorld: {
-      const LN_Value camera_value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
+      const LN_Value camera_value = ResolveValueExpression(
+          expression.input0, MakeNoneValue(), context);
       KX_Camera *camera = ResolveCameraValue(camera_value);
       MT_Vector3 world_position;
-      if (ProjectScreenToWorld(camera,
-                               ResolveFloatExpression(expression.input1,
-                                                      expression.vector_value.x(),
-                                                      context),
-                               ResolveFloatExpression(expression.input2,
-                                                      expression.vector_value.y(),
-                                                      context),
-                               ResolveFloatExpression(expression.float_expr_index,
-                                                      expression.vector_value.z(),
-                                                      context),
-                               world_position))
+      if (ProjectScreenToWorld(
+              camera,
+              ResolveFloatExpression(expression.input1, expression.vector_value.x(), context),
+              ResolveFloatExpression(expression.input2, expression.vector_value.y(), context),
+              ResolveFloatExpression(
+                  expression.float_expr_index, expression.vector_value.z(), context),
+              world_position))
       {
         return world_position;
       }
@@ -16444,19 +21156,30 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
     }
     case LN_VectorExpressionKind::RuntimeTreeProperty:
       if (const LN_Value *value = GetTreePropertyValue(expression.property_ref_index)) {
-        return (value->type == LN_ValueType::Rotation) ? value->rotation_euler_value :
-                                                          value->vector_value;
+        return (value->type == LN_ValueType::Rotation) ? value->RotationEulerRadians() :
+                                                         value->vector_value;
       }
       return fallback;
     case LN_VectorExpressionKind::FromGenericValue: {
-      const LN_Value value = ResolveValueExpression(expression.input0,
-                                                    MakeNoneValue(),
-                                                    context);
+      const LN_Value value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
       MT_Vector3 vector;
       if (ValueAsVector(value, vector)) {
         return vector;
       }
       return fallback;
+    }
+    case LN_VectorExpressionKind::BroadcastFloat: {
+      const float scalar = ResolveFloatExpression(expression.float_expr_index, 0.0f, context);
+      return MT_Vector3(scalar, scalar, scalar);
+    }
+    case LN_VectorExpressionKind::BroadcastInt: {
+      const float scalar = float(ResolveIntExpression(expression.input0, 0, context));
+      return MT_Vector3(scalar, scalar, scalar);
+    }
+    case LN_VectorExpressionKind::FromColor: {
+      const MT_Vector4 color = ResolveColorExpression(
+          expression.input0, MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f), context);
+      return MT_Vector3(color.x(), color.y(), color.z());
     }
     case LN_VectorExpressionKind::CursorPosition: {
       const LN_MouseSnapshot &mouse = m_snapshot.GetInputSnapshot().GetMouse();
@@ -16472,11 +21195,10 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
     }
     case LN_VectorExpressionKind::GamepadStick: {
       const int32_t gamepad_index = ResolveIntExpression(expression.input0, 0, context);
-      const float threshold = std::max(
-          0.0f, ResolveFloatExpression(expression.input1, 0.1f, context));
-      const float sensitivity = ResolveFloatExpression(expression.float_expr_index,
-                                                       expression.float_value,
-                                                       context);
+      const float threshold = std::max(0.0f,
+                                       ResolveFloatExpression(expression.input1, 0.1f, context));
+      const float sensitivity = ResolveFloatExpression(
+          expression.float_expr_index, expression.float_value, context);
       const LN_GamepadSnapshot *gamepad = m_snapshot.GetInputSnapshot().GetGamepad(gamepad_index);
       if (gamepad == nullptr || !gamepad->connected) {
         return fallback;
@@ -16500,33 +21222,48 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
       }
       return MT_Vector3(x * sensitivity, y * sensitivity, 0.0f);
     }
+    case LN_VectorExpressionKind::InputActionVector: {
+      const LN_InputActionState *state = m_snapshot.GetInputActionState(
+          LN_InputMap::Get().Find(
+              ResolveStringExpression(expression.input1, std::string(), context)),
+          ResolveIntExpression(expression.input0, 0, context),
+          expression.bool_value);
+      return state != nullptr ? state->vector : MT_Vector3(0.0f, 0.0f, 0.0f);
+    }
     case LN_VectorExpressionKind::TweenVectorResult: {
       const float tween_factor = ResolveTweenMappedFactor(expression.input0, context);
-      const MT_Vector3 from_value = ResolveVectorExpression(expression.input1,
-                                                            MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                            context);
-      const MT_Vector3 to_value = ResolveVectorExpression(expression.input2,
-                                                          MT_Vector3(1.0f, 1.0f, 1.0f),
-                                                          context);
+      const MT_Vector3 from_value = ResolveVectorExpression(
+          expression.input1, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+      const MT_Vector3 to_value = ResolveVectorExpression(
+          expression.input2, MT_Vector3(1.0f, 1.0f, 1.0f), context);
       return from_value + (to_value - from_value) * tween_factor;
     }
     case LN_VectorExpressionKind::TweenRotationResult: {
+      if (expression.property_ref_index != 0) {
+        return ResolveRotationExpression(expression_index, LN_Rotation::Identity(), context)
+            .ToEulerXYZ();
+      }
       const float tween_factor = ResolveTweenMappedFactor(expression.input0, context);
-      const MT_Vector3 from_value = ResolveVectorExpression(expression.input1,
-                                                            MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                            context);
-      const MT_Vector3 to_value = ResolveVectorExpression(expression.input2,
-                                                          MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                          context);
-      return InterpolateRotationEuler(from_value,
-                                      to_value,
-                                      tween_factor,
-                                      expression.property_ref_index != 0);
+      const MT_Vector3 from_value = ResolveVectorExpression(
+          expression.input1, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+      const MT_Vector3 to_value = ResolveVectorExpression(
+          expression.input2, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+      return InterpolateRotationEuler(from_value, to_value, tween_factor);
     }
-    case LN_VectorExpressionKind::PhysicsQueryPoint:
-      return ResolveQueryExpression(expression.input0, context).physics_query.hit_position;
-    case LN_VectorExpressionKind::PhysicsQueryNormal:
-      return ResolveQueryExpression(expression.input0, context).physics_query.hit_normal;
+    case LN_VectorExpressionKind::PhysicsQueryPoint: {
+      const LN_PhysicsQueryResult &query =
+          ResolveQueryExpression(expression.input0, context).physics_query;
+      return query.hit ? query.hit_position : MT_Vector3(0.0f, 0.0f, 0.0f);
+    }
+    case LN_VectorExpressionKind::PhysicsQueryNormal: {
+      const LN_PhysicsQueryResult &query =
+          ResolveQueryExpression(expression.input0, context).physics_query;
+      return query.hit ? query.hit_normal : MT_Vector3(0.0f, 0.0f, 0.0f);
+    }
+    case LN_VectorExpressionKind::UIScrollOffset:
+      return ResolveQueryExpression(expression.input0, context).ui_scroll_offset;
+    case LN_VectorExpressionKind::UIScrollNormalized:
+      return ResolveQueryExpression(expression.input0, context).ui_scroll_normalized;
     case LN_VectorExpressionKind::PhysicsQueryCastPosition:
       return ResolveQueryExpression(expression.input0, context).physics_query.cast_position;
     case LN_VectorExpressionKind::PhysicsQueryDirection:
@@ -16534,20 +21271,33 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
     case LN_VectorExpressionKind::PhysicsQueryEndPoint:
       return ResolveQueryExpression(expression.input0, context).physics_query.end_position;
     case LN_VectorExpressionKind::PhysicsQueryUV: {
-      const MT_Vector2 uv = ResolveQueryExpression(expression.input0, context).physics_query.hit_uv;
+      const MT_Vector2 uv =
+          ResolveQueryExpression(expression.input0, context).physics_query.hit_uv;
       return MT_Vector3(uv.x(), uv.y(), 0.0f);
     }
-    case LN_VectorExpressionKind::SpawnPoolHitPoint: {
-      const SpawnPoolRuntimeState *pool = FindSpawnPoolState(expression.input0);
-      return pool != nullptr ? pool->hit_point : fallback;
-    }
-    case LN_VectorExpressionKind::SpawnPoolHitNormal: {
-      const SpawnPoolRuntimeState *pool = FindSpawnPoolState(expression.input0);
-      return pool != nullptr ? pool->hit_normal : fallback;
-    }
-    case LN_VectorExpressionKind::SpawnPoolHitDirection: {
-      const SpawnPoolRuntimeState *pool = FindSpawnPoolState(expression.input0);
-      return pool != nullptr ? pool->hit_direction : fallback;
+    case LN_VectorExpressionKind::QueryVectorAverage:
+      return ResolveQueryExpression(expression.input0, context).vector_average;
+    case LN_VectorExpressionKind::MotionPosition:
+    case LN_VectorExpressionKind::MotionVelocity:
+    case LN_VectorExpressionKind::MotionDirection:
+    case LN_VectorExpressionKind::MotionPredictedPosition: {
+      if (expression.property_ref_index == LN_INVALID_INDEX) {
+        return fallback;
+      }
+      const FlowControlRuntimeState *state = FindFlowControlState(expression.property_ref_index);
+      if (state == nullptr) {
+        return fallback;
+      }
+      if (expression.kind == LN_VectorExpressionKind::MotionPosition) {
+        return state->motion_position;
+      }
+      if (expression.kind == LN_VectorExpressionKind::MotionVelocity) {
+        return state->motion_velocity;
+      }
+      if (expression.kind == LN_VectorExpressionKind::MotionDirection) {
+        return state->motion_direction;
+      }
+      return state->motion_predicted_position;
     }
     case LN_VectorExpressionKind::Add:
       return ResolveVectorExpression(expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context) +
@@ -16556,88 +21306,68 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
       return ResolveVectorExpression(expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context) -
              ResolveVectorExpression(expression.input1, MT_Vector3(0.0f, 0.0f, 0.0f), context);
     case LN_VectorExpressionKind::Multiply: {
-      const MT_Vector3 a = ResolveVectorExpression(expression.input0,
-                                                   MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                   context);
-      const MT_Vector3 b = ResolveVectorExpression(expression.input1,
-                                                   MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                   context);
+      const MT_Vector3 a = ResolveVectorExpression(
+          expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+      const MT_Vector3 b = ResolveVectorExpression(
+          expression.input1, MT_Vector3(0.0f, 0.0f, 0.0f), context);
       return MT_Vector3(a.x() * b.x(), a.y() * b.y(), a.z() * b.z());
     }
     case LN_VectorExpressionKind::Divide: {
-      const MT_Vector3 a = ResolveVectorExpression(expression.input0,
-                                                   MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                   context);
-      const MT_Vector3 b = ResolveVectorExpression(expression.input1,
-                                                   MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                   context);
+      const MT_Vector3 a = ResolveVectorExpression(
+          expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+      const MT_Vector3 b = ResolveVectorExpression(
+          expression.input1, MT_Vector3(0.0f, 0.0f, 0.0f), context);
       return MT_Vector3(std::fabs(b.x()) <= 1.0e-20f ? 0.0f : a.x() / b.x(),
                         std::fabs(b.y()) <= 1.0e-20f ? 0.0f : a.y() / b.y(),
                         std::fabs(b.z()) <= 1.0e-20f ? 0.0f : a.z() / b.z());
     }
     case LN_VectorExpressionKind::Absolute: {
-      const MT_Vector3 vector = ResolveVectorExpression(expression.input0,
-                                                        MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                        context);
+      const MT_Vector3 vector = ResolveVectorExpression(
+          expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context);
       return MT_Vector3(std::fabs(vector.x()), std::fabs(vector.y()), std::fabs(vector.z()));
     }
     case LN_VectorExpressionKind::Minimum: {
-      const MT_Vector3 a = ResolveVectorExpression(expression.input0,
-                                                   MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                   context);
-      const MT_Vector3 b = ResolveVectorExpression(expression.input1,
-                                                   MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                   context);
-      return MT_Vector3(std::min(a.x(), b.x()),
-                        std::min(a.y(), b.y()),
-                        std::min(a.z(), b.z()));
+      const MT_Vector3 a = ResolveVectorExpression(
+          expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+      const MT_Vector3 b = ResolveVectorExpression(
+          expression.input1, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+      return MT_Vector3(std::min(a.x(), b.x()), std::min(a.y(), b.y()), std::min(a.z(), b.z()));
     }
     case LN_VectorExpressionKind::Maximum: {
-      const MT_Vector3 a = ResolveVectorExpression(expression.input0,
-                                                   MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                   context);
-      const MT_Vector3 b = ResolveVectorExpression(expression.input1,
-                                                   MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                   context);
-      return MT_Vector3(std::max(a.x(), b.x()),
-                        std::max(a.y(), b.y()),
-                        std::max(a.z(), b.z()));
+      const MT_Vector3 a = ResolveVectorExpression(
+          expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+      const MT_Vector3 b = ResolveVectorExpression(
+          expression.input1, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+      return MT_Vector3(std::max(a.x(), b.x()), std::max(a.y(), b.y()), std::max(a.z(), b.z()));
     }
     case LN_VectorExpressionKind::Scale:
-      return ResolveVectorExpression(expression.input0,
-                                     MT_Vector3(0.0f, 0.0f, 0.0f),
-                                     context) *
+      return ResolveVectorExpression(expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context) *
              ResolveFloatExpression(expression.float_expr_index, expression.float_value, context);
     case LN_VectorExpressionKind::Normalize: {
-      const MT_Vector3 vector = ResolveVectorExpression(expression.input0,
-                                                        MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                        context);
+      const MT_Vector3 vector = ResolveVectorExpression(
+          expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context);
       const float length = vector.length();
       return length <= 1.0e-20f ? MT_Vector3(0.0f, 0.0f, 0.0f) : vector * (1.0f / length);
     }
     case LN_VectorExpressionKind::Resize: {
-      const MT_Vector3 vector = ResolveVectorExpression(expression.input0,
-                                                        MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                        context);
+      const MT_Vector3 vector = ResolveVectorExpression(
+          expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context);
       if (expression.float_value >= 3.0f) {
         return vector;
       }
       return MT_Vector3(vector.x(), vector.y(), 0.0f);
     }
     case LN_VectorExpressionKind::RotateAroundAxis: {
-      const MT_Vector3 origin = ResolveVectorExpression(expression.input0,
-                                                        MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                        context);
-      const MT_Vector3 pivot = ResolveVectorExpression(expression.input1,
-                                                       MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                       context);
+      const MT_Vector3 origin = ResolveVectorExpression(
+          expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+      const MT_Vector3 pivot = ResolveVectorExpression(
+          expression.input1, MT_Vector3(0.0f, 0.0f, 0.0f), context);
       const int32_t rotate_mode = int32_t(expression.property_ref_index) / 4;
       const int32_t rotate_axis = int32_t(expression.property_ref_index) % 4;
       if (rotate_mode == 3) {
-        const MT_Vector3 euler = ResolveVectorExpression(expression.input2,
-                                                         MT_Vector3(0.0f, 0.0f, 0.0f),
-                                                         context);
-        return pivot + MT_Matrix3x3(euler) * (origin - pivot);
+        const LN_Rotation rotation = ResolveRotationExpression(
+            expression.input2, LN_Rotation::Identity(), context);
+        return pivot + rotation.ToMatrix() * (origin - pivot);
       }
       MT_Vector3 axis(0.0f, 0.0f, 1.0f);
       if (rotate_mode == 1) {
@@ -16646,18 +21376,15 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
                                   MT_Vector3(0.0f, 0.0f, 1.0f);
       }
       else if (rotate_mode == 2) {
-        axis = ResolveVectorExpression(expression.input2,
-                                       MT_Vector3(0.0f, 0.0f, 1.0f),
-                                       context);
+        axis = ResolveVectorExpression(expression.input2, MT_Vector3(0.0f, 0.0f, 1.0f), context);
       }
       const float axis_length = axis.length();
       if (axis_length <= 1.0e-20f) {
         return origin;
       }
       axis *= 1.0f / axis_length;
-      const float angle = ResolveFloatExpression(expression.float_expr_index,
-                                                 expression.float_value,
-                                                 context);
+      const float angle = ResolveFloatExpression(
+          expression.float_expr_index, expression.float_value, context);
       const MT_Vector3 relative = origin - pivot;
       const float cosine = std::cos(angle);
       const float sine = std::sin(angle);
@@ -16669,6 +21396,10 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
           ResolveVectorExpression(expression.input0, MT_Vector3(0.0f, 0.0f, 1.0f), context),
           ResolveVectorExpression(expression.input1, MT_Vector3(0.0f, 1.0f, 0.0f), context),
           int32_t(expression.property_ref_index));
+    case LN_VectorExpressionKind::BoneRotationToObjectRotation:
+      return LN_BoneRotationToObjectRotation(
+                 ResolveRotationExpression(expression.input0, LN_Rotation::Identity(), context))
+          .ToEulerXYZ();
     case LN_VectorExpressionKind::AxisVector: {
       KX_GameObject *target_object = nullptr;
       if (expression.input0 != LN_INVALID_INDEX) {
@@ -16691,48 +21422,6 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
       }
       return vector;
     }
-    case LN_VectorExpressionKind::GroupCenterPosition: {
-      double sum[3] = {0.0, 0.0, 0.0};
-      uint32_t count = 0;
-
-      if (expression.input0 != LN_INVALID_INDEX) {
-        const LN_Value objects_value = ResolveValueExpression(expression.input0,
-                                                              MakeNoneValue(),
-                                                              context);
-        if (objects_value.type == LN_ValueType::List && objects_value.exists) {
-          for (const LN_Value &item : objects_value.list_value) {
-            accumulate_object_world_position(ResolveObjectValue(item), sum, count);
-          }
-          return count == 0 ?
-                     fallback :
-                     MT_Vector3(float(sum[0] / double(count)),
-                                float(sum[1] / double(count)),
-                                float(sum[2] / double(count)));
-        }
-      }
-
-      blender::Collection *collection = nullptr;
-      if (expression.input1 != LN_INVALID_INDEX) {
-        const LN_Value collection_value = ResolveValueExpression(expression.input1,
-                                                                 MakeNoneValue(),
-                                                                 context);
-        collection = ResolveCollectionByValue(this, collection_value);
-      }
-      if (collection == nullptr) {
-        return fallback;
-      }
-      for (blender::CollectionObject &collection_object : collection->gobject) {
-        if (collection_object.ob == nullptr) {
-          continue;
-        }
-        const std::string object_name = collection_object.ob->id.name + 2;
-        accumulate_object_world_position(FindSceneObjectByName(object_name), sum, count);
-      }
-      return count == 0 ? fallback :
-                          MT_Vector3(float(sum[0] / double(count)),
-                                     float(sum[1] / double(count)),
-                                     float(sum[2] / double(count)));
-    }
     case LN_VectorExpressionKind::RigidBodyAttribute: {
       PHY_IPhysicsController *controller = ResolveRigidBodyAttributeController(expression.input0,
                                                                                context);
@@ -16742,35 +21431,43 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
       return ReadRigidBodyAxisLockAttribute(*controller, expression.bool_value);
     }
     case LN_VectorExpressionKind::Combine:
-      return MT_Vector3(ResolveFloatExpression(expression.input0,
-                                               expression.vector_value.x(),
-                                               context),
-                        ResolveFloatExpression(expression.input1,
-                                               expression.vector_value.y(),
-                                               context),
-                        ResolveFloatExpression(expression.input2,
-                                               expression.vector_value.z(),
-                                               context));
+      return MT_Vector3(
+          ResolveFloatExpression(expression.input0, expression.vector_value.x(), context),
+          ResolveFloatExpression(expression.input1, expression.vector_value.y(), context),
+          ResolveFloatExpression(expression.input2, expression.vector_value.z(), context));
     case LN_VectorExpressionKind::CollisionHitPoint:
-      if (const CollisionResult &collision_result = ResolveCollisionResult(expression.input0,
-                                                                          expression.input1,
-                                                                          expression.input2,
-                                                                          context,
-                                                                          CollisionResult::Detail::Contacts);
+      if (const CollisionResult &collision_result = ResolveCollisionResult(
+              expression.input0,
+              expression.input1,
+              expression.input2,
+              context,
+              CollisionResult::Detail::Contacts);
           collision_result.hit)
       {
         return collision_result.hit_point;
       }
       return fallback;
     case LN_VectorExpressionKind::CollisionHitNormal:
-      if (const CollisionResult &collision_result = ResolveCollisionResult(expression.input0,
-                                                                          expression.input1,
-                                                                          expression.input2,
-                                                                          context,
-                                                                          CollisionResult::Detail::Contacts);
+      if (const CollisionResult &collision_result = ResolveCollisionResult(
+              expression.input0,
+              expression.input1,
+              expression.input2,
+              context,
+              CollisionResult::Detail::Contacts);
           collision_result.hit)
       {
         return collision_result.hit_normal;
+      }
+      return fallback;
+    case LN_VectorExpressionKind::ConstraintBreakAnchorPosition:
+      if (const LN_RigidBodyConstraintBreakEvent *event = ResolveRigidBodyConstraintBreakEvent(
+              expression.input0,
+              expression.input1,
+              expression.input2,
+              expression.rigid_body_constraint_match_mode,
+              context))
+      {
+        return event->anchor_position;
       }
       return fallback;
     case LN_VectorExpressionKind::EvaluateCurveAtFactor: {
@@ -16779,9 +21476,8 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
         curve_object = m_snapshot.GetObjectSnapshot().object;
       }
       else {
-        const LN_Value curve_value = ResolveValueExpression(expression.input0,
-                                                              MakeNoneValue(),
-                                                              context);
+        const LN_Value curve_value = ResolveValueExpression(
+            expression.input0, MakeNoneValue(), context);
         curve_object = ResolveObjectValue(curve_value);
       }
       if (curve_object == nullptr) {
@@ -16797,8 +21493,7 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
         return fallback;
       }
       const MT_Transform world_xform = curve_object->NodeGetWorldTransform();
-      return world_xform *
-             MT_Vector3(path_position[0], path_position[1], path_position[2]);
+      return world_xform * MT_Vector3(path_position[0], path_position[1], path_position[2]);
     }
     case LN_VectorExpressionKind::InstructionNextPoint: {
       const uint32_t state_index = InstructionStateIndex(context.event, expression.input0);
@@ -16808,18 +21503,18 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
       return m_instructionStates[state_index].next_path_point;
     }
     case LN_VectorExpressionKind::Random: {
-      const MT_Vector3 axes = ResolveVectorExpression(expression.input0,
-                                                      MT_Vector3(1.0f, 1.0f, 1.0f),
-                                                      context);
-      return MT_Vector3(axes.x() != 0.0f ? HashToUnitFloat((uint64_t(expression_index) << 32) ^
-                                                           context.tick_index ^ 0x13579u) :
-                                             0.0f,
-                        axes.y() != 0.0f ? HashToUnitFloat((uint64_t(expression_index) << 32) ^
-                                                           context.tick_index ^ 0x24680u) :
-                                             0.0f,
-                        axes.z() != 0.0f ? HashToUnitFloat((uint64_t(expression_index) << 32) ^
-                                                           context.tick_index ^ 0xabcdefu) :
-                                             0.0f);
+      const MT_Vector3 axes = ResolveVectorExpression(
+          expression.input0, MT_Vector3(1.0f, 1.0f, 1.0f), context);
+      return MT_Vector3(
+          axes.x() != 0.0f ?
+              HashToUnitFloat((uint64_t(expression_index) << 32) ^ context.tick_index ^ 0x13579u) :
+              0.0f,
+          axes.y() != 0.0f ?
+              HashToUnitFloat((uint64_t(expression_index) << 32) ^ context.tick_index ^ 0x24680u) :
+              0.0f,
+          axes.z() != 0.0f ? HashToUnitFloat((uint64_t(expression_index) << 32) ^
+                                             context.tick_index ^ 0xabcdefu) :
+                             0.0f);
     }
     case LN_VectorExpressionKind::Count:
       break;
@@ -16859,7 +21554,8 @@ MT_Vector4 LN_RuntimeTree::ResolveColorExpression(const uint32_t expression_inde
     case LN_ColorExpressionKind::SnapshotObjectColor:
       if (expression.input0 != LN_INVALID_INDEX) {
         if (KX_GameObject *game_object = ResolveObjectValue(
-                ResolveValueExpression(expression.input0, MakeNoneValue(), context))) {
+                ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
+        {
           LN_Snapshot snapshot;
           snapshot.Capture(game_object, nullptr);
           return snapshot.GetObjectSnapshot().object_color;
@@ -16870,7 +21566,8 @@ MT_Vector4 LN_RuntimeTree::ResolveColorExpression(const uint32_t expression_inde
     case LN_ColorExpressionKind::SnapshotLightColor:
       if (expression.input0 != LN_INVALID_INDEX) {
         if (KX_GameObject *game_object = ResolveObjectValue(
-                ResolveValueExpression(expression.input0, MakeNoneValue(), context))) {
+                ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
+        {
           LN_Snapshot snapshot;
           snapshot.Capture(game_object, nullptr);
           return snapshot.GetObjectSnapshot().light_color;
@@ -16884,18 +21581,11 @@ MT_Vector4 LN_RuntimeTree::ResolveColorExpression(const uint32_t expression_inde
       }
       return fallback;
     case LN_ColorExpressionKind::Combine:
-      return MT_Vector4(ResolveFloatExpression(expression.input0,
-                                               expression.color_value.x(),
-                                               context),
-                        ResolveFloatExpression(expression.input1,
-                                               expression.color_value.y(),
-                                               context),
-                        ResolveFloatExpression(expression.input2,
-                                               expression.color_value.z(),
-                                               context),
-                        ResolveFloatExpression(expression.input3,
-                                               expression.color_value.w(),
-                                               context));
+      return MT_Vector4(
+          ResolveFloatExpression(expression.input0, expression.color_value.x(), context),
+          ResolveFloatExpression(expression.input1, expression.color_value.y(), context),
+          ResolveFloatExpression(expression.input2, expression.color_value.z(), context),
+          ResolveFloatExpression(expression.input3, expression.color_value.w(), context));
     case LN_ColorExpressionKind::FromGenericValue: {
       MT_Vector4 value;
       return ValueAsColor(ResolveValueExpression(expression.input0, MakeNoneValue(), context),
@@ -16910,10 +21600,12 @@ MT_Vector4 LN_RuntimeTree::ResolveColorExpression(const uint32_t expression_inde
   return fallback;
 }
 
-uint64_t LN_RuntimeTree::CommandSortKey(uint32_t instruction_index,
-                                        uint32_t command_sequence) const
+uint64_t LN_RuntimeTree::CommandSortKey(uint32_t /*instruction_index*/,
+                                        uint32_t /*command_sequence*/) const
 {
-  return (static_cast<uint64_t>(m_sceneObjectIndex) << 40) |
-         (static_cast<uint64_t>(m_appliedTreeIndex) << 24) |
-         (static_cast<uint64_t>(instruction_index) << 8) | command_sequence;
+  /* The command buffer preserves record order within one runtime tree. Keep this key to the
+   * stable tree identity so control-flow iteration order is never re-sorted by static
+   * instruction index. */
+  return (static_cast<uint64_t>(m_sceneObjectIndex) << 32) |
+         static_cast<uint64_t>(m_appliedTreeIndex);
 }

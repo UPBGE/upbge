@@ -7,6 +7,8 @@
 
 #include "SG_Node.h"
 
+#include <atomic>
+
 #include "CM_List.h"
 #include "SG_Controller.h"
 #include "SG_Familly.h"
@@ -15,6 +17,8 @@ using namespace blender;
 
 static CM_ThreadMutex scheduleMutex;
 static CM_ThreadMutex transformMutex;
+/** SG_Node::SetHistoryFollowsUpdates. Threaded action updates read it too. */
+static std::atomic<bool> history_follows_updates(false);
 
 SG_Node::SG_Node(void *clientobj, void *clientinfo, SG_Callbacks &callbacks)
     : SG_QList(),
@@ -413,6 +417,17 @@ SG_ParentRelation *SG_Node::GetParentRelation()
  */
 bool SG_Node::UpdateSpatialData(const SG_Node *parent, double time, bool &parentUpdated)
 {
+  const bool move_history = m_hasPreviousWorldTransform &&
+                            history_follows_updates.load(std::memory_order_relaxed);
+  MT_Vector3 position_before;
+  MT_Matrix3x3 rotation_before;
+  MT_Vector3 scaling_before;
+  if (move_history) {
+    position_before = m_worldPosition;
+    rotation_before = m_worldRotation;
+    scaling_before = m_worldScaling;
+  }
+
   bool bComputesWorldTransform = false;
 
   // update spatial controllers
@@ -430,7 +445,26 @@ bool SG_Node::UpdateSpatialData(const SG_Node *parent, double time, bool &parent
     bComputesWorldTransform = ComputeWorldTransforms(parent, parentUpdated);
   }
 
+  if (move_history && bComputesWorldTransform) {
+    MoveHistoryWith(position_before, rotation_before, scaling_before);
+  }
+
   return bComputesWorldTransform;
+}
+
+void SG_Node::SetHistoryFollowsUpdates(const bool follow)
+{
+  history_follows_updates.store(follow, std::memory_order_relaxed);
+}
+
+void SG_Node::MoveHistoryWith(const MT_Vector3 &position_before,
+                              const MT_Matrix3x3 &rotation_before,
+                              const MT_Vector3 &scaling_before)
+{
+  m_prevWorldPosition += m_worldPosition - position_before;
+  m_prevWorldScaling += m_worldScaling - scaling_before;
+  /* The turn the update made, in world space (a rotation's inverse is its transpose). */
+  m_prevWorldRotation = m_worldRotation * rotation_before.transposed() * m_prevWorldRotation;
 }
 
 /**
@@ -461,6 +495,7 @@ void SG_Node::SetLocalPosition(const MT_Vector3 &trans)
 void SG_Node::SetWorldPosition(const MT_Vector3 &trans)
 {
   m_worldPosition = trans;
+  ++m_worldStamp;
 }
 
 /**
@@ -493,6 +528,7 @@ void SG_Node::SetLocalOrientation(const float *rot)
 void SG_Node::SetWorldOrientation(const MT_Matrix3x3 &rot)
 {
   m_worldRotation = rot;
+  ++m_worldStamp;
 }
 
 void SG_Node::RelativeScale(const MT_Vector3 &scale)
@@ -510,6 +546,7 @@ void SG_Node::SetLocalScale(const MT_Vector3 &scale)
 void SG_Node::SetWorldScale(const MT_Vector3 &scale)
 {
   m_worldScaling = scale;
+  ++m_worldStamp;
 }
 
 const MT_Vector3 &SG_Node::GetLocalPosition() const
@@ -547,6 +584,7 @@ void SG_Node::SetWorldFromLocalTransform()
   m_worldPosition = m_localPosition;
   m_worldScaling = m_localScaling;
   m_worldRotation = m_localRotation;
+  ++m_worldStamp;
 }
 
 MT_Transform SG_Node::GetWorldTransform() const

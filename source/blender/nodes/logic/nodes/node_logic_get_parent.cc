@@ -13,8 +13,10 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Object>("Child Object"_ustr).description("Object to read the parent from");
-  b.add_output<decl::Object>("Parent Object"_ustr).description("Resolved parent object");
+  b.add_input<decl::Object>("Child Object"_ustr)
+      .description("Object to read the parent from; defaults to the logic-tree owner when unset");
+  b.add_output<decl::Object>("Parent Object"_ustr)
+      .description("Direct parent object; bone parents resolve to their armature object");
 }
 
 static void node_register()

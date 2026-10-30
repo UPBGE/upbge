@@ -56,7 +56,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Body"_ustr);
   b.add_input<decl::Object>("Head"_ustr);
-  b.add_input<decl::Vector>(""_ustr, "Inverted"_ustr)
+  b.add_input<decl::Vector>("Inverted"_ustr)
       .default_value(float3(0.0f, 0.0f, 0.0f))
       .custom_draw([](CustomSocketDrawParams &params) {
         if (params.socket.is_directly_linked()) {
@@ -72,13 +72,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       });
   b.add_input<decl::Float>("Sensitivity"_ustr).default_value(1000.0f).min(0.0f);
   b.add_input<decl::Bool>("Cap Left / Right"_ustr).default_value(false);
-  b.add_input<decl::Vector>(""_ustr, "Cap Left / Right Range"_ustr)
+  b.add_input<decl::Vector>("Cap Left / Right Range"_ustr)
       .dimensions(2)
       .subtype(PROP_EULER)
       .default_value(float2(0.0f, 0.0f))
       .custom_draw(draw_cap_range_socket);
   b.add_input<decl::Bool>("Cap Up / Down"_ustr).default_value(true);
-  b.add_input<decl::Vector>(""_ustr, "Cap Up / Down Range"_ustr)
+  b.add_input<decl::Vector>("Cap Up / Down Range"_ustr)
       .dimensions(2)
       .subtype(PROP_EULER)
       .default_value(float2(DEG2RADF(-90.0f), DEG2RADF(90.0f)))
@@ -138,6 +138,8 @@ static void node_register()
   static bke::bNodeType ntype;
 
   logic_node_type_base(&ntype, "LogicNativeMouseLook"_ustr);
+  /* Wide enough for its socket names. */
+  bke::node_type_size(ntype, 190, 140, NODE_DEFAULT_MAX_WIDTH);
   ntype.nclass = NODE_CLASS_OP_VECTOR;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;

@@ -20,6 +20,7 @@ namespace blender::nodes::node_logic_set_dynamics_cc {
 namespace decl = blender::nodes::logic::decl;
 
 static constexpr int ghost_mode = 2;
+static constexpr int restore_original_mode = 4;
 
 static void node_update(bNodeTree *ntree, bNode *node);
 
@@ -27,7 +28,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr).description("Incoming execution pulse");
   b.add_input<decl::Object>("Object"_ustr).description("Object to affect, or the owner when empty");
-  b.add_input<decl::Bool>("Enabled"_ustr).default_value(true);
+  b.add_input<decl::Bool>("Enabled"_ustr)
+      .default_value(true)
+      .description("Enable or disable Ghost while preserving the current physics type");
   b.add_output<decl::Execution>("Done"_ustr);
 }
 
@@ -38,7 +41,9 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree *ntree, bNode *node)
 {
-  node->custom1 = 0;
+  /* Existing files retain their stored legacy value (0 = Restore Previous).
+   * Newly created nodes should instead do the unambiguous game-start restore. */
+  node->custom1 = restore_original_mode;
   node_update(ntree, node);
 }
 

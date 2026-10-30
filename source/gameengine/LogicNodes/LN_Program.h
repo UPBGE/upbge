@@ -143,14 +143,14 @@ class LN_Program {
     return m_queryRuntimeStateCount;
   }
 
-  uint32_t GetSpawnPoolStateCount() const
-  {
-    return m_spawnPoolStateCount;
-  }
-
   uint32_t GetTimeFlowStateCount() const
   {
     return m_timeFlowStateCount;
+  }
+
+  uint32_t GetFlowControlStateCount() const
+  {
+    return m_flowControlStateCount;
   }
 
   uint32_t GetTimerStateCount() const
@@ -168,6 +168,19 @@ class LN_Program {
   const LN_ProgramDependencySummary &GetDependencySummary() const
   {
     return m_dependencySummary;
+  }
+  const std::vector<LN_PauseProcessingRequest> &GetPauseProcessingRequests() const
+  {
+    return m_pauseProcessingRequests;
+  }
+  bool HasPauseProcessingRequests() const
+  {
+    return !m_pauseProcessingRequests.empty();
+  }
+  /** Frame Update instructions that UI events start; they also run while the game is paused. */
+  bool HasUIEventRoutes() const
+  {
+    return m_hasUIEventRoutes;
   }
   std::string DescribeSchedulerSummary() const;
 
@@ -196,19 +209,23 @@ class LN_Program {
     return m_rigidBodyConstraintCommandPayloads;
   }
 
-  const std::vector<std::array<float, LN_TWEEN_CURVE_SAMPLE_COUNT>> &GetTweenCurveTables() const
+  const std::vector<LN_CurveTable> &GetCurveTables() const
   {
-    return m_tweenCurveTables;
+    return m_curveTables;
   }
 
   uint32_t AddGamePropertyRef(const LN_GamePropertyRef &property_ref);
   uint32_t AddTreePropertyRef(const LN_TreePropertyRef &property_ref);
   LN_StringId InternString(const std::string &value);
-  uint32_t AddSpawnPoolState();
   uint32_t AddTimeFlowState();
+  uint32_t AddFlowControlState();
   uint32_t AddTimerState();
   uint32_t AddGroupCallFrame(const LN_GroupCallFrame &call_frame);
   uint32_t AddLoopFrame(const LN_LoopFrame &loop_frame);
+  void AddPauseProcessingRequest(const LN_PauseProcessingRequest &request)
+  {
+    m_pauseProcessingRequests.push_back(request);
+  }
   void UpdateLoopFrame(uint32_t loop_frame_index, const LN_LoopFrame &loop_frame);
   uint32_t AddBoolExpression(const LN_BoolExpression &expression);
   uint32_t AddFloatExpression(const LN_FloatExpression &expression);
@@ -219,7 +236,7 @@ class LN_Program {
   void AddRayQueryDetailRequirement(int32_t cacheKey, uint8_t detailFlags);
   uint32_t AddColorExpression(const LN_ColorExpression &expression);
   uint32_t AddValueExpression(const LN_ValueExpression &expression);
-  uint32_t AddTweenCurveTable(const std::array<float, LN_TWEEN_CURVE_SAMPLE_COUNT> &samples);
+  uint32_t AddCurveTable(const LN_CurveTable &table);
   uint32_t AddSourceRef(const LN_SourceRef &source_ref);
   void AddConstant(const LN_Constant &constant);
   void AddCompileIssue(LN_CompileSeverity severity,
@@ -265,6 +282,11 @@ class LN_Program {
                                             const std::vector<LN_Instruction> &payloads,
                                             std::vector<std::string> &r_errors) const;
   void RebuildExecBlockIR(LN_Event event);
+  void ReorderInstructionsForCompiler(
+      const std::array<std::vector<std::vector<uint32_t>>, 3> &execution_orders,
+      const std::array<std::vector<uint32_t>, 3> &loop_order_depths,
+      const std::array<std::vector<uint32_t>, 3> &instruction_pulse_expressions,
+      const std::array<std::vector<uint32_t>, 3> &instruction_index_vector_expressions);
   bool ValidateExecBlockProgram(const LN_ExecBlockProgram &ir,
                                 const std::vector<LN_InstructionHeader> &headers,
                                 std::vector<std::string> &r_errors) const;
@@ -304,6 +326,8 @@ class LN_Program {
   std::vector<LN_TreePropertyRef> m_treePropertyRefs;
   std::vector<LN_GroupCallFrame> m_groupCallFrames;
   std::vector<LN_LoopFrame> m_loopFrames;
+  std::vector<LN_PauseProcessingRequest> m_pauseProcessingRequests;
+  bool m_hasUIEventRoutes = false;
   std::vector<LN_BoolExpression> m_boolExpressions;
   std::vector<LN_FloatExpression> m_floatExpressions;
   std::vector<LN_IntExpression> m_intExpressions;
@@ -311,19 +335,21 @@ class LN_Program {
   std::vector<LN_VectorExpression> m_vectorExpressions;
   std::vector<LN_QueryExpression> m_queryExpressions;
   uint32_t m_queryRuntimeStateCount = 0;
-  uint32_t m_spawnPoolStateCount = 0;
   uint32_t m_timeFlowStateCount = 0;
+  uint32_t m_flowControlStateCount = 0;
   std::vector<LN_ColorExpression> m_colorExpressions;
   std::vector<LN_ValueExpression> m_valueExpressions;
-  std::vector<std::array<float, LN_TWEEN_CURVE_SAMPLE_COUNT>> m_tweenCurveTables;
+  std::vector<LN_CurveTable> m_curveTables;
   std::vector<LN_VectorCommandPayload> m_vectorCommandPayloads;
   std::vector<LN_GamePropertyCommandPayload> m_gamePropertyCommandPayloads;
   std::vector<LN_RigidBodyConstraintCommandPayload> m_rigidBodyConstraintCommandPayloads;
   std::vector<LN_InstructionHeader> m_onInit;
+  std::vector<LN_InstructionHeader> m_onUpdate;
   std::vector<LN_InstructionHeader> m_onFixedUpdate;
   std::vector<LN_Instruction> m_onInitPayloads;
+  std::vector<LN_Instruction> m_onUpdatePayloads;
   std::vector<LN_Instruction> m_onFixedUpdatePayloads;
-  std::array<LN_ExecBlockProgram, 2> m_execBlockPrograms;
+  std::array<LN_ExecBlockProgram, 3> m_execBlockPrograms;
   LN_RegisterExpressionProgram m_registerExpressionProgram;
   LN_DebugMap m_debugMap;
   LN_CompileReport m_compileReport;

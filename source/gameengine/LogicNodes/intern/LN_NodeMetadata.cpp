@@ -56,6 +56,7 @@ std::vector<LN_NodeMetadataContract> build_metadata_contracts()
     contract.requires_jolt = definition.requires_jolt;
     contract.future_pure_batchable = definition.future_pure_batchable;
     contract.execution_class = definition.execution_class;
+    contract.autonomous_phase = definition.autonomous_phase;
     if (handler_descriptor != nullptr) {
       contract.compile_handler_info = handler_descriptor->info;
       contract.compile_handler_id = handler_descriptor->handler_id != nullptr ?
@@ -152,6 +153,9 @@ bool validate_contract_table(const std::vector<LN_NodeMetadataContract> &contrac
     }
     if (contract.execution_class != definition->execution_class) {
       add_error(errors, contract, "execution class does not match registry definition");
+    }
+    if (contract.autonomous_phase != definition->autonomous_phase) {
+      add_error(errors, contract, "autonomous phase does not match registry definition");
     }
 
     const LN_TreeCompiler::CompileHandlerDescriptor *handler_descriptor =

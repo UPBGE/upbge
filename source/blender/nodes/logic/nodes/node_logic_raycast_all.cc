@@ -27,6 +27,8 @@ static void node_declare(NodeDeclarationBuilder &b)
           "when empty");
   b.add_input<decl::Object>("Ignore Object"_ustr)
       .description("Additional object to exclude from the raycast");
+  b.add_input<decl::List>("Ignore Objects"_ustr)
+      .description("Additional objects to exclude; invalid entries and duplicates are ignored");
   b.add_input<decl::Vector>("Origin"_ustr)
       .default_value(float3(0.0f, 0.0f, 0.0f))
       .description("Ray origin in world or local space");

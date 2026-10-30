@@ -16,7 +16,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Dictionary>("Dictionary"_ustr);
   b.add_input<decl::String>("Key"_ustr).default_value("key");
-  b.add_input<decl::Generic>(""_ustr, "Value"_ustr);
+  b.add_input<decl::Generic>("Value"_ustr);
   b.add_output<decl::Execution>("Done"_ustr);
   b.add_output<decl::Dictionary>("Dictionary"_ustr);
 }

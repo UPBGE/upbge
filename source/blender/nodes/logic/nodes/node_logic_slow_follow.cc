@@ -12,7 +12,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Object"_ustr);
   b.add_input<decl::Object>("Target"_ustr);
-  b.add_input<decl::Float>("Factor"_ustr).default_value(1.0f).min(0.0f).max(1.0f);
+  b.add_input<decl::Float>("Factor"_ustr)
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(1.0f)
+      .description("Fraction of the remaining distance applied on each fixed step");
   b.add_output<decl::Execution>("Done"_ustr);
 }
 

@@ -2744,6 +2744,10 @@ class VIEW3D_MT_add(Menu):
 
         layout.separator()
 
+        layout.menu("VIEW3D_MT_game_ui_add", icon='WINDOW')
+
+        layout.separator()
+
         has_collections = bool(bpy.data.collections)
         col = layout.column()
         col.enabled = has_collections
@@ -2762,6 +2766,48 @@ class VIEW3D_MT_add(Menu):
                 text="Collection Instance",
                 icon='OUTLINER_OB_GROUP_INSTANCE',
             )
+
+
+class VIEW3D_MT_game_ui_add(Menu):
+    bl_label = "Game UI"
+    bl_options = {'SEARCH_ON_KEY_PRESS'}
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator("object.game_ui_menu_add", text="Menu...", icon='WINDOW')
+        layout.separator()
+        layout.operator("object.game_ui_button_add", text="Button", icon='CHECKBOX_DEHLT')
+        layout.operator("object.game_ui_bar_add", text="Bar", icon='SEQ_STRIP_DUPLICATE')
+        layout.operator("object.game_ui_text_add", text="Value Text", icon='OUTLINER_OB_FONT')
+        layout.operator("object.game_ui_grid_add", text="Grid", icon='MESH_GRID')
+        layout.separator()
+        layout.menu("VIEW3D_MT_game_ui_templates", icon='PRESET')
+        layout.separator()
+        layout.operator(
+            "wm.game_ui_example_open",
+            text="Open Complete UI Example",
+            icon='FILE_BLEND',
+        )
+        layout.operator("wm.game_ui_guide_open", text="Open UI Guide", icon='HELP')
+
+
+class VIEW3D_MT_game_ui_templates(Menu):
+    bl_label = "Templates"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        for template, text, icon in (
+                ('INVENTORY', "Inventory...", 'MESH_GRID'),
+                ('CHEST', "Chest...", 'PACKAGE'),
+                ('SETTINGS', "Settings Menu...", 'PREFERENCES'),
+                ('PAUSE', "Pause Menu...", 'PAUSE'),
+                ('PICKUPS', "Pickups...", 'IMPORT'),
+                ('WALKING', "Walking...", 'ARMATURE_DATA'),
+                ('UI_SOUNDS', "UI Sounds...", 'SOUND'),
+        ):
+            layout.operator("object.game_ui_template_add", text=text, icon=icon).template = template
 
 
 class VIEW3D_MT_image_add(Menu):
@@ -9351,6 +9397,8 @@ classes = (
     VIEW3D_MT_lattice_add,
     VIEW3D_MT_empty_add,
     VIEW3D_MT_add,
+    VIEW3D_MT_game_ui_add,
+    VIEW3D_MT_game_ui_templates,
     VIEW3D_MT_image_add,
     VIEW3D_MT_object,
     VIEW3D_MT_object_animation,

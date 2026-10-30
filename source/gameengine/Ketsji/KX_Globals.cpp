@@ -31,12 +31,23 @@
 
 #include "KX_KetsjiEngine.h"
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+#  include "LN_RuntimeTree.h"
+#endif
+
 using namespace blender;
 
 static KX_KetsjiEngine *g_engine = nullptr;
 static KX_Scene *g_scene = nullptr;
 static std::string g_mainPath = "";
 static std::string g_origPath = "";
+
+void KX_ResetLaunchState()
+{
+#ifdef WITH_GAMEENGINE_LOGICNODES
+  LN_ClearGlobalProperties();
+#endif
+}
 
 void KX_SetActiveEngine(KX_KetsjiEngine *engine)
 {

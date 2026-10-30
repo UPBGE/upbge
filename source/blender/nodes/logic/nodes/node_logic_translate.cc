@@ -16,8 +16,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Object"_ustr);
   b.add_input<decl::Bool>("Local"_ustr).default_value(false);
-  b.add_input<decl::Vector>("Vector"_ustr).default_value({0.0f, 0.0f, 0.0f});
-  b.add_input<decl::Float>("Speed"_ustr).default_value(1.0f);
+  b.add_input<decl::Vector>("Vector"_ustr)
+      .default_value({0.0f, 0.0f, 0.0f})
+      .description("Movement direction and magnitude");
+  b.add_input<decl::Float>("Speed"_ustr)
+      .default_value(1.0f)
+      .description("Distance multiplier per second");
   b.add_output<decl::Execution>("When Done"_ustr);
 }
 

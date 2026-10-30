@@ -13,9 +13,14 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Generic>("Value"_ustr);
-  b.add_input<decl::Generic>(""_ustr, "Target"_ustr);
-  b.add_output<decl::Execution>("Result"_ustr);
+  b.add_input<decl::Generic>("Value"_ustr)
+      .description("Value sampled once per fixed Logic + Physics step");
+  b.add_input<decl::Generic>("Target"_ustr)
+      .description("Target value to detect; leave unlinked to detect a change to None");
+  b.add_output<decl::Execution>("If Changed To"_ustr, "Result"_ustr)
+      .description(
+          "Emits for one fixed Logic + Physics step when Value reaches Target; numeric values also emit when "
+          "they cross Target between samples");
 }
 
 static void node_register()

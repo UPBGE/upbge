@@ -32,14 +32,17 @@
 #pragma once
 
 #include "PHY_IController.h"
+
+#include <array>
+#include <cstdint>
 #include <vector>
 
 #include "DNA_object_types.h"
+#include "MT_Vector3.h"
 
 class PHY_IMotionState;
 class PHY_IPhysicsEnvironment;
 
-class MT_Vector3;
 class MT_Matrix3x3;
 
 class KX_GameObject;
@@ -53,14 +56,75 @@ enum class PHY_DynamicsMode {
 };
 
 /**
+ * Explicit runtime physics types offered by the Set Physics State Logic Node.
+ *
+ * These are deliberately separate from #PHY_DynamicsMode. The latter is the
+ * legacy, reversible collision-state overlay (Static, Ghost and No
+ * Collision), while these requests change which system owns motion.
+ */
+enum class PHY_RuntimePhysicsType : uint8_t {
+  Dynamic = 0,
+  RigidBody,
+  Kinematic,
+};
+
+/**
+ * Base motion ownership stored by a checkpoint. `Authored` means that the
+ * body should use the type configured in the blend file; the other values are
+ * explicit runtime overrides.
+ */
+enum class PHY_RuntimeMotionType : uint8_t {
+  Authored = 0,
+  Dynamic,
+  Kinematic,
+};
+
+/**
+ * Fixed-size, backend-neutral rigid-body state used by game-state checkpoints.
+ *
+ * Vectors use UPBGE world coordinates. `ghost` is the independent runtime sensor flag; it is
+ * intentionally separate from the suspended `Ghost` dynamics mode. The six axis locks are
+ * Blender translation X/Y/Z followed by rotation X/Y/Z.
+ */
+struct PHY_GameStateRigidBodyState {
+  bool dynamic_body = false;
+  PHY_DynamicsMode mode = PHY_DynamicsMode::Dynamic;
+  PHY_RuntimeMotionType runtime_motion_type = PHY_RuntimeMotionType::Authored;
+  bool ghost = false;
+  bool physics_suspended = false;
+  bool awake = false;
+  MT_Vector3 linear_velocity = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Vector3 angular_velocity = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Vector3 pending_force = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Vector3 pending_torque = MT_Vector3(0.0f, 0.0f, 0.0f);
+  float mass = 0.0f;
+  float friction = 0.5f;
+  float restitution = 0.0f;
+  float linear_damping = 0.0f;
+  float angular_damping = 0.0f;
+  float linear_velocity_min = -1.0f;
+  float linear_velocity_max = -1.0f;
+  float angular_velocity_min = 0.0f;
+  float angular_velocity_max = 0.0f;
+  float gravity_factor = 1.0f;
+  bool allow_sleeping = true;
+  bool rotation_enabled = false;
+  /** Effective CCD state for the current motion type. Always false for Kinematic. */
+  bool ccd_enabled = false;
+  /** CCD preference to apply if this body is or later becomes Dynamic. */
+  bool dynamic_ccd_enabled = false;
+  std::array<bool, 6> axis_locks = {false, false, false, false, false, false};
+  uint16_t collision_group = 0;
+  uint16_t collision_mask = 0;
+};
+
+/**
  * PHY_IPhysicsController is the abstract simplified Interface to a physical object.
  * It contains the IMotionState and IDeformableMesh Interfaces.
  */
 class PHY_IPhysicsController : public PHY_IController {
  public:
-  virtual ~PHY_IPhysicsController()
-  {
-  }
+  virtual ~PHY_IPhysicsController() {}
   /**
    * SynchronizeMotionStates ynchronizes dynas, kinematic and deformable entities (and do 'late
    * binding')
@@ -69,13 +133,57 @@ class PHY_IPhysicsController : public PHY_IController {
 
   virtual void UpdateSoftBody() = 0;
   virtual void SetSoftBodyTransform(const MT_Vector3 &pos, const MT_Matrix3x3 &ori) = 0;
+  virtual bool IsSoftBody() const
+  {
+    return false;
+  }
+  /** Checkpoint support is intentionally opt-in; non-Jolt backends keep these defaults. */
+  virtual bool SupportsGameStatePersistence() const
+  {
+    return false;
+  }
+  virtual bool HasValidGameStateBody() const
+  {
+    return false;
+  }
+  /** Allocate/build a replacement rigid shape before the checkpoint commit boundary. */
+  virtual bool PrepareGameStateScaling(const MT_Vector3 & /*target_scale*/,
+                                       const MT_Vector3 & /*current_scale*/)
+  {
+    return false;
+  }
+  /** Install a shape prepared above. This is called only after a successful full preflight. */
+  virtual void CommitPreparedGameStateScaling() {}
+  virtual void ClearPreparedGameStateScaling() {}
+  /**
+   * Capture semantic rigid-body state. Backends must read latent motion properties when a dynamic
+   * body is temporarily static or absent from the broadphase.
+   */
+  virtual bool CaptureGameStateRigidBody(PHY_GameStateRigidBodyState & /*r_state*/) const
+  {
+    return false;
+  }
+  /**
+   * Validate and stage a rigid-body restore without mutating the live body. Commit is called
+   * physics-last, after hierarchy, transforms and any prepared shape change.
+   */
+  virtual bool PrepareGameStateRigidBody(const PHY_GameStateRigidBodyState & /*state*/)
+  {
+    return false;
+  }
+  virtual void CommitPreparedGameStateRigidBody() {}
+  virtual void ClearPreparedGameStateRigidBody() {}
   virtual void RemoveSoftBodyModifier(blender::Object *ob) = 0;
   /**
    * WriteMotionStateToDynamics ynchronizes dynas, kinematic and deformable entities (and do 'late
    * binding')
    */
 
-  virtual void WriteMotionStateToDynamics(bool nondynaonly) = 0;
+  /**
+   * Synchronize the game transform before a physics step. `timeStep` is zero
+   * for out-of-band callers that do not own a simulation step.
+   */
+  virtual void WriteMotionStateToDynamics(bool nondynaonly, float timeStep = 0.0f) = 0;
   virtual void WriteDynamicsToMotionState() = 0;
   virtual class PHY_IMotionState *GetMotionState() = 0;
   // controller replication
@@ -103,23 +211,17 @@ class PHY_IPhysicsController : public PHY_IController {
   {
     return 0.0f;
   }
-  virtual void SetRestitution(MT_Scalar /*restitution*/)
-  {
-  }
+  virtual void SetRestitution(MT_Scalar /*restitution*/) {}
   virtual float GetGravityFactor() const
   {
     return 1.0f;
   }
-  virtual void SetGravityFactor(float /*factor*/)
-  {
-  }
+  virtual void SetGravityFactor(float /*factor*/) {}
   virtual bool GetAllowSleeping() const
   {
     return true;
   }
-  virtual void SetAllowSleeping(bool /*allow*/)
-  {
-  }
+  virtual void SetAllowSleeping(bool /*allow*/) {}
   virtual void SetRigidBodyAxisLocks(bool /*lockTranslationX*/,
                                      bool /*lockTranslationY*/,
                                      bool /*lockTranslationZ*/,
@@ -170,6 +272,36 @@ class PHY_IPhysicsController : public PHY_IController {
   virtual void RestorePhysics() = 0;
   virtual void SuspendDynamics(bool ghost = false) = 0;
   virtual void RestoreDynamics() = 0;
+  virtual bool SupportsTransformParenting() const
+  {
+    return false;
+  }
+  virtual bool BeginTransformParenting()
+  {
+    return false;
+  }
+  /** Enter the collision-disabled child state required while this shape is owned by a compound. */
+  virtual bool SupportsCompoundParenting() const
+  {
+    return false;
+  }
+  virtual bool BeginCompoundParenting()
+  {
+    return false;
+  }
+  virtual void EndTransformParenting() {}
+  virtual bool IsTransformParentingActive() const
+  {
+    return false;
+  }
+  /**
+   * Return whether a reversible collision-state request is coherent for this body.
+   * Backends may reject combinations such as disabling Ghost on a dedicated Sensor type.
+   */
+  virtual bool CanSetDynamicsMode(PHY_DynamicsMode /*mode*/, bool /*enabled*/) const
+  {
+    return true;
+  }
   virtual void SetDynamicsMode(PHY_DynamicsMode mode, bool enabled = true)
   {
     switch (mode) {
@@ -197,6 +329,21 @@ class PHY_IPhysicsController : public PHY_IController {
         SuspendDynamics(false);
         break;
     }
+  }
+
+  /**
+   * Change motion ownership at runtime. Backends return false when the body
+   * was not created with the capabilities needed for a safe transition.
+   */
+  virtual bool SetRuntimePhysicsType(PHY_RuntimePhysicsType /*type*/)
+  {
+    return false;
+  }
+
+  /** Restore the exact game-start physics type configured for this body. */
+  virtual bool RestoreOriginalPhysicsType()
+  {
+    return false;
   }
 
   virtual void SetActive(bool active) = 0;
@@ -243,8 +390,27 @@ class PHY_IPhysicsController : public PHY_IController {
   // Shape control
   virtual void AddCompoundChild(PHY_IPhysicsController *child) = 0;
   virtual void RemoveCompoundChild(PHY_IPhysicsController *child) = 0;
+  /** Checked compound mutation used by transactional game-engine parenting. */
+  virtual bool TryAddCompoundChild(PHY_IPhysicsController * /*child*/)
+  {
+    return false;
+  }
 
   virtual bool IsDynamic() = 0;
+  /** Authored transform-driven body. Backends without this motion type return false. */
+  virtual bool IsKinematic() const
+  {
+    return false;
+  }
+  /**
+   * Teleport a transform-driven body to its current motion-state pose and clear
+   * any derived velocity.
+   *
+   * This is a lifecycle operation for spawning, restoration, and resuming a
+   * paused simulation. Normal gameplay transforms must not call it: they need
+   * the backend's velocity-producing kinematic target path instead.
+   */
+  virtual void RebaseKinematicMotionState() {}
   virtual bool IsCompound() = 0;
   virtual bool IsDynamicsSuspended() const = 0;
   virtual bool IsPhysicsSuspended() = 0;

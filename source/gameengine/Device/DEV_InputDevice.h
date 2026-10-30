@@ -36,6 +36,7 @@ class DEV_InputDevice : public SCA_IInputDevice {
   std::map<int, SCA_EnumInputs> m_reverseKeyTranslateTable;
   std::map<int, SCA_EnumInputs> m_reverseButtonTranslateTable;
   std::map<int, SCA_EnumInputs> m_reverseWindowTranslateTable;
+  bool m_windowFocused = true;
 
  public:
   DEV_InputDevice();
@@ -47,4 +48,13 @@ class DEV_InputDevice : public SCA_IInputDevice {
   void ConvertMoveEvent(int x, int y);
   void ConvertWheelEvent(int z);
   void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
+  /** The game window has the keyboard and mouse focus (window activate/deactivate events). */
+  void SetWindowFocused(const bool focused)
+  {
+    m_windowFocused = focused;
+  }
+  bool IsWindowFocused() const
+  {
+    return m_windowFocused;
+  }
 };

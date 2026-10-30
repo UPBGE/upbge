@@ -466,6 +466,11 @@ void LookdevModule::rotate_world()
   if (!inst_.is_viewport() || !inst_.use_studio_light()) {
     return;
   }
+  /* UPBGE: the copy is only stored while a studio HDRI is used (see
+   * SphereProbeModule::remap_to_octahedral_projection). */
+  if (!world_sphere_probe_.is_valid()) {
+    return;
+  }
 
   AxisAngle axis_angle_rotation(AxisSigned::Z_NEG, studio_light_rotation_z_);
   float4x4 rotation = math::from_rotation<float4x4>(axis_angle_rotation);

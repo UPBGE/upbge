@@ -62,6 +62,8 @@ class BL_ArmatureChannel : public EXP_Value {
   static int py_attr_setattr(EXP_PyObjectPlus *self,
                              const struct EXP_PYATTRIBUTE_DEF *attrdef,
                              PyObject *value);
+  static int py_attr_pose_updated(EXP_PyObjectPlus *self,
+                                  const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *py_attr_get_joint_rotation(EXP_PyObjectPlus *self,
                                               const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static int py_attr_set_joint_rotation(EXP_PyObjectPlus *self,

@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Panel, Menu
+from bpy.types import Panel, Menu, UIList
 
 import re
 
@@ -150,6 +150,7 @@ class GAME_PT_logic_nodes(GameButtonsPanel, Panel):
         else:
             apply_col.label(text="Open a Logic Node Tree in the editor", icon='INFO')
         apply_col.operator("object.logic_nodes_apply_tree", icon="PREFERENCES", text="Apply To Selected")
+        apply_col.operator("object.logic_nodes_binding_clear", icon='X', text="Remove From Selected")
 
         bindings = ob.game.logic_node_bindings
         if len(bindings) == 0:
@@ -166,22 +167,20 @@ class GAME_PT_logic_nodes(GameButtonsPanel, Panel):
             header = box.row(align=True)
             header.prop(binding, "enabled", text="")
             header.label(text=tree_name, icon='NODETREE')
-            op = header.operator("object.logic_nodes_binding_remove", text="", icon='X')
-            op.index = index
-
-            body = box.row(align=True)
-            body.prop(binding, "tree", text="")
-            body.operator(
+            # Edit keeps its own size at the right, with a small gap before the remove button.
+            buttons = header.row()
+            buttons.alignment = 'RIGHT'
+            buttons.operator(
                 "object.logic_nodes_find_tree",
                 text="Edit",
                 icon='NODETREE',
             ).tree_name = tree_name
+            op = buttons.operator("object.logic_nodes_binding_remove", text="", icon='X')
+            op.index = index
 
             status_text, status_icon = logic_nodes_binding_status(context, binding)
             if status_text:
                 box.label(text=status_text, icon=status_icon)
-
-        layout.operator("object.logic_nodes_binding_clear", icon="TRASH", text="Clear All Trees")
 
 
 class GAME_MT_component_context_menu(Menu):
@@ -209,6 +208,139 @@ class GAME_MT_component_context_menu(Menu):
         layout.operator("logic.python_component_move_down", icon="TRIA_DOWN").index = index
 
 
+class GAME_UL_property_options(UIList):
+    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
+        layout.prop(item, "name", text="", emboss=False)
+
+
+class GAME_UL_property_items(UIList):
+    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
+        layout.prop(item, "value", text="", emboss=False)
+
+
+class GAME_UL_property_columns(UIList):
+    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
+        row = layout.row()
+        row.prop(item, "name", text="", emboss=False)
+        row.prop(item, "type", text="", emboss=False)
+
+
+class GAME_UL_property_rows(UIList):
+    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
+        row = layout.row()
+        for cell in item.cells:
+            row.prop(cell, "value", text="", emboss=False)
+
+
+def _draw_game_property_items(layout, list_type, prop, collection, active, index, target):
+    row = layout.row()
+    row.template_list(list_type, prop.name, prop, collection, prop, active, rows=3)
+    col = row.column(align=True)
+    props = col.operator("object.game_property_item_add", icon='ADD', text="")
+    props.index = index
+    props.target = target
+    props = col.operator("object.game_property_item_remove", icon='REMOVE', text="")
+    props.index = index
+    props.target = target
+    col.separator()
+    for icon, direction in (('TRIA_UP', 'UP'), ('TRIA_DOWN', 'DOWN')):
+        props = col.operator("object.game_property_item_move", icon=icon, text="")
+        props.index = index
+        props.target = target
+        props.direction = direction
+
+
+class GAME_UL_inventory_rules(UIList):
+    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
+        row = layout.row()
+        row.prop(item, "name", text="", emboss=False)
+        row.label(text=str(item.users), icon='LINKED')
+
+
+def draw_inventory_rules(layout, rules):
+    """One set of Inventory Rules: each value, with the game property of the list's object it may
+    read from while playing ("or from")."""
+    col = layout.column()
+
+    def with_source(value, source):
+        row = col.row(align=True)
+        row.prop(rules, value)
+        row.prop(rules, source, text="", icon='PROPERTIES', placeholder="or from property")
+
+    with_source("capacity", "capacity_from")
+    with_source("use_stack", "stack_from")
+    with_source("max_stack", "max_stack_from")
+    with_source("use_keep_places", "keep_places_from")
+    col.prop(rules, "recipes")
+    with_source("accept_categories", "accept_categories_from")
+    col.prop(rules, "item_library")
+
+
+def _draw_list_inventory_rules(layout, prop, index):
+    """The Inventory Rules a List or Table follows: the scene's set it picks, shown here so it
+    can be changed from any list that uses it."""
+    scene = bpy.context.scene
+    if scene is None:
+        return
+    game_settings = scene.game_settings
+    row = layout.row(align=True)
+    row.prop_search(prop, "inventory_rules", game_settings, "inventory_rules", text="Inventory Rules")
+    row.operator("object.game_property_inventory_rules_new", text="", icon='ADD').index = index
+    if not prop.inventory_rules:
+        return
+    rules = game_settings.inventory_rules.get(prop.inventory_rules)
+    if rules is None:
+        row = layout.row()
+        row.alert = True
+        row.label(text="Not in this scene: it follows the defaults", icon='ERROR')
+        return
+    users = [ob.name for ob in scene.objects for other in ob.game.properties
+             if other.type in {'LIST', 'TABLE'} and other.inventory_rules == rules.name]
+    sub = layout.box()
+    sub.label(text="Used by {:d}: {:s}".format(len(users), ", ".join(users)), icon='LINKED')
+    draw_inventory_rules(sub, rules)
+
+
+def draw_game_property(layout, prop, index, show_save_game=True):
+    box = layout.box()
+    row = box.row()
+    row.prop(prop, "name", text="")
+    row.prop(prop, "type", text="")
+    if prop.type == 'LIST':
+        row.prop(prop, "item_type", text="")
+    elif prop.type not in {'VECTOR', 'TABLE'}:
+        row.prop(prop, "value", text="")
+    if show_save_game:
+        row.prop(prop, "use_save_game", text="", toggle=True, icon='FILE_TICK')
+    row.prop(prop, "show_debug", text="", toggle=True, icon='INFO')
+    sub = row.row(align=True)
+    props = sub.operator("object.game_property_move", text="", icon='TRIA_UP')
+    props.index = index
+    props.direction = 'UP'
+    props = sub.operator("object.game_property_move", text="", icon='TRIA_DOWN')
+    props.index = index
+    props.direction = 'DOWN'
+    row.operator("object.game_property_remove", text="", icon='X', emboss=False).index = index
+
+    if prop.type == 'VECTOR':
+        box.row().prop(prop, "value", text="")
+    elif prop.type == 'CHOICE':
+        _draw_game_property_items(
+            box, "GAME_UL_property_options", prop, "options", "active_option_index", index, 'ITEM')
+    elif prop.type == 'LIST':
+        _draw_game_property_items(
+            box, "GAME_UL_property_items", prop, "elements", "active_element_index", index, 'ITEM')
+    elif prop.type == 'TABLE':
+        box.label(text="Columns:")
+        _draw_game_property_items(
+            box, "GAME_UL_property_columns", prop, "columns", "active_column_index", index, 'COLUMN')
+        box.label(text="Rows:")
+        _draw_game_property_items(
+            box, "GAME_UL_property_rows", prop, "rows", "active_row_index", index, 'ITEM')
+    if prop.type in {'LIST', 'TABLE'}:
+        _draw_list_inventory_rules(box, prop, index)
+
+
 class GAME_PT_game_properties(GameButtonsPanel, Panel):
     bl_label = "Game Properties"
 
@@ -223,6 +355,8 @@ class GAME_PT_game_properties(GameButtonsPanel, Panel):
         ob = context.active_object
         game = ob.game
         is_font = (ob.type == 'FONT')
+
+        layout.prop(game, "use_save_game_object_state", icon='FILE_TICK')
 
         if is_font:
             prop_index = game.properties.find("Text")
@@ -252,20 +386,199 @@ class GAME_PT_game_properties(GameButtonsPanel, Panel):
             if is_font and i == prop_index:
                 continue
 
-            box = layout.box()
-            row = box.row()
-            row.prop(prop, "name", text="")
-            row.prop(prop, "type", text="")
-            row.prop(prop, "value", text="")
-            row.prop(prop, "show_debug", text="", toggle=True, icon='INFO')
-            sub = row.row(align=True)
-            props = sub.operator("object.game_property_move", text="", icon='TRIA_UP')
-            props.index = i
-            props.direction = 'UP'
-            props = sub.operator("object.game_property_move", text="", icon='TRIA_DOWN')
-            props.index = i
-            props.direction = 'DOWN'
-            row.operator("object.game_property_remove", text="", icon='X', emboss=False).index = i
+            draw_game_property(layout, prop, i)
+
+
+class GAME_PT_game_properties_live_text(GameButtonsPanel, Panel):
+    bl_label = "Live Text"
+    bl_parent_id = "GAME_PT_game_properties"
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        return ob and ob.type == 'FONT'
+
+    def draw(self, context):
+        import textwrap
+        # Braces in a text show game values by themselves: nothing else in the interface says so.
+        col = self.layout.column()
+        col.active = False
+        # Wrapped to the editor's width (labels do not wrap), at about 5.5 pixels a letter; the
+        # lines of one item close together.
+        ui_scale = context.preferences.system.ui_scale
+        width = max(16, int((context.region.width - 60 * ui_scale) / (5.5 * ui_scale)))
+        icon = 'INFO'
+        for paragraph in (
+                "Braces show live values:",
+                "{Player.gold}: Player's gold",
+                "{gold}: this object's or parent's",
+                "{gold:1}: one decimal, :0 none",
+                "{Jump}: the Jump action's key",
+                "Fast-changing values: :0 or a Bar",
+        ):
+            item = col.column(align=True)
+            item.scale_y = 0.7
+            for line in textwrap.wrap(paragraph, width, break_long_words=False):
+                item.label(text=line, icon=icon)
+                icon = 'BLANK1'
+
+
+class GameUIElementPanel(GameButtonsPanel):
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        return ob and ob.game
+
+    def draw_settings(self, layout, ui):
+        raise NotImplementedError
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        ui = context.active_object.game.ui
+        layout.active = ui.use_element
+        self.draw_settings(layout, ui)
+
+
+class GAME_PT_ui_element(GameUIElementPanel, Panel):
+    bl_label = "UI Element"
+
+    def draw_header(self, context):
+        self.layout.prop(context.active_object.game.ui, "use_element", text="")
+
+    def draw_settings(self, layout, ui):
+        layout.prop(ui, "action")
+        layout.prop(ui, "interactable")
+        layout.prop(ui, "pointer")
+        layout.prop(ui, "focus")
+        row = layout.row()
+        row.active = ui.focus != 'NONE'
+        row.prop(ui, "tab_order")
+        layout.prop(ui, "anchor")
+        row = layout.row()
+        row.active = not ui.use_any_player
+        row.prop(ui, "player")
+        layout.prop(ui, "use_any_player")
+
+
+class GAME_PT_ui_element_drag(GameUIElementPanel, Panel):
+    bl_label = "Drag and Drop"
+    bl_parent_id = "GAME_PT_ui_element"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_settings(self, layout, ui):
+        layout.prop(ui, "use_draggable")
+        col = layout.column()
+        col.active = ui.use_draggable
+        col.prop(ui, "follow_cursor")
+        sub = col.column()
+        sub.active = ui.follow_cursor
+        sub.prop(ui, "drag_look")
+        col.prop(ui, "use_click_pick_up")
+        col.prop(ui, "drag_threshold")
+        layout.prop(ui, "use_drop_target")
+        col = layout.column()
+        col.active = ui.use_drop_target
+        col.prop(ui, "accept_categories")
+        col.prop(ui, "refused_object")
+        row = layout.row()
+        row.active = ui.use_draggable or ui.use_drop_target
+        row.prop(ui, "drop_group")
+
+
+class GAME_PT_ui_element_look(GameUIElementPanel, Panel):
+    bl_label = "Look"
+    bl_parent_id = "GAME_PT_ui_element"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_settings(self, layout, ui):
+        layout.prop(ui, "hover_scale")
+        layout.prop(ui, "press_scale")
+        row = layout.row()
+        row.active = ui.hover_scale != 1.0 or ui.press_scale != 1.0
+        row.prop(ui, "look_time")
+        layout.prop(ui, "highlight_object")
+
+
+class GAME_PT_ui_element_tooltip(GameUIElementPanel, Panel):
+    bl_label = "Tooltip"
+    bl_parent_id = "GAME_PT_ui_element"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_settings(self, layout, ui):
+        layout.prop(ui, "tooltip_object")
+        col = layout.column()
+        col.active = ui.tooltip_object is not None
+        col.prop(ui, "tooltip_text", placeholder="{name}\\n{description}")
+        col.prop(ui, "tooltip_placement")
+        row = col.row()
+        row.active = ui.tooltip_placement == 'BESIDE'
+        row.prop(ui, "tooltip_offset")
+
+
+class GAME_PT_ui_element_widget(GameUIElementPanel, Panel):
+    bl_label = "Widget"
+    bl_parent_id = "GAME_PT_ui_element"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_settings(self, layout, ui):
+        layout.prop(ui, "widget")
+        if ui.widget == 'NONE':
+            return
+        layout.prop(ui, "widget_object")
+        layout.prop(ui, "widget_property")
+        if ui.widget == 'SLIDER':
+            col = layout.column(align=True)
+            col.prop(ui, "widget_min")
+            col.prop(ui, "widget_max")
+            layout.prop(ui, "widget_step")
+            layout.prop(ui, "widget_part", text="Handle")
+        elif ui.widget == 'TOGGLE':
+            layout.prop(ui, "widget_part", text="Check Mark")
+        elif ui.widget == 'TEXT':
+            layout.prop(ui, "widget_part", text="Text")
+            layout.prop(ui, "widget_max", text="Max Length")
+        elif ui.widget == 'BAR':
+            layout.prop(ui, "widget_part", text="Fill")
+            col = layout.column(align=True)
+            col.prop(ui, "widget_min")
+            row = col.row(align=True)
+            row.active = not ui.widget_max_property
+            row.prop(ui, "widget_max")
+            layout.prop(ui, "widget_max_property")
+            layout.prop(ui, "look_time", text="Smoothing")
+        else:
+            layout.prop(ui, "widget_part", text="Text")
+            col = layout.column(align=True)
+            col.label(text="Number properties step from Min to Max:")
+            col.prop(ui, "widget_min")
+            col.prop(ui, "widget_max")
+            col.prop(ui, "widget_step")
+
+
+class GAME_PT_ui_element_navigation(GameUIElementPanel, Panel):
+    bl_label = "Navigation"
+    bl_parent_id = "GAME_PT_ui_element"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_settings(self, layout, ui):
+        layout.active = ui.use_element and ui.focus == 'ALL'
+        col = layout.column(align=True)
+        col.prop(ui, "navigation_up")
+        col.prop(ui, "navigation_down")
+        col.prop(ui, "navigation_left")
+        col.prop(ui, "navigation_right")
+
+
+class GAME_PT_ui_element_advanced(GameUIElementPanel, Panel):
+    bl_label = "Advanced"
+    bl_parent_id = "GAME_PT_ui_element"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_settings(self, layout, ui):
+        layout.prop(ui, "priority")
+        layout.prop(ui, "padding")
 
 
 class PhysicsButtonsPanel:
@@ -562,6 +875,28 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         row.label(text="Axle Direction:")
         row.prop(vehicle, "axle_direction_axis", text="")
 
+    @staticmethod
+    def draw_smooth_motion(layout, ob, gs):
+        """Smooth Motion, and what Scene Default means for this object."""
+        game = ob.game
+        col = layout.column()
+        # Only fixed steps are drawn between steps.
+        col.active = gs.physics_timestep_method == 'FIXED'
+        col.prop(game, "smooth_motion")
+        if game.smooth_motion != 'SCENE':
+            return
+        parent = ob.parent
+        while parent is not None and parent.game.smooth_motion == 'SCENE':
+            parent = parent.parent
+        if parent is not None:
+            mode = parent.game.bl_rna.properties["smooth_motion"].enum_items[parent.game.smooth_motion].name
+            text = "{:s} (from {:s})".format(mode, parent.name)
+        else:
+            text = "Interpolate (scene)" if gs.use_fixed_physics_interpolation else "None (scene)"
+        row = col.row()
+        row.alignment = 'RIGHT'
+        row.label(text=text)
+
     def draw(self, context):
         layout = self.layout
 
@@ -572,6 +907,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         is_jolt = (gs.physics_engine == 'JOLT')
 
         layout.prop(game, "physics_type")
+        if game.physics_type != 'NAVMESH':
+            self.draw_smooth_motion(layout, ob, gs)
         layout.separator()
 
         physics_type = game.physics_type
@@ -821,12 +1158,17 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
                 col.prop(soft, "kdg", text="Drag Coefficient")
                 col.prop(soft, "klf", text="Lift Coefficient")
 
-        elif physics_type == 'STATIC':
+        elif physics_type in {'STATIC', 'KINEMATIC'}:
             col = layout.column()
-            if not is_jolt:
+            if physics_type == 'KINEMATIC':
+                if is_jolt:
+                    col.label(text="Driven by game transforms; pushes Dynamic objects.", icon='INFO')
+                else:
+                    col.label(text="Requires Jolt; this body runs as Static in Bullet.", icon='ERROR')
+            elif not is_jolt:
                 col.prop(game, "use_actor")
             col.prop(game, "use_ghost")
-            if not is_jolt:
+            if physics_type == 'STATIC' and not is_jolt:
                 col.prop(ob, "hide_render", text="Invisible")
 
             layout.separator()
@@ -835,12 +1177,12 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
             col = split.column()
             col.label(text="Attributes:")
-            if not is_jolt:
+            if physics_type == 'STATIC' and not is_jolt:
                 col.prop(game, "radius")
             col.prop(game, "elasticity", slider=True)
             col.label(text="Friction:")
             col.prop(game, "friction")
-            if not is_jolt:
+            if physics_type == 'STATIC' and not is_jolt:
                 col.prop(game, "rolling_friction")
 
                 col = split.column()
@@ -849,7 +1191,6 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
                 subsub = sub.column()
                 subsub.active = game.use_anisotropic_friction
                 subsub.prop(game, "friction_coefficients", text="", slider=True)
-
         elif physics_type == 'SENSOR':
             col = layout.column()
             if is_jolt:
@@ -972,7 +1313,7 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
         gs = context.scene.game_settings
         if not (context.scene.render.engine in cls.COMPAT_ENGINES):
             return False
-        if game.physics_type not in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'CHARACTER', 'SOFT_BODY', 'VEHICLE'}:
+        if game.physics_type not in {'SENSOR', 'STATIC', 'KINEMATIC', 'DYNAMIC', 'RIGID_BODY', 'CHARACTER', 'SOFT_BODY', 'VEHICLE'}:
             return False
         if gs.physics_engine == 'JOLT' and game.physics_type == 'SOFT_BODY':
             return False
@@ -1062,7 +1403,7 @@ class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
             return False
         if game.physics_type == 'VEHICLE':
             return False
-        if game.physics_type not in {'SENSOR', 'STATIC', 'DYNAMIC', 'RIGID_BODY', 'SOFT_BODY', 'CHARACTER', 'NO_COLLISION'}:
+        if game.physics_type not in {'SENSOR', 'STATIC', 'KINEMATIC', 'DYNAMIC', 'RIGID_BODY', 'SOFT_BODY', 'CHARACTER', 'NO_COLLISION'}:
             return False
         return True
 
@@ -1144,6 +1485,10 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
                 row_render = col.row()
                 row_render.enabled = gs.use_fixed_fps_cap
                 row_render.prop(gs, "fixed_render_cap_rate", text="Render Frames Per Second")
+                # The jitter fix only applies while vsync paces the frames (no FPS Limit).
+                row_jitter = col.row()
+                row_jitter.active = not gs.use_fixed_fps_cap and gs.vsync != 'OFF'
+                row_jitter.prop(gs, "jitter_fix")
                 col.prop(gs, "use_fixed_physics_interpolation", text="Physics Interpolation")
 
                 if hasattr(bpy.types, "LogicNodeTree") and hasattr(gs, "use_logic_nodes_parallel"):
@@ -1226,10 +1571,16 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
                 col.label(text="Jolt Physics Settings:")
                 col.prop(gs, "jolt_velocity_solver_iterations", text="Velocity Solver Iterations")
                 col.prop(gs, "jolt_position_solver_iterations", text="Position Solver Iterations")
-                col.prop(gs, "jolt_physics_threads", text="Physics Threads (-1 = Auto)")
+                col.prop(gs, "jolt_physics_cpu_use", text="Physics CPU Use")
+                if gs.jolt_physics_cpu_use == 'AUTO':
+                    col.label(text="This computer: up to {:d} of {:d} cores".format(
+                        gs.jolt_physics_auto_cores, gs.jolt_physics_computer_cores))
+                else:
+                    col.prop(gs, "jolt_physics_max_cores", text="Max Cores")
                 col.prop(gs, "jolt_max_bodies", text="Max Bodies")
                 col.prop(gs, "jolt_debug_errors", text="Debug Errors")
-                # Max Body Pairs, Contact Constraints, Temp Allocator are auto-calculated from Max Bodies
+                # Room for body pairs and contacts and the temp allocator grow with Max Bodies
+                # (JoltPhysicsEnvironment::Create)
 
         else:
             split = layout.split()
@@ -1374,6 +1725,35 @@ class SCENE_PT_game_hysteresis(SceneButtonsPanel, Panel):
         row.active = gs.use_scene_hysteresis
         row.prop(gs, "scene_hysteresis_percentage", text="")
 
+
+class SCENE_PT_game_split_screen_quality(SceneButtonsPanel, Panel):
+    bl_label = "Split Screen Quality"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return (scene and scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        gs = context.scene.game_settings
+
+        col = layout.column()
+        col.label(text="In Each Player's View While Split:")
+        col.prop(gs, "use_split_lod_by_view_size")
+        col.label(text="Turn Off:")
+        col.prop(gs, "split_disable_shadows", text="Shadows")
+        col.prop(gs, "split_disable_ray_tracing", text="Ray Tracing")
+        col.prop(gs, "split_disable_volumetric_shadows", text="Volumetric Shadows")
+        col.prop(gs, "split_disable_motion_blur", text="Motion Blur")
+        col.prop(gs, "split_disable_extra_samples", text="Extra Samples")
+
+
 class SCENE_PT_game_console(SceneButtonsPanel, Panel):
     bl_label = "Game Python Console"
     bl_options = {'DEFAULT_CLOSED'}
@@ -1403,6 +1783,154 @@ class SCENE_PT_game_console(SceneButtonsPanel, Panel):
         row.prop(gs, "python_console_key2", text="", event=True)
         row.prop(gs, "python_console_key3", text="", event=True)
         row.prop(gs, "python_console_key4", text="", event=True)
+
+
+class GAME_UL_input_actions(UIList):
+    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
+        row = layout.row()
+        if item.is_ui_control:
+            # Not renamable, but not disabled either.
+            row.label(text=item.name, translate=False)
+        else:
+            row.prop(item, "name", text="", emboss=False)
+        if item.context:
+            row.label(text=item.context)
+
+
+class GAME_UL_input_bindings(UIList):
+    def filter_items(self, _context, _data, _propname):
+        # Bindings have no names to filter by: always show them all, in order.
+        return [], []
+
+    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
+        row = layout.row(align=True)
+        row.prop(item, "device", text="", emboss=False)
+        if item.device == 'KEYBOARD':
+            row.prop(item, "key", text="", event=True)
+        elif item.device == 'MOUSE':
+            row.prop(item, "mouse_button", text="")
+        else:
+            row.prop(item, "gamepad_control", text="")
+
+
+class SCENE_PT_game_input_map(SceneButtonsPanel, Panel):
+    bl_label = "Game Input Map"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return (scene and scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        gs = context.scene.game_settings
+
+        row = layout.row()
+        row.template_list(
+            "GAME_UL_input_actions", "", gs, "input_actions", gs, "active_input_action_index", rows=5)
+        col = row.column(align=True)
+        col.operator("scene.game_input_action_add", icon='ADD', text="")
+        col.operator("scene.game_input_action_remove", icon='REMOVE', text="")
+        col.separator()
+        col.operator("scene.game_input_map_reset", icon='LOOP_BACK', text="")
+
+        index = gs.active_input_action_index
+        if not 0 <= index < len(gs.input_actions):
+            return
+        action = gs.input_actions[index]
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        col = layout.column()
+        if not action.is_ui_control:
+            col.prop(action, "type")
+        col.prop(action, "context")
+
+        row = layout.row()
+        row.template_list(
+            "GAME_UL_input_bindings", "", action, "bindings", action, "active_binding_index", rows=3)
+        col = row.column(align=True)
+        col.operator_menu_enum("scene.game_input_binding_add", "device", icon='ADD', text="")
+        col.operator("scene.game_input_binding_remove", icon='REMOVE', text="")
+
+        index = action.active_binding_index
+        if not 0 <= index < len(action.bindings):
+            return
+        binding = action.bindings[index]
+        col = layout.column()
+        if binding.device != 'GAMEPAD':
+            row = col.row(heading="Hold", align=True)
+            row.prop(binding, "use_shift", toggle=True)
+            row.prop(binding, "use_ctrl", toggle=True)
+            row.prop(binding, "use_alt", toggle=True)
+        if action.type == 'VECTOR' and binding.gamepad_control not in {'LEFT_STICK', 'RIGHT_STICK'}:
+            col.prop(binding, "direction")
+
+
+class SCENE_PT_game_items_ui(SceneButtonsPanel, Panel):
+    bl_label = "Items and UI"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return (scene and scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        layout.prop(context.scene.game_settings, "item_library")
+
+
+class SCENE_PT_game_inventory_rules(SceneButtonsPanel, Panel):
+    bl_label = "Inventory Rules"
+    bl_parent_id = "SCENE_PT_game_items_ui"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        gs = context.scene.game_settings
+        layout.label(text="Lists (List or Table game properties) pick a set by name")
+        row = layout.row()
+        row.template_list(
+            "GAME_UL_inventory_rules", "", gs, "inventory_rules", gs, "active_inventory_rules_index",
+            rows=3)
+        col = row.column(align=True)
+        col.operator("scene.game_inventory_rules_add", icon='ADD', text="")
+        col.operator("scene.game_inventory_rules_remove", icon='REMOVE', text="")
+        index = gs.active_inventory_rules_index
+        if 0 <= index < len(gs.inventory_rules):
+            draw_inventory_rules(layout, gs.inventory_rules[index])
+
+
+class SCENE_PT_game_input_map_settings(SceneButtonsPanel, Panel):
+    bl_label = "Settings"
+    bl_parent_id = "SCENE_PT_game_input_map"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        gs = context.scene.game_settings
+
+        col = layout.column()
+        col.prop(gs, "input_repeat_delay")
+        col.prop(gs, "input_repeat_interval")
+        col.prop(gs, "input_stick_threshold")
+        col.prop(gs, "use_input_swap_accept_back")
+        col.prop(gs, "use_input_gamepads_from_player_1")
+        col.prop(gs, "use_input_press_to_join")
 
 class DataButtonsPanel:
     bl_space_type = 'PROPERTIES'
@@ -1459,6 +1987,28 @@ class OBJECT_PT_upbge_dupli_base(ObjectButtonsPanel, Panel):
         layout = self.layout
         ob = context.object
         layout.prop(ob.game, "use_upbge_dupli_base")
+
+
+class OBJECT_PT_game_draw_as(ObjectButtonsPanel, Panel):
+    bl_label = "Game Drawing"
+    COMPAT_ENGINES = {
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return ob and ob.type == 'MESH' and ob.game and context.scene.render.engine in cls.COMPAT_ENGINES
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        game = context.object.game
+        layout.prop(game, "draw_as")
+        if game.draw_as == 'AUTO':
+            layout.label(text="Shares one object with identical objects until it changes", icon='INFO')
+        elif game.draw_as == 'MERGED':
+            layout.label(text="Merged with nearby Merged objects at game start", icon='INFO')
 
 class OBJECT_MT_lod_tools(Menu):
     bl_label = "Level Of Detail Tools"
@@ -1522,10 +2072,25 @@ class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
 
 
 classes = (
+    GAME_UL_property_options,
+    GAME_UL_property_items,
+    GAME_UL_property_columns,
+    GAME_UL_property_rows,
+    GAME_UL_input_actions,
+    GAME_UL_input_bindings,
+    GAME_UL_inventory_rules,
     GAME_PT_game_object,
     GAME_PT_game_components,
     GAME_PT_logic_nodes,
     GAME_PT_game_properties,
+    GAME_PT_game_properties_live_text,
+    GAME_PT_ui_element,
+    GAME_PT_ui_element_drag,
+    GAME_PT_ui_element_look,
+    GAME_PT_ui_element_tooltip,
+    GAME_PT_ui_element_widget,
+    GAME_PT_ui_element_navigation,
+    GAME_PT_ui_element_advanced,
     GAME_MT_component_context_menu,
     PHYSICS_PT_game_physics,
     PHYSICS_PT_game_force_field,
@@ -1538,9 +2103,15 @@ classes = (
     SCENE_PT_game_physics_obstacles,
     SCENE_PT_game_navmesh,
     SCENE_PT_game_hysteresis,
+    SCENE_PT_game_split_screen_quality,
     SCENE_PT_game_console,
+    SCENE_PT_game_input_map,
+    SCENE_PT_game_input_map_settings,
+    SCENE_PT_game_items_ui,
+    SCENE_PT_game_inventory_rules,
     OBJECT_MT_lod_tools,
     OBJECT_PT_upbge_dupli_base,
+    OBJECT_PT_game_draw_as,
     OBJECT_PT_activity_culling,
     OBJECT_PT_levels_of_detail,
 )

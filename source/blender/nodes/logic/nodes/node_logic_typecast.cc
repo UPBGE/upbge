@@ -20,9 +20,9 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_update(bNodeTree *ntree, bNode *node)
 {
-  static const char *outputs[] = {"Integer", "Boolean", "String", "Float"};
-  const int active_output = std::clamp<int>(node->custom1, 0, 3);
-  for (int index = 0; index < 4; index++) {
+  static const char *outputs[] = {"Integer", "Boolean", "String", "Float", "Vector"};
+  const int active_output = std::clamp<int>(node->custom1, 0, 4);
+  for (int index = 0; index < 5; index++) {
     if (bNodeSocket *socket = node->output_by_identifier(UString(outputs[index]))) {
       bke::node_set_socket_availability(*ntree, *socket, index == active_output);
     }
@@ -31,21 +31,26 @@ static void node_update(bNodeTree *ntree, bNode *node)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Generic>(""_ustr, "Value"_ustr);
+  b.add_input<decl::Generic>("Value"_ustr);
   b.add_output<decl::Int>("Integer"_ustr);
   b.add_output<decl::Bool>("Boolean"_ustr);
   b.add_output<decl::String>("String"_ustr);
   b.add_output<decl::Float>("Float"_ustr);
+  b.add_output<decl::Vector>("Vector"_ustr);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout.prop(ptr, "to_type", UI_ITEM_NONE, "", ICON_NONE);
+  if (RNA_enum_get(ptr, "to_type") == 0) {
+    layout.prop(ptr, "integer_rounding", UI_ITEM_NONE, "", ICON_NONE);
+  }
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = 0;
+  node->custom2 = 0;
 }
 
 static void node_register()

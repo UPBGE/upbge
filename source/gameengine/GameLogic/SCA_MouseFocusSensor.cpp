@@ -96,23 +96,6 @@ void SCA_MouseFocusSensor::Init()
 
 bool SCA_MouseFocusSensor::Evaluate()
 {
-
-  KX_Camera *previousCam = m_kxscene->GetActiveCamera();
-  /* If scene has an overlay camera,
-   * we want mouse events to be computed in overlay camera space.
-   * Then we mark the overlay camera as active camera.
-   */
-  KX_Camera *overlayCam = m_kxscene->GetOverlayCamera();
-  bool restorePreviousCam = false;
-  if (overlayCam) {
-    blender::Object *obcam = overlayCam->GetBlenderObject();
-    blender::Camera *blCam = (blender::Camera *)obcam->data;
-    if (blCam->gameflag & GAME_CAM_OVERLAY_MOUSE_CONTROL) {
-      m_kxscene->SetActiveCamera(m_kxscene->GetOverlayCamera());
-      restorePreviousCam = true;
-    }
-  }
-
   bool result = false;
   bool obHasFocus = false;
   bool reset = m_reset && m_level;
@@ -154,10 +137,6 @@ bool SCA_MouseFocusSensor::Evaluate()
 
   m_mouse_over_in_previous_frame = obHasFocus;
   m_hitObject_Last = (void *)m_hitObject;
-
-  if (restorePreviousCam) {
-    m_kxscene->SetActiveCamera(previousCam);
-  }
 
   return result;
 }
@@ -385,14 +364,29 @@ bool SCA_MouseFocusSensor::ParentObjectHasFocus()
   m_hitPosition.setValue(0, 0, 0);
   m_hitNormal.setValue(1, 0, 0);
 
-  KX_Camera *activecam = m_kxscene->GetActiveCamera();
+  KX_Camera *focus_cam = m_kxscene->GetActiveCamera();
+  KX_Camera *overlay_cam = m_kxscene->GetOverlayCamera();
+  if (overlay_cam != nullptr) {
+    blender::Object *camera_object = overlay_cam->GetBlenderObject();
+    blender::Camera *camera_data =
+        camera_object != nullptr && camera_object->type == blender::OB_CAMERA ?
+            reinterpret_cast<blender::Camera *>(camera_object->data) :
+            nullptr;
+    if (camera_data != nullptr &&
+        (camera_data->gameflag & GAME_CAM_OVERLAY_MOUSE_CONTROL) != 0)
+    {
+      /* Use the overlay camera directly for picking. It must remain distinct from the active
+       * scene camera so render scheduling and every other consumer observe stable camera state. */
+      focus_cam = overlay_cam;
+    }
+  }
 
-  if (ParentObjectHasFocusCamera(activecam))
+  if (focus_cam != nullptr && ParentObjectHasFocusCamera(focus_cam))
     return true;
 
   EXP_ListValue<KX_Camera> *cameras = m_kxscene->GetCameraList();
   for (KX_Camera *cam : cameras) {
-    if ((cam != activecam) && cam->GetViewport())
+    if ((cam != focus_cam) && cam->GetViewport())
       if (ParentObjectHasFocusCamera(cam))
         return true;
   }

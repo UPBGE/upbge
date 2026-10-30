@@ -14,9 +14,8 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr).description("Incoming execution pulse");
-  b.add_input<decl::Float>("Timescale"_ustr).default_value(1.0f).min(0.0f);
+  b.add_input<decl::Float>("Timescale"_ustr).default_value(1.0f).min(0.0f).max(10000.0f);
   b.add_output<decl::Execution>("Done"_ustr);
-
 }
 
 static void node_register()

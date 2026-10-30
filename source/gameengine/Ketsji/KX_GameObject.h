@@ -40,16 +40,19 @@
 
 #include <stddef.h>
 
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "BLI_uuid.h"
 #include "DNA_constraint_types.h" /* for constraint replication */
 #include "DNA_object_types.h"
 #include "DNA_rigidbody_types.h"
 
 #include "EXP_ListValue.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
+#include "KX_Parenting.h"
 #include "KX_Scene.h"
 #include "MT_Transform.h"
 #include "../Physics/Common/PHY_RigidBodyConstraintSettings.h"
@@ -69,9 +72,20 @@ class KX_PythonComponent;
 class RAS_MeshObject;
 class PHY_IPhysicsController;
 class BL_ActionManager;
+struct BL_ActionPlayResult;
 class KX_CollisionContactPointList;
 struct DupliObject;
+namespace blender { struct ID; }
+namespace blender { struct Object; }
 namespace blender { struct Mesh; }
+
+/** Blender simulates the object (or what it instances) from its pose and its past: an armature,
+ * metaball, instancer, rigid body, particles, force field or a physics modifier. */
+bool KX_BlenderSimulatesObject(const blender::Object *ob);
+namespace blender { struct Material; }
+namespace blender { struct Main; }
+namespace blender { struct Depsgraph; }
+namespace blender { struct Scene; }
 
 #ifdef WITH_PYTHON
 /* utility conversion function */
@@ -89,10 +103,27 @@ void KX_GameObject_Mathutils_Callback_Init(void);
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
+class KX_ObjectReferenceValue;
+
 class KX_GameObject : public SCA_IObject {
   Py_Header
 
  public :
+
+  struct SaveGamePropertyMetadata {
+    enum class Type : uint8_t {
+      Bool = 0,
+      Int,
+      Float,
+      String,
+      Vector3,
+      Vector4,
+      Object,
+      List,
+      Dict
+    } type = Type::String;
+    bool timer = false;
+  };
 
   struct ActivityCullingInfo {
 
@@ -113,32 +144,276 @@ class KX_GameObject : public SCA_IObject {
  protected:
   /* EEVEE INTEGRATION */
   bool m_isReplica;
+  std::vector<KX_ObjectReferenceValue *> m_referenceValues;
   bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
+  bool m_isUpbgeDupliBase = false;
   bool m_isUpbgeDupliInstance;
+  /** A Dupli copy's own "original" object in Blender's drawing: a copy of its base's, refreshed
+   * at every draw. Renderers key their motion and shadow records by the original object, so
+   * without it all copies of a base shared one record. Owned by the scene once retired. */
+  blender::Object *m_dupliDrawOriginal = nullptr;
+  float m_dupliDrawnMatrix[4][4];
+  bool m_dupliDrawnValid = false;
+  /** A fingerprint of what the stand-in copied from the base, to copy again only on a change. */
+  uint64_t m_dupliDrawBaseState = 0;
+  /** Blender's update count when this copy last moved: renderers redraw its shadow only then
+   * (the base's own stamp moves whenever any copy moves). */
+  uint64_t m_dupliMovedUpdate = 0;
+  /** Drawn in a group (KX_Scene::BeginDupliDrawGroups): the copy's key in the renderers. */
+  int m_dupliDrawId = 0;
+  /** Its Object Info Random, and the Blender object it was taken from. */
+  uint32_t m_dupliDrawRandom = 0;
+  const blender::Object *m_dupliDrawRandomOf = nullptr;
+  /** The scene's grouped pass that drew this copy (the copies' own entries leave it out). */
+  uint64_t m_dupliGroupedPass = 0;
+  void ReleaseDupliDrawOriginal();
+
+ public:
+  /** What draw culling keeps of this object (KX_Scene::CulledInCameraPass). */
+  struct DrawCullState {
+    /** Its bounding sphere in its own space (the bounds of what Blender draws for it), found at
+     * its first test and again after its mesh or Blender object changed. */
+    float center[3] = {0.0f, 0.0f, 0.0f};
+    float radius = 0.0f;
+    bool bounds_known = false;
+    /** A mesh with bounds: what draw distances test. */
+    bool cullable = false;
+    /** Clip End too: no modifiers, shape keys, particles or instancing, which could make what
+     * Blender draws outgrow the bounds unnoticed. */
+    bool clip_cullable = false;
+    /** Its "draw_distance" game property, held (Logic Nodes change its number in place); found
+     * again when its properties are replaced (PropertyMapChanged). */
+    EXP_Value *distance_value = nullptr;
+    bool distance_value_known = false;
+    /** Its collections' largest "draw_distance" custom property, and the scene's membership
+     * version it was read at. */
+    float collection_distance = 0.0f;
+    uint32_t collection_distance_version = 0;
+    /** The culling cameras whose last pass culled it, a bit each, and those whose next pass
+     * applies a change noted to the renderers (a still view, KX_Scene::CulledInCameraPass). */
+    uint32_t culled_cameras = 0;
+    uint32_t pending_cameras = 0;
+    /** The scene's culling pass (KX_Scene::CullPass::id) that gave this answer. */
+    uint64_t pass = 0;
+    bool pass_culled = false;
+    /** The sphere in the world, for the node and world stamp it was found at (found again only
+     * after a write to the node's world transform). */
+    float world_center[3] = {0.0f, 0.0f, 0.0f};
+    float world_radius = 0.0f;
+    const SG_Node *world_node = nullptr;
+    uint64_t world_stamp = 0;
+  };
+
+ protected:
+  DrawCullState m_drawCull;
   /* END OF EEVEE INTEGRATION */
 
   /// external client info (game object in this case)
   KX_ClientObjectInfo *m_pClient_info;
 
-  MT_Transform m_cachedRenderTransform;
+  /** Exact authoritative pose cached while the SG node temporarily contains a render pose. */
+  MT_Vector3 m_cachedRenderPosition;
+  MT_Matrix3x3 m_cachedRenderOrientation;
+  MT_Vector3 m_cachedRenderScale;
   MT_Transform m_cachedInterpolatedTransform;
   bool m_useRenderInterpolation;
+  /** O(1) duplicate guard for KX_Scene::m_interpolatedObjects. */
+  bool m_interpolationListRegistered;
+  /** The pose last handed to Blender for drawing (TagForTransformUpdate). Blender is told only
+   * when the drawn pose differs: physics, Smooth Motion or logic writing the same pose again
+   * moves nothing. */
+  float m_renderSyncedMatrix[4][4];
+  bool m_renderSyncedValid;
+  /** The drawn frame (KX_KetsjiEngine::GetRenderFrame) whose pose was compared: the frame's
+   * later camera passes see the same pose and skip the object. */
+  uint64_t m_renderSyncedFrame;
+  /** The node and its world stamp (SG_Node::GetWorldStamp) at that compare: no write since, no
+   * compare needed. */
+  const SG_Node *m_renderSyncedNode = nullptr;
+  uint64_t m_renderSyncedStamp = 0;
+  /** The pose changed and Blender's evaluated object does not hold it yet: written at the next
+   * pass's TagForTransformUpdateEvaluated even when Blender did not evaluate its transform (a
+   * shading-only update, as for a fluid object). */
+  bool m_evaluatedPoseDue;
+
+  /** How a move reaches Blender's drawing (TagForTransformUpdate). */
+  enum class PosePath : uint8_t {
+    /** Chosen at the next move (again after the engine rebuilt Blender's relations). */
+    Unknown,
+    /** Blender evaluates each move (a transform mark): something of Blender's reads the position. */
+    Tagged,
+    /** The engine writes each move into Blender's evaluated object after the pass's update
+     * (WriteDirectPose): Blender's per-move work (a copy of the object, its transform steps, the
+     * flush) is skipped. */
+    Direct,
+  };
+  PosePath m_posePath = PosePath::Unknown;
+  /** KX_Scene::RenderSyncRelations when the pose path and m_poseFromBlender were found. */
+  uint64_t m_posePathRelations = 0;
+  /** Moves marked while finding out whether the object's own geometry reads its position:
+   * Blender's update count before the pass of the one in progress (0: none), and how many showed
+   * its geometry evaluated with the transform. */
+  uint64_t m_posePathProbeStart = 0;
+  uint8_t m_posePathProbes = 0;
+  /** Blender computes the evaluated pose from other things (a parent, constraints, drivers, or
+   * the object takes its pose from Blender): looked at after every pass's update. */
+  bool m_poseFromBlender = false;
+  /** The pass (KX_Scene's count) the object was last listed in for a look after the update. */
+  uint64_t m_poseCheckPass = 0;
+
+  /** Smooth Motion (OB_SMOOTH_MOTION_*): the object's own choice of how it is drawn between
+   * fixed steps. */
+  char m_smoothMotion;
+  /** ResetSmoothing was asked: the last move is a jump, faded out over this many seconds (0: a
+   * snap). Taken by the next step or drawn frame, for the children too. */
+  bool m_smoothResetPending;
+  float m_smoothResetBlend;
+  /** A blended jump fading out: drawn this far from its smoothed pose, times
+   * smoothstep(time left / duration). */
+  MT_Vector3 m_smoothCorrectionOffset;
+  MT_Quaternion m_smoothCorrectionTurn;
+  float m_smoothCorrectionLeft;
+  float m_smoothCorrectionDuration;
+  /** Where the last drawn frame showed the object (while drawn smoothed), and that frame's
+   * number (KX_Scene::ApplyPhysicsInterpolation). */
+  MT_Vector3 m_smoothDrawnPosition;
+  MT_Matrix3x3 m_smoothDrawnOrientation;
+  uint64_t m_smoothDrawnFrame;
 
   std::string m_name;
+  /** Fixed runtime copies of authored/source and optional spawned-instance identities. */
+  blender::bUUID m_persistenceSourceUuid;
+  blender::bUUID m_persistenceInstanceUuid;
+  std::unordered_map<std::string, SaveGamePropertyMetadata> m_saveGameProperties;
+  /** Inventory Rules each List or Table game property picks (property name → set name). */
+  std::unordered_map<std::string, std::string> m_inventoryRuleSets;
+  bool m_saveGameObjectState;
+  /**
+   * Arguments of the last successful runtime SetParent operation.
+   *
+   * These are intent metadata, not inferred physics state. They let Save Object State reject
+   * compound/ghost relationships before attempting the deliberately narrow hierarchy restore.
+   */
+  bool m_parentCompoundIntent;
+  bool m_parentGhostIntent;
+  bool m_parentPhysicsManaged;
   int m_layer;
   std::vector<RAS_MeshObject *> m_meshes;
   KX_LodManager *m_lodManager;
   short m_currentLodLevel;
+  /** The scene's copy of a borrowed mesh this object currently draws (see UpdateLod). */
+  blender::Mesh *m_replaceMeshEval = nullptr;
   blender::Object *m_pBlenderObject;
   blender::Object *m_pBlenderGroupObject;
+  /** The authored Blender object whose collections this object is in while the game runs
+   * (KX_Scene::CollectionsOf); null: its own. An Add Object copy keeps its source's, as its own
+   * copy is linked to the scene's master collection. Only compared, never read: it may outlive
+   * the object. */
+  const blender::Object *m_collectionSource = nullptr;
+  /** Set Collection Member: the collections this object was put in (true) or taken out of
+   * (false) while playing, oldest first, one entry per collection. Copies keep them; Save Game
+   * keeps them for objects with Save Object State. Only compared, never read. */
+  std::vector<std::pair<const blender::Collection *, bool>> m_collectionMemberships;
+  /** The collections the object is directly in now (KX_Scene::CollectionsOf), valid while the
+   * version equals the scene's membership version. */
+  std::vector<const blender::Collection *> m_effectiveCollections;
+  uint32_t m_effectiveCollectionsVersion = 0;
+  /** Bit i: in the scene's camera Collection i. Valid while the version equals the scene's. */
+  uint32_t m_cameraCollectionBits = 0;
+  uint32_t m_cameraCollectionsVersion = 0;
 
   bool m_bIsNegativeScaling;
   MT_Vector4 m_objectColor;
+  /** The Blender object's color when this object was converted from it. SetObjectColor writes
+   * the original Blender object, so DiscardRenderedObject gives this color back: else a menu
+   * opened again (its objects converted again) would start with the color an action or Set
+   * Object Color left, such as a cell still lit when the menu closed. */
+  MT_Vector4 m_convertedColor;
+  bool m_hasConvertedColor = false;
+
+  /** A material slot this object holds its own copy of (OwnMaterial), with what the slot held
+   * before, given back when the object goes. */
+  struct OwnMaterialSlot {
+    short slot = 0; /* 1-based, as BKE_object_material_get */
+    blender::Material *source = nullptr;
+    blender::Material *copy = nullptr;
+    char matbits = 0;
+    blender::Material *object_material = nullptr;
+  };
+  std::vector<OwnMaterialSlot> m_ownMaterials;
+  /** Puts back what the slots held before their copies, in `ob`, and, with `delete_copies`,
+   * deletes the copies nothing uses any more. */
+  void RestoreOwnMaterials(blender::Object *ob, bool delete_copies);
+  /** Data made for this object alone (a Full Copy's duplicated mesh, shape keys, actions and
+   * materials): deleted with its Blender object unless the game gave it another user. */
+  std::vector<blender::ID *> m_ownedData;
+  /** What ReplicateBlenderObject copied: its source's session id, data and modifier count. A
+   * removed copy whose Blender object still matches them and that the game changed in no other
+   * way is parked for the next copy of the same source (KX_Scene::ParkCopy). */
+  uint32_t m_replicaSourceUid = 0;
+  blender::ID *m_replicaSourceData = nullptr;
+  int m_replicaSourceModifiers = 0;
+  /** The game changed the Blender object beyond its pose, color, materials and visibility (a
+   * modifier, constraint or property action, a Geometry Nodes input, a modifier switch, Load
+   * Game's modifier state): its copy is deleted when it goes, never parked. */
+  bool m_blenderObjectChanged = false;
+  /** Made by an Add Object (KX_Scene::CopyReuseScope): parked when removed if it can be. */
+  bool m_blenderObjectReusable = false;
+  bool m_hasOwnMesh = false;
+  bool CanParkBlenderObject(const blender::Object *ob) const;
+
+  /** Draw As Auto, in a group (KX_Scene::SetupGameDrawing): an instance drawn from its group's
+   * Blender object (bge_dupli_provider), while the game object keeps its own (out of Blender's
+   * graph) for its name, collections and saved state, and takes it back when it needs something
+   * of its own (LeaveSharedGroup). Null for everything else; a Dupli Base's copy draws from its
+   * own Blender object, the base. */
+  blender::Object *m_dupliDrawBase = nullptr;
+  /** Its place in KX_Scene's instance list (-1: not in it). */
+  int m_dupliListIndex = -1;
+  /** Draw As Merged: its part of a still-scenery batch (KX_Scene::MergedBatch), -1 when drawn by
+   * its own object; the part's vertices there and whether they are collapsed (hidden). */
+  int m_mergedBatch = -1;
+  uint32_t m_mergedFirstVertex = 0;
+  uint32_t m_mergedVertexCount = 0;
+  bool m_mergedPartHidden = false;
+  /** An instance's visibility the renderers were last told of (ApplyRuntimeVisibility). */
+  bool m_dupliDrawnShown = true;
+  /** Leaves its batch: its part collapsed for good, its own Blender object back in the graph. */
+  void LeaveMergedBatch();
+  /** Leaves its Auto group: drawn by its own Blender object again (back in the graph at the next
+   * pass's rebuild), with the pose and color the instance had. */
+  void LeaveSharedGroup();
+  /** Writes the game's pose and color into its own Blender object, which an instance does not
+   * keep up to date. */
+  void WriteOwnBlenderObject();
+  void DeleteBlenderObjectWithOwnedData(blender::Main *bmain, blender::Object *ob);
 
   // visible = user setting
   // culled = while rendering, depending on camera
   bool m_bVisible;
+  /** Overlay-pass layer used to expose an authored render-hidden object without overwriting its
+   * explicit runtime visibility state. */
+  bool m_overlayVisible;
+  /** Runtime collection-render layer, independent from explicit object visibility. */
+  bool m_collectionVisible;
+  /** Object-menu presentation layer: a covered menu hides its members without overwriting the
+   * visibility that game logic chose for them. */
+  bool m_presentationVisible;
+  /** Scroll/Grid View clipping layer, independent from the visibility game logic sets. */
+  bool m_viewClipVisible;
+  /** Hidden from the drawing only (KX_Scene::m_drawHiddenObjects, hidden at each camera pass):
+   * its Blender object stays in Blender's graph, so hiding and showing rebuild nothing. Hidden
+   * for long, it leaves the graph with the others in one rebuild (RetireDrawHiddenObjects). */
+  bool m_drawHidden = false;
+  /** KX_KetsjiEngine::GetRenderFrame when it was hidden so. */
+  uint64_t m_drawHiddenSince = 0;
+  /** Hides (or shows) the Blender object in Blender's graph: a collection resync and a graph
+   * rebuild at the next pass. */
+  void SetGraphHidden(bool hidden);
+  /** Runtime UI Element interactable override: -1 uses the authored setting, else 0 or 1. Kept
+   * on the game object because instances may share one Blender object. */
+  int8_t m_uiInteractableOverride;
   bool m_bOccluder;
 
   // blender::Object activity culling settings converted from blender objects.
@@ -157,6 +432,19 @@ class KX_GameObject : public SCA_IObject {
   BL_ActionManager *m_actionManager;
 
   BL_ActionManager *GetActionManager();
+  void ClearParentIntent();
+  void ApplyRuntimeVisibility();
+  void GetPhysicsInterpolatedPose(double alpha,
+                                  MT_Vector3 &r_position,
+                                  MT_Matrix3x3 &r_orientation,
+                                  MT_Vector3 &r_scale) const;
+  /** Ahead of the last step by `alpha` of the step's own move (Smooth Motion Extrapolate). The
+   * scale stays the step's: a shrinking object would turn inside out. */
+  void GetPhysicsExtrapolatedPose(double alpha,
+                                  MT_Vector3 &r_position,
+                                  MT_Matrix3x3 &r_orientation) const;
+
+  friend class KX_Scene;
 
 #ifdef WITH_PYTHON
   EXP_ListValue<KX_PythonComponent> *m_components;
@@ -181,8 +469,46 @@ class KX_GameObject : public SCA_IObject {
  public:
   /* EEVEE INTEGRATION */
 
-  void TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass);
-  void TagForTransformUpdateEvaluated();
+  /** What a camera pass's pose sync needs from Blender, looked up once a pass
+   * (KX_Scene::UpdateDepsgraph): Blender's context lookups cost more than an object's compare. */
+  struct RenderSyncPass {
+    blender::Main *bmain;
+    blender::Depsgraph *depsgraph;
+    /** The context's scene (IgnoreParentTxBGE). */
+    blender::Scene *scene;
+    /** KX_KetsjiEngine::GetRenderFrame. */
+    uint64_t frame;
+    /** KX_Scene's count of camera passes. */
+    uint64_t pass;
+    /** Blender's update count before the pass. */
+    uint64_t start_update;
+    /** KX_Scene::RenderSyncRelations: counts the relation rebuilds the engine asked for. */
+    uint64_t relations;
+  };
+  /** Hands the drawn pose to Blender before a camera pass. Blender is told only when that pose
+   * differs from the last one it got, so a moving object is evaluated once a frame, in the first
+   * pass that draws it; the frame's later passes do not compare it again. An object nothing of
+   * Blender's reads the position of skips Blender's evaluation (PosePath::Direct). */
+  void TagForTransformUpdate(const RenderSyncPass &pass, bool is_overlay_pass);
+  /** Writes the drawn pose into Blender's evaluated object after the pass's update, where that
+   * object lost it or never got it: Blender evaluated its transform in this pass (\a
+   * pass_evaluated; its stamp is newer than \a pass_start_update, Blender's update count before
+   * the pass), or the pose changed and only a shading update followed. Objects that take their
+   * pose from Blender read it instead, every pass. Called for the pass's listed objects
+   * (KX_Scene::m_poseCheckObjects), for all after a relations rebuild. */
+  void TagForTransformUpdateEvaluated(blender::Depsgraph *depsgraph,
+                                      bool pass_evaluated,
+                                      uint64_t pass_start_update);
+  /** A direct move (PosePath::Direct) after the pass's update: the pose into Blender's evaluated
+   * object, with the stamps Blender's own evaluation would give (the renderers redraw it). */
+  void WriteDirectPose(blender::Depsgraph *depsgraph);
+  /** A Dupli Base placed in the scene (not hidden): its moves always take the direct path
+   * (upstream UPBGE's name and meaning). */
+  void SetIsUpbgeDupliBase();
+  /** Whether this move takes PosePath::Direct, choosing the path when it is unknown. */
+  bool UsesDirectPose(const RenderSyncPass &pass, blender::Object *ob_orig);
+  /** Lists the object (once a pass) for TagForTransformUpdateEvaluated. */
+  void NotePoseCheck(const RenderSyncPass &pass);
   void ReplicateBlenderObject();
   void DiscardRenderedObject();
   void SuspendPhysics(bool freeConstraints, bool childrenRecursive);
@@ -194,6 +520,82 @@ class KX_GameObject : public SCA_IObject {
   void ForceIgnoreParentTx();
   void SyncTransformWithDepsgraph();
   void SetIsReplicaObject();
+  /** The data this object's Blender object was given for itself alone (see m_ownedData). */
+  void SetOwnedData(std::vector<blender::ID *> &&ids);
+  /** The game changed the Blender object for this object alone (m_blenderObjectChanged). */
+  void NoteBlenderObjectChanged()
+  {
+    m_blenderObjectChanged = true;
+    m_drawCull.bounds_known = false;
+    NoteOwnDrawingNeeded();
+  }
+  /** Something of the object's own Blender data changes (a modifier, shape keys, a material, a
+   * mesh): a Merged or shared (Auto) object gets its own Blender object back first. */
+  void NoteOwnDrawingNeeded();
+  /** The Blender object Blender draws this object from: the Auto group's object, else its own
+   * (for a Dupli Base's copy, the base). */
+  blender::Object *GetDupliDrawBase() const
+  {
+    return m_dupliDrawBase != nullptr ? m_dupliDrawBase : m_pBlenderObject;
+  }
+  /** Draw As Auto (KX_Scene::SetupGameDrawing): drawn as an instance of its group's \a base. */
+  void MakeSharedInstance(blender::Object *base);
+  bool IsShared() const
+  {
+    return m_dupliDrawBase != nullptr;
+  }
+  int GetDupliListIndex() const
+  {
+    return m_dupliListIndex;
+  }
+  void SetDupliListIndex(const int index)
+  {
+    m_dupliListIndex = index;
+  }
+  /** Draw As Merged (KX_Scene::SetupGameDrawing). */
+  void SetMergedPart(int batch, uint32_t first_vertex, uint32_t vertex_count);
+  /** Hides or shows its merged part as its visibility says. */
+  void ApplyMergedVisibility()
+  {
+    ApplyRuntimeVisibility();
+  }
+  bool IsMerged() const
+  {
+    return m_mergedBatch >= 0;
+  }
+  /** Add Object's Own Mesh: an ordinary copy of a mesh object gets a copy of the mesh and its
+   * shape keys (arrays shared until changed), deleted with it. Its shape key and modifier changes
+   * then re-evaluate it alone (Blender rebuilds every object using a mesh that changes). */
+  bool GiveOwnMesh();
+  /** The Blender object's mesh is this object's own (GiveOwnMesh). */
+  bool HasOwnMesh() const
+  {
+    return m_hasOwnMesh;
+  }
+  const blender::bUUID &GetPersistenceSourceUuid() const;
+  void SetPersistenceSourceUuid(const blender::bUUID &uuid);
+  const blender::bUUID &GetPersistenceInstanceUuid() const;
+  void SetPersistenceInstanceUuid(const blender::bUUID &uuid);
+  void ClearPersistenceInstanceUuid();
+  void SetSaveGameObjectState(bool enabled);
+  bool GetSaveGameObjectState() const;
+  void AddSaveGameProperty(
+      std::string name,
+      SaveGamePropertyMetadata::Type type = SaveGamePropertyMetadata::Type::String,
+      bool timer = false);
+  bool IsSaveGameProperty(const std::string &name) const;
+  const SaveGamePropertyMetadata *GetSaveGamePropertyMetadata(const std::string &name) const;
+  bool HasSaveGameProperties() const;
+  const std::unordered_map<std::string, SaveGamePropertyMetadata> &GetSaveGameProperties() const;
+  /** The scene's Inventory Rules a list (List or Table game property) follows; empty removes it.
+   * Set at conversion from the property's pick; replicas keep it. */
+  void SetInventoryRuleSet(const std::string &property, const std::string &rules);
+  /** The set the list \a property picks, or null when it picks none. */
+  const std::string *GetInventoryRuleSet(const std::string &property) const;
+  /** Object properties referring to this object, emptied when it is removed. */
+  void AddReferenceValue(KX_ObjectReferenceValue *value);
+  void RemoveReferenceValue(KX_ObjectReferenceValue *value);
+  void ClearReferenceValues();
   BL_ActionManager *GetActionManagerNoCreate();
   /**
    * Create a dupli based on the existing Blender object.
@@ -210,6 +612,32 @@ class KX_GameObject : public SCA_IObject {
     return m_isUpbgeDupliInstance;
   }
   void TagUpbgeDupliInstanceForTaaReset();
+  /** Gives this Dupli copy's draw entry (a shallow copy of the evaluated base) the copy's own
+   * identity and move stamp; `update_count` is Blender's update count of this draw. */
+  void SetDupliDrawIdentity(blender::Object &drawn,
+                            const float matrix[4][4],
+                            uint64_t update_count);
+  /** Notes the matrix this copy is drawn with; gives the update count of its last move. */
+  uint64_t UpdateDupliDrawnMove(const float matrix[4][4], uint64_t update_count);
+  /** This copy's key when drawn in a group: unique while the game runs, kept for its life. */
+  int GetDupliDrawId();
+  /** This copy's Object Info Random, as its own draw entry gives it. */
+  uint32_t GetDupliDrawRandom();
+  uint64_t GetDupliGroupedPass() const
+  {
+    return m_dupliGroupedPass;
+  }
+  void SetDupliGroupedPass(const uint64_t pass)
+  {
+    m_dupliGroupedPass = pass;
+  }
+  DrawCullState &GetDrawCullState()
+  {
+    return m_drawCull;
+  }
+  /** Its "draw_distance" game property, 0 without one. */
+  float GetOwnDrawDistance();
+  void PropertyMapChanged(const std::string &name) override;
   /* END OF EEVEE INTEGRATION */
 
   /**
@@ -257,6 +685,9 @@ class KX_GameObject : public SCA_IObject {
 
   virtual void /* This function should be virtual - derived classed override it */
   Relink(std::map<SCA_IObject *, SCA_IObject *> &map);
+  /** Object properties referring to objects of a copied group refer to their copies instead,
+   * also inside Lists and Tables. */
+  void RelinkObjectProperties(const std::map<SCA_IObject *, SCA_IObject *> &copies);
 
   /**
    * Update the blender object object_to_world field from the object world position
@@ -290,6 +721,7 @@ class KX_GameObject : public SCA_IObject {
   const RigidBodyConstraintData *FindRigidBodyConstraint(const std::string &name) const;
   bool RemoveRigidBodyConstraint(const std::string &name);
   void RemoveRigidBodyConstraintId(int constraintId);
+  void RemoveRigidBodyConstraintIds(const std::vector<int> &constraintIds);
   bool SetRigidBodyConstraintsEnabled(bool enabled, const std::string &filterObjectName = "");
   const std::vector<RigidBodyConstraintData> &GetRigidBodyConstraints() const;
   void ClearRigidBodyConstraints();
@@ -314,9 +746,38 @@ class KX_GameObject : public SCA_IObject {
   void SetParent(KX_GameObject *obj, bool addToCompound = true, bool ghost = true);
 
   /**
+   * Transactional Jolt parenting used by C++ Logic Nodes.
+   *
+   * Blender data is never mutated. Structural validation happens before the hierarchy change,
+   * and a failed physics transition restores the previous relationship and physics state.
+   */
+  KX_ParentResult SetParent(KX_GameObject *obj, const KX_ParentOptions &options);
+
+  /**
+   * Enter Jolt's engine-only transform-parenting lifecycle for an authored hierarchy.
+   * This never mutates Blender parent data and is called after constraint conversion.
+   */
+  bool BeginAuthoredTransformParenting();
+
+  /**
    * Removes the parent of this object to a game object
    */
   void RemoveParent();
+
+  /** Runtime compound/ghost arguments retained from the last successful SetParent operation. */
+  bool GetParentCompoundIntent() const;
+  bool GetParentGhostIntent() const;
+  bool GetParentPhysicsManaged() const;
+
+  /**
+   * Checked narrow hierarchy restore used by Save Object State.
+   *
+   * `parent == nullptr` restores a root. A non-null parent restores one normal,
+   * non-compound/non-ghost relationship while preserving the object's current world transform.
+   * The operation fails without mutation for invalid scene/list ownership, cycles, unsupported
+   * current parent relations, compound/ghost intent, or singular/non-finite transforms.
+   */
+  bool RestoreSaveObjectStateParent(KX_GameObject *parent);
 
   /*********************************
    * group reference API
@@ -351,6 +812,18 @@ class KX_GameObject : public SCA_IObject {
                   short ipo_flags = 0,
                   float playback_speed = 1.f,
                   short blend_mode = 0);
+  /** Play an action and retain the identity of this exact accepted request. */
+  BL_ActionPlayResult PlayActionTracked(const std::string &name,
+                                        float start,
+                                        float end,
+                                        short layer = 0,
+                                        short priority = 0,
+                                        float blendin = 0.f,
+                                        short play_mode = 0,
+                                        float layer_weight = 0.f,
+                                        short ipo_flags = 0,
+                                        float playback_speed = 1.f,
+                                        short blend_mode = 0);
 
   /**
    * Gets the current frame of an action
@@ -401,6 +874,7 @@ class KX_GameObject : public SCA_IObject {
    * actions' frames.
    */
   void UpdateActionManager(float curtime, bool applyObject);
+  void RebaseActionTime(float previous_time, float current_time, bool use_pause_clock);
 
   /*********************************
    * End Animation API
@@ -494,6 +968,20 @@ class KX_GameObject : public SCA_IObject {
 
   const MT_Vector4 &GetObjectColor();
 
+  /** At conversion: the Blender object's color, given back to it when this object goes. */
+  void SetConvertedColor(const MT_Vector4 &rgbavec);
+
+  /**
+   * This object's own copy of the material in material slot `slot` (1-based), made the first
+   * time and put in the slot (linked to the object), so a material action played on this object
+   * (a Viewport Display color, metallic, roughness...) changes it alone and not every object
+   * sharing the material. Null for an instanced copy (its Blender object is shared) or an empty
+   * slot. The slot gets its material back when the object goes.
+   */
+  blender::Material *OwnMaterial(short slot);
+  /** The material slot `slot` (1-based) shows: before OwnMaterial copied it, the source. */
+  blender::Material *SourceMaterial(short slot);
+
   /**
    * \return a pointer to the physics controller owned by this class.
    */
@@ -558,8 +1046,69 @@ class KX_GameObject : public SCA_IObject {
   MT_Transform NodeGetLocalTransform() const;
 
   void StorePhysicsInterpolationState();
+  /** Make the current authoritative pose both interpolation endpoints. */
+  void RebasePhysicsInterpolationState();
+  /** Draw the object between its last two steps (Smooth Motion Interpolate, nothing else). */
   void ApplyPhysicsInterpolation(double alpha);
   void ClearPhysicsInterpolationState();
+
+  /** How a drawn frame moved an object away from its pose, for children drawn with it:
+   * drawn = rotation * pose + translation. */
+  struct SmoothMotionFollow {
+    bool moved = false;
+    MT_Matrix3x3 rotation = MT_Matrix3x3::Identity();
+    MT_Vector3 translation = MT_Vector3(0.0f, 0.0f, 0.0f);
+  };
+  /** One drawn frame of a scene (KX_Scene::ApplyPhysicsInterpolation). */
+  struct SmoothMotionFrame {
+    /** Where between its last two steps the frame shows the game. */
+    double interpolation = 0.0;
+    /** The frame's number, and the game seconds since the frame before it (blend fades). */
+    uint64_t number = 0;
+    double seconds = 0.0;
+  };
+  /** A jump to draw as it is (ResetSmoothing on the object or a parent). */
+  struct SmoothMotionReset {
+    bool active = false;
+    float blend = 0.0f;
+  };
+
+  /** Smooth Motion (OB_SMOOTH_MOTION_*): the object's own choice of how it is drawn between fixed
+   * steps. Scene Default is the parent's choice, or the scene's Physics Interpolation. */
+  char GetSmoothMotion() const
+  {
+    return m_smoothMotion;
+  }
+  /** A choice made while playing (Python); conversion sets the file's. */
+  void SetSmoothMotion(char mode);
+  /** The choice in effect: the own one, else the parent's (`inherited`). */
+  char ResolveSmoothMotion(char inherited) const
+  {
+    return m_smoothMotion != blender::OB_SMOOTH_MOTION_SCENE ? m_smoothMotion : inherited;
+  }
+  /** The object's last move is a jump (a teleport): it and its children are drawn there at once,
+   * or with `blend_seconds` > 0 slide there from where they were drawn (smoothed objects). */
+  void ResetSmoothing(float blend_seconds);
+  /** Before a fixed step: the pose the step starts from is kept while the object is drawn
+   * smoothed; otherwise no history is kept, so nothing old is ever smoothed. */
+  void StoreSmoothMotionHistory(bool smoothed);
+  /**
+   * The object's pose for a drawn frame, written into its node (until the next
+   * ClearPhysicsInterpolationState) when it differs. `mode` is the resolved Smooth Motion,
+   * `parent` how its parent was moved for drawing, `reset` a jump from the object or a parent.
+   * `scene` registers a written object for the restore (none in tests). Returns how this object
+   * was moved, for its children.
+   */
+  SmoothMotionFollow ApplySmoothMotion(const SmoothMotionFrame &frame,
+                                       char mode,
+                                       const SmoothMotionFollow &parent,
+                                       const SmoothMotionReset &reset,
+                                       KX_Scene *scene);
+  bool HasSmoothMotionReset() const
+  {
+    return m_smoothResetPending;
+  }
+  SmoothMotionReset TakeSmoothMotionReset();
 
   /**
    * \section scene graph node accessor functions.
@@ -594,6 +1143,71 @@ class KX_GameObject : public SCA_IObject {
   void SetBlenderGroupObject(blender::Object *obj)
   {
     m_pBlenderGroupObject = obj;
+  }
+
+  /** The authored object whose collections this one counts as in (see m_collectionSource). */
+  const blender::Object *GetCollectionSource() const
+  {
+    return m_collectionSource ? m_collectionSource : m_pBlenderObject;
+  }
+
+  void SetCollectionSource(const blender::Object *source)
+  {
+    m_collectionSource = source;
+    InvalidateCollectionMembership();
+  }
+
+  /** Set Collection Member's changes (see m_collectionMemberships). */
+  const std::vector<std::pair<const blender::Collection *, bool>> &GetCollectionMemberships() const
+  {
+    return m_collectionMemberships;
+  }
+
+  /** Puts the object in `collection` (or takes it out of it and its child collections); a later
+   * call for the same collection replaces the earlier one. */
+  void SetCollectionMembership(const blender::Collection *collection, bool member);
+
+  /** Replaces all of Set Collection Member's changes (Load Game). */
+  void SetCollectionMemberships(
+      std::vector<std::pair<const blender::Collection *, bool>> memberships)
+  {
+    m_collectionMemberships = std::move(memberships);
+    InvalidateCollectionMembership();
+  }
+
+  /** The collections found for this membership version, or null when they must be found again. */
+  const std::vector<const blender::Collection *> *GetEffectiveCollections(
+      const uint32_t version) const
+  {
+    return m_effectiveCollectionsVersion == version ? &m_effectiveCollections : nullptr;
+  }
+
+  const std::vector<const blender::Collection *> &SetEffectiveCollections(
+      std::vector<const blender::Collection *> collections, const uint32_t version)
+  {
+    m_effectiveCollections = std::move(collections);
+    m_effectiveCollectionsVersion = version;
+    return m_effectiveCollections;
+  }
+
+  /** Its collections are found again at their next use (camera bits too). */
+  void InvalidateCollectionMembership()
+  {
+    m_effectiveCollectionsVersion = 0;
+    m_cameraCollectionsVersion = 0;
+  }
+
+  /** False when the bits were found for another version of the scene's camera collections. */
+  bool GetCameraCollectionBits(const uint32_t version, uint32_t &r_bits) const
+  {
+    r_bits = m_cameraCollectionBits;
+    return m_cameraCollectionsVersion == version;
+  }
+
+  void SetCameraCollectionBits(const uint32_t bits, const uint32_t version)
+  {
+    m_cameraCollectionBits = bits;
+    m_cameraCollectionsVersion = version;
   }
 
   bool IsDupliGroup()
@@ -650,6 +1264,7 @@ class KX_GameObject : public SCA_IObject {
   void ApplyTorque(const MT_Vector3 &torque, bool local);
 
   void ApplyRotation(const MT_Vector3 &drot, bool local);
+  void ApplyRotation(const MT_Matrix3x3 &rotation, bool local);
 
   void ApplyMovement(const MT_Vector3 &dloc, bool local);
 
@@ -720,6 +1335,7 @@ class KX_GameObject : public SCA_IObject {
   void AddMesh(RAS_MeshObject *mesh)
   {
     m_meshes.push_back(mesh);
+    m_drawCull.bounds_known = false;
   }
 
   /** Set current lod manager, can be nullptr.
@@ -730,9 +1346,10 @@ class KX_GameObject : public SCA_IObject {
   KX_LodManager *GetLodManager() const;
 
   /**
-   * Updates the current lod level based on distance from camera.
+   * Updates the current lod level based on distance from camera: \a distance2 is the squared
+   * distance, already multiplied by the camera's squared LOD distance factor.
    */
-  void UpdateLod(const MT_Vector3 &cam_pos, float lodfactor);
+  void UpdateLod(float distance2);
 
   /** Update the activity culling of the object.
    * \param distance Squared nearest distance to the cameras of this object.
@@ -764,11 +1381,49 @@ class KX_GameObject : public SCA_IObject {
    * visibility system).
    */
   bool GetVisible(void);
+  bool GetExplicitVisible() const
+  {
+    return m_bVisible;
+  }
 
   /**
    * Set visibility flag of this object
    */
   void SetVisible(bool b, bool recursive);
+  /** Hidden from the drawing only (m_drawHidden); KX_Scene's list keeps the count. */
+  bool IsDrawHidden() const
+  {
+    return m_drawHidden;
+  }
+  uint64_t GetDrawHiddenSince() const
+  {
+    return m_drawHiddenSince;
+  }
+  void SetDrawHidden(const bool hidden, const uint64_t frame)
+  {
+    m_drawHidden = hidden;
+    m_drawHiddenSince = frame;
+  }
+  /** Moves a hide from the drawing into Blender's graph (hidden for long, or removed). */
+  void HideInGraph();
+
+  /** Set the scene-local collection visibility layer without changing explicit object state. */
+  void SetCollectionVisible(bool visible);
+
+  /** Set the transient overlay-pass visibility layer without changing explicit object state. */
+  void SetOverlayVisible(bool visible);
+
+  /** Set the object-menu presentation layer without changing explicit object state. */
+  void SetPresentationVisible(bool visible);
+
+  /** Set the Scroll/Grid View clipping layer without changing explicit object state. */
+  void SetViewClipVisible(bool visible);
+  /** GetVisible() as if no view clipped the object. */
+  bool GetVisibleIgnoringViewClip() const;
+
+  /** UI Element interactable state: the authored setting until game logic overrides it. */
+  bool GetUIInteractable();
+  void SetUIInteractable(bool interactable);
 
   /**
    * Is this object an occluder?
@@ -908,6 +1563,7 @@ class KX_GameObject : public SCA_IObject {
   EXP_PYMETHOD_DOC(KX_GameObject, getActionName);
   EXP_PYMETHOD_DOC(KX_GameObject, setActionFrame);
   EXP_PYMETHOD_DOC(KX_GameObject, isPlayingAction);
+  EXP_PYMETHOD_DOC(KX_GameObject, resetSmoothing);
 
   /* Dict access */
   EXP_PYMETHOD_VARARGS(KX_GameObject, get);
@@ -966,6 +1622,11 @@ class KX_GameObject : public SCA_IObject {
   static int pyattr_set_visible(EXP_PyObjectPlus *self_v,
                                 const EXP_PYATTRIBUTE_DEF *attrdef,
                                 PyObject *value);
+  static PyObject *pyattr_get_smooth_motion(EXP_PyObjectPlus *self_v,
+                                            const EXP_PYATTRIBUTE_DEF *attrdef);
+  static int pyattr_set_smooth_motion(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef,
+                                      PyObject *value);
 
   static PyObject *pyattr_get_physicsCulling(EXP_PyObjectPlus *self_v,
                                              const EXP_PYATTRIBUTE_DEF *attrdef);

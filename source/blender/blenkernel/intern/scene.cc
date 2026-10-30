@@ -67,6 +67,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_effect.h"
 #include "BKE_fcurve.hh"
+#include "BKE_game_persistence.hh"
 #include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
@@ -74,6 +75,8 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_game_input_map.hh"
+#include "BKE_game_inventory_rules.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_types.hh"
@@ -166,6 +169,8 @@ static void scene_init_data(ID *id)
   INIT_DEFAULT_STRUCT_AFTER(scene, id);
 
   STRNCPY(scene->r.bake.filepath, U.renderdir);
+
+  BKE_game_input_map_ensure_builtins(&scene->gm);
 
   mblur_shutter_curve = &scene->r.mblur_shutter_curve;
   BKE_curvemapping_set_defaults(mblur_shutter_curve, 1, 0.0f, 0.0f, 1.0f, 1.0f, HD_AUTO);
@@ -269,6 +274,7 @@ static void scene_copy_data(Main *bmain,
 {
   Scene *scene_dst = id_cast<Scene *>(id_dst);
   const Scene *scene_src = id_cast<const Scene *>(id_src);
+  BKE_game_persistence_identity_handle_copy(scene_src->id, scene_dst->id, flag);
   /* Never handle user-count here for own sub-data. */
   const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
   /* Always need allocation of the embedded ID data. */
@@ -307,6 +313,8 @@ static void scene_copy_data(Main *bmain,
 
   BLI_duplicatelist(&(scene_dst->transform_spaces), &(scene_src->transform_spaces));
   BLI_duplicatelist(&(scene_dst->r.views), &(scene_src->r.views));
+  BKE_game_input_map_copy(&scene_dst->gm, &scene_src->gm);
+  BKE_game_inventory_rules_copy(&scene_dst->gm, &scene_src->gm);
   BKE_keyingsets_copy(&(scene_dst->keyingsets), &(scene_src->keyingsets));
 
   if (scene_src->rigidbody_world) {
@@ -399,6 +407,8 @@ static void scene_free_data(ID *id)
   scene_free_markers(scene, do_id_user);
   BLI_freelistN(&scene->transform_spaces);
   BLI_freelistN(&scene->r.views);
+  BKE_game_input_map_free(&scene->gm);
+  BKE_game_inventory_rules_free(&scene->gm);
 
   BKE_toolsettings_free(scene->toolsettings);
   scene->toolsettings = nullptr;
@@ -858,6 +868,11 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->gpd, IDWALK_CB_USER);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->r.bake.cage_object, IDWALK_CB_NOP);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->compositing_node_group, IDWALK_CB_USER);
+  /* UPBGE: the game's Item Library. */
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->gm.item_library, IDWALK_CB_USER);
+  for (GameInventoryRules &rules : scene->gm.inventory_rules) {
+    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, rules.item_library, IDWALK_CB_USER);
+  }
 
   if (scene->nodetree) {
     /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
@@ -1255,6 +1270,9 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     writer->write_struct(&srv);
   }
 
+  BKE_game_input_map_blend_write(writer, &sce->gm);
+  BKE_game_inventory_rules_blend_write(writer, &sce->gm);
+
   if (sce->compositing_node_group && !is_write_undo) {
     scene_blend_write_compositor_forward_compat(*sce, *sce->compositing_node_group, writer);
   }
@@ -1471,6 +1489,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct_list(reader, TransformOrientation, &(sce->transform_spaces));
   BLO_read_struct_list(reader, SceneRenderLayer, &(sce->r.layers));
   BLO_read_struct_list(reader, SceneRenderView, &(sce->r.views));
+  BKE_game_input_map_blend_read_data(reader, &sce->gm);
+  BKE_game_inventory_rules_blend_read_data(reader, &sce->gm);
 
   for (SceneRenderLayer &srl : sce->r.layers) {
     BLO_read_struct(reader, IDProperty, &srl.prop);
@@ -1898,6 +1918,9 @@ Scene *BKE_scene_duplicate(Main *bmain,
     if (sce->id.system_properties) {
       sce_copy->id.system_properties = IDP_CopyProperty(sce->id.system_properties);
     }
+    /* Empty-scene duplication bypasses the regular ID copy callback above. It is still a new
+     * authored Scene and therefore needs a distinct checkpoint namespace. */
+    BKE_game_persistence_identity_handle_copy(sce->id, sce_copy->id, 0);
 
     BKE_sound_destroy_scene(sce_copy);
 

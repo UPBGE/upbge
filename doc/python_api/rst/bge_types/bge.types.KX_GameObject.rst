@@ -276,6 +276,21 @@ base class --- :class:`~bge.types.SCA_IObject`
 
          Game logic will still run for invisible objects.
 
+   .. attribute:: smoothMotion
+
+      How the object is drawn between fixed Logic+Physics steps (Object > Physics > Smooth Motion):
+
+      * ``'SCENE'``: the parent's Smooth Motion, or the scene's Physics Interpolation for an object
+        without a parent.
+      * ``'NONE'``: where the last step put it (a child still follows a smoothed parent).
+      * ``'INTERPOLATE'``: between its last two steps, smooth on any screen, about one step late.
+      * ``'EXTRAPOLATE'``: ahead of its last step along its movement, no delay, but for a frame it
+        overshoots a sudden stop or hit.
+
+      Only objects that use it cost anything. Call :meth:`resetSmoothing` after teleporting it.
+
+      :type: string
+
    .. attribute:: layer
 
    .. deprecated:: 0.3.0
@@ -1234,6 +1249,16 @@ base class --- :class:`~bge.types.SCA_IObject`
 
       :return: Whether or not the action is playing
       :rtype: boolean
+
+   .. method:: resetSmoothing(blend=0.0)
+
+      The object's last move is a jump (a teleport, a respawn): with :attr:`smoothMotion` it and
+      its children are drawn there at once instead of sliding across between two steps. Call it
+      right after moving the object.
+
+      :arg blend: Seconds over which the object slides from where it was drawn to its new place
+         instead (a small correction); 0 jumps at once. Only objects drawn smoothed slide.
+      :type blend: float
 
    .. method:: addDebugProperty (name[, debug])
 

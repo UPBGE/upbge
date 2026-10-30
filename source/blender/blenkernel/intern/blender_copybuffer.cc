@@ -13,6 +13,7 @@
 #include "BKE_blender_copybuffer.hh" /* own include */
 #include "BKE_blendfile_link_append.hh"
 #include "BKE_context.hh"
+#include "BKE_game_persistence.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 
@@ -47,6 +48,10 @@ static void copybuffer_append(BlendfileLinkAppendContext *lapp_context,
 
   /* Append, rather than linking */
   BKE_blendfile_append(lapp_context, reports);
+
+  /* Existing IDs are still tagged here, which lets the paste lifecycle distinguish new authored
+   * Objects/Scenes without changing general append semantics. */
+  BKE_game_persistence_identities_on_copybuffer_paste(*bmain);
 
   /* Instantiate loose data in the scene (e.g. add object to the active collection). */
   BKE_blendfile_link_append_instantiate_loose(lapp_context, reports);

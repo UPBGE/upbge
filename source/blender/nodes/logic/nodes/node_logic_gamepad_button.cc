@@ -24,7 +24,16 @@ static bool gamepad_button_shows_strength(const int16_t button_index)
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Index"_ustr).default_value(0).min(0);
-  b.add_output<decl::Execution>("Pressed"_ustr, "Out"_ustr);
+  b.add_output<decl::Execution>("Triggered"_ustr, "Out"_ustr)
+      .is_default_link_socket()
+      .description(
+          "Logic + Physics step pulse selected by the Pressed, While Held, or Released mode");
+  b.add_output<decl::Condition>("Active"_ustr).description(
+      "True while active; fixed flow reads the fixed-step input snapshot");
+  b.add_output<decl::Condition>("Pressed"_ustr).description(
+      "True once when pressed; frame and fixed flow consume independent accumulated edges");
+  b.add_output<decl::Condition>("Released"_ustr).description(
+      "True once when released; frame and fixed flow consume independent accumulated edges");
   b.add_output<decl::Float>("Strength"_ustr);
 }
 
@@ -32,6 +41,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout.prop(ptr, "gamepad_button", UI_ITEM_NONE, "", ICON_NONE);
   layout.prop(ptr, "input_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "use_ui_input", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

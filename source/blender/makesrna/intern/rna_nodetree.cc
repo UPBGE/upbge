@@ -6,6 +6,7 @@
  * \ingroup RNA
  */
 
+#include <algorithm>
 #include <climits>
 #include <cstdlib>
 #include <cstring>
@@ -625,7 +626,6 @@ static constexpr int logic_native_set_rigid_body_attribute_lock_rotation_x = 1 <
 static constexpr int logic_native_set_rigid_body_attribute_lock_rotation_y = 1 << 4;
 static constexpr int logic_native_set_rigid_body_attribute_lock_rotation_z = 1 << 5;
 static constexpr int logic_native_modify_property_clamp = 1 << 0;
-static constexpr int logic_native_modify_property_mode_attribute = 1 << 1;
 static constexpr int logic_set_socket_value_float = 0;
 static constexpr int logic_set_socket_value_int = 1;
 static constexpr int logic_set_socket_value_bool = 2;
@@ -4081,21 +4081,77 @@ void rna_Node_socket_update(Main *bmain, Scene *scene, PointerRNA *ptr)
   rna_Node_update(bmain, scene, ptr);
 }
 
-static int rna_LogicNativeModifyProperty_mode_get(PointerRNA *ptr)
+constexpr int16_t logic_set_parent_settings_initialized = 1 << 14;
+
+static int rna_LogicNativeInput_input_type_get(PointerRNA *ptr)
 {
   const bNode *node = static_cast<const bNode *>(ptr->data);
-  return (node->custom2 & logic_native_modify_property_mode_attribute) ? 1 : 0;
+  return std::clamp(node->custom1 & LOGIC_NODE_INPUT_MODE_MASK, 0, 2);
 }
 
-static void rna_LogicNativeModifyProperty_mode_set(PointerRNA *ptr, const int value)
+static void rna_LogicNativeInput_input_type_set(PointerRNA *ptr, const int value)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
-  if (value == 1) {
-    node->custom2 |= logic_native_modify_property_mode_attribute;
-  }
-  else {
-    node->custom2 &= ~logic_native_modify_property_mode_attribute;
-  }
+  node->custom1 = int16_t((node->custom1 & ~LOGIC_NODE_INPUT_MODE_MASK) | std::clamp(value, 0, 2));
+}
+
+static int rna_LogicNativeSetParent_parent_type_get(PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  return node->custom1 == 1 ? 1 : 0;
+}
+
+static void rna_LogicNativeSetParent_parent_type_set(PointerRNA *ptr, const int value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  node->custom1 = value == 1 ? 1 : 0;
+  node->custom2 |= logic_set_parent_settings_initialized;
+}
+
+static int rna_LogicNativeOpenObjectMenu_packed_get(const PointerRNA *ptr, const int shift)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  return (int(node->custom2) >> shift) & 3;
+}
+
+static void rna_LogicNativeOpenObjectMenu_packed_set(PointerRNA *ptr,
+                                                     const int shift,
+                                                     const int max_value,
+                                                     const int value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  const int clamped = std::clamp(value, 0, max_value);
+  node->custom2 = short((int(node->custom2) & ~(3 << shift)) | (clamped << shift));
+}
+
+static int rna_LogicNativeOpenObjectMenu_open_mode_get(PointerRNA *ptr)
+{
+  return rna_LogicNativeOpenObjectMenu_packed_get(ptr, 0);
+}
+
+static void rna_LogicNativeOpenObjectMenu_open_mode_set(PointerRNA *ptr, const int value)
+{
+  rna_LogicNativeOpenObjectMenu_packed_set(ptr, 0, 1, value);
+}
+
+static int rna_LogicNativeOpenObjectMenu_presentation_get(PointerRNA *ptr)
+{
+  return rna_LogicNativeOpenObjectMenu_packed_get(ptr, 2);
+}
+
+static void rna_LogicNativeOpenObjectMenu_presentation_set(PointerRNA *ptr, const int value)
+{
+  rna_LogicNativeOpenObjectMenu_packed_set(ptr, 2, 1, value);
+}
+
+static int rna_LogicNativeOpenObjectMenu_back_behavior_get(PointerRNA *ptr)
+{
+  return rna_LogicNativeOpenObjectMenu_packed_get(ptr, 4);
+}
+
+static void rna_LogicNativeOpenObjectMenu_back_behavior_set(PointerRNA *ptr, const int value)
+{
+  rna_LogicNativeOpenObjectMenu_packed_set(ptr, 4, 2, value);
 }
 
 static void rna_LogicNativeMouseButton_sync_button_socket(bNode *node)
@@ -5727,11 +5783,6 @@ static void def_logic_math(BlenderRNA * /*brna*/, StructRNA *srna)
 
 static void def_logic_modify_property(BlenderRNA * /*brna*/, StructRNA *srna)
 {
-  static const EnumPropertyItem logic_modify_property_mode_items[] = {
-      {0, "GAME_PROPERTY", 0, "Game Property", "Edit Game Property"},
-      {1, "ATTRIBUTE", 0, "Attribute", "Edit Internal Attribute"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
   static const EnumPropertyItem logic_modify_property_operation_items[] = {
       {NODE_MATH_ADD, "ADD", 0, "Add", "A + B"},
       {NODE_MATH_SUBTRACT, "SUB", 0, "Subtract", "A - B"},
@@ -5744,17 +5795,6 @@ static void def_logic_modify_property(BlenderRNA * /*brna*/, StructRNA *srna)
   };
 
   PropertyRNA *prop;
-
-  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, logic_modify_property_mode_items);
-  RNA_def_property_enum_funcs(prop,
-                              "rna_LogicNativeModifyProperty_mode_get",
-                              "rna_LogicNativeModifyProperty_mode_set",
-                              nullptr);
-  RNA_def_property_ui_text(prop, "Mode", "");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 
   prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "custom1");
@@ -5823,12 +5863,42 @@ static void def_logic_string_operation(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 
+static void def_logic_input_direction(StructRNA *srna)
+{
+  static const EnumPropertyItem direction_items[] = {
+      {0, "UP", 0, "Up", ""},
+      {1, "DOWN", 0, "Down", ""},
+      {2, "LEFT", 0, "Left", ""},
+      {3, "RIGHT", 0, "Right", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "input_direction", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, direction_items);
+  RNA_def_property_ui_text(
+      prop, "Direction", "For a vector action: the binding that pushes this way");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_logic_use_ui_input(StructRNA *srna)
+{
+  PropertyRNA *prop = RNA_def_property(srna, "use_ui_input", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", LOGIC_NODE_INPUT_ALSO_UI);
+  RNA_def_property_ui_text(prop,
+                           "Also When UI Uses It",
+                           "Also react to input the game's UI used, such as a click or the mouse "
+                           "wheel over a UI Element with Pointer Block, or Esc closing a menu");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_logic_mouse_button(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem logic_mouse_input_type_items[] = {
-      {0, "TAP", 0, "Tap", "True if the input is first activated"},
-      {1, "DOWN", 0, "Down", "True if the input is held down"},
-      {2, "UP", 0, "Up", "True if the input is released"},
+      {0, "TAP", 0, "Pressed", "Pulse once when the input becomes active"},
+      {1, "DOWN", 0, "While Held", "Pulse on every selected update while the input is active"},
+      {2, "UP", 0, "Released", "Pulse once when the input becomes inactive"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -5842,8 +5912,11 @@ static void def_logic_mouse_button(BlenderRNA * /*brna*/, StructRNA *srna)
   PropertyRNA *prop;
 
   prop = RNA_def_property(srna, "input_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
   RNA_def_property_enum_items(prop, logic_mouse_input_type_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeInput_input_type_get",
+                              "rna_LogicNativeInput_input_type_set",
+                              nullptr);
   RNA_def_property_ui_text(prop, "Input Type", "Type of input recognition");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
@@ -5856,26 +5929,88 @@ static void def_logic_mouse_button(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeMouseButton_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  def_logic_use_ui_input(srna);
 }
 
 static void def_logic_keyboard_key(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem logic_input_type_items[] = {
-      {0, "TAP", 0, "Tap", "True if the input is first activated"},
-      {1, "DOWN", 0, "Down", "True if the input is held down"},
-      {2, "UP", 0, "Up", "True if the input is released"},
+      {0, "TAP", 0, "Pressed", "Pulse once when the input becomes active"},
+      {1, "DOWN", 0, "While Held", "Pulse on every selected update while the input is active"},
+      {2, "UP", 0, "Released", "Pulse once when the input becomes inactive"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   PropertyRNA *prop;
 
   prop = RNA_def_property(srna, "input_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
   RNA_def_property_enum_items(prop, logic_input_type_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeInput_input_type_get",
+                              "rna_LogicNativeInput_input_type_set",
+                              nullptr);
   RNA_def_property_ui_text(prop, "Input Type", "Type of input recognition");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  def_logic_use_ui_input(srna);
+}
+
+static void def_logic_input_action(BlenderRNA *brna, StructRNA *srna)
+{
+  def_logic_keyboard_key(brna, srna);
+}
+
+static void def_logic_get_input_binding(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem device_items[] = {
+      {0, "AUTOMATIC", 0, "Automatic", "The device player 0 used last"},
+      {1, "KEYBOARD_MOUSE", 0, "Keyboard & Mouse", ""},
+      {2, "GAMEPAD", 0, "Gamepad", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "input_device", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, device_items);
+  RNA_def_property_ui_text(prop, "Device", "Which device's binding to name");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  def_logic_input_direction(srna);
+}
+
+static void def_logic_rebind_input_action(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem device_items[] = {
+      {1, "KEYBOARD_MOUSE", 0, "Keyboard & Mouse", "Wait for a key or mouse button"},
+      {2, "GAMEPAD", 0, "Gamepad", "Wait for a gamepad button, trigger or stick"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "rebind_device", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, device_items);
+  RNA_def_property_ui_text(
+      prop, "Device", "Which device's binding the player's next control replaces");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  def_logic_input_direction(srna);
+}
+
+static void def_logic_input_map(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem operation_items[] = {
+      {0, "SAVE", 0, "Save", "Write the player's changes to the Input Map to the file"},
+      {1, "LOAD", 0, "Load", "Use the changes in the file"},
+      {2, "RESET", 0, "Reset", "Go back to the Input Map of the .blend"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "input_map_operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, operation_items);
+  RNA_def_property_ui_text(prop, "Operation", "What to do with the player's Input Map");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
 static void def_logic_mouse_moved(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -5885,7 +6020,10 @@ static void def_logic_mouse_moved(BlenderRNA * /*brna*/, StructRNA *srna)
   prop = RNA_def_property(srna, "pulse", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
   RNA_def_property_ui_text(
-      prop, "Each Frame", "True on every tick while the mouse is moving, not only on movement ticks");
+      prop,
+      "Each Logic Tick",
+      "When enabled, pulse on every fixed Logic + Physics step while mouse-axis input remains "
+      "active; when disabled, pulse only when a new movement sequence starts");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -5901,11 +6039,17 @@ static void def_logic_mouse_wheel(BlenderRNA * /*brna*/, StructRNA *srna)
   PropertyRNA *prop;
 
   prop = RNA_def_property(srna, "wheel_direction", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
   RNA_def_property_enum_items(prop, logic_mouse_wheel_direction_items);
+  /* custom1's low byte, like the input type of the other input nodes. */
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeInput_input_type_get",
+                              "rna_LogicNativeInput_input_type_set",
+                              nullptr);
   RNA_def_property_ui_text(prop, "Wheel Direction", "Which scroll directions activate the output");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  def_logic_use_ui_input(srna);
 }
 
 static void def_logic_cursor_position(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -5936,7 +6080,10 @@ static void def_logic_mouse_look(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "center_mouse", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
-  RNA_def_property_ui_text(prop, "Center Mouse", "Keep the cursor locked to screen center");
+  RNA_def_property_ui_text(prop,
+                           "Center Mouse",
+                           "Keep the cursor locked to screen center (with split screen, the "
+                           "middle of player 0's view: the mouse is theirs)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "invert_x", PROP_BOOLEAN, PROP_NONE);
@@ -5971,9 +6118,9 @@ static void def_logic_gamepad_look(BlenderRNA * /*brna*/, StructRNA *srna)
 static void def_logic_gamepad_button(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem logic_input_type_items[] = {
-      {0, "TAP", 0, "Tap", "True if the input is first activated"},
-      {1, "DOWN", 0, "Down", "True if the input is held down"},
-      {2, "UP", 0, "Up", "True if the input is released"},
+      {0, "TAP", 0, "Pressed", "Pulse once when the input becomes active"},
+      {1, "DOWN", 0, "While Held", "Pulse on every selected update while the input is active"},
+      {2, "UP", 0, "Released", "Pulse once when the input becomes inactive"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -6000,8 +6147,11 @@ static void def_logic_gamepad_button(BlenderRNA * /*brna*/, StructRNA *srna)
   PropertyRNA *prop;
 
   prop = RNA_def_property(srna, "input_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
   RNA_def_property_enum_items(prop, logic_input_type_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeInput_input_type_get",
+                              "rna_LogicNativeInput_input_type_set",
+                              nullptr);
   RNA_def_property_ui_text(prop, "Input Type", "Type of input recognition");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
@@ -6014,6 +6164,8 @@ static void def_logic_gamepad_button(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeGamepadButton_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  def_logic_use_ui_input(srna);
 }
 
 static void def_logic_gamepad_stick(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -6065,6 +6217,19 @@ static void def_logic_typecast(BlenderRNA * /*brna*/, StructRNA *srna)
       {1, "BOOL", 0, "To Boolean", "Convert this value to a boolean type"},
       {2, "STRING", 0, "To String", "Convert this value to a string type"},
       {3, "FLOAT", 0, "To Float", "Convert this value to a float type"},
+      {4,
+       "VECTOR",
+       0,
+       "To Vector",
+       "Convert vector-like values to a 3D vector or broadcast an integer or float to all three "
+       "components"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem logic_typecast_integer_rounding_items[] = {
+      {0, "TRUNCATE", 0, "Truncate", "Discard the fractional part toward zero"},
+      {1, "ROUND", 0, "Round", "Round to the nearest integer, with halves away from zero"},
+      {2, "FLOOR", 0, "Floor", "Round down toward negative infinity"},
+      {3, "CEIL", 0, "Ceil", "Round up toward positive infinity"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -6074,6 +6239,17 @@ static void def_logic_typecast(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_enum_sdna(prop, nullptr, "custom1");
   RNA_def_property_enum_items(prop, logic_typecast_items);
   RNA_def_property_ui_text(prop, "To Type", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "integer_rounding", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_typecast_integer_rounding_items);
+  RNA_def_property_ui_text(
+      prop,
+      "Integer Conversion",
+      "How floating-point and numeric string values are converted to integers");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -6220,27 +6396,572 @@ static void def_logic_tween_value(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
-static void def_logic_spawn_pool(BlenderRNA * /*brna*/, StructRNA *srna)
+static void def_logic_while_paused(BlenderRNA * /*brna*/, StructRNA *srna)
 {
-  static const EnumPropertyItem logic_spawn_type_items[] = {
-      {0, "SIMPLE", 0, "Simple", "Simple spawn pool"},
-      {1, "SIMPLE_BULLET", 0, "Simple Bullet", "Simple bullet pool"},
-      {2, "PHYSICS_BULLET", 0, "Physics Bullet", "Physics bullet pool"},
-      {3, "INSTANCE", 0, "Instance", "Spawned instance pool"},
+  static const EnumPropertyItem pause_scope_items[] = {
+      {0, "OWNER", 0, "Owner", "Keep only the object owning this logic tree active"},
+      {1,
+       "OBJECT_HIERARCHY",
+       0,
+       "Object Hierarchy",
+       "Keep a root object and all of its descendants active; an empty root uses the owner"},
+      {2,
+       "COLLECTION",
+       0,
+       "Collection",
+       "Keep active runtime objects from the selected collection and its children active"},
+      {3,
+       "SCENE",
+       0,
+       "Scene",
+       "Keep every object in this runtime scene active; intended for a separate UI overlay scene"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  PropertyRNA *prop;
-
-  prop = RNA_def_property(srna, "spawn_type", PROP_ENUM, PROP_NONE);
+  PropertyRNA *prop = RNA_def_property(srna, "pause_scope", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "custom1");
-  RNA_def_property_enum_items(prop, logic_spawn_type_items);
-  RNA_def_property_ui_text(prop, "Spawn Type", "");
+  RNA_def_property_enum_items(prop, pause_scope_items);
+  RNA_def_property_ui_text(prop, "Scope", "Objects that continue frame processing while paused");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
 
-  prop = RNA_def_property(srna, "create_on_init", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
-  RNA_def_property_ui_text(prop, "Create On Init", "");
+static void def_logic_interaction_view(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem interaction_view_items[] = {
+      {0,
+       "AUTOMATIC",
+       0,
+       "Automatic",
+       "Use the overlay view for overlay objects and the main view for world objects; queries "
+       "without a target test the overlay first. With split screen the mouse is player 0's: "
+       "world objects work only in their view"},
+      {1,
+       "MAIN",
+       0,
+       "Main View",
+       "Use the camera seen under the cursor and only main-world objects. With split screen the "
+       "mouse is player 0's: it works only in their view"},
+      {2,
+       "OVERLAY",
+       0,
+       "Overlay View",
+       "Use the active overlay camera and only overlay objects"},
+      {3,
+       "CUSTOM_CAMERA",
+       0,
+       "Custom Camera",
+       "Use the Camera input; Mouse Over still selects the target object's interaction domain"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "interaction_view", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, interaction_view_items);
+  RNA_def_property_ui_text(
+      prop, "Interaction View", "Camera and runtime object domain used for cursor hit testing");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_object_grid_view(BlenderRNA *brna, StructRNA *srna)
+{
+  def_logic_interaction_view(brna, srna);
+  static const EnumPropertyItem scroll_direction_items[] = {
+      {0,
+       "VERTICAL",
+       0,
+       "Vertical",
+       "Items fill each row from left to right; the grid scrolls up and down by rows"},
+      {1,
+       "HORIZONTAL",
+       0,
+       "Horizontal",
+       "Items fill each column from top to bottom; the grid scrolls left and right by columns"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "scroll_direction", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, scroll_direction_items);
+  RNA_def_property_ui_text(prop, "Scroll Direction", "Which way the grid scrolls");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+/* Two Players in custom1 bits 0-1, Three Players in bit 2 (KX_PlayerViews::Layout). */
+static void def_logic_set_split_screen(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem two_players_items[] = {
+      {0,
+       "AUTO",
+       0,
+       "Auto",
+       "Side by side on windows 16:10 and wider, top and bottom on narrower ones"},
+      {1, "SIDE_BY_SIDE", 0, "Side by Side", "Left and right halves"},
+      {2, "TOP_AND_BOTTOM", 0, "Top and Bottom", "Top and bottom halves"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem three_players_items[] = {
+      {0, "FAVOR_TOP", 0, "Favor Top", "The first player gets the top half, the others share "
+       "the bottom half"},
+      {4, "FAVOR_BOTTOM", 0, "Favor Bottom", "The first two players share the top half, the "
+       "third gets the bottom half"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem field_of_view_items[] = {
+      {0,
+       "CROP",
+       0,
+       "Crop",
+       "Things keep their one-player size: side by side views keep the height of the picture, "
+       "top and bottom views its width, and show its middle"},
+      {1,
+       "FIT",
+       0,
+       "Fit",
+       "Each view shows the camera's whole frame and more on its long side, so things look "
+       "smaller (the camera's Sensor Fit for the view's shape)"},
+      {2, "KEEP_VERTICAL", 0, "Keep Vertical", "Every view keeps the picture's height"},
+      {3, "KEEP_HORIZONTAL", 0, "Keep Horizontal", "Every view keeps the picture's width"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "split_two_players", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, two_players_items);
+  RNA_def_property_ui_text(prop, "Two Players", "How two players share the window");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "split_three_players", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, three_players_items);
+  RNA_def_property_ui_text(prop,
+                           "Three Players",
+                           "How three players share the window. Four players and more share a "
+                           "grid");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "split_field_of_view", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, field_of_view_items);
+  RNA_def_property_ui_text(prop,
+                           "Field of View",
+                           "What a split view shows of the picture its camera has in the whole "
+                           "window");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_logic_set_camera_viewport(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem area_items[] = {
+      {0, "WINDOW", 0, "Window", "Left, Top, Width and Height are parts of the window"},
+      {1,
+       "PLAYER_VIEW",
+       0,
+       "Player's View",
+       "Parts of one player's split screen view (the User input), such as that player's own "
+       "minimap; not drawn while the player has no view"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "viewport_area", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, area_items);
+  RNA_def_property_ui_text(prop, "Area", "The part of the window the viewport is placed in");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_open_object_menu(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem routing_items[] = {
+      {0,
+       "MODAL",
+       0,
+       "UI Only",
+       "While it is open, UI Elements of menus below it and in the game world do not respond to "
+       "the pointer or focus. Game logic still gets input, except where a Block UI Element "
+       "takes the pointer"},
+      {1,
+       "PASS_THROUGH",
+       0,
+       "UI + Game World",
+       "UI Elements of menus below it and in the game world also respond, where this menu's UI "
+       "Elements do not block the pointer. With nothing to select and Back not Close Menu (a "
+       "HUD), it leaves Back, the arrow keys and Replace Top to the menus below and the game"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem open_mode_items[] = {
+      {0, "PUSH", 0, "Push", "Keep the preceding menu and open this one above it"},
+      {1,
+       "REPLACE_TOP",
+       0,
+       "Replace Top",
+       "Replace the current top menu with this one (not a HUD opened as a menu)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem presentation_items[] = {
+      {0, "SCREEN", 0, "Screen", "Hide the preceding menu while this one is open"},
+      {1, "OVERLAY", 0, "Overlay", "Keep the preceding menu visible underneath this one"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem back_items[] = {
+      {0, "CLOSE_MENU", 0, "Close Menu", "Cancel/Back closes this menu"},
+      {1, "IGNORE", 0, "Ignore", "Cancel/Back does nothing while this menu is topmost"},
+      {2,
+       "CUSTOM",
+       0,
+       "Custom",
+       "Back leaves this menu open and goes to the game: an Input Action on Back reacts to it"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "menu_routing", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, routing_items);
+  RNA_def_property_ui_text(prop, "Routing", "Interaction policy while this menu is open");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "menu_open_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, open_mode_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeOpenObjectMenu_open_mode_get",
+                              "rna_LogicNativeOpenObjectMenu_open_mode_set",
+                              nullptr);
+  RNA_def_property_ui_text(prop, "Open Mode", "How this menu is inserted into the navigation stack");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "menu_presentation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, presentation_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeOpenObjectMenu_presentation_get",
+                              "rna_LogicNativeOpenObjectMenu_presentation_set",
+                              nullptr);
+  RNA_def_property_ui_text(
+      prop, "Presentation", "Whether covering this menu hides or keeps the preceding menu visible");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "menu_back_behavior", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, back_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeOpenObjectMenu_back_behavior_get",
+                              "rna_LogicNativeOpenObjectMenu_back_behavior_set",
+                              nullptr);
+  RNA_def_property_ui_text(prop, "Back", "What Cancel/Back does while this menu is topmost");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  /* Bit 8 is LN_UI_MENU_NODE_PLAYER_VIEW (LN_Types.h). */
+  static const EnumPropertyItem area_items[] = {
+      {0, "WINDOW", 0, "Window", "Shown as authored, over the whole window"},
+      {1 << 8,
+       "PLAYER_VIEW",
+       0,
+       "Player's View",
+       "Shown in the User's split screen view, scaled to fit, and kept there when the split "
+       "changes; anchored UI Elements anchor to that view. As authored while the window is not "
+       "split"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "menu_area", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, area_items);
+  RNA_def_property_ui_text(prop, "Area", "Where the menu is shown");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_pause_game", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1 << 6);
+  RNA_def_property_ui_text(prop,
+                           "Pause Game",
+                           "Pause the game while this menu is open, and resume it when the menu "
+                           "closes, however it closes (Back, a Close button, Toggle, Replace "
+                           "Top); a game paused before stays paused");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_toggle", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1 << 7);
+  RNA_def_property_ui_text(prop,
+                           "Toggle",
+                           "When this menu is already open, close it instead (with any menu "
+                           "opened on top of it), so one key or button opens and closes it; "
+                           "Closed runs then");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_close_object_menu(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem close_items[] = {
+      {0,
+       "TOP",
+       0,
+       "Top Menu",
+       "Close the User's top menu without requiring a handle (not a HUD opened as a menu)"},
+      {1, "SPECIFIC", 0, "Specific Menu", "Close exactly the menu identified by its handle"},
+      {2,
+       "ALL",
+       0,
+       "All Menus",
+       "Close every menu of the User, without removing independent overlays"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "menu_close_operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, close_items);
+  RNA_def_property_ui_text(prop, "Close", "Which menu sessions this node closes");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_set_player_pointer(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem mode_items[] = {
+      {0,
+       "SURFACE",
+       0,
+       "Surface",
+       "A cursor on a screen in the game world, such as a computer's monitor: the stick or Move "
+       "Action moves it, and player 0's mouse too"},
+      {1,
+       "VIEW_CENTER",
+       0,
+       "View Center",
+       "The middle of the player's camera view, like a crosshair: the player aims at UI Elements "
+       "in the game world by looking at them, within Reach, and presses them with Press Action. "
+       "Every player at the same time, also with Any Player elements. It waits while the "
+       "player's menu is open and while the game is paused"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "pointer_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, mode_items);
+  RNA_def_property_ui_text(prop, "Points With", "What the player points with");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_set_cursor_visibility(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem mode_items[] = {
+      {0, "SET", 0, "As Visible Says", "The Visible input shows or hides the cursor"},
+      {1,
+       "IN_MENUS",
+       0,
+       "Only in Menus",
+       "Shown while player 0 is in a menu that takes their input (such as a pause menu, also "
+       "while the game is paused) or uses a UI in the game world with the mouse by Take UI "
+       "Control; hidden while they play. Run it once, for example On Init"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "cursor_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, mode_items);
+  RNA_def_property_ui_text(prop, "Show", "When the cursor shows");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_on_ui_event(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem event_items[] = {
+      {0,
+       "CLICK",
+       0,
+       "Click",
+       "Clicked with the pointer, or Accept (Enter, Space, gamepad A by default) while focused"},
+      {1, "PRESS", 0, "Press", "The pointer button went down on it"},
+      {2, "RELEASE", 0, "Release", "The pointer button went up after pressing it"},
+      {3, "ENTER", 0, "Enter", "The pointer started hovering it"},
+      {4, "EXIT", 0, "Exit", "The pointer stopped hovering it"},
+      {5,
+       "FOCUS",
+       0,
+       "Focus",
+       "It became the selected button of a keyboard or gamepad player (not shown while the mouse "
+       "is used)"},
+      {6,
+       "FOCUS_LOST",
+       0,
+       "Focus Lost",
+       "It stopped being shown as selected: another one was selected, or the mouse was used"},
+      {7,
+       "DRAG_START",
+       0,
+       "Drag Start",
+       "A drag of it started, with the pointer or with Grab (gamepad Y by default) while "
+       "focused"},
+      {8, "DRAG", 0, "Drag", "Every frame while it is dragged"},
+      {9,
+       "DROP",
+       0,
+       "Drop",
+       "The drag ended anywhere; Target is the UI Element it was dropped on or the game-world "
+       "object under the pointer"},
+      {10,
+       "DRAG_CANCEL",
+       0,
+       "Drag Cancel",
+       "The drag did nothing and the element goes back: cancelled with Back (Escape or gamepad B "
+       "by default), or let go over other UI or over nothing"},
+      {11,
+       "SECONDARY_CLICK",
+       0,
+       "Secondary Click",
+       "Right-clicked with the pointer, or Secondary (gamepad X by default) while focused"},
+      {12,
+       "DROP_RECEIVED",
+       0,
+       "Drop Received",
+       "A dragged UI Element was dropped on this one (Drop Target on); Dropped is the dragged "
+       "one"},
+      {13,
+       "DROP_OUTSIDE",
+       0,
+       "Drop Outside",
+       "It was let go over the player's game view, where no UI Element takes it (over other UI "
+       "or a minimap it goes back); Target is the game-world object under the pointer and Point "
+       "the spot on it, or where a Grid View's Drop Into World put the stack"},
+      {14,
+       "HIGHLIGHT",
+       0,
+       "Highlight",
+       "The player now points at it: the UI Element under the mouse, or the one a keyboard or "
+       "gamepad player has selected; also when the grid item it shows changes. Object is empty "
+       "when the highlight left the elements of this Action (one frame before another Action's "
+       "element gets it, so a text both set shows the new one)"},
+      {15,
+       "CHANGED",
+       0,
+       "Changed",
+       "Its widget (Toggle, Slider, Selector) changed its game property; Item is the new value"},
+      {16,
+       "DROP_ENTER",
+       0,
+       "Drop Enter",
+       "A dragged UI Element of the same Drop Group came over this one (Drop Target on); "
+       "Dragged is the dragged one and Accepted tells whether this one takes it (its Accept "
+       "Categories), for a green or red preview. Sent again when that changes"},
+      {17,
+       "DROP_EXIT",
+       0,
+       "Drop Exit",
+       "The dragged UI Element is no longer over this one: it moved away, was dropped (also on "
+       "this one), was put back or cancelled. Use it to clear a preview"},
+      {18,
+       "HIGHLIGHT_START",
+       0,
+       "Highlight Start",
+       "This UI Element became highlighted, when its Highlight Object would show (under the "
+       "mouse, or the selection a keyboard or gamepad player sees): start a highlight effect, "
+       "such as Play Action on Object"},
+      {19,
+       "HIGHLIGHT_END",
+       0,
+       "Highlight End",
+       "This UI Element is no longer highlighted: end the effect (play the action back to its "
+       "start). Every Highlight Start is followed by one Highlight End"},
+      {20,
+       "REFUSED_START",
+       0,
+       "Refused Start",
+       "An item dragged over this UI Element is refused by its Accept Categories, when its "
+       "Refused Object would show; Target is the dragged one"},
+      {21,
+       "REFUSED_END",
+       0,
+       "Refused End",
+       "The refused item is no longer over this UI Element: end the refused effect"},
+      {22,
+       "USE",
+       0,
+       "Use",
+       "A Grid View slot's item is used: its grid's Use Action pressed on it, or one of its "
+       "Use Keys. Item, Index and Amount say what (eat it, equip it...)"},
+      {23,
+       "ITEM_SHOWN",
+       0,
+       "Item Shown",
+       "A Grid View slot now shows another item, or its item's count or own values changed, or it "
+       "emptied (Item empty): show the item's own data on the slot (a durability bar, a rarity "
+       "color)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "ui_event", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, event_items);
+  RNA_def_property_ui_text(prop, "Event", "What has to happen to a UI Element to run Out");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_scroll_object_view(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem mode_items[] = {
+      {0,
+       "SHOW_ITEM",
+       0,
+       "Show Item",
+       "Scroll the least so Item is in view: in a Grid View an index or an item (a crafted item, "
+       "a search result), in a Scroll View an object in its content"},
+      {1, "TOP", 0, "Top", "Scroll to the start (At Start)"},
+      {2, "BOTTOM", 0, "Bottom", "Scroll to the end (At End), such as the newest line of a log"},
+      {3, "NEXT_PAGE", 0, "Next Page", "Scroll one page toward the end: what the view shows"},
+      {4, "PREVIOUS_PAGE", 0, "Previous Page", "Scroll one page toward the start"},
+      {5,
+       "LINES",
+       0,
+       "Lines",
+       "Scroll by Lines rows (columns of a horizontal grid; Wheel Steps of a Scroll View); "
+       "negative toward the start"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "scroll_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, mode_items);
+  RNA_def_property_ui_text(prop, "Scroll", "How the view scrolls");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_screen_anchor(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem anchor_items[] = {
+      {0, "TOP_LEFT", 0, "Top Left", "Anchor to the top-left safe margin"},
+      {1, "TOP", 0, "Top", "Anchor to the top center"},
+      {2, "TOP_RIGHT", 0, "Top Right", "Anchor to the top-right safe margin"},
+      {3, "LEFT", 0, "Left", "Anchor to the middle left"},
+      {4, "CENTER", 0, "Center", "Anchor to the screen center"},
+      {5, "RIGHT", 0, "Right", "Anchor to the middle right"},
+      {6, "BOTTOM_LEFT", 0, "Bottom Left", "Anchor to the bottom-left safe margin"},
+      {7, "BOTTOM", 0, "Bottom", "Anchor to the bottom center"},
+      {8, "BOTTOM_RIGHT", 0, "Bottom Right", "Anchor to the bottom-right safe margin"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "screen_anchor", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, anchor_items);
+  RNA_def_property_ui_text(prop, "Anchor", "Responsive viewport anchor");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  static const EnumPropertyItem area_items[] = {
+      {0, "WINDOW", 0, "Window", "Anchor in the whole window"},
+      {1,
+       "PLAYER_VIEW",
+       0,
+       "Player's View",
+       "Anchor in one player's split screen view (the User input). For a player's HUD, put the "
+       "object in an overlay collection (Set Overlay Collection): a world object is in front of "
+       "that player's camera, where other players' cameras can see it too"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "screen_area", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, area_items);
+  RNA_def_property_ui_text(prop, "Area", "The part of the window the anchor is in");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
@@ -6294,6 +7015,83 @@ static void def_logic_shape_cast(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
+static void def_logic_set_parent(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem parent_type_items[] = {
+      {0, "OBJECT", ICON_OBJECT_DATA, "Object", "Parent to an object's transform"},
+      {1, "BONE", ICON_BONE_DATA, "Bone", "Parent to a pose bone on an armature object"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "parent_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, parent_type_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_LogicNativeSetParent_parent_type_get",
+                              "rna_LogicNativeSetParent_parent_type_set",
+                              nullptr);
+  RNA_def_property_ui_text(prop, "Parent Type", "Scene-graph relationship to create");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_distance_between(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem endpoint_type_items[] = {
+      {0, "OBJECT", ICON_OBJECT_DATA, "Object", "Use an object's world-space origin"},
+      {1, "POSITION", 0, "Position", "Use a world-space vector position"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "endpoint_a_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, endpoint_type_items);
+  RNA_def_property_ui_text(prop, "Endpoint A", "Source type for the first endpoint");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  prop = RNA_def_property(srna, "endpoint_b_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, endpoint_type_items);
+  RNA_def_property_ui_text(prop, "Endpoint B", "Source type for the second endpoint");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_average_center_position(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem source_type_items[] = {
+      {0, "VECTOR_LIST", 0, "Vector List", "Average world-space position vectors"},
+      {1, "OBJECT_LIST", ICON_OBJECT_DATA, "Object List", "Average object world-space origins"},
+      {2,
+       "COLLECTION",
+       ICON_OUTLINER_COLLECTION,
+       "Collection",
+       "Average direct active game objects in a collection"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "source_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, source_type_items);
+  RNA_def_property_ui_text(prop, "Source", "Type of world-space positions to average");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_predict_motion(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem source_type_items[] = {
+      {0, "OBJECT", ICON_OBJECT_DATA, "Object", "Track an object's world-space origin"},
+      {1, "POSITION", 0, "Position", "Track a world-space vector position"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "source_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, source_type_items);
+  RNA_def_property_ui_text(prop, "Source", "Position source to sample over time");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
 static void def_logic_raycast(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem input_mode_items[] = {
@@ -6313,6 +7111,32 @@ static void def_logic_raycast(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
+static void def_logic_raycast_from_mesh(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem domain_items[] = {
+      {0, "VERTICES", 0, "Vertices", "Generate one ray from each sampled mesh vertex"},
+      {1, "FACES", 0, "Faces", "Generate one ray from each sampled evaluated mesh triangle center"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem direction_items[] = {
+      {0, "NORMALS", 0, "Normals", "Cast along the outward mesh normals"},
+      {1, "INVERTED_NORMALS", 0, "Inverted Normals", "Cast opposite the mesh normals"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "mesh_domain", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, domain_items);
+  RNA_def_property_ui_text(prop, "Mesh Domain", "Mesh elements that generate rays");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "ray_direction", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, direction_items);
+  RNA_def_property_ui_text(prop, "Ray Direction", "Whether rays follow or oppose mesh normals");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_logic_rigid_body_constraint_match_mode(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem match_mode_items[] = {
@@ -6330,17 +7154,33 @@ static void def_logic_rigid_body_constraint_match_mode(BlenderRNA * /*brna*/, St
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 
+static void def_logic_constraint_break_match_mode(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem match_mode_items[] = {
+      {0, "EXACT", 0, "Exact", "Match the complete case-sensitive constraint name"},
+      {1, "CONTAINS", 0, "Contains", "Match a case-sensitive substring of the broken constraint name"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "match_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, match_mode_items);
+  RNA_def_property_ui_text(
+      prop, "Name Match", "How names in immutable constraint-break events are selected");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
 static void def_logic_gate(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem logic_gate_items[] = {
-      {0, "AND", 0, "And", "True if A and B are true"},
-      {1, "OR", 0, "Or", "True if A or B is true"},
-      {2, "XOR", 0, "Xor", "True if exactly one input is true"},
-      {3, "NOT", 0, "Not", "True if A is false"},
-      {4, "NAND", 0, "Nand", "False if A and B are true"},
-      {5, "NOR", 0, "Nor", "True if A and B are false"},
-      {6, "XNOR", 0, "Xnor", "True if both inputs have the same value"},
-      {7, "AND_NOT", 0, "And Not", "True if A is true and B is false"},
+      {0, "AND", 0, "And", "True when every condition is true"},
+      {1, "OR", 0, "Or", "True when any condition is true"},
+      {2, "XOR", 0, "Xor", "True when an odd number of conditions are true"},
+      {3, "NOT", 0, "Not", "True when the condition is false"},
+      {4, "NAND", 0, "Nand", "False only when every condition is true"},
+      {5, "NOR", 0, "Nor", "True only when every condition is false"},
+      {6, "XNOR", 0, "Xnor", "True when an even number of conditions are true"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -6423,6 +7263,40 @@ static void def_logic_vsync_mode(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_enum_sdna(prop, nullptr, "custom1");
   RNA_def_property_enum_items(prop, logic_vsync_mode_items);
   RNA_def_property_ui_text(prop, "Mode", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_inventory(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  /* Matches node_logic_inventory.cc and LN_InventoryOperation in the game engine. */
+  static const EnumPropertyItem logic_inventory_operation_items[] = {
+      {0, "ADD_ITEM", 0, "Add Item", "Add an amount of an item, stacking it when allowed"},
+      {1, "REMOVE_ITEM", 0, "Remove Item", "Take an amount of an item, newest slots first"},
+      {2, "REMOVE_FROM_SLOT", 0, "Remove From Slot", "Take an amount from one slot"},
+      {3, "SWAP_SLOTS", 0, "Swap Slots", "Exchange two slots"},
+      {4, "SPLIT_STACK", 0, "Split Stack", "Move an amount of a slot into a new slot after it"},
+      {5, "SORT", 0, "Sort Inventory", "Sort the slots by item name or by amount"},
+      {6,
+       "MOVE_TO_SLOT",
+       0,
+       "Move To Slot",
+       "Drop one slot on another: the same item stacks, two items of a recipe combine, others "
+       "swap"},
+      {7,
+       "CRAFT",
+       0,
+       "Craft",
+       "Make a recipe (Times times, 0 as many as possible) with ingredients from anywhere in "
+       "the inventory"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_inventory_operation_items);
+  RNA_def_property_ui_text(prop, "Operation", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -6514,6 +7388,77 @@ static void def_logic_sound_datablock(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+/* The sound's volume group (custom2, LN_SoundGroup): Set Volume changes a group's volume. */
+static void def_logic_sound_group(StructRNA *srna)
+{
+  static const EnumPropertyItem group_items[] = {
+      {0, "EFFECTS", 0, "Effects", "Sound effects: steps, shots, pickups"},
+      {1, "MUSIC", 0, "Music", "Background music"},
+      {2, "VOICE", 0, "Voice", "Dialogue"},
+      {3, "AMBIENCE", 0, "Ambience", "Wind, rain, room noise"},
+      {4, "UI", 0, "UI", "Menu sounds (played from On UI Sound)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "sound_group", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, group_items);
+  RNA_def_property_ui_text(
+      prop, "Group", "Volume group of the sound: Set Volume changes the volume of all its sounds");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+/* Play Sound: the sound datablock and its volume group. */
+static void def_logic_play_sound(BlenderRNA *brna, StructRNA *srna)
+{
+  def_logic_sound_datablock(brna, srna);
+  def_logic_sound_group(srna);
+}
+
+/* Set Volume: which group (custom1, LN_SoundGroup; Master is every sound). */
+static void def_logic_set_volume(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem group_items[] = {
+      {5, "MASTER", 0, "Master", "Every sound of the game, also from Python or logic bricks"},
+      {1, "MUSIC", 0, "Music", "Background music"},
+      {0, "EFFECTS", 0, "Effects", "Sound effects: steps, shots, pickups"},
+      {2, "VOICE", 0, "Voice", "Dialogue"},
+      {3, "AMBIENCE", 0, "Ambience", "Wind, rain, room noise"},
+      {4, "UI", 0, "UI", "Menu sounds (played from On UI Sound)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "sound_group", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, group_items);
+  RNA_def_property_ui_text(prop, "Group", "The sounds whose volume changes");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+/* Play Sound 3D: the sound datablock, whose camera hears it (custom1) and its group (custom2). */
+static void def_logic_play_sound_3d(BlenderRNA *brna, StructRNA *srna)
+{
+  def_logic_sound_datablock(brna, srna);
+  def_logic_sound_group(srna);
+  static const EnumPropertyItem listener_items[] = {
+      {0,
+       "NEAREST_PLAYER",
+       0,
+       "Nearest Player",
+       "Heard from the camera of the nearest player on screen (split screen). It changes player "
+       "only when another one is clearly closer, so the sound does not jump between them"},
+      {1, "PLAYER", 0, "Player", "Heard from one player's camera (the User input)"},
+      {2, "ACTIVE_CAMERA", 0, "Active Camera", "Heard from the scene's active camera"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "sound_listener", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, listener_items);
+  RNA_def_property_ui_text(prop, "Listener", "Whose camera hears the sound");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
 static void def_logic_material_datablock(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -6596,20 +7541,21 @@ static void def_logic_get_bone_pose_rotation(BlenderRNA * /*brna*/, StructRNA *s
        "POSE_CHANNEL",
        0,
        "Pose Channel",
-       "Return the raw pose bone rotation channel. This is the local channel value and does "
-       "not include parent pose, constraints, or the armature object transform"},
+       "Return the native Blender pose bone rotation channel in bone-local axes. This does not "
+       "include the rest orientation, parent pose, constraints, or armature object transform"},
       {1,
        "ARMATURE",
        0,
        "Armature Space",
-       "Return the evaluated pose bone orientation in armature object coordinates, including "
-       "parent pose and constraints but ignoring the armature object's world transform"},
+       "Return the evaluated native bone orientation in armature object coordinates, including "
+       "the rest orientation, roll, parent pose, and constraints but ignoring the armature "
+       "object's world transform"},
       {2,
        "WORLD",
        0,
        "World Space",
-       "Return the evaluated pose bone orientation in game world coordinates, including the "
-       "armature object's world rotation"},
+       "Return the evaluated native bone orientation in game world coordinates, including the "
+       "rest orientation, roll, parent pose, constraints, and armature object's world rotation"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   PropertyRNA *prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
@@ -6700,9 +7646,8 @@ static void def_logic_set_bone_pose_location(BlenderRNA * /*brna*/, StructRNA *s
        "BONE_LOCAL_OFFSET",
        0,
        "Bone Local Offset",
-       "Treat Location as an object-style local offset from the evaluated pose bone. This follows "
-       "the current pose orientation, including parent bone rotation, while remapping Blender's "
-       "bone rest axes to normal X, Y, and Z axes"},
+       "Treat Location as an offset in the evaluated native Blender bone axes. This follows the "
+       "current pose orientation, including the bone rest orientation, roll, and parent pose"},
       {2,
        "ARMATURE",
        0,
@@ -6752,18 +7697,19 @@ static void def_logic_set_bone_pose_rotation(BlenderRNA * /*brna*/, StructRNA *s
        "POSE_CHANNEL",
        0,
        "Pose Channel",
-       "Write Rotation as the pose bone rotation channel, matching the original node behavior"},
+       "Write Rotation directly as the native Blender pose bone rotation channel in bone-local "
+       "axes"},
       {1,
        "ARMATURE",
        0,
        "Armature Space",
-       "Treat Rotation as the target evaluated pose bone orientation in armature object "
+       "Treat Rotation as the target evaluated native bone orientation in armature object "
        "coordinates, accounting for parent pose and rest transforms"},
       {2,
        "WORLD",
        0,
        "World Space",
-       "Treat Rotation as the target evaluated pose bone orientation in game world coordinates, "
+       "Treat Rotation as the target evaluated native bone orientation in game world coordinates, "
        "compensating for the armature object's world rotation"},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -6801,27 +7747,26 @@ static void def_logic_set_bone_pose_transform(BlenderRNA * /*brna*/, StructRNA *
        "BONE_LOCAL_OFFSET",
        0,
        "Bone Local Offset",
-       "Treat Location as an object-style local offset from the evaluated pose bone. Rotation is "
-       "written as a pose channel rotation"},
+       "Treat Location as an offset in the evaluated native Blender bone axes. Rotation is "
+       "written directly as the native pose channel rotation"},
       {2,
        "ARMATURE",
        0,
        "Armature Space",
        "Treat Location as the target pose bone head position in armature object coordinates. "
-       "Treat Rotation as the target evaluated pose bone orientation in armature object "
+       "Treat Rotation as the target evaluated native bone orientation in armature object "
        "coordinates"},
       {3,
        "WORLD",
        0,
        "World Space",
        "Treat Location as the target pose bone head position in game world coordinates. Rotation "
-       "is the target evaluated pose bone orientation in game world coordinates"},
+       "is the target evaluated native bone orientation in game world coordinates"},
       {4,
        "POSE_CHANNEL",
        0,
        "Pose Channel",
-       "Write Location as the raw pose bone Location channel. Rotation uses the pose-channel "
-       "rotation behavior"},
+       "Write Location and Rotation directly as native Blender pose bone channels"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -7007,7 +7952,23 @@ static void def_logic_store_value(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "custom1", 1);
   RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
-      prop, "Initialize", "Store the input value on the first evaluation before the condition is true");
+      prop,
+      "Initialize",
+      "Store the input value the first time Stored Value is read, before Flow ever runs (off: 0 "
+      "until Flow stores)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_value_changed(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop = RNA_def_property(srna, "ignore_initial_none", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
+  RNA_def_property_ui_text(
+      prop,
+      "Ignore Initial None",
+      "Wait for the first non-None input to establish the initial value instead of reporting the "
+      "first None-to-value transition as a change");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
@@ -7035,10 +7996,48 @@ static void def_logic_vehicle_axis(BlenderRNA * /*brna*/, StructRNA *srna)
 static void def_logic_set_dynamics(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem logic_set_dynamics_mode_items[] = {
-      {0, "DYNAMIC", 0, "Dynamic", "Restore normal dynamic physics simulation"},
-      {1, "STATIC_COLLIDER", 0, "Static Collider", "Stop dynamic motion but keep solid collision"},
-      {2, "GHOST", 0, "Ghost", "Enable or disable overlap detection without physical collision response"},
+      RNA_ENUM_ITEM_HEADING(CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Temporary Physics State"),
+                            nullptr),
+      {0,
+       "DYNAMIC",
+       0,
+       "Restore Previous Physics State",
+       "Restore the motion and collision state saved before Static or No Collision was first "
+       "applied; the independent Ghost setting is preserved"},
+      {1, "STATIC_COLLIDER", 0, "Static", "Stop motion while keeping solid collision"},
+      {2,
+       "GHOST",
+       0,
+       "Ghost",
+       "Toggle physical collision response while preserving the current physics type and "
+       "collision shape; Ghost objects pass through other objects but can still report overlaps"},
       {3, "NO_COLLISION", 0, "No Collision", "Disable physical collision and overlap detection"},
+      RNA_ENUM_ITEM_SEPR,
+      RNA_ENUM_ITEM_HEADING(CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Physics Type"), nullptr),
+      {4,
+       "RESTORE_ORIGINAL",
+       0,
+       "Restore Original Physics Type",
+       "Restore the exact physics type configured when the game started"},
+      {5,
+       "DYNAMIC_TYPE",
+       0,
+       "Dynamic",
+       "Use transform and force-driven motion without rigid-body rotation; changing an authored "
+       "Static body requires moving-compatible Jolt collision bounds such as Box or Convex Hull"},
+      {6,
+       "RIGID_BODY",
+       0,
+       "Rigid Body",
+       "Use transform and force-driven motion with rigid-body rotation; changing an authored "
+       "Static body requires moving-compatible Jolt collision bounds such as Box or Convex Hull"},
+      {7,
+       "KINEMATIC",
+       0,
+       "Kinematic",
+       "Drive the body from game transforms while allowing it to push Dynamic bodies; changing "
+       "an authored Static body requires moving-compatible Jolt collision bounds such as Box or "
+       "Convex Hull"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -7047,7 +8046,7 @@ static void def_logic_set_dynamics(BlenderRNA * /*brna*/, StructRNA *srna)
   prop = RNA_def_property(srna, "dynamics_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "custom1");
   RNA_def_property_enum_items(prop, logic_set_dynamics_mode_items);
-  RNA_def_property_ui_text(prop, "Mode", "Runtime dynamics state to apply");
+  RNA_def_property_ui_text(prop, "Physics State", "Runtime physics state or type to apply");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -12949,11 +13948,19 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeCompare", def_logic_compare);
   define("LogicNode", "LogicNativeCooldown");
   define("LogicNode", "LogicNativeDelay");
+  define("LogicNode", "LogicNativeFlowGate");
+  define("LogicNode", "LogicNativeAnyFlow");
+  define("LogicNode", "LogicNativeSwitchFlowInt");
+  define("LogicNode", "LogicNativeSwitchFlowString");
+  define("LogicNode", "LogicNativeFlowRouter");
+  define("LogicNode", "LogicNativeFlipFlop");
+  define("LogicNode", "LogicNativeRepeatLimit");
+  define("LogicNode", "LogicNativeBreakLoop");
   define("LogicNode", "LogicNativeEuler");
   define("LogicNode", "LogicNativeVectorToRotation", def_logic_vector_to_rotation);
+  define("LogicNode", "LogicNativeBoneRotationToObjectRotation");
   define("LogicNode", "LogicNativeEvaluateProperty", def_logic_evaluate_property);
   define("LogicNode", "LogicNativeGate", def_logic_gate);
-  define("LogicNode", "LogicNativeGateList", def_logic_gate);
   define("LogicNode", "LogicNativeApplyMovement");
   define("LogicNode", "LogicNativeApplyRotation");
   define("LogicNode", "LogicNativeApplyTorque");
@@ -12961,6 +13968,8 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeGetGamePropertyFloat");
   define("LogicNode", "LogicNativeGetGamePropertyInt");
   define("LogicNode", "LogicNativeGetGamePropertyString");
+  define("LogicNode", "LogicNativeGetGameProperty");
+  define("LogicNode", "LogicNativeSetGameProperty");
   define("LogicNode", "LogicNativeAddObject");
   define("LogicNode", "LogicNativeAddPhysicsConstraint", def_logic_physics_constraint);
   define("LogicNode", "LogicNativeFormula", def_logic_formula);
@@ -12971,8 +13980,11 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeGetParent");
   define("LogicNode", "LogicNativeFindObject");
   define("LogicNode", "LogicNativeGetObjectAttribute", def_logic_get_object_attribute);
-  define("LogicNode", "LogicNativeGetDistance");
-  define("LogicNode", "LogicNativeGetGroupCenterPosition");
+  define("LogicNode", "LogicNativeGetDistance", def_logic_distance_between);
+  define("LogicNode",
+         "LogicNativeGetAverageCenterPosition",
+         def_logic_average_center_position);
+  define("LogicNode", "LogicNativePredictMotion", def_logic_predict_motion);
   define("LogicNode", "LogicNativeGetObjectID");
   define("LogicNode", "LogicNativeGetAxisVector", def_logic_axis_selector);
   define("LogicNode", "LogicNativeGetCollisionGroup");
@@ -13001,30 +14013,50 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeLoopFromList");
   define("LogicNode", "LogicNativeMath", def_logic_math);
   define("LogicNode", "LogicNativeModifyProperty", def_logic_modify_property);
-  define("LogicNode", "LogicNativeModifyPropertyClamped");
   define("LogicNode", "LogicNativeMoveToward");
   define("LogicNode", "LogicNativeNavigate");
   define("LogicNode", "LogicNativeFollowPath");
   define("LogicNode", "LogicNativeTranslate");
   define("LogicNode", "LogicNativeMouseMoved", def_logic_mouse_moved);
-  define("LogicNode", "LogicNativeMouseOver");
+  define("LogicNode", "LogicNativeMouseOver", def_logic_interaction_view);
+  define("LogicNode", "LogicNativeObjectScrollView", def_logic_interaction_view);
+  define("LogicNode", "LogicNativeObjectGridView", def_logic_object_grid_view);
+  define("LogicNode", "LogicNativeOpenObjectMenu", def_logic_open_object_menu);
+  define("LogicNode", "LogicNativeCloseObjectMenu", def_logic_close_object_menu);
+  define("LogicNode", "LogicNativeSetUIFocus");
+  define("LogicNode", "LogicNativeSetPlayerPointer", def_logic_set_player_pointer);
+  define("LogicNode", "LogicNativeTakeUIControl");
+  define("LogicNode", "LogicNativeGetUIFocus");
+  define("LogicNode", "LogicNativeScreenAnchor", def_logic_screen_anchor);
+  define("LogicNode", "LogicNativeOnUIEvent", def_logic_on_ui_event);
+  define("LogicNode", "LogicNativeOnUISound");
+  define("LogicNode", "LogicNativeSetUIInteractable");
+  define("LogicNode", "LogicNativeScrollObjectView", def_logic_scroll_object_view);
+  define("LogicNode", "LogicNativeShowMessage");
   define("LogicNode", "LogicNativeMouseButton", def_logic_mouse_button);
   define("LogicNode", "LogicNativeMouseLook", def_logic_mouse_look);
   define("LogicNode", "LogicNativeMouseWheel", def_logic_mouse_wheel);
-  define("LogicNode", "LogicNativeMouseRay");
+  define("LogicNode", "LogicNativeMouseRay", def_logic_interaction_view);
   define("LogicNode", "LogicNativeCursorPosition", def_logic_cursor_position);
   define("LogicNode", "LogicNativeCursorMovement");
-  define("LogicNode", "LogicNativeSetCursorVisibility");
+  define("LogicNode", "LogicNativeSetCursorVisibility", def_logic_set_cursor_visibility);
   define("LogicNode", "LogicNativeSetCursorPosition");
   define("LogicNode", "LogicNativeGamepadActive");
   define("LogicNode", "LogicNativeGamepadButton", def_logic_gamepad_button);
+  define("LogicNode", "LogicNativeInputAction", def_logic_input_action);
+  define("LogicNode", "LogicNativeGetInputBinding", def_logic_get_input_binding);
+  define("LogicNode", "LogicNativeRebindInputAction", def_logic_rebind_input_action);
+  define("LogicNode", "LogicNativeInputMap", def_logic_input_map);
   define("LogicNode", "LogicNativeGamepadStick", def_logic_gamepad_stick);
   define("LogicNode", "LogicNativeGamepadVibration");
   define("LogicNode", "LogicNativeGamepadLook", def_logic_gamepad_look);
+  define("LogicNode", "LogicNativeOnConstraintBreak", def_logic_constraint_break_match_mode);
+  define("LogicNode", "LogicNativeOnGameLoaded");
   define("LogicNode", "LogicNativeOnInit");
   define("LogicNode", "LogicNativeOnFixedUpdate");
   define("LogicNode", "LogicNativeOnNextFrame");
   define("LogicNode", "LogicNativeOnUpdate");
+  define("LogicNode", "LogicNativeWhilePaused", def_logic_while_paused);
   define("LogicNode", "LogicNativeObjectByName");
   define("LogicNode", "LogicNativeOnce");
   define("LogicNode", "LogicNativeCameraRay");
@@ -13038,13 +14070,15 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeQuitGame");
   define("LogicNode", "LogicNativeRestartGame");
   define("LogicNode", "LogicNativePlayAction", def_logic_play_action);
-  define("LogicNode", "LogicNativePlaySound", def_logic_sound_datablock);
-  define("LogicNode", "LogicNativePlaySound3D", def_logic_sound_datablock);
+  define("LogicNode", "LogicNativePlaySound", def_logic_play_sound);
+  define("LogicNode", "LogicNativePlaySound3D", def_logic_play_sound_3d);
+  define("LogicNode", "LogicNativeSetVolume", def_logic_set_volume);
   define("LogicNode", "LogicNativeStartSpeaker");
   define("LogicNode", "LogicNativePauseSound", def_logic_sound_datablock);
   define("LogicNode", "LogicNativeResumeSound", def_logic_sound_datablock);
   define("LogicNode", "LogicNativeStopAction");
   define("LogicNode", "LogicNativeSetActionFrame");
+  define("LogicNode", "LogicNativeSetShapeKeyValue");
   define("LogicNode", "LogicNativeActionDone");
   define("LogicNode", "LogicNativeAlignAxisToVector");
   define("LogicNode", "LogicNativeRotateToward");
@@ -13119,16 +14153,33 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeListDuplicate");
   define("LogicNode", "LogicNativeDictMerge");
   define("LogicNode", "LogicNativeListAppend");
+  define("LogicNode", "LogicNativeListSort");
+  define("LogicNode", "LogicNativeListFindIndex");
   define("LogicNode", "LogicNativeListRemoveIndex");
   define("LogicNode", "LogicNativeListRemoveValue");
   define("LogicNode", "LogicNativeListSetIndex");
   define("LogicNode", "LogicNativeDictSetKey");
+  define("LogicNode", "LogicNativeDictAddValue");
+  define("LogicNode", "LogicNativeInventory", def_logic_inventory);
+  define("LogicNode", "LogicNativeItemCount");
+  define("LogicNode", "LogicNativeGetItemInfo");
+  define("LogicNode", "LogicNativeGetRecipeInfo");
+  define("LogicNode", "LogicNativeFindRecipe");
+  define("LogicNode", "LogicNativeDropItem");
   define("LogicNode", "LogicNativeDictRemoveKey");
   define("LogicNode", "LogicNativeListFromItems", def_logic_list_from_items);
   define("LogicNode", "LogicNativeGetActiveCamera");
   define("LogicNode", "LogicNativeSetCamera");
   define("LogicNode", "LogicNativeSetCameraFov");
   define("LogicNode", "LogicNativeSetCameraOrthoScale");
+  define("LogicNode", "LogicNativeSetSplitScreen", def_logic_set_split_screen);
+  define("LogicNode", "LogicNativeGetPlayerView");
+  define("LogicNode", "LogicNativeSetCameraViewport", def_logic_set_camera_viewport);
+  define("LogicNode", "LogicNativeOnPlayerJoin");
+  define("LogicNode", "LogicNativeSetPlayerGamepad");
+  define("LogicNode", "LogicNativeGetPlayerGamepad");
+  define("LogicNode", "LogicNativeGetMenuPlayer");
+  define("LogicNode", "LogicNativeSetCameraVisibility");
   define("LogicNode", "LogicNativeWorldToScreen");
   define("LogicNode", "LogicNativeScreenToWorld");
   define("LogicNode", "LogicNativeGetFullscreen");
@@ -13144,8 +14195,11 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeRandomFloat");
   define("LogicNode", "LogicNativeRandomInt");
   define("LogicNode", "LogicNativeRandomVector");
+  define("LogicNode", "LogicNativeMixValue");
+  define("LogicNode", "LogicNativeFloatCurve", def_float_curve);
   define("LogicNode", "LogicNativeRaycast", def_logic_raycast);
   define("LogicNode", "LogicNativeRaycastAll", def_logic_raycast);
+  define("LogicNode", "LogicNativeRaycastFromMesh", def_logic_raycast_from_mesh);
   define("LogicNode", "LogicNativeShapeCast", def_logic_shape_cast);
   define("LogicNode", "LogicNativeShapeCastAll", def_logic_shape_cast);
   define("LogicNode", "LogicNativeRemoveObject");
@@ -13158,6 +14212,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeSeparateXY");
   define("LogicNode", "LogicNativeSeparateEuler");
   define("LogicNode", "LogicNativeSeparateXYZ");
+  define("LogicNode", "LogicNativeSequence");
   define("LogicNode", "LogicNativeSetGamePropertyBool");
   define("LogicNode", "LogicNativeSetGamePropertyFloat");
   define("LogicNode", "LogicNativeSetGamePropertyInt");
@@ -13175,10 +14230,12 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeSetLightColor");
   define("LogicNode", "LogicNativeSetLightPower");
   define("LogicNode", "LogicNativeSetLightShadow");
-  define("LogicNode", "LogicNativeSetParent");
+  define("LogicNode", "LogicNativeSetParent", def_logic_set_parent);
   define("LogicNode", "LogicNativeSetPhysics");
+  define("LogicNode", "LogicNativeSetPhysicsPaused");
   define("LogicNode", "LogicNativeRebuildCollisionShape");
   define("LogicNode", "LogicNativeSetTimescale");
+  define("LogicNode", "LogicNativeSetGamePaused");
   define("LogicNode", "LogicNativeStringOperation", def_logic_string_operation);
   define("LogicNode", "LogicNativeVectorRotate", def_logic_vector_rotate);
   define("LogicNode", "LogicNativeXYZToMatrix");
@@ -13186,7 +14243,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeFilePath");
   define("LogicNode", "LogicNativeGetSound");
   define("LogicNode", "LogicNativeGetImage");
-  define("LogicNode", "LogicNativeGetFont");
+  define("LogicNode", "LogicNativeSetText");
   define("LogicNode", "LogicNativeDrawLine");
   define("LogicNode", "LogicNativeDrawCube", def_logic_volume_origin);
   define("LogicNode", "LogicNativeDrawBox", def_logic_volume_origin);
@@ -13194,12 +14251,11 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeJoinPath");
   define("LogicNode", "LogicNativeGetMasterFolder");
   define("LogicNode", "LogicNativeLoadFileContent");
-  define("LogicNode", "LogicNativeSetCustomCursor");
   define("LogicNode", "LogicNativeToggleProperty");
   define("LogicNode", "LogicNativeToggleTreeProperty");
   define("LogicNode", "LogicNativeTypecast", def_logic_typecast);
   define("LogicNode", "LogicNativeValueBool");
-  define("LogicNode", "LogicNativeValueChanged");
+  define("LogicNode", "LogicNativeValueChanged", def_logic_value_changed);
   define("LogicNode", "LogicNativeValueChangedTo");
   define("LogicNode", "LogicNativeValueColor");
   define("LogicNode", "LogicNativeValueFloat");
@@ -13221,7 +14277,6 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeThreshold", def_logic_threshold);
   define("LogicNode", "LogicNativeTimer");
   define("LogicNode", "LogicNativeTweenValue", def_logic_tween_value);
-  define("LogicNode", "LogicNativeSpawnPool", def_logic_spawn_pool);
   define("LogicNode", "LogicNativeProjectileRay");
   define("LogicNode", "LogicNativeApplyImpulse");
   define("LogicNode", "LogicNativeGetBoneHeadWorld");
@@ -13233,10 +14288,12 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeSaveGame");
   define("LogicNode", "LogicNativeSendEvent", def_logic_send_event);
   define("LogicNode", "LogicNativeSetScene");
+  define("LogicNode", "LogicNativeSetSaveExistence");
   define("LogicNode", "LogicNativeGetScene");
   define("LogicNode", "LogicNativeGetCollection");
   define("LogicNode", "LogicNativeGetCollectionObjects");
   define("LogicNode", "LogicNativeGetCollectionObjectNames");
+  define("LogicNode", "LogicNativeSetCollectionMember");
   define("LogicNode", "LogicNativeSetCollectionVisibility");
   define("LogicNode", "LogicNativeSetOverlayCollection");
   define("LogicNode", "LogicNativeSlowFollow");

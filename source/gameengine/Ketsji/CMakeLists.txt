@@ -46,6 +46,8 @@ set(INC
   ../../blender/python/mathutils
   ../../blender/python/intern
   ../../../intern/ghost
+  # RNA_prototypes.hh (Game Drawing compares modifiers through RNA).
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -67,11 +69,16 @@ set(SRC
   KX_BlenderMaterial.cpp
   KX_Camera.cpp
   KX_CameraIpoSGController.cpp
+  KX_CameraRenderMemory.cpp
+  KX_DepsgraphThreads.cpp
+  KX_DrawCulling.cpp
   KX_CharacterWrapper.cpp
   KX_CollisionEventManager.cpp
   KX_ConstraintWrapper.cpp
   KX_EmptyObject.cpp
   KX_FontObject.cpp
+  KX_FrameScheduler.cpp
+  KX_ObjectReferenceValue.cpp
   KX_GameObject.cpp
   KX_Globals.cpp
   KX_IpoController.cpp
@@ -87,6 +94,8 @@ set(SRC
   KX_NavMeshObject.cpp
   KX_ObColorIpoSGController.cpp
   KX_ObstacleSimulation.cpp
+  KX_OverlayResource.cpp
+  KX_PlayerViews.cpp
   KX_PolyProxy.cpp
   KX_PyConstraintBinding.cpp
   KX_PyMath.cpp
@@ -118,11 +127,16 @@ set(SRC
   KX_BlenderMaterial.h
   KX_Camera.h
   KX_CameraIpoSGController.h
+  KX_CameraRenderMemory.h
+  KX_DepsgraphThreads.h
+  KX_DrawCulling.h
   KX_CharacterWrapper.h
   KX_ClientObjectInfo.h
   KX_ConstraintWrapper.h
   KX_EmptyObject.h
   KX_FontObject.h
+  KX_FrameScheduler.h
+  KX_ObjectReferenceValue.h
   KX_GameObject.h
   KX_Globals.h
   KX_IInterpolator.h
@@ -143,8 +157,11 @@ set(SRC
   KX_NavMeshObject.h
   KX_ObColorIpoSGController.h
   KX_ObstacleSimulation.h
+  KX_OverlayResource.h
   KX_PhysicsEngineEnums.h
+  KX_PlayerViews.h
   KX_PolyProxy.h
+  KX_Parenting.h
   KX_PyConstraintBinding.h
   KX_PyMath.h
   KX_PythonComponent.h
@@ -177,6 +194,7 @@ set(LIB
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::draw
+  PRIVATE bf::geometry
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
@@ -246,6 +264,7 @@ if(WITH_GAMEENGINE)
 endif()
 
 if(WITH_GAMEENGINE_LOGICNODES)
+  add_definitions(-DWITH_GAMEENGINE_LOGICNODES)
   list(APPEND INC
     ../LogicNodes
   )
@@ -270,3 +289,29 @@ if(WITH_XR_OPENXR)
 endif()
 
 blender_add_lib(ge_ketsji "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+# RNA_prototypes.hh is generated.
+add_dependencies(ge_ketsji bf_rna)
+
+if(WITH_GTESTS)
+  set(TEST_SRC
+    tests/KX_CameraRenderMemory_test.cpp
+    tests/KX_DepsgraphThreads_test.cpp
+    tests/KX_DrawCulling_test.cpp
+    tests/KX_FrameScheduler_test.cpp
+    tests/KX_PhysicsInterpolation_test.cpp
+    tests/KX_OverlayResource_test.cpp
+    tests/KX_PlayerViews_test.cpp
+    tests/RAS_DebugDrawSnapshot_test.cpp
+  )
+  set(TEST_LIB
+    ${LIB}
+    ge_ketsji
+  )
+  blender_add_test_suite_lib(
+    gameengine_ketsji
+    "${TEST_SRC}"
+    "${INC}"
+    "${INC_SYS}"
+    "${TEST_LIB}"
+  )
+endif()

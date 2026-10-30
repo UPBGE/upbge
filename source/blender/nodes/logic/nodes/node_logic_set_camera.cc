@@ -14,7 +14,16 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::Object>("Camera"_ustr).description("Camera object to make active");
+  b.add_input<decl::Object>("Camera"_ustr)
+      .description("The camera the player sees through. Empty: for players 1 to 7, removes "
+                   "their view");
+  b.add_input<decl::Int>("User"_ustr)
+      .default_value(0)
+      .min(0)
+      .max(7)
+      .description("The player: 0 sets the active camera, as before. 1 to 7 give that player a "
+                   "camera, and the window splits between the players that have one (see Set "
+                   "Split Screen)");
   b.add_output<decl::Execution>("Done"_ustr, "Out"_ustr);
   b.add_output<decl::Execution>("Done"_ustr).available(false);
 

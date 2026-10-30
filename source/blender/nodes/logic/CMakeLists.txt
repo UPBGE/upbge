@@ -6,6 +6,7 @@ set(INC
   .
   ..
   ../intern
+  ../../blenloader
   ../../editors/include
   ../../windowmanager
   ../../makesrna
@@ -18,6 +19,7 @@ set(INC_SYS
 
 set(SRC
   nodes/node_logic_character_jump.cc
+  nodes/node_logic_dict_add_value.cc
   nodes/node_logic_get_bone_head_world.cc
   nodes/node_logic_get_character_info.cc
   nodes/node_logic_combine_xy.cc
@@ -31,8 +33,25 @@ set(SRC
   nodes/node_logic_clear_variables.cc
   nodes/node_logic_euler.cc
   nodes/node_logic_evaluate_property.cc
+  nodes/node_logic_drop_item.cc
+  nodes/node_logic_find_recipe.cc
   nodes/node_logic_formatted_string.cc
   nodes/node_logic_formula.cc
+  nodes/node_logic_float_curve.cc
+  nodes/node_logic_flow_gate.cc
+  nodes/node_logic_any_flow.cc
+  nodes/node_logic_get_item_info.cc
+  nodes/node_logic_get_recipe_info.cc
+  nodes/node_logic_inventory.cc
+  nodes/node_logic_item_count.cc
+  nodes/node_logic_list_find_index.cc
+  nodes/node_logic_list_sort.cc
+  nodes/node_logic_set_text.cc
+  nodes/node_logic_switch_flow.cc
+  nodes/node_logic_flow_router.cc
+  nodes/node_logic_flip_flop.cc
+  nodes/node_logic_repeat_limit.cc
+  nodes/node_logic_break_loop.cc
   nodes/node_logic_gate.cc
   nodes/node_logic_apply_impulse.cc
   nodes/node_logic_apply_force.cc
@@ -52,6 +71,7 @@ set(SRC
   nodes/node_logic_find_object.cc
   nodes/node_logic_follow_path.cc
   nodes/node_logic_add_physics_constraint.cc
+  nodes/node_logic_get_game_property.cc
   nodes/node_logic_get_game_property_bool.cc
   nodes/node_logic_get_game_property_float.cc
   nodes/node_logic_get_game_property_int.cc
@@ -68,7 +88,7 @@ set(SRC
   nodes/node_logic_get_collection_objects.cc
   nodes/node_logic_get_rigid_body_constraints.cc
   nodes/node_logic_get_distance.cc
-  nodes/node_logic_get_group_center_position.cc
+  nodes/node_logic_get_average_center_position.cc
   nodes/node_logic_get_light_color.cc
   nodes/node_logic_get_light_power.cc
   nodes/node_logic_get_parent.cc
@@ -105,6 +125,7 @@ set(SRC
   nodes/node_logic_get_bone_head_pose_world.cc
   nodes/node_logic_get_bone_tail_pose_world.cc
   nodes/node_logic_get_bone_center_pose_world.cc
+  nodes/node_logic_bone_rotation_to_object_rotation.cc
   nodes/node_logic_get_bone_pose_rotation.cc
   nodes/node_logic_get_bone_pose_scale.cc
   nodes/node_logic_get_bone_pose_transform.cc
@@ -143,32 +164,49 @@ set(SRC
   nodes/node_logic_delta_factor.cc
   nodes/node_logic_limit_range.cc
   nodes/node_logic_map_range.cc
+  nodes/node_logic_mix_value.cc
   nodes/node_logic_math.cc
   nodes/node_logic_modify_property.cc
-  nodes/node_logic_modify_property_clamped.cc
   nodes/node_logic_move_toward.cc
   nodes/node_logic_mouse_button.cc
   nodes/node_logic_mouse_moved.cc
   nodes/node_logic_mouse_over.cc
+  nodes/node_logic_object_scroll_view.cc
+  nodes/node_logic_object_grid_view.cc
+  nodes/node_logic_open_object_menu.cc
+  nodes/node_logic_close_object_menu.cc
+  nodes/node_logic_set_ui_focus.cc
+  nodes/node_logic_get_ui_focus.cc
+  nodes/node_logic_screen_anchor.cc
+  nodes/node_logic_on_ui_event.cc
+  nodes/node_logic_on_ui_sound.cc
+  nodes/node_logic_set_ui_interactable.cc
+  nodes/node_logic_scroll_object_view.cc
+  nodes/node_logic_show_message.cc
   nodes/node_logic_mouse_wheel.cc
   nodes/node_logic_mouse_look.cc
   nodes/node_logic_mouse_ray.cc
   nodes/node_logic_navigate.cc
   nodes/node_logic_on_fixed_update.cc
+  nodes/node_logic_on_constraint_break.cc
+  nodes/node_logic_on_game_loaded.cc
   nodes/node_logic_on_init.cc
   nodes/node_logic_on_next_frame.cc
   nodes/node_logic_on_update.cc
+  nodes/node_logic_while_paused.cc
   nodes/node_logic_object_by_name.cc
   nodes/node_logic_objects_colliding.cc
   nodes/node_logic_once.cc
   nodes/node_logic_play_action.cc
   nodes/node_logic_play_sound.cc
   nodes/node_logic_play_sound_3d.cc
+  nodes/node_logic_set_volume.cc
   nodes/node_logic_pause_sound.cc
   nodes/node_logic_resume_sound.cc
   nodes/node_logic_evaluate_curve.cc
   nodes/node_logic_set_material_slot.cc
   nodes/node_logic_print.cc
+  nodes/node_logic_predict_motion.cc
   nodes/node_logic_pulsify.cc
   nodes/node_logic_random_value.cc
   nodes/node_logic_random_float.cc
@@ -181,6 +219,7 @@ set(SRC
   nodes/node_logic_remove_variable.cc
   nodes/node_logic_raycast.cc
   nodes/node_logic_raycast_all.cc
+  nodes/node_logic_raycast_from_mesh.cc
   nodes/node_logic_shape_cast.cc
   nodes/node_logic_shape_cast_all.cc
   nodes/node_logic_projectile_ray.cc
@@ -194,19 +233,22 @@ set(SRC
   nodes/node_logic_save_variable.cc
   nodes/node_logic_save_variable_dict.cc
   nodes/node_logic_send_event.cc
+  nodes/node_logic_set_collection_member.cc
   nodes/node_logic_set_collection_visibility.cc
   nodes/node_logic_set_overlay_collection.cc
   nodes/node_logic_set_scene.cc
+  nodes/node_logic_set_save_existence.cc
   nodes/node_logic_separate_euler.cc
   nodes/node_logic_separate_xy.cc
   nodes/node_logic_slow_follow.cc
-  nodes/node_logic_spawn_pool.cc
   nodes/node_logic_separate_xyz.cc
+  nodes/node_logic_set_game_property.cc
   nodes/node_logic_set_game_property_bool.cc
   nodes/node_logic_set_game_property_float.cc
   nodes/node_logic_set_game_property_int.cc
   nodes/node_logic_set_game_property_string.cc
   nodes/node_logic_set_global_property.cc
+  nodes/node_logic_set_game_paused.cc
   nodes/node_logic_set_collision_group.cc
   nodes/node_logic_set_cursor_position.cc
   nodes/node_logic_set_cursor_visibility.cc
@@ -219,9 +261,21 @@ set(SRC
   nodes/node_logic_set_object_attribute.cc
   nodes/node_logic_set_parent.cc
   nodes/node_logic_set_physics.cc
+  nodes/node_logic_set_physics_paused.cc
   nodes/node_logic_set_rigid_body_attribute.cc
   nodes/node_logic_set_action_frame.cc
+  nodes/node_logic_set_shape_key_value.cc
   nodes/node_logic_set_camera.cc
+  nodes/node_logic_set_camera_viewport.cc
+  nodes/node_logic_set_camera_visibility.cc
+  nodes/node_logic_set_player_pointer.cc
+  nodes/node_logic_take_ui_control.cc
+  nodes/node_logic_get_player_view.cc
+  nodes/node_logic_set_split_screen.cc
+  nodes/node_logic_on_player_join.cc
+  nodes/node_logic_set_player_gamepad.cc
+  nodes/node_logic_get_player_gamepad.cc
+  nodes/node_logic_get_menu_player.cc
   nodes/node_logic_set_camera_fov.cc
   nodes/node_logic_set_camera_ortho_scale.cc
   nodes/node_logic_set_character_gravity.cc
@@ -236,6 +290,7 @@ set(SRC
   nodes/node_logic_show_framerate.cc
   nodes/node_logic_show_profile.cc
   nodes/node_logic_screen_to_world.cc
+  nodes/node_logic_sequence.cc
   nodes/node_logic_set_timescale.cc
   nodes/node_logic_string_operation.cc
   nodes/node_logic_threshold.cc
@@ -270,6 +325,10 @@ set(SRC
   nodes/node_logic_cursor_position.cc
   nodes/node_logic_gamepad_active.cc
   nodes/node_logic_gamepad_button.cc
+  nodes/node_logic_get_input_binding.cc
+  nodes/node_logic_input_action.cc
+  nodes/node_logic_input_map.cc
+  nodes/node_logic_rebind_input_action.cc
   nodes/node_logic_gamepad_look.cc
   nodes/node_logic_gamepad_stick.cc
   nodes/node_logic_gamepad_vibration.cc
@@ -285,7 +344,6 @@ set(SRC
 
   node_logic_socket_declarations.hh
   node_logic_util.hh
-    nodes/node_logic_gate_list.cc
 )
 
 set(LIB

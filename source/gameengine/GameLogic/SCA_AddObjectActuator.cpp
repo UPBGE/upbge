@@ -283,6 +283,7 @@ void SCA_AddObjectActuator::InstantAddObject()
     // Now it needs to be added to the current scene.
     KX_GameObject *replica = nullptr;
     if (!m_duplicateObject) {
+      const KX_Scene::CopyReuseScope reuse(*m_scene);
       replica = m_scene->AddReplicaObject(
           m_OriginalObject, static_cast<KX_GameObject *>(GetParent()), m_timeProp);
     }

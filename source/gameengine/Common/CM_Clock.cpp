@@ -7,7 +7,7 @@ CM_Clock::CM_Clock()
 
 void CM_Clock::Reset()
 {
-  m_start = m_clock.now();
+  m_start = std::chrono::steady_clock::now();
 }
 
 double CM_Clock::GetTimeSecond() const
@@ -17,6 +17,6 @@ double CM_Clock::GetTimeSecond() const
 
 CM_Clock::Rep CM_Clock::GetTimeNano() const
 {
-  const std::chrono::high_resolution_clock::time_point now = m_clock.now();
+  const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
   return std::chrono::duration_cast<std::chrono::nanoseconds>(now - m_start).count();
 }

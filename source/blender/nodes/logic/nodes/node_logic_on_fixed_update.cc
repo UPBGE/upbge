@@ -13,7 +13,8 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Execution>("Out"_ustr).description("Every fixed logic tick");
+  b.add_output<decl::Execution>("Out"_ustr)
+      .description("Once during every fixed Logic + Physics step, before physics simulation");
 }
 
 static void node_register()

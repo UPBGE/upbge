@@ -32,17 +32,12 @@ bool logic_nodes_subject_matches(const LN_EventEntry &event,
   return event.subject == subject;
 }
 
-bool logic_nodes_target_matches(const LN_EventEntry &event,
-                                const LN_ObjectHandle &target_handle,
-                                const KX_GameObject *target)
+bool logic_nodes_target_matches(const LN_EventEntry &event, const LN_ObjectHandle &target_handle)
 {
-  if (event.target == nullptr && !event.target_handle.IsValid()) {
-    return true;
-  }
-  if (logic_nodes_handle_matches(event.target_handle, target_handle)) {
-    return true;
-  }
-  return target != nullptr && event.target == target;
+  /* Handles carry a generation, so an event never matches a newer object reusing the address of
+   * a removed target. */
+  return !event.target_handle.IsValid() ||
+         logic_nodes_handle_matches(event.target_handle, target_handle);
 }
 
 }  // namespace
@@ -98,13 +93,29 @@ void LN_EventBus::Publish(LN_EventEntry event)
   if (event.payload_lane == LN_EventPayloadLane::None) {
     event.payload_lane = LN_EventPayloadLaneForValue(event.content);
   }
+  /* Frame and fixed-step consumers advance independently. Queue at publication time so an event
+   * produced after BeginFrame() (for example by frame-update logic) is still visible to the next
+   * fixed step in the same outer frame, and an event produced by one catch-up step is visible to
+   * the following catch-up step. */
+  m_pendingFixedEvents.push_back(event);
   m_pendingEvents.push_back(std::move(event));
 }
 
-void LN_EventBus::BeginTick()
+void LN_EventBus::BeginFrame()
 {
-  m_tickEvents = std::move(m_pendingEvents);
+  m_tickEvents.clear();
+  m_tickEvents.swap(m_pendingEvents);
   m_pendingEvents.clear();
+  RebuildIndexes();
+  m_indexedLookupCount = 0;
+  m_fallbackScanCount = 0;
+}
+
+void LN_EventBus::BeginFixedTick()
+{
+  m_tickEvents.clear();
+  m_tickEvents.swap(m_pendingFixedEvents);
+  m_pendingFixedEvents.clear();
   RebuildIndexes();
   m_indexedLookupCount = 0;
   m_fallbackScanCount = 0;
@@ -113,6 +124,7 @@ void LN_EventBus::BeginTick()
 void LN_EventBus::ClearAll()
 {
   m_pendingEvents.clear();
+  m_pendingFixedEvents.clear();
   m_tickEvents.clear();
   m_subjectIndex.clear();
   m_targetIndex.clear();
@@ -123,8 +135,7 @@ void LN_EventBus::ClearAll()
 
 const LN_EventEntry *LN_EventBus::FindFirst(const LN_EventSubjectId subject_id,
                                             const std::string &subject,
-                                            const LN_ObjectHandle &target_handle,
-                                            const KX_GameObject *target) const
+                                            const LN_ObjectHandle &target_handle) const
 {
   if (!subject_id.IsValid() && subject.empty()) {
     return nullptr;
@@ -136,7 +147,7 @@ const LN_EventEntry *LN_EventBus::FindFirst(const LN_EventSubjectId subject_id,
       m_indexedLookupCount++;
       for (const uint32_t event_index : indexed_events->second) {
         const LN_EventEntry &event = m_tickEvents[event_index];
-        if (EntryMatchesFilter(event, subject_id, subject, target_handle, target)) {
+        if (EntryMatchesFilter(event, subject_id, subject, target_handle)) {
           return &event;
         }
       }
@@ -163,7 +174,7 @@ const LN_EventEntry *LN_EventBus::FindFirst(const LN_EventSubjectId subject_id,
         const uint32_t event_index = use_targeted ? targeted_indices[target_index++] :
                                                    m_broadcastEventIndices[broadcast_index++];
         const LN_EventEntry &event = m_tickEvents[event_index];
-        if (EntryMatchesFilter(event, subject_id, subject, target_handle, target)) {
+        if (EntryMatchesFilter(event, subject_id, subject, target_handle)) {
           return &event;
         }
       }
@@ -172,7 +183,7 @@ const LN_EventEntry *LN_EventBus::FindFirst(const LN_EventSubjectId subject_id,
 
   m_fallbackScanCount++;
   for (const LN_EventEntry &event : m_tickEvents) {
-    if (EntryMatchesFilter(event, subject_id, subject, target_handle, target)) {
+    if (EntryMatchesFilter(event, subject_id, subject, target_handle)) {
       return &event;
     }
   }
@@ -192,7 +203,7 @@ void LN_EventBus::RebuildIndexes()
     if (event.target_handle.IsValid()) {
       m_targetIndex[logic_nodes_target_index_key(event.target_handle)].push_back(index);
     }
-    else if (event.target == nullptr) {
+    else {
       m_broadcastEventIndices.push_back(index);
     }
   }
@@ -201,9 +212,8 @@ void LN_EventBus::RebuildIndexes()
 bool LN_EventBus::EntryMatchesFilter(const LN_EventEntry &event,
                                      const LN_EventSubjectId subject_id,
                                      const std::string &subject,
-                                     const LN_ObjectHandle &target_handle,
-                                     const KX_GameObject *target) const
+                                     const LN_ObjectHandle &target_handle) const
 {
   return logic_nodes_subject_matches(event, subject_id, subject) &&
-         logic_nodes_target_matches(event, target_handle, target);
+         logic_nodes_target_matches(event, target_handle);
 }

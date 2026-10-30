@@ -2356,7 +2356,31 @@ class WM_OT_blenderplayer_start(Operator):
         # finish the call with the path to the blend file
         args.append(filepath)
 
-        subprocess.call(args)
+        # Free Editor View Memory (Render tab > Game Resolution): Blender waits while the player
+        # runs, and its 3D views in Material Preview or Rendered keep an EEVEE instance each
+        # (about 1 GB at 4K). Draw them in Solid meanwhile, which gives that memory back within
+        # a few redraws, and give each view its shading back when the player ends.
+        freed_views = []
+        if gs.free_editor_view_memory:
+            for window in context.window_manager.windows:
+                for area in window.screen.areas:
+                    space = area.spaces.active
+                    if area.type == 'VIEW_3D' and space.shading.type in {'MATERIAL', 'RENDERED'}:
+                        freed_views.append((space, space.shading.type))
+                        space.shading.type = 'SOLID'
+            if freed_views:
+                for window in context.window_manager.windows:
+                    try:
+                        with context.temp_override(window=window):
+                            bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=3)
+                    except RuntimeError:
+                        # The views then give the memory back at their next redraw.
+                        pass
+        try:
+            subprocess.call(args)
+        finally:
+            for space, shading_type in freed_views:
+                space.shading.type = shading_type
         os.remove(filepath)
         return {'FINISHED'}
 

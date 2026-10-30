@@ -1117,8 +1117,10 @@ void CcdPhysicsController::RemoveSoftBodyModifier(blender::Object *ob)
  * binding')
  */
 
-void CcdPhysicsController::WriteMotionStateToDynamics(bool nondynaonly)
+void CcdPhysicsController::WriteMotionStateToDynamics(bool nondynaonly, float timeStep)
 {
+  (void)nondynaonly;
+  (void)timeStep;
   btTransform xform = CcdPhysicsController::GetTransformFromMotionState(m_MotionState);
   SetCenterOfMassTransform(xform);
 }

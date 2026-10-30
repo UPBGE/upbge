@@ -3684,8 +3684,11 @@ int CcdPhysicsEnvironment::CreateRigidBodyConstraint(
     KX_GameObject *gameobj2,
     const MT_Vector3 &pivotLocal,
     const MT_Matrix3x3 &basisLocal,
-    const PHY_RigidBodyConstraintSettings &settings)
+    const PHY_RigidBodyConstraintSettings &settings,
+    const std::string &constraint_name)
 {
+  (void)constraint_name;
+
   if (!gameobj1) {
     return -1;
   }

@@ -127,6 +127,10 @@ bool DEV_EventConsumer::processEvent(const GHOST_IEvent *event)
       HandleWindowEvent(event->getType());
       break;
     }
+    case GHOST_kEventWindowActivate:
+    case GHOST_kEventWindowDeactivate:
+      m_device->SetWindowFocused(event->getType() == GHOST_kEventWindowActivate);
+      break;
     default:
       break;
   }

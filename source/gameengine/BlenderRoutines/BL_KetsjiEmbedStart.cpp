@@ -86,6 +86,27 @@ static BlendFileData *load_game_data(const char *filename)
   return bfd;
 }
 
+/** Free Editor View Memory (Render tab > Game Resolution): frees the draw buffers of the 3D views
+ * in `win`, an EEVEE instance each in Material Preview or Rendered (about 1 GB at 4K). The game
+ * draws through its own camera renderers, never these, and Blender re-creates them when the views
+ * draw again after the game. */
+static void FreeEditorViewMemory(blender::wmWindowManager *wm, blender::wmWindow *win)
+{
+  /* Freeing GPU buffers needs the window's GPU context. */
+  wm_window_make_drawable(wm, win);
+  blender::bScreen *screen = WM_window_get_active_screen(win);
+  for (blender::ScrArea &sa : screen->areabase) {
+    if (sa.spacetype != SPACE_VIEW3D) {
+      continue;
+    }
+    for (blender::ARegion &region : sa.regionbase) {
+      if (region.regiontype == RGN_TYPE_WINDOW) {
+        WM_draw_region_free(&region);
+      }
+    }
+  }
+}
+
 static void InitBlenderContextVariables(blender::bContext *C, blender::wmWindowManager *wm, blender::Scene *scene)
 {
   blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
@@ -200,6 +221,7 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
   BLI_path_extension_ensure(blend_name, FILE_MAX, ".blend");
 
   KX_SetOrigPath(std::string(blend_name));
+  KX_ResetLaunchState();
 
 #ifdef WITH_PYTHON
 
@@ -236,6 +258,11 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
   bool useViewportRender = startscene->gm.flag & GAME_USE_VIEWPORT_RENDER;
   int shadingTypeRuntime = GetShadingTypeRuntime(C, useViewportRender);
   int shadingTypeBackup = CTX_wm_view3d(C)->shading.type;
+
+  /* Use Viewport Render draws the game through the 3D view: it keeps its draw buffer. */
+  if (!useViewportRender && !(startscene->gm.flag & GAME_KEEP_EDITOR_VIEW_MEMORY)) {
+    FreeEditorViewMemory(wm_backup, win_backup);
+  }
 
   /* Global Undo behaviour change since ebb5643e598a17b2f21b4e50acac35afe82dbd55
    * We now need to backup v3d->camera and restore it manually at ge exit as

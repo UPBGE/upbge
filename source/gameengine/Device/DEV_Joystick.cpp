@@ -43,8 +43,45 @@
 
 using namespace blender;
 
+#ifdef WITH_SDL
+/** SDL's type of the pad, else its maker's USB vendor id (virtual and unlisted pads). */
+static DEV_PadFamily pad_family(SDL_GameController *controller)
+{
+  switch (SDL_GameControllerGetType(controller)) {
+    case SDL_CONTROLLER_TYPE_XBOX360:
+      return DEV_PadFamily::Xbox360;
+    case SDL_CONTROLLER_TYPE_XBOXONE:
+      return DEV_PadFamily::Xbox;
+    case SDL_CONTROLLER_TYPE_PS3:
+      return DEV_PadFamily::PlayStation3;
+    case SDL_CONTROLLER_TYPE_PS4:
+      return DEV_PadFamily::PlayStation4;
+    case SDL_CONTROLLER_TYPE_PS5:
+      return DEV_PadFamily::PlayStation5;
+    case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO:
+    case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_LEFT:
+    case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT:
+    case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_JOYCON_PAIR:
+      return DEV_PadFamily::Nintendo;
+    default:
+      break;
+  }
+  switch (SDL_GameControllerGetVendor(controller)) {
+    case 0x045e: /* Microsoft */
+      return DEV_PadFamily::Xbox;
+    case 0x054c: /* Sony */
+      return DEV_PadFamily::PlayStation4;
+    case 0x057e: /* Nintendo */
+      return DEV_PadFamily::Nintendo;
+    default:
+      return DEV_PadFamily::Generic;
+  }
+}
+#endif /* WITH_SDL */
+
 DEV_Joystick::DEV_Joystick(short index)
     : m_joyindex(index),
+      m_instanceSerial(++m_nextInstanceSerial),
       m_prec(3200),
       m_axismax(-1),
       m_buttonmax(-1),
@@ -52,8 +89,18 @@ DEV_Joystick::DEV_Joystick(short index)
       m_istrig_axis(0),
       m_istrig_button(0)
 {
+  /* Zero is reserved by input snapshots for "no device". */
+  if (m_instanceSerial == 0) {
+    m_instanceSerial = ++m_nextInstanceSerial;
+  }
   for (int i = 0; i < JOYAXIS_MAX; i++)
     m_axis_array[i] = 0;
+  m_axisActive.fill(0);
+  m_buttonActive.fill(0);
+  m_axisPressRevision.fill(0);
+  m_axisReleaseRevision.fill(0);
+  m_buttonPressRevision.fill(0);
+  m_buttonReleaseRevision.fill(0);
 
 #ifdef WITH_SDL
   m_private = new PrivateData();
@@ -65,6 +112,7 @@ DEV_Joystick::~DEV_Joystick()
 }
 
 DEV_Joystick *DEV_Joystick::m_instance[JOYINDEX_MAX];
+uint64_t DEV_Joystick::m_nextInstanceSerial = 0;
 
 void DEV_Joystick::Init()
 {
@@ -104,7 +152,7 @@ void DEV_Joystick::Close()
 #ifdef WITH_SDL
   /* Closing possible connected Joysticks */
   for (int i = 0; i < JOYINDEX_MAX; i++) {
-    m_instance[i]->ReleaseInstance(i);
+    ReleaseInstance(i);
   }
 
   /* Closing SDL Game controller system */
@@ -130,12 +178,25 @@ DEV_Joystick *DEV_Joystick::GetInstance(short joyindex)
 void DEV_Joystick::ReleaseInstance(short joyindex)
 {
 #ifdef WITH_SDL
-  if (m_instance[joyindex]) {
-    m_instance[joyindex]->DestroyJoystickDevice();
-    delete m_private;
-    delete m_instance[joyindex];
+  if (joyindex < 0 || joyindex >= JOYINDEX_MAX) {
+    CM_Error("invalid joystick index: " << joyindex);
+    return;
   }
+
+  DEV_Joystick *instance = m_instance[joyindex];
+  if (instance == nullptr) {
+    return;
+  }
+
+  /* Clear the globally visible slot before destruction so callbacks or diagnostics can never
+   * observe a dangling singleton pointer during teardown. */
   m_instance[joyindex] = nullptr;
+  instance->DestroyJoystickDevice();
+  delete instance->m_private;
+  instance->m_private = nullptr;
+  delete instance;
+#else
+  (void)joyindex;
 #endif /* WITH_SDL */
 }
 
@@ -253,6 +314,7 @@ bool DEV_Joystick::CreateJoystickDevice(void)
     }
 
     if (!joy_error) {
+      m_padFamily = pad_family(m_private->m_gamecontroller);
       CM_Debug("Game Controller (" << GetName() << ") with index " << m_joyindex
                                    << " initialized");
 

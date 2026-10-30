@@ -279,6 +279,7 @@ bool SCA_CollectionActuator::Update()
                   [&](KX_GameObject *obj) {
                     if (obj->GetPhysicsController()) {
                       obj->GetPhysicsController()->SetTransform();
+                      obj->GetPhysicsController()->RebaseKinematicMotionState();
                     }
                     for (KX_GameObject *child : obj->GetChildren()) {
                       syncPhysics(child);

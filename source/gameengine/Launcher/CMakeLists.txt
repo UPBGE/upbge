@@ -34,6 +34,7 @@ set(INC
   ../GamePlayer
   ../Ketsji
   ../Ketsji/KXNetworkMessage
+  ../LogicNodes
   ../Rasterizer
   ../SceneGraph
   ../VideoTexture
@@ -77,6 +78,12 @@ set(LIB
   ge_device
   ge_blender_routines
 )
+
+if(WITH_GAMEENGINE_LOGICNODES)
+  list(APPEND LIB
+    ge_logic_nodes
+  )
+endif()
 
 if(WITH_PYTHON)
   list(APPEND LIB

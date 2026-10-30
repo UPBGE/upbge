@@ -40,7 +40,10 @@
 #define SPHERE_PROBE_SH_GROUP_SIZE 256
 #define SPHERE_PROBE_SH_SAMPLES_PER_GROUP 64
 /* Must be power of two for correct partitioning. */
-#define SPHERE_PROBE_ATLAS_MAX_SUBDIV 12
+/* UPBGE: 2048 atlas (Blender uses 12, a 4096 atlas of 170 MiB in every EEVEE instance, and so in
+ * every game camera). Probe areas keep their resolution up to 2048, larger requests get 2048, and
+ * the atlas adds layers when probes do not fit. */
+#define SPHERE_PROBE_ATLAS_MAX_SUBDIV 11
 #define SPHERE_PROBE_ATLAS_RES (1 << SPHERE_PROBE_ATLAS_MAX_SUBDIV)
 /* Maximum number of thread-groups dispatched for remapping a probe to octahedral mapping. */
 #define SPHERE_PROBE_MAX_HARMONIC SQUARE(SPHERE_PROBE_ATLAS_RES / SPHERE_PROBE_REMAP_GROUP_SIZE)

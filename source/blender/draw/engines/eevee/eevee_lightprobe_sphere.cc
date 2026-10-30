@@ -260,7 +260,13 @@ void SphereProbeModule::remap_to_octahedral_projection(const SphereProbeAtlasCoo
     extract_sun_index_ = extract_sun_index;
     instance_.manager->submit(sum_sun_ps_);
   }
-  if (extract_spherical_harmonics || extract_sun_) {
+  /* UPBGE: only keep the lookdev copy of the world probe when a studio HDRI lights the view.
+   * The copy is a second full-size probe atlas (170 MiB at the default 4096 atlas), and its only
+   * reader is LookdevModule::rotate_world(), which returns early unless use_studio_light().
+   * Switching to a studio HDRI changes the world, so the probe is captured (and copied) again.
+   * Each game camera is its own EEVEE instance; plain Rendered views and final renders do not
+   * need the copy either. */
+  if ((extract_spherical_harmonics || extract_sun_) && instance_.use_studio_light()) {
     instance_.lookdev.store_world_probe_data(
         probes_tx_, atlas_coord, spherical_harmonics_, instance_.world.sunlight);
   }

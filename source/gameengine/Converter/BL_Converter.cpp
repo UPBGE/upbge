@@ -636,6 +636,8 @@ bool BL_Converter::FreeBlendFile(blender::Main *maggie)
       numScenes--;
     }
     else {
+      /* Collection membership is looked up again without the freed library's objects. */
+      scene->NoteCollectionsChanged();
       // in case the mesh might be refered to later
       std::map<std::string, void *> &mapStringToMeshes = scene->GetLogicManager()->GetMeshMap();
       for (std::map<std::string, void *>::iterator it = mapStringToMeshes.begin(),

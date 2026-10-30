@@ -66,6 +66,9 @@ enum VALUE_DATA_TYPE {
   VALUE_VECTOR2_TYPE,
   VALUE_VECTOR3_TYPE,
   VALUE_VECTOR4_TYPE,
+  VALUE_ARRAY_TYPE,
+  VALUE_DICT_TYPE,
+  VALUE_OBJECT_TYPE,
   VALUE_MAX_TYPE  // Only here to provide number of types.
 };
 
@@ -98,6 +101,25 @@ enum VALUE_DATA_TYPE {
 class EXP_Value : public EXP_PyObjectPlus, public CM_RefCount<EXP_Value> {
   Py_Header public : EXP_Value();
   virtual ~EXP_Value();
+
+  using PersistencePropertyMap = std::map<std::string, EXP_Value *>;
+
+ public:
+  /**
+   * Narrow allocation-free checkpoint transaction hooks.
+   *
+   * Prepare performs the only map allocation. Insert/extract/replace transfer the map's existing
+   * ownership reference and are used only while the game-state service has excluded interleaving
+   * property mutations. Ordinary callers must continue to use SetProperty()/RemoveProperty().
+   */
+  using PersistencePropertyNode = PersistencePropertyMap::node_type;
+  static bool PersistencePreparePropertyNode(const std::string &name,
+                                             EXP_Value *value,
+                                             PersistencePropertyNode &r_node);
+  static void PersistenceReleasePropertyNode(PersistencePropertyNode &node);
+  bool PersistenceInsertPreparedProperty(PersistencePropertyNode &node);
+  PersistencePropertyNode PersistenceExtractProperty(const std::string &name);
+  EXP_Value *PersistenceReplaceProperty(const std::string &name, EXP_Value *prepared_value);
 
 #ifdef WITH_PYTHON
   virtual PyObject *py_repr(void)
@@ -138,6 +160,9 @@ class EXP_Value : public EXP_PyObjectPlus, public CM_RefCount<EXP_Value> {
   virtual std::vector<std::string> GetPropertyNames();
   /// Clear all properties.
   virtual void ClearProperties();
+  /** A property was added, replaced or removed (not a value changed in place); an empty name:
+   * all of them. */
+  virtual void PropertyMapChanged(const std::string & /*name*/) {}
 
   /// Get property number <inIndex>.
   virtual EXP_Value *GetProperty(int inIndex);
@@ -171,7 +196,7 @@ class EXP_Value : public EXP_PyObjectPlus, public CM_RefCount<EXP_Value> {
 
  private:
   /// Properties for user/game etc.
-  std::map<std::string, EXP_Value *> m_properties;
+  PersistencePropertyMap m_properties;
 };
 
 /** EXP_PropValue is a EXP_Value derived class, that implements the identification (String name)

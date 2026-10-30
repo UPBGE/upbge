@@ -752,9 +752,72 @@ static void InitBlenderContextVariables(blender::bContext *C)
   }
 }
 
+static bool ScreenHasPlayerView3D(const blender::bScreen *screen)
+{
+  for (const blender::ScrArea *sa = (const blender::ScrArea *)screen->areabase.first; sa;
+       sa = sa->next) {
+    if (sa->spacetype != SPACE_VIEW3D) {
+      continue;
+    }
+    for (const blender::ARegion *region = (const blender::ARegion *)sa->regionbase.first; region;
+         region = region->next) {
+      if (region->regiontype == RGN_TYPE_WINDOW && region->regiondata) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/* The player renders through the 3D View of the first window's active screen. A file saved with
+ * an editor maximized has a temporary screen holding only that editor: swap the editor back into
+ * the original screen, as Ctrl+Space does, when the temporary screen has no 3D View. */
+static bool EnsurePlayerView3D(blender::Main *bmain)
+{
+  blender::wmWindowManager *wm = (blender::wmWindowManager *)bmain->wm.first;
+  blender::wmWindow *win = wm ? (blender::wmWindow *)wm->windows.first : nullptr;
+  blender::bScreen *screen = win ? WM_window_get_active_screen(win) : nullptr;
+  if (screen == nullptr) {
+    return false;
+  }
+  if (ScreenHasPlayerView3D(screen)) {
+    return true;
+  }
+
+  blender::ScrArea *area = (blender::ScrArea *)screen->areabase.first;
+  blender::WorkSpace *workspace = WM_window_get_active_workspace(win);
+  if (area == nullptr || area->full == nullptr || workspace == nullptr ||
+      BKE_workspace_layout_find(workspace, area->full) == nullptr)
+  {
+    return false;
+  }
+  blender::bScreen *original = area->full;
+  blender::ScrArea *swapped_area = nullptr;
+  for (blender::ScrArea *sa = (blender::ScrArea *)original->areabase.first; sa; sa = sa->next) {
+    if (sa->full && swapped_area == nullptr) {
+      swapped_area = sa;
+    }
+    sa->full = nullptr;
+  }
+  area->full = nullptr;
+  if (swapped_area) {
+    /* Same swap as ED_area_data_swap(). */
+    std::swap(swapped_area->spacetype, area->spacetype);
+    std::swap(swapped_area->type, area->type);
+    std::swap(swapped_area->spacedata, area->spacedata);
+    std::swap(swapped_area->regionbase, area->regionbase);
+  }
+  original->state = SCREENNORMAL;
+  WM_window_set_active_screen(win, workspace, original);
+  return ScreenHasPlayerView3D(original);
+}
+
 static int GetShadingTypeRuntime(blender::bContext *C)
 {
   blender::View3D *v3d = CTX_wm_view3d(C);
+  if (v3d == nullptr) {
+    return OB_RENDER;
+  }
   bool not_eevee = (v3d->shading.type != OB_RENDER) && (v3d->shading.type != OB_MATERIAL);
 
   if (not_eevee) {
@@ -1425,6 +1488,7 @@ int main(int argc,
         // fill the GlobalSettings with the first scene files
         // those may change during the game and persist after using Game Actuator
         GlobalSettings gs;
+        KX_ResetLaunchState();
 
 #ifdef WITH_PYTHON
         PyObject *globalDict = nullptr;
@@ -1707,6 +1771,7 @@ int main(int argc,
               }
             }
 
+            const bool has_view3d = EnsurePlayerView3D(maggie);
             blender::wmWindowManager *wm = (blender::wmWindowManager *)bfd->main->wm.first;
             blender::wmWindow *win = (blender::wmWindow *)wm->windows.first;
             CTX_wm_manager_set(C, wm);
@@ -1772,50 +1837,59 @@ int main(int argc,
               }
             }
 
-            /* Don't draw gizmos by default */
-            CTX_wm_view3d(C)->gizmo_flag |= V3D_GIZMO_HIDE;
-            if (useViewportRender) {
-              /* Don't draw overlays by default */
-              CTX_wm_view3d(C)->flag2 |= V3D_HIDE_OVERLAYS;
+            if (!has_view3d) {
+              /* End like a game that quits at once, so the regular cleanup below runs. */
+              CM_Error("the file has no 3D Viewport to play in. Open a layout with a 3D "
+                       "Viewport and save the file again.");
+              error = true;
+              exitcode = KX_ExitRequest::QUIT_GAME;
             }
+            else {
+              /* Don't draw gizmos by default */
+              CTX_wm_view3d(C)->gizmo_flag |= V3D_GIZMO_HIDE;
+              if (useViewportRender) {
+                /* Don't draw overlays by default */
+                CTX_wm_view3d(C)->flag2 |= V3D_HIDE_OVERLAYS;
+              }
 
-            // This argc cant be argc_py_clamped, since python uses it.
-            LA_PlayerLauncher launcher(system,
-                                       window,
-                                       maggie,
-                                       scene,
-                                       &gs,
-                                       stereomode,
-                                       aasamples,
-                                       argc,
-                                       argv,
-                                       pythonControllerFile,
-                                       C,
-                                       useViewportRender,
-                                       shadingTypeRuntime);
+              // This argc cant be argc_py_clamped, since python uses it.
+              LA_PlayerLauncher launcher(system,
+                                         window,
+                                         maggie,
+                                         scene,
+                                         &gs,
+                                         stereomode,
+                                         aasamples,
+                                         argc,
+                                         argv,
+                                         pythonControllerFile,
+                                         C,
+                                         useViewportRender,
+                                         shadingTypeRuntime);
 #ifdef WITH_PYTHON
-            // Acquire Python's GIL (global interpreter lock)
-            // so we can safely run Python code and API calls
-            PyGILState_STATE py_gil_state = PyGILState_Ensure();
-            if (!globalDict) {
-              globalDict = PyDict_New();
-            }
-            launcher.SetPythonGlobalDict(globalDict);
+              // Acquire Python's GIL (global interpreter lock)
+              // so we can safely run Python code and API calls
+              PyGILState_STATE py_gil_state = PyGILState_Ensure();
+              if (!globalDict) {
+                globalDict = PyDict_New();
+              }
+              launcher.SetPythonGlobalDict(globalDict);
 #endif  // WITH_PYTHON
 
-            launcher.InitEngine();
+              launcher.InitEngine();
 
-            // Enter main loop
-            launcher.EngineMainLoop();
+              // Enter main loop
+              launcher.EngineMainLoop();
 
-            exitcode = launcher.GetExitRequested();
-            exitstring = launcher.GetExitString();
-            gs = *launcher.GetGlobalSettings();
+              exitcode = launcher.GetExitRequested();
+              exitstring = launcher.GetExitString();
+              gs = *launcher.GetGlobalSettings();
 
-            launcher.ExitEngine();
+              launcher.ExitEngine();
 #ifdef WITH_PYTHON
-            PyGILState_Release(py_gil_state);
+              PyGILState_Release(py_gil_state);
 #endif  // WITH_PYTHON
+            }
           }
 
           /* refer to WM_exit_ext() and BKE_blender_free(),
@@ -1844,8 +1918,11 @@ int main(int argc,
 #ifdef WITH_PYTHON
         // Free globalDict OUTSIDE runtime loop.
         if (globalDict) {
+          /* The GIL was released after the last engine run. */
+          const PyGILState_STATE py_gil_state = PyGILState_Ensure();
           PyDict_Clear(globalDict);
           Py_DECREF(globalDict);
+          PyGILState_Release(py_gil_state);
         }
 #endif
       }

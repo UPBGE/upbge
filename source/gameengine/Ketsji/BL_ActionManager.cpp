@@ -39,12 +39,32 @@ BL_ActionManager::BL_ActionManager(class KX_GameObject *obj) : m_obj(obj), m_sus
 
 BL_ActionManager::~BL_ActionManager()
 {
+  for (const std::pair<const short, std::shared_ptr<BL_ActionPlayback>> &playback : m_playbacks) {
+    if (playback.second != nullptr &&
+        playback.second->m_status == BL_ActionPlaybackStatus::Playing)
+    {
+      playback.second->m_status = BL_ActionPlaybackStatus::Interrupted;
+    }
+  }
+  m_playbacks.clear();
+
   BL_ActionMap::iterator it;
 
   for (it = m_layers.begin(); it != m_layers.end(); it++)
     delete it->second;
 
   m_layers.clear();
+}
+
+void BL_ActionManager::FinishPlayback(const short layer, const BL_ActionPlaybackStatus status)
+{
+  const auto item = m_playbacks.find(layer);
+  if (item == m_playbacks.end() || item->second == nullptr ||
+      item->second->m_status != BL_ActionPlaybackStatus::Playing)
+  {
+    return;
+  }
+  item->second->m_status = status;
 }
 
 BL_Action *BL_ActionManager::GetAction(short layer)
@@ -102,6 +122,62 @@ bool BL_ActionManager::PlayAction(const std::string &name,
                                   float playback_speed,
                                   short blend_mode)
 {
+  return PlayActionInternal(name,
+                            start,
+                            end,
+                            layer,
+                            priority,
+                            blendin,
+                            play_mode,
+                            layer_weight,
+                            ipo_flags,
+                            playback_speed,
+                            blend_mode,
+                            false)
+      .started;
+}
+
+BL_ActionPlayResult BL_ActionManager::PlayActionTracked(const std::string &name,
+                                                        float start,
+                                                        float end,
+                                                        short layer,
+                                                        short priority,
+                                                        float blendin,
+                                                        short play_mode,
+                                                        float layer_weight,
+                                                        short ipo_flags,
+                                                        float playback_speed,
+                                                        short blend_mode)
+{
+  return PlayActionInternal(name,
+                            start,
+                            end,
+                            layer,
+                            priority,
+                            blendin,
+                            play_mode,
+                            layer_weight,
+                            ipo_flags,
+                            playback_speed,
+                            blend_mode,
+                            true);
+}
+
+BL_ActionPlayResult BL_ActionManager::PlayActionInternal(const std::string &name,
+                                                         float start,
+                                                         float end,
+                                                         short layer,
+                                                         short priority,
+                                                         float blendin,
+                                                         short play_mode,
+                                                         float layer_weight,
+                                                         short ipo_flags,
+                                                         float playback_speed,
+                                                         short blend_mode,
+                                                         const bool track_playback)
+{
+  BL_ActionPlayResult result;
+
   // Only this method will create layer if non-existent
   BL_Action *action = GetAction(layer);
   if (!action) {
@@ -113,16 +189,47 @@ bool BL_ActionManager::PlayAction(const std::string &name,
   if (layer == 0)
     layer_weight = -1.f;
 
-  return action->Play(name,
-                      start,
-                      end,
-                      priority,
-                      blendin,
-                      play_mode,
-                      layer_weight,
-                      ipo_flags,
-                      playback_speed,
-                      blend_mode);
+  const bool previous_done = action->IsDone();
+  result.started = action->Play(name,
+                                start,
+                                end,
+                                priority,
+                                blendin,
+                                play_mode,
+                                layer_weight,
+                                ipo_flags,
+                                playback_speed,
+                                blend_mode);
+  if (!result.started) {
+    /* Priority and duplicate rejections leave the previous playback alive. A missing action can
+     * transition BL_Action to done while returning false; that request interrupted the previous
+     * playback even though it failed to establish a replacement. */
+    if (!previous_done && action->IsDone()) {
+      FinishPlayback(layer, BL_ActionPlaybackStatus::Interrupted);
+      m_playbacks.erase(layer);
+    }
+    return result;
+  }
+
+  FinishPlayback(layer,
+                 previous_done ? BL_ActionPlaybackStatus::Completed :
+                                 BL_ActionPlaybackStatus::Interrupted);
+  m_playbacks.erase(layer);
+
+  if (!track_playback) {
+    return result;
+  }
+
+  /* Zero is reserved as an invalid identity. Exhaustion is practically unreachable, but skipping
+   * it makes the token contract total even after unsigned wraparound. */
+  if (m_nextPlaybackId == 0) {
+    m_nextPlaybackId = 1;
+  }
+  std::shared_ptr<BL_ActionPlayback> playback(
+      new BL_ActionPlayback(m_nextPlaybackId++, layer));
+  m_playbacks[layer] = playback;
+  result.playback = std::move(playback);
+  return result;
 }
 
 void BL_ActionManager::StopAction(short layer)
@@ -130,6 +237,10 @@ void BL_ActionManager::StopAction(short layer)
   BL_Action *action = GetAction(layer);
 
   if (action) {
+    FinishPlayback(layer,
+                   action->IsDone() ? BL_ActionPlaybackStatus::Completed :
+                                      BL_ActionPlaybackStatus::Interrupted);
+    m_playbacks.erase(layer);
     m_layers.erase(layer);
     delete action;
   }
@@ -139,6 +250,11 @@ void BL_ActionManager::RemoveTaggedActions()
 {
   for (BL_ActionMap::iterator it = m_layers.begin(); it != m_layers.end();) {
     if (IS_TAGGED(it->second->GetAction())) {
+      const short layer = it->first;
+      FinishPlayback(layer,
+                     it->second->IsDone() ? BL_ActionPlaybackStatus::Completed :
+                                            BL_ActionPlaybackStatus::Interrupted);
+      m_playbacks.erase(layer);
       delete it->second;
       it = m_layers.erase(it);
     }
@@ -172,10 +288,25 @@ bool BL_ActionManager::IsSuspended() const
 void BL_ActionManager::Update(float curtime, bool applyToObject)
 {
   for (const auto &pair : m_layers) {
+    const bool was_done = pair.second->IsDone();
     pair.second->Update(curtime, applyToObject);
+    if (!was_done && pair.second->IsDone()) {
+      FinishPlayback(pair.first, BL_ActionPlaybackStatus::Completed);
+    }
   }
   /* It's to sync children with parent SGNode after fcurve update */
   for (const auto &pair : m_layers) {
     pair.second->UpdateIPOs();
+  }
+}
+
+void BL_ActionManager::RebaseTime(const float previous_time,
+                                  const float current_time,
+                                  const bool use_pause_clock)
+{
+  for (const std::pair<const short, BL_Action *> &layer : m_layers) {
+    if (layer.second != nullptr) {
+      layer.second->RebaseTime(previous_time, current_time, use_pause_clock);
+    }
   }
 }

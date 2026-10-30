@@ -20,6 +20,7 @@
 namespace blender {
 
 struct AnimData;
+struct Collection; /* UPBGE: Camera::game_collection. */
 struct Object;
 
 /* type */
@@ -84,9 +85,43 @@ enum {
   GAME_CAM_OBJECT_ACTIVITY_CULLING = (1 << 2),
 
   //GAME_CAM_OVERLAY_DISABLE_BLOOM = (1 << 3), not in eevee-next
-  GAME_CAM_OVERLAY_DISABLE_AO = (1 << 4),
-  GAME_CAM_OVERLAY_DISABLE_SSR = (1 << 5),
-  GAME_CAM_OVERLAY_DISABLE_WORLD_VOLUMES = (1 << 6),
+  //(1 << 4) was GAME_CAM_OVERLAY_DISABLE_AO: EEVEE's AO comes from ray tracing now
+  /* Effects turned off in every view this camera draws in the game. */
+  GAME_CAM_DISABLE_RAY_TRACING = (1 << 5), /* Was "Disable SSR" of the overlay pass. */
+  //(1 << 6) was GAME_CAM_OVERLAY_DISABLE_WORLD_VOLUMES, which did nothing
+  GAME_CAM_DISABLE_SHADOWS = (1 << 7),
+  GAME_CAM_DISABLE_VOLUMETRIC_SHADOWS = (1 << 8),
+  GAME_CAM_DISABLE_MOTION_BLUR = (1 << 9),
+  /** Draw once a frame, whatever the scene's Samples per Frame. */
+  GAME_CAM_DISABLE_EXTRA_SAMPLES = (1 << 10),
+  GAME_CAM_DISABLE_TEMPORAL_REPROJECTION = (1 << 11),
+  /* UPBGE: draw this camera's views with Workbench (flat colors, little GPU memory) instead of
+   * EEVEE: for minimaps and menu/HUD cameras. Read by KX_Scene, see DRW_game_render_loop(). */
+  GAME_CAM_USE_WORKBENCH = (1 << 12),
+  /** Workbench views: studio lighting instead of flat colors (GAME_CAM_WORKBENCH_MATCAP wins).
+   * On for new cameras. */
+  GAME_CAM_WORKBENCH_STUDIO_LIGHT = (1 << 13),
+  /** Workbench views: no edge smoothing (saves its two screen-size buffers). */
+  GAME_CAM_WORKBENCH_NO_SMOOTH_EDGES = (1 << 14),
+  /* UPBGE: Workbench views' cavity (Workbench's View3DShading cavity_type): Screen bit alone is
+   * Screen (curvature), World bit alone World (SSAO), both bits Both. Neither: no cavity. */
+  GAME_CAM_WORKBENCH_CAVITY_SCREEN = (1 << 15),
+  GAME_CAM_WORKBENCH_CAVITY_WORLD = (1 << 16),
+  /** Workbench views: object outlines. */
+  GAME_CAM_WORKBENCH_OUTLINE = (1 << 17),
+  /* UPBGE: Workbench views' colors: neither bit is Texture, Material bit alone Material (the
+   * default for new cameras), Object bit alone Object, both bits Single. With
+   * GAME_CAM_WORKBENCH_COLOR_MORE: Material bit Attribute, Object bit Random. */
+  GAME_CAM_WORKBENCH_COLOR_MATERIAL = (1 << 18),
+  GAME_CAM_WORKBENCH_COLOR_OBJECT = (1 << 19),
+  /** UPBGE: a camera drawn in its own viewport shows only the circle (or oval) filling it. */
+  GAME_CAM_VIEWPORT_CIRCLE = (1 << 20),
+  /** UPBGE: with a game_collection, draw everything except it (unset: only it). */
+  GAME_CAM_COLLECTION_HIDE = (1 << 21),
+  /** UPBGE: Workbench views: MatCap lighting (the scene's Workbench MatCap). */
+  GAME_CAM_WORKBENCH_MATCAP = (1 << 22),
+  /** UPBGE: Workbench views: the other colors (see GAME_CAM_WORKBENCH_COLOR_MATERIAL). */
+  GAME_CAM_WORKBENCH_COLOR_MORE = (1 << 23),
 };
 ENUM_OPERATORS(eCamera_Flag)
 
@@ -230,7 +265,10 @@ struct Camera {
   float sensor_x = DEFAULT_SENSOR_WIDTH, sensor_y = DEFAULT_SENSOR_HEIGHT;
   float shiftx = 0, shifty = 0;
   float lodfactor = 1.0f; /* UPBGE */
-  int gameflag = GAME_CAM_OBJECT_ACTIVITY_CULLING; /* UPBGE */
+  /* UPBGE: Workbench views have no edge smoothing unless turned on (saves two screen-size
+   * buffers), Studio lighting and Material colors. */
+  int gameflag = GAME_CAM_OBJECT_ACTIVITY_CULLING | GAME_CAM_WORKBENCH_NO_SMOOTH_EDGES |
+                 GAME_CAM_WORKBENCH_STUDIO_LIGHT | GAME_CAM_WORKBENCH_COLOR_MATERIAL;
   DNA_DEPRECATED float dof_distance = 0;
 
   eCamera_SensorFit sensor_fit = {};
@@ -278,6 +316,13 @@ struct Camera {
 
   /* Compositional guide overlay color */
   float composition_guide_color[4] = {0.5f, 0.5f, 0.5f, 1.0f};
+
+  /**
+   * UPBGE: in the game this camera draws only this collection's objects, or with
+   * GAME_CAM_COLLECTION_HIDE everything except them (minimap markers). Read by KX_Scene; not
+   * user-counted (see camera_foreach_id).
+   */
+  struct Collection *game_collection = nullptr;
 
   /** Runtime data (keep last). */
   Camera_Runtime runtime;

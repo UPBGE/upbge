@@ -14,17 +14,17 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Bool>("if A"_ustr).default_value(false);
-  b.add_input<decl::Generic>(""_ustr, "Value A"_ustr);
+  b.add_input<decl::Generic>("Value A"_ustr);
   b.add_input<decl::Bool>("elif B"_ustr).default_value(false);
-  b.add_input<decl::Generic>(""_ustr, "Value B"_ustr);
+  b.add_input<decl::Generic>("Value B"_ustr);
   b.add_input<decl::Bool>("elif C"_ustr).default_value(false);
-  b.add_input<decl::Generic>(""_ustr, "Value C"_ustr);
+  b.add_input<decl::Generic>("Value C"_ustr);
   b.add_input<decl::Bool>("elif D"_ustr).default_value(false);
-  b.add_input<decl::Generic>(""_ustr, "Value D"_ustr);
+  b.add_input<decl::Generic>("Value D"_ustr);
   b.add_input<decl::Bool>("elif E"_ustr).default_value(false);
-  b.add_input<decl::Generic>(""_ustr, "Value E"_ustr);
+  b.add_input<decl::Generic>("Value E"_ustr);
   b.add_input<decl::Bool>("elif F"_ustr).default_value(false);
-  b.add_input<decl::Generic>(""_ustr, "Value F"_ustr);
+  b.add_input<decl::Generic>("Value F"_ustr);
   b.add_output<decl::Generic>("Result"_ustr);
 }
 

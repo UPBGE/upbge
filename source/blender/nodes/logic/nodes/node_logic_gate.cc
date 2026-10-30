@@ -16,8 +16,11 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Condition>("Condition A"_ustr);
-  b.add_input<decl::Condition>("Condition B"_ustr);
+  const bNode *node = b.node_or_null();
+  const bool is_not = node != nullptr && node->custom1 == 3;
+  b.add_input<decl::Condition>(is_not ? "Condition"_ustr : "Conditions"_ustr, "Conditions"_ustr)
+      .multi_input(!is_not)
+      .description(is_not ? "Condition to invert" : "Conditions combined in visible link order");
   b.add_output<decl::Condition>("Result"_ustr);
 }
 

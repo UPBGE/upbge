@@ -24,6 +24,8 @@ enum LN_RuntimeSemanticRead : uint32_t {
   LN_RUNTIME_SEMANTIC_READ_SCENE = 1u << 6,
   LN_RUNTIME_SEMANTIC_READ_GLOBAL_STATE = 1u << 7,
   LN_RUNTIME_SEMANTIC_READ_FILE = 1u << 8,
+  /** Physics generated event snapshots consumed by the logic manager. */
+  LN_RUNTIME_SEMANTIC_READ_PHYSICS_EVENT = 1u << 9,
 };
 
 enum LN_RuntimeSemanticWrite : uint32_t {
@@ -98,7 +100,6 @@ enum class LN_RuntimeCommandFamily : uint8_t {
   Collection,
   Navigation,
   PhysicsConstraint,
-  SpawnPool,
   File,
   GlobalState,
   DebugDraw,

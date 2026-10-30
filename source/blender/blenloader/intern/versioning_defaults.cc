@@ -600,6 +600,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce.gm.use_fixed_physics_interpolation = 0;
     sce.gm.use_fixed_fps_cap = 1;
     sce.gm.fixed_render_cap_rate = 60;
+    sce.gm.jitter_fix = 0.5f;
     sce.gm.lineardeactthreshold = 0.8f;
     sce.gm.angulardeactthreshold = 1.0f;
     sce.gm.deactivationtime = 2.0f;
@@ -689,7 +690,12 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     ob.lodfactor = 1.0f;
   }
   for (Camera &cam : bmain->cameras) {
-    cam.gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
+    cam.gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING | GAME_CAM_WORKBENCH_NO_SMOOTH_EDGES;
+    /* Workbench views: Studio lighting and Material colors (the startup file's camera has none of
+     * the bits). */
+    cam.gameflag = (cam.gameflag & ~(GAME_CAM_WORKBENCH_MATCAP | GAME_CAM_WORKBENCH_COLOR_OBJECT |
+                                     GAME_CAM_WORKBENCH_COLOR_MORE)) |
+                   GAME_CAM_WORKBENCH_STUDIO_LIGHT | GAME_CAM_WORKBENCH_COLOR_MATERIAL;
     cam.lodfactor = 1.0f;
   }
   /*LISTBASE_FOREACH (Light *, light, &bmain->lights) {

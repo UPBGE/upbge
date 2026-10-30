@@ -16,7 +16,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::List>("List"_ustr);
   b.add_input<decl::Int>("Index"_ustr).default_value(0);
-  b.add_input<decl::Generic>(""_ustr, "Value"_ustr);
+  b.add_input<decl::Generic>("Value"_ustr);
   b.add_output<decl::Execution>("Done"_ustr);
   b.add_output<decl::List>("List"_ustr);
 }

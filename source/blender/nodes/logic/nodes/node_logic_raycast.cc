@@ -27,6 +27,8 @@ static void node_declare(NodeDeclarationBuilder &b)
           "when empty");
   b.add_input<decl::Object>("Ignore Object"_ustr)
       .description("Additional object to exclude from the raycast");
+  b.add_input<decl::List>("Ignore Objects"_ustr)
+      .description("Additional objects to exclude; invalid entries and duplicates are ignored");
   b.add_input<decl::Vector>("Origin"_ustr)
       .default_value(float3(0.0f, 0.0f, 0.0f))
       .description("Ray origin in world or local space");
@@ -67,10 +69,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("True when a nonmatching object blocks a non-X-Ray property query");
   b.add_output<decl::Object>("Hit Object"_ustr, "Picked Object"_ustr)
       .description("Object hit by the ray");
-  b.add_output<decl::Vector>("Point"_ustr)
-      .description("World-space hit point, filtered blocker point, or ray end on a clear miss");
-  b.add_output<decl::Vector>("Normal"_ustr).description("World-space hit normal");
+  b.add_output<decl::Vector>("Hit Point"_ustr, "Point"_ustr)
+      .description("World-space hit point; zero when Has Result is false");
+  b.add_output<decl::Vector>("Hit Normal"_ustr, "Normal"_ustr)
+      .description("World-space hit normal; zero when Has Result is false");
   b.add_output<decl::Vector>("Direction"_ustr).description("Normalized ray direction");
+  b.add_output<decl::Vector>("End Point"_ustr)
+      .description("Furthest world-space point tested by the ray, whether or not it hits");
   b.add_output<decl::Float>("Distance"_ustr)
       .description("Distance to the hit or filtered blocker, or maximum distance on a clear miss");
   b.add_output<decl::Float>("Fraction"_ustr)

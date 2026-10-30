@@ -39,6 +39,16 @@ bool NodeHasExecutionOutput(const LN_NodeDefinition &definition)
   return false;
 }
 
+bool NodeHasExecutionInput(const LN_NodeDefinition &definition)
+{
+  for (const LN_PinDefinition &pin : definition.inputs) {
+    if (pin.kind == LN_PinKind::Execution) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool IsFlowEntryNode(const LN_NodeDefinition &definition, const InternalCompileHandler *handler)
 {
   if (handler == nullptr) {
@@ -51,6 +61,12 @@ bool IsFlowEntryNode(const LN_NodeDefinition &definition, const InternalCompileH
     return false;
   }
   if (!NodeHasExecutionOutput(definition)) {
+    return false;
+  }
+  /* A polling route with an execution input is a latent continuation, not an autonomous
+   * source. It only becomes reachable through its incoming flow. This keeps unconnected
+   * Wait for Next Frame and Tween nodes inert like every other unconnected flow node. */
+  if (NodeHasExecutionInput(definition)) {
     return false;
   }
   return handler->descriptor.info.kind == LN_TreeCompiler::CompileHandlerKind::Expression ||
@@ -144,13 +160,13 @@ ActiveNodeSet ComputeActiveNodes(
     }
 
     const LN_NodeDefinition &definition = *def_iter->second;
-    for (const LN_PinDefinition &out_pin : definition.outputs) {
-      if (!IsExecutionFlowOutputPin(out_pin)) {
-        continue;
-      }
-
-      const blender::bNodeSocket *out_socket = FindOutputSocket(*node, out_pin.name);
-      if (out_socket == nullptr) {
+    for (const blender::bNodeSocket *out_socket =
+             static_cast<const blender::bNodeSocket *>(node->outputs.first);
+         out_socket;
+         out_socket = out_socket->next)
+    {
+      const LN_PinDefinition *out_pin = FindPinDefinition(definition.outputs, *out_socket);
+      if (out_pin == nullptr || !IsExecutionFlowOutputPin(*out_pin)) {
         continue;
       }
 

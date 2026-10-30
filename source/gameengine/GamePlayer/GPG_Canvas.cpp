@@ -45,6 +45,7 @@
 #include "WM_types.hh"
 
 #include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
 
 using namespace blender;
 
@@ -146,7 +147,8 @@ void GPG_Canvas::SetMousePosition(int x, int y)
 
     wmWindow *win = CTX_wm_window(m_context);
     int event_x = int(gx);
-    int event_y = int((m_windowArea.GetHeight() - 1 - gy));
+    /* Window coordinates are native pixels from the bottom (like ConvertMousePosition's). */
+    int event_y = int((m_windowArea.GetHeight() - 1) * m_nativePixelSize - gy);
     WM_cursor_warp(win, event_x, event_y);
   }
 }
@@ -171,6 +173,10 @@ void GPG_Canvas::SetMouseState(RAS_MouseState mousestate)
     default: {
      break;
     }
+  }
+  /* Wayland: the engine grabs the pointer so that a hidden cursor can be moved. */
+  if (KX_KetsjiEngine *engine = KX_GetActiveEngine(); engine && engine->GetCanvas() == this) {
+    engine->CursorShown(mousestate != MOUSE_INVISIBLE);
   }
 }
 

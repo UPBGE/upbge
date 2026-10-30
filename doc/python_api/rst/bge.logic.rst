@@ -308,7 +308,7 @@ General functions
    Sets the maximum number of logic frames that are executed per render frame.
    This does not affect the physic system that still runs at full frame rate.   
     
-   :arg maxlogic: The new maximum number of logic frames per render frame. Valid values: 1..5
+   :arg maxlogic: The new maximum number of logic frames per render frame. Valid values: 1..10000.
    :type maxlogic: integer
 
 .. function:: getMaxPhysicsFrame()
@@ -325,7 +325,7 @@ General functions
    Physics timestep is fixed and equal to 1/tickrate (see setLogicTicRate)
    maxphysics/ticrate is the maximum delay of the renderer that physics can compensate.
     
-   :arg maxphysics: The new maximum number of physics timestep per render frame. Valid values: 1..5.
+   :arg maxphysics: The new maximum number of physics timesteps per render frame. Valid values: 1..10000.
    :type maxphysics: integer
 
 .. function:: getUseFixedPhysicsTimestep()
@@ -509,8 +509,12 @@ Time related functions
     Set the time multiplier between real-time and simulation time. A value
     greater than 1.0 means that the simulation is going faster than real-time,
     a value lower than 1.0 means that the simulation is going slower than
-    real-time. Note that a too large value may lead to some physics
-    instabilities.
+    real-time. Zero pauses scaled fixed simulation and physics while
+    render-frame input sampling and C++ Logic Nodes ``On Update`` continue.
+    Values below zero are clamped to zero, values above 10000 are clamped to
+    10000, and non-finite values are ignored. Note that a too large value may
+    lead to some physics instabilities or reach the configured maximum fixed
+    steps per frame.
 
     :arg time_scale: The new time multiplier.
 
@@ -593,7 +597,31 @@ Utility functions
 .. function:: getProfileInfo()
 
    Returns a Python dictionary that contains the same information as the on screen profiler. The keys are the profiler categories and the values are tuples with the first element being time taken (in ms) and the second element being the percentage of total time.
-   
+
+.. function:: getFramePacingInfo()
+
+   How the last frame was paced: what the profiler's frame times can't show. Frames can arrive
+   exactly on time and still move unevenly when they show different numbers of fixed steps.
+
+   * ``frameSteps``: fixed steps (logic and physics) run before the last frame was drawn. With
+     the FPS Limit equal to the steps per second it is 1 every frame.
+   * ``tick``: fixed steps run since the game started.
+   * ``interpolation``: where between their last two steps Smooth Motion drew objects in the
+     last frame (0 to 1): the share of a step since the last step at the frame's time, plus how
+     late a late FPS Limit frame was drawn.
+   * ``frameTime``: the time the last frame shows, in seconds on the engine clock.
+   * ``clockOffset``: how far that frame time was from the clock when the frame was planned.
+   * ``pacing``: what decides when frames are drawn: ``'LIMIT'`` (the FPS Limit), ``'VSYNC'``
+     (no FPS Limit, the screen sets the pace), ``'FREE'`` (neither) or ``'VARIABLE'`` (no fixed
+     physics timestep).
+   * ``frameLimit``: the FPS Limit's rate, 0 when off.
+   * ``refreshRate``: the even rate frames come at while vsync paces them, measured: the screen's
+     refresh rate while the game keeps up with it, else the game's own steady rate (a game that
+     only reaches 60 frames a second on a 100 Hz screen reads about 60); 0 while frames aren't
+     even.
+
+   :rtype: dict
+
 *********
 Constants
 *********

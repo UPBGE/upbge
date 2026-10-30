@@ -16,7 +16,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::String>("Category"_ustr);
   b.add_input<decl::String>("Property"_ustr);
-  b.add_input<decl::Generic>(""_ustr, "Value"_ustr);
+  b.add_input<decl::Generic>("Value"_ustr);
   b.add_input<decl::Bool>("Persistent"_ustr).default_value(false);
   b.add_output<decl::Execution>("Done"_ustr);
 }

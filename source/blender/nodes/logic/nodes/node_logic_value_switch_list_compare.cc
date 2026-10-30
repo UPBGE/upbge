@@ -19,17 +19,17 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Generic>("Switch:"_ustr, "Switch"_ustr);
   b.add_input<decl::Generic>("Default"_ustr);
   b.add_input<decl::Generic>("Case A"_ustr);
-  b.add_input<decl::Generic>(""_ustr, "Value A"_ustr);
+  b.add_input<decl::Generic>("Value A"_ustr);
   b.add_input<decl::Generic>("Case B"_ustr);
-  b.add_input<decl::Generic>(""_ustr, "Value B"_ustr);
+  b.add_input<decl::Generic>("Value B"_ustr);
   b.add_input<decl::Generic>("Case C"_ustr);
-  b.add_input<decl::Generic>(""_ustr, "Value C"_ustr);
+  b.add_input<decl::Generic>("Value C"_ustr);
   b.add_input<decl::Generic>("Case D"_ustr);
-  b.add_input<decl::Generic>(""_ustr, "Value D"_ustr);
+  b.add_input<decl::Generic>("Value D"_ustr);
   b.add_input<decl::Generic>("Case E"_ustr);
-  b.add_input<decl::Generic>(""_ustr, "Value E"_ustr);
+  b.add_input<decl::Generic>("Value E"_ustr);
   b.add_input<decl::Generic>("Case F"_ustr);
-  b.add_input<decl::Generic>(""_ustr, "Value F"_ustr);
+  b.add_input<decl::Generic>("Value F"_ustr);
   b.add_output<decl::Generic>("Result"_ustr);
 }
 

@@ -32,10 +32,12 @@
 #include "BL_ArmatureObject.h"
 
 #include "ANIM_action.hh"
+#include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
 #include "BKE_deform.hh"
+#include "BKE_fcurve.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
@@ -43,7 +45,9 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_set.hh"
 #include "DEG_depsgraph_query.hh"
+#include "DNA_anim_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
@@ -52,6 +56,7 @@
 #include "BL_Action.h"
 #include "BL_SceneConverter.h"
 #include "KX_Globals.h"
+#include "KX_Scene.h"
 
 using namespace blender;
 
@@ -123,7 +128,12 @@ void BL_ArmatureObject::GameBlendPose(blender::bPose *dst, blender::bPose *src, 
 }
 
 BL_ArmatureObject::BL_ArmatureObject()
-    : KX_GameObject(), m_lastframe(0.0), m_drawDebug(false), m_lastapplyframe(0.0)
+    : KX_GameObject(),
+      m_lastframe(0.0),
+      m_drawDebug(false),
+      m_lastapplyframe(0.0),
+      m_poseDirtyGeneration(1),
+      m_poseAppliedGeneration(0)
 {
   m_controlledConstraints = new EXP_ListValue<BL_ArmatureConstraint>();
   m_poseChannels = nullptr;
@@ -321,12 +331,15 @@ BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(int index)
 /* this function is called to populate the m_poseChannels list */
 void BL_ArmatureObject::LoadChannels()
 {
+  m_poseChannelLookup.clear();
   m_poseChannels = new EXP_ListValue<BL_ArmatureChannel>();
   for (blender::bPoseChannel *pchan = (blender::bPoseChannel *)m_objArma->pose->chanbase.first; pchan;
        pchan = (blender::bPoseChannel *)pchan->next) {
     BL_ArmatureChannel *channel = new BL_ArmatureChannel(this, pchan);
     m_poseChannels->Add(channel);
+    m_poseChannelLookup.emplace(pchan->name, pchan);
   }
+  MarkPoseDirty();
 }
 
 size_t BL_ArmatureObject::GetChannelNumber() const
@@ -372,6 +385,10 @@ void BL_ArmatureObject::ProcessReplica()
   m_objArma = m_pBlenderObject;
 
   LoadChannels();
+  m_lastapplyframe = -1.0;
+  m_poseAppliedGeneration = 0;
+  /* The source's targets are in the source's pose. */
+  m_resolvedActions.clear();
 }
 
 int BL_ArmatureObject::GetGameObjectType() const
@@ -408,17 +425,44 @@ bool BL_ArmatureObject::UnlinkObject(SCA_IObject *clientobj)
 
 void BL_ArmatureObject::ApplyPose()
 {
-  if (m_lastapplyframe != m_lastframe) {
-    // update the constraint if any, first put them all off so that only the active ones will be
-    // updated
-    for (BL_ArmatureConstraint *constraint : m_controlledConstraints) {
-      constraint->UpdateTarget();
-    }
-    blender::bContext *C = KX_GetActiveEngine()->GetContext();
-    blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-    BKE_pose_where_is(depsgraph, GetScene()->GetBlenderScene(), m_objArma);
+  const bool pose_dirty = m_poseAppliedGeneration != m_poseDirtyGeneration;
+  if (m_lastapplyframe == m_lastframe && !pose_dirty) {
+    return;
+  }
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  KX_Scene *scene = GetScene();
+  blender::Depsgraph *depsgraph = scene ? scene->GetAnimationDepsgraph() : nullptr;
+  if (depsgraph == nullptr) {
+    blender::bContext *context = engine ? engine->GetContext() : nullptr;
+    depsgraph = context ? CTX_data_depsgraph_pointer(context) : nullptr;
+  }
+  blender::Scene *blender_scene = scene ? scene->GetBlenderScene() : nullptr;
+  if (m_objArma == nullptr || m_objArma->pose == nullptr || depsgraph == nullptr ||
+      blender_scene == nullptr)
+  {
+    return;
+  }
 
-    m_lastapplyframe = m_lastframe;
+  // Update the constraint if any, first put them all off so that only the active ones will be
+  // updated.
+  for (BL_ArmatureConstraint *constraint : m_controlledConstraints) {
+    constraint->UpdateTarget();
+  }
+  if (pose_dirty) {
+    DEG_id_tag_update(&m_objArma->id, blender::ID_RECALC_GEOMETRY);
+  }
+  BKE_pose_where_is(depsgraph, blender_scene, m_objArma);
+
+  m_lastapplyframe = m_lastframe;
+  m_poseAppliedGeneration = m_poseDirtyGeneration;
+}
+
+void BL_ArmatureObject::MarkPoseDirty()
+{
+  m_poseDirtyGeneration++;
+  if (m_poseDirtyGeneration == 0) {
+    m_poseDirtyGeneration = 1;
+    m_poseAppliedGeneration = 0;
   }
 }
 
@@ -442,20 +486,142 @@ static void compute_bendy_bones_matrices(blender::Object *armOb)
   }
 }
 
+/** The curves Blender's own loop evaluates (anim_sys.cc's is_fcurve_evaluatable). */
+static bool fcurve_evaluatable(const FCurve *fcu)
+{
+  if (fcu->flag & (FCURVE_MUTED | FCURVE_DISABLED)) {
+    return false;
+  }
+  if (fcu->grp != nullptr && (fcu->grp->flag & AGRP_MUTED)) {
+    return false;
+  }
+  return !BKE_fcurve_is_empty(fcu);
+}
+
+BL_ArmatureObject::ResolvedAction &BL_ArmatureObject::ResolveAction(bAction *action,
+                                                                   const int32_t slot_handle,
+                                                                   const Span<FCurve *> fcurves)
+{
+  const bPose *pose = m_objArma->pose;
+  KX_Scene *scene = GetScene();
+  const uint64_t update = scene ? scene->GetAnimationUpdateCount() : 0;
+  auto find = [&]() -> ResolvedAction * {
+    for (ResolvedAction &candidate : m_resolvedActions) {
+      if (candidate.action == action && candidate.slot_handle == slot_handle) {
+        return &candidate;
+      }
+    }
+    return nullptr;
+  };
+  auto still_found = [&](const ResolvedAction &resolved) {
+    if (resolved.pose != pose || (pose->flag & POSE_RECALC) ||
+        resolved.curves.size() != fcurves.size())
+    {
+      return false;
+    }
+    for (const int64_t i : fcurves.index_range()) {
+      const ResolvedCurve &curve = resolved.curves[i];
+      if (curve.fcurve != fcurves[i] || curve.rna_path != fcurves[i]->rna_path ||
+          curve.array_index != fcurves[i]->array_index)
+      {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  ResolvedAction *resolved = find();
+  if (resolved != nullptr && still_found(*resolved)) {
+    resolved->animation_update = update;
+    return *resolved;
+  }
+  /* A character can play many actions over a game: keep only those played lately. */
+  std::erase_if(m_resolvedActions, [&](const ResolvedAction &entry) {
+    return entry.animation_update + 1 < update;
+  });
+  resolved = find();
+  if (resolved == nullptr) {
+    resolved = &m_resolvedActions.emplace_back();
+  }
+  resolved->action = action;
+  resolved->slot_handle = slot_handle;
+  /* Blender rebuilds a pose that is due (bones added or removed) at its next graph update, which
+   * can free channels: found again after it. */
+  resolved->pose = (pose->flag & POSE_RECALC) ? nullptr : pose;
+  resolved->animation_update = update;
+  resolved->curves.clear();
+  resolved->curves.reserve(fcurves.size());
+
+  Set<const void *> channels;
+  for (const bPoseChannel &pchan : pose->chanbase) {
+    channels.add(&pchan);
+  }
+  PointerRNA owner = RNA_id_pointer_create(&m_objArma->id);
+  for (FCurve *fcu : fcurves) {
+    ResolvedCurve curve{fcu, fcu->rna_path, fcu->array_index, nullptr, nullptr, nullptr, 0};
+    PathResolvedRNA target;
+    if (BKE_animsys_rna_path_resolve(&owner, fcu->rna_path, fcu->array_index, &target) &&
+        !RNA_property_is_idprop(target.prop) &&
+        (target.ptr.data == m_objArma || channels.contains(target.ptr.data)))
+    {
+      curve.prop = target.prop;
+      curve.type = target.ptr.type;
+      curve.data = target.ptr.data;
+      curve.prop_index = target.prop_index;
+    }
+    resolved->curves.push_back(curve);
+  }
+  return *resolved;
+}
+
 void BL_ArmatureObject::ApplyAction(blender::bAction *action, const blender::AnimationEvalContext &evalCtx)
 {
   if (!m_objArma || !action) {
     return;
   }
-  blender::PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
-  const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(*action);
-  animsys_evaluate_action(&ptrrna, action, slot_handle, &evalCtx, false);
+  const animrig::slot_handle_t slot_handle = animrig::first_slot_handle(*action);
+  if (m_objArma->pose == nullptr) {
+    PointerRNA ptrrna = RNA_id_pointer_create(&m_objArma->id);
+    animsys_evaluate_action(&ptrrna, action, slot_handle, &evalCtx, false);
+  }
+  else {
+    /* As Blender's loop, in the curves' own order, without finding each target again. */
+    const ResolvedAction &resolved = ResolveAction(
+        action, slot_handle, animrig::fcurves_for_action_slot(action->wrap(), slot_handle));
+    PointerRNA owner = RNA_id_pointer_create(&m_objArma->id);
+    PathResolvedRNA kept;
+    kept.ptr.owner_id = &m_objArma->id;
+    for (const ResolvedCurve &curve : resolved.curves) {
+      if (!fcurve_evaluatable(curve.fcurve)) {
+        continue;
+      }
+      PathResolvedRNA found;
+      PathResolvedRNA *target = &kept;
+      if (curve.prop != nullptr) {
+        kept.ptr.type = curve.type;
+        kept.ptr.data = curve.data;
+        kept.prop = curve.prop;
+        kept.prop_index = curve.prop_index;
+      }
+      else if (BKE_animsys_rna_path_resolve(
+                   &owner, curve.fcurve->rna_path, curve.fcurve->array_index, &found))
+      {
+        target = &found;
+      }
+      else {
+        continue;
+      }
+      BKE_animsys_write_to_rna_path(target, calculate_fcurve(target, curve.fcurve, &evalCtx));
+    }
+  }
   compute_bendy_bones_matrices(m_objArma);
+  MarkPoseDirty();
 }
 
 void BL_ArmatureObject::BlendInPose(blender::bPose *blend_pose, float weight, short mode)
 {
   GameBlendPose(m_objArma->pose, blend_pose, weight, mode);
+  MarkPoseDirty();
 }
 
 bool BL_ArmatureObject::UpdateTimestep(double curtime)
@@ -508,6 +674,12 @@ blender::bPose *BL_ArmatureObject::GetPose() const
   return m_objArma->pose;
 }
 
+blender::bPoseChannel *BL_ArmatureObject::FindPoseChannel(const std::string &name) const
+{
+  const auto channel = m_poseChannelLookup.find(name);
+  return channel == m_poseChannelLookup.end() ? nullptr : channel->second;
+}
+
 double BL_ArmatureObject::GetLastFrame()
 {
   return m_lastframe;
@@ -515,13 +687,23 @@ double BL_ArmatureObject::GetLastFrame()
 
 bool BL_ArmatureObject::GetBoneMatrix(blender::Bone *bone, MT_Matrix4x4 &matrix)
 {
-  ApplyPose();
-  blender::bPoseChannel *pchan = BKE_pose_channel_find_name(m_objArma->pose, bone->name);
-  if (pchan) {
-    matrix.setValue(&pchan->pose_mat[0][0]);
-  }
+  float length = 0.0f;
+  return bone != nullptr && GetBoneMatrix(bone->name, matrix, length);
+}
 
-  return (pchan != nullptr);
+bool BL_ArmatureObject::GetBoneMatrix(const std::string &name,
+                                      MT_Matrix4x4 &matrix,
+                                      float &length)
+{
+  ApplyPose();
+  blender::bPoseChannel *pchan = FindPoseChannel(name);
+  blender::Bone *bone = pchan != nullptr ? pchan->bone_get(*m_objArma) : nullptr;
+  if (pchan == nullptr || bone == nullptr) {
+    return false;
+  }
+  matrix.setValue(&pchan->pose_mat[0][0]);
+  length = GetBoneLength(bone);
+  return true;
 }
 
 bool BL_ArmatureObject::GetDrawDebug() const

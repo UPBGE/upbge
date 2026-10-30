@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <map>
 
 #include "SCA_InputEvent.h"
@@ -210,8 +211,18 @@ class SCA_IInputDevice {
   /// Typed text in unicode during a frame.
   std::wstring m_text;
 
+  /** Monotonically increasing generation of the transient input buffers. Consumers that sample
+   * more frequently than logic ticks use this to distinguish a retained buffer from a freshly
+   * cleared one without consuming input owned by another update domain. */
+  uint64_t m_clearRevision;
+
   /// True when a sensor handle the same key as the exit key.
   bool m_hookExitKey;
+
+  uint64_t m_nextPressSerial;
+  uint64_t m_pressSerial[SCA_IInputDevice::MAX_KEYS];
+  bool m_pressConsumed[SCA_IInputDevice::MAX_KEYS];
+  bool m_pressPending[SCA_IInputDevice::MAX_KEYS];
 
   /** Translation table used to get the character from a key number with shift or not.
    * blender::Key -> (Character, Character shifted)
@@ -231,6 +242,11 @@ class SCA_IInputDevice {
    */
   virtual void ClearInputs();
 
+  uint64_t GetClearRevision() const
+  {
+    return m_clearRevision;
+  }
+
   /** Manage move event like mouse by releasing if possible.
    * These kind of events are precise of one frame.
    */
@@ -238,6 +254,12 @@ class SCA_IInputDevice {
 
   /// Return typed unicode text during a frame.
   const std::wstring &GetText() const;
+
+  /** Record a physical press so UI and the launcher can share one consumed token. */
+  void NotePressTransition(SCA_EnumInputs input);
+  bool ConsumePressTransition(SCA_EnumInputs input);
+  bool HasUnconsumedPressTransition(SCA_EnumInputs input) const;
+  uint64_t GetPressTransitionSerial(SCA_EnumInputs input) const;
 
   static const char ConvertKeyToChar(SCA_EnumInputs input, bool shifted);
 };

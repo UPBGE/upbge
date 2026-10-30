@@ -6,10 +6,13 @@
 
 #include <array>
 #include <cstdint>
+#include <iomanip>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <utility>
 
+#include "LN_BonePoseRotation.h"
 #include "LN_CommandBuffer.h"
 #include "LN_DenseIds.h"
 #include "LN_Program.h"
@@ -311,6 +314,10 @@ TEST(LN_Program, ExecBlockIRBuildsDirectBlocksForAdditionalCommandFamilies)
   set_action_frame.opcode = LN_OpCode::SetActionFrame;
   program.AddInstruction(LN_Event::OnFixedUpdate, set_action_frame);
 
+  LN_Instruction set_shape_key_value;
+  set_shape_key_value.opcode = LN_OpCode::SetShapeKeyValue;
+  program.AddInstruction(LN_Event::OnFixedUpdate, set_shape_key_value);
+
   const LN_OpCode bone_opcodes[] = {
       LN_OpCode::SetBonePoseLocation,
       LN_OpCode::SetBonePoseRotation,
@@ -367,10 +374,16 @@ TEST(LN_Program, ExecBlockIRBuildsDirectBlocksForAdditionalCommandFamilies)
 
   LN_Instruction save_game;
   save_game.opcode = LN_OpCode::SaveGame;
+  LN_BoolExpression save_completed;
+  save_completed.kind = LN_BoolExpressionKind::PersistenceCompleted;
+  save_game.bool_expr_index = program.AddBoolExpression(save_completed);
   program.AddInstruction(LN_Event::OnFixedUpdate, save_game);
 
   LN_Instruction load_game;
   load_game.opcode = LN_OpCode::LoadGame;
+  LN_BoolExpression load_completed;
+  load_completed.kind = LN_BoolExpressionKind::PersistenceCompleted;
+  load_game.bool_expr_index = program.AddBoolExpression(load_completed);
   program.AddInstruction(LN_Event::OnFixedUpdate, load_game);
 
   LN_Instruction load_scene;
@@ -392,7 +405,7 @@ TEST(LN_Program, ExecBlockIRBuildsDirectBlocksForAdditionalCommandFamilies)
   const LN_ExecBlockProgram &ir = program.GetExecBlockProgram(LN_Event::OnFixedUpdate);
   ASSERT_TRUE(ir.valid);
   const uint32_t expected_direct_instruction_count = uint32_t(
-      2u + std::size(physics_opcodes) + 3u + 4u + 8u + std::size(audio_opcodes) + 3u +
+      2u + std::size(physics_opcodes) + 3u + 4u + 8u + std::size(audio_opcodes) + 4u +
       std::size(bone_opcodes) + std::size(material_opcodes) + 4u + 3u + 2u + 2u);
 
   EXPECT_EQ(ir.direct_instruction_count, expected_direct_instruction_count);
@@ -418,7 +431,7 @@ TEST(LN_Program, ExecBlockIRBuildsDirectBlocksForAdditionalCommandFamilies)
   expect_kind_range(4u, LN_ExecOpKind::LightCommand);
   expect_kind_range(8u, LN_ExecOpKind::WindowCommand);
   expect_kind_range(uint32_t(std::size(audio_opcodes)), LN_ExecOpKind::AudioCommand);
-  expect_kind_range(3u, LN_ExecOpKind::ActionCommand);
+  expect_kind_range(4u, LN_ExecOpKind::ActionCommand);
   expect_kind_range(uint32_t(std::size(bone_opcodes)), LN_ExecOpKind::BoneCommand);
   expect_kind_range(uint32_t(std::size(material_opcodes)), LN_ExecOpKind::MaterialCommand);
   expect_kind_range(4u, LN_ExecOpKind::GlobalCommand);
@@ -436,6 +449,7 @@ TEST(LN_Program, ExecBlockIRBuildsDirectBlocksForTimeFlowControl)
   const LN_OpCode time_flow_opcodes[] = {
       LN_OpCode::ArmTimer,
       LN_OpCode::ArmDelay,
+      LN_OpCode::ArmNextFrame,
       LN_OpCode::UpdatePulsify,
       LN_OpCode::UpdateBarrier,
   };
@@ -450,9 +464,9 @@ TEST(LN_Program, ExecBlockIRBuildsDirectBlocksForTimeFlowControl)
   const LN_ExecBlockProgram &ir = program.GetExecBlockProgram(LN_Event::OnFixedUpdate);
   ASSERT_TRUE(ir.valid);
   ASSERT_EQ(ir.blocks.size(), 1u);
-  EXPECT_EQ(ir.direct_instruction_count, 4u);
+  EXPECT_EQ(ir.direct_instruction_count, 5u);
   EXPECT_EQ(ir.fallback_instruction_count, 0u);
-  ASSERT_EQ(ir.ops.size(), 4u);
+  ASSERT_EQ(ir.ops.size(), 5u);
   for (const LN_ExecOp &op : ir.ops) {
     EXPECT_EQ(op.kind, LN_ExecOpKind::TimeFlowControl);
   }
@@ -1357,7 +1371,7 @@ TEST(LN_Program, RegisterExpressionIRLowersSnapshotGamePropertyValues)
   EXPECT_TRUE(program.ValidateRegisterExpressionIR());
 }
 
-TEST(LN_Program, RegisterExpressionIRLowersStatelessInputBools)
+TEST(LN_Program, RegisterExpressionIRLowersInputBools)
 {
   LN_Program program;
 
@@ -1387,10 +1401,10 @@ TEST(LN_Program, RegisterExpressionIRLowersStatelessInputBools)
     program.AddBoolExpression(expression);
   }
 
-  LN_BoolExpression stateful_mouse_moved;
-  stateful_mouse_moved.kind = LN_BoolExpressionKind::MouseMoved;
-  stateful_mouse_moved.bool_value = true;
-  program.AddBoolExpression(stateful_mouse_moved);
+  LN_BoolExpression each_tick_mouse_moved;
+  each_tick_mouse_moved.kind = LN_BoolExpressionKind::MouseMoved;
+  each_tick_mouse_moved.bool_value = true;
+  program.AddBoolExpression(each_tick_mouse_moved);
 
   LN_BoolExpression gamepad_active;
   gamepad_active.kind = LN_BoolExpressionKind::GamepadActive;
@@ -1412,8 +1426,8 @@ TEST(LN_Program, RegisterExpressionIRLowersStatelessInputBools)
   ASSERT_TRUE(ir.valid);
   EXPECT_EQ(ir.cache_generation, LN_REGISTER_EXPRESSION_IR_CACHE_GENERATION);
   EXPECT_EQ(ir.int_register_count, 2u);
-  EXPECT_EQ(ir.bool_register_count, 8u);
-  EXPECT_EQ(ir.fallback_expression_count, 2u);
+  EXPECT_EQ(ir.bool_register_count, 9u);
+  EXPECT_EQ(ir.fallback_expression_count, 1u);
 
   uint32_t input_read_count = 0;
   for (const LN_RegisterExpressionOp &op : ir.ops) {
@@ -1422,7 +1436,7 @@ TEST(LN_Program, RegisterExpressionIRLowersStatelessInputBools)
       EXPECT_EQ(op.output_kind, LN_RegisterValueKind::Bool);
     }
   }
-  EXPECT_EQ(input_read_count, 8u);
+  EXPECT_EQ(input_read_count, 9u);
   EXPECT_TRUE(program.ValidateRegisterExpressionIR());
 }
 
@@ -1830,19 +1844,13 @@ TEST(LN_Program, RegisterExpressionIRLowersTypedRuntimeTreeProperties)
     return program.AddTreePropertyRef(property_ref);
   };
 
-  const uint32_t bool_ref = add_property_ref("visible",
-                                             LN_ValueType::Bool,
-                                             MakeBoolValue(true));
+  const uint32_t bool_ref = add_property_ref("visible", LN_ValueType::Bool, MakeBoolValue(true));
   const uint32_t int_ref = add_property_ref("group", LN_ValueType::Int, MakeIntValue(3));
-  const uint32_t float_ref = add_property_ref("speed",
-                                               LN_ValueType::Float,
-                                               MakeFloatValue(0.5f));
-  const uint32_t vector_ref = add_property_ref("target",
-                                                LN_ValueType::Vector,
-                                                MakeVectorValue(MT_Vector3(1.0f, 2.0f, 3.0f)));
-  const uint32_t color_ref = add_property_ref("tint",
-                                              LN_ValueType::Color,
-                                              MakeColorValue(MT_Vector4(0.2f, 0.3f, 0.4f, 1.0f)));
+  const uint32_t float_ref = add_property_ref("speed", LN_ValueType::Float, MakeFloatValue(0.5f));
+  const uint32_t vector_ref = add_property_ref(
+      "target", LN_ValueType::Vector, MakeVectorValue(MT_Vector3(1.0f, 2.0f, 3.0f)));
+  const uint32_t color_ref = add_property_ref(
+      "tint", LN_ValueType::Color, MakeColorValue(MT_Vector4(0.2f, 0.3f, 0.4f, 1.0f)));
   LN_Value string_value;
   string_value.type = LN_ValueType::String;
   string_value.exists = true;
@@ -2081,6 +2089,79 @@ TEST(LN_Program, RegisterExpressionIRLeavesDynamicValuesAsFallback)
   EXPECT_TRUE(program.ValidateRegisterExpressionIR());
 }
 
+TEST(LN_Program, TypecastFloatToIntegerFoldingIsDefinedForEveryModeAndEdgeValue)
+{
+  struct ConversionCase {
+    float value;
+    LN_FloatToIntMode mode;
+    int32_t expected;
+  };
+  const ConversionCase cases[] = {
+      {2.9f, LN_FloatToIntMode::Truncate, 2},
+      {-2.9f, LN_FloatToIntMode::Truncate, -2},
+      {2.5f, LN_FloatToIntMode::Round, 3},
+      {-2.5f, LN_FloatToIntMode::Round, -3},
+      {-2.1f, LN_FloatToIntMode::Floor, -3},
+      {-2.1f, LN_FloatToIntMode::Ceil, -2},
+      {std::numeric_limits<float>::quiet_NaN(), LN_FloatToIntMode::Truncate, 0},
+      {std::numeric_limits<float>::infinity(),
+       LN_FloatToIntMode::Round,
+       std::numeric_limits<int32_t>::max()},
+      {-std::numeric_limits<float>::infinity(),
+       LN_FloatToIntMode::Round,
+       std::numeric_limits<int32_t>::min()},
+      {std::numeric_limits<float>::max(),
+       LN_FloatToIntMode::Floor,
+       std::numeric_limits<int32_t>::max()},
+      {-std::numeric_limits<float>::max(),
+       LN_FloatToIntMode::Ceil,
+       std::numeric_limits<int32_t>::min()},
+  };
+
+  for (const ConversionCase &test_case : cases) {
+    LN_Program program;
+    LN_FloatExpression source;
+    source.kind = LN_FloatExpressionKind::Constant;
+    source.float_value = test_case.value;
+    const uint32_t source_index = program.AddFloatExpression(source);
+
+    LN_IntExpression conversion;
+    conversion.kind = LN_IntExpressionKind::FromFloat;
+    conversion.input0 = source_index;
+    conversion.float_to_int_mode = test_case.mode;
+    const uint32_t conversion_index = program.AddIntExpression(conversion);
+
+    ASSERT_LT(conversion_index, program.GetIntExpressions().size());
+    const LN_IntExpression &result = program.GetIntExpressions()[conversion_index];
+    EXPECT_EQ(result.kind, LN_IntExpressionKind::Constant);
+    EXPECT_EQ(result.int_value, test_case.expected);
+  }
+
+  LN_Program invalid_string_program;
+  LN_StringExpression invalid_string;
+  invalid_string.kind = LN_StringExpressionKind::Constant;
+  invalid_string.string_value = "not a number";
+  const uint32_t invalid_string_index = invalid_string_program.AddStringExpression(invalid_string);
+
+  LN_IntExpression invalid_to_int;
+  invalid_to_int.kind = LN_IntExpressionKind::FromString;
+  invalid_to_int.input0 = invalid_string_index;
+  const uint32_t invalid_int_index = invalid_string_program.AddIntExpression(invalid_to_int);
+  ASSERT_LT(invalid_int_index, invalid_string_program.GetIntExpressions().size());
+  EXPECT_EQ(invalid_string_program.GetIntExpressions()[invalid_int_index].kind,
+            LN_IntExpressionKind::Constant);
+  EXPECT_EQ(invalid_string_program.GetIntExpressions()[invalid_int_index].int_value, 0);
+
+  LN_FloatExpression invalid_to_float;
+  invalid_to_float.kind = LN_FloatExpressionKind::FromString;
+  invalid_to_float.string_expr_index = invalid_string_index;
+  const uint32_t invalid_float_index = invalid_string_program.AddFloatExpression(invalid_to_float);
+  ASSERT_LT(invalid_float_index, invalid_string_program.GetFloatExpressions().size());
+  EXPECT_EQ(invalid_string_program.GetFloatExpressions()[invalid_float_index].kind,
+            LN_FloatExpressionKind::Constant);
+  EXPECT_EQ(invalid_string_program.GetFloatExpressions()[invalid_float_index].float_value, 0.0f);
+}
+
 TEST(LN_Program, RegisterExpressionIRLowersTypedValueConversions)
 {
   LN_Program program;
@@ -2180,7 +2261,7 @@ TEST(LN_Program, RegisterExpressionIRLowersTypedValueConversions)
   rotation_constant.kind = LN_ValueExpressionKind::Constant;
   rotation_constant.value.type = LN_ValueType::Rotation;
   rotation_constant.value.exists = true;
-  rotation_constant.value.rotation_euler_value = MT_Vector3(0.1f, 0.2f, 0.3f);
+  rotation_constant.value.rotation_value = LN_Rotation::FromEulerXYZ(MT_Vector3(0.1f, 0.2f, 0.3f));
   program.AddValueExpression(rotation_constant);
 
   LN_ValueExpression vector4_constant;
@@ -2546,8 +2627,7 @@ TEST(LN_Program, DependencySummaryTracksCameraScreenVectorSnapshotReads)
 
   const LN_ProgramDependencySummary &summary = program.GetDependencySummary();
   EXPECT_TRUE(HasDependencyMask(summary.snapshot_channels,
-                                LN_DEP_SNAPSHOT_TRANSFORM |
-                                    LN_DEP_SNAPSHOT_OBJECT_GRAPH));
+                                LN_DEP_SNAPSHOT_TRANSFORM | LN_DEP_SNAPSHOT_OBJECT_GRAPH));
   EXPECT_TRUE(HasDependencyMask(program.GetSchedulerSummary().resource_access,
                                 LN_SCHEDULER_RESOURCE_SNAPSHOT));
   EXPECT_TRUE(program.ValidateInstructionPayloads());
@@ -2619,10 +2699,9 @@ TEST(LN_Program, DependencySummaryMarksDynamicEventSubjectsAndPropertyNames)
 
   const LN_ProgramDependencySummary &summary = program.GetDependencySummary();
   EXPECT_TRUE(HasDependencyMask(summary.dynamic_flags,
-                                LN_DEP_DYNAMIC_EVENT_SUBJECT |
-                                    LN_DEP_DYNAMIC_PROPERTY_NAME));
-  EXPECT_TRUE(HasDependencyMask(summary.command_classes,
-                                LN_DEP_COMMAND_EVENT | LN_DEP_COMMAND_PROPERTY));
+                                LN_DEP_DYNAMIC_EVENT_SUBJECT | LN_DEP_DYNAMIC_PROPERTY_NAME));
+  EXPECT_TRUE(
+      HasDependencyMask(summary.command_classes, LN_DEP_COMMAND_EVENT | LN_DEP_COMMAND_PROPERTY));
 }
 
 TEST(LN_Program, DependencyValidationRejectsSummaryDrift)
@@ -2653,11 +2732,10 @@ TEST(LN_Program, DependencySummaryFeedsParallelEligibility)
   const LN_ProgramDependencySummary &summary = program.GetDependencySummary();
   EXPECT_FALSE(summary.worker_lane_eligible);
   EXPECT_FALSE(program.IsParallelEligible());
-  EXPECT_TRUE(HasDependencyMask(summary.access_classes,
-                                LN_DEP_ACCESS_IMMEDIATE_MAIN_THREAD_SIDE_EFFECT));
-  EXPECT_TRUE(HasDependencyMask(
-      summary.main_thread_reason_mask,
-      1u << uint8_t(LN_MainThreadOnlyReason::FilePersistence)));
+  EXPECT_TRUE(
+      HasDependencyMask(summary.access_classes, LN_DEP_ACCESS_IMMEDIATE_MAIN_THREAD_SIDE_EFFECT));
+  EXPECT_TRUE(HasDependencyMask(summary.main_thread_reason_mask,
+                                1u << uint8_t(LN_MainThreadOnlyReason::FilePersistence)));
 }
 
 TEST(LN_Program, RuntimeTreePropertyReadsUseRuntimeStateDependencies)
@@ -2725,6 +2803,12 @@ TEST(LN_Program, RuntimeInstructionSemanticsClassifiesCoreOpcodeFamilies)
   EXPECT_EQ(send_event->ordering, LN_RuntimeSemanticOrdering::ObservableGlobal);
   EXPECT_TRUE(HasFallback(*send_event, LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP));
 
+  const LN_RuntimeInstructionSemantics *restart_game = LN_GetRuntimeInstructionSemantics(
+      LN_OpCode::RestartGame);
+  ASSERT_NE(restart_game, nullptr);
+  EXPECT_EQ(restart_game->writes & LN_RUNTIME_SEMANTIC_WRITE_SCENE, 0u);
+  EXPECT_NE(restart_game->writes & LN_RUNTIME_SEMANTIC_WRITE_GLOBAL_STATE, 0u);
+
   const LN_RuntimeInstructionSemantics *save_variable = LN_GetRuntimeInstructionSemantics(
       LN_OpCode::SaveVariable);
   ASSERT_NE(save_variable, nullptr);
@@ -2732,6 +2816,18 @@ TEST(LN_Program, RuntimeInstructionSemanticsClassifiesCoreOpcodeFamilies)
   EXPECT_EQ(save_variable->writes & LN_RUNTIME_SEMANTIC_WRITE_COMMAND_STREAM, 0u);
   EXPECT_EQ(save_variable->timing, LN_RuntimeSemanticTiming::ImmediateMainThreadRecord);
   EXPECT_EQ(save_variable->threading, LN_RuntimeSemanticThreading::MainThreadRecord);
+
+  const LN_RuntimeInstructionSemantics *set_save_existence = LN_GetRuntimeInstructionSemantics(
+      LN_OpCode::SetSaveExistence);
+  ASSERT_NE(set_save_existence, nullptr);
+  EXPECT_NE(set_save_existence->writes & LN_RUNTIME_SEMANTIC_WRITE_COMMAND_STREAM, 0u);
+  EXPECT_NE(set_save_existence->writes & LN_RUNTIME_SEMANTIC_WRITE_OBJECT_STATE, 0u);
+  EXPECT_NE(set_save_existence->writes & LN_RUNTIME_SEMANTIC_WRITE_SCENE, 0u);
+  EXPECT_EQ(set_save_existence->writes & LN_RUNTIME_SEMANTIC_WRITE_FILE, 0u);
+  EXPECT_EQ(set_save_existence->timing, LN_RuntimeSemanticTiming::DeferredCommandFlush);
+  EXPECT_EQ(set_save_existence->threading, LN_RuntimeSemanticThreading::MainThreadRecord);
+  EXPECT_EQ(set_save_existence->ordering, LN_RuntimeSemanticOrdering::ObservablePerTarget);
+  EXPECT_EQ(set_save_existence->coalescing, LN_RuntimeSemanticCoalescing::Forbidden);
 
   const LN_RuntimeInstructionSemantics *branch = LN_GetRuntimeInstructionSemantics(
       LN_OpCode::BranchRoute);
@@ -2758,8 +2854,7 @@ TEST(LN_Program, RuntimeCommandFamiliesClassifyCoreDeliveryPaths)
   EXPECT_EQ(LN_GetRuntimeSideEffectDelivery(LN_OpCode::SetWorldPosition),
             LN_RuntimeSideEffectDelivery::DeferredCommandBuffer);
 
-  EXPECT_EQ(LN_GetRuntimeCommandFamily(LN_OpCode::SaveVariable),
-            LN_RuntimeCommandFamily::File);
+  EXPECT_EQ(LN_GetRuntimeCommandFamily(LN_OpCode::SaveVariable), LN_RuntimeCommandFamily::File);
   EXPECT_EQ(LN_GetRuntimeSideEffectDelivery(LN_OpCode::SaveVariable),
             LN_RuntimeSideEffectDelivery::ImmediateMainThread);
 
@@ -2783,14 +2878,12 @@ TEST(LN_Program, RuntimeCommandFamiliesClassifyCoreDeliveryPaths)
   EXPECT_EQ(LN_GetRuntimeSideEffectDelivery(LN_OpCode::FollowPath),
             LN_RuntimeSideEffectDelivery::DeferredCommandBuffer);
 
-  EXPECT_EQ(LN_GetRuntimeCommandFamily(LN_OpCode::ArmTimer),
-            LN_RuntimeCommandFamily::TreeState);
+  EXPECT_EQ(LN_GetRuntimeCommandFamily(LN_OpCode::ArmTimer), LN_RuntimeCommandFamily::TreeState);
   EXPECT_EQ(LN_GetRuntimeSideEffectDelivery(LN_OpCode::ArmTimer),
             LN_RuntimeSideEffectDelivery::RuntimeTreeState);
 
   EXPECT_EQ(LN_GetRuntimeCommandFamily(LN_OpCode::Nop), LN_RuntimeCommandFamily::None);
-  EXPECT_EQ(LN_GetRuntimeSideEffectDelivery(LN_OpCode::Nop),
-            LN_RuntimeSideEffectDelivery::None);
+  EXPECT_EQ(LN_GetRuntimeSideEffectDelivery(LN_OpCode::Nop), LN_RuntimeSideEffectDelivery::None);
 }
 
 TEST(LN_Program, GeometryNodesModifierAssignmentIsAnImmediateMainThreadMutation)
@@ -2806,8 +2899,7 @@ TEST(LN_Program, GeometryNodesModifierAssignmentIsAnImmediateMainThreadMutation)
 
   const LN_SchedulerSummary &summary = program.GetSchedulerSummary();
   EXPECT_EQ(summary.purity, LN_SchedulerPurity::MainThreadOnly);
-  EXPECT_EQ(summary.main_thread_only_reason,
-            LN_MainThreadOnlyReason::ImmediateCommandHelper);
+  EXPECT_EQ(summary.main_thread_only_reason, LN_MainThreadOnlyReason::ImmediateCommandHelper);
   EXPECT_FALSE(summary.emits_commands);
   EXPECT_FALSE(summary.worker_lane_eligible);
   EXPECT_FALSE(HasResource(summary, LN_SCHEDULER_RESOURCE_COMMAND_BUFFER));
@@ -2921,36 +3013,61 @@ TEST(LN_Program, RuntimeExpressionSemanticsClassifiesCoreExpressionFamilies)
   EXPECT_EQ(tree_property.writes, uint32_t(LN_RUNTIME_SEMANTIC_WRITE_NONE));
 }
 
+TEST(LN_Program, ActionLifecycleSemanticsRetainExactDiagnosticNames)
+{
+  const std::array<std::pair<LN_BoolExpressionKind, const char *>, 5> expectations = {{
+      {LN_BoolExpressionKind::ActionLifecycleEvent, "ActionLifecycleEvent"},
+      {LN_BoolExpressionKind::ActionStarted, "ActionStarted"},
+      {LN_BoolExpressionKind::ActionCompleted, "ActionCompleted"},
+      {LN_BoolExpressionKind::ActionInterrupted, "ActionInterrupted"},
+      {LN_BoolExpressionKind::ActionFailed, "ActionFailed"},
+  }};
+  for (const auto &[kind, expected_name] : expectations) {
+    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(kind);
+    EXPECT_STREQ(semantics.name, expected_name);
+    EXPECT_TRUE(HasRead(semantics, LN_RUNTIME_SEMANTIC_READ_RUNTIME_TREE_STATE));
+    EXPECT_TRUE(HasWrite(semantics, LN_RUNTIME_SEMANTIC_WRITE_RUNTIME_TREE_STATE));
+  }
+}
+
 TEST(LN_Program, RuntimeFallbackRequirementsClassifyGenericAndDynamicCases)
 {
-  EXPECT_TRUE(HasFallback(LN_GetRuntimeExpressionSemantics(
-                              LN_BoolExpressionKind::FromGenericValue),
+  EXPECT_TRUE(
+      HasFallback(LN_GetRuntimeExpressionSemantics(LN_BoolExpressionKind::FromGenericValue),
+                  LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION));
+  EXPECT_TRUE(
+      HasFallback(LN_GetRuntimeExpressionSemantics(LN_FloatExpressionKind::FromGenericValue),
+                  LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION));
+  EXPECT_TRUE(HasFallback(LN_GetRuntimeExpressionSemantics(LN_IntExpressionKind::FromGenericValue),
                           LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION));
-  EXPECT_TRUE(HasFallback(LN_GetRuntimeExpressionSemantics(
-                              LN_FloatExpressionKind::FromGenericValue),
-                          LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION));
-  EXPECT_TRUE(HasFallback(LN_GetRuntimeExpressionSemantics(
-                              LN_IntExpressionKind::FromGenericValue),
-                          LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION));
-  EXPECT_TRUE(HasFallback(LN_GetRuntimeExpressionSemantics(
-                              LN_StringExpressionKind::FromGenericValue),
-                          LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION));
-  EXPECT_TRUE(HasFallback(LN_GetRuntimeExpressionSemantics(
-                              LN_VectorExpressionKind::FromGenericValue),
-                          LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION));
-  EXPECT_TRUE(HasFallback(LN_GetRuntimeExpressionSemantics(
-                              LN_ColorExpressionKind::FromGenericValue),
-                          LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION));
+  EXPECT_TRUE(
+      HasFallback(LN_GetRuntimeExpressionSemantics(LN_StringExpressionKind::FromGenericValue),
+                  LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION));
+  EXPECT_TRUE(
+      HasFallback(LN_GetRuntimeExpressionSemantics(LN_VectorExpressionKind::FromGenericValue),
+                  LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION));
+  EXPECT_TRUE(
+      HasFallback(LN_GetRuntimeExpressionSemantics(LN_ColorExpressionKind::FromGenericValue),
+                  LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION));
 
   const LN_RuntimeExpressionSemantics object_by_name = LN_GetRuntimeExpressionSemantics(
       LN_ValueExpressionKind::ObjectByName);
   EXPECT_TRUE(HasRead(object_by_name, LN_RUNTIME_SEMANTIC_READ_SCENE));
   EXPECT_TRUE(HasFallback(object_by_name, LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP));
 
-  const LN_RuntimeExpressionSemantics child_by_name = LN_GetRuntimeExpressionSemantics(
-      LN_ValueExpressionKind::ObjectChildByName);
-  EXPECT_TRUE(HasRead(child_by_name, LN_RUNTIME_SEMANTIC_READ_SNAPSHOT));
-  EXPECT_TRUE(HasFallback(child_by_name, LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP));
+  const std::array<LN_ValueExpressionKind, 3> hierarchy_reads = {
+      LN_ValueExpressionKind::ObjectParent,
+      LN_ValueExpressionKind::ObjectChild,
+      LN_ValueExpressionKind::ObjectChildByName,
+  };
+  for (const LN_ValueExpressionKind kind : hierarchy_reads) {
+    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(kind);
+    EXPECT_TRUE(HasRead(semantics, LN_RUNTIME_SEMANTIC_READ_SCENE));
+    EXPECT_FALSE(HasRead(semantics, LN_RUNTIME_SEMANTIC_READ_SNAPSHOT));
+    EXPECT_EQ(semantics.threading, LN_RuntimeSemanticThreading::MainThreadRecord);
+    EXPECT_TRUE(HasFallback(semantics, LN_RUNTIME_FALLBACK_MAIN_THREAD_LIVE_READ));
+    EXPECT_TRUE(HasFallback(semantics, LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP));
+  }
 
   const LN_RuntimeExpressionSemantics collision = LN_GetRuntimeExpressionSemantics(
       LN_BoolExpressionKind::CollisionDetected);
@@ -2986,6 +3103,54 @@ TEST(LN_Program, DeduplicatesEquivalentConstantExpressions)
   const uint32_t string_index = program.AddStringExpression(string_expression);
   EXPECT_EQ(program.AddStringExpression(string_expression), string_index);
   EXPECT_EQ(program.GetStringExpressions().size(), 1u);
+
+  constexpr float degrees_to_radians = float(M_PI / 180.0);
+  LN_ValueExpression rotation_350;
+  rotation_350.kind = LN_ValueExpressionKind::Constant;
+  rotation_350.value.type = LN_ValueType::Rotation;
+  rotation_350.value.exists = true;
+  const MT_Vector3 euler_350(0.0f, 0.0f, 350.0f * degrees_to_radians);
+  rotation_350.value.SetRotation(LN_Rotation::FromEulerXYZ(euler_350), euler_350);
+  const uint32_t rotation_350_index = program.AddValueExpression(rotation_350);
+  EXPECT_EQ(program.AddValueExpression(rotation_350), rotation_350_index);
+
+  LN_ValueExpression rotation_minus_10 = rotation_350;
+  const MT_Vector3 euler_minus_10(0.0f, 0.0f, -10.0f * degrees_to_radians);
+  rotation_minus_10.value.SetRotation(LN_Rotation::FromEulerXYZ(euler_minus_10), euler_minus_10);
+  EXPECT_NE(program.AddValueExpression(rotation_minus_10), rotation_350_index);
+}
+
+TEST(LN_Program, CurveTableDeduplicationIncludesEveryEvaluationField)
+{
+  LN_Program program;
+  LN_CurveTable base;
+  const uint32_t base_index = program.AddCurveTable(base);
+  EXPECT_EQ(program.AddCurveTable(base), base_index);
+  EXPECT_EQ(program.GetCurveTables().size(), 1u);
+
+  auto expect_distinct = [&](const auto &modify) {
+    LN_CurveTable table = base;
+    modify(table);
+    const size_t expected_index = program.GetCurveTables().size();
+    EXPECT_EQ(program.AddCurveTable(table), expected_index);
+    EXPECT_EQ(program.AddCurveTable(table), expected_index);
+    EXPECT_EQ(program.GetCurveTables().size(), expected_index + 1);
+  };
+
+  expect_distinct([](LN_CurveTable &table) { table.samples[1] = 0.25f; });
+  expect_distinct([](LN_CurveTable &table) { table.domain_min = -1.0f; });
+  expect_distinct([](LN_CurveTable &table) { table.domain_max = 2.0f; });
+  expect_distinct([](LN_CurveTable &table) { table.sample_scale = 128.0f; });
+  expect_distinct([](LN_CurveTable &table) { table.table_min_x = -0.25f; });
+  expect_distinct([](LN_CurveTable &table) { table.table_max_x = 1.25f; });
+  expect_distinct([](LN_CurveTable &table) { table.extend_in_x = 0.5f; });
+  expect_distinct([](LN_CurveTable &table) { table.extend_in_y = 0.5f; });
+  expect_distinct([](LN_CurveTable &table) { table.extend_out_x = 0.5f; });
+  expect_distinct([](LN_CurveTable &table) { table.extend_out_y = 0.5f; });
+  expect_distinct([](LN_CurveTable &table) { table.clip_min = -1.0f; });
+  expect_distinct([](LN_CurveTable &table) { table.clip_max = 2.0f; });
+  expect_distinct([](LN_CurveTable &table) { table.extrapolate = false; });
+  expect_distinct([](LN_CurveTable &table) { table.clip_output = false; });
 }
 
 TEST(LN_Program, FoldsPureConstantExpressionsAtCompileTime)
@@ -3033,6 +3198,25 @@ TEST(LN_Program, FoldsPureConstantExpressionsAtCompileTime)
   EXPECT_FLOAT_EQ(program.GetVectorExpressions()[vector_index].vector_value.y(), 3.0f);
   EXPECT_FLOAT_EQ(program.GetVectorExpressions()[vector_index].vector_value.z(), 5.0f);
 
+  LN_VectorExpression native_bone_rotation;
+  native_bone_rotation.kind = LN_VectorExpressionKind::Constant;
+  native_bone_rotation.output_type = LN_ValueType::Rotation;
+  native_bone_rotation.rotation_value = LN_BlenderBoneBasisRotation();
+  native_bone_rotation.vector_value = native_bone_rotation.rotation_value.ToEulerXYZ();
+  const uint32_t native_bone_rotation_index = program.AddVectorExpression(native_bone_rotation);
+
+  LN_VectorExpression convert_bone_rotation;
+  convert_bone_rotation.kind = LN_VectorExpressionKind::BoneRotationToObjectRotation;
+  convert_bone_rotation.output_type = LN_ValueType::Rotation;
+  convert_bone_rotation.input0 = native_bone_rotation_index;
+  const uint32_t object_rotation_index = program.AddVectorExpression(convert_bone_rotation);
+  ASSERT_LT(object_rotation_index, program.GetVectorExpressions().size());
+  const LN_VectorExpression &object_rotation =
+      program.GetVectorExpressions()[object_rotation_index];
+  EXPECT_EQ(object_rotation.kind, LN_VectorExpressionKind::Constant);
+  EXPECT_EQ(object_rotation.output_type, LN_ValueType::Rotation);
+  EXPECT_TRUE(object_rotation.rotation_value.IsIdentity(1.0e-6f));
+
   EXPECT_TRUE(program.IsParallelEligible());
 }
 
@@ -3053,6 +3237,21 @@ TEST(LN_Program, SchedulerSummaryTracksCommandEmittingWorldWrites)
   EXPECT_TRUE(summary.reads_snapshot_only);
   EXPECT_EQ(summary.estimated_work_class, LN_EstimatedWorkClass::Small);
   EXPECT_TRUE(summary.worker_lane_eligible);
+}
+
+TEST(LN_Program, SchedulerSummaryTracksRestartAsGlobalWrite)
+{
+  LN_Program program;
+  LN_Instruction instruction;
+  instruction.opcode = LN_OpCode::RestartGame;
+  program.AddInstruction(LN_Event::OnFixedUpdate, instruction);
+  const LN_SchedulerSummary &summary = program.GetSchedulerSummary();
+
+  EXPECT_TRUE(summary.emits_commands);
+  EXPECT_TRUE(HasResource(summary, LN_SCHEDULER_RESOURCE_COMMAND_BUFFER));
+  EXPECT_FALSE(HasResource(summary, LN_SCHEDULER_RESOURCE_SCENE));
+  EXPECT_TRUE(HasResource(summary, LN_SCHEDULER_RESOURCE_GLOBAL_STATE));
+  EXPECT_TRUE(program.ValidateInstructionPayloads());
 }
 
 TEST(LN_Program, InstructionsUseCompactHeadersAndPayloadTable)
@@ -3169,6 +3368,171 @@ TEST(LN_Program, InstructionPayloadValidationRejectsInvalidExpressionBounds)
   EXPECT_NE(errors.front().find("vector index"), std::string::npos);
 }
 
+TEST(LN_Program, FlowGatePayloadValidationRejectsInvalidStateAndControlReferences)
+{
+  LN_Program wrong_state_program;
+  LN_BoolExpression condition;
+  condition.kind = LN_BoolExpressionKind::Constant;
+  condition.bool_value = true;
+  const uint32_t condition_index = wrong_state_program.AddBoolExpression(condition);
+
+  LN_Instruction wrong_state;
+  wrong_state.opcode = LN_OpCode::TryFlowGate;
+  wrong_state.bool_guard_expr_index = condition_index;
+  wrong_state.int_value = int32_t(condition_index);
+  wrong_state_program.AddInstruction(LN_Event::OnFixedUpdate, wrong_state);
+
+  std::vector<std::string> wrong_state_errors;
+  EXPECT_FALSE(wrong_state_program.ValidateInstructionPayloads(&wrong_state_errors));
+  EXPECT_TRUE(ContainsError(wrong_state_errors, "does not reference a Flow Gate state expression"));
+
+  LN_Program invalid_control_program;
+  const uint32_t start_open = invalid_control_program.AddBoolExpression(condition);
+  LN_BoolExpression gate;
+  gate.kind = LN_BoolExpressionKind::FlowGateOpen;
+  gate.input0 = start_open;
+  const uint32_t gate_index = invalid_control_program.AddBoolExpression(gate);
+
+  LN_Instruction invalid_control;
+  invalid_control.opcode = LN_OpCode::SetFlowGate;
+  invalid_control.bool_guard_expr_index = start_open;
+  invalid_control.int_value = int32_t(gate_index);
+  invalid_control.secondary_int_value = int32_t(LN_FlowGateControl::Close) + 1;
+  invalid_control_program.AddInstruction(LN_Event::OnFixedUpdate, invalid_control);
+
+  std::vector<std::string> invalid_control_errors;
+  EXPECT_FALSE(invalid_control_program.ValidateInstructionPayloads(&invalid_control_errors));
+  EXPECT_TRUE(ContainsError(invalid_control_errors, "Flow Gate control mode is invalid"));
+
+  LN_Program invalid_initial_state_program;
+  LN_BoolExpression invalid_gate = gate;
+  invalid_gate.input0 = 99;
+  invalid_initial_state_program.AddBoolExpression(invalid_gate);
+  std::vector<std::string> invalid_initial_state_errors;
+  EXPECT_FALSE(
+      invalid_initial_state_program.ValidateInstructionPayloads(&invalid_initial_state_errors));
+  EXPECT_TRUE(ContainsError(invalid_initial_state_errors,
+                            "Flow Gate initial-state expression is invalid"));
+}
+
+TEST(LN_Program, SetParentPayloadValidationEnforcesModernAndLegacyContracts)
+{
+  LN_ValueExpression parent_expression;
+  parent_expression.kind = LN_ValueExpressionKind::Constant;
+
+  LN_Program valid_program;
+  LN_Instruction valid_parent;
+  valid_parent.opcode = LN_OpCode::SetParent;
+  valid_parent.bool_value = true;
+  valid_parent.int_value = 0;
+  LN_BoolExpression compound_expression;
+  compound_expression.kind = LN_BoolExpressionKind::Constant;
+  compound_expression.bool_value = false;
+  valid_parent.bool_expr_index = valid_program.AddBoolExpression(compound_expression);
+  valid_parent.secondary_value_expr_index = valid_program.AddValueExpression(parent_expression);
+  valid_program.AddInstruction(LN_Event::OnFixedUpdate, valid_parent);
+  EXPECT_TRUE(valid_program.ValidateInstructionPayloads());
+
+  LN_Program missing_parent_program;
+  LN_Instruction missing_parent = valid_parent;
+  missing_parent.secondary_value_expr_index = LN_INVALID_INDEX;
+  missing_parent_program.AddInstruction(LN_Event::OnFixedUpdate, missing_parent);
+  std::vector<std::string> missing_parent_errors;
+  EXPECT_FALSE(missing_parent_program.ValidateInstructionPayloads(&missing_parent_errors));
+  EXPECT_TRUE(ContainsError(missing_parent_errors, "parent object expression"));
+
+  LN_Program invalid_type_program;
+  LN_Instruction invalid_type = valid_parent;
+  invalid_type.int_value = 2;
+  invalid_type.secondary_value_expr_index = invalid_type_program.AddValueExpression(
+      parent_expression);
+  invalid_type_program.AddInstruction(LN_Event::OnFixedUpdate, invalid_type);
+  std::vector<std::string> invalid_type_errors;
+  EXPECT_FALSE(invalid_type_program.ValidateInstructionPayloads(&invalid_type_errors));
+  EXPECT_TRUE(ContainsError(invalid_type_errors, "invalid modern parent type"));
+
+  LN_Program missing_compound_program;
+  LN_Instruction missing_compound = valid_parent;
+  missing_compound.bool_expr_index = LN_INVALID_INDEX;
+  missing_compound.secondary_value_expr_index = missing_compound_program.AddValueExpression(
+      parent_expression);
+  missing_compound_program.AddInstruction(LN_Event::OnFixedUpdate, missing_compound);
+  std::vector<std::string> missing_compound_errors;
+  EXPECT_FALSE(missing_compound_program.ValidateInstructionPayloads(&missing_compound_errors));
+  EXPECT_TRUE(ContainsError(missing_compound_errors, "compound expression"));
+
+  LN_Program missing_bone_program;
+  LN_Instruction missing_bone = valid_parent;
+  missing_bone.int_value = 1;
+  missing_bone.bool_expr_index = LN_INVALID_INDEX;
+  missing_bone.secondary_value_expr_index = missing_bone_program.AddValueExpression(
+      parent_expression);
+  missing_bone_program.AddInstruction(LN_Event::OnFixedUpdate, missing_bone);
+  std::vector<std::string> missing_bone_errors;
+  EXPECT_FALSE(missing_bone_program.ValidateInstructionPayloads(&missing_bone_errors));
+  EXPECT_TRUE(ContainsError(missing_bone_errors, "bone name expression"));
+
+  LN_Program invalid_legacy_program;
+  LN_Instruction invalid_legacy;
+  invalid_legacy.opcode = LN_OpCode::SetParent;
+  invalid_legacy.secondary_value_expr_index = invalid_legacy_program.AddValueExpression(
+      parent_expression);
+  invalid_legacy_program.AddInstruction(LN_Event::OnFixedUpdate, invalid_legacy);
+  std::vector<std::string> invalid_legacy_errors;
+  EXPECT_FALSE(invalid_legacy_program.ValidateInstructionPayloads(&invalid_legacy_errors));
+  EXPECT_TRUE(ContainsError(invalid_legacy_errors, "compound or ghost expression"));
+}
+
+TEST(LN_Program, PersistenceCommandsRequireDedicatedCompletionState)
+{
+  LN_Program valid_program;
+  LN_BoolExpression completion;
+  completion.kind = LN_BoolExpressionKind::PersistenceCompleted;
+  LN_Instruction valid_save;
+  valid_save.opcode = LN_OpCode::SaveGame;
+  valid_save.bool_expr_index = valid_program.AddBoolExpression(completion);
+  valid_program.AddInstruction(LN_Event::OnFixedUpdate, valid_save);
+  LN_BoolExpression enabled;
+  enabled.kind = LN_BoolExpressionKind::Constant;
+  enabled.bool_value = true;
+  LN_Instruction valid_set_existence;
+  valid_set_existence.opcode = LN_OpCode::SetSaveExistence;
+  valid_set_existence.bool_expr_index = valid_program.AddBoolExpression(enabled);
+  valid_set_existence.secondary_bool_expr_index = valid_save.bool_expr_index;
+  valid_program.AddInstruction(LN_Event::OnFixedUpdate, valid_set_existence);
+  std::vector<std::string> valid_errors;
+  EXPECT_TRUE(valid_program.ValidateInstructionPayloads(&valid_errors))
+      << (valid_errors.empty() ? std::string() : valid_errors.front());
+
+  LN_Program missing_program;
+  LN_Instruction missing_load;
+  missing_load.opcode = LN_OpCode::LoadGame;
+  missing_program.AddInstruction(LN_Event::OnFixedUpdate, missing_load);
+  std::vector<std::string> missing_errors;
+  EXPECT_FALSE(missing_program.ValidateInstructionPayloads(&missing_errors));
+  EXPECT_TRUE(ContainsError(missing_errors, "persistence completion expression"));
+
+  LN_Program missing_set_program;
+  LN_Instruction missing_set;
+  missing_set.opcode = LN_OpCode::SetSaveExistence;
+  missing_set.bool_expr_index = missing_set_program.AddBoolExpression(enabled);
+  missing_set_program.AddInstruction(LN_Event::OnFixedUpdate, missing_set);
+  std::vector<std::string> missing_set_errors;
+  EXPECT_FALSE(missing_set_program.ValidateInstructionPayloads(&missing_set_errors));
+  EXPECT_TRUE(ContainsError(missing_set_errors, "persistence completion expression"));
+
+  LN_Program wrong_kind_program;
+  LN_BoolExpression constant;
+  constant.kind = LN_BoolExpressionKind::Constant;
+  LN_Instruction wrong_kind_save;
+  wrong_kind_save.opcode = LN_OpCode::SaveGame;
+  wrong_kind_save.bool_expr_index = wrong_kind_program.AddBoolExpression(constant);
+  wrong_kind_program.AddInstruction(LN_Event::OnFixedUpdate, wrong_kind_save);
+  std::vector<std::string> wrong_kind_errors;
+  EXPECT_FALSE(wrong_kind_program.ValidateInstructionPayloads(&wrong_kind_errors));
+  EXPECT_TRUE(ContainsError(wrong_kind_errors, "Persistence Completed"));
+}
+
 TEST(LN_Program, InstructionPayloadValidationRejectsUnknownExpressionSemantics)
 {
   LN_Program program;
@@ -3180,6 +3544,38 @@ TEST(LN_Program, InstructionPayloadValidationRejectsUnknownExpressionSemantics)
   EXPECT_FALSE(program.ValidateInstructionPayloads(&errors));
   ASSERT_FALSE(errors.empty());
   EXPECT_TRUE(ContainsError(errors, "bool expression 0: kind is missing runtime semantics entry"));
+}
+
+TEST(LN_Program, InstructionPayloadValidationBoundsFlowRouterOutputCount)
+{
+  LN_Program program;
+  const uint32_t state_index = program.AddFlowControlState();
+
+  LN_Instruction instruction;
+  instruction.opcode = LN_OpCode::TryFlowRouter;
+  instruction.int_value = int32_t(state_index);
+  instruction.secondary_int_value = int32_t(LN_MAX_DYNAMIC_SOCKET_COUNT + 1u);
+  program.AddInstruction(LN_Event::OnFixedUpdate, instruction);
+
+  std::vector<std::string> errors;
+  EXPECT_FALSE(program.ValidateInstructionPayloads(&errors));
+  EXPECT_TRUE(ContainsError(errors, "Flow Router output count must be between 1 and 64"));
+}
+
+TEST(LN_Program, InstructionPayloadValidationBoundsFlowRouterRouteExpressions)
+{
+  LN_Program program;
+  const uint32_t state_index = program.AddFlowControlState();
+
+  LN_BoolExpression expression;
+  expression.kind = LN_BoolExpressionKind::FlowRouterSelected;
+  expression.int_value = int32_t(state_index);
+  expression.secondary_int_value = int32_t(LN_MAX_DYNAMIC_SOCKET_COUNT);
+  program.AddBoolExpression(expression);
+
+  std::vector<std::string> errors;
+  EXPECT_FALSE(program.ValidateInstructionPayloads(&errors));
+  EXPECT_TRUE(ContainsError(errors, "Flow Router route index is outside"));
 }
 
 TEST(LN_Program, InstructionPayloadValidationRejectsInvalidVectorOperationOperands)
@@ -3336,13 +3732,40 @@ TEST(LN_Program, InstructionPayloadValidationRejectsSemanticSchedulerResourceDri
   program.AddInstruction(LN_Event::OnFixedUpdate, instruction);
   ASSERT_TRUE(HasResource(program.GetSchedulerSummary(), LN_SCHEDULER_RESOURCE_WORLD));
 
-  LN_SchedulerSummary &summary = const_cast<LN_SchedulerSummary &>(
-      program.GetSchedulerSummary());
+  LN_SchedulerSummary &summary = const_cast<LN_SchedulerSummary &>(program.GetSchedulerSummary());
   summary.resource_access &= ~LN_SCHEDULER_RESOURCE_WORLD;
 
   std::vector<std::string> errors;
   EXPECT_FALSE(program.ValidateInstructionPayloads(&errors));
   EXPECT_TRUE(ContainsError(errors, "scheduler summary is missing semantic resource access"));
+}
+
+TEST(LN_Program, SchedulerResourcesCoverEveryRuntimeOpcodeSemanticMinimum)
+{
+  for (uint32_t value = 0; value < uint32_t(LN_OpCode::Count); value++) {
+    LN_Program program;
+    LN_Instruction instruction;
+    instruction.opcode = static_cast<LN_OpCode>(value);
+    program.AddInstruction(LN_Event::OnFixedUpdate, instruction);
+
+    std::vector<std::string> errors;
+    program.ValidateInstructionPayloads(&errors);
+    if (ContainsError(errors, "scheduler summary is missing semantic resource access")) {
+      const LN_RuntimeInstructionSemantics *semantics = LN_GetRuntimeInstructionSemantics(
+          instruction.opcode);
+      for (const std::string &error : errors) {
+        if (error.find("scheduler summary is missing semantic resource access") !=
+            std::string::npos)
+        {
+          ADD_FAILURE() << "opcode " << value << " ("
+                        << (semantics != nullptr ? semantics->name : "unknown") << ") resources=0x"
+                        << std::hex << program.GetSchedulerSummary().resource_access << " reads=0x"
+                        << (semantics != nullptr ? semantics->reads : 0u) << " writes=0x"
+                        << (semantics != nullptr ? semantics->writes : 0u) << std::dec << ": " << error;
+        }
+      }
+    }
+  }
 }
 
 TEST(LN_Program, InstructionPayloadValidationRejectsSemanticPersistenceResourceDrift)
@@ -3353,8 +3776,7 @@ TEST(LN_Program, InstructionPayloadValidationRejectsSemanticPersistenceResourceD
   program.AddInstruction(LN_Event::OnFixedUpdate, instruction);
   ASSERT_TRUE(HasResource(program.GetSchedulerSummary(), LN_SCHEDULER_RESOURCE_FILE));
 
-  LN_SchedulerSummary &summary = const_cast<LN_SchedulerSummary &>(
-      program.GetSchedulerSummary());
+  LN_SchedulerSummary &summary = const_cast<LN_SchedulerSummary &>(program.GetSchedulerSummary());
   summary.resource_access &= ~LN_SCHEDULER_RESOURCE_FILE;
 
   std::vector<std::string> errors;
@@ -3370,8 +3792,7 @@ TEST(LN_Program, InstructionPayloadValidationRejectsSemanticExpressionResourceDr
   program.AddBoolExpression(expression);
   ASSERT_TRUE(HasResource(program.GetSchedulerSummary(), LN_SCHEDULER_RESOURCE_LOGIC_MANAGER));
 
-  LN_SchedulerSummary &summary = const_cast<LN_SchedulerSummary &>(
-      program.GetSchedulerSummary());
+  LN_SchedulerSummary &summary = const_cast<LN_SchedulerSummary &>(program.GetSchedulerSummary());
   summary.resource_access &= ~LN_SCHEDULER_RESOURCE_LOGIC_MANAGER;
 
   std::vector<std::string> errors;
@@ -3403,7 +3824,8 @@ TEST(LN_Program, InstructionPayloadValidationAcceptsMixedInitAndFixedUpdatePhase
   fixed_instruction.property_value_type = LN_ValueType::Float;
   program.AddInstruction(LN_Event::OnFixedUpdate, fixed_instruction);
 
-  EXPECT_EQ(program.GetSchedulerSummary().required_phase, LN_SchedulerRequiredPhase::OnFixedUpdate);
+  EXPECT_EQ(program.GetSchedulerSummary().required_phase,
+            LN_SchedulerRequiredPhase::OnFixedUpdate);
   EXPECT_TRUE(program.ValidateInstructionPayloads());
 }
 
@@ -3466,8 +3888,8 @@ TEST(LN_Program, PropagatesRayQueryDetailsAcrossSharedRuntimeState)
   first_query.cache_key = 5000;
   const uint32_t first_index = program.AddQueryExpression(first_query);
 
-  program.AddRayQueryDetailRequirement(
-      first_query.cache_key, LN_RAY_QUERY_DETAIL_FACE_INDEX | LN_RAY_QUERY_DETAIL_UV);
+  program.AddRayQueryDetailRequirement(first_query.cache_key,
+                                       LN_RAY_QUERY_DETAIL_FACE_INDEX | LN_RAY_QUERY_DETAIL_UV);
 
   LN_QueryExpression later_query = first_query;
   const uint32_t later_index = program.AddQueryExpression(later_query);
@@ -3480,30 +3902,6 @@ TEST(LN_Program, PropagatesRayQueryDetailsAcrossSharedRuntimeState)
   EXPECT_EQ(queries[first_index].runtime_state_index, queries[later_index].runtime_state_index);
   EXPECT_EQ(program.GetDependencySummary().ray_query_detail_requirements,
             LN_RAY_QUERY_DETAIL_FACE_INDEX | LN_RAY_QUERY_DETAIL_UV);
-}
-
-TEST(LN_Program, ValidatesDenseSpawnPoolStateIds)
-{
-  LN_Program program;
-  const uint32_t pool_index = program.AddSpawnPoolState();
-
-  LN_Instruction instruction;
-  instruction.opcode = LN_OpCode::SpawnPoolCreate;
-  instruction.int_value = int32_t(pool_index);
-  program.AddInstruction(LN_Event::OnInit, instruction);
-
-  EXPECT_TRUE(program.ValidateInstructionPayloads());
-
-  LN_Program invalid_program;
-  LN_Instruction invalid_instruction;
-  invalid_instruction.opcode = LN_OpCode::SpawnPoolSpawn;
-  invalid_instruction.int_value = 7;
-  invalid_program.AddInstruction(LN_Event::OnFixedUpdate, invalid_instruction);
-
-  std::vector<std::string> errors;
-  EXPECT_FALSE(invalid_program.ValidateInstructionPayloads(&errors));
-  ASSERT_FALSE(errors.empty());
-  EXPECT_NE(errors.front().find("spawn pool state id"), std::string::npos);
 }
 
 TEST(LN_Program, SchedulerSummaryTracksInputSnapshotReads)
@@ -3542,6 +3940,65 @@ TEST(LN_Program, SchedulerSummaryTracksQueryExpressionReason)
   EXPECT_EQ(summary.main_thread_only_reason, LN_MainThreadOnlyReason::QueryExpression);
 }
 
+TEST(LN_Program, SchedulerSummaryKeepsObjectHierarchyReadsOnMainThread)
+{
+  const std::array<LN_ValueExpressionKind, 3> hierarchy_reads = {
+      LN_ValueExpressionKind::ObjectParent,
+      LN_ValueExpressionKind::ObjectChild,
+      LN_ValueExpressionKind::ObjectChildByName,
+  };
+  for (const LN_ValueExpressionKind kind : hierarchy_reads) {
+    LN_Program program;
+    LN_ValueExpression expression;
+    expression.kind = kind;
+    program.AddValueExpression(expression);
+
+    const LN_ProgramDependencySummary &dependencies = program.GetDependencySummary();
+    const LN_SchedulerSummary &summary = program.GetSchedulerSummary();
+    EXPECT_FALSE(program.IsParallelEligible());
+    EXPECT_EQ(summary.purity, LN_SchedulerPurity::MainThreadOnly);
+    EXPECT_TRUE(HasResource(summary, LN_SCHEDULER_RESOURCE_SCENE));
+    EXPECT_FALSE(summary.reads_snapshot_only);
+    EXPECT_FALSE(summary.worker_lane_eligible);
+    EXPECT_EQ(summary.main_thread_only_reason, LN_MainThreadOnlyReason::QueryExpression);
+    EXPECT_TRUE(HasDependencyMask(dependencies.dynamic_flags, LN_DEP_DYNAMIC_OBJECT_REF));
+    EXPECT_FALSE(dependencies.worker_lane_eligible);
+  }
+}
+
+/* Get Collection Objects (and collections linked into lists) follow membership that changes
+ * while playing and fill the scene's caches: main thread. Object names come from the file. */
+TEST(LN_Program, SchedulerSummaryKeepsCollectionObjectsOnMainThread)
+{
+  {
+    LN_Program program;
+    LN_ValueExpression expression;
+    expression.kind = LN_ValueExpressionKind::CollectionObjects;
+    program.AddValueExpression(expression);
+    const LN_SchedulerSummary &summary = program.GetSchedulerSummary();
+    EXPECT_FALSE(program.IsParallelEligible());
+    EXPECT_EQ(summary.purity, LN_SchedulerPurity::MainThreadOnly);
+    EXPECT_TRUE(HasResource(summary, LN_SCHEDULER_RESOURCE_SCENE));
+    EXPECT_FALSE(summary.worker_lane_eligible);
+    EXPECT_EQ(summary.main_thread_only_reason, LN_MainThreadOnlyReason::QueryExpression);
+    EXPECT_FALSE(program.GetDependencySummary().worker_lane_eligible);
+    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
+        LN_ValueExpressionKind::CollectionObjects);
+    EXPECT_EQ(semantics.threading, LN_RuntimeSemanticThreading::MainThreadRecord);
+    EXPECT_TRUE(HasFallback(semantics, LN_RUNTIME_FALLBACK_MAIN_THREAD_LIVE_READ));
+  }
+  {
+    LN_Program program;
+    LN_ValueExpression expression;
+    expression.kind = LN_ValueExpressionKind::CollectionObjectNames;
+    program.AddValueExpression(expression);
+    EXPECT_TRUE(program.GetSchedulerSummary().worker_lane_eligible);
+    EXPECT_NE(LN_GetRuntimeExpressionSemantics(LN_ValueExpressionKind::CollectionObjectNames)
+                  .threading,
+              LN_RuntimeSemanticThreading::MainThreadRecord);
+  }
+}
+
 TEST(LN_Program, SchedulerSummaryTracksPersistenceResources)
 {
   LN_Program program;
@@ -3555,8 +4012,7 @@ TEST(LN_Program, SchedulerSummaryTracksPersistenceResources)
   EXPECT_TRUE(HasResource(summary, LN_SCHEDULER_RESOURCE_GLOBAL_STATE));
   EXPECT_FALSE(summary.emits_commands);
   EXPECT_FALSE(summary.worker_lane_eligible);
-  EXPECT_EQ(summary.main_thread_only_reason,
-            LN_MainThreadOnlyReason::GlobalPropertyPersistence);
+  EXPECT_EQ(summary.main_thread_only_reason, LN_MainThreadOnlyReason::GlobalPropertyPersistence);
 }
 
 TEST(LN_Program, SchedulerSummaryTracksMainThreadCommandWrites)
@@ -3576,6 +4032,25 @@ TEST(LN_Program, SchedulerSummaryTracksMainThreadCommandWrites)
   EXPECT_EQ(summary.main_thread_only_reason, LN_MainThreadOnlyReason::FilePersistence);
 }
 
+TEST(LN_Program, SchedulerSummaryTracksSaveExistenceRegistryWrites)
+{
+  LN_Program program;
+  LN_Instruction instruction;
+  instruction.opcode = LN_OpCode::SetSaveExistence;
+  program.AddInstruction(LN_Event::OnFixedUpdate, instruction);
+  const LN_SchedulerSummary &summary = program.GetSchedulerSummary();
+
+  EXPECT_FALSE(program.IsParallelEligible());
+  EXPECT_EQ(summary.purity, LN_SchedulerPurity::MainThreadOnly);
+  EXPECT_TRUE(summary.emits_commands);
+  EXPECT_TRUE(HasResource(summary, LN_SCHEDULER_RESOURCE_COMMAND_BUFFER));
+  EXPECT_TRUE(HasResource(summary, LN_SCHEDULER_RESOURCE_WORLD));
+  EXPECT_TRUE(HasResource(summary, LN_SCHEDULER_RESOURCE_SCENE));
+  EXPECT_FALSE(HasResource(summary, LN_SCHEDULER_RESOURCE_FILE));
+  EXPECT_FALSE(summary.worker_lane_eligible);
+  EXPECT_EQ(summary.main_thread_only_reason, LN_MainThreadOnlyReason::ObjectLifecycleCommand);
+}
+
 TEST(LN_Program, SchedulerSummaryDescriptionIsPrintable)
 {
   LN_Program program;
@@ -3591,14 +4066,245 @@ TEST(LN_Program, SchedulerSummaryDescriptionIsPrintable)
   EXPECT_NE(description.find("main_thread_only_reason=DebugDraw"), std::string::npos);
 }
 
-TEST(LN_Program, IsParallelEligibleAllowsSnapshotQueryExpressions)
+TEST(LN_Program, LiveMouseRayQueryRequiresMainThreadAndMouseInput)
 {
   LN_Program program;
   LN_QueryExpression query;
   query.kind = LN_QueryExpressionKind::MouseRay;
   program.AddQueryExpression(query);
+  EXPECT_FALSE(program.IsParallelEligible());
+  EXPECT_EQ(program.GetMainThreadOnlyReason(), LN_MainThreadOnlyReason::QueryExpression);
+  EXPECT_TRUE(HasDependencyMask(program.GetDependencySummary().input_channels,
+                                LN_DEP_INPUT_MOUSE));
+}
+
+TEST(LN_Program, QueryValidationRejectsInvalidMouseInteractionConfiguration)
+{
+  LN_Program program;
+  LN_QueryExpression query;
+  query.kind = LN_QueryExpressionKind::MouseRay;
+  query.interaction_view = static_cast<LN_InteractionView>(255);
+  query.input0 = 42;
+  program.AddQueryExpression(query);
+
+  std::vector<std::string> errors;
+  EXPECT_FALSE(program.ValidateInstructionPayloads(&errors));
+  EXPECT_TRUE(ContainsError(errors, "interaction view is invalid"));
+  EXPECT_TRUE(ContainsError(errors, "custom interaction camera expression is invalid"));
+}
+
+TEST(LN_Program, ObjectViewUsesInputAndRouterStateWithoutPhysicsClassification)
+{
+  LN_Program program;
+  LN_QueryExpression query;
+  query.kind = LN_QueryExpressionKind::ObjectScrollView;
+  program.AddQueryExpression(query);
+
+  const LN_SchedulerSummary &summary = program.GetSchedulerSummary();
+  EXPECT_FALSE(program.IsParallelEligible());
+  EXPECT_EQ(program.GetMainThreadOnlyReason(), LN_MainThreadOnlyReason::QueryExpression);
+  EXPECT_TRUE(HasResource(summary, LN_SCHEDULER_RESOURCE_INPUT));
+  EXPECT_TRUE(HasResource(summary, LN_SCHEDULER_RESOURCE_SNAPSHOT));
+  EXPECT_TRUE(HasResource(summary, LN_SCHEDULER_RESOURCE_QUERY_CACHE));
+  EXPECT_TRUE(HasResource(summary, LN_SCHEDULER_RESOURCE_LOGIC_MANAGER));
+  EXPECT_FALSE(HasResource(summary, LN_SCHEDULER_RESOURCE_PHYSICS));
+  EXPECT_FALSE(summary.uses_jolt_queries_or_contacts);
+  EXPECT_TRUE(HasDependencyMask(program.GetDependencySummary().input_channels,
+                                LN_DEP_INPUT_MOUSE | LN_DEP_INPUT_KEYBOARD |
+                                    LN_DEP_INPUT_GAMEPAD_BUTTON));
+  EXPECT_FALSE(HasDependencyMask(program.GetDependencySummary().query_channels,
+                                 LN_DEP_QUERY_RAY));
+  EXPECT_TRUE(program.ValidateInstructionPayloads());
+}
+
+TEST(LN_Program, UIFocusReadsStayOnTheMainThreadRouter)
+{
+  LN_IntExpression user;
+  user.kind = LN_IntExpressionKind::Constant;
+  LN_StringExpression context;
+  context.kind = LN_StringExpressionKind::Constant;
+  LN_Program focus_program;
+  const uint32_t focus_user = focus_program.AddIntExpression(user);
+  const uint32_t focus_context = focus_program.AddStringExpression(context);
+  LN_ValueExpression focus;
+  focus.kind = LN_ValueExpressionKind::UIFocusObject;
+  focus.input0 = focus_user;
+  focus.input1 = focus_context;
+  focus_program.AddValueExpression(focus);
+  EXPECT_FALSE(focus_program.IsParallelEligible());
+  EXPECT_TRUE(HasResource(focus_program.GetSchedulerSummary(),
+                          LN_SCHEDULER_RESOURCE_LOGIC_MANAGER));
+  EXPECT_FALSE(HasResource(focus_program.GetSchedulerSummary(), LN_SCHEDULER_RESOURCE_PHYSICS));
+  EXPECT_FALSE(focus_program.GetSchedulerSummary().uses_jolt_queries_or_contacts);
+}
+
+TEST(LN_Program, ObjectViewValidationRejectsInvalidTypedInputs)
+{
+  LN_Program program;
+  LN_QueryExpression scroll;
+  scroll.kind = LN_QueryExpressionKind::ObjectScrollView;
+  scroll.input1 = 20;
+  scroll.input2 = 21;
+  scroll.input3 = 22;
+  scroll.quinary_bool_expr_index = 23;
+  program.AddQueryExpression(scroll);
+
+  LN_QueryExpression grid;
+  grid.kind = LN_QueryExpressionKind::ObjectGridView;
+  grid.input2 = 24;
+  grid.input3 = 25;
+  grid.input5 = 26;
+  grid.tertiary_int_expr_index = 27;
+  program.AddQueryExpression(grid);
+
+  std::vector<std::string> errors;
+  EXPECT_FALSE(program.ValidateInstructionPayloads(&errors));
+  EXPECT_TRUE(ContainsError(errors, "content expression is invalid"));
+  EXPECT_TRUE(ContainsError(errors, "camera expression is invalid"));
+  EXPECT_TRUE(ContainsError(errors, "minimum offset expression is invalid"));
+  EXPECT_TRUE(ContainsError(errors, "focus-follow expression is invalid"));
+  EXPECT_TRUE(ContainsError(errors, "slots expression is invalid"));
+  EXPECT_TRUE(ContainsError(errors, "items expression is invalid"));
+  EXPECT_TRUE(ContainsError(errors, "wheel rows expression is invalid"));
+  EXPECT_TRUE(ContainsError(errors, "columns expression is invalid"));
+}
+
+TEST(LN_Program, ValueAnalysisQueriesPreserveParallelExecutionWhenInputsAreWorkerSafe)
+{
+  LN_Program average_program;
+  LN_ValueExpression list;
+  list.kind = LN_ValueExpressionKind::Constant;
+  list.value.type = LN_ValueType::List;
+  list.value.exists = true;
+  const uint32_t list_index = average_program.AddValueExpression(list);
+  LN_QueryExpression average;
+  average.kind = LN_QueryExpressionKind::VectorAverage;
+  average.average_center_source = LN_AverageCenterSource::VectorList;
+  average.input0 = list_index;
+  average_program.AddQueryExpression(average);
+  EXPECT_TRUE(average_program.IsParallelEligible());
+  EXPECT_TRUE(HasDependencyMask(average_program.GetDependencySummary().dynamic_flags,
+                                LN_DEP_DYNAMIC_GENERIC_VALUE));
+
+  LN_Program object_average_program;
+  average.average_center_source = LN_AverageCenterSource::ObjectList;
+  average.input0 = LN_INVALID_INDEX;
+  object_average_program.AddQueryExpression(average);
+  EXPECT_FALSE(object_average_program.IsParallelEligible());
+  EXPECT_EQ(object_average_program.GetMainThreadOnlyReason(),
+            LN_MainThreadOnlyReason::QueryExpression);
+  EXPECT_TRUE(HasDependencyMask(object_average_program.GetDependencySummary().dynamic_flags,
+                                LN_DEP_DYNAMIC_OBJECT_REF));
+
+  LN_Program collection_average_program;
+  average.average_center_source = LN_AverageCenterSource::Collection;
+  collection_average_program.AddQueryExpression(average);
+  EXPECT_FALSE(collection_average_program.IsParallelEligible());
+  EXPECT_EQ(collection_average_program.GetMainThreadOnlyReason(),
+            LN_MainThreadOnlyReason::QueryExpression);
+  EXPECT_TRUE(HasDependencyMask(collection_average_program.GetDependencySummary().dynamic_flags,
+                                LN_DEP_DYNAMIC_DATABLOCK_REF));
+
+  LN_Program distance_program;
+  LN_VectorExpression position;
+  position.kind = LN_VectorExpressionKind::Constant;
+  const uint32_t position_a = distance_program.AddVectorExpression(position);
+  position.vector_value = MT_Vector3(1.0f, 0.0f, 0.0f);
+  const uint32_t position_b = distance_program.AddVectorExpression(position);
+  LN_QueryExpression distance;
+  distance.kind = LN_QueryExpressionKind::DistanceBetween;
+  distance.distance_endpoint_a = LN_DistanceEndpointMode::Position;
+  distance.distance_endpoint_b = LN_DistanceEndpointMode::Position;
+  distance.input0 = position_a;
+  distance.input1 = position_b;
+  distance_program.AddQueryExpression(distance);
+  EXPECT_TRUE(distance_program.IsParallelEligible());
+  EXPECT_EQ(distance_program.GetMainThreadOnlyReason(), LN_MainThreadOnlyReason::None);
+}
+
+TEST(LN_Program, DistanceObjectEndpointsAndObjectMotionSamplingStayOnMainThread)
+{
+  LN_Program distance_program;
+  LN_QueryExpression distance;
+  distance.kind = LN_QueryExpressionKind::DistanceBetween;
+  distance.distance_endpoint_a = LN_DistanceEndpointMode::Object;
+  distance.distance_endpoint_b = LN_DistanceEndpointMode::Position;
+  distance_program.AddQueryExpression(distance);
+  EXPECT_FALSE(distance_program.IsParallelEligible());
+  EXPECT_TRUE(
+      HasResource(distance_program.GetSchedulerSummary(), LN_SCHEDULER_RESOURCE_QUERY_CACHE));
+  EXPECT_TRUE(HasResource(distance_program.GetSchedulerSummary(), LN_SCHEDULER_RESOURCE_PHYSICS));
+  EXPECT_EQ(distance_program.GetMainThreadOnlyReason(), LN_MainThreadOnlyReason::QueryExpression);
+
+  LN_Program motion_program;
+  const uint32_t state = motion_program.AddFlowControlState();
+  LN_Instruction sample;
+  sample.opcode = LN_OpCode::SampleMotion;
+  sample.int_value = int32_t(state);
+  sample.secondary_int_value = int32_t(LN_MotionSourceMode::OwnerObject);
+  motion_program.AddInstruction(LN_Event::OnUpdate, sample);
+  EXPECT_FALSE(motion_program.IsParallelEligible());
+  EXPECT_TRUE(HasResource(motion_program.GetSchedulerSummary(), LN_SCHEDULER_RESOURCE_WORLD));
+  EXPECT_FALSE(motion_program.GetSchedulerSummary().reads_snapshot_only);
+  EXPECT_EQ(motion_program.GetMainThreadOnlyReason(), LN_MainThreadOnlyReason::QueryExpression);
+}
+
+TEST(LN_Program, PositionMotionSamplingUsesWorkerSafeRuntimeState)
+{
+  LN_Program program;
+  LN_VectorExpression position;
+  position.kind = LN_VectorExpressionKind::Constant;
+  const uint32_t position_index = program.AddVectorExpression(position);
+  LN_FloatExpression time;
+  time.kind = LN_FloatExpressionKind::Constant;
+  const uint32_t prediction_time = program.AddFloatExpression(time);
+  const uint32_t smoothing_time = program.AddFloatExpression(time);
+  const uint32_t state = program.AddFlowControlState();
+
+  LN_Instruction sample;
+  sample.opcode = LN_OpCode::SampleMotion;
+  sample.int_value = int32_t(state);
+  sample.secondary_int_value = int32_t(LN_MotionSourceMode::Position);
+  sample.vector_expr_index = position_index;
+  sample.float_expr_index = prediction_time;
+  sample.secondary_float_expr_index = smoothing_time;
+  program.AddInstruction(LN_Event::OnUpdate, sample);
+
+  LN_Instruction reset;
+  reset.opcode = LN_OpCode::ResetMotion;
+  reset.int_value = int32_t(state);
+  program.AddInstruction(LN_Event::OnFixedUpdate, reset);
+
   EXPECT_TRUE(program.IsParallelEligible());
-  EXPECT_EQ(program.GetMainThreadOnlyReason(), LN_MainThreadOnlyReason::None);
+  EXPECT_FALSE(HasResource(program.GetSchedulerSummary(), LN_SCHEDULER_RESOURCE_WORLD));
+  EXPECT_FALSE(HasResource(program.GetSchedulerSummary(), LN_SCHEDULER_RESOURCE_GLOBAL_STATE));
+  EXPECT_TRUE(program.GetSchedulerSummary().worker_lane_eligible);
+  EXPECT_TRUE(program.ValidateInstructionPayloads());
+}
+
+TEST(LN_Program, MotionAndAnalysisValidationRejectsMalformedStateAndInputs)
+{
+  LN_Program program;
+  LN_QueryExpression invalid_average;
+  invalid_average.kind = LN_QueryExpressionKind::VectorAverage;
+  invalid_average.average_center_source = LN_AverageCenterSource(99);
+  invalid_average.input0 = 77;
+  program.AddQueryExpression(invalid_average);
+
+  LN_Instruction invalid_motion;
+  invalid_motion.opcode = LN_OpCode::SampleMotion;
+  invalid_motion.int_value = 9;
+  invalid_motion.secondary_int_value = 99;
+  program.AddInstruction(LN_Event::OnUpdate, invalid_motion);
+
+  std::vector<std::string> errors;
+  EXPECT_FALSE(program.ValidateInstructionPayloads(&errors));
+  EXPECT_TRUE(ContainsError(errors,
+                            "Get Average Center Position source mode is invalid"));
+  EXPECT_TRUE(ContainsError(errors,
+                            "Get Average Center Position input expression is invalid"));
+  EXPECT_TRUE(ContainsError(errors, "flow-control state"));
+  EXPECT_TRUE(ContainsError(errors, "source mode is invalid"));
 }
 
 TEST(LN_Program, IsParallelEligibleRejectsCollisionBoolExpressions)
@@ -3608,8 +4314,7 @@ TEST(LN_Program, IsParallelEligibleRejectsCollisionBoolExpressions)
   expression.kind = LN_BoolExpressionKind::CollisionDetected;
   program.AddBoolExpression(expression);
   EXPECT_FALSE(program.IsParallelEligible());
-  EXPECT_EQ(program.GetMainThreadOnlyReason(),
-            LN_MainThreadOnlyReason::CollisionOrPhysicsQuery);
+  EXPECT_EQ(program.GetMainThreadOnlyReason(), LN_MainThreadOnlyReason::CollisionOrPhysicsQuery);
 }
 
 TEST(LN_Program, CollisionDependenciesSeparatePairCacheFromContactDetails)
@@ -3697,14 +4402,11 @@ TEST(LN_Program, IsParallelEligibleRejectsFileAndGlobalPersistence)
 {
   EXPECT_EQ(ReasonForOpcode(LN_OpCode::SetGlobalProperty),
             LN_MainThreadOnlyReason::GlobalPropertyPersistence);
-  EXPECT_EQ(ReasonForOpcode(LN_OpCode::SaveVariable),
-            LN_MainThreadOnlyReason::FilePersistence);
+  EXPECT_EQ(ReasonForOpcode(LN_OpCode::SaveVariable), LN_MainThreadOnlyReason::FilePersistence);
   EXPECT_EQ(ReasonForOpcode(LN_OpCode::SaveVariableDict),
             LN_MainThreadOnlyReason::FilePersistence);
-  EXPECT_EQ(ReasonForOpcode(LN_OpCode::ClearVariables),
-            LN_MainThreadOnlyReason::FilePersistence);
-  EXPECT_EQ(ReasonForOpcode(LN_OpCode::RemoveVariable),
-            LN_MainThreadOnlyReason::FilePersistence);
+  EXPECT_EQ(ReasonForOpcode(LN_OpCode::ClearVariables), LN_MainThreadOnlyReason::FilePersistence);
+  EXPECT_EQ(ReasonForOpcode(LN_OpCode::RemoveVariable), LN_MainThreadOnlyReason::FilePersistence);
   EXPECT_EQ(ReasonForOpcode(LN_OpCode::SaveGame), LN_MainThreadOnlyReason::FilePersistence);
   EXPECT_EQ(ReasonForOpcode(LN_OpCode::LoadGame), LN_MainThreadOnlyReason::FilePersistence);
 }
@@ -3719,14 +4421,7 @@ TEST(LN_Program, IsParallelEligibleRejectsPhysicsConstraintMutation)
 
 TEST(LN_Program, IsParallelEligibleRejectsMouseLookInputDeviceState)
 {
-  EXPECT_EQ(ReasonForOpcode(LN_OpCode::MouseLook),
-            LN_MainThreadOnlyReason::InputDeviceState);
-}
-
-TEST(LN_Program, IsParallelEligibleRejectsSpawnPoolMutation)
-{
-  EXPECT_EQ(ReasonForOpcode(LN_OpCode::SpawnPoolCreate), LN_MainThreadOnlyReason::SpawnPool);
-  EXPECT_EQ(ReasonForOpcode(LN_OpCode::SpawnPoolSpawn), LN_MainThreadOnlyReason::SpawnPool);
+  EXPECT_EQ(ReasonForOpcode(LN_OpCode::MouseLook), LN_MainThreadOnlyReason::InputDeviceState);
 }
 
 TEST(LN_Program, IsParallelEligibleRejectsCollectionAndOverlayMutation)
@@ -3747,8 +4442,8 @@ TEST(LN_Program, IsParallelEligibleRejectsImmediateDebugDrawMutation)
   EXPECT_EQ(ReasonForOpcode(LN_OpCode::DrawBox), LN_MainThreadOnlyReason::DebugDraw);
   EXPECT_EQ(ReasonForOpcode(LN_OpCode::DrawMesh), LN_MainThreadOnlyReason::DebugDraw);
   EXPECT_EQ(ReasonForOpcode(LN_OpCode::DrawAxis), LN_MainThreadOnlyReason::DebugDraw);
-  EXPECT_EQ(ReasonForOpcode(LN_OpCode::Navigate), LN_MainThreadOnlyReason::DebugDraw);
-  EXPECT_EQ(ReasonForOpcode(LN_OpCode::FollowPath), LN_MainThreadOnlyReason::DebugDraw);
+  EXPECT_EQ(ReasonForOpcode(LN_OpCode::Navigate), LN_MainThreadOnlyReason::Navigation);
+  EXPECT_EQ(ReasonForOpcode(LN_OpCode::FollowPath), LN_MainThreadOnlyReason::Navigation);
 }
 
 TEST(LN_Program, IsParallelEligibleRejectsFileAndGlobalValueExpressions)
@@ -3769,6 +4464,23 @@ TEST(LN_Program, IsParallelEligibleRejectsLiveQueryValueExpressions)
 {
   EXPECT_EQ(ReasonForValueExpression(LN_ValueExpressionKind::CollisionHitObject),
             LN_MainThreadOnlyReason::CollisionOrPhysicsQuery);
+}
+
+TEST(LN_Program, PoseBoneLiveReadsStayOnMainThread)
+{
+  EXPECT_EQ(ReasonForValueExpression(LN_ValueExpressionKind::BonePoseRotation),
+            LN_MainThreadOnlyReason::QueryExpression);
+  EXPECT_EQ(ReasonForValueExpression(LN_ValueExpressionKind::BoneAttribute),
+            LN_MainThreadOnlyReason::QueryExpression);
+
+  LN_Program program;
+  LN_VectorExpression pose_position;
+  pose_position.kind = LN_VectorExpressionKind::BoneHeadPoseWorld;
+  program.AddVectorExpression(pose_position);
+
+  EXPECT_FALSE(program.IsParallelEligible());
+  EXPECT_EQ(program.GetMainThreadOnlyReason(), LN_MainThreadOnlyReason::QueryExpression);
+  EXPECT_NE(program.GetSchedulerSummary().resource_access & LN_SCHEDULER_RESOURCE_DATABLOCK, 0u);
 }
 
 TEST(LN_Program, IsParallelEligibleAllowsSnapshotQueryValueExpressions)
@@ -3928,7 +4640,8 @@ TEST(LN_Program, CommandAdaptersCarryStaticPropertyAndEventIds)
   LN_CommandBuffer command_buffer;
   command_buffer.BeginRecording();
   command_buffer.AppendSetGamePropertyRef(&runtime_tree, nullptr, property_ref_index, value, 1, 2);
-  command_buffer.AppendSendEvent(&runtime_tree, subject_expr.string_id, value, nullptr, nullptr, 3, 4);
+  command_buffer.AppendSendEvent(
+      &runtime_tree, subject_expr.string_id, value, nullptr, nullptr, 3, 4);
   command_buffer.EndRecording();
 
   std::vector<LN_CommandBuffer::Command> commands = command_buffer.TakeRecordedCommands();

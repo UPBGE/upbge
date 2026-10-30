@@ -169,6 +169,7 @@ bool LA_BlenderLauncher::EngineNextFrame()
 {
   // Free all window manager events unused.
   wm_event_free_all(m_window);
+  ProcessEventsBeforeFrame();
 
   const bool shouldForceInterpolation = m_ketsjiEngine->GetUseFixedPhysicsTimestep() &&
                                         m_ketsjiEngine->IsPhysicsInterpolationEnabled() &&

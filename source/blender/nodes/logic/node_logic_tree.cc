@@ -108,6 +108,11 @@ static bool logic_node_tree_validate_link(eNodeSocketDatatype type_a, eNodeSocke
   if (type_a == SOCK_CUSTOM || type_b == SOCK_CUSTOM) {
     return true;
   }
+  /* A text input takes an object: its name, or for an item input the item it is. A number reads
+   * as its text. */
+  if (ELEM(type_a, SOCK_OBJECT, SOCK_INT, SOCK_FLOAT) && type_b == SOCK_STRING) {
+    return true;
+  }
   return type_a == type_b;
 }
 

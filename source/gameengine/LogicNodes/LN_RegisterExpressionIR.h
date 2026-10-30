@@ -14,9 +14,9 @@
 #include "LN_Performance.h"
 #include "LN_Types.h"
 
-static constexpr uint32_t LN_REGISTER_EXPRESSION_IR_CACHE_GENERATION = 48;
-static constexpr uint32_t LN_REGISTER_EXPRESSION_IR_FEATURE_MASK =
-    uint32_t(LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR);
+static constexpr uint32_t LN_REGISTER_EXPRESSION_IR_CACHE_GENERATION = 50;
+static constexpr uint32_t LN_REGISTER_EXPRESSION_IR_FEATURE_MASK = uint32_t(
+    LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR);
 
 enum class LN_RegisterValueKind : uint8_t {
   Bool = 0,
@@ -32,6 +32,7 @@ enum class LN_RegisterValueKind : uint8_t {
 
 enum class LN_RegisterExpressionOpKind : uint8_t {
   BoolConstant = 0,
+  BoolTickContextRead,
   BoolSnapshotRead,
   BoolRuntimePropertyRead,
   BoolInputRead,
@@ -53,6 +54,7 @@ enum class LN_RegisterExpressionOpKind : uint8_t {
   IntListLength,
   IntStringCount,
   FloatConstant,
+  FloatTickContextRead,
   FloatSnapshotRead,
   FloatRuntimePropertyRead,
   FloatInputRead,
@@ -61,6 +63,7 @@ enum class LN_RegisterExpressionOpKind : uint8_t {
   FloatSubtract,
   FloatMultiply,
   FloatDivide,
+  FloatSafeDivide,
   FloatPower,
   FloatMinimum,
   FloatMaximum,
@@ -85,6 +88,7 @@ enum class LN_RegisterExpressionOpKind : uint8_t {
   FloatColorComponent,
   FloatRandom,
   FloatFormula,
+  FloatCurve,
   VectorConstant,
   VectorSnapshotRead,
   VectorRuntimePropertyRead,
@@ -123,6 +127,7 @@ enum class LN_RegisterExpressionOpKind : uint8_t {
   ValueSnapshotRead,
   ValueRuntimePropertyRead,
   ValueSelect,
+  ValueMix,
   ValueFromBool,
   ValueFromInt,
   ValueFromFloat,
@@ -156,6 +161,25 @@ enum class LN_RegisterExpressionOpKind : uint8_t {
   ValueDictMerge,
   ValueDictGetKeys,
   Fallback,
+  BoolFromInt,
+  BoolFromFloat,
+  BoolFromString,
+  BoolFromVector,
+  BoolFromColor,
+  IntFromBool,
+  IntFromFloat,
+  IntFromString,
+  FloatFromBool,
+  FloatFromInt,
+  FloatFromString,
+  StringFromBool,
+  StringFromInt,
+  StringFromFloat,
+  StringFromVector,
+  StringFromColor,
+  VectorBroadcastFloat,
+  VectorBroadcastInt,
+  VectorFromColor,
 };
 
 struct LN_RegisterExpressionRef {

@@ -56,6 +56,8 @@ class BL_ArmatureConstraint : public EXP_Value {
   blender::Object *m_blendtarget;
   blender::Object *m_blendsubtarget;
 
+  void MarkPoseDirty();
+
  public:
   BL_ArmatureConstraint(class BL_ArmatureObject *armature,
                         blender::bPoseChannel *posechannel,
@@ -80,25 +82,34 @@ class BL_ArmatureConstraint : public EXP_Value {
 
   void SetConstraintFlag(int flag)
   {
-    if (m_constraint)
+    if (m_constraint && (m_constraint->flag & flag) == 0) {
       m_constraint->flag |= blender::eBConstraint_Flags(flag);
+      MarkPoseDirty();
+    }
   }
   void ClrConstraintFlag(int flag)
   {
-    if (m_constraint)
+    if (m_constraint && (m_constraint->flag & flag) != 0) {
       m_constraint->flag &= ~blender::eBConstraint_Flags(flag);
+      MarkPoseDirty();
+    }
   }
   void SetWeight(float weight)
   {
     if (m_constraint && m_constraint->type == blender::CONSTRAINT_TYPE_KINEMATIC && m_constraint->data) {
       blender::bKinematicConstraint *con = (blender::bKinematicConstraint *)m_constraint->data;
-      con->weight = weight;
+      if (con->weight != weight) {
+        con->weight = weight;
+        MarkPoseDirty();
+      }
     }
   }
   void SetInfluence(float influence)
   {
-    if (m_constraint)
+    if (m_constraint && m_constraint->enforce != influence) {
       m_constraint->enforce = influence;
+      MarkPoseDirty();
+    }
   }
   void SetTarget(KX_GameObject *target);
   void SetSubtarget(KX_GameObject *subtarget);

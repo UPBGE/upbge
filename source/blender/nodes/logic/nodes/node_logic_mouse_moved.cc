@@ -16,7 +16,9 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Execution>("If Moved"_ustr);
+  b.add_output<decl::Execution>("If Moved"_ustr).description(
+      "Pulses once when mouse movement starts, or on every active Logic + Physics step when Each "
+      "Logic Tick is enabled");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)

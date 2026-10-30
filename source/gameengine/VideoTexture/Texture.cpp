@@ -381,6 +381,8 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
     m_lastClock = engine->GetClockTime();
     // set source refresh
     bool refreshSource = (param == Py_True);
+    // whether new pixels were loaded into the texture
+    bool uploaded = false;
     // try to proces texture from source
     try {
       // if source is available
@@ -409,6 +411,7 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
         unsigned int *texture = m_source->m_image->getImage(0, ts);
         // if texture is available
         if (texture != nullptr) {
+          uploaded = true;
           // get texture size
           short *orgSize = m_source->m_image->getSize();
           // calc scaled sizes
@@ -444,8 +447,11 @@ EXP_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
       /* Add a depsgraph notifier to trigger
        * an update on next draw loop (depsgraph_last_update_ != DEG_get_update_count(depsgraph))
        * for some VideoTexture types (types which have a
-       * "refresh" method), because the depsgraph has not been warned yet. */
-      bool needs_notifier = m_source && (
+       * "refresh" method), because the depsgraph has not been warned yet.
+       * Any source whose new pixels were just loaded needs it too (ImageBuff filled by a script):
+       * a renderer that finished its samples shows its last picture until the depsgraph changes,
+       * so in a still scene the new image never showed. */
+      bool needs_notifier = m_source && (uploaded ||
 #ifdef WITH_FFMPEG
                             PyObject_TypeCheck(&m_source->ob_base, &VideoFFmpegType) ||
                                 PyObject_TypeCheck(&m_source->ob_base, &ImageFFmpegType) ||

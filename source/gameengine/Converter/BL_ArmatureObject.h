@@ -33,18 +33,23 @@
 
 #include "BKE_modifier.hh"
 #include "BLI_array.hh"
+#include "BLI_span.hh"
+#include "RNA_types.hh"
 
 #include "BL_ArmatureChannel.h"
 #include "BL_ArmatureConstraint.h"
 #include "KX_GameObject.h"
 
+#include <cstdint>
 #include <unordered_map>
+#include <vector>
 
 namespace blender::gpu {
 class Shader;
 class StorageBuf;
 }  // namespace blender::gpu
 namespace blender { struct AnimationEvalContext; }
+namespace blender { struct FCurve; }
 namespace blender { struct ID; } /* forward declare blender::ID for storing original data pointers */
 class MT_Matrix4x4;
 class BL_SceneConverter;
@@ -68,6 +73,8 @@ class BL_ArmatureObject : public KX_GameObject {
   std::unordered_map<blender::Object *, blender::Mesh *> m_replicaMeshes;
   /* Store the original data pointers for replaced children so they can be restored on cleanup. */
   std::unordered_map<blender::Object *, blender::ID *> m_replacedOriginalData;
+  /** Runtime-only name lookup. Rebuilt whenever pose channels are rebuilt. */
+  std::unordered_map<std::string, blender::bPoseChannel *> m_poseChannelLookup;
 
   double m_lastframe;
   size_t m_constraintNumber;
@@ -78,6 +85,41 @@ class BL_ArmatureObject : public KX_GameObject {
   bool m_drawDebug;
 
   double m_lastapplyframe;
+  /** Same-frame write tracking for lazy, deterministic pose evaluation. */
+  uint64_t m_poseDirtyGeneration;
+  uint64_t m_poseAppliedGeneration;
+
+  /** One curve of a played action and the property it writes. */
+  struct ResolvedCurve {
+    blender::FCurve *fcurve;
+    /** The curve's path when its target was found (renaming a bone gives the curve a new one). */
+    const char *rna_path;
+    int array_index;
+    /** The target: a property of the armature or of one of its pose bones, which stay where they
+     * are while the pose does. Null for other targets (a bone constraint, a custom property),
+     * found from the curve's path at each evaluation, as Blender does. */
+    blender::PropertyRNA *prop;
+    blender::StructRNA *type;
+    void *data;
+    int prop_index;
+  };
+  /** An action's curves with their targets found once: Blender finds each target from its text
+   * path at every evaluation (and from 100 curves builds a hash map and starts worker threads).
+   * Found again when the pose or the action's curves changed; forgotten when not played for two
+   * animation updates. */
+  struct ResolvedAction {
+    const blender::bAction *action = nullptr;
+    int32_t slot_handle = 0;
+    /** Null while a pose rebuild is due: the targets are found again after it. */
+    const blender::bPose *pose = nullptr;
+    uint64_t animation_update = 0;
+    std::vector<ResolvedCurve> curves;
+  };
+  std::vector<ResolvedAction> m_resolvedActions;
+
+  ResolvedAction &ResolveAction(blender::bAction *action,
+                                int32_t slot_handle,
+                                blender::Span<blender::FCurve *> fcurves);
 
  public:
   BL_ArmatureObject();
@@ -95,6 +137,9 @@ class BL_ArmatureObject : public KX_GameObject {
   void GetPose(blender::bPose **pose) const;
   /// Never edit this, only for accessing names.
   blender::bPose *GetPose() const;
+  blender::bPoseChannel *FindPoseChannel(const std::string &name) const;
+  /** Mark channel data as changed. The next evaluated-pose read calls ApplyPose once. */
+  void MarkPoseDirty();
   void ApplyPose();
   void GameBlendPose(blender::bPose *dst, blender::bPose *src, float srcweight, short mode);
   void RemapParentChildren();
@@ -126,6 +171,14 @@ class BL_ArmatureObject : public KX_GameObject {
   /// Retrieve the pose matrix for the specified bone.
   /// Returns true on success.
   bool GetBoneMatrix(blender::Bone *bone, MT_Matrix4x4 &matrix);
+
+  /**
+   * Retrieve a pose-bone matrix and rest length by name.
+   *
+   * Runtime parenting uses the O(1) pose-channel lookup instead of retaining a raw Blender bone
+   * pointer across replication and armature rebuilds.
+   */
+  bool GetBoneMatrix(const std::string &name, MT_Matrix4x4 &matrix, float &length);
 
   /// Returns the bone length. The end of the bone is in the local y direction.
   float GetBoneLength(blender::Bone *bone) const;

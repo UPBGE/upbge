@@ -13,6 +13,7 @@
 #include <vector>
 
 namespace blender {
+struct bNodeTree;
 struct Object;
 }  // namespace blender
 
@@ -20,6 +21,7 @@ class KX_GameObject;
 
 struct LN_AppliedTreeDesc {
   KX_GameObject *game_object = nullptr;
+  blender::bNodeTree *tree = nullptr;
   std::string tree_name;
   uint32_t scene_object_index = 0;
   uint32_t applied_tree_index = 0;

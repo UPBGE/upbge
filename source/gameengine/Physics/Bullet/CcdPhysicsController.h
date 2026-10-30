@@ -713,7 +713,7 @@ class CcdPhysicsController : public PHY_IPhysicsController {
    * WriteMotionStateToDynamics ynchronizes dynas, kinematic and deformable entities (and do 'late
    * binding')
    */
-  virtual void WriteMotionStateToDynamics(bool nondynaonly);
+  virtual void WriteMotionStateToDynamics(bool nondynaonly, float timeStep = 0.0f);
   virtual void WriteDynamicsToMotionState();
 
   // controller replication

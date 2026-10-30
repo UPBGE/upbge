@@ -13,7 +13,8 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Execution>("Out"_ustr).description("Every frame");
+  b.add_output<decl::Execution>("Out"_ustr)
+      .description("Once per outer game frame, including while time scale is zero");
 }
 
 static void node_register()

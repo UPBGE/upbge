@@ -38,6 +38,7 @@ struct LN_NodeMetadataContract {
   bool requires_jolt = false;
   bool future_pure_batchable = false;
   LN_ExecutionClass execution_class = LN_ExecutionClass::SnapshotReadOnly;
+  LN_AutonomousPhase autonomous_phase = LN_AutonomousPhase::None;
   LN_NodeSchedulerPolicy scheduler_policy = LN_NodeSchedulerPolicy::SnapshotReadOnly;
   LN_NodeVisibility visibility = LN_NodeVisibility::Hidden;
   LN_TreeCompiler::CompileHandlerInfo compile_handler_info;

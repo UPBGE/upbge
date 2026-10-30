@@ -163,6 +163,76 @@ void EXP_Value::SetProperty(const std::string &name, EXP_Value *ioProperty)
 
   // Add property at end of array.
   m_properties[name] = ioProperty->AddRef();
+  PropertyMapChanged(name);
+}
+
+bool EXP_Value::PersistencePreparePropertyNode(const std::string &name,
+                                               EXP_Value *value,
+                                               PersistencePropertyNode &r_node)
+{
+  if (value == nullptr || !r_node.empty()) {
+    return false;
+  }
+  value->AddRef();
+  try {
+    PersistencePropertyMap staging;
+    const auto inserted = staging.emplace(name, value);
+    if (!inserted.second) {
+      value->Release();
+      return false;
+    }
+    r_node = staging.extract(inserted.first);
+    return !r_node.empty();
+  }
+  catch (...) {
+    value->Release();
+    return false;
+  }
+}
+
+void EXP_Value::PersistenceReleasePropertyNode(PersistencePropertyNode &node)
+{
+  if (node.empty()) {
+    return;
+  }
+  node.mapped()->Release();
+  node = PersistencePropertyNode();
+}
+
+bool EXP_Value::PersistenceInsertPreparedProperty(PersistencePropertyNode &node)
+{
+  if (node.empty() || m_properties.find(node.key()) != m_properties.end()) {
+    return false;
+  }
+  PersistencePropertyMap::insert_return_type result = m_properties.insert(std::move(node));
+  if (!result.inserted) {
+    node = std::move(result.node);
+    return false;
+  }
+  PropertyMapChanged(result.position->first);
+  return true;
+}
+
+EXP_Value::PersistencePropertyNode EXP_Value::PersistenceExtractProperty(const std::string &name)
+{
+  PersistencePropertyNode node = m_properties.extract(name);
+  if (!node.empty()) {
+    PropertyMapChanged(node.key());
+  }
+  return node;
+}
+
+EXP_Value *EXP_Value::PersistenceReplaceProperty(const std::string &name,
+                                                 EXP_Value *prepared_value)
+{
+  const auto found = m_properties.find(name);
+  if (found == m_properties.end() || prepared_value == nullptr) {
+    return nullptr;
+  }
+  EXP_Value *previous = found->second;
+  found->second = prepared_value;
+  PropertyMapChanged(name);
+  return previous;
 }
 
 /// Get pointer to a property with name <inName>, returns nullptr if there is no property named
@@ -206,6 +276,8 @@ bool EXP_Value::RemoveProperty(const std::string &inName)
 {
   std::map<std::string, EXP_Value *>::iterator it = m_properties.find(inName);
   if (it != m_properties.end()) {
+    /* While the name is alive: it may be the map's own key. */
+    PropertyMapChanged(inName);
     (*it).second->Release();
     m_properties.erase(it);
     return true;
@@ -237,6 +309,7 @@ void EXP_Value::ClearProperties()
 
   // Delete property array.
   m_properties.clear();
+  PropertyMapChanged(std::string());
 }
 
 /// Get property number <inIndex>.

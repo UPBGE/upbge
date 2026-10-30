@@ -26,12 +26,16 @@
 
 #include "BL_Action.h"
 
+#include <cmath>
+
 #include "ANIM_action.hh"
 #include "BKE_context.hh"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
@@ -54,6 +58,7 @@ BL_Action::BL_Action(class KX_GameObject *gameobj)
       m_startframe(0.f),
       m_endframe(0.f),
       m_localframe(0.f),
+      m_starttime(0.f),
       m_blendin(0.f),
       m_blendframe(0.f),
       m_blendstart(0.f),
@@ -66,6 +71,7 @@ BL_Action::BL_Action(class KX_GameObject *gameobj)
       m_appliedToObject(true),
       m_requestIpo(false),
       m_calc_localtime(true),
+      m_usesPauseClock(false),
       m_prevUpdate(-1.0f)
 {
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
@@ -149,6 +155,9 @@ bool BL_Action::Play(const std::string &name,
       m_priority == priority && m_speed == playback_speed)
     return false;
 
+  m_materialSlot = MaterialSlotOfAction();
+  m_shapeKeyAction = ActionIsForShapeKeys();
+
   // First get rid of any old controllers
   ClearControllerList();
 
@@ -219,9 +228,11 @@ bool BL_Action::Play(const std::string &name,
 
   // Now that we have an action, we have something we can play
   if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
-    m_starttime = engine->GetCurrentAnimationTime();
+    m_usesPauseClock = engine->UsesPauseAnimationClock(m_obj);
+    m_starttime = engine->GetCurrentAnimationTime(m_obj);
   }
   else {
+    m_usesPauseClock = false;
     m_starttime = 0.0;
   }
   m_startframe = m_localframe = start;
@@ -295,6 +306,27 @@ void BL_Action::SetFrame(float frame)
 void BL_Action::SetPlayMode(short play_mode)
 {
   m_playmode = play_mode;
+}
+
+void BL_Action::RebaseTime(const float previous_time,
+                           const float current_time,
+                           const bool use_pause_clock)
+{
+  if (m_usesPauseClock == use_pause_clock || !std::isfinite(previous_time) ||
+      !std::isfinite(current_time))
+  {
+    return;
+  }
+
+  const float offset = current_time - previous_time;
+  m_starttime += offset;
+  if (m_blendstart != 0.0f) {
+    m_blendstart += offset;
+  }
+  if (m_prevUpdate >= 0.0f) {
+    m_prevUpdate += offset;
+  }
+  m_usesPauseClock = use_pause_clock;
 }
 
 void BL_Action::SetLocalTime(float curtime)
@@ -372,7 +404,9 @@ static bool ActionMatchesName(blender::bAction *action, char *name, eActionType 
         for (FCurve *fcu : bag->fcurves()) {
           if (fcu->rna_path) {
             char pattern[256];
-            char md_name_esc[sizeof(name) * 2];
+            /* Room for any escaped name (each character can double); sizeof(name) was the size
+             * of the pointer, so names of 16 characters or more never matched. */
+            char md_name_esc[MAX_NAME * 2];
             switch (type) {
               case ACT_TYPE_MODIFIER:
                 BLI_str_escape(md_name_esc, name, sizeof(md_name_esc));
@@ -560,8 +594,10 @@ void BL_Action::ProcessPipeline(BL_ArmatureObject *obj,
     }
     blender::Mesh *me = id_cast<blender::Mesh *>(child_ob->data);
     if (me->is_running_gpu_animation_playback) {
-      bContext *C = KX_GetActiveEngine()->GetContext();
-      Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+      Depsgraph *depsgraph = scene->GetAnimationDepsgraph();
+      if (depsgraph == nullptr) {
+        depsgraph = CTX_data_depsgraph_on_load(KX_GetActiveEngine()->GetContext());
+      }
       DEG_bump_update_count(depsgraph);
       is_running_gpu_skinning = true;
     }
@@ -597,15 +633,24 @@ void BL_Action::UpdateObjectAnimation(blender::Object *ob, const blender::Animat
   /* To skip some code if not needed */
   bool actionIsUpdated = false;
 
+  bool gpu_deformed_mesh = false;
+  if (ob->type == OB_MESH) {
+    blender::Mesh *me = id_cast<blender::Mesh *>(ob->data);
+    gpu_deformed_mesh = (me && me->is_running_gpu_animation_playback);
+  }
+
   /* WARNING: The check to be sure the right action is played (to know if the action
    * which is in the actuator will be the one which will be played)
    * might be wrong (if (ob->adt && ob->adt->action == m_action) playaction;)
    * because WE MIGHT NEED TO CHANGE OB->ADT->ACTION DURING RUNTIME
    * then another check should be found to ensure to play the right action.
    */
+  /* A material action (its slot is for a Material) changes the object's own material copy. */
+  actionIsUpdated = TryUpdateMaterialActions(animEvalContext);
+
   // TEST KEYFRAMED MODIFIERS (WRONG CODE BUT JUST FOR TESTING PURPOSE)
   if (!actionIsUpdated) {
-    actionIsUpdated = TryUpdateModifierActions(ob, scene, animEvalContext);
+    actionIsUpdated = TryUpdateModifierActions(ob, scene, animEvalContext, gpu_deformed_mesh);
   }
 
   if (!actionIsUpdated) {
@@ -625,13 +670,14 @@ void BL_Action::UpdateObjectAnimation(blender::Object *ob, const blender::Animat
 
   if (!actionIsUpdated) {
     // TEST Shapekeys action
-    TryUpdateShapeKeyActions(ob, scene, animEvalContext);
+    TryUpdateShapeKeyActions(ob, scene, animEvalContext, gpu_deformed_mesh);
   }
 }
 
 bool BL_Action::TryUpdateModifierActions(blender::Object *ob,
                                          KX_Scene *scene,
-                                         const blender::AnimationEvalContext &animEvalContext)
+                                         const blender::AnimationEvalContext &animEvalContext,
+                                         const bool gpu_deformed_mesh)
 {
   for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
     bool isRightAction = ActionMatchesName(m_action, md->name, ACT_TYPE_MODIFIER);
@@ -639,23 +685,19 @@ bool BL_Action::TryUpdateModifierActions(blender::Object *ob,
     if (isRightAction) {
       IDRecalcFlag flag = BKE_modifier_is_non_geometrical(md) ? ID_RECALC_TRANSFORM :
                                                                 ID_RECALC_GEOMETRY;
-      bool skip_depsgraph = false;
-      if (ob->type == OB_MESH) {
-        blender::Mesh *me = id_cast<blender::Mesh *>(ob->data);
-        skip_depsgraph = (me && me->is_running_gpu_animation_playback);
-      }
-      if (!skip_depsgraph) {
+      if (!gpu_deformed_mesh) {
         scene->AppendToIdsToUpdate(&ob->id, flag, ob->gameflag & OB_OVERLAY_COLLECTION);
       }
       else {
-        bContext *C = KX_GetActiveEngine()->GetContext();
-        Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-        DEG_bump_update_count(depsgraph);
+        scene->AppendToIdsToUpdate(
+            &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
       }
 
       blender::PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
           *m_action);
+      /* The object's own Blender object changed: a copy of it is not reused (KX_Scene::ParkCopy). */
+      m_obj->NoteBlenderObjectChanged();
       animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
       return true;
     }
@@ -678,6 +720,8 @@ bool BL_Action::TryUpdateConstraintActions(blender::Object *ob,
       blender::PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
           *m_action);
+      /* The object's own Blender object changed: a copy of it is not reused (KX_Scene::ParkCopy). */
+      m_obj->NoteBlenderObjectChanged();
       animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
 
       m_obj->ForceIgnoreParentTx();
@@ -708,11 +752,68 @@ bool BL_Action::TryUpdateIDPropertyActions(blender::Object *ob,
       blender::PointerRNA ptrrna = RNA_id_pointer_create(&ob->id);
       const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
           *m_action);
+      /* The object's own Blender object changed: a copy of it is not reused (KX_Scene::ParkCopy). */
+      m_obj->NoteBlenderObjectChanged();
       animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
       return true;
     }
   }
   return false;
+}
+
+short BL_Action::MaterialSlotOfAction()
+{
+  blender::Object *ob = m_obj->GetBlenderObject();
+  if (m_action == nullptr || ob == nullptr) {
+    return 0;
+  }
+  const blender::animrig::Action &action = m_action->wrap();
+  const blender::animrig::Slot *slot = action.slot_for_handle(
+      blender::animrig::first_slot_handle(*m_action));
+  if (slot == nullptr || slot->idtype != ID_MA) {
+    return 0;
+  }
+  /* The material the action is assigned to, else the one its slot is named after (keyframing a
+   * material names the slot after it), else the first: one action made on any material serves
+   * every object. */
+  const blender::StringRefNull slot_name = slot->identifier_without_prefix();
+  short named = 0;
+  short first = 0;
+  for (short index = 1; index <= ob->totcol; ++index) {
+    const blender::Material *material = m_obj->SourceMaterial(index);
+    if (material == nullptr) {
+      continue;
+    }
+    if (material->adt != nullptr && material->adt->action == m_action) {
+      return index;
+    }
+    if (named == 0 && slot_name == material->id.name + 2) {
+      named = index;
+    }
+    if (first == 0) {
+      first = index;
+    }
+  }
+  return named != 0 ? named : first;
+}
+
+bool BL_Action::TryUpdateMaterialActions(const blender::AnimationEvalContext &animEvalContext)
+{
+  if (m_materialSlot <= 0) {
+    return false;
+  }
+  /* The object's own copy, so the other objects with this material keep their look (a highlight
+   * on one inventory cell, not on all of them). */
+  blender::Material *material = m_obj->OwnMaterial(m_materialSlot);
+  if (material == nullptr) {
+    return true;
+  }
+  blender::PointerRNA ptrrna = RNA_id_pointer_create(&material->id);
+  const blender::animrig::slot_handle_t slot_handle = blender::animrig::first_slot_handle(
+      *m_action);
+  animsys_evaluate_action(&ptrrna, m_action, slot_handle, &animEvalContext, false);
+  DEG_id_tag_update(&material->id, ID_RECALC_SHADING | ID_RECALC_SYNC_TO_EVAL);
+  return true;
 }
 
 bool BL_Action::TryUpdateNodeTreeActions(KX_Scene *scene,
@@ -752,15 +853,31 @@ bool BL_Action::IsNodeTreeActionMatch(blender::bNodeTree *nodetree)
   return isRightAction;
 }
 
+bool BL_Action::ActionIsForShapeKeys()
+{
+  if (m_action == nullptr) {
+    return false;
+  }
+  const blender::animrig::Action &action = m_action->wrap();
+  const blender::animrig::Slot *slot = action.slot_for_handle(
+      blender::animrig::first_slot_handle(*m_action));
+  return slot != nullptr && slot->idtype == ID_KE;
+}
+
 bool BL_Action::TryUpdateShapeKeyActions(blender::Object *ob,
                                          KX_Scene *scene,
-                                         const blender::AnimationEvalContext &animEvalContext)
+                                         const blender::AnimationEvalContext &animEvalContext,
+                                         const bool gpu_deformed_mesh)
 {
   blender::Mesh *me = (blender::Mesh *)ob->data;
   if (ob->type == OB_MESH && me) {
     const bool bHasShapeKey = me->key && me->key->type == KEY_RELATIVE;
     bool has_animdata = bHasShapeKey && me->key->adt;
-    bool play_normal_key_action = has_animdata && me->key->adt->action == m_action;
+    /* An action made for shape keys plays on this object's shape keys even when they hold
+     * another action: a Full Copy's shape keys hold a copy of it ("Action.001"). */
+    bool play_normal_key_action = bHasShapeKey &&
+                                  (m_shapeKeyAction ||
+                                   (has_animdata && me->key->adt->action == m_action));
     bool play_nla_key_action = false;
     if (!play_normal_key_action && has_animdata) {
       for (NlaTrack &track : me->key->adt->nla_tracks) {
@@ -774,9 +891,15 @@ bool BL_Action::TryUpdateShapeKeyActions(blender::Object *ob,
     }
 
     if (play_normal_key_action || play_nla_key_action) {
-      bool gpu_deformation = me->is_running_gpu_animation_playback;
-      if (!gpu_deformation) {
-        scene->AppendToIdsToUpdate(&me->id, ID_RECALC_GEOMETRY, false);
+      /* Shape keys of its own: a Merged object leaves its batch, a Shared one cannot (warned). */
+      m_obj->NoteOwnDrawingNeeded();
+      if (!gpu_deformed_mesh) {
+        scene->AppendToIdsToUpdate(
+            &ob->id, ID_RECALC_GEOMETRY, ob->gameflag & OB_OVERLAY_COLLECTION);
+      }
+      else {
+        scene->AppendToIdsToUpdate(
+            &ob->id, ID_RECALC_TRANSFORM, ob->gameflag & OB_OVERLAY_COLLECTION);
       }
       blender::Key *key = me->key;
 
@@ -816,7 +939,7 @@ void BL_Action::ProcessShapeKeyBlending(blender::Key *key)
    * non-ref keyblocks. */
   if (m_blendin && m_blendframe < m_blendin && !m_blendinshape.empty()) {
     if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
-      IncrementBlending(engine->GetCurrentAnimationTime());
+      IncrementBlending(engine->GetCurrentAnimationTime(m_obj));
     }
     float weight = 1.0f - (m_blendframe / m_blendin);
 

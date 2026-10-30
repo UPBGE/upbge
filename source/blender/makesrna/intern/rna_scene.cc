@@ -751,6 +751,9 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 #  include "BKE_context.hh"
 #  include "BKE_editmesh.hh"
 #  include "BKE_freestyle.h"
+#  include "BKE_game_input_map.hh"
+#  include "BKE_game_inventory_rules.hh"
+#  include "BKE_game_physics.hh"
 #  include "BKE_global.hh"
 #  include "BKE_gpencil_legacy.h"
 #  include "BKE_idprop.hh"
@@ -767,6 +770,7 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 #  include "BKE_pointcache.h"
 #  include "BKE_scene.hh"
 #  include "BKE_screen.hh"
+#  include "BKE_studiolight.h"
 #  include "BKE_unit.hh"
 
 #  include "NOD_composite.hh"
@@ -935,6 +939,49 @@ static void rna_GameSettings_physics_engine_set(PointerRNA *ptr, int value)
     rna_GameSettings_apply_physics_engine_damping_defaults(scene, value);
     rna_GameSettings_apply_physics_engine_timing_defaults(gm, value);
   }
+}
+
+/* Physics CPU Use: `jolt_physics_threads` <= 0 is Auto, a number is Custom's Max Cores. */
+static int rna_GameSettings_jolt_physics_cpu_use_get(PointerRNA *ptr)
+{
+  const GameData *gm = static_cast<GameData *>(ptr->data);
+  return gm->jolt_physics_threads > 0 ? 1 : 0;
+}
+
+static void rna_GameSettings_jolt_physics_cpu_use_set(PointerRNA *ptr, int value)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  if (value == 0) {
+    gm->jolt_physics_threads = -1;
+  }
+  else if (gm->jolt_physics_threads <= 0) {
+    /* Custom starts from what Auto uses on this computer. */
+    gm->jolt_physics_threads = short(BKE_game_physics_cores(-1, BKE_game_physics_computer_cores()));
+  }
+}
+
+static int rna_GameSettings_jolt_physics_max_cores_get(PointerRNA *ptr)
+{
+  const GameData *gm = static_cast<GameData *>(ptr->data);
+  return gm->jolt_physics_threads > 0 ?
+             gm->jolt_physics_threads :
+             BKE_game_physics_cores(-1, BKE_game_physics_computer_cores());
+}
+
+static void rna_GameSettings_jolt_physics_max_cores_set(PointerRNA *ptr, int value)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  gm->jolt_physics_threads = short(std::clamp(value, 1, 64));
+}
+
+static int rna_GameSettings_jolt_physics_auto_cores_get(PointerRNA * /*ptr*/)
+{
+  return BKE_game_physics_cores(-1, BKE_game_physics_computer_cores());
+}
+
+static int rna_GameSettings_jolt_physics_computer_cores_get(PointerRNA * /*ptr*/)
+{
+  return BKE_game_physics_computer_cores();
 }
 
 static void rna_GameSettings_show_framerate_profile_set(PointerRNA *ptr, bool value)
@@ -1640,6 +1687,94 @@ static void rna_Scene_compositing_node_group_set(PointerRNA *ptr,
 static std::optional<std::string> rna_SceneEEVEE_path(const PointerRNA * /*ptr*/)
 {
   return "eevee";
+}
+
+/* UPBGE: the scene's Workbench studio light and MatCap, each listed whatever the scene's own
+ * lighting is (View3DShading.studio_light lists only the current lighting's kind): a game
+ * camera's Workbench Lighting picks which one it draws with. */
+static char *rna_SceneDisplay_game_light_storage(PointerRNA *ptr, const bool matcap)
+{
+  SceneDisplay *display = static_cast<SceneDisplay *>(ptr->data);
+  return matcap ? display->shading.matcap : display->shading.studio_light;
+}
+
+static int rna_SceneDisplay_game_light_get(PointerRNA *ptr, const bool matcap)
+{
+  const StudioLight *sl = BKE_studiolight_find(rna_SceneDisplay_game_light_storage(ptr, matcap),
+                                               matcap ? STUDIOLIGHT_TYPE_MATCAP :
+                                                        STUDIOLIGHT_TYPE_STUDIO);
+  return sl ? sl->index : 0;
+}
+
+static void rna_SceneDisplay_game_light_set(PointerRNA *ptr, const int value, const bool matcap)
+{
+  if (const StudioLight *sl = BKE_studiolight_findindex(
+          value, matcap ? STUDIOLIGHT_TYPE_MATCAP : STUDIOLIGHT_TYPE_STUDIO))
+  {
+    BLI_strncpy(rna_SceneDisplay_game_light_storage(ptr, matcap), sl->name, FILE_MAXFILE);
+  }
+}
+
+static int rna_SceneDisplay_game_studio_light_get(PointerRNA *ptr)
+{
+  return rna_SceneDisplay_game_light_get(ptr, false);
+}
+
+static void rna_SceneDisplay_game_studio_light_set(PointerRNA *ptr, int value)
+{
+  rna_SceneDisplay_game_light_set(ptr, value, false);
+}
+
+static int rna_SceneDisplay_game_matcap_get(PointerRNA *ptr)
+{
+  return rna_SceneDisplay_game_light_get(ptr, true);
+}
+
+static void rna_SceneDisplay_game_matcap_set(PointerRNA *ptr, int value)
+{
+  rna_SceneDisplay_game_light_set(ptr, value, true);
+}
+
+static const EnumPropertyItem *rna_SceneDisplay_game_light_itemf(PointerRNA *ptr,
+                                                                 bool *r_free,
+                                                                 const bool matcap)
+{
+  const SceneDisplay *display = static_cast<const SceneDisplay *>(ptr->data);
+  const bool flipped = (display->shading.flag & V3D_SHADING_MATCAP_FLIP_X) != 0;
+  EnumPropertyItem *item = nullptr;
+  int totitem = 0;
+  /* As the Solid shading lists them: built-in and installed studio lights, MatCap files. */
+  const int flags = matcap ? (STUDIOLIGHT_EXTERNAL_FILE | STUDIOLIGHT_TYPE_MATCAP) :
+                             STUDIOLIGHT_TYPE_STUDIO;
+  for (const StudioLight &sl : BKE_studiolight_listbase()) {
+    if ((sl.flag & flags) != flags) {
+      continue;
+    }
+    const int icon_id = !matcap ? sl.icon_id_irradiance :
+                        flipped ? sl.icon_id_matcap_flipped :
+                                  sl.icon_id_matcap;
+    EnumPropertyItem tmp = {sl.index, sl.name, icon_id, sl.name, ""};
+    RNA_enum_item_add(&item, &totitem, &tmp);
+  }
+  RNA_enum_item_end(&item, &totitem);
+  *r_free = true;
+  return item;
+}
+
+static const EnumPropertyItem *rna_SceneDisplay_game_studio_light_itemf(bContext * /*C*/,
+                                                                        PointerRNA *ptr,
+                                                                        PropertyRNA * /*prop*/,
+                                                                        bool *r_free)
+{
+  return rna_SceneDisplay_game_light_itemf(ptr, r_free, false);
+}
+
+static const EnumPropertyItem *rna_SceneDisplay_game_matcap_itemf(bContext * /*C*/,
+                                                                  PointerRNA *ptr,
+                                                                  PropertyRNA * /*prop*/,
+                                                                  bool *r_free)
+{
+  return rna_SceneDisplay_game_light_itemf(ptr, r_free, true);
 }
 
 static std::optional<std::string> rna_RaytraceEEVEE_path(const PointerRNA * /*ptr*/)
@@ -2909,6 +3044,316 @@ static void rna_GameSettings_python_key4_set(PointerRNA *ptr, int value)
   }
   else {
     gm->pythonkeys[3] = EVENT_NONE;
+  }
+}
+
+/* Inventory Rules. */
+
+static int rna_GameSettings_active_inventory_rules_index_get(PointerRNA *ptr)
+{
+  const GameData *gm = static_cast<GameData *>(ptr->data);
+  return gm->active_inventory_rules;
+}
+
+static void rna_GameSettings_active_inventory_rules_index_set(PointerRNA *ptr, int value)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  gm->active_inventory_rules = value;
+}
+
+static void rna_GameSettings_active_inventory_rules_index_range(
+    PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
+{
+  const GameData *gm = static_cast<GameData *>(ptr->data);
+  *min = 0;
+  *max = max_ii(0, BLI_listbase_count(&gm->inventory_rules) - 1);
+}
+
+static GameInventoryRules *rna_GameInventoryRulesCollection_new(ID *id,
+                                                                GameData *gm,
+                                                                const char *name)
+{
+  GameInventoryRules *rules = BKE_game_inventory_rules_add(gm, name);
+  DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
+  WM_main_add_notifier(NC_SCENE, id);
+  return rules;
+}
+
+static void rna_GameInventoryRulesCollection_remove(
+    ID *id, GameData * /*gm*/, Main *bmain, ReportList *reports, PointerRNA *rules_ptr)
+{
+  GameInventoryRules *rules = static_cast<GameInventoryRules *>(rules_ptr->data);
+  if (!BKE_game_inventory_rules_remove(bmain, id_cast<Scene *>(id), rules)) {
+    BKE_reportf(reports, RPT_ERROR, "Inventory rules '%s' are not in this scene", rules->name);
+    return;
+  }
+  rules_ptr->invalidate();
+  DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
+  WM_main_add_notifier(NC_SCENE, id);
+}
+
+static void rna_GameInventoryRules_name_set(PointerRNA *ptr, const char *value)
+{
+  /* The lists of the scene's objects that picked the old name follow. */
+  BKE_game_inventory_rules_rename(G_MAIN,
+                                  id_cast<Scene *>(ptr->owner_id),
+                                  static_cast<GameInventoryRules *>(ptr->data),
+                                  value);
+}
+
+static int rna_GameInventoryRules_users_get(PointerRNA *ptr)
+{
+  const GameInventoryRules *rules = static_cast<const GameInventoryRules *>(ptr->data);
+  return BKE_game_inventory_rules_users(G_MAIN, id_cast<Scene *>(ptr->owner_id), rules->name);
+}
+
+static std::optional<std::string> rna_GameInventoryRules_path(const PointerRNA *ptr)
+{
+  const GameInventoryRules *rules = static_cast<const GameInventoryRules *>(ptr->data);
+  char name_esc[sizeof(rules->name) * 2];
+  BLI_str_escape(name_esc, rules->name, sizeof(name_esc));
+  return fmt::format("game_settings.inventory_rules[\"{}\"]", name_esc);
+}
+
+/* Input Map. */
+
+static int rna_GameSettings_active_input_action_index_get(PointerRNA *ptr)
+{
+  const GameData *gm = static_cast<GameData *>(ptr->data);
+  return gm->active_input_action;
+}
+
+static void rna_GameSettings_active_input_action_index_set(PointerRNA *ptr, int value)
+{
+  GameData *gm = static_cast<GameData *>(ptr->data);
+  gm->active_input_action = value;
+}
+
+static void rna_GameSettings_active_input_action_index_range(
+    PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
+{
+  const GameData *gm = static_cast<GameData *>(ptr->data);
+  *min = 0;
+  *max = max_ii(0, BLI_listbase_count(&gm->input_actions) - 1);
+}
+
+static GameInputAction *rna_GameInputActions_new(ID *id,
+                                                 GameData *gm,
+                                                 const char *name,
+                                                 int type)
+{
+  GameInputAction *action = BKE_game_input_action_add(gm, name, type);
+  DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
+  WM_main_add_notifier(NC_SCENE, id);
+  return action;
+}
+
+static void rna_GameInputActions_remove(ID *id,
+                                        GameData *gm,
+                                        ReportList *reports,
+                                        PointerRNA *action_ptr)
+{
+  GameInputAction *action = static_cast<GameInputAction *>(action_ptr->data);
+  if (action->builtin != GAME_INPUT_BUILTIN_NONE) {
+    BKE_reportf(reports, RPT_ERROR, "UI control '%s' cannot be removed", action->name);
+    return;
+  }
+  if (!BKE_game_input_action_remove(gm, action)) {
+    BKE_reportf(reports, RPT_ERROR, "Input action '%s' is not in this scene", action->name);
+    return;
+  }
+  action_ptr->invalidate();
+  DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
+  WM_main_add_notifier(NC_SCENE, id);
+}
+
+static void rna_GameInputActions_reset_ui_controls(ID *id, GameData *gm)
+{
+  BKE_game_input_map_reset_builtins(gm);
+  DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
+  WM_main_add_notifier(NC_SCENE, id);
+}
+
+static void rna_GameInputAction_name_set(PointerRNA *ptr, const char *value)
+{
+  Scene *scene = id_cast<Scene *>(ptr->owner_id);
+  GameInputAction *action = static_cast<GameInputAction *>(ptr->data);
+  if (action->builtin != GAME_INPUT_BUILTIN_NONE) {
+    return;
+  }
+  STRNCPY_UTF8(action->name, value);
+  BKE_game_input_action_unique_name(&scene->gm, action);
+}
+
+static int rna_GameInputAction_custom_editable(const PointerRNA *ptr, const char **r_info)
+{
+  const GameInputAction *action = static_cast<const GameInputAction *>(ptr->data);
+  if (action->builtin != GAME_INPUT_BUILTIN_NONE) {
+    if (r_info) {
+      *r_info = N_("UI controls keep their name and type; only their bindings can change");
+    }
+    return 0;
+  }
+  return PROP_EDITABLE;
+}
+
+static bool rna_GameInputAction_is_ui_control_get(PointerRNA *ptr)
+{
+  return static_cast<const GameInputAction *>(ptr->data)->builtin != GAME_INPUT_BUILTIN_NONE;
+}
+
+static int rna_GameInputAction_active_binding_index_get(PointerRNA *ptr)
+{
+  return static_cast<const GameInputAction *>(ptr->data)->active_binding;
+}
+
+static void rna_GameInputAction_active_binding_index_set(PointerRNA *ptr, int value)
+{
+  GameInputAction *action = static_cast<GameInputAction *>(ptr->data);
+  action->active_binding = value;
+}
+
+static void rna_GameInputAction_active_binding_index_range(
+    PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
+{
+  const GameInputAction *action = static_cast<const GameInputAction *>(ptr->data);
+  *min = 0;
+  *max = max_ii(0, BLI_listbase_count(&action->bindings) - 1);
+}
+
+static std::optional<std::string> rna_GameInputAction_path(const PointerRNA *ptr)
+{
+  const GameInputAction *action = static_cast<const GameInputAction *>(ptr->data);
+  char name_esc[sizeof(action->name) * 2];
+  BLI_str_escape(name_esc, action->name, sizeof(name_esc));
+  return fmt::format("game_settings.input_actions[\"{}\"]", name_esc);
+}
+
+static GameInputAction *rna_GameInputBinding_action(PointerRNA *ptr)
+{
+  Scene *scene = id_cast<Scene *>(ptr->owner_id);
+  const GameInputBinding *binding = static_cast<const GameInputBinding *>(ptr->data);
+  for (GameInputAction &action : scene->gm.input_actions) {
+    if (BLI_findindex(&action.bindings, binding) != -1) {
+      return &action;
+    }
+  }
+  return nullptr;
+}
+
+static std::optional<std::string> rna_GameInputBinding_path(const PointerRNA *ptr)
+{
+  GameInputAction *action = rna_GameInputBinding_action(const_cast<PointerRNA *>(ptr));
+  if (action == nullptr) {
+    return std::nullopt;
+  }
+  char name_esc[sizeof(action->name) * 2];
+  BLI_str_escape(name_esc, action->name, sizeof(name_esc));
+  return fmt::format("game_settings.input_actions[\"{}\"].bindings[{}]",
+                     name_esc,
+                     BLI_findindex(&action->bindings, ptr->data));
+}
+
+static GameInputBinding *rna_GameInputBindings_new(ID *id, GameInputAction *action, int device)
+{
+  GameInputBinding *binding = BKE_game_input_binding_add(action, device);
+  DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
+  WM_main_add_notifier(NC_SCENE, id);
+  return binding;
+}
+
+static void rna_GameInputBindings_remove(ID *id,
+                                         GameInputAction *action,
+                                         ReportList *reports,
+                                         PointerRNA *binding_ptr)
+{
+  if (!BKE_game_input_binding_remove(action,
+                                     static_cast<GameInputBinding *>(binding_ptr->data)))
+  {
+    BKE_reportf(reports, RPT_ERROR, "Binding is not in input action '%s'", action->name);
+    return;
+  }
+  binding_ptr->invalidate();
+  DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
+  WM_main_add_notifier(NC_SCENE, id);
+}
+
+static int rna_GameInputBinding_device_get(PointerRNA *ptr)
+{
+  return static_cast<const GameInputBinding *>(ptr->data)->device;
+}
+
+static void rna_GameInputBinding_device_set(PointerRNA *ptr, int value)
+{
+  GameInputBinding *binding = static_cast<GameInputBinding *>(ptr->data);
+  if (GameInputAction *action = rna_GameInputBinding_action(ptr)) {
+    BKE_game_input_binding_set_device(action, binding, value);
+  }
+}
+
+static int rna_GameInputBinding_key_get(PointerRNA *ptr)
+{
+  const GameInputBinding *binding = static_cast<const GameInputBinding *>(ptr->data);
+  return binding->device == GAME_INPUT_KEYBOARD ? binding->code : EVENT_NONE;
+}
+
+static void rna_GameInputBinding_key_set(PointerRNA *ptr, int value)
+{
+  GameInputBinding *binding = static_cast<GameInputBinding *>(ptr->data);
+  if (binding->device == GAME_INPUT_KEYBOARD && (ISKEYBOARD(value) || value == EVENT_NONE)) {
+    binding->code = short(value);
+  }
+}
+
+static int rna_GameInputBinding_mouse_button_get(PointerRNA *ptr)
+{
+  const GameInputBinding *binding = static_cast<const GameInputBinding *>(ptr->data);
+  return binding->device == GAME_INPUT_MOUSE ? binding->code : LEFTMOUSE;
+}
+
+static void rna_GameInputBinding_mouse_button_set(PointerRNA *ptr, int value)
+{
+  GameInputBinding *binding = static_cast<GameInputBinding *>(ptr->data);
+  if (binding->device == GAME_INPUT_MOUSE) {
+    binding->code = short(value);
+  }
+}
+
+static int rna_GameInputBinding_gamepad_control_get(PointerRNA *ptr)
+{
+  const GameInputBinding *binding = static_cast<const GameInputBinding *>(ptr->data);
+  return binding->device == GAME_INPUT_GAMEPAD ? binding->code : GAME_INPUT_GAMEPAD_A;
+}
+
+static void rna_GameInputBinding_gamepad_control_set(PointerRNA *ptr, int value)
+{
+  GameInputBinding *binding = static_cast<GameInputBinding *>(ptr->data);
+  if (binding->device != GAME_INPUT_GAMEPAD) {
+    return;
+  }
+  binding->code = short(value);
+  /* A directional control pushes a vector action its own way. */
+  switch (value) {
+    case GAME_INPUT_GAMEPAD_DPAD_UP:
+    case GAME_INPUT_GAMEPAD_LEFT_STICK_UP:
+    case GAME_INPUT_GAMEPAD_RIGHT_STICK_UP:
+      binding->direction = GAME_INPUT_DIRECTION_UP;
+      break;
+    case GAME_INPUT_GAMEPAD_DPAD_DOWN:
+    case GAME_INPUT_GAMEPAD_LEFT_STICK_DOWN:
+    case GAME_INPUT_GAMEPAD_RIGHT_STICK_DOWN:
+      binding->direction = GAME_INPUT_DIRECTION_DOWN;
+      break;
+    case GAME_INPUT_GAMEPAD_DPAD_LEFT:
+    case GAME_INPUT_GAMEPAD_LEFT_STICK_LEFT:
+    case GAME_INPUT_GAMEPAD_RIGHT_STICK_LEFT:
+      binding->direction = GAME_INPUT_DIRECTION_LEFT;
+      break;
+    case GAME_INPUT_GAMEPAD_DPAD_RIGHT:
+    case GAME_INPUT_GAMEPAD_LEFT_STICK_RIGHT:
+    case GAME_INPUT_GAMEPAD_RIGHT_STICK_RIGHT:
+      binding->direction = GAME_INPUT_DIRECTION_RIGHT;
+      break;
   }
 }
 
@@ -6746,6 +7191,386 @@ static void rna_def_bake_data(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 }
 
+static void rna_def_game_input_map(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
+  static const EnumPropertyItem device_items[] = {
+      {GAME_INPUT_KEYBOARD, "KEYBOARD", 0, "Keyboard", "A key"},
+      {GAME_INPUT_MOUSE, "MOUSE", 0, "Mouse", "A mouse button or the wheel"},
+      {GAME_INPUT_GAMEPAD, "GAMEPAD", 0, "Gamepad", "A gamepad control"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem mouse_button_items[] = {
+      {LEFTMOUSE, "LEFTMOUSE", 0, "Left", ""},
+      {MIDDLEMOUSE, "MIDDLEMOUSE", 0, "Middle", ""},
+      {RIGHTMOUSE, "RIGHTMOUSE", 0, "Right", ""},
+      {BUTTON4MOUSE, "BUTTON4MOUSE", 0, "Button 4", ""},
+      {BUTTON5MOUSE, "BUTTON5MOUSE", 0, "Button 5", ""},
+      {BUTTON6MOUSE, "BUTTON6MOUSE", 0, "Button 6", ""},
+      {BUTTON7MOUSE, "BUTTON7MOUSE", 0, "Button 7", ""},
+      {WHEELUPMOUSE, "WHEELUPMOUSE", 0, "Wheel Up", ""},
+      {WHEELDOWNMOUSE, "WHEELDOWNMOUSE", 0, "Wheel Down", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem gamepad_control_items[] = {
+      {GAME_INPUT_GAMEPAD_A, "A_CROSS", 0, "A / Cross", ""},
+      {GAME_INPUT_GAMEPAD_B, "B_CIRCLE", 0, "B / Circle", ""},
+      {GAME_INPUT_GAMEPAD_X, "X_SQUARE", 0, "X / Square", ""},
+      {GAME_INPUT_GAMEPAD_Y, "Y_TRIANGLE", 0, "Y / Triangle", ""},
+      {GAME_INPUT_GAMEPAD_LEFT_SHOULDER, "LB_L1", 0, "LB / L1", "Left bumper"},
+      {GAME_INPUT_GAMEPAD_RIGHT_SHOULDER, "RB_R1", 0, "RB / R1", "Right bumper"},
+      {GAME_INPUT_GAMEPAD_LEFT_TRIGGER, "LT_L2", 0, "LT / L2", "Left trigger"},
+      {GAME_INPUT_GAMEPAD_RIGHT_TRIGGER, "RT_R2", 0, "RT / R2", "Right trigger"},
+      {GAME_INPUT_GAMEPAD_LEFT_STICK_PRESS, "L3", 0, "L3", "Left stick button"},
+      {GAME_INPUT_GAMEPAD_RIGHT_STICK_PRESS, "R3", 0, "R3", "Right stick button"},
+      {GAME_INPUT_GAMEPAD_SELECT, "SELECT_SHARE", 0, "Select / Share", ""},
+      {GAME_INPUT_GAMEPAD_START, "START_OPTIONS", 0, "Start / Options", ""},
+      RNA_ENUM_ITEM_SEPR,
+      {GAME_INPUT_GAMEPAD_DPAD_UP, "DPAD_UP", 0, "D-Pad Up", ""},
+      {GAME_INPUT_GAMEPAD_DPAD_DOWN, "DPAD_DOWN", 0, "D-Pad Down", ""},
+      {GAME_INPUT_GAMEPAD_DPAD_LEFT, "DPAD_LEFT", 0, "D-Pad Left", ""},
+      {GAME_INPUT_GAMEPAD_DPAD_RIGHT, "DPAD_RIGHT", 0, "D-Pad Right", ""},
+      RNA_ENUM_ITEM_SEPR,
+      {GAME_INPUT_GAMEPAD_LEFT_STICK_UP, "LEFT_STICK_UP", 0, "Left Stick Up", ""},
+      {GAME_INPUT_GAMEPAD_LEFT_STICK_DOWN, "LEFT_STICK_DOWN", 0, "Left Stick Down", ""},
+      {GAME_INPUT_GAMEPAD_LEFT_STICK_LEFT, "LEFT_STICK_LEFT", 0, "Left Stick Left", ""},
+      {GAME_INPUT_GAMEPAD_LEFT_STICK_RIGHT, "LEFT_STICK_RIGHT", 0, "Left Stick Right", ""},
+      {GAME_INPUT_GAMEPAD_RIGHT_STICK_UP, "RIGHT_STICK_UP", 0, "Right Stick Up", ""},
+      {GAME_INPUT_GAMEPAD_RIGHT_STICK_DOWN, "RIGHT_STICK_DOWN", 0, "Right Stick Down", ""},
+      {GAME_INPUT_GAMEPAD_RIGHT_STICK_LEFT, "RIGHT_STICK_LEFT", 0, "Right Stick Left", ""},
+      {GAME_INPUT_GAMEPAD_RIGHT_STICK_RIGHT, "RIGHT_STICK_RIGHT", 0, "Right Stick Right", ""},
+      {GAME_INPUT_GAMEPAD_LEFT_STICK,
+       "LEFT_STICK",
+       0,
+       "Left Stick",
+       "The whole left stick: a vector action follows it, a button action is pressed while it is "
+       "pushed past the stick threshold"},
+      {GAME_INPUT_GAMEPAD_RIGHT_STICK,
+       "RIGHT_STICK",
+       0,
+       "Right Stick",
+       "The whole right stick: a vector action follows it, a button action is pressed while it "
+       "is pushed past the stick threshold"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem direction_items[] = {
+      {GAME_INPUT_DIRECTION_UP, "UP", 0, "Up", ""},
+      {GAME_INPUT_DIRECTION_DOWN, "DOWN", 0, "Down", ""},
+      {GAME_INPUT_DIRECTION_LEFT, "LEFT", 0, "Left", ""},
+      {GAME_INPUT_DIRECTION_RIGHT, "RIGHT", 0, "Right", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem action_type_items[] = {
+      {GAME_INPUT_ACTION_BUTTON, "BUTTON", 0, "Button", "Pressed or not, with a value from 0 to 1"},
+      {GAME_INPUT_ACTION_VECTOR,
+       "VECTOR",
+       0,
+       "Vector",
+       "A 2D direction, such as movement, from sticks or from keys that each push one way"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  /* GameInputBinding */
+  srna = RNA_def_struct(brna, "GameInputBinding", nullptr);
+  RNA_def_struct_sdna(srna, "GameInputBinding");
+  RNA_def_struct_path_func(srna, "rna_GameInputBinding_path");
+  RNA_def_struct_ui_text(
+      srna, "Game Input Binding", "A key, mouse button or gamepad control of an input action");
+
+  prop = RNA_def_property(srna, "device", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "device");
+  RNA_def_property_enum_items(prop, device_items);
+  RNA_def_property_enum_funcs(
+      prop, "rna_GameInputBinding_device_get", "rna_GameInputBinding_device_set", nullptr);
+  RNA_def_property_ui_text(prop, "Device", "The device this binding listens to");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "key", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_enum_funcs(
+      prop, "rna_GameInputBinding_key_get", "rna_GameInputBinding_key_set", nullptr);
+  RNA_def_property_ui_text(prop, "Key", "The keyboard key of this binding");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "mouse_button", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, mouse_button_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_GameInputBinding_mouse_button_get",
+                              "rna_GameInputBinding_mouse_button_set",
+                              nullptr);
+  RNA_def_property_ui_text(prop, "Mouse Button", "The mouse button or wheel of this binding");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "gamepad_control", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, gamepad_control_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_GameInputBinding_gamepad_control_get",
+                              "rna_GameInputBinding_gamepad_control_set",
+                              nullptr);
+  RNA_def_property_ui_text(prop, "Gamepad Control", "The gamepad control of this binding");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "use_shift", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "modifiers", GAME_INPUT_MOD_SHIFT);
+  RNA_def_property_ui_text(prop, "Shift", "Shift must be held");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "use_ctrl", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "modifiers", GAME_INPUT_MOD_CTRL);
+  RNA_def_property_ui_text(prop, "Ctrl", "Ctrl must be held");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "use_alt", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "modifiers", GAME_INPUT_MOD_ALT);
+  RNA_def_property_ui_text(prop, "Alt", "Alt must be held");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "direction", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "direction");
+  RNA_def_property_enum_items(prop, direction_items);
+  RNA_def_property_ui_text(
+      prop, "Direction", "The way this binding pushes a vector action");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  /* GameInputBindings */
+  srna = RNA_def_struct(brna, "GameInputBindings", nullptr);
+  RNA_def_struct_sdna(srna, "GameInputAction");
+  RNA_def_struct_ui_text(srna, "Game Input Bindings", "Bindings of an input action");
+
+  func = RNA_def_function(srna, "new", "rna_GameInputBindings_new");
+  RNA_def_function_ui_description(func, "Add a binding to the input action");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID);
+  parm = RNA_def_enum(func, "device", device_items, GAME_INPUT_KEYBOARD, "Device", "");
+  parm = RNA_def_pointer(func, "binding", "GameInputBinding", "", "New binding");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "remove", "rna_GameInputBindings_remove");
+  RNA_def_function_ui_description(func, "Remove a binding from the input action");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
+  parm = RNA_def_pointer(func, "binding", "GameInputBinding", "", "Binding to remove");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
+  RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
+
+  /* GameInputAction */
+  srna = RNA_def_struct(brna, "GameInputAction", nullptr);
+  RNA_def_struct_sdna(srna, "GameInputAction");
+  RNA_def_struct_path_func(srna, "rna_GameInputAction_path");
+  RNA_def_struct_ui_text(srna,
+                         "Game Input Action",
+                         "A named control of the game, such as Jump or the menus' Accept, with "
+                         "the keys, mouse buttons and gamepad controls that trigger it");
+
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_GameInputAction_name_set");
+  RNA_def_property_editable_func(prop, "rna_GameInputAction_custom_editable");
+  RNA_def_property_ui_text(prop, "Name", "The name logic nodes use for this action");
+  RNA_def_struct_name_property(srna, prop);
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "context", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop,
+                           "Input Context",
+                           "Only use this action while the topmost open menu has this Input "
+                           "Context; empty: always");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, action_type_items);
+  RNA_def_property_editable_func(prop, "rna_GameInputAction_custom_editable");
+  RNA_def_property_ui_text(prop, "Type", "What the action gives");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "is_ui_control", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(prop, "rna_GameInputAction_is_ui_control_get", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop, "UI Control", "One of the engine's menu controls, which cannot be renamed or removed");
+
+  prop = RNA_def_property(srna, "bindings", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(prop, "GameInputBinding");
+  RNA_def_property_srna(prop, "GameInputBindings");
+  RNA_def_property_ui_text(
+      prop, "Bindings", "Keys, mouse buttons and gamepad controls that trigger the action");
+
+  prop = RNA_def_property(srna, "active_binding_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_funcs(prop,
+                             "rna_GameInputAction_active_binding_index_get",
+                             "rna_GameInputAction_active_binding_index_set",
+                             "rna_GameInputAction_active_binding_index_range");
+  RNA_def_property_ui_text(prop, "Active Binding Index", "");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  /* GameInputActions */
+  srna = RNA_def_struct(brna, "GameInputActions", nullptr);
+  RNA_def_struct_sdna(srna, "GameData");
+  RNA_def_struct_ui_text(srna, "Game Input Actions", "The game's Input Map");
+
+  func = RNA_def_function(srna, "new", "rna_GameInputActions_new");
+  RNA_def_function_ui_description(func, "Add an input action of the game");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID);
+  parm = RNA_def_string(func, "name", "Action", 0, "", "Name of the action (made unique)");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  RNA_def_enum(func, "type", action_type_items, GAME_INPUT_ACTION_BUTTON, "Type", "");
+  parm = RNA_def_pointer(func, "action", "GameInputAction", "", "New input action");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "remove", "rna_GameInputActions_remove");
+  RNA_def_function_ui_description(func,
+                                  "Remove an input action of the game (not a UI control)");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
+  parm = RNA_def_pointer(func, "action", "GameInputAction", "", "Input action to remove");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
+  RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
+
+  func = RNA_def_function(srna, "reset_ui_controls", "rna_GameInputActions_reset_ui_controls");
+  RNA_def_function_ui_description(
+      func,
+      "Give the UI controls and the input settings their defaults again; the game's own actions "
+      "stay");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID);
+}
+
+static void rna_def_game_inventory_rules(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
+  srna = RNA_def_struct(brna, "GameInventoryRules", nullptr);
+  RNA_def_struct_sdna(srna, "GameInventoryRules");
+  RNA_def_struct_path_func(srna, "rna_GameInventoryRules_path");
+  RNA_def_struct_ui_text(srna,
+                         "Game Inventory Rules",
+                         "Rules of the inventories (List or Table game properties) that pick "
+                         "this set: every grid and Inventory node that changes them follows it");
+
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_GameInventoryRules_name_set");
+  RNA_def_property_ui_text(
+      prop, "Name", "The name lists pick (their Inventory Rules); renaming updates them");
+  RNA_def_struct_name_property(srna, prop);
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  static const char *from_description =
+      "A game property of the list's object to read this from while playing (such as "
+      "bag_size); empty: the value above";
+
+  prop = RNA_def_property(srna, "capacity", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, 65536);
+  RNA_def_property_ui_text(
+      prop, "Capacity", "How many places the list holds at most; 0 has no limit (up to 65536)");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "capacity_from", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Capacity From", from_description);
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "use_stack", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GAME_INVENTORY_STACK);
+  RNA_def_property_ui_text(prop,
+                           "Stack",
+                           "The same items join one stack, up to their max_stack (else Max "
+                           "Stack); off gives every item its own place");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "stack_from", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Stack From", from_description);
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "max_stack", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, INT_MAX);
+  RNA_def_property_ui_text(prop,
+                           "Max Stack",
+                           "Most of an item one place holds when its Item Library object has no "
+                           "max_stack property; 0 has no limit");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "max_stack_from", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Max Stack From", from_description);
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "use_keep_places", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GAME_INVENTORY_KEEP_PLACES);
+  RNA_def_property_ui_text(prop,
+                           "Keep Places",
+                           "Emptied places stay as gaps and players can drop items into any "
+                           "empty cell; off keeps the list packed (items move up to fill gaps)");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "keep_places_from", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Keep Places From", from_description);
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "recipes", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop,
+                           "Recipes",
+                           "A game property of the list's object with recipe lines (\"Apple + "
+                           "Mushroom = Potion\"): dropping one item on another of this list makes "
+                           "the result. Empty: no recipes");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "accept_categories", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop,
+                           "Accept Categories",
+                           "Only items of these categories (comma separated, as a UI Element's "
+                           "Accept Categories) can go into this list, by any grid or node. Empty: "
+                           "any item");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "accept_categories_from", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Accept Categories From", from_description);
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "item_library", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "item_library");
+  RNA_def_property_struct_type(prop, "Collection");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+  RNA_def_property_ui_text(prop,
+                           "Item Library",
+                           "Objects named like the items (icons, names, max_stack, category). "
+                           "Empty: the scene's Item Library");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "users", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop, "rna_GameInventoryRules_users_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop, "Users", "How many lists of the scene's objects follow these rules");
+
+  /* GameInventoryRulesCollection */
+  srna = RNA_def_struct(brna, "GameInventoryRulesCollection", nullptr);
+  RNA_def_struct_sdna(srna, "GameData");
+  RNA_def_struct_ui_text(
+      srna, "Game Inventory Rules Collection", "The scene's named inventory rule sets");
+
+  func = RNA_def_function(srna, "new", "rna_GameInventoryRulesCollection_new");
+  RNA_def_function_ui_description(func, "Add a set of inventory rules");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID);
+  parm = RNA_def_string(func, "name", "Rules", 0, "", "Name of the set (made unique)");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_pointer(func, "rules", "GameInventoryRules", "", "New set of rules");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "remove", "rna_GameInventoryRulesCollection_remove");
+  RNA_def_function_ui_description(
+      func, "Remove a set of inventory rules; the lists that picked it pick none");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_USE_REPORTS);
+  parm = RNA_def_pointer(func, "rules", "GameInventoryRules", "", "Set of rules to remove");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
+  RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
+}
+
 static void rna_def_scene_game_data(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -7000,14 +7825,73 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   /* Jolt Physics settings */
+  static const EnumPropertyItem jolt_physics_cpu_use_items[] = {
+      {0,
+       "AUTO",
+       0,
+       "Auto",
+       "Physics uses the game's own core plus up to half of the player's processor, at most 9 "
+       "cores in all (more made big scenes no faster in tests). Best for almost every game"},
+      {1,
+       "CUSTOM",
+       0,
+       "Custom",
+       "Set the most cores physics may use. The same number on every computer: a computer with "
+       "fewer cores is used fully"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "jolt_physics_cpu_use", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, jolt_physics_cpu_use_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_GameSettings_jolt_physics_cpu_use_get",
+                              "rna_GameSettings_jolt_physics_cpu_use_set",
+                              NULL);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop,
+                           "Physics CPU Use",
+                           "How many of the player's CPU cores physics may use. Physics works "
+                           "only during its steps: cores it does not need stay free");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_physics_max_cores", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop,
+                             "rna_GameSettings_jolt_physics_max_cores_get",
+                             "rna_GameSettings_jolt_physics_max_cores_set",
+                             NULL);
+  RNA_def_property_range(prop, 1, 64);
+  RNA_def_property_ui_range(prop, 1, 16, 1, 1);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop,
+                           "Max Cores",
+                           "The most CPU cores physics may keep busy at once, the game's own "
+                           "core included (1 = only the game's own core). Never more than the "
+                           "player's computer has");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jolt_physics_auto_cores", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop, "rna_GameSettings_jolt_physics_auto_cores_get", NULL, NULL);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop, "Auto Cores", "The most CPU cores physics uses on this computer with Auto");
+
+  prop = RNA_def_property(srna, "jolt_physics_computer_cores", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(
+      prop, "rna_GameSettings_jolt_physics_computer_cores_get", NULL, NULL);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Computer Cores",
+                           "This computer's CPU cores, as the system counts them (Task "
+                           "Manager's logical processors)");
+
+  /* The stored value behind Physics CPU Use and Max Cores. */
   prop = RNA_def_property(srna, "jolt_physics_threads", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, NULL, "jolt_physics_threads");
   RNA_def_property_range(prop, -1, 64);
   RNA_def_property_ui_range(prop, -1, 16, 1, 1);
   RNA_def_property_ui_text(prop,
-                           "Jolt Physics Threads",
-                           "Number of threads for Jolt physics simulation "
-                           "(-1 = auto, uses max(1, CPU cores - 1))");
+                           "Physics Cores (Stored)",
+                           "-1 or 0 = Auto, else the most CPU cores physics may use (Physics CPU "
+                           "Use and Max Cores show it)");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "jolt_velocity_solver_iterations", PROP_INT, PROP_NONE);
@@ -7045,7 +7929,9 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 1024, 131072, 1024, 1);
   RNA_def_property_ui_text(prop,
                            "Jolt Max Bodies",
-                           "Maximum number of physics bodies in the Jolt physics system");
+                           "Maximum number of physics bodies in the Jolt physics system. The room "
+                           "for contacts grows with it (one per body, at least 65536): raise it "
+                           "when the console says contacts were dropped");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "jolt_max_body_pairs", PROP_INT, PROP_NONE);
@@ -7054,7 +7940,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 1024, 131072, 1024, 1);
   RNA_def_property_ui_text(prop,
                            "Jolt Max Body Pairs",
-                           "Maximum number of body pairs for Jolt broadphase collision detection");
+                           "Maximum number of body pairs for Jolt broadphase collision detection "
+                           "(the game uses at least one per Max Bodies, and 65536)");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "jolt_max_contact_constraints", PROP_INT, PROP_NONE);
@@ -7063,7 +7950,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 1024, 131072, 1024, 1);
   RNA_def_property_ui_text(prop,
                            "Jolt Max Contact Constraints",
-                           "Maximum number of contact constraints in the Jolt physics system");
+                           "Maximum number of contact constraints in the Jolt physics system "
+                           "(the game uses at least one per Max Bodies, and 65536)");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "jolt_temp_allocator_mb", PROP_INT, PROP_NONE);
@@ -7072,8 +7960,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 16, 128, 8, 1);
   RNA_def_property_ui_text(prop,
                            "Jolt Temp Allocator (MB)",
-                           "Size of Jolt's temporary allocator in megabytes "
-                           "(32 MB recommended for complex scenes with 5000+ bodies)");
+                           "Not used: the game sizes Jolt's temporary allocator from Max Bodies");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "occlusion_culling_resolution", PROP_INT, PROP_PIXEL);
@@ -7142,8 +8029,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
                                         "rna_GameSettings_use_fixed_physics_interpolation_default");
   RNA_def_property_ui_text(prop,
                            "Physics Interpolation",
-                           "Interpolate transforms between fixed physics steps to smooth "
-                           "rendered motion");
+                           "Draw objects between their last two fixed steps: smooth on any screen, "
+                           "about one step late. This is the Smooth Motion of every object left "
+                           "at Scene Default; to smooth only the objects that need it (the "
+                           "player, vehicles), leave this off and set their own Smooth Motion "
+                           "(Object > Physics)");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   static const EnumPropertyItem rna_enum_physics_timestep_method_items[] = {
@@ -7168,7 +8058,9 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 30, 480, 1, 1);
   RNA_def_property_ui_text(prop,
                            "Physics Steps",
-                           "Number of physics steps per second when using fixed timestep");
+                           "Logic and physics steps per second (Fixed). A frame shows the steps "
+                           "due by its time; when frames come at another rate (a 144 Hz screen, a "
+                           "busy computer), objects with Smooth Motion are drawn between the steps");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   /* Fixed physics render cap */
@@ -7177,7 +8069,10 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_boolean_default_func(prop, "rna_GameSettings_use_fixed_fps_cap_default");
   RNA_def_property_ui_text(prop,
                            "Cap Render FPS (Fixed Physics)",
-                           "Limit render FPS when Fixed Physics Timestep is enabled");
+                           "Draw frames at the Render Frames Per Second rate. Equal to the steps per "
+                           "second, every frame shows one step: smooth with the least delay, even "
+                           "without Smooth Motion. Off, Vsync (with the Jitter Fix) or nothing "
+                           "paces the frames");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   /* Fixed physics mode specific rates 
@@ -7189,13 +8084,28 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 30, 240, 1, 1);
   RNA_def_property_ui_text(prop,
                            "Fixed Mode Render Cap Rate",
-                           "Render FPS cap rate (Hz) when using fixed physics timestep and FPS cap is enabled");
+                           "Frames drawn per second while the FPS Limit is on. Equal to the physics "
+                           "steps (or a whole multiple or fraction of them), every frame gets the "
+                           "same number of steps. With Vsync, use the screen's refresh rate or a "
+                           "whole fraction of it (60 on a 120 Hz screen)");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  prop = RNA_def_property(srna, "jitter_fix", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "jitter_fix");
+  RNA_def_property_range(prop, 0.0, 2.0);
+  RNA_def_property_ui_range(prop, 0.0, 2.0, 0.1, 2);
+  RNA_def_property_ui_text(prop,
+                           "Jitter Fix",
+                           "While Vsync paces frames (FPS Limit off), frame times follow the "
+                           "screen's refresh, so timing noise can't move a step into the wrong frame. "
+                           "How far, in steps, the game clock may run from the real clock. 0 turns it "
+                           "off (games that must follow real time exactly, such as network games)");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
   prop = RNA_def_property(srna, "time_scale", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "timeScale");
-  RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
-  RNA_def_property_range(prop, 0.001, 10000.0);
+  RNA_def_property_ui_range(prop, 0.0, 10000.0, 2, 3);
+  RNA_def_property_range(prop, 0.0, 10000.0);
   RNA_def_property_ui_text(
       prop, "Time Scale", "Time scale to slow down or speed up animations and physics in game");
   RNA_def_property_update(prop, NC_SCENE, NULL);
@@ -7296,8 +8206,26 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   /* booleans */
   prop = RNA_def_property(srna, "use_viewport_render", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_VIEWPORT_RENDER);
+  RNA_def_property_ui_text(prop,
+                           "Use Viewport Render",
+                           "Draw the game through the 3D view, with its shading (Solid, Wireframe, "
+                           "Material, Rendered) and, when playing in the editor, its overlays. "
+                           "Useful to inspect a running game. Not for a finished game: only the "
+                           "game camera is drawn. Object menus, HUDs, other camera views, 2D "
+                           "filters, render to texture, Level of Detail and Python post_draw "
+                           "callbacks do not work");
+
+  /* UPBGE: see GAME_KEEP_EDITOR_VIEW_MEMORY. */
+  prop = RNA_def_property(srna, "free_editor_view_memory", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", GAME_KEEP_EDITOR_VIEW_MEMORY);
   RNA_def_property_ui_text(
-      prop, "Use Viewport Render", "Use Blender Render Loop to render the scene");
+      prop,
+      "Free Editor View Memory",
+      "While the game runs from this Blender (Embedded Start or Standalone Start), give back the "
+      "GPU memory of the 3D views in Material Preview or Rendered mode (about 1 GB at 4K). They "
+      "draw again when the game ends, with the same shading. An exported game runs without the "
+      "editor, so this does not change it. An Embedded Start with Use Viewport Render draws "
+      "through the 3D view, which then keeps its memory");
 
   prop = RNA_def_property(srna, "use_undo", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_UNDO);
@@ -7336,7 +8264,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop, NULL, "rna_GameSettings_show_framerate_profile_set");
   RNA_def_property_ui_text(prop,
                            "Show Framerate and Profile",
-                           "Show framerate and profiling information while the game runs");
+                           "Show framerate and profiling information while the game runs. "
+                           "Steps/frame counts the frames of the last second by the Logic + "
+                           "Physics steps they showed (1:60 = one step in each of 60 frames; "
+                           "frames with 0 and 2 steps mean stutter even when frame times are "
+                           "even); Pacing says what sets the frame rate");
 
   prop = RNA_def_property(srna, "record_frame_time_graph", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_RECORD_FRAME_TIME_GRAPH);
@@ -7452,6 +8384,14 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
        GAME_FRAME_TIME_GRAPH_DOMAIN_GPU_LATENCY,
        "Show GPU Latency Domain",
        "Show GPU latency in the frame-time graph"},
+      {"show_frame_time_graph_domain_steps",
+       GAME_FRAME_TIME_GRAPH_DOMAIN_STEPS,
+       "Show Steps Domain",
+       "Show the game time each frame moved on: its Logic + Physics steps times the step "
+       "length. While every frame shows the same steps it lies on the Frame line; when it jumps "
+       "between 0 and two steps while Frame stays flat, motion stutters even though frame times "
+       "are even. On a screen faster than the steps it alternates naturally (60 steps at 100 Hz: "
+       "0 and one step), which Smooth Motion Interpolate smooths out"},
   };
   for (const auto &item : frame_time_graph_domain_props) {
     prop = RNA_def_property(srna, item.identifier, PROP_BOOLEAN, PROP_NONE);
@@ -7660,6 +8600,157 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
       "Hysteresis %",
       "Minimum distance change required to transition to the previous level of detail");
   RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  /* Input Map */
+  rna_def_game_input_map(brna);
+
+  prop = RNA_def_property(srna, "input_actions", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "input_actions", nullptr);
+  RNA_def_property_struct_type(prop, "GameInputAction");
+  RNA_def_property_srna(prop, "GameInputActions");
+  RNA_def_property_ui_text(prop,
+                           "Input Actions",
+                           "The game's Input Map: the menus' UI controls and the game's own "
+                           "actions, used by the start scene");
+
+  prop = RNA_def_property(srna, "active_input_action_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_funcs(prop,
+                             "rna_GameSettings_active_input_action_index_get",
+                             "rna_GameSettings_active_input_action_index_set",
+                             "rna_GameSettings_active_input_action_index_range");
+  RNA_def_property_ui_text(prop, "Active Input Action Index", "");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "input_repeat_delay", PROP_FLOAT, PROP_TIME_ABSOLUTE);
+  RNA_def_property_range(prop, 0.05f, 2.0f);
+  RNA_def_property_ui_range(prop, 0.05f, 2.0f, 1, 2);
+  RNA_def_property_ui_text(prop,
+                           "Repeat Delay",
+                           "How long a held navigation key or stick waits before the menu "
+                           "focus moves again");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "input_repeat_interval", PROP_FLOAT, PROP_TIME_ABSOLUTE);
+  RNA_def_property_range(prop, 0.02f, 1.0f);
+  RNA_def_property_ui_range(prop, 0.02f, 1.0f, 1, 2);
+  RNA_def_property_ui_text(
+      prop, "Repeat Interval", "Time between focus moves while a navigation key or stick is held");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "input_stick_threshold", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_range(prop, 0.1f, 0.95f);
+  RNA_def_property_ui_text(prop,
+                           "Stick Threshold",
+                           "How far a stick must be pushed before a stick direction counts as "
+                           "pressed");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "use_input_swap_accept_back", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "input_flag", GAME_INPUT_SWAP_ACCEPT_BACK);
+  RNA_def_property_ui_text(prop,
+                           "Swap Accept and Back",
+                           "Swap the gamepad controls of the menus' Accept and Back, as on "
+                           "Japanese consoles");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "use_input_gamepads_from_player_1", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "input_flag", GAME_INPUT_GAMEPADS_FROM_PLAYER_1);
+  RNA_def_property_ui_text(prop,
+                           "Gamepads Start at Player 1",
+                           "Player 0 has the keyboard and mouse alone, and the first gamepad is "
+                           "player 1 (off: player 0 also has the first gamepad). For a keyboard "
+                           "player and gamepad players side by side");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "use_input_press_to_join", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "input_flag", GAME_INPUT_PRESS_TO_JOIN);
+  RNA_def_property_ui_text(prop,
+                           "Press to Join",
+                           "A gamepad has no player until it presses a button; then it gets the "
+                           "first free player (from player 1 with Gamepads Start at Player 1), "
+                           "and On Player Join runs; that press is hidden from the game until "
+                           "let go. A gamepad plugged back in takes the place of a player whose "
+                           "gamepad is unplugged");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  /* Split screen: each player's view while the window is split. */
+  static const struct {
+    const char *identifier;
+    int flag;
+    const char *name;
+    const char *description;
+  } split_flags[] = {
+      {"split_disable_shadows",
+       GAME_SPLIT_DISABLE_SHADOWS,
+       "Disable Shadows",
+       "Draw the players' views without shadows while the window is split. Each view has its own "
+       "shadow pool (Render tab > Performance > Memory), so this also saves GPU memory"},
+      {"split_disable_ray_tracing",
+       GAME_SPLIT_DISABLE_RAY_TRACING,
+       "Disable Ray Tracing",
+       "Draw the players' views without ray tracing while the window is split: no screen space "
+       "reflections and refraction, and no Fast GI, which also gives the ambient occlusion"},
+      {"split_disable_volumetric_shadows",
+       GAME_SPLIT_DISABLE_VOLUMETRIC_SHADOWS,
+       "Disable Volumetric Shadows",
+       "While the window is split, volumes such as fog and smoke in the players' views cast no "
+       "shadows onto volumes (Render tab > Shadows > Volume Shadows, very expensive when on). "
+       "Solid objects still shadow them"},
+      {"split_disable_motion_blur",
+       GAME_SPLIT_DISABLE_MOTION_BLUR,
+       "Disable Motion Blur",
+       "Draw the players' views without motion blur while the window is split"},
+      {"split_disable_extra_samples",
+       GAME_SPLIT_DISABLE_EXTRA_SAMPLES,
+       "Disable Extra Samples",
+       "Draw each player's view once a frame while the window is split, whatever Samples per "
+       "Frame (each extra sample draws every view again)"},
+      {"use_split_lod_by_view_size",
+       GAME_SPLIT_LOD_BY_VIEW_SIZE,
+       "Level of Detail by View Size",
+       "While the window is split, objects switch level of detail at the size they have on "
+       "screen with one player: in a view that shows them half as big, at half the distance. "
+       "Side by side and top and bottom views keep their size (Crop field of view), so this "
+       "changes nothing there"},
+  };
+  for (const auto &item : split_flags) {
+    prop = RNA_def_property(srna, item.identifier, PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "split_flag", item.flag);
+    RNA_def_property_ui_text(prop, item.name, item.description);
+    RNA_def_property_update(prop, NC_SCENE, nullptr);
+  }
+
+  prop = RNA_def_property(srna, "item_library", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "item_library");
+  RNA_def_property_struct_type(prop, "Collection");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+  RNA_def_property_ui_text(prop,
+                           "Item Library",
+                           "The game's items: an object per item, named like it, with its game "
+                           "properties (max_stack, category...). Library inputs of the inventory "
+                           "nodes that are left empty use it");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  /* Inventory Rules */
+  rna_def_game_inventory_rules(brna);
+
+  prop = RNA_def_property(srna, "inventory_rules", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "inventory_rules", nullptr);
+  RNA_def_property_struct_type(prop, "GameInventoryRules");
+  RNA_def_property_srna(prop, "GameInventoryRulesCollection");
+  RNA_def_property_ui_text(prop,
+                           "Inventory Rules",
+                           "Named rule sets of the game's inventories: a List or Table game "
+                           "property picks one, and every grid and Inventory node that changes it "
+                           "follows it");
+
+  prop = RNA_def_property(srna, "active_inventory_rules_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_funcs(prop,
+                             "rna_GameSettings_active_inventory_rules_index_get",
+                             "rna_GameSettings_active_inventory_rules_index_set",
+                             "rna_GameSettings_active_inventory_rules_index_range");
+  RNA_def_property_ui_text(prop, "Active Inventory Rules Index", "");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
 }
 
 static void rna_def_view_layers(BlenderRNA *brna, PropertyRNA *cprop)
@@ -9575,6 +10666,50 @@ static void rna_def_scene_display(BlenderRNA *brna)
   /* OpenGL render engine settings. */
   prop = RNA_def_property(srna, "shading", PROP_POINTER, PROP_NONE);
   RNA_def_property_ui_text(prop, "Shading Settings", "Shading settings for OpenGL render engine");
+
+  /* UPBGE: the Workbench pictures a game camera's Workbench Lighting draws with, for the camera
+   * panel (shading.studio_light lists only the scene's current lighting's kind). */
+  static const EnumPropertyItem default_light_items[] = {
+      {0, "DEFAULT", 0, "Default", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "game_studio_light", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, default_light_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_SceneDisplay_game_studio_light_get",
+                              "rna_SceneDisplay_game_studio_light_set",
+                              "rna_SceneDisplay_game_studio_light_itemf");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop,
+                           "Studio Light",
+                           "The scene's Workbench studio light (Render tab with the Workbench "
+                           "engine > Lighting > Studio), which game cameras with Workbench "
+                           "Lighting Studio use");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "game_matcap", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, default_light_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_SceneDisplay_game_matcap_get",
+                              "rna_SceneDisplay_game_matcap_set",
+                              "rna_SceneDisplay_game_matcap_itemf");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop,
+                           "MatCap",
+                           "The scene's Workbench MatCap (Render tab with the Workbench engine > "
+                           "Lighting > MatCap), which game cameras with Workbench Lighting MatCap "
+                           "use. MatCaps installed in Preferences stay on this computer: a game "
+                           "played elsewhere uses the default one instead");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "game_matcap_flip", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "shading.flag", V3D_SHADING_MATCAP_FLIP_X);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(
+      prop, "Flip MatCap", "Mirror the scene's Workbench MatCap from left to right");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 }
 
 static void rna_def_raytrace_eevee(BlenderRNA *brna)

@@ -49,6 +49,7 @@ class DEV_Joystick::PrivateData {
 
   PrivateData()
       : m_gamecontroller(nullptr),
+        m_instance_id(-1),
         m_haptic(nullptr),
         m_hapticEffectStatus(JOYHAPTIC_STOPPED),
         m_hapticEndTime(0.0)

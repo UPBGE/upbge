@@ -10,9 +10,14 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
+#include <numeric>
 #include <sstream>
 
+#include "KX_Parenting.h"
+#include "LN_BonePoseRotation.h"
 #include "LN_RuntimeSemantics.h"
+#include "LN_TypeConversion.h"
 
 namespace {
 
@@ -20,6 +25,14 @@ bool OpcodeEmitsCommands(LN_OpCode opcode);
 LN_MainThreadOnlyReason MainThreadOnlyReasonForOpcode(LN_OpCode opcode);
 LN_MainThreadOnlyReason MainThreadOnlyReasonForBoolExpression(LN_BoolExpressionKind kind);
 LN_MainThreadOnlyReason MainThreadOnlyReasonForValueExpression(LN_ValueExpressionKind kind);
+
+/** The Inventory node was given an item library, which is read from the scene. */
+bool InventoryReadsLibrary(const LN_ValueExpression &expression)
+{
+  return expression.input1 == LN_INVENTORY_SCENE_LIBRARY ||
+         (expression.input_indices.size() > LN_INVENTORY_INPUT_LIBRARY &&
+          expression.input_indices[LN_INVENTORY_INPUT_LIBRARY] != LN_INVALID_INDEX);
+}
 
 void PromotePurity(LN_SchedulerSummary &summary, const LN_SchedulerPurity purity)
 {
@@ -112,7 +125,6 @@ uint32_t CommandClassForRuntimeFamily(const LN_RuntimeCommandFamily family)
       return LN_DEP_COMMAND_TRANSFORM;
     case LN_RuntimeCommandFamily::ObjectPhysics:
     case LN_RuntimeCommandFamily::PhysicsConstraint:
-    case LN_RuntimeCommandFamily::SpawnPool:
       return LN_DEP_COMMAND_PHYSICS;
     case LN_RuntimeCommandFamily::ObjectProperty:
     case LN_RuntimeCommandFamily::TreeState:
@@ -145,8 +157,15 @@ uint32_t CommandClassForRuntimeFamily(const LN_RuntimeCommandFamily family)
 bool StringExpressionIndexIsConstant(const std::vector<LN_StringExpression> &expressions,
                                      const uint32_t index)
 {
-  return index < expressions.size() && expressions[index].kind == LN_StringExpressionKind::Constant;
+  return index < expressions.size() &&
+         expressions[index].kind == LN_StringExpressionKind::Constant;
 }
+
+/** What the manager samples Input Map actions from. */
+constexpr uint32_t kInputActionChannels = LN_DEP_INPUT_ACTION | LN_DEP_INPUT_KEYBOARD |
+                                          LN_DEP_INPUT_MOUSE | LN_DEP_INPUT_WHEEL |
+                                          LN_DEP_INPUT_GAMEPAD_BUTTON |
+                                          LN_DEP_INPUT_GAMEPAD_AXIS;
 
 void AddSemanticReadDependencies(LN_ProgramDependencySummary &summary, const uint32_t reads)
 {
@@ -154,8 +173,9 @@ void AddSemanticReadDependencies(LN_ProgramDependencySummary &summary, const uin
     AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_OBJECT_GRAPH);
   }
   if ((reads & LN_RUNTIME_SEMANTIC_READ_INPUT) != 0u) {
-    AddInputDependency(summary, LN_DEP_INPUT_KEYBOARD | LN_DEP_INPUT_MOUSE |
-                                    LN_DEP_INPUT_GAMEPAD_BUTTON | LN_DEP_INPUT_GAMEPAD_AXIS);
+    AddInputDependency(summary,
+                       LN_DEP_INPUT_KEYBOARD | LN_DEP_INPUT_MOUSE | LN_DEP_INPUT_GAMEPAD_BUTTON |
+                           LN_DEP_INPUT_GAMEPAD_AXIS);
   }
   if ((reads & LN_RUNTIME_SEMANTIC_READ_EVENT_BUS) != 0u) {
     AddEventDependency(summary, LN_DEP_EVENT_SUBJECT_READ);
@@ -201,10 +221,34 @@ void AddInstructionDependencyDetails(LN_ProgramDependencySummary &summary,
   switch (instruction.opcode) {
     case LN_OpCode::TryOnce:
     case LN_OpCode::ResetOnce:
+    case LN_OpCode::SetFlowGate:
+    case LN_OpCode::TryFlowGate:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_BOOL_EXPRESSION);
+      break;
+    case LN_OpCode::SetPlayerPointer:
+      /* The pointer reads its Move Action from the Input Map every frame it is on. */
+      AddInputDependency(summary, kInputActionChannels);
+      break;
+    case LN_OpCode::TryFlowRouter:
+    case LN_OpCode::ResetFlowRouter:
+    case LN_OpCode::TryRepeatLimit:
+    case LN_OpCode::ResetRepeatLimit:
+    case LN_OpCode::SampleMotion:
+    case LN_OpCode::ResetMotion:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_FLOW_CONTROL);
+      if (instruction.opcode == LN_OpCode::SampleMotion &&
+          instruction.secondary_int_value != int32_t(LN_MotionSourceMode::Position))
+      {
+        AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+        AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      }
+      break;
+    case LN_OpCode::BreakLoop:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_LOOP);
       break;
     case LN_OpCode::ArmTimer:
     case LN_OpCode::ArmDelay:
+    case LN_OpCode::ArmNextFrame:
     case LN_OpCode::UpdatePulsify:
     case LN_OpCode::UpdateBarrier:
     case LN_OpCode::TryCooldown:
@@ -249,12 +293,33 @@ void AddInstructionDependencyDetails(LN_ProgramDependencySummary &summary,
         AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
       }
       break;
+    case LN_OpCode::InventoryEdit:
+      AddCommandDependency(summary, LN_DEP_COMMAND_PROPERTY);
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_TREE_PROPERTY);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_PROPERTY_NAME);
+      if (instruction.value_expr_index != LN_INVALID_INDEX) {
+        AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      }
+      break;
+    case LN_OpCode::DropItem:
+      AddCommandDependency(summary, LN_DEP_COMMAND_SCENE_LIFECYCLE);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      break;
+    case LN_OpCode::ScrollObjectView:
+    case LN_OpCode::ShowMessage:
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      break;
     case LN_OpCode::SetTreeProperty:
       AddCommandDependency(summary, LN_DEP_COMMAND_PROPERTY | LN_DEP_COMMAND_RUNTIME_TREE);
       AddRuntimeStateDependency(summary, LN_DEP_STATE_TREE_PROPERTY);
       if (instruction.property_ref_index == LN_INVALID_INDEX) {
         AddDynamicDependency(summary, LN_DEP_DYNAMIC_PROPERTY_NAME);
       }
+      break;
+    case LN_OpCode::SetSaveExistence:
+      AddCommandDependency(summary, LN_DEP_COMMAND_SCENE_LIFECYCLE);
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_BOOL_EXPRESSION);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
       break;
     case LN_OpCode::SetGlobalProperty:
     case LN_OpCode::SaveVariable:
@@ -267,13 +332,21 @@ void AddInstructionDependencyDetails(LN_ProgramDependencySummary &summary,
       AddCommandDependency(summary, LN_DEP_COMMAND_FILE_GLOBAL);
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_FILE_GLOBAL_STATE);
       break;
-    case LN_OpCode::SpawnPoolCreate:
-    case LN_OpCode::SpawnPoolSpawn:
-      AddRuntimeStateDependency(summary, LN_DEP_STATE_SPAWN_POOL);
+    case LN_OpCode::InputMap:
+      AddCommandDependency(summary, LN_DEP_COMMAND_FILE_GLOBAL);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_FILE_GLOBAL_STATE);
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_BOOL_EXPRESSION);
+      if (instruction.int_value == int32_t(LN_InputMapOperation::Rebind)) {
+        /* Rebind Input Action watches the devices for the player's next control. */
+        AddInputDependency(summary,
+                           LN_DEP_INPUT_KEYBOARD | LN_DEP_INPUT_MOUSE | LN_DEP_INPUT_WHEEL |
+                               LN_DEP_INPUT_GAMEPAD_BUTTON | LN_DEP_INPUT_GAMEPAD_AXIS);
+      }
       break;
     case LN_OpCode::PlayAction:
     case LN_OpCode::StopAction:
     case LN_OpCode::SetActionFrame:
+    case LN_OpCode::SetShapeKeyValue:
     case LN_OpCode::SetMaterialSlot:
     case LN_OpCode::SetMaterialParameter:
     case LN_OpCode::SetMaterialNodeSocketValue:
@@ -318,10 +391,19 @@ void AddBoolExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
                            LN_DEP_QUERY_RESULT_FIELDS | LN_DEP_QUERY_COLLISION_CONTACT_DETAILS);
       }
     }
+    if (expression.kind == LN_BoolExpressionKind::ConstraintBreak) {
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+    }
     AddMainThreadDependency(summary, reason);
   }
 
   switch (expression.kind) {
+    case LN_BoolExpressionKind::PlayerViewShown:
+    case LN_BoolExpressionKind::PlayerGamepadConnected:
+    case LN_BoolExpressionKind::PlayerGamepadJoined:
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_BoolExpressionKind::SnapshotGameProperty:
     case LN_BoolExpressionKind::SnapshotGamePropertyExists:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_GAME_PROPERTY);
@@ -336,9 +418,18 @@ void AddBoolExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_CHARACTER);
       break;
     case LN_BoolExpressionKind::InputStatus:
+      AddInputDependency(summary,
+                         LN_DEP_INPUT_KEYBOARD | (expression.bool_value ? LN_DEP_INPUT_RAW : 0u));
+      break;
     case LN_BoolExpressionKind::KeyboardActive:
-    case LN_BoolExpressionKind::KeyLoggerPressed:
       AddInputDependency(summary, LN_DEP_INPUT_KEYBOARD);
+      break;
+    case LN_BoolExpressionKind::InputActionState:
+      AddInputDependency(summary,
+                         kInputActionChannels | (expression.bool_value ? LN_DEP_INPUT_RAW : 0u));
+      break;
+    case LN_BoolExpressionKind::KeyLoggerPressed:
+      AddInputDependency(summary, LN_DEP_INPUT_KEYBOARD | LN_DEP_INPUT_TEXT);
       break;
     case LN_BoolExpressionKind::WindowFullscreen:
       AddInputDependency(summary, LN_DEP_INPUT_WINDOW);
@@ -347,37 +438,55 @@ void AddBoolExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       AddInputDependency(summary, LN_DEP_INPUT_MOUSE);
       break;
     case LN_BoolExpressionKind::MouseWheelMoved:
-      AddInputDependency(summary, LN_DEP_INPUT_WHEEL);
+      AddInputDependency(summary,
+                         LN_DEP_INPUT_WHEEL | (expression.bool_value ? LN_DEP_INPUT_RAW : 0u));
       break;
     case LN_BoolExpressionKind::GamepadActive:
-    case LN_BoolExpressionKind::GamepadButton:
       AddInputDependency(summary, LN_DEP_INPUT_GAMEPAD_BUTTON);
       break;
+    case LN_BoolExpressionKind::GamepadButton:
+      AddInputDependency(summary,
+                         LN_DEP_INPUT_GAMEPAD_BUTTON |
+                             (expression.secondary_int_value != 0 ? LN_DEP_INPUT_RAW : 0u));
+      break;
     case LN_BoolExpressionKind::EventReceived:
-      AddEventDependency(summary, LN_DEP_EVENT_SUBJECT_READ |
-                                      (expression.bool_value ? LN_DEP_EVENT_TARGETED_RECEIVE : 0u));
+      AddEventDependency(summary,
+                         LN_DEP_EVENT_SUBJECT_READ |
+                             (expression.bool_value ? LN_DEP_EVENT_TARGETED_RECEIVE : 0u));
       if (expression.input0 == LN_INVALID_INDEX) {
         AddDynamicDependency(summary, LN_DEP_DYNAMIC_EVENT_SUBJECT);
       }
       break;
     case LN_BoolExpressionKind::PhysicsQueryDone:
     case LN_BoolExpressionKind::PhysicsQueryHit:
+    case LN_BoolExpressionKind::PhysicsQueryAllHit:
     case LN_BoolExpressionKind::PhysicsQueryBlocked:
     case LN_BoolExpressionKind::PhysicsQueryHasUV:
     case LN_BoolExpressionKind::PhysicsQueryStartedOverlapping:
       AddQueryDependency(summary, LN_DEP_QUERY_RESULT_FIELDS);
       break;
+    case LN_BoolExpressionKind::QueryValid:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_QUERY_CACHE);
+      break;
     case LN_BoolExpressionKind::MouseOverEnter:
     case LN_BoolExpressionKind::MouseOverOver:
     case LN_BoolExpressionKind::MouseOverExit:
+    case LN_BoolExpressionKind::UIScrolled:
+    case LN_BoolExpressionKind::UIScrollAtStart:
+    case LN_BoolExpressionKind::UIScrollAtEnd:
+    case LN_BoolExpressionKind::UIItemsRebound:
       AddInputDependency(summary, LN_DEP_INPUT_MOUSE);
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
       AddQueryDependency(summary,
-                         LN_DEP_QUERY_MOUSE_OVER | LN_DEP_QUERY_RAY |
-                             LN_DEP_QUERY_RESULT_FIELDS);
+                         LN_DEP_QUERY_MOUSE_OVER | LN_DEP_QUERY_RAY | LN_DEP_QUERY_RESULT_FIELDS);
+      break;
+    case LN_BoolExpressionKind::UIElementEventFired:
+    case LN_BoolExpressionKind::UIElementEventAccepted:
+    case LN_BoolExpressionKind::UISoundFired:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_QUERY_CACHE);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_BoolExpressionKind::Once:
-    case LN_BoolExpressionKind::OnNextTick:
     case LN_BoolExpressionKind::Timer:
     case LN_BoolExpressionKind::ValueChanged:
     case LN_BoolExpressionKind::ValueChangedTo:
@@ -387,8 +496,29 @@ void AddBoolExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_BoolExpressionKind::TweenReached:
     case LN_BoolExpressionKind::BooleanEdge:
     case LN_BoolExpressionKind::BooleanEdgeFalling:
+    case LN_BoolExpressionKind::PersistenceCompleted:
+    case LN_BoolExpressionKind::PersistenceSucceeded:
+    case LN_BoolExpressionKind::UICommandCompleted:
+    case LN_BoolExpressionKind::UICommandSucceeded:
+    case LN_BoolExpressionKind::UICommandFailed:
+    case LN_BoolExpressionKind::UICommandClosed:
+    case LN_BoolExpressionKind::ActionLifecycleEvent:
+    case LN_BoolExpressionKind::ActionStarted:
+    case LN_BoolExpressionKind::ActionCompleted:
+    case LN_BoolExpressionKind::ActionInterrupted:
+    case LN_BoolExpressionKind::ActionFailed:
+    case LN_BoolExpressionKind::FlowGateOpen:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_BOOL_EXPRESSION);
       break;
+    case LN_BoolExpressionKind::FlowRouterSelected:
+    case LN_BoolExpressionKind::FlowRouterLastRoute:
+    case LN_BoolExpressionKind::RepeatLimitAccepted:
+    case LN_BoolExpressionKind::RepeatLimitBlocked:
+    case LN_BoolExpressionKind::RepeatLimitExhausted:
+    case LN_BoolExpressionKind::MotionValid:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_FLOW_CONTROL);
+      break;
+    case LN_BoolExpressionKind::NextFrameDone:
     case LN_BoolExpressionKind::TimerElapsed:
     case LN_BoolExpressionKind::DelayDone:
     case LN_BoolExpressionKind::PulsifyPulse:
@@ -398,10 +528,6 @@ void AddBoolExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_BoolExpressionKind::CooldownCompleted:
     case LN_BoolExpressionKind::CooldownReady:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_TIME_FLOW);
-      break;
-    case LN_BoolExpressionKind::SpawnPoolSpawnedPulse:
-    case LN_BoolExpressionKind::SpawnPoolHitPulse:
-      AddRuntimeStateDependency(summary, LN_DEP_STATE_SPAWN_POOL);
       break;
     case LN_BoolExpressionKind::FromGenericValue:
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_GENERIC_VALUE);
@@ -434,6 +560,10 @@ void AddFloatExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
                                          const LN_FloatExpression &expression)
 {
   switch (expression.kind) {
+    case LN_FloatExpressionKind::PlayerViewArea:
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_FloatExpressionKind::SnapshotGameProperty:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_GAME_PROPERTY);
       break;
@@ -453,6 +583,10 @@ void AddFloatExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_FloatExpressionKind::GamepadButtonStrength:
       AddInputDependency(summary, LN_DEP_INPUT_GAMEPAD_AXIS);
       break;
+    case LN_FloatExpressionKind::InputActionValue:
+      AddInputDependency(summary,
+                         kInputActionChannels | (expression.bool_value ? LN_DEP_INPUT_RAW : 0u));
+      break;
     case LN_FloatExpressionKind::StoreValue:
     case LN_FloatExpressionKind::TweenFactor:
     case LN_FloatExpressionKind::TweenFloatResult:
@@ -461,6 +595,9 @@ void AddFloatExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_FloatExpressionKind::CooldownRemaining:
     case LN_FloatExpressionKind::CooldownProgress:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_TIME_FLOW);
+      break;
+    case LN_FloatExpressionKind::MotionSpeed:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_FLOW_CONTROL);
       break;
     case LN_FloatExpressionKind::FromGenericValue:
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_GENERIC_VALUE);
@@ -474,9 +611,19 @@ void AddFloatExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_FloatExpressionKind::PhysicsQueryPenetrationDepth:
       AddQueryDependency(summary, LN_DEP_QUERY_RESULT_FIELDS);
       break;
+    case LN_FloatExpressionKind::QueryDistance:
+    case LN_FloatExpressionKind::QuerySquaredDistance:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_QUERY_CACHE);
+      break;
     case LN_FloatExpressionKind::RigidBodyAttribute:
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
       AddMainThreadDependency(summary, LN_MainThreadOnlyReason::CollisionOrPhysicsQuery);
+      break;
+    case LN_FloatExpressionKind::ConstraintBreakLinearImpulse:
+    case LN_FloatExpressionKind::ConstraintBreakAngularImpulse:
+    case LN_FloatExpressionKind::ConstraintBreakAppliedImpulse:
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::PhysicsConstraint);
       break;
     default:
       break;
@@ -487,11 +634,31 @@ void AddIntExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
                                        const LN_IntExpression &expression)
 {
   switch (expression.kind) {
+    case LN_IntExpressionKind::PlayerViewCount:
+    case LN_IntExpressionKind::PlayerGamepad:
+    case LN_IntExpressionKind::MenuPlayerUser:
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_IntExpressionKind::SnapshotGameProperty:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_GAME_PROPERTY);
       break;
     case LN_IntExpressionKind::RuntimeTreeProperty:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_TREE_PROPERTY);
+      break;
+    case LN_IntExpressionKind::UICommandResult:
+    case LN_IntExpressionKind::UICommandHandle:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_BOOL_EXPRESSION);
+      break;
+    case LN_IntExpressionKind::UIFirstVisibleIndex:
+    case LN_IntExpressionKind::UILastVisibleIndex:
+    case LN_IntExpressionKind::UIElementEventIndex:
+    case LN_IntExpressionKind::UIElementEventTargetIndex:
+    case LN_IntExpressionKind::UIElementEventUser:
+    case LN_IntExpressionKind::UIElementEventAmount:
+    case LN_IntExpressionKind::UIViewPage:
+    case LN_IntExpressionKind::UIViewPageCount:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_QUERY_CACHE);
       break;
     case LN_IntExpressionKind::SnapshotCollisionGroup:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_COLLISION);
@@ -501,7 +668,8 @@ void AddIntExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_CHARACTER);
       break;
     case LN_IntExpressionKind::MouseWheelDelta:
-      AddInputDependency(summary, LN_DEP_INPUT_WHEEL);
+      AddInputDependency(summary,
+                         LN_DEP_INPUT_WHEEL | (expression.int_value != 0 ? LN_DEP_INPUT_RAW : 0u));
       break;
     case LN_IntExpressionKind::WindowResolutionWidth:
     case LN_IntExpressionKind::WindowResolutionHeight:
@@ -510,6 +678,9 @@ void AddIntExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       break;
     case LN_IntExpressionKind::LoopIndex:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_LOOP);
+      break;
+    case LN_IntExpressionKind::RepeatLimitRemaining:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_FLOW_CONTROL);
       break;
     case LN_IntExpressionKind::FromGenericValue:
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_GENERIC_VALUE);
@@ -525,7 +696,15 @@ void AddIntExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       break;
     case LN_IntExpressionKind::PhysicsQueryFaceIndex:
     case LN_IntExpressionKind::PhysicsQueryHitCount:
+    case LN_IntExpressionKind::PhysicsQueryRayCount:
       AddQueryDependency(summary, LN_DEP_QUERY_RESULT_FIELDS);
+      break;
+    case LN_IntExpressionKind::QueryVectorCount:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_QUERY_CACHE);
+      break;
+    case LN_IntExpressionKind::ConstraintBreakCount:
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::PhysicsConstraint);
       break;
     default:
       break;
@@ -543,10 +722,14 @@ void AddStringExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       AddRuntimeStateDependency(summary, LN_DEP_STATE_TREE_PROPERTY);
       break;
     case LN_StringExpressionKind::KeyLoggerCharacter:
-      AddInputDependency(summary, LN_DEP_INPUT_TEXT);
+      AddInputDependency(summary, LN_DEP_INPUT_KEYBOARD | LN_DEP_INPUT_TEXT);
       break;
     case LN_StringExpressionKind::KeyLoggerKeycode:
       AddInputDependency(summary, LN_DEP_INPUT_KEYBOARD);
+      break;
+    case LN_StringExpressionKind::InputBindingText:
+      /* Automatic follows the device player 0 used last. */
+      AddInputDependency(summary, kInputActionChannels);
       break;
     case LN_StringExpressionKind::FromGenericValue:
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_GENERIC_VALUE);
@@ -561,6 +744,17 @@ void AddStringExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       break;
     case LN_StringExpressionKind::RigidBodyConstraintName:
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_StringExpressionKind::ConstraintBreakName:
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::PhysicsConstraint);
+      break;
+    case LN_StringExpressionKind::UIElementEventAction:
+    case LN_StringExpressionKind::UIElementEventTargetAction:
+    case LN_StringExpressionKind::UIElementEventOutcome:
+    case LN_StringExpressionKind::UIElementEventMenu:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_QUERY_CACHE);
       AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     default:
@@ -594,6 +788,8 @@ void AddVectorExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       break;
     case LN_VectorExpressionKind::WorldToScreen:
     case LN_VectorExpressionKind::ScreenToWorld:
+      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM | LN_DEP_SNAPSHOT_OBJECT_GRAPH);
+      break;
     case LN_VectorExpressionKind::BoneHeadWorld:
     case LN_VectorExpressionKind::BoneTailWorld:
     case LN_VectorExpressionKind::BoneCenterWorld:
@@ -603,6 +799,8 @@ void AddVectorExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_VectorExpressionKind::BonePoseLocation:
     case LN_VectorExpressionKind::BonePoseScale:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM | LN_DEP_SNAPSHOT_OBJECT_GRAPH);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_VectorExpressionKind::RuntimeTreeProperty:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_TREE_PROPERTY);
@@ -619,13 +817,22 @@ void AddVectorExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_VectorExpressionKind::GamepadStick:
       AddInputDependency(summary, LN_DEP_INPUT_GAMEPAD_AXIS);
       break;
+    case LN_VectorExpressionKind::InputActionVector:
+      AddInputDependency(summary,
+                         kInputActionChannels | (expression.bool_value ? LN_DEP_INPUT_RAW : 0u));
+      break;
     case LN_VectorExpressionKind::PhysicsQueryPoint:
     case LN_VectorExpressionKind::PhysicsQueryNormal:
     case LN_VectorExpressionKind::PhysicsQueryCastPosition:
     case LN_VectorExpressionKind::PhysicsQueryDirection:
     case LN_VectorExpressionKind::PhysicsQueryEndPoint:
     case LN_VectorExpressionKind::PhysicsQueryUV:
+    case LN_VectorExpressionKind::UIScrollOffset:
+    case LN_VectorExpressionKind::UIScrollNormalized:
       AddQueryDependency(summary, LN_DEP_QUERY_RESULT_FIELDS);
+      break;
+    case LN_VectorExpressionKind::QueryVectorAverage:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_QUERY_CACHE);
       break;
     case LN_VectorExpressionKind::CollisionHitPoint:
     case LN_VectorExpressionKind::CollisionHitNormal:
@@ -634,27 +841,27 @@ void AddVectorExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
                          LN_DEP_QUERY_COLLISION_CONTACT | LN_DEP_QUERY_RESULT_FIELDS |
                              LN_DEP_QUERY_COLLISION_CONTACT_DETAILS);
       break;
-    case LN_VectorExpressionKind::SpawnPoolHitPoint:
-    case LN_VectorExpressionKind::SpawnPoolHitNormal:
-    case LN_VectorExpressionKind::SpawnPoolHitDirection:
-      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_COLLISION);
-      AddQueryDependency(summary, LN_DEP_QUERY_COLLISION_CONTACT | LN_DEP_QUERY_RESULT_FIELDS);
-      break;
     case LN_VectorExpressionKind::FromGenericValue:
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_GENERIC_VALUE);
-      break;
-    case LN_VectorExpressionKind::GroupCenterPosition:
-      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF | LN_DEP_DYNAMIC_DATABLOCK_REF);
-      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_VectorExpressionKind::InstructionNextPoint:
     case LN_VectorExpressionKind::TweenVectorResult:
     case LN_VectorExpressionKind::TweenRotationResult:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_FLOAT_EXPRESSION);
       break;
+    case LN_VectorExpressionKind::MotionPosition:
+    case LN_VectorExpressionKind::MotionVelocity:
+    case LN_VectorExpressionKind::MotionDirection:
+    case LN_VectorExpressionKind::MotionPredictedPosition:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_FLOW_CONTROL);
+      break;
     case LN_VectorExpressionKind::RigidBodyAttribute:
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
       AddMainThreadDependency(summary, LN_MainThreadOnlyReason::CollisionOrPhysicsQuery);
+      break;
+    case LN_VectorExpressionKind::ConstraintBreakAnchorPosition:
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::PhysicsConstraint);
       break;
     default:
       break;
@@ -665,12 +872,22 @@ void AddQueryExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
                                          const LN_QueryExpression &expression)
 {
   AddRuntimeStateDependency(summary, LN_DEP_STATE_QUERY_CACHE);
+  if (expression.ignore_list_expr_index != LN_INVALID_INDEX) {
+    AddDynamicDependency(summary, LN_DEP_DYNAMIC_GENERIC_VALUE | LN_DEP_DYNAMIC_OBJECT_REF);
+  }
   switch (expression.kind) {
     case LN_QueryExpressionKind::Raycast:
     case LN_QueryExpressionKind::RaycastAll:
       summary.ray_query_detail_requirements |= expression.ray_query_detail_flags;
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
       AddQueryDependency(summary, LN_DEP_QUERY_RAY | LN_DEP_QUERY_RESULT_FIELDS);
+      break;
+    case LN_QueryExpressionKind::RaycastFromMesh:
+      summary.ray_query_detail_requirements |= expression.ray_query_detail_flags;
+      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddQueryDependency(summary, LN_DEP_QUERY_RAY | LN_DEP_QUERY_RESULT_FIELDS);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_QueryExpressionKind::ShapeCast:
     case LN_QueryExpressionKind::ShapeCastAll:
@@ -679,20 +896,62 @@ void AddQueryExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       AddQueryDependency(summary, LN_DEP_QUERY_RAY | LN_DEP_QUERY_RESULT_FIELDS);
       break;
     case LN_QueryExpressionKind::MouseRay:
+      AddInputDependency(summary, LN_DEP_INPUT_MOUSE);
+      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
+      AddQueryDependency(summary, LN_DEP_QUERY_RAY | LN_DEP_QUERY_RESULT_FIELDS);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_QueryExpressionKind::CameraRay:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
       AddQueryDependency(summary, LN_DEP_QUERY_RAY | LN_DEP_QUERY_RESULT_FIELDS);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_QueryExpressionKind::MouseOver:
       AddInputDependency(summary, LN_DEP_INPUT_MOUSE);
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
       AddQueryDependency(summary,
-                         LN_DEP_QUERY_MOUSE_OVER | LN_DEP_QUERY_RAY |
-                             LN_DEP_QUERY_RESULT_FIELDS);
+                         LN_DEP_QUERY_MOUSE_OVER | LN_DEP_QUERY_RAY | LN_DEP_QUERY_RESULT_FIELDS);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_QueryExpressionKind::ObjectScrollView:
+    case LN_QueryExpressionKind::ObjectGridView:
+      AddInputDependency(summary,
+                         LN_DEP_INPUT_MOUSE | LN_DEP_INPUT_KEYBOARD |
+                             LN_DEP_INPUT_GAMEPAD_BUTTON);
+      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
+      AddQueryDependency(summary,
+                         LN_DEP_QUERY_MOUSE_OVER | LN_DEP_QUERY_RESULT_FIELDS |
+                             LN_DEP_QUERY_OBJECT_UI);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_QueryExpressionKind::UIElementEvent:
+      AddQueryDependency(summary, LN_DEP_QUERY_RESULT_FIELDS);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_QueryExpressionKind::ProjectileRay:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
       AddQueryDependency(summary, LN_DEP_QUERY_PROJECTILE | LN_DEP_QUERY_RESULT_FIELDS);
+      break;
+    case LN_QueryExpressionKind::VectorAverage:
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_GENERIC_VALUE);
+      if (expression.average_center_source == LN_AverageCenterSource::ObjectList) {
+        AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+        AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      }
+      else if (expression.average_center_source == LN_AverageCenterSource::Collection) {
+        AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF | LN_DEP_DYNAMIC_DATABLOCK_REF);
+        AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      }
+      break;
+    case LN_QueryExpressionKind::DistanceBetween:
+      if (expression.distance_endpoint_a == LN_DistanceEndpointMode::Object ||
+          expression.distance_endpoint_b == LN_DistanceEndpointMode::Object)
+      {
+        AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+        AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      }
       break;
     default:
       break;
@@ -743,48 +1002,87 @@ void AddValueExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     AddMainThreadDependency(summary, reason);
     return;
   }
+  if (reason == LN_MainThreadOnlyReason::PhysicsConstraint) {
+    AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+    AddMainThreadDependency(summary, reason);
+    return;
+  }
 
   switch (expression.kind) {
+    case LN_ValueExpressionKind::PlayerViewCamera:
+    case LN_ValueExpressionKind::MenuPlayerOwner:
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_ValueExpressionKind::SnapshotGameProperty:
-    case LN_ValueExpressionKind::ObjectGameProperty:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_GAME_PROPERTY);
+      break;
+    case LN_ValueExpressionKind::ObjectGameProperty:
+    case LN_ValueExpressionKind::ItemLibraryInfo:
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_ValueExpressionKind::InventoryEdit:
+    case LN_ValueExpressionKind::InventoryAmount:
+    case LN_ValueExpressionKind::InventoryChanged:
+    case LN_ValueExpressionKind::InventoryMade:
+    case LN_ValueExpressionKind::InventoryOutcome:
+      /* The item library's stack limits are read from the scene, like Get Item Info. */
+      if (InventoryReadsLibrary(expression)) {
+        AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+        AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      }
       break;
     case LN_ValueExpressionKind::RuntimeTreeProperty:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_TREE_PROPERTY);
       break;
-    case LN_ValueExpressionKind::OwnerObject:
-    case LN_ValueExpressionKind::ObjectByName:
     case LN_ValueExpressionKind::ObjectParent:
     case LN_ValueExpressionKind::ObjectChild:
     case LN_ValueExpressionKind::ObjectChildByName:
-    case LN_ValueExpressionKind::ObjectAttribute:
-    case LN_ValueExpressionKind::BoneAttribute:
-    case LN_ValueExpressionKind::BonePoseRotation:
-    case LN_ValueExpressionKind::CurrentScene:
+      /* The hierarchy is mutable and not part of LN_Snapshot. Keep these reads on the main
+       * thread until a real immutable object-graph snapshot exists. */
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_ValueExpressionKind::CollectionObjects:
+      /* Collection membership changes while playing and its lookups fill the scene's caches. */
+      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_OBJECT_GRAPH);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_ValueExpressionKind::OwnerObject:
+    case LN_ValueExpressionKind::ObjectByName:
+    case LN_ValueExpressionKind::ObjectAttribute:
+    case LN_ValueExpressionKind::CurrentScene:
     case LN_ValueExpressionKind::CollectionObjectNames:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_OBJECT_GRAPH);
-      if (expression.kind == LN_ValueExpressionKind::ObjectByName ||
-          expression.kind == LN_ValueExpressionKind::ObjectChildByName)
-      {
+      if (expression.kind == LN_ValueExpressionKind::ObjectByName) {
         AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
       }
+      break;
+    case LN_ValueExpressionKind::BoneAttribute:
+    case LN_ValueExpressionKind::BonePoseRotation:
+      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_OBJECT_GRAPH);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_ValueExpressionKind::RigidBodyConstraintNames:
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
       AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_ValueExpressionKind::EventContent:
-      AddEventDependency(summary, LN_DEP_EVENT_SUBJECT_READ | LN_DEP_EVENT_CONTENT_READ |
-                                      (expression.bool_expr_index != LN_INVALID_INDEX ?
-                                           LN_DEP_EVENT_TARGETED_RECEIVE :
-                                           0u));
+      AddEventDependency(summary,
+                         LN_DEP_EVENT_SUBJECT_READ | LN_DEP_EVENT_CONTENT_READ |
+                             (expression.bool_expr_index != LN_INVALID_INDEX ?
+                                  LN_DEP_EVENT_TARGETED_RECEIVE :
+                                  0u));
       break;
     case LN_ValueExpressionKind::EventMessenger:
-      AddEventDependency(summary, LN_DEP_EVENT_SUBJECT_READ | LN_DEP_EVENT_MESSENGER_READ |
-                                      (expression.bool_expr_index != LN_INVALID_INDEX ?
-                                           LN_DEP_EVENT_TARGETED_RECEIVE :
-                                           0u));
+      AddEventDependency(summary,
+                         LN_DEP_EVENT_SUBJECT_READ | LN_DEP_EVENT_MESSENGER_READ |
+                             (expression.bool_expr_index != LN_INVALID_INDEX ?
+                                  LN_DEP_EVENT_TARGETED_RECEIVE :
+                                  0u));
       break;
     case LN_ValueExpressionKind::PhysicsQueryObject:
     case LN_ValueExpressionKind::PhysicsQueryObjects:
@@ -798,6 +1096,11 @@ void AddValueExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_ValueExpressionKind::PhysicsQueryFaceIndices:
     case LN_ValueExpressionKind::PhysicsQueryHasUVs:
     case LN_ValueExpressionKind::PhysicsQueryUVs:
+    case LN_ValueExpressionKind::PhysicsQueryHits:
+    case LN_ValueExpressionKind::PhysicsQueryBlockedList:
+    case LN_ValueExpressionKind::PhysicsQueryRayOrigins:
+    case LN_ValueExpressionKind::PhysicsQueryRayDirections:
+    case LN_ValueExpressionKind::PhysicsQueryEndPoints:
       AddQueryDependency(summary, LN_DEP_QUERY_RESULT_FIELDS);
       break;
     case LN_ValueExpressionKind::ProjectileParabola:
@@ -809,6 +1112,15 @@ void AddValueExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       break;
     case LN_ValueExpressionKind::LoopCurrentValue:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_LOOP);
+      break;
+    case LN_ValueExpressionKind::UIFocusObject:
+    case LN_ValueExpressionKind::UIElementEventObject:
+    case LN_ValueExpressionKind::UIElementEventTarget:
+    case LN_ValueExpressionKind::UIElementEventItem:
+    case LN_ValueExpressionKind::UIElementEventTargetItem:
+      AddRuntimeStateDependency(summary, LN_DEP_STATE_QUERY_CACHE);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_ValueExpressionKind::MaterialSlot:
     case LN_ValueExpressionKind::MaterialNodeValue:
@@ -855,8 +1167,7 @@ void MarkInputRead(LN_SchedulerSummary &summary)
   AddResourceAccess(summary, LN_SCHEDULER_RESOURCE_INPUT);
 }
 
-void MarkQueryCacheRead(LN_SchedulerSummary &summary,
-                        const LN_MainThreadOnlyReason reason)
+void MarkQueryCacheRead(LN_SchedulerSummary &summary, const LN_MainThreadOnlyReason reason)
 {
   PromotePurity(summary, LN_SchedulerPurity::ReadsQueryCache);
   AddResourceAccess(summary,
@@ -875,6 +1186,24 @@ void MarkSnapshotQueryCacheRead(LN_SchedulerSummary &summary)
                         LN_SCHEDULER_RESOURCE_PHYSICS);
   summary.uses_jolt_queries_or_contacts = true;
   PromoteWorkClass(summary, LN_EstimatedWorkClass::Heavy);
+}
+
+void MarkUIQueryStateRead(LN_SchedulerSummary &summary)
+{
+  PromotePurity(summary, LN_SchedulerPurity::ReadsInput);
+  AddResourceAccess(summary,
+                    LN_SCHEDULER_RESOURCE_INPUT | LN_SCHEDULER_RESOURCE_QUERY_CACHE |
+                        LN_SCHEDULER_RESOURCE_LOGIC_MANAGER);
+  summary.reads_snapshot_only = false;
+  MarkMainThreadOnly(summary, LN_MainThreadOnlyReason::QueryExpression);
+}
+
+void MarkPhysicsConstraintBreakEventRead(LN_SchedulerSummary &summary)
+{
+  /* The event payload has already been snapshotted by Jolt, but it is owned
+   * by the scene logic manager and must be consumed on the main thread. */
+  AddResourceAccess(summary, LN_SCHEDULER_RESOURCE_LOGIC_MANAGER | LN_SCHEDULER_RESOURCE_PHYSICS);
+  MarkMainThreadOnly(summary, LN_MainThreadOnlyReason::PhysicsConstraint);
 }
 
 void MarkCommandWrite(LN_SchedulerSummary &summary,
@@ -956,6 +1285,26 @@ LN_VectorExpression MakeConstantVectorExpression(const MT_Vector3 &value)
   return expression;
 }
 
+LN_VectorExpression MakeConstantRotationExpression(const MT_Vector3 &euler_radians)
+{
+  LN_VectorExpression expression;
+  expression.kind = LN_VectorExpressionKind::Constant;
+  expression.output_type = LN_ValueType::Rotation;
+  expression.vector_value = euler_radians;
+  expression.rotation_value = LN_Rotation::FromEulerXYZ(euler_radians);
+  return expression;
+}
+
+LN_VectorExpression MakeConstantRotationExpression(const LN_Rotation &rotation)
+{
+  LN_VectorExpression expression;
+  expression.kind = LN_VectorExpressionKind::Constant;
+  expression.output_type = LN_ValueType::Rotation;
+  expression.rotation_value = rotation;
+  expression.vector_value = rotation.ToEulerXYZ();
+  return expression;
+}
+
 LN_ColorExpression MakeConstantColorExpression(const MT_Vector4 &value)
 {
   LN_ColorExpression expression;
@@ -986,11 +1335,23 @@ bool GetConstantFloat(const std::vector<LN_FloatExpression> &expressions,
   return true;
 }
 
+bool GetConstantInt(const std::vector<LN_IntExpression> &expressions,
+                    const uint32_t index,
+                    int32_t &r_value)
+{
+  if (index >= expressions.size() || expressions[index].kind != LN_IntExpressionKind::Constant) {
+    return false;
+  }
+  r_value = expressions[index].int_value;
+  return true;
+}
+
 bool GetConstantString(const std::vector<LN_StringExpression> &expressions,
                        const uint32_t index,
                        std::string &r_value)
 {
-  if (index >= expressions.size() || expressions[index].kind != LN_StringExpressionKind::Constant) {
+  if (index >= expressions.size() || expressions[index].kind != LN_StringExpressionKind::Constant)
+  {
     return false;
   }
   r_value = expressions[index].string_value;
@@ -1001,10 +1362,26 @@ bool GetConstantVector(const std::vector<LN_VectorExpression> &expressions,
                        const uint32_t index,
                        MT_Vector3 &r_value)
 {
-  if (index >= expressions.size() || expressions[index].kind != LN_VectorExpressionKind::Constant) {
+  if (index >= expressions.size() || expressions[index].kind != LN_VectorExpressionKind::Constant)
+  {
     return false;
   }
   r_value = expressions[index].vector_value;
+  return true;
+}
+
+bool GetConstantRotation(const std::vector<LN_VectorExpression> &expressions,
+                         const uint32_t index,
+                         LN_Rotation &r_value)
+{
+  if (index >= expressions.size() || expressions[index].kind != LN_VectorExpressionKind::Constant)
+  {
+    return false;
+  }
+  const LN_VectorExpression &expression = expressions[index];
+  r_value = expression.output_type == LN_ValueType::Rotation ?
+                expression.rotation_value :
+                LN_Rotation::FromEulerXYZ(expression.vector_value);
   return true;
 }
 
@@ -1037,17 +1414,19 @@ bool FloatExpressionsEqual(const LN_FloatExpression &a, const LN_FloatExpression
   return a.kind == b.kind && a.input0 == b.input0 && a.input1 == b.input1 &&
          a.input2 == b.input2 && a.input_indices == b.input_indices &&
          a.bool_expr_index == b.bool_expr_index && a.string_expr_index == b.string_expr_index &&
-         a.property_ref_index == b.property_ref_index && a.int_value == b.int_value &&
-         a.threshold_operation == b.threshold_operation && a.range_operation == b.range_operation &&
-         FloatEqual(a.float_value, b.float_value) && a.bool_value == b.bool_value &&
-         a.component_index == b.component_index;
+         a.property_ref_index == b.property_ref_index &&
+         a.rigid_body_constraint_match_mode == b.rigid_body_constraint_match_mode &&
+         a.int_value == b.int_value && a.threshold_operation == b.threshold_operation &&
+         a.range_operation == b.range_operation && FloatEqual(a.float_value, b.float_value) &&
+         a.bool_value == b.bool_value && a.component_index == b.component_index;
 }
 
 bool IntExpressionsEqual(const LN_IntExpression &a, const LN_IntExpression &b)
 {
   return a.kind == b.kind && a.input0 == b.input0 && a.input1 == b.input1 &&
          a.input2 == b.input2 && a.property_ref_index == b.property_ref_index &&
-         a.int_value == b.int_value;
+         a.rigid_body_constraint_match_mode == b.rigid_body_constraint_match_mode &&
+         a.int_value == b.int_value && a.float_to_int_mode == b.float_to_int_mode;
 }
 
 bool StringExpressionsEqual(const LN_StringExpression &a, const LN_StringExpression &b)
@@ -1065,6 +1444,9 @@ bool VectorExpressionsEqual(const LN_VectorExpression &a, const LN_VectorExpress
   return a.kind == b.kind && a.input0 == b.input0 && a.input1 == b.input1 &&
          a.input2 == b.input2 && a.float_expr_index == b.float_expr_index &&
          a.bool_expr_index == b.bool_expr_index && a.property_ref_index == b.property_ref_index &&
+         a.rigid_body_constraint_match_mode == b.rigid_body_constraint_match_mode &&
+         a.output_type == b.output_type &&
+         a.rotation_value.NearlyEquals(b.rotation_value, 1.0e-7f) &&
          VectorEqual(a.vector_value, b.vector_value) && FloatEqual(a.float_value, b.float_value) &&
          a.bool_value == b.bool_value;
 }
@@ -1096,7 +1478,10 @@ bool ValueExpressionsEqual(const LN_ValueExpression &a, const LN_ValueExpression
     case LN_ValueType::Color:
       return ColorEqual(a.value.color_value, b.value.color_value);
     case LN_ValueType::Rotation:
-      return VectorEqual(a.value.rotation_euler_value, b.value.rotation_euler_value);
+      /* Keep constants with different authored Euler turns distinct. Quaternion-equivalent
+       * values can still have observably different legacy graph-boundary representations. */
+      return a.value.rotation_value.NearlyEquals(b.value.rotation_value, 1.0e-7f) &&
+             VectorEqual(a.value.RotationEulerRadians(), b.value.RotationEulerRadians());
     case LN_ValueType::String:
       return a.value.string_value == b.value.string_value;
     case LN_ValueType::None:
@@ -1138,6 +1523,11 @@ bool BoolExpressionCanCSE(const LN_BoolExpressionKind kind)
     case LN_BoolExpressionKind::StringStartsWith:
     case LN_BoolExpressionKind::StringEndsWith:
     case LN_BoolExpressionKind::ValueIsNone:
+    case LN_BoolExpressionKind::FromInt:
+    case LN_BoolExpressionKind::FromFloat:
+    case LN_BoolExpressionKind::FromString:
+    case LN_BoolExpressionKind::FromVector:
+    case LN_BoolExpressionKind::FromColor:
       return true;
     default:
       return false;
@@ -1152,6 +1542,7 @@ bool FloatExpressionCanCSE(const LN_FloatExpressionKind kind)
     case LN_FloatExpressionKind::Subtract:
     case LN_FloatExpressionKind::Multiply:
     case LN_FloatExpressionKind::Divide:
+    case LN_FloatExpressionKind::SafeDivide:
     case LN_FloatExpressionKind::Power:
     case LN_FloatExpressionKind::Minimum:
     case LN_FloatExpressionKind::Maximum:
@@ -1174,6 +1565,10 @@ bool FloatExpressionCanCSE(const LN_FloatExpressionKind kind)
     case LN_FloatExpressionKind::VectorComponent:
     case LN_FloatExpressionKind::ColorComponent:
     case LN_FloatExpressionKind::Select:
+    case LN_FloatExpressionKind::FloatCurve:
+    case LN_FloatExpressionKind::FromBool:
+    case LN_FloatExpressionKind::FromInt:
+    case LN_FloatExpressionKind::FromString:
       return true;
     default:
       return false;
@@ -1185,6 +1580,9 @@ bool IntExpressionCanCSE(const LN_IntExpressionKind kind)
   switch (kind) {
     case LN_IntExpressionKind::Constant:
     case LN_IntExpressionKind::StringCount:
+    case LN_IntExpressionKind::FromBool:
+    case LN_IntExpressionKind::FromFloat:
+    case LN_IntExpressionKind::FromString:
       return true;
     default:
       return false;
@@ -1201,6 +1599,11 @@ bool StringExpressionCanCSE(const LN_StringExpressionKind kind)
     case LN_StringExpressionKind::ToLowercase:
     case LN_StringExpressionKind::ZeroFill:
     case LN_StringExpressionKind::Format:
+    case LN_StringExpressionKind::FromBool:
+    case LN_StringExpressionKind::FromInt:
+    case LN_StringExpressionKind::FromFloat:
+    case LN_StringExpressionKind::FromVector:
+    case LN_StringExpressionKind::FromColor:
       return true;
     default:
       return false;
@@ -1222,7 +1625,11 @@ bool VectorExpressionCanCSE(const LN_VectorExpressionKind kind)
     case LN_VectorExpressionKind::Normalize:
     case LN_VectorExpressionKind::Resize:
     case LN_VectorExpressionKind::VectorToRotation:
+    case LN_VectorExpressionKind::BoneRotationToObjectRotation:
     case LN_VectorExpressionKind::Combine:
+    case LN_VectorExpressionKind::BroadcastFloat:
+    case LN_VectorExpressionKind::BroadcastInt:
+    case LN_VectorExpressionKind::FromColor:
       return true;
     default:
       return false;
@@ -1270,12 +1677,20 @@ bool TryEvaluateFloatCompare(const LN_FloatCompareOperation operation,
 
 LN_BoolExpression FoldBoolExpression(const LN_BoolExpression &expression,
                                      const std::vector<LN_BoolExpression> &bool_expressions,
-                                     const std::vector<LN_FloatExpression> &float_expressions)
+                                     const std::vector<LN_FloatExpression> &float_expressions,
+                                     const std::vector<LN_IntExpression> &int_expressions,
+                                     const std::vector<LN_StringExpression> &string_expressions,
+                                     const std::vector<LN_VectorExpression> &vector_expressions,
+                                     const std::vector<LN_ColorExpression> &color_expressions)
 {
   bool a = false;
   bool b = false;
   float float_a = 0.0f;
   float float_b = 0.0f;
+  int32_t int_value = 0;
+  std::string string_value;
+  MT_Vector3 vector_value;
+  MT_Vector4 color_value;
   switch (expression.kind) {
     case LN_BoolExpressionKind::Not:
       if (GetConstantBool(bool_expressions, expression.input0, a)) {
@@ -1304,6 +1719,31 @@ LN_BoolExpression FoldBoolExpression(const LN_BoolExpression &expression,
         return MakeConstantBoolExpression(a);
       }
       break;
+    case LN_BoolExpressionKind::FromInt:
+      if (GetConstantInt(int_expressions, expression.input0, int_value)) {
+        return MakeConstantBoolExpression(int_value != 0);
+      }
+      break;
+    case LN_BoolExpressionKind::FromFloat:
+      if (GetConstantFloat(float_expressions, expression.input0, float_a)) {
+        return MakeConstantBoolExpression(float_a != 0.0f);
+      }
+      break;
+    case LN_BoolExpressionKind::FromString:
+      if (GetConstantString(string_expressions, expression.input0, string_value)) {
+        return MakeConstantBoolExpression(!string_value.empty());
+      }
+      break;
+    case LN_BoolExpressionKind::FromVector:
+      if (GetConstantVector(vector_expressions, expression.input0, vector_value)) {
+        return MakeConstantBoolExpression(vector_value.length2() > 0.0f);
+      }
+      break;
+    case LN_BoolExpressionKind::FromColor:
+      if (GetConstantColor(color_expressions, expression.input0, color_value)) {
+        return MakeConstantBoolExpression(color_value.length2() > 0.0f);
+      }
+      break;
     default:
       break;
   }
@@ -1313,6 +1753,8 @@ LN_BoolExpression FoldBoolExpression(const LN_BoolExpression &expression,
 LN_FloatExpression FoldFloatExpression(const LN_FloatExpression &expression,
                                        const std::vector<LN_BoolExpression> &bool_expressions,
                                        const std::vector<LN_FloatExpression> &float_expressions,
+                                       const std::vector<LN_IntExpression> &int_expressions,
+                                       const std::vector<LN_StringExpression> &string_expressions,
                                        const std::vector<LN_VectorExpression> &vector_expressions,
                                        const std::vector<LN_ColorExpression> &color_expressions)
 {
@@ -1320,42 +1762,57 @@ LN_FloatExpression FoldFloatExpression(const LN_FloatExpression &expression,
   float b = 0.0f;
   float c = 0.0f;
   bool condition = false;
+  int32_t int_value = 0;
+  std::string string_value;
   MT_Vector3 vector;
   MT_Vector4 color;
   switch (expression.kind) {
     case LN_FloatExpressionKind::Add:
       if (GetConstantFloat(float_expressions, expression.input0, a) &&
-          GetConstantFloat(float_expressions, expression.input1, b)) {
+          GetConstantFloat(float_expressions, expression.input1, b))
+      {
         return MakeConstantFloatExpression(a + b);
       }
       break;
     case LN_FloatExpressionKind::Subtract:
       if (GetConstantFloat(float_expressions, expression.input0, a) &&
-          GetConstantFloat(float_expressions, expression.input1, b)) {
+          GetConstantFloat(float_expressions, expression.input1, b))
+      {
         return MakeConstantFloatExpression(a - b);
       }
       break;
     case LN_FloatExpressionKind::Multiply:
       if (GetConstantFloat(float_expressions, expression.input0, a) &&
-          GetConstantFloat(float_expressions, expression.input1, b)) {
+          GetConstantFloat(float_expressions, expression.input1, b))
+      {
         return MakeConstantFloatExpression(a * b);
       }
       break;
     case LN_FloatExpressionKind::Divide:
       if (GetConstantFloat(float_expressions, expression.input0, a) &&
-          GetConstantFloat(float_expressions, expression.input1, b)) {
+          GetConstantFloat(float_expressions, expression.input1, b))
+      {
         return MakeConstantFloatExpression(std::fabs(b) <= 1.0e-20f ? 0.0f : a / b);
+      }
+      break;
+    case LN_FloatExpressionKind::SafeDivide:
+      if (GetConstantFloat(float_expressions, expression.input0, a) &&
+          GetConstantFloat(float_expressions, expression.input1, b))
+      {
+        return MakeConstantFloatExpression(b == 0.0f ? 0.0f : a / b);
       }
       break;
     case LN_FloatExpressionKind::Minimum:
       if (GetConstantFloat(float_expressions, expression.input0, a) &&
-          GetConstantFloat(float_expressions, expression.input1, b)) {
+          GetConstantFloat(float_expressions, expression.input1, b))
+      {
         return MakeConstantFloatExpression(std::min(a, b));
       }
       break;
     case LN_FloatExpressionKind::Maximum:
       if (GetConstantFloat(float_expressions, expression.input0, a) &&
-          GetConstantFloat(float_expressions, expression.input1, b)) {
+          GetConstantFloat(float_expressions, expression.input1, b))
+      {
         return MakeConstantFloatExpression(std::max(a, b));
       }
       break;
@@ -1416,6 +1873,21 @@ LN_FloatExpression FoldFloatExpression(const LN_FloatExpression &expression,
         }
       }
       break;
+    case LN_FloatExpressionKind::FromBool:
+      if (GetConstantBool(bool_expressions, expression.bool_expr_index, condition)) {
+        return MakeConstantFloatExpression(condition ? 1.0f : 0.0f);
+      }
+      break;
+    case LN_FloatExpressionKind::FromInt:
+      if (GetConstantInt(int_expressions, expression.input0, int_value)) {
+        return MakeConstantFloatExpression(float(int_value));
+      }
+      break;
+    case LN_FloatExpressionKind::FromString:
+      if (GetConstantString(string_expressions, expression.string_expr_index, string_value)) {
+        return MakeConstantFloatExpression(LN_TryParseTypecastFloat(string_value, a) ? a : 0.0f);
+      }
+      break;
     default:
       break;
   }
@@ -1437,8 +1909,12 @@ static int32_t CountStringOccurrences(const std::string &text, const std::string
 }
 
 LN_IntExpression FoldIntExpression(const LN_IntExpression &expression,
+                                   const std::vector<LN_BoolExpression> &bool_expressions,
+                                   const std::vector<LN_FloatExpression> &float_expressions,
                                    const std::vector<LN_StringExpression> &string_expressions)
 {
+  bool bool_value = false;
+  float float_value = 0.0f;
   std::string text;
   std::string needle;
   if (expression.kind == LN_IntExpressionKind::StringCount &&
@@ -1447,27 +1923,85 @@ LN_IntExpression FoldIntExpression(const LN_IntExpression &expression,
   {
     return MakeConstantIntExpression(CountStringOccurrences(text, needle));
   }
+  if (expression.kind == LN_IntExpressionKind::FromBool &&
+      GetConstantBool(bool_expressions, expression.input0, bool_value))
+  {
+    return MakeConstantIntExpression(bool_value ? 1 : 0);
+  }
+  if (expression.kind == LN_IntExpressionKind::FromFloat &&
+      GetConstantFloat(float_expressions, expression.input0, float_value))
+  {
+    return MakeConstantIntExpression(
+        LN_ConvertFloatToInt(float_value, expression.float_to_int_mode));
+  }
+  if (expression.kind == LN_IntExpressionKind::FromString &&
+      GetConstantString(string_expressions, expression.input0, text))
+  {
+    if (!LN_TryParseTypecastFloat(text, float_value)) {
+      float_value = 0.0f;
+    }
+    return MakeConstantIntExpression(
+        LN_ConvertFloatToInt(float_value, expression.float_to_int_mode));
+  }
   return expression;
 }
 
-LN_StringExpression FoldStringExpression(const LN_StringExpression &expression,
-                                         const std::vector<LN_StringExpression> &string_expressions)
+LN_StringExpression FoldStringExpression(
+    const LN_StringExpression &expression,
+    const std::vector<LN_BoolExpression> &bool_expressions,
+    const std::vector<LN_IntExpression> &int_expressions,
+    const std::vector<LN_FloatExpression> &float_expressions,
+    const std::vector<LN_StringExpression> &string_expressions,
+    const std::vector<LN_VectorExpression> &vector_expressions,
+    const std::vector<LN_ColorExpression> &color_expressions)
 {
+  bool bool_value = false;
+  int32_t int_value = 0;
+  float float_value = 0.0f;
   std::string a;
   std::string b;
+  MT_Vector3 vector_value;
+  MT_Vector4 color_value;
   if (expression.kind == LN_StringExpressionKind::Join &&
       GetConstantString(string_expressions, expression.input0, a) &&
       GetConstantString(string_expressions, expression.input1, b))
   {
     return MakeConstantStringExpression(a + b);
   }
+  if (expression.kind == LN_StringExpressionKind::FromBool &&
+      GetConstantBool(bool_expressions, expression.input0, bool_value))
+  {
+    return MakeConstantStringExpression(bool_value ? "True" : "False");
+  }
+  if (expression.kind == LN_StringExpressionKind::FromInt &&
+      GetConstantInt(int_expressions, expression.input0, int_value))
+  {
+    return MakeConstantStringExpression(std::to_string(int_value));
+  }
+  if (expression.kind == LN_StringExpressionKind::FromFloat &&
+      GetConstantFloat(float_expressions, expression.input0, float_value))
+  {
+    return MakeConstantStringExpression(LN_TypecastFloatToString(float_value));
+  }
+  if (expression.kind == LN_StringExpressionKind::FromVector &&
+      GetConstantVector(vector_expressions, expression.input0, vector_value))
+  {
+    return MakeConstantStringExpression(LN_TypecastVectorToString(vector_value));
+  }
+  if (expression.kind == LN_StringExpressionKind::FromColor &&
+      GetConstantColor(color_expressions, expression.input0, color_value))
+  {
+    return MakeConstantStringExpression(LN_TypecastColorToString(color_value));
+  }
   return expression;
 }
 
 LN_VectorExpression FoldVectorExpression(
     const LN_VectorExpression &expression,
+    const std::vector<LN_IntExpression> &int_expressions,
     const std::vector<LN_FloatExpression> &float_expressions,
-    const std::vector<LN_VectorExpression> &vector_expressions)
+    const std::vector<LN_VectorExpression> &vector_expressions,
+    const std::vector<LN_ColorExpression> &color_expressions)
 {
   MT_Vector3 a;
   MT_Vector3 b;
@@ -1475,31 +2009,36 @@ LN_VectorExpression FoldVectorExpression(
   float x = 0.0f;
   float y = 0.0f;
   float z = 0.0f;
+  int32_t int_value = 0;
+  MT_Vector4 color;
+  LN_Rotation rotation;
   switch (expression.kind) {
     case LN_VectorExpressionKind::Add:
       if (GetConstantVector(vector_expressions, expression.input0, a) &&
-          GetConstantVector(vector_expressions, expression.input1, b)) {
+          GetConstantVector(vector_expressions, expression.input1, b))
+      {
         return MakeConstantVectorExpression(a + b);
       }
       break;
     case LN_VectorExpressionKind::Subtract:
       if (GetConstantVector(vector_expressions, expression.input0, a) &&
-          GetConstantVector(vector_expressions, expression.input1, b)) {
+          GetConstantVector(vector_expressions, expression.input1, b))
+      {
         return MakeConstantVectorExpression(a - b);
       }
       break;
     case LN_VectorExpressionKind::Scale:
       if (GetConstantVector(vector_expressions, expression.input0, a) &&
-          GetConstantFloat(float_expressions, expression.float_expr_index, scalar)) {
+          GetConstantFloat(float_expressions, expression.float_expr_index, scalar))
+      {
         return MakeConstantVectorExpression(a * scalar);
       }
       break;
     case LN_VectorExpressionKind::Normalize:
       if (GetConstantVector(vector_expressions, expression.input0, a)) {
         const float length = a.length();
-        return MakeConstantVectorExpression(length <= 1.0e-20f ?
-                  MT_Vector3(0.0f, 0.0f, 0.0f) :
-                  a * (1.0f / length));
+        return MakeConstantVectorExpression(length <= 1.0e-20f ? MT_Vector3(0.0f, 0.0f, 0.0f) :
+                                                                 a * (1.0f / length));
       }
       break;
     case LN_VectorExpressionKind::Combine:
@@ -1507,7 +2046,30 @@ LN_VectorExpression FoldVectorExpression(
           GetConstantFloat(float_expressions, expression.input1, y) &&
           GetConstantFloat(float_expressions, expression.input2, z))
       {
-        return MakeConstantVectorExpression(MT_Vector3(x, y, z));
+        return expression.output_type == LN_ValueType::Rotation ?
+                   MakeConstantRotationExpression(MT_Vector3(x, y, z)) :
+                   MakeConstantVectorExpression(MT_Vector3(x, y, z));
+      }
+      break;
+    case LN_VectorExpressionKind::BroadcastFloat:
+      if (GetConstantFloat(float_expressions, expression.float_expr_index, scalar)) {
+        return MakeConstantVectorExpression(MT_Vector3(scalar, scalar, scalar));
+      }
+      break;
+    case LN_VectorExpressionKind::BroadcastInt:
+      if (GetConstantInt(int_expressions, expression.input0, int_value)) {
+        const float scalar_value = float(int_value);
+        return MakeConstantVectorExpression(MT_Vector3(scalar_value, scalar_value, scalar_value));
+      }
+      break;
+    case LN_VectorExpressionKind::FromColor:
+      if (GetConstantColor(color_expressions, expression.input0, color)) {
+        return MakeConstantVectorExpression(MT_Vector3(color.x(), color.y(), color.z()));
+      }
+      break;
+    case LN_VectorExpressionKind::BoneRotationToObjectRotation:
+      if (GetConstantRotation(vector_expressions, expression.input0, rotation)) {
+        return MakeConstantRotationExpression(LN_BoneRotationToObjectRotation(rotation));
       }
       break;
     default:
@@ -1539,10 +2101,15 @@ LN_MainThreadOnlyReason MainThreadOnlyReasonForOpcode(const LN_OpCode opcode)
   switch (opcode) {
     case LN_OpCode::AddObject:
     case LN_OpCode::AssignGeometryNodesModifier:
+    case LN_OpCode::InventoryEdit:
+    case LN_OpCode::DropItem:
+    case LN_OpCode::ScrollObjectView:
+    case LN_OpCode::ShowMessage:
       return LN_MainThreadOnlyReason::ImmediateCommandHelper;
     case LN_OpCode::RemoveObject:
     case LN_OpCode::SetParent:
     case LN_OpCode::RemoveParent:
+    case LN_OpCode::SetSaveExistence:
       return LN_MainThreadOnlyReason::ObjectLifecycleCommand;
     case LN_OpCode::SetGlobalProperty:
       return LN_MainThreadOnlyReason::GlobalPropertyPersistence;
@@ -1552,31 +2119,38 @@ LN_MainThreadOnlyReason MainThreadOnlyReasonForOpcode(const LN_OpCode opcode)
     case LN_OpCode::RemoveVariable:
     case LN_OpCode::SaveGame:
     case LN_OpCode::LoadGame:
+    case LN_OpCode::InputMap:
       return LN_MainThreadOnlyReason::FilePersistence;
     case LN_OpCode::AddPhysicsConstraint:
     case LN_OpCode::RemovePhysicsConstraint:
       return LN_MainThreadOnlyReason::PhysicsConstraint;
     case LN_OpCode::MouseLook:
       return LN_MainThreadOnlyReason::InputDeviceState;
-    case LN_OpCode::SpawnPoolCreate:
-    case LN_OpCode::SpawnPoolSpawn:
-      return LN_MainThreadOnlyReason::SpawnPool;
     case LN_OpCode::SetCollectionVisibility:
+    case LN_OpCode::SetCollectionMember:
       return LN_MainThreadOnlyReason::CollectionVisibility;
     case LN_OpCode::ApplyForceToTarget:
       return LN_MainThreadOnlyReason::QueryExpression;
     case LN_OpCode::SetOverlayCollection:
     case LN_OpCode::RemoveOverlayCollection:
+    case LN_OpCode::OpenObjectMenu:
+    case LN_OpCode::CloseObjectMenu:
       return LN_MainThreadOnlyReason::OverlayCollection;
+    case LN_OpCode::SetUIFocus:
+    case LN_OpCode::SetPlayerPointer:
+    case LN_OpCode::TakeUIControl:
+    case LN_OpCode::ScreenAnchor:
+      return LN_MainThreadOnlyReason::QueryExpression;
     case LN_OpCode::DrawLine:
     case LN_OpCode::DrawArrow:
     case LN_OpCode::DrawPath:
     case LN_OpCode::DrawBox:
     case LN_OpCode::DrawMesh:
     case LN_OpCode::DrawAxis:
+      return LN_MainThreadOnlyReason::DebugDraw;
     case LN_OpCode::Navigate:
     case LN_OpCode::FollowPath:
-      return LN_MainThreadOnlyReason::DebugDraw;
+      return LN_MainThreadOnlyReason::Navigation;
     default:
       return LN_MainThreadOnlyReason::None;
   }
@@ -1600,6 +2174,7 @@ LN_InstructionPayloadKind PayloadKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::RotateToward:
     case LN_OpCode::SetTransformVector:
     case LN_OpCode::ApplyTransformVector:
+    case LN_OpCode::ScreenAnchor:
       return LN_InstructionPayloadKind::Transform;
     case LN_OpCode::SetLinearVelocity:
     case LN_OpCode::SetLocalLinearVelocity:
@@ -1642,6 +2217,7 @@ LN_InstructionPayloadKind PayloadKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SaveVariableDict:
     case LN_OpCode::ClearVariables:
     case LN_OpCode::RemoveVariable:
+    case LN_OpCode::InputMap:
     case LN_OpCode::CopyProperty:
       return LN_InstructionPayloadKind::Property;
     case LN_OpCode::AddObject:
@@ -1651,14 +2227,21 @@ LN_InstructionPayloadKind PayloadKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SetActiveCamera:
     case LN_OpCode::SetCameraFov:
     case LN_OpCode::SetCameraOrthoScale:
+    case LN_OpCode::SetSplitScreen:
+    case LN_OpCode::SetCameraViewport:
+    case LN_OpCode::SetCameraVisibility:
     case LN_OpCode::SetCollectionVisibility:
+    case LN_OpCode::SetCollectionMember:
     case LN_OpCode::SetOverlayCollection:
     case LN_OpCode::RemoveOverlayCollection:
+    case LN_OpCode::OpenObjectMenu:
+    case LN_OpCode::CloseObjectMenu:
+    case LN_OpCode::SetUIFocus:
+    case LN_OpCode::SetPlayerPointer:
+    case LN_OpCode::TakeUIControl:
     case LN_OpCode::LoadScene:
     case LN_OpCode::SetScene:
     case LN_OpCode::ReplaceMesh:
-    case LN_OpCode::SpawnPoolCreate:
-    case LN_OpCode::SpawnPoolSpawn:
       return LN_InstructionPayloadKind::Scene;
     case LN_OpCode::StopAllSounds:
     case LN_OpCode::PlaySound:
@@ -1666,6 +2249,7 @@ LN_InstructionPayloadKind PayloadKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::PauseSound:
     case LN_OpCode::ResumeSound:
     case LN_OpCode::StopSound:
+    case LN_OpCode::SetSoundVolume:
       return LN_InstructionPayloadKind::Audio;
     case LN_OpCode::SendEvent:
     case LN_OpCode::SetLogicTreeEnabled:
@@ -1674,11 +2258,14 @@ LN_InstructionPayloadKind PayloadKindForOpcode(const LN_OpCode opcode)
       return LN_InstructionPayloadKind::Event;
     case LN_OpCode::LoadBlendFile:
     case LN_OpCode::SaveGame:
+    case LN_OpCode::SetSaveExistence:
     case LN_OpCode::LoadGame:
       return LN_InstructionPayloadKind::Persistence;
     case LN_OpCode::Navigate:
     case LN_OpCode::FollowPath:
       return LN_InstructionPayloadKind::Navigation;
+    case LN_OpCode::SetUIInteractable:
+    case LN_OpCode::ResetSmoothing:
     case LN_OpCode::SetVisibility:
     case LN_OpCode::SetObjectColor:
     case LN_OpCode::MakeLightUnique:
@@ -1719,13 +2306,23 @@ LN_InstructionPayloadKind PayloadKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::Nop:
     case LN_OpCode::ArmTimer:
     case LN_OpCode::ArmDelay:
+    case LN_OpCode::ArmNextFrame:
     case LN_OpCode::UpdatePulsify:
     case LN_OpCode::UpdateBarrier:
     case LN_OpCode::BranchRoute:
+    case LN_OpCode::SetFlowGate:
+    case LN_OpCode::TryFlowGate:
     case LN_OpCode::TryOnce:
     case LN_OpCode::ResetOnce:
     case LN_OpCode::TryCooldown:
     case LN_OpCode::ResetCooldown:
+    case LN_OpCode::TryFlowRouter:
+    case LN_OpCode::ResetFlowRouter:
+    case LN_OpCode::TryRepeatLimit:
+    case LN_OpCode::ResetRepeatLimit:
+    case LN_OpCode::SampleMotion:
+    case LN_OpCode::ResetMotion:
+    case LN_OpCode::BreakLoop:
       return LN_InstructionPayloadKind::None;
     default:
       return LN_InstructionPayloadKind::Generic;
@@ -1765,8 +2362,10 @@ bool OpcodeUsesVectorCommandPayload(const LN_OpCode opcode)
 
 bool InstructionStoresGamePropertyTypedValue(const LN_Instruction &instruction)
 {
+  /* Modify/Toggle Property keep their target in `value_expr_index` even without an operand. */
   return instruction.property_value_type != LN_ValueType::None &&
-         (instruction.bool_expr_index != LN_INVALID_INDEX ||
+         (LN_PropertyModifyOp(instruction.int_value) != LN_PropertyModifyOp::None ||
+          instruction.bool_expr_index != LN_INVALID_INDEX ||
           instruction.int_expr_index != LN_INVALID_INDEX ||
           instruction.float_expr_index != LN_INVALID_INDEX ||
           instruction.string_expr_index != LN_INVALID_INDEX ||
@@ -1802,8 +2401,16 @@ LN_GamePropertyCommandPayload GamePropertyCommandPayloadFromInstruction(
   payload.string_expr_index = instruction.string_expr_index;
   payload.vector_expr_index = instruction.vector_expr_index;
   payload.color_expr_index = instruction.color_expr_index;
+  payload.modify_op = LN_PropertyModifyOp(instruction.int_value);
+  payload.modify_min_expr_index = instruction.secondary_float_expr_index;
+  payload.modify_max_expr_index = instruction.tertiary_float_expr_index;
 
-  if (InstructionStoresGamePropertyTypedValue(instruction)) {
+  if (instruction.property_value_type == LN_ValueType::Generic) {
+    /* Set Object Property: the target, then a value of any type. */
+    payload.object_value_expr_index = instruction.value_expr_index;
+    payload.value_expr_index = instruction.secondary_value_expr_index;
+  }
+  else if (InstructionStoresGamePropertyTypedValue(instruction)) {
     payload.object_value_expr_index = instruction.value_expr_index;
   }
   else {
@@ -1868,6 +2475,8 @@ uint32_t CommandResourceAccessForOpcode(const LN_OpCode opcode)
     case LN_OpCode::AssignGeometryNodesModifier:
       return LN_SCHEDULER_RESOURCE_RENDER | LN_SCHEDULER_RESOURCE_LOGIC_MANAGER |
              LN_SCHEDULER_RESOURCE_DATABLOCK;
+    case LN_OpCode::SetUIInteractable:
+    case LN_OpCode::ResetSmoothing:
     case LN_OpCode::SetVisibility:
     case LN_OpCode::SetObjectColor:
     case LN_OpCode::MakeLightUnique:
@@ -1896,15 +2505,28 @@ uint32_t CommandResourceAccessForOpcode(const LN_OpCode opcode)
       return LN_SCHEDULER_RESOURCE_RENDER;
     case LN_OpCode::SetGravity:
     case LN_OpCode::SetActiveCamera:
+    case LN_OpCode::SetSplitScreen:
+    case LN_OpCode::SetCameraViewport:
+    case LN_OpCode::SetCameraVisibility:
     case LN_OpCode::LoadScene:
     case LN_OpCode::SetScene:
       return LN_SCHEDULER_RESOURCE_SCENE;
-    case LN_OpCode::SpawnPoolCreate:
-    case LN_OpCode::SpawnPoolSpawn:
-      return LN_SCHEDULER_RESOURCE_WORLD | LN_SCHEDULER_RESOURCE_SCENE |
-             LN_SCHEDULER_RESOURCE_PHYSICS;
+    case LN_OpCode::OpenObjectMenu:
+    case LN_OpCode::CloseObjectMenu:
+    case LN_OpCode::SetOverlayCollection:
+    case LN_OpCode::RemoveOverlayCollection:
+      return LN_SCHEDULER_RESOURCE_SCENE | LN_SCHEDULER_RESOURCE_RENDER;
+    case LN_OpCode::SetUIFocus:
+    case LN_OpCode::SetPlayerPointer:
+    case LN_OpCode::TakeUIControl:
+      return LN_SCHEDULER_RESOURCE_LOGIC_MANAGER;
+    case LN_OpCode::ScreenAnchor:
+      return LN_SCHEDULER_RESOURCE_WORLD | LN_SCHEDULER_RESOURCE_SCENE;
     case LN_OpCode::SetTimeScale:
+    case LN_OpCode::SetGamePaused:
       return LN_SCHEDULER_RESOURCE_GLOBAL_STATE;
+    case LN_OpCode::SetPhysicsPaused:
+      return LN_SCHEDULER_RESOURCE_GLOBAL_STATE | LN_SCHEDULER_RESOURCE_PHYSICS;
     case LN_OpCode::SetGameProperty:
     case LN_OpCode::SetTreeProperty:
       return LN_SCHEDULER_RESOURCE_WORLD | LN_SCHEDULER_RESOURCE_GLOBAL_STATE;
@@ -1912,7 +2534,16 @@ uint32_t CommandResourceAccessForOpcode(const LN_OpCode opcode)
     case LN_OpCode::RemoveParent:
     case LN_OpCode::RemoveObject:
     case LN_OpCode::AddObject:
+    case LN_OpCode::SetSaveExistence:
+    case LN_OpCode::DropItem:
       return LN_SCHEDULER_RESOURCE_WORLD | LN_SCHEDULER_RESOURCE_SCENE;
+    case LN_OpCode::ScrollObjectView:
+    case LN_OpCode::ShowMessage:
+      return LN_SCHEDULER_RESOURCE_WORLD | LN_SCHEDULER_RESOURCE_SCENE |
+             LN_SCHEDULER_RESOURCE_LOGIC_MANAGER;
+    case LN_OpCode::InventoryEdit:
+      return LN_SCHEDULER_RESOURCE_WORLD | LN_SCHEDULER_RESOURCE_GLOBAL_STATE |
+             LN_SCHEDULER_RESOURCE_SCENE;
     case LN_OpCode::SetLogicTreeEnabled:
     case LN_OpCode::RunLogicTreeOnce:
     case LN_OpCode::InstallLogicTree:
@@ -1921,6 +2552,7 @@ uint32_t CommandResourceAccessForOpcode(const LN_OpCode opcode)
     case LN_OpCode::PlayAction:
     case LN_OpCode::StopAction:
     case LN_OpCode::SetActionFrame:
+    case LN_OpCode::SetShapeKeyValue:
     case LN_OpCode::SetBonePoseLocation:
     case LN_OpCode::SetBonePoseRotation:
     case LN_OpCode::SetBonePoseScale:
@@ -1936,6 +2568,7 @@ uint32_t CommandResourceAccessForOpcode(const LN_OpCode opcode)
     case LN_OpCode::PauseSound:
     case LN_OpCode::ResumeSound:
     case LN_OpCode::StopSound:
+    case LN_OpCode::SetSoundVolume:
       return LN_SCHEDULER_RESOURCE_AUDIO;
     case LN_OpCode::LoadBlendFile:
     case LN_OpCode::SaveGame:
@@ -1945,9 +2578,14 @@ uint32_t CommandResourceAccessForOpcode(const LN_OpCode opcode)
     case LN_OpCode::RestartGame:
     case LN_OpCode::Print:
     case LN_OpCode::SetGamepadVibration:
+    case LN_OpCode::SetPlayerGamepad:
       return LN_SCHEDULER_RESOURCE_GLOBAL_STATE;
     case LN_OpCode::GamepadLook:
     case LN_OpCode::MouseLook:
+      return LN_SCHEDULER_RESOURCE_WORLD;
+    case LN_OpCode::Navigate:
+      return LN_SCHEDULER_RESOURCE_WORLD | LN_SCHEDULER_RESOURCE_RENDER;
+    case LN_OpCode::FollowPath:
       return LN_SCHEDULER_RESOURCE_WORLD;
     default:
       return LN_SCHEDULER_RESOURCE_NONE;
@@ -1956,38 +2594,9 @@ uint32_t CommandResourceAccessForOpcode(const LN_OpCode opcode)
 
 bool OpcodeEmitsCommands(const LN_OpCode opcode)
 {
-  switch (opcode) {
-    case LN_OpCode::Nop:
-    case LN_OpCode::ArmTimer:
-    case LN_OpCode::ArmDelay:
-    case LN_OpCode::UpdatePulsify:
-    case LN_OpCode::UpdateBarrier:
-    case LN_OpCode::BranchRoute:
-    case LN_OpCode::TryOnce:
-    case LN_OpCode::ResetOnce:
-    case LN_OpCode::TryCooldown:
-    case LN_OpCode::ResetCooldown:
-    case LN_OpCode::RunLogicTreeOnce:
-      return false;
-    case LN_OpCode::AddObject:
-    case LN_OpCode::RemoveObject:
-    case LN_OpCode::SetParent:
-    case LN_OpCode::RemoveParent:
-    case LN_OpCode::Navigate:
-    case LN_OpCode::SaveGame:
-    case LN_OpCode::LoadGame:
-    case LN_OpCode::AddPhysicsConstraint:
-    case LN_OpCode::RemovePhysicsConstraint:
-    case LN_OpCode::ApplyForceToTarget:
-    case LN_OpCode::MouseLook:
-      return true;
-    default:
-      break;
-  }
-  if (MainThreadOnlyReasonForOpcode(opcode) != LN_MainThreadOnlyReason::None) {
-    return false;
-  }
-  return true;
+  const LN_RuntimeInstructionSemantics *semantics = LN_GetRuntimeInstructionSemantics(opcode);
+  return semantics != nullptr &&
+         (semantics->writes & LN_RUNTIME_SEMANTIC_WRITE_COMMAND_STREAM) != 0u;
 }
 
 uint32_t SchedulerResourcesForSemanticReads(const uint32_t reads)
@@ -2003,6 +2612,9 @@ uint32_t SchedulerResourcesForSemanticReads(const uint32_t reads)
       (reads & LN_RUNTIME_SEMANTIC_READ_RUNTIME_TREE_STATE) != 0u)
   {
     resources |= LN_SCHEDULER_RESOURCE_LOGIC_MANAGER;
+  }
+  if ((reads & LN_RUNTIME_SEMANTIC_READ_PHYSICS_EVENT) != 0u) {
+    resources |= LN_SCHEDULER_RESOURCE_LOGIC_MANAGER | LN_SCHEDULER_RESOURCE_PHYSICS;
   }
   if ((reads & LN_RUNTIME_SEMANTIC_READ_QUERY_CACHE) != 0u) {
     resources |= LN_SCHEDULER_RESOURCE_QUERY_CACHE | LN_SCHEDULER_RESOURCE_PHYSICS;
@@ -2022,8 +2634,8 @@ uint32_t SchedulerResourcesForSemanticObjectWrite(const LN_RuntimeCommandFamily 
     case LN_RuntimeCommandFamily::ObjectPhysics:
     case LN_RuntimeCommandFamily::PhysicsConstraint:
       return LN_SCHEDULER_RESOURCE_PHYSICS;
-    case LN_RuntimeCommandFamily::SpawnPool:
-      return LN_SCHEDULER_RESOURCE_WORLD | LN_SCHEDULER_RESOURCE_PHYSICS;
+    case LN_RuntimeCommandFamily::ObjectState:
+      return LN_SCHEDULER_RESOURCE_RENDER;
     case LN_RuntimeCommandFamily::Animation:
     case LN_RuntimeCommandFamily::Datablock:
       return LN_SCHEDULER_RESOURCE_DATABLOCK;
@@ -2039,8 +2651,7 @@ uint32_t SchedulerResourcesForSemanticObjectWrite(const LN_RuntimeCommandFamily 
 }
 
 uint32_t MinimumSchedulerResourcesForInstructionSemantics(
-    const LN_RuntimeInstructionSemantics &semantics,
-    const LN_RuntimeCommandFamily family)
+    const LN_RuntimeInstructionSemantics &semantics, const LN_RuntimeCommandFamily family)
 {
   uint32_t resources = SchedulerResourcesForSemanticReads(semantics.reads);
   if ((semantics.writes & LN_RUNTIME_SEMANTIC_WRITE_COMMAND_STREAM) != 0u) {
@@ -2076,8 +2687,7 @@ uint32_t MinimumSchedulerResourcesForExpressionSemantics(
   return SchedulerResourcesForSemanticReads(semantics.reads);
 }
 
-LN_MainThreadOnlyReason MainThreadOnlyReasonForBoolExpression(
-    const LN_BoolExpressionKind kind)
+LN_MainThreadOnlyReason MainThreadOnlyReasonForBoolExpression(const LN_BoolExpressionKind kind)
 {
   switch (kind) {
     case LN_BoolExpressionKind::CollisionDetected:
@@ -2086,13 +2696,14 @@ LN_MainThreadOnlyReason MainThreadOnlyReasonForBoolExpression(
     case LN_BoolExpressionKind::CollisionExit:
     case LN_BoolExpressionKind::ObjectsColliding:
       return LN_MainThreadOnlyReason::CollisionOrPhysicsQuery;
+    case LN_BoolExpressionKind::ConstraintBreak:
+      return LN_MainThreadOnlyReason::PhysicsConstraint;
     default:
       return LN_MainThreadOnlyReason::None;
   }
 }
 
-LN_MainThreadOnlyReason MainThreadOnlyReasonForValueExpression(
-    const LN_ValueExpressionKind kind)
+LN_MainThreadOnlyReason MainThreadOnlyReasonForValueExpression(const LN_ValueExpressionKind kind)
 {
   switch (kind) {
     case LN_ValueExpressionKind::GetGlobalProperty:
@@ -2107,6 +2718,9 @@ LN_MainThreadOnlyReason MainThreadOnlyReasonForValueExpression(
     case LN_ValueExpressionKind::CollisionHitPoints:
     case LN_ValueExpressionKind::CollisionHitNormals:
       return LN_MainThreadOnlyReason::CollisionOrPhysicsQuery;
+    case LN_ValueExpressionKind::ConstraintBreakTargetObject:
+    case LN_ValueExpressionKind::ConstraintBreakEvents:
+      return LN_MainThreadOnlyReason::PhysicsConstraint;
     default:
       return LN_MainThreadOnlyReason::None;
   }
@@ -2138,7 +2752,22 @@ const char *RequiredPhaseName(const LN_SchedulerRequiredPhase phase)
       return "None";
     case LN_SchedulerRequiredPhase::OnInit:
       return "OnInit";
+    case LN_SchedulerRequiredPhase::OnUpdate:
+      return "OnUpdate";
     case LN_SchedulerRequiredPhase::OnFixedUpdate:
+      return "OnFixedUpdate";
+  }
+  return "Unknown";
+}
+
+const char *EventName(const LN_Event event)
+{
+  switch (event) {
+    case LN_Event::OnInit:
+      return "OnInit";
+    case LN_Event::OnUpdate:
+      return "OnUpdate";
+    case LN_Event::OnFixedUpdate:
       return "OnFixedUpdate";
   }
   return "Unknown";
@@ -2180,14 +2809,14 @@ const char *MainThreadOnlyReasonName(const LN_MainThreadOnlyReason reason)
       return "FilePersistence";
     case LN_MainThreadOnlyReason::PhysicsConstraint:
       return "PhysicsConstraint";
-    case LN_MainThreadOnlyReason::SpawnPool:
-      return "SpawnPool";
     case LN_MainThreadOnlyReason::CollectionVisibility:
       return "CollectionVisibility";
     case LN_MainThreadOnlyReason::OverlayCollection:
       return "OverlayCollection";
     case LN_MainThreadOnlyReason::InputDeviceState:
       return "InputDeviceState";
+    case LN_MainThreadOnlyReason::Navigation:
+      return "Navigation";
     case LN_MainThreadOnlyReason::DebugDraw:
       return "DebugDraw";
   }
@@ -2213,47 +2842,26 @@ void AppendResourceAccessName(std::ostringstream &stream,
 void AppendResourceAccessNames(std::ostringstream &stream, const uint32_t resource_access)
 {
   bool first = true;
-  AppendResourceAccessName(stream,
-                           resource_access,
-                           LN_SCHEDULER_RESOURCE_SNAPSHOT,
-                           "Snapshot",
-                           first);
+  AppendResourceAccessName(
+      stream, resource_access, LN_SCHEDULER_RESOURCE_SNAPSHOT, "Snapshot", first);
   AppendResourceAccessName(stream, resource_access, LN_SCHEDULER_RESOURCE_INPUT, "Input", first);
-  AppendResourceAccessName(stream,
-                           resource_access,
-                           LN_SCHEDULER_RESOURCE_QUERY_CACHE,
-                           "QueryCache",
-                           first);
-  AppendResourceAccessName(stream,
-                           resource_access,
-                           LN_SCHEDULER_RESOURCE_COMMAND_BUFFER,
-                           "CommandBuffer",
-                           first);
+  AppendResourceAccessName(
+      stream, resource_access, LN_SCHEDULER_RESOURCE_QUERY_CACHE, "QueryCache", first);
+  AppendResourceAccessName(
+      stream, resource_access, LN_SCHEDULER_RESOURCE_COMMAND_BUFFER, "CommandBuffer", first);
   AppendResourceAccessName(stream, resource_access, LN_SCHEDULER_RESOURCE_WORLD, "World", first);
   AppendResourceAccessName(stream, resource_access, LN_SCHEDULER_RESOURCE_SCENE, "Scene", first);
-  AppendResourceAccessName(stream,
-                           resource_access,
-                           LN_SCHEDULER_RESOURCE_PHYSICS,
-                           "Physics",
-                           first);
+  AppendResourceAccessName(
+      stream, resource_access, LN_SCHEDULER_RESOURCE_PHYSICS, "Physics", first);
   AppendResourceAccessName(stream, resource_access, LN_SCHEDULER_RESOURCE_RENDER, "Render", first);
   AppendResourceAccessName(stream, resource_access, LN_SCHEDULER_RESOURCE_AUDIO, "Audio", first);
   AppendResourceAccessName(stream, resource_access, LN_SCHEDULER_RESOURCE_FILE, "File", first);
-  AppendResourceAccessName(stream,
-                           resource_access,
-                           LN_SCHEDULER_RESOURCE_GLOBAL_STATE,
-                           "GlobalState",
-                           first);
-  AppendResourceAccessName(stream,
-                           resource_access,
-                           LN_SCHEDULER_RESOURCE_LOGIC_MANAGER,
-                           "LogicManager",
-                           first);
-  AppendResourceAccessName(stream,
-                           resource_access,
-                           LN_SCHEDULER_RESOURCE_DATABLOCK,
-                           "Datablock",
-                           first);
+  AppendResourceAccessName(
+      stream, resource_access, LN_SCHEDULER_RESOURCE_GLOBAL_STATE, "GlobalState", first);
+  AppendResourceAccessName(
+      stream, resource_access, LN_SCHEDULER_RESOURCE_LOGIC_MANAGER, "LogicManager", first);
+  AppendResourceAccessName(
+      stream, resource_access, LN_SCHEDULER_RESOURCE_DATABLOCK, "Datablock", first);
   if (first) {
     stream << "None";
   }
@@ -2280,12 +2888,22 @@ LN_ExecOpKind ExecOpKindForOpcode(const LN_OpCode opcode)
       return LN_ExecOpKind::BranchRoute;
     case LN_OpCode::ArmTimer:
     case LN_OpCode::ArmDelay:
+    case LN_OpCode::ArmNextFrame:
     case LN_OpCode::UpdatePulsify:
     case LN_OpCode::UpdateBarrier:
     case LN_OpCode::TryOnce:
     case LN_OpCode::ResetOnce:
+    case LN_OpCode::SetFlowGate:
+    case LN_OpCode::TryFlowGate:
     case LN_OpCode::TryCooldown:
     case LN_OpCode::ResetCooldown:
+    case LN_OpCode::TryFlowRouter:
+    case LN_OpCode::ResetFlowRouter:
+    case LN_OpCode::TryRepeatLimit:
+    case LN_OpCode::ResetRepeatLimit:
+    case LN_OpCode::SampleMotion:
+    case LN_OpCode::ResetMotion:
+    case LN_OpCode::BreakLoop:
       return LN_ExecOpKind::TimeFlowControl;
     case LN_OpCode::SetWorldPosition:
     case LN_OpCode::SetLocalPosition:
@@ -2334,6 +2952,8 @@ LN_ExecOpKind ExecOpKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SetVehicleSuspensionDamping:
     case LN_OpCode::SetVehicleWheelFriction:
       return LN_ExecOpKind::PhysicsCommand;
+    case LN_OpCode::SetUIInteractable:
+    case LN_OpCode::ResetSmoothing:
     case LN_OpCode::SetVisibility:
       return LN_ExecOpKind::ObjectStateCommand;
     case LN_OpCode::SetObjectColor:
@@ -2341,6 +2961,9 @@ LN_ExecOpKind ExecOpKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SetActiveCamera:
     case LN_OpCode::SetCameraFov:
     case LN_OpCode::SetCameraOrthoScale:
+    case LN_OpCode::SetSplitScreen:
+    case LN_OpCode::SetCameraViewport:
+    case LN_OpCode::SetCameraVisibility:
       return LN_ExecOpKind::CameraCommand;
     case LN_OpCode::MakeLightUnique:
     case LN_OpCode::SetLightColor:
@@ -2355,6 +2978,7 @@ LN_ExecOpKind ExecOpKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SetCursorVisibility:
     case LN_OpCode::SetCursorPosition:
     case LN_OpCode::SetGamepadVibration:
+    case LN_OpCode::SetPlayerGamepad:
       return LN_ExecOpKind::WindowCommand;
     case LN_OpCode::GamepadLook:
     case LN_OpCode::MouseLook:
@@ -2365,10 +2989,12 @@ LN_ExecOpKind ExecOpKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::PauseSound:
     case LN_OpCode::ResumeSound:
     case LN_OpCode::StopSound:
+    case LN_OpCode::SetSoundVolume:
       return LN_ExecOpKind::AudioCommand;
     case LN_OpCode::PlayAction:
     case LN_OpCode::StopAction:
     case LN_OpCode::SetActionFrame:
+    case LN_OpCode::SetShapeKeyValue:
       return LN_ExecOpKind::ActionCommand;
     case LN_OpCode::SetBonePoseLocation:
     case LN_OpCode::SetBonePoseRotation:
@@ -2394,9 +3020,12 @@ LN_ExecOpKind ExecOpKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::QuitGame:
     case LN_OpCode::RestartGame:
     case LN_OpCode::SetTimeScale:
+    case LN_OpCode::SetGamePaused:
+    case LN_OpCode::SetPhysicsPaused:
       return LN_ExecOpKind::GlobalCommand;
     case LN_OpCode::LoadBlendFile:
     case LN_OpCode::SaveGame:
+    case LN_OpCode::SetSaveExistence:
     case LN_OpCode::LoadGame:
       return LN_ExecOpKind::FileCommand;
     case LN_OpCode::LoadScene:
@@ -2426,13 +3055,25 @@ LN_ExecOpKind ExecOpKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SaveVariableDict:
     case LN_OpCode::ClearVariables:
     case LN_OpCode::RemoveVariable:
+    case LN_OpCode::InputMap:
       return LN_ExecOpKind::VariableCommand;
     case LN_OpCode::Navigate:
     case LN_OpCode::FollowPath:
       return LN_ExecOpKind::NavigationCommand;
     case LN_OpCode::SetCollectionVisibility:
+    case LN_OpCode::SetCollectionMember:
     case LN_OpCode::SetOverlayCollection:
     case LN_OpCode::RemoveOverlayCollection:
+    case LN_OpCode::OpenObjectMenu:
+    case LN_OpCode::CloseObjectMenu:
+    case LN_OpCode::SetUIFocus:
+    case LN_OpCode::SetPlayerPointer:
+    case LN_OpCode::TakeUIControl:
+    case LN_OpCode::ScreenAnchor:
+    case LN_OpCode::InventoryEdit:
+    case LN_OpCode::DropItem:
+    case LN_OpCode::ScrollObjectView:
+    case LN_OpCode::ShowMessage:
       return LN_ExecOpKind::SceneCollectionCommand;
     case LN_OpCode::DrawLine:
     case LN_OpCode::DrawArrow:
@@ -2444,9 +3085,6 @@ LN_ExecOpKind ExecOpKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::AddPhysicsConstraint:
     case LN_OpCode::RemovePhysicsConstraint:
       return LN_ExecOpKind::PhysicsConstraintCommand;
-    case LN_OpCode::SpawnPoolCreate:
-    case LN_OpCode::SpawnPoolSpawn:
-      return LN_ExecOpKind::SpawnPoolCommand;
     default:
       return LN_ExecOpKind::Nop;
   }
@@ -2457,14 +3095,24 @@ bool OpcodeHasDirectExecOp(const LN_Instruction &instruction)
   switch (instruction.opcode) {
     case LN_OpCode::Nop:
     case LN_OpCode::BranchRoute:
+    case LN_OpCode::SetFlowGate:
+    case LN_OpCode::TryFlowGate:
     case LN_OpCode::ArmTimer:
     case LN_OpCode::ArmDelay:
+    case LN_OpCode::ArmNextFrame:
     case LN_OpCode::UpdatePulsify:
     case LN_OpCode::UpdateBarrier:
     case LN_OpCode::TryOnce:
     case LN_OpCode::ResetOnce:
     case LN_OpCode::TryCooldown:
     case LN_OpCode::ResetCooldown:
+    case LN_OpCode::TryFlowRouter:
+    case LN_OpCode::ResetFlowRouter:
+    case LN_OpCode::TryRepeatLimit:
+    case LN_OpCode::ResetRepeatLimit:
+    case LN_OpCode::SampleMotion:
+    case LN_OpCode::ResetMotion:
+    case LN_OpCode::BreakLoop:
     case LN_OpCode::SetWorldPosition:
     case LN_OpCode::SetLocalPosition:
     case LN_OpCode::SetWorldOrientation:
@@ -2510,11 +3158,16 @@ bool OpcodeHasDirectExecOp(const LN_Instruction &instruction)
     case LN_OpCode::SetVelocityVector:
     case LN_OpCode::ApplyTransformVector:
     case LN_OpCode::ApplyPhysicsVector:
+    case LN_OpCode::SetUIInteractable:
+    case LN_OpCode::ResetSmoothing:
     case LN_OpCode::SetVisibility:
     case LN_OpCode::SetObjectColor:
     case LN_OpCode::SetActiveCamera:
     case LN_OpCode::SetCameraFov:
     case LN_OpCode::SetCameraOrthoScale:
+    case LN_OpCode::SetSplitScreen:
+    case LN_OpCode::SetCameraViewport:
+    case LN_OpCode::SetCameraVisibility:
     case LN_OpCode::MakeLightUnique:
     case LN_OpCode::SetLightColor:
     case LN_OpCode::SetLightPower:
@@ -2527,6 +3180,7 @@ bool OpcodeHasDirectExecOp(const LN_Instruction &instruction)
     case LN_OpCode::SetCursorVisibility:
     case LN_OpCode::SetCursorPosition:
     case LN_OpCode::SetGamepadVibration:
+    case LN_OpCode::SetPlayerGamepad:
     case LN_OpCode::GamepadLook:
     case LN_OpCode::MouseLook:
     case LN_OpCode::StopAllSounds:
@@ -2535,9 +3189,11 @@ bool OpcodeHasDirectExecOp(const LN_Instruction &instruction)
     case LN_OpCode::PauseSound:
     case LN_OpCode::ResumeSound:
     case LN_OpCode::StopSound:
+    case LN_OpCode::SetSoundVolume:
     case LN_OpCode::PlayAction:
     case LN_OpCode::StopAction:
     case LN_OpCode::SetActionFrame:
+    case LN_OpCode::SetShapeKeyValue:
     case LN_OpCode::SetBonePoseLocation:
     case LN_OpCode::SetBonePoseRotation:
     case LN_OpCode::SetBonePoseScale:
@@ -2560,8 +3216,11 @@ bool OpcodeHasDirectExecOp(const LN_Instruction &instruction)
     case LN_OpCode::QuitGame:
     case LN_OpCode::RestartGame:
     case LN_OpCode::SetTimeScale:
+    case LN_OpCode::SetGamePaused:
+    case LN_OpCode::SetPhysicsPaused:
     case LN_OpCode::LoadBlendFile:
     case LN_OpCode::SaveGame:
+    case LN_OpCode::SetSaveExistence:
     case LN_OpCode::LoadGame:
     case LN_OpCode::LoadScene:
     case LN_OpCode::SetScene:
@@ -2580,11 +3239,19 @@ bool OpcodeHasDirectExecOp(const LN_Instruction &instruction)
     case LN_OpCode::SaveVariableDict:
     case LN_OpCode::ClearVariables:
     case LN_OpCode::RemoveVariable:
+    case LN_OpCode::InputMap:
     case LN_OpCode::Navigate:
     case LN_OpCode::FollowPath:
     case LN_OpCode::SetCollectionVisibility:
+    case LN_OpCode::SetCollectionMember:
     case LN_OpCode::SetOverlayCollection:
     case LN_OpCode::RemoveOverlayCollection:
+    case LN_OpCode::OpenObjectMenu:
+    case LN_OpCode::CloseObjectMenu:
+    case LN_OpCode::SetUIFocus:
+    case LN_OpCode::SetPlayerPointer:
+    case LN_OpCode::TakeUIControl:
+    case LN_OpCode::ScreenAnchor:
     case LN_OpCode::DrawLine:
     case LN_OpCode::DrawArrow:
     case LN_OpCode::DrawPath:
@@ -2593,8 +3260,10 @@ bool OpcodeHasDirectExecOp(const LN_Instruction &instruction)
     case LN_OpCode::DrawAxis:
     case LN_OpCode::AddPhysicsConstraint:
     case LN_OpCode::RemovePhysicsConstraint:
-    case LN_OpCode::SpawnPoolCreate:
-    case LN_OpCode::SpawnPoolSpawn:
+    case LN_OpCode::InventoryEdit:
+    case LN_OpCode::DropItem:
+    case LN_OpCode::ScrollObjectView:
+    case LN_OpCode::ShowMessage:
       return true;
     case LN_OpCode::SetGameProperty:
     case LN_OpCode::SetTreeProperty:
@@ -2616,6 +3285,7 @@ bool RegisterOpIsSoACandidate(const LN_RegisterExpressionOpKind kind)
     case LN_RegisterExpressionOpKind::FloatSubtract:
     case LN_RegisterExpressionOpKind::FloatMultiply:
     case LN_RegisterExpressionOpKind::FloatDivide:
+    case LN_RegisterExpressionOpKind::FloatSafeDivide:
     case LN_RegisterExpressionOpKind::FloatMinimum:
     case LN_RegisterExpressionOpKind::FloatMaximum:
     case LN_RegisterExpressionOpKind::VectorAdd:
@@ -2636,6 +3306,7 @@ bool RegisterOpHasSimdKernel(const LN_RegisterExpressionOpKind kind)
     case LN_RegisterExpressionOpKind::FloatSubtract:
     case LN_RegisterExpressionOpKind::FloatMultiply:
     case LN_RegisterExpressionOpKind::FloatDivide:
+    case LN_RegisterExpressionOpKind::FloatSafeDivide:
     case LN_RegisterExpressionOpKind::FloatMinimum:
     case LN_RegisterExpressionOpKind::FloatMaximum:
       return true;
@@ -2652,10 +3323,11 @@ LN_Program::LN_Program()
       m_runtimeBuildFlags(CurrentRuntimeBuildFlags())
 {
   m_execBlockPrograms[size_t(LN_Event::OnInit)].event = LN_Event::OnInit;
+  m_execBlockPrograms[size_t(LN_Event::OnUpdate)].event = LN_Event::OnUpdate;
   m_execBlockPrograms[size_t(LN_Event::OnFixedUpdate)].event = LN_Event::OnFixedUpdate;
   m_execBlockPrograms[size_t(LN_Event::OnInit)].runtime_build_flags = m_runtimeBuildFlags;
-  m_execBlockPrograms[size_t(LN_Event::OnFixedUpdate)].runtime_build_flags =
-      m_runtimeBuildFlags;
+  m_execBlockPrograms[size_t(LN_Event::OnUpdate)].runtime_build_flags = m_runtimeBuildFlags;
+  m_execBlockPrograms[size_t(LN_Event::OnFixedUpdate)].runtime_build_flags = m_runtimeBuildFlags;
   RebuildRegisterExpressionIR();
 }
 
@@ -2681,14 +3353,14 @@ LN_StringId LN_Program::InternString(const std::string &value)
   return LN_StringId{index};
 }
 
-uint32_t LN_Program::AddSpawnPoolState()
-{
-  return m_spawnPoolStateCount++;
-}
-
 uint32_t LN_Program::AddTimeFlowState()
 {
   return m_timeFlowStateCount++;
+}
+
+uint32_t LN_Program::AddFlowControlState()
+{
+  return m_flowControlStateCount++;
 }
 
 uint32_t LN_Program::AddTimerState()
@@ -2756,7 +3428,7 @@ std::shared_ptr<LN_Program> LN_Program::CreateDebugSetWorldPosition(const MT_Vec
 uint32_t LN_Program::AddVectorExpression(const LN_VectorExpression &expression)
 {
   const LN_VectorExpression stored_expression = FoldVectorExpression(
-      expression, m_floatExpressions, m_vectorExpressions);
+      expression, m_intExpressions, m_floatExpressions, m_vectorExpressions, m_colorExpressions);
   if (VectorExpressionCanCSE(stored_expression.kind)) {
     const uint32_t existing_index = FindEquivalentExpression(
         m_vectorExpressions, stored_expression, VectorExpressionsEqual);
@@ -2803,8 +3475,7 @@ uint32_t LN_Program::AddQueryExpression(const LN_QueryExpression &expression)
   return index;
 }
 
-void LN_Program::AddRayQueryDetailRequirement(const int32_t cacheKey,
-                                              const uint8_t detailFlags)
+void LN_Program::AddRayQueryDetailRequirement(const int32_t cacheKey, const uint8_t detailFlags)
 {
   if (cacheKey < 0 || detailFlags == LN_RAY_QUERY_DETAIL_NONE) {
     return;
@@ -2813,6 +3484,7 @@ void LN_Program::AddRayQueryDetailRequirement(const int32_t cacheKey,
     if (expression.cache_key == cacheKey &&
         (expression.kind == LN_QueryExpressionKind::Raycast ||
          expression.kind == LN_QueryExpressionKind::RaycastAll ||
+         expression.kind == LN_QueryExpressionKind::RaycastFromMesh ||
          expression.kind == LN_QueryExpressionKind::ShapeCast ||
          expression.kind == LN_QueryExpressionKind::ShapeCastAll))
     {
@@ -2857,11 +3529,26 @@ uint32_t LN_Program::AddValueExpression(const LN_ValueExpression &expression)
   return index;
 }
 
-uint32_t LN_Program::AddTweenCurveTable(
-    const std::array<float, LN_TWEEN_CURVE_SAMPLE_COUNT> &samples)
+uint32_t LN_Program::AddCurveTable(const LN_CurveTable &table)
 {
-  const uint32_t index = uint32_t(m_tweenCurveTables.size());
-  m_tweenCurveTables.push_back(samples);
+  auto tables_equal = [](const LN_CurveTable &a, const LN_CurveTable &b) {
+    return a.samples == b.samples && a.domain_min == b.domain_min &&
+           a.domain_max == b.domain_max && a.sample_scale == b.sample_scale &&
+           a.table_min_x == b.table_min_x && a.table_max_x == b.table_max_x &&
+           a.extend_in_x == b.extend_in_x &&
+           a.extend_in_y == b.extend_in_y && a.extend_out_x == b.extend_out_x &&
+           a.extend_out_y == b.extend_out_y && a.clip_min == b.clip_min &&
+           a.clip_max == b.clip_max && a.extrapolate == b.extrapolate &&
+           a.clip_output == b.clip_output;
+  };
+  for (uint32_t index = 0; index < m_curveTables.size(); index++) {
+    if (tables_equal(m_curveTables[index], table)) {
+      return index;
+    }
+  }
+
+  const uint32_t index = uint32_t(m_curveTables.size());
+  m_curveTables.push_back(table);
   return index;
 }
 
@@ -2930,8 +3617,13 @@ void LN_Program::UpdateLoopFrame(const uint32_t loop_frame_index, const LN_LoopF
 
 uint32_t LN_Program::AddBoolExpression(const LN_BoolExpression &expression)
 {
-  const LN_BoolExpression stored_expression = FoldBoolExpression(
-      expression, m_boolExpressions, m_floatExpressions);
+  const LN_BoolExpression stored_expression = FoldBoolExpression(expression,
+                                                                 m_boolExpressions,
+                                                                 m_floatExpressions,
+                                                                 m_intExpressions,
+                                                                 m_stringExpressions,
+                                                                 m_vectorExpressions,
+                                                                 m_colorExpressions);
   if (BoolExpressionCanCSE(stored_expression.kind)) {
     const uint32_t existing_index = FindEquivalentExpression(
         m_boolExpressions, stored_expression, BoolExpressionsEqual);
@@ -2949,8 +3641,13 @@ uint32_t LN_Program::AddBoolExpression(const LN_BoolExpression &expression)
 
 uint32_t LN_Program::AddFloatExpression(const LN_FloatExpression &expression)
 {
-  const LN_FloatExpression stored_expression = FoldFloatExpression(
-      expression, m_boolExpressions, m_floatExpressions, m_vectorExpressions, m_colorExpressions);
+  const LN_FloatExpression stored_expression = FoldFloatExpression(expression,
+                                                                   m_boolExpressions,
+                                                                   m_floatExpressions,
+                                                                   m_intExpressions,
+                                                                   m_stringExpressions,
+                                                                   m_vectorExpressions,
+                                                                   m_colorExpressions);
   if (FloatExpressionCanCSE(stored_expression.kind)) {
     const uint32_t existing_index = FindEquivalentExpression(
         m_floatExpressions, stored_expression, FloatExpressionsEqual);
@@ -2968,7 +3665,8 @@ uint32_t LN_Program::AddFloatExpression(const LN_FloatExpression &expression)
 
 uint32_t LN_Program::AddIntExpression(const LN_IntExpression &expression)
 {
-  const LN_IntExpression stored_expression = FoldIntExpression(expression, m_stringExpressions);
+  const LN_IntExpression stored_expression = FoldIntExpression(
+      expression, m_boolExpressions, m_floatExpressions, m_stringExpressions);
   if (IntExpressionCanCSE(stored_expression.kind)) {
     const uint32_t existing_index = FindEquivalentExpression(
         m_intExpressions, stored_expression, IntExpressionsEqual);
@@ -2986,7 +3684,13 @@ uint32_t LN_Program::AddIntExpression(const LN_IntExpression &expression)
 
 uint32_t LN_Program::AddStringExpression(const LN_StringExpression &expression)
 {
-  LN_StringExpression stored_expression = FoldStringExpression(expression, m_stringExpressions);
+  LN_StringExpression stored_expression = FoldStringExpression(expression,
+                                                               m_boolExpressions,
+                                                               m_intExpressions,
+                                                               m_floatExpressions,
+                                                               m_stringExpressions,
+                                                               m_vectorExpressions,
+                                                               m_colorExpressions);
   if (stored_expression.kind == LN_StringExpressionKind::Constant) {
     stored_expression.string_id = InternString(stored_expression.string_value);
   }
@@ -3031,8 +3735,7 @@ uint32_t LN_Program::AddVectorCommandPayload(const LN_VectorCommandPayload &payl
   return index;
 }
 
-uint32_t LN_Program::AddGamePropertyCommandPayload(
-    const LN_GamePropertyCommandPayload &payload)
+uint32_t LN_Program::AddGamePropertyCommandPayload(const LN_GamePropertyCommandPayload &payload)
 {
   const uint32_t index = uint32_t(m_gamePropertyCommandPayloads.size());
   m_gamePropertyCommandPayloads.push_back(payload);
@@ -3049,10 +3752,23 @@ uint32_t LN_Program::AddRigidBodyConstraintCommandPayload(
 
 uint32_t LN_Program::AddInstruction(const LN_Event event, const LN_Instruction &instruction)
 {
-  std::vector<LN_InstructionHeader> &headers = (event == LN_Event::OnInit) ? m_onInit :
-                                                                           m_onFixedUpdate;
-  std::vector<LN_Instruction> &payloads = (event == LN_Event::OnInit) ? m_onInitPayloads :
-                                                                       m_onFixedUpdatePayloads;
+  std::vector<LN_InstructionHeader> *headers = nullptr;
+  std::vector<LN_Instruction> *payloads = nullptr;
+  switch (event) {
+    case LN_Event::OnInit:
+      headers = &m_onInit;
+      payloads = &m_onInitPayloads;
+      break;
+    case LN_Event::OnUpdate:
+      headers = &m_onUpdate;
+      payloads = &m_onUpdatePayloads;
+      break;
+    case LN_Event::OnFixedUpdate:
+      headers = &m_onFixedUpdate;
+      payloads = &m_onFixedUpdatePayloads;
+      break;
+  }
+
   LN_Instruction payload = instruction;
   payload.payload_kind = PayloadKindForOpcode(payload.opcode);
   if (OpcodeUsesVectorCommandPayload(payload.opcode)) {
@@ -3064,16 +3780,19 @@ uint32_t LN_Program::AddInstruction(const LN_Event event, const LN_Instruction &
         GamePropertyCommandPayloadFromInstruction(payload));
   }
 
-  const uint32_t index = uint32_t(headers.size());
-  const uint32_t payload_index = uint32_t(payloads.size());
-  payloads.push_back(payload);
+  const uint32_t index = uint32_t(headers->size());
+  const uint32_t payload_index = uint32_t(payloads->size());
+  payloads->push_back(payload);
 
   LN_InstructionHeader header;
   header.opcode = payload.opcode;
   header.source_ref_index = payload.source_ref_index;
   header.payload_index = payload_index;
   header.flags = payload.flags;
-  headers.push_back(header);
+  headers->push_back(header);
+  if (event == LN_Event::OnUpdate && (header.flags & LN_INSTRUCTION_FLAG_UI_EVENT_ROUTE) != 0) {
+    m_hasUIEventRoutes = true;
+  }
 
   m_debugMap.Add(event, index, header.source_ref_index);
   UpdateSchedulerSummaryForInstruction(event, payload);
@@ -3088,6 +3807,8 @@ const std::vector<LN_InstructionHeader> &LN_Program::GetInstructionHeaders(
   switch (event) {
     case LN_Event::OnInit:
       return m_onInit;
+    case LN_Event::OnUpdate:
+      return m_onUpdate;
     case LN_Event::OnFixedUpdate:
       return m_onFixedUpdate;
   }
@@ -3118,11 +3839,172 @@ const std::vector<LN_Instruction> &LN_Program::GetInstructions(LN_Event event) c
   switch (event) {
     case LN_Event::OnInit:
       return m_onInitPayloads;
+    case LN_Event::OnUpdate:
+      return m_onUpdatePayloads;
     case LN_Event::OnFixedUpdate:
       return m_onFixedUpdatePayloads;
   }
 
   return m_onFixedUpdatePayloads;
+}
+
+void LN_Program::ReorderInstructionsForCompiler(
+    const std::array<std::vector<std::vector<uint32_t>>, 3> &execution_orders,
+    const std::array<std::vector<uint32_t>, 3> &loop_order_depths,
+    const std::array<std::vector<uint32_t>, 3> &instruction_pulse_expressions,
+    const std::array<std::vector<uint32_t>, 3> &instruction_index_vector_expressions)
+{
+  /* Data dependencies determine which nodes must compile first, but execution sockets determine
+   * runtime order. Apply the compiler-only hierarchical route keys once, then remap every
+   * expression that stores an event-local instruction index. */
+  std::array<std::vector<uint32_t>, 3> old_to_new_indices;
+  for (const LN_Event event : {LN_Event::OnInit, LN_Event::OnUpdate, LN_Event::OnFixedUpdate}) {
+    std::vector<LN_InstructionHeader> *headers = nullptr;
+    std::vector<LN_Instruction> *payloads = nullptr;
+    switch (event) {
+      case LN_Event::OnInit:
+        headers = &m_onInit;
+        payloads = &m_onInitPayloads;
+        break;
+      case LN_Event::OnUpdate:
+        headers = &m_onUpdate;
+        payloads = &m_onUpdatePayloads;
+        break;
+      case LN_Event::OnFixedUpdate:
+        headers = &m_onFixedUpdate;
+        payloads = &m_onFixedUpdatePayloads;
+        break;
+    }
+
+    const size_t event_index = size_t(event);
+    const std::vector<std::vector<uint32_t>> &orders = execution_orders[event_index];
+    const std::vector<uint32_t> empty_order;
+    const auto order_of = [&](const uint32_t index) -> const std::vector<uint32_t> & {
+      return index < orders.size() ? orders[index] : empty_order;
+    };
+    const std::vector<uint32_t> &depths = loop_order_depths[event_index];
+    /* The runtime runs a Loop body as one block of adjacent instructions: an unrelated route
+     * sorted into the middle of a body would cut it in two, and the second part would never
+     * run. So a body sorts as a whole, at the place of its earliest instruction. A Loop fed by
+     * several paths has a body for each path, kept apart: the incoming path's part of the order
+     * tells them apart. */
+    struct Group {
+      uint32_t first = 0;
+      uint32_t earliest = 0;
+    };
+    std::map<std::pair<uint32_t, std::vector<uint32_t>>, Group> groups;
+    std::vector<const Group *> group_of(headers->size(), nullptr);
+    for (uint32_t index = 0; index < headers->size(); index++) {
+      const uint32_t loop_frame = (*payloads)[(*headers)[index].payload_index].loop_frame_index;
+      if (loop_frame == LN_INVALID_INDEX) {
+        continue;
+      }
+      const std::vector<uint32_t> &order = order_of(index);
+      const size_t depth = std::min<size_t>(index < depths.size() ? depths[index] : 0,
+                                            order.size());
+      const auto [group, inserted] = groups.try_emplace(
+          {loop_frame, std::vector<uint32_t>(order.begin(), order.begin() + depth)},
+          Group{index, index});
+      if (!inserted && std::lexicographical_compare(order.begin(),
+                                                    order.end(),
+                                                    order_of(group->second.earliest).begin(),
+                                                    order_of(group->second.earliest).end()))
+      {
+        group->second.earliest = index;
+      }
+      group_of[index] = &group->second;
+    }
+    /* Where an instruction sorts: its group's earliest place, then the group's first
+     * instruction (compile order breaks ties), then its own order. */
+    const auto place_of = [&](const uint32_t index) -> const std::vector<uint32_t> & {
+      return group_of[index] != nullptr ? order_of(group_of[index]->earliest) : order_of(index);
+    };
+    const auto first_of = [&](const uint32_t index) {
+      return group_of[index] != nullptr ? group_of[index]->first : index;
+    };
+    std::vector<uint32_t> sorted_indices(headers->size());
+    std::iota(sorted_indices.begin(), sorted_indices.end(), 0u);
+    std::stable_sort(
+        sorted_indices.begin(), sorted_indices.end(), [&](const uint32_t a, const uint32_t b) {
+          const std::vector<uint32_t> &place_a = place_of(a);
+          const std::vector<uint32_t> &place_b = place_of(b);
+          if (place_a != place_b) {
+            return std::lexicographical_compare(
+                place_a.begin(), place_a.end(), place_b.begin(), place_b.end());
+          }
+          if (first_of(a) != first_of(b)) {
+            return first_of(a) < first_of(b);
+          }
+          const std::vector<uint32_t> &order_a = order_of(a);
+          const std::vector<uint32_t> &order_b = order_of(b);
+          return std::lexicographical_compare(
+              order_a.begin(), order_a.end(), order_b.begin(), order_b.end());
+        });
+
+    std::vector<LN_InstructionHeader> sorted_headers;
+    std::vector<LN_Instruction> sorted_payloads;
+    sorted_headers.reserve(headers->size());
+    sorted_payloads.reserve(payloads->size());
+    std::vector<uint32_t> &old_to_new = old_to_new_indices[event_index];
+    old_to_new.resize(headers->size(), LN_INVALID_INDEX);
+    for (uint32_t new_index = 0; new_index < sorted_indices.size(); new_index++) {
+      const uint32_t old_index = sorted_indices[new_index];
+      const LN_InstructionHeader &old_header = (*headers)[old_index];
+      old_to_new[old_index] = new_index;
+      sorted_payloads.push_back((*payloads)[old_header.payload_index]);
+      LN_InstructionHeader new_header = old_header;
+      new_header.payload_index = new_index;
+      /* Two body copies of one Loop can end up side by side: each starts its own block. */
+      new_header.flags &= uint16_t(~LN_INSTRUCTION_FLAG_LOOP_BODY_START);
+      if (group_of[old_index] != nullptr &&
+          (new_index == 0 || group_of[sorted_indices[new_index - 1]] != group_of[old_index]))
+      {
+        new_header.flags |= LN_INSTRUCTION_FLAG_LOOP_BODY_START;
+      }
+      sorted_payloads.back().flags = new_header.flags;
+      sorted_headers.push_back(new_header);
+    }
+    *headers = std::move(sorted_headers);
+    *payloads = std::move(sorted_payloads);
+  }
+
+  for (const LN_Event event : {LN_Event::OnInit, LN_Event::OnUpdate, LN_Event::OnFixedUpdate}) {
+    const size_t event_index = size_t(event);
+    const std::vector<uint32_t> &old_to_new = old_to_new_indices[event_index];
+    for (const uint32_t expression_index : instruction_pulse_expressions[event_index]) {
+      if (expression_index >= m_boolExpressions.size()) {
+        continue;
+      }
+      LN_BoolExpression &expression = m_boolExpressions[expression_index];
+      if ((expression.kind == LN_BoolExpressionKind::InstructionExecuted ||
+           expression.kind == LN_BoolExpressionKind::InstructionReached) &&
+          expression.input0 < old_to_new.size())
+      {
+        expression.input0 = old_to_new[expression.input0];
+      }
+    }
+    for (const uint32_t expression_index : instruction_index_vector_expressions[event_index]) {
+      if (expression_index >= m_vectorExpressions.size()) {
+        continue;
+      }
+      LN_VectorExpression &expression = m_vectorExpressions[expression_index];
+      if (expression.kind == LN_VectorExpressionKind::InstructionNextPoint &&
+          expression.input0 < old_to_new.size())
+      {
+        expression.input0 = old_to_new[expression.input0];
+      }
+    }
+  }
+
+  m_debugMap.Clear();
+  for (const LN_Event event : {LN_Event::OnInit, LN_Event::OnUpdate, LN_Event::OnFixedUpdate}) {
+    const std::vector<LN_InstructionHeader> &headers = GetInstructionHeaders(event);
+    for (uint32_t index = 0; index < headers.size(); index++) {
+      m_debugMap.Add(event, index, headers[index].source_ref_index);
+    }
+    RebuildExecBlockIR(event);
+  }
+  RebuildRegisterExpressionIR();
 }
 
 const LN_ExecBlockProgram &LN_Program::GetExecBlockProgram(const LN_Event event) const
@@ -3151,6 +4033,7 @@ void LN_Program::RebuildExecBlockIR(const LN_Event event)
     const LN_Instruction &instruction = GetInstructionPayload(event, headers[instruction_index]);
     const bool direct = OpcodeHasDirectExecOp(instruction);
     const uint32_t loop_frame = instruction.loop_frame_index;
+    const uint32_t completed_loop_frame = instruction.completed_loop_frame_index;
     const uint32_t first_instruction = instruction_index;
     if (!direct) {
       ir.validation_errors.push_back("unsupported opcode in mandatory exec-block IR");
@@ -3162,6 +4045,7 @@ void LN_Program::RebuildExecBlockIR(const LN_Event event)
     block.first_instruction = first_instruction;
     block.first_op = uint32_t(ir.ops.size());
     block.loop_frame_index = loop_frame;
+    block.completed_loop_frame_index = completed_loop_frame;
     block.source_ref_index = instruction.source_ref_index;
 
     while (instruction_index < headers.size()) {
@@ -3170,7 +4054,11 @@ void LN_Program::RebuildExecBlockIR(const LN_Event event)
       if (!OpcodeHasDirectExecOp(block_instruction)) {
         break;
       }
-      if (loop_frame != block_instruction.loop_frame_index) {
+      if (loop_frame != block_instruction.loop_frame_index ||
+          completed_loop_frame != block_instruction.completed_loop_frame_index ||
+          (instruction_index != first_instruction &&
+           (headers[instruction_index].flags & LN_INSTRUCTION_FLAG_LOOP_BODY_START) != 0))
+      {
         break;
       }
 
@@ -3181,8 +4069,19 @@ void LN_Program::RebuildExecBlockIR(const LN_Event event)
       op.source_ref_index = block_instruction.source_ref_index;
       op.guard_bool_expr_index = block_instruction.bool_guard_expr_index;
       op.payload_index = headers[instruction_index].payload_index;
-      if (const LN_RuntimeInstructionSemantics *semantics =
-              LN_GetRuntimeInstructionSemantics(block_instruction.opcode))
+      op.ui_event_route = (headers[instruction_index].flags &
+                           LN_INSTRUCTION_FLAG_UI_EVENT_ROUTE) != 0;
+      op.ui_event_state_index = block_instruction.ui_event_state_index;
+      if (op.ui_event_state_index != LN_INVALID_INDEX &&
+          std::find(ir.ui_event_states.begin(),
+                    ir.ui_event_states.end(),
+                    op.ui_event_state_index) == ir.ui_event_states.end())
+      {
+        ir.ui_event_states.push_back(op.ui_event_state_index);
+      }
+      block.ui_event_route = block.ui_event_route && op.ui_event_route;
+      if (const LN_RuntimeInstructionSemantics *semantics = LN_GetRuntimeInstructionSemantics(
+              block_instruction.opcode))
       {
         op.fallback_requirements = semantics->fallback_requirements;
       }
@@ -3205,7 +4104,7 @@ bool LN_Program::ValidateExecBlockProgram(const LN_ExecBlockProgram &ir,
                                           const std::vector<LN_InstructionHeader> &headers,
                                           std::vector<std::string> &r_errors) const
 {
-  const char *event_name = (ir.event == LN_Event::OnInit) ? "OnInit" : "OnFixedUpdate";
+  const char *event_name = EventName(ir.event);
   auto add_error = [&](const std::string &message) {
     r_errors.push_back(std::string(event_name) + " exec-block IR: " + message);
   };
@@ -3269,12 +4168,14 @@ bool LN_Program::ValidateExecBlockIR(std::vector<std::string> *r_errors) const
   std::vector<std::string> errors;
   const bool valid_on_init = ValidateExecBlockProgram(
       GetExecBlockProgram(LN_Event::OnInit), m_onInit, errors);
+  const bool valid_on_update = ValidateExecBlockProgram(
+      GetExecBlockProgram(LN_Event::OnUpdate), m_onUpdate, errors);
   const bool valid_on_fixed_update = ValidateExecBlockProgram(
       GetExecBlockProgram(LN_Event::OnFixedUpdate), m_onFixedUpdate, errors);
   if (r_errors != nullptr) {
     *r_errors = errors;
   }
-  return valid_on_init && valid_on_fixed_update;
+  return valid_on_init && valid_on_update && valid_on_fixed_update;
 }
 
 void LN_Program::RebuildRegisterExpressionIR()
@@ -3291,7 +4192,8 @@ void LN_Program::RebuildRegisterExpressionIR()
   ir.vector_expression_registers.assign(m_vectorExpressions.size(), LN_INVALID_INDEX);
   ir.color_expression_registers.assign(m_colorExpressions.size(), LN_INVALID_INDEX);
   ir.string_expression_registers.assign(m_stringExpressions.size(), LN_INVALID_INDEX);
-  ir.string_expression_register_kinds.assign(m_stringExpressions.size(), LN_RegisterValueKind::String);
+  ir.string_expression_register_kinds.assign(m_stringExpressions.size(),
+                                             LN_RegisterValueKind::String);
   ir.value_expression_registers.assign(m_valueExpressions.size(), LN_INVALID_INDEX);
   ir.object_register_count = 0;
   ir.string_register_count = 0;
@@ -3413,9 +4315,8 @@ void LN_Program::RebuildRegisterExpressionIR()
         break;
       case LN_StringExpressionKind::ZeroFill:
         op.input0 = make_string_ref(expression.input0);
-        op.input1 = make_ref(LN_RegisterValueKind::Int,
-                             expression.int_expr_index,
-                             ir.int_expression_registers);
+        op.input1 = make_ref(
+            LN_RegisterValueKind::Int, expression.int_expr_index, ir.int_expression_registers);
         supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
         op.kind = LN_RegisterExpressionOpKind::StringZeroFill;
         op.output_kind = LN_RegisterValueKind::String;
@@ -3519,6 +4420,23 @@ void LN_Program::RebuildRegisterExpressionIR()
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::IntFromValue;
           break;
+        case LN_IntExpressionKind::FromBool:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Bool, expression.input0, ir.bool_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::IntFromBool;
+          break;
+        case LN_IntExpressionKind::FromFloat:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::IntFromFloat;
+          break;
+        case LN_IntExpressionKind::FromString:
+          op.input0 = make_string_ref(expression.input0);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::IntFromString;
+          break;
         case LN_IntExpressionKind::DictLength:
           op.input0 = make_ref(LN_RegisterValueKind::GenericValue,
                                expression.input0,
@@ -3540,12 +4458,10 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.kind = LN_RegisterExpressionOpKind::IntStringCount;
           break;
         case LN_IntExpressionKind::Random:
-          op.input0 = make_ref(LN_RegisterValueKind::Int,
-                               expression.input0,
-                               ir.int_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Int,
-                               expression.input1,
-                               ir.int_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Int, expression.input0, ir.int_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Int, expression.input1, ir.int_expression_registers);
           supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
           op.kind = LN_RegisterExpressionOpKind::IntRandom;
           break;
@@ -3610,9 +4526,8 @@ void LN_Program::RebuildRegisterExpressionIR()
           break;
         case LN_StringExpressionKind::ZeroFill:
           op.input0 = make_string_ref(expression.input0);
-          op.input1 = make_ref(LN_RegisterValueKind::Int,
-                               expression.int_expr_index,
-                               ir.int_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Int, expression.int_expr_index, ir.int_expression_registers);
           supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
           op.kind = LN_RegisterExpressionOpKind::StringZeroFill;
           op.output_kind = LN_RegisterValueKind::String;
@@ -3643,6 +4558,41 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.kind = LN_RegisterExpressionOpKind::StringFromValue;
           op.output_kind = LN_RegisterValueKind::String;
           break;
+        case LN_StringExpressionKind::FromBool:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Bool, expression.input0, ir.bool_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::StringFromBool;
+          op.output_kind = LN_RegisterValueKind::String;
+          break;
+        case LN_StringExpressionKind::FromInt:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Int, expression.input0, ir.int_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::StringFromInt;
+          op.output_kind = LN_RegisterValueKind::String;
+          break;
+        case LN_StringExpressionKind::FromFloat:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::StringFromFloat;
+          op.output_kind = LN_RegisterValueKind::String;
+          break;
+        case LN_StringExpressionKind::FromVector:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input0, ir.vector_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::StringFromVector;
+          op.output_kind = LN_RegisterValueKind::String;
+          break;
+        case LN_StringExpressionKind::FromColor:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Color, expression.input0, ir.color_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::StringFromColor;
+          op.output_kind = LN_RegisterValueKind::String;
+          break;
         default:
           supported = false;
           break;
@@ -3667,6 +4617,9 @@ void LN_Program::RebuildRegisterExpressionIR()
         case LN_FloatExpressionKind::Constant:
           op.kind = LN_RegisterExpressionOpKind::FloatConstant;
           break;
+        case LN_FloatExpressionKind::UnscaledDeltaTime:
+          op.kind = LN_RegisterExpressionOpKind::FloatTickContextRead;
+          break;
         case LN_FloatExpressionKind::RuntimeTreeProperty:
           supported = expression.property_ref_index != LN_INVALID_INDEX;
           op.kind = LN_RegisterExpressionOpKind::FloatRuntimePropertyRead;
@@ -3686,9 +4639,8 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.kind = LN_RegisterExpressionOpKind::FloatSnapshotRead;
           break;
         case LN_FloatExpressionKind::GamepadButtonStrength:
-          op.input0 = make_ref(LN_RegisterValueKind::Int,
-                               expression.input0,
-                               ir.int_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Int, expression.input0, ir.int_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::FloatInputRead;
           break;
@@ -3699,20 +4651,37 @@ void LN_Program::RebuildRegisterExpressionIR()
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::FloatFromValue;
           break;
+        case LN_FloatExpressionKind::FromBool:
+          op.input0 = make_ref(LN_RegisterValueKind::Bool,
+                               expression.bool_expr_index,
+                               ir.bool_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::FloatFromBool;
+          break;
+        case LN_FloatExpressionKind::FromInt:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Int, expression.input0, ir.int_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::FloatFromInt;
+          break;
+        case LN_FloatExpressionKind::FromString:
+          op.input0 = make_string_ref(expression.string_expr_index);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::FloatFromString;
+          break;
         case LN_FloatExpressionKind::Add:
         case LN_FloatExpressionKind::Subtract:
         case LN_FloatExpressionKind::Multiply:
         case LN_FloatExpressionKind::Divide:
+        case LN_FloatExpressionKind::SafeDivide:
         case LN_FloatExpressionKind::Power:
         case LN_FloatExpressionKind::Minimum:
         case LN_FloatExpressionKind::Maximum:
         case LN_FloatExpressionKind::Modulo:
-          op.input0 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input0,
-                               ir.float_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input1,
-                               ir.float_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Float, expression.input1, ir.float_expression_registers);
           supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
           op.kind = expression.kind == LN_FloatExpressionKind::Add ?
                         LN_RegisterExpressionOpKind::FloatAdd :
@@ -3722,6 +4691,8 @@ void LN_Program::RebuildRegisterExpressionIR()
                         LN_RegisterExpressionOpKind::FloatMultiply :
                     expression.kind == LN_FloatExpressionKind::Divide ?
                         LN_RegisterExpressionOpKind::FloatDivide :
+                    expression.kind == LN_FloatExpressionKind::SafeDivide ?
+                        LN_RegisterExpressionOpKind::FloatSafeDivide :
                     expression.kind == LN_FloatExpressionKind::Power ?
                         LN_RegisterExpressionOpKind::FloatPower :
                     expression.kind == LN_FloatExpressionKind::Minimum ?
@@ -3744,9 +4715,8 @@ void LN_Program::RebuildRegisterExpressionIR()
         case LN_FloatExpressionKind::Radians:
         case LN_FloatExpressionKind::Degrees:
         case LN_FloatExpressionKind::Negate:
-          op.input0 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input0,
-                               ir.float_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = expression.kind == LN_FloatExpressionKind::Absolute ?
                         LN_RegisterExpressionOpKind::FloatAbsolute :
@@ -3773,26 +4743,21 @@ void LN_Program::RebuildRegisterExpressionIR()
                         LN_RegisterExpressionOpKind::FloatNegate;
           break;
         case LN_FloatExpressionKind::Clamp:
-          op.input0 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input0,
-                               ir.float_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input1,
-                               ir.float_expression_registers);
-          op.input2 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input2,
-                               ir.float_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Float, expression.input1, ir.float_expression_registers);
+          op.input2 = make_ref(
+              LN_RegisterValueKind::Float, expression.input2, ir.float_expression_registers);
           supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1) &&
                       RegisterRefIsValid(op.input2);
           op.kind = LN_RegisterExpressionOpKind::FloatClamp;
           break;
         case LN_FloatExpressionKind::Threshold:
-          op.input0 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input0,
-                               ir.float_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input1,
-                               ir.float_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Float, expression.input1, ir.float_expression_registers);
           op.input2 = make_ref(LN_RegisterValueKind::Bool,
                                expression.bool_expr_index,
                                ir.bool_expression_registers);
@@ -3803,27 +4768,22 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.kind = LN_RegisterExpressionOpKind::FloatThreshold;
           break;
         case LN_FloatExpressionKind::RangedThreshold:
-          op.input0 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input0,
-                               ir.float_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input1,
-                               ir.float_expression_registers);
-          op.input2 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input2,
-                               ir.float_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Float, expression.input1, ir.float_expression_registers);
+          op.input2 = make_ref(
+              LN_RegisterValueKind::Float, expression.input2, ir.float_expression_registers);
           op.range_operation = expression.range_operation;
           supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1) &&
                       RegisterRefIsValid(op.input2);
           op.kind = LN_RegisterExpressionOpKind::FloatRangedThreshold;
           break;
         case LN_FloatExpressionKind::Select:
-          op.input0 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input0,
-                               ir.float_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input1,
-                               ir.float_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Float, expression.input1, ir.float_expression_registers);
           op.input2 = make_ref(LN_RegisterValueKind::Bool,
                                expression.bool_expr_index,
                                ir.bool_expression_registers);
@@ -3833,40 +4793,42 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.kind = LN_RegisterExpressionOpKind::FloatSelect;
           break;
         case LN_FloatExpressionKind::Formula:
-          op.input0 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input0,
-                               ir.float_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input1,
-                               ir.float_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Float, expression.input1, ir.float_expression_registers);
           supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1) &&
                       StringExpressionIndexIsConstant(m_stringExpressions,
                                                       expression.string_expr_index);
           op.kind = LN_RegisterExpressionOpKind::FloatFormula;
           break;
+        case LN_FloatExpressionKind::FloatCurve:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Float, expression.input1, ir.float_expression_registers);
+          supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
+          op.kind = LN_RegisterExpressionOpKind::FloatCurve;
+          break;
         case LN_FloatExpressionKind::VectorComponent:
-          op.input0 = make_ref(LN_RegisterValueKind::Vector,
-                               expression.input0,
-                               ir.vector_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input0, ir.vector_expression_registers);
           op.component_index = expression.component_index;
           supported = RegisterRefIsValid(op.input0) && expression.component_index < 3;
           op.kind = LN_RegisterExpressionOpKind::FloatVectorComponent;
           break;
         case LN_FloatExpressionKind::ColorComponent:
-          op.input0 = make_ref(LN_RegisterValueKind::Color,
-                               expression.input0,
-                               ir.color_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Color, expression.input0, ir.color_expression_registers);
           op.component_index = expression.component_index;
           supported = RegisterRefIsValid(op.input0) && expression.component_index < 4;
           op.kind = LN_RegisterExpressionOpKind::FloatColorComponent;
           break;
         case LN_FloatExpressionKind::Random:
-          op.input0 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input0,
-                               ir.float_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input1,
-                               ir.float_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Float, expression.input1, ir.float_expression_registers);
           supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
           op.kind = LN_RegisterExpressionOpKind::FloatRandom;
           break;
@@ -3927,12 +4889,10 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.kind = LN_RegisterExpressionOpKind::VectorInputRead;
           break;
         case LN_VectorExpressionKind::GamepadStick:
-          op.input0 = make_ref(LN_RegisterValueKind::Int,
-                               expression.input0,
-                               ir.int_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input1,
-                               ir.float_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Int, expression.input0, ir.int_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Float, expression.input1, ir.float_expression_registers);
           op.input3 = make_ref(LN_RegisterValueKind::Float,
                                expression.float_expr_index,
                                ir.float_expression_registers);
@@ -3947,18 +4907,35 @@ void LN_Program::RebuildRegisterExpressionIR()
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::VectorFromValue;
           break;
+        case LN_VectorExpressionKind::BroadcastFloat:
+          op.input0 = make_ref(LN_RegisterValueKind::Float,
+                               expression.float_expr_index,
+                               ir.float_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::VectorBroadcastFloat;
+          break;
+        case LN_VectorExpressionKind::BroadcastInt:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Int, expression.input0, ir.int_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::VectorBroadcastInt;
+          break;
+        case LN_VectorExpressionKind::FromColor:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Color, expression.input0, ir.color_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::VectorFromColor;
+          break;
         case LN_VectorExpressionKind::Add:
         case LN_VectorExpressionKind::Subtract:
         case LN_VectorExpressionKind::Multiply:
         case LN_VectorExpressionKind::Divide:
         case LN_VectorExpressionKind::Minimum:
         case LN_VectorExpressionKind::Maximum:
-          op.input0 = make_ref(LN_RegisterValueKind::Vector,
-                               expression.input0,
-                               ir.vector_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Vector,
-                               expression.input1,
-                               ir.vector_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input0, ir.vector_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input1, ir.vector_expression_registers);
           supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
           op.kind = expression.kind == LN_VectorExpressionKind::Add ?
                         LN_RegisterExpressionOpKind::VectorAdd :
@@ -3975,9 +4952,8 @@ void LN_Program::RebuildRegisterExpressionIR()
         case LN_VectorExpressionKind::Absolute:
         case LN_VectorExpressionKind::Normalize:
         case LN_VectorExpressionKind::Resize:
-          op.input0 = make_ref(LN_RegisterValueKind::Vector,
-                               expression.input0,
-                               ir.vector_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input0, ir.vector_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = expression.kind == LN_VectorExpressionKind::Absolute ?
                         LN_RegisterExpressionOpKind::VectorAbsolute :
@@ -3987,17 +4963,14 @@ void LN_Program::RebuildRegisterExpressionIR()
           break;
         case LN_VectorExpressionKind::RotateAroundAxis: {
           const int32_t rotate_mode = int32_t(expression.property_ref_index) / 4;
-          op.input0 = make_ref(LN_RegisterValueKind::Vector,
-                               expression.input0,
-                               ir.vector_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Vector,
-                               expression.input1,
-                               ir.vector_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input0, ir.vector_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input1, ir.vector_expression_registers);
           supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
           if (rotate_mode == 3) {
-            op.input2 = make_ref(LN_RegisterValueKind::Vector,
-                                 expression.input2,
-                                 ir.vector_expression_registers);
+            op.input2 = make_ref(
+                LN_RegisterValueKind::Vector, expression.input2, ir.vector_expression_registers);
             supported = supported && RegisterRefIsValid(op.input2);
           }
           else {
@@ -4006,9 +4979,8 @@ void LN_Program::RebuildRegisterExpressionIR()
                                  ir.float_expression_registers);
             supported = supported && RegisterRefIsValid(op.input3);
             if (rotate_mode == 2) {
-              op.input2 = make_ref(LN_RegisterValueKind::Vector,
-                                   expression.input2,
-                                   ir.vector_expression_registers);
+              op.input2 = make_ref(
+                  LN_RegisterValueKind::Vector, expression.input2, ir.vector_expression_registers);
               supported = supported && RegisterRefIsValid(op.input2);
             }
           }
@@ -4016,19 +4988,16 @@ void LN_Program::RebuildRegisterExpressionIR()
           break;
         }
         case LN_VectorExpressionKind::VectorToRotation:
-          op.input0 = make_ref(LN_RegisterValueKind::Vector,
-                               expression.input0,
-                               ir.vector_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Vector,
-                               expression.input1,
-                               ir.vector_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input0, ir.vector_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input1, ir.vector_expression_registers);
           supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
           op.kind = LN_RegisterExpressionOpKind::VectorToRotation;
           break;
         case LN_VectorExpressionKind::Scale:
-          op.input0 = make_ref(LN_RegisterValueKind::Vector,
-                               expression.input0,
-                               ir.vector_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input0, ir.vector_expression_registers);
           op.input1 = make_ref(LN_RegisterValueKind::Float,
                                expression.float_expr_index,
                                ir.float_expression_registers);
@@ -4036,24 +5005,20 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.kind = LN_RegisterExpressionOpKind::VectorScale;
           break;
         case LN_VectorExpressionKind::Combine:
-          op.input0 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input0,
-                               ir.float_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input1,
-                               ir.float_expression_registers);
-          op.input2 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input2,
-                               ir.float_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Float, expression.input1, ir.float_expression_registers);
+          op.input2 = make_ref(
+              LN_RegisterValueKind::Float, expression.input2, ir.float_expression_registers);
           supported = (expression.input0 == LN_INVALID_INDEX || RegisterRefIsValid(op.input0)) &&
                       (expression.input1 == LN_INVALID_INDEX || RegisterRefIsValid(op.input1)) &&
                       (expression.input2 == LN_INVALID_INDEX || RegisterRefIsValid(op.input2));
           op.kind = LN_RegisterExpressionOpKind::VectorCombine;
           break;
         case LN_VectorExpressionKind::Random:
-          op.input0 = make_ref(LN_RegisterValueKind::Vector,
-                               expression.input0,
-                               ir.vector_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input0, ir.vector_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::VectorRandom;
           break;
@@ -4091,18 +5056,14 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.kind = LN_RegisterExpressionOpKind::ColorSnapshotRead;
           break;
         case LN_ColorExpressionKind::Combine:
-          op.input0 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input0,
-                               ir.float_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input1,
-                               ir.float_expression_registers);
-          op.input2 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input2,
-                               ir.float_expression_registers);
-          op.input3 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input3,
-                               ir.float_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Float, expression.input1, ir.float_expression_registers);
+          op.input2 = make_ref(
+              LN_RegisterValueKind::Float, expression.input2, ir.float_expression_registers);
+          op.input3 = make_ref(
+              LN_RegisterValueKind::Float, expression.input3, ir.float_expression_registers);
           supported = (expression.input0 == LN_INVALID_INDEX || RegisterRefIsValid(op.input0)) &&
                       (expression.input1 == LN_INVALID_INDEX || RegisterRefIsValid(op.input1)) &&
                       (expression.input2 == LN_INVALID_INDEX || RegisterRefIsValid(op.input2)) &&
@@ -4140,6 +5101,9 @@ void LN_Program::RebuildRegisterExpressionIR()
         case LN_BoolExpressionKind::Constant:
           op.kind = LN_RegisterExpressionOpKind::BoolConstant;
           break;
+        case LN_BoolExpressionKind::GamePaused:
+          op.kind = LN_RegisterExpressionOpKind::BoolTickContextRead;
+          break;
         case LN_BoolExpressionKind::RuntimeTreeProperty:
           supported = expression.property_ref_index != LN_INVALID_INDEX;
           op.kind = LN_RegisterExpressionOpKind::BoolRuntimePropertyRead;
@@ -4162,55 +5126,46 @@ void LN_Program::RebuildRegisterExpressionIR()
         case LN_BoolExpressionKind::MouseMoved:
         case LN_BoolExpressionKind::MouseWheelMoved:
         case LN_BoolExpressionKind::KeyLoggerPressed:
-          supported = expression.kind != LN_BoolExpressionKind::MouseMoved || !expression.bool_value;
           op.kind = LN_RegisterExpressionOpKind::BoolInputRead;
           break;
         case LN_BoolExpressionKind::GamepadActive:
-          op.input0 = make_ref(LN_RegisterValueKind::Int,
-                               expression.input0,
-                               ir.int_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Int, expression.input0, ir.int_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::BoolInputRead;
           break;
         case LN_BoolExpressionKind::GamepadButton:
-          op.input0 = make_ref(LN_RegisterValueKind::Int,
-                               expression.input0,
-                               ir.int_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Int,
-                               expression.int_expr_index,
-                               ir.int_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Int, expression.input0, ir.int_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Int, expression.int_expr_index, ir.int_expression_registers);
           supported = RegisterRefIsValid(op.input0) &&
                       (expression.int_expr_index == LN_INVALID_INDEX ||
                        RegisterRefIsValid(op.input1));
           op.kind = LN_RegisterExpressionOpKind::BoolInputRead;
           break;
         case LN_BoolExpressionKind::Not:
-          op.input0 = make_ref(LN_RegisterValueKind::Bool,
-                               expression.input0,
-                               ir.bool_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Bool, expression.input0, ir.bool_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::BoolNot;
           break;
         case LN_BoolExpressionKind::And:
         case LN_BoolExpressionKind::Or:
-          op.input0 = make_ref(LN_RegisterValueKind::Bool,
-                               expression.input0,
-                               ir.bool_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Bool,
-                               expression.input1,
-                               ir.bool_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Bool, expression.input0, ir.bool_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Bool, expression.input1, ir.bool_expression_registers);
           supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
           op.kind = expression.kind == LN_BoolExpressionKind::And ?
                         LN_RegisterExpressionOpKind::BoolAnd :
                         LN_RegisterExpressionOpKind::BoolOr;
           break;
         case LN_BoolExpressionKind::FloatCompare:
-          op.input0 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input0,
-                               ir.float_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input1,
-                               ir.float_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Float, expression.input1, ir.float_expression_registers);
           op.float_compare_operation = expression.float_compare_operation;
           supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
           op.kind = LN_RegisterExpressionOpKind::BoolFloatCompare;
@@ -4236,6 +5191,35 @@ void LN_Program::RebuildRegisterExpressionIR()
                                ir.value_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::BoolFromValue;
+          break;
+        case LN_BoolExpressionKind::FromInt:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Int, expression.input0, ir.int_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::BoolFromInt;
+          break;
+        case LN_BoolExpressionKind::FromFloat:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::BoolFromFloat;
+          break;
+        case LN_BoolExpressionKind::FromString:
+          op.input0 = make_string_ref(expression.input0);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::BoolFromString;
+          break;
+        case LN_BoolExpressionKind::FromVector:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input0, ir.vector_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::BoolFromVector;
+          break;
+        case LN_BoolExpressionKind::FromColor:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Color, expression.input0, ir.color_expression_registers);
+          supported = RegisterRefIsValid(op.input0);
+          op.kind = LN_RegisterExpressionOpKind::BoolFromColor;
           break;
         case LN_BoolExpressionKind::ValueCompare:
           op.input0 = make_ref(LN_RegisterValueKind::GenericValue,
@@ -4285,9 +5269,8 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.kind = LN_RegisterExpressionOpKind::ValueEmptyDict;
           break;
         case LN_ValueExpressionKind::EmptyList:
-          op.input0 = make_ref(LN_RegisterValueKind::Int,
-                               expression.input0,
-                               ir.int_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Int, expression.input0, ir.int_expression_registers);
           supported = expression.input0 == LN_INVALID_INDEX || RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::ValueEmptyList;
           break;
@@ -4305,24 +5288,34 @@ void LN_Program::RebuildRegisterExpressionIR()
                       RegisterRefIsValid(op.input2);
           op.kind = LN_RegisterExpressionOpKind::ValueSelect;
           break;
-        case LN_ValueExpressionKind::FromBool:
-          op.input0 = make_ref(LN_RegisterValueKind::Bool,
+        case LN_ValueExpressionKind::Mix:
+          op.input0 = make_ref(LN_RegisterValueKind::GenericValue,
                                expression.input0,
-                               ir.bool_expression_registers);
+                               ir.value_expression_registers);
+          op.input1 = make_ref(LN_RegisterValueKind::GenericValue,
+                               expression.input1,
+                               ir.value_expression_registers);
+          op.input2 = make_ref(
+              LN_RegisterValueKind::Float, expression.input2, ir.float_expression_registers);
+          supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1) &&
+                      RegisterRefIsValid(op.input2);
+          op.kind = LN_RegisterExpressionOpKind::ValueMix;
+          break;
+        case LN_ValueExpressionKind::FromBool:
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Bool, expression.input0, ir.bool_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::ValueFromBool;
           break;
         case LN_ValueExpressionKind::FromInt:
-          op.input0 = make_ref(LN_RegisterValueKind::Int,
-                               expression.input0,
-                               ir.int_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Int, expression.input0, ir.int_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::ValueFromInt;
           break;
         case LN_ValueExpressionKind::FromFloat:
-          op.input0 = make_ref(LN_RegisterValueKind::Float,
-                               expression.input0,
-                               ir.float_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::ValueFromFloat;
           break;
@@ -4332,23 +5325,20 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.kind = LN_RegisterExpressionOpKind::ValueFromString;
           break;
         case LN_ValueExpressionKind::FromVector:
-          op.input0 = make_ref(LN_RegisterValueKind::Vector,
-                               expression.input0,
-                               ir.vector_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input0, ir.vector_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::ValueFromVector;
           break;
         case LN_ValueExpressionKind::FromColor:
-          op.input0 = make_ref(LN_RegisterValueKind::Color,
-                               expression.input0,
-                               ir.color_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Color, expression.input0, ir.color_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::ValueFromColor;
           break;
         case LN_ValueExpressionKind::FromRotation:
-          op.input0 = make_ref(LN_RegisterValueKind::Vector,
-                               expression.input0,
-                               ir.vector_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input0, ir.vector_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::ValueFromRotation;
           break;
@@ -4380,9 +5370,8 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.kind = LN_RegisterExpressionOpKind::ValueResizeVector;
           break;
         case LN_ValueExpressionKind::EulerToMatrix:
-          op.input0 = make_ref(LN_RegisterValueKind::Vector,
-                               expression.input0,
-                               ir.vector_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input0, ir.vector_expression_registers);
           supported = RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::ValueEulerToMatrix;
           break;
@@ -4415,9 +5404,8 @@ void LN_Program::RebuildRegisterExpressionIR()
             if (input_index == LN_INVALID_INDEX) {
               continue;
             }
-            LN_RegisterExpressionRef ref = make_ref(LN_RegisterValueKind::GenericValue,
-                                                    input_index,
-                                                    ir.value_expression_registers);
+            LN_RegisterExpressionRef ref = make_ref(
+                LN_RegisterValueKind::GenericValue, input_index, ir.value_expression_registers);
             if (!RegisterRefIsValid(ref)) {
               supported = false;
               break;
@@ -4468,9 +5456,8 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.input0 = make_ref(LN_RegisterValueKind::GenericValue,
                                expression.input0,
                                ir.value_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Int,
-                               expression.input1,
-                               ir.int_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Int, expression.input1, ir.int_expression_registers);
           supported = (expression.input0 == LN_INVALID_INDEX || RegisterRefIsValid(op.input0)) &&
                       (expression.input1 == LN_INVALID_INDEX || RegisterRefIsValid(op.input1));
           op.kind = LN_RegisterExpressionOpKind::ValueListRemoveIndex;
@@ -4479,9 +5466,8 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.input0 = make_ref(LN_RegisterValueKind::GenericValue,
                                expression.input0,
                                ir.value_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Int,
-                               expression.input1,
-                               ir.int_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Int, expression.input1, ir.int_expression_registers);
           op.input2 = make_ref(LN_RegisterValueKind::GenericValue,
                                expression.input2,
                                ir.value_expression_registers);
@@ -4494,9 +5480,8 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.input0 = make_ref(LN_RegisterValueKind::GenericValue,
                                expression.input0,
                                ir.value_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::Int,
-                               expression.input1,
-                               ir.int_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Int, expression.input1, ir.int_expression_registers);
           supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
           op.kind = LN_RegisterExpressionOpKind::ValueListElement;
           break;
@@ -4514,12 +5499,10 @@ void LN_Program::RebuildRegisterExpressionIR()
           for (size_t pair_index = 0; pair_index < pair_count; pair_index++) {
             const uint32_t condition_index = expression.input_indices[pair_index * 2];
             const uint32_t value_index = expression.input_indices[pair_index * 2 + 1];
-            LN_RegisterExpressionRef condition_ref = make_ref(LN_RegisterValueKind::Bool,
-                                                              condition_index,
-                                                              ir.bool_expression_registers);
-            LN_RegisterExpressionRef value_ref = make_ref(LN_RegisterValueKind::GenericValue,
-                                                          value_index,
-                                                          ir.value_expression_registers);
+            LN_RegisterExpressionRef condition_ref = make_ref(
+                LN_RegisterValueKind::Bool, condition_index, ir.bool_expression_registers);
+            LN_RegisterExpressionRef value_ref = make_ref(
+                LN_RegisterValueKind::GenericValue, value_index, ir.value_expression_registers);
             if ((condition_index != LN_INVALID_INDEX && !RegisterRefIsValid(condition_ref)) ||
                 (value_index != LN_INVALID_INDEX && !RegisterRefIsValid(value_ref)))
             {
@@ -4552,12 +5535,10 @@ void LN_Program::RebuildRegisterExpressionIR()
           for (size_t pair_index = 0; supported && pair_index < pair_count; pair_index++) {
             const uint32_t case_index = expression.input_indices[pair_index * 2];
             const uint32_t value_index = expression.input_indices[pair_index * 2 + 1];
-            LN_RegisterExpressionRef case_ref = make_ref(LN_RegisterValueKind::GenericValue,
-                                                         case_index,
-                                                         ir.value_expression_registers);
-            LN_RegisterExpressionRef value_ref = make_ref(LN_RegisterValueKind::GenericValue,
-                                                          value_index,
-                                                          ir.value_expression_registers);
+            LN_RegisterExpressionRef case_ref = make_ref(
+                LN_RegisterValueKind::GenericValue, case_index, ir.value_expression_registers);
+            LN_RegisterExpressionRef value_ref = make_ref(
+                LN_RegisterValueKind::GenericValue, value_index, ir.value_expression_registers);
             if ((case_index != LN_INVALID_INDEX && !RegisterRefIsValid(case_ref)) ||
                 (value_index != LN_INVALID_INDEX && !RegisterRefIsValid(value_ref)))
             {
@@ -4576,15 +5557,15 @@ void LN_Program::RebuildRegisterExpressionIR()
           break;
         }
         case LN_ValueExpressionKind::MakeDict:
-          op.input0 = make_ref(LN_RegisterValueKind::StringId,
-                               expression.input0,
-                               ir.string_expression_registers);
+          op.input0 = make_ref(
+              LN_RegisterValueKind::StringId, expression.input0, ir.string_expression_registers);
           op.input1 = make_ref(LN_RegisterValueKind::GenericValue,
                                expression.input1,
                                ir.value_expression_registers);
           supported = (expression.input0 == LN_INVALID_INDEX ||
                        (RegisterRefIsValid(op.input0) &&
-                        StringExpressionIndexIsConstant(m_stringExpressions, expression.input0))) &&
+                        StringExpressionIndexIsConstant(m_stringExpressions,
+                                                        expression.input0))) &&
                       (expression.input1 == LN_INVALID_INDEX || RegisterRefIsValid(op.input1));
           op.kind = LN_RegisterExpressionOpKind::ValueMakeDict;
           break;
@@ -4592,16 +5573,16 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.input0 = make_ref(LN_RegisterValueKind::GenericValue,
                                expression.input0,
                                ir.value_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::StringId,
-                               expression.input1,
-                               ir.string_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::StringId, expression.input1, ir.string_expression_registers);
           op.input2 = make_ref(LN_RegisterValueKind::GenericValue,
                                expression.input2,
                                ir.value_expression_registers);
           supported = (expression.input0 == LN_INVALID_INDEX || RegisterRefIsValid(op.input0)) &&
                       (expression.input1 == LN_INVALID_INDEX ||
                        (RegisterRefIsValid(op.input1) &&
-                        StringExpressionIndexIsConstant(m_stringExpressions, expression.input1))) &&
+                        StringExpressionIndexIsConstant(m_stringExpressions,
+                                                        expression.input1))) &&
                       (expression.input2 == LN_INVALID_INDEX || RegisterRefIsValid(op.input2));
           op.kind = LN_RegisterExpressionOpKind::ValueDictGetKey;
           break;
@@ -4609,16 +5590,16 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.input0 = make_ref(LN_RegisterValueKind::GenericValue,
                                expression.input0,
                                ir.value_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::StringId,
-                               expression.input1,
-                               ir.string_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::StringId, expression.input1, ir.string_expression_registers);
           op.input2 = make_ref(LN_RegisterValueKind::GenericValue,
                                expression.input2,
                                ir.value_expression_registers);
           supported = (expression.input0 == LN_INVALID_INDEX || RegisterRefIsValid(op.input0)) &&
                       (expression.input1 == LN_INVALID_INDEX ||
                        (RegisterRefIsValid(op.input1) &&
-                        StringExpressionIndexIsConstant(m_stringExpressions, expression.input1))) &&
+                        StringExpressionIndexIsConstant(m_stringExpressions,
+                                                        expression.input1))) &&
                       (expression.input2 == LN_INVALID_INDEX || RegisterRefIsValid(op.input2));
           op.kind = LN_RegisterExpressionOpKind::ValueDictSetKey;
           break;
@@ -4627,9 +5608,8 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.input0 = make_ref(LN_RegisterValueKind::GenericValue,
                                expression.input0,
                                ir.value_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::StringId,
-                               expression.input1,
-                               ir.string_expression_registers);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::StringId, expression.input1, ir.string_expression_registers);
           supported = (expression.input0 == LN_INVALID_INDEX || RegisterRefIsValid(op.input0)) &&
                       (expression.input1 == LN_INVALID_INDEX ||
                        (RegisterRefIsValid(op.input1) &&
@@ -4668,13 +5648,12 @@ void LN_Program::RebuildRegisterExpressionIR()
     }
   }
 
-  ir.fallback_expression_count =
-      uint32_t(m_boolExpressions.size() + m_intExpressions.size() + m_floatExpressions.size() +
-               m_vectorExpressions.size() + m_colorExpressions.size() +
-               m_stringExpressions.size() + m_valueExpressions.size() -
-               ir.bool_register_count - ir.int_register_count - ir.float_register_count -
-               ir.vector_register_count - ir.color_register_count - ir.string_register_count -
-               ir.string_id_register_count - ir.generic_value_register_count);
+  ir.fallback_expression_count = uint32_t(
+      m_boolExpressions.size() + m_intExpressions.size() + m_floatExpressions.size() +
+      m_vectorExpressions.size() + m_colorExpressions.size() + m_stringExpressions.size() +
+      m_valueExpressions.size() - ir.bool_register_count - ir.int_register_count -
+      ir.float_register_count - ir.vector_register_count - ir.color_register_count -
+      ir.string_register_count - ir.string_id_register_count - ir.generic_value_register_count);
 
   for (uint32_t op_index = 0; op_index < ir.ops.size(); op_index++) {
     const LN_RegisterExpressionOp &op = ir.ops[op_index];
@@ -4892,7 +5871,7 @@ void LN_Program::ValidateInstructionPayloadCollection(
     const std::vector<LN_Instruction> &payloads,
     std::vector<std::string> &r_errors) const
 {
-  const char *event_name = (event == LN_Event::OnInit) ? "OnInit" : "OnFixedUpdate";
+  const char *event_name = EventName(event);
   auto add_error = [&](const size_t instruction_index, const std::string &message) {
     r_errors.push_back(std::string(event_name) + " instruction " +
                        std::to_string(instruction_index) + ": " + message);
@@ -4903,8 +5882,8 @@ void LN_Program::ValidateInstructionPayloadCollection(
                          const char *name) {
     if (index != LN_INVALID_INDEX && index >= size) {
       add_error(instruction_index,
-                std::string(name) + " index " + std::to_string(index) +
-                    " is outside table size " + std::to_string(size));
+                std::string(name) + " index " + std::to_string(index) + " is outside table size " +
+                    std::to_string(size));
     }
   };
 
@@ -4954,7 +5933,8 @@ void LN_Program::ValidateInstructionPayloadCollection(
       if (delivery == LN_RuntimeSideEffectDelivery::ImmediateMainThread &&
           (semantics->writes & LN_RUNTIME_SEMANTIC_WRITE_COMMAND_STREAM) != 0u)
       {
-        add_error(index, "immediate main-thread opcode incorrectly declares command-stream writes");
+        add_error(index,
+                  "immediate main-thread opcode incorrectly declares command-stream writes");
       }
       if ((semantics->fallback_requirements & LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP) != 0u &&
           (semantics->reads & LN_RUNTIME_SEMANTIC_READ_PROGRAM_TABLE) == 0u)
@@ -4975,9 +5955,9 @@ void LN_Program::ValidateInstructionPayloadCollection(
       add_error(index, "payload kind does not match opcode family");
     }
     if ((payload.opcode == LN_OpCode::ArmTimer || payload.opcode == LN_OpCode::ArmDelay ||
+         payload.opcode == LN_OpCode::ArmNextFrame ||
          payload.opcode == LN_OpCode::UpdatePulsify ||
-         payload.opcode == LN_OpCode::UpdateBarrier ||
-         payload.opcode == LN_OpCode::TryCooldown ||
+         payload.opcode == LN_OpCode::UpdateBarrier || payload.opcode == LN_OpCode::TryCooldown ||
          payload.opcode == LN_OpCode::ResetCooldown) &&
         (payload.int_value < 0 || uint32_t(payload.int_value) >= m_timeFlowStateCount))
     {
@@ -4987,10 +5967,251 @@ void LN_Program::ValidateInstructionPayloadCollection(
       if (payload.int_value < 0 || uint32_t(payload.int_value) >= m_boolExpressions.size()) {
         add_error(index, "Once bool expression index is outside expression table");
       }
-      else if (m_boolExpressions[uint32_t(payload.int_value)].kind !=
-               LN_BoolExpressionKind::Once)
+      else if (m_boolExpressions[uint32_t(payload.int_value)].kind != LN_BoolExpressionKind::Once)
       {
         add_error(index, "Once state opcode does not reference a Once expression");
+      }
+    }
+    if (payload.opcode == LN_OpCode::SetFlowGate || payload.opcode == LN_OpCode::TryFlowGate) {
+      if (payload.int_value < 0 || uint32_t(payload.int_value) >= m_boolExpressions.size()) {
+        add_error(index, "Flow Gate state expression index is outside expression table");
+      }
+      else if (m_boolExpressions[uint32_t(payload.int_value)].kind !=
+               LN_BoolExpressionKind::FlowGateOpen)
+      {
+        add_error(index, "Flow Gate opcode does not reference a Flow Gate state expression");
+      }
+      if (payload.opcode == LN_OpCode::SetFlowGate &&
+          (payload.secondary_int_value < int32_t(LN_FlowGateControl::Toggle) ||
+           payload.secondary_int_value > int32_t(LN_FlowGateControl::Close)))
+      {
+        add_error(index, "Flow Gate control mode is invalid");
+      }
+    }
+    if (payload.opcode == LN_OpCode::TryFlowRouter ||
+        payload.opcode == LN_OpCode::ResetFlowRouter ||
+        payload.opcode == LN_OpCode::TryRepeatLimit ||
+        payload.opcode == LN_OpCode::ResetRepeatLimit ||
+        payload.opcode == LN_OpCode::SampleMotion ||
+        payload.opcode == LN_OpCode::ResetMotion)
+    {
+      if (payload.int_value < 0 || uint32_t(payload.int_value) >= m_flowControlStateCount) {
+        add_error(index, "flow-control state index is outside dense state table");
+      }
+      if (payload.opcode == LN_OpCode::TryFlowRouter &&
+          (payload.secondary_int_value <= 0 ||
+           payload.secondary_int_value > int32_t(LN_MAX_DYNAMIC_SOCKET_COUNT)))
+      {
+        add_error(index, "Flow Router output count must be between 1 and 64");
+      }
+      if (payload.opcode == LN_OpCode::TryRepeatLimit &&
+          (payload.int_expr_index == LN_INVALID_INDEX ||
+           payload.int_expr_index >= m_intExpressions.size()))
+      {
+        add_error(index, "Repeat Limit is missing its limit expression");
+      }
+      if (payload.opcode == LN_OpCode::SampleMotion) {
+        const LN_MotionSourceMode source_mode = LN_MotionSourceMode(
+            payload.secondary_int_value);
+        if (source_mode != LN_MotionSourceMode::Position &&
+            source_mode != LN_MotionSourceMode::OwnerObject &&
+            source_mode != LN_MotionSourceMode::Object)
+        {
+          add_error(index, "Predict Motion source mode is invalid");
+        }
+        if (source_mode == LN_MotionSourceMode::Position &&
+            (payload.vector_expr_index == LN_INVALID_INDEX ||
+             payload.vector_expr_index >= m_vectorExpressions.size()))
+        {
+          add_error(index, "Predict Motion is missing its position expression");
+        }
+        if (source_mode == LN_MotionSourceMode::Object &&
+            (payload.value_expr_index == LN_INVALID_INDEX ||
+             payload.value_expr_index >= m_valueExpressions.size()))
+        {
+          add_error(index, "Predict Motion is missing its object expression");
+        }
+        if (payload.float_expr_index == LN_INVALID_INDEX ||
+            payload.float_expr_index >= m_floatExpressions.size() ||
+            payload.secondary_float_expr_index == LN_INVALID_INDEX ||
+            payload.secondary_float_expr_index >= m_floatExpressions.size())
+        {
+          add_error(index, "Predict Motion is missing a time expression");
+        }
+      }
+    }
+    if (payload.opcode == LN_OpCode::BreakLoop) {
+      if (payload.loop_frame_index == LN_INVALID_INDEX || payload.int_value < 0 ||
+          uint32_t(payload.int_value) >= m_loopFrames.size() ||
+          uint32_t(payload.int_value) != payload.loop_frame_index)
+      {
+        add_error(index, "Break Loop must reference its active loop frame");
+      }
+    }
+    if (payload.opcode == LN_OpCode::InputMap &&
+        (payload.int_value < int32_t(LN_InputMapOperation::Save) ||
+         payload.int_value > int32_t(LN_InputMapOperation::Rebind)))
+    {
+      add_error(index, "Input Map operation is outside the supported range");
+    }
+    if (payload.opcode == LN_OpCode::SaveGame || payload.opcode == LN_OpCode::LoadGame ||
+        payload.opcode == LN_OpCode::SetSaveExistence || payload.opcode == LN_OpCode::InputMap)
+    {
+      const uint32_t completion_expression = payload.opcode == LN_OpCode::SetSaveExistence ?
+                                                 payload.secondary_bool_expr_index :
+                                                 payload.bool_expr_index;
+      if (completion_expression == LN_INVALID_INDEX ||
+          completion_expression >= m_boolExpressions.size())
+      {
+        add_error(index, "persistence completion expression is outside the bool expression table");
+      }
+      else if (m_boolExpressions[completion_expression].kind !=
+               LN_BoolExpressionKind::PersistenceCompleted)
+      {
+        add_error(index,
+                  "persistence opcode does not reference a Persistence Completed expression");
+      }
+    }
+    if (payload.opcode == LN_OpCode::OpenObjectMenu ||
+        payload.opcode == LN_OpCode::CloseObjectMenu ||
+        payload.opcode == LN_OpCode::SetUIFocus || payload.opcode == LN_OpCode::TakeUIControl ||
+        payload.opcode == LN_OpCode::SetOverlayCollection ||
+        payload.opcode == LN_OpCode::RemoveOverlayCollection)
+    {
+      if (payload.property_ref_index == LN_INVALID_INDEX ||
+          payload.property_ref_index >= m_boolExpressions.size() ||
+          m_boolExpressions[payload.property_ref_index].kind !=
+              LN_BoolExpressionKind::UICommandCompleted)
+      {
+        add_error(index,
+                  "object UI command does not reference a UI Command Completed expression");
+      }
+      if (payload.opcode == LN_OpCode::OpenObjectMenu) {
+        if (payload.secondary_value_expr_index == LN_INVALID_INDEX ||
+            payload.string_expr_index == LN_INVALID_INDEX)
+        {
+          add_error(index, "Open Object Menu is missing a required input expression");
+        }
+        if (payload.int_value < int32_t(LN_UIMenuRouting::Modal) ||
+            payload.int_value > int32_t(LN_UIMenuRouting::PassThrough))
+        {
+          add_error(index, "Open Object Menu routing is invalid");
+        }
+        if (LN_UnpackUIMenuOpenMode(payload.secondary_int_value) > LN_UIMenuOpenMode::ReplaceTop ||
+            LN_UnpackUIMenuPresentation(payload.secondary_int_value) >
+                LN_UIMenuPresentation::Overlay ||
+            LN_UnpackUIMenuBackBehavior(payload.secondary_int_value) >
+                LN_UIMenuBackBehavior::Custom)
+        {
+          add_error(index, "Open Object Menu settings are invalid");
+        }
+      }
+      else if (payload.opcode == LN_OpCode::CloseObjectMenu) {
+        if (payload.int_value < int32_t(LN_UIMenuCloseOperation::Top) ||
+            payload.int_value > int32_t(LN_UIMenuCloseOperation::All))
+        {
+          add_error(index, "Close Object Menu operation is invalid");
+        }
+        if (payload.int_value == int32_t(LN_UIMenuCloseOperation::Specific) &&
+            payload.int_expr_index == LN_INVALID_INDEX)
+        {
+          add_error(index, "Close Object Menu is missing its menu-handle expression");
+        }
+      }
+      else if (payload.opcode == LN_OpCode::SetUIFocus &&
+               (payload.int_expr_index == LN_INVALID_INDEX ||
+                payload.string_expr_index == LN_INVALID_INDEX))
+      {
+        add_error(index, "Set UI Focus is missing its user or input-context expression");
+      }
+      else if (payload.opcode == LN_OpCode::TakeUIControl &&
+               (payload.int_expr_index == LN_INVALID_INDEX ||
+                payload.bool_expr_index == LN_INVALID_INDEX))
+      {
+        add_error(index, "Take UI Control is missing its user or take expression");
+      }
+      else if (payload.opcode == LN_OpCode::SetOverlayCollection &&
+               payload.secondary_value_expr_index == LN_INVALID_INDEX)
+      {
+        add_error(index, "Set Overlay Collection is missing its collection expression");
+      }
+      else if (payload.opcode == LN_OpCode::RemoveOverlayCollection &&
+               payload.value_expr_index == LN_INVALID_INDEX)
+      {
+        add_error(index, "Remove Overlay Collection is missing its collection expression");
+      }
+    }
+    if (payload.opcode == LN_OpCode::PlayAction) {
+      if (payload.secondary_int_value < 0 ||
+          (uint32_t(payload.secondary_int_value) & ~uint32_t(LN_ACTION_OUTPUT_ALL)) != 0u)
+      {
+        add_error(index, "Play Action lifecycle output mask is invalid");
+      }
+      const uint8_t output_mask = uint8_t(payload.secondary_int_value);
+      if (output_mask != LN_ACTION_OUTPUT_NONE &&
+          (payload.property_ref_index == LN_INVALID_INDEX ||
+           payload.property_ref_index >= m_boolExpressions.size() ||
+           m_boolExpressions[payload.property_ref_index].kind !=
+               LN_BoolExpressionKind::ActionLifecycleEvent))
+      {
+        add_error(index,
+                  "Play Action does not reference an Action Lifecycle Event expression");
+      }
+    }
+    if (payload.opcode == LN_OpCode::ScrollObjectView) {
+      if (payload.int_expr_index == LN_INVALID_INDEX ||
+          payload.secondary_value_expr_index == LN_INVALID_INDEX)
+      {
+        add_error(index, "Scroll Object View is missing its Item or Lines expression");
+      }
+      if (payload.int_value < int32_t(LN_UIViewScrollMode::ShowItem) ||
+          payload.int_value > int32_t(LN_UIViewScrollMode::Lines))
+      {
+        add_error(index, "Scroll Object View mode is invalid");
+      }
+    }
+    if (payload.opcode == LN_OpCode::ScreenAnchor) {
+      /* No Object expression anchors the tree's own object. */
+      if (payload.vector_expr_index == LN_INVALID_INDEX ||
+          payload.secondary_vector_expr_index == LN_INVALID_INDEX ||
+          payload.float_expr_index == LN_INVALID_INDEX ||
+          payload.tertiary_value_expr_index == LN_INVALID_INDEX ||
+          payload.bool_expr_index == LN_INVALID_INDEX)
+      {
+        add_error(index, "Screen Anchor is missing a required input expression");
+      }
+      if (payload.int_value < 0 || payload.int_value > 8) {
+        add_error(index, "Screen Anchor anchor is invalid");
+      }
+      if (payload.secondary_int_value < 0 || payload.secondary_int_value > 1) {
+        add_error(index, "Screen Anchor area is invalid");
+      }
+    }
+    if (payload.opcode == LN_OpCode::SetParent) {
+      if (payload.secondary_value_expr_index == LN_INVALID_INDEX) {
+        add_error(index, "Set Parent is missing its parent object expression");
+      }
+      if (payload.bool_value) {
+        if (payload.int_value < int32_t(KX_ParentType::Object) ||
+            payload.int_value > int32_t(KX_ParentType::Bone))
+        {
+          add_error(index, "Set Parent has an invalid modern parent type");
+        }
+        else if (payload.int_value == int32_t(KX_ParentType::Object) &&
+                 payload.bool_expr_index == LN_INVALID_INDEX)
+        {
+          add_error(index, "Set Parent object mode is missing its compound expression");
+        }
+        else if (payload.int_value == int32_t(KX_ParentType::Bone) &&
+                 payload.string_expr_index == LN_INVALID_INDEX)
+        {
+          add_error(index, "Set Parent bone mode is missing its bone name expression");
+        }
+      }
+      else if (payload.bool_expr_index == LN_INVALID_INDEX ||
+               payload.secondary_bool_expr_index == LN_INVALID_INDEX)
+      {
+        add_error(index, "legacy Set Parent is missing its compound or ghost expression");
       }
     }
     if (!m_sourceRefs.empty() && header.source_ref_index >= m_sourceRefs.size()) {
@@ -5003,18 +6224,12 @@ void LN_Program::ValidateInstructionPayloadCollection(
 
     check_index(payload.bool_guard_expr_index, m_boolExpressions.size(), index, "bool guard");
     check_index(payload.bool_expr_index, m_boolExpressions.size(), index, "bool");
-    check_index(payload.secondary_bool_expr_index,
-                m_boolExpressions.size(),
-                index,
-                "secondary bool");
-    check_index(payload.tertiary_bool_expr_index,
-                m_boolExpressions.size(),
-                index,
-                "tertiary bool");
-    check_index(payload.quaternary_bool_expr_index,
-                m_boolExpressions.size(),
-                index,
-                "quaternary bool");
+    check_index(
+        payload.secondary_bool_expr_index, m_boolExpressions.size(), index, "secondary bool");
+    check_index(
+        payload.tertiary_bool_expr_index, m_boolExpressions.size(), index, "tertiary bool");
+    check_index(
+        payload.quaternary_bool_expr_index, m_boolExpressions.size(), index, "quaternary bool");
     if (input_motion_look_opcode) {
       check_index(payload.int_expr_index, m_vectorExpressions.size(), index, "look cap y vector");
     }
@@ -5024,29 +6239,18 @@ void LN_Program::ValidateInstructionPayloadCollection(
     else {
       check_index(payload.int_expr_index, m_intExpressions.size(), index, "int");
     }
-    check_index(payload.secondary_int_expr_index,
-                m_intExpressions.size(),
-                index,
-                "secondary int");
-    check_index(payload.tertiary_int_expr_index,
-                m_intExpressions.size(),
-                index,
-                "tertiary int");
+    check_index(payload.secondary_int_expr_index, m_intExpressions.size(), index, "secondary int");
+    check_index(payload.tertiary_int_expr_index, m_intExpressions.size(), index, "tertiary int");
     check_index(payload.float_expr_index, m_floatExpressions.size(), index, "float");
-    check_index(payload.secondary_float_expr_index,
-                m_floatExpressions.size(),
-                index,
-                "secondary float");
-    check_index(payload.tertiary_float_expr_index,
-                m_floatExpressions.size(),
-                index,
-                "tertiary float");
-    check_index(payload.quaternary_float_expr_index,
-                m_floatExpressions.size(),
-                index,
-                "quaternary float");
+    check_index(
+        payload.secondary_float_expr_index, m_floatExpressions.size(), index, "secondary float");
+    check_index(
+        payload.tertiary_float_expr_index, m_floatExpressions.size(), index, "tertiary float");
+    check_index(
+        payload.quaternary_float_expr_index, m_floatExpressions.size(), index, "quaternary float");
     if (input_motion_look_opcode) {
-      check_index(payload.string_expr_index, m_floatExpressions.size(), index, "look smoothing float");
+      check_index(
+          payload.string_expr_index, m_floatExpressions.size(), index, "look smoothing float");
     }
     else {
       check_index(payload.string_expr_index, m_stringExpressions.size(), index, "string");
@@ -5055,35 +6259,34 @@ void LN_Program::ValidateInstructionPayloadCollection(
                 m_stringExpressions.size(),
                 index,
                 "secondary string");
-    check_index(payload.tertiary_string_expr_index,
-                m_stringExpressions.size(),
-                index,
-                "tertiary string");
+    check_index(
+        payload.tertiary_string_expr_index, m_stringExpressions.size(), index, "tertiary string");
     check_index(payload.vector_expr_index, m_vectorExpressions.size(), index, "vector");
     check_index(payload.secondary_vector_expr_index,
                 m_vectorExpressions.size(),
                 index,
                 "secondary vector");
     if (input_motion_look_opcode) {
-      check_index(payload.color_expr_index, m_vectorExpressions.size(), index, "look cap x vector");
+      check_index(
+          payload.color_expr_index, m_vectorExpressions.size(), index, "look cap x vector");
     }
     else {
       check_index(payload.color_expr_index, m_colorExpressions.size(), index, "color");
     }
     check_index(payload.value_expr_index, m_valueExpressions.size(), index, "value");
-    check_index(payload.secondary_value_expr_index,
-                m_valueExpressions.size(),
-                index,
-                "secondary value");
-    check_index(payload.tertiary_value_expr_index,
-                m_valueExpressions.size(),
-                index,
-                "tertiary value");
-    check_index(payload.quaternary_value_expr_index,
-                m_valueExpressions.size(),
-                index,
-                "quaternary value");
+    check_index(
+        payload.secondary_value_expr_index, m_valueExpressions.size(), index, "secondary value");
+    check_index(
+        payload.tertiary_value_expr_index, m_valueExpressions.size(), index, "tertiary value");
+    check_index(
+        payload.quaternary_value_expr_index, m_valueExpressions.size(), index, "quaternary value");
     check_index(payload.loop_frame_index, m_loopFrames.size(), index, "loop frame");
+    check_index(
+        payload.completed_loop_frame_index, m_loopFrames.size(), index, "completed loop frame");
+    check_index(payload.ui_event_state_index,
+                m_queryRuntimeStateCount,
+                index,
+                "On UI Event query state");
 
     if (OpcodeUsesVectorCommandPayload(payload.opcode)) {
       if (payload.command_payload_index >= m_vectorCommandPayloads.size()) {
@@ -5161,6 +6364,21 @@ void LN_Program::ValidateInstructionPayloadCollection(
                     m_colorExpressions.size(),
                     index,
                     "game property command color");
+        check_index(property_payload.modify_min_expr_index,
+                    m_floatExpressions.size(),
+                    index,
+                    "game property modify min");
+        check_index(property_payload.modify_max_expr_index,
+                    m_floatExpressions.size(),
+                    index,
+                    "game property modify max");
+        if (property_payload.modify_op > LN_PropertyModifyOp::Toggle ||
+            (property_payload.modify_op != LN_PropertyModifyOp::None &&
+             property_payload.modify_op != LN_PropertyModifyOp::Toggle &&
+             property_payload.float_expr_index == LN_INVALID_INDEX))
+        {
+          add_error(index, "modify game property command payload is invalid");
+        }
         if (property_payload.value_expr_index == LN_INVALID_INDEX &&
             property_payload.value_type == LN_ValueType::None)
         {
@@ -5210,10 +6428,8 @@ void LN_Program::ValidateInstructionPayloadCollection(
                       "rigid body constraint vector");
         }
         for (const uint32_t float_expr_index : constraint_payload.float_expr_indices) {
-          check_index(float_expr_index,
-                      m_floatExpressions.size(),
-                      index,
-                      "rigid body constraint float");
+          check_index(
+              float_expr_index, m_floatExpressions.size(), index, "rigid body constraint float");
         }
         const bool valid_constraint_type =
             constraint_payload.type == PHY_RigidBodyConstraintType::Point ||
@@ -5249,9 +6465,8 @@ void LN_Program::ValidateInstructionPayloadCollection(
           add_error(index, "velocity vector operation has an invalid mode");
         }
         if (payload.vector_operation_channel <
-            uint8_t(LN_VectorOperationChannel::LinearVelocity) ||
-          payload.vector_operation_channel >
-            uint8_t(LN_VectorOperationChannel::AngularVelocity))
+                uint8_t(LN_VectorOperationChannel::LinearVelocity) ||
+            payload.vector_operation_channel > uint8_t(LN_VectorOperationChannel::AngularVelocity))
         {
           add_error(index, "velocity vector operation has an invalid channel");
         }
@@ -5261,7 +6476,7 @@ void LN_Program::ValidateInstructionPayloadCollection(
           add_error(index, "apply transform vector operation has an invalid mode");
         }
         if (payload.vector_operation_channel < uint8_t(LN_VectorOperationChannel::Movement) ||
-          payload.vector_operation_channel > uint8_t(LN_VectorOperationChannel::Rotation))
+            payload.vector_operation_channel > uint8_t(LN_VectorOperationChannel::Rotation))
         {
           add_error(index, "apply transform vector operation has an invalid channel");
         }
@@ -5312,10 +6527,8 @@ void LN_Program::ValidateInstructionPayloadCollection(
         {
           add_error(index, "set game property payload is missing a property ref");
         }
-        check_index(payload.property_ref_index,
-                    m_gamePropertyRefs.size(),
-                    index,
-                    "game property ref");
+        check_index(
+            payload.property_ref_index, m_gamePropertyRefs.size(), index, "game property ref");
         if (payload.value_expr_index == LN_INVALID_INDEX &&
             payload.property_value_type == LN_ValueType::None)
         {
@@ -5326,29 +6539,31 @@ void LN_Program::ValidateInstructionPayloadCollection(
         if (payload.property_ref_index == LN_INVALID_INDEX) {
           add_error(index, "set tree property payload is missing a property ref");
         }
-        check_index(payload.property_ref_index,
-                    m_treePropertyRefs.size(),
-                    index,
-                    "tree property ref");
+        check_index(
+            payload.property_ref_index, m_treePropertyRefs.size(), index, "tree property ref");
         break;
       case LN_OpCode::AddObject:
-        check_index(payload.property_ref_index,
-                    m_treePropertyRefs.size(),
+        check_index(
+            payload.property_ref_index, m_treePropertyRefs.size(), index, "tree property ref");
+        break;
+      case LN_OpCode::InventoryEdit:
+        check_index(
+            payload.property_ref_index, m_treePropertyRefs.size(), index, "tree property ref");
+        check_index(payload.secondary_value_expr_index,
+                    m_valueExpressions.size(),
                     index,
-                    "tree property ref");
+                    "inventory operation expression");
+        if (payload.secondary_value_expr_index < m_valueExpressions.size() &&
+            m_valueExpressions[payload.secondary_value_expr_index].kind !=
+                LN_ValueExpressionKind::InventoryEdit)
+        {
+          add_error(index, "inventory payload does not reference its operation expression");
+        }
         break;
       case LN_OpCode::GamepadLook:
       case LN_OpCode::MouseLook:
-        check_index(payload.property_ref_index,
-                    m_valueExpressions.size(),
-                    index,
-                    "value property ref");
-        break;
-      case LN_OpCode::SpawnPoolCreate:
-      case LN_OpCode::SpawnPoolSpawn:
-        if (payload.int_value < 0 || uint32_t(payload.int_value) >= m_spawnPoolStateCount) {
-          add_error(index, "spawn pool state id is outside dense state table");
-        }
+        check_index(
+            payload.property_ref_index, m_valueExpressions.size(), index, "value property ref");
         break;
       default:
         break;
@@ -5364,14 +6579,19 @@ void LN_Program::ValidateInstructionPayloadCollection(
 bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors) const
 {
   std::vector<std::string> errors;
-  ValidateInstructionPayloadCollection(
-      LN_Event::OnInit, m_onInit, m_onInitPayloads, errors);
+  ValidateInstructionPayloadCollection(LN_Event::OnInit, m_onInit, m_onInitPayloads, errors);
+  ValidateInstructionPayloadCollection(LN_Event::OnUpdate, m_onUpdate, m_onUpdatePayloads, errors);
   ValidateInstructionPayloadCollection(
       LN_Event::OnFixedUpdate, m_onFixedUpdate, m_onFixedUpdatePayloads, errors);
 
   if (!m_onFixedUpdate.empty()) {
     if (m_schedulerSummary.required_phase != LN_SchedulerRequiredPhase::OnFixedUpdate) {
       errors.push_back("scheduler phase restriction does not cover OnFixedUpdate instructions");
+    }
+  }
+  else if (!m_onUpdate.empty()) {
+    if (m_schedulerSummary.required_phase != LN_SchedulerRequiredPhase::OnUpdate) {
+      errors.push_back("scheduler phase restriction does not cover OnUpdate instructions");
     }
   }
   else if (!m_onInit.empty()) {
@@ -5392,7 +6612,8 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
             *semantics, command_family);
         if ((minimum_resources & ~m_schedulerSummary.resource_access) != 0u) {
           errors.push_back(std::string(event_name) + " instruction " + std::to_string(index) +
-                           ": scheduler summary is missing semantic resource access");
+                           " (" + semantics->name +
+                           "): scheduler summary is missing semantic resource access");
         }
       }
       const LN_MainThreadOnlyReason reason = MainThreadOnlyReasonForOpcode(payload.opcode);
@@ -5410,6 +6631,7 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
     }
   };
   validate_scheduler_restrictions("OnInit", m_onInitPayloads);
+  validate_scheduler_restrictions("OnUpdate", m_onUpdatePayloads);
   validate_scheduler_restrictions("OnFixedUpdate", m_onFixedUpdatePayloads);
 
   LN_ProgramDependencySummary expected_dependencies;
@@ -5424,6 +6646,7 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
     }
   };
   add_expected_instruction_dependencies(m_onInitPayloads);
+  add_expected_instruction_dependencies(m_onUpdatePayloads);
   add_expected_instruction_dependencies(m_onFixedUpdatePayloads);
   for (const LN_BoolExpression &expression : m_boolExpressions) {
     AddBoolExpressionDependencyDetails(expected_dependencies, expression);
@@ -5450,15 +6673,15 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
     AddValueExpressionDependencyDetails(expected_dependencies, expression);
   }
 
-  auto validate_dependency_mask = [&](const char *name,
-                                      const uint32_t actual,
-                                      const uint32_t expected) {
-    if ((expected & ~actual) != 0u) {
-      errors.push_back(std::string("dependency summary is missing ") + name + " bits");
-    }
-  };
-  validate_dependency_mask(
-      "snapshot channel", m_dependencySummary.snapshot_channels, expected_dependencies.snapshot_channels);
+  auto validate_dependency_mask =
+      [&](const char *name, const uint32_t actual, const uint32_t expected) {
+        if ((expected & ~actual) != 0u) {
+          errors.push_back(std::string("dependency summary is missing ") + name + " bits");
+        }
+      };
+  validate_dependency_mask("snapshot channel",
+                           m_dependencySummary.snapshot_channels,
+                           expected_dependencies.snapshot_channels);
   validate_dependency_mask(
       "input channel", m_dependencySummary.input_channels, expected_dependencies.input_channels);
   validate_dependency_mask(
@@ -5481,7 +6704,8 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
                            m_dependencySummary.ray_query_detail_requirements,
                            expected_dependencies.ray_query_detail_requirements);
   if (m_dependencySummary.worker_lane_eligible != expected_dependencies.worker_lane_eligible) {
-    errors.push_back("dependency summary worker-lane eligibility does not match runtime semantics");
+    errors.push_back(
+        "dependency summary worker-lane eligibility does not match runtime semantics");
   }
   if (m_schedulerSummary.worker_lane_eligible && !m_dependencySummary.worker_lane_eligible) {
     errors.push_back("scheduler summary allows a dependency main-thread-only program");
@@ -5527,52 +6751,57 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
   };
 
   for (size_t index = 0; index < m_boolExpressions.size(); index++) {
-    validate_expression_semantics("bool",
-                                  index,
-                                  LN_GetRuntimeExpressionSemantics(
-                                      m_boolExpressions[index].kind));
+    validate_expression_semantics(
+        "bool", index, LN_GetRuntimeExpressionSemantics(m_boolExpressions[index].kind));
   }
   for (size_t index = 0; index < m_floatExpressions.size(); index++) {
-    validate_expression_semantics("float",
-                                  index,
-                                  LN_GetRuntimeExpressionSemantics(
-                                      m_floatExpressions[index].kind));
+    validate_expression_semantics(
+        "float", index, LN_GetRuntimeExpressionSemantics(m_floatExpressions[index].kind));
   }
   for (size_t index = 0; index < m_intExpressions.size(); index++) {
-    validate_expression_semantics("int",
-                                  index,
-                                  LN_GetRuntimeExpressionSemantics(
-                                      m_intExpressions[index].kind));
+    validate_expression_semantics(
+        "int", index, LN_GetRuntimeExpressionSemantics(m_intExpressions[index].kind));
   }
   for (size_t index = 0; index < m_stringExpressions.size(); index++) {
-    validate_expression_semantics("string",
-                                  index,
-                                  LN_GetRuntimeExpressionSemantics(
-                                      m_stringExpressions[index].kind));
+    validate_expression_semantics(
+        "string", index, LN_GetRuntimeExpressionSemantics(m_stringExpressions[index].kind));
   }
   for (size_t index = 0; index < m_vectorExpressions.size(); index++) {
-    validate_expression_semantics("vector",
-                                  index,
-                                  LN_GetRuntimeExpressionSemantics(
-                                      m_vectorExpressions[index].kind));
+    validate_expression_semantics(
+        "vector", index, LN_GetRuntimeExpressionSemantics(m_vectorExpressions[index].kind));
   }
   for (size_t index = 0; index < m_colorExpressions.size(); index++) {
-    validate_expression_semantics("color",
-                                  index,
-                                  LN_GetRuntimeExpressionSemantics(
-                                      m_colorExpressions[index].kind));
+    validate_expression_semantics(
+        "color", index, LN_GetRuntimeExpressionSemantics(m_colorExpressions[index].kind));
   }
   for (size_t index = 0; index < m_valueExpressions.size(); index++) {
-    validate_expression_semantics("value",
-                                  index,
-                                  LN_GetRuntimeExpressionSemantics(
-                                      m_valueExpressions[index].kind));
+    validate_expression_semantics(
+        "value", index, LN_GetRuntimeExpressionSemantics(m_valueExpressions[index].kind));
   }
   for (size_t index = 0; index < m_queryExpressions.size(); index++) {
-    validate_expression_semantics("query",
-                                  index,
-                                  LN_GetRuntimeExpressionSemantics(
-                                      m_queryExpressions[index].kind));
+    validate_expression_semantics(
+        "query", index, LN_GetRuntimeExpressionSemantics(m_queryExpressions[index].kind));
+  }
+
+  for (size_t index = 0; index < m_curveTables.size(); index++) {
+    const LN_CurveTable &table = m_curveTables[index];
+    const float domain_span = table.domain_max - table.domain_min;
+    const bool samples_are_finite = std::all_of(
+        table.samples.begin(), table.samples.end(), [](const float sample) {
+          return std::isfinite(sample);
+        });
+    if (!samples_are_finite || !std::isfinite(table.domain_min) ||
+        !std::isfinite(table.domain_max) || !std::isfinite(domain_span) ||
+        domain_span <= 0.0f || !std::isfinite(table.sample_scale) || table.sample_scale <= 0.0f ||
+        !std::isfinite(table.table_min_x) || !std::isfinite(table.table_max_x) ||
+        table.table_min_x > table.table_max_x || !std::isfinite(table.extend_in_x) ||
+        !std::isfinite(table.extend_in_y) || !std::isfinite(table.extend_out_x) ||
+        !std::isfinite(table.extend_out_y) || !std::isfinite(table.clip_min) ||
+        !std::isfinite(table.clip_max) || table.clip_min > table.clip_max)
+    {
+      errors.push_back("curve table " + std::to_string(index) +
+                       ": contains invalid numeric data");
+    }
   }
 
   for (size_t index = 0; index < m_queryExpressions.size(); index++) {
@@ -5581,7 +6810,220 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
       errors.push_back("query expression " + std::to_string(index) +
                        ": runtime state id is outside dense state table");
     }
+    if (expression.ignore_list_expr_index != LN_INVALID_INDEX &&
+        expression.ignore_list_expr_index >= m_valueExpressions.size())
+    {
+      errors.push_back("query expression " + std::to_string(index) +
+                       ": ignore-object list expression is invalid");
+    }
+    if ((expression.kind == LN_QueryExpressionKind::MouseOver ||
+         expression.kind == LN_QueryExpressionKind::ObjectScrollView ||
+         expression.kind == LN_QueryExpressionKind::ObjectGridView ||
+         expression.kind == LN_QueryExpressionKind::MouseRay) &&
+        expression.interaction_view != LN_InteractionView::Automatic &&
+        expression.interaction_view != LN_InteractionView::Main &&
+        expression.interaction_view != LN_InteractionView::Overlay &&
+        expression.interaction_view != LN_InteractionView::CustomCamera)
+    {
+      errors.push_back("query expression " + std::to_string(index) +
+                       ": interaction view is invalid");
+    }
+    if (expression.interaction_domain != LN_InteractionDomain::Any &&
+        expression.interaction_domain != LN_InteractionDomain::Main &&
+        expression.interaction_domain != LN_InteractionDomain::Overlay)
+    {
+      errors.push_back("query expression " + std::to_string(index) +
+                       ": interaction domain is invalid");
+    }
+    if (expression.kind == LN_QueryExpressionKind::MouseRay &&
+        expression.input0 != LN_INVALID_INDEX && expression.input0 >= m_valueExpressions.size())
+    {
+      errors.push_back("query expression " + std::to_string(index) +
+                       ": custom interaction camera expression is invalid");
+    }
+    if (expression.kind == LN_QueryExpressionKind::MouseOver &&
+        ((expression.input0 != LN_INVALID_INDEX &&
+          expression.input0 >= m_valueExpressions.size()) ||
+         (expression.input1 != LN_INVALID_INDEX &&
+          expression.input1 >= m_valueExpressions.size())))
+    {
+      errors.push_back("query expression " + std::to_string(index) +
+                       ": mouse-over object or camera expression is invalid");
+    }
+    if (expression.kind == LN_QueryExpressionKind::UIElementEvent) {
+      if (expression.int_value < int32_t(LN_UIElementEvent::Click) ||
+          expression.int_value > int32_t(LN_UIElementEvent::UISound))
+      {
+        errors.push_back("query expression " + std::to_string(index) +
+                         ": On UI Event type is invalid");
+      }
+      if (expression.string_expr_index != LN_INVALID_INDEX &&
+          expression.string_expr_index >= m_stringExpressions.size())
+      {
+        errors.push_back("query expression " + std::to_string(index) +
+                         ": On UI Event action expression is invalid");
+      }
+    }
+    if (expression.kind == LN_QueryExpressionKind::ObjectScrollView ||
+        expression.kind == LN_QueryExpressionKind::ObjectGridView)
+    {
+      const auto validate_optional_index = [&](const uint32_t expression_index,
+                                               const size_t expression_count,
+                                               const char *field) {
+        if (expression_index != LN_INVALID_INDEX && expression_index >= expression_count) {
+          errors.push_back("query expression " + std::to_string(index) +
+                           ": object view " + field + " expression is invalid");
+        }
+      };
+      validate_optional_index(expression.input0, m_valueExpressions.size(), "viewport");
+      validate_optional_index(expression.bool_expr_index, m_boolExpressions.size(), "enabled");
+      validate_optional_index(expression.int_expr_index, m_intExpressions.size(), "user");
+      validate_optional_index(
+          expression.secondary_int_expr_index, m_intExpressions.size(), "priority");
+      validate_optional_index(expression.float_expr_index, m_floatExpressions.size(), "padding");
+      validate_optional_index(expression.input9, m_valueExpressions.size(), "scrollbar");
+      if (expression.kind == LN_QueryExpressionKind::ObjectScrollView) {
+        validate_optional_index(expression.input1, m_valueExpressions.size(), "content");
+        validate_optional_index(expression.input2, m_valueExpressions.size(), "camera");
+        validate_optional_index(expression.input3, m_vectorExpressions.size(), "minimum offset");
+        validate_optional_index(expression.input4, m_vectorExpressions.size(), "maximum offset");
+        validate_optional_index(expression.input5, m_vectorExpressions.size(), "wheel step");
+        validate_optional_index(
+            expression.secondary_bool_expr_index, m_boolExpressions.size(), "horizontal");
+        validate_optional_index(
+            expression.tertiary_bool_expr_index, m_boolExpressions.size(), "vertical");
+        validate_optional_index(
+            expression.quaternary_bool_expr_index, m_boolExpressions.size(), "culling");
+        validate_optional_index(
+            expression.quinary_bool_expr_index, m_boolExpressions.size(), "focus-follow");
+      }
+      else {
+        validate_optional_index(expression.input1, m_valueExpressions.size(), "camera");
+        validate_optional_index(expression.input2, m_valueExpressions.size(), "slots");
+        validate_optional_index(expression.input3, m_valueExpressions.size(), "items");
+        validate_optional_index(expression.input4, m_intExpressions.size(), "first item");
+        validate_optional_index(expression.input5, m_intExpressions.size(), "wheel rows");
+        validate_optional_index(expression.input6, m_valueExpressions.size(), "icon library");
+        validate_optional_index(expression.input7, m_valueExpressions.size(), "slot template");
+        validate_optional_index(expression.input8, m_vectorExpressions.size(), "spacing");
+        validate_optional_index(
+            expression.quaternary_bool_expr_index, m_boolExpressions.size(), "show counts");
+        validate_optional_index(
+            expression.quinary_bool_expr_index, m_boolExpressions.size(), "show names");
+        validate_optional_index(
+            expression.senary_bool_expr_index, m_boolExpressions.size(), "show empty");
+        validate_optional_index(
+            expression.quaternary_int_expr_index, m_intExpressions.size(), "rows");
+        validate_optional_index(
+            expression.tertiary_int_expr_index, m_intExpressions.size(), "columns");
+        validate_optional_index(
+            expression.secondary_bool_expr_index, m_boolExpressions.size(), "culling");
+        validate_optional_index(
+            expression.tertiary_bool_expr_index, m_boolExpressions.size(), "focus-follow");
+        /* The list and Inventory inputs, each indexing its own kind of expression. */
+        if (!expression.input_indices.empty() &&
+            expression.input_indices.size() != LN_GRID_INPUT_COUNT)
+        {
+          errors.push_back("query expression " + std::to_string(index) +
+                           ": object grid view input list has the wrong size");
+        }
+        for (uint32_t input = 0;
+             input < std::min<size_t>(expression.input_indices.size(), LN_GRID_INPUT_COUNT);
+             ++input)
+        {
+          size_t count = 0;
+          switch (LN_GridViewInputKindOf(input)) {
+            case LN_GridViewInputKind::Value:
+              count = m_valueExpressions.size();
+              break;
+            case LN_GridViewInputKind::Bool:
+              count = m_boolExpressions.size();
+              break;
+            case LN_GridViewInputKind::Int:
+              count = m_intExpressions.size();
+              break;
+            case LN_GridViewInputKind::Float:
+              count = m_floatExpressions.size();
+              break;
+            case LN_GridViewInputKind::String:
+              count = m_stringExpressions.size();
+              break;
+          }
+          validate_optional_index(expression.input_indices[input], count, "list or inventory");
+        }
+      }
+    }
+    if (expression.kind != LN_QueryExpressionKind::ObjectGridView &&
+        !expression.input_indices.empty())
+    {
+      errors.push_back("query expression " + std::to_string(index) +
+                       ": only Object Grid View has an input list");
+    }
+    if (expression.kind == LN_QueryExpressionKind::VectorAverage) {
+      if (expression.average_center_source != LN_AverageCenterSource::VectorList &&
+          expression.average_center_source != LN_AverageCenterSource::ObjectList &&
+          expression.average_center_source != LN_AverageCenterSource::Collection)
+      {
+        errors.push_back("query expression " + std::to_string(index) +
+                         ": Get Average Center Position source mode is invalid");
+      }
+      if (expression.input0 != LN_INVALID_INDEX &&
+          expression.input0 >= m_valueExpressions.size())
+      {
+        errors.push_back("query expression " + std::to_string(index) +
+                         ": Get Average Center Position input expression is invalid");
+      }
+    }
+    if (expression.kind == LN_QueryExpressionKind::DistanceBetween) {
+      auto validate_endpoint = [&](const LN_DistanceEndpointMode mode,
+                                   const uint32_t input,
+                                   const char endpoint) {
+        if (mode != LN_DistanceEndpointMode::Object &&
+            mode != LN_DistanceEndpointMode::Position)
+        {
+          errors.push_back("query expression " + std::to_string(index) + ": endpoint " +
+                           endpoint + " mode is invalid");
+          return;
+        }
+        const size_t expression_count = mode == LN_DistanceEndpointMode::Object ?
+                                            m_valueExpressions.size() :
+                                            m_vectorExpressions.size();
+        if (input != LN_INVALID_INDEX && input >= expression_count) {
+          errors.push_back("query expression " + std::to_string(index) + ": endpoint " +
+                           endpoint + " expression is invalid");
+        }
+      };
+      validate_endpoint(expression.distance_endpoint_a, expression.input0, 'A');
+      validate_endpoint(expression.distance_endpoint_b, expression.input1, 'B');
+    }
   }
+
+  const auto validate_constraint_break_inputs =
+      [&](const char *family,
+          const size_t index,
+          const uint32_t object_expr_index,
+          const uint32_t constraint_name_expr_index,
+          const uint32_t match_any_expr_index,
+          const LN_RigidBodyConstraintMatchMode match_mode) {
+        const std::string label = std::string(family) + " expression " + std::to_string(index);
+        if (object_expr_index != LN_INVALID_INDEX &&
+            object_expr_index >= m_valueExpressions.size()) {
+          errors.push_back(label + ": constraint-break object expression is invalid");
+        }
+        if (constraint_name_expr_index == LN_INVALID_INDEX ||
+            constraint_name_expr_index >= m_stringExpressions.size())
+        {
+          errors.push_back(label + ": constraint-break name expression is invalid");
+        }
+        if (match_any_expr_index != LN_INVALID_INDEX &&
+            match_any_expr_index >= m_boolExpressions.size())
+        {
+          errors.push_back(label + ": constraint-break Match Any expression is invalid");
+        }
+        if (match_mode > LN_RigidBodyConstraintMatchMode::Contains) {
+          errors.push_back(label + ": constraint-break name match mode is invalid");
+        }
+      };
 
   for (size_t index = 0; index < m_boolExpressions.size(); index++) {
     const LN_BoolExpression &expression = m_boolExpressions[index];
@@ -5604,16 +7046,81 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
       errors.push_back("bool expression " + std::to_string(index) +
                        ": Boolean Edge condition expression is invalid");
     }
+    if (expression.kind == LN_BoolExpressionKind::FlowGateOpen &&
+        (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_boolExpressions.size()))
+    {
+      errors.push_back("bool expression " + std::to_string(index) +
+                       ": Flow Gate initial-state expression is invalid");
+    }
+    if ((expression.kind == LN_BoolExpressionKind::FlowRouterSelected ||
+         expression.kind == LN_BoolExpressionKind::FlowRouterLastRoute ||
+         expression.kind == LN_BoolExpressionKind::RepeatLimitAccepted ||
+         expression.kind == LN_BoolExpressionKind::RepeatLimitBlocked ||
+         expression.kind == LN_BoolExpressionKind::RepeatLimitExhausted ||
+         expression.kind == LN_BoolExpressionKind::MotionValid) &&
+        (expression.int_value < 0 || uint32_t(expression.int_value) >= m_flowControlStateCount))
+    {
+      errors.push_back("bool expression " + std::to_string(index) +
+                       ": flow-control state id is outside dense state table");
+    }
+    if (expression.kind == LN_BoolExpressionKind::QueryValid &&
+        (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_queryExpressions.size()))
+    {
+      errors.push_back("bool expression " + std::to_string(index) +
+                       ": query result expression is invalid");
+    }
+    if ((expression.kind == LN_BoolExpressionKind::UIElementEventFired ||
+         expression.kind == LN_BoolExpressionKind::UIElementEventAccepted ||
+         expression.kind == LN_BoolExpressionKind::UISoundFired) &&
+        (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_queryExpressions.size()))
+    {
+      errors.push_back("bool expression " + std::to_string(index) +
+                       ": On UI Event query expression is invalid");
+    }
+    if ((expression.kind == LN_BoolExpressionKind::UIScrolled ||
+         expression.kind == LN_BoolExpressionKind::UIScrollAtStart ||
+         expression.kind == LN_BoolExpressionKind::UIScrollAtEnd ||
+         expression.kind == LN_BoolExpressionKind::UIItemsRebound) &&
+        (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_queryExpressions.size()))
+    {
+      errors.push_back("bool expression " + std::to_string(index) +
+                       ": object view query expression is invalid");
+    }
+    if ((expression.kind == LN_BoolExpressionKind::FlowRouterSelected ||
+         expression.kind == LN_BoolExpressionKind::FlowRouterLastRoute) &&
+        (expression.secondary_int_value < 0 ||
+         expression.secondary_int_value >= int32_t(LN_MAX_DYNAMIC_SOCKET_COUNT)))
+    {
+      errors.push_back("bool expression " + std::to_string(index) +
+                       ": Flow Router route index is outside the supported dynamic socket range");
+    }
+    if (expression.kind == LN_BoolExpressionKind::RepeatLimitExhausted &&
+        (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_intExpressions.size()))
+    {
+      errors.push_back("bool expression " + std::to_string(index) +
+                       ": Repeat Limit is missing its limit expression");
+    }
     if (expression.kind == LN_BoolExpressionKind::BooleanEdgeFalling) {
       if (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_boolExpressions.size()) {
         errors.push_back("bool expression " + std::to_string(index) +
                          ": Boolean Edge master expression is invalid");
       }
-      else if (m_boolExpressions[expression.input0].kind !=
-               LN_BoolExpressionKind::BooleanEdge)
-      {
+      else if (m_boolExpressions[expression.input0].kind != LN_BoolExpressionKind::BooleanEdge) {
         errors.push_back("bool expression " + std::to_string(index) +
                          ": falling edge does not reference a Boolean Edge expression");
+      }
+    }
+    if (expression.kind == LN_BoolExpressionKind::PersistenceSucceeded) {
+      if (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_boolExpressions.size()) {
+        errors.push_back("bool expression " + std::to_string(index) +
+                         ": persistence success completion expression is invalid");
+      }
+      else if (m_boolExpressions[expression.input0].kind !=
+               LN_BoolExpressionKind::PersistenceCompleted)
+      {
+        errors.push_back("bool expression " + std::to_string(index) +
+                         ": persistence success does not reference a Persistence Completed "
+                         "expression");
       }
     }
     if (expression.kind == LN_BoolExpressionKind::InputStatus) {
@@ -5626,6 +7133,31 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
                          ": input status is outside supported event status range");
       }
     }
+    if (expression.kind == LN_BoolExpressionKind::UICommandSucceeded ||
+        expression.kind == LN_BoolExpressionKind::UICommandFailed ||
+        expression.kind == LN_BoolExpressionKind::UICommandClosed)
+    {
+      if (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_boolExpressions.size() ||
+          m_boolExpressions[expression.input0].kind !=
+              LN_BoolExpressionKind::UICommandCompleted)
+      {
+        errors.push_back("bool expression " + std::to_string(index) +
+                         ": UI command result does not reference its completion state");
+      }
+    }
+    if (expression.kind == LN_BoolExpressionKind::ActionStarted ||
+        expression.kind == LN_BoolExpressionKind::ActionCompleted ||
+        expression.kind == LN_BoolExpressionKind::ActionInterrupted ||
+        expression.kind == LN_BoolExpressionKind::ActionFailed)
+    {
+      if (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_boolExpressions.size() ||
+          m_boolExpressions[expression.input0].kind !=
+              LN_BoolExpressionKind::ActionLifecycleEvent)
+      {
+        errors.push_back("bool expression " + std::to_string(index) +
+                         ": action result does not reference its lifecycle state");
+      }
+    }
     if (expression.kind == LN_BoolExpressionKind::RigidBodyConstraintFound &&
         expression.rigid_body_constraint_match_mode > LN_RigidBodyConstraintMatchMode::All)
     {
@@ -5633,27 +7165,122 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
                        ": rigid body constraint match mode is invalid");
     }
     if (expression.kind == LN_BoolExpressionKind::RigidBodyConstraintFound) {
-      if (expression.input0 != LN_INVALID_INDEX && expression.input0 >= m_valueExpressions.size()) {
+      if (expression.input0 != LN_INVALID_INDEX && expression.input0 >= m_valueExpressions.size())
+      {
         errors.push_back("bool expression " + std::to_string(index) +
                          ": rigid body constraint object expression is invalid");
       }
-      if (expression.rigid_body_constraint_match_mode !=
-              LN_RigidBodyConstraintMatchMode::All &&
+      if (expression.rigid_body_constraint_match_mode != LN_RigidBodyConstraintMatchMode::All &&
           expression.property_ref_index >= m_stringExpressions.size())
       {
         errors.push_back("bool expression " + std::to_string(index) +
                          ": rigid body constraint name expression is invalid");
       }
     }
+    if (expression.kind == LN_BoolExpressionKind::ConstraintBreak) {
+      validate_constraint_break_inputs("bool",
+                                       index,
+                                       expression.input0,
+                                       expression.input1,
+                                       expression.input2,
+                                       expression.rigid_body_constraint_match_mode);
+    }
   }
   for (size_t index = 0; index < m_floatExpressions.size(); index++) {
     const LN_FloatExpression &expression = m_floatExpressions[index];
+    if (expression.kind == LN_FloatExpressionKind::FloatCurve) {
+      if (expression.input0 >= m_floatExpressions.size() ||
+          expression.input1 >= m_floatExpressions.size())
+      {
+        errors.push_back("float expression " + std::to_string(index) +
+                         ": Float Curve input is invalid");
+      }
+      if (expression.int_value < 0 || uint32_t(expression.int_value) >= m_curveTables.size()) {
+        errors.push_back("float expression " + std::to_string(index) +
+                         ": Float Curve table is invalid");
+      }
+    }
     if ((expression.kind == LN_FloatExpressionKind::CooldownRemaining ||
          expression.kind == LN_FloatExpressionKind::CooldownProgress) &&
         (expression.int_value < 0 || uint32_t(expression.int_value) >= m_timeFlowStateCount))
     {
       errors.push_back("float expression " + std::to_string(index) +
                        ": time-flow state id is outside dense state table");
+    }
+    if (expression.kind == LN_FloatExpressionKind::MotionSpeed &&
+        (expression.int_value < 0 || uint32_t(expression.int_value) >= m_flowControlStateCount))
+    {
+      errors.push_back("float expression " + std::to_string(index) +
+                       ": motion state id is outside dense state table");
+    }
+    if ((expression.kind == LN_FloatExpressionKind::QueryDistance ||
+         expression.kind == LN_FloatExpressionKind::QuerySquaredDistance) &&
+        (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_queryExpressions.size()))
+    {
+      errors.push_back("float expression " + std::to_string(index) +
+                       ": query result expression is invalid");
+    }
+    if (expression.kind == LN_FloatExpressionKind::ConstraintBreakLinearImpulse ||
+        expression.kind == LN_FloatExpressionKind::ConstraintBreakAngularImpulse ||
+        expression.kind == LN_FloatExpressionKind::ConstraintBreakAppliedImpulse)
+    {
+      validate_constraint_break_inputs("float",
+                                       index,
+                                       expression.input0,
+                                       expression.input1,
+                                       expression.input2,
+                                       expression.rigid_body_constraint_match_mode);
+    }
+  }
+  for (size_t index = 0; index < m_intExpressions.size(); index++) {
+    const LN_IntExpression &expression = m_intExpressions[index];
+    if (expression.kind == LN_IntExpressionKind::UICommandResult ||
+        expression.kind == LN_IntExpressionKind::UICommandHandle)
+    {
+      if (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_boolExpressions.size() ||
+          m_boolExpressions[expression.input0].kind !=
+              LN_BoolExpressionKind::UICommandCompleted)
+      {
+        errors.push_back("int expression " + std::to_string(index) +
+                         ": UI command value does not reference its completion state");
+      }
+    }
+    if (expression.kind == LN_IntExpressionKind::RepeatLimitRemaining) {
+      if (expression.int_value < 0 || uint32_t(expression.int_value) >= m_flowControlStateCount) {
+        errors.push_back("int expression " + std::to_string(index) +
+                         ": flow-control state id is outside dense state table");
+      }
+      if (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_intExpressions.size()) {
+        errors.push_back("int expression " + std::to_string(index) +
+                         ": Repeat Limit is missing its limit expression");
+      }
+    }
+    if (expression.kind == LN_IntExpressionKind::QueryVectorCount &&
+        (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_queryExpressions.size()))
+    {
+      errors.push_back("int expression " + std::to_string(index) +
+                       ": query result expression is invalid");
+    }
+    if ((expression.kind == LN_IntExpressionKind::UIFirstVisibleIndex ||
+         expression.kind == LN_IntExpressionKind::UILastVisibleIndex ||
+         expression.kind == LN_IntExpressionKind::UIElementEventIndex ||
+         expression.kind == LN_IntExpressionKind::UIElementEventTargetIndex ||
+         expression.kind == LN_IntExpressionKind::UIElementEventUser ||
+         expression.kind == LN_IntExpressionKind::UIElementEventAmount ||
+         expression.kind == LN_IntExpressionKind::UIViewPage ||
+         expression.kind == LN_IntExpressionKind::UIViewPageCount) &&
+        (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_queryExpressions.size()))
+    {
+      errors.push_back("int expression " + std::to_string(index) +
+                       ": object view query expression is invalid");
+    }
+    if (expression.kind == LN_IntExpressionKind::ConstraintBreakCount) {
+      validate_constraint_break_inputs("int",
+                                       index,
+                                       expression.input0,
+                                       expression.input1,
+                                       expression.input2,
+                                       expression.rigid_body_constraint_match_mode);
     }
   }
   for (size_t index = 0; index < m_stringExpressions.size(); index++) {
@@ -5671,17 +7298,118 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
         errors.push_back("string expression " + std::to_string(index) +
                          ": rigid body constraint object expression is invalid");
       }
-      if (expression.rigid_body_constraint_match_mode !=
-              LN_RigidBodyConstraintMatchMode::All &&
+      if (expression.rigid_body_constraint_match_mode != LN_RigidBodyConstraintMatchMode::All &&
           expression.input0 >= m_stringExpressions.size())
       {
         errors.push_back("string expression " + std::to_string(index) +
                          ": rigid body constraint name expression is invalid");
       }
     }
+    if ((expression.kind == LN_StringExpressionKind::UIElementEventAction ||
+         expression.kind == LN_StringExpressionKind::UIElementEventTargetAction ||
+         expression.kind == LN_StringExpressionKind::UIElementEventOutcome ||
+         expression.kind == LN_StringExpressionKind::UIElementEventMenu) &&
+        (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_queryExpressions.size()))
+    {
+      errors.push_back("string expression " + std::to_string(index) +
+                       ": On UI Event query expression is invalid");
+    }
+    if (expression.kind == LN_StringExpressionKind::ConstraintBreakName) {
+      validate_constraint_break_inputs("string",
+                                       index,
+                                       expression.input0,
+                                       expression.input1,
+                                       expression.input2,
+                                       expression.rigid_body_constraint_match_mode);
+    }
+  }
+  for (size_t index = 0; index < m_vectorExpressions.size(); index++) {
+    const LN_VectorExpression &expression = m_vectorExpressions[index];
+    if (expression.output_type != LN_ValueType::Vector &&
+        expression.output_type != LN_ValueType::Rotation)
+    {
+      errors.push_back("vector expression " + std::to_string(index) +
+                       ": output type is neither Vector nor Rotation");
+    }
+    if (expression.kind == LN_VectorExpressionKind::ConstraintBreakAnchorPosition) {
+      validate_constraint_break_inputs("vector",
+                                       index,
+                                       expression.input0,
+                                       expression.input1,
+                                       expression.input2,
+                                       expression.rigid_body_constraint_match_mode);
+    }
+    if (expression.kind == LN_VectorExpressionKind::QueryVectorAverage &&
+        (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_queryExpressions.size()))
+    {
+      errors.push_back("vector expression " + std::to_string(index) +
+                       ": query result expression is invalid");
+    }
+    if ((expression.kind == LN_VectorExpressionKind::UIScrollOffset ||
+         expression.kind == LN_VectorExpressionKind::UIScrollNormalized) &&
+        (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_queryExpressions.size()))
+    {
+      errors.push_back("vector expression " + std::to_string(index) +
+                       ": object view query expression is invalid");
+    }
+    if ((expression.kind == LN_VectorExpressionKind::MotionPosition ||
+         expression.kind == LN_VectorExpressionKind::MotionVelocity ||
+         expression.kind == LN_VectorExpressionKind::MotionDirection ||
+         expression.kind == LN_VectorExpressionKind::MotionPredictedPosition) &&
+        (expression.property_ref_index == LN_INVALID_INDEX ||
+         expression.property_ref_index >= m_flowControlStateCount))
+    {
+      errors.push_back("vector expression " + std::to_string(index) +
+                       ": motion state id is outside dense state table");
+    }
   }
   for (size_t index = 0; index < m_valueExpressions.size(); index++) {
     const LN_ValueExpression &expression = m_valueExpressions[index];
+    if (expression.kind == LN_ValueExpressionKind::ObjectGameProperty) {
+      if (expression.input0 != LN_INVALID_INDEX && expression.input0 >= m_valueExpressions.size())
+      {
+        errors.push_back("value expression " + std::to_string(index) +
+                         ": object game-property target expression is invalid");
+      }
+      if (expression.input1 == LN_INVALID_INDEX || expression.input1 >= m_stringExpressions.size())
+      {
+        errors.push_back("value expression " + std::to_string(index) +
+                         ": object game-property name expression is invalid");
+      }
+    }
+    if (expression.kind == LN_ValueExpressionKind::UIFocusObject) {
+      if (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_intExpressions.size()) {
+        errors.push_back("value expression " + std::to_string(index) +
+                         ": Get UI Focus user expression is invalid");
+      }
+      if (expression.input1 == LN_INVALID_INDEX ||
+          expression.input1 >= m_stringExpressions.size())
+      {
+        errors.push_back("value expression " + std::to_string(index) +
+                         ": Get UI Focus input-context expression is invalid");
+      }
+    }
+    if ((expression.kind == LN_ValueExpressionKind::UIElementEventObject ||
+         expression.kind == LN_ValueExpressionKind::UIElementEventTarget ||
+         expression.kind == LN_ValueExpressionKind::UIElementEventItem ||
+         expression.kind == LN_ValueExpressionKind::UIElementEventTargetItem) &&
+        (expression.input0 == LN_INVALID_INDEX || expression.input0 >= m_queryExpressions.size()))
+    {
+      errors.push_back("value expression " + std::to_string(index) +
+                       ": object UI query expression is invalid");
+    }
+    if (expression.kind == LN_ValueExpressionKind::Mix) {
+      if (expression.input0 >= m_valueExpressions.size() ||
+          expression.input1 >= m_valueExpressions.size())
+      {
+        errors.push_back("value expression " + std::to_string(index) +
+                         ": Mix Value input is invalid");
+      }
+      if (expression.input2 >= m_floatExpressions.size()) {
+        errors.push_back("value expression " + std::to_string(index) +
+                         ": Mix Value factor is invalid");
+      }
+    }
     if (expression.kind == LN_ValueExpressionKind::RigidBodyConstraintNames &&
         expression.rigid_body_constraint_match_mode > LN_RigidBodyConstraintMatchMode::All)
     {
@@ -5689,23 +7417,70 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
                        ": rigid body constraint match mode is invalid");
     }
     if (expression.kind == LN_ValueExpressionKind::RigidBodyConstraintNames) {
-      if (expression.input0 != LN_INVALID_INDEX && expression.input0 >= m_valueExpressions.size()) {
+      if (expression.input0 != LN_INVALID_INDEX && expression.input0 >= m_valueExpressions.size())
+      {
         errors.push_back("value expression " + std::to_string(index) +
                          ": rigid body constraint object expression is invalid");
       }
-      if (expression.rigid_body_constraint_match_mode !=
-              LN_RigidBodyConstraintMatchMode::All &&
+      if (expression.rigid_body_constraint_match_mode != LN_RigidBodyConstraintMatchMode::All &&
           expression.string_expr_index >= m_stringExpressions.size())
       {
         errors.push_back("value expression " + std::to_string(index) +
                          ": rigid body constraint name expression is invalid");
       }
     }
+    if (expression.kind == LN_ValueExpressionKind::ConstraintBreakTargetObject ||
+        expression.kind == LN_ValueExpressionKind::ConstraintBreakEvents)
+    {
+      validate_constraint_break_inputs("value",
+                                       index,
+                                       expression.input0,
+                                       expression.input1,
+                                       expression.input2,
+                                       expression.rigid_body_constraint_match_mode);
+    }
+  }
+
+  for (size_t index = 0; index < m_pauseProcessingRequests.size(); index++) {
+    const LN_PauseProcessingRequest &request = m_pauseProcessingRequests[index];
+    const std::string label = "pause-processing request " + std::to_string(index);
+    if (request.scope > LN_PauseProcessingScope::Scene) {
+      errors.push_back(label + ": scope is invalid");
+      continue;
+    }
+    if (request.source_ref_index >= m_sourceRefs.size()) {
+      errors.push_back(label + ": source reference is invalid");
+    }
+    const bool target_required = request.scope == LN_PauseProcessingScope::Collection;
+    if (request.target_value_expr_index == LN_INVALID_INDEX) {
+      if (target_required) {
+        errors.push_back(label + ": collection scope has no target");
+      }
+      continue;
+    }
+    if (request.target_value_expr_index >= m_valueExpressions.size()) {
+      errors.push_back(label + ": target expression is invalid");
+      continue;
+    }
+    const LN_ValueExpression &target = m_valueExpressions[request.target_value_expr_index];
+    if (target.kind != LN_ValueExpressionKind::Constant) {
+      errors.push_back(label + ": target expression must be static");
+    }
+    if (request.scope == LN_PauseProcessingScope::Collection &&
+        target.value.type != LN_ValueType::CollectionRef)
+    {
+      errors.push_back(label + ": collection target has the wrong value type");
+    }
+    if (request.scope == LN_PauseProcessingScope::ObjectHierarchy &&
+        target.value.type != LN_ValueType::ObjectRef && target.value.type != LN_ValueType::None)
+    {
+      errors.push_back(label + ": object hierarchy target has the wrong value type");
+    }
   }
 
   ValidateExecBlockProgram(GetExecBlockProgram(LN_Event::OnInit), m_onInit, errors);
-  ValidateExecBlockProgram(
-      GetExecBlockProgram(LN_Event::OnFixedUpdate), m_onFixedUpdate, errors);
+  ValidateExecBlockProgram(GetExecBlockProgram(LN_Event::OnUpdate), m_onUpdate, errors);
+  ValidateExecBlockProgram(GetExecBlockProgram(LN_Event::OnFixedUpdate), m_onFixedUpdate, errors);
   ValidateRegisterExpressionProgram(m_registerExpressionProgram, errors);
 
   if (r_errors != nullptr) {
@@ -5734,8 +7509,7 @@ std::string LN_Program::DescribeSchedulerSummary() const
   AppendResourceAccessNames(stream, m_schedulerSummary.resource_access);
   stream << " uses_jolt_queries_or_contacts="
          << (m_schedulerSummary.uses_jolt_queries_or_contacts ? "true" : "false");
-  stream << " reads_snapshot_only="
-         << (m_schedulerSummary.reads_snapshot_only ? "true" : "false");
+  stream << " reads_snapshot_only=" << (m_schedulerSummary.reads_snapshot_only ? "true" : "false");
   stream << " estimated_work=" << EstimatedWorkClassName(m_schedulerSummary.estimated_work_class);
   stream << " worker_lane_eligible="
          << (m_schedulerSummary.worker_lane_eligible ? "true" : "false");
@@ -5801,15 +7575,20 @@ void LN_Program::UpdateSchedulerSummaryForInstruction(const LN_Event event,
   if (event == LN_Event::OnFixedUpdate) {
     m_schedulerSummary.required_phase = LN_SchedulerRequiredPhase::OnFixedUpdate;
   }
+  else if (event == LN_Event::OnUpdate &&
+           m_schedulerSummary.required_phase != LN_SchedulerRequiredPhase::OnFixedUpdate)
+  {
+    m_schedulerSummary.required_phase = LN_SchedulerRequiredPhase::OnUpdate;
+  }
   else if (m_schedulerSummary.required_phase == LN_SchedulerRequiredPhase::None) {
     m_schedulerSummary.required_phase = LN_SchedulerRequiredPhase::OnInit;
   }
 
   const uint32_t resource_access = CommandResourceAccessForOpcode(instruction.opcode);
   if (OpcodeEmitsCommands(instruction.opcode)) {
-    const LN_EstimatedWorkClass work_class =
-        (instruction.opcode == LN_OpCode::Navigate) ? LN_EstimatedWorkClass::Heavy :
-                                                       LN_EstimatedWorkClass::Small;
+    const LN_EstimatedWorkClass work_class = (instruction.opcode == LN_OpCode::Navigate) ?
+                                                 LN_EstimatedWorkClass::Heavy :
+                                                 LN_EstimatedWorkClass::Small;
     MarkCommandWrite(m_schedulerSummary, resource_access, work_class);
   }
   else {
@@ -5818,6 +7597,19 @@ void LN_Program::UpdateSchedulerSummaryForInstruction(const LN_Event event,
 
   if (instruction.opcode == LN_OpCode::GamepadLook || instruction.opcode == LN_OpCode::MouseLook) {
     MarkInputRead(m_schedulerSummary);
+  }
+  if (instruction.opcode == LN_OpCode::InputMap) {
+    /* The game's Input Map is process-wide; Rebind Input Action watches the devices. */
+    AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_GLOBAL_STATE);
+    MarkInputRead(m_schedulerSummary);
+  }
+
+  if (instruction.opcode == LN_OpCode::SampleMotion &&
+      instruction.secondary_int_value != int32_t(LN_MotionSourceMode::Position))
+  {
+    AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_WORLD);
+    m_schedulerSummary.reads_snapshot_only = false;
+    MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
   }
 
   const LN_MainThreadOnlyReason reason = MainThreadOnlyReasonForOpcode(instruction.opcode);
@@ -5835,11 +7627,6 @@ void LN_Program::UpdateSchedulerSummaryForInstruction(const LN_Event event,
       case LN_MainThreadOnlyReason::InputDeviceState:
         AddResourceAccess(m_schedulerSummary,
                           LN_SCHEDULER_RESOURCE_INPUT | LN_SCHEDULER_RESOURCE_RENDER);
-        break;
-      case LN_MainThreadOnlyReason::SpawnPool:
-        AddResourceAccess(m_schedulerSummary,
-                          LN_SCHEDULER_RESOURCE_WORLD | LN_SCHEDULER_RESOURCE_PHYSICS);
-        PromoteWorkClass(m_schedulerSummary, LN_EstimatedWorkClass::Heavy);
         break;
       case LN_MainThreadOnlyReason::CollectionVisibility:
       case LN_MainThreadOnlyReason::OverlayCollection:
@@ -5859,6 +7646,11 @@ void LN_Program::UpdateSchedulerSummaryForInstruction(const LN_Event event,
 
 void LN_Program::UpdateSchedulerSummaryForBoolExpression(const LN_BoolExpression &expression)
 {
+  if (expression.kind == LN_BoolExpressionKind::ConstraintBreak) {
+    MarkPhysicsConstraintBreakEventRead(m_schedulerSummary);
+    return;
+  }
+
   const LN_MainThreadOnlyReason reason = MainThreadOnlyReasonForBoolExpression(expression.kind);
   if (reason != LN_MainThreadOnlyReason::None) {
     MarkQueryCacheRead(m_schedulerSummary, reason);
@@ -5872,6 +7664,13 @@ void LN_Program::UpdateSchedulerSummaryForBoolExpression(const LN_BoolExpression
   }
 
   switch (expression.kind) {
+    case LN_BoolExpressionKind::PlayerViewShown:
+    case LN_BoolExpressionKind::PlayerGamepadConnected:
+    case LN_BoolExpressionKind::PlayerGamepadJoined:
+      AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_SCENE);
+      m_schedulerSummary.reads_snapshot_only = false;
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_BoolExpressionKind::SnapshotGameProperty:
     case LN_BoolExpressionKind::SnapshotVisibility:
     case LN_BoolExpressionKind::SnapshotGamePropertyExists:
@@ -5888,14 +7687,12 @@ void LN_Program::UpdateSchedulerSummaryForBoolExpression(const LN_BoolExpression
     case LN_BoolExpressionKind::InstructionExecuted:
     case LN_BoolExpressionKind::InstructionReached:
     case LN_BoolExpressionKind::Once:
-    case LN_BoolExpressionKind::OnNextTick:
+    case LN_BoolExpressionKind::NextFrameDone:
     case LN_BoolExpressionKind::Timer:
     case LN_BoolExpressionKind::ValueChanged:
     case LN_BoolExpressionKind::ValueChangedTo:
     case LN_BoolExpressionKind::TweenValue:
     case LN_BoolExpressionKind::TweenReached:
-    case LN_BoolExpressionKind::SpawnPoolSpawnedPulse:
-    case LN_BoolExpressionKind::SpawnPoolHitPulse:
     case LN_BoolExpressionKind::TimerElapsed:
     case LN_BoolExpressionKind::DelayDone:
     case LN_BoolExpressionKind::PulsifyPulse:
@@ -5906,6 +7703,24 @@ void LN_Program::UpdateSchedulerSummaryForBoolExpression(const LN_BoolExpression
     case LN_BoolExpressionKind::CooldownBlocked:
     case LN_BoolExpressionKind::CooldownCompleted:
     case LN_BoolExpressionKind::CooldownReady:
+    case LN_BoolExpressionKind::PersistenceCompleted:
+    case LN_BoolExpressionKind::PersistenceSucceeded:
+    case LN_BoolExpressionKind::UICommandCompleted:
+    case LN_BoolExpressionKind::UICommandSucceeded:
+    case LN_BoolExpressionKind::UICommandFailed:
+    case LN_BoolExpressionKind::UICommandClosed:
+    case LN_BoolExpressionKind::ActionLifecycleEvent:
+    case LN_BoolExpressionKind::ActionStarted:
+    case LN_BoolExpressionKind::ActionCompleted:
+    case LN_BoolExpressionKind::ActionInterrupted:
+    case LN_BoolExpressionKind::ActionFailed:
+    case LN_BoolExpressionKind::FlowGateOpen:
+    case LN_BoolExpressionKind::FlowRouterSelected:
+    case LN_BoolExpressionKind::FlowRouterLastRoute:
+    case LN_BoolExpressionKind::RepeatLimitAccepted:
+    case LN_BoolExpressionKind::RepeatLimitBlocked:
+    case LN_BoolExpressionKind::RepeatLimitExhausted:
+    case LN_BoolExpressionKind::MotionValid:
       MarkRuntimeTreeStateRead(m_schedulerSummary);
       break;
     case LN_BoolExpressionKind::InputStatus:
@@ -5916,6 +7731,7 @@ void LN_Program::UpdateSchedulerSummaryForBoolExpression(const LN_BoolExpression
     case LN_BoolExpressionKind::GamepadButton:
     case LN_BoolExpressionKind::KeyLoggerPressed:
     case LN_BoolExpressionKind::WindowFullscreen:
+    case LN_BoolExpressionKind::InputActionState:
       MarkInputRead(m_schedulerSummary);
       break;
     case LN_BoolExpressionKind::EventReceived:
@@ -5923,13 +7739,24 @@ void LN_Program::UpdateSchedulerSummaryForBoolExpression(const LN_BoolExpression
       break;
     case LN_BoolExpressionKind::PhysicsQueryDone:
     case LN_BoolExpressionKind::PhysicsQueryHit:
+    case LN_BoolExpressionKind::PhysicsQueryAllHit:
     case LN_BoolExpressionKind::PhysicsQueryBlocked:
     case LN_BoolExpressionKind::PhysicsQueryHasUV:
     case LN_BoolExpressionKind::PhysicsQueryStartedOverlapping:
     case LN_BoolExpressionKind::MouseOverEnter:
     case LN_BoolExpressionKind::MouseOverOver:
     case LN_BoolExpressionKind::MouseOverExit:
+    case LN_BoolExpressionKind::QueryValid:
       MarkSnapshotQueryCacheRead(m_schedulerSummary);
+      break;
+    case LN_BoolExpressionKind::UIScrolled:
+    case LN_BoolExpressionKind::UIScrollAtStart:
+    case LN_BoolExpressionKind::UIScrollAtEnd:
+    case LN_BoolExpressionKind::UIItemsRebound:
+    case LN_BoolExpressionKind::UIElementEventFired:
+    case LN_BoolExpressionKind::UIElementEventAccepted:
+    case LN_BoolExpressionKind::UISoundFired:
+      MarkUIQueryStateRead(m_schedulerSummary);
       break;
     case LN_BoolExpressionKind::MaterialSlotFound:
     case LN_BoolExpressionKind::MaterialNodeValueFound:
@@ -5957,6 +7784,11 @@ void LN_Program::UpdateSchedulerSummaryForBoolExpression(const LN_BoolExpression
 void LN_Program::UpdateSchedulerSummaryForFloatExpression(const LN_FloatExpression &expression)
 {
   switch (expression.kind) {
+    case LN_FloatExpressionKind::PlayerViewArea:
+      AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_SCENE);
+      m_schedulerSummary.reads_snapshot_only = false;
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_FloatExpressionKind::SnapshotGameProperty:
     case LN_FloatExpressionKind::SnapshotTimeScale:
     case LN_FloatExpressionKind::SnapshotLightPower:
@@ -5967,14 +7799,17 @@ void LN_Program::UpdateSchedulerSummaryForFloatExpression(const LN_FloatExpressi
       MarkSnapshotRead(m_schedulerSummary);
       break;
     case LN_FloatExpressionKind::RuntimeTreeProperty:
+    case LN_FloatExpressionKind::AnimationFrame:
     case LN_FloatExpressionKind::StoreValue:
     case LN_FloatExpressionKind::TweenFactor:
     case LN_FloatExpressionKind::TweenFloatResult:
     case LN_FloatExpressionKind::CooldownRemaining:
     case LN_FloatExpressionKind::CooldownProgress:
+    case LN_FloatExpressionKind::MotionSpeed:
       MarkRuntimeTreeStateRead(m_schedulerSummary);
       break;
     case LN_FloatExpressionKind::GamepadButtonStrength:
+    case LN_FloatExpressionKind::InputActionValue:
       MarkInputRead(m_schedulerSummary);
       break;
     case LN_FloatExpressionKind::ObjectDistance:
@@ -5985,12 +7820,19 @@ void LN_Program::UpdateSchedulerSummaryForFloatExpression(const LN_FloatExpressi
     case LN_FloatExpressionKind::PhysicsQueryDistance:
     case LN_FloatExpressionKind::PhysicsQueryFraction:
     case LN_FloatExpressionKind::PhysicsQueryPenetrationDepth:
+    case LN_FloatExpressionKind::QueryDistance:
+    case LN_FloatExpressionKind::QuerySquaredDistance:
       MarkSnapshotQueryCacheRead(m_schedulerSummary);
       break;
     case LN_FloatExpressionKind::RigidBodyAttribute:
       AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_PHYSICS);
       m_schedulerSummary.reads_snapshot_only = false;
       MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::CollisionOrPhysicsQuery);
+      break;
+    case LN_FloatExpressionKind::ConstraintBreakLinearImpulse:
+    case LN_FloatExpressionKind::ConstraintBreakAngularImpulse:
+    case LN_FloatExpressionKind::ConstraintBreakAppliedImpulse:
+      MarkPhysicsConstraintBreakEventRead(m_schedulerSummary);
       break;
     default:
       break;
@@ -6000,6 +7842,13 @@ void LN_Program::UpdateSchedulerSummaryForFloatExpression(const LN_FloatExpressi
 void LN_Program::UpdateSchedulerSummaryForIntExpression(const LN_IntExpression &expression)
 {
   switch (expression.kind) {
+    case LN_IntExpressionKind::PlayerViewCount:
+    case LN_IntExpressionKind::PlayerGamepad:
+    case LN_IntExpressionKind::MenuPlayerUser:
+      AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_SCENE);
+      m_schedulerSummary.reads_snapshot_only = false;
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_IntExpressionKind::SnapshotGameProperty:
     case LN_IntExpressionKind::SnapshotCollisionGroup:
     case LN_IntExpressionKind::SnapshotCharacterMaxJumps:
@@ -6008,6 +7857,9 @@ void LN_Program::UpdateSchedulerSummaryForIntExpression(const LN_IntExpression &
       break;
     case LN_IntExpressionKind::RuntimeTreeProperty:
     case LN_IntExpressionKind::LoopIndex:
+    case LN_IntExpressionKind::RepeatLimitRemaining:
+    case LN_IntExpressionKind::UICommandResult:
+    case LN_IntExpressionKind::UICommandHandle:
       MarkRuntimeTreeStateRead(m_schedulerSummary);
       break;
     case LN_IntExpressionKind::MouseWheelDelta:
@@ -6026,7 +7878,20 @@ void LN_Program::UpdateSchedulerSummaryForIntExpression(const LN_IntExpression &
       break;
     case LN_IntExpressionKind::PhysicsQueryFaceIndex:
     case LN_IntExpressionKind::PhysicsQueryHitCount:
+    case LN_IntExpressionKind::PhysicsQueryRayCount:
+    case LN_IntExpressionKind::QueryVectorCount:
+    case LN_IntExpressionKind::UIFirstVisibleIndex:
+    case LN_IntExpressionKind::UILastVisibleIndex:
+    case LN_IntExpressionKind::UIElementEventIndex:
+    case LN_IntExpressionKind::UIElementEventTargetIndex:
+    case LN_IntExpressionKind::UIElementEventUser:
+    case LN_IntExpressionKind::UIElementEventAmount:
+    case LN_IntExpressionKind::UIViewPage:
+    case LN_IntExpressionKind::UIViewPageCount:
       MarkSnapshotQueryCacheRead(m_schedulerSummary);
+      break;
+    case LN_IntExpressionKind::ConstraintBreakCount:
+      MarkPhysicsConstraintBreakEventRead(m_schedulerSummary);
       break;
     default:
       break;
@@ -6040,10 +7905,12 @@ void LN_Program::UpdateSchedulerSummaryForStringExpression(const LN_StringExpres
       MarkSnapshotRead(m_schedulerSummary);
       break;
     case LN_StringExpressionKind::RuntimeTreeProperty:
+    case LN_StringExpressionKind::AnimationActionName:
       MarkRuntimeTreeStateRead(m_schedulerSummary);
       break;
     case LN_StringExpressionKind::KeyLoggerCharacter:
     case LN_StringExpressionKind::KeyLoggerKeycode:
+    case LN_StringExpressionKind::InputBindingText:
       MarkInputRead(m_schedulerSummary);
       break;
     case LN_StringExpressionKind::MaterialName:
@@ -6054,6 +7921,17 @@ void LN_Program::UpdateSchedulerSummaryForStringExpression(const LN_StringExpres
     case LN_StringExpressionKind::RigidBodyConstraintName:
       AddResourceAccess(m_schedulerSummary,
                         LN_SCHEDULER_RESOURCE_SCENE | LN_SCHEDULER_RESOURCE_PHYSICS);
+      m_schedulerSummary.reads_snapshot_only = false;
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_StringExpressionKind::ConstraintBreakName:
+      MarkPhysicsConstraintBreakEventRead(m_schedulerSummary);
+      break;
+    case LN_StringExpressionKind::UIElementEventAction:
+    case LN_StringExpressionKind::UIElementEventTargetAction:
+    case LN_StringExpressionKind::UIElementEventOutcome:
+    case LN_StringExpressionKind::UIElementEventMenu:
+      AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_LOGIC_MANAGER);
       m_schedulerSummary.reads_snapshot_only = false;
       MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
       break;
@@ -6077,6 +7955,9 @@ void LN_Program::UpdateSchedulerSummaryForVectorExpression(const LN_VectorExpres
     case LN_VectorExpressionKind::SnapshotLocalAngularVelocity:
     case LN_VectorExpressionKind::SnapshotGravity:
     case LN_VectorExpressionKind::WorldToScreen:
+    case LN_VectorExpressionKind::ScreenToWorld:
+      MarkSnapshotRead(m_schedulerSummary);
+      break;
     case LN_VectorExpressionKind::BoneHeadWorld:
     case LN_VectorExpressionKind::BoneTailWorld:
     case LN_VectorExpressionKind::BoneCenterWorld:
@@ -6085,7 +7966,10 @@ void LN_Program::UpdateSchedulerSummaryForVectorExpression(const LN_VectorExpres
     case LN_VectorExpressionKind::BoneCenterPoseWorld:
     case LN_VectorExpressionKind::BonePoseLocation:
     case LN_VectorExpressionKind::BonePoseScale:
-    case LN_VectorExpressionKind::ScreenToWorld:
+      AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_DATABLOCK);
+      MarkSnapshotRead(m_schedulerSummary);
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_VectorExpressionKind::SnapshotCharacterGravity:
     case LN_VectorExpressionKind::SnapshotCharacterWalkDirection:
     case LN_VectorExpressionKind::SnapshotCharacterLocalWalkDirection:
@@ -6100,6 +7984,7 @@ void LN_Program::UpdateSchedulerSummaryForVectorExpression(const LN_VectorExpres
     case LN_VectorExpressionKind::CursorPosition:
     case LN_VectorExpressionKind::CursorMovement:
     case LN_VectorExpressionKind::GamepadStick:
+    case LN_VectorExpressionKind::InputActionVector:
       MarkInputRead(m_schedulerSummary);
       break;
     case LN_VectorExpressionKind::PhysicsQueryPoint:
@@ -6108,28 +7993,31 @@ void LN_Program::UpdateSchedulerSummaryForVectorExpression(const LN_VectorExpres
     case LN_VectorExpressionKind::PhysicsQueryDirection:
     case LN_VectorExpressionKind::PhysicsQueryEndPoint:
     case LN_VectorExpressionKind::PhysicsQueryUV:
+    case LN_VectorExpressionKind::UIScrollOffset:
+    case LN_VectorExpressionKind::UIScrollNormalized:
+    case LN_VectorExpressionKind::QueryVectorAverage:
       MarkSnapshotQueryCacheRead(m_schedulerSummary);
       break;
     case LN_VectorExpressionKind::CollisionHitPoint:
     case LN_VectorExpressionKind::CollisionHitNormal:
-      MarkQueryCacheRead(m_schedulerSummary,
-                         LN_MainThreadOnlyReason::CollisionOrPhysicsQuery);
-      break;
-    case LN_VectorExpressionKind::GroupCenterPosition:
-      AddResourceAccess(m_schedulerSummary,
-                        LN_SCHEDULER_RESOURCE_SCENE | LN_SCHEDULER_RESOURCE_DATABLOCK);
-      m_schedulerSummary.reads_snapshot_only = false;
-      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      MarkQueryCacheRead(m_schedulerSummary, LN_MainThreadOnlyReason::CollisionOrPhysicsQuery);
       break;
     case LN_VectorExpressionKind::InstructionNextPoint:
     case LN_VectorExpressionKind::TweenVectorResult:
     case LN_VectorExpressionKind::TweenRotationResult:
+    case LN_VectorExpressionKind::MotionPosition:
+    case LN_VectorExpressionKind::MotionVelocity:
+    case LN_VectorExpressionKind::MotionDirection:
+    case LN_VectorExpressionKind::MotionPredictedPosition:
       MarkRuntimeTreeStateRead(m_schedulerSummary);
       break;
     case LN_VectorExpressionKind::RigidBodyAttribute:
       AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_PHYSICS);
       m_schedulerSummary.reads_snapshot_only = false;
       MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::CollisionOrPhysicsQuery);
+      break;
+    case LN_VectorExpressionKind::ConstraintBreakAnchorPosition:
+      MarkPhysicsConstraintBreakEventRead(m_schedulerSummary);
       break;
     default:
       break;
@@ -6141,9 +8029,52 @@ void LN_Program::UpdateSchedulerSummaryForQueryExpression(const LN_QueryExpressi
   switch (expression.kind) {
     case LN_QueryExpressionKind::Raycast:
     case LN_QueryExpressionKind::RaycastAll:
+    case LN_QueryExpressionKind::RaycastFromMesh:
     case LN_QueryExpressionKind::ShapeCast:
     case LN_QueryExpressionKind::ShapeCastAll:
       MarkQueryCacheRead(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_QueryExpressionKind::MouseRay:
+    case LN_QueryExpressionKind::MouseOver:
+      MarkInputRead(m_schedulerSummary);
+      MarkQueryCacheRead(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_QueryExpressionKind::ObjectScrollView:
+    case LN_QueryExpressionKind::ObjectGridView:
+      MarkInputRead(m_schedulerSummary);
+      AddResourceAccess(m_schedulerSummary,
+                        LN_SCHEDULER_RESOURCE_SNAPSHOT |
+                            LN_SCHEDULER_RESOURCE_QUERY_CACHE |
+                            LN_SCHEDULER_RESOURCE_LOGIC_MANAGER);
+      m_schedulerSummary.reads_snapshot_only = false;
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_QueryExpressionKind::CameraRay:
+      MarkQueryCacheRead(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_QueryExpressionKind::UIElementEvent:
+      AddResourceAccess(m_schedulerSummary,
+                        LN_SCHEDULER_RESOURCE_QUERY_CACHE | LN_SCHEDULER_RESOURCE_LOGIC_MANAGER);
+      m_schedulerSummary.reads_snapshot_only = false;
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_QueryExpressionKind::DistanceBetween:
+      if (expression.distance_endpoint_a == LN_DistanceEndpointMode::Object ||
+          expression.distance_endpoint_b == LN_DistanceEndpointMode::Object)
+      {
+        MarkQueryCacheRead(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      }
+      else {
+        MarkSnapshotQueryCacheRead(m_schedulerSummary);
+      }
+      break;
+    case LN_QueryExpressionKind::VectorAverage:
+      if (expression.average_center_source == LN_AverageCenterSource::VectorList) {
+        MarkSnapshotQueryCacheRead(m_schedulerSummary);
+      }
+      else {
+        MarkQueryCacheRead(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      }
       break;
     default:
       MarkSnapshotQueryCacheRead(m_schedulerSummary);
@@ -6169,6 +8100,10 @@ void LN_Program::UpdateSchedulerSummaryForColorExpression(const LN_ColorExpressi
 void LN_Program::UpdateSchedulerSummaryForValueExpression(const LN_ValueExpression &expression)
 {
   const LN_MainThreadOnlyReason reason = MainThreadOnlyReasonForValueExpression(expression.kind);
+  if (reason == LN_MainThreadOnlyReason::PhysicsConstraint) {
+    MarkPhysicsConstraintBreakEventRead(m_schedulerSummary);
+    return;
+  }
   if (reason == LN_MainThreadOnlyReason::GlobalPropertyPersistence) {
     AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_GLOBAL_STATE);
     MarkMainThreadOnly(m_schedulerSummary, reason);
@@ -6185,16 +8120,38 @@ void LN_Program::UpdateSchedulerSummaryForValueExpression(const LN_ValueExpressi
   }
 
   switch (expression.kind) {
+    case LN_ValueExpressionKind::PlayerViewCamera:
+    case LN_ValueExpressionKind::MenuPlayerOwner:
+      AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_SCENE);
+      m_schedulerSummary.reads_snapshot_only = false;
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_ValueExpressionKind::SnapshotGameProperty:
     case LN_ValueExpressionKind::OwnerObject:
+    case LN_ValueExpressionKind::ObjectAttribute:
+    /* An empty Camera socket (Set FOV, Set Camera Viewport...): without this the game rejects
+     * a tree that reads nothing else from the snapshot. */
+    case LN_ValueExpressionKind::ActiveCamera:
+      MarkSnapshotRead(m_schedulerSummary);
+      break;
+    case LN_ValueExpressionKind::ObjectGameProperty:
+    case LN_ValueExpressionKind::ItemLibraryInfo:
+      AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_SCENE);
+      m_schedulerSummary.reads_snapshot_only = false;
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_ValueExpressionKind::ObjectParent:
     case LN_ValueExpressionKind::ObjectChild:
     case LN_ValueExpressionKind::ObjectChildByName:
-    case LN_ValueExpressionKind::ObjectAttribute:
+      AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_SCENE);
+      m_schedulerSummary.reads_snapshot_only = false;
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_ValueExpressionKind::BoneAttribute:
     case LN_ValueExpressionKind::BonePoseRotation:
-    case LN_ValueExpressionKind::ObjectGameProperty:
+      AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_DATABLOCK);
       MarkSnapshotRead(m_schedulerSummary);
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_ValueExpressionKind::RuntimeTreeProperty:
     case LN_ValueExpressionKind::LoopCurrentValue:
@@ -6207,7 +8164,18 @@ void LN_Program::UpdateSchedulerSummaryForValueExpression(const LN_ValueExpressi
     case LN_ValueExpressionKind::DictSetKey:
     case LN_ValueExpressionKind::DictRemoveKey:
     case LN_ValueExpressionKind::DictRemoveKeyValue:
+    case LN_ValueExpressionKind::DictAddValue:
+    case LN_ValueExpressionKind::InventoryEdit:
+    case LN_ValueExpressionKind::InventoryAmount:
+    case LN_ValueExpressionKind::InventoryChanged:
+    case LN_ValueExpressionKind::InventoryMade:
+    case LN_ValueExpressionKind::InventoryOutcome:
       MarkRuntimeTreeStateRead(m_schedulerSummary);
+      if (InventoryReadsLibrary(expression)) {
+        AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_SCENE);
+        m_schedulerSummary.reads_snapshot_only = false;
+        MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      }
       break;
     case LN_ValueExpressionKind::EventContent:
     case LN_ValueExpressionKind::EventMessenger:
@@ -6225,22 +8193,38 @@ void LN_Program::UpdateSchedulerSummaryForValueExpression(const LN_ValueExpressi
     case LN_ValueExpressionKind::PhysicsQueryFaceIndices:
     case LN_ValueExpressionKind::PhysicsQueryHasUVs:
     case LN_ValueExpressionKind::PhysicsQueryUVs:
+    case LN_ValueExpressionKind::PhysicsQueryHits:
+    case LN_ValueExpressionKind::PhysicsQueryBlockedList:
+    case LN_ValueExpressionKind::PhysicsQueryRayOrigins:
+    case LN_ValueExpressionKind::PhysicsQueryRayDirections:
+    case LN_ValueExpressionKind::PhysicsQueryEndPoints:
     case LN_ValueExpressionKind::ProjectileParabola:
       MarkSnapshotQueryCacheRead(m_schedulerSummary);
+      break;
+    case LN_ValueExpressionKind::UIFocusObject:
+    case LN_ValueExpressionKind::UIElementEventObject:
+    case LN_ValueExpressionKind::UIElementEventTarget:
+    case LN_ValueExpressionKind::UIElementEventItem:
+    case LN_ValueExpressionKind::UIElementEventTargetItem:
+      AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_LOGIC_MANAGER);
+      m_schedulerSummary.reads_snapshot_only = false;
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_ValueExpressionKind::CollisionHitObject:
     case LN_ValueExpressionKind::CollisionHitObjects:
     case LN_ValueExpressionKind::CollisionHitPoints:
     case LN_ValueExpressionKind::CollisionHitNormals:
-    case LN_ValueExpressionKind::SpawnPoolHitObject:
-      MarkQueryCacheRead(m_schedulerSummary,
-                         LN_MainThreadOnlyReason::CollisionOrPhysicsQuery);
+      MarkQueryCacheRead(m_schedulerSummary, LN_MainThreadOnlyReason::CollisionOrPhysicsQuery);
       break;
     case LN_ValueExpressionKind::CurrentScene:
-    case LN_ValueExpressionKind::CollectionObjects:
     case LN_ValueExpressionKind::CollectionObjectNames:
       AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_SCENE);
       MarkSnapshotRead(m_schedulerSummary);
+      break;
+    case LN_ValueExpressionKind::CollectionObjects:
+      AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_SCENE);
+      m_schedulerSummary.reads_snapshot_only = false;
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_ValueExpressionKind::MaterialSlot:
     case LN_ValueExpressionKind::MaterialNodeValue:

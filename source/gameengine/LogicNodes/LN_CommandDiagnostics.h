@@ -17,3 +17,6 @@ const char *LN_CommandSubsystemName(LN_CommandBuffer::CommandSubsystem subsystem
 std::string LN_DescribeCommandForDiagnostics(const LN_CommandBuffer::Command &command);
 std::string LN_DescribeCommandFailure(const LN_CommandBuffer::Command &command,
                                       const std::string &reason);
+/** Emit each fully contextualized command failure only once per process. Thread-safe. */
+void LN_WarnCommandFailureOnce(const LN_CommandBuffer::Command &command,
+                               const std::string &reason);

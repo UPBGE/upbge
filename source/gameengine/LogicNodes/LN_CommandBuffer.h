@@ -9,15 +9,20 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
+#include "BLI_map.hh"
+#include "BLI_vector.hh"
+
 #include "LN_DenseIds.h"
 #include "LN_Performance.h"
 #include "LN_Types.h"
+#include "KX_Parenting.h"
 
 class KX_GameObject;
 class KX_Scene;
@@ -25,11 +30,13 @@ class LN_Manager;
 class LN_RuntimeTree;
 
 namespace blender {
+struct Collection;
 struct Main;
 struct Material;
 struct bNode;
 struct bNodeSocket;
 struct bNodeTree;
+struct bSound;
 }
 
 class LN_CommandBuffer {
@@ -65,11 +72,13 @@ class LN_CommandBuffer {
     RemoveObject,
     SetGravity,
     SetTimeScale,
+    SetGamePaused,
     SetActiveCamera,
     SetCameraFov,
     SetCameraOrthoScale,
     SetCollisionGroup,
     SetPhysics,
+    SetPhysicsPaused,
     SetDynamics,
     RebuildCollisionShape,
     SetRigidBodyAttribute,
@@ -104,6 +113,7 @@ class LN_CommandBuffer {
     PlayAction,
     StopAction,
     SetActionFrame,
+    SetShapeKeyValue,
     StopAllSounds,
     PlaySound,
     PlaySound3D,
@@ -115,9 +125,15 @@ class LN_CommandBuffer {
     SendEvent,
     MoveToward,
     SlowFollow,
+    SetOverlayCollection,
+    RemoveOverlayCollection,
+    OpenObjectMenu,
+    CloseObjectMenu,
+    SetUIFocus,
     LoadScene,
     SetScene,
     SaveGame,
+    SetSaveExistence,
     LoadGame,
     AlignAxisToVector,
     RotateToward,
@@ -140,6 +156,32 @@ class LN_CommandBuffer {
     MakeNodeTreeUnique,
     SetNodeMute,
     EnableDisableModifier,
+    /** Modify Property: applied to the live property value at flush, never coalesced. */
+    ModifyGameProperty,
+    /** Set UI Interactable: the runtime override of a UI Element's Interactable setting. */
+    SetUIInteractable,
+    /** A Teleport: the object's move is a jump Smooth Motion draws at once. */
+    ResetSmoothing,
+    /** Set Camera with a User of 1 to 7: object = owner (its scene), event_target_object = the
+     * camera or null, int_value = user. */
+    SetPlayerCamera,
+    /** Set Split Screen: object = owner, bool_value = enabled, int_value = packed choices
+     * (LN_SPLIT_SCREEN_*), secondary_int_value = divider. */
+    SetSplitScreen,
+    /** Set Camera Viewport: object = owner, event_target_object = camera, bool_value = enabled,
+     * color_value = left, top, width, height, secondary_bool_value = on top. */
+    SetCameraViewport,
+    SetCameraVisibility,
+    /** Set Player Gamepad: int_value = user, secondary_int_value = gamepad (-1 none). */
+    SetPlayerGamepad,
+    /** Set Player Pointer: int_value = user, bool_value = enabled, event_target_handle = surface,
+     * secondary_object_handle = cursor, property_name = Move Action, scalar_value = speed. */
+    SetPlayerPointer,
+    /** Take UI Control: event_target_handle = the object, int_value = user, bool_value = take;
+     * runtime_tree and property_ref_index receive the result. */
+    TakeUIControl,
+    /** Set Volume: sound_group = the group (Master too), vector_value = (volume, fade seconds). */
+    SetSoundVolume,
   };
 
   enum class ModifierTarget : int32_t {
@@ -261,16 +303,21 @@ class LN_CommandBuffer {
     KX_GameObject *object = nullptr;
     LN_RuntimeTree *runtime_tree = nullptr;
     KX_GameObject *event_target_object = nullptr;
+    blender::Collection *collection = nullptr;
     LN_RuntimeRef runtime_ref;
     LN_ObjectHandle object_handle;
     LN_ObjectHandle event_target_handle;
+    /** Open Object Menu: its Owner (empty: the opener). */
+    LN_ObjectHandle secondary_object_handle;
     LN_GamePropertyId game_property_id;
     LN_EventSubjectId event_subject_id;
     const std::string *property_name_ptr = nullptr;
     MT_Vector3 vector_value = MT_Vector3(0.0f, 0.0f, 0.0f);
     MT_Vector3 secondary_vector_value = MT_Vector3(0.0f, 0.0f, 0.0f);
+    LN_Rotation rotation_value;
     MT_Vector4 color_value = MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f);
     LN_Value property_value;
+    LN_PropertyModify modify;
     LN_StringId property_name_id;
     std::string property_name;
     std::string secondary_property_name;
@@ -282,11 +329,17 @@ class LN_CommandBuffer {
     uint32_t property_ref_index = LN_INVALID_INDEX;
     bool bool_value = false;
     bool secondary_bool_value = false;
+    std::shared_ptr<const KX_ParentOptions> parent_options;
     uint64_t sort_key = 0;
     uint64_t record_sequence = 0;
     uint32_t source_ref_index = 0;
     /** Packed play/blend/ipo flags for #CommandType::PlayAction (see `BL_Action` enums). */
     uint32_t animation_flags = 0;
+    /** Connected lifecycle outputs for #CommandType::PlayAction. */
+    uint8_t action_output_mask = LN_ACTION_OUTPUT_NONE;
+    /** #CommandType::PlaySound, #CommandType::PlaySound3D, #CommandType::SetSoundVolume: the
+     * LN_SoundGroup. */
+    uint8_t sound_group = 0;
   };
 
   struct RecordedCommandList {
@@ -330,8 +383,16 @@ class LN_CommandBuffer {
                                  const MT_Vector3 &rotation,
                                  uint64_t sort_key,
                                  uint32_t source_ref_index);
+  void AppendSetWorldOrientation(KX_GameObject *gameobj,
+                                 const LN_Rotation &rotation,
+                                 uint64_t sort_key,
+                                 uint32_t source_ref_index);
   void AppendSetLocalOrientation(KX_GameObject *gameobj,
                                  const MT_Vector3 &rotation,
+                                 uint64_t sort_key,
+                                 uint32_t source_ref_index);
+  void AppendSetLocalOrientation(KX_GameObject *gameobj,
+                                 const LN_Rotation &rotation,
                                  uint64_t sort_key,
                                  uint32_t source_ref_index);
   void AppendSetWorldScale(KX_GameObject *gameobj,
@@ -368,6 +429,13 @@ class LN_CommandBuffer {
                            bool recursive,
                            uint64_t sort_key,
                            uint32_t source_ref_index);
+  void AppendSetUIInteractable(KX_GameObject *gameobj,
+                               bool interactable,
+                               uint64_t sort_key,
+                               uint32_t source_ref_index);
+  void AppendResetSmoothing(KX_GameObject *gameobj,
+                            uint64_t sort_key,
+                            uint32_t source_ref_index);
   void AppendSetObjectColor(KX_GameObject *gameobj,
                             const MT_Vector4 &color,
                             uint64_t sort_key,
@@ -397,9 +465,15 @@ class LN_CommandBuffer {
                            bool local,
                            uint64_t sort_key,
                            uint32_t source_ref_index);
-  void FlushPendingObjectTransformCommands(KX_GameObject *gameobj, uint64_t max_sort_key);
-  void FlushPendingObjectHierarchyTransformCommands(KX_GameObject *gameobj,
-                                                    uint64_t max_sort_key);
+  void AppendApplyRotation(KX_GameObject *gameobj,
+                           const LN_Rotation &rotation,
+                           bool local,
+                           uint64_t sort_key,
+                           uint32_t source_ref_index);
+  /** Apply already-recorded transforms before an immediate dependent operation. */
+  void FlushPendingObjectTransformCommands(KX_GameObject *gameobj);
+  /** As above, including the object's hierarchy parents. */
+  void FlushPendingObjectHierarchyTransformCommands(KX_GameObject *gameobj);
   void AppendApplyForce(KX_GameObject *gameobj,
                         const MT_Vector3 &force,
                         bool local,
@@ -421,6 +495,12 @@ class LN_CommandBuffer {
                                 const LN_Value &value,
                                 uint64_t sort_key,
                                 uint32_t source_ref_index);
+  void AppendModifyGameProperty(LN_RuntimeTree *runtime_tree,
+                                KX_GameObject *gameobj,
+                                uint32_t property_ref_index,
+                                const LN_PropertyModify &modify,
+                                uint64_t sort_key,
+                                uint32_t source_ref_index);
   void AppendSetTreeProperty(LN_RuntimeTree *runtime_tree,
                              uint32_t property_ref_index,
                              const LN_Value &value,
@@ -440,24 +520,67 @@ class LN_CommandBuffer {
                               uint32_t property_ref_index,
                               uint64_t sort_key,
                               uint32_t source_ref_index);
+  /** Main thread, outside a flush: a tracked copy of `source` (like Add Object), placed at
+   * `reference`'s transform. */
+  static KX_GameObject *AddTrackedObject(LN_Manager *manager,
+                                         KX_GameObject *source,
+                                         KX_GameObject *reference,
+                                         std::string &r_error);
+  /** Volume groups: fades move on, by the wall clock (also while paused). Main thread, every
+   * frame (more calls in a frame change nothing). */
+  static void UpdateSoundGroups();
+  /** A game starts or ends: every group back to full volume, the audio device's volume as it was
+   * before the game. Main thread. */
+  static void ResetSoundGroups();
+  /** `group`'s volume now (Set Volume). */
+  static float SoundGroupVolume(int32_t group);
+  /** Tests: Play Sound finds a sine tone of `frequency` Hz named `name` (no Blender data
+   * needed). */
+  static void CacheToneForTests(const std::string &name, float frequency);
+  /** Places the scene's playing 3D sounds for this frame: at their speaker, heard from their
+   * listener's camera (Play Sound 3D). Main thread, once a frame. */
+  static void UpdateSpatialSounds(const KX_Scene *scene);
+  /** A removed speaker: its sounds stay where it was. */
+  static void ForgetSpatialSoundSpeaker(const KX_GameObject *speaker);
+  /** A scene ending: its sounds are no longer placed. */
+  static void ForgetSpatialSoundScene(const KX_Scene *scene);
+  /** Writes a game property now, the way Set Object Property does at a flush. */
+  static bool ApplyGamePropertyValue(KX_GameObject *object,
+                                     const std::string &property_name,
+                                     const LN_Value &value,
+                                     const LN_RuntimeTree *runtime_tree,
+                                     std::string &r_reason);
+  /** \a own_mesh: an ordinary copy gets its own mesh (KX_GameObject::GiveOwnMesh). */
   KX_GameObject *ExecuteAddObjectFromRefImmediate(LN_RuntimeTree *runtime_tree,
                                                   KX_GameObject *gameobj,
                                                   const LN_RuntimeRef &source_ref,
                                                   float life_time,
                                                   bool full_copy,
+                                                  bool own_mesh,
                                                   uint32_t property_ref_index,
                                                   uint32_t source_ref_index);
   void AppendSetParent(KX_GameObject *gameobj,
                        const std::string &parent_name,
-          bool compound,
-          bool ghost,
+                       bool compound,
+                       bool ghost,
+                       uint64_t sort_key,
+                       uint32_t source_ref_index);
+  void AppendSetParent(KX_GameObject *gameobj,
+                       const std::string &parent_name,
+                       const KX_ParentOptions &options,
                        uint64_t sort_key,
                        uint32_t source_ref_index);
   void AppendSetParentFromRef(LN_RuntimeTree *runtime_tree,
                               KX_GameObject *gameobj,
                               const LN_RuntimeRef &parent_ref,
-            bool compound,
-            bool ghost,
+                              bool compound,
+                              bool ghost,
+                              uint64_t sort_key,
+                              uint32_t source_ref_index);
+  void AppendSetParentFromRef(LN_RuntimeTree *runtime_tree,
+                              KX_GameObject *gameobj,
+                              const LN_RuntimeRef &parent_ref,
+                              const KX_ParentOptions &options,
                               uint64_t sort_key,
                               uint32_t source_ref_index);
   void AppendRemoveParent(KX_GameObject *gameobj, uint64_t sort_key, uint32_t source_ref_index);
@@ -470,9 +593,41 @@ class LN_CommandBuffer {
                           float timescale,
                           uint64_t sort_key,
                           uint32_t source_ref_index);
+  void AppendSetGamePaused(bool paused,
+                           uint64_t sort_key,
+                           uint32_t source_ref_index);
   void AppendSetActiveCamera(KX_GameObject *camera,
                              uint64_t sort_key,
                              uint32_t source_ref_index);
+  /** Split screen (KX_PlayerViews): a camera for player 1 to 7; null removes their view. */
+  void AppendSetPlayerCamera(KX_GameObject *owner,
+                             KX_GameObject *camera,
+                             int32_t user,
+                             uint64_t sort_key,
+                             uint32_t source_ref_index);
+  void AppendSetSplitScreen(KX_GameObject *owner,
+                            bool enabled,
+                            int32_t choices,
+                            int32_t divider,
+                            uint64_t sort_key,
+                            uint32_t source_ref_index);
+  /** `area` holds left, top, width and height in window fractions. */
+  void AppendSetCameraViewport(KX_GameObject *owner,
+                               KX_GameObject *camera,
+                               bool enabled,
+                               const MT_Vector4 &area,
+                               bool on_top,
+                               int32_t player,
+                               uint64_t sort_key,
+                               uint32_t source_ref_index);
+  /** Whether `camera` draws `object` (and its children now, with `include_children`). */
+  void AppendSetCameraVisibility(KX_GameObject *object,
+                                 KX_GameObject *camera,
+                                 bool visible,
+                                 bool keep_shadow,
+                                 bool include_children,
+                                 uint64_t sort_key,
+                                 uint32_t source_ref_index);
   void AppendSetCameraFov(KX_GameObject *camera,
                           float fov_degrees,
                           uint64_t sort_key,
@@ -489,6 +644,9 @@ class LN_CommandBuffer {
                         bool active,
                         uint64_t sort_key,
                         uint32_t source_ref_index);
+  void AppendSetPhysicsPaused(bool paused,
+                              uint64_t sort_key,
+                              uint32_t source_ref_index);
   void AppendSetDynamics(KX_GameObject *gameobj,
                          int32_t mode,
                          bool enabled,
@@ -579,11 +737,20 @@ class LN_CommandBuffer {
                                      int32_t axis,
                                      uint64_t sort_key,
                                      uint32_t source_ref_index);
-  void AppendSetCursorVisibility(bool visible, uint64_t sort_key, uint32_t source_ref_index);
+  /** `in_menus`: from now on the UI shows the cursor only while a menu uses player 0's mouse
+   * (`visible` is not used); else `visible` sets it and ends that. */
+  void AppendSetCursorVisibility(bool visible,
+                                 uint64_t sort_key,
+                                 uint32_t source_ref_index,
+                                 bool in_menus = false);
   void AppendSetCursorPosition(int32_t x,
                                int32_t y,
                                uint64_t sort_key,
                                uint32_t source_ref_index);
+  void AppendSetPlayerGamepad(int32_t user,
+                              int32_t gamepad,
+                              uint64_t sort_key,
+                              uint32_t source_ref_index);
   void AppendSetGamepadVibration(int32_t gamepad_index,
                                  float strength_left,
                                  float strength_right,
@@ -613,6 +780,7 @@ class LN_CommandBuffer {
   void AppendQuitGame(uint64_t sort_key, uint32_t source_ref_index);
   void AppendRestartGame(uint64_t sort_key, uint32_t source_ref_index);
   void AppendPlayAction(KX_GameObject *gameobj,
+                        LN_RuntimeTree *runtime_tree,
                         const std::string &action_name,
                         float start_frame,
                         float end_frame,
@@ -622,6 +790,8 @@ class LN_CommandBuffer {
                         float layer_weight,
                         uint32_t animation_flags,
                         float playback_speed,
+                        uint32_t completion_expression_index,
+                        uint8_t action_output_mask,
                         uint64_t sort_key,
                         uint32_t source_ref_index);
   void AppendStopAction(KX_GameObject *gameobj,
@@ -633,23 +803,41 @@ class LN_CommandBuffer {
                             float frame,
                             uint64_t sort_key,
                             uint32_t source_ref_index);
+  void AppendSetShapeKeyValue(KX_GameObject *gameobj,
+                              const std::string &shape_key_name,
+                              float value,
+                              uint64_t sort_key,
+                              uint32_t source_ref_index);
   void AppendStopAllSounds(uint64_t sort_key, uint32_t source_ref_index);
+  /** `group` is the sound's volume group (LN_SoundGroup). */
   void AppendPlaySound(const std::string &sound_name,
                        float volume,
                        float pitch,
                        bool loop,
                        uint64_t sort_key,
-                       uint32_t source_ref_index);
+                       uint32_t source_ref_index,
+                       int32_t group = 0);
+  /** Set Volume: `group`'s volume (Master too) becomes `volume`, at once or over `fade`
+   * seconds. */
+  void AppendSetSoundVolume(int32_t group,
+                            float volume,
+                            float fade,
+                            uint64_t sort_key,
+                            uint32_t source_ref_index);
   void AppendStopSound(const std::string &sound_name,
                        uint64_t sort_key,
                        uint32_t source_ref_index);
+  /** `listener` is an LN_SoundListener; `user` the player it names; `group` the volume group. */
   void AppendPlaySound3D(KX_GameObject *speaker_object,
                          const std::string &sound_name,
                          float volume,
                          float pitch,
                          bool loop,
                          uint64_t sort_key,
-                         uint32_t source_ref_index);
+                         uint32_t source_ref_index,
+                         int32_t listener = 0,
+                         int32_t user = 0,
+                         int32_t group = 0);
   void AppendPauseSound(const std::string &sound_name,
                         uint64_t sort_key,
                         uint32_t source_ref_index);
@@ -674,7 +862,8 @@ class LN_CommandBuffer {
                        KX_GameObject *messenger,
                        KX_GameObject *target,
                        uint64_t sort_key,
-                       uint32_t source_ref_index);
+                       uint32_t source_ref_index,
+                       LN_RuntimeTree *runtime_tree = nullptr);
   void AppendSendEvent(LN_RuntimeTree *runtime_tree,
                        LN_StringId subject_id,
                        const LN_Value &content,
@@ -697,20 +886,98 @@ class LN_CommandBuffer {
                         uint8_t attribute,
                         uint64_t sort_key,
                         uint32_t source_ref_index);
-  void AppendLoadScene(const std::string &scene_name,
+  void AppendSetOverlayCollection(LN_RuntimeTree *runtime_tree,
+                                  KX_GameObject *owner,
+                                  KX_GameObject *camera,
+                                  blender::Collection *collection,
+                                  uint32_t completion_expression_index,
+                                  uint64_t sort_key,
+                                  uint32_t source_ref_index);
+  void AppendRemoveOverlayCollection(LN_RuntimeTree *runtime_tree,
+                                     KX_GameObject *owner,
+                                     blender::Collection *collection,
+                                     uint32_t completion_expression_index,
+                                     uint64_t sort_key,
+                                     uint32_t source_ref_index);
+  void AppendOpenObjectMenu(LN_RuntimeTree *runtime_tree,
+                            KX_GameObject *owner,
+                            KX_GameObject *camera,
+                            KX_GameObject *menu_owner,
+                            blender::Collection *collection,
+                            LN_UIMenuRouting routing,
+                            const std::string &input_context,
+                            int32_t packed_open_settings,
+                            uint32_t completion_expression_index,
+                            uint64_t sort_key,
+                            uint32_t source_ref_index);
+  /** `user`: whose menus Top and All close. */
+  void AppendCloseObjectMenu(LN_RuntimeTree *runtime_tree,
+                             KX_GameObject *owner,
+                             int32_t menu_handle,
+                             LN_UIMenuCloseOperation operation,
+                             int32_t user,
+                             uint32_t completion_expression_index,
+                             uint64_t sort_key,
+                             uint32_t source_ref_index);
+  void AppendSetUIFocus(LN_RuntimeTree *runtime_tree,
+                        KX_GameObject *owner,
+                        KX_GameObject *target,
+                        int32_t user,
+                        const std::string &input_context,
+                        uint32_t completion_expression_index,
+                        uint64_t sort_key,
+                        uint32_t source_ref_index);
+  /** Set Player Pointer's inputs: `aim` (View Center) uses only `reach` and `press_action`. */
+  struct PlayerPointerSettings {
+    bool aim = false;
+    KX_GameObject *surface = nullptr;
+    KX_GameObject *cursor = nullptr;
+    std::string move_action;
+    float speed = 1.0f;
+    float reach = 3.0f;
+    std::string press_action;
+  };
+  void AppendSetPlayerPointer(KX_GameObject *owner,
+                              int32_t user,
+                              bool enabled,
+                              const PlayerPointerSettings &settings,
+                              uint64_t sort_key,
+                              uint32_t source_ref_index);
+  void AppendTakeUIControl(LN_RuntimeTree *runtime_tree,
+                           KX_GameObject *owner,
+                           KX_GameObject *target,
+                           int32_t user,
+                           bool take,
+                           uint32_t completion_expression_index,
+                           uint64_t sort_key,
+                           uint32_t source_ref_index);
+  void AppendLoadScene(KX_GameObject *owner,
+                       const std::string &scene_name,
                        uint64_t sort_key,
                        uint32_t source_ref_index);
-  void AppendSetScene(const std::string &scene_name,
+  void AppendSetScene(KX_GameObject *owner,
+                      const std::string &scene_name,
                       uint64_t sort_key,
                       uint32_t source_ref_index);
-  void AppendSaveGame(KX_GameObject *gameobj,
+  void AppendSaveGame(LN_RuntimeTree *runtime_tree,
+                      KX_GameObject *gameobj,
                       int32_t slot,
                       const std::string &path,
+                      uint32_t completion_expression_index,
                       uint64_t sort_key,
                       uint32_t source_ref_index);
-  void AppendLoadGame(KX_GameObject *gameobj,
+  void AppendSetSaveExistence(LN_RuntimeTree *runtime_tree,
+                              KX_GameObject *owner,
+                              KX_GameObject *target,
+                              bool enabled,
+                              uint32_t completion_expression_index,
+                              uint64_t sort_key,
+                              uint32_t source_ref_index);
+  void AppendLoadGame(LN_RuntimeTree *runtime_tree,
+                      KX_GameObject *gameobj,
                       int32_t slot,
                       const std::string &path,
+                      uint32_t completion_expression_index,
                       uint64_t sort_key,
                       uint32_t source_ref_index);
   void AppendAlignAxisToVector(KX_GameObject *gameobj,
@@ -721,9 +988,10 @@ class LN_CommandBuffer {
                                uint32_t source_ref_index);
   void AppendRotateToward(KX_GameObject *gameobj,
                           const MT_Vector3 &target,
-                          float factor,
+                          float factor_or_max_step,
                           int32_t rot_axis,
                           int32_t front_axis,
+                          bool use_max_angular_step,
                           uint64_t sort_key,
                           uint32_t source_ref_index);
   void AppendReplaceMesh(KX_GameObject *gameobj,
@@ -751,6 +1019,14 @@ class LN_CommandBuffer {
                                  bool use_center = false,
                                  int32_t rotation_space = int32_t(
                                      LN_BonePoseRotationSpace::PoseChannel));
+  void AppendSetBonePoseRotation(KX_GameObject *armature_object,
+                                 const std::string &bone_name,
+                                 const LN_Rotation &rotation,
+                                 uint64_t sort_key,
+                                 uint32_t source_ref_index,
+                                 bool use_center = false,
+                                 int32_t rotation_space = int32_t(
+                                     LN_BonePoseRotationSpace::PoseChannel));
   void AppendSetBonePoseScale(KX_GameObject *armature_object,
                               const std::string &bone_name,
                               const MT_Vector3 &scale,
@@ -760,6 +1036,15 @@ class LN_CommandBuffer {
                                   const std::string &bone_name,
                                   const MT_Vector3 &location,
                                   const MT_Vector3 &rotation_euler,
+                                  uint64_t sort_key,
+                                  uint32_t source_ref_index,
+                                  int32_t location_space = int32_t(
+                                      LN_BonePoseLocationSpace::ArmatureOffset),
+                                  bool use_center = false);
+  void AppendSetBonePoseTransform(KX_GameObject *armature_object,
+                                  const std::string &bone_name,
+                                  const MT_Vector3 &location,
+                                  const LN_Rotation &rotation,
                                   uint64_t sort_key,
                                   uint32_t source_ref_index,
                                   int32_t location_space = int32_t(
@@ -900,7 +1185,7 @@ class LN_CommandBuffer {
            m_audioCommands.size() + m_lifecycleCommands.size() +
            m_objectServiceCommands.size() + m_runtimeServiceCommands.size() +
            m_animationCommands.size() + m_armatureCommands.size() + m_materialCommands.size() +
-           m_physicsCommands.size();
+           m_physicsCommands.size() - m_appliedTransformCount;
   }
 
   const std::vector<Command> &GetCommandsForTests() const;
@@ -951,6 +1236,7 @@ class LN_CommandBuffer {
     CommandType type = CommandType::SetWorldPosition;
     KX_GameObject *object = nullptr;
     MT_Vector3 value = MT_Vector3(0.0f, 0.0f, 0.0f);
+    LN_Rotation rotation_value;
     bool bool_value = false;
   };
 
@@ -966,6 +1252,7 @@ class LN_CommandBuffer {
     uint32_t property_ref_index = LN_INVALID_INDEX;
     std::string property_name;
     LN_Value value;
+    LN_PropertyModify modify;
   };
 
   struct TypedEventCommand {
@@ -990,6 +1277,12 @@ class LN_CommandBuffer {
     float volume = 1.0f;
     float pitch = 1.0f;
     bool loop = false;
+    /** Play Sound 3D: LN_SoundListener and the player it names. */
+    int32_t listener = 0;
+    int32_t listener_user = 0;
+    /** The volume group (LN_SoundGroup); Set Volume's fade in seconds (its volume is `volume`). */
+    int32_t group = 0;
+    float fade = 0.0f;
   };
 
   struct TypedLifecycleCommand {
@@ -1003,6 +1296,7 @@ class LN_CommandBuffer {
     uint32_t property_ref_index = LN_INVALID_INDEX;
     bool bool_value = false;
     bool secondary_bool_value = false;
+    std::shared_ptr<const KX_ParentOptions> parent_options;
   };
 
   struct TypedObjectServiceCommand {
@@ -1031,7 +1325,9 @@ class LN_CommandBuffer {
     CommandHeader header;
     CommandType type = CommandType::PlayAction;
     KX_GameObject *object = nullptr;
-    std::string action_name;
+    LN_RuntimeTree *runtime_tree = nullptr;
+    /** Action name for action commands; shape-key name for #SetShapeKeyValue. */
+    std::string target_name;
     float start_frame = 0.0f;
     float end_frame = 0.0f;
     float blendin = 0.0f;
@@ -1041,6 +1337,8 @@ class LN_CommandBuffer {
     int32_t layer = 0;
     int32_t priority = 0;
     uint32_t animation_flags = 0;
+    uint32_t completion_expression_index = LN_INVALID_INDEX;
+    uint8_t action_output_mask = LN_ACTION_OUTPUT_NONE;
   };
 
   struct TypedArmatureCommand {
@@ -1053,6 +1351,7 @@ class LN_CommandBuffer {
     std::string attribute_name;
     MT_Vector3 vector_value = MT_Vector3(0.0f, 0.0f, 0.0f);
     MT_Vector3 secondary_vector_value = MT_Vector3(0.0f, 0.0f, 0.0f);
+    LN_Rotation rotation_value;
     LN_Value value;
     float scalar_value = 0.0f;
     int32_t int_value = 0;
@@ -1103,8 +1402,13 @@ class LN_CommandBuffer {
 
   void AssertMainThread() const;
   void FlushPendingObjectTransformCommandsInternal(KX_GameObject *gameobj,
-                                                   uint64_t max_sort_key,
                                                    bool include_parents);
+  /** Puts a stream's last command in the pending transform index, once the index is made. */
+  void IndexAppendedTransform(const std::vector<TypedVectorCommand> &stream);
+  void IndexPendingTransforms();
+  void ForgetPendingTransformIndex();
+  /** Drops the transform writes reads applied early from their streams. */
+  void CompactAppliedTransforms();
   CommandHeader MakeCommandHeader(CommandType type,
                                   uint64_t sort_key,
                                   uint32_t source_ref_index);
@@ -1122,6 +1426,12 @@ class LN_CommandBuffer {
                                 const MT_Vector3 &value,
                                 uint64_t sort_key,
                                 uint32_t source_ref_index);
+  void AppendTypedRotationCommand(CommandType type,
+                                  KX_GameObject *gameobj,
+                                  const LN_Rotation &value,
+                                  bool bool_value,
+                                  uint64_t sort_key,
+                                  uint32_t source_ref_index);
   void AppendTypedObjectServiceCommand(CommandType type,
                                        KX_GameObject *gameobj,
                                        const MT_Vector4 &color_value,
@@ -1144,7 +1454,7 @@ class LN_CommandBuffer {
                                         uint32_t source_ref_index);
   void AppendTypedAnimationCommand(CommandType type,
                                    KX_GameObject *gameobj,
-                                   const std::string &action_name,
+                                   const std::string &target_name,
                                    float start_frame,
                                    float end_frame,
                                    float blendin,
@@ -1155,7 +1465,10 @@ class LN_CommandBuffer {
                                    int32_t priority,
                                    uint32_t animation_flags,
                                    uint64_t sort_key,
-                                   uint32_t source_ref_index);
+                                   uint32_t source_ref_index,
+                                   LN_RuntimeTree *runtime_tree = nullptr,
+                                   uint32_t completion_expression_index = LN_INVALID_INDEX,
+                                   uint8_t action_output_mask = LN_ACTION_OUTPUT_NONE);
   void AppendTypedArmatureCommand(CommandType type,
                                   KX_GameObject *gameobj,
                                   LN_RuntimeTree *runtime_tree,
@@ -1164,12 +1477,14 @@ class LN_CommandBuffer {
                                   const std::string &attribute_name,
                                   const MT_Vector3 &vector_value,
                                   const MT_Vector3 &secondary_vector_value,
+                                  const LN_Rotation &rotation_value,
                                   const LN_Value &value,
                                   float scalar_value,
                                   int32_t int_value,
                                   int32_t secondary_int_value,
                                   uint64_t sort_key,
                                   uint32_t source_ref_index);
+  static Command MakeArmatureCommand(const TypedArmatureCommand &typed_command);
   void AppendTypedMaterialCommand(CommandType type,
                                   KX_GameObject *gameobj,
                                   LN_RuntimeTree *runtime_tree,
@@ -1252,4 +1567,17 @@ class LN_CommandBuffer {
   bool m_typedCommandStreamsEnabled = true;
   bool m_commandStreamsSorted = true;
   uint32_t m_coalescibleCommandCount = 0;
+  /**
+   * A read that must see the step's earlier transform writes (Get Distance, raycasts...) applies
+   * the read object's pending ones at once. Per object, the places of its pending transform
+   * writes in m_transformCommands (or m_relativeVectorCommands, k_relative_transform_place), so
+   * a read never looks at the other objects' writes. Made at the first such read of a recording,
+   * then kept up to date by the appends; forgotten when the streams' places move.
+   */
+  blender::Map<KX_GameObject *, blender::Vector<uint32_t, 2>> m_pendingTransforms;
+  bool m_pendingTransformsIndexed = false;
+  /** Writes applied by such reads, left in their streams until EndRecording. */
+  uint32_t m_appliedTransformCount = 0;
+  /** A transform write went to m_commands (typed streams off): reads plan every command. */
+  bool m_legacyTransformRecorded = false;
 };

@@ -213,7 +213,24 @@ class JoltSoftBody {
    *  depsgraph is resolved once in JoltPhysicsEnvironment::UpdateSoftBodies(). */
   void UpdateMesh(blender::Depsgraph *depsgraph);
 
+  struct MeshUpdatePreparation {
+    /** An object geometry tag or synchronous graph evaluation is required. */
+    bool geometryChanged = false;
+    /** The original modifier stack changed and depsgraph relations must be rebuilt. */
+    bool relationsChanged = false;
+  };
+
+  /** Prepare the Blender-side runtime deformation state without touching Jolt.
+   *
+   *  Modifier-stack edits and render-only subdivision overrides must be completed
+   *  for every soft body before any dependency-graph evaluation starts. This lets
+   *  JoltPhysicsEnvironment rebuild relations and evaluate the graph once for the
+   *  whole batch, outside the Jolt body locks. */
+  MeshUpdatePreparation PrepareMeshUpdate();
+
   /** Same as UpdateMesh(), but uses an already locked body.
+   *  PrepareMeshUpdate() and any required dependency-graph synchronization must
+   *  have completed before calling this method.
    *  Used by JoltPhysicsEnvironment with BodyLockMultiRead. */
   void UpdateMeshLocked(blender::Depsgraph *depsgraph, const JPH::Body &body);
 

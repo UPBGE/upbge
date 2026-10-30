@@ -293,6 +293,10 @@ jobs:
             - Linux (x86_64)
             - Windows (x86_64)
 
+            System requirements:
+            - A processor with AVX2 (Jolt Physics is built with it for speed): an Intel Core processor from 2013 on (4th generation or newer) or an AMD processor from 2015 on (every Ryzen included). Many Pentium and Celeron processors lack AVX2.
+            - On a processor without it, UPBGE and exported games stop at start with a message naming the missing instructions (a message box on Windows, the terminal on Linux).
+
             Download the corresponding file for your OS below.
           draft: false
           prerelease: true

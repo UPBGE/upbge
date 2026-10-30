@@ -50,6 +50,7 @@ struct Scene;
 struct World;
 struct bGPdata;
 struct bNodeTree;
+struct bSound;
 struct KeyingSet;
 struct TransformOrientation;
 
@@ -749,6 +750,66 @@ typedef struct RecastData {
   short _pad2[5] = {};
 } RecastData;
 
+/** One key, mouse button or gamepad control of a #GameInputAction. */
+typedef struct GameInputBinding {
+  struct GameInputBinding *next = nullptr, *prev = nullptr;
+  /** #GAME_INPUT_KEYBOARD, #GAME_INPUT_MOUSE or #GAME_INPUT_GAMEPAD. */
+  short device = 0;
+  /** Keyboard and mouse: a Blender event type. Gamepad: a #GAME_INPUT_GAMEPAD_A... control. */
+  short code = 0;
+  /** #GAME_INPUT_MOD_SHIFT... keys that must be held with a keyboard key or mouse button. */
+  short modifiers = 0;
+  /** Vector actions: the direction a key, button or stick direction pushes,
+   * #GAME_INPUT_DIRECTION_UP... A whole stick gives its own direction. */
+  short direction = 0;
+} GameInputBinding;
+
+/** A named control of the game's Input Map with its keys, mouse buttons and gamepad controls. */
+typedef struct GameInputAction {
+  struct GameInputAction *next = nullptr, *prev = nullptr;
+  char name[/*MAX_NAME*/ 64] = "";
+  /** Only used while the topmost menu has this Input Context; empty: always. */
+  char context[/*MAX_NAME*/ 64] = "";
+  /** A UI control of the engine (#GAME_INPUT_BUILTIN_NAVIGATE_UP...), or 0 for the game's own. */
+  short builtin = 0;
+  /** #GAME_INPUT_ACTION_BUTTON or #GAME_INPUT_ACTION_VECTOR. */
+  short type = 0;
+  int active_binding = 0;
+  ListBaseT<GameInputBinding> bindings = {nullptr, nullptr};
+} GameInputAction;
+
+/* GameInventoryRules.flag */
+#define GAME_INVENTORY_STACK (1 << 0)
+#define GAME_INVENTORY_KEEP_PLACES (1 << 1)
+
+/** UPBGE: rules of the inventories (List or Table game properties) that pick this set by name
+ * (#bProperty.inventory_rules): Scene > Items and UI > Inventory Rules. Every grid and Inventory
+ * node that changes such a list follows them. */
+typedef struct GameInventoryRules {
+  struct GameInventoryRules *next = nullptr, *prev = nullptr;
+  char name[/*MAX_NAME*/ 64] = "";
+  /** Places the list holds at most; 0: no limit. */
+  int capacity = 0;
+  /** Most of an item one place holds when its Item Library object has no max_stack; 0: none. */
+  int max_stack = 0;
+  /** #GAME_INVENTORY_STACK, #GAME_INVENTORY_KEEP_PLACES. */
+  short flag = GAME_INVENTORY_STACK;
+  char _pad[6] = {};
+  /** A game property of the list's object to read the value from while playing (such as
+   * bag_size); empty: the value above. */
+  char capacity_from[64] = "";
+  char max_stack_from[64] = "";
+  char stack_from[64] = "";
+  char keep_places_from[64] = "";
+  /** A game property of the list's object with recipe lines; empty: no recipes. */
+  char recipes[64] = "";
+  /** Only items of these categories (comma separated) can enter the list; empty: any. */
+  char accept_categories[128] = "";
+  char accept_categories_from[64] = "";
+  /** Objects named like the items; empty: the scene's #GameData.item_library. */
+  struct Collection *item_library = nullptr;
+} GameInventoryRules;
+
 typedef struct GameData {
 
   /* standalone player */
@@ -816,7 +877,9 @@ typedef struct GameData {
 
   /* Fixed physics interpolation (global) */
   char use_fixed_physics_interpolation = 0;
-  char _pad_fixed_interpolation[7] = {};
+  char _pad_fixed_interpolation[3] = {};
+  /* Steps frame times may run off the clock while vsync paces frames (0: off). */
+  float jitter_fix = 0.5f;
 
   /* Fixed physics render FPS cap (only in fixed physics mode) */
   char use_fixed_fps_cap = 1;
@@ -833,18 +896,125 @@ typedef struct GameData {
   int _pad_depsgraph_opt[2] = {0, 0};
 
   /* Jolt Physics configuration (only used when physicsEngine == WOPHY_JOLT) */
-  short jolt_physics_threads = -1; /* -1 = auto (max(1, cores-1)), 1..N = explicit thread count */
+  /* Physics CPU Use: the most CPU cores physics uses at once, the game's own included (1 = only
+   * the game's own core); -1 and 0 = Auto (BKE_game_physics_cores). */
+  short jolt_physics_threads = -1;
   char jolt_debug_errors = 0;      /* Enable Jolt physics error reporting */
   char _pad_jolt[1] = {0};
   short jolt_velocity_solver_iterations = 10;
   short jolt_position_solver_iterations = 2;
-  int jolt_max_bodies = 10240;         /* Maximum number of bodies in the physics system */
-  int jolt_max_body_pairs = 10240;     /* Maximum number of body pairs for broadphase */
-  int jolt_max_contact_constraints = 10240; /* Maximum contact constraints */
-  int jolt_temp_allocator_mb = 64;     /* TempAllocator size in MB (auto-scaled up if needed) */
+  /* As new files have (versioning_defaults.cc). Body pairs and contact constraints are at least
+   * one per body and 65536 in game; the temp allocator size is worked out, this one unused. */
+  int jolt_max_bodies = 65536;         /* Maximum number of bodies in the physics system */
+  int jolt_max_body_pairs = 65536;     /* Maximum number of body pairs for broadphase */
+  int jolt_max_contact_constraints = 65536; /* Maximum contact constraints */
+  int jolt_temp_allocator_mb = 64;
 
   void *_pad10 = nullptr;
+
+  /** Input Map: the engine's UI controls and the game's own actions. */
+  ListBaseT<GameInputAction> input_actions = {nullptr, nullptr};
+  int active_input_action = 0;
+  /** A held UI navigation key steps again after this delay, then at this interval (seconds). */
+  float input_repeat_delay = 0.4f;
+  float input_repeat_interval = 0.1f;
+  /** Stick deflection (0..1) that counts as a direction. */
+  float input_stick_threshold = 0.5f;
+  /** #GAME_INPUT_SWAP_ACCEPT_BACK, #GAME_INPUT_GAMEPADS_FROM_PLAYER_1, #GAME_INPUT_PRESS_TO_JOIN. */
+  int input_flag = 0;
+  /** #GAME_SPLIT_DISABLE_SHADOWS etc.: cheaper player views while the window is split. */
+  int split_flag = 0;
+
+  /** Item library of the game: objects named like the items. Library inputs left empty use it. */
+  struct Collection *item_library = nullptr;
+  void *_pad_ui = nullptr;
+  /** Inventory Rules: named rule sets the game's lists pick (#GameInventoryRules). */
+  ListBaseT<GameInventoryRules> inventory_rules = {nullptr, nullptr};
+  int active_inventory_rules = 0;
+  int _pad_inventory_rules = 0;
 } GameData;
+
+/* GameInputBinding.device */
+#define GAME_INPUT_KEYBOARD 0
+#define GAME_INPUT_MOUSE 1
+#define GAME_INPUT_GAMEPAD 2
+
+/* GameInputBinding.modifiers */
+#define GAME_INPUT_MOD_SHIFT (1 << 0)
+#define GAME_INPUT_MOD_CTRL (1 << 1)
+#define GAME_INPUT_MOD_ALT (1 << 2)
+
+/* GameInputBinding.direction */
+#define GAME_INPUT_DIRECTION_UP 0
+#define GAME_INPUT_DIRECTION_DOWN 1
+#define GAME_INPUT_DIRECTION_LEFT 2
+#define GAME_INPUT_DIRECTION_RIGHT 3
+
+/* GameInputBinding.code of a gamepad binding. Buttons use the SDL game controller button index
+ * (the Gamepad Button node's values); the triggers, stick directions and whole sticks follow. */
+#define GAME_INPUT_GAMEPAD_A 0
+#define GAME_INPUT_GAMEPAD_B 1
+#define GAME_INPUT_GAMEPAD_X 2
+#define GAME_INPUT_GAMEPAD_Y 3
+#define GAME_INPUT_GAMEPAD_SELECT 4
+#define GAME_INPUT_GAMEPAD_START 6
+#define GAME_INPUT_GAMEPAD_LEFT_STICK_PRESS 7
+#define GAME_INPUT_GAMEPAD_RIGHT_STICK_PRESS 8
+#define GAME_INPUT_GAMEPAD_LEFT_SHOULDER 9
+#define GAME_INPUT_GAMEPAD_RIGHT_SHOULDER 10
+#define GAME_INPUT_GAMEPAD_DPAD_UP 11
+#define GAME_INPUT_GAMEPAD_DPAD_DOWN 12
+#define GAME_INPUT_GAMEPAD_DPAD_LEFT 13
+#define GAME_INPUT_GAMEPAD_DPAD_RIGHT 14
+#define GAME_INPUT_GAMEPAD_LEFT_TRIGGER 15
+#define GAME_INPUT_GAMEPAD_RIGHT_TRIGGER 16
+#define GAME_INPUT_GAMEPAD_LEFT_STICK_UP 20
+#define GAME_INPUT_GAMEPAD_LEFT_STICK_DOWN 21
+#define GAME_INPUT_GAMEPAD_LEFT_STICK_LEFT 22
+#define GAME_INPUT_GAMEPAD_LEFT_STICK_RIGHT 23
+#define GAME_INPUT_GAMEPAD_RIGHT_STICK_UP 24
+#define GAME_INPUT_GAMEPAD_RIGHT_STICK_DOWN 25
+#define GAME_INPUT_GAMEPAD_RIGHT_STICK_LEFT 26
+#define GAME_INPUT_GAMEPAD_RIGHT_STICK_RIGHT 27
+#define GAME_INPUT_GAMEPAD_LEFT_STICK 30
+#define GAME_INPUT_GAMEPAD_RIGHT_STICK 31
+
+/* GameInputAction.type */
+#define GAME_INPUT_ACTION_BUTTON 0
+#define GAME_INPUT_ACTION_VECTOR 1
+
+/* GameInputAction.builtin: the engine's UI controls, in LN_UIAction order (builtin - 1). */
+#define GAME_INPUT_BUILTIN_NONE 0
+#define GAME_INPUT_BUILTIN_NAVIGATE_UP 1
+#define GAME_INPUT_BUILTIN_NAVIGATE_DOWN 2
+#define GAME_INPUT_BUILTIN_NAVIGATE_LEFT 3
+#define GAME_INPUT_BUILTIN_NAVIGATE_RIGHT 4
+#define GAME_INPUT_BUILTIN_ACCEPT 5
+#define GAME_INPUT_BUILTIN_BACK 6
+#define GAME_INPUT_BUILTIN_NEXT 7
+#define GAME_INPUT_BUILTIN_PREVIOUS 8
+#define GAME_INPUT_BUILTIN_SECONDARY 9
+#define GAME_INPUT_BUILTIN_SCROLL_UP 10
+#define GAME_INPUT_BUILTIN_SCROLL_DOWN 11
+#define GAME_INPUT_BUILTIN_GRAB 12
+#define GAME_INPUT_BUILTIN_COUNT 12
+
+/* GameData.input_flag */
+#define GAME_INPUT_SWAP_ACCEPT_BACK (1 << 0)
+/** Player 0 has the keyboard and mouse alone; gamepad N is player N + 1's. */
+#define GAME_INPUT_GAMEPADS_FROM_PLAYER_1 (1 << 1)
+/** A gamepad gets a player (the first free one) when it presses a button. */
+#define GAME_INPUT_PRESS_TO_JOIN (1 << 2)
+
+/* GameData.split_flag: in each player's view while the window is split (the camera's own
+ * Game Camera Settings apply too). */
+#define GAME_SPLIT_DISABLE_SHADOWS (1 << 0)
+#define GAME_SPLIT_DISABLE_RAY_TRACING (1 << 1)
+#define GAME_SPLIT_DISABLE_VOLUMETRIC_SHADOWS (1 << 2)
+#define GAME_SPLIT_DISABLE_MOTION_BLUR (1 << 3)
+#define GAME_SPLIT_DISABLE_EXTRA_SAMPLES (1 << 4)
+/** Level of detail switches at the size objects have on screen with one player. */
+#define GAME_SPLIT_LOD_BY_VIEW_SIZE (1 << 5)
 
 /* GameData.stereoflag */
 #define STEREO_NOSTEREO 1
@@ -904,6 +1074,9 @@ typedef struct GameData {
 #define GAME_USE_LOGIC_NODES_PARALLEL (1 << 25)
 #define GAME_SHOW_LOGIC_NODES_PROFILE (1 << 26)
 #define GAME_RECORD_FRAME_TIME_GRAPH (1 << 27)
+/* UPBGE: keep the GPU memory of the editor's 3D views while the game runs from Blender. Unset
+ * (the default, also in older files): Material Preview and Rendered views give it back. */
+#define GAME_KEEP_EDITOR_VIEW_MEMORY (1 << 28)
 /* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
 
 /* GameData.frame_time_graph_axis */
@@ -928,7 +1101,9 @@ typedef struct GameData {
 #define GAME_FRAME_TIME_GRAPH_DOMAIN_OVERHEAD (1 << 10)
 #define GAME_FRAME_TIME_GRAPH_DOMAIN_OUTSIDE (1 << 11)
 #define GAME_FRAME_TIME_GRAPH_DOMAIN_GPU_LATENCY (1 << 12)
-#define GAME_FRAME_TIME_GRAPH_DOMAIN_ALL ((1 << 13) - 1)
+/** The game time each frame moved on: its fixed steps x step length. */
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_STEPS (1 << 13)
+#define GAME_FRAME_TIME_GRAPH_DOMAIN_ALL ((1 << 14) - 1)
 
 /* GameData.playerflag */
 #define GAME_PLAYER_FULLSCREEN (1 << 0)

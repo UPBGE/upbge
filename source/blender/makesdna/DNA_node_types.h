@@ -1613,6 +1613,13 @@ struct bNodePanelState {
 #endif
 };
 
+/** C++ Logic Nodes button-input mode stored in #bNode.custom1. */
+enum eLogicNodeInputMode : int16_t {
+  LOGIC_NODE_INPUT_MODE_MASK = 0x00ff,
+  /** Input nodes also react to input the game's UI used (a click on a button). */
+  LOGIC_NODE_INPUT_ALSO_UI = 0x0100,
+};
+
 struct bNode {
   struct bNode *next = nullptr, *prev = nullptr;
 

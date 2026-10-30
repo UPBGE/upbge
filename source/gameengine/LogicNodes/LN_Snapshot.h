@@ -26,9 +26,11 @@
 #include "MT_Vector3.h"
 
 class KX_GameObject;
+class LN_InputActionTracker;
 class LN_Program;
 class RAS_ICanvas;
 class SCA_IInputDevice;
+struct LN_InputActionState;
 
 static constexpr int32_t LN_MAX_GAMEPADS = 8;
 static constexpr int32_t LN_MAX_GAMEPAD_AXES = 6;
@@ -54,16 +56,52 @@ struct LN_MouseSnapshot {
 struct LN_GamepadSnapshot {
   bool connected = false;
   std::array<int32_t, LN_MAX_GAMEPAD_AXES> axes = {};
+  std::array<uint8_t, LN_MAX_GAMEPAD_AXES> axes_active = {};
+  std::array<uint8_t, LN_MAX_GAMEPAD_AXES> axes_pressed = {};
+  std::array<uint8_t, LN_MAX_GAMEPAD_AXES> axes_released = {};
   std::array<uint8_t, LN_MAX_GAMEPAD_BUTTONS> buttons = {};
   std::array<uint8_t, LN_MAX_GAMEPAD_BUTTONS> pressed = {};
   std::array<uint8_t, LN_MAX_GAMEPAD_BUTTONS> released = {};
   std::string name;
 };
 
+/** Normalize SDL game-controller trigger axes, whose defined range is 0..32767. */
+float LN_NormalizeGamepadTriggerValue(int32_t axis_value);
+
+/** Return whether any button/stick/trigger is active at the standard Logic Nodes threshold. */
+bool LN_GamepadHasActiveInput(const LN_GamepadSnapshot &gamepad, float threshold = 0.1f);
+
+/** Resolve the pressed/held/released state of one digital button or analog trigger. */
+bool LN_GetGamepadControlState(const LN_GamepadSnapshot &gamepad,
+                               int32_t control_index,
+                               bool is_trigger,
+                               int32_t input_status);
+
+/** Resolve analog trigger strength without treating negative raw values as presses. */
+bool LN_TryGetGamepadTriggerStrength(const LN_GamepadSnapshot &gamepad,
+                                     int32_t axis_index,
+                                     float &r_strength);
+
 class LN_InputSnapshot {
  public:
   void Capture(SCA_IInputDevice *input_device, RAS_ICanvas *canvas);
   void CopyFrom(const LN_InputSnapshot &other);
+  /**
+   * Merge one outer-frame sample into the input waiting for the next fixed simulation step.
+   * Current/held state comes from the newest sample, while edge events, text, wheel input, and
+   * pointer movement accumulate so that render frames without a fixed step cannot lose input.
+   */
+  void AccumulateFrame(const LN_InputSnapshot &frame);
+  /** Clear one-shot input after a fixed step while retaining the latest held/position state. */
+  void ClearTransientState();
+  /** Remove one key's or one gamepad button's press edge: something else already used it. */
+  void ConsumePress(int32_t input_code);
+  void ConsumeGamepadPress(int32_t gamepad_index, int32_t button);
+  /** Make one key or mouse button read as untouched: no press, hold or release. */
+  void ConsumeStroke(int32_t input_code);
+  /** Remove the mouse wheel movement: a scroll view used it. */
+  void ConsumeWheel();
+  void SetGamepadForTests(int32_t gamepad_index, const LN_GamepadSnapshot &gamepad);
 
   bool HasDevice() const
   {
@@ -111,6 +149,11 @@ class LN_InputSnapshot {
 
   const LN_GamepadSnapshot *GetGamepad(int32_t gamepad_index) const;
 
+  SCA_IInputDevice *GetDevice() const
+  {
+    return m_captureInputDevice;
+  }
+
   const std::wstring &GetTextInput() const
   {
     return m_textInput;
@@ -119,7 +162,17 @@ class LN_InputSnapshot {
  private:
   std::vector<LN_InputSnapshotEntry> m_entries;
   std::array<LN_GamepadSnapshot, LN_MAX_GAMEPADS> m_gamepads = {};
+  std::array<std::array<uint8_t, LN_MAX_GAMEPAD_AXES>, LN_MAX_GAMEPADS> m_previousAxesActive = {};
   std::array<std::array<uint8_t, LN_MAX_GAMEPAD_BUTTONS>, LN_MAX_GAMEPADS> m_previousButtons = {};
+  std::array<uint64_t, LN_MAX_GAMEPADS> m_previousGamepadSerial = {};
+  std::array<std::array<uint64_t, LN_MAX_GAMEPAD_AXES>, LN_MAX_GAMEPADS>
+      m_previousAxesPressedRevision = {};
+  std::array<std::array<uint64_t, LN_MAX_GAMEPAD_AXES>, LN_MAX_GAMEPADS>
+      m_previousAxesReleasedRevision = {};
+  std::array<std::array<uint64_t, LN_MAX_GAMEPAD_BUTTONS>, LN_MAX_GAMEPADS>
+      m_previousButtonsPressedRevision = {};
+  std::array<std::array<uint64_t, LN_MAX_GAMEPAD_BUTTONS>, LN_MAX_GAMEPADS>
+      m_previousButtonsReleasedRevision = {};
   LN_MouseSnapshot m_mouse;
   std::wstring m_textInput;
   bool m_hasDevice = false;
@@ -132,6 +185,57 @@ class LN_InputSnapshot {
   bool m_hasPreviousMousePosition = false;
   int32_t m_previousMouseX = 0;
   int32_t m_previousMouseY = 0;
+  /** Per-device cursors make Capture() incremental even when the engine retains raw transients
+   * until the next fixed logic step. They are capture history, not user-visible snapshot state. */
+  SCA_IInputDevice *m_captureInputDevice = nullptr;
+  uint64_t m_inputClearRevision = 0;
+  std::vector<size_t> m_inputQueueCursors;
+  std::vector<size_t> m_inputValueCursors;
+  size_t m_textCursor = 0;
+};
+
+/**
+ * Input the UI used, which game logic must not react to as well: clicking a HUD button must not
+ * also fire a gun. A stroke (the press, hold and release of one button) stays hidden until it
+ * ends; a press is hidden only in the frame it happened, and its key still reads as held.
+ * The UI keeps reading the unfiltered input.
+ */
+class LN_InputConsumption {
+ public:
+  /** `held`: the button is still down in the latest device sample. */
+  void ConsumeStroke(int32_t input_code, bool held);
+  void ConsumePress(int32_t input_code);
+  void ConsumeGamepadPress(int32_t gamepad_index, int32_t button);
+  /** This frame's mouse wheel movement scrolled a view. */
+  void ConsumeWheel();
+  bool IsWheelConsumed() const
+  {
+    return m_wheel;
+  }
+  /** After each device sample: a stroke whose button went up ends after the next frame. */
+  void NoteSample(const LN_InputSnapshot &sample);
+  /** Hide the strokes, e.g. from input waiting for the next Logic + Physics step. */
+  void ApplyStrokesTo(LN_InputSnapshot &snapshot) const;
+  /** Hide strokes and this frame's presses from game logic's copy of the frame input. */
+  void ApplyToFrame(LN_InputSnapshot &snapshot);
+  /** A new frame: drop its presses and the strokes that ended in a frame game logic already saw. */
+  void BeginFrame();
+  bool IsStrokeConsumed(int32_t input_code) const;
+  bool IsPressConsumed(int32_t input_code) const;
+  bool IsGamepadPressConsumed(int32_t gamepad_index, int32_t button) const;
+  void Clear();
+
+ private:
+  struct Stroke {
+    int32_t input_code = 0;
+    /** The button went up; `hidden_from_frame` once a frame copy hid that release. */
+    bool released = false;
+    bool hidden_from_frame = false;
+  };
+  std::vector<Stroke> m_strokes;
+  std::vector<int32_t> m_presses;
+  std::vector<std::pair<int32_t, int32_t>> m_gamepadPresses;
+  bool m_wheel = false;
 };
 
 using LN_SnapshotChannelMask = uint32_t;
@@ -162,6 +266,11 @@ inline constexpr LN_SnapshotChannelMask LN_SNAPSHOT_CHANNEL_ALL =
 
 struct LN_TickReadContext {
   const LN_InputSnapshot *input = nullptr;
+  /** The input with what the UI used, for nodes set to react to it as well. */
+  const LN_InputSnapshot *raw_input = nullptr;
+  /** The Input Map's actions this tick, from `input` and from `raw_input`. */
+  const LN_InputActionTracker *input_actions = nullptr;
+  const LN_InputActionTracker *raw_input_actions = nullptr;
   uint32_t input_channels = LN_DEP_INPUT_NONE;
   MT_Vector3 gravity = MT_Vector3(0.0f, 0.0f, -9.8f);
   float time_scale = 1.0f;
@@ -187,8 +296,8 @@ struct LN_ObjectSnapshot {
   KX_GameObject *object = nullptr;
   MT_Vector3 world_position = MT_Vector3(0.0f, 0.0f, 0.0f);
   MT_Vector3 local_position = MT_Vector3(0.0f, 0.0f, 0.0f);
-  MT_Vector3 world_orientation = MT_Vector3(0.0f, 0.0f, 0.0f);
-  MT_Vector3 local_orientation = MT_Vector3(0.0f, 0.0f, 0.0f);
+  LN_Rotation world_orientation;
+  LN_Rotation local_orientation;
   MT_Vector3 world_scale = MT_Vector3(1.0f, 1.0f, 1.0f);
   MT_Vector3 local_scale = MT_Vector3(1.0f, 1.0f, 1.0f);
   MT_Vector3 linear_velocity = MT_Vector3(0.0f, 0.0f, 0.0f);
@@ -291,6 +400,8 @@ class LN_Snapshot {
   }
 
   const LN_Value *GetGamePropertyValue(uint32_t property_ref_index) const;
+  /** Reads the owner's game properties again (a UI widget changed one after the capture). */
+  void RefreshGameProperties(KX_GameObject *gameobj, const LN_Program *program);
 
   const LN_InputSnapshot &GetInputSnapshot() const
   {
@@ -306,6 +417,18 @@ class LN_Snapshot {
   {
     return GetInputSnapshot().GetStatus(input_code, status);
   }
+
+  /** The input including what the UI used. */
+  const LN_InputSnapshot &GetRawInputSnapshot() const
+  {
+    if (m_tickContext != nullptr && m_tickContext->raw_input != nullptr) {
+      return *m_tickContext->raw_input;
+    }
+    return GetInputSnapshot();
+  }
+
+  /** nullptr: no such action or player, or no Input Action read was declared. */
+  const LN_InputActionState *GetInputActionState(int32_t action, int32_t user, bool raw) const;
 
   bool HasCapturedChannel(LN_SnapshotChannelMask channel) const
   {
@@ -323,6 +446,7 @@ class LN_Snapshot {
   }
 
  private:
+  void CaptureGameProperties(KX_GameObject *gameobj, const LN_Program &program);
   void RequireCapturedChannel(LN_SnapshotChannelMask channel, const char *description) const
   {
     BLI_assert_msg((m_captureStats.captured_channels & channel) != 0u, description);

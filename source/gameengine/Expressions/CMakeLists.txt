@@ -54,6 +54,8 @@ set(SRC
   intern/Vector2Value.cpp
   intern/Vector3Value.cpp
   intern/Vector4Value.cpp
+  intern/ArrayValue.cpp
+  intern/DictValue.cpp
   intern/ListWrapper.cpp
 
   EXP_BaseListValue.h
@@ -76,6 +78,8 @@ set(SRC
   EXP_Vector2Value.h
   EXP_Vector3Value.h
   EXP_Vector4Value.h
+  EXP_ArrayValue.h
+  EXP_DictValue.h
   EXP_ListWrapper.h
 )
 

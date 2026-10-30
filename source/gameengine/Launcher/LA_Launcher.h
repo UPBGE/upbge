@@ -97,6 +97,8 @@ class LA_Launcher {
 
   /// avoid to run audaspace code if audio device fails to initialize
   bool m_audioDeviceIsInitialized;
+  /** Derived launchers may pump before resize/viewport work; the base then reuses that sample. */
+  bool m_eventsProcessedForFrame;
 
   /// Saved data to restore at the game end.
   struct SavedData {
@@ -111,6 +113,9 @@ class LA_Launcher {
 #ifdef WITH_PYTHON
   void HandlePythonConsole();
 #endif  // WITH_PYTHON
+
+  /** Pump and dispatch pending OS input before gameplay for the current scheduler pass. */
+  void ProcessEventsBeforeFrame();
 
   /// Execute engine render, overrided to render background.
   virtual void RenderEngine();

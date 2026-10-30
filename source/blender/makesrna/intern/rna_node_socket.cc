@@ -65,6 +65,8 @@ const EnumPropertyItem rna_enum_node_socket_type_items[] = {
 #  include "BLI_string_ref.hh"
 
 #  include "BKE_context.hh"
+#  include "BKE_game_persistence.hh"
+#  include "BKE_layer.hh"
 #  include "BKE_main_invariants.hh"
 #  include "BKE_node.hh"
 #  include "BKE_node_enum.hh"
@@ -730,6 +732,35 @@ static void rna_NodeSocketStandard_value_and_relation_update(bContext *C, Pointe
 {
   rna_NodeSocketStandard_value_update(C, ptr);
   Main *bmain = CTX_data_main(C);
+
+  /* A literal Add Object source can be promoted to persistence later even when its template
+   * default is transient. Give only an explicitly assigned local inactive source (and its owning
+   * checkpoint Scene) a durable identity as part of this same undoable node edit. */
+  bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
+  bNodeSocket *socket = static_cast<bNodeSocket *>(ptr->data);
+  if (bmain != nullptr && ntree != nullptr && socket != nullptr && socket->in_out == SOCK_IN &&
+      STREQ(socket->name, "Object to Add") && socket->runtime != nullptr &&
+      socket->runtime->owner_node != nullptr)
+  {
+    ntree->ensure_topology_cache();
+    bNode &node = socket->owner_node();
+    if (STREQ(node.idname, "LogicNativeAddObject") && !socket->is_directly_linked()) {
+      const bNodeSocketValueObject *value =
+          static_cast<const bNodeSocketValueObject *>(socket->default_value);
+      Object *source = value != nullptr ? value->value : nullptr;
+      Scene *scene = CTX_data_scene(C);
+      ViewLayer *view_layer = scene != nullptr ? BKE_view_layer_default_view(scene) : nullptr;
+      Base *base = view_layer != nullptr && source != nullptr ?
+                       BKE_view_layer_base_find(view_layer, source) :
+                       nullptr;
+      constexpr eBase_Flag active_flags = eBase_Flag(
+          BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
+          BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT);
+      if (base != nullptr && (base->flag & active_flags) == 0) {
+        BKE_game_persistence_ensure(*bmain, scene, *source);
+      }
+    }
+  }
   DEG_relations_tag_update(bmain);
 }
 

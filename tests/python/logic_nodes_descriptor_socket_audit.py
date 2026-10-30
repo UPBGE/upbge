@@ -26,13 +26,25 @@ PIN_ARRAY_RE = re.compile(
     r"inline constexpr PinMetadata (\w+)\[\] = \{(.*?)\};",
     re.DOTALL,
 )
-PIN_ENTRY_RE = re.compile(r'\{"([^"]*)",\s*"([^"]*)",\s*PinType::(\w+),')
+PIN_ENTRY_RE = re.compile(
+    r'\{\s*"([^"]*)",\s*"([^"]*)",\s*PinType::(\w+),\s*"[^"]*",\s*'
+    r'((?:true|false)(?:\s*,\s*(?:true|false)){0,2})\s*\}'
+)
 NODE_ENTRY_RE = re.compile(
     r'\{"(LogicNative[^"]+)",.*?\n\s*(\{\}|pin_span\((\w+)\)),\s*\n\s*(\{\}|pin_span\((\w+)\)),',
     re.DOTALL,
 )
 SOCKET_DECL_RE = re.compile(
-    r'add_(input|output)<decl::(\w+)>\(\s*"([^"]*)"_ustr(?:\s*,\s*"([^"]*)"_ustr)?',
+    r'add_(input|output)<(?:logic_)?decl::(\w+)>\(\s*"([^"]*)"_ustr(?:\s*,\s*"([^"]*)"_ustr)?',
+)
+DYNAMIC_IDENTIFIER_SOCKET_DECL_RE = re.compile(
+    r'add_(input|output)<(?:logic_)?decl::(\w+)>\([^,\n]+,\s*"([^"]*)"_ustr\)',
+)
+DYNAMIC_SOCKET_NAME_RE = re.compile(
+    r'const UString (\w+)\(\s*"([^"]*)"\s*\+[^;]+\);'
+)
+DYNAMIC_SOCKET_DECL_RE = re.compile(
+    r'add_(input|output)<(?:logic_)?decl::(\w+)>\(\s*(\w+)\s*\)'
 )
 SOCKET_HELPER_RE = re.compile(
     r"(?:static\s+)?void\s+(add_\w+)\(NodeDeclarationBuilder &b\)\s*\{(.*?)^\}",
@@ -49,7 +61,7 @@ DECLARE_FN_RE = re.compile(
     re.DOTALL | re.MULTILINE,
 )
 REGISTER_C_TIER_RE = re.compile(
-    r'REGISTER_C_TIER_NODE\(\s*\w+\s*,\s*"(LogicNative[^"]+)"\s*,\s*[^,]+,'
+    r'REGISTER_C_TIER_(?:WIDE_)?NODE\(\s*\w+\s*,\s*"(LogicNative[^"]+)"\s*,\s*[^,]+,'
     r'\s*(\w+)\s*,',
     re.DOTALL,
 )
@@ -71,6 +83,7 @@ PIN_TYPE_TO_DECL = {
     "Int": "Int",
     "CollisionLayers": "CollisionLayers",
     "Float": "Float",
+    "Angle": "Float",
     "String": "String",
     "Vector": "Vector",
     "Rotation": "Rotation",
@@ -98,6 +111,9 @@ class Pin:
     identifier: str
     ui_name: str
     pin_type: str
+    allows_multiple_links: bool = False
+    declares_multiple_links: bool = False
+    is_variadic: bool = False
 
 
 @dataclass(frozen=True)
@@ -112,7 +128,19 @@ def parse_pin_arrays(text: str) -> dict[str, list[Pin]]:
     for match in PIN_ARRAY_RE.finditer(text):
         name = match.group(1)
         body = match.group(2)
-        pins = [Pin(m.group(1), m.group(2), m.group(3)) for m in PIN_ENTRY_RE.finditer(body)]
+        pins = []
+        for entry in PIN_ENTRY_RE.finditer(body):
+            flags = [flag.strip() == "true" for flag in entry.group(4).split(",")]
+            pins.append(
+                Pin(
+                    entry.group(1),
+                    entry.group(2),
+                    entry.group(3),
+                    allows_multiple_links=len(flags) >= 2 and flags[1],
+                    declares_multiple_links=len(flags) >= 2,
+                    is_variadic=len(flags) >= 3 and flags[2],
+                )
+            )
         arrays[name] = pins
     return arrays
 
@@ -148,8 +176,13 @@ def parse_sockets(
 ) -> tuple[list[SocketDecl], list[SocketDecl]]:
     inputs: list[SocketDecl] = []
     outputs: list[SocketDecl] = []
+    dynamic_names = {
+        match.group(1): match.group(2) for match in DYNAMIC_SOCKET_NAME_RE.finditer(text)
+    }
     for line in text.splitlines():
+        parsed_literal = False
         for match in SOCKET_DECL_RE.finditer(line):
+            parsed_literal = True
             direction = match.group(1)
             decl_type = match.group(2)
             first_name = match.group(3)
@@ -161,6 +194,18 @@ def parse_sockets(
                 outputs.append(socket)
             elif direction == "input":
                 inputs.append(socket)
+        if not parsed_literal:
+            for match in DYNAMIC_IDENTIFIER_SOCKET_DECL_RE.finditer(line):
+                direction = match.group(1)
+                socket = SocketDecl(match.group(3), match.group(3), match.group(2))
+                (outputs if direction == "output" else inputs).append(socket)
+        for match in DYNAMIC_SOCKET_DECL_RE.finditer(line):
+            prefix = dynamic_names.get(match.group(3))
+            if prefix is None:
+                continue
+            direction = match.group(1)
+            socket = SocketDecl(prefix, prefix, match.group(2))
+            (outputs if direction == "output" else inputs).append(socket)
         if helpers is not None:
             for match in SOCKET_HELPER_CALL_RE.finditer(line):
                 helper_sockets = helpers.get(match.group(1))
@@ -248,6 +293,49 @@ def descriptor_socket_lists_match(pins: list[Pin], sockets: list[SocketDecl]) ->
     return len(pins) == len(sockets) and all(
         descriptor_matches_socket(pin, socket) for pin, socket in zip(pins, sockets)
     )
+
+
+def runtime_identifier_matches_pin(pin: Pin, identifier: str) -> bool:
+    """Blender may expose either declared socket string as its runtime identifier.
+
+    The descriptor retains the compiler-facing identifier and the UI-facing name.  Nodes using
+    the two-string declaration overload expose the latter through ``NodeSocket.identifier``.
+    Both are therefore part of the declared socket contract.
+    """
+    return identifier == pin.identifier or identifier == pin.ui_name
+
+
+def runtime_socket_lists_match(pins: list[Pin], identifiers: list[str]) -> bool:
+    """Match concrete Blender sockets against fixed and prefix-variadic descriptor pins."""
+    pin_index = 0
+    socket_index = 0
+    while pin_index < len(pins):
+        pin = pins[pin_index]
+        if not pin.is_variadic:
+            if socket_index >= len(identifiers) or not runtime_identifier_matches_pin(
+                pin, identifiers[socket_index]
+            ):
+                return False
+            pin_index += 1
+            socket_index += 1
+            continue
+
+        next_pin = None
+        if pin_index + 1 < len(pins):
+            next_pin = pins[pin_index + 1]
+        match_count = 0
+        while socket_index < len(identifiers):
+            identifier = identifiers[socket_index]
+            if next_pin is not None and runtime_identifier_matches_pin(next_pin, identifier):
+                break
+            if not (identifier.startswith(pin.identifier) or identifier.startswith(pin.ui_name)):
+                return False
+            match_count += 1
+            socket_index += 1
+        if match_count == 0:
+            return False
+        pin_index += 1
+    return socket_index == len(identifiers)
 
 
 def audit_execution_condition_schema(pin_arrays: dict[str, list[Pin]]) -> list[str]:
@@ -367,6 +455,7 @@ def audit_descriptors_vs_cc() -> list[str]:
     errors: list[str] = audit_execution_condition_schema(pin_arrays)
     errors.extend(audit_removed_migration_paths())
     errors.extend(audit_pin_kind_diagnostics())
+    errors.extend(audit_socket_names(pin_arrays))
 
     for idname, (desc_in, desc_out) in sorted(descriptor_pins.items()):
         if idname not in cc_by_idname:
@@ -395,6 +484,32 @@ def audit_descriptors_vs_cc() -> list[str]:
     return errors
 
 
+EMPTY_SOCKET_NAME_RE = re.compile(r'add_(?:input|output)<[^>]+>\(\s*""_ustr')
+LABELLESS_PROP_RE = re.compile(r'\.prop\(\s*[&\w.]*ptr\w*,\s*"(\w+)",[^;]*?,\s*""\s*,\s*ICON_NONE')
+RNA_BOOLEAN_RE = re.compile(r'RNA_def_property\(srna,\s*"(\w+)",\s*PROP_BOOLEAN')
+RNA_NODETREE_CC = REPO_ROOT / "source/blender/makesrna/intern/rna_nodetree.cc"
+
+
+def audit_socket_names(pin_arrays: dict[str, list[Pin]]) -> list[str]:
+    """Every socket and descriptor pin has a name: a nameless one shows a bare field (or only a
+    dot for Generic sockets) and an empty row once linked. A checkbox drawn without text is just
+    as unclear (Store Value's Initialize until 2026-10-15)."""
+    errors: list[str] = []
+    booleans = set(RNA_BOOLEAN_RE.findall(RNA_NODETREE_CC.read_text(encoding="utf-8")))
+    for path in sorted([*NODES_DIR.glob("node_logic_*.cc"), NODE_LOGIC_UTIL_CC]):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if EMPTY_SOCKET_NAME_RE.search(line):
+                errors.append(f"{path.name}:{number}: socket declared with an empty name")
+            for prop in LABELLESS_PROP_RE.findall(line):
+                if prop in booleans:
+                    errors.append(f"{path.name}:{number}: checkbox {prop!r} drawn without a label")
+    for array, pins in pin_arrays.items():
+        for pin in pins:
+            if not pin.ui_name:
+                errors.append(f"{array}: pin {pin.identifier!r} has an empty name")
+    return errors
+
+
 def audit_blender_runtime() -> list[str]:
     import bpy
 
@@ -420,18 +535,33 @@ def audit_blender_runtime() -> list[str]:
                 continue
             actual_in = [s.identifier for s in node.inputs]
             actual_out = [s.identifier for s in node.outputs]
-            if actual_in != pin_ids(desc_in):
+            for socket in [*node.inputs, *node.outputs]:
+                if not socket.name:
+                    errors.append(f"{idname}: socket {socket.identifier!r} has no name")
+            if not runtime_socket_lists_match(desc_in, actual_in):
                 errors.append(
                     f"{idname}: runtime input != descriptor\n"
                     f"  descriptor: {pin_ids(desc_in)}\n"
                     f"  Blender:    {actual_in}"
                 )
-            if actual_out != pin_ids(desc_out):
+            if not runtime_socket_lists_match(desc_out, actual_out):
                 errors.append(
                     f"{idname}: runtime output != descriptor\n"
                     f"  descriptor: {pin_ids(desc_out)}\n"
                     f"  Blender:    {actual_out}"
                 )
+            for pin, socket in zip(desc_in, node.inputs):
+                if pin.is_variadic:
+                    break
+                if (
+                    pin.declares_multiple_links
+                    and pin.allows_multiple_links != socket.is_multi_input
+                ):
+                    errors.append(
+                        f"{idname}: runtime multi-input flag differs for {pin.identifier!r}\n"
+                        f"  descriptor: {pin.allows_multiple_links}\n"
+                        f"  Blender:    {socket.is_multi_input}"
+                    )
             tree.nodes.remove(node)
     finally:
         bpy.data.node_groups.remove(tree)

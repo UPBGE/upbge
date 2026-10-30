@@ -36,11 +36,13 @@
 #include <chrono>
 #include <deque>
 #include <memory>
+#include <cstdint>
 #include <string>
 #include <vector>
 
 #include "CM_Clock.h"
 #include "EXP_Python.h"
+#include "KX_FrameScheduler.h"
 #include "KX_ISystem.h"
 #include "KX_Scene.h"
 #include "KX_TimeCategoryLogger.h"
@@ -54,6 +56,9 @@ class KX_NetworkMessageManager;
 class RAS_ICanvas;
 class RAS_FrameBuffer;
 class SCA_IInputDevice;
+class LN_GameStateLoadPayload;
+struct LN_GameStateCompletionTarget;
+enum class LN_GameStateResult : uint8_t;
 
 enum class KX_ExitRequest {
   NO_REQUEST = 0,
@@ -100,6 +105,17 @@ class KX_KetsjiEngine {
 
   static constexpr int FRAME_TIME_GRAPH_SLOT_COUNT = 4;
   static constexpr int FRAME_TIME_GRAPH_CATEGORY_COUNT = 11;
+  /**
+   * Hard upper bound for catch-up work accepted from scene settings and the Python API.
+   * This matches the RNA range and prevents malformed runtime input from turning spiral-of-death
+   * protection into an unbounded main-thread loop.
+  */
+  static constexpr int MAX_SCHEDULED_STEPS = 10000;
+
+  static constexpr int ClampScheduledStepLimit(const int steps)
+  {
+    return steps < 1 ? 1 : (steps > MAX_SCHEDULED_STEPS ? MAX_SCHEDULED_STEPS : steps);
+  }
 
  private:
   struct CameraRenderData {
@@ -137,8 +153,15 @@ class KX_KetsjiEngine {
   /***************EEVEE INTEGRATION*****************/
   blender::bContext *m_context;
   bool m_useViewportRender;
+  /** The game can move the mouse cursor (not a shown cursor on Wayland). */
+  bool m_cursorMovable = true;
+  /** Wayland: a program can move the cursor only while it holds a hidden grab of the pointer, so
+   * the grab follows the cursor being shown or hidden (CursorShown). */
+  bool m_cursorMovesOnlyHidden = false;
   int m_shadingTypeRuntime;
   std::vector<KX_Camera *> m_renderingCameras;
+  /** Counts drawn frames (Render): the camera passes of one frame see the same poses. */
+  uint64_t m_renderFrame = 0;
   /*************************************************/
 
   /// 2D Canvas (2D Rendering Device Context)
@@ -160,6 +183,8 @@ class KX_KetsjiEngine {
     float engine_delta_seconds = 0.0f;
     float engine_frame_ms = 0.0f;
     std::array<float, FRAME_TIME_GRAPH_CATEGORY_COUNT> category_ms = {};
+    /** Game time the frame moved on since the frame before (its steps, the Steps domain). */
+    float game_advance_ms = 0.0f;
   };
 
   struct FrameTimes {
@@ -170,6 +195,13 @@ class KX_KetsjiEngine {
     double timestep;
     /// Scaled duration for logic frame (timestep * m_timescale)
     double framestep;
+
+    /// Wall-clock time consumed by this outer/render frame.
+    double realDelta;
+    /// Scaled game time admitted to the fixed accumulator for this outer frame.
+    double scaledDelta;
+    /// Time scale snapshot used to schedule this frame.
+    double schedulingTimeScale;
     
     // ===== Physics Frame Timing (MODE-SPECIFIC) =====
     /// FIXED MODE: Can be 0, 1, 2, 3... (independent of logic frames)
@@ -178,6 +210,8 @@ class KX_KetsjiEngine {
     /// FIXED MODE: Constant value (1.0 / tickRate)
     /// VARIABLE MODE: Same as 'timestep' (varies with framerate)
     double physicsTimestep;
+    /// Approximate wall-clock duration represented by one fixed simulation step.
+    double physicsUnscaledTimestep;
     /// FIXED MODE: Fractional progress between last completed physics step and visual frame
     /// VARIABLE MODE: Always 0.0 (no interpolation needed)
     double interpolationFraction;
@@ -193,6 +227,8 @@ class KX_KetsjiEngine {
   std::vector<std::string> m_removingScenes;
   /// Lists of scenes scheduled to be replaced at the end of the frame.
   std::vector<std::pair<std::string, std::string>> m_replace_scenes;
+  struct PendingGameLoad;
+  std::unique_ptr<PendingGameLoad> m_pendingGameLoad;
 
   /// The current list of scenes.
   EXP_ListValue<KX_Scene> *m_scenes;
@@ -203,12 +239,30 @@ class KX_KetsjiEngine {
 
   /// current logic game time
   double m_frameTime;
+  /** Unscaled visual-animation clock used only by objects selected by While Paused. */
+  double m_pauseAnimationTime;
   /// game time for the next rendering step
   double m_clockTime;
   /// game time when the animations were last updated
   double m_previousAnimTime;
+  double m_previousPauseAnimTime;
   double m_remainingTime;
+  /** User-configured game-time multiplier. Game pause never overwrites this value. */
   double m_timescale;
+  /** Stops game-time scheduling while keeping the real-time update path alive. */
+  bool m_gamePaused;
+  /** Stops physics simulation while allowing game-time logic to continue. */
+  bool m_physicsPaused;
+  /** True while every scene is completing one shared fixed simulation step. */
+  bool m_fixedStepInProgress;
+  /** True while every scene is completing one shared render-frame update. */
+  bool m_frameUpdateInProgress;
+  bool m_frameUpdateRan = false;
+  /** Pause changes requested during a scene update phase are committed at its atomic boundary. */
+  bool m_hasDeferredGamePaused;
+  bool m_deferredGamePaused;
+  bool m_hasDeferredPhysicsPaused;
+  bool m_deferredPhysicsPaused;
   double m_lastDisplayedTime;
   double m_average_framerate;
   bool m_forceInterpolationRender;
@@ -233,6 +287,11 @@ class KX_KetsjiEngine {
   double m_frameTimeGraphPendingRawDelta;
   double m_frameTimeGraphPendingWorkSeconds;
   double m_frameTimeGraphWorkStartTime;
+  /** Game time at the last graph sample (for the Steps domain); none while not sampling. */
+  bool m_frameTimeGraphHasGameTime = false;
+  double m_frameTimeGraphLastGameTime = 0.0;
+  /** Steps of the frames drawn in the last second, for the overlay's Steps/frame line. */
+  KX_FrameStepCounts m_frameStepCounts;
   std::deque<FrameTimeGraphSample> m_liveFrameTimeGraph;
   std::array<std::deque<FrameTimeGraphSample>, FRAME_TIME_GRAPH_SLOT_COUNT>
       m_recordedFrameTimeGraphs;
@@ -255,16 +314,24 @@ class KX_KetsjiEngine {
   int m_maxLogicFrame;
 
   /// Fixed physics mode state (only used when m_useFixedPhysicsTimestep == true)
-  double m_physicsAccumulator;
   double m_fixedPhysicsTimestep;
   int m_physicsTickRate;
   int m_maxPhysicsSteps;
   bool m_useFixedFPSCap;
   int m_fixedRenderCapRate;
-  std::chrono::steady_clock::time_point m_nextFrameDeadline;
-  std::chrono::steady_clock::time_point m_frameStartSteady;
-  double m_previousClockTime;
-  bool m_isFirstFixedFrame;
+  /** The screen paces frames (vsync on or adaptive). */
+  bool m_vsyncPacing;
+  /** How many steps frame times may run off the clock while vsync paces (0: off). */
+  double m_jitterFix;
+  /** Plans each pass: frame or not, its frame time, the fixed steps due by it. */
+  KX_FrameScheduler m_frameScheduler;
+  /** Real/scaled time accumulated since the previous render-frame Logic Nodes update. */
+  double m_pendingUpdateRealDelta;
+  double m_pendingUpdateScaledDelta;
+  /** The clock at the previous frame pass (the frame-time graph shows real frame times). */
+  double m_lastFramePassClock;
+  /** Cooperative launcher sleep after a scheduler pass that did not render. */
+  double m_suggestedIdleSeconds;
   bool m_interpolationInitialized;
   /*****************************************************/
 
@@ -374,15 +441,26 @@ class KX_KetsjiEngine {
 
   void BeginFrame();
   FrameTimes GetFrameTimes();
+  /** The time scale admitted to simulation scheduling after applying game pause. */
+  double GetSchedulingTimeScale() const;
   
   /********** SHARED FRAME HELPERS **********/
   /// Process input devices and joystick events
   void ProcessInputDevices();
+  /** Split screen: moves the mouse cursor back into player 0's view (Set Split Screen's Keep
+   * Mouse in Player 0's View), except while the game is paused. */
+  void KeepMouseInPlayerView();
+  /// Process the real/render-frame Logic Nodes update phase for a scene.
+  void ProcessSceneUpdate(KX_Scene *scene, const FrameTimes &times);
   /// Process logic updates for a scene
   void ProcessSceneLogic(KX_Scene *scene, const FrameTimes &times, int frameIndex);
   /// Finalize frame (network, input clear, scene management)
-  void FinalizeFrame();
+  void FinalizeFrame(bool clearInputs = true, bool clearNetwork = true);
+  /** Restore authoritative SG poses and require fresh fixed-step interpolation history. */
+  void InvalidatePhysicsInterpolationState();
   void ResetFixedPhysicsTiming();
+  /** Commit the final pause values requested during the current atomic update phase. */
+  void ApplyDeferredPauseState();
 
   /// Logic frame timing calculation result
   struct LogicFrameTiming {
@@ -399,12 +477,20 @@ class KX_KetsjiEngine {
   LogicFrameTiming CalculateLogicFrameTiming(double dt, double logicRate, int maxLogicFrames);
   
   /********** FIXED PHYSICS MODE FUNCTIONS **********/
-  /// Calculate frame timing for fixed physics timestep mode (uses accumulator pattern)
-  FrameTimes GetFrameTimesFixed(double dt);
+  /** The frame scheduler's settings from the engine's (step, FPS Limit, vsync, jitter fix). */
+  void ConfigureFrameScheduler();
+  /** Frame timing of a planned fixed-mode pass. */
+  FrameTimes FrameTimesOfPass(const KX_FrameScheduler::Pass &pass) const;
   /// Execute physics for fixed timestep mode (multiple fixed steps per frame)
-  void ExecutePhysicsFixed(KX_Scene *scene, const FrameTimes &times, int logicFrameIndex);
-  /// Execute one complete frame in fixed physics mode (includes FPS cap logic)
-  bool NextFrameFixed(const FrameTimes &times);
+  void ExecutePhysicsFixed(KX_Scene *scene,
+                           const FrameTimes &times,
+                           int logicFrameIndex,
+                           bool physicsStepEnabled);
+  /** One fixed step for every scene: logic, physics and parents. The unit a network clock could
+   * run again (prediction); returns false when a pause asked for during it stops the pass. */
+  bool RunFixedTick(const FrameTimes &times, int stepIndex);
+  /// Execute one complete pass in fixed physics mode, drawing a frame when `renderUpdateDue`.
+  bool NextFrameFixed(const FrameTimes &times, bool renderUpdateDue);
   
   /********** VARIABLE PHYSICS MODE FUNCTIONS **********/
   /// Calculate frame timing for variable physics timestep mode (couples physics to framerate)
@@ -421,10 +507,17 @@ public:
                   int shadingTypeRuntime);
   virtual ~KX_KetsjiEngine();
   void SetPhysicsInterpolationEnabled(bool enable);
+  /** The scene's Physics Interpolation: the Smooth Motion of objects left at Scene Default. */
   bool IsPhysicsInterpolationEnabled() const
   {
     return m_enablePhysicsInterpolation;
   }
+  /** Whether a scene draws objects with Smooth Motion: by the Physics Interpolation, or because
+   * an object chose it. Scenes that don't spend nothing on it. */
+  bool SceneUsesSmoothMotion(const KX_Scene *scene) const;
+  /** After a frame is drawn: objects drawn between their steps get their simulated poses back,
+   * so what runs before the next pass (a Python main loop) reads and moves the real ones. */
+  void RestoreSimulatedPoses();
 
   void ForceInterpolationRender();
   void ClearForcedInterpolation();
@@ -437,6 +530,12 @@ public:
 
   /******** EEVEE integration *********/
   blender::bContext *GetContext();
+  /** The frame being drawn, never 0 while drawing (KX_GameObject::TagForTransformUpdate compares
+   * an object's pose once a frame). */
+  uint64_t GetRenderFrame() const
+  {
+    return m_renderFrame;
+  }
   bool UseViewportRender();
   int ShadingTypeRuntime();
   // include depsgraph time in tc_depsgraph category
@@ -485,6 +584,11 @@ public:
 
   /// returns true if an update happened to indicate -> Render
   bool NextFrame();
+  /** The last NextFrame ran a render-frame update, where UI can use keys such as Esc. */
+  bool FrameUpdateRan() const
+  {
+    return m_frameUpdateRan;
+  }
   void Render();
 
   void StartEngine();
@@ -501,6 +605,12 @@ public:
 
   void RemoveScene(const std::string &scenename);
   bool ReplaceScene(const std::string &oldscene, const std::string &newscene);
+  LN_GameStateResult RequestGameLoadSceneTransition(
+      KX_Scene &source_scene,
+      const LN_GameStateCompletionTarget &target,
+      const std::string &filepath,
+      std::unique_ptr<LN_GameStateLoadPayload> payload,
+      std::string &r_error);
 
   void GetSceneViewport(KX_Scene *scene,
                         KX_Camera *cam,
@@ -616,6 +726,41 @@ public:
   void SetFixedRenderCapRate(int rate);
 
   /**
+   * Suggested launcher sleep after a non-rendering scheduler pass. The value is always bounded by
+   * the next fixed simulation step, so a low render cap cannot increase gameplay input latency.
+   */
+  double GetSuggestedIdleSeconds() const
+  {
+    return m_suggestedIdleSeconds;
+  }
+
+  /** The screen paces frames: vsync on or adaptive (frame times follow its refresh). */
+  void SetVsyncPacing(bool vsync);
+  /** How many steps frame times may run off the clock while vsync paces (0 turns it off). */
+  void SetJitterFix(double steps);
+  double GetJitterFix() const;
+  /** Fixed steps run since the game started (each step's number, for a network layer). */
+  uint64_t GetSimulationTick() const;
+
+  /** How the last frames were paced (bge.logic.getFramePacingInfo). */
+  struct FramePacingInfo {
+    /** Fixed steps run before the last frame was drawn. */
+    int frame_steps = 0;
+    uint64_t tick = 0;
+    /** Share of a step since the last step at the last frame's time. */
+    double interpolation = 0.0;
+    /** The last frame's time on the engine clock, and how far it was from the clock. */
+    double frame_time = 0.0;
+    double clock_offset = 0.0;
+    /** What paces frames: "LIMIT", "VSYNC", "FREE", or "VARIABLE" without fixed steps. */
+    const char *pacing = "VARIABLE";
+    /** The FPS Limit (0 when off) and the measured refresh rate (0 while unknown). */
+    double frame_limit = 0.0;
+    double refresh_rate = 0.0;
+  };
+  FramePacingInfo GetFramePacingInfo() const;
+
+  /**
    * Gets the framerate for playing animations. (actions and ipos)
    */
   double GetAnimFrameRate();
@@ -635,6 +780,22 @@ public:
   double GetTimeScale() const;
   void SetTimeScale(double scale);
 
+  /**
+   * Pause or resume game time without losing the configured time scale.
+   * While paused, per-render-frame updates continue but fixed simulation steps do not run.
+   */
+  bool IsGamePaused() const;
+  /** Paused at the end of this update: a pause or resume asked for during it already counts. */
+  bool IsGamePauseRequested() const;
+  void SetGamePaused(bool paused);
+
+  /**
+   * Pause or resume physics only. Fixed logic continues and scheduled simulation time is
+   * consumed, so resuming never causes a catch-up burst.
+   */
+  bool IsPhysicsPaused() const;
+  void SetPhysicsPaused(bool paused);
+
   void SetExitKey(short key);
   short GetExitKey();
 
@@ -643,6 +804,21 @@ public:
    * \param render	true (render) or false (do not render)
    */
   void SetRender(bool render);
+  /** `moves_only_hidden`: Wayland, where only a cursor grabbed hidden can be moved; `movable`:
+   * the cursor's grab at start allows it. */
+  void SetCursorMovable(const bool movable, const bool moves_only_hidden)
+  {
+    m_cursorMovable = movable;
+    m_cursorMovesOnlyHidden = moves_only_hidden;
+  }
+  /** Whether the game can move the mouse cursor now (Mouse Look holds it in the middle). */
+  bool IsCursorMovable() const
+  {
+    return m_cursorMovable;
+  }
+  /** The canvas showed or hid the cursor (RAS_ICanvas::SetMouseState): on Wayland the pointer is
+   * grabbed hidden while hidden (so it can be moved), and normally while shown. */
+  void CursorShown(bool shown);
   /**
    * Get the current render flag value
    */
@@ -669,12 +845,19 @@ public:
   KX_DebugOption GetShowShadowFrustum() const;
 
   KX_Scene *CreateScene(const std::string &scenename);
-  KX_Scene *CreateScene(blender::Scene *scene, bool libloading);
+  /** `merge_source`: built only to be merged into another scene (KX_Scene::IsMergeSource). */
+  KX_Scene *CreateScene(blender::Scene *scene, bool libloading, bool merge_source = false);
+
+  enum class SceneMergeResult { Merged, NotFound, Failed };
+  /** Load Scene: converts the Blender scene `scenename` and merges its objects into `target`,
+   * which then draws them as its own; the editor's window is left as it was. */
+  SceneMergeResult MergeScene(KX_Scene *target, const std::string &scenename);
 
   GlobalSettings *GetGlobalSettings(void);
   void SetGlobalSettings(GlobalSettings *gs);
 
-  double GetCurrentAnimationTime() const;
+  bool UsesPauseAnimationClock(KX_GameObject *gameobj) const;
+  double GetCurrentAnimationTime(KX_GameObject *gameobj = nullptr) const;
   KX_Scene *GetCurrentScene() const;
 
   /**

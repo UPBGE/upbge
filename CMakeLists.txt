@@ -316,6 +316,10 @@ option(WITH_MANIFOLD "Enable features depending on Manifold (Fast Robust Boolean
 
 option(WITH_GAMEENGINE    "Enable Game Engine" ON)
 option(WITH_GAMEENGINE_LOGICNODES "Enable C++ Logic Nodes in the Game Engine" ON)
+option(WITH_GAMEENGINE_LOGICNODES_INTERACTIVE_TESTS
+  "Enable interactive Logic Nodes acceptance tests (requires an isolated display)"
+  OFF)
+mark_as_advanced(WITH_GAMEENGINE_LOGICNODES_INTERACTIVE_TESTS)
 
 option(WITH_GAMEENGINE_SECURITY "Disable game engine python debugging tools" OFF)
 mark_as_advanced(WITH_GAMEENGINE_SECURITY)

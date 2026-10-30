@@ -43,6 +43,18 @@ struct bProperty *BKE_bproperty_copy(const struct bProperty *prop);
 void BKE_bproperty_copy_list(struct ListBase *lbn, const struct ListBase *lbo);
 void BKE_bproperty_init(struct bProperty *prop);
 struct bProperty *BKE_bproperty_new(int type);
+/** The list holding \a prop: the object's properties, or the items or columns of \a r_owner (a
+ * Choice, List or Table property, or a Table row). */
+ListBase *BKE_bproperty_owner_list(Object *ob, const bProperty *prop, bProperty **r_owner);
+/** Adds a Choice option, List item, Table row, or with \a column a Table column, and selects it. */
+bProperty *BKE_bproperty_item_add(bProperty *prop, bool column);
+bool BKE_bproperty_item_remove(bProperty *prop, bool column, int index);
+/** Moves the item or column at \a index by \a step (-1 up, 1 down) and selects it. */
+bool BKE_bproperty_item_move(bProperty *prop, bool column, int index, int step);
+/** Changes a List's item type; existing items restart at the new type's default. */
+void BKE_bproperty_list_set_item_type(bProperty *prop, int type);
+/** Gives every Table row one cell per column, of that column's type. */
+void BKE_bproperty_table_sync(bProperty *table);
 void BKE_bproperty_unique(struct bProperty *first, struct bProperty *prop, int force);
 struct bProperty *BKE_bproperty_object_get(struct Object *ob, const char *name);
 void BKE_bproperty_object_set(struct Object *ob, struct bProperty *propc);

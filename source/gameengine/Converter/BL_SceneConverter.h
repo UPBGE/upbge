@@ -64,6 +64,7 @@ class BL_SceneConverter {
   std::map<blender::bActuator *, SCA_IActuator *> m_map_blender_to_gameactuator;
   std::map<blender::bController *, SCA_IController *> m_map_blender_to_gamecontroller;
   std::vector<PHY_IPhysicsController *> m_pending_parent_suspends;
+  std::vector<KX_GameObject *> m_pending_jolt_transform_parenting;
 
  public:
   BL_SceneConverter();
@@ -90,6 +91,12 @@ class BL_SceneConverter {
   void RegisterGameController(SCA_IController *cont, blender::bController *for_controller);
   SCA_IController *FindGameController(blender::bController *for_controller);
 
+  /** A scene merged into this one (KX_Scene::MergeScene): its lookups become this one's (entries
+   * this one has win), and the materials it owns are owned here. */
+  void AdoptLookups(BL_SceneConverter &other);
+
   void AddPendingSuspendDynamics(PHY_IPhysicsController *controller);
   void FlushPendingSuspendDynamics();
+  void AddPendingJoltTransformParenting(KX_GameObject *gameobject);
+  void FlushPendingJoltTransformParenting();
 };

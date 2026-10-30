@@ -16,13 +16,16 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Execution>("When Scrolled"_ustr);
-  b.add_output<decl::Int>("Difference"_ustr);
+  b.add_output<decl::Execution>("When Scrolled"_ustr).description(
+      "Pulses on the next Logic + Physics step with accumulated wheel input");
+  b.add_output<decl::Int>("Difference"_ustr).description(
+      "Signed wheel delta accumulated since the previous Logic + Physics step");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout.prop(ptr, "wheel_direction", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "use_ui_input", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

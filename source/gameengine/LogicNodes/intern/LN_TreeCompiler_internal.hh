@@ -45,11 +45,13 @@ struct ResolvedLink {
   const blender::bNodeSocket *fromsock = nullptr;
   const blender::bNode *tonode = nullptr;
   const blender::bNodeSocket *tosock = nullptr;
+  int32_t multi_input_sort_id = 0;
 };
 
 struct ResolvedEndpoint {
   const blender::bNode *node = nullptr;
   const blender::bNodeSocket *socket = nullptr;
+  int32_t multi_input_sort_id = 0;
 };
 
 using RawInputLinkMap =
@@ -101,7 +103,33 @@ struct LoopFrameCache {
   std::unordered_map<const blender::bNode *, uint32_t> value_expressions;
 };
 
-extern LoopFrameCache *g_active_loop_frame_cache;
+extern thread_local LoopFrameCache *g_active_loop_frame_cache;
+
+/** Expression caches of the tree compile in progress. Output builders called with local scratch
+ * caches fall back to these, so outputs compiled by node handlers can feed any input. */
+struct CompiledOutputCaches {
+  const BoolExpressionCache *bools = nullptr;
+  const IntExpressionCache *ints = nullptr;
+  const FloatExpressionCache *floats = nullptr;
+  const StringExpressionCache *strings = nullptr;
+  const VectorExpressionCache *vectors = nullptr;
+  const ColorExpressionCache *colors = nullptr;
+  const ValueExpressionCache *values = nullptr;
+};
+
+extern thread_local CompiledOutputCaches g_compiled_output_caches;
+
+/** All expression caches share one map type; returns a successfully compiled shared entry. */
+inline std::optional<uint32_t> FindCompiledOutput(const ValueExpressionCache *shared_cache,
+                                                  const ValueExpressionCache &local_cache,
+                                                  const blender::bNodeSocket &output_socket)
+{
+  if (shared_cache == nullptr || shared_cache == &local_cache) {
+    return std::nullopt;
+  }
+  const auto iter = shared_cache->find(&output_socket);
+  return iter != shared_cache->end() ? iter->second : std::nullopt;
+}
 
 inline constexpr float LN_PI = 3.14159265358979323846f;
 inline constexpr int16_t LN_STRING_OP_JOIN = 0;
@@ -168,7 +196,8 @@ void AppendTargetEndpoints(const blender::bNode &node,
                            const blender::bNodeSocket &socket,
                            const RawOutputLinkMap &raw_output_links,
                            std::vector<ResolvedEndpoint> &targets,
-                           std::unordered_set<const blender::bNode *> &visited);
+                           std::unordered_set<const blender::bNode *> &visited,
+                           int32_t multi_input_sort_id);
 
 uint32_t AddSourceRef(LN_Program &program,
                       const blender::bNodeTree &tree,
@@ -193,6 +222,8 @@ MT_Vector4 ColorExpressionConstantFallback(const LN_Program &program, uint32_t e
 bool LogicPinTypesCompatible(LN_ValueType from_type, LN_ValueType to_type);
 bool LogicPinsCompatible(const LN_PinDefinition &from_pin, const LN_PinDefinition &to_pin);
 std::string AddObjectResultPropertyName(const blender::bNode &node);
+/** Inventory node: the tree property that keeps what its last run did. */
+std::string InventoryResultPropertyName(const blender::bNode &node);
 std::string AssignGeometryNodesModifierResultPropertyName(const blender::bNode &node);
 bool NamesMatch(const char *socket_name, const char *identifier, const std::string &name);
 const blender::bNodeSocket *FindInputSocket(const blender::bNode &node, const std::string &name);
@@ -246,6 +277,9 @@ uint32_t AddConstantFloatExpression(LN_Program &program, float value);
 uint32_t AddConstantStringExpression(LN_Program &program, const std::string &value);
 uint32_t AddConstantColorExpression(LN_Program &program, const MT_Vector4 &value);
 uint32_t AddConstantVectorExpression(LN_Program &program, const MT_Vector3 &value);
+uint32_t AddConstantRotationExpression(LN_Program &program,
+                                       const LN_Rotation &value,
+                                       const MT_Vector3 &legacy_euler_radians);
 uint32_t AddConstantValueExpression(LN_Program &program, const LN_Value &value);
 uint32_t AddActiveCameraValueExpression(LN_Program &program);
 uint32_t AddNotBoolExpression(LN_Program &program, uint32_t input);
@@ -254,8 +288,7 @@ uint32_t AddOrBoolExpression(LN_Program &program, uint32_t input0, uint32_t inpu
 uint32_t AddXorBoolExpression(LN_Program &program, uint32_t input0, uint32_t input1);
 std::optional<uint32_t> AddLogicGateBoolExpression(LN_Program &program,
                                                    int16_t operation,
-                                                   uint32_t input0,
-                                                   uint32_t input1);
+                                                   const std::vector<uint32_t> &inputs);
 uint32_t AddFloatCompareBoolExpression(LN_Program &program,
                                        uint32_t input0,
                                        uint32_t input1,
@@ -580,6 +613,14 @@ std::optional<uint32_t> BuildRaycastQueryExpression(LN_Program &program,
                                                     FloatExpressionCache &float_expression_cache,
                                                     BoolExpressionCache &bool_expression_cache);
 std::optional<uint32_t> BuildRaycastAllQueryExpression(
+    LN_Program &program,
+    const blender::bNode &node,
+    const NodeDefinitionMap &node_definitions,
+    const InputLinkMap &input_links,
+    ValueCache &value_cache,
+    FloatExpressionCache &float_expression_cache,
+    BoolExpressionCache &bool_expression_cache);
+std::optional<uint32_t> BuildRaycastFromMeshQueryExpression(
     LN_Program &program,
     const blender::bNode &node,
     const NodeDefinitionMap &node_definitions,

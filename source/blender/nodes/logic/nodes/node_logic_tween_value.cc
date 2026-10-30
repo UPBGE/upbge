@@ -8,7 +8,6 @@
 
 #include "node_logic_util.hh"
 
-#include "BKE_colortools.hh"
 #include "BKE_node.hh"
 
 #include "UI_interface_c.hh"
@@ -25,76 +24,6 @@ static constexpr int tween_type_vector = 1;
 static constexpr int tween_type_euler = 2;
 static constexpr int tween_type_quaternion_slerp = 3;
 
-static CurveMapping *create_default_mapping()
-{
-  CurveMapping *mapping = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
-  BKE_curvemapping_init(mapping);
-  return mapping;
-}
-
-static bool mapping_has_valid_point_counts(const CurveMapping *mapping)
-{
-  if (mapping == nullptr) {
-    return false;
-  }
-  for (int curve_index = 0; curve_index < CM_TOT; curve_index++) {
-    if (mapping->cm[curve_index].totpoint < 0) {
-      return false;
-    }
-  }
-  return true;
-}
-
-static void clear_mapping_curves(CurveMapping *mapping)
-{
-  if (mapping == nullptr) {
-    return;
-  }
-  for (int curve_index = 0; curve_index < CM_TOT; curve_index++) {
-    mapping->cm[curve_index].totpoint = 0;
-    mapping->cm[curve_index].curve = nullptr;
-    mapping->cm[curve_index].table = nullptr;
-    mapping->cm[curve_index].premultable = nullptr;
-  }
-}
-
-static bool mapping_is_valid(const CurveMapping *mapping)
-{
-  if (!mapping_has_valid_point_counts(mapping) || mapping->cur < 0 || mapping->cur >= CM_TOT ||
-      mapping->cm[0].totpoint < 2 || mapping->cm[0].curve == nullptr)
-  {
-    return false;
-  }
-
-  for (int curve_index = 0; curve_index < CM_TOT; curve_index++) {
-    if (mapping->cm[curve_index].totpoint < 0) {
-      return false;
-    }
-    if (mapping->cm[curve_index].totpoint > 0 &&
-        mapping->cm[curve_index].curve == nullptr)
-    {
-      return false;
-    }
-  }
-  return true;
-}
-
-static CurveMapping *ensure_mapping(bNode &node)
-{
-  CurveMapping *mapping = static_cast<CurveMapping *>(node.storage);
-  if (!mapping_is_valid(mapping)) {
-    if (mapping != nullptr) {
-      BKE_curvemapping_free(mapping);
-    }
-    node.storage = create_default_mapping();
-    mapping = static_cast<CurveMapping *>(node.storage);
-  }
-  else {
-    BKE_curvemapping_init(mapping);
-  }
-  return mapping;
-}
-
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Forward"_ustr);
@@ -106,6 +35,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Rotation>("From"_ustr, "FromRotation"_ustr);
   b.add_input<decl::Rotation>("To"_ustr, "ToRotation"_ustr);
   b.add_input<decl::Float>("Duration"_ustr).default_value(1.0f);
+  b.add_input<decl::Bool>("Ignore Timescale"_ustr)
+      .default_value(false)
+      .description("Advance with unscaled time, including in While Paused frame logic");
   b.add_output<decl::Execution>("Done"_ustr);
   b.add_output<decl::Execution>("Reached"_ustr);
   b.add_output<decl::Float>("Result"_ustr, "ResultFloat"_ustr);
@@ -117,7 +49,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
-  ensure_mapping(*node);
+  logic::curve_mapping_ensure(*node);
 
   layout.prop(ptr, "value_type", UI_ITEM_NONE, "", ICON_NONE);
   layout.prop(ptr, "on_demand", UI_ITEM_NONE, "On Demand", ICON_NONE);
@@ -131,12 +63,12 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = tween_type_float;
   node->custom2 = 1;
-  node->storage = create_default_mapping();
+  node->storage = logic::curve_mapping_create_default();
 }
 
 static void node_update(bNodeTree *ntree, bNode *node)
 {
-  ensure_mapping(*node);
+  logic::curve_mapping_ensure(*node);
   if (node->custom1 < tween_type_float || node->custom1 > tween_type_quaternion_slerp) {
     node->custom1 = tween_type_float;
   }
@@ -167,6 +99,7 @@ static void node_update(bNodeTree *ntree, bNode *node)
   set_input("FromRotation", rotation_type);
   set_input("ToRotation", rotation_type);
   set_input("Duration", true);
+  set_input("Ignore Timescale", true);
 
   set_output("Done", !on_demand);
   set_output("Reached", !on_demand);
@@ -174,28 +107,6 @@ static void node_update(bNodeTree *ntree, bNode *node)
   set_output("ResultVector", vector_type);
   set_output("ResultRotation", rotation_type);
   set_output("Factor", true);
-}
-
-static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
-{
-  const CurveMapping *mapping = static_cast<const CurveMapping *>(node.storage);
-  if (mapping_is_valid(mapping)) {
-    BKE_curvemapping_curves_blend_write(&writer, mapping);
-  }
-}
-
-static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
-{
-  if (node.storage != nullptr) {
-    CurveMapping *mapping = static_cast<CurveMapping *>(node.storage);
-    if (mapping_has_valid_point_counts(mapping)) {
-      BKE_curvemapping_blend_read(&reader, mapping);
-    }
-    else {
-      clear_mapping_curves(mapping);
-    }
-  }
-  ensure_mapping(node);
 }
 
 static void node_register()
@@ -208,8 +119,8 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
   ntype.updatefunc = node_update;
-  ntype.blend_write_storage_content = node_blend_write;
-  ntype.blend_data_read_storage_content = node_blend_read;
+  ntype.blend_write_storage_content = logic::curve_mapping_blend_write;
+  ntype.blend_data_read_storage_content = logic::curve_mapping_blend_read;
   bke::node_type_storage(ntype, "CurveMapping", node_free_curves, node_copy_curves);
 
   bke::node_register_type(ntype);

@@ -13,7 +13,7 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>(""_ustr, "Key"_ustr).default_value("A");
+  b.add_input<decl::String>("Key"_ustr).default_value("A");
   b.add_output<decl::Int>("Code"_ustr);
 }
 

@@ -291,6 +291,32 @@ enum {
 
   OB_LOD_UPDATE_PHYSICS = 1 << 25,
   OB_DUPLI_UPBGE = 1 << 26,
+  OB_SAVE_GAME_OBJECT_STATE = 1 << 27,
+  /** Jolt-only motion type: driven by the game transform, but collides as a moving body. */
+  OB_KINEMATIC = 1 << 28,
+};
+
+/* ob->smooth_motion: how an object is drawn between fixed steps. */
+enum {
+  /** The parent's Smooth Motion, or the scene's Physics Interpolation without a parent. */
+  OB_SMOOTH_MOTION_SCENE = 0,
+  /** Where the last step put it. */
+  OB_SMOOTH_MOTION_NONE = 1,
+  /** Between its last two steps (one step late, smooth on any screen). */
+  OB_SMOOTH_MOTION_INTERPOLATE = 2,
+  /** Ahead of its last step along its movement (no delay, overshoots on a sudden stop). */
+  OB_SMOOTH_MOTION_EXTRAPOLATE = 3,
+};
+
+/* ob->game_draw_as: how the game engine draws a placed object (UPBGE). */
+enum {
+  /** Identical placed objects are drawn from one shared Blender object until one needs something
+   * of its own (it then gets its own object back). */
+  OB_GAME_DRAW_AUTO = 0,
+  /** Its own Blender object, with everything of its own. */
+  OB_GAME_DRAW_OWN = 1,
+  /** Merged at game start with nearby objects set so into one Blender object. */
+  OB_GAME_DRAW_MERGED = 2,
 };
 
 /* ob->gameflag2 */
@@ -323,6 +349,7 @@ enum {
   OB_BODY_TYPE_NAVMESH = 7,
   OB_BODY_TYPE_CHARACTER = 8,
   OB_BODY_TYPE_VEHICLE = 9,
+  OB_BODY_TYPE_KINEMATIC = 10,
 };
 
 /* ob->scavisflag */
@@ -539,6 +566,78 @@ typedef struct ObjectActivityCulling {
   int _pad = 0;
 } ObjectActivityCulling;
 
+/** Game engine UI element settings: what the object is as a UI control (see OB_UI_* flags). */
+typedef struct ObjectGameUI {
+  /** Name reported by the On UI Event node, for example "play" or "exit". */
+  char action[64] = "";
+  /** Drag and drop channel shared by sources and targets; empty matches any group. */
+  char drop_group[64] = "";
+  /** Drop Target: item categories it takes, separated by commas; empty takes every item. */
+  char accept_categories[128] = "";
+  int flag = 0;
+  /** #eObjectGameUIPointer. */
+  char pointer_mode = 0;
+  /** #eObjectGameUIFocus. */
+  char focus_mode = 0;
+  /** #eObjectGameUIAnchor. */
+  char anchor = 0;
+  /** Outside menus: the player (0-7) who uses it, unless #OB_UI_ANY_PLAYER. */
+  char player = 0;
+  int tab_order = 0;
+  int priority = 0;
+  /** Extra local-space size around the object bounds for hit testing. */
+  float padding = 0.0f;
+  /** Pointer movement in pixels before a press becomes a drag. */
+  float drag_threshold = 6.0f;
+  /** Uniform scale while hovered or focused, and while pressed; 1 leaves the object unchanged. */
+  float hover_scale = 1.0f;
+  float press_scale = 1.0f;
+  /** Seconds to blend between the normal, hovered and pressed looks; 0 is instant. */
+  float look_time = 0.1f;
+  float _pad1 = 0.0f;
+  /** Shown while a player points at the element (hovered or focused), hidden otherwise; usually
+   * a child such as a glowing frame. Grid copies use their own copy of the child. */
+  struct Object *highlight = nullptr;
+  /** Widget: the object whose game property it shows and changes; empty is the element. */
+  struct Object *widget_object = nullptr;
+  /** Widget: the slider's handle, the toggle's check mark or the selector's text object. */
+  struct Object *widget_part = nullptr;
+  /** UPBGE: shown with #tooltip_text while a player points at the element (see #tooltip_mode);
+   * its first text object (or itself) gets the text. */
+  struct Object *tooltip = nullptr;
+  /** Keyboard and gamepad navigation: where Up, Down, Left and Right go instead of the nearest
+   * element that way (found by name, so menu and grid copies work); empty is automatic. */
+  struct Object *nav_up = nullptr;
+  struct Object *nav_down = nullptr;
+  struct Object *nav_left = nullptr;
+  struct Object *nav_right = nullptr;
+  /** Widget: the game property it shows and changes. */
+  char widget_property[64] = "";
+  /** Bar: a game property of the same object holding the value of a full bar (Max when empty). */
+  char widget_max_property[64] = "";
+  /** Slider range and step; Left and Right change the value by a step. */
+  float widget_min = 0.0f;
+  float widget_max = 1.0f;
+  float widget_step = 0.1f;
+  /** #eObjectGameUIWidget. */
+  char widget = 0;
+  /** UPBGE: #eObjectGameUITooltipMode, where the tooltip shows. */
+  char tooltip_mode = 0;
+  /** UPBGE: #eObjectGameUIDragLook, what follows the pointer while it is dragged. New elements
+   * take Item Only (#OB_UI_DRAG_LOOK_ITEM); files saved before it read 0, Whole Element. */
+  char drag_look = 1;
+  char _pad2[1] = {};
+  /** UPBGE: shown while a dragged item is over the element and its Accept Categories refuse it,
+   * hidden otherwise; usually a child such as a red frame. Grid copies use their own copy. */
+  struct Object *refused = nullptr;
+  /** UPBGE: Beside: where the tooltip goes from the element, in the tooltip's parent space. */
+  float tooltip_offset[3] = {0.0f, 0.0f, 0.0f};
+  float _pad4 = 0.0f;
+  /** UPBGE: what the tooltip says: {name}, {description}, {count} and the other game properties
+   * of the item's Item Library object are filled in; empty is "{name}\n{description}". */
+  char tooltip_text[256] = "";
+} ObjectGameUI;
+
 /* Deprecated: kept only for versioning migration from old wheel-list format. */
 typedef struct GameVehicleWheel {
   struct GameVehicleWheel *next = nullptr, *prev = nullptr;
@@ -725,6 +824,77 @@ enum {
   OB_ACTIVITY_PHYSICS = (1 << 0),
   OB_ACTIVITY_LOGIC = (1 << 1),
 };
+
+/** #ObjectGameUI.flag */
+enum {
+  OB_UI_ELEMENT = (1 << 0),
+  /** Not interactable: shown but ignores pointer, focus and drag. */
+  OB_UI_DISABLED = (1 << 1),
+  OB_UI_DRAGGABLE = (1 << 2),
+  OB_UI_DROP_TARGET = (1 << 3),
+  /** A dragged object stays in place instead of following the cursor. */
+  OB_UI_DRAG_NO_FOLLOW = (1 << 4),
+  /** A click picks a draggable object up and the next click puts it down. */
+  OB_UI_CLICK_PICK_UP = (1 << 5),
+  /** Outside menus every player uses it, each with their own focus and events. */
+  OB_UI_ANY_PLAYER = (1 << 6),
+};
+
+/** #ObjectGameUI.drag_look */
+typedef enum eObjectGameUIDragLook {
+  /** The element and its children follow the pointer. */
+  OB_UI_DRAG_LOOK_ELEMENT = 0,
+  /** A Grid View slot stays in its cell and a copy of its item (icon and count) follows. */
+  OB_UI_DRAG_LOOK_ITEM = 1,
+} eObjectGameUIDragLook;
+
+/** #ObjectGameUI.pointer_mode */
+typedef enum eObjectGameUIPointer {
+  OB_UI_POINTER_BLOCK = 0,
+  OB_UI_POINTER_PASS = 1,
+  OB_UI_POINTER_IGNORE = 2,
+} eObjectGameUIPointer;
+
+/** #ObjectGameUI.focus_mode */
+typedef enum eObjectGameUIFocus {
+  OB_UI_FOCUS_ALL = 0,
+  OB_UI_FOCUS_CLICK = 1,
+  OB_UI_FOCUS_NONE = 2,
+} eObjectGameUIFocus;
+
+/** #ObjectGameUI.widget */
+typedef enum eObjectGameUIWidget {
+  OB_UI_WIDGET_NONE = 0,
+  OB_UI_WIDGET_TOGGLE = 1,
+  OB_UI_WIDGET_SLIDER = 2,
+  OB_UI_WIDGET_SELECTOR = 3,
+  OB_UI_WIDGET_TEXT = 4,
+  OB_UI_WIDGET_BAR = 5,
+} eObjectGameUIWidget;
+
+/** UPBGE: #ObjectGameUI.tooltip_mode */
+typedef enum eObjectGameUITooltipMode {
+  /** Shown where it is while pointed at (the default: a tooltip stays where it was put). */
+  OB_UI_TOOLTIP_IN_PLACE = 0,
+  /** Moved next to the element by the offset, shown while pointed at. */
+  OB_UI_TOOLTIP_BESIDE = 1,
+  /** Only its text changes (emptied when nothing is pointed at). */
+  OB_UI_TOOLTIP_TEXT_ONLY = 2,
+} eObjectGameUITooltipMode;
+
+/** #ObjectGameUI.anchor */
+typedef enum eObjectGameUIAnchor {
+  OB_UI_ANCHOR_NONE = 0,
+  OB_UI_ANCHOR_TOP_LEFT = 1,
+  OB_UI_ANCHOR_TOP = 2,
+  OB_UI_ANCHOR_TOP_RIGHT = 3,
+  OB_UI_ANCHOR_LEFT = 4,
+  OB_UI_ANCHOR_CENTER = 5,
+  OB_UI_ANCHOR_RIGHT = 6,
+  OB_UI_ANCHOR_BOTTOM_LEFT = 7,
+  OB_UI_ANCHOR_BOTTOM = 8,
+  OB_UI_ANCHOR_BOTTOM_RIGHT = 9,
+} eObjectGameUIAnchor;
 
 /* Evaluated light linking state needed for the render engines integration. */
 struct LightLinkingRuntime {
@@ -1062,6 +1232,8 @@ struct Object {
 
   struct ObjectActivityCulling activityCulling = {0};
 
+  struct ObjectGameUI game_ui;
+
   struct GameVehicleSettings *vehicle = nullptr;
 
   float sf = 0.0f; /* sf is time-offset */
@@ -1074,7 +1246,12 @@ struct Object {
   /* dynamic properties */
   float friction = 0.5f, rolling_friction = 0.0f, fh = 0.0f, reflect = 0.0f;
   float fhdist = 0.0f, xyfrict = 0.0f;
-  short dynamode = 0, _pad51[3] = {0, 0, 0};
+  short dynamode = 0;
+  /** How the object is drawn between fixed steps: OB_SMOOTH_MOTION_*. */
+  char smooth_motion = 0;
+  /** How the game engine draws it: OB_GAME_DRAW_*. */
+  char game_draw_as = 0;
+  char _pad51b[4] = {0, 0, 0, 0};
 
   /* rigid body ccd */
   float ccd_motion_threshold = 1.0f;
