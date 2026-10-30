@@ -31,6 +31,7 @@
 #include "BKE_text.h"
 #include "BLI_listbase.hh"
 #include "DNA_scene_types.h"
+#include "MEM_guardedalloc.h"
 
 using namespace blender;
 
@@ -52,7 +53,10 @@ std::string KX_GetPythonCode(blender::Main *bmain, const std::string &python_mai
   blender::Text *text = (blender::Text *)BLI_findstring(&bmain->texts, python_main.c_str(), offsetof(blender::ID, name) + 2);
   if (text) {
     size_t buf_len_dummy;
-    return txt_to_buf(text, &buf_len_dummy);
+    char *buf = txt_to_buf(text, &buf_len_dummy);
+    std::string result(buf);
+    MEM_delete(buf);
+    return result;
   }
 
   return "";
