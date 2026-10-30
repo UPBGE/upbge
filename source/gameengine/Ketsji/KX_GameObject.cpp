@@ -442,7 +442,7 @@ void KX_GameObject::DiscardRenderedObject()
     /* 1. Rendered Object is a dupli instance, just erase it from duplis list */
     if (m_is_dupli_instance) {
       if (GetScene()) {
-        TagDupliForTaaReset();
+        GetScene()->RequestTaaReset();
         GetScene()->RemoveDupliObjectFromList(this);
       }
       m_is_dupli_instance = false;
