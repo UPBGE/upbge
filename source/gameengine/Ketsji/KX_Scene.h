@@ -133,6 +133,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   std::vector<BackupObj *> m_backupObList;
   int m_backupOverlayFlag;
   int m_backupOverlayGameFlag;
+  short m_rv3d_prevpersp;
 
   /* Objects to update at each render pass */
   /* Note: We could try to get the right render pass where

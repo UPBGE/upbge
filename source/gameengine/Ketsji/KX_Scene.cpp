@@ -57,6 +57,7 @@
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 #include "GPU_context.hh"
+#include "GPU_matrix.hh"
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
 #include "wm_draw.hh"
@@ -295,6 +296,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   defaultCamBase->flag |= BASE_HIDDEN;
   DEG_relations_tag_update(bmain);
 
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  m_rv3d_prevpersp = rv3d->persp;
+
   m_overlay_collections = {};
   m_imageRenderCameraList = {};
   m_idsToUpdateInAllRenderPasses = {};
@@ -409,6 +413,9 @@ KX_Scene::~KX_Scene()
     m_gameDefaultCamera = nullptr;
     DEG_relations_tag_update(bmain);
   }
+
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  rv3d->persp = m_rv3d_prevpersp;
 
   if (m_parentlist)
     m_parentlist->Release();
@@ -905,15 +912,20 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     float winmat[4][4];
     cam->GetProjectionMatrix().getValue(&winmat[0][0]);
     CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-    ED_view3d_draw_setup_view(CTX_wm_manager(C),
-                              CTX_wm_window(C),
-                              CTX_data_expect_evaluated_depsgraph(C),
-                              CTX_data_scene(C),
-                              CTX_wm_region(C),
-                              CTX_wm_view3d(C),
-                              NULL,
-                              winmat,
-                              NULL);
+    ARegion *region = CTX_wm_region(C);
+    ED_view3d_update_viewmat(CTX_data_expect_evaluated_depsgraph(C),
+                             CTX_data_scene(C),
+                             CTX_wm_view3d(C),
+                             region,
+                             nullptr,
+                             winmat,
+                             &window,
+                             true);  // Offscreen = True
+
+    /* Set for GPU drawing. */
+    RegionView3D *rv3d = (RegionView3D *)region->regiondata;
+    GPU_matrix_projection_set(rv3d->winmat);
+    GPU_matrix_set(rv3d->viewmat);
 
     UpdateObjectLods(cam);
   }
@@ -990,15 +1002,20 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, const rcti *win
   float winmat[4][4];
   cam->GetProjectionMatrix().getValue(&winmat[0][0]);
   CTX_wm_view3d(C)->camera = cam->GetBlenderObject();
-  ED_view3d_draw_setup_view(CTX_wm_manager(C),
-                            CTX_wm_window(C),
-                            CTX_data_expect_evaluated_depsgraph(C),
-                            CTX_data_scene(C),
-                            CTX_wm_region(C),
-                            CTX_wm_view3d(C),
-                            NULL,
-                            winmat,
-                            NULL);
+  ARegion *region = CTX_wm_region(C);
+  ED_view3d_update_viewmat(CTX_data_expect_evaluated_depsgraph(C),
+                           CTX_data_scene(C),
+                           CTX_wm_view3d(C),
+                           region,
+                           nullptr,
+                           winmat,
+                           window,
+                           true); // Offscreen = True
+
+  /* Set for GPU drawing. */
+  RegionView3D *rv3d = (RegionView3D *)region->regiondata;
+  GPU_matrix_projection_set(rv3d->winmat);
+  GPU_matrix_set(rv3d->viewmat);
 
   DRW_game_render_loop(C, cam->GetGPUViewport(), depsgraph, window, false);
 }
