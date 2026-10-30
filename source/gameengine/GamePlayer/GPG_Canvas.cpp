@@ -39,6 +39,7 @@
 #include "GHOST_ISystem.hh"
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
+#include "WM_api.hh"
 #include "wm_window.hh"
 
 #include "KX_Globals.h"
@@ -125,9 +126,11 @@ void GPG_Canvas::Init()
   if (m_window) {
     const float clear_col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     GPU_framebuffer_clear_color_depth(GPU_framebuffer_active_get(), clear_col, 1.0f);
-    /* This code below is already called at window creation */
-    //m_window->setDrawingContextType(GHOST_kDrawingContextTypeOpenGL);
-    //BLI_assert(m_window->getDrawingContextType() == GHOST_kDrawingContextTypeOpenGL);
+    wmWindow *win = CTX_wm_window(m_context);
+    wmEvent tmp_event;
+    wm_event_init_from_window(win, &tmp_event);
+    win->eventstate->xy[0] = tmp_event.xy[0];
+    win->eventstate->xy[1] = tmp_event.xy[1];
   }
 }
 
@@ -135,12 +138,13 @@ void GPG_Canvas::SetMousePosition(int x, int y)
 {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
   if (system && m_window) {
-    int32_t gx = (int32_t)x / m_nativePixelSize;
-    int32_t gy = (int32_t)y / m_nativePixelSize;
-    int32_t cx;
-    int32_t cy;
-    m_window->clientToScreen(gx, gy, cx, cy);
-    system->setCursorPosition(cx, cy);
+    int32_t gx = (int32_t)x;
+    int32_t gy = (int32_t)y;
+
+    wmWindow *win = CTX_wm_window(m_context);
+    int event_x = int(gx);
+    int event_y = int((m_windowArea.GetHeight() - 1 - gy));
+    WM_cursor_warp(win, event_x, event_y);
   }
 }
 
@@ -150,17 +154,21 @@ void GPG_Canvas::SetMouseState(RAS_MouseState mousestate)
 
   if (m_window) {
     switch (mousestate) {
-      case MOUSE_INVISIBLE:
-        m_window->setCursorVisibility(false);
+      case MOUSE_INVISIBLE: {
+        WM_cursor_set(CTX_wm_window(m_context), WM_CURSOR_NONE);
         break;
-      case MOUSE_WAIT:
-        m_window->setCursorShape(GHOST_kStandardCursorWait);
-        m_window->setCursorVisibility(true);
+      }
+      case MOUSE_WAIT: {
+        WM_cursor_set(CTX_wm_window(m_context), WM_CURSOR_WAIT);
         break;
-      case MOUSE_NORMAL:
-        m_window->setCursorShape(GHOST_kStandardCursorDefault);
-        m_window->setCursorVisibility(true);
+      }
+      case MOUSE_NORMAL: {
+        WM_cursor_set(CTX_wm_window(m_context), WM_CURSOR_DEFAULT);
         break;
+      }
+      default: {
+        break;
+      }
     }
   }
 }

@@ -357,8 +357,16 @@ static GHOST_IWindow *startFullScreen(GHOST_ISystem *system,
   system->getMainDisplayDimensions(sysWidth, sysHeight);
   // Create the main window
   GHOST_DisplaySettings settings;
-  settings.xPixels = (useDesktop) ? sysWidth : width;
-  settings.yPixels = (useDesktop) ? sysHeight : height;
+  const char *backend = GHOST_ISystem::getSystemBackend();
+  const bool is_wayland = backend && (strcmp(backend, "WAYLAND") == 0);
+  if (is_wayland) {
+    settings.xPixels = sysWidth;
+    settings.yPixels = sysHeight;
+  }
+  else {
+    settings.xPixels = (useDesktop) ? sysWidth : width;
+    settings.yPixels = (useDesktop) ? sysHeight : height;
+  }
 
   GHOST_GPUSettings gpu_settings = {0};
   const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
@@ -877,6 +885,7 @@ int main(int argc,
   BKE_materials_init();
 
   /* wm_init_exit */
+  wm_init_cursor_data();
   GHOST_CreateSystemPaths();
 
   BKE_addon_pref_type_init();
@@ -1369,6 +1378,8 @@ int main(int argc,
     // Create the system
     if (GHOST_ISystem::createSystem(true, false) == GHOST_kSuccess) {
       system = GHOST_ISystem::getSystem();
+      GPU_backend_ghost_system_set(system);
+      WM_set_g_system_blenderplayer(system);
       BLI_assert(system);
 
       if (!fullScreenWidth || !fullScreenHeight)
@@ -1676,11 +1687,6 @@ int main(int argc,
                                          alphaBackground);
                 }
               }
-              /* wm context */
-              wmWindowManager *wm = (wmWindowManager *)G_MAIN->wm.first;
-              wmWindow *win = (wmWindow *)wm->windows.first;
-              CTX_wm_manager_set(C, wm);
-              CTX_wm_window_set(C, win);
             }
 
             wmWindowManager *wm = (wmWindowManager *)bfd->main->wm.first;
@@ -1689,6 +1695,9 @@ int main(int argc,
             CTX_wm_window_set(C, win);
             InitBlenderContextVariables(C, wm, bfd->curscene);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
+            WM_check(C);
+            InitBlenderContextVariables(C, wm, bfd->curscene);
+
 
             /* Get rid of windows which are not the 3D view windows */
             LISTBASE_FOREACH (wmWindow *, win_in_list, &wm->windows) {
@@ -1704,9 +1713,6 @@ int main(int argc,
               BPY_python_start(C, argc, (const char **)argv);
               CTX_py_init_set(C, true);
 #  endif /*WITH_PYTHON*/
-
-              WM_set_g_system_blenderplayer(system);
-              GPU_backend_ghost_system_set(system);
               WM_init_gpu();
 
               UI_theme_init_default();
