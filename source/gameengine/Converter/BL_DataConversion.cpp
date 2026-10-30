@@ -525,7 +525,7 @@ RAS_MeshObject *BL_ConvertMesh(Mesh *mesh,
         MT_Vector2 uvs[RAS_Texture::MaxUnits];
         unsigned int rgba[RAS_Texture::MaxUnits];
 
-        BL_GetUvRgba(layersInfo.layers, vert_i, uvs, rgba, uvLayers, colorLayers);
+        BL_GetUvRgba(layersInfo.layers, corner, uvs, rgba, uvLayers, colorLayers);
 
         vertices[vert_i] = meshobj->AddVertex(meshmat, pt, uvs, tan, rgba, no, flat, vert_i);
       }
