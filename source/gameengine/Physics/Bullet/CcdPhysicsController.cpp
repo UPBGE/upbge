@@ -2293,7 +2293,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
       const blender::Span<blender::float3> positions = me->vert_positions();
       const blender::Span<blender::int3> tris = me->corner_tris();
       const blender::Span<int> corner_verts = me->corner_verts();
-      const blender::Span<int> tri_faces = me->corner_tri_faces();
 
       // UVs
       blender::VArraySpan<blender::float2> uvs;
@@ -2367,7 +2366,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *from_gameobj,
         }
 
         // Polygon index (original polygon index for this triangle)
-        m_polygonIndexArray[t] = tri_faces[t];
+        m_polygonIndexArray[t] = t;
       }
 
       // Copy unique vertices to m_vertexArray
