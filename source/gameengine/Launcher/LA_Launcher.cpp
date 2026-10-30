@@ -181,17 +181,25 @@ void LA_Launcher::InitEngine()
   m_canvas->SetSamples(m_samples);
 
   m_canvas->Init();
-  if (gm.flag & GAME_SHOW_MOUSE) {
+
+  const char *backend = GHOST_ISystem::getSystemBackend();
+  const bool is_wayland = backend && (strcmp(backend, "WAYLAND") == 0);
+
+  if (is_wayland) {
+    WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_XY, nullptr, false);
+  }
+
+  bool show_mouse = (gm.flag & GAME_SHOW_MOUSE) != 0;
+  if (show_mouse) {
     m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
   }
   else {
     m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
   }
+  m_canvas->SetMousePosition(m_canvas->GetWidth() / 2, m_canvas->GetHeight() / 2);
 
-  const char *backend = GHOST_ISystem::getSystemBackend();
-  const bool is_wayland = backend && (strcmp(backend, "WAYLAND") == 0);
   if (is_wayland) {
-    WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_XY, nullptr, false);
+    WM_cursor_grab_enable(CTX_wm_window(m_context), WM_CURSOR_WRAP_NONE, nullptr, !show_mouse);
   }
 
   // Create the inputdevices.
