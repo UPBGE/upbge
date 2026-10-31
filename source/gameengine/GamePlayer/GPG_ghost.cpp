@@ -367,7 +367,7 @@ static GHOST_IWindow *startFullScreen(GHOST_ISystem *system,
     settings.xPixels = (useDesktop) ? sysWidth : width;
     settings.yPixels = (useDesktop) ? sysHeight : height;
   }
-
+  WM_init_state_fullscreen_set();
   GHOST_GPUSettings gpu_settings = {0};
   const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);

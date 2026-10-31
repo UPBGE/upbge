@@ -3323,7 +3323,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   /* We can't call the following function here in blenderplayer pipeline.
    * We could do it after if we realize that there are issues without this.
    */
-  // wm_window_ensure_eventstate(win);
+  wm_window_ensure_eventstate(win);
 
   /* store actual window size in blender window */
   bounds = GHOST_GetClientBounds(GHOST_WindowHandle(win->ghostwin));
@@ -3338,20 +3338,13 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   /* set the state here, so minimized state comes up correct on windows */
   if (wm_init_state.window_focus) {
     GHOST_SetWindowState(GHOST_WindowHandle(win->ghostwin),
-                         GHOST_GetWindowState(GHOST_WindowHandle(win->ghostwin)));
+                         wm_init_state.windowstate);
   }
 #endif
 
-  /* until screens get drawn, make it black */
-  GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
-
-  /* needed here, because it's used before it reads userdef */
-  WM_window_dpi_set_userdef(win);
-
-  /* We avoid swap buffers when we aren't at first time
-   * to avoid transition when reload or load a new blend */
   if (first_time_window) {
-    wm_window_swap_buffer_release(win);
+    /* Needed here, because it's used before it reads #UserDef. */
+    WM_window_dpi_set_userdef(win);
   }
 }
 
