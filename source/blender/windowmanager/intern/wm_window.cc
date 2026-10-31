@@ -3338,7 +3338,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   /* set the state here, so minimized state comes up correct on windows */
   if (wm_init_state.window_focus) {
     GHOST_SetWindowState(GHOST_WindowHandle(win->ghostwin),
-                         wm_init_state.windowstate);
+                         GHOST_GetWindowState(GHOST_WindowHandle(win->ghostwin)));
   }
 #endif
 
