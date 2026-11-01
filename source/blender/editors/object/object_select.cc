@@ -813,7 +813,7 @@ static bool select_grouped_parent(bContext *C)
 
 #define COLLECTION_MENU_MAX 24
 /* Select objects in the same group as the active */
-static bool select_grouped_collection(bContext *C, Object *ob)
+static bool select_grouped_collection(bContext *C, Object *ob, ReportList *reports)
 {
   Main *bmain = CTX_data_main(C);
   bool changed = false;
@@ -845,6 +845,12 @@ static bool select_grouped_collection(bContext *C, Object *ob)
     }
     CTX_DATA_END;
     return changed;
+  }
+
+  /* Popup menus need a window, which isn't available in background mode. */
+  if (G.background || CTX_wm_window(C) == nullptr) {
+    BKE_report(reports, RPT_ERROR, "Active object is in multiple collections");
+    return false;
   }
 
   /* build the menu. */
@@ -1081,7 +1087,7 @@ static wmOperatorStatus object_select_grouped_exec(bContext *C, wmOperator *op)
       changed |= select_grouped_type(C, ob);
       break;
     case OBJECT_GRPSEL_COLLECTION:
-      changed |= select_grouped_collection(C, ob);
+      changed |= select_grouped_collection(C, ob, op->reports);
       break;
     case OBJECT_GRPSEL_HOOK:
       changed |= select_grouped_object_hooks(C, ob);
@@ -1119,15 +1125,6 @@ static wmOperatorStatus object_select_grouped_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static bool object_select_grouped_poll(bContext *C)
-{
-  /* Uses popup menus which won't work in background mode. */
-  if (G.background) {
-    return false;
-  }
-  return objects_selectable_poll(C);
-}
-
 void OBJECT_OT_select_grouped(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1138,7 +1135,7 @@ void OBJECT_OT_select_grouped(wmOperatorType *ot)
   /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_select_grouped_exec;
-  ot->poll = object_select_grouped_poll;
+  ot->poll = objects_selectable_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
