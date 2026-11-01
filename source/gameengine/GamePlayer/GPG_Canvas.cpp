@@ -227,9 +227,11 @@ void GPG_Canvas::SetFullScreen(bool enable)
 {
   if (enable) {
     m_window->setState(GHOST_kWindowStateFullScreen);
+    CTX_wm_window(m_context)->windowstate = GHOST_kWindowStateFullScreen;
   }
   else {
     m_window->setState(GHOST_kWindowStateNormal);
+    CTX_wm_window(m_context)->windowstate = GHOST_kWindowStateNormal;
   }
 }
 

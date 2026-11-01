@@ -367,7 +367,6 @@ static GHOST_IWindow *startFullScreen(GHOST_ISystem *system,
     settings.xPixels = (useDesktop) ? sysWidth : width;
     settings.yPixels = (useDesktop) ? sysHeight : height;
   }
-  WM_init_state_fullscreen_set();
   GHOST_GPUSettings gpu_settings = {0};
   const GPUBackendType gpu_backend = GPU_backend_type_selection_get();
   gpu_settings.context_type = wm_ghost_drawing_context_type(gpu_backend);
@@ -1559,6 +1558,13 @@ int main(int argc,
               }
             }
 
+            if (fullScreen) {
+              WM_init_state_fullscreen_set();
+            }
+            else {
+              WM_init_state_normal_set();
+            }
+
             // Check whether the game should be displayed in stereo
             if (!stereoParFound) {
               // Only use file settings when command line did not override
@@ -1693,6 +1699,14 @@ int main(int argc,
             wmWindow *win = (wmWindow *)wm->windows.first;
             CTX_wm_manager_set(C, wm);
             CTX_wm_window_set(C, win);
+
+            if (fullScreen) {
+              win->windowstate = GHOST_kWindowStateFullScreen;
+            }
+            else {
+              win->windowstate = GHOST_kWindowStateNormal;
+            }
+
             InitBlenderContextVariables(C, wm, bfd->curscene);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
             WM_check(C);
