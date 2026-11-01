@@ -23,7 +23,6 @@
 #include "LN_CommandBuffer.h"
 #include "LN_Inventory.h"
 #include "LN_Manager.h"
-#include "LN_ParallelTreeExecutor.h"
 #include "LN_Program.h"
 #include "LN_QueryDiagnostics.h"
 #include "LN_RuntimeTree.h"
@@ -1322,38 +1321,6 @@ std::shared_ptr<LN_Program> CreateDeterministicWorkerCommandProgram()
   set_material_slot.secondary_value_expr_index = AddDatablockRefConstant(*program, "Material_A");
   set_material_slot.int_expr_index = AddIntConstant(*program, 1);
   program->AddInstruction(LN_Event::OnFixedUpdate, set_material_slot);
-
-  return program;
-}
-
-std::shared_ptr<LN_Program> CreateDeterministicMainThreadCommandProgram()
-{
-  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
-
-  LN_QueryExpression query;
-  query.kind = LN_QueryExpressionKind::Raycast;
-  program->AddQueryExpression(query);
-
-  LN_Instruction remove_parent;
-  remove_parent.opcode = LN_OpCode::RemoveParent;
-  program->AddInstruction(LN_Event::OnFixedUpdate, remove_parent);
-
-  LN_Instruction remove_object;
-  remove_object.opcode = LN_OpCode::RemoveObject;
-  program->AddInstruction(LN_Event::OnFixedUpdate, remove_object);
-
-  return program;
-}
-
-std::shared_ptr<LN_Program> CreateProfileCounterProgram()
-{
-  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
-
-  LN_Instruction set_window_size;
-  set_window_size.opcode = LN_OpCode::SetWindowSize;
-  set_window_size.int_expr_index = AddIntConstant(*program, 1280);
-  set_window_size.secondary_int_expr_index = AddIntConstant(*program, 720);
-  program->AddInstruction(LN_Event::OnFixedUpdate, set_window_size);
 
   return program;
 }
@@ -2689,88 +2656,6 @@ std::shared_ptr<LN_Program> CreateSnapshotQueryGuardProgram(
   program->AddInstruction(LN_Event::OnFixedUpdate, set_position);
 
   return program;
-}
-
-std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> MakeDeterminismWorkItems(
-    std::vector<std::unique_ptr<LN_RuntimeTree>> &trees)
-{
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> work_items;
-  work_items.push_back({5, trees[0].get()});
-  work_items.push_back({2, trees[1].get()});
-  work_items.push_back({4, trees[2].get()});
-  return work_items;
-}
-
-std::vector<std::unique_ptr<LN_RuntimeTree>> MakeDeterminismRuntimeTrees()
-{
-  std::shared_ptr<LN_Program> worker_program = CreateDeterministicWorkerCommandProgram();
-  std::shared_ptr<LN_Program> main_thread_program = CreateDeterministicMainThreadCommandProgram();
-  std::shared_ptr<const LN_Program> transform_program = LN_Program::CreateDebugSetWorldPosition(
-      MT_Vector3(9.0f, 8.0f, 7.0f));
-
-  EXPECT_TRUE(worker_program->IsParallelEligible());
-  EXPECT_FALSE(main_thread_program->IsParallelEligible());
-  EXPECT_TRUE(transform_program->IsParallelEligible());
-
-  std::vector<std::unique_ptr<LN_RuntimeTree>> trees;
-  trees.push_back(
-      std::make_unique<LN_RuntimeTree>(worker_program, FakeGameObjectPointer(50), 5, 0));
-  trees.push_back(
-      std::make_unique<LN_RuntimeTree>(main_thread_program, FakeGameObjectPointer(20), 2, 0));
-  trees.push_back(
-      std::make_unique<LN_RuntimeTree>(transform_program, FakeGameObjectPointer(40), 4, 0));
-  return trees;
-}
-
-std::vector<LN_CommandBuffer::Command> MergeCommandLists(
-    std::vector<LN_CommandBuffer::RecordedCommandList> command_lists)
-{
-  LN_CommandBuffer command_buffer;
-  command_buffer.MergeRecordedCommandLists(std::move(command_lists));
-  return command_buffer.GetCommandsForTests();
-}
-
-std::vector<LN_CommandBuffer::Command> RecordSerialCommandStream(
-    std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> work_items,
-    const LN_TickContext &context)
-{
-  std::vector<LN_CommandBuffer::RecordedCommandList> command_lists;
-  command_lists.reserve(work_items.size());
-  for (const LN_ParallelTreeExecutor::RuntimeTreeWorkItem &item : work_items) {
-    LN_CommandBuffer::RecordedCommandList command_list;
-    command_list.runtime_tree_index = item.runtime_tree_index;
-    command_list.commands = RecordReadyCommands(*item.runtime_tree, context);
-    command_lists.push_back(std::move(command_list));
-  }
-  return MergeCommandLists(std::move(command_lists));
-}
-
-std::vector<LN_CommandBuffer::Command> RecordSchedulerCommandStream(
-    std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> work_items,
-    const LN_TickContext &context)
-{
-  std::vector<LN_CommandBuffer::RecordedCommandList> command_lists;
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> parallel_items;
-  for (const LN_ParallelTreeExecutor::RuntimeTreeWorkItem &item : work_items) {
-    const std::shared_ptr<const LN_Program> program = item.runtime_tree->GetProgram();
-    if (program != nullptr && program->IsParallelEligible()) {
-      parallel_items.push_back(item);
-      continue;
-    }
-
-    LN_CommandBuffer::RecordedCommandList command_list;
-    command_list.runtime_tree_index = item.runtime_tree_index;
-    command_list.commands = RecordReadyCommands(*item.runtime_tree, context);
-    command_lists.push_back(std::move(command_list));
-  }
-
-  LN_ParallelTreeExecutor executor;
-  std::vector<LN_CommandBuffer::RecordedCommandList> parallel_command_lists =
-      executor.ExecuteTreesToCommandLists(parallel_items, context);
-  command_lists.insert(command_lists.end(),
-                       std::make_move_iterator(parallel_command_lists.begin()),
-                       std::make_move_iterator(parallel_command_lists.end()));
-  return MergeCommandLists(std::move(command_lists));
 }
 
 void ExpectVectorNear(const MT_Vector3 &actual, const MT_Vector3 &expected)
@@ -7672,89 +7557,6 @@ TEST(LN_RuntimeTree, SortKeyOrdersSceneObjectBeforeAppliedTree)
   EXPECT_EQ(commands[1].object, FakeGameObjectPointer(3));
 }
 
-TEST(LN_RuntimeTree, ParallelExecutorRecordsWorkerTreesIntoLocalCommandLists)
-{
-  std::shared_ptr<const LN_Program> first_program = LN_Program::CreateDebugSetWorldPosition(
-      MT_Vector3(1.0f, 0.0f, 0.0f));
-  std::shared_ptr<const LN_Program> second_program = LN_Program::CreateDebugSetWorldPosition(
-      MT_Vector3(2.0f, 0.0f, 0.0f));
-  std::shared_ptr<const LN_Program> empty_program = LN_Program::CreateDebugSetWorldPosition(
-      MT_Vector3(3.0f, 0.0f, 0.0f));
-
-  LN_RuntimeTree later_tree(first_program, FakeGameObjectPointer(20), 2, 0);
-  LN_RuntimeTree earlier_tree(second_program, FakeGameObjectPointer(10), 1, 0);
-  LN_RuntimeTree empty_tree(empty_program, FakeGameObjectPointer(30), 3, 0);
-  empty_tree.SetEnabled(false);
-
-  LN_TickContext context;
-  context.use_fixed_timestep = true;
-
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> work_items;
-  work_items.push_back({5, &later_tree});
-  work_items.push_back({3, &earlier_tree});
-  work_items.push_back({4, &empty_tree});
-
-  LN_ParallelTreeExecutor executor;
-  std::vector<LN_CommandBuffer::RecordedCommandList> command_lists =
-      executor.ExecuteTreesToCommandLists(work_items, context);
-
-  ASSERT_EQ(command_lists.size(), 3u);
-  EXPECT_EQ(command_lists[0].runtime_tree_index, 3u);
-  EXPECT_EQ(command_lists[1].runtime_tree_index, 4u);
-  EXPECT_EQ(command_lists[2].runtime_tree_index, 5u);
-  ASSERT_EQ(command_lists[0].commands.size(), 1u);
-  EXPECT_TRUE(command_lists[1].commands.empty());
-  ASSERT_EQ(command_lists[2].commands.size(), 1u);
-  EXPECT_EQ(command_lists[0].commands.front().object, FakeGameObjectPointer(10));
-  EXPECT_EQ(command_lists[2].commands.front().object, FakeGameObjectPointer(20));
-}
-
-TEST(LN_RuntimeTree, ParallelExecutorKeepsEmptySlotsForNullWorkItems)
-{
-  std::shared_ptr<const LN_Program> program = LN_Program::CreateDebugSetWorldPosition(
-      MT_Vector3(1.0f, 0.0f, 0.0f));
-
-  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(40), 4, 0);
-  LN_TickContext context;
-  context.use_fixed_timestep = true;
-
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> work_items;
-  work_items.push_back({7, nullptr});
-  work_items.push_back({4, &runtime_tree});
-
-  LN_ParallelTreeExecutor executor;
-  std::vector<LN_CommandBuffer::RecordedCommandList> command_lists =
-      executor.ExecuteTreesToCommandLists(work_items, context);
-
-  ASSERT_EQ(command_lists.size(), 2u);
-  EXPECT_EQ(command_lists[0].runtime_tree_index, 4u);
-  EXPECT_EQ(command_lists[1].runtime_tree_index, 7u);
-  ASSERT_EQ(command_lists[0].commands.size(), 1u);
-  EXPECT_TRUE(command_lists[1].commands.empty());
-  EXPECT_EQ(command_lists[0].commands.front().object, FakeGameObjectPointer(40));
-}
-
-TEST(LN_RuntimeTree, ParallelExecutorReportsRuntimeProfileCounters)
-{
-  std::shared_ptr<const LN_Program> program = CreateProfileCounterProgram();
-
-  LN_RuntimeTree runtime_tree(program, FakeGameObjectPointer(40), 4, 0);
-  LN_TickContext context;
-  context.use_fixed_timestep = true;
-
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> work_items;
-  work_items.push_back({4, &runtime_tree});
-
-  LN_ParallelTreeExecutor executor;
-  std::vector<LN_CommandBuffer::RecordedCommandList> command_lists =
-      executor.ExecuteTreesToCommandLists(work_items, context, true);
-
-  ASSERT_EQ(command_lists.size(), 1u);
-  EXPECT_EQ(command_lists[0].profile_counters.instruction_dispatch_count, 1u);
-  EXPECT_EQ(command_lists[0].profile_counters.expression_evaluation_count, 2u);
-  EXPECT_EQ(command_lists[0].profile_counters.fallback_path_count, 0u);
-}
-
 TEST(LN_RuntimeTree, ExecBlockIRRecordsSupportedVectorCommandDirectly)
 {
   std::shared_ptr<const LN_Program> program = LN_Program::CreateDebugSetWorldPosition(
@@ -10745,6 +10547,9 @@ TEST(LN_RuntimeTree, ReadsApplyOnlyTheReadObjectsPendingTransformsInFlushOrder)
 
     buffer.EndRecording();
     EXPECT_EQ(buffer.Size(), 2u);
+    /* The applied writes left the last-write-wins count (the flush's merge gate): of the two
+     * left, only second's Set World Position is one. */
+    EXPECT_EQ(buffer.FlushDecisionForTests().second, 1u);
     buffer.Flush();
     EXPECT_EQ(buffer.Size(), 0u);
     expect_at(first, MT_Vector3(2.0f, 2.0f, 0.0f));
@@ -11485,285 +11290,8 @@ TEST(LN_RuntimeTree, QueryDiagnosticsDistinguishInvalidTargetAndMissingWorld)
       "UnavailableUnsnapshottedData");
 }
 
-TEST(LN_RuntimeTree, ParallelExecutorPrewarmsQueryCachesBeforeWorkers)
-{
-  std::shared_ptr<LN_Program> program = CreateSnapshotQueryGuardProgram();
-  ASSERT_TRUE(program->IsParallelEligible());
-
-  LN_RuntimeTree first_tree(program, FakeGameObjectPointer(42), 1, 0);
-  LN_RuntimeTree second_tree(program, FakeGameObjectPointer(43), 2, 0);
-  LN_TickContext context;
-  context.use_fixed_timestep = true;
-  context.tick_index = 22;
-
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> work_items;
-  work_items.push_back({2, &second_tree});
-  work_items.push_back({1, &first_tree});
-
-  LN_ParallelTreeExecutor executor;
-  std::vector<LN_CommandBuffer::RecordedCommandList> command_lists =
-      executor.ExecuteTreesToCommandLists(work_items, context);
-
-  ASSERT_EQ(command_lists.size(), 2u);
-  EXPECT_EQ(command_lists[0].runtime_tree_index, 1u);
-  EXPECT_EQ(command_lists[1].runtime_tree_index, 2u);
-  EXPECT_TRUE(command_lists[0].commands.empty());
-  EXPECT_TRUE(command_lists[1].commands.empty());
-  EXPECT_EQ(first_tree.WarmQueryCache(context), 0u);
-  EXPECT_EQ(second_tree.WarmQueryCache(context), 0u);
-}
-
-TEST(LN_RuntimeTree, MixedSerialAndParallelCommandListsAggregateCanonically)
-{
-  std::shared_ptr<LN_Program> serial_program = LN_Program::CreateDebugSetWorldPosition(
-      MT_Vector3(1.0f, 0.0f, 0.0f));
-  LN_BoolExpression collision;
-  collision.kind = LN_BoolExpressionKind::CollisionDetected;
-  serial_program->AddBoolExpression(collision);
-  ASSERT_FALSE(serial_program->IsParallelEligible());
-
-  std::shared_ptr<const LN_Program> worker_program = LN_Program::CreateDebugSetWorldPosition(
-      MT_Vector3(2.0f, 0.0f, 0.0f));
-  ASSERT_TRUE(worker_program->IsParallelEligible());
-
-  LN_RuntimeTree serial_tree(serial_program, FakeGameObjectPointer(2), 2, 0);
-  LN_RuntimeTree worker_tree(worker_program, FakeGameObjectPointer(1), 1, 0);
-
-  LN_TickContext context;
-  context.use_fixed_timestep = true;
-
-  std::vector<LN_CommandBuffer::RecordedCommandList> command_lists;
-  LN_CommandBuffer::RecordedCommandList serial_commands;
-  serial_commands.runtime_tree_index = 2;
-  serial_commands.commands = RecordReadyCommands(serial_tree, context);
-  command_lists.push_back(std::move(serial_commands));
-
-  LN_ParallelTreeExecutor executor;
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> worker_items;
-  worker_items.push_back({1, &worker_tree});
-  std::vector<LN_CommandBuffer::RecordedCommandList> worker_command_lists =
-      executor.ExecuteTreesToCommandLists(worker_items, context);
-  command_lists.insert(command_lists.end(),
-                       std::make_move_iterator(worker_command_lists.begin()),
-                       std::make_move_iterator(worker_command_lists.end()));
-
-  LN_CommandBuffer aggregate_buffer;
-  aggregate_buffer.MergeRecordedCommandLists(std::move(command_lists));
-
-  ASSERT_EQ(aggregate_buffer.Size(), 2u);
-  const std::vector<LN_CommandBuffer::Command> &commands = aggregate_buffer.GetCommandsForTests();
-  EXPECT_EQ(commands[0].object, FakeGameObjectPointer(1));
-  EXPECT_EQ(commands[1].object, FakeGameObjectPointer(2));
-}
-
-TEST(LN_RuntimeTree, SchedulerPlannerBatchesCompatibleWorkerTrees)
-{
-  std::shared_ptr<const LN_Program> program = LN_Program::CreateDebugSetWorldPosition(
-      MT_Vector3(1.0f, 0.0f, 0.0f));
-  ASSERT_TRUE(program->IsParallelEligible());
-
-  std::vector<std::unique_ptr<LN_RuntimeTree>> trees;
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> work_items;
-  for (size_t index = 0; index < 20; index++) {
-    trees.push_back(std::make_unique<LN_RuntimeTree>(
-        program, FakeGameObjectPointer(uint32_t(index + 1)), uint32_t(index), 0));
-    work_items.push_back({index, trees.back().get()});
-  }
-
-  const LN_ParallelTreeExecutor::SchedulerPlan plan = LN_ParallelTreeExecutor::BuildSchedulerPlan(
-      work_items, true);
-  const LN_ParallelTreeExecutor::SchedulerPlannerStats stats =
-      LN_ParallelTreeExecutor::StatsForPlan(plan);
-
-  EXPECT_EQ(stats.planned_tree_count, 20u);
-  EXPECT_EQ(stats.worker_tree_count, 20u);
-  EXPECT_EQ(stats.main_thread_tree_count, 0u);
-  EXPECT_GT(stats.worker_batch_count, 0u);
-  EXPECT_LT(stats.worker_batch_count, stats.worker_tree_count);
-  EXPECT_GT(stats.max_trees_per_worker_batch, 1u);
-  EXPECT_NE(stats.command_resource_classes & LN_DEP_COMMAND_TRANSFORM, 0u);
-  EXPECT_EQ(stats.command_record_only_tree_count, 20u);
-  EXPECT_TRUE(stats.immutable_worker_inputs);
-  EXPECT_TRUE(stats.worker_metrics_are_local);
-  EXPECT_TRUE(stats.deterministic_merge_order);
-  EXPECT_TRUE(stats.main_thread_flush_isolated);
-  EXPECT_TRUE(LN_ParallelTreeExecutor::ShouldUseDirectSerialCommandRecording(plan, stats, false));
-  EXPECT_FALSE(LN_ParallelTreeExecutor::ShouldUseDirectSerialCommandRecording(plan, stats, true));
-}
-
-TEST(LN_RuntimeTree, SchedulerPlannerKeepsMainThreadOnlyTreesOutOfWorkerBatches)
-{
-  std::shared_ptr<LN_Program> main_thread_program = CreateDeterministicMainThreadCommandProgram();
-  ASSERT_FALSE(main_thread_program->IsParallelEligible());
-  std::shared_ptr<const LN_Program> worker_program = LN_Program::CreateDebugSetWorldPosition(
-      MT_Vector3(3.0f, 0.0f, 0.0f));
-  ASSERT_TRUE(worker_program->IsParallelEligible());
-
-  LN_RuntimeTree main_thread_tree(main_thread_program, FakeGameObjectPointer(10), 10, 0);
-  LN_RuntimeTree worker_tree(worker_program, FakeGameObjectPointer(11), 11, 0);
-
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> work_items;
-  work_items.push_back({10, &main_thread_tree});
-  work_items.push_back({11, &worker_tree});
-
-  const LN_ParallelTreeExecutor::SchedulerPlan plan = LN_ParallelTreeExecutor::BuildSchedulerPlan(
-      work_items, true);
-  const LN_ParallelTreeExecutor::SchedulerPlannerStats stats =
-      LN_ParallelTreeExecutor::StatsForPlan(plan);
-
-  ASSERT_EQ(plan.main_thread_items.size(), 1u);
-  EXPECT_EQ(plan.main_thread_items.front().runtime_tree, &main_thread_tree);
-  EXPECT_EQ(stats.worker_tree_count, 1u);
-  EXPECT_EQ(stats.main_thread_tree_count, 1u);
-  EXPECT_EQ(stats.main_thread_fallback_count, 1u);
-  EXPECT_NE(stats.main_thread_resource_access & LN_SCHEDULER_RESOURCE_SCENE, 0u);
-}
-
-TEST(LN_RuntimeTree, SchedulerPlannerKeepsMouseLookOnMainThread)
-{
-  std::shared_ptr<LN_Program> mouse_look_program = CreateMouseLookInputOnlyProgram(true);
-  ASSERT_FALSE(mouse_look_program->IsParallelEligible());
-  EXPECT_EQ(mouse_look_program->GetMainThreadOnlyReason(),
-            LN_MainThreadOnlyReason::InputDeviceState);
-
-  LN_RuntimeTree mouse_look_tree(mouse_look_program, FakeGameObjectPointer(12), 12, 0);
-
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> work_items;
-  work_items.push_back({12, &mouse_look_tree});
-
-  const LN_ParallelTreeExecutor::SchedulerPlan plan = LN_ParallelTreeExecutor::BuildSchedulerPlan(
-      work_items, true);
-  const LN_ParallelTreeExecutor::SchedulerPlannerStats stats =
-      LN_ParallelTreeExecutor::StatsForPlan(plan);
-
-  ASSERT_EQ(plan.main_thread_items.size(), 1u);
-  EXPECT_EQ(plan.main_thread_items.front().runtime_tree, &mouse_look_tree);
-  EXPECT_EQ(stats.worker_tree_count, 0u);
-  EXPECT_EQ(stats.main_thread_tree_count, 1u);
-  EXPECT_NE(stats.main_thread_resource_access & LN_SCHEDULER_RESOURCE_INPUT, 0u);
-}
-
-TEST(LN_RuntimeTree, SchedulerDirectSerialAllowsMostlyCommandOnlyMixedSmallTrees)
-{
-  std::shared_ptr<const LN_Program> command_program = LN_Program::CreateDebugSetWorldPosition(
-      MT_Vector3(3.0f, 0.0f, 0.0f));
-  std::shared_ptr<LN_Program> main_thread_program = CreateDeterministicMainThreadCommandProgram();
-
-  std::vector<std::unique_ptr<LN_RuntimeTree>> trees;
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> work_items;
-  for (size_t index = 0; index < 96; index++) {
-    trees.push_back(std::make_unique<LN_RuntimeTree>(
-        command_program, FakeGameObjectPointer(uint32_t(index + 1)), uint32_t(index), 0));
-    work_items.push_back({index, trees.back().get()});
-  }
-  for (size_t index = 0; index < 4; index++) {
-    const size_t tree_index = 96 + index;
-    trees.push_back(
-        std::make_unique<LN_RuntimeTree>(main_thread_program,
-                                         FakeGameObjectPointer(uint32_t(tree_index + 1)),
-                                         uint32_t(tree_index),
-                                         0));
-    work_items.push_back({tree_index, trees.back().get()});
-  }
-
-  const LN_ParallelTreeExecutor::SchedulerPlan plan = LN_ParallelTreeExecutor::BuildSchedulerPlan(
-      work_items, true);
-  const LN_ParallelTreeExecutor::SchedulerPlannerStats stats =
-      LN_ParallelTreeExecutor::StatsForPlan(plan);
-
-  EXPECT_EQ(stats.planned_tree_count, 100u);
-  EXPECT_EQ(stats.command_record_only_tree_count, 96u);
-  EXPECT_EQ(stats.main_thread_tree_count, 4u);
-  EXPECT_TRUE(LN_ParallelTreeExecutor::ShouldUseDirectSerialCommandRecording(plan, stats, false));
-}
-
-TEST(LN_RuntimeTree, SchedulerDirectSerialRejectsSmallMixedCommandOnlyWorkloads)
-{
-  std::shared_ptr<const LN_Program> command_program = LN_Program::CreateDebugSetWorldPosition(
-      MT_Vector3(3.0f, 0.0f, 0.0f));
-  std::shared_ptr<LN_Program> main_thread_program = CreateDeterministicMainThreadCommandProgram();
-
-  std::vector<std::unique_ptr<LN_RuntimeTree>> trees;
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> work_items;
-  for (size_t index = 0; index < 20; index++) {
-    trees.push_back(std::make_unique<LN_RuntimeTree>(
-        command_program, FakeGameObjectPointer(uint32_t(index + 1)), uint32_t(index), 0));
-    work_items.push_back({index, trees.back().get()});
-  }
-  for (size_t index = 0; index < 4; index++) {
-    const size_t tree_index = 20 + index;
-    trees.push_back(
-        std::make_unique<LN_RuntimeTree>(main_thread_program,
-                                         FakeGameObjectPointer(uint32_t(tree_index + 1)),
-                                         uint32_t(tree_index),
-                                         0));
-    work_items.push_back({tree_index, trees.back().get()});
-  }
-
-  const LN_ParallelTreeExecutor::SchedulerPlan plan = LN_ParallelTreeExecutor::BuildSchedulerPlan(
-      work_items, true);
-  const LN_ParallelTreeExecutor::SchedulerPlannerStats stats =
-      LN_ParallelTreeExecutor::StatsForPlan(plan);
-
-  EXPECT_EQ(stats.planned_tree_count, 24u);
-  EXPECT_EQ(stats.command_record_only_tree_count, 20u);
-  EXPECT_FALSE(LN_ParallelTreeExecutor::ShouldUseDirectSerialCommandRecording(plan, stats, false));
-}
-
-TEST(LN_RuntimeTree, SchedulerExecutorReportsBatchedPlannerStats)
-{
-  std::shared_ptr<const LN_Program> program = LN_Program::CreateDebugSetWorldPosition(
-      MT_Vector3(2.0f, 0.0f, 0.0f));
-  std::vector<std::unique_ptr<LN_RuntimeTree>> trees;
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> work_items;
-  for (size_t index = 0; index < 12; index++) {
-    trees.push_back(std::make_unique<LN_RuntimeTree>(
-        program, FakeGameObjectPointer(uint32_t(index + 20)), uint32_t(index), 0));
-    work_items.push_back({index, trees.back().get()});
-  }
-
-  LN_TickContext context;
-  context.use_fixed_timestep = true;
-  LN_ParallelTreeExecutor executor;
-  std::vector<LN_CommandBuffer::RecordedCommandList> command_lists =
-      executor.ExecuteTreesToCommandLists(work_items, context, true);
-
-  const LN_ParallelTreeExecutor::SchedulerPlannerStats &stats = executor.GetLastPlannerStats();
-  EXPECT_EQ(command_lists.size(), 12u);
-  EXPECT_EQ(stats.worker_tree_count, 12u);
-  EXPECT_GT(stats.worker_batch_count, 0u);
-  EXPECT_LT(stats.worker_batch_count, stats.worker_tree_count);
-  EXPECT_GT(stats.average_trees_per_worker_batch_x100, 100u);
-  for (size_t index = 0; index < command_lists.size(); index++) {
-    EXPECT_EQ(command_lists[index].runtime_tree_index, index);
-    ASSERT_EQ(command_lists[index].commands.size(), 1u);
-    EXPECT_EQ(command_lists[index].commands.front().type,
-              LN_CommandBuffer::CommandType::SetWorldPosition);
-  }
-}
-
-TEST(LN_RuntimeTree, SerialAndSchedulerCommandStreamsMatch)
-{
-  LN_TickContext context;
-  context.use_fixed_timestep = true;
-  context.tick_index = 12;
-
-  std::vector<std::unique_ptr<LN_RuntimeTree>> serial_trees = MakeDeterminismRuntimeTrees();
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> serial_items =
-      MakeDeterminismWorkItems(serial_trees);
-  std::vector<LN_CommandBuffer::Command> serial_commands = RecordSerialCommandStream(serial_items,
-                                                                                     context);
-
-  std::vector<std::unique_ptr<LN_RuntimeTree>> scheduler_trees = MakeDeterminismRuntimeTrees();
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> scheduler_items =
-      MakeDeterminismWorkItems(scheduler_trees);
-  std::vector<LN_CommandBuffer::Command> scheduler_commands = RecordSchedulerCommandStream(
-      scheduler_items, context);
-
-  ExpectCommandStreamsEqual(scheduler_commands, serial_commands);
-}
-
-TEST(LN_RuntimeTree, SerialAndSchedulerForcedRunOnceStreamsMatch)
+/* Two trees of one program forced once (Run Logic Tree Once) record the same commands. */
+TEST(LN_RuntimeTree, ForcedRunOnceStreamsAreDeterministic)
 {
   LN_TickContext context;
   context.use_fixed_timestep = true;
@@ -11771,17 +11299,17 @@ TEST(LN_RuntimeTree, SerialAndSchedulerForcedRunOnceStreamsMatch)
 
   std::shared_ptr<LN_Program> program = CreateDeterministicWorkerCommandProgram();
   KX_GameObject test_game_object;
-  LN_RuntimeTree serial_tree(program, &test_game_object, 5, 0);
-  LN_RuntimeTree scheduler_tree(program, &test_game_object, 5, 0);
+  LN_RuntimeTree first_tree(program, &test_game_object, 5, 0);
+  LN_RuntimeTree second_tree(program, &test_game_object, 5, 0);
 
-  std::vector<LN_CommandBuffer::Command> serial_commands = RecordForcedCommands(serial_tree,
+  std::vector<LN_CommandBuffer::Command> first_commands = RecordForcedCommands(first_tree,
+                                                                               context);
+  std::vector<LN_CommandBuffer::Command> second_commands = RecordForcedCommands(second_tree,
                                                                                 context);
-  std::vector<LN_CommandBuffer::Command> scheduler_commands = RecordForcedCommands(scheduler_tree,
-                                                                                   context);
 
-  LN_CommandBuffer::SortCommands(serial_commands);
-  LN_CommandBuffer::SortCommands(scheduler_commands);
-  ExpectCommandStreamsEqual(scheduler_commands, serial_commands);
+  LN_CommandBuffer::SortCommands(first_commands);
+  LN_CommandBuffer::SortCommands(second_commands);
+  ExpectCommandStreamsEqual(second_commands, first_commands);
 }
 
 TEST(LN_RuntimeTree, ForcedRunOnceExecutionRecordsThroughLocalBuffer)
@@ -12430,4 +11958,96 @@ TEST(LN_RuntimeTree, InventoryNodeFollowsTheListsRulesUnlessOverridden)
   std::tie(leftover, outcome) = LN_RuntimeTreeTestAccess::RunInventoryEdit(
       runtime_tree, add_item(false), slots, nullptr);
   EXPECT_EQ(leftover, 0);
+}
+
+/* A node reading another object (Get Object Attribute with its Object set) captures only the
+ * channel it reads, with the values a whole snapshot of that object holds; it built and filled a
+ * whole snapshot (input included) at every read until 2026-10-30. */
+TEST(LN_RuntimeTree, OtherObjectReadsCaptureTheirChannelAsAWholeSnapshotDoes)
+{
+  PositionedGameObject target(MT_Vector3(1.0f, -2.0f, 3.0f));
+  target.object.SetObjectColor(MT_Vector4(0.25f, 0.5f, 0.75f, 0.5f));
+  LN_Snapshot whole;
+  whole.Capture(&target.object, nullptr);
+  const LN_ObjectSnapshot &expected = whole.GetObjectSnapshot();
+  const LN_ObjectSnapshot defaults;
+
+  /* Each channel's fields: those of `a` against `b`. */
+  const auto expect_channel = [](const LN_ObjectSnapshot &a,
+                                 const LN_ObjectSnapshot &b,
+                                 const LN_SnapshotChannelMask channel,
+                                 const char *what) {
+    switch (channel) {
+      case LN_SNAPSHOT_CHANNEL_TRANSFORM:
+        EXPECT_EQ(a.world_position, b.world_position) << what;
+        EXPECT_EQ(a.local_position, b.local_position) << what;
+        EXPECT_EQ(a.world_orientation.ToEulerXYZ(), b.world_orientation.ToEulerXYZ()) << what;
+        EXPECT_EQ(a.local_orientation.ToEulerXYZ(), b.local_orientation.ToEulerXYZ()) << what;
+        EXPECT_EQ(a.world_scale, b.world_scale) << what;
+        EXPECT_EQ(a.local_scale, b.local_scale) << what;
+        break;
+      case LN_SNAPSHOT_CHANNEL_VELOCITY:
+        EXPECT_EQ(a.linear_velocity, b.linear_velocity) << what;
+        EXPECT_EQ(a.local_linear_velocity, b.local_linear_velocity) << what;
+        EXPECT_EQ(a.angular_velocity, b.angular_velocity) << what;
+        EXPECT_EQ(a.local_angular_velocity, b.local_angular_velocity) << what;
+        break;
+      case LN_SNAPSHOT_CHANNEL_COLOR:
+        EXPECT_EQ(a.object_color, b.object_color) << what;
+        break;
+      case LN_SNAPSHOT_CHANNEL_LIGHT:
+        EXPECT_EQ(a.light_color, b.light_color) << what;
+        EXPECT_EQ(a.light_power, b.light_power) << what;
+        EXPECT_EQ(a.light_shadow, b.light_shadow) << what;
+        break;
+      case LN_SNAPSHOT_CHANNEL_VISIBILITY:
+        EXPECT_EQ(a.visible, b.visible) << what;
+        break;
+      case LN_SNAPSHOT_CHANNEL_COLLISION:
+        EXPECT_EQ(a.collision_group, b.collision_group) << what;
+        break;
+      case LN_SNAPSHOT_CHANNEL_CHARACTER:
+        EXPECT_EQ(a.has_character, b.has_character) << what;
+        EXPECT_EQ(a.character_on_ground, b.character_on_ground) << what;
+        EXPECT_EQ(a.character_max_jumps, b.character_max_jumps) << what;
+        EXPECT_EQ(a.character_jump_count, b.character_jump_count) << what;
+        EXPECT_EQ(a.character_walk_direction_world, b.character_walk_direction_world) << what;
+        EXPECT_EQ(a.character_walk_direction_local, b.character_walk_direction_local) << what;
+        break;
+      default:
+        break;
+    }
+  };
+  const LN_SnapshotChannelMask channels[] = {LN_SNAPSHOT_CHANNEL_TRANSFORM,
+                                             LN_SNAPSHOT_CHANNEL_VELOCITY,
+                                             LN_SNAPSHOT_CHANNEL_COLOR,
+                                             LN_SNAPSHOT_CHANNEL_LIGHT,
+                                             LN_SNAPSHOT_CHANNEL_VISIBILITY,
+                                             LN_SNAPSHOT_CHANNEL_COLLISION,
+                                             LN_SNAPSHOT_CHANNEL_CHARACTER};
+  /* The test is about real values: the whole snapshot holds the object's own. */
+  EXPECT_EQ(expected.world_position, MT_Vector3(1.0f, -2.0f, 3.0f));
+  EXPECT_EQ(expected.object_color, MT_Vector4(0.25f, 0.5f, 0.75f, 0.5f));
+
+  for (const LN_SnapshotChannelMask channel : channels) {
+    LN_ObjectSnapshot captured;
+    /* What an earlier read left must not show through. */
+    captured.world_position = MT_Vector3(9.0f, 9.0f, 9.0f);
+    captured.object_color = MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+    captured.visible = !defaults.visible;
+    EXPECT_EQ(&LN_CaptureObjectSnapshot(&target.object, channel, captured), &captured);
+    EXPECT_EQ(captured.object, &target.object);
+    for (const LN_SnapshotChannelMask other : channels) {
+      expect_channel(captured,
+                     other == channel ? expected : defaults,
+                     other,
+                     other == channel ? "the channel read" : "a channel not read");
+    }
+  }
+
+  LN_ObjectSnapshot all;
+  LN_CaptureObjectSnapshot(&target.object, LN_SNAPSHOT_CHANNEL_ALL, all);
+  for (const LN_SnapshotChannelMask channel : channels) {
+    expect_channel(all, expected, channel, "all channels");
+  }
 }

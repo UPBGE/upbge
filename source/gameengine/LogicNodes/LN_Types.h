@@ -66,6 +66,20 @@ enum class LN_PauseProcessingScope : uint8_t {
   Scene,
 };
 
+/** On Logic + Physics Step's "Every N Steps": its routes run only on every `interval`-th step.
+ * With `spread`, each object using the tree runs on its own step of the N (trees of one source
+ * tree are numbered as they start), so N objects' work is spread evenly; without, all run on the
+ * steps divisible by N. Step nodes with the same setting share one gate (same due steps). */
+struct LN_StepGate {
+  uint32_t interval = 1;
+  bool spread = true;
+};
+
+/** On Logic + Physics Step's node setting (custom2 bit): all objects run on the same steps. */
+inline constexpr int16_t LN_STEP_GATE_SAME_STEP = 1 << 0;
+/** Largest Every N Steps (the node's setting is clamped to it). */
+inline constexpr uint32_t LN_STEP_GATE_MAX_INTERVAL = 1000;
+
 struct LN_PauseProcessingRequest {
   LN_PauseProcessingScope scope = LN_PauseProcessingScope::Owner;
   uint32_t target_value_expr_index = LN_INVALID_INDEX;
@@ -854,6 +868,9 @@ enum class LN_FloatExpressionKind : uint8_t {
   /** Get Player View: where the player's view is, in window fractions. input0 = user (int),
    * component_index 0 Left, 1 Top, 2 Width, 3 Height. */
   PlayerViewArea,
+  /** On Logic + Physics Step's Time Passed: the game time since its route last ran. int_value =
+   * the node's step gate (LN_StepGate), -1 for a node that runs every step. */
+  StepTimePassed,
   Count,
 };
 
@@ -1673,16 +1690,6 @@ struct LN_RuntimeRef {
   }
 };
 
-struct LN_PhysicsControllerHandle {
-  LN_RuntimeRef object_ref;
-  uint32_t controller_generation = 0;
-
-  bool IsValid() const
-  {
-    return object_ref.IsValid() && controller_generation != 0;
-  }
-};
-
 enum class LN_QueryDiagnosticStatus : uint8_t {
   NotEvaluated = 0,
   Hit,
@@ -1881,6 +1888,10 @@ struct LN_Instruction {
    * in one frame, the instructions of its route run again for each further event.
    */
   uint32_t ui_event_state_index = LN_INVALID_INDEX;
+  /** Part of a route of On Logic + Physics Step's Every N Steps: the program's LN_StepGate it runs
+   * behind (only on that gate's steps, with the time passed since its last run). Continuations
+   * (a latent node's Done...) start fresh routes that run whenever they fire. */
+  uint32_t step_gate_index = LN_INVALID_INDEX;
   LN_ValueType property_value_type = LN_ValueType::None;
   int32_t int_value = 0;
   int32_t secondary_int_value = 0;
@@ -2235,8 +2246,9 @@ struct LN_Value {
   MT_Vector4 color_value = MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f);
   LN_Rotation rotation_value;
   LN_RuntimeRef runtime_ref;
-  LN_PhysicsControllerHandle physics_controller;
-  LN_PhysicsQueryResult physics_query_result;
+  /* No physics controller handle or query result here (2026-10-31): nothing ever read or wrote
+   * them, and they were 240 of the value's 544 bytes, paid by every value made or copied. Query
+   * results live in LN_QueryResult. */
   std::vector<LN_Value> list_value;
   std::map<std::string, LN_Value> dict_value;
   std::string reference_name;
@@ -2267,6 +2279,45 @@ struct LN_Value {
     rotation_value = rotation;
     vector_value = euler_radians;
     rotation_euler_hint_valid = true;
+  }
+};
+
+/**
+ * A number written to a property without a whole LN_Value (Set Game Property Bool, Int or
+ * Float): `type` and the matching field. Its value (ToValue) is the one those nodes made before:
+ * the default value with `exists`, `type` and that field set. None: no number.
+ */
+struct LN_PropertyNumber {
+  LN_ValueType type = LN_ValueType::None;
+  bool bool_value = false;
+  int32_t int_value = 0;
+  float float_value = 0.0f;
+
+  bool IsNumber() const
+  {
+    return type == LN_ValueType::Bool || type == LN_ValueType::Int || type == LN_ValueType::Float;
+  }
+
+  LN_Value ToValue() const
+  {
+    LN_Value value;
+    if (!IsNumber()) {
+      return value;
+    }
+    value.exists = true;
+    value.type = type;
+    switch (type) {
+      case LN_ValueType::Bool:
+        value.bool_value = bool_value;
+        break;
+      case LN_ValueType::Int:
+        value.int_value = int_value;
+        break;
+      default:
+        value.float_value = float_value;
+        break;
+    }
+    return value;
   }
 };
 
@@ -2326,6 +2377,10 @@ struct LN_TickContext {
   LN_CommandBuffer *command_buffer = nullptr;
   uint64_t tick_index = 0;
   uint64_t phase_tick_index = 0;
+  /** Steps between two runs of the route being executed: 1, or N inside a route of On Logic +
+   * Physics Step's Every N Steps. Nodes that need their flow on consecutive runs (Pulsify,
+   * Barrier, an on-demand Tween) count a run this many steps later as the next one. */
+  uint32_t phase_tick_stride = 1;
   /** Monotonic command-execution point used by command-ordered query caches. */
   uint64_t command_execution_key = UINT64_MAX;
   uint64_t execution_scope_serial = 0;

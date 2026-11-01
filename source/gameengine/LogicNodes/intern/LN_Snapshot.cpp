@@ -211,6 +211,17 @@ bool LN_TryGetGamepadTriggerStrength(const LN_GamepadSnapshot &gamepad,
   return true;
 }
 
+const LN_InputSnapshot &LN_Snapshot::EmptyInput()
+{
+  /* What Capture(nullptr, nullptr) leaves: no device, nothing held. */
+  static const LN_InputSnapshot empty = [] {
+    LN_InputSnapshot input;
+    input.Capture(nullptr, nullptr);
+    return input;
+  }();
+  return empty;
+}
+
 LN_SnapshotChannelMask LN_SnapshotChannelMaskFromDependencies(const uint32_t dependency_channels)
 {
   LN_SnapshotChannelMask mask = LN_SNAPSHOT_CHANNEL_NONE;
@@ -852,6 +863,103 @@ const LN_InputActionState *LN_Snapshot::GetInputActionState(const int32_t action
   return tracker != nullptr ? tracker->Find(action, user) : nullptr;
 }
 
+/**
+ * The object state channels of `mask` (SNAPSHOT_OBJECT_STATE_CHANNELS) into `r_object`, which
+ * holds the defaults; `gravity` is a character's until its controller gives its own. Returns the
+ * channels captured.
+ */
+static LN_SnapshotChannelMask capture_object_state(KX_GameObject &gameobj,
+                                                   const LN_SnapshotChannelMask mask,
+                                                   const MT_Vector3 &gravity,
+                                                   LN_ObjectSnapshot &r_object)
+{
+  LN_SnapshotChannelMask captured = LN_SNAPSHOT_CHANNEL_NONE;
+  if (HasSnapshotChannel(mask, LN_SNAPSHOT_CHANNEL_TRANSFORM)) {
+    r_object.world_position = gameobj.NodeGetWorldPosition();
+    r_object.local_position = gameobj.NodeGetLocalPosition();
+    r_object.world_orientation = LN_Rotation::FromMatrix(gameobj.NodeGetWorldOrientation());
+    r_object.local_orientation = LN_Rotation::FromMatrix(gameobj.NodeGetLocalOrientation());
+    r_object.world_scale = gameobj.NodeGetWorldScaling();
+    r_object.local_scale = gameobj.NodeGetLocalScaling();
+    captured |= LN_SNAPSHOT_CHANNEL_TRANSFORM;
+  }
+
+  if (HasSnapshotChannel(mask, LN_SNAPSHOT_CHANNEL_VELOCITY)) {
+    r_object.linear_velocity = gameobj.GetLinearVelocity(false);
+    r_object.local_linear_velocity = gameobj.GetLinearVelocity(true);
+    r_object.angular_velocity = gameobj.GetAngularVelocity(false);
+    r_object.local_angular_velocity = gameobj.GetAngularVelocity(true);
+    captured |= LN_SNAPSHOT_CHANNEL_VELOCITY;
+  }
+
+  if (HasSnapshotChannel(mask, LN_SNAPSHOT_CHANNEL_COLOR)) {
+    r_object.object_color = gameobj.GetObjectColor();
+    captured |= LN_SNAPSHOT_CHANNEL_COLOR;
+  }
+
+  if (HasSnapshotChannel(mask, LN_SNAPSHOT_CHANNEL_LIGHT)) {
+    if (KX_LightObject *light_object = dynamic_cast<KX_LightObject *>(&gameobj)) {
+      if (blender::Light *light = light_object->GetLight()) {
+        r_object.light_color = MT_Vector4(light->r, light->g, light->b, 1.0f);
+        r_object.light_power = light->energy;
+        r_object.light_shadow = (light->mode & blender::LA_SHADOW) != 0;
+      }
+    }
+    captured |= LN_SNAPSHOT_CHANNEL_LIGHT;
+  }
+
+  if (HasSnapshotChannel(mask, LN_SNAPSHOT_CHANNEL_VISIBILITY)) {
+    r_object.visible = gameobj.GetVisible();
+    captured |= LN_SNAPSHOT_CHANNEL_VISIBILITY;
+  }
+
+  if (HasSnapshotChannel(mask, LN_SNAPSHOT_CHANNEL_COLLISION)) {
+    r_object.collision_group = gameobj.GetCollisionGroup();
+    captured |= LN_SNAPSHOT_CHANNEL_COLLISION;
+  }
+
+  if (HasSnapshotChannel(mask, LN_SNAPSHOT_CHANNEL_CHARACTER)) {
+    r_object.character_gravity = gravity;
+    if (KX_Scene *scene = gameobj.GetScene()) {
+      if (PHY_IPhysicsEnvironment *environment = scene->GetPhysicsEnvironment()) {
+        if (PHY_ICharacter *character = environment->GetCharacterController(&gameobj)) {
+          const MT_Vector3 walk_direction = character->GetWalkDirection();
+          r_object.has_character = true;
+          r_object.character_on_ground = character->OnGround();
+          r_object.character_max_jumps = character->GetMaxJumps();
+          r_object.character_jump_count = character->GetJumpCount();
+          r_object.character_gravity = character->GetGravity();
+          r_object.character_walk_direction_world = walk_direction;
+          r_object.character_walk_direction_local =
+              gameobj.NodeGetWorldOrientation().transposed() * walk_direction;
+        }
+      }
+    }
+    captured |= LN_SNAPSHOT_CHANNEL_CHARACTER;
+  }
+  return captured;
+}
+
+const LN_ObjectSnapshot &LN_CaptureObjectSnapshot(KX_GameObject *gameobj,
+                                                  const LN_SnapshotChannelMask channels,
+                                                  LN_ObjectSnapshot &r_object)
+{
+  r_object.object = gameobj;
+  ResetObjectSnapshot(r_object);
+  if (gameobj == nullptr) {
+    return r_object;
+  }
+  /* A snapshot without a program or tick context starts a character from the scene's gravity. */
+  MT_Vector3 gravity(0.0f, 0.0f, -9.8f);
+  if (HasSnapshotChannel(channels, LN_SNAPSHOT_CHANNEL_CHARACTER)) {
+    if (KX_Scene *scene = gameobj->GetScene()) {
+      gravity = scene->GetGravity();
+    }
+  }
+  capture_object_state(*gameobj, channels & SNAPSHOT_OBJECT_STATE_CHANNELS, gravity, r_object);
+  return r_object;
+}
+
 void LN_Snapshot::Capture(KX_GameObject *gameobj,
                           const LN_Program *program,
                           const LN_TickReadContext *tick_context,
@@ -875,7 +983,7 @@ void LN_Snapshot::Capture(KX_GameObject *gameobj,
   m_frameDelta = 0.0f;
   m_fps = 0.0f;
   m_deltaFactor = 1.0f;
-  m_gameProperties.clear();
+  m_gamePropertyCount = 0;
 
   if (tick_context != nullptr && tick_context->has_timing) {
     m_timeScale = tick_context->time_scale;
@@ -906,11 +1014,14 @@ void LN_Snapshot::Capture(KX_GameObject *gameobj,
   if (tick_context == nullptr || (!tick_context->has_input && tick_context->input_channels !=
                                                                LN_DEP_INPUT_NONE))
   {
+    if (m_ownInput == nullptr) {
+      m_ownInput = std::make_unique<LN_InputSnapshot>();
+    }
     if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
-      m_input.Capture(engine->GetInputDevice(), engine->GetCanvas());
+      m_ownInput->Capture(engine->GetInputDevice(), engine->GetCanvas());
     }
     else {
-      m_input.Capture(nullptr, nullptr);
+      m_ownInput->Capture(nullptr, nullptr);
     }
   }
 
@@ -928,69 +1039,8 @@ void LN_Snapshot::Capture(KX_GameObject *gameobj,
     m_captureStats.captured_channels |= declared_mask & SNAPSHOT_OBJECT_STATE_CHANNELS;
   }
   else {
-    if (HasSnapshotChannel(declared_mask, LN_SNAPSHOT_CHANNEL_TRANSFORM)) {
-      m_object.world_position = gameobj->NodeGetWorldPosition();
-      m_object.local_position = gameobj->NodeGetLocalPosition();
-      m_object.world_orientation = LN_Rotation::FromMatrix(gameobj->NodeGetWorldOrientation());
-      m_object.local_orientation = LN_Rotation::FromMatrix(gameobj->NodeGetLocalOrientation());
-      m_object.world_scale = gameobj->NodeGetWorldScaling();
-      m_object.local_scale = gameobj->NodeGetLocalScaling();
-      m_captureStats.captured_channels |= LN_SNAPSHOT_CHANNEL_TRANSFORM;
-    }
-
-    if (HasSnapshotChannel(declared_mask, LN_SNAPSHOT_CHANNEL_VELOCITY)) {
-      m_object.linear_velocity = gameobj->GetLinearVelocity(false);
-      m_object.local_linear_velocity = gameobj->GetLinearVelocity(true);
-      m_object.angular_velocity = gameobj->GetAngularVelocity(false);
-      m_object.local_angular_velocity = gameobj->GetAngularVelocity(true);
-      m_captureStats.captured_channels |= LN_SNAPSHOT_CHANNEL_VELOCITY;
-    }
-
-    if (HasSnapshotChannel(declared_mask, LN_SNAPSHOT_CHANNEL_COLOR)) {
-      m_object.object_color = gameobj->GetObjectColor();
-      m_captureStats.captured_channels |= LN_SNAPSHOT_CHANNEL_COLOR;
-    }
-
-    if (HasSnapshotChannel(declared_mask, LN_SNAPSHOT_CHANNEL_LIGHT)) {
-      if (KX_LightObject *light_object = dynamic_cast<KX_LightObject *>(gameobj)) {
-        if (blender::Light *light = light_object->GetLight()) {
-          m_object.light_color = MT_Vector4(light->r, light->g, light->b, 1.0f);
-          m_object.light_power = light->energy;
-          m_object.light_shadow = (light->mode & blender::LA_SHADOW) != 0;
-        }
-      }
-      m_captureStats.captured_channels |= LN_SNAPSHOT_CHANNEL_LIGHT;
-    }
-
-    if (HasSnapshotChannel(declared_mask, LN_SNAPSHOT_CHANNEL_VISIBILITY)) {
-      m_object.visible = gameobj->GetVisible();
-      m_captureStats.captured_channels |= LN_SNAPSHOT_CHANNEL_VISIBILITY;
-    }
-
-    if (HasSnapshotChannel(declared_mask, LN_SNAPSHOT_CHANNEL_COLLISION)) {
-      m_object.collision_group = gameobj->GetCollisionGroup();
-      m_captureStats.captured_channels |= LN_SNAPSHOT_CHANNEL_COLLISION;
-    }
-
-    if (HasSnapshotChannel(declared_mask, LN_SNAPSHOT_CHANNEL_CHARACTER)) {
-      m_object.character_gravity = m_gravity;
-      if (KX_Scene *scene = gameobj->GetScene()) {
-        if (PHY_IPhysicsEnvironment *environment = scene->GetPhysicsEnvironment()) {
-          if (PHY_ICharacter *character = environment->GetCharacterController(gameobj)) {
-            const MT_Vector3 walk_direction = character->GetWalkDirection();
-            m_object.has_character = true;
-            m_object.character_on_ground = character->OnGround();
-            m_object.character_max_jumps = character->GetMaxJumps();
-            m_object.character_jump_count = character->GetJumpCount();
-            m_object.character_gravity = character->GetGravity();
-            m_object.character_walk_direction_world = walk_direction;
-            m_object.character_walk_direction_local =
-                gameobj->NodeGetWorldOrientation().transposed() * walk_direction;
-          }
-        }
-      }
-      m_captureStats.captured_channels |= LN_SNAPSHOT_CHANNEL_CHARACTER;
-    }
+    m_captureStats.captured_channels |= capture_object_state(
+        *gameobj, declared_mask, m_gravity, m_object);
 
     if (HasSnapshotChannel(declared_mask, LN_SNAPSHOT_CHANNEL_GAME_PROPERTY) &&
         program != nullptr)
@@ -1009,63 +1059,98 @@ void LN_Snapshot::Capture(KX_GameObject *gameobj,
       m_gameProperties.capacity() == previous_property_capacity;
 }
 
+/**
+ * One game property's value as the snapshot gives it: the ref's default, with `exists` and the
+ * value of the ref's type taken from the live property (`property`, nullptr: the object has
+ * none). `value` already holds the default in every other field; this rewrites the fields a
+ * capture decides, so the result is the same whatever an earlier capture left in them.
+ */
+static void update_game_property_value(LN_Value &value,
+                                       const LN_GamePropertyRef &property_ref,
+                                       EXP_Value *property)
+{
+  if (property_ref.name.empty()) {
+    return;
+  }
+  const LN_Value &default_value = property_ref.default_value;
+  value.exists = property != nullptr;
+  /* Numbers as EXP_Value::GetPropertyNumber gives them: a float. */
+  switch (property_ref.value_type) {
+    case LN_ValueType::Bool:
+      value.bool_value = property != nullptr ? float(property->GetNumber()) != 0.0f :
+                                               default_value.bool_value;
+      break;
+    case LN_ValueType::Int:
+      /* A vector, list or object is no number: the default, as when the node reads another
+       * object. */
+      value.int_value = property != nullptr && is_number_or_text(property) ?
+                            int32_t(float(property->GetNumber())) :
+                            default_value.int_value;
+      break;
+    case LN_ValueType::Float:
+      value.float_value = property != nullptr && is_number_or_text(property) ?
+                              float(property->GetNumber()) :
+                              default_value.float_value;
+      break;
+    case LN_ValueType::String:
+      if (property != nullptr) {
+        value.string_value = property->GetText();
+      }
+      else {
+        value.string_value = default_value.string_value;
+      }
+      break;
+    case LN_ValueType::Vector:
+    case LN_ValueType::Vector4:
+    case LN_ValueType::Matrix:
+    case LN_ValueType::Color:
+    case LN_ValueType::Rotation:
+    case LN_ValueType::ObjectRef:
+    case LN_ValueType::SceneRef:
+    case LN_ValueType::CollectionRef:
+    case LN_ValueType::DatablockRef:
+    case LN_ValueType::List:
+    case LN_ValueType::Dict:
+    case LN_ValueType::Generic:
+    case LN_ValueType::None:
+      break;
+  }
+}
+
 void LN_Snapshot::CaptureGameProperties(KX_GameObject *gameobj, const LN_Program &program)
 {
-  m_gameProperties.clear();
   const std::vector<LN_GamePropertyRef> &property_refs = program.GetGamePropertyRefs();
-  m_gameProperties.reserve(property_refs.size());
-  for (const LN_GamePropertyRef &property_ref : property_refs) {
-    LN_Value value = property_ref.default_value;
-    value.type = property_ref.value_type;
+  const size_t count = property_refs.size();
 
-    if (!property_ref.name.empty()) {
-      EXP_Value *property = gameobj->GetProperty(property_ref.name);
-      value.exists = property != nullptr;
-      if (property != nullptr) {
-        switch (property_ref.value_type) {
-          case LN_ValueType::Bool:
-            value.bool_value = gameobj->GetPropertyNumber(
-                                   property_ref.name,
-                                   property_ref.default_value.bool_value ? 1.0f : 0.0f) !=
-                               0.0f;
-            break;
-          case LN_ValueType::Int:
-            /* A vector, list or object is no number: the default, as when the node reads
-             * another object. */
-            if (is_number_or_text(property)) {
-              value.int_value = int32_t(gameobj->GetPropertyNumber(
-                  property_ref.name, property_ref.default_value.int_value));
-            }
-            break;
-          case LN_ValueType::Float:
-            if (is_number_or_text(property)) {
-              value.float_value = gameobj->GetPropertyNumber(
-                  property_ref.name, property_ref.default_value.float_value);
-            }
-            break;
-          case LN_ValueType::String:
-            value.string_value = property->GetText();
-            break;
-          case LN_ValueType::Vector:
-          case LN_ValueType::Vector4:
-          case LN_ValueType::Matrix:
-          case LN_ValueType::Color:
-          case LN_ValueType::Rotation:
-          case LN_ValueType::ObjectRef:
-          case LN_ValueType::SceneRef:
-          case LN_ValueType::CollectionRef:
-          case LN_ValueType::DatablockRef:
-          case LN_ValueType::List:
-          case LN_ValueType::Dict:
-          case LN_ValueType::Generic:
-          case LN_ValueType::None:
-            break;
-        }
-      }
+  /* Another program: every value starts again from its ref's default. */
+  if (m_gamePropertyProgramId != program.GetUniqueId() || m_gameProperties.size() != count) {
+    m_gameProperties.clear();
+    m_gameProperties.reserve(count);
+    for (const LN_GamePropertyRef &property_ref : property_refs) {
+      LN_Value &value = m_gameProperties.emplace_back(property_ref.default_value);
+      value.type = property_ref.value_type;
     }
-
-    m_gameProperties.push_back(value);
+    m_gamePropertyProgramId = program.GetUniqueId();
+    m_gamePropertyObject = nullptr;
   }
+
+  /* Another object, or a property of it added, replaced or removed: find them by name again. */
+  const uint64_t map_stamp = gameobj->GetPropertyMapStamp();
+  if (m_gamePropertyObject != gameobj || m_gamePropertyMapStamp != map_stamp) {
+    m_gamePropertyHandles.resize(count);
+    for (size_t index = 0; index < count; index++) {
+      const std::string &name = property_refs[index].name;
+      m_gamePropertyHandles[index] = name.empty() ? nullptr : gameobj->GetProperty(name);
+    }
+    m_gamePropertyObject = gameobj;
+    m_gamePropertyMapStamp = map_stamp;
+  }
+
+  for (size_t index = 0; index < count; index++) {
+    update_game_property_value(
+        m_gameProperties[index], property_refs[index], m_gamePropertyHandles[index]);
+  }
+  m_gamePropertyCount = uint32_t(count);
 }
 
 void LN_Snapshot::RefreshGameProperties(KX_GameObject *gameobj, const LN_Program *program)
@@ -1080,7 +1165,7 @@ void LN_Snapshot::RefreshGameProperties(KX_GameObject *gameobj, const LN_Program
 const LN_Value *LN_Snapshot::GetGamePropertyValue(uint32_t property_ref_index) const
 {
   RequireCapturedChannel(LN_SNAPSHOT_CHANNEL_GAME_PROPERTY, "game property");
-  if (property_ref_index >= m_gameProperties.size()) {
+  if (property_ref_index >= m_gamePropertyCount) {
     return nullptr;
   }
   return &m_gameProperties[property_ref_index];

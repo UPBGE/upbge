@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -81,12 +82,12 @@ class LN_EventBus {
 
   uint64_t IndexedLookupCount() const
   {
-    return m_indexedLookupCount;
+    return m_indexedLookupCount.load(std::memory_order_relaxed);
   }
 
   uint64_t FallbackScanCount() const
   {
-    return m_fallbackScanCount;
+    return m_fallbackScanCount.load(std::memory_order_relaxed);
   }
 
  private:
@@ -102,8 +103,10 @@ class LN_EventBus {
   std::unordered_map<uint32_t, std::vector<uint32_t>> m_subjectIndex;
   std::unordered_map<uint64_t, std::vector<uint32_t>> m_targetIndex;
   std::vector<uint32_t> m_broadcastEventIndices;
-  mutable uint64_t m_indexedLookupCount = 0;
-  mutable uint64_t m_fallbackScanCount = 0;
+  /* Statistics only, counted by every reader: atomic, as trees read events on helper threads
+   * too (step 7). */
+  mutable std::atomic<uint64_t> m_indexedLookupCount{0};
+  mutable std::atomic<uint64_t> m_fallbackScanCount{0};
 };
 
 LN_EventPayloadLane LN_EventPayloadLaneForValue(const LN_Value &value);

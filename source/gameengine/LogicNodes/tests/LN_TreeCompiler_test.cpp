@@ -32,7 +32,9 @@
 
 #include "LN_BindingSource.h"
 #include "LN_CommandBuffer.h"
+#include "LN_JobPool.h"
 #include "LN_RuntimeTree.h"
+#include "LN_TreeBatch.h"
 #include "LN_TreeCompiler.h"
 #include "DEV_InputDevice.h"
 #include "KX_Camera.h"
@@ -18434,6 +18436,1855 @@ TEST(LN_TreeCompiler, CollectionObjectListsFollowRuntimeMembership)
     /* Without a scene the list is empty, and the tree still runs. */
     EXPECT_EQ(PrintsOfFixedSteps(program, 1).back(), std::vector<std::string>{"0"});
   }
+}
+
+/* Every N Steps (On Logic + Physics Step). Trees of one program on their own objects, spread
+ * 0, 1, 2... as the manager numbers them, run through Logic + Physics steps as the manager runs
+ * them: each tree is told the step, then runs if it has work in it (`skip_idle`) or always. A
+ * tree must print the same either way: sleeping through a step may never change what it does. */
+struct SteppedTrees {
+  std::vector<std::unique_ptr<KX_GameObject>> owners;
+  std::vector<std::unique_ptr<LN_RuntimeTree>> trees;
+
+  SteppedTrees(const std::shared_ptr<LN_Program> &program, const uint32_t count)
+  {
+    for (uint32_t index = 0; index < count; index++) {
+      owners.push_back(std::make_unique<KX_GameObject>());
+      trees.push_back(std::make_unique<LN_RuntimeTree>(program, owners.back().get(), index, 0));
+      trees.back()->SetStepSpread(index);
+    }
+  }
+  ~SteppedTrees()
+  {
+    trees.clear();
+  }
+
+  static LN_TickContext Context(const uint64_t step, const double delta)
+  {
+    LN_TickContext context;
+    context.event = LN_Event::OnFixedUpdate;
+    context.use_fixed_timestep = true;
+    context.tick_index = step + 1;
+    context.phase_tick_index = step;
+    context.delta_time = delta;
+    context.unscaled_dt = delta;
+    return context;
+  }
+
+  static std::vector<std::string> Prints(LN_CommandBuffer &command_buffer)
+  {
+    std::vector<std::string> messages;
+    for (const LN_CommandBuffer::Command &command : command_buffer.TakeRecordedCommands()) {
+      if (command.type == LN_CommandBuffer::CommandType::Print) {
+        messages.push_back(command.property_name);
+      }
+    }
+    return messages;
+  }
+
+  /** What each tree printed in step `step` (from 0) of `delta` seconds; `r_ticked`: whether
+   * each had work in it (CanTick). */
+  std::vector<std::vector<std::string>> Step(const uint64_t step,
+                                             const double delta,
+                                             const bool skip_idle,
+                                             std::vector<bool> *r_ticked = nullptr)
+  {
+    std::vector<std::vector<std::string>> prints(trees.size());
+    if (r_ticked != nullptr) {
+      r_ticked->assign(trees.size(), false);
+    }
+    for (size_t index = 0; index < trees.size(); index++) {
+      LN_RuntimeTree &tree = *trees[index];
+      tree.PrepareStepGates(step, delta, delta);
+      const bool ticks = tree.CanTick(LN_Event::OnFixedUpdate);
+      if (r_ticked != nullptr) {
+        (*r_ticked)[index] = ticks;
+      }
+      if (skip_idle && !ticks) {
+        continue;
+      }
+      LN_CommandBuffer command_buffer;
+      command_buffer.BeginRecording();
+      tree.ExecuteReady(command_buffer, Context(step, delta));
+      command_buffer.EndRecording();
+      prints[index] = Prints(command_buffer);
+    }
+    return prints;
+  }
+
+  /** prints[step][tree] over `steps` steps. */
+  std::vector<std::vector<std::vector<std::string>>> Run(const uint64_t steps,
+                                                         const double delta,
+                                                         const bool skip_idle)
+  {
+    std::vector<std::vector<std::vector<std::string>>> prints;
+    for (uint64_t step = 0; step < steps; step++) {
+      prints.push_back(Step(step, delta, skip_idle));
+    }
+    return prints;
+  }
+};
+
+/* On Logic + Physics Step (Every `every`, Spread Out or Same Step) -> Print of its Time Passed. */
+std::shared_ptr<LN_Program> CompileTimePassedPrinter(const int every, const bool spread)
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+  TestNode step(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 1);
+  step.node.custom1 = int16_t(every);
+  step.node.custom2 = spread ? 0 : LN_STEP_GATE_SAME_STEP;
+  blender::bNodeSocket &out = step.flow(false, "Out");
+  blender::bNodeSocket &time_passed = step.add(false, "Time Passed", blender::SOCK_FLOAT, nullptr);
+  TestNode print(tree, "LogicNativePrint", "Print", 2);
+  blender::bNodeSocket &print_flow = print.flow(true, "Flow");
+  blender::bNodeSocket &print_value = print.add(true, "Value", blender::SOCK_CUSTOM, nullptr);
+  std::array<blender::bNodeLink, 2> links = {};
+  InitLink(links[0], step.node, out, print.node, print_flow);
+  InitLink(links[1], step.node, time_passed, print.node, print_value);
+  for (blender::bNodeLink &link : links) {
+    Append(tree.links, link);
+  }
+  std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  EXPECT_NE(program, nullptr);
+  if (program != nullptr) {
+    EXPECT_FALSE(program->GetCompileReport().HasErrors())
+        << FormatCompileReport(program->GetCompileReport());
+    EXPECT_TRUE(program->ValidateInstructionPayloads());
+  }
+  return program;
+}
+
+/* The objects of a tree take turns: each runs the route on its own step of the N, sleeps through
+ * the others, and its Time Passed covers the steps since its last run (the first run the steps
+ * it has been there). */
+TEST(LN_TreeCompiler, EveryNStepsTakesTurnsAndPassesTheTimeSinceTheLastRun)
+{
+  const std::shared_ptr<LN_Program> program = CompileTimePassedPrinter(4, true);
+  ASSERT_NE(program, nullptr);
+  ASSERT_EQ(program->GetStepGates().size(), 1u);
+  EXPECT_EQ(program->GetStepGates()[0].interval, 4u);
+  EXPECT_TRUE(program->GetStepGates()[0].spread);
+  EXPECT_TRUE(program->GetExecBlockProgram(LN_Event::OnFixedUpdate).all_blocks_step_gated);
+  for (const bool skip_idle : {false, true}) {
+    SCOPED_TRACE(skip_idle ? "trees without work skipped" : "every tree run");
+    SteppedTrees trees(program, 4);
+    for (uint64_t step = 0; step < 12; step++) {
+      std::vector<bool> ticked;
+      const std::vector<std::vector<std::string>> prints = trees.Step(
+          step, 0.25, skip_idle, &ticked);
+      for (uint32_t index = 0; index < 4; index++) {
+        SCOPED_TRACE("step " + std::to_string(step) + " tree " + std::to_string(index));
+        const bool due = (step + index) % 4 == 0;
+        ASSERT_EQ(prints[index].size(), due ? 1u : 0u);
+        /* Step 0 runs On Init everywhere; after it a tree has work only on its own steps. */
+        if (step > 0) {
+          EXPECT_EQ(ticked[index], due);
+        }
+        if (due) {
+          const double expected = step < 4 ? 0.25 * double(step + 1) : 1.0;
+          EXPECT_NEAR(std::stod(prints[index][0]), expected, 1.0e-6);
+        }
+      }
+    }
+  }
+}
+
+/* Same Step: every object runs on the steps divisible by N. */
+TEST(LN_TreeCompiler, EveryNStepsWithoutSpreadRunsEveryObjectOnTheSameSteps)
+{
+  const std::shared_ptr<LN_Program> program = CompileTimePassedPrinter(3, false);
+  ASSERT_NE(program, nullptr);
+  ASSERT_EQ(program->GetStepGates().size(), 1u);
+  EXPECT_FALSE(program->GetStepGates()[0].spread);
+  SteppedTrees trees(program, 4);
+  for (uint64_t step = 0; step < 9; step++) {
+    const std::vector<std::vector<std::string>> prints = trees.Step(step, 0.25, true);
+    for (uint32_t index = 0; index < 4; index++) {
+      SCOPED_TRACE("step " + std::to_string(step) + " tree " + std::to_string(index));
+      ASSERT_EQ(prints[index].size(), step % 3 == 0 ? 1u : 0u);
+      if (step % 3 == 0) {
+        EXPECT_NEAR(std::stod(prints[index][0]), step == 0 ? 0.25 : 0.75, 1.0e-6);
+      }
+    }
+  }
+}
+
+/* Every 1 is the old node: no gate, a route every step, Time Passed one step. Another step node of
+ * a slowed tree runs every step, and the tree then has work in every step. */
+TEST(LN_TreeCompiler, OtherRoutesOfASlowedTreeStillRunEveryStep)
+{
+  const std::shared_ptr<LN_Program> every_step = CompileTimePassedPrinter(1, true);
+  ASSERT_NE(every_step, nullptr);
+  EXPECT_TRUE(every_step->GetStepGates().empty());
+  EXPECT_FALSE(every_step->GetExecBlockProgram(LN_Event::OnFixedUpdate).all_blocks_step_gated);
+  {
+    SteppedTrees trees(every_step, 1);
+    for (uint64_t step = 0; step < 4; step++) {
+      const std::vector<std::vector<std::string>> prints = trees.Step(step, 0.25, true);
+      ASSERT_EQ(prints[0].size(), 1u);
+      EXPECT_NEAR(std::stod(prints[0][0]), 0.25, 1.0e-6);
+    }
+  }
+
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+  TestNode slow(tree, "LogicNativeOnFixedUpdate", "Slow Step", 1);
+  slow.node.custom1 = 3;
+  blender::bNodeSocket &slow_out = slow.flow(false, "Out");
+  TestNode fast(tree, "LogicNativeOnFixedUpdate", "Fast Step", 2);
+  fast.node.custom1 = 1;
+  blender::bNodeSocket &fast_out = fast.flow(false, "Out");
+  TestNode slow_print(tree, "LogicNativePrint", "Slow Print", 3);
+  blender::bNodeSocket &slow_flow = slow_print.flow(true, "Flow");
+  slow_print.in_string("Value", "slow");
+  TestNode fast_print(tree, "LogicNativePrint", "Fast Print", 4);
+  blender::bNodeSocket &fast_flow = fast_print.flow(true, "Flow");
+  fast_print.in_string("Value", "fast");
+  std::array<blender::bNodeLink, 2> links = {};
+  InitLink(links[0], slow.node, slow_out, slow_print.node, slow_flow);
+  InitLink(links[1], fast.node, fast_out, fast_print.node, fast_flow);
+  for (blender::bNodeLink &link : links) {
+    Append(tree.links, link);
+  }
+  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  ASSERT_NE(program, nullptr);
+  EXPECT_FALSE(program->GetCompileReport().HasErrors())
+      << FormatCompileReport(program->GetCompileReport());
+  ASSERT_EQ(program->GetStepGates().size(), 1u);
+  EXPECT_FALSE(program->GetExecBlockProgram(LN_Event::OnFixedUpdate).all_blocks_step_gated);
+  SteppedTrees trees(program, 1);
+  for (uint64_t step = 0; step < 9; step++) {
+    SCOPED_TRACE("step " + std::to_string(step));
+    std::vector<bool> ticked;
+    const std::vector<std::vector<std::string>> prints = trees.Step(step, 0.25, true, &ticked);
+    EXPECT_TRUE(ticked[0]);
+    std::vector<std::string> expected = {"fast"};
+    if (step % 3 == 0) {
+      expected.push_back("slow");
+    }
+    std::vector<std::string> printed = prints[0];
+    std::sort(printed.begin(), printed.end());
+    EXPECT_EQ(printed, expected);
+  }
+}
+
+/* Pulsify and Barrier in a slowed route take its runs, N steps apart, as consecutive and count its
+ * time, and what follows them runs on its steps only (a Barrier passes while held). Neither keeps
+ * the tree awake between its runs. */
+TEST(LN_TreeCompiler, ASlowedRouteKeepsPulsifyAndBarrierCounting)
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+  TestNode step(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 1);
+  step.node.custom1 = 4;
+  blender::bNodeSocket &out = step.flow(false, "Out");
+  TestNode pulsify(tree, "LogicNativePulsify", "Pulsify", 2);
+  blender::bNodeSocket &pulsify_flow = pulsify.flow(true, "Flow");
+  pulsify.in_float("Gap", 2.0f);
+  pulsify.in_bool("Ignore Timescale", false);
+  blender::bNodeSocket &pulse = pulsify.flow(false, "Out");
+  TestNode barrier(tree, "LogicNativeBarrier", "Barrier", 3);
+  blender::bNodeSocket &barrier_flow = barrier.flow(true, "Flow");
+  barrier.in_bool("Condition", true);
+  barrier.in_float("Time", 2.0f);
+  barrier.in_bool("Ignore Timescale", false);
+  blender::bNodeSocket &passed = barrier.flow(false, "Out");
+  TestNode pulse_print(tree, "LogicNativePrint", "Pulse Print", 4);
+  blender::bNodeSocket &pulse_print_flow = pulse_print.flow(true, "Flow");
+  pulse_print.in_string("Value", "pulse");
+  TestNode passed_print(tree, "LogicNativePrint", "Passed Print", 5);
+  blender::bNodeSocket &passed_print_flow = passed_print.flow(true, "Flow");
+  passed_print.in_string("Value", "passed");
+  std::array<blender::bNodeLink, 4> links = {};
+  InitLink(links[0], step.node, out, pulsify.node, pulsify_flow);
+  InitLink(links[1], step.node, out, barrier.node, barrier_flow);
+  InitLink(links[2], pulsify.node, pulse, pulse_print.node, pulse_print_flow);
+  InitLink(links[3], barrier.node, passed, passed_print.node, passed_print_flow);
+  for (blender::bNodeLink &link : links) {
+    Append(tree.links, link);
+  }
+  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  ASSERT_NE(program, nullptr);
+  EXPECT_FALSE(program->GetCompileReport().HasErrors())
+      << FormatCompileReport(program->GetCompileReport());
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  /* The routes after them are the slowed route's too. */
+  EXPECT_TRUE(program->GetExecBlockProgram(LN_Event::OnFixedUpdate).all_blocks_step_gated);
+
+  for (const bool skip_idle : {false, true}) {
+    SCOPED_TRACE(skip_idle ? "trees without work skipped" : "every tree run");
+    SteppedTrees trees(program, 1);
+    for (uint64_t step = 0; step <= 20; step++) {
+      SCOPED_TRACE("step " + std::to_string(step));
+      std::vector<bool> ticked;
+      std::vector<std::string> printed = trees.Step(step, 0.25, skip_idle, &ticked)[0];
+      std::sort(printed.begin(), printed.end());
+      /* A run covers 1 s: Pulsify (gap 2 s) pulses at its start and every second run, the
+       * Barrier (2 s) passes from the third run on. */
+      std::vector<std::string> expected;
+      if (step == 8 || step == 12 || step == 16 || step == 20) {
+        expected.push_back("passed");
+      }
+      if (step == 0 || step == 8 || step == 16) {
+        expected.push_back("pulse");
+      }
+      EXPECT_EQ(printed, expected);
+      if (step > 0) {
+        EXPECT_EQ(ticked[0], step % 4 == 0);
+      }
+    }
+  }
+}
+
+/* A Loop in a slowed route advances only on the route's steps, and completes on one of them. */
+TEST(LN_TreeCompiler, ALoopInASlowedRouteAdvancesOnItsSteps)
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+  TestNode step(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 1);
+  step.node.custom1 = 2;
+  blender::bNodeSocket &out = step.flow(false, "Out");
+  TestNode loop(tree, "LogicNativeLoop", "Loop", 2);
+  blender::bNodeSocket &loop_flow = loop.flow(true, "Flow");
+  loop.in_int("Count", 4);
+  loop.in_int("Ticks to Complete", 2);
+  blender::bNodeSocket &body = loop.flow(false, "Loop");
+  blender::bNodeSocket &completed = loop.flow(false, "Completed");
+  TestNode body_print(tree, "LogicNativePrint", "Body Print", 3);
+  blender::bNodeSocket &body_flow = body_print.flow(true, "Flow");
+  body_print.in_string("Value", "iteration");
+  TestNode done_print(tree, "LogicNativePrint", "Done Print", 4);
+  blender::bNodeSocket &done_flow = done_print.flow(true, "Flow");
+  done_print.in_string("Value", "done");
+  std::array<blender::bNodeLink, 3> links = {};
+  InitLink(links[0], step.node, out, loop.node, loop_flow);
+  InitLink(links[1], loop.node, body, body_print.node, body_flow);
+  InitLink(links[2], loop.node, completed, done_print.node, done_flow);
+  for (blender::bNodeLink &link : links) {
+    Append(tree.links, link);
+  }
+  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  ASSERT_NE(program, nullptr);
+  EXPECT_FALSE(program->GetCompileReport().HasErrors())
+      << FormatCompileReport(program->GetCompileReport());
+  ASSERT_TRUE(program->ValidateInstructionPayloads());
+  EXPECT_TRUE(program->GetExecBlockProgram(LN_Event::OnFixedUpdate).all_blocks_step_gated);
+
+  std::vector<std::vector<std::vector<std::vector<std::string>>>> runs;
+  for (const bool skip_idle : {false, true}) {
+    SteppedTrees trees(program, 1);
+    runs.push_back(trees.Run(6, 0.25, skip_idle));
+  }
+  EXPECT_EQ(runs[0], runs[1]);
+  const std::vector<std::vector<std::vector<std::string>>> &prints = runs[1];
+  EXPECT_EQ(prints[0][0], (std::vector<std::string>{"iteration", "iteration"}));
+  for (const uint64_t odd : {1, 3, 5}) {
+    EXPECT_TRUE(prints[odd][0].empty()) << "step " << odd;
+  }
+  std::vector<std::string> second_run = prints[2][0];
+  EXPECT_EQ(std::count(second_run.begin(), second_run.end(), "iteration"), 2);
+  EXPECT_EQ(std::count(second_run.begin(), second_run.end(), "done"), 1);
+}
+
+/* A Delay started by a slowed route counts down on every step and fires on its own step. */
+TEST(LN_TreeCompiler, ADelayStartedByASlowedRouteFiresOnTime)
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+  TestNode step(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 1);
+  step.node.custom1 = 4;
+  blender::bNodeSocket &out = step.flow(false, "Out");
+  TestNode delay(tree, "LogicNativeDelay", "Delay", 2);
+  blender::bNodeSocket &delay_flow = delay.flow(true, "Flow");
+  delay.in_float("Delay", 0.5f);
+  delay.in_bool("Ignore Timescale", false);
+  blender::bNodeSocket &done = delay.flow(false, "Out");
+  TestNode print(tree, "LogicNativePrint", "Print", 3);
+  blender::bNodeSocket &print_flow = print.flow(true, "Flow");
+  print.in_string("Value", "done");
+  std::array<blender::bNodeLink, 2> links = {};
+  InitLink(links[0], step.node, out, delay.node, delay_flow);
+  InitLink(links[1], delay.node, done, print.node, print_flow);
+  for (blender::bNodeLink &link : links) {
+    Append(tree.links, link);
+  }
+  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  ASSERT_NE(program, nullptr);
+  EXPECT_FALSE(program->GetCompileReport().HasErrors())
+      << FormatCompileReport(program->GetCompileReport());
+  /* Done fires on any step: it runs every step. */
+  EXPECT_FALSE(program->GetExecBlockProgram(LN_Event::OnFixedUpdate).all_blocks_step_gated);
+  for (const bool skip_idle : {false, true}) {
+    SCOPED_TRACE(skip_idle ? "trees without work skipped" : "every tree run");
+    SteppedTrees trees(program, 1);
+    const std::vector<std::vector<std::vector<std::string>>> prints = trees.Run(12, 0.25,
+                                                                                 skip_idle);
+    for (uint64_t step = 0; step < 12; step++) {
+      /* Started at 0, 4, 8; 0.5 s = 2 steps later. */
+      EXPECT_EQ(prints[step][0].size(), step % 4 == 2 ? 1u : 0u) << "step " << step;
+    }
+  }
+}
+
+/* A Run Logic Tree pass runs a slowed route at once, with one step's time; the route's own runs
+ * still count from its last regular run. */
+/* A Run Logic Tree pass runs a slowed route with the time since the route last ran, and the
+ * route's next run counts from the pass: the pass at step 2 and the due run at step 4 cover steps
+ * 1-2 and 3-4 (until 2026-10-31 the pass took one step and the due run all four, 1.25 s of
+ * Time Passed for 1 s). A second pass in a step counts one step, as everywhere. */
+TEST(LN_TreeCompiler, RunLogicTreeGivesASlowedRouteTheTimeSinceItsLastRun)
+{
+  const std::shared_ptr<LN_Program> program = CompileTimePassedPrinter(4, true);
+  ASSERT_NE(program, nullptr);
+  SteppedTrees trees(program, 1);
+  LN_RuntimeTree &tree = *trees.trees[0];
+  const auto forced_pass = [&tree](const uint64_t step) {
+    LN_CommandBuffer command_buffer;
+    command_buffer.BeginRecording();
+    tree.ExecuteForcedUpdate(command_buffer, SteppedTrees::Context(step, 0.25));
+    command_buffer.EndRecording();
+    return SteppedTrees::Prints(command_buffer);
+  };
+  const std::vector<std::string> first = trees.Step(0, 0.25, true)[0];
+  ASSERT_EQ(first.size(), 1u);
+  EXPECT_NEAR(std::stod(first[0]), 0.25, 1.0e-6);
+  EXPECT_TRUE(trees.Step(1, 0.25, true)[0].empty());
+
+  tree.PrepareStepGates(2, 0.25, 0.25);
+  EXPECT_FALSE(tree.CanTick(LN_Event::OnFixedUpdate));
+  EXPECT_FALSE(tree.StepGateRuns(0));
+  const std::vector<std::string> forced = forced_pass(2);
+  ASSERT_EQ(forced.size(), 1u);
+  EXPECT_NEAR(std::stod(forced[0]), 0.5, 1.0e-6);
+  EXPECT_FALSE(tree.StepGateRuns(0));
+
+  EXPECT_TRUE(trees.Step(3, 0.25, true)[0].empty());
+  const std::vector<std::string> regular = trees.Step(4, 0.25, true)[0];
+  ASSERT_EQ(regular.size(), 1u);
+  EXPECT_NEAR(std::stod(regular[0]), 0.5, 1.0e-6);
+  const std::vector<std::string> again = forced_pass(4);
+  ASSERT_EQ(again.size(), 1u);
+  EXPECT_NEAR(std::stod(again[0]), 0.25, 1.0e-6);
+
+  for (uint64_t step = 5; step < 8; step++) {
+    EXPECT_TRUE(trees.Step(step, 0.25, true)[0].empty()) << "step " << step;
+  }
+  const std::vector<std::string> later = trees.Step(8, 0.25, true)[0];
+  ASSERT_EQ(later.size(), 1u);
+  EXPECT_NEAR(std::stod(later[0]), 1.0, 1.0e-6);
+}
+
+/* A Run Logic Tree pass between a slowed route's steps keeps its Pulsify's rhythm: with stride
+ * 1 there it took the pass as a break, restarted and pulsed at once (fixed 2026-10-31). */
+TEST(LN_TreeCompiler, ARunLogicTreePassKeepsASlowedRoutesPulsify)
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+  TestNode step(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 1);
+  step.node.custom1 = 4;
+  blender::bNodeSocket &out = step.flow(false, "Out");
+  TestNode pulsify(tree, "LogicNativePulsify", "Pulsify", 2);
+  blender::bNodeSocket &pulsify_flow = pulsify.flow(true, "Flow");
+  pulsify.in_float("Gap", 10.0f);
+  pulsify.in_bool("Ignore Timescale", false);
+  blender::bNodeSocket &pulse = pulsify.flow(false, "Out");
+  TestNode print(tree, "LogicNativePrint", "Print", 3);
+  blender::bNodeSocket &print_flow = print.flow(true, "Flow");
+  print.in_string("Value", "pulse");
+  std::array<blender::bNodeLink, 2> links = {};
+  InitLink(links[0], step.node, out, pulsify.node, pulsify_flow);
+  InitLink(links[1], pulsify.node, pulse, print.node, print_flow);
+  for (blender::bNodeLink &link : links) {
+    Append(tree.links, link);
+  }
+  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  ASSERT_NE(program, nullptr);
+  ASSERT_FALSE(program->GetCompileReport().HasErrors())
+      << FormatCompileReport(program->GetCompileReport());
+  SteppedTrees trees(program, 1);
+  LN_RuntimeTree &runtime_tree = *trees.trees[0];
+  /* The first run pulses; the 10 s gap keeps every later run quiet. */
+  EXPECT_EQ(trees.Step(0, 0.25, true)[0].size(), 1u);
+  EXPECT_TRUE(trees.Step(1, 0.25, true)[0].empty());
+  runtime_tree.PrepareStepGates(2, 0.25, 0.25);
+  LN_CommandBuffer command_buffer;
+  command_buffer.BeginRecording();
+  runtime_tree.ExecuteForcedUpdate(command_buffer, SteppedTrees::Context(2, 0.25));
+  command_buffer.EndRecording();
+  EXPECT_TRUE(SteppedTrees::Prints(command_buffer).empty());
+  for (uint64_t later = 3; later < 12; later++) {
+    EXPECT_TRUE(trees.Step(later, 0.25, true)[0].empty()) << "step " << later;
+  }
+}
+
+/* A slowed route's 1 s Pulsify keeps pulsing once a second with Run Logic Tree passes between its
+ * steps: each pass and each due run add the time since the route last ran, so a pass's steps are
+ * not counted again (until 2026-10-31 it pulsed 1.25 times as often, at steps 0, 4, 8, 12, 14,
+ * 16). */
+TEST(LN_TreeCompiler, ASlowedRoutesPulsifyKeepsItsRhythmWithRunLogicTreePassesBetween)
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+  TestNode step(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 1);
+  step.node.custom1 = 4;
+  blender::bNodeSocket &out = step.flow(false, "Out");
+  TestNode pulsify(tree, "LogicNativePulsify", "Pulsify", 2);
+  blender::bNodeSocket &pulsify_flow = pulsify.flow(true, "Flow");
+  pulsify.in_float("Gap", 1.0f);
+  pulsify.in_bool("Ignore Timescale", false);
+  blender::bNodeSocket &pulse = pulsify.flow(false, "Out");
+  TestNode print(tree, "LogicNativePrint", "Print", 3);
+  blender::bNodeSocket &print_flow = print.flow(true, "Flow");
+  print.in_string("Value", "pulse");
+  std::array<blender::bNodeLink, 2> links = {};
+  InitLink(links[0], step.node, out, pulsify.node, pulsify_flow);
+  InitLink(links[1], pulsify.node, pulse, print.node, print_flow);
+  for (blender::bNodeLink &link : links) {
+    Append(tree.links, link);
+  }
+  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  ASSERT_NE(program, nullptr);
+  ASSERT_FALSE(program->GetCompileReport().HasErrors())
+      << FormatCompileReport(program->GetCompileReport());
+  SteppedTrees trees(program, 1);
+  LN_RuntimeTree &runtime_tree = *trees.trees[0];
+  std::vector<uint64_t> pulse_steps;
+  for (uint64_t step_index = 0; step_index <= 16; step_index++) {
+    size_t pulses = trees.Step(step_index, 0.25, true)[0].size();
+    if (step_index % 4 == 2) {
+      LN_CommandBuffer command_buffer;
+      command_buffer.BeginRecording();
+      runtime_tree.ExecuteForcedUpdate(command_buffer, SteppedTrees::Context(step_index, 0.25));
+      command_buffer.EndRecording();
+      pulses += SteppedTrees::Prints(command_buffer).size();
+    }
+    if (pulses != 0) {
+      pulse_steps.push_back(step_index);
+    }
+  }
+  EXPECT_EQ(pulse_steps, (std::vector<uint64_t>{0, 4, 8, 12, 16}));
+}
+
+/* A step's time counts once for a tree's Delay, however many Run Logic Tree passes the tree gets
+ * in that step: with a pass after each of its runs, a 1 s Delay fired after 0.5 s (fixed
+ * 2026-10-31). */
+TEST(LN_TreeCompiler, RunLogicTreePassesCountAStepsTimeOnce)
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+  TestNode on_init(tree, "LogicNativeOnInit", "On Init", 1);
+  blender::bNodeSocket &init_out = on_init.flow(false, "Out");
+  TestNode delay(tree, "LogicNativeDelay", "Delay", 2);
+  blender::bNodeSocket &delay_flow = delay.flow(true, "Flow");
+  delay.in_float("Delay", 1.0f);
+  delay.in_bool("Ignore Timescale", false);
+  blender::bNodeSocket &done = delay.flow(false, "Out");
+  TestNode keep(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 3);
+  blender::bNodeSocket &keep_out = keep.flow(false, "Out");
+  TestNode idle(tree, "LogicNativePrint", "Print", 4);
+  blender::bNodeSocket &idle_flow = idle.flow(true, "Flow");
+  idle.in_string("Value", "step");
+  TestNode print(tree, "LogicNativePrint", "Print.001", 5);
+  blender::bNodeSocket &print_flow = print.flow(true, "Flow");
+  print.in_string("Value", "done");
+  std::array<blender::bNodeLink, 3> links = {};
+  InitLink(links[0], on_init.node, init_out, delay.node, delay_flow);
+  InitLink(links[1], delay.node, done, print.node, print_flow);
+  InitLink(links[2], keep.node, keep_out, idle.node, idle_flow);
+  for (blender::bNodeLink &link : links) {
+    Append(tree.links, link);
+  }
+  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  ASSERT_NE(program, nullptr);
+  ASSERT_FALSE(program->GetCompileReport().HasErrors())
+      << FormatCompileReport(program->GetCompileReport());
+  KX_GameObject owner;
+  LN_RuntimeTree runtime_tree(program, &owner, 0, 0);
+  uint64_t done_step = UINT64_MAX;
+  for (uint64_t step = 0; step < 8 && done_step == UINT64_MAX; step++) {
+    const LN_TickContext context = SteppedTrees::Context(step, 0.25);
+    LN_CommandBuffer command_buffer;
+    command_buffer.BeginRecording();
+    runtime_tree.ExecuteReady(command_buffer, context);
+    runtime_tree.ExecuteForcedUpdate(command_buffer, context);
+    runtime_tree.ExecuteForcedUpdate(command_buffer, context);
+    command_buffer.EndRecording();
+    const std::vector<std::string> prints = SteppedTrees::Prints(command_buffer);
+    const size_t dones = size_t(std::count(prints.begin(), prints.end(), "done"));
+    if (dones != 0) {
+      /* Each pass of that step runs the step's routes, Done's included (like a collision that
+       * started in the step). */
+      EXPECT_EQ(dones, 3u) << "step " << step;
+      done_step = step;
+    }
+  }
+  /* Armed in step 0's On Init: 1 s is steps 0-3 (four of 0.25 s). Counted three times a step it
+   * fired in step 1. */
+  EXPECT_EQ(done_step, 3u);
+}
+
+/* A Loop fed by an Every 4 route and an every-step route completes on any step: its Completed
+ * took the gate of whichever path sorted last, and never ran for a run ended off that gate's
+ * steps (fixed 2026-10-31). */
+TEST(LN_TreeCompiler, ALoopFedByRoutesOfTwoGatesCompletesOnAnyStep)
+{
+  /* Either route gated: whichever path sorts last, Completed must not take its gate. */
+  for (const bool first_gated : {true, false}) {
+    SCOPED_TRACE(first_gated ? "first route every 4 steps" : "second route every 4 steps");
+    blender::bNodeTree tree = {};
+    InitTree(tree);
+    TestNode slow(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 1);
+    slow.node.custom1 = first_gated ? 4 : 1;
+    blender::bNodeSocket &slow_out = slow.flow(false, "Out");
+    TestNode fast(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step.001", 2);
+    fast.node.custom1 = first_gated ? 1 : 4;
+    blender::bNodeSocket &fast_out = fast.flow(false, "Out");
+    TestNode any(tree, "LogicNativeAnyFlow", "Any Flow", 3);
+    blender::bNodeSocket &any_in = any.flow(true, "In");
+    any_in.flag |= blender::SOCK_MULTI_INPUT;
+    blender::bNodeSocket &any_out = any.flow(false, "Out");
+    TestNode loop(tree, "LogicNativeLoop", "Loop", 4);
+    blender::bNodeSocket &loop_flow = loop.flow(true, "Flow");
+    loop.in_int("Count", 1);
+    loop.in_int("Ticks to Complete", 1);
+    loop.flow(false, "Loop");
+    blender::bNodeSocket &loop_done = loop.flow(false, "Completed");
+    TestNode print(tree, "LogicNativePrint", "Print", 5);
+    blender::bNodeSocket &print_flow = print.flow(true, "Flow");
+    print.in_string("Value", "completed");
+    std::array<blender::bNodeLink, 4> links = {};
+    InitLink(links[0], slow.node, slow_out, any.node, any_in);
+    InitLink(links[1], fast.node, fast_out, any.node, any_in);
+    InitLink(links[2], any.node, any_out, loop.node, loop_flow);
+    InitLink(links[3], loop.node, loop_done, print.node, print_flow);
+    for (blender::bNodeLink &link : links) {
+      Append(tree.links, link);
+    }
+    const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+    ASSERT_NE(program, nullptr);
+    ASSERT_FALSE(program->GetCompileReport().HasErrors())
+        << FormatCompileReport(program->GetCompileReport());
+    SteppedTrees trees(program, 1);
+    for (uint64_t step = 0; step < 8; step++) {
+      const std::vector<std::string> prints = trees.Step(step, 0.25, false)[0];
+      EXPECT_GE(std::count(prints.begin(), prints.end(), "completed"), 1) << "step " << step;
+    }
+  }
+}
+
+/* A force pushes for one step only: in a slowed route it warns. Every step: no warning. */
+TEST(LN_TreeCompiler, AForceInASlowedRouteWarns)
+{
+  for (const int every : {1, 3}) {
+    SCOPED_TRACE("every " + std::to_string(every));
+    blender::bNodeTree tree = {};
+    InitTree(tree);
+    TestNode step(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 1);
+    step.node.custom1 = int16_t(every);
+    blender::bNodeSocket &out = step.flow(false, "Out");
+    TestNode force(tree, "LogicNativeApplyForce", "Apply Force", 2);
+    blender::bNodeSocket &force_flow = force.flow(true, "Flow");
+    force.in_object("Object");
+    force.in_vector("Force", MT_Vector3(0.0f, 0.0f, 10.0f));
+    force.in_bool("Local", false);
+    blender::bNodeLink link = {};
+    InitLink(link, step.node, out, force.node, force_flow);
+    Append(tree.links, link);
+    const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+    ASSERT_NE(program, nullptr);
+    EXPECT_FALSE(program->GetCompileReport().HasErrors())
+        << FormatCompileReport(program->GetCompileReport());
+    size_t warnings = 0;
+    for (const LN_CompileIssue &issue : program->GetCompileReport().GetIssues()) {
+      if (issue.severity == LN_CompileSeverity::Warning &&
+          issue.message.find("pushes") != std::string::npos)
+      {
+        warnings++;
+        EXPECT_NE(issue.message.find("every 3 steps"), std::string::npos) << issue.message;
+      }
+    }
+    EXPECT_EQ(warnings, every == 3 ? 1u : 0u) << FormatCompileReport(program->GetCompileReport());
+  }
+}
+
+/* The manager numbers the objects of one slowed tree as they start, by source tree (placed objects
+ * may compile their own program); trees without Every N Steps get no number. */
+TEST(LN_TreeCompiler, TheManagerNumbersTheObjectsOfASlowedTreeInTurn)
+{
+  KX_Scene *unused_scene = reinterpret_cast<KX_Scene *>(uintptr_t(1));
+  LN_Manager manager(*unused_scene);
+  const std::shared_ptr<LN_Program> slowed = CompileTimePassedPrinter(4, true);
+  const std::shared_ptr<LN_Program> slowed_again = CompileTimePassedPrinter(4, true);
+  const std::shared_ptr<LN_Program> every_step = CompileTimePassedPrinter(1, true);
+  ASSERT_NE(slowed, nullptr);
+  ASSERT_NE(slowed_again, nullptr);
+  ASSERT_NE(every_step, nullptr);
+  std::vector<std::unique_ptr<KX_GameObject>> objects;
+  std::vector<LN_RuntimeTree *> trees;
+  for (uint32_t index = 0; index < 4; index++) {
+    objects.push_back(std::make_unique<KX_GameObject>());
+    objects.back()->SetName("SlowedObject" + std::to_string(index));
+    trees.push_back(manager.RegisterCompiledProgram(objects.back().get(),
+                                                    index == 3 ? every_step :
+                                                    index == 1 ? slowed_again :
+                                                                 slowed,
+                                                    index,
+                                                    0,
+                                                    true));
+    ASSERT_NE(trees.back(), nullptr);
+  }
+  for (uint32_t index = 0; index < 3; index++) {
+    EXPECT_TRUE(trees[index]->HasStepSpread());
+    EXPECT_EQ(trees[index]->GetStepSpread(), index);
+  }
+  EXPECT_FALSE(trees[3]->HasStepSpread());
+  for (const std::unique_ptr<KX_GameObject> &object : objects) {
+    manager.UnregisterGameObject(object.get());
+  }
+}
+
+
+/* The state block (2026-10-31). A tree of the stateful nodes: a Flow Gate toggled every step
+ * (Is Open alternates), a Boolean Edge and an On Value Changed reading it, a Do Once on every
+ * step and another rising with the edge and reset by its fall, two Store Values. */
+std::shared_ptr<LN_Program> CompileStatefulNodes()
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+  TestNode step(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 1);
+  blender::bNodeSocket &tick = step.flow(false, "Out");
+  TestNode gate(tree, "LogicNativeFlowGate", "Flow Gate", 2);
+  gate.flow(true, "Enter");
+  blender::bNodeSocket &toggle = gate.flow(true, "Toggle");
+  gate.flow(true, "Open");
+  gate.flow(true, "Close");
+  gate.in_bool("Start Open", false);
+  gate.flow(false, "Exit");
+  blender::bNodeSocket &is_open = gate.add(false, "Is Open", blender::SOCK_BOOLEAN, nullptr);
+  TestNode edge(tree, "LogicNativeBooleanEdge", "Boolean Edge", 3);
+  blender::bNodeSocket &edge_condition = edge.in_bool("Condition", false);
+  blender::bNodeSocket &rising = edge.flow(false, "Rising");
+  blender::bNodeSocket &falling = edge.flow(false, "Falling");
+  TestNode changed(tree, "LogicNativeValueChanged", "On Value Changed", 4);
+  blender::bNodeSocket &changed_value = changed.add(
+      true, "Value", blender::SOCK_CUSTOM, nullptr, "NodeSocketLogicGeneric");
+  blender::bNodeSocket &if_changed = changed.flow(false, "If Changed");
+  blender::bNodeSocket &changed_new = changed.add(
+      false, "New", blender::SOCK_CUSTOM, nullptr, "NodeSocketLogicGeneric");
+  TestNode once_a(tree, "LogicNativeOnce", "Do Once", 5);
+  blender::bNodeSocket &once_a_flow = once_a.flow(true, "Flow");
+  once_a.flow(true, "Reset");
+  blender::bNodeSocket &once_a_out = once_a.flow(false, "Out");
+  TestNode once_b(tree, "LogicNativeOnce", "Do Once.001", 6);
+  blender::bNodeSocket &once_b_flow = once_b.flow(true, "Flow");
+  blender::bNodeSocket &once_b_reset = once_b.flow(true, "Reset");
+  blender::bNodeSocket &once_b_out = once_b.flow(false, "Out");
+  TestNode store_a(tree, "LogicNativeStoreValue", "Store Value", 7);
+  store_a.node.custom1 = 1;
+  blender::bNodeSocket &store_a_flow = store_a.flow(true, "Flow");
+  store_a.in_float("Value", 1.5f);
+  store_a.flow(false, "Done");
+  blender::bNodeSocket &stored_a = store_a.add(false, "Value", blender::SOCK_FLOAT, nullptr);
+  TestNode store_b(tree, "LogicNativeStoreValue", "Store Value.001", 8);
+  store_b.node.custom1 = 1;
+  blender::bNodeSocket &store_b_flow = store_b.flow(true, "Flow");
+  store_b.in_float("Value", 7.0f);
+  store_b.flow(false, "Done");
+  blender::bNodeSocket &stored_b = store_b.add(false, "Value", blender::SOCK_FLOAT, nullptr);
+
+  std::deque<TestNode> prints;
+  std::deque<blender::bNodeLink> links;
+  int32_t next_id = 20;
+  const auto print_on = [&](blender::bNode &from_node,
+                            blender::bNodeSocket &flow,
+                            const char *text,
+                            blender::bNode *value_node = nullptr,
+                            blender::bNodeSocket *value = nullptr) {
+    TestNode &print = prints.emplace_back(tree, "LogicNativePrint", text, next_id++);
+    blender::bNodeSocket &print_flow = print.flow(true, "Flow");
+    blender::bNodeSocket &print_value = print.in_string("Value", text);
+    InitLink(links.emplace_back(), from_node, flow, print.node, print_flow);
+    if (value != nullptr) {
+      InitLink(links.emplace_back(), *value_node, *value, print.node, print_value);
+    }
+  };
+  InitLink(links.emplace_back(), step.node, tick, gate.node, toggle);
+  InitLink(links.emplace_back(), gate.node, is_open, edge.node, edge_condition);
+  InitLink(links.emplace_back(), gate.node, is_open, changed.node, changed_value);
+  InitLink(links.emplace_back(), step.node, tick, once_a.node, once_a_flow);
+  InitLink(links.emplace_back(), edge.node, rising, once_b.node, once_b_flow);
+  InitLink(links.emplace_back(), edge.node, falling, once_b.node, once_b_reset);
+  InitLink(links.emplace_back(), step.node, tick, store_a.node, store_a_flow);
+  InitLink(links.emplace_back(), edge.node, rising, store_b.node, store_b_flow);
+  print_on(edge.node, rising, "rise");
+  print_on(edge.node, falling, "fall");
+  print_on(changed.node, if_changed, "changed", &changed.node, &changed_new);
+  print_on(once_a.node, once_a_out, "onceA");
+  print_on(once_b.node, once_b_out, "onceB");
+  print_on(step.node, tick, "storedA", &store_a.node, &stored_a);
+  print_on(step.node, tick, "storedB", &store_b.node, &stored_b);
+  for (blender::bNodeLink &link : links) {
+    Append(tree.links, link);
+  }
+  std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  EXPECT_NE(program, nullptr);
+  if (program != nullptr) {
+    EXPECT_FALSE(program->GetCompileReport().HasErrors())
+        << FormatCompileReport(program->GetCompileReport());
+    EXPECT_TRUE(program->ValidateInstructionPayloads());
+  }
+  return program;
+}
+
+/* Every step's prints, sorted (the order between routes is not the point here). */
+std::vector<std::vector<std::string>> SortedPrintsOfSteps(SteppedTrees &trees,
+                                                          const uint64_t first,
+                                                          const uint64_t count)
+{
+  std::vector<std::vector<std::string>> prints;
+  for (uint64_t step = first; step < first + count; step++) {
+    std::vector<std::string> printed = trees.Step(step, 0.25, false)[0];
+    std::sort(printed.begin(), printed.end());
+    prints.push_back(printed);
+  }
+  return prints;
+}
+
+/* Each stateful node keeps its state in the tree's block, and the tree behaves exactly as with
+ * every state kept apart (the storage before the block): the slots never mix two nodes' states. */
+TEST(LN_TreeCompiler, StatefulNodesKeepTheirStatesInTheBlockAndBehaveAsBefore)
+{
+  const std::shared_ptr<LN_Program> program = CompileStatefulNodes();
+  ASSERT_NE(program, nullptr);
+  SteppedTrees trees(program, 1);
+  const LN_RuntimeTree::StateBlockInfo info = trees.trees[0]->GetStateBlockInfo();
+  /* Flow Gate, Boolean Edge, On Value Changed, two Do Once. */
+  EXPECT_EQ(info.bool_states, 5u);
+  EXPECT_EQ(info.value_changes, 1u);
+  EXPECT_EQ(info.float_states, 2u);
+  EXPECT_EQ(info.motion_states, 0u);
+  const std::vector<std::vector<std::string>> prints = SortedPrintsOfSteps(trees, 0, 6);
+  EXPECT_EQ(trees.trees[0]->GetStateBlockInfo().overflow_states, 0u);
+
+  /* The gate opens at the first step (Is Open read after the toggle): rising at 0, 2, 4. */
+  for (uint64_t step = 0; step < 6; step++) {
+    SCOPED_TRACE("step " + std::to_string(step));
+    const std::vector<std::string> &printed = prints[step];
+    const auto has = [&](const std::string &text) {
+      return std::count(printed.begin(), printed.end(), text);
+    };
+    EXPECT_EQ(has("onceA"), step == 0 ? 1 : 0);
+    EXPECT_EQ(has("rise") + has("fall"), 1);
+    EXPECT_EQ(has("onceB"), has("rise"));
+    /* On Value Changed: from the second sample on, New is the gate's state. */
+    EXPECT_EQ(has("True"), step > 0 ? has("rise") : 0);
+    EXPECT_EQ(has("False"), has("fall"));
+    EXPECT_EQ(has("1.5"), 1) << "Store Value A";
+    EXPECT_EQ(has("7") + has("0"), 1) << "Store Value B";
+  }
+  EXPECT_EQ(prints[0].size(), prints[2].size());
+
+  LN_RuntimeTree::SetStateSlotsPlannedForTests(false);
+  const std::shared_ptr<LN_Program> apart_program = CompileStatefulNodes();
+  SteppedTrees apart(apart_program, 1);
+  const std::vector<std::vector<std::string>> apart_prints = SortedPrintsOfSteps(apart, 0, 6);
+  const LN_RuntimeTree::StateBlockInfo apart_info = apart.trees[0]->GetStateBlockInfo();
+  LN_RuntimeTree::SetStateSlotsPlannedForTests(true);
+  EXPECT_EQ(apart_info.bool_states, 0u);
+  EXPECT_EQ(apart_info.float_states, 0u);
+  EXPECT_EQ(apart_info.overflow_states, 8u);
+  EXPECT_EQ(prints, apart_prints);
+}
+
+/* A program replaced by the same tree's new compile keeps the states (a Do Once that fired stays
+ * spent); another program starts over. */
+TEST(LN_TreeCompiler, AReplacedProgramKeepsTheStatesOfTheSameTree)
+{
+  const std::shared_ptr<LN_Program> first = CompileStatefulNodes();
+  const std::shared_ptr<LN_Program> second = CompileStatefulNodes();
+  ASSERT_NE(first, nullptr);
+  ASSERT_NE(second, nullptr);
+  ASSERT_TRUE(second->CanPreserveRuntimeStateWhenReplacing(*first));
+  SteppedTrees trees(first, 1);
+  const std::vector<std::vector<std::string>> before = SortedPrintsOfSteps(trees, 0, 3);
+  EXPECT_EQ(std::count(before[0].begin(), before[0].end(), "onceA"), 1);
+  trees.trees[0]->SetProgram(second);
+  const std::vector<std::vector<std::string>> after = SortedPrintsOfSteps(trees, 3, 3);
+  for (const std::vector<std::string> &printed : after) {
+    EXPECT_EQ(std::count(printed.begin(), printed.end(), "onceA"), 0);
+  }
+  EXPECT_EQ(trees.trees[0]->GetStateBlockInfo().overflow_states, 0u);
+
+  /* A program of another tree (the Every N Steps printer): its states start over. */
+  const std::shared_ptr<LN_Program> other = CompileTimePassedPrinter(1, true);
+  ASSERT_FALSE(other->CanPreserveRuntimeStateWhenReplacing(*second));
+  trees.trees[0]->SetProgram(other);
+  EXPECT_EQ(trees.trees[0]->GetStateBlockInfo().bool_states, 0u);
+  trees.trees[0]->SetProgram(second);
+  const std::vector<std::vector<std::string>> fresh = SortedPrintsOfSteps(trees, 6, 1);
+  EXPECT_EQ(std::count(fresh[0].begin(), fresh[0].end(), "onceA"), 1);
+}
+
+/* A program grown after a tree took it (tests build programs that way) is laid out again at the
+ * tree's next run, its states kept. */
+TEST(LN_TreeCompiler, AProgramGrownAfterTheTreeTookItKeepsTheTreesStates)
+{
+  const std::shared_ptr<LN_Program> program = CompileStatefulNodes();
+  ASSERT_NE(program, nullptr);
+  SteppedTrees trees(program, 1);
+  SortedPrintsOfSteps(trees, 0, 2);
+  const size_t bytes_before = trees.trees[0]->GetStateBlockInfo().block_bytes;
+  LN_BoolExpression once;
+  once.kind = LN_BoolExpressionKind::Once;
+  program->AddBoolExpression(once);
+  LN_FloatExpression store;
+  store.kind = LN_FloatExpressionKind::StoreValue;
+  program->AddFloatExpression(store);
+  const std::vector<std::vector<std::string>> after = SortedPrintsOfSteps(trees, 2, 3);
+  const LN_RuntimeTree::StateBlockInfo info = trees.trees[0]->GetStateBlockInfo();
+  EXPECT_EQ(info.bool_states, 6u);
+  EXPECT_EQ(info.float_states, 3u);
+  EXPECT_GT(info.block_bytes, bytes_before);
+  EXPECT_EQ(info.overflow_states, 0u);
+  for (const std::vector<std::string> &printed : after) {
+    EXPECT_EQ(std::count(printed.begin(), printed.end(), "onceA"), 0);
+    EXPECT_EQ(std::count(printed.begin(), printed.end(), "1.5"), 1);
+  }
+}
+
+/* A tree holds only what its nodes need: a step node printing its Time Passed has its stamps and
+ * registers, no slot states, and no input sample of its own when the tick gives it the shared
+ * one. */
+TEST(LN_TreeCompiler, ATreeStateBlockHoldsOnlyWhatItsNodesNeed)
+{
+  const std::shared_ptr<LN_Program> program = CompileTimePassedPrinter(1, true);
+  ASSERT_NE(program, nullptr);
+  KX_GameObject owner;
+  LN_RuntimeTree tree(program, &owner, 0, 0);
+  const LN_RuntimeTree::StateBlockInfo info = tree.GetStateBlockInfo();
+  const size_t instructions = program->GetInstructionHeaders(LN_Event::OnInit).size() +
+                              program->GetInstructionHeaders(LN_Event::OnUpdate).size() +
+                              program->GetInstructionHeaders(LN_Event::OnFixedUpdate).size();
+  EXPECT_EQ(info.instruction_stamps, instructions);
+  EXPECT_EQ(info.bool_states, 0u);
+  EXPECT_EQ(info.float_states, 0u);
+  EXPECT_EQ(info.motion_states, 0u);
+  EXPECT_EQ(info.value_changes, 0u);
+  EXPECT_LE(info.block_bytes, 256u);
+  EXPECT_FALSE(info.has_own_input);
+  /* Every tree of the program shares one layout. */
+  KX_GameObject other_owner;
+  LN_RuntimeTree other(program, &other_owner, 1, 0);
+  EXPECT_EQ(program->CachedTreeStateLayout().use_count(), 3);
+}
+
+/* A tree that reads the keyboard samples input of its own only when its capture has no shared
+ * sample (the game always gives one): the 5 KB sample is made then, and not before. */
+TEST(LN_TreeCompiler, ATreeMakesAnInputSampleOfItsOwnOnlyWithoutTheSharedOne)
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+  TestNode step(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 1);
+  blender::bNodeSocket &tick = step.flow(false, "Out");
+  TestNode logger(tree, "LogicNativeKeyLogger", "Key Logger", 2);
+  logger.in_bool("Only Characters", true);
+  logger.add(false, "Pressed", blender::SOCK_BOOLEAN, nullptr);
+  blender::bNodeSocket &character = logger.add(false, "Character", blender::SOCK_STRING, nullptr);
+  logger.add(false, "Keycode", blender::SOCK_STRING, nullptr);
+  TestNode print(tree, "LogicNativePrint", "Print", 3);
+  blender::bNodeSocket &print_flow = print.flow(true, "Flow");
+  blender::bNodeSocket &print_value = print.add(true, "Value", blender::SOCK_CUSTOM, nullptr);
+  std::array<blender::bNodeLink, 2> links = {};
+  InitLink(links[0], step.node, tick, print.node, print_flow);
+  InitLink(links[1], logger.node, character, print.node, print_value);
+  for (blender::bNodeLink &link : links) {
+    Append(tree.links, link);
+  }
+  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  ASSERT_NE(program, nullptr);
+  ASSERT_NE(program->GetDependencySummary().input_channels, uint32_t(LN_DEP_INPUT_NONE));
+  KX_GameObject owner;
+  LN_RuntimeTree runtime_tree(program, &owner, 0, 0);
+  EXPECT_FALSE(runtime_tree.GetStateBlockInfo().has_own_input);
+
+  LN_TickReadContext shared;
+  shared.has_input = true;
+  shared.input_channels = program->GetDependencySummary().input_channels;
+  LN_InputSnapshot input;
+  input.Capture(nullptr, nullptr);
+  shared.input = &input;
+  runtime_tree.CaptureSnapshot(&shared, 0.25f, 1);
+  EXPECT_FALSE(runtime_tree.GetStateBlockInfo().has_own_input);
+  EXPECT_EQ(&runtime_tree.GetSnapshot().GetInputSnapshot(), &input);
+
+  runtime_tree.CaptureSnapshot(nullptr, 0.25f, 2);
+  EXPECT_TRUE(runtime_tree.GetStateBlockInfo().has_own_input);
+  EXPECT_NE(&runtime_tree.GetSnapshot().GetInputSnapshot(), &input);
+  EXPECT_FALSE(runtime_tree.GetSnapshot().GetInputSnapshot().HasDevice());
+}
+
+/* ---- Tree batches (2026-10-31, step 7: LN_TreeBatch.h) ---- */
+
+/** A positioned object for batch tests (an SG node at the root). */
+struct BatchObject : UIObject<KX_GameObject> {
+  explicit BatchObject(const MT_Vector3 &position) : UIObject<KX_GameObject>(nullptr)
+  {
+    object.NodeSetWorldPosition(position);
+    object.NodeUpdateGS(0.0);
+  }
+};
+
+/* An empty, unlinked Object input reaches these nodes as the tree's own object (or, for Get Child
+ * By Name's Child, as nothing to look for), and their outputs are always built. Until 2026-11-01
+ * Get Object ID, Remove Parent's Parent and Make Light Unique's Light built it as a constant object
+ * with no name, which resolves to nothing (the owner branch the runtime has never ran); Get Child
+ * By Name built no output at all with an input empty (the next node then read its own input as
+ * empty: the owner); Projectile Ray with an empty Caster compiled to nothing. */
+TEST(LN_TreeCompiler, AnEmptyObjectInputIsTheOwnObjectForTheNodesThatSaySo)
+{
+  const auto compile = [](blender::bNodeTree &tree) {
+    std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+    EXPECT_NE(program, nullptr);
+    if (program != nullptr) {
+      EXPECT_FALSE(program->GetCompileReport().HasErrors())
+          << FormatCompileReport(program->GetCompileReport());
+      EXPECT_TRUE(program->ValidateInstructionPayloads());
+    }
+    return program;
+  };
+  const auto is_owner = [](const LN_Program &program, const uint32_t index) {
+    const LN_ValueExpression *value = ValueExpressionAt(program, index);
+    return value != nullptr && value->kind == LN_ValueExpressionKind::OwnerObject;
+  };
+  /* A Print fed by the node's output, so the output is compiled. */
+  struct Printer {
+    TestNode event;
+    TestNode print;
+    blender::bNodeSocket &tick;
+    blender::bNodeSocket &print_flow;
+    blender::bNodeSocket &value;
+    explicit Printer(blender::bNodeTree &tree, const char *event_idname = "LogicNativeOnUpdate")
+        : event(tree, event_idname, "Event", 1),
+          print(tree, "LogicNativePrint", "Print", 2),
+          tick(event.flow(false, "Out")),
+          print_flow(print.flow(true, "Flow")),
+          value(print.add(true, "Value", blender::SOCK_CUSTOM, nullptr))
+    {
+    }
+  };
+
+  {
+    blender::bNodeTree tree = {};
+    InitTree(tree);
+    Printer printer(tree);
+    TestNode id(tree, "LogicNativeGetObjectID", "Get Object ID", 3);
+    id.in_object("Object");
+    blender::bNodeSocket &id_out = id.add(false, "ID", blender::SOCK_STRING, nullptr);
+    std::array<blender::bNodeLink, 2> links = {};
+    InitLink(links[0], printer.event.node, printer.tick, printer.print.node, printer.print_flow);
+    InitLink(links[1], id.node, id_out, printer.print.node, printer.value);
+    for (blender::bNodeLink &link : links) {
+      Append(tree.links, link);
+    }
+    const std::shared_ptr<LN_Program> program = compile(tree);
+    ASSERT_NE(program, nullptr);
+    size_t found = 0;
+    for (const LN_StringExpression &expression : program->GetStringExpressions()) {
+      if (expression.kind == LN_StringExpressionKind::ObjectID) {
+        found++;
+        EXPECT_EQ(expression.input0, LN_INVALID_INDEX) << "Get Object ID";
+      }
+    }
+    EXPECT_EQ(found, 1u);
+  }
+  {
+    blender::bNodeTree tree = {};
+    InitTree(tree);
+    Printer printer(tree, "LogicNativeOnFixedUpdate");
+    TestNode remove(tree, "LogicNativeRemoveParent", "Remove Parent", 3);
+    blender::bNodeSocket &remove_flow = remove.flow(true, "Flow");
+    remove.in_object("Child Object");
+    remove.flow(false, "Done");
+    blender::bNodeSocket &parent = remove.sockets.emplace_back();
+    InitSocketWithIdentifier(parent, "Parent", "Parent Object", blender::SOCK_OBJECT, nullptr);
+    Append(remove.node.outputs, parent);
+    std::array<blender::bNodeLink, 3> links = {};
+    InitLink(links[0], printer.event.node, printer.tick, printer.print.node, printer.print_flow);
+    InitLink(links[1], printer.event.node, printer.tick, remove.node, remove_flow);
+    InitLink(links[2], remove.node, parent, printer.print.node, printer.value);
+    for (blender::bNodeLink &link : links) {
+      Append(tree.links, link);
+    }
+    const std::shared_ptr<LN_Program> program = compile(tree);
+    ASSERT_NE(program, nullptr);
+    size_t found = 0;
+    for (const LN_ValueExpression &expression : program->GetValueExpressions()) {
+      if (expression.kind == LN_ValueExpressionKind::ObjectParent) {
+        found++;
+        EXPECT_TRUE(is_owner(*program, expression.input0)) << "Remove Parent's Parent";
+      }
+    }
+    EXPECT_EQ(found, 1u);
+  }
+  {
+    blender::bNodeTree tree = {};
+    InitTree(tree);
+    Printer printer(tree);
+    TestNode unique(tree, "LogicNativeMakeLightUnique", "Make Light Unique", 3);
+    blender::bNodeSocket &unique_flow = unique.flow(true, "Flow");
+    unique.in_object("Object");
+    unique.flow(false, "Done");
+    blender::bNodeSocket &light = unique.add(false, "Light", blender::SOCK_OBJECT, nullptr);
+    std::array<blender::bNodeLink, 3> links = {};
+    InitLink(links[0], printer.event.node, printer.tick, printer.print.node, printer.print_flow);
+    InitLink(links[1], printer.event.node, printer.tick, unique.node, unique_flow);
+    InitLink(links[2], unique.node, light, printer.print.node, printer.value);
+    for (blender::bNodeLink &link : links) {
+      Append(tree.links, link);
+    }
+    const std::shared_ptr<LN_Program> program = compile(tree);
+    ASSERT_NE(program, nullptr);
+    bool constant_object = false;
+    for (const LN_ValueExpression &expression : program->GetValueExpressions()) {
+      constant_object |= expression.kind == LN_ValueExpressionKind::Constant &&
+                         expression.value.type == LN_ValueType::ObjectRef;
+    }
+    EXPECT_FALSE(constant_object) << "Make Light Unique's Light is a constant object";
+    bool owner = false;
+    for (uint32_t index = 0; index < program->GetValueExpressions().size(); index++) {
+      owner |= is_owner(*program, index);
+    }
+    EXPECT_TRUE(owner) << "Make Light Unique's Light";
+  }
+  {
+    blender::bNodeTree tree = {};
+    InitTree(tree);
+    Printer printer(tree);
+    TestNode child(tree, "LogicNativeGetChildByName", "Get Child By Name", 3);
+    child.in_object("Parent");
+    child.in_object("Child");
+    blender::bNodeSocket &child_out = child.add(false, "Child", blender::SOCK_OBJECT, nullptr);
+    std::array<blender::bNodeLink, 2> links = {};
+    InitLink(links[0], printer.event.node, printer.tick, printer.print.node, printer.print_flow);
+    InitLink(links[1], child.node, child_out, printer.print.node, printer.value);
+    for (blender::bNodeLink &link : links) {
+      Append(tree.links, link);
+    }
+    const std::shared_ptr<LN_Program> program = compile(tree);
+    ASSERT_NE(program, nullptr);
+    size_t found = 0;
+    for (const LN_ValueExpression &expression : program->GetValueExpressions()) {
+      if (expression.kind == LN_ValueExpressionKind::ObjectChildByName) {
+        found++;
+        EXPECT_TRUE(is_owner(*program, expression.input0)) << "Get Child By Name's Parent";
+        EXPECT_EQ(expression.input1, LN_INVALID_INDEX) << "Get Child By Name's Child";
+      }
+    }
+    EXPECT_EQ(found, 1u) << "Get Child By Name's output was not built";
+  }
+  {
+    blender::bNodeTree tree = {};
+    InitTree(tree);
+    Printer printer(tree);
+    TestNode ray(tree, "LogicNativeProjectileRay", "Projectile Ray", 3);
+    blender::bNodeSocket &ray_flow = ray.flow(true, "Flow");
+    ray.in_object("Caster");
+    ray.in_vector("Origin", MT_Vector3(0.0f, 0.0f, 0.0f));
+    ray.in_vector("Aim", MT_Vector3(0.0f, 0.0f, 1.0f));
+    ray.in_bool("Local", false);
+    ray.in_float("Power", 10.0f);
+    ray.in_float("Distance", 20.0f);
+    ray.in_float("Resolution", 0.9f);
+    ray.in_string("Property", "");
+    ray.in_bool("X-Ray", false);
+    blender::bNodeSocketValueInt &mask = ray.ints.emplace_back();
+    mask.value = 1023;
+    ray.add(true, "Mask", blender::SOCK_INT, &mask, "NodeSocketLogicCollisionLayers");
+    ray.in_bool("Visualize", false);
+    blender::bNodeSocket &has_result = ray.sockets.emplace_back();
+    InitSocketWithIdentifier(has_result,
+                             "RESULT",
+                             "Has Result",
+                             blender::SOCK_BOOLEAN,
+                             nullptr,
+                             "NodeSocketLogicCondition");
+    Append(ray.node.outputs, has_result);
+    std::array<blender::bNodeLink, 3> links = {};
+    InitLink(links[0], printer.event.node, printer.tick, printer.print.node, printer.print_flow);
+    InitLink(links[1], printer.event.node, printer.tick, ray.node, ray_flow);
+    InitLink(links[2], ray.node, has_result, printer.print.node, printer.value);
+    for (blender::bNodeLink &link : links) {
+      Append(tree.links, link);
+    }
+    const std::shared_ptr<LN_Program> program = compile(tree);
+    ASSERT_NE(program, nullptr);
+    size_t found = 0;
+    for (const LN_QueryExpression &query : program->GetQueryExpressions()) {
+      if (query.kind == LN_QueryExpressionKind::ProjectileRay) {
+        found++;
+        EXPECT_EQ(query.input0, LN_INVALID_INDEX) << "Projectile Ray's Caster";
+      }
+    }
+    EXPECT_EQ(found, 1u) << "Projectile Ray with an empty Caster compiled to nothing";
+  }
+}
+
+/* Get Axis Vector with an empty Object is the tree's own object: the compiler gave it a constant
+ * object with no name, so it read nothing and gave (0, 0, 0); and its read of the own object comes
+ * from the snapshot, so the program must ask for the transform, which it did not (both fixed
+ * 2026-10-31). The manager captures only what the program asks for (ShouldCaptureSnapshot), as
+ * here. */
+TEST(LN_TreeCompiler, GetAxisVectorOfTheOwnObjectFollowsItsTurnInATreeReadingNothingElse)
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+  TestNode step(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 1);
+  blender::bNodeSocket &tick = step.flow(false, "Out");
+  TestNode axis(tree, "LogicNativeGetAxisVector", "Get Axis Vector", 2);
+  axis.node.custom1 = 1; /* Y */
+  axis.in_object("Object");
+  blender::bNodeSocket &axis_vector = axis.add(false, "Vector", blender::SOCK_VECTOR, nullptr);
+  TestNode separate(tree, "LogicNativeSeparateXYZ", "Separate XYZ", 3);
+  blender::bNodeSocket &separate_in = separate.add(true, "Vector", blender::SOCK_VECTOR, nullptr);
+  blender::bNodeSocket &separate_x = separate.add(false, "X", blender::SOCK_FLOAT, nullptr);
+  separate.add(false, "Y", blender::SOCK_FLOAT, nullptr);
+  separate.add(false, "Z", blender::SOCK_FLOAT, nullptr);
+  TestNode print(tree, "LogicNativePrint", "Print", 4);
+  blender::bNodeSocket &print_flow = print.flow(true, "Flow");
+  blender::bNodeSocket &print_value = print.add(true, "Value", blender::SOCK_CUSTOM, nullptr);
+  std::array<blender::bNodeLink, 3> links = {};
+  InitLink(links[0], step.node, tick, print.node, print_flow);
+  InitLink(links[1], axis.node, axis_vector, separate.node, separate_in);
+  InitLink(links[2], separate.node, separate_x, print.node, print_value);
+  for (blender::bNodeLink &link : links) {
+    Append(tree.links, link);
+  }
+  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  ASSERT_NE(program, nullptr);
+  ASSERT_FALSE(program->GetCompileReport().HasErrors())
+      << FormatCompileReport(program->GetCompileReport());
+  /* Turned a quarter around Z: its Y axis points to -X. */
+  BatchObject owner(MT_Vector3(0.0f, 0.0f, 0.0f));
+  owner.object.NodeSetLocalOrientation(
+      MT_Matrix3x3(0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f));
+  owner.object.NodeUpdateGS(0.0);
+  LN_RuntimeTree runtime_tree(program, &owner.object, 0, 0);
+  const LN_TickContext context = SteppedTrees::Context(0, 0.25);
+  EXPECT_TRUE(runtime_tree.ShouldCaptureSnapshot());
+  if (runtime_tree.ShouldCaptureSnapshot()) {
+    runtime_tree.CaptureSnapshot(nullptr, 0.25f, context.tick_index);
+  }
+  LN_CommandBuffer command_buffer;
+  command_buffer.BeginRecording();
+  runtime_tree.ExecuteReady(command_buffer, context);
+  command_buffer.EndRecording();
+  const std::vector<std::string> prints = SteppedTrees::Prints(command_buffer);
+  ASSERT_EQ(prints.size(), 1u);
+  EXPECT_NEAR(std::stod(prints[0]), -1.0, 1.0e-5);
+}
+
+struct BrainOptions {
+  /** On Logic + Physics Step instead of On Update. */
+  bool step = false;
+  /** A move of the object before the first read of the distance. */
+  bool move_first = false;
+  /** The second branch reads the distance again after the move (the once-a-pass test). */
+  bool second_branch = false;
+  /** Apply Movement moves another object (a constant object input). */
+  blender::Object *moved_object = nullptr;
+  float threshold = 6.0f;
+};
+
+/** The NPC brain of the 10,000-NPC benchmark (research.py brain_of): the distance from the
+ * object to the origin; nearer than the threshold: walk on, else turn and walk; store the
+ * distance in "dist". Compiled while its nodes live. */
+std::shared_ptr<LN_Program> CompileBrain(const BrainOptions &options)
+{
+  blender::bNodeTree tree = {};
+  InitTree(tree);
+  TestNode event(
+      tree, options.step ? "LogicNativeOnFixedUpdate" : "LogicNativeOnUpdate", "Event", 1);
+  blender::bNodeSocket &tick = event.flow(false, "Out");
+  TestNode distance(tree, "LogicNativeGetDistance", "Distance Between", 2);
+  distance.node.custom1 = 0; /* End A: an object, the owner when empty. */
+  distance.node.custom2 = 1; /* End B: a position. */
+  distance.in_object("Object A");
+  distance.in_vector("Position A", MT_Vector3(0.0f, 0.0f, 0.0f));
+  distance.in_object("Object B");
+  distance.in_vector("Position B", MT_Vector3(0.0f, 0.0f, 0.0f));
+  blender::bNodeSocket &distance_out = distance.add(false, "Distance", blender::SOCK_FLOAT, nullptr);
+  distance.add(false, "Squared Distance", blender::SOCK_FLOAT, nullptr);
+  distance.add(false, "Valid", blender::SOCK_BOOLEAN, nullptr);
+  TestNode near(tree, "LogicNativeCompare", "Compare", 3);
+  near.node.custom1 = 3; /* Less Than */
+  blender::bNodeSocket &near_a = near.in_float("A", 0.0f);
+  near.in_float("B", options.threshold);
+  blender::bNodeSocket &near_result = near.add(false, "Result", blender::SOCK_BOOLEAN, nullptr);
+  TestNode branch(tree, "LogicNativeBranch", "Branch", 4);
+  blender::bNodeSocket &branch_flow = branch.flow(true, "Flow");
+  blender::bNodeSocket &branch_condition = branch.in_bool("Condition", false);
+  blender::bNodeSocket &branch_true = branch.flow(false, "True");
+  blender::bNodeSocket &branch_false = branch.flow(false, "False");
+  const auto add_movement = [&](TestNode &node, const MT_Vector3 &vector) -> blender::bNodeSocket & {
+    node.flow(true, "Flow");
+    blender::bNodeSocket &object = node.in_object("Object");
+    if (options.moved_object != nullptr) {
+      static_cast<blender::bNodeSocketValueObject *>(object.default_value)->value =
+          options.moved_object;
+    }
+    node.in_vector("Vector", vector);
+    node.in_bool("Local", true);
+    return node.flow(false, "Done");
+  };
+  TestNode approach(tree, "LogicNativeApplyMovement", "Apply Movement", 5);
+  add_movement(approach, MT_Vector3(0.5f, 0.0f, 0.0f));
+  TestNode turn(tree, "LogicNativeApplyRotation", "Apply Rotation", 6);
+  blender::bNodeSocket &turn_flow = turn.flow(true, "Flow");
+  turn.in_object("Object");
+  blender::bNodeSocketValueRotation turn_rotation = {};
+  turn_rotation.value_euler[2] = 0.25f;
+  turn.add(true, "Rotation", blender::SOCK_ROTATION, &turn_rotation);
+  turn.in_bool("Local", true);
+  blender::bNodeSocket &turn_done = turn.flow(false, "Done");
+  TestNode walk(tree, "LogicNativeApplyMovement", "Apply Movement.001", 7);
+  add_movement(walk, MT_Vector3(0.25f, 0.0f, 0.0f));
+  TestNode store(tree, "LogicNativeSetGamePropertyFloat", "Set Game Property", 8);
+  blender::bNodeSocket &store_flow = store.flow(true, "Flow");
+  store.in_object("Object");
+  store.in_string("Property", "dist");
+  blender::bNodeSocket &store_value = store.in_float("Value", 0.0f);
+  store.flow(false, "Done");
+  TestNode first_move(tree, "LogicNativeApplyMovement", "Apply Movement.002", 9);
+  blender::bNodeSocket &first_move_done = add_movement(first_move, MT_Vector3(0.0f, 1.0f, 0.0f));
+  TestNode again(tree, "LogicNativeBranch", "Branch.001", 10);
+  blender::bNodeSocket &again_flow = again.flow(true, "Flow");
+  blender::bNodeSocket &again_condition = again.in_bool("Condition", false);
+  again.flow(false, "True");
+  blender::bNodeSocket &again_false = again.flow(false, "False");
+  TestNode far(tree, "LogicNativePrint", "Print", 11);
+  blender::bNodeSocket &far_flow = far.flow(true, "Flow");
+  far.in_string("Value", "far");
+
+  std::deque<blender::bNodeLink> links;
+  const auto link = [&](TestNode &from,
+                        blender::bNodeSocket &from_socket,
+                        TestNode &to,
+                        blender::bNodeSocket &to_socket) {
+    InitLink(links.emplace_back(), from.node, from_socket, to.node, to_socket);
+    Append(tree.links, links.back());
+  };
+  if (options.move_first) {
+    link(event, tick, first_move, *static_cast<blender::bNodeSocket *>(first_move.node.inputs.first));
+    link(first_move, first_move_done, branch, branch_flow);
+    link(first_move, first_move_done, store, store_flow);
+  }
+  else {
+    link(event, tick, branch, branch_flow);
+    link(event, tick, store, store_flow);
+  }
+  link(distance, distance_out, near, near_a);
+  link(near, near_result, branch, branch_condition);
+  link(branch, branch_true, approach, *static_cast<blender::bNodeSocket *>(approach.node.inputs.first));
+  link(branch, branch_false, turn, turn_flow);
+  link(turn, turn_done, walk, *static_cast<blender::bNodeSocket *>(walk.node.inputs.first));
+  link(distance, distance_out, store, store_value);
+  if (options.second_branch) {
+    /* After the near route's move: is the object still near? (Once a pass: yes.) */
+    blender::bNodeSocket &approach_done = *static_cast<blender::bNodeSocket *>(
+        approach.node.outputs.first);
+    link(approach, approach_done, again, again_flow);
+    link(near, near_result, again, again_condition);
+    link(again, again_false, far, far_flow);
+  }
+  std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+  EXPECT_NE(program, nullptr);
+  if (program != nullptr) {
+    EXPECT_FALSE(program->GetCompileReport().HasErrors())
+        << FormatCompileReport(program->GetCompileReport());
+  }
+  return program;
+}
+
+size_t CountCommands(const std::vector<LN_CommandBuffer::Command> &commands,
+                     const LN_CommandBuffer::CommandType type)
+{
+  return size_t(std::count_if(commands.begin(), commands.end(), [&](const auto &command) {
+    return command.type == type;
+  }));
+}
+
+/* Get Distance between fixed ends gives one value a pass, taken at its first use. Before
+ * 2026-10-31 it was taken again for each node that read it, after the tree's own moves: a second
+ * Branch on the same Compare saw the object moved away by the first Branch's True route and took
+ * its False route as well. A first read after a move still sees the move. */
+TEST(LN_TreeCompiler, AGetDistanceIsTakenOnceAPassAtItsFirstUse)
+{
+  BrainOptions options;
+  options.second_branch = true;
+  options.threshold = 1.5f;
+  const std::shared_ptr<LN_Program> program = CompileBrain(options);
+  ASSERT_NE(program, nullptr);
+  const std::vector<LN_QueryExpression> &queries = program->GetQueryExpressions();
+  ASSERT_EQ(queries.size(), 1u);
+  EXPECT_TRUE(LN_DistanceQueryEndsAreFixed(*program, queries.front()));
+
+  for (const bool registers : {false, true}) {
+    SCOPED_TRACE(registers ? "register evaluator" : "tree evaluator");
+    /* 1 from the origin: near. The near route moves it 0.5 along x, to 1.5: not near any more. */
+    BatchObject owner(MT_Vector3(1.0f, 0.0f, 0.0f));
+    LN_RuntimeTree runtime_tree(program, &owner.object, 0, 0);
+    LN_TickContext context;
+    context.event = LN_Event::OnUpdate;
+    context.tick_index = 1;
+    context.use_register_expression_evaluator = registers;
+    LN_CommandBuffer buffer;
+    buffer.BeginRecording();
+    runtime_tree.ExecuteReady(buffer, context);
+    buffer.EndRecording();
+    const std::vector<LN_CommandBuffer::Command> commands = buffer.TakeRecordedCommands();
+    EXPECT_EQ(CountCommands(commands, LN_CommandBuffer::CommandType::Print), 0u);
+    EXPECT_EQ(CountCommands(commands, LN_CommandBuffer::CommandType::ApplyMovement), 1u);
+    /* The stored distance is the one the branch used. */
+    for (const LN_CommandBuffer::Command &command : commands) {
+      if (command.type == LN_CommandBuffer::CommandType::SetGameProperty) {
+        EXPECT_FLOAT_EQ(command.property_value.float_value, 1.0f);
+      }
+    }
+  }
+
+  /* A move first: the first read applies it and sees 1 + 1 along y: sqrt(2) < 1.5, near. */
+  options.second_branch = false;
+  options.move_first = true;
+  const std::shared_ptr<LN_Program> move_first = CompileBrain(options);
+  ASSERT_NE(move_first, nullptr);
+  BatchObject owner(MT_Vector3(1.0f, 0.0f, 0.0f));
+  LN_RuntimeTree runtime_tree(move_first, &owner.object, 0, 0);
+  LN_TickContext context;
+  context.event = LN_Event::OnUpdate;
+  context.tick_index = 1;
+  LN_CommandBuffer buffer;
+  buffer.BeginRecording();
+  runtime_tree.ExecuteReady(buffer, context);
+  buffer.EndRecording();
+  bool stored = false;
+  for (const LN_CommandBuffer::Command &command : buffer.TakeRecordedCommands()) {
+    if (command.type == LN_CommandBuffer::CommandType::SetGameProperty) {
+      EXPECT_FLOAT_EQ(command.property_value.float_value, std::sqrt(2.0f));
+      stored = true;
+    }
+  }
+  EXPECT_TRUE(stored);
+}
+
+/* Which programs a batch may hold: the benchmark's brain (on frames and on steps), not one that
+ * reads its object after moving it, moves another object, or casts a ray. */
+TEST(LN_TreeCompiler, ATreeBatchHoldsOnlyProgramsWhoseNodesAreBatchSafe)
+{
+  for (const bool step : {false, true}) {
+    BrainOptions options;
+    options.step = step;
+    const std::shared_ptr<LN_Program> brain = CompileBrain(options);
+    ASSERT_NE(brain, nullptr);
+    const LN_TreeBatchProfile &profile = brain->GetTreeBatchProfile();
+    EXPECT_TRUE(profile.eligible) << profile.reason;
+    EXPECT_TRUE(profile.endpoint_value_expressions.empty());
+    /* Kept until the program grows. */
+    EXPECT_EQ(&brain->GetTreeBatchProfile(), &profile);
+  }
+
+  BrainOptions move_first;
+  move_first.move_first = true;
+  const std::shared_ptr<LN_Program> late_read = CompileBrain(move_first);
+  ASSERT_NE(late_read, nullptr);
+  EXPECT_FALSE(late_read->GetTreeBatchProfile().eligible);
+  EXPECT_EQ(late_read->GetTreeBatchProfile().reason,
+            "a Get Distance from the object read after the tree moves it");
+
+  blender::Object other = {};
+  std::strncpy(other.id.name, "OBOther", sizeof(other.id.name) - 1);
+  BrainOptions moves_other;
+  moves_other.moved_object = &other;
+  const std::shared_ptr<LN_Program> other_mover = CompileBrain(moves_other);
+  ASSERT_NE(other_mover, nullptr);
+  EXPECT_FALSE(other_mover->GetTreeBatchProfile().eligible);
+  EXPECT_EQ(other_mover->GetTreeBatchProfile().reason,
+            "a move or physics change of another object");
+
+  /* A ray: the query reads the physics world and applies the caster's moves. */
+  BrainOptions plain;
+  std::shared_ptr<LN_Program> with_ray = CompileBrain(plain);
+  ASSERT_NE(with_ray, nullptr);
+  LN_QueryExpression ray;
+  ray.kind = LN_QueryExpressionKind::Raycast;
+  with_ray->AddQueryExpression(ray);
+  EXPECT_FALSE(with_ray->GetTreeBatchProfile().eligible);
+  EXPECT_EQ(with_ray->GetTreeBatchProfile().reason, "a ray, cast, pointer or UI query");
+}
+
+/* Every move is checked, not only the first: with two step routes on different Every N Steps
+ * sharing one Get Distance, a step where only the second route is due moves the object before
+ * any read (review finding, 2026-10-31). Both routes reading first: allowed. */
+TEST(LN_TreeCompiler, ATreeBatchChecksEveryMoveAgainstTheReadsBeforeIt)
+{
+  /* Both ways round (the reading route gated or the moving one): whichever route's block the
+   * program puts first, the moving route is found. */
+  for (const auto &[second_reads_first, swap_gates] :
+       {std::pair(false, false), std::pair(false, true), std::pair(true, false), std::pair(true, true)})
+  {
+    SCOPED_TRACE(std::string(second_reads_first ? "both routes read first" :
+                                                  "the second route moves first") +
+                 (swap_gates ? ", the second route every 2 steps" : ""));
+    blender::bNodeTree tree = {};
+    InitTree(tree);
+    TestNode every_two(tree, "LogicNativeOnFixedUpdate", "Every Two", 1);
+    every_two.node.custom1 = swap_gates ? 1 : 2;
+    blender::bNodeSocket &two_out = every_two.flow(false, "Out");
+    every_two.add(false, "Time Passed", blender::SOCK_FLOAT, nullptr);
+    TestNode every_step(tree, "LogicNativeOnFixedUpdate", "Every Step", 2);
+    every_step.node.custom1 = swap_gates ? 2 : 1;
+    blender::bNodeSocket &step_out = every_step.flow(false, "Out");
+    every_step.add(false, "Time Passed", blender::SOCK_FLOAT, nullptr);
+    TestNode distance(tree, "LogicNativeGetDistance", "Distance Between", 3);
+    distance.node.custom2 = 1;
+    distance.in_object("Object A");
+    distance.in_vector("Position A", MT_Vector3(0.0f, 0.0f, 0.0f));
+    distance.in_object("Object B");
+    distance.in_vector("Position B", MT_Vector3(0.0f, 0.0f, 0.0f));
+    blender::bNodeSocket &distance_out = distance.add(
+        false, "Distance", blender::SOCK_FLOAT, nullptr);
+    distance.add(false, "Squared Distance", blender::SOCK_FLOAT, nullptr);
+    distance.add(false, "Valid", blender::SOCK_BOOLEAN, nullptr);
+    TestNode near(tree, "LogicNativeCompare", "Compare", 4);
+    near.node.custom1 = 3;
+    blender::bNodeSocket &near_a = near.in_float("A", 0.0f);
+    near.in_float("B", 5.0f);
+    blender::bNodeSocket &near_result = near.add(false, "Result", blender::SOCK_BOOLEAN, nullptr);
+    const auto branch_node = [&](TestNode &node, blender::bNodeSocket *&r_flow,
+                                 blender::bNodeSocket *&r_condition) -> blender::bNodeSocket & {
+      r_flow = &node.flow(true, "Flow");
+      r_condition = &node.in_bool("Condition", false);
+      blender::bNodeSocket &result = node.flow(false, "True");
+      node.flow(false, "False");
+      return result;
+    };
+    const auto move_node = [&](TestNode &node, blender::bNodeSocket *&r_flow) -> blender::bNodeSocket & {
+      r_flow = &node.flow(true, "Flow");
+      node.in_object("Object");
+      node.in_vector("Vector", MT_Vector3(0.1f, 0.0f, 0.0f));
+      node.in_bool("Local", false);
+      return node.flow(false, "Done");
+    };
+    /* Route 1 (Every 2): Branch(near) -> move. */
+    TestNode first_branch(tree, "LogicNativeBranch", "Branch", 5);
+    blender::bNodeSocket *first_branch_flow = nullptr;
+    blender::bNodeSocket *first_branch_condition = nullptr;
+    blender::bNodeSocket &first_true = branch_node(
+        first_branch, first_branch_flow, first_branch_condition);
+    TestNode first_move(tree, "LogicNativeApplyMovement", "Apply Movement", 6);
+    blender::bNodeSocket *first_move_flow = nullptr;
+    move_node(first_move, first_move_flow);
+    /* Route 2 (every step): move -> Branch(near), or Branch(near) -> move. */
+    TestNode second_branch(tree, "LogicNativeBranch", "Branch.001", 7);
+    blender::bNodeSocket *second_branch_flow = nullptr;
+    blender::bNodeSocket *second_branch_condition = nullptr;
+    blender::bNodeSocket &second_true = branch_node(
+        second_branch, second_branch_flow, second_branch_condition);
+    TestNode second_move(tree, "LogicNativeApplyMovement", "Apply Movement.001", 8);
+    blender::bNodeSocket *second_move_flow = nullptr;
+    blender::bNodeSocket &second_move_done = move_node(second_move, second_move_flow);
+    /* Two prints before the moving route's move: its move comes after the reading route's in
+     * the program, so a check of the first move alone passes. */
+    TestNode print_a(tree, "LogicNativePrint", "Print", 9);
+    blender::bNodeSocket &print_a_flow = print_a.flow(true, "Flow");
+    print_a.in_string("Value", "a");
+    blender::bNodeSocket &print_a_done = print_a.flow(false, "Done");
+    TestNode print_b(tree, "LogicNativePrint", "Print.001", 10);
+    blender::bNodeSocket &print_b_flow = print_b.flow(true, "Flow");
+    print_b.in_string("Value", "b");
+    blender::bNodeSocket &print_b_done = print_b.flow(false, "Done");
+    TestNode near_print(tree, "LogicNativePrint", "Print.002", 11);
+    blender::bNodeSocket &near_print_flow = near_print.flow(true, "Flow");
+    near_print.in_string("Value", "near");
+    near_print.flow(false, "Done");
+
+    std::deque<blender::bNodeLink> links;
+    const auto link = [&](blender::bNode &from, blender::bNodeSocket &from_socket,
+                          blender::bNode &to, blender::bNodeSocket &to_socket) {
+      InitLink(links.emplace_back(), from, from_socket, to, to_socket);
+      Append(tree.links, links.back());
+    };
+    link(distance.node, distance_out, near.node, near_a);
+    link(near.node, near_result, first_branch.node, *first_branch_condition);
+    link(near.node, near_result, second_branch.node, *second_branch_condition);
+    link(every_two.node, two_out, first_branch.node, *first_branch_flow);
+    link(first_branch.node, first_true, first_move.node, *first_move_flow);
+    if (second_reads_first) {
+      link(every_step.node, step_out, second_branch.node, *second_branch_flow);
+      link(second_branch.node, second_true, second_move.node, *second_move_flow);
+    }
+    else {
+      link(every_step.node, step_out, print_a.node, print_a_flow);
+      link(print_a.node, print_a_done, print_b.node, print_b_flow);
+      link(print_b.node, print_b_done, second_move.node, *second_move_flow);
+      link(second_move.node, second_move_done, second_branch.node, *second_branch_flow);
+      /* The read after the move must do something, or the compiler drops it. */
+      link(second_branch.node, second_true, near_print.node, near_print_flow);
+    }
+    const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+    ASSERT_NE(program, nullptr);
+    ASSERT_FALSE(program->GetCompileReport().HasErrors())
+        << FormatCompileReport(program->GetCompileReport());
+    /* Every 2 has a gate; every step runs ungated. */
+    ASSERT_EQ(program->GetStepGates().size(), 1u);
+    /* The reading route on every step (gates swapped) reads before the other route's move on
+     * every step, so that is allowed too. */
+    const LN_TreeBatchProfile &profile = program->GetTreeBatchProfile();
+    EXPECT_EQ(profile.eligible, second_reads_first || swap_gates) << profile.reason;
+  }
+}
+
+/* The same rule on a program made by hand in the order that trips a check of the first move
+ * alone: an Every 2 route that reads then moves, before an every-step route that moves then
+ * reads. On odd steps the second route moves the object, then its read would apply the move. */
+TEST(LN_TreeCompiler, ATreeBatchChecksAMoveThatAnotherRoutesMoveComesBefore)
+{
+  for (const bool second_reads_first : {false, true}) {
+    SCOPED_TRACE(second_reads_first ? "the second route reads first" :
+                                      "the second route moves first");
+    std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+    LN_StepGate every_two;
+    every_two.interval = 2;
+    const uint32_t gate = program->AddStepGate(every_two);
+    LN_VectorExpression origin;
+    const uint32_t origin_index = program->AddVectorExpression(origin);
+    LN_QueryExpression query;
+    query.kind = LN_QueryExpressionKind::DistanceBetween;
+    query.distance_endpoint_b = LN_DistanceEndpointMode::Position;
+    query.input1 = origin_index;
+    const uint32_t query_index = program->AddQueryExpression(query);
+    LN_FloatExpression distance;
+    distance.kind = LN_FloatExpressionKind::QueryDistance;
+    distance.input0 = query_index;
+    const uint32_t distance_index = program->AddFloatExpression(distance);
+    LN_FloatExpression five;
+    five.float_value = 5.0f;
+    const uint32_t five_index = program->AddFloatExpression(five);
+    LN_BoolExpression near;
+    near.kind = LN_BoolExpressionKind::FloatCompare;
+    near.float_compare_operation = LN_FloatCompareOperation::LessThan;
+    near.input0 = distance_index;
+    near.input1 = five_index;
+    const uint32_t near_index = program->AddBoolExpression(near);
+    const auto executed = [&](const uint32_t instruction) {
+      LN_BoolExpression expression;
+      expression.kind = LN_BoolExpressionKind::InstructionExecuted;
+      expression.input0 = instruction;
+      return program->AddBoolExpression(expression);
+    };
+    const auto add = [&](const LN_OpCode opcode,
+                         const uint32_t step_gate,
+                         const uint32_t guard,
+                         const uint32_t condition) {
+      LN_Instruction instruction;
+      instruction.opcode = opcode;
+      instruction.step_gate_index = step_gate;
+      instruction.bool_guard_expr_index = guard;
+      instruction.bool_expr_index = condition;
+      instruction.bool_value = true;
+      if (opcode == LN_OpCode::ApplyTransformVector) {
+        instruction.vector_operation_channel = uint8_t(LN_VectorOperationChannel::Movement);
+        instruction.vector_value = MT_Vector3(0.1f, 0.0f, 0.0f);
+      }
+      return program->AddInstruction(LN_Event::OnFixedUpdate, instruction);
+    };
+    const uint32_t first_read = add(LN_OpCode::BranchRoute, gate, LN_INVALID_INDEX, near_index);
+    add(LN_OpCode::ApplyTransformVector, gate, executed(first_read), LN_INVALID_INDEX);
+    if (second_reads_first) {
+      const uint32_t second_read = add(
+          LN_OpCode::BranchRoute, LN_INVALID_INDEX, LN_INVALID_INDEX, near_index);
+      add(LN_OpCode::ApplyTransformVector,
+          LN_INVALID_INDEX,
+          executed(second_read),
+          LN_INVALID_INDEX);
+    }
+    else {
+      const uint32_t second_move = add(LN_OpCode::ApplyTransformVector,
+                                       LN_INVALID_INDEX,
+                                       LN_INVALID_INDEX,
+                                       LN_INVALID_INDEX);
+      add(LN_OpCode::BranchRoute, LN_INVALID_INDEX, executed(second_move), near_index);
+    }
+    std::vector<std::string> errors;
+    ASSERT_TRUE(program->ValidateInstructionPayloads(&errors))
+        << (errors.empty() ? std::string() : errors.front());
+    /* The order: the Every 2 route's block, then the every-step route's. */
+    const LN_ExecBlockProgram &ir = program->GetExecBlockProgram(LN_Event::OnFixedUpdate);
+    ASSERT_TRUE(ir.valid);
+    ASSERT_EQ(ir.blocks.size(), 2u);
+    EXPECT_EQ(ir.blocks[0].step_gate_index, gate);
+    EXPECT_EQ(ir.blocks[1].step_gate_index, LN_INVALID_INDEX);
+    const LN_TreeBatchProfile &profile = program->GetTreeBatchProfile();
+    EXPECT_EQ(profile.eligible, second_reads_first) << profile.reason;
+  }
+}
+
+/* A batch records exactly what the trees record one after the other: for 300 brains over 12
+ * frames (objects walking across the threshold, turning), with 0 to 5 helper threads and 1 to
+ * 64 chunks, every frame has the same commands in the same flush order, and the objects end at
+ * the very same places. */
+TEST(LN_TreeCompiler, ATreeBatchRecordsExactlyWhatTheTreesRecordOneAfterTheOther)
+{
+  const std::shared_ptr<LN_Program> program = CompileBrain(BrainOptions());
+  ASSERT_NE(program, nullptr);
+  ASSERT_TRUE(program->GetTreeBatchProfile().eligible) << program->GetTreeBatchProfile().reason;
+  constexpr size_t tree_count = 300;
+  struct World {
+    std::deque<BatchObject> objects;
+    std::vector<std::unique_ptr<LN_RuntimeTree>> trees;
+    std::vector<LN_RuntimeTree *> tree_pointers;
+    explicit World(const std::shared_ptr<LN_Program> &program)
+    {
+      for (size_t index = 0; index < tree_count; index++) {
+        /* Some start near (under 6 from the origin), some far, all over the place. */
+        const float angle = float(index) * 0.37f;
+        const float radius = 2.0f + float(index % 9);
+        objects.emplace_back(MT_Vector3(radius * std::cos(angle), radius * std::sin(angle), 0.0f));
+        trees.push_back(std::make_unique<LN_RuntimeTree>(
+            program, &objects.back().object, uint32_t(index), 0));
+        tree_pointers.push_back(trees.back().get());
+      }
+    }
+  };
+  const auto same_places = [](World &a, World &b) {
+    for (size_t index = 0; index < tree_count; index++) {
+      const MT_Vector3 pa = a.objects[index].object.NodeGetWorldPosition();
+      const MT_Vector3 pb = b.objects[index].object.NodeGetWorldPosition();
+      if (pa.x() != pb.x() || pa.y() != pb.y() || pa.z() != pb.z()) {
+        return false;
+      }
+      const MT_Matrix3x3 oa = a.objects[index].object.NodeGetWorldOrientation();
+      const MT_Matrix3x3 ob = b.objects[index].object.NodeGetWorldOrientation();
+      for (int row = 0; row < 3; row++) {
+        for (int column = 0; column < 3; column++) {
+          if (oa[row][column] != ob[row][column]) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  };
+
+  size_t compared_frames = 0;
+  for (const uint32_t helpers : {0u, 1u, 3u, 5u}) {
+    for (const size_t chunks : {size_t(1), size_t(2), size_t(7), size_t(64)}) {
+      SCOPED_TRACE("helpers " + std::to_string(helpers) + " chunks " + std::to_string(chunks));
+      World one(program);
+      World batched(program);
+      LN_JobPool pool;
+      pool.SetHelperCount(helpers);
+      LN_TreeBatchRecorder recorder;
+      for (uint64_t frame = 1; frame <= 12; frame++) {
+        LN_TickContext context;
+        context.event = LN_Event::OnUpdate;
+        context.tick_index = frame;
+        context.delta_time = 1.0 / 60.0;
+
+        LN_CommandBuffer one_buffer;
+        one_buffer.BeginRecording();
+        for (LN_RuntimeTree *runtime_tree : one.tree_pointers) {
+          runtime_tree->ExecuteReady(one_buffer, context);
+        }
+        one_buffer.EndRecording();
+
+        LN_CommandBuffer batched_buffer;
+        batched_buffer.BeginRecording();
+        EXPECT_EQ(recorder.Record(pool,
+                                  batched_buffer,
+                                  batched.tree_pointers.data(),
+                                  tree_count,
+                                  context,
+                                  nullptr,
+                                  nullptr,
+                                  true,
+                                  chunks),
+                  0u);
+        batched_buffer.EndRecording();
+
+        ASSERT_EQ(batched_buffer.Size(), one_buffer.Size()) << "frame " << frame;
+        ASSERT_EQ(batched_buffer.FlushDecisionForTests(), one_buffer.FlushDecisionForTests())
+            << "frame " << frame;
+        for (const bool coalesce : {false, true}) {
+          ASSERT_EQ(batched_buffer.DirectFlushOrderForTests(coalesce),
+                    one_buffer.DirectFlushOrderForTests(coalesce))
+              << "frame " << frame;
+        }
+        one_buffer.Flush();
+        batched_buffer.Flush();
+        ASSERT_TRUE(same_places(one, batched)) << "frame " << frame;
+        compared_frames++;
+      }
+    }
+  }
+  EXPECT_EQ(compared_frames, 4u * 4u * 12u);
+}
+
+/* The batch's safety net: a tree that reads its object after moving it (no batch holds one)
+ * applies nothing in a batch, and the recorder names its chunk's trees. */
+TEST(LN_TreeCompiler, ATreeBatchNamesTheTreesOfAChunkThatReadAPendingMove)
+{
+  BrainOptions options;
+  options.move_first = true;
+  const std::shared_ptr<LN_Program> late_read = CompileBrain(options);
+  const std::shared_ptr<LN_Program> brain = CompileBrain(BrainOptions());
+  ASSERT_NE(late_read, nullptr);
+  ASSERT_NE(brain, nullptr);
+  std::deque<BatchObject> objects;
+  std::vector<std::unique_ptr<LN_RuntimeTree>> trees;
+  std::vector<LN_RuntimeTree *> pointers;
+  for (size_t index = 0; index < 8; index++) {
+    objects.emplace_back(MT_Vector3(1.0f + float(index), 0.0f, 0.0f));
+    trees.push_back(std::make_unique<LN_RuntimeTree>(
+        index == 5 ? late_read : brain, &objects.back().object, uint32_t(index), 0));
+    pointers.push_back(trees.back().get());
+  }
+  LN_JobPool pool;
+  pool.SetHelperCount(2);
+  LN_TreeBatchRecorder recorder;
+  LN_TickContext context;
+  context.event = LN_Event::OnUpdate;
+  context.tick_index = 1;
+  LN_CommandBuffer buffer;
+  buffer.BeginRecording();
+  EXPECT_EQ(recorder.Record(pool, buffer, pointers.data(), 8, context, nullptr, nullptr, true, 4),
+            1u);
+  buffer.EndRecording();
+  EXPECT_EQ(recorder.LastChunkTreesThatReadAMove(), (std::vector<size_t>{4, 5}));
+  /* Nothing moved while the trees recorded. */
+  for (size_t index = 0; index < 8; index++) {
+    EXPECT_EQ(objects[index].object.NodeGetWorldPosition(),
+              MT_Vector3(1.0f + float(index), 0.0f, 0.0f));
+  }
+
+  /* A pending move in the tick's buffer (an earlier tree moved tree 6's object; the manager's
+   * checks rule this out) is seen by the chunk that reads it, and applied by nobody. */
+  buffer.Clear();
+  std::vector<std::unique_ptr<LN_RuntimeTree>> brains;
+  std::vector<LN_RuntimeTree *> brain_pointers;
+  for (size_t index = 0; index < 8; index++) {
+    brains.push_back(std::make_unique<LN_RuntimeTree>(
+        brain, &objects[index].object, uint32_t(index), 0));
+    brain_pointers.push_back(brains.back().get());
+  }
+  context.tick_index = 2;
+  buffer.BeginRecording();
+  buffer.AppendApplyMovement(&objects[6].object, MT_Vector3(0.0f, 3.0f, 0.0f), false, 1, 1);
+  EXPECT_EQ(recorder.Record(
+                pool, buffer, brain_pointers.data(), 8, context, nullptr, nullptr, true, 4),
+            1u);
+  EXPECT_EQ(recorder.LastChunkTreesThatReadAMove(), (std::vector<size_t>{6, 7}));
+  EXPECT_EQ(objects[6].object.NodeGetWorldPosition(), MT_Vector3(7.0f, 0.0f, 0.0f));
+  buffer.EndRecording();
 }
 
 }  // namespace

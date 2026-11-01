@@ -1491,21 +1491,11 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
                 row_jitter.prop(gs, "jitter_fix")
                 col.prop(gs, "use_fixed_physics_interpolation", text="Physics Interpolation")
 
-                if hasattr(bpy.types, "LogicNodeTree") and hasattr(gs, "use_logic_nodes_parallel"):
+                if hasattr(bpy.types, "LogicNodeTree") and hasattr(gs, "show_logic_nodes_profile"):
                     layout.separator()
                     box = layout.box()
                     box.label(text="Logic Nodes", icon='NODETREE')
-                    box.prop(
-                        gs,
-                        "use_logic_nodes_parallel",
-                        text="Parallel Tree Execution",
-                    )
-                    if hasattr(gs, "show_logic_nodes_profile"):
-                        box.prop(
-                            gs,
-                            "show_logic_nodes_profile",
-                            text="Console Tick Profiling",
-                        )
+                    box.prop(gs, "show_logic_nodes_profile", text="Console Tick Profiling")
             else:
                 # For Variable mode: keep original layout
                 split = layout.split()

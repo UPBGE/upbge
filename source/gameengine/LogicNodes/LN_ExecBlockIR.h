@@ -74,6 +74,9 @@ struct LN_ExecBlock {
   uint32_t loop_frame_index = LN_INVALID_INDEX;
   uint32_t completed_loop_frame_index = LN_INVALID_INDEX;
   uint32_t source_ref_index = 0;
+  /** The step gate of every op of the block (blocks split where it changes), LN_INVALID_INDEX
+   * for ops that run every step. A gated Loop body advances only on its gate's steps. */
+  uint32_t step_gate_index = LN_INVALID_INDEX;
   /** Every op of the block is part of a UI event route. */
   bool ui_event_route = true;
 };
@@ -94,6 +97,9 @@ struct LN_ExecBlockProgram {
   uint32_t direct_instruction_count = 0;
   uint32_t fallback_instruction_count = 0;
   uint32_t fallback_block_count = 0;
+  /** Some block runs, and every block is behind a step gate: on a step where no gate is due the
+   * event has nothing to run (the tree may sleep through it). */
+  bool all_blocks_step_gated = false;
   bool valid = true;
   std::vector<std::string> validation_errors;
 };

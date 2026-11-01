@@ -2225,6 +2225,17 @@ static std::optional<uint32_t> TryCompileExpressionFloatOutput(
       }
       break;
     }
+    case LN_NodeKind::EventOnFixedUpdate: {
+      r_handled = true;
+      if (NamesMatch(output_socket.name, output_socket.identifier, "Time Passed")) {
+        LN_FloatExpression expression;
+        expression.kind = LN_FloatExpressionKind::StepTimePassed;
+        const uint32_t gate = StepGateOfEventNode(program, LN_NodeKind::EventOnFixedUpdate, node);
+        expression.int_value = gate == LN_INVALID_INDEX ? -1 : int32_t(gate);
+        result = program.AddFloatExpression(expression);
+      }
+      break;
+    }
     case LN_NodeKind::OnConstraintBreak:
       r_handled = true;
       {
@@ -4274,19 +4285,22 @@ static std::optional<uint32_t> TryCompileExpressionValueOutput(
       {
         break;
       }
-      const std::optional<uint32_t> object_expr = BuildInputValueExpression(program,
-                                                                            node,
-                                                                            "Child Object",
-                                                                            node_definitions,
-                                                                            input_links,
-                                                                            value_cache,
-                                                                            bool_expression_cache,
-                                                                            int_expression_cache,
-                                                                            float_expression_cache,
-                                                                            string_expression_cache,
-                                                                            vector_expression_cache,
-                                                                            color_expression_cache,
-                                                                            value_expression_cache);
+      /* An empty Child Object is the owner, whose parent the node removes: as a constant object
+       * with no name the output said "none" until 2026-11-01 (the owner branch below never ran). */
+      const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
+          program,
+          node,
+          "Child Object",
+          node_definitions,
+          input_links,
+          value_cache,
+          bool_expression_cache,
+          int_expression_cache,
+          float_expression_cache,
+          string_expression_cache,
+          vector_expression_cache,
+          color_expression_cache,
+          value_expression_cache);
       LN_ValueExpression expression;
       expression.kind = LN_ValueExpressionKind::ObjectParent;
       if (object_expr) {
@@ -4338,19 +4352,22 @@ static std::optional<uint32_t> TryCompileExpressionValueOutput(
       if (!NamesMatch(output_socket.name, output_socket.identifier, "Light")) {
         break;
       }
-      const std::optional<uint32_t> object_expr = BuildInputValueExpression(program,
-                                                                            node,
-                                                                            "Object",
-                                                                            node_definitions,
-                                                                            input_links,
-                                                                            value_cache,
-                                                                            bool_expression_cache,
-                                                                            int_expression_cache,
-                                                                            float_expression_cache,
-                                                                            string_expression_cache,
-                                                                            vector_expression_cache,
-                                                                            color_expression_cache,
-                                                                            value_expression_cache);
+      /* An empty Object is the owner, the light the node makes unique: as a constant object with
+       * no name the output was empty until 2026-11-01 (the owner branch below never ran). */
+      const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
+          program,
+          node,
+          "Object",
+          node_definitions,
+          input_links,
+          value_cache,
+          bool_expression_cache,
+          int_expression_cache,
+          float_expression_cache,
+          string_expression_cache,
+          vector_expression_cache,
+          color_expression_cache,
+          value_expression_cache);
       if (object_expr) {
         result = *object_expr;
       }

@@ -19,6 +19,9 @@
 #include "LN_RegisterExpressionIR.h"
 #include "LN_Types.h"
 
+struct LN_TreeStateLayout;
+struct LN_TreeBatchProfile;
+
 class LN_Program {
  public:
   LN_Program();
@@ -48,6 +51,13 @@ class LN_Program {
   uint32_t GetProgramVersion() const
   {
     return m_programVersion;
+  }
+
+  /** Never the id of another program, a copy included: a tree's snapshot keeps the game
+   * properties it found by name for the program with this id. */
+  uint64_t GetUniqueId() const
+  {
+    return m_uniqueId.value;
   }
 
   uint32_t GetSchemaVersion() const
@@ -158,7 +168,10 @@ class LN_Program {
     return GetTimeFlowStateCount();
   }
 
-  /** False when the program must run on the main thread. */
+  /** The old thread analysis: false when it says the program must run on the main thread. Only
+   * tests read it, and the editor's validation report prints its summary
+   * (DescribeSchedulerSummary), since Parallel Tree Execution was removed (2026-10-30); tree
+   * batches decide with their own lists (LN_AnalyzeTreeBatchSafety, LN_TreeBatch.cpp). */
   bool IsParallelEligible() const;
   LN_MainThreadOnlyReason GetMainThreadOnlyReason() const;
   const LN_SchedulerSummary &GetSchedulerSummary() const
@@ -177,6 +190,24 @@ class LN_Program {
   {
     return !m_pauseProcessingRequests.empty();
   }
+  /** On Logic + Physics Step's Every N Steps gates (LN_Instruction::step_gate_index). */
+  const std::vector<LN_StepGate> &GetStepGates() const
+  {
+    return m_stepGates;
+  }
+  /** Where the state of a tree running this program lives (LN_RuntimeTree builds it the first
+   * time a tree takes the program, then every tree shares it). Main thread only. */
+  const std::shared_ptr<const LN_TreeStateLayout> &CachedTreeStateLayout() const
+  {
+    return m_treeStateLayout;
+  }
+  void CacheTreeStateLayout(std::shared_ptr<const LN_TreeStateLayout> layout) const
+  {
+    m_treeStateLayout = std::move(layout);
+  }
+  /** Whether trees running this program may be recorded in a tree batch (LN_TreeBatch.h),
+   * worked out at the first ask and kept until the program grows. Main thread only. */
+  const LN_TreeBatchProfile &GetTreeBatchProfile() const;
   /** Frame Update instructions that UI events start; they also run while the game is paused. */
   bool HasUIEventRoutes() const
   {
@@ -226,6 +257,9 @@ class LN_Program {
   {
     m_pauseProcessingRequests.push_back(request);
   }
+  /** The gate of an Every N Steps setting: the existing one when another step node has the same
+   * setting (they are due on the same steps). */
+  uint32_t AddStepGate(const LN_StepGate &gate);
   void UpdateLoopFrame(uint32_t loop_frame_index, const LN_LoopFrame &loop_frame);
   uint32_t AddBoolExpression(const LN_BoolExpression &expression);
   uint32_t AddFloatExpression(const LN_FloatExpression &expression);
@@ -323,10 +357,26 @@ class LN_Program {
   std::vector<LN_Constant> m_constants;
   std::vector<std::string> m_stringTable;
   std::vector<LN_GamePropertyRef> m_gamePropertyRefs;
+  /** GetUniqueId's value; a copy takes a new one. */
+  struct UniqueId {
+    uint64_t value = Next();
+    UniqueId() = default;
+    UniqueId(const UniqueId & /*other*/) : value(Next()) {}
+    UniqueId &operator=(const UniqueId & /*other*/)
+    {
+      value = Next();
+      return *this;
+    }
+    static uint64_t Next();
+  };
+  UniqueId m_uniqueId;
   std::vector<LN_TreePropertyRef> m_treePropertyRefs;
   std::vector<LN_GroupCallFrame> m_groupCallFrames;
   std::vector<LN_LoopFrame> m_loopFrames;
   std::vector<LN_PauseProcessingRequest> m_pauseProcessingRequests;
+  std::vector<LN_StepGate> m_stepGates;
+  mutable std::shared_ptr<const LN_TreeStateLayout> m_treeStateLayout;
+  mutable std::shared_ptr<const LN_TreeBatchProfile> m_treeBatchProfile;
   bool m_hasUIEventRoutes = false;
   std::vector<LN_BoolExpression> m_boolExpressions;
   std::vector<LN_FloatExpression> m_floatExpressions;

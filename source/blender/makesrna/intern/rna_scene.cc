@@ -8231,16 +8231,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_UNDO);
   RNA_def_property_ui_text(prop, "Undo at Exit", "Undo bpy changes at game engine exit");
 
-  prop = RNA_def_property(srna, "use_logic_nodes_parallel", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_USE_LOGIC_NODES_PARALLEL);
-  RNA_def_property_ui_text(
-      prop,
-      "Logic Nodes Parallel Trees",
-      "Evaluate independent native logic trees on worker threads during each logic tick "
-      "(requires fixed physics timestep, at least two eligible trees, and trees without "
-      "raycast/collision query nodes). Side effects still flush on the main thread. "
-      "Environment variable UPBGE_LOGIC_NODES_PARALLEL=1 also enables this when set");
-
   prop = RNA_def_property(srna, "show_logic_nodes_profile", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_LOGIC_NODES_PROFILE);
   RNA_def_property_ui_text(

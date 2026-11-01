@@ -2197,19 +2197,22 @@ std::optional<uint32_t> BuildOutputStringExpression(
       VectorExpressionCache vector_expression_cache_local;
       ColorExpressionCache color_expression_cache_local;
       ValueExpressionCache value_expression_cache_local;
-      const std::optional<uint32_t> object_expr = BuildInputValueExpression(program,
-                                                                            node,
-                                                                            "Object",
-                                                                            node_definitions,
-                                                                            input_links,
-                                                                            value_cache,
-                                                                            bool_expression_cache_local,
-                                                                            int_expression_cache_local,
-                                                                            float_expression_cache_local,
-                                                                            string_expression_cache,
-                                                                            vector_expression_cache_local,
-                                                                            color_expression_cache_local,
-                                                                            value_expression_cache_local);
+      /* An empty Object is the tree's own object (no input0), as for Get Axis Vector: built as a
+       * constant object with no name it gave an empty ID until 2026-11-01. */
+      const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
+          program,
+          node,
+          "Object",
+          node_definitions,
+          input_links,
+          value_cache,
+          bool_expression_cache_local,
+          int_expression_cache_local,
+          float_expression_cache_local,
+          string_expression_cache,
+          vector_expression_cache_local,
+          color_expression_cache_local,
+          value_expression_cache_local);
       LN_StringExpression expression;
       expression.kind = LN_StringExpressionKind::ObjectID;
       if (object_expr) {
@@ -2874,19 +2877,23 @@ std::optional<uint32_t> BuildOutputVectorExpression(
       StringExpressionCache string_expression_cache_local;
       ColorExpressionCache color_expression_cache_local;
       ValueExpressionCache value_expression_cache_local;
-      const std::optional<uint32_t> object_expr = BuildInputValueExpression(program,
-                                                                            node,
-                                                                            "Object",
-                                                                            node_definitions,
-                                                                            input_links,
-                                                                            value_cache,
-                                                                            bool_expression_cache_local,
-                                                                            int_expression_cache_local,
-                                                                            float_expression_cache,
-                                                                            string_expression_cache_local,
-                                                                            vector_expression_cache,
-                                                                            color_expression_cache_local,
-                                                                            value_expression_cache_local);
+      /* An empty Object is the tree's own object (no input0, a snapshot read). It was built as a
+       * constant object with no name, which resolves to nothing, so the node gave (0, 0, 0)
+       * until 2026-10-31. */
+      const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
+          program,
+          node,
+          "Object",
+          node_definitions,
+          input_links,
+          value_cache,
+          bool_expression_cache_local,
+          int_expression_cache_local,
+          float_expression_cache,
+          string_expression_cache_local,
+          vector_expression_cache,
+          color_expression_cache_local,
+          value_expression_cache_local);
       LN_VectorExpression expression;
       expression.kind = LN_VectorExpressionKind::AxisVector;
       expression.property_ref_index = uint32_t(std::max(0, int(node.custom1)));

@@ -50,6 +50,7 @@ set(SRC
   intern/LN_GameStateNodeTrees.cpp
   intern/LN_GameStateStorage.cpp
   intern/LN_InputMap.cpp
+  intern/LN_JobPool.cpp
   intern/LN_Inventory.cpp
   intern/LN_PersistenceCapability.cpp
   intern/LN_Manager.cpp
@@ -57,11 +58,11 @@ set(SRC
   intern/LN_NodeRegistry.cpp
   intern/LN_Performance.cpp
   intern/LN_RuntimeTree.cpp
-  intern/LN_ParallelTreeExecutor.cpp
   intern/LN_QueryDiagnostics.cpp
   intern/LN_RuntimeSemantics.cpp
   intern/LN_Snapshot.cpp
   intern/LN_SoundGroups.cpp
+  intern/LN_TreeBatch.cpp
   intern/LN_TreeCompiler.cpp
   intern/LN_UIService.cpp
   intern/LN_FormulaEval.cc
@@ -81,13 +82,12 @@ set(SRC
   LN_EventBus.h
   LN_GameState.h
   LN_InputMap.h
+  LN_JobPool.h
   LN_Inventory.h
   LN_PersistenceCapability.h
   LN_ExecBlockIR.h
-  LN_ParallelTreeExecutor.h
   LN_Manager.h
   LN_NodeMetadata.h
-  LN_NodeStateArena.h
   LN_NodeRegistry.h
   LN_Performance.h
   LN_Program.h
@@ -99,6 +99,8 @@ set(SRC
   LN_RuntimeSemantics.h
   LN_Snapshot.h
   LN_SoundGroups.h
+  LN_StateBlock.h
+  LN_TreeBatch.h
   LN_TreeCompiler.h
   LN_UIService.h
   LN_TypeConversion.h
@@ -141,6 +143,7 @@ if(WITH_GTESTS)
     tests/LN_GameState_test.cpp
     tests/LN_InputMap_test.cpp
     tests/LN_Inventory_test.cpp
+    tests/LN_JobPool_test.cpp
     tests/LN_Manager_test.cpp
     tests/LN_NodeRegistry_test.cpp
     tests/LN_Performance_test.cpp

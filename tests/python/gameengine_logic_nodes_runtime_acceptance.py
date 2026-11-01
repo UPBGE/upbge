@@ -1564,6 +1564,71 @@ def check_owner(owner):
             "expected_score": expected_score,
         }
 
+    if mode == "run_logic_tree_once":
+        scene = owner.scene
+
+        def number(name, property_name, default=-1.0):
+            game_object = next(
+                (candidate for candidate in scene.objects if candidate.name == name), None)
+            if game_object is None:
+                return default
+            return float(game_object.get(property_name, default))
+
+        names = {key: owner.get("__ln_acceptance_" + key, "") for key in (
+            "frame_driver", "frame_target", "step_driver", "step_target")}
+        values = {
+            "frame_calls": number(names["frame_driver"], "calls"),
+            "frame_target_runs": number(names["frame_target"], "runs"),
+            "frame_target_frame_runs": number(names["frame_target"], "frame_runs"),
+            "step_calls": number(names["step_driver"], "calls"),
+            "step_target_runs": number(names["step_target"], "runs"),
+            "step_min_lag": number(names["step_driver"], "min_lag"),
+            "steps": float(owner.get("steps", -1.0)),
+        }
+        ok = (values["frame_calls"] == 10.0 and values["frame_target_runs"] == 10.0 and
+              values["frame_target_frame_runs"] == 0.0 and values["step_calls"] == 10.0 and
+              values["step_target_runs"] == 10.0 and values["step_min_lag"] == 1.0 and
+              values["steps"] >= 12.0)
+        values["mode"] = mode
+        return ok, values
+
+    if mode == "every_n_steps":
+        scene = owner.scene
+        steps = float(owner.get("steps", -1.0))
+        step_time = 1.0 / float(bge.logic.getLogicTicRate())
+
+        def read(names_key):
+            names = [name for name in owner.get("__ln_acceptance_" + names_key, "").split(",") if name]
+            rows = []
+            for name in names:
+                game_object = next(
+                    (candidate for candidate in scene.objects if candidate.name == name), None)
+                if game_object is None:
+                    rows.append(None)
+                    continue
+                rows.append({key: float(game_object.get(key, -1.0))
+                             for key in ("runs", "time", "seen", "fast")})
+            return rows
+
+        spread = read("spread")
+        same = read("same")
+        found = len(spread) == 4 and len(same) == 2 and None not in spread and None not in same
+        ok = found and steps >= 40.0
+        if found:
+            for row in spread + same:
+                # A quarter of the steps; Time Passed adds up to the game time (the steps after
+                # the last run excepted); the every-step route runs every step; a recent step.
+                ok = ok and abs(row["runs"] - steps / 4.0) <= 1.0
+                ok = ok and -1.0e-4 <= steps * step_time - row["time"] <= 3.0 * step_time + 1.0e-4
+                ok = ok and abs(row["fast"] - steps) <= 1.0
+                ok = ok and steps - 5.0 <= row["seen"] <= steps
+            # Spread Out: each object on its own step of the 4. Same Step: all together.
+            ok = ok and len({int(row["seen"]) % 4 for row in spread}) == 4
+            ok = ok and same[0]["seen"] == same[1]["seen"] and int(same[0]["seen"]) % 4 == 0
+            ok = ok and same[0]["runs"] == same[1]["runs"]
+        return ok, {"mode": mode, "steps": steps, "step_time": step_time, "spread": spread,
+                    "same": same}
+
     if mode == "property_advanced":
         enabled = bool(owner.get("enabled", True))
         hit = bool(owner.get("has_hit", False))
@@ -4082,6 +4147,15 @@ if mode == "smooth_motion":
     check_now = drive_smooth_motion(owner)
 if mode == "frame_pacing":
     check_now = drive_frame_pacing(owner)
+if mode in ("run_logic_tree_once", "every_n_steps"):
+    # Real time, so enough Logic + Physics steps ran whatever the frame rate.
+    start_key = "__ln_acceptance_run_once_start_" + owner.get("__ln_acceptance_run", "unknown")
+    start_time = float(bge.logic.globalDict.get(start_key, 0.0))
+    if start_time <= 0.0:
+        start_time = time.monotonic()
+        bge.logic.globalDict[start_key] = start_time
+    check_now = time.monotonic() - start_time >= float(
+        owner.get("__ln_acceptance_required_seconds", 1.5))
 if mode == "mouse_over_cadence":
     start_key = "__ln_acceptance_mouse_over_start_" + owner.get(
         "__ln_acceptance_run", "unknown")
@@ -5601,6 +5675,71 @@ def check_owner(owner):
             "score": score,
             "expected_score": expected_score,
         }
+
+    if mode == "run_logic_tree_once":
+        scene = owner.scene
+
+        def number(name, property_name, default=-1.0):
+            game_object = next(
+                (candidate for candidate in scene.objects if candidate.name == name), None)
+            if game_object is None:
+                return default
+            return float(game_object.get(property_name, default))
+
+        names = {key: owner.get("__ln_acceptance_" + key, "") for key in (
+            "frame_driver", "frame_target", "step_driver", "step_target")}
+        values = {
+            "frame_calls": number(names["frame_driver"], "calls"),
+            "frame_target_runs": number(names["frame_target"], "runs"),
+            "frame_target_frame_runs": number(names["frame_target"], "frame_runs"),
+            "step_calls": number(names["step_driver"], "calls"),
+            "step_target_runs": number(names["step_target"], "runs"),
+            "step_min_lag": number(names["step_driver"], "min_lag"),
+            "steps": float(owner.get("steps", -1.0)),
+        }
+        ok = (values["frame_calls"] == 10.0 and values["frame_target_runs"] == 10.0 and
+              values["frame_target_frame_runs"] == 0.0 and values["step_calls"] == 10.0 and
+              values["step_target_runs"] == 10.0 and values["step_min_lag"] == 1.0 and
+              values["steps"] >= 12.0)
+        values["mode"] = mode
+        return ok, values
+
+    if mode == "every_n_steps":
+        scene = owner.scene
+        steps = float(owner.get("steps", -1.0))
+        step_time = 1.0 / float(bge.logic.getLogicTicRate())
+
+        def read(names_key):
+            names = [name for name in owner.get("__ln_acceptance_" + names_key, "").split(",") if name]
+            rows = []
+            for name in names:
+                game_object = next(
+                    (candidate for candidate in scene.objects if candidate.name == name), None)
+                if game_object is None:
+                    rows.append(None)
+                    continue
+                rows.append({key: float(game_object.get(key, -1.0))
+                             for key in ("runs", "time", "seen", "fast")})
+            return rows
+
+        spread = read("spread")
+        same = read("same")
+        found = len(spread) == 4 and len(same) == 2 and None not in spread and None not in same
+        ok = found and steps >= 40.0
+        if found:
+            for row in spread + same:
+                # A quarter of the steps; Time Passed adds up to the game time (the steps after
+                # the last run excepted); the every-step route runs every step; a recent step.
+                ok = ok and abs(row["runs"] - steps / 4.0) <= 1.0
+                ok = ok and -1.0e-4 <= steps * step_time - row["time"] <= 3.0 * step_time + 1.0e-4
+                ok = ok and abs(row["fast"] - steps) <= 1.0
+                ok = ok and steps - 5.0 <= row["seen"] <= steps
+            # Spread Out: each object on its own step of the 4. Same Step: all together.
+            ok = ok and len({int(row["seen"]) % 4 for row in spread}) == 4
+            ok = ok and same[0]["seen"] == same[1]["seen"] and int(same[0]["seen"]) % 4 == 0
+            ok = ok and same[0]["runs"] == same[1]["runs"]
+        return ok, {"mode": mode, "steps": steps, "step_time": step_time, "spread": spread,
+                    "same": same}
 
     if mode == "property_advanced":
         enabled = bool(owner.get("enabled", True))
@@ -8155,6 +8294,16 @@ while not bge.logic.NextFrame():
         check_now = drive_smooth_motion(owner)
     if mode == "frame_pacing":
         check_now = drive_frame_pacing(owner)
+    if mode in ("run_logic_tree_once", "every_n_steps"):
+        # Real time, so enough Logic + Physics steps ran whatever the frame rate.
+        start_key = "__ln_acceptance_run_once_start_" + owner.get(
+            "__ln_acceptance_run", "unknown")
+        start_time = float(bge.logic.globalDict.get(start_key, 0.0))
+        if start_time <= 0.0:
+            start_time = time.monotonic()
+            bge.logic.globalDict[start_key] = start_time
+        check_now = time.monotonic() - start_time >= float(
+            owner.get("__ln_acceptance_required_seconds", 1.5))
     if mode == "mouse_over_cadence":
         start_key = "__ln_acceptance_mouse_over_start_" + owner.get(
             "__ln_acceptance_run", "unknown")
@@ -11538,6 +11687,192 @@ def run_property_target_acceptance(status_path):
     set_game_property(target, "score", "INT", 0)
     bind_tree(owner, tree.name, True)
     run_game_once(owner, "property_target_0", status_path)
+
+
+def build_add_one_chain(tree, previous, property_name):
+    """Flow `previous` -> the Float game property `property_name` + 1. Returns the Done output."""
+    read = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+    read.inputs["Property"].default_value = property_name
+    add = tree.nodes.new("LogicNativeMath")
+    add.operation = 'ADD'
+    add.inputs["B"].default_value = 1.0
+    tree.links.new(read.outputs[0], add.inputs["A"])
+    write = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    write.inputs["Property"].default_value = property_name
+    tree.links.new(add.outputs["Result"], write.inputs["Value"])
+    tree.links.new(previous, write.inputs["Flow"])
+    return write.outputs["Done"]
+
+
+def run_logic_tree_once_acceptance(status_path):
+    """Run Logic Tree gives each call one fixed-update pass of the target tree, in the next Logic +
+    Physics step (2026-10-30; a frame tick took the call before, so passes were lost and the
+    target's frame logic ran instead). A caller on frame ticks and a caller on steps call it 10
+    times each: every call gets its pass (two frames before a step: two passes in that step), the
+    targets' frame logic never runs, and the step caller sees exactly one call waiting at each
+    step (two passes in one step and none in the next would show 0)."""
+    reset_scene()
+    configure_game_settings(True)
+    steps = create_cube(f"{PREFIX}_RunOnceSteps")
+    set_game_property(steps, "steps", "FLOAT", 0.0)
+    steps_tree = new_logic_tree(f"{PREFIX}_RunOnceStepsTree")
+    build_add_one_chain(
+        steps_tree, steps_tree.nodes.new("LogicNativeOnFixedUpdate").outputs[0], "steps")
+    bind_tree(steps, steps_tree.name, True)
+
+    def make_target(name, x):
+        target = create_cube(f"{PREFIX}_{name}")
+        target.location = (x, 3.0, 0.0)
+        set_game_property(target, "runs", "FLOAT", 0.0)
+        set_game_property(target, "frame_runs", "FLOAT", 0.0)
+        tree = new_logic_tree(f"{PREFIX}_{name}Tree")
+
+        def count(event_type, property_name):
+            # Modify Property adds to the live value when the step's writes apply: two passes in
+            # one step count 2 (a Get + 1 -> Set would write the same value twice).
+            add = tree.nodes.new("LogicNativeModifyProperty")
+            add.operation = 'ADD'
+            add.clamp = False
+            add.inputs["Property"].default_value = property_name
+            add.inputs["Value"].default_value = 1.0
+            tree.links.new(tree.nodes.new(event_type).outputs[0], add.inputs["Flow"])
+
+        count("LogicNativeOnFixedUpdate", "runs")
+        # A Run Logic Tree pass is a fixed-update pass: this frame logic must never run.
+        count("LogicNativeOnUpdate", "frame_runs")
+        bind_tree(target, tree.name, False)
+        return target, tree
+
+    def make_driver(name, x, event_type, target, target_tree, track_lag):
+        driver = create_cube(f"{PREFIX}_{name}")
+        driver.location = (x, -3.0, 0.0)
+        set_game_property(driver, "calls", "FLOAT", 0.0)
+        set_game_property(driver, "min_lag", "FLOAT", 99.0)
+        tree = new_logic_tree(f"{PREFIX}_{name}Tree")
+        calls = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+        calls.inputs["Property"].default_value = "calls"
+        below = tree.nodes.new("LogicNativeCompare")
+        below.operation = 'LESS_THAN'
+        below.inputs["B"].default_value = 10.0
+        tree.links.new(calls.outputs[0], below.inputs["A"])
+        gate = tree.nodes.new("LogicNativeBranch")
+        tree.links.new(tree.nodes.new(event_type).outputs[0], gate.inputs["Flow"])
+        tree.links.new(below.outputs["Result"], gate.inputs["Condition"])
+        run = tree.nodes.new("LogicNativeRunLogicTree")
+        run.inputs["Object"].default_value = target
+        run.inputs["Tree Name"].default_value = target_tree.name
+        tree.links.new(gate.outputs["True"], run.inputs["Flow"])
+        done = build_add_one_chain(tree, run.outputs["Done"], "calls")
+        if track_lag:
+            # Calls made minus the target's passes, as the step starts (writes apply at its end):
+            # the previous step's call is the only one waiting, from the second step on.
+            runs = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+            runs.inputs["Object"].default_value = target
+            runs.inputs["Property"].default_value = "runs"
+            lag = tree.nodes.new("LogicNativeMath")
+            lag.operation = 'SUBTRACT'
+            tree.links.new(calls.outputs[0], lag.inputs["A"])
+            tree.links.new(runs.outputs[0], lag.inputs["B"])
+            min_lag = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+            min_lag.inputs["Property"].default_value = "min_lag"
+            lowest = tree.nodes.new("LogicNativeMath")
+            lowest.operation = 'MINIMUM'
+            tree.links.new(min_lag.outputs[0], lowest.inputs["A"])
+            tree.links.new(lag.outputs["Result"], lowest.inputs["B"])
+            started = tree.nodes.new("LogicNativeCompare")
+            started.operation = 'GREATER_THAN'
+            started.inputs["B"].default_value = 0.5
+            tree.links.new(calls.outputs[0], started.inputs["A"])
+            after_first = tree.nodes.new("LogicNativeBranch")
+            tree.links.new(done, after_first.inputs["Flow"])
+            tree.links.new(started.outputs["Result"], after_first.inputs["Condition"])
+            write = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+            write.inputs["Property"].default_value = "min_lag"
+            tree.links.new(lowest.outputs["Result"], write.inputs["Value"])
+            tree.links.new(after_first.outputs["True"], write.inputs["Flow"])
+        bind_tree(driver, tree.name, True)
+        return driver
+
+    frame_target, frame_target_tree = make_target("RunOnceFrameTarget", -2.0)
+    step_target, step_target_tree = make_target("RunOnceStepTarget", 2.0)
+    frame_driver = make_driver("RunOnceFrameDriver", -2.0, "LogicNativeOnUpdate",
+                               frame_target, frame_target_tree, False)
+    step_driver = make_driver("RunOnceStepDriver", 2.0, "LogicNativeOnFixedUpdate",
+                              step_target, step_target_tree, True)
+
+    add_status_controller(steps, status_path, "run_logic_tree_once", required_frame=2,
+                          required_seconds=1.5)
+    for key, obj in (("frame_driver", frame_driver), ("frame_target", frame_target),
+                     ("step_driver", step_driver), ("step_target", step_target)):
+        set_game_property(steps, "__ln_acceptance_" + key, "STRING", obj.name)
+    run_game_once(steps, "run_logic_tree_once_0", status_path)
+
+
+def run_every_n_steps_acceptance(status_path):
+    """On Logic + Physics Step's Every N Steps (2026-10-31). Four objects share a tree whose step
+    node runs every 4 steps (Spread Out): each runs a quarter of the steps, on its own step of the
+    4 (the step counter it reads differs by object), its Time Passed adds up to the game time, and
+    the tree's every-step route still runs every step. Two objects with Same Step run together."""
+    reset_scene()
+    configure_game_settings(True)
+    clock = create_cube(f"{PREFIX}_EveryClock")
+    set_game_property(clock, "steps", "FLOAT", 0.0)
+    clock_tree = new_logic_tree(f"{PREFIX}_EveryClockTree")
+    build_add_one_chain(
+        clock_tree, clock_tree.nodes.new("LogicNativeOnFixedUpdate").outputs[0], "steps")
+    bind_tree(clock, clock_tree.name, True)
+
+    def make_tree(name, spread):
+        tree = new_logic_tree(f"{PREFIX}_{name}")
+        slow = tree.nodes.new("LogicNativeOnFixedUpdate")
+        slow.step_interval = 4
+        slow.use_step_spread = spread
+
+        def add(flow, property_name, value_socket=None):
+            # Modify Property adds to the live value at the step's end.
+            modify = tree.nodes.new("LogicNativeModifyProperty")
+            modify.operation = 'ADD'
+            modify.clamp = False
+            modify.inputs["Property"].default_value = property_name
+            modify.inputs["Value"].default_value = 1.0
+            if value_socket is not None:
+                tree.links.new(value_socket, modify.inputs["Value"])
+            tree.links.new(flow, modify.inputs["Flow"])
+
+        add(slow.outputs["Out"], "runs")
+        add(slow.outputs["Out"], "time", slow.outputs["Time Passed"])
+        # The clock's step count as this step starts: which step of the 4 the object runs on.
+        steps = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+        steps.inputs["Object"].default_value = clock
+        steps.inputs["Property"].default_value = "steps"
+        seen = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+        seen.inputs["Property"].default_value = "seen"
+        tree.links.new(steps.outputs[0], seen.inputs["Value"])
+        tree.links.new(slow.outputs["Out"], seen.inputs["Flow"])
+        add(tree.nodes.new("LogicNativeOnFixedUpdate").outputs["Out"], "fast")
+        return tree
+
+    def make_objects(name, tree, count, y):
+        objects = []
+        for index in range(count):
+            game_object = create_cube(f"{PREFIX}_{name}{index}")
+            game_object.location = (index * 2.0 - 3.0, y, 0.0)
+            for property_name in ("runs", "time", "seen", "fast"):
+                set_game_property(game_object, property_name, "FLOAT", 0.0)
+            bind_tree(game_object, tree.name, True)
+            objects.append(game_object)
+        return objects
+
+    spread = make_objects("EverySpread", make_tree("EverySpreadTree", True), 4, 3.0)
+    same = make_objects("EverySame", make_tree("EverySameTree", False), 2, -3.0)
+
+    add_status_controller(clock, status_path, "every_n_steps", required_frame=2,
+                          required_seconds=1.5)
+    set_game_property(clock, "__ln_acceptance_spread", "STRING",
+                      ",".join(game_object.name for game_object in spread))
+    set_game_property(clock, "__ln_acceptance_same", "STRING",
+                      ",".join(game_object.name for game_object in same))
+    run_game_once(clock, "every_n_steps_0", status_path)
 
 
 def run_property_advanced_acceptance(status_path):
@@ -15988,7 +16323,6 @@ def run_tier_a_acceptance(status_path):
 def run_raycast_acceptance(status_path):
     reset_scene()
     configure_game_settings(True)
-    bpy.context.scene.game_settings.use_logic_nodes_parallel = True
     target = create_cube(f"{PREFIX}_RaycastTarget")
     single_ignore = create_cube(f"{PREFIX}_RaycastSingleIgnore")
     list_ignore = create_cube(f"{PREFIX}_RaycastListIgnore")
@@ -16048,7 +16382,6 @@ def run_raycast_acceptance(status_path):
 def run_raycast_from_mesh_acceptance(status_path):
     reset_scene()
     configure_game_settings(True)
-    bpy.context.scene.game_settings.use_logic_nodes_parallel = True
 
     vertices = []
     faces = []
@@ -16158,8 +16491,9 @@ def run_raycast_from_mesh_acceptance(status_path):
         set_game_property(source, f"mesh_blocked_average_{component}", "FLOAT", 0.0)
     bind_tree(source, tree.name, True)
 
-    # Supply a second independent tree so the parallel-tree scheduler is genuinely enabled while
-    # the query tree is correctly retained on its command-ordered main lane.
+    # A second, unrelated tree records in the same ticks as the query tree. It was added for
+    # Parallel Tree Execution (removed 2026-10-30) and stays as a neighbour: the query tree's
+    # results must not depend on other trees recording around it.
     auxiliary = create_cube(f"{PREFIX}_RaycastFromMeshParallelAux")
     auxiliary.location = (0.0, 8.0, 0.0)
     set_game_property(auxiliary, "parallel_aux_tick", "BOOL", False)
@@ -18497,6 +18831,8 @@ def main():
         ("property_branch", lambda: run_property_branch_acceptance(status_path, output_dir)),
         ("property_writes", lambda: run_property_write_acceptance(status_path)),
         ("property_target", lambda: run_property_target_acceptance(status_path)),
+        ("run_logic_tree_once", lambda: run_logic_tree_once_acceptance(status_path)),
+        ("every_n_steps", lambda: run_every_n_steps_acceptance(status_path)),
         ("property_advanced", lambda: run_property_advanced_acceptance(status_path)),
         ("tree_properties", lambda: run_tree_property_acceptance(status_path)),
         ("data_containers", lambda: run_data_containers_acceptance(status_path)),

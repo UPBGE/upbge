@@ -207,6 +207,19 @@ class KX_GameObject : public SCA_IObject {
 
  protected:
   DrawCullState m_drawCull;
+  /** GetPropertyMapStamp's value. A copy takes a new one: its properties are copies too. */
+  struct PropertyMapStamp {
+    uint64_t value = Next();
+    PropertyMapStamp() = default;
+    PropertyMapStamp(const PropertyMapStamp & /*other*/) : value(Next()) {}
+    PropertyMapStamp &operator=(const PropertyMapStamp & /*other*/)
+    {
+      value = Next();
+      return *this;
+    }
+    static uint64_t Next();
+  };
+  PropertyMapStamp m_propertyMapStamp;
   /* END OF EEVEE INTEGRATION */
 
   /// external client info (game object in this case)
@@ -638,6 +651,13 @@ class KX_GameObject : public SCA_IObject {
   /** Its "draw_distance" game property, 0 without one. */
   float GetOwnDrawDistance();
   void PropertyMapChanged(const std::string &name) override;
+  /** New whenever a game property is added, replaced or removed (not when a value changes in
+   * place), and never the stamp of another object or of an earlier property list: whoever keeps
+   * found properties (Logic Nodes' snapshots) knows by it that they are still this object's. */
+  uint64_t GetPropertyMapStamp() const
+  {
+    return m_propertyMapStamp.value;
+  }
   /* END OF EEVEE INTEGRATION */
 
   /**

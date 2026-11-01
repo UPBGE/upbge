@@ -144,7 +144,7 @@ const LN_EventEntry *LN_EventBus::FindFirst(const LN_EventSubjectId subject_id,
   if (subject_id.IsValid()) {
     const auto indexed_events = m_subjectIndex.find(subject_id.index);
     if (indexed_events != m_subjectIndex.end()) {
-      m_indexedLookupCount++;
+      m_indexedLookupCount.fetch_add(1, std::memory_order_relaxed);
       for (const uint32_t event_index : indexed_events->second) {
         const LN_EventEntry &event = m_tickEvents[event_index];
         if (EntryMatchesFilter(event, subject_id, subject, target_handle)) {
@@ -157,7 +157,7 @@ const LN_EventEntry *LN_EventBus::FindFirst(const LN_EventSubjectId subject_id,
   if (!subject_id.IsValid() && target_handle.IsValid()) {
     const auto targeted_events = m_targetIndex.find(logic_nodes_target_index_key(target_handle));
     if (targeted_events != m_targetIndex.end() || !m_broadcastEventIndices.empty()) {
-      m_indexedLookupCount++;
+      m_indexedLookupCount.fetch_add(1, std::memory_order_relaxed);
       size_t target_index = 0;
       size_t broadcast_index = 0;
       const std::vector<uint32_t> empty_targeted_events;
@@ -181,7 +181,7 @@ const LN_EventEntry *LN_EventBus::FindFirst(const LN_EventSubjectId subject_id,
     }
   }
 
-  m_fallbackScanCount++;
+  m_fallbackScanCount.fetch_add(1, std::memory_order_relaxed);
   for (const LN_EventEntry &event : m_tickEvents) {
     if (EntryMatchesFilter(event, subject_id, subject, target_handle)) {
       return &event;

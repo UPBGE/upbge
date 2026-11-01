@@ -267,10 +267,9 @@ void LN_Manager::CommitGameStateRuntimeTreeRestore(
   BLI_assert(prepared.manager == this);
   BLI_assert(!prepared.committed);
 
-  std::erase_if(m_pendingRunOnce,
-                [&prepared](const std::pair<KX_GameObject *, std::string> &entry) {
-                  return prepared.excluded_objects.contains(entry.first);
-                });
+  std::erase_if(m_pendingRunOnce, [&prepared](const PendingRunOnce &entry) {
+    return prepared.excluded_objects.contains(entry.object);
+  });
   for (KX_GameObject *gameobj : prepared.excluded_objects) {
     m_commandBuffer.RemoveCommandsForGameObject(gameobj);
   }
@@ -307,6 +306,9 @@ void LN_Manager::CommitGameStateRuntimeTreeRestore(
     BLI_assert(active != prepared.runtime_active.end());
     runtime_tree->SetRuntimeActive(active->second);
     IndexRuntimeTree(runtime_tree.get());
+    /* As every registration does: without it every restored tree ran its Spread Out gates on
+     * the same steps (fixed 2026-10-31). */
+    AssignStepSpread(*runtime_tree);
     m_runtimeTrees.push_back(std::move(runtime_tree));
   }
   prepared.runtime_trees.clear();

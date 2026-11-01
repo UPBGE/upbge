@@ -927,6 +927,17 @@ uint32_t AddSourceRef(LN_Program &program,
   return program.AddSourceRef(source_ref);
 }
 
+uint32_t StepGateOfEventNode(LN_Program &program, const LN_NodeKind kind, const blender::bNode &node)
+{
+  if (kind != LN_NodeKind::EventOnFixedUpdate || node.custom1 <= 1) {
+    return LN_INVALID_INDEX;
+  }
+  LN_StepGate gate;
+  gate.interval = std::min(uint32_t(node.custom1), LN_STEP_GATE_MAX_INTERVAL);
+  gate.spread = (node.custom2 & LN_STEP_GATE_SAME_STEP) == 0;
+  return program.AddStepGate(gate);
+}
+
 void AddNodeIssue(LN_Program &program,
                   const blender::bNodeTree &tree,
                   const blender::bNode &node,

@@ -4095,6 +4095,13 @@ static void rna_LogicNativeInput_input_type_set(PointerRNA *ptr, const int value
   node->custom1 = int16_t((node->custom1 & ~LOGIC_NODE_INPUT_MODE_MASK) | std::clamp(value, 0, 2));
 }
 
+/* On Logic + Physics Step's Every: nodes saved before it hold 0, which runs every step too. */
+static int rna_LogicNativeOnFixedUpdate_step_interval_get(PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  return std::max<int>(node->custom1, 1);
+}
+
 static int rna_LogicNativeSetParent_parent_type_get(PointerRNA *ptr)
 {
   const bNode *node = static_cast<const bNode *>(ptr->data);
@@ -6393,6 +6400,34 @@ static void def_logic_tween_value(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_pointer_sdna(prop, nullptr, "storage");
   RNA_def_property_struct_type(prop, "CurveMapping");
   RNA_def_property_ui_text(prop, "Mapping", "Curve used to remap the tween factor");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
+static void def_logic_on_fixed_update(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop = RNA_def_property(srna, "step_interval", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "custom1");
+  RNA_def_property_int_funcs(
+      prop, "rna_LogicNativeOnFixedUpdate_step_interval_get", nullptr, nullptr);
+  RNA_def_property_range(prop, 1, 1000);
+  RNA_def_property_ui_range(prop, 1, 120, 1, -1);
+  RNA_def_property_ui_text(
+      prop,
+      "Every",
+      "Run this node's routes only on every N-th Logic + Physics step (1: every step), with Time "
+      "Passed covering the N steps. The tree's other events (collisions, messages, keys, a "
+      "Delay's Done) still react on every step");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  prop = RNA_def_property(srna, "use_step_spread", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "custom2", 1 << 0);
+  RNA_def_property_ui_text(
+      prop,
+      "Spread Out",
+      "Objects using this tree take turns: each runs on its own step of the N, so their work is "
+      "spread evenly over the steps. Off: all of them run on the same steps");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
@@ -14053,7 +14088,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeOnConstraintBreak", def_logic_constraint_break_match_mode);
   define("LogicNode", "LogicNativeOnGameLoaded");
   define("LogicNode", "LogicNativeOnInit");
-  define("LogicNode", "LogicNativeOnFixedUpdate");
+  define("LogicNode", "LogicNativeOnFixedUpdate", def_logic_on_fixed_update);
   define("LogicNode", "LogicNativeOnNextFrame");
   define("LogicNode", "LogicNativeOnUpdate");
   define("LogicNode", "LogicNativeWhilePaused", def_logic_while_paused);

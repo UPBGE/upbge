@@ -16,6 +16,7 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -25,6 +26,7 @@
 #include "MT_Vector4.h"
 #include "MT_Vector3.h"
 
+class EXP_Value;
 class KX_GameObject;
 class LN_InputActionTracker;
 class LN_Program;
@@ -410,12 +412,18 @@ class LN_Snapshot {
     if (m_tickContext != nullptr && m_tickContext->has_input && m_tickContext->input != nullptr) {
       return *m_tickContext->input;
     }
-    return m_input;
+    return m_ownInput != nullptr ? *m_ownInput : EmptyInput();
   }
 
   bool GetInputStatus(int32_t input_code, int32_t status) const
   {
     return GetInputSnapshot().GetStatus(input_code, status);
+  }
+
+  /** A capture had no shared input to read, so the snapshot keeps an input sample of its own. */
+  bool HasOwnInput() const
+  {
+    return m_ownInput != nullptr;
   }
 
   /** The input including what the UI used. */
@@ -464,8 +472,23 @@ class LN_Snapshot {
   float m_frameDelta = 0.0f;
   float m_fps = 0.0f;
   float m_deltaFactor = 1.0f;
+  /** The program's game properties (LN_Program::GetGamePropertyRefs), kept between captures:
+   * each starts as its ref's default, and a capture rewrites only what the live property
+   * decides (`exists` and the value of the ref's type). The first `m_gamePropertyCount` are the
+   * last capture's: none when it captured no properties. */
   std::vector<LN_Value> m_gameProperties;
-  LN_InputSnapshot m_input;
+  uint32_t m_gamePropertyCount = 0;
+  uint64_t m_gamePropertyProgramId = 0;
+  /** Each ref's property of `m_gamePropertyObject`, found by name (nullptr: it has none), kept
+   * while the object's property list stays the one they were found in
+   * (KX_GameObject::GetPropertyMapStamp). */
+  std::vector<EXP_Value *> m_gamePropertyHandles;
+  const KX_GameObject *m_gamePropertyObject = nullptr;
+  uint64_t m_gamePropertyMapStamp = 0;
+  /** The tree's own input sample, made only when a capture had no shared input to read (5 KB: in
+   * the game every tree reads the tick's shared sample, so most trees never make one). */
+  std::unique_ptr<LN_InputSnapshot> m_ownInput;
+  static const LN_InputSnapshot &EmptyInput();
   const LN_TickReadContext *m_tickContext = nullptr;
   uint64_t m_tickIndex = UINT64_MAX;
   LN_SnapshotCaptureStats m_captureStats;
@@ -473,3 +496,13 @@ class LN_Snapshot {
 
 LN_SnapshotChannelMask LN_SnapshotChannelMaskFromDependencies(uint32_t dependency_channels);
 LN_SnapshotChannelMask LN_SnapshotChannelMaskForProgram(const LN_Program *program);
+
+/**
+ * Another object's state for a node that reads it (Get Object Attribute with its Object set):
+ * the object state `channels` (transform, velocity, color, light, visibility, collision,
+ * character) filled as a whole snapshot without a program fills them, the others left at their
+ * defaults, and nothing else read (no input, timing or game properties). Returns `r_object`.
+ */
+const LN_ObjectSnapshot &LN_CaptureObjectSnapshot(KX_GameObject *gameobj,
+                                                  LN_SnapshotChannelMask channels,
+                                                  LN_ObjectSnapshot &r_object);

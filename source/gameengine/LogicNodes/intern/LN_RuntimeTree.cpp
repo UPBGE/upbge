@@ -23,6 +23,7 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -101,6 +102,7 @@
 #include "LN_Manager.h"
 #include "LN_Performance.h"
 #include "LN_RuntimeSemantics.h"
+#include "LN_TreeBatch.h"
 #include "LN_TypeConversion.h"
 #include "LN_UIService.h"
 #include "LN_ValueInterpolation.h"
@@ -129,21 +131,27 @@ static constexpr double LN_TIME_FLOW_EPSILON = 1.0e-6;
 static constexpr int32_t LN_RAYCAST_MAX_COLLISION_MASK = (1 << 10) - 1;
 static constexpr int32_t LN_RAYCAST_FROM_MESH_MAX_RAYS = 256;
 
+/** `stride`: steps between two runs of the route (LN_TickContext::phase_tick_stride), so a route
+ * of Every N Steps that ran N steps ago skipped nothing. */
 static constexpr bool PhaseTickWasSkipped(const uint64_t previous_tick,
-                                          const uint64_t current_tick)
+                                          const uint64_t current_tick,
+                                          const uint32_t stride = 1)
 {
   return previous_tick != UINT64_MAX && current_tick > previous_tick &&
-         current_tick - previous_tick > 1;
+         current_tick - previous_tick > std::max<uint64_t>(stride, 1);
 }
 
 static constexpr bool IsContinuousPhaseTick(const uint64_t previous_tick,
-                                            const uint64_t current_tick)
+                                            const uint64_t current_tick,
+                                            const uint32_t stride = 1)
 {
-  return previous_tick != UINT64_MAX && !PhaseTickWasSkipped(previous_tick, current_tick);
+  return previous_tick != UINT64_MAX && !PhaseTickWasSkipped(previous_tick, current_tick, stride);
 }
 
 static_assert(!PhaseTickWasSkipped(0, 1));
 static_assert(PhaseTickWasSkipped(0, 2));
+static_assert(!PhaseTickWasSkipped(0, 4, 4));
+static_assert(PhaseTickWasSkipped(0, 5, 4));
 static_assert(IsContinuousPhaseTick(UINT64_MAX - 1, UINT64_MAX));
 static_assert(!IsContinuousPhaseTick(UINT64_MAX, 0));
 
@@ -302,28 +310,6 @@ static LN_Event TimeFlowContinuationEvent(const LN_Event event)
 }
 
 static LN_Value MakeNoneValue();
-
-static const LN_Phase10OpcodeFallbackDiagnostic *FindOpcodeFallbackDiagnostic(
-    const LN_OpCode opcode)
-{
-  static const std::array<const LN_Phase10OpcodeFallbackDiagnostic *, size_t(LN_OpCode::Count)>
-      diagnostics_by_opcode = []() {
-        std::array<const LN_Phase10OpcodeFallbackDiagnostic *, size_t(LN_OpCode::Count)> table =
-            {};
-        for (const LN_Phase10OpcodeFallbackDiagnostic &diagnostic :
-             LN_GetPhase10OpcodeFallbackDiagnostics())
-        {
-          const size_t index = size_t(diagnostic.opcode);
-          if (index < table.size()) {
-            table[index] = &diagnostic;
-          }
-        }
-        return table;
-      }();
-
-  const size_t index = size_t(opcode);
-  return index < diagnostics_by_opcode.size() ? diagnostics_by_opcode[index] : nullptr;
-}
 
 static const LN_Phase10ExpressionFallbackDiagnostic *FindExpressionFallbackDiagnostic(
     const LN_RuntimeExpressionFamily family, const uint32_t kind)
@@ -3939,19 +3925,14 @@ LN_RuntimeTree::LN_RuntimeTree(std::shared_ptr<const LN_Program> program,
       m_sceneObjectIndex(scene_object_index),
       m_appliedTreeIndex(applied_tree_index)
 {
-  if (m_program != nullptr) {
-    const size_t rotation_cache_capacity = m_program->GetVectorExpressions().size();
-    m_rotationExpressionValues.reserve(rotation_cache_capacity);
-    m_rotationExpressionTicks.reserve(rotation_cache_capacity);
-  }
   RefreshOptimizedPathEligibility();
-  EnsureInstructionStateSize();
-  EnsureBoolExpressionStateSize();
-  EnsureFloatExpressionStateSize();
-  EnsureTimeFlowStateSize(false);
-  EnsureFlowControlStateSize(false);
-  EnsureQueryExpressionStateSize();
+  RebuildStateBlock(StateKeep::None);
   EnsureTreePropertyStateSize(false);
+}
+
+LN_RuntimeTree::~LN_RuntimeTree()
+{
+  DestroyStateBlock();
 }
 
 void LN_RuntimeTree::RefreshOptimizedPathEligibility()
@@ -3960,6 +3941,10 @@ void LN_RuntimeTree::RefreshOptimizedPathEligibility()
   m_snapshotChannelMask = LN_SNAPSHOT_CHANNEL_NONE;
   m_hasTimeFlowRuntimeState = false;
   m_hasQueryExpressions = false;
+  /* A new program's gates start over (RebuildStateBlock makes them anew): each one's first run
+   * covers at most its N steps. */
+  m_stepGatesStep = UINT64_MAX;
+  m_stepGatesAnyDue = false;
 
   if (m_program == nullptr) {
     return;
@@ -4048,6 +4033,7 @@ void LN_RuntimeTree::CaptureSnapshot(const LN_TickReadContext *tick_context,
   if (!(force_disabled ? ShouldCaptureSnapshotForForcedUpdate() : ShouldCaptureSnapshot())) {
     return;
   }
+  RefreshStateBlockLayout();
   if (tick_index != UINT64_MAX && m_snapshotTick == tick_index) {
     return;
   }
@@ -4095,6 +4081,7 @@ void LN_RuntimeTree::CollectUIViews(const LN_TickContext &context)
   {
     return;
   }
+  RefreshStateBlockLayout();
   KX_Scene *scene = m_gameObject->GetScene();
   if (scene == nullptr) {
     return;
@@ -4404,6 +4391,7 @@ size_t LN_RuntimeTree::WarmQueryCache(const LN_TickContext &context)
   {
     return 0;
   }
+  RefreshStateBlockLayout();
 
   const std::vector<LN_QueryExpression> &queries = m_program->GetQueryExpressions();
   size_t warmed_count = 0;
@@ -4433,15 +4421,6 @@ bool LN_RuntimeTree::ShouldCaptureSnapshotForForcedUpdate() const
          !m_gameObject->IsLogicSuspended() && needs_snapshot_context;
 }
 
-const std::vector<LN_EventEntry> &LN_RuntimeTree::ActiveTickEvents() const
-{
-  if (m_logicManager != nullptr) {
-    return m_logicManager->GetEventBus().TickEvents();
-  }
-  static const std::vector<LN_EventEntry> empty_events;
-  return empty_events;
-}
-
 const LN_EventEntry *LN_RuntimeTree::FindFirstActiveEvent(const LN_EventSubjectId subject_id,
                                                           const std::string &subject,
                                                           KX_GameObject *filter_target) const
@@ -4463,6 +4442,7 @@ void LN_RuntimeTree::ExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
   if (!m_runtimeActive || m_program == nullptr || m_gameObject == nullptr) {
     return;
   }
+  RefreshStateBlockLayout();
   if (m_gameObject->IsLogicSuspended()) {
     return;
   }
@@ -4489,8 +4469,19 @@ void LN_RuntimeTree::ExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
     TickLatentTimeFlowStates(context);
   }
 
+  /* "One fixed-update pass of the tree": its Every N Steps routes run too, with the time since
+   * they last ran; their own steps stay where they were and their next run counts from here. */
+  const bool fixed_gates = context.event == LN_Event::OnFixedUpdate && !m_stepGates.empty();
+  if (fixed_gates) {
+    PrepareForcedStepGates(context.phase_tick_index, context.delta_time, context.unscaled_dt);
+  }
+  const bool previous_forced = std::exchange(m_stepGatesForced, true);
   ExecuteEvent(
       context.event, m_program->GetInstructionHeaders(context.event), command_buffer, context);
+  m_stepGatesForced = previous_forced;
+  if (fixed_gates) {
+    NoteStepGatesRan(context.phase_tick_index, true);
+  }
 
   if (profile_counters != nullptr) {
     m_activeProfileCounters = previous_profile_counters;
@@ -4596,6 +4587,7 @@ void LN_RuntimeTree::ExecuteReady(LN_CommandBuffer &command_buffer,
   if (!m_runtimeActive || !m_enabled || m_program == nullptr || m_gameObject == nullptr) {
     return;
   }
+  RefreshStateBlockLayout();
   if (context.tick_index == UINT64_MAX || m_loopIterationBudgetTick != context.tick_index) {
     m_remainingLoopIterationBudget = kMaxLoopIterationsPerTick;
     m_loopIterationBudgetTick = context.tick_index;
@@ -4624,8 +4616,17 @@ void LN_RuntimeTree::ExecuteReady(LN_CommandBuffer &command_buffer,
     TickLatentTimeFlowStates(context);
   }
 
+  /* Done by the manager before CanTick; here for callers without one (once per step). */
+  const bool fixed_gates = context.event == LN_Event::OnFixedUpdate && !m_stepGates.empty();
+  if (fixed_gates) {
+    PrepareStepGates(context.phase_tick_index, context.delta_time, context.unscaled_dt);
+  }
+
   ExecuteEvent(
       context.event, m_program->GetInstructionHeaders(context.event), command_buffer, context);
+  if (fixed_gates) {
+    NoteStepGatesRan(context.phase_tick_index, false);
+  }
 
   if (profile_counters != nullptr) {
     m_activeProfileCounters = previous_profile_counters;
@@ -4643,23 +4644,36 @@ bool LN_RuntimeTree::CanTick() const
 
 bool LN_RuntimeTree::CollectsObjectUI() const
 {
-  return CanTick() &&
-         (m_program->GetDependencySummary().query_channels & LN_DEP_QUERY_OBJECT_UI) != 0u;
+  /* The program's bit first: the manager asks every tree several times a frame, and most have
+   * no UI (CanTick reads the object). */
+  return m_program != nullptr &&
+         (m_program->GetDependencySummary().query_channels & LN_DEP_QUERY_OBJECT_UI) != 0u &&
+         CanTick();
 }
 
 bool LN_RuntimeTree::CanTick(const LN_Event event) const
 {
+  if (m_program == nullptr) {
+    return false;
+  }
+  /* A step whose work is all behind Every N Steps gates, none of them due, has nothing to run
+   * unless a Delay, Timer... counts down (below). */
+  const bool has_work = !m_program->GetInstructionHeaders(event).empty() &&
+                        (event != LN_Event::OnFixedUpdate || m_stepGatesAnyDue ||
+                         !m_program->GetExecBlockProgram(event).all_blocks_step_gated);
+  /* Answered from the program alone first, without reading the object: every tree is asked at
+   * every tick, mostly about a phase it has nothing in (a step-only tree at each frame, a tree
+   * asleep between its Every N Steps). */
+  if (m_initExecuted && !has_work && !m_hasTimeFlowRuntimeState) {
+    return false;
+  }
   if (!CanTick()) {
     return false;
   }
 
   /* Initialization is deliberately owned by the first recurring phase (normally Update), so
    * On Init also runs for trees that have no instructions in that recurring phase. */
-  if (!m_initExecuted) {
-    return true;
-  }
-
-  if (!m_program->GetInstructionHeaders(event).empty()) {
+  if (!m_initExecuted || has_work) {
     return true;
   }
 
@@ -4668,7 +4682,14 @@ bool LN_RuntimeTree::CanTick(const LN_Event event) const
         m_timeFlowStates.begin(),
         m_timeFlowStates.end(),
         [event](const TimeFlowRuntimeState &state) {
-          return state.event == event && (state.active || !state.pending_pulses.empty());
+          if (state.event != event || (!state.active && state.pending_pulses.empty())) {
+            return false;
+          }
+          /* Pulsify counts only when its flow arrives, and a Barrier fed every N steps checks its
+           * own continuity when its route runs: neither needs the steps between. */
+          return state.kind != TimeFlowRuntimeKind::Pulsify &&
+                 !(state.kind == TimeFlowRuntimeKind::Barrier &&
+                   state.last_update_phase_stride > 1);
         });
     if (has_phase_time_flow) {
       return true;
@@ -4676,6 +4697,95 @@ bool LN_RuntimeTree::CanTick(const LN_Event event) const
   }
 
   return false;
+}
+
+void LN_RuntimeTree::PrepareStepGates(const uint64_t step,
+                                      const double delta_time,
+                                      const double unscaled_delta_time)
+{
+  if (m_stepGates.empty() || m_program == nullptr || step == m_stepGatesStep) {
+    return;
+  }
+  const std::vector<LN_StepGate> &gates = m_program->GetStepGates();
+  if (gates.size() != m_stepGates.size()) {
+    return;
+  }
+  m_stepGatesStep = step;
+  if (m_stepGatesFirstStep == UINT64_MAX || step < m_stepGatesFirstStep) {
+    m_stepGatesFirstStep = step;
+  }
+  m_stepGatesAnyDue = false;
+  for (size_t index = 0; index < gates.size(); index++) {
+    const LN_StepGate &gate = gates[index];
+    StepGateState &state = m_stepGates[index];
+    const uint64_t interval = std::max<uint64_t>(gate.interval, 1);
+    const uint64_t offset = gate.spread ? uint64_t(m_stepSpread) % interval : 0;
+    state.due = (step % interval + offset) % interval == 0;
+    if (!state.due) {
+      continue;
+    }
+    m_stepGatesAnyDue = true;
+    /* The steps since the route last ran: due steps are N apart, so N, but the first run covers
+     * only the steps the tree has been there, and a Run Logic Tree pass in between already
+     * covered its own. A tree that was off for a while (disabled) or missed its step (suspended)
+     * gets N too, as a step node without Every gets one step. */
+    const uint64_t steps = StepGateStepsSinceLastRun(state, step, interval);
+    state.time_passed = double(steps) * std::max(0.0, delta_time);
+    state.unscaled_time_passed = double(steps) * std::max(0.0, unscaled_delta_time);
+  }
+}
+
+uint64_t LN_RuntimeTree::StepGateStepsSinceLastRun(const StepGateState &state,
+                                                   const uint64_t step,
+                                                   const uint64_t interval) const
+{
+  uint64_t steps = 1;
+  if (state.last_run_step != UINT64_MAX) {
+    if (step > state.last_run_step) {
+      steps = step - state.last_run_step;
+    }
+  }
+  else if (m_stepGatesFirstStep != UINT64_MAX && step >= m_stepGatesFirstStep) {
+    steps = step - m_stepGatesFirstStep + 1;
+  }
+  return std::clamp<uint64_t>(steps, 1, std::max<uint64_t>(interval, 1));
+}
+
+void LN_RuntimeTree::PrepareForcedStepGates(const uint64_t step,
+                                            const double delta_time,
+                                            const double unscaled_delta_time)
+{
+  if (m_stepGates.empty() || m_program == nullptr) {
+    return;
+  }
+  const std::vector<LN_StepGate> &gates = m_program->GetStepGates();
+  if (gates.size() != m_stepGates.size()) {
+    return;
+  }
+  for (size_t index = 0; index < gates.size(); index++) {
+    StepGateState &state = m_stepGates[index];
+    const uint64_t steps = StepGateStepsSinceLastRun(state, step, gates[index].interval);
+    state.time_passed = double(steps) * std::max(0.0, delta_time);
+    state.unscaled_time_passed = double(steps) * std::max(0.0, unscaled_delta_time);
+  }
+}
+
+void LN_RuntimeTree::NoteStepGatesRan(const uint64_t step, const bool forced)
+{
+  for (StepGateState &state : m_stepGates) {
+    if (forced || (state.due && m_stepGatesStep == step)) {
+      state.last_run_step = step;
+    }
+  }
+}
+
+bool LN_RuntimeTree::StepGateRuns(const uint32_t step_gate_index) const
+{
+  if (m_stepGatesForced) {
+    return true;
+  }
+  return step_gate_index < m_stepGates.size() && m_stepGates[step_gate_index].due &&
+         m_stepGatesStep != UINT64_MAX;
 }
 
 void LN_RuntimeTree::CollectPauseProcessingObjects(std::vector<KX_GameObject *> &r_objects)
@@ -4800,15 +4910,10 @@ void LN_RuntimeTree::SetProgram(std::shared_ptr<const LN_Program> program)
     m_program = std::move(program);
     m_rotationExpressionValues.clear();
     m_rotationExpressionTicks.clear();
-    const size_t rotation_cache_capacity = m_program->GetVectorExpressions().size();
-    m_rotationExpressionValues.reserve(rotation_cache_capacity);
-    m_rotationExpressionTicks.reserve(rotation_cache_capacity);
     RefreshOptimizedPathEligibility();
     m_snapshotTick = UINT64_MAX;
     m_queryCacheWarmTick = UINT64_MAX;
-    EnsureTimeFlowStateSize(true);
-    EnsureFlowControlStateSize(true);
-    EnsureQueryExpressionStateSize();
+    RebuildStateBlock(StateKeep::BetweenTicks);
     EnsureTreePropertyStateSize(true);
     return;
   }
@@ -4816,27 +4921,16 @@ void LN_RuntimeTree::SetProgram(std::shared_ptr<const LN_Program> program)
   m_program = std::move(program);
   m_rotationExpressionValues.clear();
   m_rotationExpressionTicks.clear();
-  if (m_program != nullptr) {
-    const size_t rotation_cache_capacity = m_program->GetVectorExpressions().size();
-    m_rotationExpressionValues.reserve(rotation_cache_capacity);
-    m_rotationExpressionTicks.reserve(rotation_cache_capacity);
-  }
   RefreshOptimizedPathEligibility();
   m_initExecuted = false;
   m_snapshotTick = UINT64_MAX;
   m_queryCacheWarmTick = UINT64_MAX;
   m_executionScopeSerial = 0;
   m_activeExecutionScopeSerial = 0;
-  EnsureInstructionStateSize();
-  EnsureBoolExpressionStateSize();
-  EnsureFloatExpressionStateSize();
-  EnsureTimeFlowStateSize(false);
-  EnsureFlowControlStateSize(false);
-  EnsureQueryExpressionStateSize();
+  RebuildStateBlock(StateKeep::None);
   EnsureTreePropertyStateSize(false);
   m_loopStates.clear();
   m_activeLoopBodyFrame = LN_INVALID_INDEX;
-  m_stateArena.Clear();
 }
 
 LN_RuntimeRef LN_RuntimeTree::MakeObjectRef(KX_GameObject *gameobj, const std::string &debug_name)
@@ -5214,47 +5308,6 @@ void LN_RuntimeTree::InvalidateRuntimeRef(const LN_RuntimeRefKind kind, const vo
       slot.generation++;
     }
   }
-}
-
-LN_PhysicsControllerHandle LN_RuntimeTree::MakePhysicsControllerHandle(
-    const LN_RuntimeRef &object_ref) const
-{
-  LN_PhysicsControllerHandle handle;
-  KX_GameObject *gameobj = ResolveObjectRef(object_ref);
-  if (gameobj == nullptr || gameobj->GetPhysicsController() == nullptr) {
-    return handle;
-  }
-  handle.object_ref = object_ref;
-  handle.controller_generation = object_ref.generation;
-  return handle;
-}
-
-PHY_IPhysicsController *LN_RuntimeTree::ResolvePhysicsControllerHandle(
-    const LN_PhysicsControllerHandle &handle) const
-{
-  if (!handle.IsValid() || handle.controller_generation != handle.object_ref.generation) {
-    return nullptr;
-  }
-  KX_GameObject *gameobj = ResolveObjectRef(handle.object_ref);
-  return gameobj ? gameobj->GetPhysicsController() : nullptr;
-}
-
-PHY_ICharacter *LN_RuntimeTree::ResolveCharacterController(const LN_RuntimeRef &object_ref) const
-{
-  KX_GameObject *gameobj = ResolveObjectRef(object_ref);
-  KX_Scene *scene = gameobj ? gameobj->GetScene() : nullptr;
-  PHY_IPhysicsEnvironment *environment = scene ? scene->GetPhysicsEnvironment() : nullptr;
-  return environment ? environment->GetCharacterController(gameobj) : nullptr;
-}
-
-PHY_IVehicle *LN_RuntimeTree::ResolveVehicleController(const LN_RuntimeRef &object_ref) const
-{
-  KX_GameObject *gameobj = ResolveObjectRef(object_ref);
-  KX_Scene *scene = gameobj ? gameobj->GetScene() : nullptr;
-  PHY_IPhysicsEnvironment *environment = scene ? scene->GetPhysicsEnvironment() : nullptr;
-  return (environment && gameobj) ?
-             environment->GetVehicleConstraint(gameobj->GetPhysicsController()) :
-             nullptr;
 }
 
 LN_PhysicsQueryResult LN_RuntimeTree::Raycast(
@@ -6304,91 +6357,599 @@ bool LN_RuntimeTree::ComputeMouseRay(KX_Camera *camera,
       m_logicManager != nullptr && m_logicManager->GetUIService().HoldsPointerInView(camera));
 }
 
-void LN_RuntimeTree::EnsureInstructionStateSize()
-{
-  if (m_program == nullptr) {
-    m_instructionStates.clear();
-    return;
-  }
+/* -------------------------------------------------------------------- */
+/** \name The state block (2026-10-31)
+ *
+ * A tree's per-object state lives in one allocation laid out by its program, so a tree's run
+ * reads a few neighbouring cache lines instead of a dozen separate lists, and a state that only
+ * some nodes need (the 1.5 KB navigation path, the three values of Value Changed) is not carried
+ * by every instruction and expression.
+ * \{ */
 
-  const size_t instruction_count =
-      m_program->GetInstructionHeaders(LN_Event::OnInit).size() +
-      m_program->GetInstructionHeaders(LN_Event::OnUpdate).size() +
-      m_program->GetInstructionHeaders(LN_Event::OnFixedUpdate).size();
-  m_instructionStates.assign(instruction_count, InstructionRuntimeState{});
+namespace {
+
+/** Bool expression kinds that keep a state between evaluations (BoolExpressionState names their
+ * own expression, or for TweenReached, PersistenceSucceeded, BooleanEdgeFalling and the Value
+ * Changed outputs, the expression they read): their expressions get a state slot. Any other
+ * expression asking for one gets an overflow state, and a warning. */
+bool BoolExpressionKindKeepsState(const LN_BoolExpressionKind kind)
+{
+  switch (kind) {
+    case LN_BoolExpressionKind::TweenValue:
+    case LN_BoolExpressionKind::PersistenceCompleted:
+    case LN_BoolExpressionKind::CollisionEnter:
+    case LN_BoolExpressionKind::CollisionStay:
+    case LN_BoolExpressionKind::CollisionExit:
+    case LN_BoolExpressionKind::BooleanEdge:
+    case LN_BoolExpressionKind::Once:
+    case LN_BoolExpressionKind::FlowGateOpen:
+    case LN_BoolExpressionKind::Timer:
+    case LN_BoolExpressionKind::ValueChanged:
+    case LN_BoolExpressionKind::ValueChangedTo:
+      return true;
+    default:
+      return false;
+  }
 }
 
-void LN_RuntimeTree::EnsureBoolExpressionStateSize()
+/** Opcodes whose instructions keep a motion state (Mouse Look, paths, Reached). */
+bool OpcodeKeepsMotionState(const LN_OpCode opcode)
 {
-  if (m_program == nullptr) {
-    m_boolExpressionStates.clear();
+  switch (opcode) {
+    case LN_OpCode::MouseLook:
+    case LN_OpCode::Navigate:
+    case LN_OpCode::FollowPath:
+    case LN_OpCode::ApplyForceToTarget:
+    case LN_OpCode::MoveToward:
+      return true;
+    default:
+      return false;
+  }
+}
+
+template<typename T>
+LN_StateSpan<T> ConstructStateArray(std::byte *base,
+                                    const LN_TreeStateLayout &layout,
+                                    const LN_TreeStateLayout::Array array)
+{
+  const uint32_t count = layout.counts[array];
+  if (count == 0) {
+    return {};
+  }
+  T *data = reinterpret_cast<T *>(base + layout.offsets[array]);
+  std::uninitialized_value_construct_n(data, count);
+  return {data, count};
+}
+
+template<typename T> void DestroyStateArray(LN_StateSpan<T> &span)
+{
+  std::destroy_n(span.data(), span.size());
+  span = {};
+}
+
+/** Moves the first elements of `from` into `to` (both constructed). */
+template<typename T> void MoveStatePrefix(LN_StateSpan<T> from, LN_StateSpan<T> to)
+{
+  const uint32_t count = std::min(from.size(), to.size());
+  for (uint32_t index = 0; index < count; index++) {
+    to[index] = std::move(from[index]);
+  }
+}
+
+/** Tests turn slot planning off: every state then lives apart, as before the state block. */
+bool g_plan_state_slots = true;
+
+void WarnUnplannedState(const char *what, const uint32_t kind)
+{
+  if (!g_plan_state_slots) {
     return;
   }
+  /* Trees record on helper threads too (step 7). */
+  static std::mutex warned_mutex;
+  static std::unordered_set<uint64_t> warned;
+  const uint64_t key = (uint64_t(uint8_t(what[0])) << 32) | kind;
+  std::lock_guard<std::mutex> lock(warned_mutex);
+  if (warned.insert(key).second) {
+    CM_Warning("Logic Nodes: no planned state slot for " << what << " " << kind
+                                                        << " (kept apart; tell the developers)");
+  }
+}
 
-  m_boolExpressionStates.assign(m_program->GetBoolExpressions().size(),
-                                BoolExpressionRuntimeState{});
+}  // namespace
+
+bool LN_TreeStateLayout::Matches(const LN_Program &program) const
+{
+  const LN_RegisterExpressionProgram &ir = program.GetRegisterExpressionProgram();
+  return init_instruction_count == program.GetInstructionHeaders(LN_Event::OnInit).size() &&
+         update_instruction_count == program.GetInstructionHeaders(LN_Event::OnUpdate).size() &&
+         fixed_instruction_count ==
+             program.GetInstructionHeaders(LN_Event::OnFixedUpdate).size() &&
+         bool_expression_count == program.GetBoolExpressions().size() &&
+         float_expression_count == program.GetFloatExpressions().size() &&
+         time_flow_count == program.GetTimeFlowStateCount() &&
+         flow_control_count == program.GetFlowControlStateCount() &&
+         query_count == program.GetQueryRuntimeStateCount() &&
+         step_gate_count == program.GetStepGates().size() &&
+         register_counts[0] == ir.bool_register_count &&
+         register_counts[1] == ir.int_register_count &&
+         register_counts[2] == ir.float_register_count &&
+         register_counts[3] == ir.vector_register_count &&
+         register_counts[4] == ir.color_register_count &&
+         register_counts[5] == ir.string_register_count &&
+         register_counts[6] == ir.generic_value_register_count;
+}
+
+std::shared_ptr<const LN_TreeStateLayout> LN_RuntimeTree::BuildStateLayout(
+    const LN_Program &program)
+{
+  using Layout = LN_TreeStateLayout;
+  std::shared_ptr<Layout> layout = std::make_shared<Layout>();
+  const LN_RegisterExpressionProgram &ir = program.GetRegisterExpressionProgram();
+  layout->init_instruction_count = uint32_t(program.GetInstructionHeaders(LN_Event::OnInit).size());
+  layout->update_instruction_count = uint32_t(
+      program.GetInstructionHeaders(LN_Event::OnUpdate).size());
+  layout->fixed_instruction_count = uint32_t(
+      program.GetInstructionHeaders(LN_Event::OnFixedUpdate).size());
+  layout->bool_expression_count = uint32_t(program.GetBoolExpressions().size());
+  layout->float_expression_count = uint32_t(program.GetFloatExpressions().size());
+  layout->time_flow_count = program.GetTimeFlowStateCount();
+  layout->flow_control_count = program.GetFlowControlStateCount();
+  layout->query_count = program.GetQueryRuntimeStateCount();
+  layout->step_gate_count = uint32_t(program.GetStepGates().size());
+  layout->register_counts[0] = ir.bool_register_count;
+  layout->register_counts[1] = ir.int_register_count;
+  layout->register_counts[2] = ir.float_register_count;
+  layout->register_counts[3] = ir.vector_register_count;
+  layout->register_counts[4] = ir.color_register_count;
+  layout->register_counts[5] = ir.string_register_count;
+  layout->register_counts[6] = ir.generic_value_register_count;
+
+  const std::vector<LN_BoolExpression> &bools = program.GetBoolExpressions();
+  layout->bool_state_slots.assign(bools.size(), LN_INVALID_INDEX);
+  layout->value_change_slots.assign(bools.size(), LN_INVALID_INDEX);
+  uint32_t bool_states = 0;
+  uint32_t value_changes = 0;
+  for (uint32_t index = 0; index < bools.size() && g_plan_state_slots; index++) {
+    if (BoolExpressionKindKeepsState(bools[index].kind)) {
+      layout->bool_state_slots[index] = bool_states++;
+    }
+    if (ELEM(bools[index].kind,
+             LN_BoolExpressionKind::ValueChanged,
+             LN_BoolExpressionKind::ValueChangedTo))
+    {
+      layout->value_change_slots[index] = value_changes++;
+    }
+  }
+  const std::vector<LN_FloatExpression> &floats = program.GetFloatExpressions();
+  layout->float_state_slots.assign(floats.size(), LN_INVALID_INDEX);
+  uint32_t float_states = 0;
+  for (uint32_t index = 0; index < floats.size() && g_plan_state_slots; index++) {
+    if (floats[index].kind == LN_FloatExpressionKind::StoreValue) {
+      layout->float_state_slots[index] = float_states++;
+    }
+  }
+  /* Instruction state indices: On Init, then Frame Update, then Logic + Physics instructions
+   * (InstructionStateIndex). */
+  const uint32_t instruction_count = layout->init_instruction_count +
+                                     layout->update_instruction_count +
+                                     layout->fixed_instruction_count;
+  layout->motion_slots.assign(instruction_count, LN_INVALID_INDEX);
+  uint32_t motion_states = 0;
+  uint32_t state_index = 0;
+  for (const LN_Event event : {LN_Event::OnInit, LN_Event::OnUpdate, LN_Event::OnFixedUpdate}) {
+    for (const LN_InstructionHeader &header : program.GetInstructionHeaders(event)) {
+      if (OpcodeKeepsMotionState(header.opcode) && g_plan_state_slots) {
+        layout->motion_slots[state_index] = motion_states++;
+      }
+      state_index++;
+    }
+  }
+
+  layout->counts[Layout::InstructionStamps] = instruction_count;
+  layout->counts[Layout::RegisterFloatValid] = ir.float_register_count;
+  layout->counts[Layout::RegisterFloats] = ir.float_register_count;
+  layout->counts[Layout::RegisterVectorValid] = ir.vector_register_count;
+  layout->counts[Layout::RegisterVectors] = ir.vector_register_count;
+  layout->counts[Layout::RegisterBoolValid] = ir.bool_register_count;
+  layout->counts[Layout::RegisterBools] = ir.bool_register_count;
+  layout->counts[Layout::RegisterIntValid] = ir.int_register_count;
+  layout->counts[Layout::RegisterInts] = ir.int_register_count;
+  layout->counts[Layout::RegisterColorValid] = ir.color_register_count;
+  layout->counts[Layout::RegisterColors] = ir.color_register_count;
+  layout->counts[Layout::RegisterStringValid] = ir.string_register_count;
+  layout->counts[Layout::RegisterStrings] = ir.string_register_count;
+  layout->counts[Layout::RegisterGenericValid] = ir.generic_value_register_count;
+  layout->counts[Layout::RegisterGenerics] = ir.generic_value_register_count;
+  layout->counts[Layout::StepGates] = layout->step_gate_count;
+  layout->counts[Layout::Queries] = layout->query_count;
+  layout->counts[Layout::BoolStates] = bool_states;
+  layout->counts[Layout::FloatStates] = float_states;
+  layout->counts[Layout::TimeFlows] = layout->time_flow_count;
+  layout->counts[Layout::FlowControls] = layout->flow_control_count;
+  layout->counts[Layout::MotionStates] = motion_states;
+  layout->counts[Layout::ValueChanges] = value_changes;
+
+  /* Arrays in that order: what every run reads first (stamps, registers), the rest after. */
+  const std::array<std::pair<size_t, size_t>, Layout::ArrayCount> element = {{
+      {sizeof(InstructionStamp), alignof(InstructionStamp)},
+      {sizeof(uint32_t), alignof(uint32_t)},
+      {sizeof(float), alignof(float)},
+      {sizeof(uint32_t), alignof(uint32_t)},
+      {sizeof(MT_Vector3), alignof(MT_Vector3)},
+      {sizeof(uint32_t), alignof(uint32_t)},
+      {sizeof(uint8_t), alignof(uint8_t)},
+      {sizeof(uint32_t), alignof(uint32_t)},
+      {sizeof(int32_t), alignof(int32_t)},
+      {sizeof(uint32_t), alignof(uint32_t)},
+      {sizeof(MT_Vector4), alignof(MT_Vector4)},
+      {sizeof(uint32_t), alignof(uint32_t)},
+      {sizeof(std::string), alignof(std::string)},
+      {sizeof(uint32_t), alignof(uint32_t)},
+      {sizeof(LN_Value), alignof(LN_Value)},
+      {sizeof(StepGateState), alignof(StepGateState)},
+      {sizeof(QueryExpressionRuntimeState), alignof(QueryExpressionRuntimeState)},
+      {sizeof(BoolExpressionRuntimeState), alignof(BoolExpressionRuntimeState)},
+      {sizeof(FloatExpressionRuntimeState), alignof(FloatExpressionRuntimeState)},
+      {sizeof(TimeFlowRuntimeState), alignof(TimeFlowRuntimeState)},
+      {sizeof(FlowControlRuntimeState), alignof(FlowControlRuntimeState)},
+      {sizeof(InstructionMotionState), alignof(InstructionMotionState)},
+      {sizeof(ValueChangeState), alignof(ValueChangeState)},
+  }};
+  size_t offset = 0;
+  for (size_t array = 0; array < Layout::ArrayCount; array++) {
+    const size_t align = element[array].second;
+    BLI_assert(align <= LN_StateBlockMemory::kAlignment);
+    offset = (offset + align - 1) / align * align;
+    layout->offsets[array] = offset;
+    offset += element[array].first * layout->counts[array];
+  }
+  layout->bytes = offset;
+  return layout;
+}
+
+std::shared_ptr<const LN_TreeStateLayout> LN_RuntimeTree::StateLayoutFor(
+    const LN_Program &program)
+{
+  const std::shared_ptr<const LN_TreeStateLayout> &cached = program.CachedTreeStateLayout();
+  if (cached != nullptr && cached->Matches(program)) {
+    return cached;
+  }
+  std::shared_ptr<const LN_TreeStateLayout> layout = BuildStateLayout(program);
+  program.CacheTreeStateLayout(layout);
+  return layout;
+}
+
+void LN_RuntimeTree::DestroyStateBlock()
+{
+  DestroyStateArray(m_instructionStamps);
+  DestroyStateArray(m_registerExpressionState.float_valid);
+  DestroyStateArray(m_registerExpressionState.float_values);
+  DestroyStateArray(m_registerExpressionState.vector_valid);
+  DestroyStateArray(m_registerExpressionState.vector_values);
+  DestroyStateArray(m_registerExpressionState.bool_valid);
+  DestroyStateArray(m_registerExpressionState.bool_values);
+  DestroyStateArray(m_registerExpressionState.int_valid);
+  DestroyStateArray(m_registerExpressionState.int_values);
+  DestroyStateArray(m_registerExpressionState.color_valid);
+  DestroyStateArray(m_registerExpressionState.color_values);
+  DestroyStateArray(m_registerExpressionState.string_valid);
+  DestroyStateArray(m_registerExpressionState.string_values);
+  DestroyStateArray(m_registerExpressionState.generic_valid);
+  DestroyStateArray(m_registerExpressionState.generic_values);
+  DestroyStateArray(m_stepGates);
+  DestroyStateArray(m_queryExpressionStates);
+  DestroyStateArray(m_boolStates);
+  DestroyStateArray(m_floatStates);
+  DestroyStateArray(m_timeFlowStates);
+  DestroyStateArray(m_flowControlStates);
+  DestroyStateArray(m_motionStates);
+  DestroyStateArray(m_valueChangeStates);
+  m_stateBlock = LN_StateBlockMemory();
+  m_stateLayout.reset();
+}
+
+void LN_RuntimeTree::RebuildStateBlock(const StateKeep keep)
+{
+  const bool preserve = keep != StateKeep::None;
+  using Layout = LN_TreeStateLayout;
+  /* The old block stays alive until its states have moved over. */
+  const std::shared_ptr<const Layout> old_layout = std::move(m_stateLayout);
+  LN_StateBlockMemory old_block = std::move(m_stateBlock);
+  const LN_StateSpan<InstructionStamp> old_stamps = m_instructionStamps;
+  const RegisterExpressionRuntimeState old_registers = m_registerExpressionState;
+  const LN_StateSpan<StepGateState> old_step_gates = m_stepGates;
+  const LN_StateSpan<QueryExpressionRuntimeState> old_queries = m_queryExpressionStates;
+  const LN_StateSpan<BoolExpressionRuntimeState> old_bools = m_boolStates;
+  const LN_StateSpan<FloatExpressionRuntimeState> old_floats = m_floatStates;
+  const LN_StateSpan<TimeFlowRuntimeState> old_time_flows = m_timeFlowStates;
+  const LN_StateSpan<FlowControlRuntimeState> old_flow_controls = m_flowControlStates;
+  const LN_StateSpan<InstructionMotionState> old_motions = m_motionStates;
+  const LN_StateSpan<ValueChangeState> old_value_changes = m_valueChangeStates;
+
+  m_instructionStamps = {};
+  m_registerExpressionState = RegisterExpressionRuntimeState();
+  m_stepGates = {};
+  m_queryExpressionStates = {};
+  m_boolStates = {};
+  m_floatStates = {};
+  m_timeFlowStates = {};
+  m_flowControlStates = {};
+  m_motionStates = {};
+  m_valueChangeStates = {};
+  if (!preserve) {
+    m_stateOverflow.reset();
+  }
+
+  if (m_program != nullptr) {
+    m_stateLayout = StateLayoutFor(*m_program);
+    const Layout &layout = *m_stateLayout;
+    m_stateBlock = LN_StateBlockMemory(layout.bytes);
+    std::byte *base = m_stateBlock.Data();
+    RegisterExpressionRuntimeState &registers = m_registerExpressionState;
+    m_instructionStamps = ConstructStateArray<InstructionStamp>(
+        base, layout, Layout::InstructionStamps);
+    registers.float_valid = ConstructStateArray<uint32_t>(base, layout, Layout::RegisterFloatValid);
+    registers.float_values = ConstructStateArray<float>(base, layout, Layout::RegisterFloats);
+    registers.vector_valid = ConstructStateArray<uint32_t>(
+        base, layout, Layout::RegisterVectorValid);
+    registers.vector_values = ConstructStateArray<MT_Vector3>(
+        base, layout, Layout::RegisterVectors);
+    registers.bool_valid = ConstructStateArray<uint32_t>(base, layout, Layout::RegisterBoolValid);
+    registers.bool_values = ConstructStateArray<uint8_t>(base, layout, Layout::RegisterBools);
+    registers.int_valid = ConstructStateArray<uint32_t>(base, layout, Layout::RegisterIntValid);
+    registers.int_values = ConstructStateArray<int32_t>(base, layout, Layout::RegisterInts);
+    registers.color_valid = ConstructStateArray<uint32_t>(base, layout, Layout::RegisterColorValid);
+    registers.color_values = ConstructStateArray<MT_Vector4>(base, layout, Layout::RegisterColors);
+    registers.string_valid = ConstructStateArray<uint32_t>(
+        base, layout, Layout::RegisterStringValid);
+    registers.string_values = ConstructStateArray<std::string>(
+        base, layout, Layout::RegisterStrings);
+    registers.generic_valid = ConstructStateArray<uint32_t>(
+        base, layout, Layout::RegisterGenericValid);
+    registers.generic_values = ConstructStateArray<LN_Value>(
+        base, layout, Layout::RegisterGenerics);
+    m_stepGates = ConstructStateArray<StepGateState>(base, layout, Layout::StepGates);
+    m_queryExpressionStates = ConstructStateArray<QueryExpressionRuntimeState>(
+        base, layout, Layout::Queries);
+    m_boolStates = ConstructStateArray<BoolExpressionRuntimeState>(
+        base, layout, Layout::BoolStates);
+    m_floatStates = ConstructStateArray<FloatExpressionRuntimeState>(
+        base, layout, Layout::FloatStates);
+    m_timeFlowStates = ConstructStateArray<TimeFlowRuntimeState>(base, layout, Layout::TimeFlows);
+    m_flowControlStates = ConstructStateArray<FlowControlRuntimeState>(
+        base, layout, Layout::FlowControls);
+    m_motionStates = ConstructStateArray<InstructionMotionState>(
+        base, layout, Layout::MotionStates);
+    m_valueChangeStates = ConstructStateArray<ValueChangeState>(
+        base, layout, Layout::ValueChanges);
+  }
+
+  if (preserve && old_layout != nullptr && m_stateLayout != nullptr) {
+    /* What a tree keeps between ticks. Slot states move by the expression or instruction they
+     * belong to; one that ends up with no slot (or gets one) moves between block and overflow. */
+    MoveStatePrefix(old_stamps, m_instructionStamps);
+    MoveStatePrefix(old_time_flows, m_timeFlowStates);
+    MoveStatePrefix(old_flow_controls, m_flowControlStates);
+    if (keep == StateKeep::All) {
+      /* The same program laid out again, maybe in the middle of a step: its step gates too
+       * (PrepareStepGates does not prepare a step twice). */
+      MoveStatePrefix(old_queries, m_queryExpressionStates);
+      MoveStatePrefix(old_step_gates, m_stepGates);
+    }
+    const auto move_slots = [](const std::vector<uint32_t> &old_slots, auto old_states, auto &&to) {
+      for (uint32_t key = 0; key < old_slots.size(); key++) {
+        if (old_slots[key] != LN_INVALID_INDEX && old_slots[key] < old_states.size()) {
+          to(key) = std::move(old_states[old_slots[key]]);
+        }
+      }
+    };
+    move_slots(old_layout->bool_state_slots, old_bools, [&](uint32_t key) -> auto & {
+      return BoolExpressionState(key);
+    });
+    move_slots(old_layout->float_state_slots, old_floats, [&](uint32_t key) -> auto & {
+      return FloatExpressionState(key);
+    });
+    move_slots(old_layout->motion_slots, old_motions, [&](uint32_t key) -> auto & {
+      return MotionState(key);
+    });
+    move_slots(old_layout->value_change_slots, old_value_changes, [&](uint32_t key) -> auto & {
+      return ValueChangeStateOf(key);
+    });
+    /* Overflow states that now have a slot move into the block. */
+    if (m_stateOverflow != nullptr) {
+      const auto adopt = [](auto &overflow, const std::vector<uint32_t> &slots, auto states) {
+        for (auto it = overflow.begin(); it != overflow.end();) {
+          if (it->first < slots.size() && slots[it->first] != LN_INVALID_INDEX) {
+            states[slots[it->first]] = std::move(it->second);
+            it = overflow.erase(it);
+          }
+          else {
+            ++it;
+          }
+        }
+      };
+      adopt(m_stateOverflow->bool_states, m_stateLayout->bool_state_slots, m_boolStates);
+      adopt(m_stateOverflow->float_states, m_stateLayout->float_state_slots, m_floatStates);
+      adopt(m_stateOverflow->motion_states, m_stateLayout->motion_slots, m_motionStates);
+      adopt(m_stateOverflow->value_changes, m_stateLayout->value_change_slots, m_valueChangeStates);
+      for (auto it = m_stateOverflow->queries.begin();
+           keep == StateKeep::All && it != m_stateOverflow->queries.end();)
+      {
+        if (it->first < m_queryExpressionStates.size()) {
+          m_queryExpressionStates[it->first] = std::move(it->second);
+          it = m_stateOverflow->queries.erase(it);
+        }
+        else {
+          ++it;
+        }
+      }
+    }
+  }
+
+  /* The old block's elements go now, then its memory (old_block). */
+  {
+    LN_StateSpan<InstructionStamp> stamps = old_stamps;
+    RegisterExpressionRuntimeState registers = old_registers;
+    LN_StateSpan<StepGateState> step_gates = old_step_gates;
+    LN_StateSpan<QueryExpressionRuntimeState> queries = old_queries;
+    LN_StateSpan<BoolExpressionRuntimeState> bools = old_bools;
+    LN_StateSpan<FloatExpressionRuntimeState> floats = old_floats;
+    LN_StateSpan<TimeFlowRuntimeState> time_flows = old_time_flows;
+    LN_StateSpan<FlowControlRuntimeState> flow_controls = old_flow_controls;
+    LN_StateSpan<InstructionMotionState> motions = old_motions;
+    LN_StateSpan<ValueChangeState> value_changes = old_value_changes;
+    DestroyStateArray(stamps);
+    DestroyStateArray(registers.string_values);
+    DestroyStateArray(registers.generic_values);
+    DestroyStateArray(step_gates);
+    DestroyStateArray(queries);
+    DestroyStateArray(bools);
+    DestroyStateArray(floats);
+    DestroyStateArray(time_flows);
+    DestroyStateArray(flow_controls);
+    DestroyStateArray(motions);
+    DestroyStateArray(value_changes);
+  }
+  /* A new generation for the new registers (nothing cached in them yet). */
+  m_registerExpressionState.cached_tick = UINT64_MAX;
+}
+
+void LN_RuntimeTree::RefreshStateBlockLayout()
+{
+  /* A program drops its cached layout whenever it grows (LN_Program::RebuildExecBlockIR,
+   * RebuildRegisterExpressionIR, AddTimeFlowState...), so one pointer compare tells. */
+  if (m_program != nullptr && m_stateLayout.get() != m_program->CachedTreeStateLayout().get()) {
+    RebuildStateBlock(StateKeep::All);
+  }
+  BLI_assert(m_program == nullptr || m_stateLayout->Matches(*m_program));
+}
+
+void LN_RuntimeTree::SetStateSlotsPlannedForTests(const bool planned)
+{
+  g_plan_state_slots = planned;
+}
+
+LN_RuntimeTree::StateBlockInfo LN_RuntimeTree::GetStateBlockInfo() const
+{
+  StateBlockInfo info;
+  info.block_bytes = m_stateBlock.Size();
+  info.instruction_stamps = m_instructionStamps.size();
+  info.bool_states = m_boolStates.size();
+  info.float_states = m_floatStates.size();
+  info.motion_states = m_motionStates.size();
+  info.value_changes = m_valueChangeStates.size();
+  info.time_flows = m_timeFlowStates.size();
+  info.flow_controls = m_flowControlStates.size();
+  info.queries = m_queryExpressionStates.size();
+  if (m_stateOverflow != nullptr) {
+    info.overflow_states = uint32_t(
+        m_stateOverflow->bool_states.size() + m_stateOverflow->float_states.size() +
+        m_stateOverflow->motion_states.size() + m_stateOverflow->value_changes.size() +
+        m_stateOverflow->queries.size());
+  }
+  info.has_own_input = m_snapshot.HasOwnInput();
+  return info;
+}
+
+LN_RuntimeTree::StateOverflow &LN_RuntimeTree::Overflow()
+{
+  if (m_stateOverflow == nullptr) {
+    m_stateOverflow = std::make_unique<StateOverflow>();
+  }
+  return *m_stateOverflow;
 }
 
 LN_RuntimeTree::BoolExpressionRuntimeState &LN_RuntimeTree::BoolExpressionState(
     const uint32_t expression_index)
 {
-  if (expression_index >= m_boolExpressionStates.size()) {
-    m_boolExpressionStates.resize(size_t(expression_index) + 1);
+  if (m_stateLayout != nullptr && expression_index < m_stateLayout->bool_state_slots.size()) {
+    const uint32_t slot = m_stateLayout->bool_state_slots[expression_index];
+    if (slot != LN_INVALID_INDEX && slot < m_boolStates.size()) {
+      return m_boolStates[slot];
+    }
+    WarnUnplannedState("bool expression kind",
+                       uint32_t(m_program->GetBoolExpressions()[expression_index].kind));
   }
-  return m_boolExpressionStates[expression_index];
-}
-
-void LN_RuntimeTree::EnsureFloatExpressionStateSize()
-{
-  if (m_program == nullptr) {
-    m_floatExpressionStates.clear();
-    return;
-  }
-
-  m_floatExpressionStates.assign(m_program->GetFloatExpressions().size(),
-                                 FloatExpressionRuntimeState{});
+  return Overflow().bool_states[expression_index];
 }
 
 LN_RuntimeTree::FloatExpressionRuntimeState &LN_RuntimeTree::FloatExpressionState(
     const uint32_t expression_index)
 {
-  if (expression_index >= m_floatExpressionStates.size()) {
-    m_floatExpressionStates.resize(size_t(expression_index) + 1);
+  if (m_stateLayout != nullptr && expression_index < m_stateLayout->float_state_slots.size()) {
+    const uint32_t slot = m_stateLayout->float_state_slots[expression_index];
+    if (slot != LN_INVALID_INDEX && slot < m_floatStates.size()) {
+      return m_floatStates[slot];
+    }
+    WarnUnplannedState("float expression kind",
+                       uint32_t(m_program->GetFloatExpressions()[expression_index].kind));
   }
-  return m_floatExpressionStates[expression_index];
+  return Overflow().float_states[expression_index];
 }
 
-void LN_RuntimeTree::EnsureTimeFlowStateSize(const bool preserve_existing)
+LN_RuntimeTree::InstructionMotionState &LN_RuntimeTree::MotionState(const uint32_t state_index)
 {
-  if (m_program == nullptr) {
-    m_timeFlowStates.clear();
-    return;
+  if (m_stateLayout != nullptr && state_index < m_stateLayout->motion_slots.size()) {
+    const uint32_t slot = m_stateLayout->motion_slots[state_index];
+    if (slot != LN_INVALID_INDEX && slot < m_motionStates.size()) {
+      return m_motionStates[slot];
+    }
+    WarnUnplannedState("motion state of instruction", state_index);
   }
-
-  const size_t state_count = m_program->GetTimeFlowStateCount();
-  if (preserve_existing) {
-    m_timeFlowStates.resize(state_count);
-    return;
-  }
-
-  m_timeFlowStates.assign(state_count, TimeFlowRuntimeState{});
+  return Overflow().motion_states[state_index];
 }
 
-void LN_RuntimeTree::EnsureFlowControlStateSize(const bool preserve_existing)
+const LN_RuntimeTree::InstructionMotionState *LN_RuntimeTree::FindMotionState(
+    const uint32_t state_index) const
 {
-  if (m_program == nullptr) {
-    m_flowControlStates.clear();
-    return;
+  if (m_stateLayout != nullptr && state_index < m_stateLayout->motion_slots.size()) {
+    const uint32_t slot = m_stateLayout->motion_slots[state_index];
+    if (slot != LN_INVALID_INDEX && slot < m_motionStates.size()) {
+      return &m_motionStates[slot];
+    }
   }
-
-  const size_t state_count = m_program->GetFlowControlStateCount();
-  if (preserve_existing) {
-    m_flowControlStates.resize(state_count);
-    return;
+  if (m_stateOverflow != nullptr) {
+    const auto found = m_stateOverflow->motion_states.find(state_index);
+    if (found != m_stateOverflow->motion_states.end()) {
+      return &found->second;
+    }
   }
-
-  m_flowControlStates.assign(state_count, FlowControlRuntimeState{});
+  return nullptr;
 }
+
+LN_RuntimeTree::ValueChangeState &LN_RuntimeTree::ValueChangeStateOf(
+    const uint32_t expression_index)
+{
+  if (m_stateLayout != nullptr && expression_index < m_stateLayout->value_change_slots.size()) {
+    const uint32_t slot = m_stateLayout->value_change_slots[expression_index];
+    if (slot != LN_INVALID_INDEX && slot < m_valueChangeStates.size()) {
+      return m_valueChangeStates[slot];
+    }
+    WarnUnplannedState("value change of bool expression kind",
+                       uint32_t(m_program->GetBoolExpressions()[expression_index].kind));
+  }
+  return Overflow().value_changes[expression_index];
+}
+
+const LN_RuntimeTree::ValueChangeState *LN_RuntimeTree::FindValueChangeState(
+    const uint32_t expression_index) const
+{
+  if (m_stateLayout != nullptr && expression_index < m_stateLayout->value_change_slots.size()) {
+    const uint32_t slot = m_stateLayout->value_change_slots[expression_index];
+    if (slot != LN_INVALID_INDEX && slot < m_valueChangeStates.size()) {
+      return &m_valueChangeStates[slot];
+    }
+  }
+  if (m_stateOverflow != nullptr) {
+    const auto found = m_stateOverflow->value_changes.find(expression_index);
+    if (found != m_stateOverflow->value_changes.end()) {
+      return &found->second;
+    }
+  }
+  return nullptr;
+}
+
+/** \} */
 
 LN_RuntimeTree::TimeFlowRuntimeState *LN_RuntimeTree::FindTimeFlowState(const uint32_t state_index)
 {
@@ -6430,6 +6991,13 @@ void LN_RuntimeTree::TickLatentTimeFlowStates(const LN_TickContext &context)
   if (m_timeFlowStates.empty() || context.tick_index == UINT64_MAX) {
     return;
   }
+  /* Once a tick: a Run Logic Tree pass after the tree's own run (or a second pass) in the same
+   * step counted the step's time again, so a 1 s Timer called 4 times a step fired after
+   * 0.2 s, and a Delay's Done could run twice (fixed 2026-10-31). */
+  if (m_latentTimeFlowTick == context.tick_index) {
+    return;
+  }
+  m_latentTimeFlowTick = context.tick_index;
 
   for (TimeFlowRuntimeState &state : m_timeFlowStates) {
     if (state.event != context.event || (m_uiEventRoutesOnly && !state.ui_event_route)) {
@@ -6492,8 +7060,9 @@ void LN_RuntimeTree::TickLatentTimeFlowStates(const LN_TickContext &context)
         break;
       }
       case TimeFlowRuntimeKind::Barrier:
-        if (state.active &&
-            PhaseTickWasSkipped(state.last_update_phase_tick, context.phase_tick_index))
+        if (state.active && PhaseTickWasSkipped(state.last_update_phase_tick,
+                                                context.phase_tick_index,
+                                                state.last_update_phase_stride))
         {
           state.active = false;
           state.accumulated_time = 0.0;
@@ -6526,24 +7095,14 @@ void LN_RuntimeTree::TickLatentTimeFlowStates(const LN_TickContext &context)
   }
 }
 
-void LN_RuntimeTree::EnsureQueryExpressionStateSize()
-{
-  if (m_program == nullptr) {
-    m_queryExpressionStates.clear();
-    return;
-  }
-
-  m_queryExpressionStates.assign(m_program->GetQueryRuntimeStateCount(),
-                                 QueryExpressionRuntimeState{});
-}
-
 LN_RuntimeTree::QueryExpressionRuntimeState &LN_RuntimeTree::QueryExpressionState(
     const uint32_t state_index)
 {
-  if (state_index >= m_queryExpressionStates.size()) {
-    m_queryExpressionStates.resize(size_t(state_index) + 1);
+  if (state_index < m_queryExpressionStates.size()) {
+    return m_queryExpressionStates[state_index];
   }
-  return m_queryExpressionStates[state_index];
+  /* Past the program's query states: only seeded by tests. */
+  return Overflow().queries[state_index];
 }
 
 void LN_RuntimeTree::EnsureTreePropertyStateSize(const bool preserve_existing)
@@ -6575,7 +7134,7 @@ void LN_RuntimeTree::EnsureTreePropertyStateSize(const bool preserve_existing)
   }
 }
 
-bool LN_RuntimeTree::ResolvePathMoveTarget(InstructionRuntimeState &state,
+bool LN_RuntimeTree::ResolvePathMoveTarget(InstructionMotionState &state,
                                            KX_GameObject *target,
                                            KX_NavMeshObject *navmesh,
                                            const MT_Vector3 &destination,
@@ -6636,7 +7195,7 @@ bool LN_RuntimeTree::ResolvePathMoveTarget(InstructionRuntimeState &state,
 }
 
 void LN_RuntimeTree::DrawNavigationPath(KX_GameObject *target,
-                                        const InstructionRuntimeState &state,
+                                        const InstructionMotionState &state,
                                         const MT_Vector3 &destination) const
 {
   if (target == nullptr) {
@@ -6687,12 +7246,12 @@ void LN_RuntimeTree::MarkInstructionExecuted(const LN_Event event,
                                              const uint64_t tick_index)
 {
   const uint32_t state_index = InstructionStateIndex(event, instruction_index);
-  if (state_index == LN_INVALID_INDEX || state_index >= m_instructionStates.size()) {
+  if (state_index == LN_INVALID_INDEX || state_index >= m_instructionStamps.size()) {
     return;
   }
 
-  m_instructionStates[state_index].last_execution_tick = tick_index;
-  m_instructionStates[state_index].last_execution_scope_serial = m_activeExecutionScopeSerial;
+  m_instructionStamps[state_index].last_execution_tick = tick_index;
+  m_instructionStamps[state_index].last_execution_scope_serial = m_activeExecutionScopeSerial;
 }
 
 void LN_RuntimeTree::ProfileInstructionDispatch(const LN_Instruction &instruction)
@@ -6765,77 +7324,6 @@ void LN_RuntimeTree::ClearRuntimeFallbackReport(const uint64_t tick_index)
   m_runtimeFallbackReport.hits.clear();
   m_runtimeFallbackReport.expression_hits.clear();
   m_runtimeFallbackReport.system_hits.clear();
-}
-
-void LN_RuntimeTree::RecordRuntimeFallbackInstruction(const LN_Event event,
-                                                      const uint32_t instruction_index,
-                                                      const LN_Instruction &instruction)
-{
-  if (m_activeProfileCounters == nullptr) {
-    return;
-  }
-
-  const LN_Phase10OpcodeFallbackDiagnostic *diagnostic = FindOpcodeFallbackDiagnostic(
-      instruction.opcode);
-  if (diagnostic == nullptr) {
-    static constexpr const char *fallback_profile_counter = "exec_fallback_instruction_count";
-    static constexpr const char *fallback_removal_condition =
-        "Implement direct exec-block support for the enclosing runtime control-flow block.";
-
-    m_runtimeFallbackReport.optimized_execution_partial = true;
-    m_runtimeFallbackReport.reason_mask |= 1u
-                                           << uint8_t(LN_RuntimeFallbackReason::UnsupportedOpcode);
-
-    for (RuntimeFallbackHit &hit : m_runtimeFallbackReport.hits) {
-      if (hit.opcode == instruction.opcode &&
-          hit.reason == LN_RuntimeFallbackReason::UnsupportedOpcode)
-      {
-        hit.count++;
-        return;
-      }
-    }
-
-    RuntimeFallbackHit hit;
-    hit.opcode = instruction.opcode;
-    hit.reason = LN_RuntimeFallbackReason::UnsupportedOpcode;
-    hit.event = event;
-    hit.count = 1;
-    hit.first_instruction_index = instruction_index;
-    hit.first_source_ref_index = instruction.source_ref_index;
-    hit.opcode_name = LN_GetRuntimeInstructionSemantics(instruction.opcode) != nullptr ?
-                          LN_GetRuntimeInstructionSemantics(instruction.opcode)->name :
-                          "unknown";
-    hit.profile_counter_name = fallback_profile_counter;
-    hit.removal_condition = fallback_removal_condition;
-    hit.source_ref_available = instruction.source_ref_index != LN_INVALID_INDEX;
-    hit.hot_path_warning_required = true;
-    m_runtimeFallbackReport.hits.push_back(hit);
-    return;
-  }
-
-  m_runtimeFallbackReport.optimized_execution_partial = true;
-  m_runtimeFallbackReport.reason_mask |= 1u << uint8_t(diagnostic->reason);
-
-  for (RuntimeFallbackHit &hit : m_runtimeFallbackReport.hits) {
-    if (hit.opcode == instruction.opcode && hit.reason == diagnostic->reason) {
-      hit.count++;
-      return;
-    }
-  }
-
-  RuntimeFallbackHit hit;
-  hit.opcode = instruction.opcode;
-  hit.reason = diagnostic->reason;
-  hit.event = event;
-  hit.count = 1;
-  hit.first_instruction_index = instruction_index;
-  hit.first_source_ref_index = instruction.source_ref_index;
-  hit.opcode_name = diagnostic->name;
-  hit.profile_counter_name = diagnostic->profile_counter_name;
-  hit.removal_condition = diagnostic->removal_condition;
-  hit.source_ref_available = instruction.source_ref_index != LN_INVALID_INDEX;
-  hit.hot_path_warning_required = diagnostic->hot_path_warning_required;
-  m_runtimeFallbackReport.hits.push_back(hit);
 }
 
 void LN_RuntimeTree::RecordRegisterExpressionFallback(const LN_RuntimeExpressionFamily family,
@@ -7114,7 +7602,10 @@ bool LN_RuntimeTree::TryEvaluateRegisterFloatSoABatch(const LN_RegisterExpressio
     return false;
   }
   const uint32_t batch_end = batch.first_op_index + batch.op_count;
-  if (batch_end > ir.ops.size()) {
+  /* The outputs are written below without a check: the block must hold every float register. */
+  if (batch_end > ir.ops.size() ||
+      m_registerExpressionState.float_values.size() < ir.float_register_count)
+  {
     return false;
   }
 
@@ -7271,41 +7762,15 @@ void LN_RuntimeTree::EnsureRegisterExpressionState(const LN_TickContext &context
               0u);
   };
 
-  const bool layout_changed =
-      m_registerExpressionState.bool_values.size() != ir.bool_register_count ||
-      m_registerExpressionState.int_values.size() != ir.int_register_count ||
-      m_registerExpressionState.float_values.size() != ir.float_register_count ||
-      m_registerExpressionState.vector_values.size() != ir.vector_register_count ||
-      m_registerExpressionState.color_values.size() != ir.color_register_count ||
-      m_registerExpressionState.string_values.size() != ir.string_register_count ||
-      m_registerExpressionState.generic_values.size() != ir.generic_value_register_count;
-  if (layout_changed) {
-    m_registerExpressionState.bool_values.resize(ir.bool_register_count);
-    m_registerExpressionState.int_values.resize(ir.int_register_count);
-    m_registerExpressionState.float_values.resize(ir.float_register_count);
-    m_registerExpressionState.vector_values.resize(ir.vector_register_count);
-    m_registerExpressionState.color_values.resize(ir.color_register_count);
-    m_registerExpressionState.string_values.resize(ir.string_register_count);
-    m_registerExpressionState.generic_values.resize(ir.generic_value_register_count);
-    m_registerExpressionState.bool_valid.resize(ir.bool_register_count);
-    m_registerExpressionState.int_valid.resize(ir.int_register_count);
-    m_registerExpressionState.float_valid.resize(ir.float_register_count);
-    m_registerExpressionState.vector_valid.resize(ir.vector_register_count);
-    m_registerExpressionState.color_valid.resize(ir.color_register_count);
-    m_registerExpressionState.string_valid.resize(ir.string_register_count);
-    m_registerExpressionState.generic_valid.resize(ir.generic_value_register_count);
-    clear_valid_generations();
-    m_registerExpressionState.active_generation = 1u;
-    m_registerExpressionState.cached_tick = UINT64_MAX;
-  }
+  /* The registers live in the state block, laid out for this program's register file (a
+   * program grown after the tree took it gets a new block at the next run: until then its new
+   * registers are out of range, and their expressions take the evaluator without registers). */
   if (m_registerExpressionState.cached_tick != context.tick_index) {
     m_registerExpressionState.cached_tick = context.tick_index;
-    if (!layout_changed) {
-      m_registerExpressionState.active_generation++;
-      if (m_registerExpressionState.active_generation == 0u) {
-        clear_valid_generations();
-        m_registerExpressionState.active_generation = 1u;
-      }
+    m_registerExpressionState.active_generation++;
+    if (m_registerExpressionState.active_generation == 0u) {
+      clear_valid_generations();
+      m_registerExpressionState.active_generation = 1u;
     }
   }
 
@@ -10034,6 +10499,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                   LN_TickContext context)
 {
   context.event = event;
+  m_eventDeltaTime = std::max(0.0, context.delta_time);
   auto next_execution_scope_serial = [&]() {
     m_executionScopeSerial++;
     if (m_executionScopeSerial == 0) {
@@ -10254,9 +10720,9 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       canvas_height = input_snapshot.GetCanvasHeight();
     }
     const uint32_t state_index = InstructionStateIndex(event, instruction_id);
-    InstructionRuntimeState *state = state_index < m_instructionStates.size() ?
-                                         &m_instructionStates[state_index] :
-                                         nullptr;
+    InstructionMotionState *state = state_index < m_instructionStamps.size() ?
+                                        &MotionState(state_index) :
+                                        nullptr;
     /* The mouse is player 0's: while a menu or a UI in the game world uses it (or the window has
      * no focus), the view waits and the cursor stays free. After that (or a pause) it starts over
      * from where the cursor is, so the view does not jump. */
@@ -10594,7 +11060,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             const LN_Event continuation_event = TimeFlowContinuationEvent(event);
             const bool continuous = state->active && state->event == continuation_event &&
                                     IsContinuousPhaseTick(state->last_update_phase_tick,
-                                                          context.phase_tick_index);
+                                                          context.phase_tick_index,
+                                                          context.phase_tick_stride);
             state->kind = TimeFlowRuntimeKind::Pulsify;
             state->ignore_timescale = ResolveBoolExpression(
                 instruction.secondary_bool_expr_index, false, context);
@@ -10630,6 +11097,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             state->remaining_time = double(interval);
             state->last_update_tick = context.tick_index;
             state->last_update_phase_tick = context.phase_tick_index;
+            state->last_update_phase_stride = context.phase_tick_stride;
           }
         }
         break;
@@ -10644,7 +11112,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             const LN_Event continuation_event = TimeFlowContinuationEvent(event);
             const bool continuous = state->active && state->event == continuation_event &&
                                     IsContinuousPhaseTick(state->last_update_phase_tick,
-                                                          context.phase_tick_index);
+                                                          context.phase_tick_index,
+                                                          context.phase_tick_stride);
             state->kind = TimeFlowRuntimeKind::Barrier;
             state->ignore_timescale = ResolveBoolExpression(
                 instruction.secondary_bool_expr_index, false, context);
@@ -10678,6 +11147,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             }
             state->last_update_tick = context.tick_index;
             state->last_update_phase_tick = context.phase_tick_index;
+            state->last_update_phase_stride = context.phase_tick_stride;
           }
         }
         break;
@@ -11522,8 +11992,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
             }
           }
           const uint32_t state_index = InstructionStateIndex(event, instruction_id);
-          if (state_index < m_instructionStates.size()) {
-            InstructionRuntimeState &state = m_instructionStates[state_index];
+          if (state_index < m_instructionStamps.size()) {
+            InstructionMotionState &state = MotionState(state_index);
             MT_Vector3 move_target;
             bool reached = false;
             if (ResolvePathMoveTarget(
@@ -11600,10 +12070,10 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           }
 
           const uint32_t state_index = InstructionStateIndex(event, instruction_id);
-          if (state_index >= m_instructionStates.size()) {
+          if (state_index >= m_instructionStamps.size()) {
             return;
           }
-          InstructionRuntimeState &state = m_instructionStates[state_index];
+          InstructionMotionState &state = MotionState(state_index);
           if (state.list_point_index < 0 || state.list_point_index >= int(path_points.size())) {
             state.list_point_index = 0;
           }
@@ -12503,7 +12973,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::DrawMesh: {
-        KX_GameObject *target = m_snapshot.GetObjectSnapshot().object;
+        KX_GameObject *target = m_gameObject;
         if (instruction.value_expr_index != LN_INVALID_INDEX) {
           const LN_Value object_value = ResolveValueExpression(
               instruction.value_expr_index, MakeNoneValue(), context);
@@ -12543,7 +13013,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
         break;
       }
       case LN_OpCode::DrawAxis: {
-        KX_GameObject *target = m_snapshot.GetObjectSnapshot().object;
+        KX_GameObject *target = m_gameObject;
         if (instruction.value_expr_index != LN_INVALID_INDEX) {
           const LN_Value object_value = ResolveValueExpression(
               instruction.value_expr_index, MakeNoneValue(), context);
@@ -12873,8 +13343,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           if (vector_is_finite(delta)) {
             if (distance_sq <= reached_threshold * reached_threshold) {
               const uint32_t state_index = InstructionStateIndex(event, instruction_id);
-              if (state_index != LN_INVALID_INDEX && state_index < m_instructionStates.size()) {
-                InstructionRuntimeState &state = m_instructionStates[state_index];
+              if (state_index != LN_INVALID_INDEX && state_index < m_instructionStamps.size()) {
+                InstructionMotionState &state = MotionState(state_index);
                 state.last_reached_tick = context.tick_index;
                 state.last_reached_scope_serial = m_activeExecutionScopeSerial;
               }
@@ -12937,8 +13407,8 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
               distance <= std::max(stop_distance, 0.0f) + step + tolerance)
           {
             const uint32_t state_index = InstructionStateIndex(event, instruction_id);
-            if (state_index != LN_INVALID_INDEX && state_index < m_instructionStates.size()) {
-              InstructionRuntimeState &state = m_instructionStates[state_index];
+            if (state_index != LN_INVALID_INDEX && state_index < m_instructionStamps.size()) {
+              InstructionMotionState &state = MotionState(state_index);
               state.last_reached_tick = context.tick_index;
               state.last_reached_scope_serial = m_activeExecutionScopeSerial;
             }
@@ -13289,6 +13759,39 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
                                                 modify,
                                                 command_sort_key(instruction_id, command_sequence),
                                                 instruction.source_ref_index);
+      }
+      command_sequence++;
+      MarkInstructionExecuted(event, instruction_id, context.tick_index);
+      return;
+    }
+
+    /* Set Game Property Bool, Int or Float: the number stays a number (no LN_Value made), the
+     * same write as the value those nodes made (LN_PropertyNumber::ToValue). */
+    if (payload.value_expr_index == LN_INVALID_INDEX &&
+        (payload.value_type == LN_ValueType::Bool || payload.value_type == LN_ValueType::Int ||
+         payload.value_type == LN_ValueType::Float))
+    {
+      LN_PropertyNumber number;
+      number.type = payload.value_type;
+      switch (payload.value_type) {
+        case LN_ValueType::Bool:
+          number.bool_value = ResolveBoolExpression(payload.bool_expr_index, false, context);
+          break;
+        case LN_ValueType::Int:
+          number.int_value = ResolveIntExpression(payload.int_expr_index, 0, context);
+          break;
+        default:
+          number.float_value = ResolveFloatExpression(payload.float_expr_index, 0.0f, context);
+          break;
+      }
+      if (KX_GameObject *target = resolve_object_expression(payload.object_value_expr_index)) {
+        command_buffer.AppendSetGamePropertyNumberRef(
+            this,
+            target,
+            payload.property_ref_index,
+            number,
+            command_sort_key(instruction_id, command_sequence),
+            instruction.source_ref_index);
       }
       command_sequence++;
       MarkInstructionExecuted(event, instruction_id, context.tick_index);
@@ -13834,7 +14337,7 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
           speaker = ResolveObjectValue(speaker_value);
         }
         if (speaker == nullptr) {
-          speaker = m_snapshot.GetObjectSnapshot().object;
+          speaker = m_gameObject;
         }
         float default_volume = instruction.vector_value.x();
         float default_pitch = instruction.vector_value.y();
@@ -14985,6 +15488,44 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     return;
   }
 
+  /* A route of On Logic + Physics Step's Every N Steps runs with the time since its last run, and
+   * nodes that need their flow on consecutive runs (Pulsify, Barrier...) count its runs N steps
+   * apart as consecutive, in a Run Logic Tree pass too (2026-10-31: one step's time and stride 1
+   * there restarted the route's Pulsify, Barrier and Tween, and the next due run counted the
+   * pass's steps again). */
+  struct ScopedStepGateTime {
+    LN_TickContext &context;
+    const double delta_time;
+    const double unscaled_dt;
+    const uint32_t stride;
+
+    /** `gated`: the block is behind a gate; `state`: its gate's time. */
+    ScopedStepGateTime(LN_TickContext &context,
+                       const StepGateState *state,
+                       const uint32_t interval,
+                       const bool gated)
+        : context(context),
+          delta_time(context.delta_time),
+          unscaled_dt(context.unscaled_dt),
+          stride(context.phase_tick_stride)
+    {
+      if (state != nullptr) {
+        context.delta_time = state->time_passed;
+        context.unscaled_dt = state->unscaled_time_passed;
+      }
+      if (gated) {
+        context.phase_tick_stride = interval;
+      }
+    }
+    ~ScopedStepGateTime()
+    {
+      context.delta_time = delta_time;
+      context.unscaled_dt = unscaled_dt;
+      context.phase_tick_stride = stride;
+    }
+  };
+  const std::vector<LN_StepGate> &step_gates = m_program->GetStepGates();
+
   /* Runs the blocks in the execution scope `scope_serial`. With `ui_event_state`, only the ops of
    * that On UI Event's route: its repeat for a further event of this frame. */
   std::vector<uint32_t> repeated_loop_frames;
@@ -15000,6 +15541,19 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
       {
         continue;
       }
+      /* Every N Steps: off its steps the route does nothing, a Loop body in it waits too. */
+      if (block.step_gate_index != LN_INVALID_INDEX && !StepGateRuns(block.step_gate_index)) {
+        continue;
+      }
+      const ScopedStepGateTime step_gate_time(
+          context,
+          block.step_gate_index != LN_INVALID_INDEX &&
+                  block.step_gate_index < m_stepGates.size() ?
+              &m_stepGates[block.step_gate_index] :
+              nullptr,
+          block.step_gate_index < step_gates.size() ? step_gates[block.step_gate_index].interval :
+                                                      1u,
+          block.step_gate_index < step_gates.size());
       /* A loop body that is not entirely a UI event route must not advance while paused. */
       if (m_uiEventRoutesOnly && block.loop_frame_index != LN_INVALID_INDEX &&
           !block.ui_event_route)
@@ -15148,10 +15702,12 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
   }
 
   const LN_ValueExpression &expression = expressions[expression_index];
-  const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-      expression.kind);
-  ProfileExpressionEvaluation(semantics.fallback_requirements);
-  RecordMissingSnapshotChannelsForExpression(semantics);
+  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
+    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
+        expression.kind);
+    ProfileExpressionEvaluation(semantics.fallback_requirements);
+    RecordMissingSnapshotChannelsForExpression(semantics);
+  }
   LN_Value register_value;
   if (TryResolveRegisterValueExpression(expression_index, context, register_value)) {
     return register_value;
@@ -15658,9 +16214,13 @@ LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
         return fallback;
       }
       ResolveBoolExpression(expression.input0, false, context);
-      const BoolExpressionRuntimeState &state = BoolExpressionState(expression.input0);
-      return expression.kind == LN_ValueExpressionKind::ValueChangedOld ? state.stored_old_value :
-                                                                          state.stored_new_value;
+      const ValueChangeState *values = FindValueChangeState(expression.input0);
+      if (values == nullptr) {
+        return LN_Value();
+      }
+      return expression.kind == LN_ValueExpressionKind::ValueChangedOld ?
+                 values->stored_old_value :
+                 values->stored_new_value;
     }
     case LN_ValueExpressionKind::EventContent: {
       const LN_StringId subject_string_id = ResolveStringExpressionId(expression.input0);
@@ -17017,10 +17577,12 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
   }
 
   const LN_QueryExpression &expression = expressions[expression_index];
-  const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-      expression.kind);
-  ProfileExpressionEvaluation(semantics.fallback_requirements);
-  RecordMissingSnapshotChannelsForExpression(semantics);
+  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
+    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
+        expression.kind);
+    ProfileExpressionEvaluation(semantics.fallback_requirements);
+    RecordMissingSnapshotChannelsForExpression(semantics);
+  }
   const uint32_t state_index = expression.runtime_state_index != LN_INVALID_INDEX ?
                                    expression.runtime_state_index :
                                    expression_index;
@@ -17029,8 +17591,18 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
                                          expression.kind) &&
                                      context.command_buffer != nullptr &&
                                      context.command_execution_key != UINT64_MAX;
-  const uint64_t command_execution_key = command_ordered_cache ? context.command_execution_key :
-                                                                 UINT64_MAX;
+  /* A Get Distance between fixed ends (the owner, a named object, a constant position) gives
+   * one value a pass: the distance at its first use, which sees the step's writes recorded so
+   * far. Every other command-ordered query is evaluated again for each instruction that reads
+   * it. (Before 2026-10-31 Get Distance was too: a Branch on it could take both routes in one
+   * step, its True route moving the object across the threshold before the False route read.) */
+  const bool once_a_pass = command_ordered_cache && context.execution_scope_serial != 0 &&
+                           LN_DistanceQueryEndsAreFixed(*m_program, expression);
+  const uint64_t command_execution_key = !command_ordered_cache ? UINT64_MAX :
+                                         once_a_pass ?
+                                                    (context.execution_scope_serial |
+                                                     LN_QUERY_PASS_KEY_BIT) :
+                                                    context.command_execution_key;
   if (state.cached_tick == context.tick_index &&
       state.cached_command_ordered == command_ordered_cache &&
       (!command_ordered_cache || state.cached_command_execution_key == command_execution_key))
@@ -17971,10 +18543,6 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
       const LN_Value caster_value = ResolveValueExpression(
           expression.input0, MakeNoneValue(), context);
       KX_GameObject *caster_object = ResolveObjectValue(caster_value);
-      LN_RuntimeRef caster_ref;
-      if (caster_object != nullptr) {
-        caster_ref = MakeObjectRef(caster_object, caster_object->GetName());
-      }
 
       MT_Vector3 origin = ResolveVectorExpression(
           expression.input1, expression.vector_value, context);
@@ -17982,6 +18550,14 @@ const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expr
           expression.input2, expression.secondary_vector_value, context);
       const bool local_space = ResolveBoolExpression(
           expression.bool_expr_index, expression.bool_value, context);
+      /* As Raycast: an empty Caster in Local space is the owner (and the ray ignores it). */
+      if (local_space && caster_object == nullptr) {
+        caster_object = m_gameObject;
+      }
+      LN_RuntimeRef caster_ref;
+      if (caster_object != nullptr) {
+        caster_ref = MakeObjectRef(caster_object, caster_object->GetName());
+      }
       if (local_space && caster_object != nullptr) {
         origin = caster_object->NodeGetWorldPosition() +
                  caster_object->NodeGetWorldOrientation() * origin;
@@ -18571,10 +19147,12 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
   }
 
   const LN_BoolExpression &expression = expressions[expression_index];
-  const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-      expression.kind);
-  ProfileExpressionEvaluation(semantics.fallback_requirements);
-  RecordMissingSnapshotChannelsForExpression(semantics);
+  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
+    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
+        expression.kind);
+    ProfileExpressionEvaluation(semantics.fallback_requirements);
+    RecordMissingSnapshotChannelsForExpression(semantics);
+  }
   bool register_bool_value = false;
   if (TryResolveRegisterBoolExpression(expression_index, context, register_bool_value)) {
     return register_bool_value;
@@ -18635,14 +19213,14 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       return StringEndsWith(ResolveStringExpression(expression.input0, "", context),
                             ResolveStringExpression(expression.input1, "", context));
     case LN_BoolExpressionKind::SnapshotVisibility: {
-      LN_Snapshot snapshot;
+      std::optional<LN_ObjectSnapshot> other_object;
       const LN_ObjectSnapshot *object_snapshot = &m_snapshot.GetObjectSnapshot();
       if (expression.input0 != LN_INVALID_INDEX) {
         if (KX_GameObject *game_object = ResolveObjectValue(
                 ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
         {
-          snapshot.Capture(game_object, nullptr);
-          object_snapshot = &snapshot.GetObjectSnapshot();
+          object_snapshot = &LN_CaptureObjectSnapshot(
+              game_object, LN_SNAPSHOT_CHANNEL_VISIBILITY, other_object.emplace());
         }
         else {
           return fallback;
@@ -18651,14 +19229,14 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       return object_snapshot->visible;
     }
     case LN_BoolExpressionKind::SnapshotCharacterOnGround: {
-      LN_Snapshot snapshot;
+      std::optional<LN_ObjectSnapshot> other_object;
       const LN_ObjectSnapshot *object_snapshot = &m_snapshot.GetObjectSnapshot();
       if (expression.input0 != LN_INVALID_INDEX) {
         if (KX_GameObject *game_object = ResolveObjectValue(
                 ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
         {
-          snapshot.Capture(game_object, nullptr);
-          object_snapshot = &snapshot.GetObjectSnapshot();
+          object_snapshot = &LN_CaptureObjectSnapshot(
+              game_object, LN_SNAPSHOT_CHANNEL_CHARACTER, other_object.emplace());
         }
         else {
           return fallback;
@@ -18853,10 +19431,10 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
     }
     case LN_BoolExpressionKind::InstructionExecuted: {
       const uint32_t state_index = InstructionStateIndex(context.event, expression.input0);
-      if (state_index == LN_INVALID_INDEX || state_index >= m_instructionStates.size()) {
+      if (state_index == LN_INVALID_INDEX || state_index >= m_instructionStamps.size()) {
         return false;
       }
-      const InstructionRuntimeState &state = m_instructionStates[state_index];
+      const InstructionStamp &state = m_instructionStamps[state_index];
       if (state.last_execution_tick != context.tick_index) {
         return false;
       }
@@ -18865,15 +19443,14 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
     }
     case LN_BoolExpressionKind::InstructionReached: {
       const uint32_t state_index = InstructionStateIndex(context.event, expression.input0);
-      if (state_index == LN_INVALID_INDEX || state_index >= m_instructionStates.size()) {
-        return false;
-      }
-      const InstructionRuntimeState &state = m_instructionStates[state_index];
-      if (state.last_reached_tick != context.tick_index) {
+      const InstructionMotionState *state = state_index == LN_INVALID_INDEX ?
+                                                nullptr :
+                                                FindMotionState(state_index);
+      if (state == nullptr || state->last_reached_tick != context.tick_index) {
         return false;
       }
       return context.execution_scope_serial == 0 ||
-             state.last_reached_scope_serial == context.execution_scope_serial;
+             state->last_reached_scope_serial == context.execution_scope_serial;
     }
     case LN_BoolExpressionKind::InputStatus: {
       const int32_t input_code = expression.int_value;
@@ -19523,25 +20100,26 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       }
 
       const LN_Value value = ResolveValueExpression(expression.input0, MakeNoneValue(), context);
-      if (!state.has_previous_value) {
+      ValueChangeState &values = ValueChangeStateOf(expression_index);
+      if (!values.has_previous_value) {
         if (expression.bool_value && (!value.exists || value.type == LN_ValueType::None)) {
           state.cached_result = false;
           state.last_update_tick = context.tick_index;
           return false;
         }
-        state.previous_value = value;
-        state.has_previous_value = true;
-        state.stored_old_value = value;
-        state.stored_new_value = value;
+        values.previous_value = value;
+        values.has_previous_value = true;
+        values.stored_old_value = value;
+        values.stored_new_value = value;
         state.cached_result = false;
         state.last_update_tick = context.tick_index;
         return false;
       }
 
-      const bool changed = !ValuesEqual(value, state.previous_value);
-      state.stored_old_value = state.previous_value;
-      state.stored_new_value = value;
-      state.previous_value = value;
+      const bool changed = !ValuesEqual(value, values.previous_value);
+      values.stored_old_value = values.previous_value;
+      values.stored_new_value = value;
+      values.previous_value = value;
 
       if (expression.kind == LN_BoolExpressionKind::ValueChanged) {
         state.cached_result = changed;
@@ -19550,7 +20128,7 @@ bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
       }
 
       const LN_Value target = ResolveValueExpression(expression.input1, MakeNoneValue(), context);
-      state.cached_result = changed && ValueChangedToTarget(state.stored_old_value, value, target);
+      state.cached_result = changed && ValueChangedToTarget(values.stored_old_value, value, target);
       state.last_update_tick = context.tick_index;
       return state.cached_result;
     }
@@ -19575,10 +20153,12 @@ int32_t LN_RuntimeTree::ResolveIntExpression(uint32_t expression_index,
   }
 
   const LN_IntExpression &expression = expressions[expression_index];
-  const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-      expression.kind);
-  ProfileExpressionEvaluation(semantics.fallback_requirements);
-  RecordMissingSnapshotChannelsForExpression(semantics);
+  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
+    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
+        expression.kind);
+    ProfileExpressionEvaluation(semantics.fallback_requirements);
+    RecordMissingSnapshotChannelsForExpression(semantics);
+  }
   int32_t register_int_value = 0;
   if (TryResolveRegisterIntExpression(expression_index, context, register_int_value)) {
     return register_int_value;
@@ -19607,9 +20187,10 @@ int32_t LN_RuntimeTree::ResolveIntExpression(uint32_t expression_index,
         if (KX_GameObject *game_object = ResolveObjectValue(
                 ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
         {
-          LN_Snapshot snapshot;
-          snapshot.Capture(game_object, nullptr);
-          return snapshot.GetCollisionGroup();
+          LN_ObjectSnapshot other_object;
+          return LN_CaptureObjectSnapshot(
+                     game_object, LN_SNAPSHOT_CHANNEL_COLLISION, other_object)
+              .collision_group;
         }
         return fallback;
       }
@@ -19656,14 +20237,14 @@ int32_t LN_RuntimeTree::ResolveIntExpression(uint32_t expression_index,
       return fallback;
     }
     case LN_IntExpressionKind::SnapshotCharacterMaxJumps: {
-      LN_Snapshot snapshot;
+      std::optional<LN_ObjectSnapshot> other_object;
       const LN_ObjectSnapshot *object_snapshot = &m_snapshot.GetObjectSnapshot();
       if (expression.input0 != LN_INVALID_INDEX) {
         if (KX_GameObject *game_object = ResolveObjectValue(
                 ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
         {
-          snapshot.Capture(game_object, nullptr);
-          object_snapshot = &snapshot.GetObjectSnapshot();
+          object_snapshot = &LN_CaptureObjectSnapshot(
+              game_object, LN_SNAPSHOT_CHANNEL_CHARACTER, other_object.emplace());
         }
         else {
           return fallback;
@@ -19672,14 +20253,14 @@ int32_t LN_RuntimeTree::ResolveIntExpression(uint32_t expression_index,
       return object_snapshot->has_character ? object_snapshot->character_max_jumps : fallback;
     }
     case LN_IntExpressionKind::SnapshotCharacterJumpCount: {
-      LN_Snapshot snapshot;
+      std::optional<LN_ObjectSnapshot> other_object;
       const LN_ObjectSnapshot *object_snapshot = &m_snapshot.GetObjectSnapshot();
       if (expression.input0 != LN_INVALID_INDEX) {
         if (KX_GameObject *game_object = ResolveObjectValue(
                 ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
         {
-          snapshot.Capture(game_object, nullptr);
-          object_snapshot = &snapshot.GetObjectSnapshot();
+          object_snapshot = &LN_CaptureObjectSnapshot(
+              game_object, LN_SNAPSHOT_CHANNEL_CHARACTER, other_object.emplace());
         }
         else {
           return fallback;
@@ -19856,8 +20437,8 @@ bool LN_RuntimeTree::UpdateTweenValue(const uint32_t tween_expr_index,
   state.cached_result = false;
   if (on_demand) {
     forward = true;
-    const bool skipped_phase_tick = PhaseTickWasSkipped(state.last_update_phase_tick,
-                                                        context.phase_tick_index);
+    const bool skipped_phase_tick = PhaseTickWasSkipped(
+        state.last_update_phase_tick, context.phase_tick_index, context.phase_tick_stride);
     if (tween.float_value > 0.0f && skipped_phase_tick) {
       state.previous_float = 0.0f;
       state.active = false;
@@ -20078,10 +20659,12 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
   }
 
   const LN_FloatExpression &expression = expressions[expression_index];
-  const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-      expression.kind);
-  ProfileExpressionEvaluation(semantics.fallback_requirements);
-  RecordMissingSnapshotChannelsForExpression(semantics);
+  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
+    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
+        expression.kind);
+    ProfileExpressionEvaluation(semantics.fallback_requirements);
+    RecordMissingSnapshotChannelsForExpression(semantics);
+  }
   float register_float_value = 0.0f;
   if (TryResolveRegisterFloatExpression(expression_index, context, register_float_value)) {
     return register_float_value;
@@ -20094,6 +20677,13 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
       return expression.float_value;
     case LN_FloatExpressionKind::UnscaledDeltaTime:
       return float(std::max(0.0, context.unscaled_dt));
+    case LN_FloatExpressionKind::StepTimePassed:
+      /* Read from the gate, not the context: the same value wherever the output is read. */
+      if (expression.int_value >= 0 && uint32_t(expression.int_value) < m_stepGates.size())
+      {
+        return float(m_stepGates[uint32_t(expression.int_value)].time_passed);
+      }
+      return float(m_eventDeltaTime);
     case LN_FloatExpressionKind::SnapshotGameProperty:
       if (const LN_Value *value = m_snapshot.GetGamePropertyValue(expression.property_ref_index)) {
         return value->float_value;
@@ -20129,9 +20719,9 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
         if (KX_GameObject *game_object = ResolveObjectValue(
                 ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
         {
-          LN_Snapshot snapshot;
-          snapshot.Capture(game_object, nullptr);
-          return snapshot.GetObjectSnapshot().light_power;
+          LN_ObjectSnapshot other_object;
+          return LN_CaptureObjectSnapshot(game_object, LN_SNAPSHOT_CHANNEL_LIGHT, other_object)
+              .light_power;
         }
         return fallback;
       }
@@ -20161,8 +20751,11 @@ float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
     }
     case LN_FloatExpressionKind::BoneLength: {
       KX_GameObject *armature_object = nullptr;
+      /* An empty Object is the tree's own object, read from the tree (as the other nodes here
+       * do): the snapshot's copy of it is set only when the program captures one, and a tree
+       * reading nothing else got none, so its bone length was 0 (fixed 2026-10-31). */
       if (expression.input0 == LN_INVALID_INDEX) {
-        armature_object = m_snapshot.GetObjectSnapshot().object;
+        armature_object = m_gameObject;
       }
       else {
         const LN_Value armature_value = ResolveValueExpression(
@@ -20541,10 +21134,12 @@ std::string LN_RuntimeTree::ResolveStringExpression(uint32_t expression_index,
   }
 
   const LN_StringExpression &expression = expressions[expression_index];
-  const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-      expression.kind);
-  ProfileExpressionEvaluation(semantics.fallback_requirements);
-  RecordMissingSnapshotChannelsForExpression(semantics);
+  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
+    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
+        expression.kind);
+    ProfileExpressionEvaluation(semantics.fallback_requirements);
+    RecordMissingSnapshotChannelsForExpression(semantics);
+  }
   switch (expression.kind) {
     case LN_StringExpressionKind::Constant:
       return expression.string_value;
@@ -20752,10 +21347,12 @@ LN_Rotation LN_RuntimeTree::ResolveRotationExpression(const uint32_t expression_
   }
 
   const LN_VectorExpression &expression = expressions[expression_index];
-  const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-      expression.kind);
-  ProfileExpressionEvaluation(semantics.fallback_requirements);
-  RecordMissingSnapshotChannelsForExpression(semantics);
+  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
+    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
+        expression.kind);
+    ProfileExpressionEvaluation(semantics.fallback_requirements);
+    RecordMissingSnapshotChannelsForExpression(semantics);
+  }
   LN_Rotation result = fallback;
   bool resolved = false;
   switch (expression.kind) {
@@ -20890,10 +21487,12 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
   }
 
   const LN_VectorExpression &expression = expressions[expression_index];
-  const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-      expression.kind);
-  ProfileExpressionEvaluation(semantics.fallback_requirements);
-  RecordMissingSnapshotChannelsForExpression(semantics);
+  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
+    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
+        expression.kind);
+    ProfileExpressionEvaluation(semantics.fallback_requirements);
+    RecordMissingSnapshotChannelsForExpression(semantics);
+  }
   MT_Vector3 register_vector_value(0.0f, 0.0f, 0.0f);
   if (TryResolveRegisterVectorExpression(expression_index, context, register_vector_value)) {
     return register_vector_value;
@@ -20901,7 +21500,8 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
   if (context.use_register_expression_evaluator) {
     RecordRegisterExpressionFallback(LN_RuntimeExpressionFamily::Vector, expression_index);
   }
-  LN_Snapshot snapshot;
+  /* Built only when a character kind reads another object (every other kind reads the owner). */
+  std::optional<LN_ObjectSnapshot> other_object;
   const LN_ObjectSnapshot *object_snapshot = &m_snapshot.GetObjectSnapshot();
   auto resolve_snapshot_object = [&]() -> const LN_ObjectSnapshot * {
     if (expression.input0 == LN_INVALID_INDEX) {
@@ -20910,8 +21510,8 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
     if (KX_GameObject *game_object = ResolveObjectValue(
             ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
     {
-      snapshot.Capture(game_object, nullptr);
-      object_snapshot = &snapshot.GetObjectSnapshot();
+      object_snapshot = &LN_CaptureObjectSnapshot(
+          game_object, LN_SNAPSHOT_CHANNEL_CHARACTER, other_object.emplace());
       return object_snapshot;
     }
     return nullptr;
@@ -20987,7 +21587,7 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
     case LN_VectorExpressionKind::BoneHeadWorld: {
       KX_GameObject *armature_object = nullptr;
       if (expression.input0 == LN_INVALID_INDEX) {
-        armature_object = m_snapshot.GetObjectSnapshot().object;
+        armature_object = m_gameObject;
       }
       else {
         const LN_Value armature_value = ResolveValueExpression(
@@ -21020,7 +21620,7 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
     case LN_VectorExpressionKind::BoneTailWorld: {
       KX_GameObject *armature_object = nullptr;
       if (expression.input0 == LN_INVALID_INDEX) {
-        armature_object = m_snapshot.GetObjectSnapshot().object;
+        armature_object = m_gameObject;
       }
       else {
         const LN_Value armature_value = ResolveValueExpression(
@@ -21055,7 +21655,7 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
     case LN_VectorExpressionKind::BoneCenterPoseWorld: {
       KX_GameObject *armature_object = nullptr;
       if (expression.input0 == LN_INVALID_INDEX) {
-        armature_object = m_snapshot.GetObjectSnapshot().object;
+        armature_object = m_gameObject;
       }
       else {
         const LN_Value armature_value = ResolveValueExpression(
@@ -21083,7 +21683,7 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
     case LN_VectorExpressionKind::BonePoseScale: {
       KX_GameObject *armature_object = nullptr;
       if (expression.input0 == LN_INVALID_INDEX) {
-        armature_object = m_snapshot.GetObjectSnapshot().object;
+        armature_object = m_gameObject;
       }
       else {
         const LN_Value armature_value = ResolveValueExpression(
@@ -21103,7 +21703,7 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
     case LN_VectorExpressionKind::BoneCenterWorld: {
       KX_GameObject *armature_object = nullptr;
       if (expression.input0 == LN_INVALID_INDEX) {
-        armature_object = m_snapshot.GetObjectSnapshot().object;
+        armature_object = m_gameObject;
       }
       else {
         const LN_Value armature_value = ResolveValueExpression(
@@ -21473,7 +22073,7 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
     case LN_VectorExpressionKind::EvaluateCurveAtFactor: {
       KX_GameObject *curve_object = nullptr;
       if (expression.input0 == LN_INVALID_INDEX) {
-        curve_object = m_snapshot.GetObjectSnapshot().object;
+        curve_object = m_gameObject;
       }
       else {
         const LN_Value curve_value = ResolveValueExpression(
@@ -21497,10 +22097,15 @@ MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_ind
     }
     case LN_VectorExpressionKind::InstructionNextPoint: {
       const uint32_t state_index = InstructionStateIndex(context.event, expression.input0);
-      if (state_index == LN_INVALID_INDEX || state_index >= m_instructionStates.size()) {
+      if (state_index == LN_INVALID_INDEX || state_index >= m_instructionStamps.size()) {
         return fallback;
       }
-      return m_instructionStates[state_index].next_path_point;
+      const InstructionMotionState *state = FindMotionState(state_index);
+      if (state == nullptr) {
+        /* No run yet: the point a fresh motion state holds. */
+        return InstructionMotionState().next_path_point;
+      }
+      return state->next_path_point;
     }
     case LN_VectorExpressionKind::Random: {
       const MT_Vector3 axes = ResolveVectorExpression(
@@ -21537,10 +22142,12 @@ MT_Vector4 LN_RuntimeTree::ResolveColorExpression(const uint32_t expression_inde
   }
 
   const LN_ColorExpression &expression = expressions[expression_index];
-  const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-      expression.kind);
-  ProfileExpressionEvaluation(semantics.fallback_requirements);
-  RecordMissingSnapshotChannelsForExpression(semantics);
+  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
+    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
+        expression.kind);
+    ProfileExpressionEvaluation(semantics.fallback_requirements);
+    RecordMissingSnapshotChannelsForExpression(semantics);
+  }
   MT_Vector4 register_color_value(0.0f, 0.0f, 0.0f, 1.0f);
   if (TryResolveRegisterColorExpression(expression_index, context, register_color_value)) {
     return register_color_value;
@@ -21556,9 +22163,9 @@ MT_Vector4 LN_RuntimeTree::ResolveColorExpression(const uint32_t expression_inde
         if (KX_GameObject *game_object = ResolveObjectValue(
                 ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
         {
-          LN_Snapshot snapshot;
-          snapshot.Capture(game_object, nullptr);
-          return snapshot.GetObjectSnapshot().object_color;
+          LN_ObjectSnapshot other_object;
+          return LN_CaptureObjectSnapshot(game_object, LN_SNAPSHOT_CHANNEL_COLOR, other_object)
+              .object_color;
         }
         return fallback;
       }
@@ -21568,9 +22175,9 @@ MT_Vector4 LN_RuntimeTree::ResolveColorExpression(const uint32_t expression_inde
         if (KX_GameObject *game_object = ResolveObjectValue(
                 ResolveValueExpression(expression.input0, MakeNoneValue(), context)))
         {
-          LN_Snapshot snapshot;
-          snapshot.Capture(game_object, nullptr);
-          return snapshot.GetObjectSnapshot().light_color;
+          LN_ObjectSnapshot other_object;
+          return LN_CaptureObjectSnapshot(game_object, LN_SNAPSHOT_CHANNEL_LIGHT, other_object)
+              .light_color;
         }
         return fallback;
       }

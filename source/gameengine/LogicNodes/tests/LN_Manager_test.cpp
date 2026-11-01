@@ -12,6 +12,8 @@
 #include "KX_GameObject.h"
 #include "LN_Manager.h"
 #include "LN_Program.h"
+#include "LN_RuntimeTree.h"
+#include "LN_Types.h"
 
 class LN_ManagerTestAccess {
  public:
@@ -68,6 +70,32 @@ class LN_ManagerTestAccess {
   {
     manager.m_denseIds.InvalidateHandle(LN_DenseHandleKind::Object, &object);
   }
+
+  static size_t WaitingRunOnceCount(const LN_Manager &manager)
+  {
+    return manager.m_pendingRunOnce.size();
+  }
+
+  /** What a Logic + Physics step does with the waiting Run Logic Tree calls. */
+  static uint32_t RunWaitingRunOnceCalls(LN_Manager &manager)
+  {
+    LN_TickContext context;
+    context.event = LN_Event::OnFixedUpdate;
+    context.use_fixed_timestep = true;
+    context.tick_index = 1;
+    context.delta_time = 1.0 / 60.0;
+    context.unscaled_dt = 1.0 / 60.0;
+    manager.m_commandBuffer.BeginRecording();
+    const uint32_t passes = manager.ProcessPendingRunOnce(context, manager.m_runOnceSerial, nullptr);
+    manager.m_commandBuffer.EndRecording();
+    manager.m_commandBuffer.Clear();
+    return passes;
+  }
+
+  static void RebuildRuntimeTreeIndexes(LN_Manager &manager)
+  {
+    manager.RebuildRuntimeTreeIndexes();
+  }
 };
 
 namespace {
@@ -110,6 +138,93 @@ TEST(LN_Manager, ManyReplicaProgramRegistrationsReuseCompiledProgram)
   }
 
   EXPECT_EQ(manager.GetCachedProgramCountForTests(), 1u);
+}
+
+/* Run Logic Tree: a Logic + Physics step runs every call made before it began, however many. A
+ * cap of 128 a step (2026-10-31, briefly) left the rest waiting, so a game making more calls than
+ * that every step fell further behind at each step. */
+TEST(LN_Manager, EveryWaitingRunLogicTreeCallRunsInTheNextStep)
+{
+  KX_Scene *unused_scene = reinterpret_cast<KX_Scene *>(uintptr_t(1));
+  LN_Manager manager(*unused_scene);
+  std::shared_ptr<LN_Program> program = LN_Program::CreateDebugSetWorldPosition(
+      MT_Vector3(1.0f, 2.0f, 3.0f));
+  std::vector<std::unique_ptr<KX_GameObject>> objects;
+  for (uint32_t index = 0; index < 300; index++) {
+    objects.push_back(std::make_unique<KX_GameObject>());
+    objects.back()->SetName("Caller" + std::to_string(index));
+    ASSERT_NE(manager.RegisterCompiledProgram(objects.back().get(), program, index, 0, true),
+              nullptr);
+  }
+  for (const std::unique_ptr<KX_GameObject> &object : objects) {
+    manager.QueueRunLogicTreeOnce(object.get(), program->GetSourceTreeName());
+  }
+  for (uint32_t call = 0; call < 100; call++) {
+    manager.QueueRunLogicTreeOnce(objects.front().get(), program->GetSourceTreeName());
+  }
+  EXPECT_EQ(LN_ManagerTestAccess::WaitingRunOnceCount(manager), 400u);
+  EXPECT_EQ(LN_ManagerTestAccess::RunWaitingRunOnceCalls(manager), 400u);
+  EXPECT_EQ(LN_ManagerTestAccess::WaitingRunOnceCount(manager), 0u);
+}
+
+/* The waiting list is bounded (a route calling every frame of a long pause): calls beyond the
+ * bound are ignored, the ones waiting all run at the next step. */
+TEST(LN_Manager, RunLogicTreeKeepsABoundedNumberOfCallsWaiting)
+{
+  KX_Scene *unused_scene = reinterpret_cast<KX_Scene *>(uintptr_t(1));
+  LN_Manager manager(*unused_scene);
+  std::shared_ptr<LN_Program> program = LN_Program::CreateDebugSetWorldPosition(
+      MT_Vector3(1.0f, 2.0f, 3.0f));
+  KX_GameObject object;
+  object.SetName("PausedCaller");
+  ASSERT_NE(manager.RegisterCompiledProgram(&object, program, 0, 0, true), nullptr);
+  for (size_t call = 0; call < LN_MAX_WAITING_RUN_ONCE_CALLS + 10; call++) {
+    manager.QueueRunLogicTreeOnce(&object, program->GetSourceTreeName());
+  }
+  EXPECT_EQ(LN_ManagerTestAccess::WaitingRunOnceCount(manager), LN_MAX_WAITING_RUN_ONCE_CALLS);
+  manager.UnregisterGameObject(&object);
+  EXPECT_EQ(LN_ManagerTestAccess::WaitingRunOnceCount(manager), 0u);
+}
+
+/* Tree batches take only an object's one tree (BatchNote::sole_tree). The note follows each
+ * object's tree list and survives a rebuild of the indexes, which also must not touch trees that
+ * are gone: the manager's Clear deleted its trees first and then wrote into them (until
+ * 2026-10-31, a use after free at every scene end). */
+TEST(LN_Manager, ATreeIsNotedAsItsObjectsOnlyTreeAcrossIndexChanges)
+{
+  KX_Scene *unused_scene = reinterpret_cast<KX_Scene *>(uintptr_t(1));
+  auto manager = std::make_unique<LN_Manager>(*unused_scene);
+  std::shared_ptr<LN_Program> program = LN_Program::CreateDebugSetWorldPosition(
+      MT_Vector3(1.0f, 2.0f, 3.0f));
+  std::shared_ptr<LN_Program> second_program = LN_Program::CreateDebugSetWorldPosition(
+      MT_Vector3(4.0f, 5.0f, 6.0f));
+  KX_GameObject first;
+  first.SetName("TwoTrees");
+  KX_GameObject second;
+  second.SetName("OneTree");
+  LN_RuntimeTree *first_a = manager->RegisterCompiledProgram(&first, program, 0, 0, true);
+  ASSERT_NE(first_a, nullptr);
+  EXPECT_TRUE(first_a->GetBatchNote().sole_tree);
+  LN_RuntimeTree *only = manager->RegisterCompiledProgram(&second, program, 1, 0, true);
+  ASSERT_NE(only, nullptr);
+  EXPECT_TRUE(only->GetBatchNote().sole_tree);
+  LN_RuntimeTree *first_b = manager->RegisterCompiledProgram(&first, second_program, 0, 1, true);
+  ASSERT_NE(first_b, nullptr);
+  ASSERT_NE(first_a, first_b);
+  EXPECT_FALSE(first_a->GetBatchNote().sole_tree);
+  EXPECT_FALSE(first_b->GetBatchNote().sole_tree);
+  EXPECT_TRUE(only->GetBatchNote().sole_tree);
+
+  LN_ManagerTestAccess::RebuildRuntimeTreeIndexes(*manager);
+  EXPECT_FALSE(first_a->GetBatchNote().sole_tree);
+  EXPECT_FALSE(first_b->GetBatchNote().sole_tree);
+  EXPECT_TRUE(only->GetBatchNote().sole_tree);
+
+  manager->UnregisterGameObject(&first);
+  EXPECT_TRUE(only->GetBatchNote().sole_tree);
+  /* `second` is still registered: the manager's end deletes its tree and must not write into it
+   * afterwards (a memory checker catches it). */
+  manager.reset();
 }
 
 TEST(LN_Manager, BulkQueuedRemovalDetachesRuntimeTreesBeforeFinalUnregister)

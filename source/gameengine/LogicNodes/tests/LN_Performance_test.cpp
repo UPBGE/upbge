@@ -174,7 +174,6 @@ class ScopedDefaultRuntimeFeatureEnvironment {
  public:
   ScopedDefaultRuntimeFeatureEnvironment()
       : m_typedCommandStreams("UPBGE_LN_FEATURE_TYPED_COMMAND_STREAMS", nullptr),
-        m_resourceClassScheduler("UPBGE_LN_FEATURE_RESOURCE_CLASS_SCHEDULER", nullptr),
         m_registerExpressionEvaluator("UPBGE_LN_FEATURE_REGISTER_EXPRESSION_EVALUATOR", nullptr),
         m_enableGuardrails("UPBGE_LN_ENABLE_GUARDRAIL_ASSERTIONS", nullptr),
         m_enableDualPathValidation("UPBGE_LN_ENABLE_DUAL_PATH_VALIDATION", nullptr),
@@ -186,7 +185,6 @@ class ScopedDefaultRuntimeFeatureEnvironment {
 
  private:
   ScopedEnvironmentVariable m_typedCommandStreams;
-  ScopedEnvironmentVariable m_resourceClassScheduler;
   ScopedEnvironmentVariable m_registerExpressionEvaluator;
   ScopedEnvironmentVariable m_enableGuardrails;
   ScopedEnvironmentVariable m_enableDualPathValidation;
@@ -634,7 +632,6 @@ TEST(LN_Performance, RuntimeFeatureTogglesDefaultToDisabledForOptionalPaths)
 {
   const LN_RuntimeFeatureConfig defaults;
   EXPECT_FALSE(LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS));
-  EXPECT_FALSE(LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_RESOURCE_CLASS_SCHEDULER));
   EXPECT_FALSE(
       LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR));
   EXPECT_FALSE(defaults.debug_assertions);
@@ -652,7 +649,6 @@ TEST(LN_Performance, DefaultRuntimeFeatureConfigEnablesStableOptimizedPaths)
   const LN_RuntimeFeatureConfig defaults = LN_DefaultRuntimeFeatureConfig();
 
   EXPECT_TRUE(LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS));
-  EXPECT_TRUE(LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_RESOURCE_CLASS_SCHEDULER));
   EXPECT_TRUE(
       LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR));
   EXPECT_FALSE(defaults.debug_assertions);
@@ -699,7 +695,6 @@ TEST(LN_Performance, DefaultRuntimeFeatureConfigAllowsEmergencyFeatureDisableOve
   const LN_RuntimeFeatureConfig defaults = LN_DefaultRuntimeFeatureConfig();
 
   EXPECT_FALSE(LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS));
-  EXPECT_TRUE(LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_RESOURCE_CLASS_SCHEDULER));
   EXPECT_FALSE(
       LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR));
 }
@@ -1035,7 +1030,6 @@ TEST(LN_Performance, ProfileLineReportsRequiredRegressionGateMetrics)
   metrics.serial_record_ms = 2.0;
   metrics.parallel_record_ms = 3.0;
   metrics.run_once_record_ms = 4.0;
-  metrics.merge_ms = 5.0;
   metrics.flush_ms = 6.0;
   metrics.event_delivery_ms = 6.5;
   metrics.allocation_count = 7;
@@ -1068,7 +1062,6 @@ TEST(LN_Performance, ProfileLineReportsRequiredRegressionGateMetrics)
   metrics.command_typed_material_count = 63;
   metrics.command_typed_physics_count = 59;
   metrics.command_coalesced_count = 39;
-  metrics.command_list_count = 15;
   metrics.scheduler_job_count = 16;
   metrics.scheduler_planned_tree_count = 38;
   metrics.scheduler_worker_batch_count = 39;
@@ -1110,9 +1103,7 @@ TEST(LN_Performance, ProfileLineReportsRequiredRegressionGateMetrics)
   const std::string line = LN_FormatTickProfileLine(metrics);
   EXPECT_TRUE(StringContains(line, "snapshot_ms="));
   EXPECT_TRUE(StringContains(line, "serial_ms="));
-  EXPECT_TRUE(StringContains(line, "parallel_ms="));
   EXPECT_TRUE(StringContains(line, "record_ms="));
-  EXPECT_TRUE(StringContains(line, "merge_ms="));
   EXPECT_TRUE(StringContains(line, "flush_ms="));
   EXPECT_TRUE(StringContains(line, "event_ms="));
   EXPECT_TRUE(StringContains(line, "allocations="));
@@ -1144,23 +1135,6 @@ TEST(LN_Performance, ProfileLineReportsRequiredRegressionGateMetrics)
   EXPECT_TRUE(StringContains(line, "typed_material_commands="));
   EXPECT_TRUE(StringContains(line, "typed_physics_commands="));
   EXPECT_TRUE(StringContains(line, "coalesced_commands="));
-  EXPECT_TRUE(StringContains(line, "scheduler_jobs="));
-  EXPECT_TRUE(StringContains(line, "scheduler_planned_trees="));
-  EXPECT_TRUE(StringContains(line, "scheduler_worker_batches="));
-  EXPECT_TRUE(StringContains(line, "scheduler_main_thread_batches="));
-  EXPECT_TRUE(StringContains(line, "scheduler_max_trees_per_worker_batch="));
-  EXPECT_TRUE(StringContains(line, "scheduler_avg_trees_per_worker_batch_x100="));
-  EXPECT_TRUE(StringContains(line, "scheduler_worker_utilization_x100="));
-  EXPECT_TRUE(StringContains(line, "scheduler_command_resources=0x"));
-  EXPECT_TRUE(StringContains(line, "scheduler_worker_resources=0x"));
-  EXPECT_TRUE(StringContains(line, "scheduler_main_thread_resources=0x"));
-  EXPECT_TRUE(StringContains(line, "scheduler_query_trees="));
-  EXPECT_TRUE(StringContains(line, "scheduler_snapshot_only_trees="));
-  EXPECT_TRUE(StringContains(line, "scheduler_command_record_only_trees="));
-  EXPECT_TRUE(StringContains(line, "scheduler_immutable_worker_inputs=yes"));
-  EXPECT_TRUE(StringContains(line, "scheduler_worker_metrics_local=yes"));
-  EXPECT_TRUE(StringContains(line, "scheduler_deterministic_merge=yes"));
-  EXPECT_TRUE(StringContains(line, "scheduler_main_thread_flush_isolated=yes"));
   EXPECT_TRUE(StringContains(line, "instructions="));
   EXPECT_TRUE(StringContains(line, "exec_blocks="));
   EXPECT_TRUE(StringContains(line, "exec_direct_instructions="));
@@ -1180,6 +1154,12 @@ TEST(LN_Performance, ProfileLineReportsRequiredRegressionGateMetrics)
   EXPECT_TRUE(StringContains(line, "expression_fallback_reasons=0x"));
   EXPECT_TRUE(StringContains(line, "system_fallback_reasons=0x"));
   EXPECT_TRUE(StringContains(line, "system_fallbacks="));
-  EXPECT_TRUE(StringContains(line, "main_thread_fallback_trees="));
-  EXPECT_TRUE(StringContains(line, "parallel=on"));
+  EXPECT_TRUE(StringContains(line, "serial_trees=21"));
+  EXPECT_TRUE(StringContains(line, "run_once=23"));
+  /* Every tree runs on the main thread since Parallel Tree Execution was removed (2026-10-30):
+   * the line says nothing of worker threads or their scheduler, whatever the fields hold. */
+  EXPECT_FALSE(StringContains(line, "parallel"));
+  EXPECT_FALSE(StringContains(line, "scheduler"));
+  EXPECT_FALSE(StringContains(line, "worker"));
+  EXPECT_FALSE(StringContains(line, "main_thread_fallback"));
 }

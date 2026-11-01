@@ -258,7 +258,8 @@ struct LN_RuntimeFallbackDiagnosticSpec {
 
 enum LN_RuntimeFeatureFlag : uint32_t {
   LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS = 1u << 0,
-  LN_RUNTIME_FEATURE_RESOURCE_CLASS_SCHEDULER = 1u << 1,
+  /* 1u << 1 was the resource-class scheduler, removed with Parallel Tree Execution
+   * (2026-10-30). */
   LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR = 1u << 2,
 };
 
@@ -382,12 +383,15 @@ struct LN_Phase10ExpressionConversionEntry {
   const char *completion_note = nullptr;
 };
 
+/** A tick's numbers for the console line (LN_FormatTickProfileLine). The parallel_* and
+ * scheduler_* fields and main_thread_fallback_tree_count are only the benchmark harness's
+ * synthetic runs (LN_RunBenchmark*): the engine runs every tree on the main thread since
+ * Parallel Tree Execution was removed (2026-10-30), and the line no longer prints them. */
 struct LN_TickProfileMetrics {
   double snapshot_ms = 0.0;
   double serial_record_ms = 0.0;
   double parallel_record_ms = 0.0;
   double run_once_record_ms = 0.0;
-  double merge_ms = 0.0;
   double flush_ms = 0.0;
   double event_delivery_ms = 0.0;
   uint32_t snapshot_tree_count = 0;
@@ -398,12 +402,20 @@ struct LN_TickProfileMetrics {
   uint32_t serial_tree_count = 0;
   uint32_t parallel_tree_count = 0;
   uint32_t run_once_count = 0;
+  /** Tree batches (LN_TreeBatch.h): how many, their trees (also counted in serial_tree_count:
+   * every tree records once), the threads they had and their time with the joins (part of
+   * serial_record_ms, the whole recording). */
+  uint32_t batch_count = 0;
+  uint32_t batch_tree_count = 0;
+  uint32_t batch_thread_count = 0;
+  double batch_record_ms = 0.0;
+  /** Of batch_record_ms: the main thread appending the chunks in order. */
+  double batch_join_ms = 0.0;
   uint32_t event_count = 0;
   uint32_t event_snapshot_tree_count = 0;
   uint64_t event_indexed_lookup_count = 0;
   uint64_t event_fallback_scan_count = 0;
   uint32_t query_count = 0;
-  uint32_t command_list_count = 0;
   uint32_t command_count = 0;
   uint32_t command_legacy_count = 0;
   uint32_t command_typed_transform_count = 0;
@@ -558,7 +570,7 @@ LN_GetBenchmarkReplayTraceSpecs();
 const LN_BenchmarkSoakSpec &LN_GetBenchmarkSoakSpec();
 const std::array<LN_RuntimeFallbackDiagnosticSpec, size_t(LN_RuntimeFallbackReason::Count)> &
 LN_GetRuntimeFallbackDiagnosticSpecs();
-const std::array<LN_RuntimeFeatureFlagStatus, 3> &LN_GetRuntimeFeatureFlagStatuses();
+const std::array<LN_RuntimeFeatureFlagStatus, 2> &LN_GetRuntimeFeatureFlagStatuses();
 const std::array<LN_AcceptanceTargetSpec, size_t(LN_AcceptanceTargetKind::Count)> &
 LN_GetAcceptanceTargetSpecs();
 const LN_FinalRoadmapGateStatus &LN_GetFinalRoadmapGateStatus();
@@ -587,7 +599,7 @@ bool LN_BenchmarkReplayTraceCoversDomain(const LN_BenchmarkReplayTraceSpec &trac
 bool LN_RuntimeFallbackDiagnosticCoversReason(const LN_RuntimeFallbackDiagnosticSpec &diagnostic,
                                              LN_RuntimeFallbackReason reason);
 bool LN_RuntimeFeatureFlagsAreEmergencyOverrides(
-    const std::array<LN_RuntimeFeatureFlagStatus, 3> &statuses);
+    const std::array<LN_RuntimeFeatureFlagStatus, 2> &statuses);
 bool LN_AcceptanceTargetMatchesPhaseNineContract(const LN_AcceptanceTargetSpec &target);
 const std::vector<LN_Phase10OpcodeConversionEntry> &LN_GetPhase10OpcodeConversionMatrix();
 const std::vector<LN_Phase10OpcodeFallbackDiagnostic> &

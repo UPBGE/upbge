@@ -14,10 +14,17 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
+#include "EXP_BoolValue.h"
+#include "EXP_FloatValue.h"
+#include "EXP_IntValue.h"
+#include "EXP_StringValue.h"
+#include "EXP_Vector3Value.h"
 #include "KX_GameObject.h"
 #include "LN_CommandBuffer.h"
 #include "LN_CommandDiagnostics.h"
+#include "LN_Program.h"
 #include "LN_RuntimeSemantics.h"
+#include "LN_RuntimeTree.h"
 
 namespace {
 
@@ -778,36 +785,6 @@ TEST(LN_CommandBuffer, TakesRecordedCommandsForProductionTransfer)
   EXPECT_TRUE(command_buffer.TakeRecordedCommands().empty());
 }
 
-TEST(LN_CommandBuffer, MergeRecordedCommandListsUsesRuntimeTreeThenSortKeyOrder)
-{
-  LN_CommandBuffer command_buffer;
-
-  std::vector<LN_CommandBuffer::RecordedCommandList> command_lists;
-  LN_CommandBuffer::RecordedCommandList later_tree;
-  later_tree.runtime_tree_index = 2;
-  later_tree.commands.push_back(GamePropertyCommand("later_high", 30.0f, 30, 3));
-  later_tree.commands.push_back(GamePropertyCommand("later_low", 10.0f, 10, 1));
-  command_lists.push_back(std::move(later_tree));
-
-  LN_CommandBuffer::RecordedCommandList earlier_tree;
-  earlier_tree.runtime_tree_index = 1;
-  earlier_tree.commands.push_back(GamePropertyCommand("earlier", 20.0f, 20, 2));
-  command_lists.push_back(std::move(earlier_tree));
-
-  LN_CommandBuffer::RecordedCommandList empty_tree;
-  empty_tree.runtime_tree_index = 0;
-  command_lists.push_back(std::move(empty_tree));
-
-  command_buffer.MergeRecordedCommandLists(std::move(command_lists));
-
-  ASSERT_EQ(command_buffer.Size(), 3u);
-  const std::vector<LN_CommandBuffer::Command> &commands =
-      command_buffer.GetCommandsForTests();
-  EXPECT_EQ(commands[0].property_name, "earlier");
-  EXPECT_EQ(commands[1].property_name, "later_low");
-  EXPECT_EQ(commands[2].property_name, "later_high");
-}
-
 TEST(LN_CommandBuffer, FlushesAggregatedCommandsInSameTick)
 {
   LN_CommandBuffer command_buffer;
@@ -816,13 +793,7 @@ TEST(LN_CommandBuffer, FlushesAggregatedCommandsInSameTick)
   command.bool_value = false;
   command.sort_key = 1;
 
-  LN_CommandBuffer::RecordedCommandList command_list;
-  command_list.runtime_tree_index = 0;
-  command_list.commands.push_back(command);
-  std::vector<LN_CommandBuffer::RecordedCommandList> command_lists;
-  command_lists.push_back(std::move(command_list));
-
-  command_buffer.MergeRecordedCommandLists(std::move(command_lists));
+  command_buffer.MergeRecordedCommands({command});
   ASSERT_EQ(command_buffer.Size(), 1u);
 
   command_buffer.Flush();
@@ -1045,7 +1016,9 @@ TEST(LN_CommandBuffer, OutOfOrderTypedRelativeVectorStreamUsesPlannerSort)
   EXPECT_EQ(stats.direct_ordered_command_count, 0u);
 }
 
-TEST(LN_CommandBuffer, OutOfOrderTypedRelativeVectorFlushAvoidsDirectOrderedFastPath)
+/* Streams out of order flush in place too (since 2026-10-31), in sort key order: the planned
+ * flush's order, without its copy of every command. */
+TEST(LN_CommandBuffer, OutOfOrderTypedStreamsFlushInPlaceInSortOrder)
 {
   LN_CommandBuffer command_buffer;
   command_buffer.BeginRecording();
@@ -1060,6 +1033,9 @@ TEST(LN_CommandBuffer, OutOfOrderTypedRelativeVectorFlushAvoidsDirectOrderedFast
                                      10,
                                      2);
   command_buffer.EndRecording();
+  ASSERT_FALSE(command_buffer.FlushDecisionForTests().first);
+  const std::vector<std::pair<uint64_t, uint64_t>> order = {{10, 2}, {20, 1}};
+  EXPECT_EQ(command_buffer.DirectFlushOrderForTests(false), order);
 
   command_buffer.Flush();
   const LN_CommandBuffer::CommandStreamStats &stats =
@@ -1067,8 +1043,8 @@ TEST(LN_CommandBuffer, OutOfOrderTypedRelativeVectorFlushAvoidsDirectOrderedFast
 
   EXPECT_EQ(stats.legacy_command_count, 0u);
   EXPECT_EQ(stats.typed_relative_vector_count, 2u);
-  EXPECT_EQ(stats.direct_ordered_stream_count, 0u);
-  EXPECT_EQ(stats.direct_ordered_command_count, 0u);
+  EXPECT_EQ(stats.direct_ordered_stream_count, 1u);
+  EXPECT_EQ(stats.direct_ordered_command_count, 2u);
   EXPECT_EQ(command_buffer.Size(), 0u);
 }
 
@@ -2017,6 +1993,492 @@ TEST(LN_CommandBuffer, FlushPlannerDoesNotCoalesceAcrossBarrierCommands)
   command_buffer.Flush();
 
   EXPECT_EQ(command_buffer.GetLastCommandStreamStats().coalesced_command_count, 0u);
+}
+
+/** Records the same random step into two buffers: every last-write-wins kind in each stream
+ * that records one (transforms, velocities, properties, shape keys, Geometry Nodes, node mute,
+ * legacy tree properties), run-ending commands (moves, sounds), repeated targets and equal sort
+ * keys. Nothing is applied. */
+void RecordRandomFlushStep(LN_CommandBuffer &command_buffer,
+                           const uint32_t seed,
+                           const bool out_of_order = false)
+{
+  uint32_t state = seed * 2654435761u + 1u;
+  const auto next = [&state](const uint32_t range) {
+    state = state * 1664525u + 1013904223u;
+    return (state >> 8) % range;
+  };
+  LN_Value value;
+  value.type = LN_ValueType::Float;
+  value.exists = true;
+  const char *names[] = {"a", "b"};
+  uint64_t sort_key = 1;
+  const uint32_t count = next(90);
+
+  command_buffer.BeginRecording();
+  for (uint32_t index = 0; index < count; index++) {
+    /* Equal keys now and then: the record sequence orders them. Out of order: now and then a
+     * lower key after a higher one (a tree spawned after removals, a Run Logic Tree pass). */
+    if (out_of_order && next(8) == 0) {
+      sort_key -= std::min<uint64_t>(sort_key - 1, 1 + next(6));
+    }
+    sort_key += next(3);
+    KX_GameObject *object = FakeGameObjectPointer(1 + next(3));
+    const char *name = names[next(2)];
+    value.float_value = float(index);
+    switch (next(9)) {
+      case 0:
+        command_buffer.AppendSetWorldPosition(object, MT_Vector3(float(index), 0, 0), sort_key, 1);
+        break;
+      case 1:
+        command_buffer.AppendSetLinearVelocity(object, MT_Vector3(0, float(index), 0), sort_key, 1);
+        break;
+      case 2:
+        command_buffer.AppendApplyMovement(object, MT_Vector3(0, 0, 1), false, sort_key, 1);
+        break;
+      case 3:
+      case 4:
+        command_buffer.AppendSetGameProperty(object, name, value, sort_key, 1);
+        break;
+      case 5:
+        command_buffer.AppendSetShapeKeyValue(object, name, float(index), sort_key, 1);
+        break;
+      case 6:
+        command_buffer.AppendSetGeometryNodesInput(
+            nullptr, object, "GeometryNodes", name, value, sort_key, 1);
+        break;
+      case 7:
+        command_buffer.AppendSetNodeMute(nullptr, 0, "Material", name, index % 2 == 0, sort_key, 1);
+        break;
+      case 8:
+        command_buffer.AppendPlaySound("Sound", 1.0f, 1.0f, false, sort_key, 1);
+        break;
+    }
+  }
+  command_buffer.EndRecording();
+
+  /* Legacy commands (worker trees' merged lists use this stream), after the typed ones. */
+  std::vector<LN_CommandBuffer::Command> legacy;
+  const uint32_t legacy_count = next(6);
+  for (uint32_t index = 0; index < legacy_count; index++) {
+    LN_CommandBuffer::Command command;
+    command.type = next(3) == 0 ? LN_CommandBuffer::CommandType::Print :
+                                  LN_CommandBuffer::CommandType::SetTreeProperty;
+    command.property_ref_index = next(2);
+    sort_key += next(3);
+    command.sort_key = sort_key;
+    legacy.push_back(std::move(command));
+  }
+  command_buffer.MergeRecordedCommands(std::move(legacy));
+}
+
+TEST(LN_CommandBuffer, DirectFlushAppliesAndCoalescesExactlyAsThePlannedFlush)
+{
+  size_t recorded_count = 0;
+  size_t coalesced_count = 0;
+  size_t unsorted_count = 0;
+  /* Streams out of order too: since 2026-10-31 they flush in place as well (one sort). */
+  for (const bool out_of_order : {false, true}) {
+    for (uint32_t seed = 0; seed < 2000; seed++) {
+      for (const bool coalesce : {false, true}) {
+        LN_CommandBuffer planned_buffer;
+        RecordRandomFlushStep(planned_buffer, seed, out_of_order);
+        const size_t size = planned_buffer.Size();
+        std::vector<LN_CommandBuffer::Command> planned =
+            coalesce ? planned_buffer.TakeFlushPlannedCommands() :
+                       planned_buffer.TakeRecordedCommands();
+        if (coalesce) {
+          recorded_count += size;
+          coalesced_count += size - planned.size();
+        }
+        std::vector<std::pair<uint64_t, uint64_t>> planned_order;
+        for (const LN_CommandBuffer::Command &command : planned) {
+          planned_order.emplace_back(command.sort_key, command.record_sequence);
+        }
+
+        LN_CommandBuffer direct_buffer;
+        RecordRandomFlushStep(direct_buffer, seed, out_of_order);
+        unsorted_count += direct_buffer.FlushDecisionForTests().first ? 0 : 1;
+        const std::vector<std::pair<uint64_t, uint64_t>> direct_order =
+            direct_buffer.DirectFlushOrderForTests(coalesce);
+
+        ASSERT_EQ(direct_order, planned_order)
+            << "seed " << seed << " coalesce " << coalesce << " out of order " << out_of_order;
+      }
+    }
+  }
+  /* The recordings must give the merge real work: about a tenth of the writes are merged away
+   * (9,278 of 93,720 sorted), and most out-of-order recordings must really be out of order. */
+  EXPECT_GT(coalesced_count, recorded_count / 20);
+  EXPECT_GT(unsorted_count, 2000u);
+}
+
+/* The planned flush (typed streams off, tests) keeps Play Action's tree, completion and outputs:
+ * it lost them, so the action played and Started / Done never fired (fixed 2026-10-31). */
+TEST(LN_CommandBuffer, PlannedFlushKeepsPlayActionOutputs)
+{
+  LN_RuntimeTree *tree = reinterpret_cast<LN_RuntimeTree *>(uintptr_t(0x40));
+  LN_CommandBuffer command_buffer;
+  command_buffer.BeginRecording();
+  command_buffer.AppendPlayAction(FakeGameObjectPointer(1),
+                                  tree,
+                                  "Attack",
+                                  1.0f,
+                                  20.0f,
+                                  0,
+                                  0,
+                                  0.0f,
+                                  1.0f,
+                                  0,
+                                  1.0f,
+                                  7,
+                                  LN_ACTION_OUTPUT_COMPLETED,
+                                  10,
+                                  1);
+  command_buffer.EndRecording();
+  const std::vector<LN_CommandBuffer::Command> planned = command_buffer.TakeFlushPlannedCommands();
+  ASSERT_EQ(planned.size(), 1u);
+  EXPECT_EQ(planned.front().runtime_tree, tree);
+  EXPECT_EQ(planned.front().property_ref_index, 7u);
+  EXPECT_EQ(planned.front().action_output_mask, LN_ACTION_OUTPUT_COMPLETED);
+}
+
+/* Tree batches (LN_TreeBatch.h): a step recorded partly in chunk buffers, appended in order, ends
+ * exactly as the same step recorded in one buffer: the same commands in the same flush order
+ * with the same merges, values and sizes, also when the buffer's pending move index was made
+ * before the chunks came (it then finds their moves). */
+TEST(LN_CommandBuffer, ChunksAppendedInOrderEndAsOneRecording)
+{
+  struct Op {
+    uint32_t kind;
+    uint32_t object;
+    uint32_t name;
+    uint64_t sort_key;
+    float number;
+  };
+  const char *names[] = {"a", "b", "c"};
+  const auto record = [&](LN_CommandBuffer &buffer, const Op &op) {
+    KX_GameObject *object = FakeGameObjectPointer(1 + op.object);
+    LN_Value value;
+    value.type = LN_ValueType::Float;
+    value.exists = true;
+    value.float_value = op.number;
+    switch (op.kind) {
+      case 0:
+        buffer.AppendSetWorldPosition(object, MT_Vector3(op.number, 0, 0), op.sort_key, 1);
+        break;
+      case 1:
+        buffer.AppendSetLinearVelocity(object, MT_Vector3(0, op.number, 0), op.sort_key, 1);
+        break;
+      case 2:
+        buffer.AppendApplyMovement(object, MT_Vector3(0, 0, op.number), true, op.sort_key, 1);
+        break;
+      case 3:
+      case 4:
+        buffer.AppendSetGameProperty(object, names[op.name], value, op.sort_key, 1);
+        break;
+      case 5:
+        buffer.AppendSetShapeKeyValue(object, names[op.name], op.number, op.sort_key, 1);
+        break;
+      case 6:
+        buffer.AppendSetVisibility(object, op.name == 0, false, op.sort_key, 1);
+        break;
+      case 7:
+        buffer.AppendApplyRotation(
+            object, MT_Vector3(0, 0, op.number), false, op.sort_key, 1);
+        break;
+      default:
+        buffer.AppendPrint(names[op.name], op.sort_key, 1);
+        break;
+    }
+  };
+  const auto planned_text = [](std::vector<LN_CommandBuffer::Command> commands) {
+    std::string text;
+    for (const LN_CommandBuffer::Command &command : commands) {
+      text += std::to_string(int(command.type)) + "/" +
+              std::to_string(uintptr_t(command.object)) + "/" +
+              std::to_string(command.sort_key) + "/" + std::to_string(command.record_sequence) +
+              "/" + std::to_string(command.vector_value.x()) + "," +
+              std::to_string(command.vector_value.y()) + "," +
+              std::to_string(command.vector_value.z()) + "/" + command.property_name + "/" +
+              std::to_string(command.property_value.float_value) + ";";
+    }
+    return text;
+  };
+
+  size_t compared = 0;
+  for (uint32_t seed = 0; seed < 1500; seed++) {
+    uint32_t state = seed * 2654435761u + 7u;
+    const auto next = [&state](const uint32_t range) {
+      state = state * 1664525u + 1013904223u;
+      return (state >> 8) % range;
+    };
+    std::vector<Op> ops(next(140));
+    uint64_t sort_key = 1;
+    for (uint32_t index = 0; index < ops.size(); index++) {
+      /* Sort keys mostly grow (trees in order), now and then go back (unsorted streams). */
+      sort_key = next(12) == 0 ? sort_key - std::min<uint64_t>(sort_key - 1, next(4)) :
+                                 sort_key + next(3);
+      ops[index] = Op{next(9), next(4), next(3), sort_key, float(index)};
+    }
+    /* Ops before the chunks, the chunks' ops (in up to 5 chunks), ops after them. */
+    const size_t before = ops.empty() ? 0 : next(uint32_t(ops.size()) + 1);
+    const size_t after = before + (ops.size() == before ? 0 : next(uint32_t(ops.size() - before) + 1));
+    const uint32_t chunk_count = 1 + next(5);
+    const bool index_first = next(2) == 0;
+    const bool typed_streams = next(5) != 0;
+    for (const bool coalesce : {false, true}) {
+      LN_CommandBuffer one;
+      one.SetTypedCommandStreamsEnabled(typed_streams);
+      one.BeginRecording();
+      for (const Op &op : ops) {
+        record(one, op);
+      }
+      one.EndRecording();
+
+      LN_CommandBuffer joined;
+      joined.SetTypedCommandStreamsEnabled(typed_streams);
+      joined.BeginRecording();
+      for (size_t index = 0; index < before; index++) {
+        record(joined, ops[index]);
+      }
+      if (index_first) {
+        /* Makes the pending move index now: the chunks' moves must go into it. */
+        joined.HasPendingTransforms(FakeGameObjectPointer(1), false);
+      }
+      std::vector<LN_CommandBuffer> chunks(chunk_count);
+      for (uint32_t chunk = 0; chunk < chunk_count; chunk++) {
+        chunks[chunk].SetTypedCommandStreamsEnabled(typed_streams);
+        chunks[chunk].BeginChunkRecording();
+        const size_t first = before + (after - before) * chunk / chunk_count;
+        const size_t last = before + (after - before) * (chunk + 1) / chunk_count;
+        for (size_t index = first; index < last; index++) {
+          record(chunks[chunk], ops[index]);
+        }
+        chunks[chunk].EndChunkRecording();
+        EXPECT_FALSE(chunks[chunk].ChunkReadPendingMove());
+      }
+      for (LN_CommandBuffer &chunk : chunks) {
+        joined.AppendRecordedChunk(chunk);
+        EXPECT_EQ(chunk.Size(), 0u);
+      }
+      for (size_t index = after; index < ops.size(); index++) {
+        record(joined, ops[index]);
+      }
+      /* What a read would find pending: the same objects. */
+      for (uint32_t object = 1; object <= 4; object++) {
+        ASSERT_EQ(joined.HasPendingTransforms(FakeGameObjectPointer(object), false),
+                  one.HasPendingTransforms(FakeGameObjectPointer(object), false))
+            << "seed " << seed << " object " << object;
+      }
+      joined.EndRecording();
+
+      ASSERT_EQ(joined.Size(), one.Size()) << "seed " << seed;
+      /* The flush's own choices: direct or planned, merging or not. */
+      ASSERT_EQ(joined.FlushDecisionForTests(), one.FlushDecisionForTests()) << "seed " << seed;
+      ASSERT_EQ(joined.DirectFlushOrderForTests(coalesce), one.DirectFlushOrderForTests(coalesce))
+          << "seed " << seed << " coalesce " << coalesce;
+      ASSERT_EQ(planned_text(coalesce ? joined.TakeFlushPlannedCommands() :
+                                        joined.TakeRecordedCommands()),
+                planned_text(coalesce ? one.TakeFlushPlannedCommands() :
+                                        one.TakeRecordedCommands()))
+          << "seed " << seed << " coalesce " << coalesce;
+      compared++;
+    }
+  }
+  EXPECT_EQ(compared, 3000u);
+}
+
+/* A chunk never changes the scene: a read of one of its own pending moves applies nothing (the
+ * object stays where it is) and is noted for the manager. */
+TEST(LN_CommandBuffer, AChunkReadOfAPendingMoveAppliesNothingAndIsNoted)
+{
+  KX_GameObject *object = FakeGameObjectPointer(1);
+  LN_CommandBuffer chunk;
+  chunk.BeginChunkRecording();
+  /* (Fake objects have no scene node: reads without parents.) */
+  chunk.FlushPendingObjectTransformCommands(object);
+  EXPECT_FALSE(chunk.ChunkReadPendingMove());
+  chunk.AppendApplyMovement(FakeGameObjectPointer(2), MT_Vector3(1, 0, 0), false, 1, 1);
+  chunk.FlushPendingObjectTransformCommands(object);
+  EXPECT_FALSE(chunk.ChunkReadPendingMove());
+  chunk.AppendApplyMovement(object, MT_Vector3(1, 0, 0), false, 1, 1);
+  /* Applying would dereference the fake object: nothing is applied. */
+  chunk.FlushPendingObjectTransformCommands(object);
+  EXPECT_TRUE(chunk.ChunkReadPendingMove());
+  chunk.EndChunkRecording();
+  EXPECT_EQ(chunk.Size(), 2u);
+  /* A new chunk recording starts over. */
+  chunk.BeginChunkRecording();
+  EXPECT_FALSE(chunk.ChunkReadPendingMove());
+  EXPECT_EQ(chunk.Size(), 0u);
+  chunk.EndChunkRecording();
+}
+
+TEST(LN_CommandBuffer, ManyPropertyWritesFlushInPlaceAndKeepTheLastValue)
+{
+  KX_GameObject object;
+  LN_CommandBuffer command_buffer;
+  LN_Value value;
+  value.type = LN_ValueType::Float;
+  value.exists = true;
+
+  /* 80 writes of two properties: enough last-write-wins writes for the flush to coalesce, which
+   * used to copy every command into a planned list. */
+  command_buffer.BeginRecording();
+  for (uint32_t index = 0; index < 40; index++) {
+    value.float_value = float(index);
+    command_buffer.AppendSetGameProperty(&object, "a", value, 2 * index, 1);
+    value.float_value = float(100 + index);
+    command_buffer.AppendSetGameProperty(&object, "b", value, 2 * index + 1, 1);
+  }
+  command_buffer.EndRecording();
+  command_buffer.Flush();
+
+  const LN_CommandBuffer::CommandStreamStats &stats = command_buffer.GetLastCommandStreamStats();
+  EXPECT_EQ(stats.direct_ordered_stream_count, 1u);
+  EXPECT_EQ(stats.direct_ordered_command_count, 80u);
+  EXPECT_EQ(stats.coalesced_command_count, 78u);
+  ASSERT_NE(object.GetProperty("a"), nullptr);
+  ASSERT_NE(object.GetProperty("b"), nullptr);
+  EXPECT_FLOAT_EQ(float(object.GetProperty("a")->GetNumber()), 39.0f);
+  EXPECT_FLOAT_EQ(float(object.GetProperty("b")->GetNumber()), 139.0f);
+  EXPECT_EQ(command_buffer.Size(), 0u);
+}
+
+/** A property of kind `kind` on `object` ("missing" adds none): the kinds a number write meets. */
+void AddPropertyOfKind(KX_GameObject &object, const std::string &kind)
+{
+  EXP_Value *property = nullptr;
+  if (kind == "bool") {
+    property = new EXP_BoolValue(true);
+  }
+  else if (kind == "int") {
+    property = new EXP_IntValue(-4);
+  }
+  else if (kind == "float") {
+    property = new EXP_FloatValue(9.25f);
+  }
+  else if (kind == "text") {
+    property = new EXP_StringValue("words", "p");
+  }
+  else if (kind == "vector") {
+    property = new EXP_Vector3Value(1.0f, 2.0f, 3.0f);
+  }
+  if (property != nullptr) {
+    object.SetProperty("p", property);
+    property->Release();
+  }
+}
+
+/* Set Game Property Bool/Int/Float records only the number (2026-10-31) and writes it in place
+ * when the property holds a number: the property must end exactly as when the write carried the
+ * whole value those nodes made, whatever the property held, and the planned flush must see that
+ * value. */
+TEST(LN_CommandBuffer, NumberPropertyWritesEndAsTheWholeValueWouldEnd)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_GamePropertyRef property_ref;
+  property_ref.name = "p";
+  property_ref.value_type = LN_ValueType::Float;
+  program->AddGamePropertyRef(property_ref);
+
+  std::vector<LN_PropertyNumber> numbers;
+  for (const bool value : {false, true}) {
+    LN_PropertyNumber number;
+    number.type = LN_ValueType::Bool;
+    number.bool_value = value;
+    numbers.push_back(number);
+  }
+  for (const int32_t value : {0, 7, -3, 2147483647}) {
+    LN_PropertyNumber number;
+    number.type = LN_ValueType::Int;
+    number.int_value = value;
+    numbers.push_back(number);
+  }
+  for (const float value : {0.0f, -0.0f, 2.5f, -0.75f, 1.0e9f, 0.1f}) {
+    LN_PropertyNumber number;
+    number.type = LN_ValueType::Float;
+    number.float_value = value;
+    numbers.push_back(number);
+  }
+
+  for (const char *kind : {"missing", "bool", "int", "float", "text", "vector"}) {
+    for (const LN_PropertyNumber &number : numbers) {
+      KX_GameObject compact_object;
+      KX_GameObject whole_object;
+      AddPropertyOfKind(compact_object, kind);
+      AddPropertyOfKind(whole_object, kind);
+      LN_RuntimeTree compact_tree(program, &compact_object, 1, 0);
+      LN_RuntimeTree whole_tree(program, &whole_object, 2, 0);
+
+      LN_CommandBuffer compact_buffer;
+      compact_buffer.BeginRecording();
+      compact_buffer.AppendSetGamePropertyNumberRef(&compact_tree, &compact_object, 0, number, 1, 0);
+      compact_buffer.EndRecording();
+      compact_buffer.Flush();
+
+      LN_CommandBuffer whole_buffer;
+      whole_buffer.BeginRecording();
+      whole_buffer.AppendSetGamePropertyRef(
+          &whole_tree, &whole_object, 0, number.ToValue(), 1, 0);
+      whole_buffer.EndRecording();
+      whole_buffer.Flush();
+
+      const std::string where = std::string(kind) + " type " +
+                                std::to_string(int(number.type)) + " " +
+                                std::to_string(number.int_value) + " " +
+                                std::to_string(number.float_value);
+      EXP_Value *compact = compact_object.GetProperty("p");
+      EXP_Value *whole = whole_object.GetProperty("p");
+      ASSERT_EQ(compact != nullptr, whole != nullptr) << where;
+      if (compact != nullptr) {
+        EXPECT_EQ(compact->GetValueType(), whole->GetValueType()) << where;
+        EXPECT_EQ(compact->GetNumber(), whole->GetNumber()) << where;
+        EXPECT_EQ(compact->GetText(), whole->GetText()) << where;
+      }
+
+      /* The planned flush (and its warnings) see the whole value. */
+      LN_CommandBuffer planned_buffer;
+      planned_buffer.BeginRecording();
+      planned_buffer.AppendSetGamePropertyNumberRef(&compact_tree, &compact_object, 0, number, 1, 0);
+      planned_buffer.EndRecording();
+      const std::vector<LN_CommandBuffer::Command> planned =
+          planned_buffer.TakeFlushPlannedCommands();
+      ASSERT_EQ(planned.size(), 1u) << where;
+      const LN_Value expected = number.ToValue();
+      const LN_Value &value = planned[0].property_value;
+      EXPECT_EQ(value.type, expected.type) << where;
+      EXPECT_TRUE(value.exists) << where;
+      EXPECT_EQ(value.bool_value, expected.bool_value) << where;
+      EXPECT_EQ(value.int_value, expected.int_value) << where;
+      EXPECT_EQ(value.float_value, expected.float_value) << where;
+      EXPECT_TRUE(value.string_value.empty()) << where;
+    }
+  }
+}
+
+/* A write's value that is not a number waits in the buffer's side list; many of them in one step,
+ * with numbers between, each reach their own property. */
+TEST(LN_CommandBuffer, PropertyWritesKeepTheirOwnValuesAmongMany)
+{
+  KX_GameObject object;
+  LN_CommandBuffer command_buffer;
+  command_buffer.BeginRecording();
+  for (uint32_t index = 0; index < 200; index++) {
+    LN_Value value;
+    value.exists = true;
+    value.type = LN_ValueType::String;
+    value.string_value = "text " + std::to_string(index);
+    command_buffer.AppendSetGameProperty(&object, "s" + std::to_string(index), value, index, 1);
+  }
+  command_buffer.EndRecording();
+  command_buffer.Flush();
+  for (uint32_t index = 0; index < 200; index++) {
+    EXP_Value *property = object.GetProperty("s" + std::to_string(index));
+    ASSERT_NE(property, nullptr) << index;
+    EXPECT_EQ(property->GetText(), "text " + std::to_string(index)) << index;
+  }
 }
 
 }  // namespace

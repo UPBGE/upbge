@@ -18,6 +18,7 @@
 #include <limits>
 #include <memory>
 #include <sstream>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -432,6 +433,47 @@ static bool try_update_existing_game_property_no_alloc(EXP_Value *old_value, con
   }
 
   return false;
+}
+
+/**
+ * try_update_existing_game_property_no_alloc for `number.ToValue()`, without making that value:
+ * a number property takes the number in place (true). Anything else returns false and the write
+ * takes the whole path with the value, which ends the same as before.
+ */
+static bool try_update_existing_game_property_number(EXP_Value *old_value,
+                                                     const LN_PropertyNumber &number)
+{
+  if (old_value == nullptr) {
+    return false;
+  }
+  /* logic_value_exp_number's number for a Bool, Int or Float value. */
+  double value = 0.0;
+  switch (number.type) {
+    case LN_ValueType::Bool:
+      value = number.bool_value ? 1.0 : 0.0;
+      break;
+    case LN_ValueType::Int:
+      value = double(number.int_value);
+      break;
+    case LN_ValueType::Float:
+      value = double(number.float_value);
+      break;
+    default:
+      return false;
+  }
+  switch (old_value->GetValueType()) {
+    case VALUE_BOOL_TYPE:
+      static_cast<EXP_BoolValue *>(old_value)->SetBool(value != 0.0);
+      return true;
+    case VALUE_INT_TYPE:
+      static_cast<EXP_IntValue *>(old_value)->SetInt(cInt(value));
+      return true;
+    case VALUE_FLOAT_TYPE:
+      static_cast<EXP_FloatValue *>(old_value)->SetFloat(float(value));
+      return true;
+    default:
+      return false;
+  }
 }
 
 /** The game object of an Object value, for a property of \a owner. */
@@ -5223,14 +5265,9 @@ void LN_CommandBuffer::SetTypedCommandStreamsEnabled(const bool enabled)
   m_typedCommandStreamsEnabled = enabled;
 }
 
-void LN_CommandBuffer::SetAllowWorkerRecording(bool allow_worker_recording)
-{
-  m_allowWorkerRecording = allow_worker_recording;
-}
-
 bool LN_CommandBuffer::CanFlushPendingObjectTransformCommands() const
 {
-  if (!m_isRecording || m_isFlushing || m_allowWorkerRecording) {
+  if (!m_isRecording || m_isFlushing) {
     return false;
   }
   if (m_mainThreadId != std::thread::id() && std::this_thread::get_id() != m_mainThreadId) {
@@ -5864,6 +5901,135 @@ static void logic_node_command_stream_coalesce(std::vector<LN_CommandBuffer::Com
   commands = std::move(coalesced);
 }
 
+/**
+ * LN_CommandCoalescingKey without copies, for the direct flush (MarkSupersededWrites): the
+ * names are views of the commands' own strings, which stay put while a flush walks them. The
+ * same fields filled the same way as logic_node_command_coalescing_key, so two writes share a
+ * key exactly when the planned flush would coalesce them.
+ */
+struct LN_FlushWriteKey {
+  LN_CommandBuffer::CommandType type = LN_CommandBuffer::CommandType::SetWorldPosition;
+  uintptr_t object = 0;
+  uintptr_t runtime_tree = 0;
+  uint32_t property_id = LN_INVALID_INDEX;
+  uint32_t property_ref_index = LN_INVALID_INDEX;
+  uint32_t secondary_property_id = LN_INVALID_INDEX;
+  int32_t int_value = 0;
+  std::string_view property_name;
+  std::string_view secondary_property_name;
+  std::string_view tertiary_property_name;
+
+  bool operator==(const LN_FlushWriteKey &other) const
+  {
+    return type == other.type && object == other.object && runtime_tree == other.runtime_tree &&
+           property_id == other.property_id && property_ref_index == other.property_ref_index &&
+           secondary_property_id == other.secondary_property_id && int_value == other.int_value &&
+           property_name == other.property_name &&
+           secondary_property_name == other.secondary_property_name &&
+           tertiary_property_name == other.tertiary_property_name;
+  }
+
+  uint64_t Hash() const
+  {
+    uint64_t hash = uint64_t(type);
+    const auto mix = [&hash](const uint64_t value) {
+      hash ^= value + 0x9e3779b97f4a7c15ull + (hash << 6u) + (hash >> 2u);
+    };
+    mix(object);
+    mix(runtime_tree);
+    mix(property_id);
+    mix(property_ref_index);
+    mix(secondary_property_id);
+    mix(uint32_t(int_value));
+    mix(std::hash<std::string_view>{}(property_name));
+    mix(std::hash<std::string_view>{}(secondary_property_name));
+    mix(std::hash<std::string_view>{}(tertiary_property_name));
+    return hash;
+  }
+};
+
+/** The write key of a legacy-stream command (the fields logic_node_command_coalescing_key
+ * reads); false when the command is no last-write-wins write. */
+static bool logic_node_flush_write_key(const LN_CommandBuffer::Command &command,
+                                       LN_FlushWriteKey &r_key)
+{
+  using CommandType = LN_CommandBuffer::CommandType;
+  if (LN_CommandBuffer::GetCoalescingPolicy(command.type) !=
+      LN_CommandBuffer::CoalescingPolicy::LastWriteWinsWithinBarrierSegment)
+  {
+    return false;
+  }
+  r_key = LN_FlushWriteKey();
+  r_key.type = command.type;
+  switch (command.type) {
+    case CommandType::SetWorldPosition:
+    case CommandType::SetLocalPosition:
+    case CommandType::SetWorldOrientation:
+    case CommandType::SetLocalOrientation:
+    case CommandType::SetWorldScale:
+    case CommandType::SetLocalScale:
+    case CommandType::SetLinearVelocity:
+    case CommandType::SetLocalLinearVelocity:
+    case CommandType::SetAngularVelocity:
+    case CommandType::SetLocalAngularVelocity:
+      r_key.object = reinterpret_cast<uintptr_t>(command.object);
+      break;
+    case CommandType::SetGameProperty:
+      r_key.object = reinterpret_cast<uintptr_t>(command.object);
+      if (command.game_property_id.IsValid()) {
+        r_key.property_id = command.game_property_id.index;
+      }
+      else if (command.property_ref_index != LN_INVALID_INDEX) {
+        r_key.runtime_tree = reinterpret_cast<uintptr_t>(command.runtime_tree);
+        r_key.property_ref_index = command.property_ref_index;
+      }
+      else {
+        r_key.property_name = command.property_name;
+      }
+      break;
+    case CommandType::SetTreeProperty:
+      r_key.runtime_tree = reinterpret_cast<uintptr_t>(command.runtime_tree);
+      r_key.property_ref_index = command.property_ref_index;
+      break;
+    case CommandType::SetShapeKeyValue:
+      r_key.object = reinterpret_cast<uintptr_t>(command.object);
+      r_key.property_name = command.property_name;
+      break;
+    case CommandType::SetMaterialParameter:
+      r_key.object = reinterpret_cast<uintptr_t>(command.object);
+      r_key.runtime_tree = reinterpret_cast<uintptr_t>(command.runtime_tree);
+      r_key.property_id = command.runtime_ref.slot;
+      r_key.property_ref_index = command.runtime_ref.generation;
+      r_key.secondary_property_id = uint32_t(command.runtime_ref.kind);
+      r_key.int_value = command.int_value;
+      r_key.property_name = command.property_name;
+      r_key.secondary_property_name = command.secondary_property_name;
+      r_key.tertiary_property_name = command.tertiary_property_name;
+      break;
+    case CommandType::SetGeometryNodesInput:
+    case CommandType::SetGeometryNodeSocketValue:
+      r_key.object = reinterpret_cast<uintptr_t>(command.object);
+      r_key.property_name = command.property_name;
+      r_key.secondary_property_name = command.secondary_property_name;
+      r_key.tertiary_property_name = command.tertiary_property_name;
+      break;
+    case CommandType::SetCompositorNodeSocketValue:
+      r_key.int_value = command.int_value;
+      r_key.property_name = command.property_name;
+      r_key.secondary_property_name = command.secondary_property_name;
+      r_key.tertiary_property_name = command.tertiary_property_name;
+      break;
+    case CommandType::SetNodeMute:
+      r_key.int_value = command.int_value;
+      r_key.property_name = command.property_name;
+      r_key.secondary_property_name = command.secondary_property_name;
+      break;
+    default:
+      break;
+  }
+  return true;
+}
+
 static bool logic_node_command_stream_has_coalescible_commands(
     const std::vector<LN_CommandBuffer::Command> &commands)
 {
@@ -6145,7 +6311,7 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
     commands.push_back(std::move(command));
   };
 
-  auto append_property_command = [&commands](const TypedPropertyCommand &typed_command) {
+  auto append_property_command = [this, &commands](const TypedPropertyCommand &typed_command) {
     Command command;
     command.type = typed_command.type;
     command.object = typed_command.object;
@@ -6156,7 +6322,8 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
     command.property_name_ptr = typed_command.property_name_ptr;
     command.property_ref_index = typed_command.property_ref_index;
     command.property_name = typed_command.property_name;
-    command.property_value = typed_command.value;
+    LN_Value scratch;
+    command.property_value = PropertyCommandValue(typed_command, scratch);
     command.modify = typed_command.modify;
     command.sort_key = typed_command.header.sort_key;
     command.record_sequence = typed_command.header.record_sequence;
@@ -6271,6 +6438,12 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
     command.int_value = typed_command.layer;
     command.secondary_int_value = typed_command.priority;
     command.animation_flags = typed_command.animation_flags;
+    /* Play Action's outputs (Started, Done...): the flush registers the action for its tree.
+     * They were left out here until 2026-10-31, so a planned flush played the action and never
+     * fired its outputs. */
+    command.runtime_tree = typed_command.runtime_tree;
+    command.property_ref_index = typed_command.completion_expression_index;
+    command.action_output_mask = typed_command.action_output_mask;
     command.sort_key = typed_command.header.sort_key;
     command.record_sequence = typed_command.header.record_sequence;
     command.source_ref_index = typed_command.header.source_ref_index;
@@ -6826,6 +6999,7 @@ void LN_CommandBuffer::ClearTypedStreams()
   m_velocityCommands.clear();
   m_relativeVectorCommands.clear();
   m_propertyCommands.clear();
+  m_propertyValues.clear();
   m_eventCommands.clear();
   m_audioCommands.clear();
   m_lifecycleCommands.clear();
@@ -6840,6 +7014,7 @@ void LN_CommandBuffer::ClearTypedStreams()
   m_commandStreamsSorted = true;
   m_coalescibleCommandCount = 0;
   m_appliedTransformCount = 0;
+  m_appliedCoalescibleCount = 0;
   ForgetPendingTransformIndex();
   m_addObjectSourceInactiveCache.clear();
 }
@@ -6856,40 +7031,6 @@ void LN_CommandBuffer::MergeRecordedCommands(std::vector<Command> commands)
 
   for (Command &command : commands) {
     AppendLegacyCommand(std::move(command));
-  }
-}
-
-void LN_CommandBuffer::MergeRecordedCommandLists(std::vector<RecordedCommandList> command_lists)
-{
-  AssertMainThread();
-  BLI_assert_msg(!m_isRecording,
-                 "Logic Nodes command buffer cannot merge command lists while recording");
-  BLI_assert_msg(!m_isFlushing,
-                 "Logic Nodes command buffer cannot merge command lists while flushing");
-
-  if (command_lists.empty()) {
-    return;
-  }
-
-  std::stable_sort(command_lists.begin(),
-                   command_lists.end(),
-                   [](const RecordedCommandList &left, const RecordedCommandList &right) {
-                     return left.runtime_tree_index < right.runtime_tree_index;
-                   });
-
-  size_t total_commands = 0;
-  for (RecordedCommandList &command_list : command_lists) {
-    SortCommands(command_list.commands);
-    total_commands += command_list.commands.size();
-  }
-  if (total_commands == 0) {
-    return;
-  }
-
-  for (RecordedCommandList &command_list : command_lists) {
-    for (Command &command : command_list.commands) {
-      AppendLegacyCommand(std::move(command));
-    }
   }
 }
 
@@ -6916,6 +7057,170 @@ void LN_CommandBuffer::EndRecording()
 
   CompactAppliedTransforms();
   m_isRecording = false;
+}
+
+void LN_CommandBuffer::BeginChunkRecording()
+{
+  BLI_assert_msg(!m_isRecording, "Logic Nodes chunk buffer cannot begin recording twice");
+  BLI_assert_msg(!m_isFlushing, "Logic Nodes chunk buffer cannot record while flushing");
+
+  /* The job pool thread that records this chunk owns it until the chunk is appended. */
+  m_mainThreadId = std::this_thread::get_id();
+  m_isChunk = true;
+  m_chunkReadPendingMove = false;
+  m_commands.clear();
+  ClearTypedStreams();
+  m_nextRecordSequence = 1;
+  m_legacyTransformRecorded = false;
+  m_isRecording = true;
+}
+
+void LN_CommandBuffer::EndChunkRecording()
+{
+  BLI_assert_msg(m_isRecording && m_isChunk,
+                 "Logic Nodes chunk buffer cannot end recording before begin");
+  BLI_assert(m_appliedTransformCount == 0);
+  m_isRecording = false;
+}
+
+void LN_CommandBuffer::AppendRecordedChunk(LN_CommandBuffer &chunk)
+{
+  AssertMainThread();
+  BLI_assert_msg(m_isRecording && !m_isChunk,
+                 "Logic Nodes command buffer appends a chunk only while it records");
+  BLI_assert_msg(!m_isFlushing, "Logic Nodes command buffer cannot append a chunk while flushing");
+  BLI_assert_msg(chunk.m_isChunk && !chunk.m_isRecording,
+                 "Logic Nodes chunk buffer must end its recording before it is appended");
+  BLI_assert(chunk.m_appliedTransformCount == 0);
+
+  /* The chunk numbered its commands from 1 in the order it recorded them; here they continue
+   * this buffer's numbering, as they would have, had the chunk's trees recorded here. */
+  const uint64_t sequence_offset = m_nextRecordSequence - 1;
+  if (!chunk.m_commands.empty()) {
+    for (Command &command : chunk.m_commands) {
+      command.record_sequence += sequence_offset;
+    }
+    const Command &first = chunk.m_commands.front();
+    if (!m_commands.empty() &&
+        !logic_node_command_order_less_or_equal(m_commands.back().sort_key,
+                                                m_commands.back().record_sequence,
+                                                first.sort_key,
+                                                first.record_sequence))
+    {
+      m_commandStreamsSorted = false;
+    }
+    m_commands.insert(m_commands.end(),
+                      std::make_move_iterator(chunk.m_commands.begin()),
+                      std::make_move_iterator(chunk.m_commands.end()));
+    chunk.m_commands.clear();
+  }
+  /* What the chunk's appends counted, for all its streams: the order within each stream, the
+   * last-write-wins writes, a move in the legacy stream. */
+  m_commandStreamsSorted = m_commandStreamsSorted && chunk.m_commandStreamsSorted;
+  m_coalescibleCommandCount += chunk.m_coalescibleCommandCount;
+  m_legacyTransformRecorded = m_legacyTransformRecorded || chunk.m_legacyTransformRecorded;
+
+  /* Each stream in one move. Within the chunk its order was tracked as it recorded
+   * (chunk.m_commandStreamsSorted, below); here only the seam between the two needs a look. */
+  const auto append_stream = [&](auto &stream, auto &chunk_stream) {
+    if (chunk_stream.empty()) {
+      return;
+    }
+    for (auto &command : chunk_stream) {
+      command.header.record_sequence += sequence_offset;
+    }
+    if (!stream.empty() &&
+        !logic_node_command_order_less_or_equal(stream.back().header.sort_key,
+                                                stream.back().header.record_sequence,
+                                                chunk_stream.front().header.sort_key,
+                                                chunk_stream.front().header.record_sequence))
+    {
+      m_commandStreamsSorted = false;
+    }
+    stream.insert(stream.end(),
+                  std::make_move_iterator(chunk_stream.begin()),
+                  std::make_move_iterator(chunk_stream.end()));
+    chunk_stream.clear();
+  };
+  /* The pending move index is left behind: the next read that needs it catches up
+   * (IndexPendingTransforms), so a batch nothing reads after costs no index work. */
+  append_stream(m_transformCommands, chunk.m_transformCommands);
+  append_stream(m_relativeVectorCommands, chunk.m_relativeVectorCommands);
+  append_stream(m_velocityCommands, chunk.m_velocityCommands);
+
+  const uint32_t value_offset = uint32_t(m_propertyValues.size());
+  for (TypedPropertyCommand &command : chunk.m_propertyCommands) {
+    if (command.value_index != LN_INVALID_INDEX) {
+      command.value_index += value_offset;
+    }
+  }
+  append_stream(m_propertyCommands, chunk.m_propertyCommands);
+  for (LN_Value &value : chunk.m_propertyValues) {
+    m_propertyValues.push_back(std::move(value));
+  }
+  chunk.m_propertyValues.clear();
+
+  append_stream(m_eventCommands, chunk.m_eventCommands);
+  append_stream(m_audioCommands, chunk.m_audioCommands);
+  append_stream(m_lifecycleCommands, chunk.m_lifecycleCommands);
+  append_stream(m_objectServiceCommands, chunk.m_objectServiceCommands);
+  append_stream(m_runtimeServiceCommands, chunk.m_runtimeServiceCommands);
+  append_stream(m_animationCommands, chunk.m_animationCommands);
+  append_stream(m_armatureCommands, chunk.m_armatureCommands);
+  append_stream(m_materialCommands, chunk.m_materialCommands);
+  append_stream(m_physicsCommands, chunk.m_physicsCommands);
+  append_stream(m_motionCommands, chunk.m_motionCommands);
+
+  m_nextRecordSequence += chunk.m_nextRecordSequence - 1;
+  chunk.m_nextRecordSequence = 1;
+  chunk.ClearTypedStreams();
+  chunk.m_legacyTransformRecorded = false;
+}
+
+bool LN_CommandBuffer::HasPendingTransforms(KX_GameObject *gameobj, const bool include_parents)
+{
+  if (gameobj == nullptr || Size() == 0) {
+    return false;
+  }
+  IndexPendingTransforms();
+  return HasIndexedPendingTransforms(gameobj, include_parents);
+}
+
+void LN_CommandBuffer::PrepareForChunkReads()
+{
+  AssertMainThread();
+  IndexPendingTransforms();
+}
+
+bool LN_CommandBuffer::HasIndexedPendingTransforms(KX_GameObject *gameobj,
+                                                   const bool include_parents) const
+{
+  if (gameobj == nullptr || Size() == 0) {
+    return false;
+  }
+  blender::Vector<KX_GameObject *, 8> objects;
+  for (KX_GameObject *object = gameobj; object != nullptr && !objects.contains(object);
+       object = include_parents ? object->GetParent() : nullptr)
+  {
+    objects.append(object);
+  }
+  if (m_legacyTransformRecorded || !m_typedCommandStreamsEnabled) {
+    for (const Command &command : m_commands) {
+      if (command.object != nullptr && objects.contains(command.object) &&
+          IsObjectTransformCommand(command.type))
+      {
+        return true;
+      }
+    }
+  }
+  for (KX_GameObject *object : objects) {
+    if (const blender::Vector<uint32_t, 2> *places = m_pendingTransforms.lookup_ptr(object)) {
+      if (!places->is_empty()) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::TakeRecordedCommands()
@@ -6950,6 +7255,23 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::TakeFlushPlannedCommand
   ClearTypedStreams();
   m_removedObjectsDuringFlush.clear();
   return commands;
+}
+
+std::vector<std::pair<uint64_t, uint64_t>> LN_CommandBuffer::DirectFlushOrderForTests(
+    const bool coalesce)
+{
+  BuildFlushOrder();
+  if (coalesce) {
+    MarkSupersededWrites();
+  }
+  std::vector<std::pair<uint64_t, uint64_t>> order;
+  for (const FlushOrderEntry &entry : m_flushOrder) {
+    if (!entry.superseded) {
+      const CommandHeader header = FlushCommandHeader(entry.stream, entry.index);
+      order.emplace_back(header.sort_key, header.record_sequence);
+    }
+  }
+  return order;
 }
 
 const std::vector<LN_CommandBuffer::Command> &LN_CommandBuffer::GetCommandsForTests() const
@@ -7146,7 +7468,7 @@ void LN_CommandBuffer::AppendSetGameProperty(KX_GameObject *gameobj,
                                  m_logicManager->InternGamePropertyName(property_name) :
                                  LN_GamePropertyId{};
   command.property_name = property_name;
-  command.value = value;
+  command.value_index = StorePropertyValue(value);
   AppendTypedCommand(m_propertyCommands, std::move(command));
 }
 
@@ -7178,7 +7500,7 @@ void LN_CommandBuffer::AppendSetGamePropertyRef(LN_RuntimeTree *runtime_tree,
     command.property_value = value;
     command.sort_key = sort_key;
     command.source_ref_index = source_ref_index;
-    if (const std::shared_ptr<const LN_Program> program = runtime_tree->GetProgram()) {
+    if (const LN_Program *program = runtime_tree->GetProgramPointer()) {
       const std::vector<LN_GamePropertyRef> &property_refs = program->GetGamePropertyRefs();
       if (property_ref_index < property_refs.size()) {
         command.property_name_id = property_refs[property_ref_index].name_id;
@@ -7199,8 +7521,50 @@ void LN_CommandBuffer::AppendSetGamePropertyRef(LN_RuntimeTree *runtime_tree,
   command.runtime_tree = runtime_tree;
   command.property_ref_index = property_ref_index;
   command.game_property_id = runtime_tree->GetGamePropertyId(property_ref_index);
-  command.value = value;
-  if (const std::shared_ptr<const LN_Program> program = runtime_tree->GetProgram()) {
+  command.value_index = StorePropertyValue(value);
+  if (const LN_Program *program = runtime_tree->GetProgramPointer()) {
+    const std::vector<LN_GamePropertyRef> &property_refs = program->GetGamePropertyRefs();
+    if (property_ref_index < property_refs.size()) {
+      command.property_name_id = property_refs[property_ref_index].name_id;
+      command.property_name_ptr = &property_refs[property_ref_index].name;
+    }
+  }
+  AppendTypedCommand(m_propertyCommands, std::move(command));
+}
+
+void LN_CommandBuffer::AppendSetGamePropertyNumberRef(LN_RuntimeTree *runtime_tree,
+                                                      KX_GameObject *gameobj,
+                                                      const uint32_t property_ref_index,
+                                                      const LN_PropertyNumber &number,
+                                                      const uint64_t sort_key,
+                                                      const uint32_t source_ref_index)
+{
+  BLI_assert(number.IsNumber());
+  if (!m_typedCommandStreamsEnabled) {
+    AppendSetGamePropertyRef(
+        runtime_tree, gameobj, property_ref_index, number.ToValue(), sort_key, source_ref_index);
+    return;
+  }
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+
+  if (runtime_tree == nullptr || property_ref_index == LN_INVALID_INDEX) {
+    return;
+  }
+
+  TypedPropertyCommand command;
+  command.header = MakeCommandHeader(CommandType::SetGameProperty, sort_key, source_ref_index);
+  command.type = CommandType::SetGameProperty;
+  command.object = gameobj;
+  command.object_handle = gameobj == runtime_tree->GetGameObject() ?
+                              runtime_tree->GetOwnerObjectHandle() :
+                              LN_ObjectHandle{};
+  command.runtime_tree = runtime_tree;
+  command.property_ref_index = property_ref_index;
+  command.game_property_id = runtime_tree->GetGamePropertyId(property_ref_index);
+  command.number = number;
+  if (const LN_Program *program = runtime_tree->GetProgramPointer()) {
     const std::vector<LN_GamePropertyRef> &property_refs = program->GetGamePropertyRefs();
     if (property_ref_index < property_refs.size()) {
       command.property_name_id = property_refs[property_ref_index].name_id;
@@ -7224,7 +7588,9 @@ void LN_CommandBuffer::AppendModifyGameProperty(LN_RuntimeTree *runtime_tree,
   if (runtime_tree == nullptr || property_ref_index == LN_INVALID_INDEX) {
     return;
   }
-  const std::shared_ptr<const LN_Program> program = runtime_tree->GetProgram();
+  /* A plain pointer: trees record on helper threads too, and a shared pointer copy changes a
+   * count all trees of the program share. */
+  const LN_Program *program = runtime_tree->GetProgramPointer();
   const LN_GamePropertyRef *property_ref =
       program != nullptr && property_ref_index < program->GetGamePropertyRefs().size() ?
           &program->GetGamePropertyRefs()[property_ref_index] :
@@ -7299,7 +7665,7 @@ void LN_CommandBuffer::AppendSetTreeProperty(LN_RuntimeTree *runtime_tree,
   command.type = CommandType::SetTreeProperty;
   command.runtime_tree = runtime_tree;
   command.property_ref_index = property_ref_index;
-  command.value = value;
+  command.value_index = StorePropertyValue(value);
   AppendTypedCommand(m_propertyCommands, std::move(command));
 }
 
@@ -7470,11 +7836,6 @@ KX_GameObject *LN_CommandBuffer::ExecuteAddObjectFromRefImmediate(
   if (runtime_tree == nullptr || gameobj == nullptr ||
       source_ref.kind != LN_RuntimeRefKind::Object)
   {
-    return nullptr;
-  }
-
-  if (m_allowWorkerRecording) {
-    BLI_assert_unreachable();
     return nullptr;
   }
 
@@ -8665,29 +9026,38 @@ void LN_CommandBuffer::IndexAppendedTransform(const std::vector<TypedVectorComma
   if (!m_pendingTransformsIndexed) {
     return;
   }
+  const bool relative = &stream == &m_relativeVectorCommands;
+  uint32_t &indexed_places = relative ? m_indexedRelativePlaces : m_indexedTransformPlaces;
+  /* Behind (appended chunks are left for the next read): the next read catches up, this place
+   * included. */
+  if (indexed_places != stream.size() - 1) {
+    return;
+  }
+  indexed_places++;
   const TypedVectorCommand &command = stream.back();
   if (command.object != nullptr && IsObjectTransformCommand(command.type)) {
-    const uint32_t stream_bit = &stream == &m_relativeVectorCommands ? k_relative_transform_place :
-                                                                       0u;
     m_pendingTransforms.lookup_or_add_default(command.object)
-        .append(uint32_t(stream.size() - 1) | stream_bit);
+        .append(uint32_t(stream.size() - 1) | (relative ? k_relative_transform_place : 0u));
   }
 }
 
 void LN_CommandBuffer::IndexPendingTransforms()
 {
-  for (const std::vector<TypedVectorCommand> *stream :
-       {&m_transformCommands, &m_relativeVectorCommands})
-  {
-    const uint32_t stream_bit = stream == &m_relativeVectorCommands ? k_relative_transform_place :
-                                                                      0u;
-    for (size_t place = 0; place < stream->size(); place++) {
-      const TypedVectorCommand &command = (*stream)[place];
+  for (const bool relative : {false, true}) {
+    const std::vector<TypedVectorCommand> &stream = relative ? m_relativeVectorCommands :
+                                                               m_transformCommands;
+    uint32_t &indexed_places = relative ? m_indexedRelativePlaces : m_indexedTransformPlaces;
+    if (!m_pendingTransformsIndexed) {
+      indexed_places = 0;
+    }
+    for (size_t place = indexed_places; place < stream.size(); place++) {
+      const TypedVectorCommand &command = stream[place];
       if (command.object != nullptr && IsObjectTransformCommand(command.type)) {
         m_pendingTransforms.lookup_or_add_default(command.object)
-            .append(uint32_t(place) | stream_bit);
+            .append(uint32_t(place) | (relative ? k_relative_transform_place : 0u));
       }
     }
+    indexed_places = uint32_t(stream.size());
   }
   m_pendingTransformsIndexed = true;
 }
@@ -8698,6 +9068,8 @@ void LN_CommandBuffer::ForgetPendingTransformIndex()
     m_pendingTransforms.clear_and_keep_capacity();
     m_pendingTransformsIndexed = false;
   }
+  m_indexedTransformPlaces = 0;
+  m_indexedRelativePlaces = 0;
 }
 
 void LN_CommandBuffer::CompactAppliedTransforms()
@@ -8712,7 +9084,350 @@ void LN_CommandBuffer::CompactAppliedTransforms()
   std::erase_if(m_relativeVectorCommands, applied);
   m_appliedTransformCount = 0;
   ForgetPendingTransformIndex();
-  RefreshCommandStreamTracking();
+  /* The tracking without a walk of every stream (RefreshCommandStreamTracking did one, ~0.3 ms
+   * at 10,000 NPCs, whenever a read applied one move): the applied last-write-wins writes leave
+   * the count, and removing commands never puts a sorted stream out of order (one already
+   * marked out of order stays so; BuildFlushOrder then sorts, to the same order). */
+  m_coalescibleCommandCount -= m_appliedCoalescibleCount;
+  m_appliedCoalescibleCount = 0;
+}
+
+uint32_t LN_CommandBuffer::StorePropertyValue(const LN_Value &value)
+{
+  m_propertyValues.push_back(value);
+  return uint32_t(m_propertyValues.size() - 1);
+}
+
+const LN_Value &LN_CommandBuffer::PropertyCommandValue(const TypedPropertyCommand &command,
+                                                       LN_Value &r_scratch) const
+{
+  if (command.value_index != LN_INVALID_INDEX) {
+    BLI_assert(command.value_index < m_propertyValues.size());
+    return m_propertyValues[command.value_index];
+  }
+  r_scratch = command.number.ToValue();
+  return r_scratch;
+}
+
+LN_CommandBuffer::CommandHeader LN_CommandBuffer::FlushCommandHeader(const FlushStream stream,
+                                                                     const uint32_t index) const
+{
+  switch (stream) {
+    case FlushStream::Legacy: {
+      const Command &command = m_commands[index];
+      CommandHeader header;
+      header.sort_key = command.sort_key;
+      header.record_sequence = command.record_sequence;
+      header.coalescing = GetCoalescingPolicy(command.type);
+      return header;
+    }
+    case FlushStream::Transform:
+      return m_transformCommands[index].header;
+    case FlushStream::Velocity:
+      return m_velocityCommands[index].header;
+    case FlushStream::RelativeVector:
+      return m_relativeVectorCommands[index].header;
+    case FlushStream::Motion:
+      return m_motionCommands[index].header;
+    case FlushStream::Property:
+      return m_propertyCommands[index].header;
+    case FlushStream::Event:
+      return m_eventCommands[index].header;
+    case FlushStream::Audio:
+      return m_audioCommands[index].header;
+    case FlushStream::Lifecycle:
+      return m_lifecycleCommands[index].header;
+    case FlushStream::ObjectService:
+      return m_objectServiceCommands[index].header;
+    case FlushStream::RuntimeService:
+      return m_runtimeServiceCommands[index].header;
+    case FlushStream::Animation:
+      return m_animationCommands[index].header;
+    case FlushStream::Armature:
+      return m_armatureCommands[index].header;
+    case FlushStream::Material:
+      return m_materialCommands[index].header;
+    case FlushStream::Physics:
+      return m_physicsCommands[index].header;
+  }
+  return CommandHeader();
+}
+
+void LN_CommandBuffer::BuildFlushOrder()
+{
+  m_flushOrder.clear();
+  m_flushMergeableCount = 0;
+
+  struct Cursor {
+    FlushStream stream = FlushStream::Legacy;
+    uint32_t index = 0;
+    uint32_t size = 0;
+    CommandHeader header;
+  };
+  std::array<Cursor, 15> cursors{};
+  size_t cursor_count = 0;
+  size_t total_count = 0;
+  const auto add_stream = [&](const FlushStream stream, const size_t size) {
+    if (size == 0) {
+      return;
+    }
+    Cursor &cursor = cursors[cursor_count++];
+    cursor.stream = stream;
+    cursor.size = uint32_t(size);
+    cursor.header = FlushCommandHeader(stream, 0);
+    total_count += size;
+  };
+  add_stream(FlushStream::Legacy, m_commands.size());
+  add_stream(FlushStream::Transform, m_transformCommands.size());
+  add_stream(FlushStream::Velocity, m_velocityCommands.size());
+  add_stream(FlushStream::RelativeVector, m_relativeVectorCommands.size());
+  add_stream(FlushStream::Motion, m_motionCommands.size());
+  add_stream(FlushStream::Property, m_propertyCommands.size());
+  add_stream(FlushStream::Event, m_eventCommands.size());
+  add_stream(FlushStream::Audio, m_audioCommands.size());
+  add_stream(FlushStream::Lifecycle, m_lifecycleCommands.size());
+  add_stream(FlushStream::ObjectService, m_objectServiceCommands.size());
+  add_stream(FlushStream::RuntimeService, m_runtimeServiceCommands.size());
+  add_stream(FlushStream::Animation, m_animationCommands.size());
+  add_stream(FlushStream::Armature, m_armatureCommands.size());
+  add_stream(FlushStream::Material, m_materialCommands.size());
+  add_stream(FlushStream::Physics, m_physicsCommands.size());
+  m_flushOrder.reserve(total_count);
+  m_flushLongestMergeableRun = 0;
+  uint32_t mergeable_run = 0;
+  const auto count_mergeable = [&](const CommandHeader &header) {
+    if (header.coalescing == CoalescingPolicy::LastWriteWinsWithinBarrierSegment) {
+      m_flushMergeableCount++;
+      mergeable_run++;
+      m_flushLongestMergeableRun = std::max(m_flushLongestMergeableRun, mergeable_run);
+    }
+    else {
+      mergeable_run = 0;
+    }
+  };
+
+  if (!m_commandStreamsSorted) {
+    /* Streams out of order (a tree spawned after removals records with a lower key than one
+     * before it; a step's Run Logic Tree passes): every entry, then one sort by sort key and
+     * record sequence, the planned flush's order (SortCommands; sequences are unique), without
+     * copying a command. Before 2026-10-31 such steps took the planned list (a 736-byte copy
+     * of every command, sorted twice). */
+    m_flushSortScratch.clear();
+    m_flushSortScratch.reserve(total_count);
+    for (size_t cursor_index = 0; cursor_index < cursor_count; cursor_index++) {
+      const Cursor &cursor = cursors[cursor_index];
+      for (uint32_t index = 0; index < cursor.size; index++) {
+        const CommandHeader header = FlushCommandHeader(cursor.stream, index);
+        m_flushSortScratch.push_back(
+            {header.sort_key, header.record_sequence, {index, cursor.stream, false}});
+      }
+    }
+    std::stable_sort(m_flushSortScratch.begin(),
+                     m_flushSortScratch.end(),
+                     [](const FlushSortEntry &left, const FlushSortEntry &right) {
+                       return logic_node_command_order_less(left.sort_key,
+                                                            left.record_sequence,
+                                                            right.sort_key,
+                                                            right.record_sequence);
+                     });
+    for (const FlushSortEntry &entry : m_flushSortScratch) {
+      m_flushOrder.push_back(entry.entry);
+      count_mergeable(FlushCommandHeader(entry.entry.stream, entry.entry.index));
+    }
+    return;
+  }
+
+  const auto append = [&](const Cursor &cursor) {
+    m_flushOrder.push_back({cursor.index, cursor.stream, false});
+    count_mergeable(cursor.header);
+  };
+
+  /* Merge by sort key; equal keys keep the streams' order (the first cursor wins a tie). */
+  while (cursor_count != 0) {
+    Cursor *selected = nullptr;
+    for (size_t cursor_index = 0; cursor_index < cursor_count; cursor_index++) {
+      Cursor &cursor = cursors[cursor_index];
+      if (cursor.index >= cursor.size) {
+        continue;
+      }
+      if (selected == nullptr || logic_node_command_order_less(cursor.header.sort_key,
+                                                               cursor.header.record_sequence,
+                                                               selected->header.sort_key,
+                                                               selected->header.record_sequence))
+      {
+        selected = &cursor;
+      }
+    }
+    if (selected == nullptr) {
+      break;
+    }
+    append(*selected);
+    selected->index++;
+    if (selected->index < selected->size) {
+      selected->header = FlushCommandHeader(selected->stream, selected->index);
+    }
+  }
+}
+
+uint32_t LN_CommandBuffer::MarkSupersededWrites()
+{
+  /* A write can only supersede one of its own run (consecutive last-write-wins writes). */
+  if (m_flushMergeableCount < 2 || m_flushLongestMergeableRun < 2) {
+    return 0;
+  }
+
+  /* The key logic_node_command_coalescing_key gives the command as the planned flush builds it
+   * (BuildPlannedCommands' append_* copies), read from the stream itself. False: no
+   * last-write-wins write, which ends the run. A last-write-wins type in a stream that never
+   * records one would end the run too: its writes are then all applied, in order. */
+  const auto key_of = [this](const FlushOrderEntry &entry, LN_FlushWriteKey &r_key) -> bool {
+    constexpr CoalescingPolicy last_write_wins = CoalescingPolicy::LastWriteWinsWithinBarrierSegment;
+    switch (entry.stream) {
+      case FlushStream::Legacy:
+        return logic_node_flush_write_key(m_commands[entry.index], r_key);
+      case FlushStream::Transform:
+      case FlushStream::Velocity: {
+        const TypedVectorCommand &command = entry.stream == FlushStream::Transform ?
+                                                m_transformCommands[entry.index] :
+                                                m_velocityCommands[entry.index];
+        if (command.header.coalescing != last_write_wins) {
+          return false;
+        }
+        r_key = LN_FlushWriteKey();
+        r_key.type = command.type;
+        r_key.object = reinterpret_cast<uintptr_t>(command.object);
+        return true;
+      }
+      case FlushStream::Property: {
+        const TypedPropertyCommand &command = m_propertyCommands[entry.index];
+        if (command.header.coalescing != last_write_wins) {
+          return false;
+        }
+        r_key = LN_FlushWriteKey();
+        r_key.type = command.type;
+        if (command.type == CommandType::SetTreeProperty) {
+          r_key.runtime_tree = reinterpret_cast<uintptr_t>(command.runtime_tree);
+          r_key.property_ref_index = command.property_ref_index;
+          return true;
+        }
+        if (command.type != CommandType::SetGameProperty) {
+          return false;
+        }
+        r_key.object = reinterpret_cast<uintptr_t>(command.object);
+        if (command.game_property_id.IsValid()) {
+          r_key.property_id = command.game_property_id.index;
+        }
+        else if (command.property_ref_index != LN_INVALID_INDEX) {
+          r_key.runtime_tree = reinterpret_cast<uintptr_t>(command.runtime_tree);
+          r_key.property_ref_index = command.property_ref_index;
+        }
+        else {
+          r_key.property_name = command.property_name;
+        }
+        return true;
+      }
+      case FlushStream::Animation: {
+        const TypedAnimationCommand &command = m_animationCommands[entry.index];
+        if (command.header.coalescing != last_write_wins ||
+            command.type != CommandType::SetShapeKeyValue)
+        {
+          return false;
+        }
+        r_key = LN_FlushWriteKey();
+        r_key.type = command.type;
+        r_key.object = reinterpret_cast<uintptr_t>(command.object);
+        r_key.property_name = command.target_name;
+        return true;
+      }
+      case FlushStream::Material: {
+        const TypedMaterialCommand &command = m_materialCommands[entry.index];
+        if (command.header.coalescing != last_write_wins) {
+          return false;
+        }
+        r_key = LN_FlushWriteKey();
+        r_key.type = command.type;
+        switch (command.type) {
+          case CommandType::SetMaterialParameter:
+            r_key.object = reinterpret_cast<uintptr_t>(command.object);
+            r_key.runtime_tree = reinterpret_cast<uintptr_t>(command.runtime_tree);
+            r_key.property_id = command.runtime_ref.slot;
+            r_key.property_ref_index = command.runtime_ref.generation;
+            r_key.secondary_property_id = uint32_t(command.runtime_ref.kind);
+            r_key.int_value = command.int_value;
+            r_key.property_name = command.material_name;
+            r_key.secondary_property_name = command.node_name;
+            r_key.tertiary_property_name = command.internal_name;
+            return true;
+          case CommandType::SetGeometryNodesInput:
+          case CommandType::SetGeometryNodeSocketValue:
+            r_key.object = reinterpret_cast<uintptr_t>(command.object);
+            r_key.property_name = command.material_name;
+            r_key.secondary_property_name = command.node_name;
+            r_key.tertiary_property_name = command.internal_name;
+            return true;
+          case CommandType::SetCompositorNodeSocketValue:
+            r_key.int_value = command.int_value;
+            r_key.property_name = command.material_name;
+            r_key.secondary_property_name = command.node_name;
+            r_key.tertiary_property_name = command.internal_name;
+            return true;
+          case CommandType::SetNodeMute:
+            r_key.int_value = command.int_value;
+            r_key.property_name = command.material_name;
+            r_key.secondary_property_name = command.node_name;
+            return true;
+          default:
+            return false;
+        }
+      }
+      default:
+        return false;
+    }
+  };
+
+  /* At least twice the longest run's writes, so probing stays short and the table small (it was
+   * sized by all of the step's writes: 3 MB for 10,000 NPCs, each run probing it at random);
+   * only grown, never cleared: a slot belongs to a run (segment), and each run has a new one. */
+  size_t capacity = 16;
+  while (capacity < size_t(m_flushLongestMergeableRun) * 2) {
+    capacity <<= 1;
+  }
+  if (m_flushWriteSlots.size() < capacity) {
+    m_flushWriteSlots.resize(capacity);
+  }
+  const size_t mask = capacity - 1;
+
+  uint64_t segment = ++m_flushWriteSegment;
+  uint32_t superseded = 0;
+  LN_FlushWriteKey key;
+  LN_FlushWriteKey earlier;
+  for (uint32_t order_index = 0; order_index < uint32_t(m_flushOrder.size()); order_index++) {
+    if (!key_of(m_flushOrder[order_index], key)) {
+      /* Any other command ends the run (logic_node_command_stream_coalesce). */
+      segment = ++m_flushWriteSegment;
+      continue;
+    }
+    const uint64_t hash = key.Hash();
+    size_t slot_index = size_t(hash) & mask;
+    for (size_t probe = 0; probe < capacity; probe++) {
+      FlushWriteSlot &slot = m_flushWriteSlots[slot_index];
+      if (slot.segment != segment) {
+        slot.hash = hash;
+        slot.segment = segment;
+        slot.order_index = order_index;
+        break;
+      }
+      if (slot.hash == hash && key_of(m_flushOrder[slot.order_index], earlier) && earlier == key)
+      {
+        m_flushOrder[slot.order_index].superseded = true;
+        superseded++;
+        slot.order_index = order_index;
+        break;
+      }
+      slot_index = (slot_index + 1) & mask;
+    }
+  }
+  return superseded;
 }
 
 void LN_CommandBuffer::FlushPendingObjectTransformCommandsInternal(KX_GameObject *gameobj,
@@ -8722,12 +9437,25 @@ void LN_CommandBuffer::FlushPendingObjectTransformCommandsInternal(KX_GameObject
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  if (gameobj == nullptr || Size() == 0) {
+  if (gameobj == nullptr) {
     return;
   }
 
-  if (m_allowWorkerRecording) {
-    BLI_assert_unreachable();
+  if (m_isChunk) {
+    /* A tree batch never changes the scene while it records (LN_TreeBatch.h): its trees read
+     * nothing that has a pending move, in their chunk or in the tick's buffer. Should one still,
+     * the read applies nothing (another thread may be reading the scene) and the manager takes
+     * the tree's program out of batches. */
+    if (HasPendingTransforms(gameobj, include_parents) ||
+        (m_chunkTickBuffer != nullptr &&
+         m_chunkTickBuffer->HasIndexedPendingTransforms(gameobj, include_parents)))
+    {
+      m_chunkReadPendingMove = true;
+    }
+    return;
+  }
+
+  if (Size() == 0) {
     return;
   }
 
@@ -8742,10 +9470,9 @@ void LN_CommandBuffer::FlushPendingObjectTransformCommandsInternal(KX_GameObject
   if (m_typedCommandStreamsEnabled && !m_legacyTransformRecorded) {
     /* Only these objects' writes, found through the index and applied in the order the step's
      * flush applies them (SortCommands). They stay in their streams marked as applied (no
-     * object, record sequence 0) so the other places stay valid; EndRecording drops them. */
-    if (!m_pendingTransformsIndexed) {
-      IndexPendingTransforms();
-    }
+     * object, record sequence 0) so the other places stay valid; EndRecording drops them. The
+     * index catches up with appended chunks first. */
+    IndexPendingTransforms();
     blender::Vector<TypedVectorCommand *, 8> pending;
     for (KX_GameObject *object : flush_objects) {
       if (const std::optional<blender::Vector<uint32_t, 2>> places = m_pendingTransforms.pop_try(
@@ -8775,6 +9502,9 @@ void LN_CommandBuffer::FlushPendingObjectTransformCommandsInternal(KX_GameObject
                            command->bool_value);
       command->object = nullptr;
       command->header.record_sequence = 0;
+      if (command->header.coalescing == CoalescingPolicy::LastWriteWinsWithinBarrierSegment) {
+        m_appliedCoalescibleCount++;
+      }
     }
     m_appliedTransformCount += uint32_t(pending.size());
     return;
@@ -9499,8 +10229,7 @@ void LN_CommandBuffer::AppendSendEvent(const std::string &subject,
     return;
   }
 
-  /* Worker trees record here too, so the subject id and object handles are created when the
-   * buffer flushes on the main thread. */
+  /* The subject id and object handles are created when the buffer flushes. */
   if (!m_typedCommandStreamsEnabled) {
     Command command;
     command.type = CommandType::SendEvent;
@@ -9541,7 +10270,7 @@ void LN_CommandBuffer::AppendSendEvent(LN_RuntimeTree *runtime_tree,
     return;
   }
 
-  const std::shared_ptr<const LN_Program> program = runtime_tree->GetProgram();
+  const LN_Program *program = runtime_tree->GetProgramPointer();
   if (program == nullptr || program->GetString(subject_id).empty()) {
     return;
   }
@@ -13761,8 +14490,6 @@ void LN_CommandBuffer::Flush()
     }
   };
 
-  auto command_streams_sorted = [&]() { return m_commandStreamsSorted; };
-
   auto typed_stream_stats = [&]() {
     CommandStreamStats stats;
     stats.legacy_command_count = uint32_t(m_commands.size());
@@ -13900,7 +14627,8 @@ void LN_CommandBuffer::Flush()
       command.property_name_ptr = typed_command.property_name_ptr;
       command.property_ref_index = typed_command.property_ref_index;
       command.property_name = typed_command.property_name;
-      command.property_value = typed_command.value;
+      LN_Value scratch;
+      command.property_value = PropertyCommandValue(typed_command, scratch);
       command.sort_key = typed_command.header.sort_key;
       command.record_sequence = typed_command.header.record_sequence;
       command.source_ref_index = typed_command.header.source_ref_index;
@@ -13909,8 +14637,9 @@ void LN_CommandBuffer::Flush()
 
     if (typed_command.type == CommandType::SetTreeProperty) {
       if (typed_command.runtime_tree != nullptr) {
-        typed_command.runtime_tree->SetTreePropertyValue(typed_command.property_ref_index,
-                                                         typed_command.value);
+        LN_Value scratch;
+        typed_command.runtime_tree->SetTreePropertyValue(
+            typed_command.property_ref_index, PropertyCommandValue(typed_command, scratch));
       }
       else {
         warn_command_failure_once(make_warning_command(),
@@ -13971,14 +14700,26 @@ void LN_CommandBuffer::Flush()
       }
       return;
     }
-    if (!apply_game_property_value(
-            object, *property_name, typed_command.value, typed_command.runtime_tree, reason))
+    /* A number written as one goes into a number property in place, with no value made. */
+    if (typed_command.value_index == LN_INVALID_INDEX && typed_command.number.IsNumber() &&
+        try_update_existing_game_property_number(object->GetProperty(*property_name),
+                                                 typed_command.number))
+    {
+      return;
+    }
+    LN_Value scratch;
+    if (!apply_game_property_value(object,
+                                   *property_name,
+                                   PropertyCommandValue(typed_command, scratch),
+                                   typed_command.runtime_tree,
+                                   reason))
     {
       warn_command_failure_once(make_warning_command(), reason);
     }
   };
 
-  auto flush_typed_event_command = [&](const TypedEventCommand &typed_command) {
+  /* Takes the command's content: the stream is cleared after the flush. */
+  auto flush_typed_event_command = [&](TypedEventCommand &typed_command) {
     if (m_logicManager == nullptr) {
       return;
     }
@@ -13998,7 +14739,7 @@ void LN_CommandBuffer::Flush()
     if (subject == nullptr && typed_command.subject_name_id.IsValid() &&
         typed_command.runtime_tree != nullptr)
     {
-      const std::shared_ptr<const LN_Program> program = typed_command.runtime_tree->GetProgram();
+      const LN_Program *program = typed_command.runtime_tree->GetProgramPointer();
       if (program != nullptr) {
         const std::string &value = program->GetString(typed_command.subject_name_id);
         if (!value.empty()) {
@@ -14028,7 +14769,7 @@ void LN_CommandBuffer::Flush()
                                   typed_command.target ? typed_command.target->GetName() :
                                                          std::string());
     event.subject = *subject;
-    event.content = typed_command.content;
+    event.content = std::move(typed_command.content);
     if (typed_command.runtime_tree != nullptr) {
       typed_command.runtime_tree->ShareValue(event.content);
     }
@@ -14940,294 +15681,69 @@ void LN_CommandBuffer::Flush()
     }
   };
 
-  auto flush_direct_ordered_streams = [&]() {
-    struct Cursor {
-      enum class Kind : uint8_t {
-        Legacy = 0,
-        Transform,
-        Velocity,
-        RelativeVector,
-        Motion,
-        Property,
-        Event,
-        Audio,
-        Lifecycle,
-        ObjectService,
-        RuntimeService,
-        Animation,
-        Armature,
-        Material,
-        Physics,
-      };
-      Kind kind = Kind::Legacy;
-      size_t index = 0;
-      size_t size = 0;
-      uint64_t sort_key = 0;
-      uint64_t record_sequence = 0;
-    };
-
-    std::array<Cursor, 15> cursors{};
-    size_t cursor_count = 0;
-    size_t total_direct_count = 0;
-    auto append_cursor = [&](const Cursor::Kind kind, const size_t size) {
-      if (size == 0) {
-        return;
-      }
-      Cursor &cursor = cursors[cursor_count++];
-      cursor.kind = kind;
-      cursor.index = 0;
-      cursor.size = size;
-      total_direct_count += size;
-    };
-
-    append_cursor(Cursor::Kind::Legacy, m_commands.size());
-    append_cursor(Cursor::Kind::Transform, m_transformCommands.size());
-    append_cursor(Cursor::Kind::Velocity, m_velocityCommands.size());
-    append_cursor(Cursor::Kind::RelativeVector, m_relativeVectorCommands.size());
-    append_cursor(Cursor::Kind::Motion, m_motionCommands.size());
-    append_cursor(Cursor::Kind::Property, m_propertyCommands.size());
-    append_cursor(Cursor::Kind::Event, m_eventCommands.size());
-    append_cursor(Cursor::Kind::Audio, m_audioCommands.size());
-    append_cursor(Cursor::Kind::Lifecycle, m_lifecycleCommands.size());
-    append_cursor(Cursor::Kind::ObjectService, m_objectServiceCommands.size());
-    append_cursor(Cursor::Kind::RuntimeService, m_runtimeServiceCommands.size());
-    append_cursor(Cursor::Kind::Animation, m_animationCommands.size());
-    append_cursor(Cursor::Kind::Armature, m_armatureCommands.size());
-    append_cursor(Cursor::Kind::Material, m_materialCommands.size());
-    append_cursor(Cursor::Kind::Physics, m_physicsCommands.size());
-
-    auto refresh_cursor = [&](Cursor &cursor) {
-      if (cursor.index >= cursor.size) {
-        return;
-      }
-      switch (cursor.kind) {
-        case Cursor::Kind::Legacy:
-          cursor.sort_key = m_commands[cursor.index].sort_key;
-          cursor.record_sequence = m_commands[cursor.index].record_sequence;
-          break;
-        case Cursor::Kind::Transform:
-          cursor.sort_key = m_transformCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_transformCommands[cursor.index].header.record_sequence;
-          break;
-        case Cursor::Kind::Velocity:
-          cursor.sort_key = m_velocityCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_velocityCommands[cursor.index].header.record_sequence;
-          break;
-        case Cursor::Kind::RelativeVector:
-          cursor.sort_key = m_relativeVectorCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_relativeVectorCommands[cursor.index].header.record_sequence;
-          break;
-        case Cursor::Kind::Motion:
-          cursor.sort_key = m_motionCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_motionCommands[cursor.index].header.record_sequence;
-          break;
-        case Cursor::Kind::Property:
-          cursor.sort_key = m_propertyCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_propertyCommands[cursor.index].header.record_sequence;
-          break;
-        case Cursor::Kind::Event:
-          cursor.sort_key = m_eventCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_eventCommands[cursor.index].header.record_sequence;
-          break;
-        case Cursor::Kind::Audio:
-          cursor.sort_key = m_audioCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_audioCommands[cursor.index].header.record_sequence;
-          break;
-        case Cursor::Kind::Lifecycle:
-          cursor.sort_key = m_lifecycleCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_lifecycleCommands[cursor.index].header.record_sequence;
-          break;
-        case Cursor::Kind::ObjectService:
-          cursor.sort_key = m_objectServiceCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_objectServiceCommands[cursor.index].header.record_sequence;
-          break;
-        case Cursor::Kind::RuntimeService:
-          cursor.sort_key = m_runtimeServiceCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_runtimeServiceCommands[cursor.index].header.record_sequence;
-          break;
-        case Cursor::Kind::Animation:
-          cursor.sort_key = m_animationCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_animationCommands[cursor.index].header.record_sequence;
-          break;
-        case Cursor::Kind::Armature:
-          cursor.sort_key = m_armatureCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_armatureCommands[cursor.index].header.record_sequence;
-          break;
-        case Cursor::Kind::Material:
-          cursor.sort_key = m_materialCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_materialCommands[cursor.index].header.record_sequence;
-          break;
-        case Cursor::Kind::Physics:
-          cursor.sort_key = m_physicsCommands[cursor.index].header.sort_key;
-          cursor.record_sequence = m_physicsCommands[cursor.index].header.record_sequence;
-          break;
-      }
-    };
-
-    auto flush_cursor_command = [&](const Cursor::Kind kind, const size_t index) {
-      switch (kind) {
-        case Cursor::Kind::Legacy:
-          flush_command(m_commands[index]);
-          break;
-        case Cursor::Kind::Transform:
-          flush_typed_vector_command(m_transformCommands[index]);
-          break;
-        case Cursor::Kind::Velocity:
-          flush_typed_vector_command(m_velocityCommands[index]);
-          break;
-        case Cursor::Kind::RelativeVector:
-          flush_typed_vector_command(m_relativeVectorCommands[index]);
-          break;
-        case Cursor::Kind::Motion:
-          flush_typed_motion_command(m_motionCommands[index]);
-          break;
-        case Cursor::Kind::Property:
-          flush_typed_property_command(m_propertyCommands[index]);
-          break;
-        case Cursor::Kind::Event:
-          flush_typed_event_command(m_eventCommands[index]);
-          break;
-        case Cursor::Kind::Audio:
-          flush_typed_audio_command(m_audioCommands[index]);
-          break;
-        case Cursor::Kind::Lifecycle:
-          flush_typed_lifecycle_command(m_lifecycleCommands[index]);
-          break;
-        case Cursor::Kind::ObjectService:
-          flush_typed_object_service_command(m_objectServiceCommands[index]);
-          break;
-        case Cursor::Kind::RuntimeService:
-          flush_typed_runtime_service_command(m_runtimeServiceCommands[index]);
-          break;
-        case Cursor::Kind::Animation:
-          flush_typed_animation_command(m_animationCommands[index]);
-          break;
-        case Cursor::Kind::Armature:
-          flush_typed_armature_command(m_armatureCommands[index]);
-          break;
-        case Cursor::Kind::Material:
-          flush_typed_material_command(m_materialCommands[index]);
-          break;
-        case Cursor::Kind::Physics:
-          flush_typed_physics_command(m_physicsCommands[index]);
-          break;
-      }
-    };
-
-    if (cursor_count == 0) {
-      return;
-    }
-    if (cursor_count == 1) {
-      const Cursor &cursor = cursors[0];
-      switch (cursor.kind) {
-        case Cursor::Kind::Legacy:
-          for (const Command &command : m_commands) {
-            flush_command(command);
-          }
-          break;
-        case Cursor::Kind::Transform:
-          for (const TypedVectorCommand &command : m_transformCommands) {
-            flush_typed_vector_command(command);
-          }
-          break;
-        case Cursor::Kind::Velocity:
-          for (const TypedVectorCommand &command : m_velocityCommands) {
-            flush_typed_vector_command(command);
-          }
-          break;
-        case Cursor::Kind::RelativeVector:
-          for (const TypedVectorCommand &command : m_relativeVectorCommands) {
-            flush_typed_vector_command(command);
-          }
-          break;
-        case Cursor::Kind::Motion:
-          for (const TypedMotionCommand &command : m_motionCommands) {
-            flush_typed_motion_command(command);
-          }
-          break;
-        case Cursor::Kind::Property:
-          for (const TypedPropertyCommand &command : m_propertyCommands) {
-            flush_typed_property_command(command);
-          }
-          break;
-        case Cursor::Kind::Event:
-          for (const TypedEventCommand &command : m_eventCommands) {
-            flush_typed_event_command(command);
-          }
-          break;
-        case Cursor::Kind::Audio:
-          for (const TypedAudioCommand &command : m_audioCommands) {
-            flush_typed_audio_command(command);
-          }
-          break;
-        case Cursor::Kind::Lifecycle:
-          for (const TypedLifecycleCommand &command : m_lifecycleCommands) {
-            flush_typed_lifecycle_command(command);
-          }
-          break;
-        case Cursor::Kind::ObjectService:
-          for (const TypedObjectServiceCommand &command : m_objectServiceCommands) {
-            flush_typed_object_service_command(command);
-          }
-          break;
-        case Cursor::Kind::RuntimeService:
-          for (const TypedRuntimeServiceCommand &command : m_runtimeServiceCommands) {
-            flush_typed_runtime_service_command(command);
-          }
-          break;
-        case Cursor::Kind::Animation:
-          for (const TypedAnimationCommand &command : m_animationCommands) {
-            flush_typed_animation_command(command);
-          }
-          break;
-        case Cursor::Kind::Armature:
-          for (const TypedArmatureCommand &command : m_armatureCommands) {
-            flush_typed_armature_command(command);
-          }
-          break;
-        case Cursor::Kind::Material:
-          for (const TypedMaterialCommand &command : m_materialCommands) {
-            flush_typed_material_command(command);
-          }
-          break;
-        case Cursor::Kind::Physics:
-          for (const TypedPhysicsCommand &command : m_physicsCommands) {
-            flush_typed_physics_command(command);
-          }
-          break;
-      }
-      return;
-    }
-
-    for (size_t cursor_index = 0; cursor_index < cursor_count; cursor_index++) {
-      refresh_cursor(cursors[cursor_index]);
-    }
-
-    size_t flushed_count = 0;
-    while (flushed_count < total_direct_count) {
-      Cursor *selected = nullptr;
-      for (size_t cursor_index = 0; cursor_index < cursor_count; cursor_index++) {
-        Cursor &cursor = cursors[cursor_index];
-        if (cursor.index >= cursor.size) {
-          continue;
-        }
-        if (selected == nullptr || logic_node_command_order_less(cursor.sort_key,
-                                                                 cursor.record_sequence,
-                                                                 selected->sort_key,
-                                                                 selected->record_sequence))
-        {
-          selected = &cursor;
-        }
-      }
-      if (selected == nullptr) {
+  auto flush_stream_command = [&](const FlushStream stream, const size_t index) {
+    switch (stream) {
+      case FlushStream::Legacy:
+        flush_command(m_commands[index]);
         break;
-      }
-
-      flush_cursor_command(selected->kind, selected->index);
-      selected->index++;
-      refresh_cursor(*selected);
-      flushed_count++;
+      case FlushStream::Transform:
+        flush_typed_vector_command(m_transformCommands[index]);
+        break;
+      case FlushStream::Velocity:
+        flush_typed_vector_command(m_velocityCommands[index]);
+        break;
+      case FlushStream::RelativeVector:
+        flush_typed_vector_command(m_relativeVectorCommands[index]);
+        break;
+      case FlushStream::Motion:
+        flush_typed_motion_command(m_motionCommands[index]);
+        break;
+      case FlushStream::Property:
+        flush_typed_property_command(m_propertyCommands[index]);
+        break;
+      case FlushStream::Event:
+        flush_typed_event_command(m_eventCommands[index]);
+        break;
+      case FlushStream::Audio:
+        flush_typed_audio_command(m_audioCommands[index]);
+        break;
+      case FlushStream::Lifecycle:
+        flush_typed_lifecycle_command(m_lifecycleCommands[index]);
+        break;
+      case FlushStream::ObjectService:
+        flush_typed_object_service_command(m_objectServiceCommands[index]);
+        break;
+      case FlushStream::RuntimeService:
+        flush_typed_runtime_service_command(m_runtimeServiceCommands[index]);
+        break;
+      case FlushStream::Animation:
+        flush_typed_animation_command(m_animationCommands[index]);
+        break;
+      case FlushStream::Armature:
+        flush_typed_armature_command(m_armatureCommands[index]);
+        break;
+      case FlushStream::Material:
+        flush_typed_material_command(m_materialCommands[index]);
+        break;
+      case FlushStream::Physics:
+        flush_typed_physics_command(m_physicsCommands[index]);
+        break;
     }
+  };
+
+  /* Every stream's commands in their sort order, straight from the streams (each one is sorted).
+   * With `coalesce`, the writes the planned flush would coalesce away are left out, found in
+   * place: copying every command into a planned list cost about half of the logic step with
+   * thousands of objects. Returns how many were left out. */
+  auto flush_direct_ordered_streams = [&](const bool coalesce) {
+    BuildFlushOrder();
+    const uint32_t superseded = coalesce ? MarkSupersededWrites() : 0u;
+    for (const FlushOrderEntry &entry : m_flushOrder) {
+      if (!entry.superseded) {
+        flush_stream_command(entry.stream, entry.index);
+      }
+    }
+    return superseded;
   };
 
   const uint32_t coalescible_command_count = CountCoalescibleCommands();
@@ -15236,15 +15752,19 @@ void LN_CommandBuffer::Flush()
       m_typedCommandStreamsEnabled && coalescible_command_count != 0u &&
       (coalescible_command_count >= k_logic_node_min_coalescible_commands_for_runtime_flush ||
        coalescible_command_count == total_command_count);
-  const bool direct_ordered_flush = m_typedCommandStreamsEnabled && !enable_flush_coalescing &&
-                                    command_streams_sorted();
+  /* Every step flushes in place, coalescing too, streams out of order included (BuildFlushOrder
+   * sorts them then). The planned list is left for typed streams off (an emergency switch).
+   * Until 2026-10-31 streams out of order took it too: slower, and it lost Play Action's
+   * outputs (fixed in its converter) and dropped Send Event from a removed object. */
+  const bool direct_ordered_flush = m_typedCommandStreamsEnabled;
 
   if (direct_ordered_flush) {
     CommandStreamStats stats = typed_stream_stats();
     stats.direct_ordered_stream_count = non_empty_stream_count();
     stats.direct_ordered_command_count = uint32_t(total_command_count);
     m_lastCommandStreamStats = stats;
-    flush_direct_ordered_streams();
+    m_lastCommandStreamStats.coalesced_command_count = flush_direct_ordered_streams(
+        enable_flush_coalescing);
   }
   else {
     CommandStreamStats planner_stats;
@@ -15290,10 +15810,6 @@ void LN_CommandBuffer::ClearMaterialParameterDefaultState()
 
 void LN_CommandBuffer::AssertMainThread() const
 {
-  if (m_allowWorkerRecording) {
-    return;
-  }
-
   if (m_mainThreadId == std::thread::id()) {
     return;
   }

@@ -23,14 +23,17 @@
 #include <utility>
 #include <vector>
 
+#include "BLI_vector_set.hh"
+
 #include "LN_CommandBuffer.h"
 #include "LN_DenseIds.h"
 #include "LN_EventBus.h"
 #include "LN_GameState.h"
 #include "LN_InputMap.h"
 #include "LN_Inventory.h"
-#include "LN_ParallelTreeExecutor.h"
+#include "LN_JobPool.h"
 #include "LN_Snapshot.h"
+#include "LN_TreeBatch.h"
 #include "MT_Vector3.h"
 
 class KX_GameObject;
@@ -41,6 +44,7 @@ enum class KX_ObjectRemovalReason : uint8_t;
 class LN_Program;
 class LN_RuntimeTree;
 class LN_UIService;
+struct LN_TickProfileMetrics;
 
 /** Immutable C++ Logic Node binding retained by an authored reconstruction recipe. */
 struct LN_RuntimeTreeRecipe {
@@ -94,6 +98,11 @@ class LN_PreparedRuntimeTreeRestore {
 };
 
 struct LN_TickContext;
+
+/** Run Logic Tree calls that may wait for the next Logic + Physics step; more are ignored with a
+ * warning (LN_Manager::QueueRunLogicTreeOnce). */
+inline constexpr size_t LN_MAX_WAITING_RUN_ONCE_CALLS = 65536;
+
 class LN_Manager {
  public:
   explicit LN_Manager(KX_Scene &scene);
@@ -115,6 +124,8 @@ class LN_Manager {
                                           bool runtime_active = true);
 
   bool IsLogicTreeRunning(KX_GameObject *gameobj, const std::string &tree_name) const;
+  /** Run Logic Tree: one fixed-update pass of the tree, in the next Logic + Physics step (never
+   * a frame tick, never the step that is recording the call). */
   void QueueRunLogicTreeOnce(KX_GameObject *target_object, const std::string &tree_name);
 
   void NotifyGameObjectQueuedForRemoval(KX_GameObject *gameobj, KX_ObjectRemovalReason reason);
@@ -281,7 +292,7 @@ class LN_Manager {
   LN_ObjectHandle MakeObjectHandle(KX_GameObject *gameobj, const std::string &debug_name = "");
   /** Resolve a generation-checked scene-local object handle. */
   KX_GameObject *ResolveObjectHandle(const LN_ObjectHandle &handle) const;
-  /** Read-only handle lookup, safe while worker trees execute. */
+  /** Read-only handle lookup: never creates a handle. */
   LN_ObjectHandle FindObjectHandle(const KX_GameObject *gameobj) const;
   /** Tree-independent reference for values that other trees read (see LN_RuntimeRef). */
   LN_RuntimeRef MakeSharedObjectRef(KX_GameObject *gameobj, const std::string &debug_name);
@@ -452,6 +463,10 @@ class LN_Manager {
   LN_RuntimeTree *RegisterDebugHardcodedSetWorldPosition(KX_GameObject *gameobj,
                                                          const MT_Vector3 &position);
   void RegisterDebugPropertyBindings();
+  /** Every N Steps' spread: numbers the trees of one source tree 0, 1, 2... as they start, so the
+   * objects using it take turns (only trees whose program has step gates). `renumber`: also a
+   * tree numbered by another scene's manager (Load Scene). */
+  void AssignStepSpread(LN_RuntimeTree &runtime_tree, bool renumber = false);
   void CacheCompiledProgram(const std::shared_ptr<const LN_Program> &program);
   std::shared_ptr<const LN_Program> EnsureCompiledProgram(const std::string &tree_name);
   std::shared_ptr<const LN_Program> EnsureCompiledProgram(
@@ -469,16 +484,17 @@ class LN_Manager {
             LN_Event event);
   void TickUIElementsWithoutTrees(double delta_time, double unscaled_delta_time);
   void RebuildPauseProcessingObjects();
-  void ProcessPendingRunOnce(std::vector<LN_CommandBuffer::RecordedCommandList> &command_lists,
-                             const LN_TickContext &context,
-                             bool collect_profile_counters);
+  /** The fixed-update passes queued by Run Logic Tree up to `last_due_serial`, recorded into the
+   * command buffer after the tick's other trees. Returns how many trees ran. */
+  uint32_t ProcessPendingRunOnce(const LN_TickContext &context,
+                                 uint64_t last_due_serial,
+                                 LN_TickProfileMetrics *profile);
   void CaptureSharedTickReadContext(uint32_t input_channels,
                                     double fixed_dt,
                                     uint64_t tick_index,
                                     LN_Event event);
   /** This frame's unfiltered input for the UI, after CaptureSharedTickReadContext. */
   const LN_InputSnapshot *UIFrameInput() const;
-  bool HasInputDependencies() const;
   uint32_t InputDependencyChannels() const;
   /** Samples the Input Map's actions for the trees of this tick. */
   void UpdateInputActions(LN_Event event, uint32_t input_channels, uint64_t phase_tick_index);
@@ -539,13 +555,26 @@ class LN_Manager {
   std::unordered_map<std::string, std::shared_ptr<const LN_Program>> m_programBySourceTreeName;
   std::unordered_set<const LN_Program *> m_validatedPrograms;
   std::unordered_set<const LN_Program *> m_cachedPrograms;
-  std::deque<std::pair<KX_GameObject *, std::string>> m_pendingRunOnce;
+  /** A Run Logic Tree call waiting for its fixed-update pass. `serial` grows with every call, so a
+   * step takes exactly the calls queued before it began (QueueRunLogicTreeOnce). */
+  struct PendingRunOnce {
+    KX_GameObject *object = nullptr;
+    std::string tree_name;
+    uint64_t serial = 0;
+  };
+  std::deque<PendingRunOnce> m_pendingRunOnce;
+  uint64_t m_runOnceSerial = 0;
+  /** Run Logic Tree refused a call because LN_MAX_WAITING_RUN_ONCE_CALLS were waiting (warned
+   * once per manager). */
+  bool m_runOnceLimitWarned = false;
   std::vector<PendingItemDrop> m_pendingItemDrops;
   std::vector<std::unique_ptr<LN_RuntimeTree>> m_runtimeTrees;
   std::unordered_map<RuntimeTreeLookupKey, LN_RuntimeTree *, RuntimeTreeLookupKeyHash>
       m_runtimeTreeByObjectAndAppliedIndex;
   std::unordered_map<KX_GameObject *, std::vector<LN_RuntimeTree *>> m_runtimeTreesByObject;
-  std::unordered_map<KX_GameObject *, std::vector<LN_RuntimeTree *>>
+  /** A set a referenced object: 10,000 trees referencing the Player made each registration and
+   * removal a scan of 10,000 (2026-10-31). Unordered: its readers sort or only invalidate. */
+  std::unordered_map<KX_GameObject *, blender::VectorSet<LN_RuntimeTree *>>
       m_runtimeTreesByReferencedObject;
   std::unordered_map<LN_RuntimeTree *, std::vector<KX_GameObject *>>
       m_referencedObjectsByRuntimeTree;
@@ -559,6 +588,8 @@ class LN_Manager {
   uint64_t m_tickIndex = 0;
   uint64_t m_updateTickIndex = 0;
   uint64_t m_fixedTickIndex = 0;
+  /** The next step spread of each source tree (AssignStepSpread), by tree name and library. */
+  std::unordered_map<std::string, uint32_t> m_stepSpreadCounters;
   /** LN_TickContext::mouse_ui_serial, and whether the last frame paused or held Mouse Look. */
   uint64_t m_mouseUISerial = 0;
   bool m_mouseLookHeld = false;
@@ -623,18 +654,82 @@ class LN_Manager {
   bool m_hasPendingUpdateInput = false;
   bool m_hasFrameInput = false;
   bool m_hasPendingFixedInput = false;
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> m_tickRunnableTreesScratch;
+  /** A tree that runs in this tick, and its place in m_runtimeTrees. */
+  struct RunnableTree {
+    size_t runtime_tree_index = 0;
+    LN_RuntimeTree *runtime_tree = nullptr;
+  };
+  std::vector<RunnableTree> m_tickRunnableTreesScratch;
+  /** Per tree of m_runtimeTrees, this tick: 1 when it runs (CanTick and not held by a pause). */
+  std::vector<uint8_t> m_tickTreeRunsScratch;
+
+  /** Records the tick's runnable trees into m_commandBuffer: runs of trees a batch may hold
+   * (LN_TreeBatch.h) on the job pool, the others here, one after the other. The buffer ends as
+   * if every tree had recorded here in order. */
+  void RecordRunnableTrees(const std::vector<RunnableTree> &runnable_trees,
+                           const LN_TickContext &context,
+                           LN_TickProfileMetrics *profile);
+  void RecordTree(LN_RuntimeTree &runtime_tree,
+                  const LN_TickContext &context,
+                  LN_TickProfileMetrics *profile);
+  void RecordTreeBatch(const std::vector<RunnableTree> &runnable_trees,
+                       size_t begin,
+                       size_t end,
+                       const LN_TickContext &context,
+                       LN_TickProfileMetrics *profile);
+  /** Marks in m_batchTreeScratch the runnable trees a batch may hold this tick (the per tree
+   * rules of LN_TreeBatch.h). False when fewer than `min_trees` qualify. */
+  bool MarkBatchableTrees(const std::vector<RunnableTree> &runnable_trees,
+                          LN_TreeBatchMode mode,
+                          size_t min_trees);
+  /** The objects a program's Get Distance measures (its constant objects, found by name), and
+   * their parents, are kept in m_batchMeasuredObjects. False when one cannot be found by name. */
+  bool NoteBatchMeasuredObjects(const LN_Program &program);
+  /** Something trees [begin, end) measure has a pending move (an earlier tree moved it and no
+   * read applied it yet): a read in the batch would apply it, so they record here. */
+  bool BatchMeasuresPendingMove(const std::vector<RunnableTree> &runnable_trees,
+                                size_t begin,
+                                size_t end);
+
+  LN_JobPool m_jobPool;
+  LN_TreeBatchRecorder m_batchRecorder;
+  /** The Physics CPU Use setting the pool was sized for (INT32_MIN: not yet). */
+  int32_t m_jobPoolCoresSetting = INT32_MIN;
+  /** Each of `trees` (one object's) is its object's only tree or not (LN_RuntimeTree::BatchNote). */
+  void NoteSoleTrees(const std::vector<LN_RuntimeTree *> &trees);
+  /** Per runnable tree, this tick: 1 when a batch may hold it. */
+  std::vector<uint8_t> m_batchTreeScratch;
+  struct BatchProgram {
+    const LN_Program *program = nullptr;
+    bool batchable = false;
+    /** Its measured objects in m_batchMeasuredObjects: [first, first + count). */
+    uint32_t first_measured = 0;
+    uint32_t measured_count = 0;
+  };
+  /** The programs of this tick's runnable trees, as they were met (a few: programs are shared
+   * by every tree of one source tree). */
+  std::vector<BatchProgram> m_batchProgramsScratch;
+  /** Program -> its entry in m_batchProgramsScratch, this tick. */
+  blender::Map<const LN_Program *, uint32_t> m_batchProgramIndex;
+  std::vector<KX_GameObject *> m_batchMeasuredObjects;
+  /** Measured objects and their parents: their own trees never join a batch. */
+  std::vector<KX_GameObject *> m_batchBarrierObjects;
+  std::vector<LN_RuntimeTree *> m_batchTreesScratch;
+  std::vector<LN_RuntimeProfileCounters> m_batchCountersScratch;
+  /** Programs (LN_Program::GetUniqueId) whose tree read a pending move in a batch: out of
+   * batches for good (a safety net; the program analysis rules it out). */
+  std::unordered_set<uint64_t> m_batchRefusedPrograms;
   std::unordered_set<KX_GameObject *> m_pauseProcessingObjects;
   std::vector<KX_GameObject *> m_pauseProcessingObjectsScratch;
   std::unordered_map<std::string, KX_GameObject *> m_objectByName;
   bool m_objectNameCacheValid = false;
+  /** The scene's object list generation m_objectByName was built at (KX_Scene::
+   * GetObjectListGeneration); a new one at a tick's start rebuilds it at its next use. */
+  uint64_t m_objectNameCacheGeneration = UINT64_MAX;
   /** Objects named in text values ("{Player.gold}"), found again when the object list changes;
    * an invalid handle is a name with no object. */
   std::unordered_map<std::string, LN_ObjectHandle> m_textObjects;
   uint64_t m_textObjectsGeneration = UINT64_MAX;
-  /** Set once any tree looks up an object by name; the main thread then rebuilds the name
-   * cache before worker trees run, since they may only read it. */
-  std::atomic<bool> m_objectNameLookupUsed = false;
   std::unordered_map<PointerHitCacheKey, PointerHitCacheValue, PointerHitCacheKeyHash>
       m_pointerHitCache;
   LN_DenseIdRegistry m_denseIds;

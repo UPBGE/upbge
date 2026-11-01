@@ -8,6 +8,13 @@
 #include <memory>
 
 #include "DEV_InputDevice.h"
+#include "EXP_BoolValue.h"
+#include "EXP_FloatValue.h"
+#include "EXP_IntValue.h"
+#include "EXP_StringValue.h"
+#include "EXP_Vector3Value.h"
+#include "KX_GameObject.h"
+#include "LN_CommandBuffer.h"
 #include "LN_Program.h"
 #include "LN_Snapshot.h"
 #include "SCA_InputEvent.h"
@@ -37,7 +44,252 @@ std::shared_ptr<LN_Program> CreateTimingSnapshotProgram()
   return program;
 }
 
+LN_GamePropertyRef MakeGamePropertyRef(const std::string &name, const LN_ValueType type)
+{
+  LN_GamePropertyRef property_ref;
+  property_ref.name = name;
+  property_ref.value_type = type;
+  property_ref.default_value.bool_value = true;
+  property_ref.default_value.int_value = 3;
+  property_ref.default_value.float_value = 7.5f;
+  property_ref.default_value.string_value = "default";
+  property_ref.default_value.vector_value = MT_Vector3(1.0f, 2.0f, 3.0f);
+  return property_ref;
+}
+
+/** A program reading `refs` (a game property read declares the channel). */
+std::shared_ptr<LN_Program> CreateGamePropertyProgram(const std::vector<LN_GamePropertyRef> &refs)
+{
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  for (const LN_GamePropertyRef &property_ref : refs) {
+    program->AddGamePropertyRef(property_ref);
+  }
+  LN_FloatExpression expression;
+  expression.kind = LN_FloatExpressionKind::SnapshotGameProperty;
+  expression.property_ref_index = 0;
+  program->AddFloatExpression(expression);
+  return program;
+}
+
+/** A game property's snapshot value as captures built it before they kept their values and the
+ * properties they found (2026-10-30): a fresh copy of the default, filled from the property
+ * looked up by name. */
+LN_Value ReferenceGamePropertyValue(KX_GameObject &object, const LN_GamePropertyRef &property_ref)
+{
+  LN_Value value = property_ref.default_value;
+  value.type = property_ref.value_type;
+  if (property_ref.name.empty()) {
+    return value;
+  }
+  EXP_Value *property = object.GetProperty(property_ref.name);
+  value.exists = property != nullptr;
+  if (property == nullptr) {
+    return value;
+  }
+  const int type = property->GetValueType();
+  const bool number_or_text = type == VALUE_BOOL_TYPE || type == VALUE_INT_TYPE ||
+                              type == VALUE_FLOAT_TYPE || type == VALUE_STRING_TYPE;
+  switch (property_ref.value_type) {
+    case LN_ValueType::Bool:
+      value.bool_value = object.GetPropertyNumber(
+                             property_ref.name,
+                             property_ref.default_value.bool_value ? 1.0f : 0.0f) != 0.0f;
+      break;
+    case LN_ValueType::Int:
+      if (number_or_text) {
+        value.int_value = int32_t(
+            object.GetPropertyNumber(property_ref.name, property_ref.default_value.int_value));
+      }
+      break;
+    case LN_ValueType::Float:
+      if (number_or_text) {
+        value.float_value = object.GetPropertyNumber(property_ref.name,
+                                                     property_ref.default_value.float_value);
+      }
+      break;
+    case LN_ValueType::String:
+      value.string_value = property->GetText();
+      break;
+    default:
+      break;
+  }
+  return value;
+}
+
+void ExpectSameGamePropertyValue(const LN_Value *actual,
+                                 const LN_Value &expected,
+                                 const std::string &where)
+{
+  ASSERT_NE(actual, nullptr) << where;
+  EXPECT_EQ(actual->type, expected.type) << where;
+  EXPECT_EQ(actual->exists, expected.exists) << where;
+  EXPECT_EQ(actual->bool_value, expected.bool_value) << where;
+  EXPECT_EQ(actual->int_value, expected.int_value) << where;
+  EXPECT_EQ(actual->float_value, expected.float_value) << where;
+  EXPECT_EQ(actual->string_value, expected.string_value) << where;
+  EXPECT_EQ(actual->vector_value, expected.vector_value) << where;
+}
+
+void SetOwnedProperty(KX_GameObject &object, const std::string &name, EXP_Value *value)
+{
+  object.SetProperty(name, value);
+  value->Release();
+}
+
 }  // namespace
+
+TEST(LN_Snapshot, GamePropertyStampChangesOnlyWhenTheListChanges)
+{
+  KX_GameObject object;
+  KX_GameObject other;
+  EXPECT_NE(object.GetPropertyMapStamp(), other.GetPropertyMapStamp());
+
+  uint64_t stamp = object.GetPropertyMapStamp();
+  SetOwnedProperty(object, "health", new EXP_FloatValue(10.0f));
+  EXPECT_NE(object.GetPropertyMapStamp(), stamp);
+
+  /* Logic Nodes write numbers and text in place: the property stays the one found. */
+  stamp = object.GetPropertyMapStamp();
+  EXP_Value *health = object.GetProperty("health");
+  LN_Value value;
+  value.type = LN_ValueType::Float;
+  value.exists = true;
+  value.float_value = 4.0f;
+  std::string reason;
+  ASSERT_TRUE(LN_CommandBuffer::ApplyGamePropertyValue(&object, "health", value, nullptr, reason));
+  EXPECT_EQ(object.GetProperty("health"), health);
+  EXPECT_EQ(object.GetPropertyMapStamp(), stamp);
+
+  /* Replaced, removed, all removed: a new stamp, never an earlier one. */
+  SetOwnedProperty(object, "health", new EXP_IntValue(5));
+  const uint64_t replaced = object.GetPropertyMapStamp();
+  EXPECT_NE(replaced, stamp);
+  EXPECT_TRUE(object.RemoveProperty("health"));
+  const uint64_t removed = object.GetPropertyMapStamp();
+  EXPECT_NE(removed, replaced);
+  EXPECT_NE(removed, stamp);
+  object.ClearProperties();
+  EXPECT_NE(object.GetPropertyMapStamp(), removed);
+}
+
+TEST(LN_Snapshot, KeptGamePropertiesMatchAFreshCaptureAfterAnyChange)
+{
+  const std::vector<std::string> names = {"a", "b", "c"};
+  const std::vector<LN_ValueType> types = {LN_ValueType::Bool,
+                                           LN_ValueType::Int,
+                                           LN_ValueType::Float,
+                                           LN_ValueType::String,
+                                           LN_ValueType::Vector};
+  std::vector<LN_GamePropertyRef> refs;
+  for (const std::string &name : names) {
+    for (const LN_ValueType type : types) {
+      refs.push_back(MakeGamePropertyRef(name, type));
+    }
+  }
+  /* A ref without a name keeps its default, `exists` included. */
+  LN_GamePropertyRef unnamed = MakeGamePropertyRef("", LN_ValueType::Float);
+  unnamed.default_value.exists = true;
+  refs.push_back(unnamed);
+  /* The other programs read the same refs in reverse order (as many: only the program's
+   * identity tells them apart), and some of them. */
+  const std::vector<LN_GamePropertyRef> reversed(refs.rbegin(), refs.rend());
+  const std::shared_ptr<LN_Program> programs[3] = {
+      CreateGamePropertyProgram(refs),
+      CreateGamePropertyProgram(reversed),
+      CreateGamePropertyProgram({refs[13], refs[2], refs[5], refs[11]})};
+
+  KX_GameObject objects[2];
+  LN_Snapshot snapshot;
+  LN_TickReadContext context;
+  uint32_t state = 12345u;
+  const auto next = [&state](const uint32_t range) {
+    state = state * 1664525u + 1013904223u;
+    return (state >> 8) % range;
+  };
+
+  for (uint32_t step = 0; step < 4000; step++) {
+    KX_GameObject &changed = objects[next(4) == 0 ? 1 : 0];
+    const std::string &name = names[next(uint32_t(names.size()))];
+    const float number = float(int(next(7)) - 3) * 0.75f;
+    switch (next(10)) {
+      case 0:
+        SetOwnedProperty(changed, name, new EXP_FloatValue(number));
+        break;
+      case 1:
+        SetOwnedProperty(changed, name, new EXP_IntValue(cInt(number)));
+        break;
+      case 2:
+        SetOwnedProperty(changed, name, new EXP_BoolValue(next(2) == 0));
+        break;
+      case 3:
+        SetOwnedProperty(changed, name, new EXP_StringValue(next(2) == 0 ? "12.5" : "text", name));
+        break;
+      case 4:
+        SetOwnedProperty(changed, name, new EXP_Vector3Value(number, 1.0f, 2.0f));
+        break;
+      case 5:
+        changed.RemoveProperty(name);
+        break;
+      case 6:
+        if (next(8) == 0) {
+          changed.ClearProperties();
+        }
+        break;
+      default: {
+        /* A Logic Nodes write: numbers and text change in place. */
+        LN_Value value;
+        value.exists = true;
+        switch (next(4)) {
+          case 0:
+            value.type = LN_ValueType::Float;
+            value.float_value = number;
+            break;
+          case 1:
+            value.type = LN_ValueType::Int;
+            value.int_value = int32_t(number);
+            break;
+          case 2:
+            value.type = LN_ValueType::Bool;
+            value.bool_value = number > 0.0f;
+            break;
+          default:
+            value.type = LN_ValueType::String;
+            value.string_value = next(2) == 0 ? "-4" : "words";
+            break;
+        }
+        std::string reason;
+        LN_CommandBuffer::ApplyGamePropertyValue(&changed, name, value, nullptr, reason);
+        break;
+      }
+    }
+
+    /* Mostly the same object and program, as a tree captures; now and then the others. */
+    KX_GameObject &captured = objects[next(6) == 0 ? 1 : 0];
+    const LN_Program &program = *programs[next(6) == 0 ? 1 + next(2) : 0];
+    context.tick_index = step;
+    snapshot.Capture(&captured, &program, &context, 1.0f / 60.0f);
+    const std::vector<LN_GamePropertyRef> &program_refs = program.GetGamePropertyRefs();
+    for (uint32_t index = 0; index < program_refs.size(); index++) {
+      ExpectSameGamePropertyValue(snapshot.GetGamePropertyValue(index),
+                                  ReferenceGamePropertyValue(captured, program_refs[index]),
+                                  "step " + std::to_string(step) + " ref " +
+                                      std::to_string(index));
+      if (HasFailure()) {
+        return;
+      }
+    }
+    EXPECT_EQ(snapshot.GetGamePropertyValue(uint32_t(program_refs.size())), nullptr);
+
+    /* A UI widget's change read again after the capture. */
+    if (next(10) == 0 && !program_refs[0].name.empty()) {
+      SetOwnedProperty(captured, program_refs[0].name, new EXP_FloatValue(number + 1.0f));
+      snapshot.RefreshGameProperties(&captured, &program);
+      ExpectSameGamePropertyValue(snapshot.GetGamePropertyValue(0),
+                                  ReferenceGamePropertyValue(captured, program_refs[0]),
+                                  "refresh at step " + std::to_string(step));
+    }
+  }
+}
 
 TEST(LN_Snapshot, DependencyChannelsMapToCaptureChannels)
 {

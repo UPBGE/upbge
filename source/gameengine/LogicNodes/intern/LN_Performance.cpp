@@ -31,7 +31,6 @@ enum class LN_EnvironmentOverride {
 
 constexpr uint32_t LN_DEFAULT_STABLE_RUNTIME_FEATURES =
     uint32_t(LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS) |
-    uint32_t(LN_RUNTIME_FEATURE_RESOURCE_CLASS_SCHEDULER) |
     uint32_t(LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR);
 
 LN_EnvironmentOverride logic_nodes_env_override(const char *name)
@@ -904,7 +903,6 @@ LN_TickProfileMetrics logic_nodes_make_benchmark_metrics(const LN_BenchmarkFixtu
   metrics.parallel_record_ms = parallel ? logic_nodes_benchmark_base_ms(driver) *
                                               (optimized ? 0.38 : 0.55) :
                                           0.0;
-  metrics.merge_ms = double(driver.tree_count) * (parallel ? 0.00008 : 0.00002);
   metrics.flush_ms = double(total_command_count) * (optimized ? 0.00032 : 0.00048);
   metrics.event_delivery_ms = double(driver.event_count_per_tick) *
                               (optimized ? 0.000025 : 0.00008);
@@ -921,7 +919,6 @@ LN_TickProfileMetrics logic_nodes_make_benchmark_metrics(const LN_BenchmarkFixtu
   metrics.query_count = driver.scenario == LN_BenchmarkScenarioKind::PhysicsQueryHeavy ?
                             driver.expression_count_per_tree :
                             0u;
-  metrics.command_list_count = parallel ? driver.tree_count : 1u;
   metrics.command_count = total_command_count;
   metrics.command_legacy_count = optimized ? 0u : total_command_count;
   metrics.command_typed_transform_count = optimized ? total_command_count / 3u : 0u;
@@ -1116,11 +1113,12 @@ LN_BenchmarkRuntimeFixtureSample logic_nodes_run_runtime_benchmark_fixture_sampl
   const uint32_t iterations_per_sample = std::max(1u, 128u / tree_count);
   const bool optimized = logic_nodes_mode_is_optimized(mode);
 
-  std::vector<LN_RuntimeTree> runtime_trees;
+  /* A tree owns its state block and is never copied or moved. */
+  std::vector<std::unique_ptr<LN_RuntimeTree>> runtime_trees;
   runtime_trees.reserve(tree_count);
   for (uint32_t index = 0; index < tree_count; index++) {
-    runtime_trees.emplace_back(
-        program, logic_nodes_record_only_benchmark_owner(index + 1u), index, 0);
+    runtime_trees.push_back(std::make_unique<LN_RuntimeTree>(
+        program, logic_nodes_record_only_benchmark_owner(index + 1u), index, 0));
   }
 
   auto execute_tick = [&](const uint32_t tick, LN_RuntimeProfileCounters *counters) -> uint32_t {
@@ -1133,8 +1131,8 @@ LN_BenchmarkRuntimeFixtureSample logic_nodes_run_runtime_benchmark_fixture_sampl
 
     LN_CommandBuffer command_buffer;
     command_buffer.BeginRecording();
-    for (LN_RuntimeTree &runtime_tree : runtime_trees) {
-      runtime_tree.ExecuteReady(command_buffer, context, counters);
+    for (std::unique_ptr<LN_RuntimeTree> &runtime_tree : runtime_trees) {
+      runtime_tree->ExecuteReady(command_buffer, context, counters);
     }
     command_buffer.EndRecording();
     std::vector<LN_CommandBuffer::Command> planned_commands =
@@ -1929,7 +1927,7 @@ const std::array<LN_RuntimeFallbackDiagnosticSpec, size_t(LN_RuntimeFallbackReas
          true},
     }};
 
-const std::array<LN_RuntimeFeatureFlagStatus, 3> g_runtime_feature_flag_statuses = {{
+const std::array<LN_RuntimeFeatureFlagStatus, 2> g_runtime_feature_flag_statuses = {{
     {LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS,
      "typed_command_streams",
      "UPBGE_LN_FEATURE_TYPED_COMMAND_STREAMS",
@@ -1938,18 +1936,6 @@ const std::array<LN_RuntimeFeatureFlagStatus, 3> g_runtime_feature_flag_statuses
      "flush order or diagnostics.",
      "Remove once typed command output replay gates cover transform, physics, property, audio, "
      "event, and lifecycle command families.",
-     "2026-09-30",
-     true,
-     false,
-     true},
-    {LN_RUNTIME_FEATURE_RESOURCE_CLASS_SCHEDULER,
-     "resource_class_scheduler",
-     "UPBGE_LN_FEATURE_RESOURCE_CLASS_SCHEDULER",
-     "Logic Nodes runtime",
-     "Emergency disable when resource-class batching or deterministic worker merge changes serial "
-     "recording semantics.",
-     "Remove once serial/parallel scheduler merge replay gates are stable with worker recording "
-     "enabled and disabled.",
      "2026-09-30",
      true,
      false,
@@ -2079,7 +2065,7 @@ LN_GetRuntimeFallbackDiagnosticSpecs()
   return g_runtime_fallback_diagnostics;
 }
 
-const std::array<LN_RuntimeFeatureFlagStatus, 3> &LN_GetRuntimeFeatureFlagStatuses()
+const std::array<LN_RuntimeFeatureFlagStatus, 2> &LN_GetRuntimeFeatureFlagStatuses()
 {
   return g_runtime_feature_flag_statuses;
 }
@@ -2410,7 +2396,7 @@ bool LN_RuntimeFallbackDiagnosticCoversReason(const LN_RuntimeFallbackDiagnostic
 }
 
 bool LN_RuntimeFeatureFlagsAreEmergencyOverrides(
-    const std::array<LN_RuntimeFeatureFlagStatus, 3> &statuses)
+    const std::array<LN_RuntimeFeatureFlagStatus, 2> &statuses)
 {
   uint32_t feature_mask = 0;
   for (const LN_RuntimeFeatureFlagStatus &status : statuses) {
@@ -3180,9 +3166,6 @@ LN_RuntimeFeatureConfig LN_DefaultRuntimeFeatureConfig()
   logic_nodes_apply_feature_env_override(
       config, LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS, "UPBGE_LN_FEATURE_TYPED_COMMAND_STREAMS");
   logic_nodes_apply_feature_env_override(config,
-                                         LN_RUNTIME_FEATURE_RESOURCE_CLASS_SCHEDULER,
-                                         "UPBGE_LN_FEATURE_RESOURCE_CLASS_SCHEDULER");
-  logic_nodes_apply_feature_env_override(config,
                                          LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR,
                                          "UPBGE_LN_FEATURE_REGISTER_EXPRESSION_EVALUATOR");
   config.debug_assertions = logic_nodes_env_enabled("UPBGE_LN_ENABLE_GUARDRAIL_ASSERTIONS") &&
@@ -3224,9 +3207,7 @@ std::string LN_FormatTickProfileLine(const LN_TickProfileMetrics &metrics)
   std::ostringstream stream;
   stream << "Logic Nodes tick: snapshot_ms=" << metrics.snapshot_ms;
   stream << " serial_ms=" << metrics.serial_record_ms;
-  stream << " parallel_ms=" << metrics.parallel_record_ms;
   stream << " record_ms=" << record_ms;
-  stream << " merge_ms=" << metrics.merge_ms;
   stream << " flush_ms=" << metrics.flush_ms;
   stream << " event_ms=" << metrics.event_delivery_ms;
   stream << " allocations=" << metrics.allocation_count;
@@ -3259,33 +3240,6 @@ std::string LN_FormatTickProfileLine(const LN_TickProfileMetrics &metrics)
   stream << " typed_material_commands=" << metrics.command_typed_material_count;
   stream << " typed_physics_commands=" << metrics.command_typed_physics_count;
   stream << " coalesced_commands=" << metrics.command_coalesced_count;
-  stream << " command_lists=" << metrics.command_list_count;
-  stream << " scheduler_jobs=" << metrics.scheduler_job_count;
-  stream << " scheduler_planned_trees=" << metrics.scheduler_planned_tree_count;
-  stream << " scheduler_worker_batches=" << metrics.scheduler_worker_batch_count;
-  stream << " scheduler_main_thread_batches=" << metrics.scheduler_main_thread_batch_count;
-  stream << " scheduler_max_trees_per_worker_batch="
-         << metrics.scheduler_max_trees_per_worker_batch;
-  stream << " scheduler_avg_trees_per_worker_batch_x100="
-         << metrics.scheduler_average_trees_per_worker_batch_x100;
-  stream << " scheduler_worker_utilization_x100=" << metrics.scheduler_worker_utilization_x100;
-  stream << " scheduler_command_resources=0x" << std::hex
-         << metrics.scheduler_command_resource_classes;
-  stream << " scheduler_worker_resources=0x" << metrics.scheduler_worker_resource_access;
-  stream << " scheduler_main_thread_resources=0x" << metrics.scheduler_main_thread_resource_access
-         << std::dec;
-  stream << " scheduler_query_trees=" << metrics.scheduler_query_tree_count;
-  stream << " scheduler_snapshot_only_trees=" << metrics.scheduler_snapshot_only_tree_count;
-  stream << " scheduler_command_record_only_trees="
-         << metrics.scheduler_command_record_only_tree_count;
-  stream << " scheduler_immutable_worker_inputs="
-         << (metrics.scheduler_immutable_worker_inputs ? "yes" : "no");
-  stream << " scheduler_worker_metrics_local="
-         << (metrics.scheduler_worker_metrics_are_local ? "yes" : "no");
-  stream << " scheduler_deterministic_merge="
-         << (metrics.scheduler_deterministic_merge_order ? "yes" : "no");
-  stream << " scheduler_main_thread_flush_isolated="
-         << (metrics.scheduler_main_thread_flush_isolated ? "yes" : "no");
   stream << " instructions=" << metrics.instruction_count;
   stream << " exec_blocks=" << metrics.exec_block_count;
   stream << " exec_direct_instructions=" << metrics.exec_direct_instruction_count;
@@ -3306,10 +3260,12 @@ std::string LN_FormatTickProfileLine(const LN_TickProfileMetrics &metrics)
   stream << " system_fallback_reasons=0x" << metrics.runtime_system_fallback_reason_mask
          << std::dec;
   stream << " system_fallbacks=" << metrics.runtime_system_fallback_count;
-  stream << " main_thread_fallback_trees=" << metrics.main_thread_fallback_tree_count;
   stream << " serial_trees=" << metrics.serial_tree_count;
-  stream << " parallel_trees=" << metrics.parallel_tree_count;
   stream << " run_once=" << metrics.run_once_count;
-  stream << " parallel=" << (metrics.parallel_executor_used ? "on" : "off");
+  stream << " batches=" << metrics.batch_count;
+  stream << " batch_trees=" << metrics.batch_tree_count;
+  stream << " batch_threads=" << metrics.batch_thread_count;
+  stream << " batch_ms=" << metrics.batch_record_ms;
+  stream << " batch_join_ms=" << metrics.batch_join_ms;
   return stream.str();
 }

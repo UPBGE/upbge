@@ -1071,7 +1071,7 @@ typedef struct GameData {
 #define GAME_PYTHON_CONSOLE (1 << 22)
 #define GAME_USE_INTERACTIVE_DYNAPAINT (1 << 23)
 #define GAME_USE_INTERACTIVE_RIGIDBODY (1 << 24)
-#define GAME_USE_LOGIC_NODES_PARALLEL (1 << 25)
+// #define GAME_USE_LOGIC_NODES_PARALLEL (1 << 25) /* deprecated */
 #define GAME_SHOW_LOGIC_NODES_PROFILE (1 << 26)
 #define GAME_RECORD_FRAME_TIME_GRAPH (1 << 27)
 /* UPBGE: keep the GPU memory of the editor's 3D views while the game runs from Blender. Unset

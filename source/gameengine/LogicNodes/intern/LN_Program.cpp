@@ -9,6 +9,7 @@
 #include "LN_Program.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <map>
 #include <numeric>
@@ -17,6 +18,7 @@
 #include "KX_Parenting.h"
 #include "LN_BonePoseRotation.h"
 #include "LN_RuntimeSemantics.h"
+#include "LN_TreeBatch.h"
 #include "LN_TypeConversion.h"
 
 namespace {
@@ -594,6 +596,7 @@ void AddFloatExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       break;
     case LN_FloatExpressionKind::CooldownRemaining:
     case LN_FloatExpressionKind::CooldownProgress:
+    case LN_FloatExpressionKind::StepTimePassed:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_TIME_FLOW);
       break;
     case LN_FloatExpressionKind::MotionSpeed:
@@ -773,6 +776,14 @@ void AddVectorExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_VectorExpressionKind::SnapshotWorldScale:
     case LN_VectorExpressionKind::SnapshotLocalScale:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
+      break;
+    case LN_VectorExpressionKind::AxisVector:
+      /* Get Axis Vector of the own object is a snapshot read (VectorSnapshotRead): without the
+       * channel a tree reading nothing else of its object took no snapshot, and the axis came
+       * from an orientation never captured (fixed 2026-10-31). */
+      if (expression.input0 == LN_INVALID_INDEX) {
+        AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
+      }
       break;
     case LN_VectorExpressionKind::SnapshotLinearVelocity:
     case LN_VectorExpressionKind::SnapshotLocalLinearVelocity:
@@ -2599,94 +2610,6 @@ bool OpcodeEmitsCommands(const LN_OpCode opcode)
          (semantics->writes & LN_RUNTIME_SEMANTIC_WRITE_COMMAND_STREAM) != 0u;
 }
 
-uint32_t SchedulerResourcesForSemanticReads(const uint32_t reads)
-{
-  uint32_t resources = LN_SCHEDULER_RESOURCE_NONE;
-  if ((reads & LN_RUNTIME_SEMANTIC_READ_SNAPSHOT) != 0u) {
-    resources |= LN_SCHEDULER_RESOURCE_SNAPSHOT;
-  }
-  if ((reads & LN_RUNTIME_SEMANTIC_READ_INPUT) != 0u) {
-    resources |= LN_SCHEDULER_RESOURCE_INPUT;
-  }
-  if ((reads & LN_RUNTIME_SEMANTIC_READ_EVENT_BUS) != 0u ||
-      (reads & LN_RUNTIME_SEMANTIC_READ_RUNTIME_TREE_STATE) != 0u)
-  {
-    resources |= LN_SCHEDULER_RESOURCE_LOGIC_MANAGER;
-  }
-  if ((reads & LN_RUNTIME_SEMANTIC_READ_PHYSICS_EVENT) != 0u) {
-    resources |= LN_SCHEDULER_RESOURCE_LOGIC_MANAGER | LN_SCHEDULER_RESOURCE_PHYSICS;
-  }
-  if ((reads & LN_RUNTIME_SEMANTIC_READ_QUERY_CACHE) != 0u) {
-    resources |= LN_SCHEDULER_RESOURCE_QUERY_CACHE | LN_SCHEDULER_RESOURCE_PHYSICS;
-  }
-  if ((reads & LN_RUNTIME_SEMANTIC_READ_FILE) != 0u) {
-    resources |= LN_SCHEDULER_RESOURCE_FILE;
-  }
-  if ((reads & LN_RUNTIME_SEMANTIC_READ_GLOBAL_STATE) != 0u) {
-    resources |= LN_SCHEDULER_RESOURCE_GLOBAL_STATE;
-  }
-  return resources;
-}
-
-uint32_t SchedulerResourcesForSemanticObjectWrite(const LN_RuntimeCommandFamily family)
-{
-  switch (family) {
-    case LN_RuntimeCommandFamily::ObjectPhysics:
-    case LN_RuntimeCommandFamily::PhysicsConstraint:
-      return LN_SCHEDULER_RESOURCE_PHYSICS;
-    case LN_RuntimeCommandFamily::ObjectState:
-      return LN_SCHEDULER_RESOURCE_RENDER;
-    case LN_RuntimeCommandFamily::Animation:
-    case LN_RuntimeCommandFamily::Datablock:
-      return LN_SCHEDULER_RESOURCE_DATABLOCK;
-    case LN_RuntimeCommandFamily::Camera:
-    case LN_RuntimeCommandFamily::Light:
-    case LN_RuntimeCommandFamily::Render:
-    case LN_RuntimeCommandFamily::Window:
-    case LN_RuntimeCommandFamily::DebugDraw:
-      return LN_SCHEDULER_RESOURCE_RENDER;
-    default:
-      return LN_SCHEDULER_RESOURCE_WORLD;
-  }
-}
-
-uint32_t MinimumSchedulerResourcesForInstructionSemantics(
-    const LN_RuntimeInstructionSemantics &semantics, const LN_RuntimeCommandFamily family)
-{
-  uint32_t resources = SchedulerResourcesForSemanticReads(semantics.reads);
-  if ((semantics.writes & LN_RUNTIME_SEMANTIC_WRITE_COMMAND_STREAM) != 0u) {
-    resources |= LN_SCHEDULER_RESOURCE_COMMAND_BUFFER;
-  }
-  if ((semantics.writes & LN_RUNTIME_SEMANTIC_WRITE_OBJECT_STATE) != 0u) {
-    resources |= SchedulerResourcesForSemanticObjectWrite(family);
-  }
-  if ((semantics.writes & LN_RUNTIME_SEMANTIC_WRITE_SCENE) != 0u) {
-    resources |= LN_SCHEDULER_RESOURCE_SCENE;
-  }
-  if ((semantics.writes & LN_RUNTIME_SEMANTIC_WRITE_AUDIO) != 0u) {
-    resources |= LN_SCHEDULER_RESOURCE_AUDIO;
-  }
-  if ((semantics.writes & LN_RUNTIME_SEMANTIC_WRITE_FILE) != 0u) {
-    resources |= LN_SCHEDULER_RESOURCE_FILE;
-  }
-  if ((semantics.writes & LN_RUNTIME_SEMANTIC_WRITE_GLOBAL_STATE) != 0u) {
-    resources |= LN_SCHEDULER_RESOURCE_GLOBAL_STATE;
-  }
-  if ((semantics.writes & LN_RUNTIME_SEMANTIC_WRITE_RENDER) != 0u) {
-    resources |= LN_SCHEDULER_RESOURCE_RENDER;
-  }
-  if ((semantics.writes & LN_RUNTIME_SEMANTIC_WRITE_EVENT_BUS) != 0u) {
-    resources |= LN_SCHEDULER_RESOURCE_LOGIC_MANAGER;
-  }
-  return resources;
-}
-
-uint32_t MinimumSchedulerResourcesForExpressionSemantics(
-    const LN_RuntimeExpressionSemantics &semantics)
-{
-  return SchedulerResourcesForSemanticReads(semantics.reads);
-}
-
 LN_MainThreadOnlyReason MainThreadOnlyReasonForBoolExpression(const LN_BoolExpressionKind kind)
 {
   switch (kind) {
@@ -3317,6 +3240,12 @@ bool RegisterOpHasSimdKernel(const LN_RegisterExpressionOpKind kind)
 
 }  // namespace
 
+uint64_t LN_Program::UniqueId::Next()
+{
+  static std::atomic<uint64_t> last_id{0};
+  return last_id.fetch_add(1, std::memory_order_relaxed) + 1;
+}
+
 LN_Program::LN_Program()
     : m_programVersion(LN_PROGRAM_VERSION),
       m_schemaVersion(LN_PROGRAM_SCHEMA_VERSION),
@@ -3353,13 +3282,26 @@ LN_StringId LN_Program::InternString(const std::string &value)
   return LN_StringId{index};
 }
 
+const LN_TreeBatchProfile &LN_Program::GetTreeBatchProfile() const
+{
+  if (m_treeBatchProfile == nullptr) {
+    m_treeBatchProfile = std::make_shared<const LN_TreeBatchProfile>(
+        LN_AnalyzeTreeBatchSafety(*this));
+  }
+  return *m_treeBatchProfile;
+}
+
 uint32_t LN_Program::AddTimeFlowState()
 {
+  m_treeStateLayout.reset();
+  m_treeBatchProfile.reset();
   return m_timeFlowStateCount++;
 }
 
 uint32_t LN_Program::AddFlowControlState()
 {
+  m_treeStateLayout.reset();
+  m_treeBatchProfile.reset();
   return m_flowControlStateCount++;
 }
 
@@ -3709,6 +3651,20 @@ uint32_t LN_Program::AddStringExpression(const LN_StringExpression &expression)
   return index;
 }
 
+uint32_t LN_Program::AddStepGate(const LN_StepGate &gate)
+{
+  for (uint32_t index = 0; index < m_stepGates.size(); index++) {
+    if (m_stepGates[index].interval == gate.interval && m_stepGates[index].spread == gate.spread)
+    {
+      return index;
+    }
+  }
+  m_treeStateLayout.reset();
+  m_treeBatchProfile.reset();
+  m_stepGates.push_back(gate);
+  return uint32_t(m_stepGates.size() - 1);
+}
+
 uint32_t LN_Program::AddSourceRef(const LN_SourceRef &source_ref)
 {
   const uint32_t index = uint32_t(m_sourceRefs.size());
@@ -4014,6 +3970,9 @@ const LN_ExecBlockProgram &LN_Program::GetExecBlockProgram(const LN_Event event)
 
 void LN_Program::RebuildExecBlockIR(const LN_Event event)
 {
+  /* Instructions changed: trees lay their state out again (LN_RuntimeTree::RefreshStateBlockLayout). */
+  m_treeStateLayout.reset();
+  m_treeBatchProfile.reset();
   LN_ExecBlockProgram &ir = m_execBlockPrograms[size_t(event)];
   const std::vector<LN_InstructionHeader> &headers = GetInstructionHeaders(event);
 
@@ -4034,6 +3993,7 @@ void LN_Program::RebuildExecBlockIR(const LN_Event event)
     const bool direct = OpcodeHasDirectExecOp(instruction);
     const uint32_t loop_frame = instruction.loop_frame_index;
     const uint32_t completed_loop_frame = instruction.completed_loop_frame_index;
+    const uint32_t step_gate = instruction.step_gate_index;
     const uint32_t first_instruction = instruction_index;
     if (!direct) {
       ir.validation_errors.push_back("unsupported opcode in mandatory exec-block IR");
@@ -4046,6 +4006,7 @@ void LN_Program::RebuildExecBlockIR(const LN_Event event)
     block.first_op = uint32_t(ir.ops.size());
     block.loop_frame_index = loop_frame;
     block.completed_loop_frame_index = completed_loop_frame;
+    block.step_gate_index = step_gate;
     block.source_ref_index = instruction.source_ref_index;
 
     while (instruction_index < headers.size()) {
@@ -4056,6 +4017,7 @@ void LN_Program::RebuildExecBlockIR(const LN_Event event)
       }
       if (loop_frame != block_instruction.loop_frame_index ||
           completed_loop_frame != block_instruction.completed_loop_frame_index ||
+          step_gate != block_instruction.step_gate_index ||
           (instruction_index != first_instruction &&
            (headers[instruction_index].flags & LN_INSTRUCTION_FLAG_LOOP_BODY_START) != 0))
       {
@@ -4096,6 +4058,12 @@ void LN_Program::RebuildExecBlockIR(const LN_Event event)
     ir.blocks.push_back(block);
   }
 
+  ir.all_blocks_step_gated = !ir.blocks.empty() &&
+                             std::all_of(ir.blocks.begin(),
+                                         ir.blocks.end(),
+                                         [](const LN_ExecBlock &block) {
+                                           return block.step_gate_index != LN_INVALID_INDEX;
+                                         });
   ir.validation_errors.clear();
   ir.valid = ValidateExecBlockProgram(ir, headers, ir.validation_errors);
 }
@@ -4130,6 +4098,12 @@ bool LN_Program::ValidateExecBlockProgram(const LN_ExecBlockProgram &ir,
     direct_instruction_count += block.instruction_count;
     if (block.op_count != block.instruction_count) {
       add_error("direct block op count does not match instruction count");
+    }
+    /* Step gates belong to Logic + Physics steps only: the other events have no step count. */
+    if (block.step_gate_index != LN_INVALID_INDEX &&
+        (ir.event != LN_Event::OnFixedUpdate || block.step_gate_index >= m_stepGates.size()))
+    {
+      add_error("block step gate is invalid");
     }
     for (uint32_t op_index = block.first_op; op_index < block.first_op + block.op_count;
          op_index++)
@@ -4180,6 +4154,9 @@ bool LN_Program::ValidateExecBlockIR(std::vector<std::string> *r_errors) const
 
 void LN_Program::RebuildRegisterExpressionIR()
 {
+  /* Expressions or registers changed (every Add*Expression comes here): see RebuildExecBlockIR. */
+  m_treeStateLayout.reset();
+  m_treeBatchProfile.reset();
   LN_RegisterExpressionProgram ir;
   ir.program_version = m_programVersion;
   ir.schema_version = m_schemaVersion;
@@ -6584,56 +6561,10 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
   ValidateInstructionPayloadCollection(
       LN_Event::OnFixedUpdate, m_onFixedUpdate, m_onFixedUpdatePayloads, errors);
 
-  if (!m_onFixedUpdate.empty()) {
-    if (m_schedulerSummary.required_phase != LN_SchedulerRequiredPhase::OnFixedUpdate) {
-      errors.push_back("scheduler phase restriction does not cover OnFixedUpdate instructions");
-    }
-  }
-  else if (!m_onUpdate.empty()) {
-    if (m_schedulerSummary.required_phase != LN_SchedulerRequiredPhase::OnUpdate) {
-      errors.push_back("scheduler phase restriction does not cover OnUpdate instructions");
-    }
-  }
-  else if (!m_onInit.empty()) {
-    if (m_schedulerSummary.required_phase != LN_SchedulerRequiredPhase::OnInit) {
-      errors.push_back("scheduler phase restriction does not cover OnInit instructions");
-    }
-  }
-
-  auto validate_scheduler_restrictions = [&](const char *event_name,
-                                             const std::vector<LN_Instruction> &payloads) {
-    for (size_t index = 0; index < payloads.size(); index++) {
-      const LN_Instruction &payload = payloads[index];
-      const LN_RuntimeInstructionSemantics *semantics = LN_GetRuntimeInstructionSemantics(
-          payload.opcode);
-      if (semantics != nullptr) {
-        const LN_RuntimeCommandFamily command_family = LN_GetRuntimeCommandFamily(payload.opcode);
-        const uint32_t minimum_resources = MinimumSchedulerResourcesForInstructionSemantics(
-            *semantics, command_family);
-        if ((minimum_resources & ~m_schedulerSummary.resource_access) != 0u) {
-          errors.push_back(std::string(event_name) + " instruction " + std::to_string(index) +
-                           " (" + semantics->name +
-                           "): scheduler summary is missing semantic resource access");
-        }
-      }
-      const LN_MainThreadOnlyReason reason = MainThreadOnlyReasonForOpcode(payload.opcode);
-      if (reason != LN_MainThreadOnlyReason::None &&
-          (m_schedulerSummary.worker_lane_eligible ||
-           m_schedulerSummary.main_thread_only_reason == LN_MainThreadOnlyReason::None))
-      {
-        errors.push_back(std::string(event_name) + " instruction " + std::to_string(index) +
-                         ": scheduler restriction allows a main-thread-only opcode");
-      }
-      if (OpcodeEmitsCommands(payload.opcode) && !m_schedulerSummary.emits_commands) {
-        errors.push_back(std::string(event_name) + " instruction " + std::to_string(index) +
-                         ": scheduler restriction lost command-emitting status");
-      }
-    }
-  };
-  validate_scheduler_restrictions("OnInit", m_onInitPayloads);
-  validate_scheduler_restrictions("OnUpdate", m_onUpdatePayloads);
-  validate_scheduler_restrictions("OnFixedUpdate", m_onFixedUpdatePayloads);
-
+  /* The checks of the removed parallel scheduler's bookkeeping (phase coverage, resource access,
+   * worker lanes, main-thread reasons...) are gone (2026-10-31): nothing reads those fields at
+   * runtime, and a program they did not match was refused, so a tree using only Get Bone Length
+   * never ran. Only the masks the runtime uses are checked below. */
   LN_ProgramDependencySummary expected_dependencies;
   auto add_expected_instruction_dependencies = [&](const std::vector<LN_Instruction> &payloads) {
     for (const LN_Instruction &payload : payloads) {
@@ -6685,31 +6616,10 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
   validate_dependency_mask(
       "input channel", m_dependencySummary.input_channels, expected_dependencies.input_channels);
   validate_dependency_mask(
-      "event channel", m_dependencySummary.event_channels, expected_dependencies.event_channels);
-  validate_dependency_mask(
       "query channel", m_dependencySummary.query_channels, expected_dependencies.query_channels);
-  validate_dependency_mask(
-      "command class", m_dependencySummary.command_classes, expected_dependencies.command_classes);
-  validate_dependency_mask(
-      "access class", m_dependencySummary.access_classes, expected_dependencies.access_classes);
-  validate_dependency_mask(
-      "dynamic flag", m_dependencySummary.dynamic_flags, expected_dependencies.dynamic_flags);
-  validate_dependency_mask("state preservation",
-                           m_dependencySummary.state_preservation,
-                           expected_dependencies.state_preservation);
-  validate_dependency_mask("main-thread reason",
-                           m_dependencySummary.main_thread_reason_mask,
-                           expected_dependencies.main_thread_reason_mask);
   validate_dependency_mask("ray-query detail",
                            m_dependencySummary.ray_query_detail_requirements,
                            expected_dependencies.ray_query_detail_requirements);
-  if (m_dependencySummary.worker_lane_eligible != expected_dependencies.worker_lane_eligible) {
-    errors.push_back(
-        "dependency summary worker-lane eligibility does not match runtime semantics");
-  }
-  if (m_schedulerSummary.worker_lane_eligible && !m_dependencySummary.worker_lane_eligible) {
-    errors.push_back("scheduler summary allows a dependency main-thread-only program");
-  }
 
   auto validate_expression_semantics = [&](const char *table_name,
                                            const size_t index,
@@ -6718,17 +6628,6 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
       errors.push_back(std::string(table_name) + " expression " + std::to_string(index) +
                        ": kind is missing runtime semantics entry");
       return;
-    }
-    const uint32_t minimum_resources = MinimumSchedulerResourcesForExpressionSemantics(semantics);
-    if ((minimum_resources & ~m_schedulerSummary.resource_access) != 0u) {
-      errors.push_back(std::string(table_name) + " expression " + std::to_string(index) +
-                       ": scheduler summary is missing semantic resource access");
-    }
-    if (semantics.threading == LN_RuntimeSemanticThreading::MainThreadRecord &&
-        m_schedulerSummary.worker_lane_eligible)
-    {
-      errors.push_back(std::string(table_name) + " expression " + std::to_string(index) +
-                       ": scheduler summary allows main-thread-only expression");
     }
     if ((semantics.fallback_requirements & LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION) != 0u &&
         (semantics.reads & LN_RUNTIME_SEMANTIC_READ_PROGRAM_TABLE) == 0u)
@@ -7212,6 +7111,13 @@ bool LN_Program::ValidateInstructionPayloads(std::vector<std::string> *r_errors)
     {
       errors.push_back("float expression " + std::to_string(index) +
                        ": motion state id is outside dense state table");
+    }
+    if (expression.kind == LN_FloatExpressionKind::StepTimePassed &&
+        (expression.int_value < -1 || (expression.int_value >= 0 &&
+                                       uint32_t(expression.int_value) >= m_stepGates.size())))
+    {
+      errors.push_back("float expression " + std::to_string(index) +
+                       ": step gate is outside the program's gates");
     }
     if ((expression.kind == LN_FloatExpressionKind::QueryDistance ||
          expression.kind == LN_FloatExpressionKind::QuerySquaredDistance) &&
@@ -7806,6 +7712,7 @@ void LN_Program::UpdateSchedulerSummaryForFloatExpression(const LN_FloatExpressi
     case LN_FloatExpressionKind::CooldownRemaining:
     case LN_FloatExpressionKind::CooldownProgress:
     case LN_FloatExpressionKind::MotionSpeed:
+    case LN_FloatExpressionKind::StepTimePassed:
       MarkRuntimeTreeStateRead(m_schedulerSummary);
       break;
     case LN_FloatExpressionKind::GamepadButtonStrength:

@@ -3692,113 +3692,36 @@ TEST(LN_Program, InstructionPayloadValidationRejectsInvalidQueryRuntimeState)
   EXPECT_TRUE(ContainsError(errors, "runtime state id"));
 }
 
-TEST(LN_Program, InstructionPayloadValidationRejectsPhaseAndSchedulerDrift)
+/* The removed parallel scheduler's bookkeeping no longer refuses a program (2026-10-31):
+ * nothing reads it at runtime, and a program it did not match never ran, e.g. a tree whose only
+ * snapshot read was Get Bone Length (no snapshot resource was ever noted for it). */
+TEST(LN_Program, InstructionPayloadValidationIgnoresTheRemovedSchedulerBookkeeping)
 {
-  LN_Program phase_program;
-  LN_Instruction phase_instruction;
-  phase_instruction.opcode = LN_OpCode::Print;
-  phase_program.AddInstruction(LN_Event::OnFixedUpdate, phase_instruction);
-
-  LN_SchedulerSummary &phase_summary = const_cast<LN_SchedulerSummary &>(
-      phase_program.GetSchedulerSummary());
-  phase_summary.required_phase = LN_SchedulerRequiredPhase::None;
-
-  std::vector<std::string> phase_errors;
-  EXPECT_FALSE(phase_program.ValidateInstructionPayloads(&phase_errors));
-  EXPECT_TRUE(ContainsError(phase_errors, "phase restriction"));
-
-  LN_Program scheduler_program;
-  LN_Instruction scheduler_instruction;
-  scheduler_instruction.opcode = LN_OpCode::SaveGame;
-  scheduler_program.AddInstruction(LN_Event::OnFixedUpdate, scheduler_instruction);
-
-  LN_SchedulerSummary &scheduler_summary = const_cast<LN_SchedulerSummary &>(
-      scheduler_program.GetSchedulerSummary());
-  scheduler_summary.worker_lane_eligible = true;
-  scheduler_summary.main_thread_only_reason = LN_MainThreadOnlyReason::None;
-  scheduler_summary.emits_commands = false;
-
-  std::vector<std::string> scheduler_errors;
-  EXPECT_FALSE(scheduler_program.ValidateInstructionPayloads(&scheduler_errors));
-  EXPECT_TRUE(ContainsError(scheduler_errors, "scheduler restriction"));
-  EXPECT_TRUE(ContainsError(scheduler_errors, "command-emitting"));
-}
-
-TEST(LN_Program, InstructionPayloadValidationRejectsSemanticSchedulerResourceDrift)
-{
-  LN_Program program;
-  LN_Instruction instruction;
-  instruction.opcode = LN_OpCode::SetWorldPosition;
-  program.AddInstruction(LN_Event::OnFixedUpdate, instruction);
-  ASSERT_TRUE(HasResource(program.GetSchedulerSummary(), LN_SCHEDULER_RESOURCE_WORLD));
-
-  LN_SchedulerSummary &summary = const_cast<LN_SchedulerSummary &>(program.GetSchedulerSummary());
-  summary.resource_access &= ~LN_SCHEDULER_RESOURCE_WORLD;
-
+  LN_Program drifted;
+  LN_Instruction print_step;
+  print_step.opcode = LN_OpCode::Print;
+  drifted.AddInstruction(LN_Event::OnFixedUpdate, print_step);
+  LN_SchedulerSummary &summary = const_cast<LN_SchedulerSummary &>(
+      drifted.GetSchedulerSummary());
+  summary.required_phase = LN_SchedulerRequiredPhase::None;
+  summary.worker_lane_eligible = true;
+  summary.main_thread_only_reason = LN_MainThreadOnlyReason::None;
+  summary.emits_commands = false;
+  summary.resource_access = LN_SCHEDULER_RESOURCE_NONE;
   std::vector<std::string> errors;
-  EXPECT_FALSE(program.ValidateInstructionPayloads(&errors));
-  EXPECT_TRUE(ContainsError(errors, "scheduler summary is missing semantic resource access"));
-}
+  EXPECT_TRUE(drifted.ValidateInstructionPayloads(&errors))
+      << (errors.empty() ? std::string() : errors.front());
 
-TEST(LN_Program, SchedulerResourcesCoverEveryRuntimeOpcodeSemanticMinimum)
-{
-  for (uint32_t value = 0; value < uint32_t(LN_OpCode::Count); value++) {
-    LN_Program program;
-    LN_Instruction instruction;
-    instruction.opcode = static_cast<LN_OpCode>(value);
-    program.AddInstruction(LN_Event::OnFixedUpdate, instruction);
-
-    std::vector<std::string> errors;
-    program.ValidateInstructionPayloads(&errors);
-    if (ContainsError(errors, "scheduler summary is missing semantic resource access")) {
-      const LN_RuntimeInstructionSemantics *semantics = LN_GetRuntimeInstructionSemantics(
-          instruction.opcode);
-      for (const std::string &error : errors) {
-        if (error.find("scheduler summary is missing semantic resource access") !=
-            std::string::npos)
-        {
-          ADD_FAILURE() << "opcode " << value << " ("
-                        << (semantics != nullptr ? semantics->name : "unknown") << ") resources=0x"
-                        << std::hex << program.GetSchedulerSummary().resource_access << " reads=0x"
-                        << (semantics != nullptr ? semantics->reads : 0u) << " writes=0x"
-                        << (semantics != nullptr ? semantics->writes : 0u) << std::dec << ": " << error;
-        }
-      }
-    }
-  }
-}
-
-TEST(LN_Program, InstructionPayloadValidationRejectsSemanticPersistenceResourceDrift)
-{
-  LN_Program program;
-  LN_Instruction instruction;
-  instruction.opcode = LN_OpCode::SaveVariable;
-  program.AddInstruction(LN_Event::OnFixedUpdate, instruction);
-  ASSERT_TRUE(HasResource(program.GetSchedulerSummary(), LN_SCHEDULER_RESOURCE_FILE));
-
-  LN_SchedulerSummary &summary = const_cast<LN_SchedulerSummary &>(program.GetSchedulerSummary());
-  summary.resource_access &= ~LN_SCHEDULER_RESOURCE_FILE;
-
-  std::vector<std::string> errors;
-  EXPECT_FALSE(program.ValidateInstructionPayloads(&errors));
-  EXPECT_TRUE(ContainsError(errors, "scheduler summary is missing semantic resource access"));
-}
-
-TEST(LN_Program, InstructionPayloadValidationRejectsSemanticExpressionResourceDrift)
-{
-  LN_Program program;
-  LN_BoolExpression expression;
-  expression.kind = LN_BoolExpressionKind::EventReceived;
-  program.AddBoolExpression(expression);
-  ASSERT_TRUE(HasResource(program.GetSchedulerSummary(), LN_SCHEDULER_RESOURCE_LOGIC_MANAGER));
-
-  LN_SchedulerSummary &summary = const_cast<LN_SchedulerSummary &>(program.GetSchedulerSummary());
-  summary.resource_access &= ~LN_SCHEDULER_RESOURCE_LOGIC_MANAGER;
-
-  std::vector<std::string> errors;
-  EXPECT_FALSE(program.ValidateInstructionPayloads(&errors));
-  EXPECT_TRUE(ContainsError(
-      errors, "bool expression 0: scheduler summary is missing semantic resource access"));
+  LN_Program bone_length;
+  LN_FloatExpression length;
+  length.kind = LN_FloatExpressionKind::BoneLength;
+  bone_length.AddFloatExpression(length);
+  LN_Instruction print;
+  print.opcode = LN_OpCode::Print;
+  bone_length.AddInstruction(LN_Event::OnUpdate, print);
+  errors.clear();
+  EXPECT_TRUE(bone_length.ValidateInstructionPayloads(&errors))
+      << (errors.empty() ? std::string() : errors.front());
 }
 
 TEST(LN_Program, InstructionPayloadValidationAcceptsMixedInitAndFixedUpdatePhase)

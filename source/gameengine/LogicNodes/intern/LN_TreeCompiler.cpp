@@ -17,6 +17,7 @@
 #include <cctype>
 #include <charconv>
 #include <cmath>
+#include <cstdio>
 #include <cstdint>
 #include <cstring>
 #include <initializer_list>
@@ -66,6 +67,9 @@ struct FlowPath {
   bool ui_event_route = false;
   /** Started by While Paused: it runs only while the game is paused. */
   bool paused_route = false;
+  /** Started by an On Logic + Physics Step with Every N Steps: its LN_StepGate. Copies of the path
+   * (branches, Loop bodies, Done of an immediate node) keep it; ContinuationPaths start without. */
+  uint32_t step_gate_index = LN_INVALID_INDEX;
   /** Started by an On UI Event: its query's runtime state. Its instructions run again for each
    * further event of a frame. Deferred results (Opened, Done of a Delay...) are not part of it:
    * ContinuationPaths starts fresh paths. */
@@ -216,8 +220,13 @@ struct FlowEventsResult {
   bool valid = true;
 };
 
+/** `fires_with_source`: the continuation belongs to the runs of its source route (Pulsify's
+ * pulse, a Barrier passing: updated by their own instruction). It then keeps the Every N Steps
+ * gate its sources share, so it runs on their steps with their time; a Delay's Done, which fires
+ * on any step, starts without. */
 std::vector<FlowPath> ContinuationPaths(const FlowEventsResult &source_flow,
-                                        const uint32_t guard_expression)
+                                        const uint32_t guard_expression,
+                                        const bool fires_with_source = false)
 {
   std::vector<FlowPath> paths;
   for (const FlowPath &source_path : source_flow.paths) {
@@ -227,6 +236,12 @@ std::vector<FlowPath> ContinuationPaths(const FlowEventsResult &source_flow,
     if (existing != paths.end()) {
       existing->ui_event_route = existing->ui_event_route || source_path.ui_event_route;
       existing->paused_route = existing->paused_route && source_path.paused_route;
+      /* Fed by routes of different gates (or one that runs every step): it runs every step. */
+      if (existing->step_gate_index != source_path.step_gate_index ||
+          source_path.event != event)
+      {
+        existing->step_gate_index = LN_INVALID_INDEX;
+      }
       continue;
     }
     FlowPath path;
@@ -235,6 +250,9 @@ std::vector<FlowPath> ContinuationPaths(const FlowEventsResult &source_flow,
     /* A result of something a UI event started (Opened, Done...) belongs to that UI route. */
     path.ui_event_route = source_path.ui_event_route;
     path.paused_route = source_path.paused_route;
+    if (fires_with_source && source_path.event == event) {
+      path.step_gate_index = source_path.step_gate_index;
+    }
     paths.push_back(path);
   }
   return paths;
@@ -280,6 +298,7 @@ uint32_t AppendFlowInstruction(LN_Program &program,
   instruction.loop_frame_index = path.loop_frame_index;
   instruction.completed_loop_frame_index = path.completed_loop_frame_index;
   instruction.ui_event_state_index = path.ui_event_state_index;
+  instruction.step_gate_index = path.step_gate_index;
   if (path.ui_event_route) {
     instruction.flags |= LN_INSTRUCTION_FLAG_UI_EVENT_ROUTE;
   }
@@ -1053,8 +1072,14 @@ static FlowEventsResult BuildLatentCompletionRouteFlowEvents(
    * route guard (an event pulse, branch condition or loop frame) into a later
    * tick makes a completed Delay/Timer/Pulsify/Barrier depend on a transient
    * condition that has already expired. Build one fresh continuation per
-   * phase and let the latent node's completion expression be its sole guard. */
-  source_flow.paths = ContinuationPaths(source_flow, LN_INVALID_INDEX);
+   * phase and let the latent node's completion expression be its sole guard.
+   * Pulsify and Barrier are updated by their own instruction, in runs of their input route, so
+   * their continuation keeps that route's Every N Steps gate: it runs on the route's steps with
+   * its time (a Delay or Timer counts down on every step and fires on any). */
+  source_flow.paths = ContinuationPaths(
+      source_flow,
+      LN_INVALID_INDEX,
+      ELEM(definition.kind, LN_NodeKind::Pulsify, LN_NodeKind::Barrier));
 
   return BuildConditionRouteFlowEvents(program,
                                        tree,
@@ -1219,6 +1244,7 @@ static FlowEventsResult ResolveFlowLinkEvents(LN_Program &program,
         path.bool_guard_expr_index = program.AddBoolExpression(paused_expression);
         path.paused_route = true;
       }
+      path.step_gate_index = StepGateOfEventNode(program, definition.kind, *link.fromnode);
       result.paths.push_back(path);
       break;
     }
@@ -1412,6 +1438,13 @@ static FlowEventsResult ResolveFlowLinkEvents(LN_Program &program,
                                                         completed_path.ui_event_state_index ?
                                                     same->ui_event_state_index :
                                                     LN_INVALID_INDEX;
+          /* Fed by routes behind different Every N Steps, Completed runs ungated: it took the
+           * gate of the path that sorted last, so a run ended on another route's step never
+           * ran Completed (fixed 2026-10-31; ContinuationPaths does the same). */
+          const uint32_t step_gate_index = same->step_gate_index ==
+                                                   completed_path.step_gate_index ?
+                                               same->step_gate_index :
+                                               LN_INVALID_INDEX;
           if (std::lexicographical_compare(same->execution_order.begin(),
                                            same->execution_order.end(),
                                            completed_path.execution_order.begin(),
@@ -1422,6 +1455,7 @@ static FlowEventsResult ResolveFlowLinkEvents(LN_Program &program,
           same->ui_event_route = ui_event_route;
           same->paused_route = paused_route;
           same->ui_event_state_index = ui_event_state_index;
+          same->step_gate_index = step_gate_index;
         };
         for (const FlowPath &path : result.paths) {
           if (path.loop_frame_index != LN_INVALID_INDEX) {
@@ -5293,15 +5327,24 @@ void CompileListRandomItemNode(CompilerContext &context)
 
 void CompileGetChildByNameNode(CompilerContext &context)
 {
+  /* The output is always built: with an input empty it was never built, so the next node read
+   * its own Object input as empty (the owner) or failed to compile (until 2026-11-01). An empty
+   * Parent is the owner, as for Get Parent; an empty Child names nothing, so the output is none
+   * (input1 missing). A link that did not compile gives none too, never the owner. */
   const std::optional<uint32_t> parent_expr = context.BuildOptionalObject("Parent");
   const std::optional<uint32_t> child_expr = context.BuildOptionalObject("Child");
-  if (parent_expr && child_expr) {
-    LN_ValueExpression expression;
-    expression.kind = LN_ValueExpressionKind::ObjectChildByName;
+  LN_ValueExpression expression;
+  expression.kind = LN_ValueExpressionKind::ObjectChildByName;
+  if (parent_expr) {
     expression.input0 = *parent_expr;
-    expression.input1 = *child_expr;
-    context.CacheValueOutputPin("Child", context.program.AddValueExpression(expression));
   }
+  else if (!IsInputSocketLinked(context.node, "Parent", context.input_links)) {
+    LN_ValueExpression owner;
+    owner.kind = LN_ValueExpressionKind::OwnerObject;
+    expression.input0 = context.program.AddValueExpression(owner);
+  }
+  expression.input1 = child_expr.value_or(LN_INVALID_INDEX);
+  context.CacheValueOutputPin("Child", context.program.AddValueExpression(expression));
 }
 
 void CompileListSavedVariablesNode(CompilerContext &context)
@@ -6656,17 +6699,24 @@ void CompileGetRigidBodyConstraintsNode(CompilerContext &context)
 void CompileProjectileRayNode(CompilerContext &context)
 {
   const std::optional<uint32_t> condition_expr = context.BuildPrimaryExecution();
+  /* Caster is optional, as for Raycast (empty: no object ignored; in Local space the owner). An
+   * empty Caster made the whole node compile to nothing, its outputs reading their defaults, until
+   * 2026-11-01. */
   const std::optional<uint32_t> caster_expr = context.BuildOptionalObject("Caster");
   const std::optional<uint32_t> origin_expr = context.BuildVector("Origin");
   const std::optional<uint32_t> aim_expr = context.BuildVector("Aim");
-  if (!condition_expr || !caster_expr || !origin_expr || !aim_expr) {
+  if (!condition_expr || !origin_expr || !aim_expr) {
+    return;
+  }
+  if (!caster_expr && IsInputSocketLinked(context.node, "Caster", context.input_links)) {
+    context.AddError("Caster", "Caster input link did not compile");
     return;
   }
 
   LN_QueryExpression query;
   query.kind = LN_QueryExpressionKind::ProjectileRay;
   query.condition_bool_expr_index = *condition_expr;
-  query.input0 = *caster_expr;
+  query.input0 = caster_expr.value_or(LN_INVALID_INDEX);
   query.input1 = *origin_expr;
   query.input2 = *aim_expr;
   query.bool_expr_index = context.BuildBool("Local").value_or(LN_INVALID_INDEX);
@@ -12699,6 +12749,8 @@ void CompileEventSourceNode(CompilerContext &context, LN_Event event)
   instruction.source_ref_index = source_ref_index;
   FlowPath event_path;
   event_path.event = event;
+  event_path.step_gate_index = StepGateOfEventNode(
+      context.program, context.definition.kind, context.node);
   if (context.definition.kind == LN_NodeKind::WhilePaused) {
     LN_BoolExpression paused_expression;
     paused_expression.kind = LN_BoolExpressionKind::GamePaused;
@@ -14324,6 +14376,48 @@ std::shared_ptr<LN_Program> LN_TreeCompiler::Compile(const blender::bNodeTree &t
       instruction_schedule.loop_order_depths,
       instruction_schedule.instruction_pulse_expressions,
       instruction_schedule.instruction_index_vector_expressions);
+
+  /* Nodes that act for one step only: in a route that runs every N steps they miss the other
+   * steps' share (Mouse Look the mouse movement, a force its push). Once per node. */
+  std::unordered_set<uint32_t> warned_step_gated_sources;
+  for (const LN_Instruction &instruction : program->GetInstructions(LN_Event::OnFixedUpdate)) {
+    if (instruction.step_gate_index == LN_INVALID_INDEX ||
+        instruction.step_gate_index >= program->GetStepGates().size())
+    {
+      continue;
+    }
+    const char *message = nullptr;
+    /* Apply Force and Apply Torque compile to ApplyPhysicsVector. */
+    const bool pushes = instruction.opcode == LN_OpCode::ApplyForceToTarget ||
+                        (instruction.opcode == LN_OpCode::ApplyPhysicsVector &&
+                         ELEM(LN_VectorOperationChannel(instruction.vector_operation_channel),
+                              LN_VectorOperationChannel::Force,
+                              LN_VectorOperationChannel::Torque));
+    if (instruction.opcode == LN_OpCode::MouseLook) {
+      message =
+          "Mouse Look here runs only every %u steps (On Logic + Physics Step's Every), so it "
+          "misses the mouse movement of the other steps; drive it from a step node that runs "
+          "every step";
+    }
+    else if (pushes) {
+      message =
+          "A force pushes for one step only: here it runs every %u steps (On Logic + Physics "
+          "Step's Every), so it pushes that many times weaker on average; drive it from a step "
+          "node that runs every step";
+    }
+    if (message == nullptr ||
+        !warned_step_gated_sources.insert(instruction.source_ref_index).second)
+    {
+      continue;
+    }
+    char text[320];
+    std::snprintf(text,
+                  sizeof(text),
+                  message,
+                  program->GetStepGates()[instruction.step_gate_index].interval);
+    program->m_compileReport.AddIssue(
+        LN_CompileSeverity::Warning, text, instruction.source_ref_index);
+  }
 
   /* A tree that runs nothing (an empty tree waiting for nodes) needs no root either. */
   const bool runs_anything = !program->GetInstructionHeaders(LN_Event::OnInit).empty() ||

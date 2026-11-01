@@ -20,10 +20,10 @@
 #include "LN_DenseIds.h"
 #include "LN_EventBus.h"
 #include "LN_Inventory.h"
-#include "LN_NodeStateArena.h"
 #include "LN_Performance.h"
 #include "LN_Program.h"
 #include "LN_Snapshot.h"
+#include "LN_StateBlock.h"
 #include "LN_Types.h"
 
 class KX_GameObject;
@@ -58,12 +58,77 @@ class EXP_Value;
  * manager). An empty value when \a property is null. Main thread only. */
 LN_Value LN_GamePropertyValue(EXP_Value *property, LN_Manager *manager);
 
+/** Where the per-object state of a tree running one program lives in its state block
+ * (LN_RuntimeTree::StateBlock, 2026-10-31). Built once per program and shared by all of its
+ * trees (LN_Program::CachedTreeStateLayout). Dense arrays hold what every instruction, register,
+ * step gate, query, Delay/Timer and flow-control node keeps; the states only some expressions or
+ * instructions need (Once, Timer, Tween..., Store Value, Mouse Look and moves, Value Changed) get
+ * slots, numbered here. */
+struct LN_TreeStateLayout {
+  enum Array : uint8_t {
+    InstructionStamps = 0,
+    RegisterFloatValid,
+    RegisterFloats,
+    RegisterVectorValid,
+    RegisterVectors,
+    RegisterBoolValid,
+    RegisterBools,
+    RegisterIntValid,
+    RegisterInts,
+    RegisterColorValid,
+    RegisterColors,
+    RegisterStringValid,
+    RegisterStrings,
+    RegisterGenericValid,
+    RegisterGenerics,
+    StepGates,
+    Queries,
+    BoolStates,
+    FloatStates,
+    TimeFlows,
+    FlowControls,
+    MotionStates,
+    ValueChanges,
+    ArrayCount,
+  };
+
+  /** What the layout was built from: a program whose counts differ (one built further after a
+   * tree took it, in tests) needs a new layout. */
+  uint32_t init_instruction_count = 0;
+  uint32_t update_instruction_count = 0;
+  uint32_t fixed_instruction_count = 0;
+  uint32_t bool_expression_count = 0;
+  uint32_t float_expression_count = 0;
+  uint32_t time_flow_count = 0;
+  uint32_t flow_control_count = 0;
+  uint32_t query_count = 0;
+  uint32_t step_gate_count = 0;
+  uint32_t register_counts[7] = {};
+
+  /** Slot of each bool expression's state (LN_INVALID_INDEX: it keeps none), of each float
+   * expression's, of each instruction's motion state (by instruction state index), and of each
+   * Value Changed expression's stored values. */
+  std::vector<uint32_t> bool_state_slots;
+  std::vector<uint32_t> float_state_slots;
+  std::vector<uint32_t> motion_slots;
+  std::vector<uint32_t> value_change_slots;
+
+  uint32_t counts[ArrayCount] = {};
+  size_t offsets[ArrayCount] = {};
+  size_t bytes = 0;
+
+  bool Matches(const LN_Program &program) const;
+};
+
 class LN_RuntimeTree {
  public:
   LN_RuntimeTree(std::shared_ptr<const LN_Program> program,
                  KX_GameObject *gameobj,
                  uint32_t scene_object_index,
                  uint32_t applied_tree_index);
+  ~LN_RuntimeTree();
+  LN_RuntimeTree(const LN_RuntimeTree &) = delete;
+  LN_RuntimeTree &operator=(const LN_RuntimeTree &) = delete;
 
   void CaptureSnapshot(const LN_TickReadContext *tick_context = nullptr,
                        float fixed_delta = -1.0f,
@@ -84,8 +149,71 @@ class LN_RuntimeTree {
                     LN_RuntimeProfileCounters *profile_counters = nullptr);
 
   bool CanTick() const;
-  /** Return whether this tree has work in the requested recurring phase. */
+  /** Return whether this tree has work in the requested recurring phase. A Logic + Physics step
+   * whose work is all behind Every N Steps gates has none on the steps where no gate is due:
+   * PrepareStepGates must have been told the step first. */
   bool CanTick(LN_Event event) const;
+  /** On Logic + Physics Step's Every N Steps (LN_StepGate): which gates are due at fixed step
+   * `step` (LN_TickContext::phase_tick_index) and the time each of their routes covers: the steps
+   * since its last run, Run Logic Tree passes included (at most N; since the tree's first step for
+   * its first run) times the step.
+   * Once per step (a second call for the same step changes nothing); ExecuteReady also calls it
+   * from its context. */
+  void PrepareStepGates(uint64_t step, double delta_time, double unscaled_delta_time);
+  /** This tree runs its spread gates' routes on the steps where (step + spread) % N == 0. The
+   * manager numbers the trees of one source tree 0, 1, 2... as they start, so N objects with one
+   * tree take turns. */
+  void SetStepSpread(const uint32_t spread)
+  {
+    m_stepSpread = spread;
+    m_hasStepSpread = true;
+  }
+  uint32_t GetStepSpread() const
+  {
+    return m_stepSpread;
+  }
+  bool HasStepSpread() const
+  {
+    return m_hasStepSpread;
+  }
+  /** The program has Every N Steps gates. */
+  bool HasStepGates() const
+  {
+    return !m_stepGates.empty();
+  }
+  /** Moved into another scene (Load Scene): its steps are counted anew there, from the next one,
+   * as for a tree that just started. */
+  void RestartStepGates()
+  {
+    for (StepGateState &state : m_stepGates) {
+      state = StepGateState();
+    }
+    m_stepGatesStep = UINT64_MAX;
+    m_stepGatesFirstStep = UINT64_MAX;
+    m_stepGatesAnyDue = false;
+  }
+  /** Whether a gate's routes run in this step (always in a Run Logic Tree pass). */
+  bool StepGateRuns(uint32_t step_gate_index) const;
+
+  /** What the tree's state block holds (LN_TreeStateLayout), for tests and diagnostics. */
+  struct StateBlockInfo {
+    size_t block_bytes = 0;
+    uint32_t instruction_stamps = 0;
+    uint32_t bool_states = 0;
+    uint32_t float_states = 0;
+    uint32_t motion_states = 0;
+    uint32_t value_changes = 0;
+    uint32_t time_flows = 0;
+    uint32_t flow_controls = 0;
+    uint32_t queries = 0;
+    /** States kept apart because the layout planned no slot for them (should stay 0). */
+    uint32_t overflow_states = 0;
+    bool has_own_input = false;
+  };
+  StateBlockInfo GetStateBlockInfo() const;
+  /** Off: layouts built from now on plan no state slots, so every slot state lives apart (the
+   * storage before the state block), for tests comparing both. */
+  static void SetStateSlotsPlannedForTests(bool planned);
   /** Object UI declarations stay registered every frame, even while this tree is paused or has
    * no wired output, so hover, focus and scroll state never reset behind the user's back. */
   bool CollectsObjectUI() const;
@@ -94,6 +222,24 @@ class LN_RuntimeTree {
   void SetUIEventRoutesOnly(const bool ui_event_routes_only)
   {
     m_uiEventRoutesOnly = ui_event_routes_only;
+  }
+  bool UIEventRoutesOnly() const
+  {
+    return m_uiEventRoutesOnly;
+  }
+  /** On Init has run: the tree's next run is an ordinary pass (tree batches take only those). */
+  bool IsInitExecuted() const
+  {
+    return m_initExecuted;
+  }
+  /** LN_Manager's tree batches: whether this tree is its object's only tree, kept by the
+   * manager's tree index for the trees of the object whose trees changed. */
+  struct BatchNote {
+    bool sole_tree = false;
+  };
+  BatchNote &GetBatchNote()
+  {
+    return m_batchNote;
   }
   /** Resolve statically-authored While Paused scopes before paused trees are scheduled. */
   void CollectPauseProcessingObjects(std::vector<KX_GameObject *> &r_objects);
@@ -117,11 +263,6 @@ class LN_RuntimeTree {
   LN_RuntimeRef MakeDatablockRef(blender::ID *id, const std::string &debug_name = "");
   blender::ID *ResolveDatablockRef(const LN_RuntimeRef &runtime_ref) const;
   void InvalidateRuntimeRef(LN_RuntimeRefKind kind, const void *pointer);
-  LN_PhysicsControllerHandle MakePhysicsControllerHandle(const LN_RuntimeRef &object_ref) const;
-  PHY_IPhysicsController *ResolvePhysicsControllerHandle(
-      const LN_PhysicsControllerHandle &handle) const;
-  PHY_ICharacter *ResolveCharacterController(const LN_RuntimeRef &object_ref) const;
-  PHY_IVehicle *ResolveVehicleController(const LN_RuntimeRef &object_ref) const;
   LN_PhysicsQueryResult Raycast(
       const MT_Vector3 &from,
       const MT_Vector3 &to,
@@ -187,6 +328,12 @@ class LN_RuntimeTree {
   std::shared_ptr<const LN_Program> GetProgram() const
   {
     return m_program;
+  }
+  /** The program without a reference count, for code that uses it at once (a shared pointer
+   * copy is two atomic operations: 2% of a 10,000-NPC frame in the property writes alone). */
+  const LN_Program *GetProgramPointer() const
+  {
+    return m_program.get();
   }
 
   uint64_t GetProgramRevision() const
@@ -323,9 +470,15 @@ class LN_RuntimeTree {
    */
   static constexpr size_t kMaxLoopIterationsPerTick = 10000;
 
-  struct InstructionRuntimeState {
+  /** When an instruction last ran (InstructionExecuted pulses read it): one per instruction. */
+  struct InstructionStamp {
     uint64_t last_execution_tick = UINT64_MAX;
     uint64_t last_execution_scope_serial = 0;
+  };
+
+  /** What Mouse Look, Navigate, Follow Path, Move To and Apply Force To Target keep between runs
+   * (InstructionReached and Next Point read it): only their instructions have one. */
+  struct InstructionMotionState {
     float mouse_look_smooth_x = 0.0f;
     float mouse_look_smooth_y = 0.0f;
     float mouse_look_angle_x = 0.0f;
@@ -361,15 +514,19 @@ class LN_RuntimeTree {
     double start_time = 0.0;
     double due_time = 0.0;
     double last_pulse_time = 0.0;
-    bool has_previous_value = false;
-    LN_Value previous_value;
-    LN_Value stored_old_value;
-    LN_Value stored_new_value;
     uint64_t last_update_tick = UINT64_MAX;
     uint64_t last_update_phase_tick = UINT64_MAX;
     uint64_t pending_persistence_results = 0;
     uint8_t pending_persistence_count = 0;
     bool last_persistence_success = false;
+  };
+
+  /** Value Changed To's values: the last one seen and the change it reported (its Old / New). */
+  struct ValueChangeState {
+    bool has_previous_value = false;
+    LN_Value previous_value;
+    LN_Value stored_old_value;
+    LN_Value stored_new_value;
   };
 
   struct UICommandCompletion {
@@ -422,6 +579,8 @@ class LN_RuntimeTree {
     uint64_t pulse_tick = UINT64_MAX;
     uint64_t last_update_tick = UINT64_MAX;
     uint64_t last_update_phase_tick = UINT64_MAX;
+    /** Steps between two runs of the route that last updated it (LN_TickContext). */
+    uint32_t last_update_phase_stride = 1;
     uint64_t accepted_scope_serial = 0;
     uint64_t blocked_scope_serial = 0;
     std::vector<PendingPulse> pending_pulses;
@@ -474,23 +633,25 @@ class LN_RuntimeTree {
     uint32_t ui_event_cursor = 0;
   };
 
+  /** The register file: values in the state block, valid while their generation is the active
+   * one (a new tick starts a new generation). */
   struct RegisterExpressionRuntimeState {
     uint64_t cached_tick = UINT64_MAX;
     uint64_t profiled_tick = UINT64_MAX;
-    std::vector<bool> bool_values;
-    std::vector<int32_t> int_values;
-    std::vector<float> float_values;
-    std::vector<MT_Vector3> vector_values;
-    std::vector<MT_Vector4> color_values;
-    std::vector<std::string> string_values;
-    std::vector<LN_Value> generic_values;
-    std::vector<uint32_t> bool_valid;
-    std::vector<uint32_t> int_valid;
-    std::vector<uint32_t> float_valid;
-    std::vector<uint32_t> vector_valid;
-    std::vector<uint32_t> color_valid;
-    std::vector<uint32_t> string_valid;
-    std::vector<uint32_t> generic_valid;
+    LN_StateSpan<uint8_t> bool_values;
+    LN_StateSpan<int32_t> int_values;
+    LN_StateSpan<float> float_values;
+    LN_StateSpan<MT_Vector3> vector_values;
+    LN_StateSpan<MT_Vector4> color_values;
+    LN_StateSpan<std::string> string_values;
+    LN_StateSpan<LN_Value> generic_values;
+    LN_StateSpan<uint32_t> bool_valid;
+    LN_StateSpan<uint32_t> int_valid;
+    LN_StateSpan<uint32_t> float_valid;
+    LN_StateSpan<uint32_t> vector_valid;
+    LN_StateSpan<uint32_t> color_valid;
+    LN_StateSpan<uint32_t> string_valid;
+    LN_StateSpan<uint32_t> generic_valid;
     uint32_t active_generation = 1;
   };
 
@@ -550,6 +711,8 @@ class LN_RuntimeTree {
 
   size_t m_remainingLoopIterationBudget = kMaxLoopIterationsPerTick;
   uint64_t m_loopIterationBudgetTick = UINT64_MAX;
+  /** The tick whose time the Delays, Timers... have counted (TickLatentTimeFlowStates). */
+  uint64_t m_latentTimeFlowTick = UINT64_MAX;
 
   struct ObjectRefSlot {
     KX_GameObject *object = nullptr;
@@ -567,16 +730,29 @@ class LN_RuntimeTree {
   friend class LN_Manager;
   friend class LN_RuntimeTreeTestAccess;
 
-  void EnsureInstructionStateSize();
-  void EnsureBoolExpressionStateSize();
-  void EnsureFloatExpressionStateSize();
-  void EnsureTimeFlowStateSize(bool preserve_existing);
-  void EnsureFlowControlStateSize(bool preserve_existing);
-  void EnsureQueryExpressionStateSize();
   void EnsureTreePropertyStateSize(bool preserve_existing);
   void RefreshOptimizedPathEligibility();
+  /** The program's state layout, from its cache or built now. */
+  static std::shared_ptr<const LN_TreeStateLayout> StateLayoutFor(const LN_Program &program);
+  static std::shared_ptr<const LN_TreeStateLayout> BuildStateLayout(const LN_Program &program);
+  /** What a new state block keeps of the old one. BetweenTicks: what a tree keeps between ticks
+   * (Once, Timer, Delay, flow-control, motion... states, by expression or instruction), as a
+   * program replaced by the same tree's new compile keeps it; query caches start over. All: the
+   * query caches too (the same program laid out again). */
+  enum class StateKeep : uint8_t { None, BetweenTicks, All };
+  /** A new state block for the program's layout. */
+  void RebuildStateBlock(StateKeep keep);
+  /** The program grew after the tree took it (tests build programs step by step): lay the block
+   * out again, keeping its states. Cheap when nothing changed. */
+  void RefreshStateBlockLayout();
+  void DestroyStateBlock();
   BoolExpressionRuntimeState &BoolExpressionState(uint32_t expression_index);
   FloatExpressionRuntimeState &FloatExpressionState(uint32_t expression_index);
+  /** An instruction's motion state, made when missing (writers); `Find` gives null instead. */
+  InstructionMotionState &MotionState(uint32_t state_index);
+  const InstructionMotionState *FindMotionState(uint32_t state_index) const;
+  ValueChangeState &ValueChangeStateOf(uint32_t expression_index);
+  const ValueChangeState *FindValueChangeState(uint32_t expression_index) const;
   TimeFlowRuntimeState *FindTimeFlowState(uint32_t state_index);
   const TimeFlowRuntimeState *FindTimeFlowState(uint32_t state_index) const;
   FlowControlRuntimeState *FindFlowControlState(uint32_t state_index);
@@ -584,7 +760,7 @@ class LN_RuntimeTree {
   void TickLatentTimeFlowStates(const LN_TickContext &context);
   QueryExpressionRuntimeState &QueryExpressionState(uint32_t state_index);
   uint32_t InstructionStateIndex(LN_Event event, uint32_t instruction_index) const;
-  bool ResolvePathMoveTarget(InstructionRuntimeState &state,
+  bool ResolvePathMoveTarget(InstructionMotionState &state,
                              KX_GameObject *target,
                              KX_NavMeshObject *navmesh,
                              const MT_Vector3 &destination,
@@ -592,7 +768,7 @@ class LN_RuntimeTree {
                              MT_Vector3 &r_move_target,
                              bool &r_reached) const;
   void DrawNavigationPath(KX_GameObject *target,
-                          const InstructionRuntimeState &state,
+                          const InstructionMotionState &state,
                           const MT_Vector3 &destination) const;
   void MarkInstructionExecuted(LN_Event event, uint32_t instruction_index, uint64_t tick_index);
   void ProfileInstructionDispatch(const LN_Instruction &instruction);
@@ -600,9 +776,6 @@ class LN_RuntimeTree {
   void RecordMissingSnapshotChannelsForExpression(
       const LN_RuntimeExpressionSemantics &semantics) const;
   void ClearRuntimeFallbackReport(uint64_t tick_index);
-  void RecordRuntimeFallbackInstruction(LN_Event event,
-                                        uint32_t instruction_index,
-                                        const LN_Instruction &instruction);
   void RecordRegisterExpressionFallback(LN_RuntimeExpressionFamily family,
                                         uint32_t expression_index);
   void RecordRuntimeSystemFallback(LN_RuntimeFallbackReason reason,
@@ -646,7 +819,6 @@ class LN_RuntimeTree {
   LoopRuntimeState &LoopState(uint32_t loop_frame_index);
   void BeginLoopFrame(uint32_t loop_frame_index, const LN_TickContext &context);
   bool AdvanceLoopFrame(uint32_t loop_frame_index);
-  const std::vector<LN_EventEntry> &ActiveTickEvents() const;
   const LN_EventEntry *FindFirstActiveEvent(LN_EventSubjectId subject_id,
                                             const std::string &subject,
                                             KX_GameObject *filter_target) const;
@@ -817,7 +989,40 @@ class LN_RuntimeTree {
   bool m_enabled = true;
   bool m_runtimeActive = true;
   bool m_initExecuted = false;
+  BatchNote m_batchNote;
   bool m_uiEventRoutesOnly = false;
+  /** Every N Steps gates of the program, one each (PrepareStepGates). */
+  struct StepGateState {
+    bool due = false;
+    double time_passed = 0.0;
+    double unscaled_time_passed = 0.0;
+    /** The step of the routes' last run, a Run Logic Tree pass's included: their next run covers
+     * the steps since (a pass between due steps counted its steps twice before 2026-10-31). */
+    uint64_t last_run_step = UINT64_MAX;
+  };
+  LN_StateSpan<StepGateState> m_stepGates;
+  /** The step PrepareStepGates last looked at, and the first one it saw. */
+  uint64_t m_stepGatesStep = UINT64_MAX;
+  uint64_t m_stepGatesFirstStep = UINT64_MAX;
+  /** The delta time of the event being run (one step's length in a Logic + Physics step): the
+   * Time Passed of a step node without Every N Steps. */
+  double m_eventDeltaTime = 0.0;
+  uint32_t m_stepSpread = 0;
+  bool m_hasStepSpread = false;
+  bool m_stepGatesAnyDue = false;
+  /** A Run Logic Tree pass runs every route of the step, gated ones too, each with the time since
+   * it last ran (StepGateStepsSinceLastRun). */
+  bool m_stepGatesForced = false;
+  /** Steps a gate's routes cover when they run at `step`: those since their last run (since the
+   * tree's first step before the first run), at least 1 (a second pass in one step counts one
+   * step, as a route without Every N gets in every pass) and at most `interval`. */
+  uint64_t StepGateStepsSinceLastRun(const StepGateState &state,
+                                     uint64_t step,
+                                     uint64_t interval) const;
+  /** Gives each gate the time its routes cover in a Run Logic Tree pass at `step`. */
+  void PrepareForcedStepGates(uint64_t step, double delta_time, double unscaled_delta_time);
+  /** Notes `step` as the gates' last run: the due ones after a step's run, all after a pass. */
+  void NoteStepGatesRan(uint64_t step, bool forced);
   uint64_t m_snapshotTick = UINT64_MAX;
   uint64_t m_queryCacheWarmTick = UINT64_MAX;
   uint64_t m_executionScopeSerial = 0;
@@ -828,15 +1033,32 @@ class LN_RuntimeTree {
   LN_SnapshotChannelMask m_snapshotChannelMask = LN_SNAPSHOT_CHANNEL_NONE;
   bool m_hasTimeFlowRuntimeState = false;
   bool m_hasQueryExpressions = false;
-  std::vector<InstructionRuntimeState> m_instructionStates;
-  std::vector<BoolExpressionRuntimeState> m_boolExpressionStates;
+  /** The tree's per-object state, all in one block laid out by `m_stateLayout` (the program's):
+   * the views below point into `m_stateBlock`. Built with the program (RebuildStateBlock). */
+  std::shared_ptr<const LN_TreeStateLayout> m_stateLayout;
+  LN_StateBlockMemory m_stateBlock;
+  LN_StateSpan<InstructionStamp> m_instructionStamps;
+  RegisterExpressionRuntimeState m_registerExpressionState;
+  LN_StateSpan<QueryExpressionRuntimeState> m_queryExpressionStates;
+  LN_StateSpan<BoolExpressionRuntimeState> m_boolStates;
+  LN_StateSpan<FloatExpressionRuntimeState> m_floatStates;
+  LN_StateSpan<TimeFlowRuntimeState> m_timeFlowStates;
+  LN_StateSpan<FlowControlRuntimeState> m_flowControlStates;
+  LN_StateSpan<InstructionMotionState> m_motionStates;
+  LN_StateSpan<ValueChangeState> m_valueChangeStates;
+  /** States asked for where the layout planned none (an index past the program's, or a kind not
+   * listed in BuildStateLayout): they behave the same, kept here. Made when first needed. */
+  struct StateOverflow {
+    std::unordered_map<uint32_t, BoolExpressionRuntimeState> bool_states;
+    std::unordered_map<uint32_t, FloatExpressionRuntimeState> float_states;
+    std::unordered_map<uint32_t, InstructionMotionState> motion_states;
+    std::unordered_map<uint32_t, ValueChangeState> value_changes;
+    std::unordered_map<uint32_t, QueryExpressionRuntimeState> queries;
+  };
+  std::unique_ptr<StateOverflow> m_stateOverflow;
+  StateOverflow &Overflow();
   std::unordered_map<uint32_t, UICommandCompletionState> m_uiCommandCompletions;
   std::unordered_map<uint32_t, ActionCompletionState> m_actionCompletions;
-  std::vector<FloatExpressionRuntimeState> m_floatExpressionStates;
-  std::vector<TimeFlowRuntimeState> m_timeFlowStates;
-  std::vector<FlowControlRuntimeState> m_flowControlStates;
-  std::vector<QueryExpressionRuntimeState> m_queryExpressionStates;
-  RegisterExpressionRuntimeState m_registerExpressionState;
   std::vector<LN_Rotation> m_rotationExpressionValues;
   std::vector<uint64_t> m_rotationExpressionTicks;
   uint64_t m_collisionResultsTick = UINT64_MAX;
@@ -855,7 +1077,6 @@ class LN_RuntimeTree {
   std::vector<LN_TreePropertyId> m_treePropertyIds;
   uint32_t m_activeLoopBodyFrame = LN_INVALID_INDEX;
   const std::vector<LN_Value> *m_activeTreePropertySnapshot = nullptr;
-  LN_NodeStateArena m_stateArena;
   LN_Snapshot m_snapshot;
   LN_RuntimeProfileCounters *m_activeProfileCounters = nullptr;
   mutable RuntimeFallbackReport m_runtimeFallbackReport;

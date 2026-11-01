@@ -24,6 +24,7 @@
 
 #include "BLI_assert.h"
 #include "BKE_context.hh"
+#include "BKE_game_physics.hh"
 #include "BKE_main.hh"
 #include "CM_Message.h"
 #include "DNA_node_types.h"
@@ -32,7 +33,6 @@
 #include "LN_Performance.h"
 #include "LN_Program.h"
 #include "LN_RuntimeTree.h"
-#include "LN_ParallelTreeExecutor.h"
 #include "LN_TreeCompiler.h"
 #include "LN_Types.h"
 #include "LN_UIService.h"
@@ -86,30 +86,6 @@ static void logic_nodes_profiled_reserve(std::vector<T> &values,
   values.reserve(size);
 }
 
-static uint32_t logic_nodes_count_command_string_payloads(
-    const std::vector<LN_CommandBuffer::Command> &commands)
-{
-  uint32_t count = 0;
-  for (const LN_CommandBuffer::Command &command : commands) {
-    count += command.property_name.empty() ? 0 : 1;
-    count += command.secondary_property_name.empty() ? 0 : 1;
-    count += command.tertiary_property_name.empty() ? 0 : 1;
-    count += command.quaternary_property_name.empty() ? 0 : 1;
-    count += command.property_value.string_value.empty() ? 0 : 1;
-  }
-  return count;
-}
-
-static uint32_t logic_nodes_count_commands(
-    const std::vector<LN_CommandBuffer::RecordedCommandList> &command_lists)
-{
-  uint32_t count = 0;
-  for (const LN_CommandBuffer::RecordedCommandList &command_list : command_lists) {
-    count += uint32_t(command_list.commands.size());
-  }
-  return count;
-}
-
 static void logic_nodes_accumulate_runtime_profile_counts(
     const LN_RuntimeProfileCounters &counters,
     LN_TickProfileMetrics &profile)
@@ -143,11 +119,18 @@ static void logic_nodes_accumulate_runtime_profile_counts(
   profile.runtime_system_fallback_count += counters.runtime_system_fallback_count;
 }
 
-static void logic_nodes_accumulate_recorded_profile_counts(
-    const LN_CommandBuffer::RecordedCommandList &command_list,
-    LN_TickProfileMetrics &profile)
+/** One tree's run in the tick's profile, its fallback report included. */
+static void logic_nodes_accumulate_tree_profile(const LN_RuntimeTree &runtime_tree,
+                                                LN_RuntimeProfileCounters &counters,
+                                                LN_TickProfileMetrics &profile)
 {
-  logic_nodes_accumulate_runtime_profile_counts(command_list.profile_counters, profile);
+  const LN_RuntimeTree::RuntimeFallbackReport &fallback_report =
+      runtime_tree.GetRuntimeFallbackReport();
+  counters.runtime_fallback_reason_mask = fallback_report.reason_mask;
+  counters.runtime_expression_fallback_reason_mask = fallback_report.expression_reason_mask;
+  counters.runtime_system_fallback_reason_mask = fallback_report.system_reason_mask;
+  counters.runtime_system_fallback_count = fallback_report.system_fallback_count;
+  logic_nodes_accumulate_runtime_profile_counts(counters, profile);
 }
 
 static void logic_nodes_accumulate_command_stream_stats(
@@ -172,62 +155,6 @@ static void logic_nodes_accumulate_command_stream_stats(
   profile.command_coalesced_count += stats.coalesced_command_count;
 }
 
-static void logic_nodes_accumulate_command_stream_stats(
-    const LN_CommandBuffer::RecordedCommandList &command_list,
-    LN_TickProfileMetrics &profile)
-{
-  logic_nodes_accumulate_command_stream_stats(command_list.command_stream_stats, profile);
-}
-
-static uint32_t logic_nodes_count_command_string_payloads(
-    const std::vector<LN_CommandBuffer::RecordedCommandList> &command_lists)
-{
-  uint32_t count = 0;
-  for (const LN_CommandBuffer::RecordedCommandList &command_list : command_lists) {
-    count += logic_nodes_count_command_string_payloads(command_list.commands);
-  }
-  return count;
-}
-
-static LN_CommandBuffer::RecordedCommandList logic_nodes_record_tree_commands(
-    const size_t runtime_tree_index,
-    LN_RuntimeTree &runtime_tree,
-    const LN_TickContext &context,
-    const bool forced_update,
-    const std::thread::id main_thread_id,
-    const bool collect_profile_counters)
-{
-  LN_CommandBuffer local_buffer;
-  local_buffer.SetMainThreadId(main_thread_id);
-  local_buffer.SetTypedCommandStreamsEnabled(context.use_typed_command_streams);
-  local_buffer.BeginRecording();
-  LN_RuntimeProfileCounters profile_counters;
-  if (forced_update) {
-    runtime_tree.ExecuteForcedUpdate(local_buffer,
-                                     context,
-                                     collect_profile_counters ? &profile_counters : nullptr);
-  }
-  else {
-    runtime_tree.ExecuteReady(local_buffer,
-                              context,
-                              collect_profile_counters ? &profile_counters : nullptr);
-  }
-  local_buffer.EndRecording();
-
-  LN_CommandBuffer::RecordedCommandList command_list;
-  command_list.runtime_tree_index = runtime_tree_index;
-  command_list.commands = local_buffer.TakeRecordedCommands();
-  command_list.command_stream_stats = local_buffer.GetLastCommandStreamStats();
-  const LN_RuntimeTree::RuntimeFallbackReport &fallback_report =
-      runtime_tree.GetRuntimeFallbackReport();
-  profile_counters.runtime_fallback_reason_mask = fallback_report.reason_mask;
-  profile_counters.runtime_expression_fallback_reason_mask =
-      fallback_report.expression_reason_mask;
-  profile_counters.runtime_system_fallback_reason_mask = fallback_report.system_reason_mask;
-  profile_counters.runtime_system_fallback_count = fallback_report.system_fallback_count;
-  command_list.profile_counters = profile_counters;
-  return command_list;
-}
 
 LN_Manager::LN_Manager(KX_Scene &scene)
     : m_scene(scene),
@@ -321,6 +248,7 @@ LN_RuntimeTree *LN_Manager::RegisterCompiledProgram(KX_GameObject *gameobj,
     runtime_tree->SetEnabled(enabled);
     runtime_tree->SetRuntimeActive(runtime_active);
     runtime_tree->BindDenseIds(m_denseIds);
+    AssignStepSpread(*runtime_tree);
     IndexRuntimeTree(runtime_tree);
     CacheCompiledProgram(runtime_tree->GetProgram());
     m_commandBuffer.PrewarmMaterialParameterBindings(*runtime_tree);
@@ -334,10 +262,26 @@ LN_RuntimeTree *LN_Manager::RegisterCompiledProgram(KX_GameObject *gameobj,
   runtime_tree->SetEnabled(enabled);
   runtime_tree->SetRuntimeActive(runtime_active);
   runtime_tree->BindDenseIds(m_denseIds);
+  AssignStepSpread(*runtime_tree);
   IndexRuntimeTree(runtime_tree);
   CacheCompiledProgram(runtime_tree->GetProgram());
   m_commandBuffer.PrewarmMaterialParameterBindings(*runtime_tree);
   return runtime_tree;
+}
+
+void LN_Manager::AssignStepSpread(LN_RuntimeTree &runtime_tree, const bool renumber)
+{
+  const LN_Program *program = runtime_tree.GetProgramPointer();
+  if ((runtime_tree.HasStepSpread() && !renumber) || program == nullptr ||
+      program->GetStepGates().empty())
+  {
+    return;
+  }
+  /* By source tree, not by program: placed objects may each have compiled their own copy. */
+  std::string key = program->GetSourceTreeName();
+  key.push_back('\0');
+  key += program->GetSourceTreeLibraryPath();
+  runtime_tree.SetStepSpread(m_stepSpreadCounters[key]++);
 }
 
 void LN_Manager::NotifyGameObjectQueuedForRemoval(KX_GameObject *gameobj,
@@ -355,9 +299,8 @@ void LN_Manager::NotifyGameObjectQueuedForRemoval(KX_GameObject *gameobj,
   InvalidatePointerHitCache();
   m_pauseProcessingObjects.erase(gameobj);
   AddQueuedRemovalObject(gameobj);
-  std::erase_if(m_pendingRunOnce, [gameobj](const std::pair<KX_GameObject *, std::string> &entry) {
-    return entry.first == gameobj;
-  });
+  std::erase_if(m_pendingRunOnce,
+                [gameobj](const PendingRunOnce &entry) { return entry.object == gameobj; });
   InvalidateRuntimeRefs(LN_RuntimeRefKind::Object, gameobj);
   m_commandBuffer.RemoveCommandsForGameObject(gameobj);
   DetachRuntimeTreesForGameObject(gameobj);
@@ -400,10 +343,9 @@ void LN_Manager::NotifyGameObjectsQueuedForBulkRemoval(
     }
   }
 
-  std::erase_if(m_pendingRunOnce,
-                [&removal_set](const std::pair<KX_GameObject *, std::string> &entry) {
-                  return removal_set.find(entry.first) != removal_set.end();
-                });
+  std::erase_if(m_pendingRunOnce, [&removal_set](const PendingRunOnce &entry) {
+    return removal_set.find(entry.object) != removal_set.end();
+  });
   m_commandBuffer.Clear();
 
   for (KX_GameObject *gameobj : removal_set) {
@@ -503,9 +445,8 @@ void LN_Manager::UnregisterGameObject(KX_GameObject *gameobj,
    * told before the object handle is invalidated. */
   m_uiService->NotifyObjectRemoved(gameobj);
   InvalidatePointerHitCache();
-  std::erase_if(m_pendingRunOnce, [gameobj](const std::pair<KX_GameObject *, std::string> &entry) {
-    return entry.first == gameobj;
-  });
+  std::erase_if(m_pendingRunOnce,
+                [gameobj](const PendingRunOnce &entry) { return entry.object == gameobj; });
   InvalidateRuntimeRefs(LN_RuntimeRefKind::Object, gameobj);
   m_commandBuffer.RemoveCommandsForGameObject(gameobj);
   DetachRuntimeTreesForGameObject(gameobj);
@@ -533,7 +474,7 @@ void LN_Manager::InvalidateRuntimeRefs(const LN_RuntimeRefKind kind, const void 
       std::lock_guard<std::mutex> lock(m_runtimeObjectRefIndexMutex);
       const auto item = m_runtimeTreesByReferencedObject.find(gameobj);
       if (item != m_runtimeTreesByReferencedObject.end()) {
-        trees = item->second;
+        trees.assign(item->second.begin(), item->second.end());
       }
     }
 
@@ -636,10 +577,8 @@ void LN_Manager::ReplicateRuntimeTrees(KX_GameObject *source_gameobj,
   if (source_tree_count == 0) {
     return;
   }
-  m_runtimeTrees.reserve(m_runtimeTrees.size() + source_tree_count);
-  m_runtimeTreeByObjectAndAppliedIndex.reserve(m_runtimeTreeByObjectAndAppliedIndex.size() +
-                                               source_tree_count);
-  m_runtimeTreesByObject.reserve(m_runtimeTreesByObject.size() + 1);
+  /* No reserve of exactly one more here: it reallocated the whole tree list at every spawn (all
+   * the lists grow geometrically on their own). */
 
   auto replicate_source_tree = [&](LN_RuntimeTree *source_tree) {
     RegisterCompiledProgram(replica_gameobj,
@@ -748,6 +687,12 @@ void LN_Manager::AbsorbRuntimeTreesFrom(LN_Manager &other)
 
     runtime_tree->SetSceneObjectIndex(static_cast<uint32_t>(scene_object_index));
     runtime_tree->SetRuntimeActive(runtime_active);
+    /* Every N Steps: the other scene numbered its trees and counted its steps on its own; here
+     * they take turns with this scene's trees of the same source tree. */
+    if (runtime_tree->HasStepGates()) {
+      runtime_tree->RestartStepGates();
+      AssignStepSpread(*runtime_tree, true);
+    }
     m_runtimeTrees.push_back(std::move(runtime_tree));
   }
   m_denseIds.ClearSceneLocalState();
@@ -768,9 +713,12 @@ void LN_Manager::AbsorbRuntimeTreesFrom(LN_Manager &other)
       m_commandBuffer.PrewarmMaterialParameterBindings(*runtime_tree);
     }
   }
-  m_pendingRunOnce.insert(m_pendingRunOnce.end(),
-                          std::make_move_iterator(other.m_pendingRunOnce.begin()),
-                          std::make_move_iterator(other.m_pendingRunOnce.end()));
+  /* The merged scene's waiting calls keep their order, after this scene's, with serials of this
+   * scene: they run at its next Logic + Physics step. */
+  for (PendingRunOnce &entry : other.m_pendingRunOnce) {
+    entry.serial = ++m_runOnceSerial;
+    m_pendingRunOnce.push_back(std::move(entry));
+  }
   other.m_pendingRunOnce.clear();
   other.m_programBySourceTreeName.clear();
   other.m_cachedPrograms.clear();
@@ -1378,25 +1326,30 @@ void LN_Manager::SpawnPendingItemDrops()
   }
 }
 
-bool LN_Manager::HasInputDependencies() const
-{
-  return InputDependencyChannels() != LN_DEP_INPUT_NONE;
-}
-
 uint32_t LN_Manager::InputDependencyChannels() const
 {
   /* UI reads mouse, keyboard and gamepad too: sample every pass so a click that falls between
    * two rendered frames is not lost. */
   uint32_t channels = m_uiService->HasElements() ? kUIElementInputChannels : LN_DEP_INPUT_NONE;
+  /* Every engine pass asks: the program's bits are read once a program in a row (trees of one
+   * source tree share it), without a shared pointer copy a tree. */
+  const LN_Program *last_program = nullptr;
   for (const std::unique_ptr<LN_RuntimeTree> &runtime_tree : m_runtimeTrees) {
     if (runtime_tree == nullptr) {
       continue;
     }
-    if (runtime_tree->CollectsObjectUI()) {
-      channels |= kUIElementInputChannels;
+    const LN_Program *program = runtime_tree->GetProgramPointer();
+    if (program == nullptr) {
+      continue;
     }
-    if (const std::shared_ptr<const LN_Program> program = runtime_tree->GetProgram()) {
+    if (program != last_program) {
+      last_program = program;
       channels |= program->GetDependencySummary().input_channels;
+    }
+    if ((channels & kUIElementInputChannels) != kUIElementInputChannels &&
+        runtime_tree->CollectsObjectUI())
+    {
+      channels |= kUIElementInputChannels;
     }
   }
   return channels;
@@ -1678,8 +1631,7 @@ void LN_Manager::Tick(const double current_time,
     m_tickHotMapLookupCount.store(0, std::memory_order_relaxed);
   }
 
-  std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> &runnable_trees =
-      m_tickRunnableTreesScratch;
+  std::vector<RunnableTree> &runnable_trees = m_tickRunnableTreesScratch;
   runnable_trees.clear();
   if (report_tick_timings) {
     logic_nodes_profiled_reserve(runnable_trees, m_runtimeTrees.size(), *profile);
@@ -1692,47 +1644,80 @@ void LN_Manager::Tick(const double current_time,
   const auto pause_eligible = [&](LN_RuntimeTree &runtime_tree) {
     return !game_paused || event != LN_Event::OnUpdate ||
            IsObjectPauseProcessed(runtime_tree.GetGameObject()) ||
-           (runtime_tree.GetProgram() != nullptr && runtime_tree.GetProgram()->HasUIEventRoutes());
+           (runtime_tree.GetProgramPointer() != nullptr &&
+            runtime_tree.GetProgramPointer()->HasUIEventRoutes());
   };
-  for (std::unique_ptr<LN_RuntimeTree> &runtime_tree : m_runtimeTrees) {
-    runtime_tree->SetUIEventRoutesOnly(game_paused && event == LN_Event::OnUpdate &&
-                                       !IsObjectPauseProcessed(runtime_tree->GetGameObject()));
-  }
+  /* Which trees run this tick, decided once: the snapshot and query loops below read it (a tree
+   * asleep between its Every N Steps is then touched once a step, not three times). Every N
+   * Steps: the gates are told the step before CanTick asks; its index is the one the context
+   * gets below (LN_TickContext::phase_tick_index). */
+  const bool fixed_step = event == LN_Event::OnFixedUpdate;
+  std::vector<uint8_t> &tree_runs = m_tickTreeRunsScratch;
+  tree_runs.assign(m_runtimeTrees.size(), 0);
+  /* Collision contacts are collected while any tree could read them, not only the trees running
+   * this tick: switching the collection off cleared Jolt's contact list, so a step tree read an
+   * empty cache after every frame tick (or a step where it slept between its Every N steps),
+   * scanned the whole scene for each collision node, and lost contacts kept by sleeping bodies
+   * (fixed 2026-10-31). Disabled trees count: Run Logic Tree runs them. */
+  uint32_t possible_query_channels = LN_DEP_QUERY_NONE;
+  const LN_Program *last_possible_program = nullptr;
   for (size_t index = 0; index < m_runtimeTrees.size(); index++) {
-    std::unique_ptr<LN_RuntimeTree> &runtime_tree = m_runtimeTrees[index];
-    if (runtime_tree->CanTick(event) && pause_eligible(*runtime_tree)) {
-      LN_ParallelTreeExecutor::RuntimeTreeWorkItem item;
+    LN_RuntimeTree &runtime_tree = *m_runtimeTrees[index];
+    if (const LN_Program *program = runtime_tree.GetProgramPointer();
+        program != nullptr && program != last_possible_program && runtime_tree.IsRuntimeActive())
+    {
+      last_possible_program = program;
+      possible_query_channels |= program->GetDependencySummary().query_channels;
+    }
+    runtime_tree.SetUIEventRoutesOnly(game_paused && event == LN_Event::OnUpdate &&
+                                      !IsObjectPauseProcessed(runtime_tree.GetGameObject()));
+    if (fixed_step && runtime_tree.HasStepGates()) {
+      runtime_tree.PrepareStepGates(m_fixedTickIndex, delta_time, unscaled_delta_time);
+    }
+    if (runtime_tree.CanTick(event) && pause_eligible(runtime_tree)) {
+      tree_runs[index] = 1;
+      RunnableTree item;
       item.runtime_tree_index = index;
-      item.runtime_tree = runtime_tree.get();
+      item.runtime_tree = &runtime_tree;
       runnable_trees.push_back(item);
     }
   }
+  const auto tree_runs_this_tick = [&](const size_t index) {
+    return index < tree_runs.size() && tree_runs[index] != 0;
+  };
 
+  /* Run Logic Tree is one fixed-update pass: a Logic + Physics step runs the calls queued before
+   * it began (a frame tick runs before its steps, and a frame can have none, so it never takes
+   * them: they wait for the next step, also through a pause). */
+  const uint64_t last_due_run_once_serial = event == LN_Event::OnFixedUpdate ? m_runOnceSerial :
+                                                                                0;
+  const bool has_due_run_once = last_due_run_once_serial != 0 && !m_pendingRunOnce.empty() &&
+                                m_pendingRunOnce.front().serial <= last_due_run_once_serial;
   std::unordered_set<LN_RuntimeTree *> pending_forced_trees;
-  if (!m_pendingRunOnce.empty()) {
+  if (has_due_run_once) {
     pending_forced_trees.reserve(m_pendingRunOnce.size());
-    for (const std::pair<KX_GameObject *, std::string> &item : m_pendingRunOnce) {
-      if (item.first == nullptr || item.second.empty() || IsGameObjectQueuedForRemoval(item.first)) {
+    for (const PendingRunOnce &entry : m_pendingRunOnce) {
+      if (entry.object == nullptr || entry.tree_name.empty() ||
+          IsGameObjectQueuedForRemoval(entry.object))
+      {
         continue;
       }
-      if (LN_RuntimeTree *runtime_tree = FindRuntimeTreeBySourceName(item.first, item.second)) {
-        if (!runtime_tree->IsRuntimeActive() ||
-            (game_paused && event == LN_Event::OnUpdate &&
-             !IsObjectPauseProcessed(runtime_tree->GetGameObject())))
-        {
-          continue;
+      if (LN_RuntimeTree *runtime_tree = FindRuntimeTreeBySourceName(entry.object,
+                                                                      entry.tree_name))
+      {
+        if (runtime_tree->IsRuntimeActive()) {
+          pending_forced_trees.insert(runtime_tree);
         }
-        pending_forced_trees.insert(runtime_tree);
       }
     }
   }
 
   uint32_t shared_input_channels = LN_DEP_INPUT_NONE;
   uint32_t shared_query_channels = LN_DEP_QUERY_NONE;
-  for (const LN_ParallelTreeExecutor::RuntimeTreeWorkItem &item : runnable_trees) {
-    std::shared_ptr<const LN_Program> program = item.runtime_tree != nullptr ?
-                                                    item.runtime_tree->GetProgram() :
-                                                    nullptr;
+  for (const RunnableTree &item : runnable_trees) {
+    const LN_Program *program = item.runtime_tree != nullptr ?
+                                    item.runtime_tree->GetProgramPointer() :
+                                    nullptr;
     if (program != nullptr) {
       const LN_ProgramDependencySummary &dependencies = program->GetDependencySummary();
       shared_input_channels |= dependencies.input_channels;
@@ -1740,9 +1725,8 @@ void LN_Manager::Tick(const double current_time,
     }
   }
   for (LN_RuntimeTree *runtime_tree : pending_forced_trees) {
-    std::shared_ptr<const LN_Program> program = runtime_tree != nullptr ?
-                                                    runtime_tree->GetProgram() :
-                                                    nullptr;
+    const LN_Program *program = runtime_tree != nullptr ? runtime_tree->GetProgramPointer() :
+                                                          nullptr;
     if (program != nullptr) {
       const LN_ProgramDependencySummary &dependencies = program->GetDependencySummary();
       shared_input_channels |= dependencies.input_channels;
@@ -1755,7 +1739,8 @@ void LN_Manager::Tick(const double current_time,
   if (resolves_ui) {
     for (const std::unique_ptr<LN_RuntimeTree> &runtime_tree : m_runtimeTrees) {
       if (runtime_tree->CollectsObjectUI()) {
-        shared_input_channels |= runtime_tree->GetProgram()->GetDependencySummary().input_channels;
+        shared_input_channels |=
+            runtime_tree->GetProgramPointer()->GetDependencySummary().input_channels;
       }
     }
     m_uiService->RefreshElementRegistry();
@@ -1765,9 +1750,10 @@ void LN_Manager::Tick(const double current_time,
   }
 
   if (PHY_IPhysicsEnvironment *physics_env = m_scene.GetPhysicsEnvironment()) {
+    const uint32_t collision_channels = shared_query_channels | possible_query_channels;
     physics_env->SetLogicCollisionContactCacheEnabled(
-        (shared_query_channels & LN_DEP_QUERY_COLLISION_CONTACT) != 0,
-        (shared_query_channels & LN_DEP_QUERY_COLLISION_CONTACT_DETAILS) != 0);
+        (collision_channels & LN_DEP_QUERY_COLLISION_CONTACT) != 0,
+        (collision_channels & LN_DEP_QUERY_COLLISION_CONTACT_DETAILS) != 0);
   }
 
   LN_TickContext context;
@@ -1810,7 +1796,12 @@ void LN_Manager::Tick(const double current_time,
   m_commandBuffer.SetTypedCommandStreamsEnabled(context.use_typed_command_streams);
 
   m_isTicking = true;
-  m_objectNameCacheValid = false;
+  /* The name lookup stays while the object list is the same (it was rebuilt from every scene
+   * object at every tick: ~0.4 ms with 10,000 objects; 2026-10-31). Objects added during this
+   * tick are found by FindSceneObjectByName's scan, as before. */
+  if (m_objectNameCacheGeneration != m_scene.GetObjectListGeneration()) {
+    m_objectNameCacheValid = false;
+  }
 
   std::chrono::steady_clock::time_point snapshot_start;
   if (report_tick_timings) {
@@ -1841,12 +1832,13 @@ void LN_Manager::Tick(const double current_time,
   else {
     m_uiService->BeginPassivePhase(event, m_sharedTickReadContext.input);
   }
-  for (std::unique_ptr<LN_RuntimeTree> &runtime_tree : m_runtimeTrees) {
-    const bool force_snapshot =
-        !pending_forced_trees.empty() &&
-        pending_forced_trees.find(runtime_tree.get()) != pending_forced_trees.end();
+  for (size_t index = 0; index < m_runtimeTrees.size(); index++) {
+    LN_RuntimeTree *runtime_tree = m_runtimeTrees[index].get();
+    const bool force_snapshot = !pending_forced_trees.empty() &&
+                                pending_forced_trees.find(runtime_tree) !=
+                                    pending_forced_trees.end();
     const bool collects_ui = resolves_ui && runtime_tree->CollectsObjectUI();
-    if (((!runtime_tree->CanTick(event) && !force_snapshot) || !pause_eligible(*runtime_tree)) &&
+    if (!tree_runs_this_tick(index) && !(force_snapshot && pause_eligible(*runtime_tree)) &&
         !collects_ui)
     {
       continue;
@@ -1907,11 +1899,12 @@ void LN_Manager::Tick(const double current_time,
     RefreshInputActions();
   }
 
-  for (std::unique_ptr<LN_RuntimeTree> &runtime_tree : m_runtimeTrees) {
-    const bool force_snapshot =
-        !pending_forced_trees.empty() &&
-        pending_forced_trees.find(runtime_tree.get()) != pending_forced_trees.end();
-    if ((!runtime_tree->CanTick(event) && !force_snapshot) || !pause_eligible(*runtime_tree)) {
+  for (size_t index = 0; index < m_runtimeTrees.size(); index++) {
+    LN_RuntimeTree *runtime_tree = m_runtimeTrees[index].get();
+    const bool force_snapshot = !pending_forced_trees.empty() &&
+                                pending_forced_trees.find(runtime_tree) !=
+                                    pending_forced_trees.end();
+    if (!tree_runs_this_tick(index) && !(force_snapshot && pause_eligible(*runtime_tree))) {
       continue;
     }
     const size_t query_count = runtime_tree->WarmQueryCache(context);
@@ -1925,267 +1918,47 @@ void LN_Manager::Tick(const double current_time,
                                .count();
   }
 
-  const bool has_command_work = !runnable_trees.empty() || !m_pendingRunOnce.empty();
+  const bool has_command_work = !runnable_trees.empty() || has_due_run_once;
   if (has_command_work) {
     m_commandBuffer.Clear();
 
-    const bool resource_scheduler_enabled = LN_RuntimeFeatureEnabled(
-        feature_config, LN_RUNTIME_FEATURE_RESOURCE_CLASS_SCHEDULER);
-    const bool bypass_scheduler_for_serial_recording =
-        !resource_scheduler_enabled && m_pendingRunOnce.empty();
-    LN_ParallelTreeExecutor::SchedulerPlan scheduler_plan;
-    LN_ParallelTreeExecutor::SchedulerPlannerStats scheduler_stats;
-    if (bypass_scheduler_for_serial_recording) {
-      scheduler_stats.planned_tree_count = uint32_t(runnable_trees.size());
-      scheduler_stats.main_thread_tree_count = uint32_t(runnable_trees.size());
-      scheduler_stats.main_thread_batch_count = runnable_trees.empty() ? 0u : 1u;
-      scheduler_stats.scheduler_job_count = scheduler_stats.main_thread_batch_count;
-    }
-    else {
-      const bool parallel_enabled = resource_scheduler_enabled &&
-                                    LN_ParallelTreeExecutor::IsEnabled(m_scene) &&
-                                    runnable_trees.size() >=
-                                        LN_ParallelTreeExecutor::MinimumTreeCount();
-      scheduler_plan = LN_ParallelTreeExecutor::BuildSchedulerPlan(runnable_trees,
-                                                                   parallel_enabled);
-      scheduler_stats = LN_ParallelTreeExecutor::StatsForPlan(scheduler_plan);
-    }
+    /* The trees record into the scene's buffer in order (runs of batch safe trees on the job
+     * pool, LN_TreeBatch.h, with the same result), then this step's Run Logic Tree passes; their
+     * writes apply together in the flush, ordered by tree (sort key) and then by record order,
+     * so a forced pass follows the tree's own run. */
+    std::chrono::steady_clock::time_point serial_start;
     if (report_tick_timings) {
-      profile->scheduler_planned_tree_count = scheduler_stats.planned_tree_count;
-      profile->scheduler_worker_batch_count = scheduler_stats.worker_batch_count;
-      profile->scheduler_main_thread_batch_count = scheduler_stats.main_thread_batch_count;
-      profile->scheduler_max_trees_per_worker_batch =
-          scheduler_stats.max_trees_per_worker_batch;
-      profile->scheduler_average_trees_per_worker_batch_x100 =
-          scheduler_stats.average_trees_per_worker_batch_x100;
-      profile->scheduler_worker_utilization_x100 =
-          scheduler_stats.planned_tree_count == 0 ?
-              0 :
-              (scheduler_stats.worker_tree_count * 100u) / scheduler_stats.planned_tree_count;
-      profile->scheduler_command_resource_classes = scheduler_stats.command_resource_classes;
-      profile->scheduler_worker_resource_access = scheduler_stats.worker_resource_access;
-      profile->scheduler_main_thread_resource_access =
-          scheduler_stats.main_thread_resource_access;
-      profile->scheduler_query_tree_count = scheduler_stats.query_tree_count;
-      profile->scheduler_snapshot_only_tree_count = scheduler_stats.snapshot_only_tree_count;
-      profile->scheduler_command_record_only_tree_count =
-          scheduler_stats.command_record_only_tree_count;
-      profile->scheduler_immutable_worker_inputs = scheduler_stats.immutable_worker_inputs;
-      profile->scheduler_worker_metrics_are_local = scheduler_stats.worker_metrics_are_local;
-      profile->scheduler_deterministic_merge_order =
-          scheduler_stats.deterministic_merge_order;
-      profile->scheduler_main_thread_flush_isolated =
-          scheduler_stats.main_thread_flush_isolated;
+      serial_start = std::chrono::steady_clock::now();
     }
 
-    const bool direct_serial_recording =
-        (bypass_scheduler_for_serial_recording && !runnable_trees.empty()) ||
-        LN_ParallelTreeExecutor::ShouldUseDirectSerialCommandRecording(
-            scheduler_plan, scheduler_stats, !m_pendingRunOnce.empty());
-    if (direct_serial_recording) {
-      std::chrono::steady_clock::time_point serial_start;
-      if (report_tick_timings) {
-        serial_start = std::chrono::steady_clock::now();
-      }
-
-      m_commandBuffer.BeginRecording();
-      for (const LN_ParallelTreeExecutor::RuntimeTreeWorkItem &item : runnable_trees) {
-        if (item.runtime_tree == nullptr) {
-          continue;
-        }
-        LN_RuntimeProfileCounters profile_counters;
-        item.runtime_tree->ExecuteReady(
-            m_commandBuffer, context, report_tick_timings ? &profile_counters : nullptr);
-        if (report_tick_timings) {
-          const LN_RuntimeTree::RuntimeFallbackReport &fallback_report =
-              item.runtime_tree->GetRuntimeFallbackReport();
-          profile_counters.runtime_fallback_reason_mask = fallback_report.reason_mask;
-          profile_counters.runtime_expression_fallback_reason_mask =
-              fallback_report.expression_reason_mask;
-          profile_counters.runtime_system_fallback_reason_mask =
-              fallback_report.system_reason_mask;
-          profile_counters.runtime_system_fallback_count =
-              fallback_report.system_fallback_count;
-          logic_nodes_accumulate_runtime_profile_counts(profile_counters, *profile);
-          profile->serial_tree_count++;
-        }
-      }
-      m_commandBuffer.EndRecording();
-
-      if (report_tick_timings) {
-        const auto serial_end = std::chrono::steady_clock::now();
-        profile->serial_record_ms = std::chrono::duration<double, std::milli>(serial_end -
-                                                                              serial_start)
-                                        .count();
-        profile->command_list_count = m_commandBuffer.Size() == 0 ? 0u : 1u;
-        profile->command_count = uint32_t(m_commandBuffer.Size());
-        profile->scheduler_job_count = profile->command_list_count;
-      }
-
-      std::chrono::steady_clock::time_point flush_start;
-      if (report_tick_timings) {
-        flush_start = std::chrono::steady_clock::now();
-      }
-      m_commandBuffer.Flush();
-      PollActionOperations();
-      if (report_tick_timings) {
-        const auto flush_end = std::chrono::steady_clock::now();
-        profile->flush_ms = std::chrono::duration<double, std::milli>(flush_end - flush_start)
-                                .count();
-        const LN_CommandBuffer::CommandStreamStats &command_stats =
-            m_commandBuffer.GetLastCommandStreamStats();
-        logic_nodes_accumulate_command_stream_stats(command_stats, *profile);
-        profile->hot_map_lookup_count = m_tickHotMapLookupCount.load(std::memory_order_relaxed);
-        profile->event_indexed_lookup_count = m_eventBus.IndexedLookupCount();
-        profile->event_fallback_scan_count = m_eventBus.FallbackScanCount();
-        CM_Debug(LN_FormatTickProfileLine(*profile));
-      }
-
-      m_isTicking = false;
-      m_objectNameCacheValid = false;
-      m_hasSharedTickInput = false;
-      m_sharedTickReadContext = LN_TickReadContext();
-      m_profileTickMetricsEnabled = false;
-      m_tickRunnableTreesScratch.clear();
-      m_gameLoadPulseActive = false;
-      m_gameLoadPulseSucceeded = false;
-      m_playerJoinActive = false;
-      RemoveDetachedRuntimeTrees();
-      return;
-    }
-
-    std::vector<LN_CommandBuffer::RecordedCommandList> command_lists;
+    m_commandBuffer.BeginRecording();
+    RecordRunnableTrees(runnable_trees, context, report_tick_timings ? &*profile : nullptr);
     if (report_tick_timings) {
-      logic_nodes_profiled_reserve(command_lists,
-                                   scheduler_stats.main_thread_tree_count +
-                                       scheduler_stats.worker_tree_count +
-                                       m_pendingRunOnce.size(),
-                                   *profile);
-    }
-    else {
-      command_lists.reserve(scheduler_stats.main_thread_tree_count +
-                            scheduler_stats.worker_tree_count +
-                            m_pendingRunOnce.size());
+      const auto serial_end = std::chrono::steady_clock::now();
+      profile->serial_record_ms = std::chrono::duration<double, std::milli>(serial_end -
+                                                                            serial_start)
+                                      .count();
     }
 
-    for (const LN_ParallelTreeExecutor::RuntimeTreeWorkItem &item :
-         scheduler_plan.main_thread_items)
-    {
-      if (item.runtime_tree == nullptr) {
-        continue;
-      }
-      std::chrono::steady_clock::time_point serial_start;
+    if (has_due_run_once) {
+      std::chrono::steady_clock::time_point run_once_start;
       if (report_tick_timings) {
-        serial_start = std::chrono::steady_clock::now();
+        run_once_start = std::chrono::steady_clock::now();
       }
-      command_lists.push_back(logic_nodes_record_tree_commands(item.runtime_tree_index,
-                                                               *item.runtime_tree,
-                                                               context,
-                                                               false,
-                                                               m_mainThreadId,
-                                                               report_tick_timings));
+      const uint32_t run_once_count = ProcessPendingRunOnce(
+          context, last_due_run_once_serial, report_tick_timings ? &*profile : nullptr);
       if (report_tick_timings) {
-        logic_nodes_accumulate_recorded_profile_counts(command_lists.back(), *profile);
-        const auto serial_end = std::chrono::steady_clock::now();
-        profile->serial_record_ms += std::chrono::duration<double, std::milli>(serial_end -
-                                                                               serial_start)
-                                         .count();
-        profile->serial_tree_count++;
-      }
-    }
-    if (report_tick_timings) {
-      profile->main_thread_fallback_tree_count = scheduler_stats.main_thread_fallback_count;
-    }
-
-    std::vector<LN_ParallelTreeExecutor::RuntimeTreeWorkItem> worker_trees;
-    if (scheduler_stats.worker_tree_count != 0u) {
-      if (report_tick_timings) {
-        logic_nodes_profiled_reserve(worker_trees, scheduler_stats.worker_tree_count, *profile);
-      }
-      else {
-        worker_trees.reserve(scheduler_stats.worker_tree_count);
-      }
-      for (const LN_ParallelTreeExecutor::SchedulerBatch &batch :
-           scheduler_plan.worker_batches)
-      {
-        worker_trees.insert(worker_trees.end(), batch.items.begin(), batch.items.end());
-      }
-    }
-
-    if (!worker_trees.empty()) {
-      if (!m_objectNameCacheValid && m_objectNameLookupUsed.load(std::memory_order_relaxed)) {
-        RebuildObjectNameCache();
-      }
-      LN_ParallelTreeExecutor parallel_executor;
-      std::chrono::steady_clock::time_point parallel_start;
-      if (report_tick_timings) {
-        parallel_start = std::chrono::steady_clock::now();
-      }
-      std::vector<LN_CommandBuffer::RecordedCommandList> parallel_command_lists =
-          parallel_executor.ExecuteTreesToCommandLists(worker_trees,
-                                                      context,
-                                                      report_tick_timings);
-      if (report_tick_timings) {
-        const auto parallel_end = std::chrono::steady_clock::now();
-        profile->parallel_record_ms = std::chrono::duration<double, std::milli>(parallel_end -
-                                                                                parallel_start)
+        const auto run_once_end = std::chrono::steady_clock::now();
+        profile->run_once_record_ms = std::chrono::duration<double, std::milli>(run_once_end -
+                                                                                run_once_start)
                                           .count();
-        profile->parallel_tree_count = scheduler_stats.worker_tree_count;
-        profile->parallel_executor_used = true;
-        const LN_ParallelTreeExecutor::SchedulerPlannerStats &executed_stats =
-            parallel_executor.GetLastPlannerStats();
-        profile->scheduler_worker_batch_count = executed_stats.worker_batch_count;
-        profile->scheduler_max_trees_per_worker_batch =
-            executed_stats.max_trees_per_worker_batch;
-        profile->scheduler_average_trees_per_worker_batch_x100 =
-            executed_stats.average_trees_per_worker_batch_x100;
-        for (const LN_CommandBuffer::RecordedCommandList &command_list : parallel_command_lists) {
-          logic_nodes_accumulate_recorded_profile_counts(command_list, *profile);
-        }
-      }
-      command_lists.insert(command_lists.end(),
-                           std::make_move_iterator(parallel_command_lists.begin()),
-                           std::make_move_iterator(parallel_command_lists.end()));
-    }
-
-    const size_t run_once_before = command_lists.size();
-    std::chrono::steady_clock::time_point run_once_start;
-    if (report_tick_timings) {
-      run_once_start = std::chrono::steady_clock::now();
-    }
-    ProcessPendingRunOnce(command_lists, context, report_tick_timings);
-    if (report_tick_timings) {
-      const auto run_once_end = std::chrono::steady_clock::now();
-      profile->run_once_record_ms = std::chrono::duration<double, std::milli>(run_once_end -
-                                                                              run_once_start)
-                                        .count();
-      profile->run_once_count = uint32_t(command_lists.size() - run_once_before);
-      for (size_t index = run_once_before; index < command_lists.size(); index++) {
-        logic_nodes_accumulate_recorded_profile_counts(command_lists[index], *profile);
-      }
-      profile->scheduler_job_count = profile->scheduler_worker_batch_count +
-                                     profile->scheduler_main_thread_batch_count +
-                                     profile->run_once_count;
-    }
-
-    if (report_tick_timings) {
-      profile->command_list_count = uint32_t(command_lists.size());
-      profile->command_count = logic_nodes_count_commands(command_lists);
-      profile->string_copy_count = logic_nodes_count_command_string_payloads(command_lists);
-      for (const LN_CommandBuffer::RecordedCommandList &command_list : command_lists) {
-        logic_nodes_accumulate_command_stream_stats(command_list, *profile);
+        profile->run_once_count = run_once_count;
       }
     }
+    m_commandBuffer.EndRecording();
 
-    std::chrono::steady_clock::time_point merge_start;
     if (report_tick_timings) {
-      merge_start = std::chrono::steady_clock::now();
-    }
-    m_commandBuffer.MergeRecordedCommandLists(std::move(command_lists));
-    if (report_tick_timings) {
-      const auto merge_end = std::chrono::steady_clock::now();
-      profile->merge_ms = std::chrono::duration<double, std::milli>(merge_end - merge_start)
-                              .count();
+      profile->command_count = uint32_t(m_commandBuffer.Size());
     }
 
     std::chrono::steady_clock::time_point flush_start;
@@ -2200,19 +1973,15 @@ void LN_Manager::Tick(const double current_time,
                               .count();
       const LN_CommandBuffer::CommandStreamStats &command_stats =
           m_commandBuffer.GetLastCommandStreamStats();
-      profile->command_coalesced_count = command_stats.coalesced_command_count;
+      logic_nodes_accumulate_command_stream_stats(command_stats, *profile);
       profile->hot_map_lookup_count = m_tickHotMapLookupCount.load(std::memory_order_relaxed);
       profile->event_indexed_lookup_count = m_eventBus.IndexedLookupCount();
       profile->event_fallback_scan_count = m_eventBus.FallbackScanCount();
-    }
-
-    if (report_tick_timings) {
       CM_Debug(LN_FormatTickProfileLine(*profile));
     }
   }
 
   m_isTicking = false;
-  m_objectNameCacheValid = false;
   m_hasSharedTickInput = false;
   m_sharedTickReadContext = LN_TickReadContext();
   m_profileTickMetricsEnabled = false;
@@ -2223,6 +1992,309 @@ void LN_Manager::Tick(const double current_time,
   RemoveDetachedRuntimeTrees();
 }
 
+void LN_Manager::RecordTree(LN_RuntimeTree &runtime_tree,
+                            const LN_TickContext &context,
+                            LN_TickProfileMetrics *profile)
+{
+  LN_RuntimeProfileCounters profile_counters;
+  runtime_tree.ExecuteReady(m_commandBuffer, context, profile ? &profile_counters : nullptr);
+  if (profile != nullptr) {
+    logic_nodes_accumulate_tree_profile(runtime_tree, profile_counters, *profile);
+    profile->serial_tree_count++;
+  }
+}
+
+void LN_Manager::RecordRunnableTrees(const std::vector<RunnableTree> &runnable_trees,
+                                     const LN_TickContext &context,
+                                     LN_TickProfileMetrics *profile)
+{
+  const LN_TreeBatchMode mode = LN_GetTreeBatchMode();
+  const size_t min_trees = mode == LN_TreeBatchMode::Force ? 2 : LN_TREE_BATCH_MIN_TREES;
+  const size_t count = runnable_trees.size();
+  /* A batch's first tree records here (below): a batch needs one more. */
+  if (mode == LN_TreeBatchMode::Off || count < min_trees + 1 ||
+      !MarkBatchableTrees(runnable_trees, mode, min_trees))
+  {
+    for (const RunnableTree &item : runnable_trees) {
+      if (item.runtime_tree != nullptr) {
+        RecordTree(*item.runtime_tree, context, profile);
+      }
+    }
+    return;
+  }
+
+  size_t index = 0;
+  while (index < count) {
+    LN_RuntimeTree *runtime_tree = runnable_trees[index].runtime_tree;
+    if (runtime_tree == nullptr) {
+      index++;
+      continue;
+    }
+    RecordTree(*runtime_tree, context, profile);
+    if (m_batchTreeScratch[index] == 0) {
+      index++;
+      continue;
+    }
+    /* The tree just recorded starts a run: its reads applied the pending moves of what it
+     * measures (an earlier tree moved the Player), as they do one tree after the other. The
+     * run's trees after it must find nothing pending, their own object included. */
+    index++;
+    size_t end = index;
+    /* The pending move index brought up to date once, then a lookup a tree. */
+    m_commandBuffer.PrepareForChunkReads();
+    while (end < count && m_batchTreeScratch[end] != 0 &&
+           !m_commandBuffer.HasIndexedPendingTransforms(
+               runnable_trees[end].runtime_tree->GetGameObject(), false))
+    {
+      end++;
+    }
+    if (end - index < min_trees || BatchMeasuresPendingMove(runnable_trees, index, end)) {
+      for (; index < end; index++) {
+        RecordTree(*runnable_trees[index].runtime_tree, context, profile);
+      }
+      continue;
+    }
+    RecordTreeBatch(runnable_trees, index, end, context, profile);
+    index = end;
+  }
+}
+
+void LN_Manager::RecordTreeBatch(const std::vector<RunnableTree> &runnable_trees,
+                                 const size_t begin,
+                                 const size_t end,
+                                 const LN_TickContext &context,
+                                 LN_TickProfileMetrics *profile)
+{
+  const size_t count = end - begin;
+  /* Reads by name in the batch use the lookup, which only this thread may build. */
+  if (!m_objectNameCacheValid) {
+    RebuildObjectNameCache();
+  }
+  m_batchTreesScratch.clear();
+  for (size_t index = begin; index < end; index++) {
+    m_batchTreesScratch.push_back(runnable_trees[index].runtime_tree);
+  }
+  if (profile != nullptr) {
+    m_batchCountersScratch.assign(count, LN_RuntimeProfileCounters());
+  }
+  std::chrono::steady_clock::time_point batch_start;
+  if (profile != nullptr) {
+    batch_start = std::chrono::steady_clock::now();
+  }
+
+  const size_t threads = size_t(m_jobPool.GetHelperCount()) + 1;
+  /* About four chunks a thread, so a thread that finishes early takes another; Force makes at
+   * least two, so the join is always exercised. */
+  const size_t chunk_count = LN_GetTreeBatchMode() == LN_TreeBatchMode::Force ?
+                                 std::max<size_t>(2, threads * 4) :
+                                 std::clamp<size_t>(
+                                     count / LN_TREE_BATCH_MIN_CHUNK_TREES, 1, threads * 4);
+  const size_t chunks_that_read_a_move = m_batchRecorder.Record(
+      m_jobPool,
+      m_commandBuffer,
+      m_batchTreesScratch.data(),
+      count,
+      context,
+      profile != nullptr ? m_batchCountersScratch.data() : nullptr,
+      this,
+      context.use_typed_command_streams,
+      chunk_count);
+  if (chunks_that_read_a_move != 0) {
+    for (const size_t index : m_batchRecorder.LastChunkTreesThatReadAMove()) {
+      const LN_Program *program = m_batchTreesScratch[index]->GetProgramPointer();
+      if (program != nullptr && m_batchRefusedPrograms.insert(program->GetUniqueId()).second) {
+        CM_Warning("Logic Nodes: a tree of '"
+                   << program->GetSourceTreeName()
+                   << "' read a pending move while trees ran side by side; its trees now run "
+                      "one after the other. Please report it, with the file.");
+      }
+    }
+  }
+
+  if (profile != nullptr) {
+    for (size_t index = 0; index < count; index++) {
+      logic_nodes_accumulate_tree_profile(
+          *m_batchTreesScratch[index], m_batchCountersScratch[index], *profile);
+    }
+    profile->serial_tree_count += uint32_t(count);
+    profile->batch_count++;
+    profile->batch_tree_count += uint32_t(count);
+    profile->batch_thread_count = std::max(profile->batch_thread_count, uint32_t(threads));
+    profile->batch_record_ms += std::chrono::duration<double, std::milli>(
+                                    std::chrono::steady_clock::now() - batch_start)
+                                    .count();
+    profile->batch_join_ms += m_batchRecorder.LastJoinMs();
+  }
+}
+
+bool LN_Manager::NoteBatchMeasuredObjects(const LN_Program &program)
+{
+  const std::vector<LN_ValueExpression> &values = program.GetValueExpressions();
+  for (const uint32_t value_index : program.GetTreeBatchProfile().endpoint_value_expressions) {
+    if (value_index >= values.size()) {
+      return false;
+    }
+    const LN_Value &value = values[value_index].value;
+    if (!value.exists) {
+      /* An empty object input: the distance is invalid, nothing is read. */
+      continue;
+    }
+    if (value.reference_name.empty()) {
+      return false;
+    }
+    /* What the trees' reads find (FindSceneObjectByName), the menu copy rule aside: batch
+     * trees are no menu copies. */
+    KX_GameObject *object = FindObjectByName(value.reference_name);
+    if (object == nullptr && m_scene.GetObjectList() != nullptr) {
+      for (KX_GameObject *game_object : *m_scene.GetObjectList()) {
+        if (game_object != nullptr && game_object->GetName() == value.reference_name) {
+          object = game_object;
+          break;
+        }
+      }
+    }
+    if (object == nullptr) {
+      /* Not there now, but a tree before the batch may add it (Add Object puts a copy, with its
+       * source's name, in the scene at once) and move it: the batch's reads would find it with
+       * a pending move. The program's trees record one after the other while it is missing. */
+      return false;
+    }
+    m_batchMeasuredObjects.push_back(object);
+    for (KX_GameObject *barrier = object; barrier != nullptr; barrier = barrier->GetParent()) {
+      if (std::find(m_batchBarrierObjects.begin(), m_batchBarrierObjects.end(), barrier) !=
+          m_batchBarrierObjects.end())
+      {
+        break;
+      }
+      m_batchBarrierObjects.push_back(barrier);
+    }
+  }
+  return true;
+}
+
+bool LN_Manager::MarkBatchableTrees(const std::vector<RunnableTree> &runnable_trees,
+                                    const LN_TreeBatchMode mode,
+                                    const size_t min_trees)
+{
+  /* The game's cores are the physics' (Physics CPU Use): logic and physics never run at once. */
+  const blender::Scene *blender_scene = m_scene.GetBlenderScene();
+  const int32_t cores_setting = blender_scene != nullptr ? blender_scene->gm.jolt_physics_threads :
+                                                           0;
+  if (cores_setting != m_jobPoolCoresSetting) {
+    m_jobPoolCoresSetting = cores_setting;
+    m_jobPool.SetHelperCount(uint32_t(std::max(
+        0,
+        blender::BKE_game_physics_cores(cores_setting,
+                                        blender::BKE_game_physics_computer_cores()) -
+            1)));
+  }
+  if (mode != LN_TreeBatchMode::Force && m_jobPool.GetHelperCount() == 0) {
+    return false;
+  }
+
+  const size_t count = runnable_trees.size();
+  m_batchTreeScratch.assign(count, 0);
+  m_batchProgramsScratch.clear();
+  m_batchMeasuredObjects.clear();
+  m_batchBarrierObjects.clear();
+  /* One entry a program, found through a map: Full Copies compile a program each, and a scan
+   * of the entries made this O(trees x programs). */
+  m_batchProgramIndex.clear_and_keep_capacity();
+  const auto program_batchable = [&](const LN_Program *program) {
+    if (!m_batchProgramsScratch.empty() && m_batchProgramsScratch.back().program == program) {
+      return m_batchProgramsScratch.back().batchable;
+    }
+    if (const uint32_t *found = m_batchProgramIndex.lookup_ptr(program)) {
+      return m_batchProgramsScratch[*found].batchable;
+    }
+    m_batchProgramIndex.add_new(program, uint32_t(m_batchProgramsScratch.size()));
+    BatchProgram entry;
+    entry.program = program;
+    entry.first_measured = uint32_t(m_batchMeasuredObjects.size());
+    entry.batchable = program->GetTreeBatchProfile().eligible &&
+                      !m_batchRefusedPrograms.contains(program->GetUniqueId()) &&
+                      NoteBatchMeasuredObjects(*program);
+    entry.measured_count = uint32_t(m_batchMeasuredObjects.size()) - entry.first_measured;
+    m_batchProgramsScratch.push_back(entry);
+    return entry.batchable;
+  };
+
+  size_t batchable_count = 0;
+  for (size_t index = 0; index < count; index++) {
+    LN_RuntimeTree *runtime_tree = runnable_trees[index].runtime_tree;
+    const LN_Program *program = runtime_tree != nullptr ? runtime_tree->GetProgramPointer() :
+                                                          nullptr;
+    if (program == nullptr || !program_batchable(program)) {
+      continue;
+    }
+    /* On Init and a paused game's UI routes stay on the main thread. */
+    if (!runtime_tree->IsInitExecuted() || runtime_tree->UIEventRoutesOnly()) {
+      continue;
+    }
+    /* A parent's move would move the object; a menu copy's names mean its copy's objects. */
+    KX_GameObject *owner = runtime_tree->GetGameObject();
+    if (owner == nullptr || owner->GetParent() != nullptr ||
+        m_scene.IsOverlayRuntimeObject(owner))
+    {
+      continue;
+    }
+    /* Another tree of the object could move it before this tree reads it. */
+    if (!runtime_tree->GetBatchNote().sole_tree) {
+      continue;
+    }
+    m_batchTreeScratch[index] = 1;
+    batchable_count++;
+  }
+
+  /* What a batch measures must stay where it is during the batch: its own trees (and those of
+   * its parents) record one after the other. */
+  if (!m_batchBarrierObjects.empty()) {
+    for (size_t index = 0; index < count; index++) {
+      if (m_batchTreeScratch[index] != 0 &&
+          std::find(m_batchBarrierObjects.begin(),
+                    m_batchBarrierObjects.end(),
+                    runnable_trees[index].runtime_tree->GetGameObject()) !=
+              m_batchBarrierObjects.end())
+      {
+        m_batchTreeScratch[index] = 0;
+        batchable_count--;
+      }
+    }
+  }
+  return batchable_count >= min_trees;
+}
+
+bool LN_Manager::BatchMeasuresPendingMove(const std::vector<RunnableTree> &runnable_trees,
+                                          const size_t begin,
+                                          const size_t end)
+{
+  if (m_batchMeasuredObjects.empty()) {
+    return false;
+  }
+  const LN_Program *checked_program = nullptr;
+  for (size_t index = begin; index < end; index++) {
+    const LN_Program *program = runnable_trees[index].runtime_tree->GetProgramPointer();
+    if (program == checked_program) {
+      continue;
+    }
+    checked_program = program;
+    const uint32_t *found = m_batchProgramIndex.lookup_ptr(program);
+    if (found == nullptr) {
+      continue;
+    }
+    const BatchProgram &entry = m_batchProgramsScratch[*found];
+    for (uint32_t measured = entry.first_measured;
+         measured < entry.first_measured + entry.measured_count;
+         measured++)
+    {
+      if (m_commandBuffer.HasPendingTransforms(m_batchMeasuredObjects[measured], true)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void LN_Manager::Clear()
 {
   AssertMainThread();
@@ -2231,6 +2303,9 @@ void LN_Manager::Clear()
   m_actionOperations.clear();
   m_uiService->Clear();
   InvalidatePointerHitCache();
+  m_objectByName.clear();
+  m_objectNameCacheValid = false;
+  m_objectNameCacheGeneration = UINT64_MAX;
   m_gameStateService.CancelPending();
   m_commandBuffer.ClearMaterialParameterDefaultState();
   m_programBySourceTreeName.clear();
@@ -2250,6 +2325,7 @@ void LN_Manager::Clear()
   m_tickIndex = 0;
   m_updateTickIndex = 0;
   m_fixedTickIndex = 0;
+  m_stepSpreadCounters.clear();
   m_isTicking = false;
   m_hasDetachedRuntimeTrees = false;
   m_debugBindingsScanned = false;
@@ -2507,6 +2583,16 @@ void LN_Manager::IndexRuntimeTree(LN_RuntimeTree *runtime_tree)
   std::vector<LN_RuntimeTree *> &trees = m_runtimeTreesByObject[gameobj];
   if (std::find(trees.begin(), trees.end(), runtime_tree) == trees.end()) {
     trees.push_back(runtime_tree);
+    NoteSoleTrees(trees);
+  }
+}
+
+void LN_Manager::NoteSoleTrees(const std::vector<LN_RuntimeTree *> &trees)
+{
+  /* Only the trees of the object whose list changed: a spawn or removal elsewhere leaves the
+   * others' notes alone (one global version made every tree look itself up again). */
+  for (LN_RuntimeTree *tree : trees) {
+    tree->GetBatchNote().sole_tree = trees.size() == 1;
   }
 }
 
@@ -2522,6 +2608,7 @@ void LN_Manager::UnindexRuntimeTree(LN_RuntimeTree *runtime_tree)
                 });
 
   m_uiService->NotifyRuntimeTreeRemoved(runtime_tree);
+  runtime_tree->GetBatchNote().sole_tree = false;
 
   if (KX_GameObject *gameobj = runtime_tree->GetGameObject()) {
     m_runtimeTreeByObjectAndAppliedIndex.erase(
@@ -2531,6 +2618,9 @@ void LN_Manager::UnindexRuntimeTree(LN_RuntimeTree *runtime_tree)
       trees.erase(std::remove(trees.begin(), trees.end(), runtime_tree), trees.end());
       if (trees.empty()) {
         m_runtimeTreesByObject.erase(item);
+      }
+      else {
+        NoteSoleTrees(trees);
       }
     }
     return;
@@ -2549,11 +2639,15 @@ void LN_Manager::UnindexRuntimeTree(LN_RuntimeTree *runtime_tree)
 
   for (auto item = m_runtimeTreesByObject.begin(); item != m_runtimeTreesByObject.end();) {
     std::vector<LN_RuntimeTree *> &trees = item->second;
+    const size_t size = trees.size();
     trees.erase(std::remove(trees.begin(), trees.end(), runtime_tree), trees.end());
     if (trees.empty()) {
       item = m_runtimeTreesByObject.erase(item);
     }
     else {
+      if (trees.size() != size) {
+        NoteSoleTrees(trees);
+      }
       ++item;
     }
   }
@@ -2561,6 +2655,8 @@ void LN_Manager::UnindexRuntimeTree(LN_RuntimeTree *runtime_tree)
 
 void LN_Manager::ClearRuntimeTreeIndexes()
 {
+  /* Only the maps: the trees they list may be gone already (Clear deletes them first) or belong
+   * to another manager now (AbsorbRuntimeTreesFrom). */
   m_runtimeTreeByObjectAndAppliedIndex.clear();
   m_runtimeTreesByObject.clear();
   std::lock_guard<std::mutex> lock(m_runtimeObjectRefIndexMutex);
@@ -2570,6 +2666,13 @@ void LN_Manager::ClearRuntimeTreeIndexes()
 
 void LN_Manager::RebuildRuntimeTreeIndexes()
 {
+  /* The batch notes of this manager's live trees start over; IndexRuntimeTree notes again the
+   * trees that are attached to an object. */
+  for (const std::unique_ptr<LN_RuntimeTree> &runtime_tree : m_runtimeTrees) {
+    if (runtime_tree != nullptr) {
+      runtime_tree->GetBatchNote().sole_tree = false;
+    }
+  }
   ClearRuntimeTreeIndexes();
   for (const std::unique_ptr<LN_RuntimeTree> &runtime_tree : m_runtimeTrees) {
     IndexRuntimeTree(runtime_tree.get());
@@ -2599,10 +2702,7 @@ void LN_Manager::RegisterRuntimeObjectRef(LN_RuntimeTree *runtime_tree,
 
   std::lock_guard<std::mutex> lock(m_runtimeObjectRefIndexMutex);
 
-  std::vector<LN_RuntimeTree *> &trees = m_runtimeTreesByReferencedObject[referenced_object];
-  if (std::find(trees.begin(), trees.end(), runtime_tree) == trees.end()) {
-    trees.push_back(runtime_tree);
-  }
+  m_runtimeTreesByReferencedObject[referenced_object].add(runtime_tree);
 
   std::vector<KX_GameObject *> &objects = m_referencedObjectsByRuntimeTree[runtime_tree];
   if (std::find(objects.begin(), objects.end(), referenced_object) == objects.end()) {
@@ -2622,9 +2722,8 @@ void LN_Manager::UnregisterRuntimeObjectRef(LN_RuntimeTree *runtime_tree,
   if (auto item = m_runtimeTreesByReferencedObject.find(referenced_object);
       item != m_runtimeTreesByReferencedObject.end())
   {
-    std::vector<LN_RuntimeTree *> &trees = item->second;
-    trees.erase(std::remove(trees.begin(), trees.end(), runtime_tree), trees.end());
-    if (trees.empty()) {
+    item->second.remove(runtime_tree);
+    if (item->second.is_empty()) {
       m_runtimeTreesByReferencedObject.erase(item);
     }
   }
@@ -2658,9 +2757,8 @@ void LN_Manager::UnregisterRuntimeTreeObjectRefs(LN_RuntimeTree *runtime_tree)
     if (auto object_item = m_runtimeTreesByReferencedObject.find(referenced_object);
         object_item != m_runtimeTreesByReferencedObject.end())
     {
-      std::vector<LN_RuntimeTree *> &trees = object_item->second;
-      trees.erase(std::remove(trees.begin(), trees.end(), runtime_tree), trees.end());
-      if (trees.empty()) {
+      object_item->second.remove(runtime_tree);
+      if (object_item->second.is_empty()) {
         m_runtimeTreesByReferencedObject.erase(object_item);
       }
     }
@@ -2948,6 +3046,7 @@ void LN_Manager::RebuildObjectNameCache()
     }
   }
   m_objectNameCacheValid = true;
+  m_objectNameCacheGeneration = m_scene.GetObjectListGeneration();
 }
 
 KX_GameObject *LN_Manager::FindObjectByName(const std::string &name)
@@ -2955,19 +3054,7 @@ KX_GameObject *LN_Manager::FindObjectByName(const std::string &name)
   if (!m_isTicking || name.empty()) {
     return nullptr;
   }
-  m_objectNameLookupUsed.store(true, std::memory_order_relaxed);
   if (!m_objectNameCacheValid) {
-    if (std::this_thread::get_id() != m_mainThreadId) {
-      /* Worker trees must not rebuild the shared cache (see m_objectNameLookupUsed). */
-      if (EXP_ListValue<KX_GameObject> *object_list = m_scene.GetObjectList()) {
-        for (KX_GameObject *game_object : *object_list) {
-          if (game_object != nullptr && game_object->GetName() == name) {
-            return game_object;
-          }
-        }
-      }
-      return nullptr;
-    }
     RebuildObjectNameCache();
   }
   if (m_profileTickMetricsEnabled) {
@@ -3345,65 +3432,59 @@ void LN_Manager::QueueRunLogicTreeOnce(KX_GameObject *target_object, const std::
   {
     return;
   }
-  m_pendingRunOnce.push_back({target_object, tree_name});
+  /* Calls wait for the next Logic + Physics step, also through a pause (no steps run). A bound on
+   * how many may wait keeps a route that calls every frame of a long pause from growing the list
+   * (and the first step after it) without end; the next step runs every waiting call. */
+  if (m_pendingRunOnce.size() >= LN_MAX_WAITING_RUN_ONCE_CALLS) {
+    if (!m_runOnceLimitWarned) {
+      m_runOnceLimitWarned = true;
+      CM_Warning("Logic Nodes: Run Logic Tree ignored a call to '"
+                 << tree_name << "' on '" << target_object->GetName() << "': "
+                 << LN_MAX_WAITING_RUN_ONCE_CALLS
+                 << " calls are already waiting for the next Logic + Physics step (a route that "
+                    "calls it every frame while the game is paused?)");
+    }
+    return;
+  }
+  PendingRunOnce entry;
+  entry.object = target_object;
+  entry.tree_name = tree_name;
+  entry.serial = ++m_runOnceSerial;
+  m_pendingRunOnce.push_back(std::move(entry));
 }
 
-void LN_Manager::ProcessPendingRunOnce(
-    std::vector<LN_CommandBuffer::RecordedCommandList> &command_lists,
-    const LN_TickContext &context,
-    const bool collect_profile_counters)
+uint32_t LN_Manager::ProcessPendingRunOnce(const LN_TickContext &context,
+                                           const uint64_t last_due_serial,
+                                           LN_TickProfileMetrics *profile)
 {
-  /* Nested Run Logic Tree calls append here during forced execution; cap total pops per tick. */
-  constexpr int kMaxPops = 128;
-  std::unordered_set<uint64_t> active_stack;
-  std::deque<std::pair<KX_GameObject *, std::string>> deferred_while_paused;
-  size_t run_once_index = m_runtimeTrees.size();
-
-  const auto run_key = [](KX_GameObject *go, const std::string &name) -> uint64_t {
-    const uintptr_t p = reinterpret_cast<uintptr_t>(go);
-    uint64_t h = std::hash<std::string>{}(name);
-    h ^= uint64_t(p) << 1;
-    return h;
-  };
-
-  for (int iter = 0; iter < kMaxPops && !m_pendingRunOnce.empty(); iter++) {
-    std::pair<KX_GameObject *, std::string> item = std::move(m_pendingRunOnce.front());
+  BLI_assert(context.event == LN_Event::OnFixedUpdate);
+  uint32_t run_count = 0;
+  /* The calls queued before this step began, all of them, in call order. Calls made in this step
+   * (by the trees that ran before, or by a forced run itself) have later serials and wait for the
+   * next step, so every call gets one pass and a tree that runs itself cannot loop. (A cap of 128
+   * a step, tried on 2026-10-31, left calls behind for good once a game made more than that every
+   * step; QueueRunLogicTreeOnce bounds the waiting list instead.) */
+  while (!m_pendingRunOnce.empty() && m_pendingRunOnce.front().serial <= last_due_serial) {
+    PendingRunOnce entry = std::move(m_pendingRunOnce.front());
     m_pendingRunOnce.pop_front();
-
-    KX_GameObject *target = item.first;
-    const std::string &tree_name = item.second;
-    if (target == nullptr || tree_name.empty() || IsGameObjectQueuedForRemoval(target)) {
+    if (entry.object == nullptr || entry.tree_name.empty() ||
+        IsGameObjectQueuedForRemoval(entry.object))
+    {
       continue;
     }
-    if (context.game_paused && !IsObjectPauseProcessed(target)) {
-      deferred_while_paused.push_back(std::move(item));
+    LN_RuntimeTree *target_tree = FindRuntimeTreeBySourceName(entry.object, entry.tree_name);
+    if (target_tree == nullptr) {
       continue;
     }
-
-    const uint64_t key = run_key(target, tree_name);
-    if (active_stack.find(key) != active_stack.end()) {
-      CM_Warning(
-          "Logic Nodes: skipped nested Run Logic Tree for the same object/tree within one tick");
-      continue;
+    LN_RuntimeProfileCounters profile_counters;
+    target_tree->ExecuteForcedUpdate(
+        m_commandBuffer, context, profile != nullptr ? &profile_counters : nullptr);
+    if (profile != nullptr) {
+      logic_nodes_accumulate_tree_profile(*target_tree, profile_counters, *profile);
     }
-
-    active_stack.insert(key);
-    if (LN_RuntimeTree *target_tree = FindRuntimeTreeBySourceName(target, tree_name)) {
-      command_lists.push_back(logic_nodes_record_tree_commands(run_once_index,
-                                                               *target_tree,
-                                                               context,
-                                                               true,
-                                                               m_mainThreadId,
-                                                               collect_profile_counters));
-    }
-    active_stack.erase(key);
-    run_once_index++;
+    run_count++;
   }
-
-  while (!deferred_while_paused.empty()) {
-    m_pendingRunOnce.push_front(std::move(deferred_while_paused.back()));
-    deferred_while_paused.pop_back();
-  }
+  return run_count;
 }
 
 bool LN_Manager::FlushSetLogicTreeEnabled(KX_GameObject *target_object,

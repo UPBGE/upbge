@@ -1099,6 +1099,8 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_FloatExp
       LN_EXPR(Float, QueryDistance, READ_QUERY_EXPRESSION);
     case LN_FloatExpressionKind::MotionSpeed:
       LN_EXPR_RUNTIME_READ(Float, MotionSpeed);
+    case LN_FloatExpressionKind::StepTimePassed:
+      LN_EXPR_RUNTIME_READ(Float, StepTimePassed);
     case LN_FloatExpressionKind::Constant:
     case LN_FloatExpressionKind::UnscaledDeltaTime:
     case LN_FloatExpressionKind::Add:

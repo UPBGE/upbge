@@ -76,6 +76,7 @@
 #include "WM_api.hh"
 
 #include <algorithm>
+#include <atomic>
 #include <cfloat>
 #include <cmath>
 #include <limits>
@@ -1107,8 +1108,15 @@ float KX_GameObject::GetOwnDrawDistance()
   return (distance > 0.0 && std::isfinite(distance)) ? float(distance) : 0.0f;
 }
 
+uint64_t KX_GameObject::PropertyMapStamp::Next()
+{
+  static std::atomic<uint64_t> last_stamp{0};
+  return last_stamp.fetch_add(1, std::memory_order_relaxed) + 1;
+}
+
 void KX_GameObject::PropertyMapChanged(const std::string &name)
 {
+  m_propertyMapStamp.value = PropertyMapStamp::Next();
   if (name.empty() || name == "draw_distance") {
     if (m_drawCull.distance_value != nullptr) {
       m_drawCull.distance_value->Release();

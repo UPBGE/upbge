@@ -2185,6 +2185,10 @@ inline constexpr PinMetadata while_paused_inputs[] = {
   {"Object", "Root Object", PinType::Object, "", false},
   {"Collection", "Collection", PinType::Collection, "", false},
 };
+inline constexpr PinMetadata on_fixed_update_outputs[] = {
+  {"Out", "Out", PinType::Execution, "false", false},
+  {"Time Passed", "Time Passed", PinType::Float, "0.0", false},
+};
 inline constexpr PinMetadata while_paused_outputs[] = {
   {"Update", "Update", PinType::Execution, "false", false},
   {"Delta Time", "Delta Time", PinType::Float, "0.0", false},
@@ -3097,9 +3101,10 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    "Events",
    "On Logic + Physics Step",
    "Runs once during every fixed Logic + Physics step, before physics simulation; may run zero or "
-   "multiple times per frame and stops while time scale is zero",
+   "multiple times per frame and stops while time scale is zero. Every N runs its routes only on "
+   "every N-th step (objects using the tree take turns), Time Passed covering the N steps",
    {},
-   pin_span(condition_output),
+   pin_span(on_fixed_update_outputs),
    false,
    RequiredPhase::FixedUpdate,
    false,

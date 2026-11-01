@@ -342,13 +342,6 @@ class LN_CommandBuffer {
     uint8_t sound_group = 0;
   };
 
-  struct RecordedCommandList {
-    size_t runtime_tree_index = 0;
-    std::vector<Command> commands;
-    LN_RuntimeProfileCounters profile_counters;
-    CommandStreamStats command_stream_stats;
-  };
-
   static void SortCommands(std::vector<Command> &commands);
   static CommandSubsystem GetCommandSubsystem(CommandType type);
   static CommandSubsystem GetCommandSubsystem(const Command &command);
@@ -362,15 +355,53 @@ class LN_CommandBuffer {
   void SetMainThreadId(std::thread::id main_thread_id);
   void SetLogicManager(LN_Manager *logic_manager);
   void SetTypedCommandStreamsEnabled(bool enabled);
-  /** When true, recording may occur on worker threads; flush remains main-thread only. */
-  void SetAllowWorkerRecording(bool allow_worker_recording);
   bool CanFlushPendingObjectTransformCommands() const;
   void BeginRecording();
   void EndRecording();
+  /** Tree batches (LN_TreeBatch.h): a chunk buffer records one part of a batch on a job pool
+   * thread. It starts empty, takes the calling thread as its own and never changes the scene: a
+   * read that would apply one of its pending moves (which a batch rules out) applies nothing and
+   * is noted instead (ChunkReadPendingMove). */
+  void BeginChunkRecording();
+  void EndChunkRecording();
+  bool ChunkReadPendingMove() const
+  {
+    return m_chunkReadPendingMove;
+  }
+  /** Appends a chunk's commands after this buffer's own, exactly as if they had been recorded
+   * here: record sequences and property values continue, the order and coalescing counts and the
+   * pending move index follow. The chunk is left empty (its memory kept). Main thread, while
+   * this buffer records. */
+  void AppendRecordedChunk(LN_CommandBuffer &chunk);
+  /** The object (with `include_parents`, or one of its parents) has a recorded move that is not
+   * applied yet: a read that must see the step's moves would apply it now. */
+  bool HasPendingTransforms(KX_GameObject *gameobj, bool include_parents);
+  /** Before chunks record against this buffer: their reads also look for this buffer's pending
+   * moves (SetChunkTickBuffer), through its index, made complete here (nothing appends to it
+   * while the chunks record). */
+  void PrepareForChunkReads();
+  /** As HasPendingTransforms, without bringing the index up to date: any thread may ask, while
+   * nothing records into this buffer (after PrepareForChunkReads). */
+  bool HasIndexedPendingTransforms(KX_GameObject *gameobj, bool include_parents) const;
+  /** A chunk's reads also check `buffer`'s pending moves (the tick's buffer it is appended to). */
+  void SetChunkTickBuffer(const LN_CommandBuffer *buffer)
+  {
+    m_chunkTickBuffer = buffer;
+  }
   std::vector<Command> TakeRecordedCommands();
   std::vector<Command> TakeFlushPlannedCommands();
+  /** Tests: the commands the direct flush would apply, in order, as (sort key, record sequence),
+   * with its coalescing when `coalesce` (the streams must be sorted). Applies and consumes
+   * nothing, so it can be compared with TakeFlushPlannedCommands on the same recording. */
+  std::vector<std::pair<uint64_t, uint64_t>> DirectFlushOrderForTests(bool coalesce);
+  /** Tests: what the flush decides its path by: the streams known to be in order (the direct
+   * flush, else the planned list) and the count of last-write-wins writes (the merge gate). */
+  std::pair<bool, uint32_t> FlushDecisionForTests() const
+  {
+    return {m_commandStreamsSorted, m_coalescibleCommandCount};
+  }
+  /** Tests: appends hand-made commands to the legacy stream, in their order. */
   void MergeRecordedCommands(std::vector<Command> commands);
-  void MergeRecordedCommandLists(std::vector<RecordedCommandList> command_lists);
   void AppendSetWorldPosition(KX_GameObject *gameobj,
                               const MT_Vector3 &position,
                               uint64_t sort_key,
@@ -495,6 +526,14 @@ class LN_CommandBuffer {
                                 const LN_Value &value,
                                 uint64_t sort_key,
                                 uint32_t source_ref_index);
+  /** AppendSetGamePropertyRef with `number.ToValue()`, without making that value: the number is
+   * written in place at the flush when the property holds a number. */
+  void AppendSetGamePropertyNumberRef(LN_RuntimeTree *runtime_tree,
+                                      KX_GameObject *gameobj,
+                                      uint32_t property_ref_index,
+                                      const LN_PropertyNumber &number,
+                                      uint64_t sort_key,
+                                      uint32_t source_ref_index);
   void AppendModifyGameProperty(LN_RuntimeTree *runtime_tree,
                                 KX_GameObject *gameobj,
                                 uint32_t property_ref_index,
@@ -1251,7 +1290,12 @@ class LN_CommandBuffer {
     const std::string *property_name_ptr = nullptr;
     uint32_t property_ref_index = LN_INVALID_INDEX;
     std::string property_name;
-    LN_Value value;
+    /** The written value. A number written as one (Set Game Property Bool/Int/Float:
+     * AppendSetGamePropertyNumberRef) is `number`, so the write carries only its value; any other
+     * value is m_propertyValues[value_index]; neither (Modify Property): the default value.
+     * PropertyCommandValue gives it as an LN_Value. */
+    LN_PropertyNumber number;
+    uint32_t value_index = LN_INVALID_INDEX;
     LN_PropertyModify modify;
   };
 
@@ -1541,6 +1585,9 @@ class LN_CommandBuffer {
   std::vector<TypedVectorCommand> m_velocityCommands;
   std::vector<TypedVectorCommand> m_relativeVectorCommands;
   std::vector<TypedPropertyCommand> m_propertyCommands;
+  /** The property writes' values that are not numbers (TypedPropertyCommand::value_index),
+   * cleared with the streams; the memory stays for the next step. */
+  std::vector<LN_Value> m_propertyValues;
   std::vector<TypedEventCommand> m_eventCommands;
   std::vector<TypedAudioCommand> m_audioCommands;
   std::vector<TypedLifecycleCommand> m_lifecycleCommands;
@@ -1563,7 +1610,10 @@ class LN_CommandBuffer {
   uint64_t m_nextRecordSequence = 1;
   bool m_isRecording = false;
   bool m_isFlushing = false;
-  bool m_allowWorkerRecording = false;
+  /** A tree batch's chunk buffer (BeginChunkRecording). */
+  bool m_isChunk = false;
+  bool m_chunkReadPendingMove = false;
+  const LN_CommandBuffer *m_chunkTickBuffer = nullptr;
   bool m_typedCommandStreamsEnabled = true;
   bool m_commandStreamsSorted = true;
   uint32_t m_coalescibleCommandCount = 0;
@@ -1572,12 +1622,79 @@ class LN_CommandBuffer {
    * the read object's pending ones at once. Per object, the places of its pending transform
    * writes in m_transformCommands (or m_relativeVectorCommands, k_relative_transform_place), so
    * a read never looks at the other objects' writes. Made at the first such read of a recording,
-   * then kept up to date by the appends; forgotten when the streams' places move.
+   * then kept up to date by the appends; forgotten when the streams' places move. It holds the
+   * places below m_indexedTransformPlaces / m_indexedRelativePlaces: the commands of appended
+   * chunks are indexed by the next read (IndexPendingTransforms catches up), often never.
    */
   blender::Map<KX_GameObject *, blender::Vector<uint32_t, 2>> m_pendingTransforms;
   bool m_pendingTransformsIndexed = false;
+  uint32_t m_indexedTransformPlaces = 0;
+  uint32_t m_indexedRelativePlaces = 0;
   /** Writes applied by such reads, left in their streams until EndRecording. */
   uint32_t m_appliedTransformCount = 0;
+  /** Of those, the last-write-wins ones (CompactAppliedTransforms takes them off the count). */
+  uint32_t m_appliedCoalescibleCount = 0;
   /** A transform write went to m_commands (typed streams off): reads plan every command. */
   bool m_legacyTransformRecorded = false;
+
+  /** The streams a flush walks together. Equal sort keys go in this order, as in
+   * BuildPlannedCommands' merge. */
+  enum class FlushStream : uint8_t {
+    Legacy = 0,
+    Transform,
+    Velocity,
+    RelativeVector,
+    Motion,
+    Property,
+    Event,
+    Audio,
+    Lifecycle,
+    ObjectService,
+    RuntimeService,
+    Animation,
+    Armature,
+    Material,
+    Physics,
+  };
+  /** One command in the order the flush applies it. `superseded`: a later write to the same
+   * target in the same run of last-write-wins writes makes it unneeded (MarkSupersededWrites). */
+  struct FlushOrderEntry {
+    uint32_t index = 0;
+    FlushStream stream = FlushStream::Legacy;
+    bool superseded = false;
+  };
+  /** The order of all streams' commands (each stream sorted), in m_flushOrder; counts the
+   * last-write-wins writes in m_flushMergeableCount. */
+  void BuildFlushOrder();
+  /** Marks the writes the planned flush's coalescing drops (a later write to the same target
+   * with only last-write-wins writes between), without copying any command. Returns how many. */
+  uint32_t MarkSupersededWrites();
+  CommandHeader FlushCommandHeader(FlushStream stream, uint32_t index) const;
+  /** A property write's value (not a number) kept in m_propertyValues: its index. */
+  uint32_t StorePropertyValue(const LN_Value &value);
+  /** A property write's value: the stored one, else `r_scratch` made from its number (or the
+   * default value). Valid until the next write is recorded. */
+  const LN_Value &PropertyCommandValue(const TypedPropertyCommand &command,
+                                       LN_Value &r_scratch) const;
+  /** Kept between flushes: once the game has warmed up, a flush allocates nothing. */
+  std::vector<FlushOrderEntry> m_flushOrder;
+  uint32_t m_flushMergeableCount = 0;
+  /** The most last-write-wins writes in a row in m_flushOrder: MarkSupersededWrites' table. */
+  uint32_t m_flushLongestMergeableRun = 0;
+  /** Streams out of order: every entry with its order, sorted once (BuildFlushOrder). */
+  struct FlushSortEntry {
+    uint64_t sort_key = 0;
+    uint64_t record_sequence = 0;
+    FlushOrderEntry entry;
+  };
+  std::vector<FlushSortEntry> m_flushSortScratch;
+  /** MarkSupersededWrites' open-addressing table, from a write's target to its place in
+   * m_flushOrder. A slot counts only in its own run (`segment`), so a run ends in O(1). */
+  struct FlushWriteSlot {
+    uint64_t hash = 0;
+    uint64_t segment = 0;
+    uint32_t order_index = 0;
+  };
+  std::vector<FlushWriteSlot> m_flushWriteSlots;
+  uint64_t m_flushWriteSegment = 0;
 };

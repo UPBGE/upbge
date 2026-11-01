@@ -204,6 +204,11 @@ uint32_t AddSourceRef(LN_Program &program,
                       const blender::bNode &node,
                       const char *socket_name);
 
+/** On Logic + Physics Step's Every N Steps (node custom1, Same Step in custom2): the program's
+ * LN_StepGate its routes run behind, LN_INVALID_INDEX for any other node or one that runs every
+ * step. */
+uint32_t StepGateOfEventNode(LN_Program &program, LN_NodeKind kind, const blender::bNode &node);
+
 void AddNodeIssue(LN_Program &program,
                   const blender::bNodeTree &tree,
                   const blender::bNode &node,
