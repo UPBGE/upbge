@@ -97,6 +97,7 @@ set(SRC
   SCA_PropertyActuator.cpp
   SCA_PropertySensor.cpp
   SCA_PythonController.cpp
+  SCA_PythonInputDevice.cpp
   SCA_PythonJoystick.cpp
   SCA_PythonKeyboard.cpp
   SCA_PythonMouse.cpp
@@ -165,6 +166,7 @@ set(SRC
   SCA_PropertyActuator.h
   SCA_PropertySensor.h
   SCA_PythonController.h
+  SCA_PythonInputDevice.h
   SCA_PythonJoystick.h
   SCA_PythonKeyboard.h
   SCA_PythonMouse.h

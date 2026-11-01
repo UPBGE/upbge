@@ -9,6 +9,11 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    A Python interface to a joystick.
 
+   .. seealso::
+
+      :class:`~bge.types.SCA_PythonInputDevice` for the raw values of any joystick-class device,
+      including devices that are not gamepads and inputs not covered by the gamepad layout.
+
    .. attribute:: name
 
       The name assigned to the joystick by the operating system. (read-only)

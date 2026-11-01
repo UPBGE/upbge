@@ -42,6 +42,7 @@
 #include "DEV_EventConsumer.h"
 #include "DEV_InputDevice.h"
 #include "DEV_Joystick.h"
+#include "DEV_RawJoystick.h"
 #include "GHOST_ISystem.hh"
 #include "GPG_Canvas.h"
 #include "KX_Globals.h"
@@ -319,6 +320,8 @@ void LA_Launcher::ExitEngine()
   Texture::FreeAllTextures(nullptr);
 #endif  // WITH_PYTHON
 
+  /* Raw devices must be closed while the SDL joystick subsystem is still initialized. */
+  DEV_RawJoystick::Close();
   DEV_Joystick::Close();
   m_ketsjiEngine->StopEngine();
 

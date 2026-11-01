@@ -129,7 +129,18 @@ class DEV_Joystick
 
  public:
   static DEV_Joystick *GetInstance(short bge_joystick_slot);
-  static bool HandleEvents(short (&addrem)[JOYINDEX_MAX]);
+  /**
+   * Poll all pending SDL events, updating the game controllers and the raw devices
+   * (#DEV_RawJoystick).
+   *
+   * \param addrem: Set to 1 for a game controller slot that was added, 2 for one that was removed.
+   * \param rawaddrem: Same as \a addrem for the #DEV_RawJoystick slots.
+   * \param rawremap: Set to true if a #DEV_RawJoystick slot was added or removed.
+   * \return True if a game controller slot was added or removed.
+   */
+  static bool HandleEvents(short (&addrem)[JOYINDEX_MAX],
+                           short (&rawaddrem)[RAWJOYINDEX_MAX],
+                           bool &rawremap);
   void ReleaseInstance(short bge_joystick_slot);
   static void Init();
   static void Close();

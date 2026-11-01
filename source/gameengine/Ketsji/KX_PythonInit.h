@@ -33,7 +33,7 @@
 
 #include <string>
 
-#include "DEV_JoystickDefines.h"  // For JOYINDEX_MAX
+#include "DEV_JoystickDefines.h"  // For JOYINDEX_MAX and RAWJOYINDEX_MAX
 #include "EXP_Python.h"
 #include "MT_Vector3.h"
 
@@ -83,6 +83,12 @@ void createPythonConsole();
 
 // Update Python Joysticks
 void updatePythonJoysticks(short (&addrem)[JOYINDEX_MAX]);
+
+/**
+ * Update the `bge.logic.inputDevices` list after raw devices were added or removed.
+ * \param addrem: Per slot, 1 if a device was added, 2 if it was removed, 0 if unchanged.
+ */
+void updatePythonInputDevices(short (&addrem)[RAWJOYINDEX_MAX]);
 #endif
 
 void addImportMain(blender::Main *maggie);

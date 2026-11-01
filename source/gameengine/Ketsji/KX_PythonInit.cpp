@@ -102,6 +102,7 @@
 #include "BL_Converter.h"
 #include "BL_Shader.h"
 #include "CM_Message.h"
+#include "DEV_RawJoystick.h"
 #include "KX_Globals.h"
 #include "KX_LibLoadStatus.h"
 #include "KX_MeshProxy.h" /* for creating a new library of mesh objects */
@@ -124,6 +125,7 @@
 #include "SCA_MovementSensor.h"
 #include "SCA_ParentActuator.h"
 #include "SCA_PropertySensor.h"
+#include "SCA_PythonInputDevice.h"
 #include "SCA_PythonJoystick.h"
 #include "SCA_PythonKeyboard.h"
 #include "SCA_PythonMouse.h"
@@ -145,6 +147,7 @@ using namespace blender;
 static SCA_PythonKeyboard *gp_PythonKeyboard = nullptr;
 static SCA_PythonMouse *gp_PythonMouse = nullptr;
 static SCA_PythonJoystick *gp_PythonJoysticks[JOYINDEX_MAX] = {nullptr};
+static SCA_PythonInputDevice *gp_PythonInputDevices[RAWJOYINDEX_MAX] = {nullptr};
 
 static struct {
   PyObject *path;
@@ -1287,6 +1290,13 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
   PyDict_SetItemString(d, "joysticks", joylist);
   Py_DECREF(joylist);
 
+  PyObject *inputdevicelist = PyList_New(RAWJOYINDEX_MAX);
+  for (unsigned short i = 0; i < RAWJOYINDEX_MAX; ++i) {
+    PyList_SET_ITEM(inputdevicelist, i, Py_NewRef(Py_None));
+  }
+  PyDict_SetItemString(d, "inputDevices", inputdevicelist);
+  Py_DECREF(inputdevicelist);
+
   ErrorObject = PyUnicode_FromString("GameLogic.error");
   PyDict_SetItemString(d, "error", ErrorObject);
   Py_DECREF(ErrorObject);
@@ -1878,6 +1888,13 @@ void exitGamePlayerPythonScripting()
     }
   }
 
+  for (int i = 0; i < RAWJOYINDEX_MAX; ++i) {
+    if (gp_PythonInputDevices[i]) {
+      delete gp_PythonInputDevices[i];
+      gp_PythonInputDevices[i] = nullptr;
+    }
+  }
+
   /* since python restarts we cant let the python backup of the sys.path hang around in a global
    * pointer */
   restorePySysObjects(); /* get back the original sys.path and clear the backup */
@@ -1920,6 +1937,13 @@ void exitGamePythonScripting()
     if (gp_PythonJoysticks[i]) {
       delete gp_PythonJoysticks[i];
       gp_PythonJoysticks[i] = nullptr;
+    }
+  }
+
+  for (int i = 0; i < RAWJOYINDEX_MAX; ++i) {
+    if (gp_PythonInputDevices[i]) {
+      delete gp_PythonInputDevices[i];
+      gp_PythonInputDevices[i] = nullptr;
     }
   }
 
@@ -2012,6 +2036,40 @@ void updatePythonJoysticks(short (&addrem)[JOYINDEX_MAX])
     }
 
     PyList_SetItem(pythonJoyList, i, item);
+  }
+
+  Py_DECREF(gameLogic);
+}
+
+void updatePythonInputDevices(short (&addrem)[RAWJOYINDEX_MAX])
+{
+  PyObject *gameLogic = PyImport_ImportModule("GameLogic");
+  PyObject *pythonDeviceList = PyDict_GetItemString(PyModule_GetDict(gameLogic), "inputDevices");
+
+  for (unsigned short i = 0; i < RAWJOYINDEX_MAX; ++i) {
+    if (addrem[i] == 0) {
+      continue;
+    }
+
+    /* The previous wrapper is stale in both cases: removed, or slot reused by a new device. */
+    if (gp_PythonInputDevices[i]) {
+      delete gp_PythonInputDevices[i];
+      gp_PythonInputDevices[i] = nullptr;
+    }
+
+    /* PyList_SetItem steals the reference. */
+    PyObject *item = Py_NewRef(Py_None);
+
+    if (addrem[i] == 1) {
+      DEV_RawJoystick *device = DEV_RawJoystick::GetInstance(i);
+      if (device) {
+        gp_PythonInputDevices[i] = new SCA_PythonInputDevice(device);
+        Py_DECREF(item);
+        item = gp_PythonInputDevices[i]->GetProxy();
+      }
+    }
+
+    PyList_SetItem(pythonDeviceList, i, item);
   }
 
   Py_DECREF(gameLogic);
