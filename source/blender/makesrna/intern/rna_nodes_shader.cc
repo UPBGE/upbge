@@ -2279,6 +2279,7 @@ void RNA_def_nodes_shader(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeVolumeCoefficients", def_volume_coefficients);
   define("ShaderNode", "ShaderNodeWavelength");
   define("ShaderNode", "ShaderNodeWireframe", def_sh_tex_wireframe);
+  define("ShaderNode", "ShaderNodeSpritesAnimation"); //UPBGE
   define("ShaderNode", "ShaderNodeGroup", def_group);
 
   /* clang-format on */
