@@ -2410,11 +2410,10 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   uchar col[4];
   copy_v4_v4_uchar(col, wcol->text);
-  uiFontStyle style = *fstyle;
   Vector<blender::StringRef> draw_lines = lines;
   if (textbox->wrap_cache->text.empty() && textbox->placeholder) {
     draw_lines = textbox_wrap_placeholder(textbox);
-    style.shadow = 0;
+    params.use_shadow = false;
     col[3] *= UI_INPUT_HINT_ALPHA;
   }
   for (const StringRef line : draw_lines.as_span().slice_safe(scroll, visible_lines)) {
@@ -2425,7 +2424,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     ymax -= line_height;
     rect.ymin = ymax;
     fontstyle_draw_ex(
-        &style, &rect, line.begin(), line.size(), col, &params, nullptr, nullptr, nullptr);
+        fstyle, &rect, line.begin(), line.size(), col, &params, nullptr, nullptr, nullptr);
   }
 
   BLF_batch_draw_flush();
@@ -2807,8 +2806,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
         BLF_boundbox(fstyle->uifont_id, drawstr + but->ofs, drawlen, &text_bounds);
 
         /* Draw unit hint with 33% opacity. */
-        uiFontStyle style = *fstyle;
-        style.shadow = 0;
+        params.use_shadow = false;
         uchar col[4];
         copy_v4_v4_uchar(col, wcol->text);
         col[3] *= UI_INPUT_HINT_ALPHA;
@@ -2818,7 +2816,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
         unit_hint_rect.ymin = rect->ymin;
         unit_hint_rect.xmax = rect->xmax;
         unit_hint_rect.ymax = rect->ymax;
-        fontstyle_draw_ex(&style,
+        fontstyle_draw_ex(fstyle,
                           &unit_hint_rect,
                           unit_hint->data(),
                           unit_hint->size(),
@@ -2837,13 +2835,12 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     if (placeholder && placeholder[0]) {
       FontStyleDrawParams params{};
       params.align = align;
-      uiFontStyle style = *fstyle;
-      style.shadow = 0;
+      params.use_shadow = false;
       uchar col[4];
       copy_v4_v4_uchar(col, wcol->text);
       col[3] *= UI_INPUT_HINT_ALPHA;
       fontstyle_draw_ex(
-          &style, rect, placeholder, strlen(placeholder), col, &params, nullptr, nullptr, nullptr);
+          fstyle, rect, placeholder, strlen(placeholder), col, &params, nullptr, nullptr, nullptr);
     }
   }
 
