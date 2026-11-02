@@ -6872,6 +6872,8 @@ void LN_CommandBuffer::ClearTypedStreams()
   m_appliedTransformCount = 0;
   m_appliedCoalescibleCount = 0;
   ForgetPendingTransformIndex();
+  /* The streams are empty: no object carries the new mark. */
+  m_pendingMarkGeneration.value = NextPendingMarkGeneration();
   m_addObjectSourceInactiveCache.clear();
 }
 
@@ -7097,9 +7099,15 @@ void LN_CommandBuffer::AppendRecordedChunk(LN_CommandBuffer &chunk)
   for (std::vector<TypedVectorCommand> *stream :
        {&chunk.m_transformCommands, &chunk.m_relativeVectorCommands, &chunk.m_velocityCommands})
   {
+    const bool moves = stream != &chunk.m_velocityCommands;
     for (TypedVectorCommand &command : *stream) {
       if (command.rotation_index != LN_INVALID_INDEX) {
         command.rotation_index += rotation_offset;
+      }
+      /* The chunk did not mark its moves (another thread recorded them): they are this buffer's
+       * now (the main thread). */
+      if (moves) {
+        MarkPendingMove(command);
       }
     }
   }
@@ -7149,11 +7157,20 @@ void LN_CommandBuffer::AppendRecordedChunk(LN_CommandBuffer &chunk)
 
 bool LN_CommandBuffer::HasPendingTransforms(KX_GameObject *gameobj, const bool include_parents)
 {
+  if (PendingMarksSayNone(gameobj, include_parents, true)) {
+    return false;
+  }
+  return HasPendingTransformsByIndex(gameobj, include_parents);
+}
+
+bool LN_CommandBuffer::HasPendingTransformsByIndex(KX_GameObject *gameobj,
+                                                   const bool include_parents)
+{
   if (gameobj == nullptr || Size() == 0) {
     return false;
   }
   IndexPendingTransforms();
-  return HasIndexedPendingTransforms(gameobj, include_parents);
+  return HasIndexedPendingTransformsByIndex(gameobj, include_parents);
 }
 
 void LN_CommandBuffer::PrepareForChunkReads()
@@ -7164,6 +7181,15 @@ void LN_CommandBuffer::PrepareForChunkReads()
 
 bool LN_CommandBuffer::HasIndexedPendingTransforms(KX_GameObject *gameobj,
                                                    const bool include_parents) const
+{
+  if (PendingMarksSayNone(gameobj, include_parents, false)) {
+    return false;
+  }
+  return HasIndexedPendingTransformsByIndex(gameobj, include_parents);
+}
+
+bool LN_CommandBuffer::HasIndexedPendingTransformsByIndex(KX_GameObject *gameobj,
+                                                          const bool include_parents) const
 {
   if (gameobj == nullptr || Size() == 0) {
     return false;
@@ -8720,8 +8746,141 @@ void LN_CommandBuffer::FlushPendingObjectHierarchyTransformCommands(KX_GameObjec
 /** In a pending transform index place: the write is in m_relativeVectorCommands. */
 static constexpr uint32_t k_relative_transform_place = 1u << 31u;
 
+uint64_t LN_CommandBuffer::NextPendingMarkGeneration()
+{
+  static std::atomic<uint64_t> next{0};
+  return next.fetch_add(1, std::memory_order_relaxed) + 1;
+}
+
+namespace {
+std::atomic<int> g_pending_mark_mode_override{-1};
+std::atomic<uint64_t> g_pending_mark_differences{0};
+std::atomic<bool> g_pending_mark_difference_expected{false};
+std::atomic<bool> g_pending_mark_warned{false};
+}  // namespace
+
+void LN_CommandBuffer::SetPendingMarkDifferenceExpectedForTests(const bool expected)
+{
+  g_pending_mark_difference_expected.store(expected, std::memory_order_relaxed);
+}
+
+LN_CommandBuffer::PendingMarkMode LN_CommandBuffer::GetPendingMarkMode()
+{
+  const int override_mode = g_pending_mark_mode_override.load(std::memory_order_relaxed);
+  if (override_mode >= 0) {
+    return PendingMarkMode(override_mode > 2 ? 2 : override_mode);
+  }
+  static const PendingMarkMode mode = []() {
+    const char *value = std::getenv("UPBGE_LN_PENDING_MARKS");
+    if (value == nullptr || value[0] == '\0') {
+      return PendingMarkMode::On; /* since plan phase A33's gate */
+    }
+    if (std::strcmp(value, "0") == 0 || std::strcmp(value, "off") == 0) {
+      return PendingMarkMode::Off;
+    }
+    if (std::strcmp(value, "verify") == 0 || std::strcmp(value, "2") == 0) {
+      return PendingMarkMode::Verify;
+    }
+    return PendingMarkMode::On;
+  }();
+  return mode;
+}
+
+void LN_CommandBuffer::SetPendingMarkModeForTests(const int mode)
+{
+  g_pending_mark_mode_override.store(mode < 0 ? -1 : (mode > 2 ? 2 : mode),
+                                     std::memory_order_relaxed);
+}
+
+uint64_t LN_CommandBuffer::PendingMarkVerifyDifferencesForTests()
+{
+  return g_pending_mark_differences.load(std::memory_order_relaxed);
+}
+
+void LN_CommandBuffer::MarkPendingMove(const TypedVectorCommand &command)
+{
+  if (m_marksPendingMoves && !m_isChunk && command.object != nullptr &&
+      IsObjectTransformCommand(command.type))
+  {
+    command.object->SetLogicNodesPendingMove(m_pendingMarkGeneration.value);
+  }
+}
+
+void LN_CommandBuffer::SetMarksPendingMoves(const bool marks)
+{
+  if (marks == m_marksPendingMoves) {
+    return;
+  }
+  m_marksPendingMoves = marks;
+  if (marks) {
+    for (const std::vector<TypedVectorCommand> *stream :
+         {&m_transformCommands, &m_relativeVectorCommands})
+    {
+      for (const TypedVectorCommand &command : *stream) {
+        MarkPendingMove(command);
+      }
+    }
+  }
+}
+
+bool LN_CommandBuffer::SurelyNoPendingMove(KX_GameObject *gameobj,
+                                           const bool include_parents) const
+{
+  if (!m_marksPendingMoves || m_isChunk) {
+    return false;
+  }
+  /* The hierarchy reads walk the parents (a loop in the chain ends it there; past 64 levels the
+   * index answers). */
+  int depth = 0;
+  for (KX_GameObject *object = gameobj; object != nullptr;
+       object = include_parents ? object->GetParent() : nullptr)
+  {
+    if (object->GetLogicNodesPendingMove() == m_pendingMarkGeneration.value || ++depth > 64) {
+      return false;
+    }
+    if (!include_parents) {
+      break;
+    }
+  }
+  return true;
+}
+
+bool LN_CommandBuffer::PendingMarksSayNone(KX_GameObject *gameobj,
+                                           const bool include_parents,
+                                           const bool indexed) const
+{
+  const PendingMarkMode mode = GetPendingMarkMode();
+  if (mode == PendingMarkMode::Off || gameobj == nullptr ||
+      !SurelyNoPendingMove(gameobj, include_parents))
+  {
+    return false;
+  }
+  if (mode == PendingMarkMode::Verify) {
+    bool pending;
+    if (indexed) {
+      pending = const_cast<LN_CommandBuffer *>(this)->HasPendingTransformsByIndex(gameobj,
+                                                                                  include_parents);
+    }
+    else {
+      pending = HasIndexedPendingTransformsByIndex(gameobj, include_parents);
+    }
+    if (pending) {
+      g_pending_mark_differences.fetch_add(1, std::memory_order_relaxed);
+      if (!g_pending_mark_difference_expected.load(std::memory_order_relaxed) &&
+          !g_pending_mark_warned.exchange(true))
+      {
+        CM_Warning("Logic Nodes: lean pending marks differ: an object had a pending move without "
+                   "its buffer's mark. Please report it, with the file.");
+      }
+      return false;
+    }
+  }
+  return true;
+}
+
 void LN_CommandBuffer::IndexAppendedTransform(const std::vector<TypedVectorCommand> &stream)
 {
+  MarkPendingMove(stream.back());
   /* A block's commands change places when EndBlock puts the lanes together: the next read
    * catches the index up. */
   if (!m_pendingTransformsIndexed || m_blockMode) {
@@ -9260,7 +9419,7 @@ void LN_CommandBuffer::FlushPendingObjectTransformCommandsInternal(KX_GameObject
     return;
   }
 
-  if (Size() == 0) {
+  if (Size() == 0 || PendingMarksSayNone(gameobj, include_parents, true)) {
     return;
   }
 

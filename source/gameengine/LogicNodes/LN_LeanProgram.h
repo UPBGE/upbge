@@ -84,8 +84,71 @@ struct LN_LeanOp {
   bool block_ok = false;
 };
 
+/** Compiled routes (plan phase A33): `UPBGE_LN_ROUTES` = 0 / off (the lean VM walks its blocks op by
+ * op, as before), unset / 1 / on (the default since A33's gate: an event with a route runs it). Tests set it with LN_SetRouteModeForTests;
+ * a run with routes on that ran none says so through LN_RouteRunCount. */
+enum class LN_RouteMode : uint8_t { Off = 0, On };
+LN_RouteMode LN_GetRouteMode();
+/** -1: the environment again; 0 Off; 1 On. */
+void LN_SetRouteModeForTests(int mode);
+/** Events that ran as a compiled route since the process started (per-thread slots, as the lean
+ * run counter). */
+uint64_t LN_RouteRunCount();
+void LN_NoteRouteRun();
+
+/** How a route op's guard is read (the op's guard bool expression). */
+enum class LN_RouteGuard : uint8_t {
+  /** No guard: the op always runs. */
+  None = 0,
+  /** An InstructionExecuted guard (a flow from an op that ran in this pass): the stamp of
+   * `guard_state` read in place, exactly LN_RuntimeTree::InstructionExecutedNow. */
+  Ran,
+  /** Any other guard: the lean reader's Bool. */
+  Generic,
+};
+
+/** One op of a compiled route: a native op of the event with everything its handler looks up at
+ * every run worked out at the lowering (its instruction and payload, its stamp, its guard). */
+struct LN_RouteOp {
+  /** An LN_LeanNative: Nop, BranchRoute, SetNumber, VectorCommand or ModifyProperty. */
+  uint16_t native = 0;
+  LN_RouteGuard guard = LN_RouteGuard::None;
+  /** The guard's bool expression (Generic). */
+  uint32_t guard_expr = LN_INVALID_INDEX;
+  /** The stamp index of the instruction a Ran guard asks about. */
+  uint32_t guard_state = LN_INVALID_INDEX;
+  /** The op's own stamp index (LN_LeanOp::state_index). */
+  uint32_t state_index = LN_INVALID_INDEX;
+  /** LN_LeanOp::constant_index (orientation commands). */
+  uint32_t constant_index = LN_INVALID_INDEX;
+  /** The exec op's instruction index (diagnostics of the vector handler). */
+  uint32_t instruction_index = LN_INVALID_INDEX;
+  /** Into the program's own tables: the lean program is dropped whenever the program grows. */
+  const LN_Instruction *instruction = nullptr;
+  const LN_GamePropertyCommandPayload *property_payload = nullptr;
+  const LN_VectorCommandPayload *vector_payload = nullptr;
+};
+
+/** A block of a route: its ops, and the Every N Steps gate it runs behind (LN_ExecBlock). */
+struct LN_RouteBlock {
+  uint32_t first_op = 0;
+  uint32_t op_count = 0;
+  uint32_t step_gate_index = LN_INVALID_INDEX;
+};
+
+/** An event as a compiled route: what LN_RuntimeTree::RunBlocksWith and the native handlers do for
+ * it, without the per-op lookups, checks and dispatch. Made for an event whose ops are all native,
+ * with no Loop, no UI event route and no Delay-Done guard. */
+struct LN_LeanRoute {
+  std::vector<LN_RouteOp> ops;
+  std::vector<LN_RouteBlock> blocks;
+};
+
 struct LN_LeanEvent {
   std::vector<LN_LeanOp> ops;
+  /** The event as a compiled route (plan phase A33); `has_route` false: none could be made. */
+  bool has_route = false;
+  LN_LeanRoute route;
   /** Every op of the event has a native handler. Auto mode runs the lean VM only for such an
    * event (one with an op that has none stays on the old interpreter); Force runs them all. */
   bool fully_native = true;
@@ -99,6 +162,20 @@ struct LN_LeanProgram {
   std::array<LN_LeanEvent, 3> events;
   /** The constants the native ops point at (LN_LeanOp::constant_index). */
   std::vector<LN_Rotation> rotation_constants;
+  /** Per query expression: 1 when it is a Get Distance between fixed ends
+   * (LN_DistanceQueryEndsAreFixed: taken once a pass), worked out at the lowering instead of at
+   * every read (plan phase A33). */
+  std::vector<uint8_t> query_fixed_distance;
+  /** Per Bool, Int, Float and Vector expression: 1 when the lean reader keeps its value for the
+   * tick in its memo register (plan phase A33), as the old interpreter's memo does: a kind the memo
+   * may keep (LN_MEMO_STORE), every input of it pure all the way down (the lean reader tracks no
+   * taint), read at least twice by the program's expressions and native ops, and not a single
+   * property read (cheaper than its register). The memo never changes a result (plan phase A15). */
+  std::vector<uint8_t> memo_bool;
+  std::vector<uint8_t> memo_int;
+  std::vector<uint8_t> memo_float;
+  std::vector<uint8_t> memo_vector;
+  uint32_t memo_count = 0;
   uint32_t generic_op_count = 0;
   uint32_t native_op_count = 0;
   /** The expressions per table (Bool, Int, Float, String, Vector, Color, Value, Query); every one

@@ -917,6 +917,8 @@ LN_TreeBatchProfile LN_AnalyzeTreeBatchSafety(const LN_Program &program)
     }
   }
 
+  profile.reads_owner_distance = !owner_queries.empty();
+  profile.moves_owner = moves_owner;
   profile.eligible = true;
   profile.reason.clear();
   return profile;
@@ -1029,6 +1031,11 @@ LN_TreeBatchMode LN_GetTreeBatchMode()
   }
   static const LN_TreeBatchMode mode = tree_batch_mode_from_environment();
   return mode;
+}
+
+bool LN_TreeBatchWide()
+{
+  return batch_wide();
 }
 
 void LN_SetBatchWideForTests(const int wide)

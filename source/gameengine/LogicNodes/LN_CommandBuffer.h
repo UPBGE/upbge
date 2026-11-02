@@ -383,6 +383,29 @@ class LN_CommandBuffer {
   /** The object (with `include_parents`, or one of its parents) has a recorded move that is not
    * applied yet: a read that must see the step's moves would apply it now. */
   bool HasPendingTransforms(KX_GameObject *gameobj, bool include_parents);
+  /** Pending move marks (plan phase A33): every move this buffer records marks its object with the
+   * buffer's contents generation (KX_GameObject::GetLogicNodesPendingMove, renewed whenever the
+   * streams empty), so an object without the mark surely has no pending move here and a read skips
+   * the index. A chunk buffer never marks (its own index answers); its moves are marked when they
+   * join the tick's buffer. UPBGE_LN_PENDING_MARKS: 0 = always ask the index, unset/1 = trust the
+   * marks, verify = trust them and ask the index too, warning "lean pending marks differ" on any
+   * difference (PendingMarkVerifyDifferencesForTests). The marks are always written. */
+  enum class PendingMarkMode : uint8_t { Off = 0, On, Verify };
+  static PendingMarkMode GetPendingMarkMode();
+  /** -1: the environment again; 0 Off; 1 On; 2 Verify. */
+  static void SetPendingMarkModeForTests(int mode);
+  static uint64_t PendingMarkVerifyDifferencesForTests();
+  /** Tests that make a difference on purpose: counted, not warned about, while set. */
+  static void SetPendingMarkDifferenceExpectedForTests(bool expected);
+  /** No move of the object (and, with `include_parents`, of its parents) is pending here: none
+   * carries this buffer's mark. False when not sure (a buffer that does not mark, a chunk buffer,
+   * a very deep hierarchy). */
+  bool SurelyNoPendingMove(KX_GameObject *gameobj, bool include_parents) const;
+  /** This buffer marks the objects of its moves (off by default: a buffer never touched its
+   * objects while recording, and tests hand it made-up pointers). The scene's buffer
+   * (LN_Manager) and the test rigs turn it on; moves already recorded are marked then. Only one
+   * marking buffer may record moves of an object at a time (one buffer per scene). */
+  void SetMarksPendingMoves(bool marks);
   /** Before chunks record against this buffer: their reads also look for this buffer's pending
    * moves (SetChunkTickBuffer), through its index, made complete here (nothing appends to it
    * while the chunks record). */
@@ -390,6 +413,9 @@ class LN_CommandBuffer {
   /** As HasPendingTransforms, without bringing the index up to date: any thread may ask, while
    * nothing records into this buffer (after PrepareForChunkReads). */
   bool HasIndexedPendingTransforms(KX_GameObject *gameobj, bool include_parents) const;
+  /** The two questions above answered by the index alone (the marks' verify mode). */
+  bool HasPendingTransformsByIndex(KX_GameObject *gameobj, bool include_parents);
+  bool HasIndexedPendingTransformsByIndex(KX_GameObject *gameobj, bool include_parents) const;
   /** A chunk's reads also check `buffer`'s pending moves (the tick's buffer it is appended to). */
   void SetChunkTickBuffer(const LN_CommandBuffer *buffer)
   {
@@ -1482,6 +1508,11 @@ class LN_CommandBuffer {
   void IndexAppendedTransform(const std::vector<TypedVectorCommand> &stream);
   void IndexPendingTransforms();
   void ForgetPendingTransformIndex();
+  /** Marks the object of a move just appended to the transform or relative stream. */
+  void MarkPendingMove(const TypedVectorCommand &command);
+  /** SurelyNoPendingMove in the mode in force (Verify checks it against the index); `indexed`: the
+   * index may be brought up to date for the check (not on a helper thread). */
+  bool PendingMarksSayNone(KX_GameObject *gameobj, bool include_parents, bool indexed) const;
   /** Drops the transform writes reads applied early from their streams. */
   void CompactAppliedTransforms();
   CommandHeader MakeCommandHeader(CommandType type,
@@ -1681,6 +1712,24 @@ class LN_CommandBuffer {
   bool m_pendingTransformsIndexed = false;
   uint32_t m_indexedTransformPlaces = 0;
   uint32_t m_indexedRelativePlaces = 0;
+  static uint64_t NextPendingMarkGeneration();
+  /** The mark of this buffer's moves (MarkPendingMove): a new one whenever the streams empty,
+   * never one of another buffer (a copy takes a new one) or of an earlier content. */
+  struct PendingMarkGeneration {
+    uint64_t value = NextPendingMarkGeneration();
+    PendingMarkGeneration() = default;
+    PendingMarkGeneration(const PendingMarkGeneration & /*other*/)
+        : value(NextPendingMarkGeneration())
+    {
+    }
+    PendingMarkGeneration &operator=(const PendingMarkGeneration & /*other*/)
+    {
+      value = NextPendingMarkGeneration();
+      return *this;
+    }
+  };
+  PendingMarkGeneration m_pendingMarkGeneration;
+  bool m_marksPendingMoves = false;
   /** Writes applied by such reads, left in their streams until EndRecording. */
   uint32_t m_appliedTransformCount = 0;
   /** Of those, the last-write-wins ones (CompactAppliedTransforms takes them off the count). */

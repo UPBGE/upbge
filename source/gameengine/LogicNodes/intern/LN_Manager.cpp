@@ -178,6 +178,8 @@ LN_Manager::LN_Manager(KX_Scene &scene)
   }
   m_commandBuffer.SetMainThreadId(m_mainThreadId);
   m_commandBuffer.SetLogicManager(this);
+  /* The scene's one buffer marks the objects of its moves (plan phase A33). */
+  m_commandBuffer.SetMarksPendingMoves(true);
 }
 
 LN_Manager::~LN_Manager()
@@ -2331,6 +2333,28 @@ bool LN_Manager::MarkBatchableTrees(const std::vector<RunnableTree> &runnable_tr
     return entry.batchable;
   };
 
+  /* Objects with several trees: how many of their runnable trees have a batch-safe program that
+   * moves them (a Get Distance from the object must not sit after such a tree in a batch). */
+  const bool share_objects = LN_TreeBatchWide();
+  m_batchObjectMovers.clear_and_keep_capacity();
+  if (share_objects) {
+    for (size_t index = 0; index < count; index++) {
+      LN_RuntimeTree *runtime_tree = runnable_trees[index].runtime_tree;
+      if (runtime_tree == nullptr || runtime_tree->GetBatchNote().sole_tree) {
+        continue;
+      }
+      const LN_Program *program = runtime_tree->GetProgramPointer();
+      KX_GameObject *owner = runtime_tree->GetGameObject();
+      if (program == nullptr || owner == nullptr) {
+        continue;
+      }
+      const LN_TreeBatchProfile &profile = program->GetTreeBatchProfile();
+      if (profile.eligible && profile.moves_owner) {
+        m_batchObjectMovers.lookup_or_add(owner, 0)++;
+      }
+    }
+  }
+
   size_t batchable_count = 0;
   for (size_t index = 0; index < count; index++) {
     LN_RuntimeTree *runtime_tree = runnable_trees[index].runtime_tree;
@@ -2350,9 +2374,18 @@ bool LN_Manager::MarkBatchableTrees(const std::vector<RunnableTree> &runnable_tr
     {
       continue;
     }
-    /* Another tree of the object could move it before this tree reads it. */
+    /* Another tree of the object could move it before this tree's Get Distance from it applies
+     * that move (LN_TreeMayShareItsObject). */
     if (!runtime_tree->GetBatchNote().sole_tree) {
-      continue;
+      if (!share_objects) {
+        continue;
+      }
+      const uint32_t *movers = m_batchObjectMovers.lookup_ptr(owner);
+      if (!LN_TreeMayShareItsObject(program->GetTreeBatchProfile(),
+                                    movers != nullptr ? *movers : 0))
+      {
+        continue;
+      }
     }
     m_batchTreeScratch[index] = 1;
     batchable_count++;

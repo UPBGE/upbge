@@ -67,6 +67,8 @@ class SemRig {
       : m_program(program), m_mode(mode)
   {
     LN_RuntimeTree::SetMemoForTests(mode.memo ? 1 : 0);
+    /* As the scene's buffer: its objects are real (plan phase A33's pending move marks). */
+    m_buffer.SetMarksPendingMoves(true);
     for (uint32_t index = 0; index < owners; index++) {
       AddObject("Obj" + std::to_string(index), MT_Vector3(0.0f, 0.0f, 0.0f));
     }
@@ -205,7 +207,10 @@ class SemRig {
     const auto record_start = std::chrono::steady_clock::now();
     m_buffer.Clear();
     m_buffer.BeginRecording();
-    if (m_batch_chunks > 0 && runnable.size() >= 2) {
+    if (m_recorder_override) {
+      m_recorder_override(m_buffer, context, runnable);
+    }
+    else if (m_batch_chunks > 0 && runnable.size() >= 2) {
       /* As a tree batch (benchmarks of blocks): the trees record in chunks on the pool. */
       m_recorder.Record(m_pool,
                         m_buffer,
@@ -316,6 +321,14 @@ class SemRig {
   {
     return m_parallel_captured;
   }
+  /** Benchmarks of hand-written recorders: `recorder` records the runnable trees instead of the
+   * trees themselves (snapshots, the dump and the flush stay the rig's). Empty: the trees. */
+  using Recorder = std::function<void(
+      LN_CommandBuffer &, const LN_TickContext &, const std::vector<LN_RuntimeTree *> &)>;
+  void SetRecorder(Recorder recorder)
+  {
+    m_recorder_override = std::move(recorder);
+  }
   /** Off: ticks do not dump what they recorded (benchmarks; LastRecorded() stays as it was). */
   void SetDump(const bool dump)
   {
@@ -393,6 +406,7 @@ class SemRig {
   LN_TreeBatchRecorder m_recorder;
   bool m_dump = true;
   bool m_capture_prints = true;
+  Recorder m_recorder_override;
   PhaseTimes m_times;
   double m_time = 0.0;
   uint64_t m_tick_index = 0, m_update_index = 0, m_fixed_index = 0;

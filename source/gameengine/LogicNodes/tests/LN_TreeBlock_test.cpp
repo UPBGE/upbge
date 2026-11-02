@@ -13,6 +13,9 @@
 #include <cstring>
 #include <string>
 
+#include <deque>
+
+#include "LN_JobPool.h"
 #include "LN_LeanProgram.h"
 #include "LN_SemRig.h"
 #include "LN_TreeBatch.h"
@@ -178,6 +181,8 @@ TEST(LN_TreeBlock, TheBrainInBlocksEndsAsTheSerialRecordingEndsIt)
  * blocks, end as serial. */
 TEST(LN_TreeBlock, NativeWritesInBlocksEndAsSerial)
 {
+  /* B0's allow lists (an UPBGE_LN_BATCH_WIDE=0 run would batch fewer of these programs). */
+  WideScope wide(1);
   uint32_t compiled = 0;
   uint64_t block_lanes = 0;
   for (int16_t custom1 = 0; custom1 < 40; custom1++) {
@@ -246,4 +251,208 @@ TEST(LN_TreeBlock, SnapshotsCapturedOnHelperThreadsEqualThoseCapturedInTurn)
   }
   EXPECT_GT(parallel.ParallelCaptured(), size_t(kOwners)) << "no snapshot was captured in parallel";
   EXPECT_EQ(serial.ParallelCaptured(), 0u);
+}
+
+/* D16 (2026-11-02): an object with several trees can still be recorded in a batch when its tree
+ * measures no Get Distance from the object itself (that read is the one that applies another
+ * tree's pending move), or when no other tree of the object moves it. NPCs with a mover and a
+ * reader tree, or with the brain and a reader tree: the batch records exactly what the trees
+ * record one after the other, whatever the helpers and chunks, and the programs' flags say who
+ * may share. */
+TEST(LN_TreeBlock, TreesSharingAnObjectBatchWhenNoneMeasuresADistanceFromIt)
+{
+  /* A: walks the object and counts. B: reads the object's position (the old one: the walk is
+   * only recorded) into a property. */
+  TreeBuilder mover_builder;
+  {
+    GenNode &event = mover_builder.Add("LogicNativeOnUpdate");
+    GenNode &walk = mover_builder.Add("LogicNativeApplyMovement");
+    mover_builder.Vector(walk, "Vector", 0.05f, 0.02f, 0.0f);
+    mover_builder.Bool(walk, "Local", false);
+    mover_builder.Link(event, "Out", walk, "Flow");
+    GenNode &mark = mover_builder.Add("LogicNativeSetGamePropertyFloat");
+    mover_builder.String(mark, "Property", "walked");
+    mover_builder.Float(mark, "Value", 1.0f);
+    mover_builder.Link(walk, "Done", mark, "Flow");
+  }
+  std::string report;
+  const std::shared_ptr<LN_Program> mover = mover_builder.Compile(&report);
+  ASSERT_NE(mover, nullptr) << report;
+  TreeBuilder reader_builder;
+  {
+    GenNode &event = reader_builder.Add("LogicNativeOnUpdate");
+    GenNode &read = reader_builder.Add("LogicNativeGetObjectAttribute", 0);
+    GenNode &split = reader_builder.Add("LogicNativeSeparateXYZ");
+    reader_builder.Link(read, "Vector", split, "Vector");
+    GenNode &store = reader_builder.Add("LogicNativeSetGamePropertyFloat");
+    reader_builder.String(store, "Property", "seen_x");
+    reader_builder.Link(split, "X", store, "Value");
+    reader_builder.Link(event, "Out", store, "Flow");
+  }
+  const std::shared_ptr<LN_Program> reader = reader_builder.Compile(&report);
+  ASSERT_NE(reader, nullptr) << report;
+  const std::shared_ptr<LN_Program> brain = CompileBrain(BrainOptions());
+  ASSERT_NE(brain, nullptr);
+
+  WideScope wide(1);
+  EXPECT_TRUE(mover->GetTreeBatchProfile().eligible) << mover->GetTreeBatchProfile().reason;
+  EXPECT_TRUE(reader->GetTreeBatchProfile().eligible) << reader->GetTreeBatchProfile().reason;
+  ASSERT_TRUE(brain->GetTreeBatchProfile().eligible) << brain->GetTreeBatchProfile().reason;
+  EXPECT_FALSE(mover->GetTreeBatchProfile().reads_owner_distance);
+  EXPECT_FALSE(reader->GetTreeBatchProfile().reads_owner_distance);
+  EXPECT_TRUE(brain->GetTreeBatchProfile().reads_owner_distance);
+  EXPECT_TRUE(mover->GetTreeBatchProfile().moves_owner);
+  EXPECT_FALSE(reader->GetTreeBatchProfile().moves_owner);
+  EXPECT_TRUE(brain->GetTreeBatchProfile().moves_owner);
+  /* object_movers counts the tree itself when it moves its object. */
+  EXPECT_TRUE(LN_TreeMayShareItsObject(mover->GetTreeBatchProfile(), 2));
+  EXPECT_TRUE(LN_TreeMayShareItsObject(reader->GetTreeBatchProfile(), 2));
+  /* The brain beside a tree that moves its NPC: no; beside trees that do not: yes. */
+  EXPECT_FALSE(LN_TreeMayShareItsObject(brain->GetTreeBatchProfile(), 2));
+  EXPECT_TRUE(LN_TreeMayShareItsObject(brain->GetTreeBatchProfile(), 1));
+
+  constexpr size_t kObjects = 150;
+  struct World {
+    std::deque<BatchObject> objects;
+    std::vector<std::unique_ptr<LN_RuntimeTree>> trees;
+    std::vector<LN_RuntimeTree *> pointers;
+    World(const std::shared_ptr<LN_Program> &first, const std::shared_ptr<LN_Program> &second)
+    {
+      for (size_t index = 0; index < kObjects; index++) {
+        objects.emplace_back(MT_Vector3(float(index) * 0.5f, 1.0f, 0.0f));
+        for (uint32_t which = 0; which < 2; which++) {
+          trees.push_back(std::make_unique<LN_RuntimeTree>(
+              which == 0 ? first : second, &objects.back().object, uint32_t(index), which));
+          pointers.push_back(trees.back().get());
+        }
+      }
+    }
+  };
+  const auto same_world = [](World &a, World &b) {
+    for (size_t index = 0; index < kObjects; index++) {
+      const MT_Vector3 pa = a.objects[index].object.NodeGetWorldPosition();
+      const MT_Vector3 pb = b.objects[index].object.NodeGetWorldPosition();
+      if (pa.x() != pb.x() || pa.y() != pb.y() || pa.z() != pb.z()) {
+        return false;
+      }
+      for (const char *name : {"walked", "seen_x"}) {
+        EXP_Value *va = a.objects[index].object.GetProperty(name);
+        EXP_Value *vb = b.objects[index].object.GetProperty(name);
+        if ((va == nullptr) != (vb == nullptr) ||
+            (va != nullptr && va->GetNumber() != vb->GetNumber()))
+        {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  size_t compared = 0;
+  /* Mover + reader in both orders, and the brain (Get Distance from its NPC, moves it) beside the
+   * reader (which does not move it), in both orders. */
+  struct Pair {
+    const std::shared_ptr<LN_Program> *first;
+    const std::shared_ptr<LN_Program> *second;
+    const char *name;
+  };
+  const Pair pairs[] = {{&mover, &reader, "mover first"},
+                        {&reader, &mover, "reader first"},
+                        {&brain, &reader, "brain first"},
+                        {&reader, &brain, "brain second"}};
+  for (const Pair &pair : pairs) {
+    for (const uint32_t helpers : {0u, 3u}) {
+      for (const size_t chunks : {size_t(1), size_t(2), size_t(7)}) {
+        SCOPED_TRACE(std::string(pair.name) + ", helpers " + std::to_string(helpers) +
+                     ", chunks " + std::to_string(chunks));
+        World one(*pair.first, *pair.second);
+        World batched(*pair.first, *pair.second);
+        LN_JobPool pool;
+        pool.SetHelperCount(helpers);
+        LN_TreeBatchRecorder recorder;
+        for (uint64_t frame = 1; frame <= 6; frame++) {
+          LN_TickContext context;
+          context.event = LN_Event::OnUpdate;
+          context.tick_index = frame;
+          context.delta_time = 1.0 / 60.0;
+          LN_CommandBuffer one_buffer;
+          one_buffer.BeginRecording();
+          for (LN_RuntimeTree *tree : one.pointers) {
+            tree->ExecuteReady(one_buffer, context);
+          }
+          one_buffer.EndRecording();
+          LN_CommandBuffer batched_buffer;
+          batched_buffer.BeginRecording();
+          EXPECT_EQ(recorder.Record(pool,
+                                    batched_buffer,
+                                    batched.pointers.data(),
+                                    batched.pointers.size(),
+                                    context,
+                                    nullptr,
+                                    nullptr,
+                                    chunks),
+                    0u);
+          batched_buffer.EndRecording();
+          ASSERT_EQ(batched_buffer.Size(), one_buffer.Size()) << "frame " << frame;
+          ASSERT_EQ(batched_buffer.FlushDecisionForTests(), one_buffer.FlushDecisionForTests())
+              << "frame " << frame;
+          for (const bool coalesce : {false, true}) {
+            ASSERT_EQ(batched_buffer.DirectFlushOrderForTests(coalesce),
+                      one_buffer.DirectFlushOrderForTests(coalesce))
+                << "frame " << frame;
+          }
+          one_buffer.Flush();
+          batched_buffer.Flush();
+          ASSERT_TRUE(same_world(one, batched)) << "frame " << frame;
+          compared++;
+        }
+      }
+    }
+  }
+  EXPECT_EQ(compared, size_t(4 * 2 * 3 * 6));
+}
+
+/* Why a tree that measures a distance from its own object stays out of a batch when its object has
+ * other trees: one tree walks the object, the brain's Get Distance after it would apply that walk
+ * (as it does one tree after the other), and a batch cannot give it. The recorder's safety net
+ * names the chunk, which is what the manager's rule keeps from ever happening. */
+TEST(LN_TreeBlock, ABrainAfterAMoverOfItsObjectCannotBeBatchedAndTheNetSaysSo)
+{
+  TreeBuilder mover_builder;
+  GenNode &event = mover_builder.Add("LogicNativeOnUpdate");
+  GenNode &walk = mover_builder.Add("LogicNativeApplyMovement");
+  mover_builder.Vector(walk, "Vector", 0.05f, 0.02f, 0.0f);
+  mover_builder.Bool(walk, "Local", false);
+  mover_builder.Link(event, "Out", walk, "Flow");
+  std::string report;
+  const std::shared_ptr<LN_Program> mover = mover_builder.Compile(&report);
+  ASSERT_NE(mover, nullptr) << report;
+  const std::shared_ptr<LN_Program> brain = CompileBrain(BrainOptions());
+  ASSERT_NE(brain, nullptr);
+
+  std::deque<BatchObject> objects;
+  std::vector<std::unique_ptr<LN_RuntimeTree>> trees;
+  std::vector<LN_RuntimeTree *> pointers;
+  for (size_t index = 0; index < 6; index++) {
+    objects.emplace_back(MT_Vector3(1.0f + float(index), 0.0f, 0.0f));
+    trees.push_back(
+        std::make_unique<LN_RuntimeTree>(mover, &objects.back().object, uint32_t(index), 0));
+    pointers.push_back(trees.back().get());
+    trees.push_back(
+        std::make_unique<LN_RuntimeTree>(brain, &objects.back().object, uint32_t(index), 1));
+    pointers.push_back(trees.back().get());
+  }
+  LN_TickContext context;
+  context.event = LN_Event::OnUpdate;
+  context.tick_index = 1;
+  context.delta_time = 1.0 / 60.0;
+  LN_JobPool pool;
+  pool.SetHelperCount(0);
+  LN_TreeBatchRecorder recorder;
+  LN_CommandBuffer buffer;
+  buffer.BeginRecording();
+  EXPECT_GT(recorder.Record(pool, buffer, pointers.data(), pointers.size(), context, nullptr, nullptr, 1),
+            0u)
+      << "a brain after a mover of its own object read the walk in a batch without being noted";
+  buffer.EndRecording();
 }

@@ -5215,21 +5215,36 @@ void LN_RuntimeTree::OpLeanVector(Frame &ef, const LN_ExecOp &op, const LN_LeanO
   {
     return;
   }
-  const LN_VectorCommandPayload &payload = payloads[instruction.command_payload_index];
+  LeanVectorBody(ef,
+                 instruction,
+                 payloads[instruction.command_payload_index],
+                 lean_op.constant_index,
+                 op.instruction_index,
+                 lean_op.state_index);
+}
+
+template<class Frame>
+void LN_RuntimeTree::LeanVectorBody(Frame &ef,
+                                    const LN_Instruction &instruction,
+                                    const LN_VectorCommandPayload &payload,
+                                    const uint32_t constant_index,
+                                    const uint32_t instruction_index,
+                                    const uint32_t state_index)
+{
+  const LN_TickContext &context = ef.context;
   /* The lowering gave a constant exactly to the orientation commands. */
-  const bool is_orientation_command = lean_op.constant_index != LN_INVALID_INDEX;
+  const bool is_orientation_command = constant_index != LN_INVALID_INDEX;
   LN_Rotation rotation;
   MT_Vector3 value(0.0f, 0.0f, 0.0f);
   if (is_orientation_command) {
-    rotation = ef.Rotation(payload.vector_expr_index,
-                           lean->rotation_constants[lean_op.constant_index]);
+    rotation = ef.Rotation(payload.vector_expr_index, ef.lean->rotation_constants[constant_index]);
   }
   else {
     value = ef.Vector(payload.vector_expr_index, payload.vector_value);
   }
   KX_GameObject *target = ef.ResolveObjectExpression(payload.object_value_expr_index);
   if (target == nullptr) {
-    MarkInstructionStamp(lean_op.state_index, context.tick_index);
+    MarkInstructionStamp(state_index, context.tick_index);
     return;
   }
   if (instruction.opcode == LN_OpCode::ApplyTransformVector) {
@@ -5239,7 +5254,7 @@ void LN_RuntimeTree::OpLeanVector(Frame &ef, const LN_ExecOp &op, const LN_LeanO
     {
       if (!ef.RelativeTransformIsSafe(target,
                                       instruction,
-                                      op.instruction_index,
+                                      instruction_index,
                                       channel == LN_VectorOperationChannel::Movement ?
                                           LN_CommandBuffer::CommandType::ApplyMovement :
                                           LN_CommandBuffer::CommandType::ApplyRotation))
@@ -5249,7 +5264,7 @@ void LN_RuntimeTree::OpLeanVector(Frame &ef, const LN_ExecOp &op, const LN_LeanO
     }
   }
   AppendVectorCommand(ef, instruction, payload, target, value, rotation);
-  MarkInstructionStamp(lean_op.state_index, context.tick_index);
+  MarkInstructionStamp(state_index, context.tick_index);
 }
 
 /** Modify Property: the modify branch of OpDirectGamePropertyCommand with the payload read in
@@ -5277,7 +5292,16 @@ void LN_RuntimeTree::OpLeanModifyProperty(Frame &ef, const LN_ExecOp &op, const 
   {
     return;
   }
-  const LN_GamePropertyCommandPayload &payload = payloads[instruction.command_payload_index];
+  LeanModifyBody(ef, instruction, payloads[instruction.command_payload_index], lean_op.state_index);
+}
+
+template<class Frame>
+void LN_RuntimeTree::LeanModifyBody(Frame &ef,
+                                    const LN_Instruction &instruction,
+                                    const LN_GamePropertyCommandPayload &payload,
+                                    const uint32_t state_index)
+{
+  const LN_TickContext &context = ef.context;
   LN_PropertyModify modify;
   modify.op = payload.modify_op;
   modify.operand = ef.Float(payload.float_expr_index, 0.0f);
@@ -5295,7 +5319,7 @@ void LN_RuntimeTree::OpLeanModifyProperty(Frame &ef, const LN_ExecOp &op, const 
                                                ef.SortKey(),
                                                instruction.source_ref_index);
   }
-  MarkInstructionStamp(lean_op.state_index, context.tick_index);
+  MarkInstructionStamp(state_index, context.tick_index);
 }
 
 /** Nop and BranchRoute: OpDirect's work with the instruction's stamp known from the lowering. */
@@ -5314,17 +5338,28 @@ void LN_RuntimeTree::OpLeanFlow(Frame &ef, const LN_ExecOp &op, const LN_LeanOp 
   {
     return;
   }
-  if (op.kind == LN_ExecOpKind::BranchRoute) {
-    const LN_Instruction &instruction = m_program->GetInstructionPayload(
-        ef.event, ef.instructions[op.instruction_index]);
-    const bool condition = instruction.bool_expr_index == LN_INVALID_INDEX ?
+  LeanFlowBody(ef,
+               op.kind == LN_ExecOpKind::BranchRoute ?
+                   &m_program->GetInstructionPayload(ef.event,
+                                                     ef.instructions[op.instruction_index]) :
+                   nullptr,
+               lean_op.state_index);
+}
+
+template<class Frame>
+void LN_RuntimeTree::LeanFlowBody(Frame &ef,
+                                  const LN_Instruction *branch,
+                                  const uint32_t state_index)
+{
+  if (branch != nullptr) {
+    const bool condition = branch->bool_expr_index == LN_INVALID_INDEX ?
                                false :
-                               ef.Bool(instruction.bool_expr_index, false);
-    if (condition != instruction.bool_value) {
+                               ef.Bool(branch->bool_expr_index, false);
+    if (condition != branch->bool_value) {
       return;
     }
   }
-  MarkInstructionStamp(lean_op.state_index, context.tick_index);
+  MarkInstructionStamp(state_index, ef.context.tick_index);
 }
 
 /** Set Game Property Bool / Int / Float as a number write: the number branch of
@@ -5352,7 +5387,17 @@ void LN_RuntimeTree::OpLeanSetNumber(Frame &ef, const LN_ExecOp &op, const LN_Le
   {
     return;
   }
-  const LN_GamePropertyCommandPayload &payload = payloads[instruction.command_payload_index];
+  LeanSetNumberBody(
+      ef, instruction, payloads[instruction.command_payload_index], lean_op.state_index);
+}
+
+template<class Frame>
+void LN_RuntimeTree::LeanSetNumberBody(Frame &ef,
+                                       const LN_Instruction &instruction,
+                                       const LN_GamePropertyCommandPayload &payload,
+                                       const uint32_t state_index)
+{
+  const LN_TickContext &context = ef.context;
   LN_PropertyNumber number;
   number.type = payload.value_type;
   switch (payload.value_type) {
@@ -5379,7 +5424,102 @@ void LN_RuntimeTree::OpLeanSetNumber(Frame &ef, const LN_ExecOp &op, const LN_Le
                                                      property_handle,
                                                      handle_stamp);
   }
-  MarkInstructionStamp(lean_op.state_index, context.tick_index);
+  MarkInstructionStamp(state_index, context.tick_index);
+}
+
+/** A compiled route (plan phase A33, LN_LeanRoute): exactly RunEventBlocks with RunBlocksWith for
+ * an event without Loops and UI event routes, each op run as OpLean runs it. What the handlers'
+ * preludes did at every op is left out because it cannot change during the event: the payload
+ * lookups and their checks (made at the lowering; the lean program is dropped when the program
+ * grows), the paused check (ExecuteEvent runs a route only when not paused), the profile counters
+ * (only when not profiling) and the save and restore of the command query context (set for each
+ * op here and given back once at the end: nothing between two ops reads it). A Ran guard reads its
+ * stamp in place, as InstructionExecutedNow does with the index worked out. */
+template<class Frame>
+void LN_RuntimeTree::RunLeanRoute(Frame &ef, const LN_LeanRoute &route, const uint64_t scope_serial)
+{
+  LN_TickContext &context = ef.context;
+  LN_CommandBuffer *const previous_command_buffer = context.command_buffer;
+  const uint64_t previous_command_execution_key = context.command_execution_key;
+  context.command_buffer = &ef.command_buffer;
+  const std::vector<LN_StepGate> &step_gates = m_program->GetStepGates();
+  for (const LN_RouteBlock &block : route.blocks) {
+    const uint32_t gate = block.step_gate_index;
+    /* Every N Steps: off its steps the route does nothing. */
+    if (gate != LN_INVALID_INDEX && !StepGateRuns(gate)) {
+      continue;
+    }
+    /* RunBlocksWith's ScopedStepGateTime: the gate's time, and its stride when gated. */
+    const double delta_time = context.delta_time;
+    const double unscaled_dt = context.unscaled_dt;
+    const uint32_t stride = context.phase_tick_stride;
+    const bool gated = gate < step_gates.size();
+    if (gate != LN_INVALID_INDEX && gate < m_stepGates.size()) {
+      context.delta_time = m_stepGates[gate].time_passed;
+      context.unscaled_dt = m_stepGates[gate].unscaled_time_passed;
+    }
+    if (gated) {
+      context.phase_tick_stride = step_gates[gate].interval;
+    }
+    context.execution_scope_serial = scope_serial;
+    m_activeExecutionScopeSerial = scope_serial;
+    for (uint32_t op_index = block.first_op; op_index < block.first_op + block.op_count;
+         op_index++)
+    {
+      const LN_RouteOp &op = route.ops[op_index];
+      context.command_execution_key = NextCommandExecutionKey();
+      if (op.guard == LN_RouteGuard::Ran) {
+        if (op.guard_state >= m_instructionStamps.size()) {
+          continue;
+        }
+        const InstructionStamp &stamp = m_instructionStamps[op.guard_state];
+        if (stamp.last_execution_tick != context.tick_index ||
+            (context.execution_scope_serial != 0 &&
+             stamp.last_execution_scope_serial != context.execution_scope_serial))
+        {
+          continue;
+        }
+      }
+      else if (op.guard == LN_RouteGuard::Generic && !ef.Bool(op.guard_expr, false)) {
+        continue;
+      }
+      switch (LN_LeanNative(op.native)) {
+        case LN_LeanNative::Nop:
+          LeanFlowBody(ef, nullptr, op.state_index);
+          break;
+        case LN_LeanNative::BranchRoute:
+          LeanFlowBody(ef, op.instruction, op.state_index);
+          break;
+        case LN_LeanNative::SetNumber:
+          LeanSetNumberBody(ef, *op.instruction, *op.property_payload, op.state_index);
+          break;
+        case LN_LeanNative::VectorCommand:
+          LeanVectorBody(ef,
+                         *op.instruction,
+                         *op.vector_payload,
+                         op.constant_index,
+                         op.instruction_index,
+                         op.state_index);
+          break;
+        case LN_LeanNative::ModifyProperty:
+          LeanModifyBody(ef, *op.instruction, *op.property_payload, op.state_index);
+          break;
+        case LN_LeanNative::Generic:
+          break;
+      }
+    }
+    if (gate != LN_INVALID_INDEX && gate < m_stepGates.size()) {
+      context.delta_time = delta_time;
+      context.unscaled_dt = unscaled_dt;
+    }
+    if (gated) {
+      context.phase_tick_stride = stride;
+    }
+  }
+  context.command_buffer = previous_command_buffer;
+  context.command_execution_key = previous_command_execution_key;
+  context.execution_scope_serial = scope_serial;
+  m_activeExecutionScopeSerial = scope_serial;
 }
 
 /** The block driver: `run_op(op_index)` runs the op `op_index` of `ir` (the old interpreter's

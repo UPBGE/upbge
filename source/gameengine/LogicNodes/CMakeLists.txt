@@ -155,6 +155,7 @@ if(WITH_GTESTS)
     tests/LN_LeanProgram_test.cpp
     tests/LN_LeanNative_test.cpp
     tests/LN_TreeBlock_test.cpp
+    tests/LN_LeanRoute_test.cpp
     tests/LN_KindCatalog_test.cpp
     tests/LN_LeanDifferential_test.cpp
     tests/LN_ConstantObjects_test.cpp

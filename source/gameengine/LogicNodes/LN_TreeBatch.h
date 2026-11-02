@@ -18,8 +18,9 @@
  *
  * Which trees qualify is decided twice. Once per program (LN_AnalyzeTreeBatchSafety): every node
  * the program can run is on a list of nodes known to read and write only what a batch allows.
- * Then each tick, per tree (LN_Manager): its object has no parent and no other tree, is no menu
- * copy, has no pending move of an earlier tree, and is not measured by a tree of the batch.
+ * Then each tick, per tree (LN_Manager): its object has no parent, is no menu copy, has no pending
+ * move of an earlier tree, and is not measured by a tree of the batch; its object has no other
+ * tree, unless the program measures no distance from its own object (LN_TreeMayShareItsObject).
  */
 
 #pragma once
@@ -52,9 +53,12 @@ enum class LN_TreeBatchMode : uint8_t {
  * choice (LN_SetTreeBatchModeForTests) wins. */
 LN_TreeBatchMode LN_GetTreeBatchMode();
 void LN_SetTreeBatchModeForTests(LN_TreeBatchMode mode);
-/** UPBGE_LN_BATCH_WIDE (plan phase B0): 0 = the allow lists of step 7 only, else also the B0 reads
- * (Get Object Attribute of the owner or a constant object). -1 here = the environment again. Set it
- * before a program's batch profile is first worked out (it is kept with the program). */
+/** UPBGE_LN_BATCH_WIDE (plan phase B0): 0 = the rules of step 7 only (its allow lists, and a tree
+ * batches only as its object's one tree), else also the B0 reads (Get Object Attribute of the owner
+ * or a constant object) and trees sharing their object (LN_TreeMayShareItsObject). -1 here = the
+ * environment again. Set it before a program's batch profile is first worked out (it is kept with
+ * the program). */
+bool LN_TreeBatchWide();
 void LN_SetBatchWideForTests(int wide);
 void LN_ClearTreeBatchModeForTests();
 
@@ -117,7 +121,28 @@ struct LN_TreeBatchProfile {
   /** The value expressions (constant objects) a Get Distance measures from or to: their objects
    * must not be moved by a tree of the batch, and have no pending move when it starts. */
   std::vector<uint32_t> endpoint_value_expressions;
+  /** Some Get Distance measures from or to the tree's own object. That read applies the pending
+   * moves of the object, so another tree of the same object that moves it, recorded before it,
+   * would change its answer. */
+  bool reads_owner_distance = false;
+  /** Some op moves the tree's own object (the transform and relative streams: what a Get
+   * Distance from it applies). Set only for an eligible program. */
+  bool moves_owner = false;
 };
+
+/** Whether a tree whose object has other trees may still join a batch. `object_movers`: how many
+ * runnable trees of the object, this one included, have a batch-safe program that moves it
+ * (a tree whose program is not batch safe records on the main thread, and a run never holds a
+ * tree whose object has a pending move, so only batch-safe movers can sit before it in a run).
+ * Yes when nothing the tree reads applies a pending move of its object (every other read in a
+ * batch tree sees the scene as it is), or when no other tree of the object moves it. A crowd
+ * with a brain (Get Distance from the NPC to the Player, moves) and a second tree on each NPC
+ * that does not move it batches both. */
+inline bool LN_TreeMayShareItsObject(const LN_TreeBatchProfile &profile,
+                                     const uint32_t object_movers)
+{
+  return !profile.reads_owner_distance || object_movers <= (profile.moves_owner ? 1u : 0u);
+}
 
 /** Reads the whole program (every expression and every op of its Frame Update and Logic +
  * Physics Step routes; On Init runs before a tree can join a batch). Conservative: a node not

@@ -242,6 +242,8 @@ class LN_RuntimeTree {
    * 0 = off (every read works the expression out), -1 = the default (on). A memo can never change a
    * result, so tests run both and compare. */
   static void SetMemoForTests(int mode);
+  /** The lean reader's memo (plan phase A33, UPBGE_LN_LEAN_MEMO): 0 off, 1 on, -1 the environment. */
+  static void SetLeanMemoForTests(int mode);
   /** Makes the program's lean form if the mode asks for it (main thread; a no-op elsewhere). The
    * prepare pass of a tree batch calls it for every tree before the chunks go out. */
   void PrepareLeanProgram() const;
@@ -446,7 +448,12 @@ class LN_RuntimeTree {
   }
 
   LN_EventSubjectId GetEventSubjectId(LN_StringId string_id) const;
-  LN_GamePropertyId GetGamePropertyId(uint32_t property_ref_index) const;
+  /** Inline: every property write the command buffer records asks it. */
+  LN_GamePropertyId GetGamePropertyId(const uint32_t property_ref_index) const
+  {
+    return property_ref_index < m_gamePropertyIds.size() ? m_gamePropertyIds[property_ref_index] :
+                                                           LN_GamePropertyId{};
+  }
   LN_TreePropertyId GetTreePropertyId(uint32_t property_ref_index) const;
 
   void SetSceneObjectIndex(uint32_t scene_object_index)
@@ -948,6 +955,33 @@ class LN_RuntimeTree {
   void OpLeanVector(Frame &frame, const LN_ExecOp &op, const LN_LeanOp &lean_op);
   template<class Frame>
   void OpLeanModifyProperty(Frame &frame, const LN_ExecOp &op, const LN_LeanOp &lean_op);
+  /** The native ops' work after their guard, shared by the OpLean handlers above and the compiled
+   * routes (plan phase A33), so the two cannot differ. `branch` (LeanFlowBody): the BranchRoute's
+   * instruction, null for a Nop. */
+  template<class Frame>
+  void LeanFlowBody(Frame &frame, const LN_Instruction *branch, uint32_t state_index);
+  template<class Frame>
+  void LeanSetNumberBody(Frame &frame,
+                         const LN_Instruction &instruction,
+                         const LN_GamePropertyCommandPayload &payload,
+                         uint32_t state_index);
+  template<class Frame>
+  void LeanVectorBody(Frame &frame,
+                      const LN_Instruction &instruction,
+                      const LN_VectorCommandPayload &payload,
+                      uint32_t constant_index,
+                      uint32_t instruction_index,
+                      uint32_t state_index);
+  template<class Frame>
+  void LeanModifyBody(Frame &frame,
+                      const LN_Instruction &instruction,
+                      const LN_GamePropertyCommandPayload &payload,
+                      uint32_t state_index);
+  /** Runs an event as its compiled route (LN_LeanRoute, plan phase A33): RunEventBlocks for an
+   * event with no Loop and no UI event route, and each op its handler's prelude reduced to what
+   * changes between runs (the command key, the guard), then the shared body. */
+  template<class Frame>
+  void RunLeanRoute(Frame &frame, const LN_LeanRoute &route, uint64_t scope_serial);
   template<class Frame>
   void AppendVectorCommand(Frame &frame,
                            const LN_Instruction &instruction,
@@ -1038,6 +1072,12 @@ class LN_RuntimeTree {
                  uint32_t expression_index,
                  const LN_QueryExpression &expression,
                  QueryExpressionRuntimeState &state);
+  /** QueryKind's Get Distance case, on its own (plan phase A33): a brain's one query, called
+   * without entering the big switch of every query kind. */
+  template<class In>
+  void DistanceBetweenKind(In &in,
+                           const LN_QueryExpression &expression,
+                           QueryExpressionRuntimeState &state);
   int32_t ResolveIntExpression(uint32_t expression_index,
                                int32_t fallback,
                                const LN_TickContext &context = LN_TickContext());
@@ -1065,6 +1105,7 @@ class LN_RuntimeTree {
   int32_t LeanInt(In &in, uint32_t expression_index, int32_t fallback);
   template<class In>
   float LeanFloat(In &in, uint32_t expression_index, float fallback);
+
   template<class In>
   std::string LeanString(In &in, uint32_t expression_index, const std::string &fallback);
   template<class In>

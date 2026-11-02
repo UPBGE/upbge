@@ -5391,63 +5391,71 @@ void LN_RuntimeTree::QueryKind(In &in,
       state.cached_result.valid = true;
       break;
     }
-    case LN_QueryExpressionKind::DistanceBetween: {
-      auto resolve_endpoint = [&](const LN_DistanceEndpointMode mode,
-                                  const uint32_t input,
-                                  const bool owner_when_empty,
-                                  MT_Vector3 &r_position) {
-        if (mode == LN_DistanceEndpointMode::Position) {
-          if (input == LN_INVALID_INDEX) {
-            return false;
-          }
-          r_position = in.Vector(input, MT_Vector3(0.0f, 0.0f, 0.0f));
-          return vector_is_finite(r_position);
-        }
-        if (mode != LN_DistanceEndpointMode::Object) {
-          return false;
-        }
-
-        KX_GameObject *object = nullptr;
-        if (input != LN_INVALID_INDEX) {
-          object = ResolveObjectValue(in.Value(input, MakeNoneValue()));
-        }
-        else if (owner_when_empty) {
-          object = m_gameObject;
-        }
-        if (object == nullptr) {
-          return false;
-        }
-        FlushPendingRaycastTransforms(object, context);
-        r_position = object->NodeGetWorldPosition();
-        return vector_is_finite(r_position);
-      };
-
-      MT_Vector3 a(0.0f, 0.0f, 0.0f);
-      MT_Vector3 b(0.0f, 0.0f, 0.0f);
-      if (!resolve_endpoint(expression.distance_endpoint_a, expression.input0, true, a) ||
-          !resolve_endpoint(expression.distance_endpoint_b, expression.input1, false, b))
-      {
-        break;
-      }
-
-      const double dx = double(a.x()) - double(b.x());
-      const double dy = double(a.y()) - double(b.y());
-      const double dz = double(a.z()) - double(b.z());
-      const double squared_distance = dx * dx + dy * dy + dz * dz;
-      if (!std::isfinite(squared_distance) || squared_distance < 0.0) {
-        break;
-      }
-      const double max_float = double(std::numeric_limits<float>::max());
-      state.cached_result.squared_distance = float(std::min(squared_distance, max_float));
-      state.cached_result.distance = float(std::min(std::sqrt(squared_distance), max_float));
-      state.cached_result.valid = true;
+    case LN_QueryExpressionKind::DistanceBetween:
+      DistanceBetweenKind(in, expression, state);
       break;
-    }
     case LN_QueryExpressionKind::Count:
       break;
   }
 }
 
+
+template<class In>
+void LN_RuntimeTree::DistanceBetweenKind(In &in,
+                                         const LN_QueryExpression &expression,
+                                         QueryExpressionRuntimeState &state)
+{
+  const LN_TickContext &context = in.context;
+  auto resolve_endpoint = [&](const LN_DistanceEndpointMode mode,
+                              const uint32_t input,
+                              const bool owner_when_empty,
+                              MT_Vector3 &r_position) {
+    if (mode == LN_DistanceEndpointMode::Position) {
+      if (input == LN_INVALID_INDEX) {
+        return false;
+      }
+      r_position = in.Vector(input, MT_Vector3(0.0f, 0.0f, 0.0f));
+      return vector_is_finite(r_position);
+    }
+    if (mode != LN_DistanceEndpointMode::Object) {
+      return false;
+    }
+
+    KX_GameObject *object = nullptr;
+    if (input != LN_INVALID_INDEX) {
+      object = ResolveObjectValue(in.Value(input, MakeNoneValue()));
+    }
+    else if (owner_when_empty) {
+      object = m_gameObject;
+    }
+    if (object == nullptr) {
+      return false;
+    }
+    FlushPendingRaycastTransforms(object, context);
+    r_position = object->NodeGetWorldPosition();
+    return vector_is_finite(r_position);
+  };
+
+  MT_Vector3 a(0.0f, 0.0f, 0.0f);
+  MT_Vector3 b(0.0f, 0.0f, 0.0f);
+  if (!resolve_endpoint(expression.distance_endpoint_a, expression.input0, true, a) ||
+      !resolve_endpoint(expression.distance_endpoint_b, expression.input1, false, b))
+  {
+    return;
+  }
+
+  const double dx = double(a.x()) - double(b.x());
+  const double dy = double(a.y()) - double(b.y());
+  const double dz = double(a.z()) - double(b.z());
+  const double squared_distance = dx * dx + dy * dy + dz * dz;
+  if (!std::isfinite(squared_distance) || squared_distance < 0.0) {
+    return;
+  }
+  const double max_float = double(std::numeric_limits<float>::max());
+  state.cached_result.squared_distance = float(std::min(squared_distance, max_float));
+  state.cached_result.distance = float(std::min(std::sqrt(squared_distance), max_float));
+  state.cached_result.valid = true;
+}
 
 template<class In>
 const LN_QueryResult &LN_RuntimeTree::QueryEntry(In &in, const uint32_t expression_index)
@@ -5484,8 +5492,17 @@ const LN_QueryResult &LN_RuntimeTree::QueryEntry(In &in, const uint32_t expressi
    * far. Every other command-ordered query is evaluated again for each instruction that reads
    * it. (Before 2026-10-31 Get Distance was too: a Branch on it could take both routes in one
    * step, its True route moving the object across the threshold before the False route read.) */
-  const bool once_a_pass = command_ordered_cache && context.execution_scope_serial != 0 &&
-                           LN_DistanceQueryEndsAreFixed(*m_program, expression);
+  bool once_a_pass = command_ordered_cache && context.execution_scope_serial != 0;
+  if (once_a_pass) {
+    /* Worked out at the lowering for the lean VM (the same function, the same program). */
+    const LN_LeanProgram *lean = nullptr;
+    if constexpr (std::is_same_v<In, LN_LeanReader>) {
+      lean = in.lean;
+    }
+    once_a_pass = lean != nullptr && expression_index < lean->query_fixed_distance.size() ?
+                      lean->query_fixed_distance[expression_index] != 0 :
+                      LN_DistanceQueryEndsAreFixed(*m_program, expression);
+  }
   const uint64_t command_execution_key = !command_ordered_cache ? UINT64_MAX :
                                          once_a_pass ?
                                                     (context.execution_scope_serial |
@@ -5520,7 +5537,12 @@ const LN_QueryResult &LN_RuntimeTree::QueryEntry(In &in, const uint32_t expressi
     return state.cached_result;
   }
 
-  QueryKind(in, expression_index, expression, state);
+  if (expression.kind == LN_QueryExpressionKind::DistanceBetween) {
+    DistanceBetweenKind(in, expression, state);
+  }
+  else {
+    QueryKind(in, expression_index, expression, state);
+  }
   state.cached_result_distance_only = expression.kind == LN_QueryExpressionKind::DistanceBetween;
 
   return state.cached_result;
@@ -5544,6 +5566,34 @@ bool LN_RuntimeTree::LeanBool(In &in, const uint32_t expression_index, const boo
     RecordMissingSnapshotChannelsForExpression(semantics);
   }
   const LN_BoolExpression &expression = expressions[expression_index];
+  if constexpr (std::is_same_v<In, LN_LeanReader>) {
+    /* The lean memo (plan phase A33): the old interpreter's per-tick registers. */
+    if (in.lean != nullptr && in.lean->memo_count != 0 &&
+        expression_index < in.lean->memo_bool.size() &&
+        in.lean->memo_bool[expression_index] != 0 && g_memo_enabled &&
+        lean_memo_enabled() && in.context.tick_index != UINT64_MAX)
+    {
+      EnsureRegisterExpressionState(in.context);
+      const std::vector<uint32_t> &registers =
+          m_program->GetRegisterExpressionProgram().bool_expression_registers;
+      const uint32_t memo_register = expression_index < registers.size() ?
+                                         registers[expression_index] :
+                                         LN_INVALID_INDEX;
+      if (memo_register < m_registerExpressionState.bool_values.size()) {
+        if (m_registerExpressionState.bool_valid[memo_register] ==
+            m_registerExpressionState.active_generation)
+        {
+          return m_registerExpressionState.bool_values[memo_register];
+        }
+        /* The kind function (LeanBool's fast kinds are the same code as its cases). */
+        const bool value = BoolKind(in, expression_index, expression, fallback);
+        m_registerExpressionState.bool_values[memo_register] = value;
+        m_registerExpressionState.bool_valid[memo_register] =
+            m_registerExpressionState.active_generation;
+        return value;
+      }
+    }
+  }
   /* The kinds the guards and conditions of a brain are made of, without the big switch of
    * BoolKind (its entry and exit cost more than they do): the same code as its cases. */
   switch (expression.kind) {
@@ -5574,6 +5624,33 @@ int32_t LN_RuntimeTree::LeanInt(In &in, const uint32_t expression_index, const i
     ProfileExpressionEvaluation(semantics.fallback_requirements);
     RecordMissingSnapshotChannelsForExpression(semantics);
   }
+  if constexpr (std::is_same_v<In, LN_LeanReader>) {
+    /* The lean memo (plan phase A33): the old interpreter's per-tick registers. */
+    if (in.lean != nullptr && in.lean->memo_count != 0 &&
+        expression_index < in.lean->memo_int.size() &&
+        in.lean->memo_int[expression_index] != 0 && g_memo_enabled &&
+        lean_memo_enabled() && in.context.tick_index != UINT64_MAX)
+    {
+      EnsureRegisterExpressionState(in.context);
+      const std::vector<uint32_t> &registers =
+          m_program->GetRegisterExpressionProgram().int_expression_registers;
+      const uint32_t memo_register = expression_index < registers.size() ?
+                                         registers[expression_index] :
+                                         LN_INVALID_INDEX;
+      if (memo_register < m_registerExpressionState.int_values.size()) {
+        if (m_registerExpressionState.int_valid[memo_register] ==
+            m_registerExpressionState.active_generation)
+        {
+          return m_registerExpressionState.int_values[memo_register];
+        }
+        const int32_t value = IntKind(in, expression_index, expressions[expression_index], fallback);
+        m_registerExpressionState.int_values[memo_register] = value;
+        m_registerExpressionState.int_valid[memo_register] =
+            m_registerExpressionState.active_generation;
+        return value;
+      }
+    }
+  }
   return IntKind(in, expression_index, expressions[expression_index], fallback);
 }
 
@@ -5595,6 +5672,34 @@ float LN_RuntimeTree::LeanFloat(In &in, const uint32_t expression_index, const f
     RecordMissingSnapshotChannelsForExpression(semantics);
   }
   const LN_FloatExpression &expression = expressions[expression_index];
+  if constexpr (std::is_same_v<In, LN_LeanReader>) {
+    /* The lean memo (plan phase A33): the old interpreter's per-tick registers. */
+    if (in.lean != nullptr && in.lean->memo_count != 0 &&
+        expression_index < in.lean->memo_float.size() &&
+        in.lean->memo_float[expression_index] != 0 && g_memo_enabled &&
+        lean_memo_enabled() && in.context.tick_index != UINT64_MAX)
+    {
+      EnsureRegisterExpressionState(in.context);
+      const std::vector<uint32_t> &registers =
+          m_program->GetRegisterExpressionProgram().float_expression_registers;
+      const uint32_t memo_register = expression_index < registers.size() ?
+                                         registers[expression_index] :
+                                         LN_INVALID_INDEX;
+      if (memo_register < m_registerExpressionState.float_values.size()) {
+        if (m_registerExpressionState.float_valid[memo_register] ==
+            m_registerExpressionState.active_generation)
+        {
+          return m_registerExpressionState.float_values[memo_register];
+        }
+        /* The kind function (LeanFloat's fast kinds are the same code as its cases). */
+        const float value = FloatKind(in, expression_index, expression, fallback);
+        m_registerExpressionState.float_values[memo_register] = value;
+        m_registerExpressionState.float_valid[memo_register] =
+            m_registerExpressionState.active_generation;
+        return value;
+      }
+    }
+  }
   /* The kinds a brain's values are made of, without the big switch of FloatKind: the same code as
    * its cases (Add reads A, then B). */
   switch (expression.kind) {
@@ -5656,6 +5761,33 @@ MT_Vector3 LN_RuntimeTree::LeanVector(In &in, const uint32_t expression_index, c
         expressions[expression_index].kind);
     ProfileExpressionEvaluation(semantics.fallback_requirements);
     RecordMissingSnapshotChannelsForExpression(semantics);
+  }
+  if constexpr (std::is_same_v<In, LN_LeanReader>) {
+    /* The lean memo (plan phase A33): the old interpreter's per-tick registers. */
+    if (in.lean != nullptr && in.lean->memo_count != 0 &&
+        expression_index < in.lean->memo_vector.size() &&
+        in.lean->memo_vector[expression_index] != 0 && g_memo_enabled &&
+        lean_memo_enabled() && in.context.tick_index != UINT64_MAX)
+    {
+      EnsureRegisterExpressionState(in.context);
+      const std::vector<uint32_t> &registers =
+          m_program->GetRegisterExpressionProgram().vector_expression_registers;
+      const uint32_t memo_register = expression_index < registers.size() ?
+                                         registers[expression_index] :
+                                         LN_INVALID_INDEX;
+      if (memo_register < m_registerExpressionState.vector_values.size()) {
+        if (m_registerExpressionState.vector_valid[memo_register] ==
+            m_registerExpressionState.active_generation)
+        {
+          return m_registerExpressionState.vector_values[memo_register];
+        }
+        const MT_Vector3 value = VectorKind(in, expression_index, expressions[expression_index], fallback);
+        m_registerExpressionState.vector_values[memo_register] = value;
+        m_registerExpressionState.vector_valid[memo_register] =
+            m_registerExpressionState.active_generation;
+        return value;
+      }
+    }
   }
   return VectorKind(in, expression_index, expressions[expression_index], fallback);
 }

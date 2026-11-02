@@ -220,6 +220,18 @@ class KX_GameObject : public SCA_IObject {
     static uint64_t Next();
   };
   PropertyMapStamp m_propertyMapStamp;
+  /** GetLogicNodesPendingMove's value. A copy starts unmarked: it has recorded no move. */
+  struct PendingMoveMark {
+    uint64_t value = 0;
+    PendingMoveMark() = default;
+    PendingMoveMark(const PendingMoveMark & /*other*/) {}
+    PendingMoveMark &operator=(const PendingMoveMark & /*other*/)
+    {
+      value = 0;
+      return *this;
+    }
+  };
+  PendingMoveMark m_logicNodesPendingMove;
   /* END OF EEVEE INTEGRATION */
 
   /// external client info (game object in this case)
@@ -657,6 +669,17 @@ class KX_GameObject : public SCA_IObject {
   uint64_t GetPropertyMapStamp() const
   {
     return m_propertyMapStamp.value;
+  }
+  /** Logic Nodes (LN_CommandBuffer, plan phase A33): the contents generation of the command buffer
+   * that last recorded a move of the object. A buffer whose generation it is not holds no pending
+   * move of it, so a read that must see pending moves skips the buffer's index. */
+  uint64_t GetLogicNodesPendingMove() const
+  {
+    return m_logicNodesPendingMove.value;
+  }
+  void SetLogicNodesPendingMove(const uint64_t generation)
+  {
+    m_logicNodesPendingMove.value = generation;
   }
   /* END OF EEVEE INTEGRATION */
 

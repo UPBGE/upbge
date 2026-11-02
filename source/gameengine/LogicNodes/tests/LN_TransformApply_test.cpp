@@ -289,3 +289,73 @@ TEST(LN_TransformApply, DISABLED_GuardBench)
     object->SetSGNode(nullptr);
   }
 }
+
+/* Pending move marks (plan phase A33): with marks on or off, and in verify mode, a buffer says an
+ * object has a pending move exactly when its index says so: a moved object, a child of a moved
+ * parent through a hierarchy read, an object moved in a chunk joined to it, none after a read
+ * applied the moves or after a flush; an untouched object reads none without the index. Verify mode
+ * finds a lost mark (a pending move without its buffer's mark), which must never happen. */
+TEST(LN_TransformApply, PendingMoveMarksAnswerAsTheIndex)
+{
+  struct VerifyScope {
+    VerifyScope()
+    {
+      LN_CommandBuffer::SetPendingMarkModeForTests(2);
+    }
+    ~VerifyScope()
+    {
+      LN_CommandBuffer::SetPendingMarkModeForTests(-1);
+    }
+  } verify;
+  const uint64_t differences_before = LN_CommandBuffer::PendingMarkVerifyDifferencesForTests();
+  for (const bool marks : {false, true}) {
+    SCOPED_TRACE(marks ? "marks" : "no marks");
+    SceneGraphPair pair;
+    BatchObject other(MT_Vector3(4.0f, 0.0f, 0.0f));
+    BatchObject joined(MT_Vector3(-4.0f, 0.0f, 0.0f));
+    LN_CommandBuffer buffer;
+    buffer.SetMarksPendingMoves(marks);
+    buffer.BeginRecording();
+    EXPECT_FALSE(buffer.HasPendingTransforms(&pair.root, false));
+    buffer.AppendApplyMovement(&pair.root, MT_Vector3(1.0f, 0.0f, 0.0f), false, 1, 0);
+    EXPECT_TRUE(buffer.HasPendingTransforms(&pair.root, false));
+    EXPECT_TRUE(buffer.HasPendingTransforms(&pair.child, true)) << "the parent moved";
+    EXPECT_FALSE(buffer.HasPendingTransforms(&pair.child, false));
+    EXPECT_FALSE(buffer.HasPendingTransforms(&other.object, true));
+    EXPECT_FALSE(buffer.HasIndexedPendingTransforms(&other.object, true));
+    /* A hierarchy read applies the parent's move: nothing is pending after it. */
+    buffer.FlushPendingObjectHierarchyTransformCommands(&pair.child);
+    EXPECT_FALSE(buffer.HasPendingTransforms(&pair.root, false));
+    EXPECT_FALSE(buffer.HasPendingTransforms(&pair.child, true));
+    /* A chunk's moves are the buffer's once joined. */
+    LN_CommandBuffer chunk;
+    chunk.BeginChunkRecording();
+    chunk.AppendSetWorldPosition(&joined.object, MT_Vector3(0.0f, 1.0f, 0.0f), 2, 0);
+    chunk.EndChunkRecording();
+    buffer.AppendRecordedChunk(chunk);
+    EXPECT_TRUE(buffer.HasPendingTransforms(&joined.object, false));
+    buffer.PrepareForChunkReads();
+    EXPECT_TRUE(buffer.HasIndexedPendingTransforms(&joined.object, false));
+    buffer.EndRecording();
+    buffer.Flush();
+    /* A new content: the marks of the last one no longer count. */
+    buffer.BeginRecording();
+    EXPECT_FALSE(buffer.HasPendingTransforms(&joined.object, false));
+    EXPECT_FALSE(buffer.HasPendingTransforms(&pair.root, true));
+    buffer.EndRecording();
+  }
+  EXPECT_EQ(LN_CommandBuffer::PendingMarkVerifyDifferencesForTests(), differences_before);
+
+  /* A lost mark is caught by verify mode, and the index's answer is given. */
+  BatchObject lost(MT_Vector3(0.0f, 0.0f, 0.0f));
+  LN_CommandBuffer buffer;
+  buffer.SetMarksPendingMoves(true);
+  buffer.BeginRecording();
+  buffer.AppendApplyMovement(&lost.object, MT_Vector3(1.0f, 0.0f, 0.0f), false, 1, 0);
+  lost.object.SetLogicNodesPendingMove(0);
+  LN_CommandBuffer::SetPendingMarkDifferenceExpectedForTests(true);
+  EXPECT_TRUE(buffer.HasPendingTransforms(&lost.object, false));
+  LN_CommandBuffer::SetPendingMarkDifferenceExpectedForTests(false);
+  EXPECT_GT(LN_CommandBuffer::PendingMarkVerifyDifferencesForTests(), differences_before);
+  buffer.EndRecording();
+}

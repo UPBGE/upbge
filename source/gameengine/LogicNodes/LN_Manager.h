@@ -744,6 +744,9 @@ class LN_Manager {
   std::vector<KX_GameObject *> m_batchMeasuredObjects;
   /** Measured objects and their parents: their own trees never join a batch. */
   std::vector<KX_GameObject *> m_batchBarrierObjects;
+  /** This tick, per object with several trees: how many of its runnable trees have a batch-safe
+   * program that moves it (LN_TreeMayShareItsObject). */
+  blender::Map<KX_GameObject *, uint32_t> m_batchObjectMovers;
   std::vector<LN_RuntimeTree *> m_batchTreesScratch;
   std::vector<LN_RuntimeProfileCounters> m_batchCountersScratch;
   /** Programs (LN_Program::GetUniqueId) whose tree read a pending move in a batch: out of

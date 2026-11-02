@@ -15,9 +15,14 @@
 
 #include "LN_RuntimeTree.h"
 
+struct LN_LeanProgram;
+
 struct LN_LeanReader {
   LN_RuntimeTree &tree;
   const LN_TickContext &context;
+  /** The lean program of the event being run (set with the lean frame's, else null): what the
+   * lowering worked out once, read instead of working it out again (plan phase A33). */
+  const LN_LeanProgram *lean = nullptr;
 
   LN_LeanReader(LN_RuntimeTree &tree, const LN_TickContext &context) : tree(tree), context(context)
   {

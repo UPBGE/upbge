@@ -28,6 +28,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -356,6 +357,24 @@ static LN_RuntimeFallbackReason FallbackReasonFromRequirements(
 
 /* Tests (plan A15): 0 turns the per-tick memo of pure expressions off. */
 static bool g_memo_enabled = true;
+/* The lean reader's memo (plan phase A33): UPBGE_LN_LEAN_MEMO 0 / off = none, unset / 1 / on = the
+ * expressions the lowering marked (LN_LeanProgram::memo_*; the default since A33's gate). Tests
+ * set it with SetLeanMemoForTests (-1: the environment again). */
+static bool lean_memo_from_environment()
+{
+  const char *value = std::getenv("UPBGE_LN_LEAN_MEMO");
+  if (value == nullptr || value[0] == '\0') {
+    return true;
+  }
+  return !(std::strcmp(value, "0") == 0 || std::strcmp(value, "off") == 0);
+}
+/* Read once at start-up (a plain static: no guard to check at every read). */
+static const bool g_lean_memo_environment = lean_memo_from_environment();
+static int g_lean_memo_override = -1;
+static inline bool lean_memo_enabled()
+{
+  return g_lean_memo_override >= 0 ? g_lean_memo_override != 0 : g_lean_memo_environment;
+}
 /* Tests (plan A13): where the expression reads of a kind are recorded; null records nothing. */
 static std::vector<LN_RuntimeTree::ReadTraceEntry> *g_read_trace = nullptr;
 static inline void NoteExpressionRead(const char family, const uint32_t expression_index)
@@ -4010,14 +4029,6 @@ LN_EventSubjectId LN_RuntimeTree::GetEventSubjectId(const LN_StringId string_id)
   return m_eventSubjectIds[string_id.index];
 }
 
-LN_GamePropertyId LN_RuntimeTree::GetGamePropertyId(const uint32_t property_ref_index) const
-{
-  if (property_ref_index >= m_gamePropertyIds.size()) {
-    return LN_GamePropertyId{};
-  }
-  return m_gamePropertyIds[property_ref_index];
-}
-
 LN_TreePropertyId LN_RuntimeTree::GetTreePropertyId(const uint32_t property_ref_index) const
 {
   if (property_ref_index >= m_treePropertyIds.size()) {
@@ -7004,6 +7015,11 @@ void LN_RuntimeTree::SetMemoForTests(const int mode)
   g_memo_enabled = mode != 0;
 }
 
+void LN_RuntimeTree::SetLeanMemoForTests(const int mode)
+{
+  g_lean_memo_override = mode < 0 ? -1 : (mode != 0 ? 1 : 0);
+}
+
 void LN_RuntimeTree::SetReadTraceForTests(std::vector<ReadTraceEntry> *trace)
 {
   g_read_trace = trace;
@@ -7907,7 +7923,17 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     }
     LN_LeanFrame lean_frame(*this, event, instructions, command_buffer, context);
     lean_frame.lean = lean;
+    lean_frame.reader.lean = lean;
     const LN_LeanEvent &lean_event = lean->events[size_t(event)];
+    /* A compiled route (plan phase A33) when the event has one and nothing this run asks for
+     * what a route leaves out: paused UI routes, the profile counters, the read order trace. */
+    if (lean_event.has_route && !m_uiEventRoutesOnly && m_activeProfileCounters == nullptr &&
+        g_read_trace == nullptr && LN_GetRouteMode() == LN_RouteMode::On)
+    {
+      LN_NoteRouteRun();
+      RunLeanRoute(lean_frame, lean_event.route, event_scope_serial);
+      return;
+    }
     RunEventBlocks(lean_frame, ir, context, event_scope_serial, [&](const uint32_t op_index) {
       OpLean(lean_frame, ir.ops[op_index], lean_event.ops[op_index]);
     });
@@ -7956,6 +7982,7 @@ void LN_RuntimeTree::RunBlock(LN_CommandBuffer &buffer,
     LN_NoteLeanTreeRun();
     frames.emplace_back(tree, event, instructions, buffer, context);
     frames.back().lean = lean;
+    frames.back().reader.lean = lean;
   }
 
   /* Op by op across the lanes. A lane's commands are tagged with it and numbered inside it; the

@@ -27,6 +27,18 @@ using namespace ln_test::sem;
 
 namespace {
 
+/** Compiled routes on (1) or off (0) for a scope (plan phase A33). */
+struct RouteScope {
+  explicit RouteScope(const int mode)
+  {
+    LN_SetRouteModeForTests(mode);
+  }
+  ~RouteScope()
+  {
+    LN_SetRouteModeForTests(-1);
+  }
+};
+
 struct ModeScope {
   explicit ModeScope(const int mode)
   {
@@ -236,6 +248,8 @@ TEST(LN_LeanProgram, DISABLED_BrainBench)
   BrainOfOptions options;
   options.chains = chains_text != nullptr ? std::max(0, std::atoi(chains_text)) : 4;
   options.step_every = 1;
+  /* UPBGE_LN_BENCH_NODIST=1: the stored distance instead of Get Distance (what the query costs). */
+  options.measure_distance = std::getenv("UPBGE_LN_BENCH_NODIST") == nullptr;
   const std::shared_ptr<LN_Program> program = BrainOf(options);
   ASSERT_NE(program, nullptr);
   constexpr uint32_t kOwners = 10000;
@@ -319,6 +333,69 @@ TEST(LN_LeanProgram, DISABLED_FootprintReport)
               info.queries,
               info.overflow_states,
               info.has_own_input ? 1 : 0);
+}
+
+/* A tree whose pure expressions are read many times (DISABLED_): a chain of six math nodes on two
+ * properties feeds twelve property writes. The old interpreter's per-tick memo works the chain out
+ * once; the lean VM has no memo and works it out for each write. Decides whether making the lean
+ * VM the only interpreter (plan A28 and on) would slow such trees down. */
+TEST(LN_LeanProgram, DISABLED_SharedSubexpressionBench)
+{
+  TreeBuilder b;
+  GenNode &event = b.Add("LogicNativeOnFixedUpdate");
+  GenNode &a = b.Add("LogicNativeGetGamePropertyFloat");
+  b.String(a, "Property", "pf0");
+  GenNode &c = b.Add("LogicNativeGetGamePropertyFloat");
+  b.String(c, "Property", "pf1");
+  GenNode *chain = &b.Add("LogicNativeMath", blender::NODE_MATH_ADD);
+  b.Link(a, "Value", *chain, "A");
+  b.Link(c, "Value", *chain, "B");
+  for (int step = 0; step < 5; step++) {
+    GenNode &next = b.Add("LogicNativeMath", step % 2 == 0 ? blender::NODE_MATH_MULTIPLY :
+                                                             blender::NODE_MATH_SUBTRACT);
+    b.Link(*chain, "Result", next, "A");
+    b.Float(next, "B", 1.25f + float(step));
+    chain = &next;
+  }
+  GenNode *flow = &event;
+  const char *pin = "Out";
+  for (int index = 0; index < 12; index++) {
+    GenNode &set = b.Add("LogicNativeSetGamePropertyFloat");
+    b.String(set, "Property", ("o" + std::to_string(index)).c_str());
+    b.Link(*chain, "Result", set, "Value");
+    b.Link(*flow, pin, set, "Flow");
+    flow = &set;
+    pin = "Done";
+  }
+  std::string report;
+  const std::shared_ptr<LN_Program> program = b.Compile(&report);
+  ASSERT_NE(program, nullptr) << report;
+  constexpr uint32_t kOwners = 4000;
+  struct Setup {
+    const char *name;
+    int lean;
+  };
+  for (const Setup &setup : {Setup{"old (memo)", 0}, Setup{"lean generic+native", 2}}) {
+    ModeScope scope(setup.lean);
+    SemRig rig(program, kMemoOn, kOwners);
+    rig.SetDump(false);
+    rig.SetCapturePrints(false);
+    for (uint32_t index = 0; index < kOwners; index++) {
+      rig.SetFloat(rig.Object(index), "pf0", float(index % 17));
+      rig.SetFloat(rig.Object(index), "pf1", 0.5f);
+    }
+    rig.Step();
+    rig.Step();
+    double best = 1.0e9;
+    for (int round = 0; round < 25; round++) {
+      rig.ResetTimes();
+      rig.Step();
+      best = std::min(best, rig.Times().record_ms);
+    }
+    std::printf("LEAN_BENCH shared chain %-20s record %.0f ns an NPC (12 writes of one 6 node chain)\n",
+                setup.name,
+                best * 1.0e6 / kOwners);
+  }
 }
 
 /* A micro benchmark of expression evaluation alone (DISABLED_): a tree-property sum chain of 40
@@ -448,3 +525,436 @@ class LeanForceEnvironment : public ::testing::Environment {
 const ::testing::Environment *const g_lean_force_environment =
     ::testing::AddGlobalTestEnvironment(new LeanForceEnvironment());
 }  // namespace
+
+namespace {
+
+/** BrainOf's program as straight code (2026-11-02, the question of plan phase B4): what a perfect
+ * block compiler or a JIT could make of it. Its constants are taken from the compiled program
+ * once (the "compile"); per NPC it does only the brain's own work: the distance, the compare,
+ * the property reads and adds, the five number writes and the moves, through the very appends
+ * the native handlers use, in their order. It skips everything an interpreter adds: dispatch,
+ * op preludes, guards, stamps, the query cache, the tick bookkeeping of ExecuteReady. Recording
+ * the same commands is checked (TheIdealBrainRecordsExactlyWhatTheLeanVMRecords), so its speed
+ * is the floor any form of blocks, kernels or compilation could reach for this program. */
+class IdealBrain {
+ public:
+  IdealBrain(const LN_Program &program, const LN_Event event, const float threshold)
+      : m_threshold(threshold)
+  {
+    program.EnsureLeanProgram();
+    const std::shared_ptr<const LN_LeanProgram> &lean = program.GetLeanProgram();
+    if (lean == nullptr) {
+      return;
+    }
+    const LN_ExecBlockProgram &ir = program.GetExecBlockProgram(event);
+    const std::vector<LN_InstructionHeader> &headers = program.GetInstructionHeaders(event);
+    const std::vector<LN_FloatExpression> &floats = program.GetFloatExpressions();
+    const std::vector<LN_VectorExpression> &vectors = program.GetVectorExpressions();
+    std::vector<Move> found;
+    for (const LN_LeanOp &lean_op : lean->events[size_t(event)].ops) {
+      const LN_ExecOp &op = ir.ops[lean_op.exec_op_index];
+      const LN_Instruction &instruction = program.GetInstructionPayload(
+          event, headers[op.instruction_index]);
+      if (lean_op.native == uint16_t(LN_LeanNative::SetNumber)) {
+        const LN_GamePropertyCommandPayload &payload =
+            program.GetGamePropertyCommandPayloads()[instruction.command_payload_index];
+        Write write;
+        write.property_ref = payload.property_ref_index;
+        write.source_ref = instruction.source_ref_index;
+        const LN_FloatExpression &value = floats[payload.float_expr_index];
+        if (value.kind == LN_FloatExpressionKind::QueryDistance) {
+          write.distance = true;
+        }
+        else if (value.kind == LN_FloatExpressionKind::Add &&
+                 floats[value.input0].kind == LN_FloatExpressionKind::SnapshotGameProperty &&
+                 floats[value.input1].kind == LN_FloatExpressionKind::Constant)
+        {
+          write.read_ref = floats[value.input0].property_ref_index;
+          write.add = floats[value.input1].float_value;
+        }
+        else {
+          return;
+        }
+        m_writes.push_back(write);
+      }
+      else if (lean_op.native == uint16_t(LN_LeanNative::VectorCommand)) {
+        const LN_VectorCommandPayload &payload =
+            program.GetVectorCommandPayloads()[instruction.command_payload_index];
+        Move move;
+        move.source_ref = instruction.source_ref_index;
+        const LN_VectorOperationMode mode = LN_VectorOperationMode(payload.operation_mode);
+        if (mode == LN_VectorOperationMode::LocalFromBool) {
+          /* The Local input: a constant here (BrainOf's moves are all local). */
+          const std::vector<LN_BoolExpression> &bools = program.GetBoolExpressions();
+          if (payload.bool_expr_index >= bools.size() ||
+              bools[payload.bool_expr_index].kind != LN_BoolExpressionKind::Constant)
+          {
+            return;
+          }
+          move.local = bools[payload.bool_expr_index].bool_value;
+        }
+        else {
+          move.local = mode == LN_VectorOperationMode::Local;
+        }
+        move.rotation_channel = LN_VectorOperationChannel(payload.operation_channel) ==
+                                LN_VectorOperationChannel::Rotation;
+        move.value = payload.vector_value;
+        if (payload.vector_expr_index != LN_INVALID_INDEX &&
+            vectors[payload.vector_expr_index].kind == LN_VectorExpressionKind::Constant)
+        {
+          move.value = vectors[payload.vector_expr_index].vector_value;
+        }
+        move.rotation = LN_Rotation::FromEulerXYZ(move.value);
+        found.push_back(move);
+      }
+    }
+    /* dist + 4 chains; approach (True), turn and walk (False). BrainOf's approach is the longer
+     * of the two movements (0.002 against the walk's 0.001). */
+    const Move *turn = nullptr;
+    for (const Move &move : found) {
+      if (move.rotation_channel) {
+        turn = &move;
+      }
+    }
+    if (m_writes.size() != 5 || !m_writes[0].distance || found.size() != 3 || turn == nullptr) {
+      return;
+    }
+    const Move *walk = nullptr;
+    const Move *approach = nullptr;
+    for (const Move &move : found) {
+      if (move.rotation_channel) {
+        continue;
+      }
+      if (approach == nullptr || move.value.length() > approach->value.length()) {
+        walk = approach;
+        approach = &move;
+      }
+      else {
+        walk = &move;
+      }
+    }
+    if (walk == nullptr || approach == nullptr) {
+      return;
+    }
+    m_moves = {*approach, *turn, *walk};
+    m_ok = true;
+  }
+
+  bool Ok() const
+  {
+    return m_ok;
+  }
+
+  /** The B4 form of the same work: every lane's distance and every property read worked out in
+   * columns first (one pass per value over the block), then the appends lane by lane (the order
+   * the commands must have). */
+  void RecordColumns(LN_CommandBuffer &buffer, const std::vector<LN_RuntimeTree *> &trees) const
+  {
+    const double max_float = double(std::numeric_limits<float>::max());
+    const size_t count = trees.size();
+    thread_local std::vector<float> distances;
+    thread_local std::vector<float> values;
+    distances.resize(count);
+    values.resize(count * m_writes.size());
+    for (size_t lane = 0; lane < count; lane++) {
+      const MT_Vector3 a = trees[lane]->GetGameObject()->NodeGetWorldPosition();
+      const double dx = double(a.x()), dy = double(a.y()), dz = double(a.z());
+      distances[lane] = float(std::min(std::sqrt(dx * dx + dy * dy + dz * dz), max_float));
+    }
+    for (size_t column = 0; column < m_writes.size(); column++) {
+      const Write &write = m_writes[column];
+      float *out = values.data() + column * count;
+      if (write.distance) {
+        std::copy(distances.begin(), distances.end(), out);
+        continue;
+      }
+      for (size_t lane = 0; lane < count; lane++) {
+        LN_Snapshot::GamePropertyView view;
+        const float read = trees[lane]->GetSnapshot().ReadGameProperty(write.read_ref, view) ?
+                               view.float_value :
+                               0.0f;
+        out[lane] = read + write.add;
+      }
+    }
+    for (size_t lane = 0; lane < count; lane++) {
+      LN_RuntimeTree *tree = trees[lane];
+      KX_GameObject *owner = tree->GetGameObject();
+      const LN_Snapshot &snapshot = tree->GetSnapshot();
+      const uint64_t sort_key = (uint64_t(tree->GetSceneObjectIndex()) << 32) |
+                                uint64_t(tree->GetAppliedTreeIndex());
+      for (size_t column = 0; column < m_writes.size(); column++) {
+        const Write &write = m_writes[column];
+        LN_PropertyNumber number;
+        number.type = LN_ValueType::Float;
+        number.float_value = values[column * count + lane];
+        uint64_t stamp = 0;
+        EXP_Value *handle = snapshot.GetGamePropertyHandle(owner, write.property_ref, stamp);
+        buffer.AppendSetGamePropertyNumberRef(
+            tree, owner, write.property_ref, number, sort_key, write.source_ref, handle, stamp);
+      }
+      if (distances[lane] < m_threshold) {
+        const Move &approach = m_moves[0];
+        buffer.AppendApplyMovement(
+            owner, approach.value, approach.local, sort_key, approach.source_ref);
+      }
+      else {
+        const Move &turn = m_moves[1];
+        buffer.AppendApplyRotation(owner, turn.rotation, turn.local, sort_key, turn.source_ref);
+        const Move &walk = m_moves[2];
+        buffer.AppendApplyMovement(owner, walk.value, walk.local, sort_key, walk.source_ref);
+      }
+    }
+  }
+
+  void Record(LN_CommandBuffer &buffer, const std::vector<LN_RuntimeTree *> &trees) const
+  {
+    const double max_float = double(std::numeric_limits<float>::max());
+    for (LN_RuntimeTree *tree : trees) {
+      KX_GameObject *owner = tree->GetGameObject();
+      const LN_Snapshot &snapshot = tree->GetSnapshot();
+      const uint64_t sort_key = (uint64_t(tree->GetSceneObjectIndex()) << 32) |
+                                uint64_t(tree->GetAppliedTreeIndex());
+      /* Get Distance: the owner to the origin, as the query works it out. */
+      const MT_Vector3 a = owner->NodeGetWorldPosition();
+      const double dx = double(a.x()), dy = double(a.y()), dz = double(a.z());
+      const double squared = dx * dx + dy * dy + dz * dz;
+      const float distance = float(std::min(std::sqrt(squared), max_float));
+      for (const Write &write : m_writes) {
+        LN_PropertyNumber number;
+        number.type = LN_ValueType::Float;
+        if (write.distance) {
+          number.float_value = distance;
+        }
+        else {
+          LN_Snapshot::GamePropertyView view;
+          const float read = snapshot.ReadGameProperty(write.read_ref, view) ? view.float_value :
+                                                                               0.0f;
+          number.float_value = read + write.add;
+        }
+        uint64_t stamp = 0;
+        EXP_Value *handle = snapshot.GetGamePropertyHandle(owner, write.property_ref, stamp);
+        buffer.AppendSetGamePropertyNumberRef(
+            tree, owner, write.property_ref, number, sort_key, write.source_ref, handle, stamp);
+      }
+      if (distance < m_threshold) {
+        const Move &approach = m_moves[0];
+        buffer.AppendApplyMovement(
+            owner, approach.value, approach.local, sort_key, approach.source_ref);
+      }
+      else {
+        const Move &turn = m_moves[1];
+        buffer.AppendApplyRotation(owner, turn.rotation, turn.local, sort_key, turn.source_ref);
+        const Move &walk = m_moves[2];
+        buffer.AppendApplyMovement(owner, walk.value, walk.local, sort_key, walk.source_ref);
+      }
+    }
+  }
+
+ private:
+  struct Write {
+    uint32_t property_ref = LN_INVALID_INDEX;
+    uint32_t source_ref = LN_INVALID_INDEX;
+    bool distance = false;
+    uint32_t read_ref = LN_INVALID_INDEX;
+    float add = 0.0f;
+  };
+  struct Move {
+    uint32_t source_ref = LN_INVALID_INDEX;
+    bool local = false;
+    bool rotation_channel = false;
+    MT_Vector3 value = MT_Vector3(0.0f, 0.0f, 0.0f);
+    LN_Rotation rotation;
+  };
+  std::vector<Write> m_writes;
+  std::vector<Move> m_moves;
+  float m_threshold = 6.0f;
+  bool m_ok = false;
+};
+
+/** Owners spread over near and far (both branches), properties of their own. */
+void SpreadBrainOwners(SemRig &rig, const uint32_t owners)
+{
+  for (uint32_t index = 0; index < owners; index++) {
+    const float angle = float(index) * 0.37f;
+    const float radius = 2.0f + float(index % 9);
+    rig.Object(index).NodeSetWorldPosition(
+        MT_Vector3(radius * std::cos(angle), radius * std::sin(angle), 0.0f));
+    rig.Object(index).NodeUpdateGS(0.0);
+    for (int chain = 0; chain < 4; chain++) {
+      rig.SetFloat(rig.Object(index), ("t" + std::to_string(chain)).c_str(), float(index % 7) + chain);
+    }
+    rig.SetFloat(rig.Object(index), "dist", 20.0f);
+  }
+}
+
+}  // namespace
+
+/* The ideal brain is faithful: step after step it records exactly what the lean VM records
+ * (every field of every command, record sequences included), objects walking across the
+ * threshold, so its speed in DISABLED_IdealBrainBench is a true floor. */
+TEST(LN_LeanProgram, TheIdealBrainRecordsExactlyWhatTheLeanVMRecords)
+{
+  BrainOfOptions options;
+  options.step_every = 1;
+  const std::shared_ptr<LN_Program> program = BrainOf(options);
+  ASSERT_NE(program, nullptr);
+  const IdealBrain ideal(*program, LN_Event::OnFixedUpdate, options.threshold);
+  ASSERT_TRUE(ideal.Ok()) << LN_DumpProgramText(*program);
+  constexpr uint32_t kOwners = 200;
+  ModeScope scope(2);
+  SemRig lean(program, kMemoOn, kOwners);
+  SemRig straight(program, kMemoOn, kOwners);
+  SpreadBrainOwners(lean, kOwners);
+  SpreadBrainOwners(straight, kOwners);
+  lean.Step();
+  straight.Step();
+  straight.SetRecorder([&](LN_CommandBuffer &buffer,
+                           const LN_TickContext & /*context*/,
+                           const std::vector<LN_RuntimeTree *> &trees) {
+    ideal.Record(buffer, trees);
+  });
+  SemRig columns(program, kMemoOn, kOwners);
+  SpreadBrainOwners(columns, kOwners);
+  columns.Step();
+  columns.SetRecorder([&](LN_CommandBuffer &buffer,
+                          const LN_TickContext & /*context*/,
+                          const std::vector<LN_RuntimeTree *> &trees) {
+    ideal.RecordColumns(buffer, trees);
+  });
+  for (int step = 0; step < 40; step++) {
+    lean.Step();
+    straight.Step();
+    columns.Step();
+    ASSERT_TRUE(lean.LastRecorded() == straight.LastRecorded())
+        << "step " << step << ": "
+        << diff::FirstDifference(lean.LastRecorded(), straight.LastRecorded());
+    ASSERT_TRUE(lean.LastRecorded() == columns.LastRecorded())
+        << "step " << step << " (columns): "
+        << diff::FirstDifference(lean.LastRecorded(), columns.LastRecorded());
+  }
+  EXPECT_FALSE(lean.LastRecorded().empty());
+}
+
+/* The floor (DISABLED_): the brain on 10,000 objects, one thread, recorded by the old
+ * interpreter, the lean VM and the ideal straight code. The gap between the lean VM and the
+ * ideal is all any block, kernel or compiler work could ever win on the recording. */
+TEST(LN_LeanProgram, DISABLED_IdealBrainBench)
+{
+  BrainOfOptions options;
+  options.step_every = 1;
+  const std::shared_ptr<LN_Program> program = BrainOf(options);
+  ASSERT_NE(program, nullptr);
+  const IdealBrain ideal(*program, LN_Event::OnFixedUpdate, options.threshold);
+  ASSERT_TRUE(ideal.Ok());
+  constexpr uint32_t kOwners = 10000;
+  const char *rounds_text = std::getenv("UPBGE_LN_BENCH_ROUNDS");
+  const int rounds = rounds_text != nullptr ? std::max(1, std::atoi(rounds_text)) : 40;
+  struct Setup {
+    const char *name;
+    int lean;
+    int straight; /* 1 per tree, 2 in columns */
+    int routes;
+  };
+  for (const Setup &setup : {Setup{"old", 0, 0, 0},
+                             Setup{"lean", 2, 0, 0},
+                             Setup{"route", 2, 0, 1},
+                             Setup{"ideal", 2, 1, 0},
+                             Setup{"cols", 2, 2, 0}})
+  {
+    ModeScope scope(setup.lean);
+    RouteScope routes(setup.routes);
+    SemRig rig(program, kMemoOn, kOwners);
+    rig.SetDump(false);
+    rig.SetCapturePrints(false);
+    SpreadBrainOwners(rig, kOwners);
+    rig.Step();
+    rig.Step();
+    if (setup.straight != 0) {
+      const bool in_columns = setup.straight == 2;
+      rig.SetRecorder([&ideal, in_columns](LN_CommandBuffer &buffer,
+                                           const LN_TickContext & /*context*/,
+                                           const std::vector<LN_RuntimeTree *> &trees) {
+        if (in_columns) {
+          ideal.RecordColumns(buffer, trees);
+        }
+        else {
+          ideal.Record(buffer, trees);
+        }
+      });
+    }
+    SemRig::PhaseTimes best = {1.0e9, 1.0e9, 1.0e9};
+    for (int round = 0; round < rounds; round++) {
+      rig.ResetTimes();
+      rig.Step();
+      const SemRig::PhaseTimes &t = rig.Times();
+      best.capture_ms = std::min(best.capture_ms, t.capture_ms);
+      best.record_ms = std::min(best.record_ms, t.record_ms);
+      best.flush_ms = std::min(best.flush_ms, t.flush_ms);
+    }
+    std::printf("IDEAL_BENCH brain10k %-5s  snapshot %.0f  record %.0f  flush %.0f ns an NPC\n",
+                setup.name,
+                best.capture_ms * 1.0e6 / kOwners,
+                best.record_ms * 1.0e6 / kOwners,
+                best.flush_ms * 1.0e6 / kOwners);
+  }
+}
+
+/* What a tree costs the lean VM before its ops (DISABLED_): one number write per tree on 10,000
+ * objects, the lean VM against the single append written straight. The difference is ExecuteReady's
+ * per tree work plus one op's dispatch: what a compiled form of the routes would still pay in part. */
+TEST(LN_LeanProgram, DISABLED_TreeEntryBench)
+{
+  TreeBuilder b;
+  GenNode &event = b.Add("LogicNativeOnFixedUpdate");
+  GenNode &set = b.Add("LogicNativeSetGamePropertyFloat");
+  b.String(set, "Property", "dist");
+  b.Float(set, "Value", 1.5f);
+  b.Link(event, "Out", set, "Flow");
+  std::string report;
+  const std::shared_ptr<LN_Program> program = b.Compile(&report);
+  ASSERT_NE(program, nullptr) << report;
+  constexpr uint32_t kOwners = 10000;
+  for (const bool straight : {false, true}) {
+    ModeScope scope(2);
+    SemRig rig(program, kMemoOn, kOwners);
+    rig.SetDump(false);
+    rig.SetCapturePrints(false);
+    for (uint32_t index = 0; index < kOwners; index++) {
+      rig.SetFloat(rig.Object(index), "dist", 0.0f);
+    }
+    rig.Step();
+    rig.Step();
+    if (straight) {
+      rig.SetRecorder([](LN_CommandBuffer &buffer,
+                         const LN_TickContext & /*context*/,
+                         const std::vector<LN_RuntimeTree *> &trees) {
+        for (LN_RuntimeTree *tree : trees) {
+          KX_GameObject *owner = tree->GetGameObject();
+          LN_PropertyNumber number;
+          number.type = LN_ValueType::Float;
+          number.float_value = 1.5f;
+          uint64_t stamp = 0;
+          EXP_Value *handle = tree->GetSnapshot().GetGamePropertyHandle(owner, 0, stamp);
+          buffer.AppendSetGamePropertyNumberRef(
+              tree,
+              owner,
+              0,
+              number,
+              (uint64_t(tree->GetSceneObjectIndex()) << 32) | tree->GetAppliedTreeIndex(),
+              1,
+              handle,
+              stamp);
+        }
+      });
+    }
+    double best = 1.0e9;
+    for (int round = 0; round < 40; round++) {
+      rig.ResetTimes();
+      rig.Step();
+      best = std::min(best, rig.Times().record_ms);
+    }
+    std::printf("ENTRY_BENCH one write %-8s record %.0f ns a tree\n",
+                straight ? "straight" : "lean",
+                best * 1.0e6 / kOwners);
+  }
+}

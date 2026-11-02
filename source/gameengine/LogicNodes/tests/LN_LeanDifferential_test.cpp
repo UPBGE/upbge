@@ -528,6 +528,123 @@ TEST(LN_LeanDifferential, TheLeanVMInForceModeMatchesTheOldInterpreter)
   EXPECT_GT(LN_LeanTreeRunCount(), runs_before) << "no tree ran on the lean VM";
 }
 
+/* Compiled routes (plan phase A33) against the lean VM's block walk: the whole text of a run
+ * (commands, applied world, every tree's state, bookkeeping included in the state meaning) is the
+ * same with routes on and off, for each fixed seed and probe, in Auto and Force, serial and in a
+ * tree batch. The routes must really run (LN_RouteRunCount). */
+TEST(LN_LeanDifferential, CompiledRoutesMatchTheBlockWalk)
+{
+  size_t compared = 0, batches = 0, routed = 0;
+  const uint64_t routes_before = LN_RouteRunCount();
+  for (uint64_t seed = 1; seed <= NormalSeedCount(); seed++) {
+    Compiled compiled = CompileSeed(seed);
+    if (compiled.program == nullptr) {
+      continue;
+    }
+    compiled.program->EnsureLeanProgram();
+    const std::shared_ptr<const LN_LeanProgram> &lean_program = compiled.program->GetLeanProgram();
+    if (lean_program != nullptr &&
+        std::any_of(lean_program->events.begin(),
+                    lean_program->events.end(),
+                    [](const LN_LeanEvent &event) { return event.has_route; }))
+    {
+      routed++;
+    }
+    for (const int lean : {1, 2}) {
+      diff::RunOptions walk = OptionsFor(seed);
+      walk.lean = lean;
+      walk.routes = 0;
+      diff::RunOptions route = walk;
+      route.routes = 1;
+      const diff::RunResult a = diff::RunWorld(compiled.program, walk);
+      const diff::RunResult b = diff::RunWorld(compiled.program, route);
+      compared++;
+      EXPECT_EQ(a.text, b.text) << "seed " << seed << " lean " << lean << ": "
+                                << diff::FirstDifference(a.text, b.text);
+      EXPECT_EQ(a.warnings, b.warnings) << "seed " << seed;
+      if (lean == 2 && compiled.program->GetTreeBatchProfile().eligible && seed % 2 == 0) {
+        diff::RunOptions batch = route;
+        batch.chunks = 2;
+        batch.helpers = 3;
+        const diff::RunResult c = diff::RunWorld(compiled.program, batch);
+        batches++;
+        EXPECT_EQ(a.text, c.text) << "seed " << seed << " (batch): "
+                                  << diff::FirstDifference(a.text, c.text);
+      }
+    }
+  }
+  for (size_t index = 0; index < Probes().size(); index++) {
+    Probe &probe = Probes()[index];
+    diff::RunOptions walk = probe.options;
+    walk.lean = 2;
+    walk.routes = 0;
+    diff::RunOptions route = walk;
+    route.routes = 1;
+    const diff::RunResult a = diff::RunWorld(probe.compiled.program, walk);
+    const diff::RunResult b = diff::RunWorld(probe.compiled.program, route);
+    EXPECT_EQ(a.text, b.text) << probe.name << ": " << diff::FirstDifference(a.text, b.text);
+  }
+  std::printf("compiled routes: %zu of %zu programs have one\n", routed, compared / 2);
+  EXPECT_GT(compared, 120u);
+  EXPECT_GT(batches, 5u);
+  EXPECT_GT(routed, 10u);
+  EXPECT_GT(LN_RouteRunCount(), routes_before) << "no event ran as a compiled route";
+}
+
+/* The lean memo (plan phase A33) changes no result: for each fixed seed and probe, the old
+ * interpreter, the lean VM in Force with routes and its memo on, and the same with the memo off
+ * give the same text (also with both memos off, the old interpreter's too). */
+TEST(LN_LeanDifferential, TheLeanMemoChangesNoResult)
+{
+  size_t compared = 0, memoized = 0;
+  for (uint64_t seed = 1; seed <= NormalSeedCount(); seed++) {
+    Compiled compiled = CompileSeed(seed);
+    if (compiled.program == nullptr) {
+      continue;
+    }
+    compiled.program->EnsureLeanProgram();
+    const std::shared_ptr<const LN_LeanProgram> &lean_program = compiled.program->GetLeanProgram();
+    if (lean_program != nullptr && lean_program->memo_count > 0) {
+      memoized++;
+    }
+    diff::RunOptions old_way = OptionsFor(seed);
+    old_way.lean = 0;
+    diff::RunOptions memo_on = OptionsFor(seed);
+    memo_on.lean = 2;
+    memo_on.routes = 1;
+    memo_on.lean_memo = 1;
+    diff::RunOptions memo_off = memo_on;
+    memo_off.lean_memo = 0;
+    diff::RunOptions no_memo = memo_on;
+    no_memo.memo = 0;
+    const diff::RunResult a = diff::RunWorld(compiled.program, old_way);
+    const diff::RunResult b = diff::RunWorld(compiled.program, memo_on);
+    const diff::RunResult c = diff::RunWorld(compiled.program, memo_off);
+    const diff::RunResult d = diff::RunWorld(compiled.program, no_memo);
+    compared++;
+    EXPECT_EQ(a.text, b.text) << "seed " << seed << ": " << diff::FirstDifference(a.text, b.text);
+    EXPECT_EQ(b.text, c.text) << "seed " << seed << " (memo off): "
+                              << diff::FirstDifference(b.text, c.text);
+    EXPECT_EQ(b.text, d.text) << "seed " << seed << " (no memo at all): "
+                              << diff::FirstDifference(b.text, d.text);
+  }
+  for (size_t index = 0; index < Probes().size(); index++) {
+    Probe &probe = Probes()[index];
+    diff::RunOptions old_way = probe.options;
+    old_way.lean = 0;
+    diff::RunOptions memo_on = probe.options;
+    memo_on.lean = 2;
+    memo_on.routes = 1;
+    memo_on.lean_memo = 1;
+    const diff::RunResult a = diff::RunWorld(probe.compiled.program, old_way);
+    const diff::RunResult b = diff::RunWorld(probe.compiled.program, memo_on);
+    EXPECT_EQ(a.text, b.text) << probe.name << ": " << diff::FirstDifference(a.text, b.text);
+  }
+  std::printf("lean memo: %zu of %zu programs keep an expression\n", memoized, compared);
+  EXPECT_GT(compared, 60u);
+  EXPECT_GT(memoized, 5u);
+}
+
 /* Every kind the trees reach ran at least 50 times (as many times as it appears in a program times
  * the tree runs), and the number of kinds not reached is printed: the generator's blind spots,
  * for the runtime phases that come after. */

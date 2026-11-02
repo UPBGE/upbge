@@ -12,6 +12,8 @@
 
 #include "testing/testing.h"
 
+#include <algorithm>
+
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -55,21 +57,36 @@ std::shared_ptr<LN_Program> CompileOrFail(TreeBuilder &b)
   return program;
 }
 
-/** The old interpreter and the lean VM (Force) give the same text in the differential world;
- * returns the number of native ops the lean program has. */
+/** The old interpreter, the lean VM (Force) walking its blocks and the lean VM running its
+ * compiled routes (plan phase A33) give the same text in the differential world; returns the
+ * number of native ops the lean program has. A program with a route must run it. */
 uint32_t ExpectSameBothWays(const std::shared_ptr<LN_Program> &program, const char *what)
 {
   diff::RunOptions old_way;
   old_way.lean = 0;
+  old_way.routes = 0;
   diff::RunOptions lean = old_way;
   lean.lean = 2;
+  diff::RunOptions route = lean;
+  route.routes = 1;
   const uint64_t runs_before = LN_LeanTreeRunCount();
   const diff::RunResult a = diff::RunWorld(program, old_way);
   const diff::RunResult b = diff::RunWorld(program, lean);
+  const uint64_t routes_before = LN_RouteRunCount();
+  const diff::RunResult c = diff::RunWorld(program, route);
   EXPECT_EQ(a.text, b.text) << what << ": " << diff::FirstDifference(a.text, b.text);
+  EXPECT_EQ(a.text, c.text) << what << " (route): " << diff::FirstDifference(a.text, c.text);
   EXPECT_TRUE(b.failure.empty()) << what << ": " << b.failure;
+  EXPECT_TRUE(c.failure.empty()) << what << " (route): " << c.failure;
   EXPECT_GT(LN_LeanTreeRunCount(), runs_before) << what << ": no tree ran on the lean VM";
   const std::shared_ptr<const LN_LeanProgram> &lean_program = program->GetLeanProgram();
+  const bool has_route = lean_program != nullptr &&
+                         std::any_of(lean_program->events.begin(),
+                                     lean_program->events.end(),
+                                     [](const LN_LeanEvent &event) { return event.has_route; });
+  if (has_route) {
+    EXPECT_GT(LN_RouteRunCount(), routes_before) << what << ": its route never ran";
+  }
   return lean_program != nullptr ? lean_program->native_op_count : 0u;
 }
 

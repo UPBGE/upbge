@@ -1578,6 +1578,12 @@ struct RunOptions {
   /** Block execution (plan phase B1): -1 as set (environment or test setter), 0 off, 1 Auto,
    * 2 Force. Only inside a tree batch (chunks > 0). Results must not depend on it. */
   int blocks = -1;
+  /** Compiled routes (plan phase A33): -1 as set (environment or test setter), 0 off, 1 on. Results
+   * must not depend on it. */
+  int routes = -1;
+  /** The lean reader's memo (plan phase A33): -1 as set, 0 off, 1 on. Results must not depend on
+   * it. */
+  int lean_memo = -1;
   /** 0: the trees record one after the other (production for fewer than 64 trees); more: a tree
    * batch with this many chunks, on a pool with `helpers` helper threads. */
   uint32_t chunks = 0;
@@ -1716,7 +1722,7 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
   }
 
   struct MemoScope {
-    MemoScope(const int mode, const int lean_mode, const int block_mode)
+    MemoScope(const int mode, const int lean_mode, const int block_mode, const int route_mode)
     {
       LN_RuntimeTree::SetMemoForTests(mode);
       if (lean_mode >= 0) {
@@ -1727,6 +1733,17 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
         LN_SetBlockModeForTests(block_mode);
       }
       restore_blocks = block_mode >= 0;
+      if (route_mode >= 0) {
+        LN_SetRouteModeForTests(route_mode);
+      }
+      restore_routes = route_mode >= 0;
+    }
+    void SetLeanMemo(const int lean_memo)
+    {
+      if (lean_memo >= 0) {
+        LN_RuntimeTree::SetLeanMemoForTests(lean_memo);
+      }
+      restore_lean_memo = lean_memo >= 0;
     }
     ~MemoScope()
     {
@@ -1737,16 +1754,27 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
       if (restore_blocks) {
         LN_SetBlockModeForTests(-1);
       }
+      if (restore_routes) {
+        LN_SetRouteModeForTests(-1);
+      }
+      if (restore_lean_memo) {
+        LN_RuntimeTree::SetLeanMemoForTests(-1);
+      }
     }
     bool restore_lean = false;
     bool restore_blocks = false;
-  } memo_scope(options.memo, options.lean, options.blocks);
+    bool restore_routes = false;
+    bool restore_lean_memo = false;
+  } memo_scope(options.memo, options.lean, options.blocks, options.routes);
+  memo_scope.SetLeanMemo(options.lean_memo);
   const bool eligible = program->GetTreeBatchProfile().eligible;
 
   LN_JobPool pool;
   pool.SetHelperCount(options.helpers);
   LN_TreeBatchRecorder recorder;
   LN_CommandBuffer buffer;
+  /* As the scene's buffer (plan phase A33's pending move marks): the world's objects are real. */
+  buffer.SetMarksPendingMoves(true);
 
   Rng environment(options.world_seed ^ 0xA5A5A5A5ull);
   const double step = 1.0 / 60.0;
