@@ -21,9 +21,11 @@
 
 #include "LN_DenseIds.h"
 #include "LN_Performance.h"
+#include "LN_StrictDump.h"
 #include "LN_Types.h"
 #include "KX_Parenting.h"
 
+class EXP_Value;
 class KX_GameObject;
 class KX_Scene;
 class LN_Manager;
@@ -244,17 +246,6 @@ class LN_CommandBuffer {
     PhysicsServiceMutation,
   };
 
-  enum class CommandBarrier : uint8_t {
-    None = 0,
-    AbsoluteSetter,
-    RelativeMutation,
-    ObjectLifecycle,
-    SceneDatablockMutation,
-    EventMessage,
-    ExternalSideEffect,
-    Diagnostic,
-  };
-
   enum class CoalescingPolicy : uint8_t {
     Forbidden = 0,
     LastWriteWinsWithinBarrierSegment,
@@ -292,9 +283,12 @@ class LN_CommandBuffer {
     uint64_t sort_key = 0;
     uint64_t record_sequence = 0;
     uint32_t source_ref_index = 0;
-    CommandClass command_class = CommandClass::LegacyFallback;
-    CommandBarrier barrier = CommandBarrier::None;
+    /** Whether the command is a last-write-wins write (GetCoalescingPolicy of its type, read from
+     * a table). The stream a command goes to comes from its type at the append
+     * (GetCommandClass), not from the header. */
     CoalescingPolicy coalescing = CoalescingPolicy::Forbidden;
+    /** Block recording (BeginBlock): the lane of the block the command belongs to. */
+    uint16_t lane = 0;
   };
 
   struct Command {
@@ -347,14 +341,13 @@ class LN_CommandBuffer {
   static CommandSubsystem GetCommandSubsystem(const Command &command);
   static CommandThreadPolicy GetCommandThreadPolicy(CommandType type);
   static CommandSubsystemPolicy GetCommandSubsystemPolicy(CommandSubsystem subsystem);
+  /** Both answers come from one table made when the program is built (a lookup, no switch). */
   static CommandClass GetCommandClass(CommandType type);
-  static CommandBarrier GetCommandBarrier(CommandType type);
   static CoalescingPolicy GetCoalescingPolicy(CommandType type);
   static bool AllowsObjectlessFlush(CommandType type);
 
   void SetMainThreadId(std::thread::id main_thread_id);
   void SetLogicManager(LN_Manager *logic_manager);
-  void SetTypedCommandStreamsEnabled(bool enabled);
   bool CanFlushPendingObjectTransformCommands() const;
   void BeginRecording();
   void EndRecording();
@@ -373,6 +366,20 @@ class LN_CommandBuffer {
    * pending move index follow. The chunk is left empty (its memory kept). Main thread, while
    * this buffer records. */
   void AppendRecordedChunk(LN_CommandBuffer &chunk);
+  /** Block recording (plan phase B1): the trees of a block run their ops one op at a time across
+   * all the lanes, so the commands arrive op by op. Between BeginBlock and EndBlock each command
+   * is tagged with the lane SetBlockLane named and numbered inside its lane; EndBlock puts the
+   * commands of every lane together again, in the order the lanes' recordings would have made
+   * one after the other, and gives them the record sequences that order would have given: the
+   * buffer ends exactly as if the lanes had recorded one after the other. Only the typed streams
+   * of property writes, transforms, velocities and relative moves take part: a block only holds
+   * ops that append to those (LN_LeanOp::block_ok). */
+  void BeginBlock(uint32_t lane_count);
+  void SetBlockLane(const uint32_t lane)
+  {
+    m_blockLane = lane;
+  }
+  void EndBlock();
   /** The object (with `include_parents`, or one of its parents) has a recorded move that is not
    * applied yet: a read that must see the step's moves would apply it now. */
   bool HasPendingTransforms(KX_GameObject *gameobj, bool include_parents);
@@ -388,6 +395,26 @@ class LN_CommandBuffer {
   {
     m_chunkTickBuffer = buffer;
   }
+  /** Tests: hand-made commands into the legacy stream (the stream of the command types that have
+   * no typed one), in their order. Plan A6 retired MergeRecordedCommands, which was this: nothing
+   * in the game merges recorded lists any more (worker recording is gone). */
+  void AppendLegacyCommandsForTests(std::vector<Command> commands);
+  /** Tests: the size in bytes of one entry of each recorded stream, as "name=bytes" words. */
+  static std::string StreamEntrySizesForTests();
+  /** The flush's use of checked property handles (UPBGE_LN_LEAN_FLUSH: 0 = by name only,
+   * unset or 1 = handles, verify = handles and the name lookup, warning on a difference).
+   * Tests set it; -1 goes back to the environment. */
+  enum class LeanFlushMode : int8_t { Off = 0, On = 1, Verify = 2 };
+  static void SetLeanFlushModeForTests(int mode);
+  /** Tests: the apply function the flush and the early apply of a read share, for one of the
+   * eight transform kinds, with the scene-graph guard when the mode (above) is not Off. */
+  static void ApplyTransformForTests(CommandType type,
+                                     KX_GameObject *object,
+                                     const MT_Vector3 &vector_value,
+                                     const LN_Rotation &rotation_value,
+                                     bool bool_value);
+  /** Tests: how many times the verify mode found the handle and the name lookup different. */
+  static uint32_t LeanFlushVerifyDifferencesForTests();
   std::vector<Command> TakeRecordedCommands();
   std::vector<Command> TakeFlushPlannedCommands();
   /** Tests: the commands the direct flush would apply, in order, as (sort key, record sequence),
@@ -400,8 +427,6 @@ class LN_CommandBuffer {
   {
     return {m_commandStreamsSorted, m_coalescibleCommandCount};
   }
-  /** Tests: appends hand-made commands to the legacy stream, in their order. */
-  void MergeRecordedCommands(std::vector<Command> commands);
   void AppendSetWorldPosition(KX_GameObject *gameobj,
                               const MT_Vector3 &position,
                               uint64_t sort_key,
@@ -515,11 +540,6 @@ class LN_CommandBuffer {
                          bool local,
                          uint64_t sort_key,
                          uint32_t source_ref_index);
-  void AppendSetGameProperty(KX_GameObject *gameobj,
-                             const std::string &property_name,
-                             const LN_Value &value,
-                             uint64_t sort_key,
-                             uint32_t source_ref_index);
   void AppendSetGamePropertyRef(LN_RuntimeTree *runtime_tree,
                                 KX_GameObject *gameobj,
                                 uint32_t property_ref_index,
@@ -533,7 +553,9 @@ class LN_CommandBuffer {
                                       uint32_t property_ref_index,
                                       const LN_PropertyNumber &number,
                                       uint64_t sort_key,
-                                      uint32_t source_ref_index);
+                                      uint32_t source_ref_index,
+                                      EXP_Value *property_handle = nullptr,
+                                      uint64_t handle_stamp = 0);
   void AppendModifyGameProperty(LN_RuntimeTree *runtime_tree,
                                 KX_GameObject *gameobj,
                                 uint32_t property_ref_index,
@@ -545,12 +567,6 @@ class LN_CommandBuffer {
                              const LN_Value &value,
                              uint64_t sort_key,
                              uint32_t source_ref_index);
-  void AppendAddObject(KX_GameObject *gameobj,
-                       const std::string &object_name,
-                       float life_time,
-          bool full_copy,
-                       uint64_t sort_key,
-                       uint32_t source_ref_index);
   void AppendAddObjectFromRef(LN_RuntimeTree *runtime_tree,
                               KX_GameObject *gameobj,
                               const LN_RuntimeRef &source_ref,
@@ -598,17 +614,6 @@ class LN_CommandBuffer {
                                                   bool own_mesh,
                                                   uint32_t property_ref_index,
                                                   uint32_t source_ref_index);
-  void AppendSetParent(KX_GameObject *gameobj,
-                       const std::string &parent_name,
-                       bool compound,
-                       bool ghost,
-                       uint64_t sort_key,
-                       uint32_t source_ref_index);
-  void AppendSetParent(KX_GameObject *gameobj,
-                       const std::string &parent_name,
-                       const KX_ParentOptions &options,
-                       uint64_t sort_key,
-                       uint32_t source_ref_index);
   void AppendSetParentFromRef(LN_RuntimeTree *runtime_tree,
                               KX_GameObject *gameobj,
                               const LN_RuntimeRef &parent_ref,
@@ -1229,6 +1234,23 @@ class LN_CommandBuffer {
 
   const std::vector<Command> &GetCommandsForTests() const;
 
+  /** Which order DumpRecordedForTests lists the commands in. */
+  enum class DumpOrder : uint8_t {
+    /** As recorded (record sequence). */
+    Record,
+    /** As the flush applies them, every write. */
+    Flush,
+    /** As the flush applies them, a write that a later one supersedes left out. */
+    FlushCoalesced,
+  };
+  /** Tests (lean runtime plan A2): every recorded command, one line each, whatever the streams
+   * they sit in: all header and payload fields, floats as bit patterns, values recursively,
+   * objects and trees by stable names (LN_StrictDump.h). Applies and consumes nothing. Two
+   * recordings are the same exactly when their dumps are equal. */
+  std::string DumpRecordedForTests(DumpOrder order);
+  /** One command as a line of "key=value" fields (the dump's format). */
+  static std::string DumpCommand(const Command &command, LN_DumpNames &names);
+
  private:
   struct AddObjectSourceStateKey {
     KX_Scene *scene = nullptr;
@@ -1275,7 +1297,9 @@ class LN_CommandBuffer {
     CommandType type = CommandType::SetWorldPosition;
     KX_GameObject *object = nullptr;
     MT_Vector3 value = MT_Vector3(0.0f, 0.0f, 0.0f);
-    LN_Rotation rotation_value;
+    /** A rotation command's rotation: m_rotationValues[rotation_index] (the 16-byte aligned
+     * rotation made every entry 96 bytes; the others, the moves and velocities, hold none). */
+    uint32_t rotation_index = LN_INVALID_INDEX;
     bool bool_value = false;
   };
 
@@ -1289,14 +1313,21 @@ class LN_CommandBuffer {
     LN_StringId property_name_id;
     const std::string *property_name_ptr = nullptr;
     uint32_t property_ref_index = LN_INVALID_INDEX;
-    std::string property_name;
     /** The written value. A number written as one (Set Game Property Bool/Int/Float:
      * AppendSetGamePropertyNumberRef) is `number`, so the write carries only its value; any other
      * value is m_propertyValues[value_index]; neither (Modify Property): the default value.
      * PropertyCommandValue gives it as an LN_Value. */
     LN_PropertyNumber number;
+    /** A number write's checked handle (plan A7, LN_Snapshot::GetGamePropertyHandle): the
+     * property the tree's snapshot found for this write's target, and the target's
+     * GetPropertyMapStamp() it was found under. The flush uses it only while the target's stamp
+     * still equals `handle_stamp` (any add, replace or removal changed it), else it finds the
+     * property by name. */
+    EXP_Value *property_handle = nullptr;
+    uint64_t handle_stamp = 0;
     uint32_t value_index = LN_INVALID_INDEX;
-    LN_PropertyModify modify;
+    /** Modify Property: its change, m_propertyModifies[modify_index]. */
+    uint32_t modify_index = LN_INVALID_INDEX;
   };
 
   struct TypedEventCommand {
@@ -1459,6 +1490,10 @@ class LN_CommandBuffer {
   void AppendLegacyCommand(Command command);
   template<typename TypedCommand>
   void AppendTypedCommand(std::vector<TypedCommand> &stream, TypedCommand command);
+  /** AppendTypedCommand for a command built in place: does its order and merge bookkeeping for
+   * `header` and returns the new default entry at the end of `stream`, whose header it sets. */
+  template<typename TypedCommand>
+  TypedCommand &BeginTypedCommand(std::vector<TypedCommand> &stream, const CommandHeader &header);
   void AppendTypedVectorCommand(CommandType type,
                                 KX_GameObject *gameobj,
                                 const MT_Vector3 &value,
@@ -1588,6 +1623,12 @@ class LN_CommandBuffer {
   /** The property writes' values that are not numbers (TypedPropertyCommand::value_index),
    * cleared with the streams; the memory stays for the next step. */
   std::vector<LN_Value> m_propertyValues;
+  /** The changes of the Modify Property writes (TypedPropertyCommand::modify_index), cleared with
+   * the streams. */
+  std::vector<LN_PropertyModify> m_propertyModifies;
+  /** The rotations of the vector streams' rotation commands (TypedVectorCommand::rotation_index),
+   * cleared with the streams. */
+  std::vector<LN_Rotation> m_rotationValues;
   std::vector<TypedEventCommand> m_eventCommands;
   std::vector<TypedAudioCommand> m_audioCommands;
   std::vector<TypedLifecycleCommand> m_lifecycleCommands;
@@ -1613,8 +1654,18 @@ class LN_CommandBuffer {
   /** A tree batch's chunk buffer (BeginChunkRecording). */
   bool m_isChunk = false;
   bool m_chunkReadPendingMove = false;
+  /** Block recording: see BeginBlock. */
+  bool m_blockMode = false;
+  bool m_blockSortedBefore = true;
+  uint32_t m_blockLane = 0;
+  uint64_t m_blockBase = 0;
+  size_t m_blockMarks[4] = {};
+  size_t m_blockLegacyMark = 0;
+  std::vector<uint32_t> m_blockLaneCounts;
+  std::vector<uint32_t> m_blockScratchCounts;
+  std::vector<TypedVectorCommand> m_blockVectorScratch;
+  std::vector<TypedPropertyCommand> m_blockPropertyScratch;
   const LN_CommandBuffer *m_chunkTickBuffer = nullptr;
-  bool m_typedCommandStreamsEnabled = true;
   bool m_commandStreamsSorted = true;
   uint32_t m_coalescibleCommandCount = 0;
   /**
@@ -1634,8 +1685,6 @@ class LN_CommandBuffer {
   uint32_t m_appliedTransformCount = 0;
   /** Of those, the last-write-wins ones (CompactAppliedTransforms takes them off the count). */
   uint32_t m_appliedCoalescibleCount = 0;
-  /** A transform write went to m_commands (typed streams off): reads plan every command. */
-  bool m_legacyTransformRecorded = false;
 
   /** The streams a flush walks together. Equal sort keys go in this order, as in
    * BuildPlannedCommands' merge. */
@@ -1670,6 +1719,10 @@ class LN_CommandBuffer {
    * with only last-write-wins writes between), without copying any command. Returns how many. */
   uint32_t MarkSupersededWrites();
   CommandHeader FlushCommandHeader(FlushStream stream, uint32_t index) const;
+  /** A Modify Property write's change (nothing for another write). */
+  const LN_PropertyModify &ModifyOf(const TypedPropertyCommand &command) const;
+  /** A vector-stream command's rotation (the identity for a command with none). */
+  const LN_Rotation &RotationOf(const TypedVectorCommand &command) const;
   /** A property write's value (not a number) kept in m_propertyValues: its index. */
   uint32_t StorePropertyValue(const LN_Value &value);
   /** A property write's value: the stored one, else `r_scratch` made from its number (or the

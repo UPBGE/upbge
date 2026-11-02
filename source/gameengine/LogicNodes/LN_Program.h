@@ -16,6 +16,7 @@
 #include "LN_CompileReport.h"
 #include "LN_DebugMap.h"
 #include "LN_ExecBlockIR.h"
+#include "LN_LeanProgram.h"
 #include "LN_RegisterExpressionIR.h"
 #include "LN_Types.h"
 
@@ -205,9 +206,20 @@ class LN_Program {
   {
     m_treeStateLayout = std::move(layout);
   }
+  /** The lean program (plan phase A16): made by EnsureLeanProgram on the main thread (a helper
+   * thread of the job pool only reads, and finds none when none was made), dropped when the
+   * program grows. */
+  const std::shared_ptr<const LN_LeanProgram> &GetLeanProgram() const
+  {
+    return m_leanProgram;
+  }
+  void EnsureLeanProgram() const;
   /** Whether trees running this program may be recorded in a tree batch (LN_TreeBatch.h),
    * worked out at the first ask and kept until the program grows. Main thread only. */
   const LN_TreeBatchProfile &GetTreeBatchProfile() const;
+  /** The game property refs' starting values, shared by the snapshots (LN_GamePropertyLayout);
+   * made at the first ask, made again after a ref was added. Main thread only. */
+  const std::shared_ptr<const LN_GamePropertyLayout> &GetGamePropertyLayout() const;
   /** Frame Update instructions that UI events start; they also run while the game is paused. */
   bool HasUIEventRoutes() const
   {
@@ -280,10 +292,35 @@ class LN_Program {
   uint32_t AddRigidBodyConstraintCommandPayload(
       const LN_RigidBodyConstraintCommandPayload &payload);
 
-  const std::vector<LN_InstructionHeader> &GetInstructionHeaders(LN_Event event) const;
-  const LN_Instruction &GetInstructionPayload(LN_Event event, uint32_t payload_index) const;
-  const LN_Instruction &GetInstructionPayload(LN_Event event,
-                                              const LN_InstructionHeader &instruction) const;
+  /* Inline since plan phase A18: the interpreter asks for these at every op (and every
+   * InstructionStateIndex), which as calls into another unit cost ~5% of a brain's recording. */
+  const std::vector<LN_InstructionHeader> &GetInstructionHeaders(const LN_Event event) const
+  {
+    switch (event) {
+      case LN_Event::OnInit:
+        return m_onInit;
+      case LN_Event::OnUpdate:
+        return m_onUpdate;
+      case LN_Event::OnFixedUpdate:
+        return m_onFixedUpdate;
+    }
+    return m_onFixedUpdate;
+  }
+  const LN_Instruction &GetInstructionPayload(const LN_Event event,
+                                              const uint32_t payload_index) const
+  {
+    const std::vector<LN_Instruction> &payloads = GetInstructions(event);
+    if (payload_index < payloads.size()) {
+      return payloads[payload_index];
+    }
+    static const LN_Instruction empty_instruction;
+    return empty_instruction;
+  }
+  const LN_Instruction &GetInstructionPayload(const LN_Event event,
+                                              const LN_InstructionHeader &instruction) const
+  {
+    return GetInstructionPayload(event, instruction.payload_index);
+  }
   bool ValidateInstructionPayloads(std::vector<std::string> *r_errors = nullptr) const;
 
   const LN_DebugMap &GetDebugMap() const
@@ -296,8 +333,22 @@ class LN_Program {
     return m_compileReport;
   }
 
-  const std::vector<LN_Instruction> &GetInstructions(LN_Event event) const;
-  const LN_ExecBlockProgram &GetExecBlockProgram(LN_Event event) const;
+  const std::vector<LN_Instruction> &GetInstructions(const LN_Event event) const
+  {
+    switch (event) {
+      case LN_Event::OnInit:
+        return m_onInitPayloads;
+      case LN_Event::OnUpdate:
+        return m_onUpdatePayloads;
+      case LN_Event::OnFixedUpdate:
+        return m_onFixedUpdatePayloads;
+    }
+    return m_onFixedUpdatePayloads;
+  }
+  const LN_ExecBlockProgram &GetExecBlockProgram(const LN_Event event) const
+  {
+    return m_execBlockPrograms[size_t(event)];
+  }
   bool ValidateExecBlockIR(std::vector<std::string> *r_errors = nullptr) const;
   const LN_RegisterExpressionProgram &GetRegisterExpressionProgram() const
   {
@@ -376,7 +427,9 @@ class LN_Program {
   std::vector<LN_PauseProcessingRequest> m_pauseProcessingRequests;
   std::vector<LN_StepGate> m_stepGates;
   mutable std::shared_ptr<const LN_TreeStateLayout> m_treeStateLayout;
+  mutable std::shared_ptr<const LN_LeanProgram> m_leanProgram;
   mutable std::shared_ptr<const LN_TreeBatchProfile> m_treeBatchProfile;
+  mutable std::shared_ptr<const LN_GamePropertyLayout> m_gamePropertyLayout;
   bool m_hasUIEventRoutes = false;
   std::vector<LN_BoolExpression> m_boolExpressions;
   std::vector<LN_FloatExpression> m_floatExpressions;

@@ -51,6 +51,8 @@ set(SRC
   intern/LN_GameStateStorage.cpp
   intern/LN_InputMap.cpp
   intern/LN_JobPool.cpp
+  intern/LN_KindCatalog.cpp
+  intern/LN_LeanProgram.cpp
   intern/LN_Inventory.cpp
   intern/LN_PersistenceCapability.cpp
   intern/LN_Manager.cpp
@@ -58,6 +60,8 @@ set(SRC
   intern/LN_NodeRegistry.cpp
   intern/LN_Performance.cpp
   intern/LN_RuntimeTree.cpp
+  intern/LN_ProgramDump.cpp
+  intern/LN_StrictDump.cpp
   intern/LN_QueryDiagnostics.cpp
   intern/LN_RuntimeSemantics.cpp
   intern/LN_Snapshot.cpp
@@ -86,6 +90,10 @@ set(SRC
   LN_Inventory.h
   LN_PersistenceCapability.h
   LN_ExecBlockIR.h
+  LN_ExecFrame.h
+  LN_LeanProgram.h
+  LN_LeanReader.h
+  LN_TreeReader.h
   LN_Manager.h
   LN_NodeMetadata.h
   LN_NodeRegistry.h
@@ -144,16 +152,31 @@ if(WITH_GTESTS)
     tests/LN_InputMap_test.cpp
     tests/LN_Inventory_test.cpp
     tests/LN_JobPool_test.cpp
+    tests/LN_LeanProgram_test.cpp
+    tests/LN_LeanNative_test.cpp
+    tests/LN_TreeBlock_test.cpp
+    tests/LN_KindCatalog_test.cpp
+    tests/LN_LeanDifferential_test.cpp
+    tests/LN_ConstantObjects_test.cpp
     tests/LN_Manager_test.cpp
+    tests/LN_NodeCoverage_test.cpp
+    tests/LN_TransformApply_test.cpp
     tests/LN_NodeRegistry_test.cpp
+    tests/LN_NodeValues_test.cpp
+    tests/LN_ReadOrder_test.cpp
     tests/LN_Performance_test.cpp
     tests/LN_Program_test.cpp
     tests/LN_Rotation_test.cpp
     tests/LN_RuntimeTree_test.cpp
+    tests/LN_Semantics_test.cpp
     tests/LN_Snapshot_test.cpp
+    tests/LN_StrictDump_test.cpp
     tests/LN_Sound_test.cpp
     tests/LN_TreeCompiler_test.cpp
     tests/LN_UIService_test.cpp
+    tests/LN_DiffTrees.h
+    tests/LN_SemRig.h
+    tests/LN_TestTrees.h
   )
   set(TEST_LIB
     ${LIB}

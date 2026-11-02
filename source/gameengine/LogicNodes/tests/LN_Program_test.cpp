@@ -901,16 +901,6 @@ TEST(LN_Program, RegisterExpressionIRLowersSelfSnapshotVectors)
   LN_Program program;
 
   const LN_VectorExpressionKind snapshot_kinds[] = {
-      LN_VectorExpressionKind::SnapshotWorldPosition,
-      LN_VectorExpressionKind::SnapshotLocalPosition,
-      LN_VectorExpressionKind::SnapshotWorldOrientation,
-      LN_VectorExpressionKind::SnapshotLocalOrientation,
-      LN_VectorExpressionKind::SnapshotWorldScale,
-      LN_VectorExpressionKind::SnapshotLocalScale,
-      LN_VectorExpressionKind::SnapshotLinearVelocity,
-      LN_VectorExpressionKind::SnapshotLocalLinearVelocity,
-      LN_VectorExpressionKind::SnapshotAngularVelocity,
-      LN_VectorExpressionKind::SnapshotLocalAngularVelocity,
       LN_VectorExpressionKind::SnapshotGravity,
       LN_VectorExpressionKind::SnapshotCharacterGravity,
       LN_VectorExpressionKind::SnapshotCharacterWalkDirection,
@@ -922,11 +912,6 @@ TEST(LN_Program, RegisterExpressionIRLowersSelfSnapshotVectors)
     program.AddVectorExpression(expression);
   }
 
-  LN_VectorExpression targeted_position;
-  targeted_position.kind = LN_VectorExpressionKind::SnapshotWorldPosition;
-  targeted_position.input0 = 0;
-  program.AddVectorExpression(targeted_position);
-
   LN_VectorExpression targeted_character_gravity;
   targeted_character_gravity.kind = LN_VectorExpressionKind::SnapshotCharacterGravity;
   targeted_character_gravity.input0 = 0;
@@ -935,8 +920,8 @@ TEST(LN_Program, RegisterExpressionIRLowersSelfSnapshotVectors)
   const LN_RegisterExpressionProgram &ir = program.GetRegisterExpressionProgram();
   ASSERT_TRUE(ir.valid);
   EXPECT_EQ(ir.cache_generation, LN_REGISTER_EXPRESSION_IR_CACHE_GENERATION);
-  EXPECT_EQ(ir.vector_register_count, 14u);
-  EXPECT_EQ(ir.fallback_expression_count, 2u);
+  EXPECT_EQ(ir.vector_register_count, 4u);
+  EXPECT_EQ(ir.fallback_expression_count, 1u);
 
   uint32_t snapshot_read_count = 0;
   for (const LN_RegisterExpressionOp &op : ir.ops) {
@@ -945,7 +930,7 @@ TEST(LN_Program, RegisterExpressionIRLowersSelfSnapshotVectors)
       EXPECT_EQ(op.output_kind, LN_RegisterValueKind::Vector);
     }
   }
-  EXPECT_EQ(snapshot_read_count, 14u);
+  EXPECT_EQ(snapshot_read_count, 4u);
   EXPECT_TRUE(program.ValidateRegisterExpressionIR());
 }
 
@@ -1929,11 +1914,6 @@ TEST(LN_Program, RegisterExpressionIRLowersGenericValueProperties)
 {
   LN_Program program;
 
-  LN_GamePropertyRef game_property_ref;
-  game_property_ref.name = "snapshot_payload";
-  game_property_ref.value_type = LN_ValueType::String;
-  const uint32_t game_property_ref_index = program.AddGamePropertyRef(game_property_ref);
-
   LN_Value runtime_value;
   runtime_value.type = LN_ValueType::Dict;
   runtime_value.exists = true;
@@ -1944,11 +1924,6 @@ TEST(LN_Program, RegisterExpressionIRLowersGenericValueProperties)
   tree_property_ref.value_type = LN_ValueType::Dict;
   tree_property_ref.default_value = runtime_value;
   const uint32_t tree_property_ref_index = program.AddTreePropertyRef(tree_property_ref);
-
-  LN_ValueExpression snapshot_property;
-  snapshot_property.kind = LN_ValueExpressionKind::SnapshotGameProperty;
-  snapshot_property.property_ref_index = game_property_ref_index;
-  program.AddValueExpression(snapshot_property);
 
   LN_ValueExpression runtime_property;
   runtime_property.kind = LN_ValueExpressionKind::RuntimeTreeProperty;
@@ -1962,16 +1937,13 @@ TEST(LN_Program, RegisterExpressionIRLowersGenericValueProperties)
   const LN_RegisterExpressionProgram &ir = program.GetRegisterExpressionProgram();
   ASSERT_TRUE(ir.valid);
   EXPECT_EQ(ir.cache_generation, LN_REGISTER_EXPRESSION_IR_CACHE_GENERATION);
-  EXPECT_EQ(ir.generic_value_register_count, 2u);
+  EXPECT_EQ(ir.generic_value_register_count, 1u);
   EXPECT_EQ(ir.fallback_expression_count, 1u);
 
-  bool has_snapshot_property = false;
   bool has_runtime_property = false;
   for (const LN_RegisterExpressionOp &op : ir.ops) {
-    has_snapshot_property |= op.kind == LN_RegisterExpressionOpKind::ValueSnapshotRead;
     has_runtime_property |= op.kind == LN_RegisterExpressionOpKind::ValueRuntimePropertyRead;
   }
-  EXPECT_TRUE(has_snapshot_property);
   EXPECT_TRUE(has_runtime_property);
   EXPECT_TRUE(program.ValidateRegisterExpressionIR());
 }
@@ -2223,13 +2195,6 @@ TEST(LN_Program, RegisterExpressionIRLowersTypedValueConversions)
     }
   }
 
-  LN_ValueExpression select_value;
-  select_value.kind = LN_ValueExpressionKind::Select;
-  select_value.bool_expr_index = bool_index;
-  select_value.input0 = int_value_index;
-  select_value.input1 = float_value_index;
-  program.AddValueExpression(select_value);
-
   LN_ValueExpression rotation_value;
   rotation_value.kind = LN_ValueExpressionKind::FromRotation;
   rotation_value.input0 = vector_index;
@@ -2472,14 +2437,13 @@ TEST(LN_Program, RegisterExpressionIRLowersTypedValueConversions)
   const LN_RegisterExpressionProgram &ir = program.GetRegisterExpressionProgram();
   ASSERT_TRUE(ir.valid);
   EXPECT_EQ(ir.cache_generation, LN_REGISTER_EXPRESSION_IR_CACHE_GENERATION);
-  EXPECT_EQ(ir.generic_value_register_count, 36u);
+  EXPECT_EQ(ir.generic_value_register_count, 35u);
   EXPECT_EQ(ir.fallback_expression_count, 1u);
 
   uint32_t value_conversion_ops = 0;
   uint32_t value_consumer_ops = 0;
   bool has_int_dict_length = false;
   bool has_int_list_length = false;
-  bool has_value_select = false;
   bool has_value_from_rotation = false;
   bool has_value_from_string = false;
   bool has_value_combine_vector4 = false;
@@ -2512,7 +2476,6 @@ TEST(LN_Program, RegisterExpressionIRLowersTypedValueConversions)
       value_conversion_ops++;
       EXPECT_NE(op.output_register, LN_INVALID_INDEX);
     }
-    has_value_select |= op.kind == LN_RegisterExpressionOpKind::ValueSelect;
     has_value_from_rotation |= op.kind == LN_RegisterExpressionOpKind::ValueFromRotation;
     has_value_from_string |= op.kind == LN_RegisterExpressionOpKind::ValueFromString;
     has_value_combine_vector4 |= op.kind == LN_RegisterExpressionOpKind::ValueCombineVector4;
@@ -2567,11 +2530,10 @@ TEST(LN_Program, RegisterExpressionIRLowersTypedValueConversions)
     has_int_dict_length |= op.kind == LN_RegisterExpressionOpKind::IntDictLength;
     has_int_list_length |= op.kind == LN_RegisterExpressionOpKind::IntListLength;
   }
-  EXPECT_EQ(value_conversion_ops, 36u);
+  EXPECT_EQ(value_conversion_ops, 35u);
   EXPECT_EQ(value_consumer_ops, 8u);
   EXPECT_TRUE(has_int_dict_length);
   EXPECT_TRUE(has_int_list_length);
-  EXPECT_TRUE(has_value_select);
   EXPECT_TRUE(has_value_from_rotation);
   EXPECT_TRUE(has_value_from_string);
   EXPECT_TRUE(has_value_combine_vector4);
@@ -2602,11 +2564,11 @@ TEST(LN_Program, RegisterExpressionIRLowersTypedValueConversions)
   EXPECT_TRUE(program.ValidateRegisterExpressionIR());
 }
 
-TEST(LN_Program, DependencySummaryTracksOnlyTransformSnapshotForWorldPosition)
+TEST(LN_Program, DependencySummaryTracksOnlyTransformSnapshotForTheOwnAxisVector)
 {
   LN_Program program;
   LN_VectorExpression expression;
-  expression.kind = LN_VectorExpressionKind::SnapshotWorldPosition;
+  expression.kind = LN_VectorExpressionKind::AxisVector; /* the own object: a transform read */
   program.AddVectorExpression(expression);
 
   const LN_ProgramDependencySummary &summary = program.GetDependencySummary();
@@ -2708,7 +2670,7 @@ TEST(LN_Program, DependencyValidationRejectsSummaryDrift)
 {
   LN_Program program;
   LN_VectorExpression expression;
-  expression.kind = LN_VectorExpressionKind::SnapshotWorldPosition;
+  expression.kind = LN_VectorExpressionKind::AxisVector;
   program.AddVectorExpression(expression);
   ASSERT_TRUE(HasDependencyMask(program.GetDependencySummary().snapshot_channels,
                                 LN_DEP_SNAPSHOT_TRANSFORM));
@@ -2976,7 +2938,7 @@ TEST(LN_Program, RuntimeExpressionSemanticsClassifiesCoreExpressionFamilies)
   EXPECT_EQ(event.threading, LN_RuntimeSemanticThreading::WorkerSafeRecord);
 
   const LN_RuntimeExpressionSemantics transform = LN_GetRuntimeExpressionSemantics(
-      LN_VectorExpressionKind::SnapshotWorldPosition);
+      LN_VectorExpressionKind::SnapshotGravity);
   EXPECT_TRUE(HasRead(transform, LN_RUNTIME_SEMANTIC_READ_SNAPSHOT));
 
   const LN_RuntimeExpressionSemantics input = LN_GetRuntimeExpressionSemantics(

@@ -11,12 +11,14 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstring>
 #include <map>
 #include <numeric>
 #include <sstream>
 
 #include "KX_Parenting.h"
 #include "LN_BonePoseRotation.h"
+#include "LN_KindCatalog.h"
 #include "LN_RuntimeSemantics.h"
 #include "LN_TreeBatch.h"
 #include "LN_TypeConversion.h"
@@ -489,7 +491,6 @@ void AddBoolExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_BoolExpressionKind::Once:
-    case LN_BoolExpressionKind::Timer:
     case LN_BoolExpressionKind::ValueChanged:
     case LN_BoolExpressionKind::ValueChangedTo:
     case LN_BoolExpressionKind::InstructionExecuted:
@@ -769,14 +770,6 @@ void AddVectorExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
                                           const LN_VectorExpression &expression)
 {
   switch (expression.kind) {
-    case LN_VectorExpressionKind::SnapshotWorldPosition:
-    case LN_VectorExpressionKind::SnapshotLocalPosition:
-    case LN_VectorExpressionKind::SnapshotWorldOrientation:
-    case LN_VectorExpressionKind::SnapshotLocalOrientation:
-    case LN_VectorExpressionKind::SnapshotWorldScale:
-    case LN_VectorExpressionKind::SnapshotLocalScale:
-      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
-      break;
     case LN_VectorExpressionKind::AxisVector:
       /* Get Axis Vector of the own object is a snapshot read (VectorSnapshotRead): without the
        * channel a tree reading nothing else of its object took no snapshot, and the axis came
@@ -784,12 +777,6 @@ void AddVectorExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       if (expression.input0 == LN_INVALID_INDEX) {
         AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
       }
-      break;
-    case LN_VectorExpressionKind::SnapshotLinearVelocity:
-    case LN_VectorExpressionKind::SnapshotLocalLinearVelocity:
-    case LN_VectorExpressionKind::SnapshotAngularVelocity:
-    case LN_VectorExpressionKind::SnapshotLocalAngularVelocity:
-      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_VELOCITY);
       break;
     case LN_VectorExpressionKind::SnapshotGravity:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_GRAVITY);
@@ -1025,9 +1012,6 @@ void AddValueExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
       AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
-    case LN_ValueExpressionKind::SnapshotGameProperty:
-      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_GAME_PROPERTY);
-      break;
     case LN_ValueExpressionKind::ObjectGameProperty:
     case LN_ValueExpressionKind::ItemLibraryInfo:
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
@@ -1227,9 +1211,15 @@ void MarkCommandWrite(LN_SchedulerSummary &summary,
   PromoteWorkClass(summary, work_class);
 }
 
+/* The same bits: constants of +0.0 and -0.0 (or two different NaNs) are different expressions.
+ * Comparing as numbers merged them, so a folded Invert Value of 0.0 (-0.0) became the +0.0 constant
+ * that was there already (plan phase A15, decision D1 f). */
 bool FloatEqual(const float a, const float b)
 {
-  return a == b;
+  uint32_t bits_a, bits_b;
+  std::memcpy(&bits_a, &a, sizeof(bits_a));
+  std::memcpy(&bits_b, &b, sizeof(bits_b));
+  return bits_a == bits_b;
 }
 
 bool VectorEqual(const MT_Vector3 &a, const MT_Vector3 &b)
@@ -3282,6 +3272,25 @@ LN_StringId LN_Program::InternString(const std::string &value)
   return LN_StringId{index};
 }
 
+const std::shared_ptr<const LN_GamePropertyLayout> &LN_Program::GetGamePropertyLayout() const
+{
+  if (m_gamePropertyLayout == nullptr || m_gamePropertyLayout->defaults.size() != m_gamePropertyRefs.size())
+  {
+    auto layout = std::make_shared<LN_GamePropertyLayout>();
+    layout->defaults.reserve(m_gamePropertyRefs.size());
+    layout->string_slot.reserve(m_gamePropertyRefs.size());
+    for (const LN_GamePropertyRef &property_ref : m_gamePropertyRefs) {
+      LN_Value &value = layout->defaults.emplace_back(property_ref.default_value);
+      value.type = property_ref.value_type;
+      layout->string_slot.push_back(property_ref.value_type == LN_ValueType::String ?
+                                        layout->string_slots++ :
+                                        LN_INVALID_INDEX);
+    }
+    m_gamePropertyLayout = std::move(layout);
+  }
+  return m_gamePropertyLayout;
+}
+
 const LN_TreeBatchProfile &LN_Program::GetTreeBatchProfile() const
 {
   if (m_treeBatchProfile == nullptr) {
@@ -3294,6 +3303,7 @@ const LN_TreeBatchProfile &LN_Program::GetTreeBatchProfile() const
 uint32_t LN_Program::AddTimeFlowState()
 {
   m_treeStateLayout.reset();
+  m_leanProgram.reset();
   m_treeBatchProfile.reset();
   return m_timeFlowStateCount++;
 }
@@ -3301,6 +3311,7 @@ uint32_t LN_Program::AddTimeFlowState()
 uint32_t LN_Program::AddFlowControlState()
 {
   m_treeStateLayout.reset();
+  m_leanProgram.reset();
   m_treeBatchProfile.reset();
   return m_flowControlStateCount++;
 }
@@ -3507,6 +3518,7 @@ uint32_t LN_Program::AddGamePropertyRef(const LN_GamePropertyRef &property_ref)
   LN_GamePropertyRef stored_ref = property_ref;
   stored_ref.name_id = InternString(stored_ref.name);
   m_gamePropertyRefs.push_back(stored_ref);
+  m_gamePropertyLayout.reset();
   return index;
 }
 
@@ -3660,6 +3672,7 @@ uint32_t LN_Program::AddStepGate(const LN_StepGate &gate)
     }
   }
   m_treeStateLayout.reset();
+  m_leanProgram.reset();
   m_treeBatchProfile.reset();
   m_stepGates.push_back(gate);
   return uint32_t(m_stepGates.size() - 1);
@@ -3755,53 +3768,6 @@ uint32_t LN_Program::AddInstruction(const LN_Event event, const LN_Instruction &
   AddInstructionDependencies(event, payload);
   RebuildExecBlockIR(event);
   return index;
-}
-
-const std::vector<LN_InstructionHeader> &LN_Program::GetInstructionHeaders(
-    const LN_Event event) const
-{
-  switch (event) {
-    case LN_Event::OnInit:
-      return m_onInit;
-    case LN_Event::OnUpdate:
-      return m_onUpdate;
-    case LN_Event::OnFixedUpdate:
-      return m_onFixedUpdate;
-  }
-
-  return m_onFixedUpdate;
-}
-
-const LN_Instruction &LN_Program::GetInstructionPayload(const LN_Event event,
-                                                        const uint32_t payload_index) const
-{
-  const std::vector<LN_Instruction> &payloads = GetInstructions(event);
-  if (payload_index < payloads.size()) {
-    return payloads[payload_index];
-  }
-
-  static const LN_Instruction empty_instruction;
-  return empty_instruction;
-}
-
-const LN_Instruction &LN_Program::GetInstructionPayload(
-    const LN_Event event, const LN_InstructionHeader &instruction) const
-{
-  return GetInstructionPayload(event, instruction.payload_index);
-}
-
-const std::vector<LN_Instruction> &LN_Program::GetInstructions(LN_Event event) const
-{
-  switch (event) {
-    case LN_Event::OnInit:
-      return m_onInitPayloads;
-    case LN_Event::OnUpdate:
-      return m_onUpdatePayloads;
-    case LN_Event::OnFixedUpdate:
-      return m_onFixedUpdatePayloads;
-  }
-
-  return m_onFixedUpdatePayloads;
 }
 
 void LN_Program::ReorderInstructionsForCompiler(
@@ -3963,15 +3929,11 @@ void LN_Program::ReorderInstructionsForCompiler(
   RebuildRegisterExpressionIR();
 }
 
-const LN_ExecBlockProgram &LN_Program::GetExecBlockProgram(const LN_Event event) const
-{
-  return m_execBlockPrograms[size_t(event)];
-}
-
 void LN_Program::RebuildExecBlockIR(const LN_Event event)
 {
   /* Instructions changed: trees lay their state out again (LN_RuntimeTree::RefreshStateBlockLayout). */
   m_treeStateLayout.reset();
+  m_leanProgram.reset();
   m_treeBatchProfile.reset();
   LN_ExecBlockProgram &ir = m_execBlockPrograms[size_t(event)];
   const std::vector<LN_InstructionHeader> &headers = GetInstructionHeaders(event);
@@ -4156,6 +4118,7 @@ void LN_Program::RebuildRegisterExpressionIR()
 {
   /* Expressions or registers changed (every Add*Expression comes here): see RebuildExecBlockIR. */
   m_treeStateLayout.reset();
+  m_leanProgram.reset();
   m_treeBatchProfile.reset();
   LN_RegisterExpressionProgram ir;
   ir.program_version = m_programVersion;
@@ -4837,16 +4800,6 @@ void LN_Program::RebuildRegisterExpressionIR()
           supported = expression.property_ref_index != LN_INVALID_INDEX;
           op.kind = LN_RegisterExpressionOpKind::VectorRuntimePropertyRead;
           break;
-        case LN_VectorExpressionKind::SnapshotWorldPosition:
-        case LN_VectorExpressionKind::SnapshotLocalPosition:
-        case LN_VectorExpressionKind::SnapshotWorldOrientation:
-        case LN_VectorExpressionKind::SnapshotLocalOrientation:
-        case LN_VectorExpressionKind::SnapshotWorldScale:
-        case LN_VectorExpressionKind::SnapshotLocalScale:
-        case LN_VectorExpressionKind::SnapshotLinearVelocity:
-        case LN_VectorExpressionKind::SnapshotLocalLinearVelocity:
-        case LN_VectorExpressionKind::SnapshotAngularVelocity:
-        case LN_VectorExpressionKind::SnapshotLocalAngularVelocity:
         case LN_VectorExpressionKind::SnapshotCharacterGravity:
         case LN_VectorExpressionKind::SnapshotCharacterWalkDirection:
         case LN_VectorExpressionKind::SnapshotCharacterLocalWalkDirection:
@@ -5234,10 +5187,6 @@ void LN_Program::RebuildRegisterExpressionIR()
           supported = value_constant_is_register_safe(expression.value);
           op.kind = LN_RegisterExpressionOpKind::ValueConstant;
           break;
-        case LN_ValueExpressionKind::SnapshotGameProperty:
-          supported = expression.property_ref_index != LN_INVALID_INDEX;
-          op.kind = LN_RegisterExpressionOpKind::ValueSnapshotRead;
-          break;
         case LN_ValueExpressionKind::RuntimeTreeProperty:
           supported = expression.property_ref_index != LN_INVALID_INDEX;
           op.kind = LN_RegisterExpressionOpKind::ValueRuntimePropertyRead;
@@ -5250,20 +5199,6 @@ void LN_Program::RebuildRegisterExpressionIR()
               LN_RegisterValueKind::Int, expression.input0, ir.int_expression_registers);
           supported = expression.input0 == LN_INVALID_INDEX || RegisterRefIsValid(op.input0);
           op.kind = LN_RegisterExpressionOpKind::ValueEmptyList;
-          break;
-        case LN_ValueExpressionKind::Select:
-          op.input0 = make_ref(LN_RegisterValueKind::GenericValue,
-                               expression.input0,
-                               ir.value_expression_registers);
-          op.input1 = make_ref(LN_RegisterValueKind::GenericValue,
-                               expression.input1,
-                               ir.value_expression_registers);
-          op.input2 = make_ref(LN_RegisterValueKind::Bool,
-                               expression.bool_expr_index,
-                               ir.bool_expression_registers);
-          supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1) &&
-                      RegisterRefIsValid(op.input2);
-          op.kind = LN_RegisterExpressionOpKind::ValueSelect;
           break;
         case LN_ValueExpressionKind::Mix:
           op.input0 = make_ref(LN_RegisterValueKind::GenericValue,
@@ -5692,6 +5627,62 @@ void LN_Program::RebuildRegisterExpressionIR()
     }
     batch_start = batch_end;
   }
+
+  /* The per-tick memo's class of each expression (see LN_MemoClass): from the kind catalog. */
+  const auto classify_memo = [](const LN_KindDomain domain,
+                                const auto &expressions,
+                                const std::vector<uint32_t> &registers,
+                                const std::vector<LN_RegisterValueKind> *register_kinds,
+                                std::vector<uint8_t> &r_classes) {
+    r_classes.assign(expressions.size(), uint8_t(LN_MEMO_NONE));
+    for (size_t index = 0; index < expressions.size(); index++) {
+      const LN_KindInfo *info = LN_FindKind(domain, uint16_t(expressions[index].kind));
+      const uint8_t classes = info != nullptr ? info->classes : uint8_t(LN_KIND_MUTABLE_READ);
+      if ((classes & ~uint8_t(LN_KIND_USES_FALLBACK)) != uint8_t(LN_KIND_PURE)) {
+        r_classes[index] = uint8_t(LN_MEMO_TAINTS);
+        continue;
+      }
+      const bool is_constant = uint16_t(expressions[index].kind) == 0;
+      const bool has_register = index < registers.size() && registers[index] != LN_INVALID_INDEX &&
+                                (register_kinds == nullptr ||
+                                 (*register_kinds)[index] == LN_RegisterValueKind::String);
+      if ((classes & LN_KIND_USES_FALLBACK) == 0 && has_register && !is_constant) {
+        r_classes[index] = uint8_t(LN_MEMO_STORE);
+      }
+    }
+  };
+  classify_memo(LN_KindDomain::Bool,
+                m_boolExpressions,
+                ir.bool_expression_registers,
+                nullptr,
+                ir.bool_memo_class);
+  classify_memo(
+      LN_KindDomain::Int, m_intExpressions, ir.int_expression_registers, nullptr, ir.int_memo_class);
+  classify_memo(LN_KindDomain::Float,
+                m_floatExpressions,
+                ir.float_expression_registers,
+                nullptr,
+                ir.float_memo_class);
+  classify_memo(LN_KindDomain::Vector,
+                m_vectorExpressions,
+                ir.vector_expression_registers,
+                nullptr,
+                ir.vector_memo_class);
+  classify_memo(LN_KindDomain::Color,
+                m_colorExpressions,
+                ir.color_expression_registers,
+                nullptr,
+                ir.color_memo_class);
+  classify_memo(LN_KindDomain::String,
+                m_stringExpressions,
+                ir.string_expression_registers,
+                &ir.string_expression_register_kinds,
+                ir.string_memo_class);
+  classify_memo(LN_KindDomain::Value,
+                m_valueExpressions,
+                ir.value_expression_registers,
+                nullptr,
+                ir.value_memo_class);
 
   std::vector<std::string> errors;
   ir.valid = ValidateRegisterExpressionProgram(ir, errors);
@@ -7594,7 +7585,6 @@ void LN_Program::UpdateSchedulerSummaryForBoolExpression(const LN_BoolExpression
     case LN_BoolExpressionKind::InstructionReached:
     case LN_BoolExpressionKind::Once:
     case LN_BoolExpressionKind::NextFrameDone:
-    case LN_BoolExpressionKind::Timer:
     case LN_BoolExpressionKind::ValueChanged:
     case LN_BoolExpressionKind::ValueChangedTo:
     case LN_BoolExpressionKind::TweenValue:
@@ -7850,16 +7840,6 @@ void LN_Program::UpdateSchedulerSummaryForStringExpression(const LN_StringExpres
 void LN_Program::UpdateSchedulerSummaryForVectorExpression(const LN_VectorExpression &expression)
 {
   switch (expression.kind) {
-    case LN_VectorExpressionKind::SnapshotWorldPosition:
-    case LN_VectorExpressionKind::SnapshotLocalPosition:
-    case LN_VectorExpressionKind::SnapshotWorldOrientation:
-    case LN_VectorExpressionKind::SnapshotLocalOrientation:
-    case LN_VectorExpressionKind::SnapshotWorldScale:
-    case LN_VectorExpressionKind::SnapshotLocalScale:
-    case LN_VectorExpressionKind::SnapshotLinearVelocity:
-    case LN_VectorExpressionKind::SnapshotLocalLinearVelocity:
-    case LN_VectorExpressionKind::SnapshotAngularVelocity:
-    case LN_VectorExpressionKind::SnapshotLocalAngularVelocity:
     case LN_VectorExpressionKind::SnapshotGravity:
     case LN_VectorExpressionKind::WorldToScreen:
     case LN_VectorExpressionKind::ScreenToWorld:
@@ -8033,7 +8013,6 @@ void LN_Program::UpdateSchedulerSummaryForValueExpression(const LN_ValueExpressi
       m_schedulerSummary.reads_snapshot_only = false;
       MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
       break;
-    case LN_ValueExpressionKind::SnapshotGameProperty:
     case LN_ValueExpressionKind::OwnerObject:
     case LN_ValueExpressionKind::ObjectAttribute:
     /* An empty Camera socket (Set FOV, Set Camera Viewport...): without this the game rejects
@@ -8149,4 +8128,12 @@ void LN_Program::UpdateSchedulerSummaryForValueExpression(const LN_ValueExpressi
     default:
       break;
   }
+}
+
+void LN_Program::EnsureLeanProgram() const
+{
+  if (m_leanProgram != nullptr || LN_LeanHelperThread()) {
+    return;
+  }
+  m_leanProgram = LN_LowerToLean(*this);
 }

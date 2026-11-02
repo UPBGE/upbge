@@ -657,7 +657,6 @@ enum class LN_BoolExpressionKind : uint8_t {
   WindowFullscreen,
   NextFrameDone,
   Once,
-  Timer,
   ValueChanged,
   ValueChangedTo,
   SnapshotGamePropertyExists,
@@ -991,16 +990,6 @@ enum class LN_StringExpressionKind : uint8_t {
 
 enum class LN_VectorExpressionKind : uint8_t {
   Constant = 0,
-  SnapshotWorldPosition,
-  SnapshotLocalPosition,
-  SnapshotWorldOrientation,
-  SnapshotLocalOrientation,
-  SnapshotWorldScale,
-  SnapshotLocalScale,
-  SnapshotLinearVelocity,
-  SnapshotLocalLinearVelocity,
-  SnapshotAngularVelocity,
-  SnapshotLocalAngularVelocity,
   SnapshotGravity,
   WindowResolution,
   WorldToScreen,
@@ -1088,9 +1077,7 @@ enum class LN_ColorExpressionKind : uint8_t {
 
 enum class LN_ValueExpressionKind : uint8_t {
   Constant = 0,
-  SnapshotGameProperty,
   RuntimeTreeProperty,
-  Select,
   Mix,
   FromBool,
   FromInt,
@@ -2342,6 +2329,15 @@ struct LN_GamePropertyRef {
   LN_Value default_value;
 };
 
+/** What a program's game property refs start as (plan A10): each ref's default value with its type
+ * set, and the place of each String ref's live text in a snapshot. Made once for a program and
+ * shared by the snapshots of all its trees (LN_Program::GetGamePropertyLayout). */
+struct LN_GamePropertyLayout {
+  std::vector<LN_Value> defaults;
+  std::vector<uint32_t> string_slot;
+  uint32_t string_slots = 0;
+};
+
 struct LN_TreePropertyRef {
   LN_StringId name_id;
   std::string name;
@@ -2372,8 +2368,6 @@ struct LN_TickContext {
   /** Counts the times Mouse Look had to start waiting or the game paused: Mouse Look starts over
    * (no jump) when it changed since its last run. */
   uint64_t mouse_ui_serial = 0;
-  bool use_register_expression_evaluator = false;
-  bool use_typed_command_streams = true;
   LN_CommandBuffer *command_buffer = nullptr;
   uint64_t tick_index = 0;
   uint64_t phase_tick_index = 0;

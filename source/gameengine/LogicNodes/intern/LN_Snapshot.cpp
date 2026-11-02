@@ -8,9 +8,12 @@
 
 #include "LN_Snapshot.h"
 
+
 #include <algorithm>
 #include <cmath>
+#include <atomic>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 
 #include "DNA_light_types.h"
@@ -21,6 +24,7 @@
 #include "KX_GameObject.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_Light.h"
+#include "CM_Message.h"
 #include "KX_Scene.h"
 #include "LN_InputMap.h"
 #include "LN_Program.h"
@@ -966,7 +970,8 @@ void LN_Snapshot::Capture(KX_GameObject *gameobj,
                           const float fixed_delta)
 {
   const LN_SnapshotChannelMask declared_mask = LN_SnapshotChannelMaskForProgram(program);
-  const size_t previous_property_capacity = m_gameProperties.capacity();
+  const size_t previous_property_capacity = m_gameStorageMode == 0 ? m_gameProperties.capacity() :
+                                                                      m_gameCells.capacity();
 
   m_tickContext = tick_context;
   m_tickIndex = tick_context != nullptr ? tick_context->tick_index : UINT64_MAX;
@@ -1056,7 +1061,8 @@ void LN_Snapshot::Capture(KX_GameObject *gameobj,
 
   m_captureStats.skipped_channels = LN_SNAPSHOT_CHANNEL_ALL & ~m_captureStats.captured_channels;
   m_captureStats.reused_property_storage =
-      m_gameProperties.capacity() == previous_property_capacity;
+      (m_gameStorageMode == 0 ? m_gameProperties.capacity() : m_gameCells.capacity()) ==
+      previous_property_capacity;
 }
 
 /**
@@ -1117,20 +1123,126 @@ static void update_game_property_value(LN_Value &value,
   }
 }
 
+namespace {
+
+std::atomic<int> g_typed_snapshot_override{-1};
+std::atomic<uint32_t> g_typed_snapshot_differences{0};
+
+/** 0 = the old kept values, 1 = cells, 2 = both (verify). */
+int typed_snapshot_mode()
+{
+  const int override_mode = g_typed_snapshot_override.load(std::memory_order_relaxed);
+  if (override_mode >= 0) {
+    return override_mode;
+  }
+  static const int from_environment = [] {
+    const char *value = std::getenv("UPBGE_LN_TYPED_SNAPSHOT");
+    if (value == nullptr || value[0] == '\0') {
+      return 1;
+    }
+    if (std::strcmp(value, "0") == 0 || std::strcmp(value, "off") == 0) {
+      return 0;
+    }
+    if (std::strcmp(value, "verify") == 0 || std::strcmp(value, "2") == 0) {
+      return 2;
+    }
+    return 1;
+  }();
+  return from_environment;
+}
+
+}  // namespace
+
+void LN_Snapshot::SetTypedSnapshotModeForTests(const int mode)
+{
+  g_typed_snapshot_override.store(mode, std::memory_order_relaxed);
+}
+
+uint32_t LN_Snapshot::TypedSnapshotVerifyDifferencesForTests()
+{
+  return g_typed_snapshot_differences.load(std::memory_order_relaxed);
+}
+
+/** update_game_property_value for a cell (and the text of a String ref): the same rules, so the
+ * cell holds what the old kept LN_Value held. */
+static void update_game_property_cell(LN_Snapshot::GamePropertyCell &cell,
+                                      std::string *live_text,
+                                      const LN_GamePropertyRef &property_ref,
+                                      EXP_Value *property)
+{
+  if (property_ref.name.empty()) {
+    return;
+  }
+  const LN_Value &default_value = property_ref.default_value;
+  cell.exists = property != nullptr;
+  switch (property_ref.value_type) {
+    case LN_ValueType::Bool:
+      cell.bool_value = property != nullptr ? float(property->GetNumber()) != 0.0f :
+                                              default_value.bool_value;
+      break;
+    case LN_ValueType::Int:
+      cell.int_value = property != nullptr && is_number_or_text(property) ?
+                           int32_t(float(property->GetNumber())) :
+                           default_value.int_value;
+      break;
+    case LN_ValueType::Float:
+      cell.float_value = property != nullptr && is_number_or_text(property) ?
+                             float(property->GetNumber()) :
+                             default_value.float_value;
+      break;
+    case LN_ValueType::String:
+      if (live_text != nullptr) {
+        if (property != nullptr) {
+          *live_text = property->GetText();
+        }
+        else {
+          *live_text = default_value.string_value;
+        }
+      }
+      break;
+    default:
+      break;
+  }
+}
+
 void LN_Snapshot::CaptureGameProperties(KX_GameObject *gameobj, const LN_Program &program)
 {
   const std::vector<LN_GamePropertyRef> &property_refs = program.GetGamePropertyRefs();
   const size_t count = property_refs.size();
+  const int mode = typed_snapshot_mode();
+  const bool keep_values = mode != 1;
+  const bool keep_cells = mode != 0;
 
-  /* Another program: every value starts again from its ref's default. */
-  if (m_gamePropertyProgramId != program.GetUniqueId() || m_gameProperties.size() != count) {
+  /* Another program (or another mode): every value starts again from its ref's default. */
+  if (m_gamePropertyProgramId != program.GetUniqueId() || m_gameStorageMode != mode ||
+      m_gameLayout == nullptr || m_gameLayout->defaults.size() != count)
+  {
+    m_gameLayout = program.GetGamePropertyLayout();
     m_gameProperties.clear();
-    m_gameProperties.reserve(count);
-    for (const LN_GamePropertyRef &property_ref : property_refs) {
-      LN_Value &value = m_gameProperties.emplace_back(property_ref.default_value);
-      value.type = property_ref.value_type;
+    m_gameCells.clear();
+    m_gameStrings.clear();
+    if (keep_values) {
+      m_gameProperties = m_gameLayout->defaults;
+    }
+    if (keep_cells) {
+      m_gameCells.resize(count);
+      for (size_t index = 0; index < count; index++) {
+        const LN_Value &default_value = m_gameLayout->defaults[index];
+        GamePropertyCell &cell = m_gameCells[index];
+        cell.exists = default_value.exists;
+        cell.bool_value = default_value.bool_value;
+        cell.int_value = default_value.int_value;
+        cell.float_value = default_value.float_value;
+      }
+      m_gameStrings.resize(m_gameLayout->string_slots);
+      for (size_t index = 0; index < count; index++) {
+        if (m_gameLayout->string_slot[index] != LN_INVALID_INDEX) {
+          m_gameStrings[m_gameLayout->string_slot[index]] = m_gameLayout->defaults[index].string_value;
+        }
+      }
     }
     m_gamePropertyProgramId = program.GetUniqueId();
+    m_gameStorageMode = int8_t(mode);
     m_gamePropertyObject = nullptr;
   }
 
@@ -1147,10 +1259,41 @@ void LN_Snapshot::CaptureGameProperties(KX_GameObject *gameobj, const LN_Program
   }
 
   for (size_t index = 0; index < count; index++) {
-    update_game_property_value(
-        m_gameProperties[index], property_refs[index], m_gamePropertyHandles[index]);
+    if (keep_values) {
+      update_game_property_value(
+          m_gameProperties[index], property_refs[index], m_gamePropertyHandles[index]);
+    }
+    if (keep_cells) {
+      const uint32_t slot = m_gameLayout->string_slot[index];
+      update_game_property_cell(m_gameCells[index],
+                                slot != LN_INVALID_INDEX ? &m_gameStrings[slot] : nullptr,
+                                property_refs[index],
+                                m_gamePropertyHandles[index]);
+    }
   }
   m_gamePropertyCount = uint32_t(count);
+
+  if (mode == 2) {
+    /* Verify: the cells must give the very values the old kept values hold. */
+    for (uint32_t index = 0; index < count; index++) {
+      LN_Value built;
+      GamePropertyView view;
+      const LN_Value &kept = m_gameProperties[index];
+      bool same = BuildGamePropertyValue(index, built) && ReadGameProperty(index, view);
+      same = same && built.exists == kept.exists && built.type == kept.type &&
+             built.bool_value == kept.bool_value && built.int_value == kept.int_value &&
+             std::memcmp(&built.float_value, &kept.float_value, sizeof(float)) == 0 &&
+             built.string_value == kept.string_value && view.exists == kept.exists &&
+             view.bool_value == kept.bool_value && view.int_value == kept.int_value &&
+             std::memcmp(&view.float_value, &kept.float_value, sizeof(float)) == 0 &&
+             *view.string_value == kept.string_value;
+      if (!same) {
+        g_typed_snapshot_differences++;
+        CM_Warning("Logic Nodes: lean typed snapshot differs: game property ref "
+                   << index << " ('" << property_refs[index].name << "')");
+      }
+    }
+  }
 }
 
 void LN_Snapshot::RefreshGameProperties(KX_GameObject *gameobj, const LN_Program *program)
@@ -1162,11 +1305,73 @@ void LN_Snapshot::RefreshGameProperties(KX_GameObject *gameobj, const LN_Program
   }
 }
 
-const LN_Value *LN_Snapshot::GetGamePropertyValue(uint32_t property_ref_index) const
+EXP_Value *LN_Snapshot::GetGamePropertyHandle(const KX_GameObject *object,
+                                              const uint32_t property_ref_index,
+                                              uint64_t &r_stamp) const
+{
+  if (object == nullptr || object != m_gamePropertyObject ||
+      property_ref_index >= m_gamePropertyCount || property_ref_index >= m_gamePropertyHandles.size())
+  {
+    return nullptr;
+  }
+  r_stamp = m_gamePropertyMapStamp;
+  return m_gamePropertyHandles[property_ref_index];
+}
+
+bool LN_Snapshot::ReadGameProperty(const uint32_t property_ref_index, GamePropertyView &r_view) const
 {
   RequireCapturedChannel(LN_SNAPSHOT_CHANNEL_GAME_PROPERTY, "game property");
   if (property_ref_index >= m_gamePropertyCount) {
-    return nullptr;
+    return false;
   }
-  return &m_gameProperties[property_ref_index];
+  if (m_gameStorageMode == 0) {
+    const LN_Value &value = m_gameProperties[property_ref_index];
+    r_view.exists = value.exists;
+    r_view.bool_value = value.bool_value;
+    r_view.int_value = value.int_value;
+    r_view.float_value = value.float_value;
+    r_view.string_value = &value.string_value;
+    return true;
+  }
+  const GamePropertyCell &cell = m_gameCells[property_ref_index];
+  r_view.exists = cell.exists;
+  r_view.bool_value = cell.bool_value;
+  r_view.int_value = cell.int_value;
+  r_view.float_value = cell.float_value;
+  const uint32_t slot = m_gameLayout->string_slot[property_ref_index];
+  r_view.string_value = slot != LN_INVALID_INDEX ? &m_gameStrings[slot] :
+                                                    &m_gameLayout->defaults[property_ref_index].string_value;
+  return true;
+}
+
+bool LN_Snapshot::BuildGamePropertyValue(const uint32_t property_ref_index, LN_Value &r_value) const
+{
+  RequireCapturedChannel(LN_SNAPSHOT_CHANNEL_GAME_PROPERTY, "game property");
+  if (property_ref_index >= m_gamePropertyCount) {
+    return false;
+  }
+  if (m_gameStorageMode == 0) {
+    r_value = m_gameProperties[property_ref_index];
+    return true;
+  }
+  const GamePropertyCell &cell = m_gameCells[property_ref_index];
+  r_value = m_gameLayout->defaults[property_ref_index];
+  r_value.exists = cell.exists;
+  switch (r_value.type) {
+    case LN_ValueType::Bool:
+      r_value.bool_value = cell.bool_value;
+      break;
+    case LN_ValueType::Int:
+      r_value.int_value = cell.int_value;
+      break;
+    case LN_ValueType::Float:
+      r_value.float_value = cell.float_value;
+      break;
+    case LN_ValueType::String:
+      r_value.string_value = m_gameStrings[m_gameLayout->string_slot[property_ref_index]];
+      break;
+    default:
+      break;
+  }
+  return true;
 }

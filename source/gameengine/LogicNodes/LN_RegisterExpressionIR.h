@@ -14,7 +14,7 @@
 #include "LN_Performance.h"
 #include "LN_Types.h"
 
-static constexpr uint32_t LN_REGISTER_EXPRESSION_IR_CACHE_GENERATION = 50;
+static constexpr uint32_t LN_REGISTER_EXPRESSION_IR_CACHE_GENERATION = 51;
 static constexpr uint32_t LN_REGISTER_EXPRESSION_IR_FEATURE_MASK = uint32_t(
     LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR);
 
@@ -124,9 +124,7 @@ enum class LN_RegisterExpressionOpKind : uint8_t {
   StringFormat,
   StringFromValue,
   ValueConstant,
-  ValueSnapshotRead,
   ValueRuntimePropertyRead,
-  ValueSelect,
   ValueMix,
   ValueFromBool,
   ValueFromInt,
@@ -221,6 +219,18 @@ struct LN_RegisterExpressionSoABatch {
   bool simd_candidate = false;
 };
 
+/** What the per-tick memo (plan phase A15, decision D1) does with an expression: nothing, keep
+ * its value in its register for the tick, or note that a value was read that may change within
+ * the tick so every expression above it is not kept. Decided by the kind's class in the kind
+ * catalog: only a PURE kind that gives no use-site fallback and has a register is kept; any kind
+ * that is not PURE (tree properties, loop and gate time, event payloads, state, scene reads)
+ * taints the expressions above it. */
+enum LN_MemoClass : uint8_t {
+  LN_MEMO_NONE = 0,
+  LN_MEMO_STORE = 1,
+  LN_MEMO_TAINTS = 2,
+};
+
 struct LN_RegisterExpressionProgram {
   uint32_t program_version = LN_PROGRAM_VERSION;
   uint32_t schema_version = LN_PROGRAM_SCHEMA_VERSION;
@@ -241,6 +251,15 @@ struct LN_RegisterExpressionProgram {
   std::vector<uint32_t> string_expression_registers;
   std::vector<LN_RegisterValueKind> string_expression_register_kinds;
   std::vector<uint32_t> value_expression_registers;
+
+  /** LN_MemoClass of each expression, per table (filled at the end of the build). */
+  std::vector<uint8_t> bool_memo_class;
+  std::vector<uint8_t> int_memo_class;
+  std::vector<uint8_t> float_memo_class;
+  std::vector<uint8_t> vector_memo_class;
+  std::vector<uint8_t> color_memo_class;
+  std::vector<uint8_t> string_memo_class;
+  std::vector<uint8_t> value_memo_class;
 
   uint32_t bool_register_count = 0;
   uint32_t int_register_count = 0;

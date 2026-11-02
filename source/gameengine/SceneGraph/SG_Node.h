@@ -267,6 +267,24 @@ class SG_Node : public SG_QList {
 
   void ClearModified();
   void SetModified();
+  /**
+   * Plan A8: an "immediate update" node. While it is set, SetModified marks the node modified but
+   * does not schedule it: a change that UpdateWorldData follows at once would put the node in the
+   * update list only to take it out again, with a lock for each step. Held for one node only, by
+   * SG_ImmediateUpdateScope around such a change (never around a change nothing updates at once,
+   * like a slow parent's or an aligned axis's). A node that is in the list already stays there until
+   * UpdateWorldData takes it out, as before. Returns the previous setting.
+   */
+  bool SetImmediateUpdate(bool immediate)
+  {
+    const bool previous = m_immediateUpdate;
+    m_immediateUpdate = immediate;
+    return previous;
+  }
+  bool IsImmediateUpdate() const
+  {
+    return m_immediateUpdate;
+  }
   void ClearDirty(DirtyFlag flag);
 
   /**
@@ -407,4 +425,27 @@ class SG_Node : public SG_QList {
 
   bool m_modified;
   unsigned short m_dirty;
+  /** SetImmediateUpdate (not copied with a node). */
+  bool m_immediateUpdate = false;
+};
+
+/** Holds a node's immediate update setting for a scope (SG_Node::SetImmediateUpdate). */
+class SG_ImmediateUpdateScope {
+ public:
+  explicit SG_ImmediateUpdateScope(SG_Node *node)
+      : m_node(node), m_previous(node != nullptr ? node->SetImmediateUpdate(true) : false)
+  {
+  }
+  ~SG_ImmediateUpdateScope()
+  {
+    if (m_node != nullptr) {
+      m_node->SetImmediateUpdate(m_previous);
+    }
+  }
+  SG_ImmediateUpdateScope(const SG_ImmediateUpdateScope &) = delete;
+  SG_ImmediateUpdateScope &operator=(const SG_ImmediateUpdateScope &) = delete;
+
+ private:
+  SG_Node *m_node;
+  bool m_previous;
 };

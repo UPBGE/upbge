@@ -34,6 +34,9 @@ class LN_CommandBuffer;
 class LN_DenseIdRegistry;
 class LN_Manager;
 class LN_RuntimeTreeTestAccess;
+template<class Reader>
+struct LN_ExecFrameT;
+struct LN_LeanReader;
 struct LN_RuntimeProfileCounters;
 class PHY_ICharacter;
 class PHY_IPhysicsController;
@@ -135,8 +138,12 @@ class LN_RuntimeTree {
                        uint64_t tick_index = UINT64_MAX,
                        bool force_disabled = false);
   size_t WarmQueryCache(const LN_TickContext &context);
+  template<class Reader>
+  size_t WarmQueryCacheWith(const LN_TickContext &context);
   /** Register object scroll/grid layout before dependent interactable bounds are collected. */
   void CollectUIViews(const LN_TickContext &context);
+  template<class Reader>
+  void CollectUIViewsWith(const LN_TickContext &context);
   /** Forget values cached while collecting, before the UI resolved and consumed input. */
   void InvalidateUICollectionCaches();
   bool ShouldCaptureSnapshot() const;
@@ -211,9 +218,49 @@ class LN_RuntimeTree {
     bool has_own_input = false;
   };
   StateBlockInfo GetStateBlockInfo() const;
+  /** Parallel snapshot capture (a serial part of a tick moved onto the job pool): whether
+   * CaptureSnapshot may run on a helper thread for this tree this tick, and if so brings what it
+   * would build lazily up to date first (main thread). Only trees whose snapshot reads the
+   * object's own game properties, transform, colour and visibility, the tick's shared timing,
+   * gravity and input qualify: reads of the scene that nothing changes meanwhile. */
+  bool PrepareParallelCapture(const LN_TickReadContext *tick_context);
+  /** Block execution (plan phase B1): this tree may run `event` in a block now. It is a plain
+   * tree (initialized, no latent state, no Every N Steps gate, not paused to UI routes, not
+   * profiled) running a program whose event is a plain run of block-ok native ops on the lean VM. */
+  bool BlockEligible(LN_Event event) const;
+  /** Runs `count` trees of one program (all BlockEligible, the same event, none of them measuring
+   * what another moves: a tree batch's rules) op by op across all of them, into `buffer`; the
+   * buffer ends as if ExecuteReady had run each tree one after the other. */
+  static void RunBlock(LN_CommandBuffer &buffer,
+                       const LN_TickContext &context,
+                       LN_RuntimeTree *const *trees,
+                       size_t count);
   /** Off: layouts built from now on plan no state slots, so every slot state lives apart (the
    * storage before the state block), for tests comparing both. */
   static void SetStateSlotsPlannedForTests(bool planned);
+  /** The per-tick memo of pure expressions (plan phase A15, decision D1): 1 = on (production),
+   * 0 = off (every read works the expression out), -1 = the default (on). A memo can never change a
+   * result, so tests run both and compare. */
+  static void SetMemoForTests(int mode);
+  /** Makes the program's lean form if the mode asks for it (main thread; a no-op elsewhere). The
+   * prepare pass of a tree batch calls it for every tree before the chunks go out. */
+  void PrepareLeanProgram() const;
+
+  /** One expression read a kind made while it was worked out (plan phase A13): the family letter
+   * (B bool, I int, F float, S string, V vector, R rotation, C color, A value, Q query) and the index it
+   * asked for, invalid ones included. Tests record them to pin the order in which every kind
+   * reads its inputs; null (the default) records nothing. */
+  struct ReadTraceEntry {
+    char family;
+    uint32_t index;
+  };
+  static void SetReadTraceForTests(std::vector<ReadTraceEntry> *trace);
+  /** Works out one expression of `family` (one of the letters above) and drops the result; with
+   * `lean`, through the lean reader (the kind straight) instead of the Resolve functions. */
+  void EvaluateExpressionForTests(char family,
+                                  uint32_t index,
+                                  const LN_TickContext &context,
+                                  bool lean = false);
   /** Object UI declarations stay registered every frame, even while this tree is paused or has
    * no wired output, so hover, focus and scroll state never reset behind the user's back. */
   bool CollectsObjectUI() const;
@@ -243,6 +290,8 @@ class LN_RuntimeTree {
   }
   /** Resolve statically-authored While Paused scopes before paused trees are scheduled. */
   void CollectPauseProcessingObjects(std::vector<KX_GameObject *> &r_objects);
+  template<class Reader>
+  void CollectPauseProcessingObjectsWith(std::vector<KX_GameObject *> &r_objects);
   bool OwnsGameObject(KX_GameObject *gameobj) const;
   void DetachGameObject();
   void SetProgram(std::shared_ptr<const LN_Program> program);
@@ -461,6 +510,19 @@ class LN_RuntimeTree {
     return m_runtimeFallbackReport;
   }
 
+  /** Tests (lean runtime plan A2): the tree's per-object state as text, in two parts that are
+   * compared apart. `meaning`: what the tree's behaviour depends on and a save would keep (time
+   * flows with their pulses, flow controls, slot states, value changes, step gates, motion and
+   * loop states, tree properties, the kept game properties, overflow slots), with "ran this
+   * tick" for each instruction instead of tick numbers. `bookkeeping`: the counters and cache
+   * stamps (tick numbers, scope and command serials, the register file's generation). Floats are
+   * bit patterns. `current_tick` is the tick the tree last ran in (LN_TickContext::tick_index). */
+  struct StateDump {
+    std::string meaning;
+    std::string bookkeeping;
+  };
+  StateDump DumpStateForTests(uint64_t current_tick) const;
+
  private:
   static constexpr int kMaxPathLength = 128;
   /**
@@ -628,6 +690,10 @@ class LN_RuntimeTree {
     uint64_t cached_command_execution_key = UINT64_MAX;
     LN_QueryResult cached_result;
     bool cached_command_ordered = false;
+    /** The last result came from Get Distance (DistanceBetween), which sets only the distance
+     * fields: the next evaluation of it starts by clearing those three instead of building a
+     * fresh result (a kilobyte of strings and vectors) at every read (plan A21). */
+    bool cached_result_distance_only = false;
     std::array<HoverRuntimeState, 3> hover_by_event;
     /** On UI Event: which of this frame's matching events the query reports (0: the first). */
     uint32_t ui_event_cursor = 0;
@@ -637,7 +703,6 @@ class LN_RuntimeTree {
    * one (a new tick starts a new generation). */
   struct RegisterExpressionRuntimeState {
     uint64_t cached_tick = UINT64_MAX;
-    uint64_t profiled_tick = UINT64_MAX;
     LN_StateSpan<uint8_t> bool_values;
     LN_StateSpan<int32_t> int_values;
     LN_StateSpan<float> float_values;
@@ -688,10 +753,14 @@ class LN_RuntimeTree {
     uint64_t exit_tick = UINT64_MAX;
   };
 
-  bool UpdateTweenValue(uint32_t tween_expr_index, const LN_TickContext &context);
+  template<class In>
+  bool UpdateTweenValue(In &in,
+                  uint32_t tween_expr_index);
   bool EvaluateMouseMoved(bool each_logic_tick) const;
   float EvaluateCurveTable(uint32_t table_index, float input, float influence) const;
-  float ResolveTweenMappedFactor(uint32_t tween_expr_index, const LN_TickContext &context);
+  template<class In>
+  float ResolveTweenMappedFactor(In &in,
+                  uint32_t tween_expr_index);
 
   struct LoopRuntimeState {
     bool active = false;
@@ -728,6 +797,10 @@ class LN_RuntimeTree {
   };
 
   friend class LN_Manager;
+  template<class R>
+  friend struct LN_ExecFrameT;
+  friend struct LN_LeanReader;
+  friend struct LN_TreeReader;
   friend class LN_RuntimeTreeTestAccess;
 
   void EnsureTreePropertyStateSize(bool preserve_existing);
@@ -760,6 +833,17 @@ class LN_RuntimeTree {
   void TickLatentTimeFlowStates(const LN_TickContext &context);
   QueryExpressionRuntimeState &QueryExpressionState(uint32_t state_index);
   uint32_t InstructionStateIndex(LN_Event event, uint32_t instruction_index) const;
+  bool InstructionExecutedNow(const LN_TickContext &context, uint32_t instruction_index) const;
+  /** MarkInstructionExecuted for an instruction whose stamp index is known (the lean VM's
+   * native ops: LN_LeanOp::state_index). */
+  void MarkInstructionStamp(const uint32_t state_index, const uint64_t tick_index)
+  {
+    if (state_index >= m_instructionStamps.size()) { /* LN_INVALID_INDEX is past every size */
+      return;
+    }
+    m_instructionStamps[state_index].last_execution_tick = tick_index;
+    m_instructionStamps[state_index].last_execution_scope_serial = m_activeExecutionScopeSerial;
+  }
   bool ResolvePathMoveTarget(InstructionMotionState &state,
                              KX_GameObject *target,
                              KX_NavMeshObject *navmesh,
@@ -776,48 +860,124 @@ class LN_RuntimeTree {
   void RecordMissingSnapshotChannelsForExpression(
       const LN_RuntimeExpressionSemantics &semantics) const;
   void ClearRuntimeFallbackReport(uint64_t tick_index);
-  void RecordRegisterExpressionFallback(LN_RuntimeExpressionFamily family,
-                                        uint32_t expression_index);
   void RecordRuntimeSystemFallback(LN_RuntimeFallbackReason reason,
                                    const std::string &debug_name,
                                    const char *profile_counter_name,
                                    const char *removal_condition) const;
   void EnsureRegisterExpressionState(const LN_TickContext &context);
-  bool TryResolveRegisterBoolExpression(uint32_t expression_index,
-                                        const LN_TickContext &context,
-                                        bool &r_value);
-  bool TryResolveRegisterIntExpression(uint32_t expression_index,
-                                       const LN_TickContext &context,
-                                       int32_t &r_value);
-  bool TryResolveRegisterFloatExpression(uint32_t expression_index,
-                                         const LN_TickContext &context,
-                                         float &r_value);
-  bool TryResolveRegisterVectorExpression(uint32_t expression_index,
-                                          const LN_TickContext &context,
-                                          MT_Vector3 &r_value);
-  bool TryResolveRegisterColorExpression(uint32_t expression_index,
-                                         const LN_TickContext &context,
-                                         MT_Vector4 &r_value);
-  bool TryResolveRegisterValueExpression(uint32_t expression_index,
-                                         const LN_TickContext &context,
-                                         LN_Value &r_value);
-  bool TryResolveRegisterStringExpression(uint32_t expression_index,
-                                          const LN_TickContext &context,
-                                          std::string &r_value);
-  bool TryEvaluateRegisterExpressionSoABatch(uint32_t expression_index,
-                                             const LN_TickContext &context);
-  bool TryEvaluateRegisterFloatSoABatch(const LN_RegisterExpressionProgram &ir,
-                                        const LN_RegisterExpressionSoABatch &batch,
-                                        const LN_TickContext &context);
   void ProfileRegisterExpressionHit();
-  void ProfileRegisterExpressionFallback();
-  void ProfileRegisterSimdBatch(uint32_t lane_count);
   void ExecuteEvent(LN_Event event,
                     const std::vector<LN_InstructionHeader> &instructions,
                     LN_CommandBuffer &command_buffer,
                     LN_TickContext context);
+  /* The handlers of one event's instructions, templates on the execution frame (LN_ExecFrame.h;
+   * intern/LN_RuntimeTreeOps.inl). */
+  uint64_t NextExecutionScopeSerial();
+  uint64_t NextCommandExecutionKey();
+  void ProfileDirectExecOp(const LN_ExecOp &op);
+  template<class Frame>
+  void OpMouseLookCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpTimeFlowControlInstruction(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpGlobalPropertyInstruction(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpVariableInstruction(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpPhysicsConstraintInstruction(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpNavigationInstruction(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpSceneCollectionInstruction(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDebugDrawInstruction(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectVectorCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectPhysicsCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectGamePropertyCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectObjectColorCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectObjectStateCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectCameraCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectLightCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectWindowCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectInputMotionCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectAudioCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectActionCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectBoneCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectMaterialCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectGlobalCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectFileCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectSceneCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectLifecycleCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectObjectReferenceCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectTreePropertyCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectTreeControlCommand(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirectSendEvent(Frame &frame, const LN_Instruction &instruction, uint32_t instruction_id);
+  template<class Frame>
+  void OpDirect(Frame &frame, const LN_ExecOp &op);
+  template<class Frame>
+  void OpLean(Frame &frame, const LN_ExecOp &op, const LN_LeanOp &lean_op);
+  /** The native ops of the lean VM (plan phases A18, A21): the flow core (Nop, BranchRoute) and a
+   * Set Game Property number write, each the old handler's work with what the lowering knows
+   * already. */
+  template<class Frame>
+  void OpLeanFlow(Frame &frame, const LN_ExecOp &op, const LN_LeanOp &lean_op);
+  template<class Frame>
+  void OpLeanSetNumber(Frame &frame, const LN_ExecOp &op, const LN_LeanOp &lean_op);
+  template<class Frame>
+  void OpLeanVector(Frame &frame, const LN_ExecOp &op, const LN_LeanOp &lean_op);
+  template<class Frame>
+  void OpLeanModifyProperty(Frame &frame, const LN_ExecOp &op, const LN_LeanOp &lean_op);
+  template<class Frame>
+  void AppendVectorCommand(Frame &frame,
+                           const LN_Instruction &instruction,
+                           const LN_VectorCommandPayload &payload,
+                           KX_GameObject *target,
+                           const MT_Vector3 &value,
+                           const LN_Rotation &rotation);
+  template<class Frame, class RunOp>
+  void RunBlocksWith(Frame &frame,
+                     const LN_ExecBlockProgram &ir,
+                     const std::vector<LN_StepGate> &step_gates,
+                     std::vector<uint32_t> &repeated_loop_frames,
+                     uint64_t scope_serial,
+                     uint32_t ui_event_state,
+                     RunOp &&run_op);
+  /** One event's blocks and the repeats for further UI events (ExecuteEvent's part that is the
+   * same for the old interpreter and the lean VM). */
+  template<class Frame, class RunOp>
+  void RunEventBlocks(Frame &frame,
+                      const LN_ExecBlockProgram &ir,
+                      LN_TickContext &context,
+                      uint64_t event_scope_serial,
+                      RunOp &&run_op);
+  /** The lean program this tree runs on in this call, or null (mode Off, no lean program made
+   * yet or an invalid one). Makes the program's lean form on the main thread. */
+  const LN_LeanProgram *LeanProgramForRun() const;
   LoopRuntimeState &LoopState(uint32_t loop_frame_index);
-  void BeginLoopFrame(uint32_t loop_frame_index, const LN_TickContext &context);
+  template<class In>
+  void BeginLoopFrame(In &in,
+                  uint32_t loop_frame_index);
   bool AdvanceLoopFrame(uint32_t loop_frame_index);
   const LN_EventEntry *FindFirstActiveEvent(LN_EventSubjectId subject_id,
                                             const std::string &subject,
@@ -826,6 +986,58 @@ class LN_RuntimeTree {
   bool ResolveBoolExpression(uint32_t expression_index,
                              bool fallback,
                              const LN_TickContext &context);
+  /* The kinds (plan phases A13 and A14): the switch of each Resolve function, reading its inputs
+   * through the reader `in` (LN_TreeReader). Defined in intern/LN_RuntimeTreeKinds.inl. */
+  template<class In>
+  bool BoolKind(In &in,
+                uint32_t expression_index,
+                const LN_BoolExpression &expression,
+                bool fallback);
+  template<class In>
+  int32_t IntKind(In &in,
+                  uint32_t expression_index,
+                  const LN_IntExpression &expression,
+                  int32_t fallback);
+  template<class In>
+  float FloatKind(In &in,
+                  uint32_t expression_index,
+                  const LN_FloatExpression &expression,
+                  float fallback);
+  template<class In>
+  std::string StringKind(In &in,
+                         uint32_t expression_index,
+                         const LN_StringExpression &expression,
+                         const std::string &fallback);
+  template<class In>
+  MT_Vector3 VectorKind(In &in,
+                        uint32_t expression_index,
+                        const LN_VectorExpression &expression,
+                        const MT_Vector3 &fallback);
+  /** `resolved` is set when the result is the expression's own (not the fallback), which is what
+   * the per-tick rotation cache keeps. */
+  template<class In>
+  LN_Rotation RotationKind(In &in,
+                           uint32_t expression_index,
+                           const LN_VectorExpression &expression,
+                           const LN_Rotation &fallback,
+                           bool &resolved);
+  template<class In>
+  MT_Vector4 ColorKind(In &in,
+                       uint32_t expression_index,
+                       const LN_ColorExpression &expression,
+                       const MT_Vector4 &fallback);
+  template<class In>
+  LN_Value ValueKind(In &in,
+                     uint32_t expression_index,
+                     const LN_ValueExpression &expression,
+                     const LN_Value &fallback);
+  /** The query kinds fill `state.cached_result` (the caching, the condition and the pass key are
+   * in ResolveQueryExpression). */
+  template<class In>
+  void QueryKind(In &in,
+                 uint32_t expression_index,
+                 const LN_QueryExpression &expression,
+                 QueryExpressionRuntimeState &state);
   int32_t ResolveIntExpression(uint32_t expression_index,
                                int32_t fallback,
                                const LN_TickContext &context = LN_TickContext());
@@ -841,37 +1053,62 @@ class LN_RuntimeTree {
                                   const LN_TickContext &context);
   const LN_QueryResult &ResolveQueryExpression(uint32_t expression_index,
                                                const LN_TickContext &context);
-  const CollisionResult &ResolveCollisionResult(
-      uint32_t object_expr_index,
-      uint32_t property_expr_index,
-      uint32_t material_expr_index,
-      const LN_TickContext &context,
-      CollisionResult::Detail detail = CollisionResult::Detail::StateOnly,
-      bool allow_exit_payload = true);
-  bool ResolveRigidBodyConstraintBreakEventQuery(uint32_t object_expr_index,
-                                                 uint32_t constraint_name_expr_index,
-                                                 uint32_t match_any_expr_index,
-                                                 LN_RigidBodyConstraintMatchMode match_mode,
-                                                 const LN_TickContext &context,
-                                                 KX_GameObject *&r_owner,
-                                                 std::string &r_constraint_name,
-                                                 LN_RigidBodyConstraintMatchMode &r_match_mode);
-  const LN_RigidBodyConstraintBreakEvent *ResolveRigidBodyConstraintBreakEvent(
-      uint32_t object_expr_index,
-      uint32_t constraint_name_expr_index,
-      uint32_t match_any_expr_index,
-      LN_RigidBodyConstraintMatchMode match_mode,
-      const LN_TickContext &context);
-  int32_t ResolveRigidBodyConstraintBreakEventCount(uint32_t object_expr_index,
-                                                    uint32_t constraint_name_expr_index,
-                                                    uint32_t match_any_expr_index,
-                                                    LN_RigidBodyConstraintMatchMode match_mode,
-                                                    const LN_TickContext &context);
-  LN_Value ResolveRigidBodyConstraintBreakEvents(uint32_t object_expr_index,
-                                                 uint32_t constraint_name_expr_index,
-                                                 uint32_t match_any_expr_index,
-                                                 LN_RigidBodyConstraintMatchMode match_mode,
-                                                 const LN_TickContext &context);
+  /** ResolveQueryExpression's body over a reader: the cache entry, the condition, the pass key and
+   * QueryKind. */
+  template<class In>
+  const LN_QueryResult &QueryEntry(In &in, uint32_t expression_index);
+  /* The lean runtime's reads (plan phase A16): the kind straight, with no memo, profiling or
+   * taint (intern/LN_RuntimeTreeKinds.inl). */
+  template<class In>
+  bool LeanBool(In &in, uint32_t expression_index, bool fallback);
+  template<class In>
+  int32_t LeanInt(In &in, uint32_t expression_index, int32_t fallback);
+  template<class In>
+  float LeanFloat(In &in, uint32_t expression_index, float fallback);
+  template<class In>
+  std::string LeanString(In &in, uint32_t expression_index, const std::string &fallback);
+  template<class In>
+  MT_Vector3 LeanVector(In &in, uint32_t expression_index, const MT_Vector3 &fallback);
+  template<class In>
+  LN_Rotation LeanRotation(In &in, uint32_t expression_index, const LN_Rotation &fallback);
+  template<class In>
+  MT_Vector4 LeanColor(In &in, uint32_t expression_index, const MT_Vector4 &fallback);
+  template<class In>
+  LN_Value LeanValue(In &in, uint32_t expression_index, const LN_Value &fallback);
+  template<class In>
+  const CollisionResult &ResolveCollisionResult(In &in,
+                  uint32_t object_expr_index,
+                  uint32_t property_expr_index,
+                  uint32_t material_expr_index,
+                  CollisionResult::Detail detail = CollisionResult::Detail::StateOnly,
+                  bool allow_exit_payload = true);
+  template<class In>
+  bool ResolveRigidBodyConstraintBreakEventQuery(In &in,
+                  uint32_t object_expr_index,
+                  uint32_t constraint_name_expr_index,
+                  uint32_t match_any_expr_index,
+                  LN_RigidBodyConstraintMatchMode match_mode,
+                  KX_GameObject *&r_owner,
+                  std::string &r_constraint_name,
+                  LN_RigidBodyConstraintMatchMode &r_match_mode);
+  template<class In>
+  const LN_RigidBodyConstraintBreakEvent *ResolveRigidBodyConstraintBreakEvent(In &in,
+                  uint32_t object_expr_index,
+                  uint32_t constraint_name_expr_index,
+                  uint32_t match_any_expr_index,
+                  LN_RigidBodyConstraintMatchMode match_mode);
+  template<class In>
+  int32_t ResolveRigidBodyConstraintBreakEventCount(In &in,
+                  uint32_t object_expr_index,
+                  uint32_t constraint_name_expr_index,
+                  uint32_t match_any_expr_index,
+                  LN_RigidBodyConstraintMatchMode match_mode);
+  template<class In>
+  LN_Value ResolveRigidBodyConstraintBreakEvents(In &in,
+                  uint32_t object_expr_index,
+                  uint32_t constraint_name_expr_index,
+                  uint32_t match_any_expr_index,
+                  LN_RigidBodyConstraintMatchMode match_mode);
   MT_Vector3 ResolveVectorExpression(uint32_t expression_index,
                                      const MT_Vector3 &fallback,
                                      const LN_TickContext &context);
@@ -913,22 +1150,43 @@ class LN_RuntimeTree {
    * the Inventory Rules of the two lists (of `owner`), used unless the node's Override is on;
    * null (a list value, no object) uses the node's own inputs. Their Accept Categories always
    * apply. */
-  InventoryEditResult RunInventoryEdit(const LN_ValueExpression &edit,
-                                       std::vector<LN_Value> &slots,
-                                       const LN_TickContext &context,
-                                       std::vector<LN_Value> *other_slots = nullptr,
-                                       const LN_InventoryRules *list_rules = nullptr,
-                                       const LN_InventoryRules *other_list_rules = nullptr,
-                                       KX_GameObject *owner = nullptr);
+  template<class In>
+  InventoryEditResult RunInventoryEdit(In &in,
+                  const LN_ValueExpression &edit,
+                  std::vector<LN_Value> &slots,
+                  std::vector<LN_Value> *other_slots = nullptr,
+                  const LN_InventoryRules *list_rules = nullptr,
+                  const LN_InventoryRules *other_list_rules = nullptr,
+                  KX_GameObject *owner = nullptr);
   /** Convert references back into this tree's tables after reading a shared value. */
   void LocalizeValue(LN_Value &value);
-  std::vector<LN_RuntimeRef> ResolveIgnoreObjectRefs(uint32_t object_expr_index,
-                                                     uint32_t list_expr_index,
-                                                     const LN_TickContext &context);
-  PHY_IPhysicsController *ResolveRigidBodyAttributeController(uint32_t object_expr_index,
-                                                              const LN_TickContext &context);
+  template<class In>
+  std::vector<LN_RuntimeRef> ResolveIgnoreObjectRefs(In &in,
+                  uint32_t object_expr_index,
+                  uint32_t list_expr_index);
+  template<class In>
+  PHY_IPhysicsController *ResolveRigidBodyAttributeController(In &in,
+                  uint32_t object_expr_index);
   KX_GameObject *FindSceneObjectByName(const std::string &name,
                                        bool include_inactive = false) const;
+  /** Plan A9: what ResolveObjectValue gives a Constant Object value expression with no ref yet
+   * (FindSceneObjectByName without inactive objects), found once for the object list generation
+   * and not by name at every read: the object found first, kept for (scene, generation, ticking)
+   * and, when there was none, kept as "none" until the generation changes; the menu copy rule
+   * (OverlayCounterpart) is applied at every read. UPBGE_LN_CONST_OBJECTS: 0 = the old lookup,
+   * unset/1 = this, verify = this and the old lookup, a "lean const objects differs" warning on a
+   * difference. */
+  KX_GameObject *ResolveConstantObject(uint32_t expression_index, const LN_Value &constant);
+  /** The ref of a constant's object: the one made before while it still names `object`. */
+  LN_RuntimeRef ConstantObjectRef(uint32_t expression_index, KX_GameObject *object);
+
+ public:
+  /** Tests: the mode of ResolveConstantObject (0 old lookup, 1 cached, 2 verify; -1 back to the
+   * environment) and how many differences verify found. */
+  static void SetConstantObjectModeForTests(int mode);
+  static uint32_t ConstantObjectVerifyDifferencesForTests();
+
+ private:
   LN_PhysicsQueryResult RaycastMouseOverTarget(const MT_Vector3 &from,
                                                const MT_Vector3 &to,
                                                KX_GameObject *target_object,
@@ -1029,7 +1287,6 @@ class LN_RuntimeTree {
   uint64_t m_activeExecutionScopeSerial = 0;
   /** Monotonic execution point for command-ordered query cache invalidation. */
   uint64_t m_commandExecutionSerial = 0;
-  bool m_registerExpressionIRHasProductionBenefit = false;
   LN_SnapshotChannelMask m_snapshotChannelMask = LN_SNAPSHOT_CHANNEL_NONE;
   bool m_hasTimeFlowRuntimeState = false;
   bool m_hasQueryExpressions = false;
@@ -1039,6 +1296,10 @@ class LN_RuntimeTree {
   LN_StateBlockMemory m_stateBlock;
   LN_StateSpan<InstructionStamp> m_instructionStamps;
   RegisterExpressionRuntimeState m_registerExpressionState;
+  /** The per-tick memo (plan A15): counts the reads of expressions that may change within a tick
+   * (LN_MEMO_TAINTS); an expression is kept only when the count did not move while it was worked
+   * out. */
+  uint32_t m_memoTaint = 0;
   LN_StateSpan<QueryExpressionRuntimeState> m_queryExpressionStates;
   LN_StateSpan<BoolExpressionRuntimeState> m_boolStates;
   LN_StateSpan<FloatExpressionRuntimeState> m_floatStates;
@@ -1059,13 +1320,22 @@ class LN_RuntimeTree {
   StateOverflow &Overflow();
   std::unordered_map<uint32_t, UICommandCompletionState> m_uiCommandCompletions;
   std::unordered_map<uint32_t, ActionCompletionState> m_actionCompletions;
-  std::vector<LN_Rotation> m_rotationExpressionValues;
-  std::vector<uint64_t> m_rotationExpressionTicks;
   uint64_t m_collisionResultsTick = UINT64_MAX;
   std::vector<CollisionResult> m_collisionResults;
   std::vector<CollisionEventPayload> m_collisionEventPayloads;
   CollisionResult m_collisionExitPayloadScratch;
   std::vector<ObjectRefSlot> m_objectRefs;
+  /** ResolveConstantObject's memory, one entry per Constant Object expression this tree read. */
+  struct ConstantObjectEntry {
+    uint32_t expression_index = LN_INVALID_INDEX;
+    const void *scene_key = nullptr;
+    uint64_t generation = 0;
+    bool ticking = false;
+    bool resolved = false;
+    KX_GameObject *base = nullptr;
+    LN_RuntimeRef ref;
+  };
+  std::vector<ConstantObjectEntry> m_constantObjects;
   std::vector<RuntimeRefSlot> m_runtimeRefs;
   std::vector<LN_Value> m_treeProperties;
   std::vector<LoopRuntimeState> m_loopStates;

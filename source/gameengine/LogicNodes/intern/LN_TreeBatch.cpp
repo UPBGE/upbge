@@ -12,9 +12,11 @@
  * node added later, keeps its programs out of batches until it is added here.
  */
 
+#include "LN_KindCatalog.h"
 #include "LN_TreeBatch.h"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -44,9 +46,6 @@ bool vector_end_is_fixed(const LN_Program &program, const uint32_t input)
     case LN_VectorExpressionKind::Constant:
       return true;
     /* The tree's own snapshot: taken before the tick's trees record. */
-    case LN_VectorExpressionKind::SnapshotWorldPosition:
-    case LN_VectorExpressionKind::SnapshotLocalPosition:
-      return expression.input0 == LN_INVALID_INDEX;
     default:
       return false;
   }
@@ -92,6 +91,38 @@ bool distance_reads_owner(const LN_Program &program, const LN_QueryExpression &e
           value_is_owner(program, expression.input0)) ||
          (expression.distance_endpoint_b == LN_DistanceEndpointMode::Object &&
           expression.input1 != LN_INVALID_INDEX && value_is_owner(program, expression.input1));
+}
+
+/** UPBGE_LN_BATCH_WIDE (plan phase B0): 0 keeps the allow lists of step 7 only; anything else (the
+ * default) also lets the reads of the plan's B0 audit join a batch. */
+std::optional<int> &batch_wide_for_tests()
+{
+  static std::optional<int> value;
+  return value;
+}
+
+bool batch_wide()
+{
+  if (const std::optional<int> &value = batch_wide_for_tests()) {
+    return *value != 0;
+  }
+  static const bool wide = []() {
+    const char *value = std::getenv("UPBGE_LN_BATCH_WIDE");
+    return value == nullptr || value[0] == '\0' || std::strcmp(value, "0") != 0;
+  }();
+  return wide;
+}
+
+/** The constant text of a string input, or null when the input is not a constant. */
+const std::string *constant_text(const LN_Program &program, const uint32_t input)
+{
+  const std::vector<LN_StringExpression> &strings = program.GetStringExpressions();
+  if (input == LN_INVALID_INDEX || input >= strings.size() ||
+      strings[input].kind != LN_StringExpressionKind::Constant)
+  {
+    return nullptr;
+  }
+  return &strings[input].string_value;
 }
 
 const char *bool_kind_refusal(const LN_BoolExpression &expression)
@@ -150,7 +181,6 @@ const char *bool_kind_refusal(const LN_BoolExpression &expression)
     case LN_BoolExpressionKind::RepeatLimitAccepted:
     case LN_BoolExpressionKind::RepeatLimitBlocked:
     case LN_BoolExpressionKind::RepeatLimitExhausted:
-    case LN_BoolExpressionKind::Timer:
     case LN_BoolExpressionKind::LoopActive:
     case LN_BoolExpressionKind::ValueChanged:
     case LN_BoolExpressionKind::ValueChangedTo:
@@ -294,12 +324,6 @@ const char *vector_kind_refusal(const LN_VectorExpression &expression)
   switch (expression.kind) {
     case LN_VectorExpressionKind::Constant:
     /* Transforms of the owner (its snapshot) or of another object, read as they are. */
-    case LN_VectorExpressionKind::SnapshotWorldPosition:
-    case LN_VectorExpressionKind::SnapshotLocalPosition:
-    case LN_VectorExpressionKind::SnapshotWorldOrientation:
-    case LN_VectorExpressionKind::SnapshotLocalOrientation:
-    case LN_VectorExpressionKind::SnapshotWorldScale:
-    case LN_VectorExpressionKind::SnapshotLocalScale:
     case LN_VectorExpressionKind::SnapshotGravity:
     case LN_VectorExpressionKind::WindowResolution:
     case LN_VectorExpressionKind::Add:
@@ -334,10 +358,6 @@ const char *vector_kind_refusal(const LN_VectorExpression &expression)
     case LN_VectorExpressionKind::FromColor:
       return nullptr;
     /* Velocities of another object go through its physics body. */
-    case LN_VectorExpressionKind::SnapshotLinearVelocity:
-    case LN_VectorExpressionKind::SnapshotLocalLinearVelocity:
-    case LN_VectorExpressionKind::SnapshotAngularVelocity:
-    case LN_VectorExpressionKind::SnapshotLocalAngularVelocity:
     case LN_VectorExpressionKind::SnapshotCharacterGravity:
     case LN_VectorExpressionKind::SnapshotCharacterWalkDirection:
     case LN_VectorExpressionKind::SnapshotCharacterLocalWalkDirection:
@@ -364,9 +384,29 @@ const char *color_kind_refusal(const LN_ColorExpression &expression)
   }
 }
 
-const char *value_kind_refusal(const LN_ValueExpression &expression)
+const char *value_kind_refusal(const LN_Program &program, const LN_ValueExpression &expression)
 {
   switch (expression.kind) {
+    /* Get Object Attribute of the owner or of a constant object (plan phase B0): a transform,
+     * the colour, the visibility, the name or a game property, read as it is. Nothing a batch
+     * runs changes the scene and the read applies no pending move (unlike Get Distance), so it
+     * gives the same answer on any thread. Velocities go through the physics body: not here. */
+    case LN_ValueExpressionKind::ObjectAttribute: {
+      if (!batch_wide()) {
+        return "a value node that is not batch safe";
+      }
+      if (!object_end_is_fixed(program, expression.input0)) {
+        return "an attribute of an object that is not the owner or a constant object";
+      }
+      const std::string *name = constant_text(program, expression.input1);
+      if (name == nullptr || name->empty()) {
+        return "an attribute that is chosen while the game runs";
+      }
+      if (name->find("elocity") != std::string::npos) {
+        return "an object's velocity";
+      }
+      return nullptr;
+    }
     case LN_ValueExpressionKind::Constant:
       switch (expression.value.type) {
         case LN_ValueType::SceneRef:
@@ -376,9 +416,7 @@ const char *value_kind_refusal(const LN_ValueExpression &expression)
         default:
           return nullptr;
       }
-    case LN_ValueExpressionKind::SnapshotGameProperty:
     case LN_ValueExpressionKind::RuntimeTreeProperty:
-    case LN_ValueExpressionKind::Select:
     case LN_ValueExpressionKind::Mix:
     case LN_ValueExpressionKind::FromBool:
     case LN_ValueExpressionKind::FromInt:
@@ -800,7 +838,10 @@ LN_TreeBatchProfile LN_AnalyzeTreeBatchSafety(const LN_Program &program)
     reason = first_refusal(program.GetColorExpressions(), color_kind_refusal);
   }
   if (reason == nullptr) {
-    reason = first_refusal(program.GetValueExpressions(), value_kind_refusal);
+    reason = first_refusal(program.GetValueExpressions(),
+                           [&](const LN_ValueExpression &expression) {
+                             return value_kind_refusal(program, expression);
+                           });
   }
   if (reason == nullptr) {
     reason = first_refusal(program.GetQueryExpressions(),
@@ -906,6 +947,81 @@ LN_TreeBatchMode tree_batch_mode_from_environment()
 
 }  // namespace
 
+namespace {
+std::atomic<int> g_block_mode_override{-1};
+std::atomic<uint64_t> g_block_lanes{0};
+}  // namespace
+
+LN_TreeBlockMode LN_GetBlockMode()
+{
+  const int override_mode = g_block_mode_override.load(std::memory_order_relaxed);
+  if (override_mode >= 0) {
+    return LN_TreeBlockMode(override_mode > 2 ? 2 : override_mode);
+  }
+  static const LN_TreeBlockMode mode = []() {
+    const char *value = std::getenv("UPBGE_LN_BLOCKS");
+    if (value == nullptr || value[0] == '\0' || std::strcmp(value, "0") == 0 ||
+        std::strcmp(value, "off") == 0)
+    {
+      return LN_TreeBlockMode::Off;
+    }
+    if (std::strcmp(value, "force") == 0 || std::strcmp(value, "2") == 0) {
+      return LN_TreeBlockMode::Force;
+    }
+    return LN_TreeBlockMode::Auto;
+  }();
+  return mode;
+}
+
+void LN_SetBlockModeForTests(const int mode)
+{
+  g_block_mode_override.store(mode < 0 ? -1 : (mode > 2 ? 2 : mode), std::memory_order_relaxed);
+}
+
+uint64_t LN_BlockLaneCount()
+{
+  return g_block_lanes.load(std::memory_order_relaxed);
+}
+
+void LN_NoteBlockLanes(const size_t lanes)
+{
+  g_block_lanes.fetch_add(lanes, std::memory_order_relaxed);
+}
+
+namespace {
+int parallel_capture_setting()
+{
+  static const int setting = []() {
+    const char *value = std::getenv("UPBGE_LN_CAPTURE_PARALLEL");
+    if (value == nullptr || value[0] == '\0') {
+      return 1;
+    }
+    if (std::strcmp(value, "0") == 0) {
+      return 0;
+    }
+    return std::strcmp(value, "force") == 0 ? 2 : 1;
+  }();
+  return setting;
+}
+}  // namespace
+
+size_t LN_ParallelCaptureMinTrees()
+{
+  switch (parallel_capture_setting()) {
+    case 0:
+      return SIZE_MAX;
+    case 2:
+      return 2;
+    default:
+      return LN_PARALLEL_CAPTURE_MIN_TREES;
+  }
+}
+
+size_t LN_ParallelCaptureMinChunk()
+{
+  return parallel_capture_setting() == 2 ? 1 : LN_PARALLEL_CAPTURE_MIN_CHUNK;
+}
+
 LN_TreeBatchMode LN_GetTreeBatchMode()
 {
   if (const std::optional<LN_TreeBatchMode> &mode = tree_batch_mode_for_tests()) {
@@ -913,6 +1029,16 @@ LN_TreeBatchMode LN_GetTreeBatchMode()
   }
   static const LN_TreeBatchMode mode = tree_batch_mode_from_environment();
   return mode;
+}
+
+void LN_SetBatchWideForTests(const int wide)
+{
+  if (wide < 0) {
+    batch_wide_for_tests().reset();
+  }
+  else {
+    batch_wide_for_tests() = wide;
+  }
 }
 
 void LN_SetTreeBatchModeForTests(const LN_TreeBatchMode mode)
@@ -935,7 +1061,6 @@ size_t LN_TreeBatchRecorder::Record(LN_JobPool &pool,
                                     const LN_TickContext &context,
                                     LN_RuntimeProfileCounters *profile_counters,
                                     LN_Manager *manager,
-                                    const bool typed_command_streams,
                                     size_t chunk_count)
 {
   m_treesThatReadAMove.clear();
@@ -946,11 +1071,17 @@ size_t LN_TreeBatchRecorder::Record(LN_JobPool &pool,
   while (m_chunks.size() < chunk_count) {
     m_chunks.push_back(std::make_unique<LN_CommandBuffer>());
   }
+  /* Lean programs are made on the main thread only (plan phase A17): before the chunks go to the
+   * helpers, every tree's program has its lean form if the mode asks for one. */
+  if (LN_GetLeanMode() != LN_LeanMode::Off) {
+    for (size_t index = 0; index < count; index++) {
+      trees[index]->PrepareLeanProgram();
+    }
+  }
   /* The chunks' reads look for pending moves in the tick's buffer too (the safety net). */
   buffer.PrepareForChunkReads();
   for (size_t chunk = 0; chunk < chunk_count; chunk++) {
     m_chunks[chunk]->SetLogicManager(manager);
-    m_chunks[chunk]->SetTypedCommandStreamsEnabled(typed_command_streams);
     m_chunks[chunk]->SetChunkTickBuffer(&buffer);
   }
 
@@ -960,9 +1091,30 @@ size_t LN_TreeBatchRecorder::Record(LN_JobPool &pool,
   pool.Run(chunk_count, [&](const size_t chunk, uint32_t /*thread*/) {
     LN_CommandBuffer &chunk_buffer = *m_chunks[chunk];
     chunk_buffer.BeginChunkRecording();
-    for (size_t index = first_tree(chunk); index < first_tree(chunk + 1); index++) {
+    const size_t chunk_end = first_tree(chunk + 1);
+    const LN_TreeBlockMode block_mode = LN_GetBlockMode();
+    const bool blocks = block_mode != LN_TreeBlockMode::Off && profile_counters == nullptr;
+    const size_t min_lanes = block_mode == LN_TreeBlockMode::Force ? 2 : LN_TREE_BLOCK_MIN_LANES;
+    for (size_t index = first_tree(chunk); index < chunk_end;) {
+      if (blocks && trees[index]->BlockEligible(context.event)) {
+        /* Consecutive trees of the same program run together, op by op. */
+        const LN_Program *program = trees[index]->GetProgramPointer();
+        size_t end = index + 1;
+        while (end < chunk_end && end - index < LN_TREE_BLOCK_MAX_LANES &&
+               trees[end]->GetProgramPointer() == program && trees[end]->BlockEligible(context.event))
+        {
+          end++;
+        }
+        if (end - index >= min_lanes) {
+          LN_RuntimeTree::RunBlock(chunk_buffer, context, trees + index, end - index);
+          LN_NoteBlockLanes(end - index);
+          index = end;
+          continue;
+        }
+      }
       trees[index]->ExecuteReady(
           chunk_buffer, context, profile_counters ? &profile_counters[index] : nullptr);
+      index++;
     }
     chunk_buffer.EndChunkRecording();
   });
@@ -983,4 +1135,61 @@ size_t LN_TreeBatchRecorder::Record(LN_JobPool &pool,
                                                            join_start)
                      .count();
   return chunks_that_read_a_move;
+}
+
+const char *LN_BatchKindRefusalForTests(const uint8_t domain, const uint16_t value)
+{
+  switch (LN_KindDomain(domain)) {
+    case LN_KindDomain::Op: {
+      const LN_Program program;
+      LN_Instruction instruction;
+      instruction.opcode = LN_OpCode(value);
+      return op_refusal(program, instruction);
+    }
+    case LN_KindDomain::Bool: {
+      LN_BoolExpression expression;
+      expression.kind = LN_BoolExpressionKind(value);
+      return bool_kind_refusal(expression);
+    }
+    case LN_KindDomain::Int: {
+      LN_IntExpression expression;
+      expression.kind = LN_IntExpressionKind(value);
+      return int_kind_refusal(expression);
+    }
+    case LN_KindDomain::Float: {
+      LN_FloatExpression expression;
+      expression.kind = LN_FloatExpressionKind(value);
+      return float_kind_refusal(expression);
+    }
+    case LN_KindDomain::String: {
+      LN_StringExpression expression;
+      expression.kind = LN_StringExpressionKind(value);
+      return string_kind_refusal(expression);
+    }
+    case LN_KindDomain::Vector: {
+      LN_VectorExpression expression;
+      expression.kind = LN_VectorExpressionKind(value);
+      return vector_kind_refusal(expression);
+    }
+    case LN_KindDomain::Color: {
+      LN_ColorExpression expression;
+      expression.kind = LN_ColorExpressionKind(value);
+      return color_kind_refusal(expression);
+    }
+    case LN_KindDomain::Value: {
+      const LN_Program program;
+      LN_ValueExpression expression;
+      expression.kind = LN_ValueExpressionKind(value);
+      return value_kind_refusal(program, expression);
+    }
+    case LN_KindDomain::Query: {
+      const LN_Program program;
+      LN_QueryExpression expression;
+      expression.kind = LN_QueryExpressionKind(value);
+      return query_refusal(program, expression);
+    }
+    case LN_KindDomain::Count:
+      break;
+  }
+  return "not a kind";
 }

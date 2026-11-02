@@ -99,6 +99,199 @@ def flow_input(node):
     raise KeyError(f"{node.bl_idname} has no Flow input socket")
 
 
+# Math node operations of the brain_crowd probe and what each must give for A (the NPC's "a"
+# property) and B ("b"); the same table is used by the probe's builder and by its check.
+BRAIN_CROWD_MATH_OPS = (
+    "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE", "POWER", "MINIMUM", "MAXIMUM", "ABSOLUTE", "SIGN",
+    "ROUND", "FLOOR", "CEIL", "TRUNC", "FRACT", "MODULO", "SINE", "COSINE", "RADIANS", "DEGREES")
+
+# The check of the brain_crowd probe, put into both runners' check_owner (the player's main loop
+# and the editor's controller are separate scripts, so it is spliced into each at the placeholder
+# `# __BRAIN_CROWD_CHECK__`). About 100 NPCs on Logic + Physics steps measure the distance to a
+# Player at the origin (a constant Object), walk on when nearer than 6 m or else turn and walk
+# (local moves and rotations), store the distance, grow 4 bookkeeping chains and compute one Math
+# node of each operation. Each NPC's stored distance and final position are checked against a
+# plain Python replay of its own steps (counted by its first chain), every chain against the step
+# count, every Math result against Python's own math.
+BRAIN_CROWD_CHECK = r'''
+    if mode == "brain_crowd":
+        scene = owner.scene
+        prefix = str(owner.get("__ln_acceptance_prefix", ""))
+        count = int(owner.get("__ln_acceptance_count", 0))
+        math_ops = str(owner.get("__ln_acceptance_math_ops", "")).split(",")
+        chains = int(owner.get("__ln_acceptance_chains", 0))
+        npcs = [scene.objects.get("%s%d" % (prefix, index)) for index in range(count)]
+        found = count > 0 and None not in npcs
+        result = {"mode": mode, "count": count, "found": found}
+        if not found:
+            return False, result
+
+        def reference(op, a, b):
+            if op == "ADD":
+                return a + b
+            if op == "SUBTRACT":
+                return a - b
+            if op == "MULTIPLY":
+                return a * b
+            if op == "DIVIDE":
+                return a / b
+            if op == "POWER":
+                return a ** b
+            if op == "MINIMUM":
+                return min(a, b)
+            if op == "MAXIMUM":
+                return max(a, b)
+            if op == "ABSOLUTE":
+                return abs(a)
+            if op == "SIGN":
+                return (a > 0.0) - (a < 0.0)
+            if op == "ROUND":
+                return None if abs(a - math.floor(a) - 0.5) < 1.0e-3 else float(math.floor(a + 0.5))
+            if op == "FLOOR":
+                return float(math.floor(a))
+            if op == "CEIL":
+                return float(math.ceil(a))
+            if op == "TRUNC":
+                return float(math.trunc(a))
+            if op == "FRACT":
+                return a - math.floor(a)
+            if op == "MODULO":
+                return math.fmod(a, b)
+            if op == "SINE":
+                return math.sin(a)
+            if op == "COSINE":
+                return math.cos(a)
+            if op == "RADIANS":
+                return math.radians(a)
+            if op == "DEGREES":
+                return math.degrees(a)
+            raise KeyError(op)
+
+        step_counts = []
+        worst = {"dist": 0.0, "pos": 0.0, "chain": 0.0, "math": 0.0, "math_op": ""}
+        near_start = far_start = 0
+        problems = []
+        for npc in npcs:
+            steps = int(round(float(npc.get("t0", -1.0)) / 0.01))
+            step_counts.append(steps)
+            # Chains: each grew 0.01 a step (float32 sums, so a loose relative bound).
+            for chain in range(chains):
+                value = float(npc.get("t%d" % chain, -1.0))
+                worst["chain"] = max(worst["chain"], abs(value - 0.01 * steps))
+                if abs(value - 0.01 * steps) > 1.0e-4 * max(1.0, steps):
+                    problems.append("%s t%d=%r after %d steps" % (npc.name, chain, value, steps))
+            # A plain replay of the NPC's steps.
+            x = float(npc.get("x0", 0.0))
+            y = float(npc.get("y0", 0.0))
+            yaw = 0.0
+            last = math.hypot(x, y)
+            if last < 6.0:
+                near_start += 1
+            else:
+                far_start += 1
+            for _ in range(steps):
+                last = math.hypot(x, y)
+                if last < 6.0:
+                    x += -0.002 * math.sin(yaw)
+                    y += 0.002 * math.cos(yaw)
+                else:
+                    yaw += 0.002
+                    x += -0.001 * math.sin(yaw)
+                    y += 0.001 * math.cos(yaw)
+            position = npc.worldPosition
+            worst["dist"] = max(worst["dist"], abs(float(npc.get("dist", -1.0)) - last))
+            worst["pos"] = max(worst["pos"], abs(position[0] - x), abs(position[1] - y))
+            a = float(npc.get("a", 0.0))
+            b = float(npc.get("b", 1.0))
+            for op in math_ops:
+                expected = reference(op, a, b)
+                if expected is None:
+                    continue
+                got = float(npc.get("m_" + op, 1.0e30))
+                error = abs(got - expected) / max(1.0, abs(expected))
+                if error > worst["math"]:
+                    worst["math"] = error
+                    worst["math_op"] = op
+        result.update({"steps_min": min(step_counts), "steps_max": max(step_counts),
+                       "near_start": near_start, "far_start": far_start, "worst": worst,
+                       "problems": problems[:5]})
+        ok = (min(step_counts) >= 40 and min(step_counts) == max(step_counts) and
+              near_start > 0 and far_start > 0 and not problems and
+              worst["dist"] < 5.0e-4 and worst["pos"] < 5.0e-4 and worst["math"] < 1.0e-4)
+        return ok, result
+'''
+
+# The check of the uncovered_nodes probe (lean runtime plan, phase A5), spliced into both runners
+# at `# __UNCOVERED_NODES_CHECK__` like BRAIN_CROWD_CHECK. A tree on the owner reads the nodes that
+# have no unit test (they need a scene) and writes each result into a property of the owner; this
+# compares the properties with what the scene was built to give.
+UNCOVERED_NODES_CHECK = r'''
+    if mode == "uncovered_nodes":
+        def prop(name, default=None):
+            return owner.get(name, default)
+
+        def near(name, expected, tolerance=1.0e-4):
+            value = prop(name)
+            return value is not None and abs(float(value) - expected) <= tolerance
+
+        names = {key: str(prop("__ln_acceptance_" + key, "")) for key in (
+            "target", "mat0", "mat1", "coll0", "coll1", "coll2", "ray_target")}
+        rows = {
+            "FindObject name": prop("f_name") == names["target"],
+            "FindObject position x": near("f_x", 3.0),
+            "FindObject distance": near("f_dist", 5.0),
+            "CollectionObjectNames count": prop("c_count") == 3,
+            "CollectionObjectNames names": {prop("c_0"), prop("c_1"), prop("c_2")} == {
+                names["coll0"], names["coll1"], names["coll2"]},
+            "MaterialSlotCount": prop("m_count") == 2,
+            "MaterialFromSlot found": prop("m_found") is True,
+            "MaterialFromSlot name": prop("m_slot1_name") == names["mat1"],
+            "MaterialFromSlot out of range": prop("m_found_far") is False,
+            "MaterialName": prop("m_name") == names["mat0"],
+            "RigidBody plain object not valid": prop("rb_valid_plain") is False,
+            "RigidBody valid": prop("rb_valid") is True,
+            "RigidBody mass": near("rb_mass", 3.0),
+            "RigidBody gravity factor": near("rb_gravity", 0.5),
+            "RigidBody damping": near("rb_lin", 0.3, 1.0e-3) and near("rb_ang", 0.4, 1.0e-3),
+            "LogicTreeStatus own running": prop("t_running") is True,
+            "LogicTreeStatus own not stopped": prop("t_stopped") is False,
+            "LogicTreeStatus unknown not running": prop("t_other_running") is False,
+            "LogicTreeStatus unknown stopped": prop("t_other_stopped") is True,
+            "ActionDone with no action": prop("a_done") is True,
+            # Fixed in A15 (lean plan bug B4): the node reads the evaluated curve object, so a
+            # straight curve from x 0 to 4 gives x 0, 2, 4 at the factors 0, 0.5, 1 and y 0.
+            # (Flipped in A15; verified at the next checkpoint with game windows.)
+            "EvaluateCurve follows the curve": near("cv0_x", 0.0, 1.0e-3) and
+                near("cv5_x", 2.0, 1.0e-3) and near("cv1_x", 4.0, 1.0e-3) and all(
+                    near(name, 0.0, 1.0e-3) for name in ("cv0_y", "cv5_y", "cv1_y")),
+            "BoneTailWorld": near("bt_x", 2.0) and near("bt_y", 3.0) and near("bt_z", 5.0),
+            "BoneTailPoseWorld": near("bp_x", 2.0) and near("bp_y", 3.0) and near("bp_z", 5.0),
+            "BoneCenterPoseWorld": near("bc_x", 2.0) and near("bc_y", 3.0) and near("bc_z", 4.5),
+            "ItemInfo found": prop("i_found") is True,
+            "ItemInfo name": prop("i_name") == "Red Apple",
+            "ItemInfo max stack": prop("i_stack") == 16,
+            "ItemInfo category": prop("i_category") == "food",
+            "ItemInfo description": prop("i_description") == "A fruit",
+            "ItemInfo missing item": prop("i_found_missing") is False,
+            "StartLogicTree started the second tree": prop("second_runs", 0) >= 5 and
+                prop("t2_running") is True,
+            # Camera Ray reads its Camera input since A15 (lean plan bug B5) when that camera has
+            # been drawn with (it has a projection matrix); this probe's camera is never drawn, so
+            # it casts from the scene's active camera, as before. Which camera that is differs by
+            # runner (the editor's own view or the scene's), so only "it hits something solid" is
+            # checked: the owner at the origin from the editor's view, the ray target when the
+            # active camera is this probe's camera.
+            "CameraRay hit a solid object": prop("cr_found") is True and prop("cr_name") in (
+                owner.name, names["ray_target"]),
+        }
+        result = {"mode": mode, "failed": [name for name, ok in rows.items() if not ok],
+                  "checked": len(rows)}
+        result["values"] = {key: prop(key) for key in sorted(owner.getPropertyNames())
+                            if not key.startswith("__")}
+        return not result["failed"], result
+'''
+
+
 GAME_CONTROLLER_SCRIPT = r'''
 import json
 import math
@@ -1591,6 +1784,10 @@ def check_owner(owner):
               values["steps"] >= 12.0)
         values["mode"] = mode
         return ok, values
+
+    # __BRAIN_CROWD_CHECK__
+
+    # __UNCOVERED_NODES_CHECK__
 
     if mode == "every_n_steps":
         scene = owner.scene
@@ -4147,7 +4344,7 @@ if mode == "smooth_motion":
     check_now = drive_smooth_motion(owner)
 if mode == "frame_pacing":
     check_now = drive_frame_pacing(owner)
-if mode in ("run_logic_tree_once", "every_n_steps"):
+if mode in ("run_logic_tree_once", "every_n_steps", "brain_crowd", "uncovered_nodes"):
     # Real time, so enough Logic + Physics steps ran whatever the frame rate.
     start_key = "__ln_acceptance_run_once_start_" + owner.get("__ln_acceptance_run", "unknown")
     start_time = float(bge.logic.globalDict.get(start_key, 0.0))
@@ -5703,6 +5900,10 @@ def check_owner(owner):
               values["steps"] >= 12.0)
         values["mode"] = mode
         return ok, values
+
+    # __BRAIN_CROWD_CHECK__
+
+    # __UNCOVERED_NODES_CHECK__
 
     if mode == "every_n_steps":
         scene = owner.scene
@@ -8294,7 +8495,7 @@ while not bge.logic.NextFrame():
         check_now = drive_smooth_motion(owner)
     if mode == "frame_pacing":
         check_now = drive_frame_pacing(owner)
-    if mode in ("run_logic_tree_once", "every_n_steps"):
+    if mode in ("run_logic_tree_once", "every_n_steps", "brain_crowd", "uncovered_nodes"):
         # Real time, so enough Logic + Physics steps ran whatever the frame rate.
         start_key = "__ln_acceptance_run_once_start_" + owner.get(
             "__ln_acceptance_run", "unknown")
@@ -8359,6 +8560,15 @@ while not bge.logic.NextFrame():
 
 os._exit(0)
 '''
+
+
+# The brain_crowd and uncovered_nodes checks go into both runners' scripts (see BRAIN_CROWD_CHECK).
+GAME_CONTROLLER_SCRIPT = GAME_CONTROLLER_SCRIPT.replace(
+    "    # __BRAIN_CROWD_CHECK__\n", BRAIN_CROWD_CHECK).replace(
+    "    # __UNCOVERED_NODES_CHECK__\n", UNCOVERED_NODES_CHECK)
+PLAYER_MAINLOOP_SCRIPT = PLAYER_MAINLOOP_SCRIPT.replace(
+    "    # __BRAIN_CROWD_CHECK__\n", BRAIN_CROWD_CHECK).replace(
+    "    # __UNCOVERED_NODES_CHECK__\n", UNCOVERED_NODES_CHECK)
 
 
 def parse_args():
@@ -11873,6 +12083,411 @@ def run_every_n_steps_acceptance(status_path):
     set_game_property(clock, "__ln_acceptance_same", "STRING",
                       ",".join(game_object.name for game_object in same))
     run_game_once(clock, "every_n_steps_0", status_path)
+
+
+def build_brain_crowd_tree(tree, player, chains):
+    """The 26 Oct benchmark brain (research.py brain_of) plus one Math node of each operation, on
+    Logic + Physics steps: the distance to `player` (a constant Object), nearer than 6 m walk on
+    (local move), else turn and walk; the distance is stored in "dist"; `chains` chains read a
+    property, add 0.01 and write it back; and for each Math operation m_<op> = Math(a, b)."""
+    update = tree.nodes.new("LogicNativeOnFixedUpdate").outputs["Out"]
+    distance = tree.nodes.new("LogicNativeGetDistance")
+    distance.inputs["Object B"].default_value = player
+    near = tree.nodes.new("LogicNativeCompare")
+    near.operation = 'LESS_THAN'
+    near.inputs["B"].default_value = 6.0
+    tree.links.new(distance.outputs[0], near.inputs["A"])
+    branch = tree.nodes.new("LogicNativeBranch")
+    tree.links.new(update, branch.inputs["Flow"])
+    tree.links.new(near.outputs["Result"], branch.inputs["Condition"])
+    approach = tree.nodes.new("LogicNativeApplyMovement")
+    approach.inputs["Vector"].default_value = (0.0, 0.002, 0.0)
+    approach.inputs["Local"].default_value = True
+    tree.links.new(branch.outputs["True"], approach.inputs["Flow"])
+    turn = tree.nodes.new("LogicNativeApplyRotation")
+    turn.inputs["Rotation"].default_value = (0.0, 0.0, 0.002)
+    turn.inputs["Local"].default_value = True
+    tree.links.new(branch.outputs["False"], turn.inputs["Flow"])
+    walk = tree.nodes.new("LogicNativeApplyMovement")
+    walk.inputs["Vector"].default_value = (0.0, 0.001, 0.0)
+    walk.inputs["Local"].default_value = True
+    tree.links.new(turn.outputs["Done"], walk.inputs["Flow"])
+    store = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    store.inputs["Property"].default_value = "dist"
+    tree.links.new(distance.outputs[0], store.inputs["Value"])
+    tree.links.new(update, store.inputs["Flow"])
+    previous = store.outputs["Done"]
+    for index in range(chains):
+        previous = build_add_property_chain(tree, previous, f"t{index}", 0.01)
+    read_a = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+    read_a.inputs["Property"].default_value = "a"
+    read_b = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+    read_b.inputs["Property"].default_value = "b"
+    for op in BRAIN_CROWD_MATH_OPS:
+        math_node = tree.nodes.new("LogicNativeMath")
+        math_node.operation = op
+        tree.links.new(read_a.outputs[0], math_node.inputs["A"])
+        tree.links.new(read_b.outputs[0], math_node.inputs["B"])
+        write = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+        write.inputs["Property"].default_value = "m_" + op
+        tree.links.new(math_node.outputs["Result"], write.inputs["Value"])
+        tree.links.new(previous, write.inputs["Flow"])
+        previous = write.outputs["Done"]
+
+
+def build_add_property_chain(tree, previous, property_name, amount):
+    """Flow `previous` -> the Float game property `property_name` + `amount`. Returns Done."""
+    read = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+    read.inputs["Property"].default_value = property_name
+    add = tree.nodes.new("LogicNativeMath")
+    add.operation = 'ADD'
+    add.inputs["B"].default_value = amount
+    tree.links.new(read.outputs[0], add.inputs["A"])
+    write = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    write.inputs["Property"].default_value = property_name
+    tree.links.new(add.outputs["Result"], write.inputs["Value"])
+    tree.links.new(previous, write.inputs["Flow"])
+    return write.outputs["Done"]
+
+
+def run_brain_crowd_acceptance(status_path):
+    """About 100 NPCs on Logic + Physics steps run the benchmark brain (distance to a constant
+    Player, Compare, Branch, local Apply Movement / Apply Rotation, chains of Set Game Property
+    Float) and one Math node of each of its 19 operations (A1 baseline of the lean runtime plan).
+    The check replays each NPC's steps in plain Python (see BRAIN_CROWD_CHECK). Run it with
+    UPBGE_LN_BATCHES=force too: the NPCs then record as one batch, with the same result."""
+    reset_scene()
+    configure_game_settings(True)
+    count = 100
+    chains = 4
+    player = create_cube(f"{PREFIX}_CrowdPlayer")
+    player.location = (0.0, 0.0, 0.0)
+    set_game_property(player, "steps", "FLOAT", 0.0)
+    tree = new_logic_tree(f"{PREFIX}_CrowdBrain")
+    build_brain_crowd_tree(tree, player, chains)
+
+    template = create_cube(f"{PREFIX}_Crowd0")
+    for name in ("dist", "a", "b", "x0", "y0"):
+        set_game_property(template, name, "FLOAT", 0.0)
+    for index in range(chains):
+        set_game_property(template, f"t{index}", "FLOAT", 0.0)
+    for op in BRAIN_CROWD_MATH_OPS:
+        set_game_property(template, "m_" + op, "FLOAT", 0.0)
+    bind_tree(template, tree.name, True)
+    npcs = [template]
+    for index in range(1, count):
+        npc = template.copy()
+        npc.name = f"{PREFIX}_Crowd{index}"
+        bpy.context.scene.collection.objects.link(npc)
+        npcs.append(npc)
+    for index, npc in enumerate(npcs):
+        # A ring from 3 m to 9 m out: near ones approach, far ones turn and walk.
+        angle = index * 2.399963  # the golden angle: no two NPCs on one ray
+        radius = 3.0 + 6.0 * index / count
+        x, y = radius * math.cos(angle), radius * math.sin(angle)
+        npc.location = (x, y, 0.0)
+        npc.game.properties["x0"].value = x
+        npc.game.properties["y0"].value = y
+        npc.game.properties["a"].value = 0.31 + 0.37 * index
+        npc.game.properties["b"].value = 1.5 + 0.11 * index
+
+    add_status_controller(player, status_path, "brain_crowd", required_frame=2,
+                          required_seconds=1.5)
+    set_game_property(player, "__ln_acceptance_prefix", "STRING", f"{PREFIX}_Crowd")
+    set_game_property(player, "__ln_acceptance_count", "INT", count)
+    set_game_property(player, "__ln_acceptance_chains", "INT", chains)
+    set_game_property(player, "__ln_acceptance_math_ops", "STRING",
+                      ",".join(BRAIN_CROWD_MATH_OPS))
+    run_game_once(player, "brain_crowd_0", status_path)
+
+
+def build_uncovered_nodes_tree(tree, refs):
+    """Reads of the nodes that have no unit test (they need a scene) on Logic + Physics steps, each
+    written into a property of the owner: Find Object, Get Collection Object Names, the material
+    reads, Get Rigid Body Attribute (a plain object and a rigid body), Logic Tree Status, Action
+    Done, Evaluate Curve, the three bone world reads and Get Item Info. `refs` holds the Blender
+    objects, materials and collections the nodes point at."""
+    update = tree.nodes.new("LogicNativeOnFixedUpdate").outputs["Out"]
+    state = {"previous": update}
+
+    def run(kind, property_name, source=None, constant=None, value_pin="Value"):
+        node = tree.nodes.new(kind)
+        node.inputs["Property"].default_value = property_name
+        if source is not None:
+            tree.links.new(source, node.inputs[value_pin])
+        elif constant is not None:
+            node.inputs[value_pin].default_value = constant
+        tree.links.new(state["previous"], node.inputs["Flow"])
+        state["previous"] = node.outputs["Done"]
+        return node
+
+    def put_float(name, source):
+        run("LogicNativeSetGamePropertyFloat", name, source)
+
+    def put_int(name, source):
+        run("LogicNativeSetGamePropertyInt", name, source)
+
+    def put_bool(name, source):
+        run("LogicNativeSetGamePropertyBool", name, source)
+
+    def put_string(name, source):
+        run("LogicNativeSetGamePropertyString", name, source)
+
+    def put_vector(prefix, source):
+        split = tree.nodes.new("LogicNativeSeparateXYZ")
+        tree.links.new(source, split.inputs["Vector"])
+        for axis in ("X", "Y", "Z"):
+            put_float(prefix + axis.lower(), split.outputs[axis])
+
+    # Find Object -> the object it found (name, position, distance from the owner).
+    find = tree.nodes.new("LogicNativeFindObject")
+    find.inputs["Object"].default_value = refs["target"]
+    info = tree.nodes.new("LogicNativeGetObjectAttribute")
+    info.attribute_type = "NAME"
+    tree.links.new(find.outputs["Object"], info.inputs["Object"])
+    put_string("f_name", info.outputs["Name"])
+    where = tree.nodes.new("LogicNativeGetObjectAttribute")
+    where.attribute_type = "WORLD_POSITION"
+    tree.links.new(find.outputs["Object"], where.inputs["Object"])
+    split = tree.nodes.new("LogicNativeSeparateXYZ")
+    tree.links.new(where.outputs["Vector"], split.inputs["Vector"])
+    put_float("f_x", split.outputs["X"])
+    distance = tree.nodes.new("LogicNativeGetDistance")
+    tree.links.new(find.outputs["Object"], distance.inputs["Object B"])
+    put_float("f_dist", distance.outputs["Distance"])
+
+    # Get Collection Object Names -> its length and three names.
+    names = tree.nodes.new("LogicNativeGetCollectionObjectNames")
+    names.inputs["Collection"].default_value = refs["collection"]
+    length = tree.nodes.new("LogicNativeListLength")
+    tree.links.new(names.outputs["Object Names"], length.inputs["List"])
+    put_int("c_count", length.outputs["Length"])
+    for index in range(3):
+        item = tree.nodes.new("LogicNativeListGetItem")
+        tree.links.new(names.outputs["Object Names"], item.inputs["List"])
+        item.inputs["Index"].default_value = index
+        run("LogicNativeSetGameProperty", f"c_{index}", item.outputs["Value"])
+
+    # Materials: the slot count, slot 1 and a slot that does not exist, a material by itself.
+    slots = tree.nodes.new("LogicNativeGetMaterialSlotCount")
+    slots.inputs["Object"].default_value = refs["owner"]
+    put_int("m_count", slots.outputs["Count"])
+    slot1 = tree.nodes.new("LogicNativeGetMaterialFromSlot")
+    slot1.inputs["Object"].default_value = refs["owner"]
+    slot1.inputs["Slot"].default_value = 1
+    put_bool("m_found", slot1.outputs["Found"])
+    slot1_name = tree.nodes.new("LogicNativeGetMaterialName")
+    tree.links.new(slot1.outputs["Material"], slot1_name.inputs["Material"])
+    put_string("m_slot1_name", slot1_name.outputs["Name"])
+    far = tree.nodes.new("LogicNativeGetMaterialFromSlot")
+    far.inputs["Object"].default_value = refs["owner"]
+    far.inputs["Slot"].default_value = 5
+    put_bool("m_found_far", far.outputs["Found"])
+    material = tree.nodes.new("LogicNativeGetMaterialName")
+    material.inputs["Material"].default_value = refs["mat0"]
+    put_string("m_name", material.outputs["Name"])
+
+    # Get Rigid Body Attribute: a plain object has none; the rigid body gives mass, gravity
+    # factor and damping.
+    plain = tree.nodes.new("LogicNativeGetRigidBodyAttribute")
+    plain.inputs["Object"].default_value = refs["owner"]
+    put_bool("rb_valid_plain", plain.outputs["Valid"])
+    for attribute, outputs in (("MASS", (("Value", "rb_mass"), ("Valid", "rb_valid"))),
+                               ("GRAVITY_FACTOR", (("Value", "rb_gravity"),)),
+                               ("DAMPING", (("Linear Damping", "rb_lin"),
+                                            ("Angular Damping", "rb_ang")))):
+        node = tree.nodes.new("LogicNativeGetRigidBodyAttribute")
+        node.attribute_type = attribute
+        node.inputs["Object"].default_value = refs["rigid"]
+        for pin, name in outputs:
+            if pin == "Valid":
+                put_bool(name, node.outputs[pin])
+            else:
+                put_float(name, node.outputs[pin])
+
+    # Logic Tree Status: this tree runs; a name nobody has does not.
+    for tree_name, running, stopped in ((tree.name, "t_running", "t_stopped"),
+                                        ("NoSuchTree", "t_other_running", "t_other_stopped")):
+        status = tree.nodes.new("LogicNativeLogicTreeStatus")
+        status.inputs["Object"].default_value = refs["owner"]
+        status.inputs["Tree Name"].default_value = tree_name
+        put_bool(running, status.outputs["Running"])
+        put_bool(stopped, status.outputs["Stopped"])
+
+    # Action Done with no action playing.
+    done = tree.nodes.new("LogicNativeActionDone")
+    done.inputs["Object"].default_value = refs["owner"]
+    put_bool("a_done", done.outputs["Done"])
+
+    # Evaluate Curve along a straight curve from x 0 to 4.
+    for factor, prefix in ((0.0, "cv0_"), (0.5, "cv5_"), (1.0, "cv1_")):
+        curve = tree.nodes.new("LogicNativeEvaluateCurve")
+        curve.inputs["Curve"].default_value = refs["curve"]
+        curve.inputs["Factor"].default_value = factor
+        split = tree.nodes.new("LogicNativeSeparateXYZ")
+        tree.links.new(curve.outputs["Point"], split.inputs["Vector"])
+        put_float(prefix + "x", split.outputs["X"])
+        put_float(prefix + "y", split.outputs["Y"])
+
+    # The three bone world reads of the armature's "Bone".
+    for kind, prefix in (("LogicNativeGetBoneTailWorld", "bt_"),
+                         ("LogicNativeGetBoneTailPoseWorld", "bp_"),
+                         ("LogicNativeGetBoneCenterPoseWorld", "bc_")):
+        bone = tree.nodes.new(kind)
+        bone.inputs["Object"].default_value = refs["armature"]
+        bone.inputs["Bone Name"].default_value = "Bone"
+        put_vector(prefix, bone.outputs["Position"])
+
+    # Start Logic Tree starts the owner's second tree (bound but not enabled), which counts runs.
+    start = tree.nodes.new("LogicNativeStartLogicTree")
+    start.inputs["Object"].default_value = refs["owner"]
+    start.inputs["Tree Name"].default_value = refs["second_tree"]
+    tree.links.new(state["previous"], start.inputs["Flow"])
+    state["previous"] = start.outputs["Done"]
+    second = tree.nodes.new("LogicNativeLogicTreeStatus")
+    second.inputs["Object"].default_value = refs["owner"]
+    second.inputs["Tree Name"].default_value = refs["second_tree"]
+    put_bool("t2_running", second.outputs["Running"])
+
+    # Camera Ray from a camera looking along +Y at a static cube: object and point hit.
+    ray = tree.nodes.new("LogicNativeCameraRay")
+    # (by position: the key "Camera" is not found in this node's inputs by name.)
+    ray.inputs[1].default_value = refs["camera"]
+    tree.links.new(state["previous"], ray.inputs["Flow"])
+    state["previous"] = ray.outputs["Done"] if "Done" in ray.outputs else state["previous"]
+    put_bool("cr_found", ray.outputs["Has Result"])
+    picked = tree.nodes.new("LogicNativeGetObjectAttribute")
+    picked.attribute_type = "NAME"
+    tree.links.new(ray.outputs["Picked Object"], picked.inputs["Object"])
+    put_string("cr_name", picked.outputs["Name"])
+    split = tree.nodes.new("LogicNativeSeparateXYZ")
+    tree.links.new(ray.outputs["Picked Point"], split.inputs["Vector"])
+    put_float("cr_x", split.outputs["X"])
+    put_float("cr_y", split.outputs["Y"])
+
+    # Get Item Info from the scene's Item Library, and an item it does not have.
+    for item, found in (("Apple", "i_found"), ("Nothing", "i_found_missing")):
+        info = tree.nodes.new("LogicNativeGetItemInfo")
+        info.inputs["Item"].default_value = item
+        put_bool(found, info.outputs["Found"])
+        if item == "Apple":
+            put_string("i_name", info.outputs["Name"])
+            put_int("i_stack", info.outputs["Max Stack"])
+            put_string("i_category", info.outputs["Category"])
+            put_string("i_description", info.outputs["Description"])
+
+
+def run_uncovered_nodes_acceptance(status_path):
+    """The nodes the unit tests cannot run (they read the scene): Find Object, collection object
+    names, material reads, rigid body reads, tree status, action done, curve evaluation, bone
+    world reads and item info, each compared with what the scene was built to give (A5 of the lean
+    runtime plan; the check is UNCOVERED_NODES_CHECK). Get Scene, Get Sound, Get Image and Get Node
+    Group Socket Value are not read here (see lean_plan/uncovered.txt)."""
+    reset_scene()
+    configure_game_settings(True)
+    owner = create_cube(f"{PREFIX}_UncoveredOwner")
+    owner.location = (0.0, 0.0, 0.0)
+    mat0 = bpy.data.materials.new(f"{PREFIX}_UncoveredMat0")
+    mat1 = bpy.data.materials.new(f"{PREFIX}_UncoveredMat1")
+    owner.data.materials.append(mat0)
+    owner.data.materials.append(mat1)
+    target = create_cube(f"{PREFIX}_UncoveredTarget")
+    target.location = (3.0, 4.0, 0.0)
+    members = []
+    for index in range(3):
+        member = create_cube(f"{PREFIX}_UncoveredMember{index}")
+        member.location = (0.0, 10.0 + index, 0.0)
+        members.append(member)
+    collection = make_ui_collection(f"{PREFIX}_UncoveredCollection", members)
+    rigid = create_cube(f"{PREFIX}_UncoveredRigid", rigid_body=True)
+    rigid.location = (10.0, 0.0, 0.0)
+    rigid.game.mass = 3.0
+    rigid.game.gravity_factor = 0.5
+    rigid.game.damping = 0.3
+    rigid.game.rotation_damping = 0.4
+
+    curve_data = bpy.data.curves.new(f"{PREFIX}_UncoveredCurveData", "CURVE")
+    curve_data.dimensions = "3D"
+    curve_data.use_path = True
+    spline = curve_data.splines.new("BEZIER")
+    spline.bezier_points.add(1)
+    for point, x in zip(spline.bezier_points, (0.0, 4.0)):
+        point.co = (x, 0.0, 0.0)
+        point.handle_left_type = point.handle_right_type = "VECTOR"
+    curve = bpy.data.objects.new(f"{PREFIX}_UncoveredCurve", curve_data)
+    bpy.context.scene.collection.objects.link(curve)
+    curve.location = (0.0, 0.0, 0.0)
+
+    armature = create_armature(f"{PREFIX}_UncoveredArmature")
+    armature.location = (2.0, 3.0, 4.0)
+
+    apple = create_cube("Apple")
+    apple.location = (0.0, -10.0, 0.0)
+    set_game_property(apple, "name", "STRING", "Red Apple")
+    set_game_property(apple, "max_stack", "INT", 16)
+    set_game_property(apple, "category", "STRING", "food")
+    set_game_property(apple, "description", "STRING", "A fruit")
+    library = make_ui_collection(f"{PREFIX}_UncoveredLibrary", (apple,))
+    library.hide_viewport = True
+    bpy.context.scene.game_settings.item_library = library
+
+    ray_target = create_cube(f"{PREFIX}_UncoveredRayTarget")
+    ray_target.location = (20.0, 0.0, 0.0)
+    ray_target.game.physics_type = "STATIC"
+    ray_target.game.use_collision_bounds = True
+    ray_target.game.collision_bounds_type = "BOX"
+    camera_data = bpy.data.cameras.new(f"{PREFIX}_UncoveredCameraData")
+    camera = bpy.data.objects.new(f"{PREFIX}_UncoveredCamera", camera_data)
+    bpy.context.scene.collection.objects.link(camera)
+    camera.location = (20.0, -10.0, 0.0)
+    camera.rotation_euler = (math.radians(90.0), 0.0, 0.0)
+
+    second_tree = new_logic_tree(f"{PREFIX}_UncoveredSecondTree")
+    second_update = second_tree.nodes.new("LogicNativeOnFixedUpdate")
+    build_add_property_chain(second_tree, second_update.outputs["Out"], "second_runs", 1.0)
+    tree = new_logic_tree(f"{PREFIX}_UncoveredTree")
+    build_uncovered_nodes_tree(tree, {
+        "owner": owner, "target": target, "collection": collection, "mat0": mat0,
+        "rigid": rigid, "curve": curve, "armature": armature, "camera": camera,
+        "second_tree": second_tree.name})
+    for name, kind in (("f_name", "STRING"), ("m_slot1_name", "STRING"), ("m_name", "STRING"),
+                       ("c_0", "STRING"), ("c_1", "STRING"), ("c_2", "STRING"),
+                       ("i_name", "STRING"), ("i_category", "STRING"),
+                       ("i_description", "STRING"), ("c_count", "INT"), ("m_count", "INT"),
+                       ("i_stack", "INT")):
+        set_game_property(owner, name, kind, "" if kind == "STRING" else -1)
+    for name in ("m_found", "m_found_far", "rb_valid_plain", "rb_valid", "t_running",
+                 "t_stopped", "t_other_running", "t_other_stopped", "a_done", "i_found",
+                 "i_found_missing"):
+        # The opposite of what the node must give, so a missing write shows.
+        set_game_property(owner, name, "BOOL", name in (
+            "m_found_far", "rb_valid_plain", "t_stopped", "t_other_running", "i_found_missing"))
+    for name in ("f_x", "f_dist", "rb_mass", "rb_gravity", "rb_lin", "rb_ang"):
+        set_game_property(owner, name, "FLOAT", -1.0)
+    for prefix in ("cv0_", "cv5_", "cv1_"):
+        for axis in "xy":
+            set_game_property(owner, prefix + axis, "FLOAT", -1.0)
+    for prefix in ("bt_", "bp_", "bc_"):
+        for axis in "xyz":
+            set_game_property(owner, prefix + axis, "FLOAT", -1.0)
+    set_game_property(owner, "second_runs", "FLOAT", 0.0)
+    set_game_property(owner, "t2_running", "BOOL", False)
+    set_game_property(owner, "cr_found", "BOOL", False)
+    set_game_property(owner, "cr_name", "STRING", "")
+    set_game_property(owner, "cr_x", "FLOAT", -1.0)
+    set_game_property(owner, "cr_y", "FLOAT", -1.0)
+    bind_tree(owner, tree.name, True)
+    bind_tree(owner, second_tree.name, False)
+
+    add_status_controller(owner, status_path, "uncovered_nodes", required_frame=2,
+                          required_seconds=1.0)
+    set_game_property(owner, "__ln_acceptance_target", "STRING", target.name)
+    set_game_property(owner, "__ln_acceptance_ray_target", "STRING", ray_target.name)
+    set_game_property(owner, "__ln_acceptance_mat0", "STRING", mat0.name)
+    set_game_property(owner, "__ln_acceptance_mat1", "STRING", mat1.name)
+    for index, member in enumerate(members):
+        set_game_property(owner, f"__ln_acceptance_coll{index}", "STRING", member.name)
+    run_game_once(owner, "uncovered_nodes_0", status_path)
 
 
 def run_property_advanced_acceptance(status_path):
@@ -18833,6 +19448,8 @@ def main():
         ("property_target", lambda: run_property_target_acceptance(status_path)),
         ("run_logic_tree_once", lambda: run_logic_tree_once_acceptance(status_path)),
         ("every_n_steps", lambda: run_every_n_steps_acceptance(status_path)),
+        ("brain_crowd", lambda: run_brain_crowd_acceptance(status_path)),
+        ("uncovered_nodes", lambda: run_uncovered_nodes_acceptance(status_path)),
         ("property_advanced", lambda: run_property_advanced_acceptance(status_path)),
         ("tree_properties", lambda: run_tree_property_acceptance(status_path)),
         ("data_containers", lambda: run_data_containers_acceptance(status_path)),

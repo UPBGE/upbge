@@ -13,6 +13,7 @@
 #include "LN_Manager.h"
 #include "LN_Program.h"
 #include "LN_RuntimeTree.h"
+#include "LN_TestTrees.h"
 #include "LN_Types.h"
 
 class LN_ManagerTestAccess {
@@ -69,6 +70,11 @@ class LN_ManagerTestAccess {
   static void InvalidateObject(LN_Manager &manager, KX_GameObject &object)
   {
     manager.m_denseIds.InvalidateHandle(LN_DenseHandleKind::Object, &object);
+  }
+
+  static size_t TreeCount(const LN_Manager &manager)
+  {
+    return manager.m_runtimeTrees.size();
   }
 
   static size_t WaitingRunOnceCount(const LN_Manager &manager)
@@ -357,6 +363,73 @@ TEST(LN_Manager, DeferredConstraintBreakRetainsEventWhenOnlyTargetIsDestroyed)
           &owner, "joint", LN_RigidBodyConstraintMatchMode::Exact);
   ASSERT_NE(event, nullptr);
   EXPECT_EQ(manager.ResolveObjectHandle(event->target), nullptr);
+}
+
+/* Load Scene merges another scene's trees into this one (lean runtime plan A2: a merge seam). The
+ * scene's object lists stand in for a KX_Scene (LN_SetSceneAccessForTests). The merged trees
+ * move over, Every N Steps takes turns with the target's own trees of the same source tree
+ * (their spread numbers continue), and their steps start over. */
+TEST(LN_Manager, AMergedScenesTreesTakeTurnsAndStartTheirStepsOver)
+{
+  ln_test::BrainOfOptions options;
+  options.chains = 1;
+  options.step_every = 4;
+  options.measure_distance = false;
+  const std::shared_ptr<LN_Program> program = ln_test::BrainOf(options);
+  ASSERT_NE(program, nullptr);
+  ASSERT_FALSE(program->GetStepGates().empty());
+
+  KX_Scene *unused_scene = reinterpret_cast<KX_Scene *>(uintptr_t(1));
+  LN_Manager target(*unused_scene);
+  LN_Manager other(*unused_scene);
+  std::vector<std::unique_ptr<KX_GameObject>> target_objects;
+  std::vector<std::unique_ptr<KX_GameObject>> other_objects;
+  std::vector<LN_RuntimeTree *> other_trees;
+  for (uint32_t index = 0; index < 3; index++) {
+    target_objects.push_back(std::make_unique<KX_GameObject>());
+    target_objects.back()->SetName("Mine" + std::to_string(index));
+    ASSERT_NE(target.RegisterCompiledProgram(target_objects.back().get(), program, index, 0, true),
+              nullptr);
+  }
+  for (uint32_t index = 0; index < 2; index++) {
+    other_objects.push_back(std::make_unique<KX_GameObject>());
+    other_objects.back()->SetName("Merged" + std::to_string(index));
+    other_trees.push_back(
+        other.RegisterCompiledProgram(other_objects.back().get(), program, index, 0, true));
+    ASSERT_NE(other_trees.back(), nullptr);
+  }
+  /* The other scene had its own numbering and had counted steps. */
+  EXPECT_EQ(other_trees[0]->GetStepSpread(), 0u);
+  EXPECT_EQ(other_trees[1]->GetStepSpread(), 1u);
+  for (LN_RuntimeTree *tree : other_trees) {
+    tree->PrepareStepGates(7, 1.0 / 60.0, 1.0 / 60.0);
+    EXPECT_NE(tree->DumpStateForTests(0).bookkeeping.find("step_gates_step=7"), std::string::npos);
+  }
+  EXPECT_EQ(LN_ManagerTestAccess::TreeCount(target), 3u);
+  EXPECT_EQ(LN_ManagerTestAccess::TreeCount(other), 2u);
+
+  /* The merged scene's objects join the target's lists. */
+  LN_SceneAccessForTests access;
+  for (const auto &object : target_objects) {
+    access.objects.push_back(object.get());
+  }
+  for (const auto &object : other_objects) {
+    access.objects.push_back(object.get());
+  }
+  LN_SetSceneAccessForTests(&access);
+  target.AbsorbRuntimeTreesFrom(other);
+  LN_SetSceneAccessForTests(nullptr);
+
+  EXPECT_EQ(LN_ManagerTestAccess::TreeCount(target), 5u);
+  EXPECT_EQ(LN_ManagerTestAccess::TreeCount(other), 0u);
+  EXPECT_EQ(other_trees[0]->GetStepSpread(), 3u); /* after the target's 0, 1, 2 */
+  EXPECT_EQ(other_trees[1]->GetStepSpread(), 4u);
+  for (LN_RuntimeTree *tree : other_trees) {
+    EXPECT_TRUE(tree->HasStepSpread());
+    EXPECT_NE(tree->DumpStateForTests(0).bookkeeping.find("step_gates_step=-"), std::string::npos)
+        << "the steps start over";
+    EXPECT_EQ(tree->GetGameObject(), other_objects[tree == other_trees[0] ? 0 : 1].get());
+  }
 }
 
 }  // namespace

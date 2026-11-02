@@ -8,6 +8,8 @@
 
 #include "LN_JobPool.h"
 
+#include "LN_LeanProgram.h"
+
 LN_JobPool::~LN_JobPool()
 {
   SetHelperCount(0);
@@ -51,6 +53,8 @@ void LN_JobPool::WorkOn(const uint32_t thread)
 
 void LN_JobPool::HelperLoop(const uint32_t thread, uint64_t seen_serial)
 {
+  /* A helper only reads lean programs; the main thread makes them (plan phase A16). */
+  LN_SetLeanHelperThread(true);
   while (true) {
     {
       std::unique_lock<std::mutex> lock(m_mutex);

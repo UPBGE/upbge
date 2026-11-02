@@ -103,6 +103,28 @@ struct LN_TickContext;
  * warning (LN_Manager::QueueRunLogicTreeOnce). */
 inline constexpr size_t LN_MAX_WAITING_RUN_ONCE_CALLS = 65536;
 
+/** Tests (lean runtime plan A2): stands in for the scene's object lists, so that trees which
+ * look objects up by name and the manager's merge of another scene's trees run in a unit test
+ * without a KX_Scene. Set with LN_SetSceneAccessForTests (null: off, the default). When set,
+ * LN_RuntimeTree::FindSceneObjectByName, LN_Manager::FindObjectByName and
+ * LN_Manager::FindSceneObjectIndex answer from it with the rules they have with a scene:
+ * the manager's name map holds the first active object of each name, only while `ticking`;
+ * a name also matches an object's Blender object name; a found object goes through
+ * `overlay_counterpart` (a menu copy rule; default: the object itself). Not wired (yet): the
+ * object list generation and the scene pointer, which a Tick needs. */
+struct LN_SceneAccessForTests {
+  /** The active objects, in scene order. */
+  std::vector<KX_GameObject *> objects;
+  /** The inactive ones (templates). */
+  std::vector<KX_GameObject *> inactive;
+  std::function<KX_GameObject *(KX_GameObject *object, KX_GameObject *viewer)> overlay_counterpart;
+  bool ticking = true;
+  uint64_t object_list_generation = 1;
+  KX_Scene *scene = nullptr;
+};
+void LN_SetSceneAccessForTests(const LN_SceneAccessForTests *access);
+const LN_SceneAccessForTests *LN_GetSceneAccessForTests();
+
 class LN_Manager {
  public:
   explicit LN_Manager(KX_Scene &scene);
@@ -547,6 +569,11 @@ class LN_Manager {
   void AddQueuedRemovalObject(KX_GameObject *gameobj);
   void RemoveQueuedRemovalObject(KX_GameObject *gameobj);
   bool IsGameObjectQueuedForRemoval(KX_GameObject *gameobj) const;
+  /** A tick is running (FindObjectByName answers only then). */
+  bool IsTicking() const
+  {
+    return m_isTicking;
+  }
   int FindSceneObjectIndex(KX_GameObject *gameobj, bool *r_runtime_active = nullptr) const;
   void AssertMainThread() const;
   void InvalidatePointerHitCache();
@@ -699,6 +726,9 @@ class LN_Manager {
   void NoteSoleTrees(const std::vector<LN_RuntimeTree *> &trees);
   /** Per runnable tree, this tick: 1 when a batch may hold it. */
   std::vector<uint8_t> m_batchTreeScratch;
+  /** Trees whose snapshot is captured many at once (see the capture loop of Tick). */
+  std::vector<LN_RuntimeTree *> m_captureTreesScratch;
+  std::vector<uint8_t> m_captureForceScratch;
   struct BatchProgram {
     const LN_Program *program = nullptr;
     bool batchable = false;

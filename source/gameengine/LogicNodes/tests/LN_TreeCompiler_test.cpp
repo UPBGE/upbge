@@ -44,373 +44,11 @@
 #include "LN_UIService.h"
 #include "SG_Node.h"
 
+#include "LN_TestTrees.h"
+
 namespace {
 
-template<size_t Size> void SetCString(char (&dst)[Size], const char *value)
-{
-  dst[0] = '\0';
-  std::strncpy(dst, value, Size - 1);
-  dst[Size - 1] = '\0';
-}
-
-template<typename T> void Append(blender::ListBaseT<T> &list, T &item)
-{
-  item.next = nullptr;
-  item.prev = static_cast<T *>(list.last);
-  if (list.last != nullptr) {
-    static_cast<T *>(list.last)->next = &item;
-  }
-  else {
-    list.first = &item;
-  }
-  list.last = &item;
-}
-
-template<typename T> void Remove(blender::ListBaseT<T> &list, T &item)
-{
-  if (item.prev != nullptr) {
-    item.prev->next = item.next;
-  }
-  else {
-    list.first = item.next;
-  }
-  if (item.next != nullptr) {
-    item.next->prev = item.prev;
-  }
-  else {
-    list.last = item.prev;
-  }
-  item.next = nullptr;
-  item.prev = nullptr;
-}
-
-void InitTree(blender::bNodeTree &tree)
-{
-  SetCString(tree.id.name, "NTCompilerProbe");
-  SetCString(tree.idname, "LogicNodeTree");
-  tree.type = blender::NTREE_LOGIC;
-}
-
-void InitNode(blender::bNode &node, const char *idname, const char *name, int32_t identifier)
-{
-  SetCString(node.idname, idname);
-  SetCString(node.name, name);
-  node.identifier = identifier;
-}
-
-void InitMaterial(blender::Material &material, const char *name)
-{
-  *reinterpret_cast<uint16_t *>(material.id.name) = uint16_t(blender::ID_MA);
-  std::strncpy(material.id.name + 2, name, sizeof(material.id.name) - 3);
-  material.id.name[sizeof(material.id.name) - 1] = '\0';
-}
-
-void InitGeometryModifierGroup(blender::bNodeTree &tree,
-                               blender::GeometryNodeAssetTraits &traits,
-                               const char *name)
-{
-  *reinterpret_cast<uint16_t *>(tree.id.name) = uint16_t(blender::ID_NT);
-  std::strncpy(tree.id.name + 2, name, sizeof(tree.id.name) - 3);
-  tree.id.name[sizeof(tree.id.name) - 1] = '\0';
-  tree.type = blender::NTREE_GEOMETRY;
-  traits.flag = blender::GEO_NODE_ASSET_MODIFIER;
-  tree.geometry_node_asset_traits = &traits;
-}
-
-void InitSocket(blender::bNodeSocket &socket,
-                const char *name,
-                blender::eNodeSocketDatatype type,
-                void *default_value,
-                const char *idname = nullptr)
-{
-  SetCString(socket.identifier, name);
-  SetCString(socket.name, name);
-  if (idname != nullptr) {
-    SetCString(socket.idname, idname);
-  }
-  socket.type = type;
-  socket.default_value = default_value;
-}
-
-void InitSocketWithIdentifier(blender::bNodeSocket &socket,
-                              const char *identifier,
-                              const char *name,
-                              blender::eNodeSocketDatatype type,
-                              void *default_value,
-                              const char *idname = nullptr)
-{
-  SetCString(socket.identifier, identifier);
-  SetCString(socket.name, name);
-  if (idname != nullptr) {
-    SetCString(socket.idname, idname);
-  }
-  socket.type = type;
-  socket.default_value = default_value;
-}
-
-/* Object Grid View's inputs for its list (Object, Property) and its Moving Items, Drop Hints,
- * Filter and Use sections, at their defaults: Items gives the list, Moving Items is off. Declare it
- * as a local next to the grid node: the node points at it. */
-struct GridListSockets {
-  std::array<blender::bNodeSocket, 18> sockets = {};
-  blender::bNodeSocketValueObject object = {};
-  blender::bNodeSocketValueString property = {};
-  blender::bNodeSocketValueBoolean handle_moves = {};
-  blender::bNodeSocketValueString split_action = {};
-  blender::bNodeSocketValueInt split_amount = {};
-  blender::bNodeSocketValueBoolean swap = {};
-  blender::bNodeSocketValueBoolean drop_into_world = {};
-  blender::bNodeSocketValueBoolean drop_at_pointer = {};
-  blender::bNodeSocketValueBoolean drop_in_front = {};
-  blender::bNodeSocketValueFloat distance = {};
-  blender::bNodeSocketValueFloat hover_height = {};
-  blender::bNodeSocketValueObject hint_text = {};
-  blender::bNodeSocketValueString accept_hint = {};
-  blender::bNodeSocketValueString refuse_hint = {};
-  blender::bNodeSocketValueString show_categories = {};
-  blender::bNodeSocketValueString search = {};
-  blender::bNodeSocketValueString use_action = {};
-  blender::bNodeSocketValueString use_keys = {};
-
-  void AppendTo(blender::bNode &grid)
-  {
-    swap.value = true;
-    distance.value = 1.5f;
-    SetCString(accept_hint.value, "Put {name} here");
-    SetCString(refuse_hint.value, "{name} does not fit here");
-    const std::array<std::tuple<const char *, blender::eNodeSocketDatatype, void *>, 18> inputs = {
-        {{"Object", blender::SOCK_OBJECT, &object},
-         {"Property", blender::SOCK_STRING, &property},
-         {"Handle Moves", blender::SOCK_BOOLEAN, &handle_moves},
-         {"Split Action", blender::SOCK_STRING, &split_action},
-         {"Split Amount", blender::SOCK_INT, &split_amount},
-         {"Swap", blender::SOCK_BOOLEAN, &swap},
-         {"Drop Into World", blender::SOCK_BOOLEAN, &drop_into_world},
-         {"At Pointer", blender::SOCK_BOOLEAN, &drop_at_pointer},
-         {"Drop In Front", blender::SOCK_BOOLEAN, &drop_in_front},
-         {"Distance", blender::SOCK_FLOAT, &distance},
-         {"Hover Height", blender::SOCK_FLOAT, &hover_height},
-         {"Hint Text", blender::SOCK_OBJECT, &hint_text},
-         {"Accept Hint", blender::SOCK_STRING, &accept_hint},
-         {"Refuse Hint", blender::SOCK_STRING, &refuse_hint},
-         {"Show Categories", blender::SOCK_STRING, &show_categories},
-         {"Search", blender::SOCK_STRING, &search},
-         {"Use Action", blender::SOCK_STRING, &use_action},
-         {"Use Keys", blender::SOCK_STRING, &use_keys}}};
-    for (size_t index = 0; index < inputs.size(); ++index) {
-      const auto &[name, type, value] = inputs[index];
-      InitSocket(sockets[index], name, type, value);
-      Append(grid.inputs, sockets[index]);
-    }
-  }
-
-  blender::bNodeSocket &Input(const char *name)
-  {
-    for (blender::bNodeSocket &socket : sockets) {
-      if (std::strcmp(socket.name, name) == 0) {
-        return socket;
-      }
-    }
-    return sockets.front();
-  }
-};
-
-void InitLink(blender::bNodeLink &link,
-              blender::bNode &from_node,
-              blender::bNodeSocket &from_socket,
-              blender::bNode &to_node,
-              blender::bNodeSocket &to_socket)
-{
-  link.fromnode = &from_node;
-  link.fromsock = &from_socket;
-  link.tonode = &to_node;
-  link.tosock = &to_socket;
-}
-
-struct MaterialParameterValueSockets {
-  blender::bNodeSocket generic_value = {};
-  blender::bNodeSocket float_value = {};
-  blender::bNodeSocket integer_value = {};
-  blender::bNodeSocket boolean_value = {};
-  blender::bNodeSocket vector_value = {};
-  blender::bNodeSocket color_value = {};
-};
-
-struct SetParentNodeSockets {
-  blender::bNodeSocket flow = {};
-  blender::bNodeSocket child = {};
-  blender::bNodeSocket parent = {};
-  blender::bNodeSocket bone_name = {};
-  blender::bNodeSocket compound = {};
-  blender::bNodeSocket ghost = {};
-};
-
-void InitSetParentNode(blender::bNode &node,
-                       SetParentNodeSockets &sockets,
-                       blender::bNodeSocketValueObject &child_default,
-                       blender::bNodeSocketValueObject &parent_default,
-                       blender::bNodeSocketValueString &bone_name_default,
-                       blender::bNodeSocketValueBoolean &compound_default,
-                       blender::bNodeSocketValueBoolean &ghost_default,
-                       const int32_t identifier)
-{
-  InitNode(node, "LogicNativeSetParent", "Set Parent", identifier);
-  InitSocket(sockets.flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(sockets.child, "Child Object", blender::SOCK_OBJECT, &child_default);
-  InitSocket(sockets.parent, "Parent Object", blender::SOCK_OBJECT, &parent_default);
-  InitSocket(sockets.bone_name, "Bone Name", blender::SOCK_STRING, &bone_name_default);
-  InitSocket(sockets.compound, "Compound", blender::SOCK_BOOLEAN, &compound_default);
-  InitSocket(sockets.ghost, "Ghost", blender::SOCK_BOOLEAN, &ghost_default);
-  Append(node.inputs, sockets.flow);
-  Append(node.inputs, sockets.child);
-  Append(node.inputs, sockets.parent);
-  Append(node.inputs, sockets.bone_name);
-  Append(node.inputs, sockets.compound);
-  Append(node.inputs, sockets.ghost);
-}
-
-void AppendMaterialParameterValueSockets(blender::bNode &node,
-                                         MaterialParameterValueSockets &sockets,
-                                         void *float_default,
-                                         void *color_default)
-{
-  InitSocketWithIdentifier(sockets.generic_value, "Value", "Value", blender::SOCK_CUSTOM, nullptr);
-  InitSocketWithIdentifier(sockets.float_value,
-                           "Float Value",
-                           "Value",
-                           blender::SOCK_FLOAT,
-                           float_default,
-                           "NodeSocketLogicFloat");
-  InitSocketWithIdentifier(sockets.integer_value,
-                           "Integer Value",
-                           "Value",
-                           blender::SOCK_INT,
-                           nullptr,
-                           "NodeSocketLogicInt");
-  InitSocketWithIdentifier(sockets.boolean_value,
-                           "Boolean Value",
-                           "Value",
-                           blender::SOCK_BOOLEAN,
-                           nullptr,
-                           "NodeSocketLogicBool");
-  InitSocketWithIdentifier(sockets.vector_value,
-                           "Vector Value",
-                           "Value",
-                           blender::SOCK_VECTOR,
-                           nullptr,
-                           "NodeSocketLogicVector");
-  InitSocketWithIdentifier(sockets.color_value,
-                           "Color Value",
-                           "Value",
-                           blender::SOCK_RGBA,
-                           color_default,
-                           "NodeSocketLogicColor");
-  Append(node.inputs, sockets.generic_value);
-  Append(node.inputs, sockets.float_value);
-  Append(node.inputs, sockets.integer_value);
-  Append(node.inputs, sockets.boolean_value);
-  Append(node.inputs, sockets.vector_value);
-  Append(node.inputs, sockets.color_value);
-}
-
-struct SetObjectAttributeAuxSockets {
-  blender::bNodeSocket xyz = {};
-  blender::bNodeSocket object = {};
-  blender::bNodeSocket position = {};
-  blender::bNodeSocket rotation = {};
-  blender::bNodeSocket scale = {};
-  blender::bNodeSocket color = {};
-  blender::bNodeSocket visible = {};
-  blender::bNodeSocket include_children = {};
-  blender::bNodeSocket teleport = {};
-  blender::bNodeSocket done = {};
-  blender::bNodeSocketValueVector xyz_default = {};
-  blender::bNodeSocketValueBoolean teleport_default = {};
-};
-
-void InitSetObjectAttributeVectorNode(blender::bNode &node,
-                                      SetObjectAttributeAuxSockets &aux,
-                                      blender::bNodeSocket &flow,
-                                      blender::bNodeSocket &value,
-                                      const char *name,
-                                      const int32_t identifier,
-                                      const int attribute_type,
-                                      void *value_default,
-                                      const char *flow_identifier = "Flow",
-                                      const char *flow_socket_idname = nullptr)
-{
-  InitNode(node, "LogicNativeSetObjectAttribute", name, identifier);
-  node.custom1 = attribute_type;
-  /* The editor initializes all three component-mask bits plus the initialized bit. */
-  node.custom2 = 15;
-  aux.xyz_default.value[0] = 1.0f;
-  aux.xyz_default.value[1] = 1.0f;
-  aux.xyz_default.value[2] = 1.0f;
-
-  InitSocket(flow, flow_identifier, blender::SOCK_BOOLEAN, nullptr, flow_socket_idname);
-  InitSocket(aux.xyz, "XYZ", blender::SOCK_VECTOR, &aux.xyz_default);
-  InitSocket(aux.object, "Object", blender::SOCK_OBJECT, nullptr);
-  InitSocket(value, "Value", blender::SOCK_VECTOR, value_default);
-  InitSocket(aux.position, "Position", blender::SOCK_VECTOR, nullptr);
-  InitSocket(aux.rotation, "Rotation", blender::SOCK_ROTATION, nullptr);
-  InitSocket(aux.scale, "Scale", blender::SOCK_VECTOR, nullptr);
-  InitSocket(aux.color, "Color", blender::SOCK_RGBA, nullptr);
-  InitSocket(aux.visible, "Visible", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(aux.include_children, "Include Children", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(aux.teleport, "Teleport", blender::SOCK_BOOLEAN, &aux.teleport_default);
-  InitSocket(aux.done, "Done", blender::SOCK_BOOLEAN, nullptr);
-
-  Append(node.inputs, flow);
-  Append(node.inputs, aux.xyz);
-  Append(node.inputs, aux.object);
-  Append(node.inputs, value);
-  Append(node.inputs, aux.position);
-  Append(node.inputs, aux.rotation);
-  Append(node.inputs, aux.scale);
-  Append(node.inputs, aux.color);
-  Append(node.inputs, aux.visible);
-  Append(node.inputs, aux.include_children);
-  Append(node.inputs, aux.teleport);
-  Append(node.outputs, aux.done);
-}
-
-struct GetObjectAttributeAuxSockets {
-  blender::bNodeSocket object = {};
-  blender::bNodeSocket name = {};
-  blender::bNodeSocket visible = {};
-  blender::bNodeSocket position = {};
-  blender::bNodeSocket orientation = {};
-  blender::bNodeSocket scale = {};
-  blender::bNodeSocket color = {};
-};
-
-void InitGetObjectAttributeVectorNode(blender::bNode &node,
-                                      GetObjectAttributeAuxSockets &aux,
-                                      blender::bNodeSocket &vector,
-                                      const char *name,
-                                      const int32_t identifier,
-                                      const int attribute_type)
-{
-  InitNode(node, "LogicNativeGetObjectAttribute", name, identifier);
-  node.custom1 = attribute_type;
-  InitSocket(aux.object, "Object", blender::SOCK_OBJECT, nullptr);
-  InitSocket(aux.name, "Name", blender::SOCK_STRING, nullptr);
-  InitSocket(vector, "Vector", blender::SOCK_VECTOR, nullptr);
-  InitSocket(aux.visible, "Visible", blender::SOCK_BOOLEAN, nullptr);
-  InitSocket(aux.position, "Position", blender::SOCK_VECTOR, nullptr);
-  InitSocket(aux.orientation, "Orientation", blender::SOCK_ROTATION, nullptr);
-  InitSocket(aux.scale, "Scale", blender::SOCK_VECTOR, nullptr);
-  InitSocket(aux.color, "Color", blender::SOCK_RGBA, nullptr);
-
-  Append(node.inputs, aux.object);
-  Append(node.outputs, aux.name);
-  Append(node.outputs, vector);
-  Append(node.outputs, aux.visible);
-  Append(node.outputs, aux.position);
-  Append(node.outputs, aux.orientation);
-  Append(node.outputs, aux.scale);
-  Append(node.outputs, aux.color);
-}
+using namespace ln_test;
 
 bool HasFloatConstant(const LN_Program &program, float expected)
 {
@@ -1096,55 +734,6 @@ TEST(LN_TreeCompiler, CurveMappingAuthoredStateParticipatesInSourceChecksum)
     curve_node.storage = nullptr;
     EXPECT_NE(LN_TreeCompiler::BuildSourceChecksum(tree), baseline);
   }
-}
-
-bool HasWarningContaining(const LN_CompileReport &report, const char *needle)
-{
-  for (const LN_CompileIssue &issue : report.GetIssues()) {
-    if (issue.severity == LN_CompileSeverity::Warning &&
-        issue.message.find(needle) != std::string::npos)
-    {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool HasErrorContaining(const LN_CompileReport &report, const char *needle)
-{
-  for (const LN_CompileIssue &issue : report.GetIssues()) {
-    if (issue.severity == LN_CompileSeverity::Error &&
-        issue.message.find(needle) != std::string::npos)
-    {
-      return true;
-    }
-  }
-  return false;
-}
-
-const char *SeverityName(const LN_CompileSeverity severity)
-{
-  switch (severity) {
-    case LN_CompileSeverity::Info:
-      return "info";
-    case LN_CompileSeverity::Warning:
-      return "warning";
-    case LN_CompileSeverity::Error:
-      return "error";
-  }
-  return "unknown";
-}
-
-std::string FormatCompileReport(const LN_CompileReport &report)
-{
-  std::string result;
-  for (const LN_CompileIssue &issue : report.GetIssues()) {
-    result += SeverityName(issue.severity);
-    result += ": ";
-    result += issue.message;
-    result += "\n";
-  }
-  return result;
 }
 
 TEST(LN_TreeCompiler, WarnsForStaleConditionExecutionSocketOnUnreachableCommand)
@@ -16083,83 +15672,6 @@ TEST(LN_TreeCompiler, ALoopFedByOnInitAndFixedUpdateRunsItsBodyOnce)
   }
 }
 
-/* A node for compile tests that keeps its sockets and their defaults alive with it. Declare it
- * as a local: the tree points at it. */
-struct TestNode {
-  blender::bNode node = {};
-  std::deque<blender::bNodeSocket> sockets;
-  std::deque<blender::bNodeSocketValueFloat> floats;
-  std::deque<blender::bNodeSocketValueInt> ints;
-  std::deque<blender::bNodeSocketValueBoolean> bools;
-  std::deque<blender::bNodeSocketValueString> strings;
-  std::deque<blender::bNodeSocketValueObject> objects;
-  std::deque<blender::bNodeSocketValueVector> vectors;
-
-  TestNode(blender::bNodeTree &tree, const char *idname, const char *name, const int32_t id)
-  {
-    InitNode(node, idname, name, id);
-    Append(tree.nodes, node);
-  }
-  TestNode(const TestNode &) = delete;
-
-  blender::bNodeSocket &add(const bool input,
-                            const char *name,
-                            const blender::eNodeSocketDatatype type,
-                            void *default_value,
-                            const char *idname = nullptr)
-  {
-    blender::bNodeSocket &socket = sockets.emplace_back();
-    InitSocket(socket, name, type, default_value, idname);
-    Append(input ? node.inputs : node.outputs, socket);
-    return socket;
-  }
-  blender::bNodeSocket &flow(const bool input, const char *name)
-  {
-    return add(input, name, blender::SOCK_BOOLEAN, nullptr, "NodeSocketLogicExecution");
-  }
-  blender::bNodeSocket &in_float(const char *name, const float value)
-  {
-    floats.emplace_back().value = value;
-    return add(true, name, blender::SOCK_FLOAT, &floats.back());
-  }
-  blender::bNodeSocket &in_int(const char *name, const int value)
-  {
-    ints.emplace_back().value = value;
-    return add(true, name, blender::SOCK_INT, &ints.back());
-  }
-  blender::bNodeSocket &in_bool(const char *name, const bool value)
-  {
-    bools.emplace_back().value = value;
-    return add(true, name, blender::SOCK_BOOLEAN, &bools.back());
-  }
-  blender::bNodeSocket &in_string(const char *name, const char *value)
-  {
-    SetCString(strings.emplace_back().value, value);
-    return add(true, name, blender::SOCK_STRING, &strings.back());
-  }
-  blender::bNodeSocket &in_object(const char *name)
-  {
-    return add(true, name, blender::SOCK_OBJECT, &objects.emplace_back());
-  }
-  blender::bNodeSocket &in_vector(const char *name, const MT_Vector3 &value)
-  {
-    blender::bNodeSocketValueVector &vector = vectors.emplace_back();
-    vector.dimensions = 3;
-    vector.value[0] = value.x();
-    vector.value[1] = value.y();
-    vector.value[2] = value.z();
-    return add(true, name, blender::SOCK_VECTOR, &vector);
-  }
-};
-
-/* A game property read while the game runs: the Value output. */
-blender::bNodeSocket &AddPropertyRead(TestNode &read, const char *property)
-{
-  read.in_object("Object");
-  read.in_string("Property", property);
-  return read.add(false, "Value", blender::SOCK_CUSTOM, nullptr, "NodeSocketLogicGeneric");
-}
-
 /* Outputs that once folded only constants also read values that change while the game runs. */
 TEST(LN_TreeCompiler, WithinRangeAndKeyLoggerReadRuntimeValues)
 {
@@ -16360,39 +15872,6 @@ TEST(LN_TreeCompiler, KeyAndTreePropertyNamesFromRuntimeLinksAreErrors)
 }
 
 
-/* A scene-graph node for a test object, so the UI can place and hit it. */
-class RootRelation : public SG_ParentRelation {
- public:
-  bool UpdateChildCoordinates(SG_Node *child, const SG_Node *, bool &parent_updated) override
-  {
-    if (child == nullptr) {
-      return false;
-    }
-    child->SetWorldFromLocalTransform();
-    parent_updated = true;
-    return true;
-  }
-  SG_ParentRelation *NewCopy() override
-  {
-    return new RootRelation();
-  }
-};
-
-template<typename ObjectType> struct UIObject {
-  explicit UIObject(KX_Scene *scene) : node(&object, scene, callbacks)
-  {
-    node.SetParentRelation(new RootRelation());
-    object.SetSGNode(&node);
-  }
-  ~UIObject()
-  {
-    object.SetSGNode(nullptr);
-  }
-  SG_Callbacks callbacks;
-  ObjectType object;
-  SG_Node node;
-};
-
 /* On UI Event runs its route once for every matching event of a frame, each time with that
  * event's outputs, also through a Loop in the route; a deferred result is not repeated. */
 TEST(LN_TreeCompiler, OnUIEventRunsItsRouteOnceForEachEventOfAFrame)
@@ -16489,7 +15968,6 @@ TEST(LN_TreeCompiler, OnUIEventRunsItsRouteOnceForEachEventOfAFrame)
       LN_TickContext context;
       context.event = LN_Event::OnUpdate;
       context.tick_index = tick;
-      context.use_register_expression_evaluator = registers;
       LN_CommandBuffer command_buffer;
       command_buffer.BeginRecording();
       runtime_tree.ExecuteReady(command_buffer, context);
@@ -16616,7 +16094,6 @@ TEST(LN_TreeCompiler, OnUISoundRunsEachOutputForItsSoundOnceForEachPlayer)
       LN_TickContext context;
       context.event = LN_Event::OnUpdate;
       context.tick_index = tick;
-      context.use_register_expression_evaluator = registers;
       LN_CommandBuffer command_buffer;
       command_buffer.BeginRecording();
       runtime_tree.ExecuteReady(command_buffer, context);
@@ -18438,93 +17915,6 @@ TEST(LN_TreeCompiler, CollectionObjectListsFollowRuntimeMembership)
   }
 }
 
-/* Every N Steps (On Logic + Physics Step). Trees of one program on their own objects, spread
- * 0, 1, 2... as the manager numbers them, run through Logic + Physics steps as the manager runs
- * them: each tree is told the step, then runs if it has work in it (`skip_idle`) or always. A
- * tree must print the same either way: sleeping through a step may never change what it does. */
-struct SteppedTrees {
-  std::vector<std::unique_ptr<KX_GameObject>> owners;
-  std::vector<std::unique_ptr<LN_RuntimeTree>> trees;
-
-  SteppedTrees(const std::shared_ptr<LN_Program> &program, const uint32_t count)
-  {
-    for (uint32_t index = 0; index < count; index++) {
-      owners.push_back(std::make_unique<KX_GameObject>());
-      trees.push_back(std::make_unique<LN_RuntimeTree>(program, owners.back().get(), index, 0));
-      trees.back()->SetStepSpread(index);
-    }
-  }
-  ~SteppedTrees()
-  {
-    trees.clear();
-  }
-
-  static LN_TickContext Context(const uint64_t step, const double delta)
-  {
-    LN_TickContext context;
-    context.event = LN_Event::OnFixedUpdate;
-    context.use_fixed_timestep = true;
-    context.tick_index = step + 1;
-    context.phase_tick_index = step;
-    context.delta_time = delta;
-    context.unscaled_dt = delta;
-    return context;
-  }
-
-  static std::vector<std::string> Prints(LN_CommandBuffer &command_buffer)
-  {
-    std::vector<std::string> messages;
-    for (const LN_CommandBuffer::Command &command : command_buffer.TakeRecordedCommands()) {
-      if (command.type == LN_CommandBuffer::CommandType::Print) {
-        messages.push_back(command.property_name);
-      }
-    }
-    return messages;
-  }
-
-  /** What each tree printed in step `step` (from 0) of `delta` seconds; `r_ticked`: whether
-   * each had work in it (CanTick). */
-  std::vector<std::vector<std::string>> Step(const uint64_t step,
-                                             const double delta,
-                                             const bool skip_idle,
-                                             std::vector<bool> *r_ticked = nullptr)
-  {
-    std::vector<std::vector<std::string>> prints(trees.size());
-    if (r_ticked != nullptr) {
-      r_ticked->assign(trees.size(), false);
-    }
-    for (size_t index = 0; index < trees.size(); index++) {
-      LN_RuntimeTree &tree = *trees[index];
-      tree.PrepareStepGates(step, delta, delta);
-      const bool ticks = tree.CanTick(LN_Event::OnFixedUpdate);
-      if (r_ticked != nullptr) {
-        (*r_ticked)[index] = ticks;
-      }
-      if (skip_idle && !ticks) {
-        continue;
-      }
-      LN_CommandBuffer command_buffer;
-      command_buffer.BeginRecording();
-      tree.ExecuteReady(command_buffer, Context(step, delta));
-      command_buffer.EndRecording();
-      prints[index] = Prints(command_buffer);
-    }
-    return prints;
-  }
-
-  /** prints[step][tree] over `steps` steps. */
-  std::vector<std::vector<std::vector<std::string>>> Run(const uint64_t steps,
-                                                         const double delta,
-                                                         const bool skip_idle)
-  {
-    std::vector<std::vector<std::vector<std::string>>> prints;
-    for (uint64_t step = 0; step < steps; step++) {
-      prints.push_back(Step(step, delta, skip_idle));
-    }
-    return prints;
-  }
-};
-
 /* On Logic + Physics Step (Every `every`, Spread Out or Same Step) -> Print of its Time Passed. */
 std::shared_ptr<LN_Program> CompileTimePassedPrinter(const int every, const bool spread)
 {
@@ -19425,15 +18815,6 @@ TEST(LN_TreeCompiler, ATreeMakesAnInputSampleOfItsOwnOnlyWithoutTheSharedOne)
 
 /* ---- Tree batches (2026-10-31, step 7: LN_TreeBatch.h) ---- */
 
-/** A positioned object for batch tests (an SG node at the root). */
-struct BatchObject : UIObject<KX_GameObject> {
-  explicit BatchObject(const MT_Vector3 &position) : UIObject<KX_GameObject>(nullptr)
-  {
-    object.NodeSetWorldPosition(position);
-    object.NodeUpdateGS(0.0);
-  }
-};
-
 /* An empty, unlinked Object input reaches these nodes as the tree's own object (or, for Get Child
  * By Name's Child, as nothing to look for), and their outputs are always built. Until 2026-11-01
  * Get Object ID, Remove Parent's Parent and Make Light Unique's Light built it as a constant object
@@ -19683,134 +19064,76 @@ TEST(LN_TreeCompiler, GetAxisVectorOfTheOwnObjectFollowsItsTurnInATreeReadingNot
   EXPECT_NEAR(std::stod(prints[0]), -1.0, 1.0e-5);
 }
 
-struct BrainOptions {
-  /** On Logic + Physics Step instead of On Update. */
-  bool step = false;
-  /** A move of the object before the first read of the distance. */
-  bool move_first = false;
-  /** The second branch reads the distance again after the move (the once-a-pass test). */
-  bool second_branch = false;
-  /** Apply Movement moves another object (a constant object input). */
-  blender::Object *moved_object = nullptr;
-  float threshold = 6.0f;
-};
-
-/** The NPC brain of the 10,000-NPC benchmark (research.py brain_of): the distance from the
- * object to the origin; nearer than the threshold: walk on, else turn and walk; store the
- * distance in "dist". Compiled while its nodes live. */
-std::shared_ptr<LN_Program> CompileBrain(const BrainOptions &options)
-{
-  blender::bNodeTree tree = {};
-  InitTree(tree);
-  TestNode event(
-      tree, options.step ? "LogicNativeOnFixedUpdate" : "LogicNativeOnUpdate", "Event", 1);
-  blender::bNodeSocket &tick = event.flow(false, "Out");
-  TestNode distance(tree, "LogicNativeGetDistance", "Distance Between", 2);
-  distance.node.custom1 = 0; /* End A: an object, the owner when empty. */
-  distance.node.custom2 = 1; /* End B: a position. */
-  distance.in_object("Object A");
-  distance.in_vector("Position A", MT_Vector3(0.0f, 0.0f, 0.0f));
-  distance.in_object("Object B");
-  distance.in_vector("Position B", MT_Vector3(0.0f, 0.0f, 0.0f));
-  blender::bNodeSocket &distance_out = distance.add(false, "Distance", blender::SOCK_FLOAT, nullptr);
-  distance.add(false, "Squared Distance", blender::SOCK_FLOAT, nullptr);
-  distance.add(false, "Valid", blender::SOCK_BOOLEAN, nullptr);
-  TestNode near(tree, "LogicNativeCompare", "Compare", 3);
-  near.node.custom1 = 3; /* Less Than */
-  blender::bNodeSocket &near_a = near.in_float("A", 0.0f);
-  near.in_float("B", options.threshold);
-  blender::bNodeSocket &near_result = near.add(false, "Result", blender::SOCK_BOOLEAN, nullptr);
-  TestNode branch(tree, "LogicNativeBranch", "Branch", 4);
-  blender::bNodeSocket &branch_flow = branch.flow(true, "Flow");
-  blender::bNodeSocket &branch_condition = branch.in_bool("Condition", false);
-  blender::bNodeSocket &branch_true = branch.flow(false, "True");
-  blender::bNodeSocket &branch_false = branch.flow(false, "False");
-  const auto add_movement = [&](TestNode &node, const MT_Vector3 &vector) -> blender::bNodeSocket & {
-    node.flow(true, "Flow");
-    blender::bNodeSocket &object = node.in_object("Object");
-    if (options.moved_object != nullptr) {
-      static_cast<blender::bNodeSocketValueObject *>(object.default_value)->value =
-          options.moved_object;
-    }
-    node.in_vector("Vector", vector);
-    node.in_bool("Local", true);
-    return node.flow(false, "Done");
-  };
-  TestNode approach(tree, "LogicNativeApplyMovement", "Apply Movement", 5);
-  add_movement(approach, MT_Vector3(0.5f, 0.0f, 0.0f));
-  TestNode turn(tree, "LogicNativeApplyRotation", "Apply Rotation", 6);
-  blender::bNodeSocket &turn_flow = turn.flow(true, "Flow");
-  turn.in_object("Object");
-  blender::bNodeSocketValueRotation turn_rotation = {};
-  turn_rotation.value_euler[2] = 0.25f;
-  turn.add(true, "Rotation", blender::SOCK_ROTATION, &turn_rotation);
-  turn.in_bool("Local", true);
-  blender::bNodeSocket &turn_done = turn.flow(false, "Done");
-  TestNode walk(tree, "LogicNativeApplyMovement", "Apply Movement.001", 7);
-  add_movement(walk, MT_Vector3(0.25f, 0.0f, 0.0f));
-  TestNode store(tree, "LogicNativeSetGamePropertyFloat", "Set Game Property", 8);
-  blender::bNodeSocket &store_flow = store.flow(true, "Flow");
-  store.in_object("Object");
-  store.in_string("Property", "dist");
-  blender::bNodeSocket &store_value = store.in_float("Value", 0.0f);
-  store.flow(false, "Done");
-  TestNode first_move(tree, "LogicNativeApplyMovement", "Apply Movement.002", 9);
-  blender::bNodeSocket &first_move_done = add_movement(first_move, MT_Vector3(0.0f, 1.0f, 0.0f));
-  TestNode again(tree, "LogicNativeBranch", "Branch.001", 10);
-  blender::bNodeSocket &again_flow = again.flow(true, "Flow");
-  blender::bNodeSocket &again_condition = again.in_bool("Condition", false);
-  again.flow(false, "True");
-  blender::bNodeSocket &again_false = again.flow(false, "False");
-  TestNode far(tree, "LogicNativePrint", "Print", 11);
-  blender::bNodeSocket &far_flow = far.flow(true, "Flow");
-  far.in_string("Value", "far");
-
-  std::deque<blender::bNodeLink> links;
-  const auto link = [&](TestNode &from,
-                        blender::bNodeSocket &from_socket,
-                        TestNode &to,
-                        blender::bNodeSocket &to_socket) {
-    InitLink(links.emplace_back(), from.node, from_socket, to.node, to_socket);
-    Append(tree.links, links.back());
-  };
-  if (options.move_first) {
-    link(event, tick, first_move, *static_cast<blender::bNodeSocket *>(first_move.node.inputs.first));
-    link(first_move, first_move_done, branch, branch_flow);
-    link(first_move, first_move_done, store, store_flow);
-  }
-  else {
-    link(event, tick, branch, branch_flow);
-    link(event, tick, store, store_flow);
-  }
-  link(distance, distance_out, near, near_a);
-  link(near, near_result, branch, branch_condition);
-  link(branch, branch_true, approach, *static_cast<blender::bNodeSocket *>(approach.node.inputs.first));
-  link(branch, branch_false, turn, turn_flow);
-  link(turn, turn_done, walk, *static_cast<blender::bNodeSocket *>(walk.node.inputs.first));
-  link(distance, distance_out, store, store_value);
-  if (options.second_branch) {
-    /* After the near route's move: is the object still near? (Once a pass: yes.) */
-    blender::bNodeSocket &approach_done = *static_cast<blender::bNodeSocket *>(
-        approach.node.outputs.first);
-    link(approach, approach_done, again, again_flow);
-    link(near, near_result, again, again_condition);
-    link(again, again_false, far, far_flow);
-  }
-  std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
-  EXPECT_NE(program, nullptr);
-  if (program != nullptr) {
-    EXPECT_FALSE(program->GetCompileReport().HasErrors())
-        << FormatCompileReport(program->GetCompileReport());
-  }
-  return program;
-}
-
 size_t CountCommands(const std::vector<LN_CommandBuffer::Command> &commands,
                      const LN_CommandBuffer::CommandType type)
 {
   return size_t(std::count_if(commands.begin(), commands.end(), [&](const auto &command) {
     return command.type == type;
   }));
+}
+
+/* BrainOf (LN_TestTrees.h) is research.py's brain_of: for every combination of its options it
+ * compiles, and one run records what the benchmark brain records: near the origin one move
+ * (approach), far from it a turn and a move (walk); the stored distance, the optional visibility
+ * and one write for each chain. With Every N Steps it runs on the step the gate lets through. */
+TEST(LN_TreeCompiler, BrainOfRecordsWhatTheBenchmarkBrainRecords)
+{
+  for (const int chains : {0, 1, 4, 15}) {
+    for (const int step_every : {0, 2}) {
+      for (const bool measure_distance : {true, false}) {
+        for (const bool look : {false, true}) {
+          SCOPED_TRACE(testing::Message() << "chains " << chains << ", every " << step_every
+                                          << ", measure " << measure_distance << ", look "
+                                          << look);
+          BrainOfOptions options;
+          options.chains = chains;
+          options.step_every = step_every;
+          options.measure_distance = measure_distance;
+          options.look = look;
+          const std::shared_ptr<LN_Program> program = BrainOf(options);
+          ASSERT_NE(program, nullptr);
+          EXPECT_TRUE(program->ValidateInstructionPayloads());
+          /* Reading the stored distance (never set here) is always near; measuring from the
+           * origin is far at 10 m. */
+          for (const bool far : {false, true}) {
+            if (far && !measure_distance) {
+              continue;
+            }
+            BatchObject owner(MT_Vector3(far ? 10.0f : 1.0f, 0.0f, 0.0f));
+            LN_RuntimeTree runtime_tree(program, &owner.object, 0, 0);
+            LN_TickContext context = SteppedTrees::Context(0, 1.0 / 60.0);
+            if (step_every == 0) {
+              context.event = LN_Event::OnUpdate;
+              context.use_fixed_timestep = false;
+            }
+            else {
+              runtime_tree.PrepareStepGates(0, 1.0 / 60.0, 1.0 / 60.0);
+              ASSERT_TRUE(runtime_tree.CanTick(LN_Event::OnFixedUpdate));
+            }
+            LN_CommandBuffer buffer;
+            buffer.BeginRecording();
+            runtime_tree.ExecuteReady(buffer, context);
+            buffer.EndRecording();
+            const std::vector<LN_CommandBuffer::Command> commands = buffer.TakeRecordedCommands();
+            EXPECT_EQ(CountCommands(commands, LN_CommandBuffer::CommandType::ApplyMovement), 1u);
+            EXPECT_EQ(CountCommands(commands, LN_CommandBuffer::CommandType::ApplyRotation),
+                      far ? 1u : 0u);
+            EXPECT_EQ(CountCommands(commands, LN_CommandBuffer::CommandType::SetGameProperty),
+                      size_t(1 + chains + (look ? 1 : 0)));
+            if (measure_distance) {
+              for (const LN_CommandBuffer::Command &command : commands) {
+                if (command.type == LN_CommandBuffer::CommandType::SetGameProperty &&
+                    command.property_name == "dist")
+                {
+                  EXPECT_FLOAT_EQ(command.property_value.float_value, far ? 10.0f : 1.0f);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 /* Get Distance between fixed ends gives one value a pass, taken at its first use. Before
@@ -19836,7 +19159,6 @@ TEST(LN_TreeCompiler, AGetDistanceIsTakenOnceAPassAtItsFirstUse)
     LN_TickContext context;
     context.event = LN_Event::OnUpdate;
     context.tick_index = 1;
-    context.use_register_expression_evaluator = registers;
     LN_CommandBuffer buffer;
     buffer.BeginRecording();
     runtime_tree.ExecuteReady(buffer, context);
@@ -20206,7 +19528,6 @@ TEST(LN_TreeCompiler, ATreeBatchRecordsExactlyWhatTheTreesRecordOneAfterTheOther
                                   context,
                                   nullptr,
                                   nullptr,
-                                  true,
                                   chunks),
                   0u);
         batched_buffer.EndRecording();
@@ -20256,7 +19577,7 @@ TEST(LN_TreeCompiler, ATreeBatchNamesTheTreesOfAChunkThatReadAPendingMove)
   context.tick_index = 1;
   LN_CommandBuffer buffer;
   buffer.BeginRecording();
-  EXPECT_EQ(recorder.Record(pool, buffer, pointers.data(), 8, context, nullptr, nullptr, true, 4),
+  EXPECT_EQ(recorder.Record(pool, buffer, pointers.data(), 8, context, nullptr, nullptr, 4),
             1u);
   buffer.EndRecording();
   EXPECT_EQ(recorder.LastChunkTreesThatReadAMove(), (std::vector<size_t>{4, 5}));
@@ -20280,11 +19601,28 @@ TEST(LN_TreeCompiler, ATreeBatchNamesTheTreesOfAChunkThatReadAPendingMove)
   buffer.BeginRecording();
   buffer.AppendApplyMovement(&objects[6].object, MT_Vector3(0.0f, 3.0f, 0.0f), false, 1, 1);
   EXPECT_EQ(recorder.Record(
-                pool, buffer, brain_pointers.data(), 8, context, nullptr, nullptr, true, 4),
+                pool, buffer, brain_pointers.data(), 8, context, nullptr, nullptr, 4),
             1u);
   EXPECT_EQ(recorder.LastChunkTreesThatReadAMove(), (std::vector<size_t>{6, 7}));
   EXPECT_EQ(objects[6].object.NodeGetWorldPosition(), MT_Vector3(7.0f, 0.0f, 0.0f));
   buffer.EndRecording();
+}
+
+/* The program dumps of two trees the compiler tests build keep matching their goldens
+ * (tests/fixtures/lean_golden): the nodes with state, and an Every N Steps tree. */
+TEST(LN_TreeCompiler, TheProgramDumpsOfTwoTestTreesMatchTheirGoldens)
+{
+  const std::vector<std::pair<const char *, std::shared_ptr<LN_Program>>> programs = {
+      {"stateful_nodes_program", CompileStatefulNodes()},
+      {"time_passed_printer_program", CompileTimePassedPrinter(4, true)}};
+  for (const auto &[name, program] : programs) {
+    SCOPED_TRACE(name);
+    ASSERT_NE(program, nullptr);
+    const std::string text = LN_DumpProgramText(*program);
+    EXPECT_TRUE(text == LN_DumpProgramText(*program));
+    const std::string problem = CheckGolden(name, text);
+    EXPECT_TRUE(problem.empty()) << problem;
+  }
 }
 
 }  // namespace

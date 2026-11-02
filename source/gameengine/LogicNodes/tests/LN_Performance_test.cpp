@@ -173,8 +173,7 @@ class ScopedEnvironmentVariable {
 class ScopedDefaultRuntimeFeatureEnvironment {
  public:
   ScopedDefaultRuntimeFeatureEnvironment()
-      : m_typedCommandStreams("UPBGE_LN_FEATURE_TYPED_COMMAND_STREAMS", nullptr),
-        m_registerExpressionEvaluator("UPBGE_LN_FEATURE_REGISTER_EXPRESSION_EVALUATOR", nullptr),
+      : m_registerExpressionEvaluator("UPBGE_LN_FEATURE_REGISTER_EXPRESSION_EVALUATOR", nullptr),
         m_enableGuardrails("UPBGE_LN_ENABLE_GUARDRAIL_ASSERTIONS", nullptr),
         m_enableDualPathValidation("UPBGE_LN_ENABLE_DUAL_PATH_VALIDATION", nullptr),
         m_disableGuardrails("UPBGE_LN_DISABLE_GUARDRAIL_ASSERTIONS", nullptr),
@@ -184,7 +183,6 @@ class ScopedDefaultRuntimeFeatureEnvironment {
   }
 
  private:
-  ScopedEnvironmentVariable m_typedCommandStreams;
   ScopedEnvironmentVariable m_registerExpressionEvaluator;
   ScopedEnvironmentVariable m_enableGuardrails;
   ScopedEnvironmentVariable m_enableDualPathValidation;
@@ -343,7 +341,6 @@ TEST(LN_Performance, BenchmarkProtocolAndBaselineExpectationsAreDeterministic)
   EXPECT_GT(protocol.warmup_frame_count, 0u);
   EXPECT_GT(protocol.measured_frame_count, protocol.warmup_frame_count);
   EXPECT_TRUE(protocol.run_serial);
-  EXPECT_TRUE(protocol.run_parallel);
   EXPECT_TRUE(protocol.report_median);
   EXPECT_TRUE(protocol.report_p95);
   EXPECT_TRUE(protocol.report_worst_frame);
@@ -408,9 +405,7 @@ TEST(LN_Performance, BenchmarkRunnerExecutesFixturesInRequiredModesAndEmitsSumma
     EXPECT_TRUE(StringContains(json, "\"fixture\""));
     EXPECT_TRUE(StringContains(json, "\"scenario\""));
     EXPECT_TRUE(StringContains(json, "\"legacy_serial\""));
-    EXPECT_TRUE(StringContains(json, "\"legacy_parallel\""));
     EXPECT_TRUE(StringContains(json, "\"optimized_serial\""));
-    EXPECT_TRUE(StringContains(json, "\"optimized_parallel\""));
     EXPECT_TRUE(StringContains(json, "\"median_ms\""));
     EXPECT_TRUE(StringContains(json, "\"p95_ms\""));
     EXPECT_TRUE(StringContains(json, "\"worst_ms\""));
@@ -543,12 +538,12 @@ TEST(LN_Performance, HotPathGateRejectsUnexpectedOptimizedWarmTickWork)
   EXPECT_FALSE(LN_BenchmarkRunSummaryPassesHotPathGate(string_regression));
 
   LN_BenchmarkFixtureRunSummary lookup_regression = regressed_summary;
-  lookup_regression.runs[size_t(LN_BenchmarkRunMode::OptimizedParallel)]
+  lookup_regression.runs[size_t(LN_BenchmarkRunMode::OptimizedSerial)]
       .metrics.hot_map_lookup_count = 1u;
   EXPECT_FALSE(LN_BenchmarkRunSummaryPassesHotPathGate(lookup_regression));
 
   LN_BenchmarkFixtureRunSummary event_scan_regression = regressed_summary;
-  event_scan_regression.runs[size_t(LN_BenchmarkRunMode::OptimizedParallel)]
+  event_scan_regression.runs[size_t(LN_BenchmarkRunMode::OptimizedSerial)]
       .metrics.event_fallback_scan_count = 1u;
   EXPECT_FALSE(LN_BenchmarkRunSummaryPassesHotPathGate(event_scan_regression));
 
@@ -559,7 +554,7 @@ TEST(LN_Performance, HotPathGateRejectsUnexpectedOptimizedWarmTickWork)
 
   LN_BenchmarkFixtureRunSummary full_snapshot_regression = regressed_summary;
   LN_TickProfileMetrics &snapshot_metrics =
-      full_snapshot_regression.runs[size_t(LN_BenchmarkRunMode::OptimizedParallel)].metrics;
+      full_snapshot_regression.runs[size_t(LN_BenchmarkRunMode::OptimizedSerial)].metrics;
   snapshot_metrics.snapshot_tree_count = 1u;
   snapshot_metrics.snapshot_captured_channel_mask = 0xffu;
   snapshot_metrics.snapshot_skipped_channel_mask = 0u;
@@ -581,18 +576,13 @@ TEST(LN_Performance, SimdBenefitGateRequiresMeasuredMathHeavySimdLanes)
 
   const LN_BenchmarkRunResult &optimized_serial =
       summary.runs[size_t(LN_BenchmarkRunMode::OptimizedSerial)];
-  const LN_BenchmarkRunResult &optimized_parallel =
-      summary.runs[size_t(LN_BenchmarkRunMode::OptimizedParallel)];
   EXPECT_GT(optimized_serial.metrics.register_simd_batch_count, 0u);
   EXPECT_GE(optimized_serial.metrics.register_simd_lane_count, 4u);
-  EXPECT_GT(optimized_parallel.metrics.register_simd_batch_count, 0u);
-  EXPECT_GE(optimized_parallel.metrics.register_simd_lane_count, 4u);
 
   LN_BenchmarkFixtureRunSummary simd_disabled = summary;
-  for (LN_BenchmarkRunMode mode :
-       {LN_BenchmarkRunMode::OptimizedSerial, LN_BenchmarkRunMode::OptimizedParallel})
   {
-    LN_TickProfileMetrics &metrics = simd_disabled.runs[size_t(mode)].metrics;
+    LN_TickProfileMetrics &metrics =
+        simd_disabled.runs[size_t(LN_BenchmarkRunMode::OptimizedSerial)].metrics;
     metrics.register_simd_batch_count = 0u;
     metrics.register_simd_lane_count = 0u;
   }
@@ -631,7 +621,6 @@ TEST(LN_Performance, EquivalenceHarnessCatalogCoversRuntimeBoundaries)
 TEST(LN_Performance, RuntimeFeatureTogglesDefaultToDisabledForOptionalPaths)
 {
   const LN_RuntimeFeatureConfig defaults;
-  EXPECT_FALSE(LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS));
   EXPECT_FALSE(
       LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR));
   EXPECT_FALSE(defaults.debug_assertions);
@@ -648,7 +637,6 @@ TEST(LN_Performance, DefaultRuntimeFeatureConfigEnablesStableOptimizedPaths)
   const ScopedDefaultRuntimeFeatureEnvironment scoped_env;
   const LN_RuntimeFeatureConfig defaults = LN_DefaultRuntimeFeatureConfig();
 
-  EXPECT_TRUE(LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS));
   EXPECT_TRUE(
       LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR));
   EXPECT_FALSE(defaults.debug_assertions);
@@ -690,11 +678,8 @@ TEST(LN_Performance, DefaultRuntimeFeatureConfigAllowsEmergencyFeatureDisableOve
   const ScopedDefaultRuntimeFeatureEnvironment scoped_env;
   const ScopedEnvironmentVariable disable_register_eval(
       "UPBGE_LN_FEATURE_REGISTER_EXPRESSION_EVALUATOR", "off");
-  const ScopedEnvironmentVariable disable_command_streams("UPBGE_LN_FEATURE_TYPED_COMMAND_STREAMS",
-                                                          "false");
   const LN_RuntimeFeatureConfig defaults = LN_DefaultRuntimeFeatureConfig();
 
-  EXPECT_FALSE(LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS));
   EXPECT_FALSE(
       LN_RuntimeFeatureEnabled(defaults, LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR));
 }
@@ -711,7 +696,6 @@ TEST(LN_Performance, ReleaseModeSoakReplaysCommittedFixturesDeterministically)
   EXPECT_GE(soak.tick_count, protocol.warmup_frame_count + protocol.measured_frame_count);
   EXPECT_TRUE(soak.release_mode_required);
   EXPECT_TRUE(soak.compares_legacy_and_optimized);
-  EXPECT_TRUE(soak.compares_serial_and_parallel);
   EXPECT_TRUE(soak.compares_command_outputs);
   EXPECT_TRUE(soak.compares_event_outputs);
   EXPECT_TRUE(soak.compares_snapshot_outputs);
@@ -722,7 +706,6 @@ TEST(LN_Performance, ReleaseModeSoakReplaysCommittedFixturesDeterministically)
         fixtures[index], drivers[index], protocol, soak);
     EXPECT_TRUE(LN_BenchmarkFixtureSoakResultPassesSpec(result, soak)) << fixtures[index].id;
     EXPECT_EQ(result.legacy_checksum, result.optimized_checksum) << fixtures[index].id;
-    EXPECT_EQ(result.serial_checksum, result.parallel_checksum) << fixtures[index].id;
     EXPECT_TRUE(result.command_outputs_match) << fixtures[index].id;
     EXPECT_TRUE(result.event_outputs_match) << fixtures[index].id;
     EXPECT_TRUE(result.snapshot_outputs_match) << fixtures[index].id;
@@ -1028,7 +1011,6 @@ TEST(LN_Performance, ProfileLineReportsRequiredRegressionGateMetrics)
   LN_TickProfileMetrics metrics;
   metrics.snapshot_ms = 1.0;
   metrics.serial_record_ms = 2.0;
-  metrics.parallel_record_ms = 3.0;
   metrics.run_once_record_ms = 4.0;
   metrics.flush_ms = 6.0;
   metrics.event_delivery_ms = 6.5;
@@ -1096,9 +1078,7 @@ TEST(LN_Performance, ProfileLineReportsRequiredRegressionGateMetrics)
   metrics.runtime_system_fallback_count = 57;
   metrics.main_thread_fallback_tree_count = 20;
   metrics.serial_tree_count = 21;
-  metrics.parallel_tree_count = 22;
   metrics.run_once_count = 23;
-  metrics.parallel_executor_used = true;
 
   const std::string line = LN_FormatTickProfileLine(metrics);
   EXPECT_TRUE(StringContains(line, "snapshot_ms="));

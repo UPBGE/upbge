@@ -1,0 +1,58 @@
+# generator-version: 1
+# fingerprint: compiler=16.2.1 20261029 (Red Hat 16.2.1-3) glibc=2.43 sse4.2 pointer=64
+lean program valid=1 generic_ops=0 native_ops=16 native_expressions=0
+expressions bool 10
+expressions int 0
+expressions float 12
+expressions string 0
+expressions vector 4
+expressions color 0
+expressions value 0
+expressions query 1
+event OnInit ops=0 blocks=0 fully_native=1 block_ok=0
+event OnUpdate ops=16 blocks=1 fully_native=1 block_ok=1
+  [0] Op::Nop exec=0 native=Nop
+  [1] Op::SetGameProperty exec=1 native=SetNumber
+  [2] Op::BranchRoute exec=2 native=BranchRoute
+  [3] Op::BranchRoute exec=3 native=BranchRoute
+  [4] Op::BranchRoute exec=4 native=BranchRoute
+  [5] Op::SetGameProperty exec=5 native=SetNumber
+  [6] Op::BranchRoute exec=6 native=BranchRoute
+  [7] Op::SetGameProperty exec=7 native=SetNumber
+  [8] Op::BranchRoute exec=8 native=BranchRoute
+  [9] Op::SetGameProperty exec=9 native=SetNumber
+  [10] Op::BranchRoute exec=10 native=BranchRoute
+  [11] Op::SetGameProperty exec=11 native=SetNumber
+  [12] Op::ApplyTransformVector exec=12 native=VectorCommand
+  [13] Op::BranchRoute exec=13 native=BranchRoute
+  [14] Op::ApplyTransformVector exec=14 native=VectorCommand
+  [15] Op::ApplyTransformVector exec=15 native=VectorCommand
+event OnFixedUpdate ops=0 blocks=0 fully_native=1 block_ok=0
+----
+lean program valid=1 generic_ops=0 native_ops=14 native_expressions=0
+expressions bool 9
+expressions int 0
+expressions float 7
+expressions string 0
+expressions vector 3
+expressions color 0
+expressions value 0
+expressions query 0
+event OnInit ops=0 blocks=0 fully_native=1 block_ok=0
+event OnUpdate ops=0 blocks=0 fully_native=1 block_ok=0
+event OnFixedUpdate ops=14 blocks=1 fully_native=1 block_ok=0
+  [0] Op::Nop exec=0 native=Nop
+  [1] Op::SetGameProperty exec=1 native=SetNumber
+  [2] Op::BranchRoute exec=2 native=BranchRoute
+  [3] Op::BranchRoute exec=3 native=BranchRoute
+  [4] Op::BranchRoute exec=4 native=BranchRoute
+  [5] Op::SetGameProperty exec=5 native=SetNumber
+  [6] Op::BranchRoute exec=6 native=BranchRoute
+  [7] Op::SetGameProperty exec=7 native=SetNumber
+  [8] Op::BranchRoute exec=8 native=BranchRoute
+  [9] Op::SetGameProperty exec=9 native=SetNumber
+  [10] Op::ApplyTransformVector exec=10 native=VectorCommand
+  [11] Op::BranchRoute exec=11 native=BranchRoute
+  [12] Op::ApplyTransformVector exec=12 native=VectorCommand
+  [13] Op::ApplyTransformVector exec=13 native=VectorCommand
+----

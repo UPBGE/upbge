@@ -878,7 +878,6 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_BoolExpr
       LN_EXPR(Bool, RuntimeTreeProperty, READ_RUNTIME_STATE_EXPRESSION);
     case LN_BoolExpressionKind::NextFrameDone:
     case LN_BoolExpressionKind::Once:
-    case LN_BoolExpressionKind::Timer:
     case LN_BoolExpressionKind::ValueChanged:
     case LN_BoolExpressionKind::ValueChangedTo:
     case LN_BoolExpressionKind::TweenValue:
@@ -1324,23 +1323,12 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_StringEx
 LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_VectorExpressionKind kind)
 {
   switch (kind) {
-    case LN_VectorExpressionKind::SnapshotWorldPosition:
-    case LN_VectorExpressionKind::SnapshotLocalPosition:
-    case LN_VectorExpressionKind::SnapshotWorldOrientation:
-    case LN_VectorExpressionKind::SnapshotLocalOrientation:
-    case LN_VectorExpressionKind::SnapshotWorldScale:
-    case LN_VectorExpressionKind::SnapshotLocalScale:
-    case LN_VectorExpressionKind::SnapshotLinearVelocity:
-    case LN_VectorExpressionKind::SnapshotLocalLinearVelocity:
-    case LN_VectorExpressionKind::SnapshotAngularVelocity:
-    case LN_VectorExpressionKind::SnapshotLocalAngularVelocity:
     case LN_VectorExpressionKind::SnapshotGravity:
     case LN_VectorExpressionKind::WorldToScreen:
     case LN_VectorExpressionKind::ScreenToWorld:
     case LN_VectorExpressionKind::SnapshotCharacterGravity:
     case LN_VectorExpressionKind::SnapshotCharacterWalkDirection:
     case LN_VectorExpressionKind::SnapshotCharacterLocalWalkDirection:
-      LN_EXPR(Vector, SnapshotWorldPosition, READ_SNAPSHOT_EXPRESSION);
     case LN_VectorExpressionKind::BoneHeadWorld:
     case LN_VectorExpressionKind::BoneTailWorld:
     case LN_VectorExpressionKind::BoneCenterWorld:
@@ -1456,7 +1444,6 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_ColorExp
 LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_ValueExpressionKind kind)
 {
   switch (kind) {
-    case LN_ValueExpressionKind::SnapshotGameProperty:
     case LN_ValueExpressionKind::ActiveCamera:
     case LN_ValueExpressionKind::OwnerObject:
       LN_EXPR(Value, SnapshotGameProperty, READ_SNAPSHOT_EXPRESSION);
@@ -1608,7 +1595,6 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_ValueExp
     case LN_ValueExpressionKind::ListSavedVariables:
       LN_EXPR_MAIN(Value, LoadVariable, READ_FILE_EXPRESSION);
     case LN_ValueExpressionKind::Constant:
-    case LN_ValueExpressionKind::Select:
     case LN_ValueExpressionKind::Mix:
     case LN_ValueExpressionKind::FromBool:
     case LN_ValueExpressionKind::FromInt:

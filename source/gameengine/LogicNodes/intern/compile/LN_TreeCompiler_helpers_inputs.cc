@@ -562,6 +562,16 @@ const blender::bNodeSocket *FindOutputSocket(const blender::bNode &node,
 const LN_PinDefinition *FindPinDefinition(const std::vector<LN_PinDefinition> &pins,
                                           const blender::bNodeSocket &socket)
 {
+  /* The socket's identifier is its contract: two sockets may share a name (Join Path's two "Path"
+   * inputs, the second with the identifier "Path_001") but never an identifier. Matching by name
+   * first gave the second socket the first pin and failed the node (plan phase A15, bug B1). */
+  for (const LN_PinDefinition &pin : pins) {
+    if (!pin.is_variadic && pin.name == socket.identifier &&
+        SocketIdnamesCompatible(socket.idname, pin.socket_idname))
+    {
+      return &pin;
+    }
+  }
   /* Prefer exact pins so a variadic prefix can never shadow a more specific contract. */
   for (const LN_PinDefinition &pin : pins) {
     if (!pin.is_variadic && SocketMatchesPinDefinition(pin, socket)) {
@@ -2630,6 +2640,25 @@ std::optional<uint32_t> BuildCameraRayQueryExpression(
 
   LN_QueryExpression expression;
   expression.kind = LN_QueryExpressionKind::CameraRay;
+  /* The Camera input (plan phase A15, bug B5: it was never read, the ray always started at the
+   * scene's active camera); empty gives the active camera as before. */
+  const std::optional<uint32_t> camera_expr = BuildOptionalObjectTargetExpression(
+      program,
+      node,
+      "Camera",
+      node_definitions,
+      input_links,
+      value_cache,
+      bool_expression_cache,
+      int_expression_cache,
+      float_expression_cache,
+      string_expression_cache,
+      vector_expression_cache,
+      color_expression_cache,
+      value_expression_cache);
+  if (camera_expr) {
+    expression.input0 = *camera_expr;
+  }
   expression.condition_bool_expr_index = *condition_expr;
   expression.input1 = *aim_expr;
   expression.string_expr_index = *property_expr;

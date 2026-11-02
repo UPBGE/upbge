@@ -30,7 +30,7 @@ std::shared_ptr<LN_Program> CreateTransformSnapshotProgram()
 {
   std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
   LN_VectorExpression expression;
-  expression.kind = LN_VectorExpressionKind::SnapshotWorldPosition;
+  expression.kind = LN_VectorExpressionKind::AxisVector; /* the own object: a transform read */
   program->AddVectorExpression(expression);
   return program;
 }
@@ -130,6 +130,38 @@ void ExpectSameGamePropertyValue(const LN_Value *actual,
   EXPECT_EQ(actual->vector_value, expected.vector_value) << where;
 }
 
+/** The snapshot's value of a ref, built from its cells (null past the last capture's refs), and the
+ * typed view of it checked against the reference too. */
+const LN_Value *BuiltGamePropertyValue(const LN_Snapshot &snapshot,
+                                       const uint32_t index,
+                                       LN_Value &storage,
+                                       const LN_Value *reference = nullptr,
+                                       const std::string &where = "")
+{
+  if (!snapshot.BuildGamePropertyValue(index, storage)) {
+    LN_Snapshot::GamePropertyView view;
+    EXPECT_FALSE(snapshot.ReadGameProperty(index, view)) << where;
+    return nullptr;
+  }
+  LN_Snapshot::GamePropertyView view;
+  EXPECT_TRUE(snapshot.ReadGameProperty(index, view)) << where;
+  if (reference != nullptr) {
+    EXPECT_EQ(view.exists, reference->exists) << where;
+    EXPECT_EQ(view.bool_value, reference->bool_value) << where;
+    EXPECT_EQ(view.int_value, reference->int_value) << where;
+    EXPECT_EQ(view.float_value, reference->float_value) << where;
+    EXPECT_EQ(*view.string_value, reference->string_value) << where;
+  }
+  return &storage;
+}
+
+struct TypedSnapshotModeGuard {
+  ~TypedSnapshotModeGuard()
+  {
+    LN_Snapshot::SetTypedSnapshotModeForTests(-1);
+  }
+};
+
 void SetOwnedProperty(KX_GameObject &object, const std::string &name, EXP_Value *value)
 {
   object.SetProperty(name, value);
@@ -172,8 +204,15 @@ TEST(LN_Snapshot, GamePropertyStampChangesOnlyWhenTheListChanges)
   EXPECT_NE(object.GetPropertyMapStamp(), removed);
 }
 
-TEST(LN_Snapshot, KeptGamePropertiesMatchAFreshCaptureAfterAnyChange)
+/* The kept game properties against a fresh capture made by the old code (kept here as the
+ * reference), after any change, in each storage mode (plan A10): the old kept values, the typed
+ * cells, and both compared at every capture. */
+void RunKeptGamePropertiesAgainstTheReference(const int mode)
 {
+  SCOPED_TRACE("typed snapshot mode " + std::to_string(mode));
+  TypedSnapshotModeGuard restore;
+  LN_Snapshot::SetTypedSnapshotModeForTests(mode);
+  const uint32_t differences_before = LN_Snapshot::TypedSnapshotVerifyDifferencesForTests();
   const std::vector<std::string> names = {"a", "b", "c"};
   const std::vector<LN_ValueType> types = {LN_ValueType::Bool,
                                            LN_ValueType::Int,
@@ -270,25 +309,46 @@ TEST(LN_Snapshot, KeptGamePropertiesMatchAFreshCaptureAfterAnyChange)
     snapshot.Capture(&captured, &program, &context, 1.0f / 60.0f);
     const std::vector<LN_GamePropertyRef> &program_refs = program.GetGamePropertyRefs();
     for (uint32_t index = 0; index < program_refs.size(); index++) {
-      ExpectSameGamePropertyValue(snapshot.GetGamePropertyValue(index),
-                                  ReferenceGamePropertyValue(captured, program_refs[index]),
-                                  "step " + std::to_string(step) + " ref " +
-                                      std::to_string(index));
-      if (HasFailure()) {
+      const LN_Value reference = ReferenceGamePropertyValue(captured, program_refs[index]);
+      LN_Value kept;
+      const std::string where = "step " + std::to_string(step) + " ref " + std::to_string(index);
+      ExpectSameGamePropertyValue(
+          BuiltGamePropertyValue(snapshot, index, kept, &reference, where), reference, where);
+      if (::testing::Test::HasFailure()) {
         return;
       }
     }
-    EXPECT_EQ(snapshot.GetGamePropertyValue(uint32_t(program_refs.size())), nullptr);
+    LN_Value past_the_end;
+    EXPECT_EQ(BuiltGamePropertyValue(snapshot, uint32_t(program_refs.size()), past_the_end),
+              nullptr);
 
     /* A UI widget's change read again after the capture. */
     if (next(10) == 0 && !program_refs[0].name.empty()) {
       SetOwnedProperty(captured, program_refs[0].name, new EXP_FloatValue(number + 1.0f));
       snapshot.RefreshGameProperties(&captured, &program);
-      ExpectSameGamePropertyValue(snapshot.GetGamePropertyValue(0),
-                                  ReferenceGamePropertyValue(captured, program_refs[0]),
-                                  "refresh at step " + std::to_string(step));
+      const LN_Value reference = ReferenceGamePropertyValue(captured, program_refs[0]);
+      LN_Value kept;
+      const std::string where = "refresh at step " + std::to_string(step);
+      ExpectSameGamePropertyValue(
+          BuiltGamePropertyValue(snapshot, 0, kept, &reference, where), reference, where);
     }
   }
+  EXPECT_EQ(LN_Snapshot::TypedSnapshotVerifyDifferencesForTests(), differences_before);
+}
+
+TEST(LN_Snapshot, KeptGamePropertiesMatchAFreshCaptureAfterAnyChange)
+{
+  RunKeptGamePropertiesAgainstTheReference(1);
+}
+
+TEST(LN_Snapshot, KeptGamePropertiesAsOldValuesMatchAFreshCaptureAfterAnyChange)
+{
+  RunKeptGamePropertiesAgainstTheReference(0);
+}
+
+TEST(LN_Snapshot, KeptGamePropertiesInBothStoragesMatchAFreshCaptureAfterAnyChange)
+{
+  RunKeptGamePropertiesAgainstTheReference(2);
 }
 
 TEST(LN_Snapshot, DependencyChannelsMapToCaptureChannels)

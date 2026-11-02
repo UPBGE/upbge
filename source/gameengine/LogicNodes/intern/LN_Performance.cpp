@@ -30,7 +30,6 @@ enum class LN_EnvironmentOverride {
 };
 
 constexpr uint32_t LN_DEFAULT_STABLE_RUNTIME_FEATURES =
-    uint32_t(LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS) |
     uint32_t(LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR);
 
 LN_EnvironmentOverride logic_nodes_env_override(const char *name)
@@ -69,16 +68,9 @@ void logic_nodes_apply_feature_env_override(LN_RuntimeFeatureConfig &config,
   }
 }
 
-bool logic_nodes_mode_is_parallel(const LN_BenchmarkRunMode mode)
-{
-  return mode == LN_BenchmarkRunMode::LegacyParallel ||
-         mode == LN_BenchmarkRunMode::OptimizedParallel;
-}
-
 bool logic_nodes_mode_is_optimized(const LN_BenchmarkRunMode mode)
 {
-  return mode == LN_BenchmarkRunMode::OptimizedSerial ||
-         mode == LN_BenchmarkRunMode::OptimizedParallel;
+  return mode == LN_BenchmarkRunMode::OptimizedSerial;
 }
 
 const LN_BenchmarkRunResult *logic_nodes_find_run(const LN_BenchmarkFixtureRunSummary &summary,
@@ -693,16 +685,6 @@ bool logic_nodes_phase10_expression_kind_has_register_path(const LN_RuntimeExpre
       switch (LN_VectorExpressionKind(kind)) {
         case LN_VectorExpressionKind::Constant:
         case LN_VectorExpressionKind::RuntimeTreeProperty:
-        case LN_VectorExpressionKind::SnapshotWorldPosition:
-        case LN_VectorExpressionKind::SnapshotLocalPosition:
-        case LN_VectorExpressionKind::SnapshotWorldOrientation:
-        case LN_VectorExpressionKind::SnapshotLocalOrientation:
-        case LN_VectorExpressionKind::SnapshotWorldScale:
-        case LN_VectorExpressionKind::SnapshotLocalScale:
-        case LN_VectorExpressionKind::SnapshotLinearVelocity:
-        case LN_VectorExpressionKind::SnapshotLocalLinearVelocity:
-        case LN_VectorExpressionKind::SnapshotAngularVelocity:
-        case LN_VectorExpressionKind::SnapshotLocalAngularVelocity:
         case LN_VectorExpressionKind::SnapshotGravity:
         case LN_VectorExpressionKind::WindowResolution:
         case LN_VectorExpressionKind::SnapshotCharacterGravity:
@@ -761,9 +743,7 @@ bool logic_nodes_phase10_expression_kind_has_register_path(const LN_RuntimeExpre
       }
     case LN_RuntimeExpressionFamily::Value:
       switch (LN_ValueExpressionKind(kind)) {
-        case LN_ValueExpressionKind::SnapshotGameProperty:
         case LN_ValueExpressionKind::RuntimeTreeProperty:
-        case LN_ValueExpressionKind::Select:
         case LN_ValueExpressionKind::Mix:
         case LN_ValueExpressionKind::FromBool:
         case LN_ValueExpressionKind::FromInt:
@@ -892,17 +872,13 @@ LN_TickProfileMetrics logic_nodes_make_benchmark_metrics(const LN_BenchmarkFixtu
                                                          const LN_BenchmarkRunMode mode)
 {
   const bool optimized = logic_nodes_mode_is_optimized(mode);
-  const bool parallel = logic_nodes_mode_is_parallel(mode);
   const uint32_t total_instruction_count = driver.tree_count * driver.instruction_count_per_tree;
   const uint32_t total_expression_count = driver.tree_count * driver.expression_count_per_tree;
   const uint32_t total_command_count = driver.tree_count * driver.command_count_per_tree;
 
   LN_TickProfileMetrics metrics;
   metrics.snapshot_ms = double(driver.snapshot_object_count) * (optimized ? 0.00006 : 0.00012);
-  metrics.serial_record_ms = parallel ? 0.0 : logic_nodes_benchmark_base_ms(driver);
-  metrics.parallel_record_ms = parallel ? logic_nodes_benchmark_base_ms(driver) *
-                                              (optimized ? 0.38 : 0.55) :
-                                          0.0;
+  metrics.serial_record_ms = logic_nodes_benchmark_base_ms(driver);
   metrics.flush_ms = double(total_command_count) * (optimized ? 0.00032 : 0.00048);
   metrics.event_delivery_ms = double(driver.event_count_per_tick) *
                               (optimized ? 0.000025 : 0.00008);
@@ -911,8 +887,7 @@ LN_TickProfileMetrics logic_nodes_make_benchmark_metrics(const LN_BenchmarkFixtu
   metrics.snapshot_skipped_channel_mask = optimized ? 0xfcu : 0u;
   metrics.snapshot_shared_input_tree_count = optimized ? driver.tree_count : 0u;
   metrics.snapshot_property_storage_reuse_count = optimized ? driver.tree_count : 0u;
-  metrics.serial_tree_count = parallel ? 0u : driver.tree_count;
-  metrics.parallel_tree_count = parallel ? driver.tree_count : 0u;
+  metrics.serial_tree_count = driver.tree_count;
   metrics.event_count = driver.event_count_per_tick;
   metrics.event_indexed_lookup_count = optimized ? driver.event_count_per_tick : 0u;
   metrics.event_fallback_scan_count = optimized ? 0u : driver.event_count_per_tick;
@@ -937,18 +912,13 @@ LN_TickProfileMetrics logic_nodes_make_benchmark_metrics(const LN_BenchmarkFixtu
   metrics.command_typed_physics_count = optimized ? total_command_count / 10u : 0u;
   metrics.command_coalesced_count = optimized ? total_command_count / 8u : 0u;
   metrics.scheduler_planned_tree_count = driver.tree_count;
-  metrics.scheduler_worker_batch_count = parallel ? (driver.tree_count + 7u) / 8u : 0u;
   metrics.scheduler_main_thread_batch_count = driver.includes_main_thread_only_trees ? 1u : 0u;
-  metrics.scheduler_max_trees_per_worker_batch = parallel ? 8u : 0u;
-  metrics.scheduler_average_trees_per_worker_batch_x100 = parallel ? 800u : 0u;
-  metrics.scheduler_worker_utilization_x100 = parallel ? (optimized ? 82u : 67u) : 0u;
   metrics.scheduler_snapshot_only_tree_count = driver.command_count_per_tree == 0 ?
                                                    driver.tree_count :
                                                    0u;
   metrics.scheduler_command_record_only_tree_count = total_command_count != 0 ? driver.tree_count :
                                                                                 0u;
-  metrics.scheduler_job_count = metrics.scheduler_worker_batch_count +
-                                metrics.scheduler_main_thread_batch_count + (parallel ? 0u : 1u);
+  metrics.scheduler_job_count = metrics.scheduler_main_thread_batch_count + 1u;
   metrics.instruction_count = total_instruction_count;
   metrics.exec_block_count = optimized ? driver.tree_count : 0u;
   metrics.exec_direct_instruction_count = optimized ? total_instruction_count : 0u;
@@ -978,7 +948,6 @@ LN_TickProfileMetrics logic_nodes_make_benchmark_metrics(const LN_BenchmarkFixtu
   metrics.allocation_count = optimized ? 0u : uint64_t(driver.tree_count);
   metrics.string_copy_count = optimized ? 0u : uint64_t(driver.event_count_per_tick);
   metrics.hot_map_lookup_count = optimized ? 0u : uint64_t(total_command_count);
-  metrics.parallel_executor_used = parallel;
   return metrics;
 }
 
@@ -1127,7 +1096,6 @@ LN_BenchmarkRuntimeFixtureSample logic_nodes_run_runtime_benchmark_fixture_sampl
     context.delta_time = protocol.fixed_dt;
     context.current_time = double(tick) * protocol.fixed_dt;
     context.tick_index = tick;
-    context.use_register_expression_evaluator = optimized;
 
     LN_CommandBuffer command_buffer;
     command_buffer.BeginRecording();
@@ -1676,63 +1644,52 @@ const std::array<LN_BenchmarkBaselineExpectation, size_t(LN_BenchmarkScenarioKin
          LN_PROFILE_REQUIRED_METRICS,
          512,
          600,
-         true,
          true},
-        {LN_BenchmarkScenarioKind::FewHeavyTrees, LN_PROFILE_REQUIRED_METRICS, 4, 600, true, true},
+        {LN_BenchmarkScenarioKind::FewHeavyTrees, LN_PROFILE_REQUIRED_METRICS, 4, 600, true},
         {LN_BenchmarkScenarioKind::InstructionHeavy,
          LN_PROFILE_REQUIRED_METRICS,
          16,
          600,
-         true,
          true},
-        {LN_BenchmarkScenarioKind::EventHeavy, LN_PROFILE_REQUIRED_METRICS, 128, 600, true, true},
+        {LN_BenchmarkScenarioKind::EventHeavy, LN_PROFILE_REQUIRED_METRICS, 128, 600, true},
         {LN_BenchmarkScenarioKind::SnapshotHeavy,
          LN_PROFILE_REQUIRED_METRICS,
          64,
          600,
-         true,
          true},
-        {LN_BenchmarkScenarioKind::CommandHeavy, LN_PROFILE_REQUIRED_METRICS, 64, 600, true, true},
-        {LN_BenchmarkScenarioKind::MathHeavy, LN_PROFILE_REQUIRED_METRICS, 32, 600, true, true},
+        {LN_BenchmarkScenarioKind::CommandHeavy, LN_PROFILE_REQUIRED_METRICS, 64, 600, true},
+        {LN_BenchmarkScenarioKind::MathHeavy, LN_PROFILE_REQUIRED_METRICS, 32, 600, true},
         {LN_BenchmarkScenarioKind::MixedSerialParallel,
          LN_PROFILE_REQUIRED_METRICS,
          96,
          600,
-         true,
          true},
         {LN_BenchmarkScenarioKind::TransformHeavy,
          LN_PROFILE_REQUIRED_METRICS,
          128,
          600,
-         true,
          true},
         {LN_BenchmarkScenarioKind::PhysicsQueryHeavy,
          LN_PROFILE_REQUIRED_METRICS,
          64,
          600,
-         true,
-         false},
+         true},
         {LN_BenchmarkScenarioKind::PropertyEventHeavy,
          LN_PROFILE_REQUIRED_METRICS,
          128,
          600,
-         true,
          true},
         {LN_BenchmarkScenarioKind::SpawnLifecycleHeavy,
          LN_PROFILE_REQUIRED_METRICS,
          32,
          600,
-         true,
-         false},
+         true},
     }};
 
 const std::array<LN_BenchmarkRelativeBaseline, size_t(LN_BenchmarkPlatform::Count)>
     g_benchmark_relative_baselines = {{
         {LN_BenchmarkPlatform::Linux,
          "baseline.logic_nodes.linux.relative.v1",
-         190,
-         350,
-         500,
          190,
          350,
          500,
@@ -1743,16 +1700,10 @@ const std::array<LN_BenchmarkRelativeBaseline, size_t(LN_BenchmarkPlatform::Coun
          96,
          100,
          105,
-         96,
-         100,
-         105,
          600,
          false},
         {LN_BenchmarkPlatform::MacOS,
          "baseline.logic_nodes.macos.relative.v1",
-         96,
-         100,
-         105,
          96,
          100,
          105,
@@ -1766,7 +1717,6 @@ const std::array<LN_BenchmarkReplayTraceSpec, size_t(LN_EquivalenceDomain::Count
          "replay.logic_nodes.runtime_execution.v1",
          logic_nodes_all_scenario_bits(),
          true,
-         true,
          true},
         {LN_EquivalenceDomain::EventOrder,
          "replay.logic_nodes.event_order.v1",
@@ -1774,12 +1724,10 @@ const std::array<LN_BenchmarkReplayTraceSpec, size_t(LN_EquivalenceDomain::Count
              logic_nodes_scenario_bit(LN_BenchmarkScenarioKind::PropertyEventHeavy) |
              logic_nodes_scenario_bit(LN_BenchmarkScenarioKind::MixedSerialParallel),
          true,
-         true,
          true},
         {LN_EquivalenceDomain::CommandOrder,
          "replay.logic_nodes.command_order.v1",
          logic_nodes_all_scenario_bits(),
-         true,
          true,
          true},
         {LN_EquivalenceDomain::SnapshotReads,
@@ -1788,7 +1736,6 @@ const std::array<LN_BenchmarkReplayTraceSpec, size_t(LN_EquivalenceDomain::Count
              logic_nodes_scenario_bit(LN_BenchmarkScenarioKind::TransformHeavy) |
              logic_nodes_scenario_bit(LN_BenchmarkScenarioKind::PhysicsQueryHeavy),
          true,
-         true,
          true},
         {LN_EquivalenceDomain::SchedulerMergeOrder,
          "replay.logic_nodes.scheduler_merge_order.v1",
@@ -1796,13 +1743,11 @@ const std::array<LN_BenchmarkReplayTraceSpec, size_t(LN_EquivalenceDomain::Count
              logic_nodes_scenario_bit(LN_BenchmarkScenarioKind::MixedSerialParallel) |
              logic_nodes_scenario_bit(LN_BenchmarkScenarioKind::InstructionHeavy),
          true,
-         true,
          true},
         {LN_EquivalenceDomain::Diagnostics,
          "replay.logic_nodes.diagnostics.v1",
          logic_nodes_all_scenario_bits(),
          true,
-         false,
          true},
     }};
 
@@ -1844,7 +1789,6 @@ const std::array<LN_EquivalenceCheckSpec, size_t(LN_EquivalenceDomain::Count)>
 const LN_BenchmarkSoakSpec g_benchmark_soak_spec = {
     "soak.logic_nodes.optimized_default.release.v1",
     4096,
-    true,
     true,
     true,
     true,
@@ -1927,19 +1871,7 @@ const std::array<LN_RuntimeFallbackDiagnosticSpec, size_t(LN_RuntimeFallbackReas
          true},
     }};
 
-const std::array<LN_RuntimeFeatureFlagStatus, 2> g_runtime_feature_flag_statuses = {{
-    {LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS,
-     "typed_command_streams",
-     "UPBGE_LN_FEATURE_TYPED_COMMAND_STREAMS",
-     "Logic Nodes runtime",
-     "Emergency disable when typed command arrays, command barriers, or coalescing change command "
-     "flush order or diagnostics.",
-     "Remove once typed command output replay gates cover transform, physics, property, audio, "
-     "event, and lifecycle command families.",
-     "2026-09-30",
-     true,
-     false,
-     true},
+const std::array<LN_RuntimeFeatureFlagStatus, 1> g_runtime_feature_flag_statuses = {{
     {LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR,
      "register_expression_evaluator",
      "UPBGE_LN_FEATURE_REGISTER_EXPRESSION_EVALUATOR",
@@ -2065,7 +1997,7 @@ LN_GetRuntimeFallbackDiagnosticSpecs()
   return g_runtime_fallback_diagnostics;
 }
 
-const std::array<LN_RuntimeFeatureFlagStatus, 2> &LN_GetRuntimeFeatureFlagStatuses()
+const std::array<LN_RuntimeFeatureFlagStatus, 1> &LN_GetRuntimeFeatureFlagStatuses()
 {
   return g_runtime_feature_flag_statuses;
 }
@@ -2177,12 +2109,8 @@ const char *LN_BenchmarkRunModeName(const LN_BenchmarkRunMode mode)
   switch (mode) {
     case LN_BenchmarkRunMode::LegacySerial:
       return "legacy_serial";
-    case LN_BenchmarkRunMode::LegacyParallel:
-      return "legacy_parallel";
     case LN_BenchmarkRunMode::OptimizedSerial:
       return "optimized_serial";
-    case LN_BenchmarkRunMode::OptimizedParallel:
-      return "optimized_parallel";
     case LN_BenchmarkRunMode::Count:
       break;
   }
@@ -2344,9 +2272,6 @@ bool LN_BenchmarkBaselineMatchesProtocol(const LN_BenchmarkBaselineExpectation &
   if (baseline.requires_serial_run && !protocol.run_serial) {
     return false;
   }
-  if (baseline.requires_parallel_run && !protocol.run_parallel) {
-    return false;
-  }
   return protocol.build_command != nullptr &&
          std::strcmp(protocol.build_command, "make NPROCS=32") == 0 && protocol.fixed_dt > 0.0 &&
          protocol.warmup_frame_count > 0 && protocol.measured_frame_count > 0 &&
@@ -2366,15 +2291,12 @@ bool LN_BenchmarkRelativeBaselineMatchesProtocol(const LN_BenchmarkRelativeBasel
   }
   if (baseline.max_optimized_serial_median_ratio_x100 == 0 ||
       baseline.max_optimized_serial_p95_ratio_x100 == 0 ||
-      baseline.max_optimized_serial_worst_ratio_x100 == 0 ||
-      baseline.max_optimized_parallel_median_ratio_x100 == 0 ||
-      baseline.max_optimized_parallel_p95_ratio_x100 == 0 ||
-      baseline.max_optimized_parallel_worst_ratio_x100 == 0)
+      baseline.max_optimized_serial_worst_ratio_x100 == 0)
   {
     return false;
   }
-  return protocol.run_serial && protocol.run_parallel && protocol.report_median &&
-         protocol.report_p95 && protocol.report_worst_frame;
+  return protocol.run_serial && protocol.report_median && protocol.report_p95 &&
+         protocol.report_worst_frame;
 }
 
 bool LN_BenchmarkReplayTraceCoversDomain(const LN_BenchmarkReplayTraceSpec &trace,
@@ -2396,7 +2318,7 @@ bool LN_RuntimeFallbackDiagnosticCoversReason(const LN_RuntimeFallbackDiagnostic
 }
 
 bool LN_RuntimeFeatureFlagsAreEmergencyOverrides(
-    const std::array<LN_RuntimeFeatureFlagStatus, 2> &statuses)
+    const std::array<LN_RuntimeFeatureFlagStatus, 1> &statuses)
 {
   uint32_t feature_mask = 0;
   for (const LN_RuntimeFeatureFlagStatus &status : statuses) {
@@ -2725,18 +2647,12 @@ LN_BenchmarkFixtureRunSummary LN_RunBenchmarkFixture(const LN_BenchmarkFixtureSp
 
   const std::array<LN_BenchmarkRunMode, size_t(LN_BenchmarkRunMode::Count)> modes = {{
       LN_BenchmarkRunMode::LegacySerial,
-      LN_BenchmarkRunMode::LegacyParallel,
       LN_BenchmarkRunMode::OptimizedSerial,
-      LN_BenchmarkRunMode::OptimizedParallel,
   }};
 
   for (size_t index = 0; index < modes.size(); index++) {
     const LN_BenchmarkRunMode mode = modes[index];
-    const bool parallel = logic_nodes_mode_is_parallel(mode);
-    if (parallel && !protocol.run_parallel) {
-      continue;
-    }
-    if (!parallel && !protocol.run_serial) {
+    if (!protocol.run_serial) {
       continue;
     }
     summary.runs[index] = logic_nodes_make_benchmark_run_result(fixture, driver, protocol, mode);
@@ -2770,8 +2686,6 @@ LN_BenchmarkFixtureSoakResult LN_RunBenchmarkFixtureSoak(const LN_BenchmarkFixtu
   result.tick_count = soak.tick_count;
   result.legacy_checksum = checksum;
   result.optimized_checksum = checksum;
-  result.serial_checksum = checksum;
-  result.parallel_checksum = checksum;
   result.command_outputs_match = soak.compares_command_outputs;
   result.event_outputs_match = soak.compares_event_outputs;
   result.snapshot_outputs_match = soak.compares_snapshot_outputs;
@@ -2791,9 +2705,7 @@ bool LN_BenchmarkRunSummaryMatchesProtocol(const LN_BenchmarkFixtureRunSummary &
   }
 
   bool has_legacy_serial = false;
-  bool has_legacy_parallel = false;
   bool has_optimized_serial = false;
-  bool has_optimized_parallel = false;
 
   for (const LN_BenchmarkRunResult &result : summary.runs) {
     if (!result.valid) {
@@ -2809,14 +2721,8 @@ bool LN_BenchmarkRunSummaryMatchesProtocol(const LN_BenchmarkFixtureRunSummary &
       case LN_BenchmarkRunMode::LegacySerial:
         has_legacy_serial = true;
         break;
-      case LN_BenchmarkRunMode::LegacyParallel:
-        has_legacy_parallel = true;
-        break;
       case LN_BenchmarkRunMode::OptimizedSerial:
         has_optimized_serial = true;
-        break;
-      case LN_BenchmarkRunMode::OptimizedParallel:
-        has_optimized_parallel = true;
         break;
       case LN_BenchmarkRunMode::Count:
         return false;
@@ -2824,9 +2730,6 @@ bool LN_BenchmarkRunSummaryMatchesProtocol(const LN_BenchmarkFixtureRunSummary &
   }
 
   if (protocol.run_serial && (!has_legacy_serial || !has_optimized_serial)) {
-    return false;
-  }
-  if (protocol.run_parallel && (!has_legacy_parallel || !has_optimized_parallel)) {
     return false;
   }
   return true;
@@ -2839,19 +2742,11 @@ bool LN_BenchmarkRunSummaryPassesRelativeBaseline(const LN_BenchmarkFixtureRunSu
       summary, LN_BenchmarkRunMode::LegacySerial);
   const LN_BenchmarkRunResult *optimized_serial = logic_nodes_find_run(
       summary, LN_BenchmarkRunMode::OptimizedSerial);
-  const LN_BenchmarkRunResult *legacy_parallel = logic_nodes_find_run(
-      summary, LN_BenchmarkRunMode::LegacyParallel);
-  const LN_BenchmarkRunResult *optimized_parallel = logic_nodes_find_run(
-      summary, LN_BenchmarkRunMode::OptimizedParallel);
 
-  if (legacy_serial == nullptr || optimized_serial == nullptr || legacy_parallel == nullptr ||
-      optimized_parallel == nullptr)
-  {
+  if (legacy_serial == nullptr || optimized_serial == nullptr) {
     return false;
   }
-  if (optimized_serial->measured_frame_count < baseline.min_measured_frame_count ||
-      optimized_parallel->measured_frame_count < baseline.min_measured_frame_count)
-  {
+  if (optimized_serial->measured_frame_count < baseline.min_measured_frame_count) {
     return false;
   }
   if (!logic_nodes_ratio_within(optimized_serial->median_ms,
@@ -2866,40 +2761,19 @@ bool LN_BenchmarkRunSummaryPassesRelativeBaseline(const LN_BenchmarkFixtureRunSu
   {
     return false;
   }
-  if (!logic_nodes_ratio_within(optimized_parallel->median_ms,
-                                legacy_parallel->median_ms,
-                                baseline.max_optimized_parallel_median_ratio_x100) ||
-      !logic_nodes_ratio_within(optimized_parallel->p95_ms,
-                                legacy_parallel->p95_ms,
-                                baseline.max_optimized_parallel_p95_ratio_x100) ||
-      !logic_nodes_ratio_within(optimized_parallel->worst_frame_ms,
-                                legacy_parallel->worst_frame_ms,
-                                baseline.max_optimized_parallel_worst_ratio_x100))
-  {
-    return false;
-  }
   return logic_nodes_optimized_metrics_do_not_explode(optimized_serial->metrics,
-                                                      legacy_serial->metrics) &&
-         logic_nodes_optimized_metrics_do_not_explode(optimized_parallel->metrics,
-                                                      legacy_parallel->metrics);
+                                                      legacy_serial->metrics);
 }
 
 bool LN_BenchmarkRunSummaryPassesHotPathGate(const LN_BenchmarkFixtureRunSummary &summary)
 {
   const LN_BenchmarkRunResult *optimized_serial = logic_nodes_find_run(
       summary, LN_BenchmarkRunMode::OptimizedSerial);
-  const LN_BenchmarkRunResult *optimized_parallel = logic_nodes_find_run(
-      summary, LN_BenchmarkRunMode::OptimizedParallel);
 
-  if (optimized_serial == nullptr || optimized_parallel == nullptr) {
+  if (optimized_serial == nullptr || !optimized_serial->runtime_fixture_measured) {
     return false;
   }
-  if (!optimized_serial->runtime_fixture_measured || !optimized_parallel->runtime_fixture_measured)
-  {
-    return false;
-  }
-  return logic_nodes_optimized_metrics_pass_hot_path_gate(optimized_serial->metrics) &&
-         logic_nodes_optimized_metrics_pass_hot_path_gate(optimized_parallel->metrics);
+  return logic_nodes_optimized_metrics_pass_hot_path_gate(optimized_serial->metrics);
 }
 
 bool LN_BenchmarkRunSummaryPassesSimdBenefitGate(const LN_BenchmarkFixtureRunSummary &summary,
@@ -2910,33 +2784,21 @@ bool LN_BenchmarkRunSummaryPassesSimdBenefitGate(const LN_BenchmarkFixtureRunSum
   }
   const LN_BenchmarkRunResult *legacy_serial = logic_nodes_find_run(
       summary, LN_BenchmarkRunMode::LegacySerial);
-  const LN_BenchmarkRunResult *legacy_parallel = logic_nodes_find_run(
-      summary, LN_BenchmarkRunMode::LegacyParallel);
   const LN_BenchmarkRunResult *optimized_serial = logic_nodes_find_run(
       summary, LN_BenchmarkRunMode::OptimizedSerial);
-  const LN_BenchmarkRunResult *optimized_parallel = logic_nodes_find_run(
-      summary, LN_BenchmarkRunMode::OptimizedParallel);
 
-  if (legacy_serial == nullptr || legacy_parallel == nullptr || optimized_serial == nullptr ||
-      optimized_parallel == nullptr)
-  {
+  if (legacy_serial == nullptr || optimized_serial == nullptr) {
     return false;
   }
-  if (!optimized_serial->runtime_fixture_measured || !optimized_parallel->runtime_fixture_measured)
-  {
+  if (!optimized_serial->runtime_fixture_measured) {
     return false;
   }
-  if (!logic_nodes_optimized_metrics_use_real_simd(optimized_serial->metrics) ||
-      !logic_nodes_optimized_metrics_use_real_simd(optimized_parallel->metrics))
-  {
+  if (!logic_nodes_optimized_metrics_use_real_simd(optimized_serial->metrics)) {
     return false;
   }
   return logic_nodes_ratio_within(optimized_serial->median_ms,
                                   legacy_serial->median_ms,
-                                  baseline.max_optimized_serial_median_ratio_x100) &&
-         logic_nodes_ratio_within(optimized_parallel->median_ms,
-                                  legacy_parallel->median_ms,
-                                  baseline.max_optimized_parallel_median_ratio_x100);
+                                  baseline.max_optimized_serial_median_ratio_x100);
 }
 
 bool LN_BenchmarkFixtureSoakResultPassesSpec(const LN_BenchmarkFixtureSoakResult &result,
@@ -2949,9 +2811,6 @@ bool LN_BenchmarkFixtureSoakResultPassesSpec(const LN_BenchmarkFixtureSoakResult
     return false;
   }
   if (soak.compares_legacy_and_optimized && result.legacy_checksum != result.optimized_checksum) {
-    return false;
-  }
-  if (soak.compares_serial_and_parallel && result.serial_checksum != result.parallel_checksum) {
     return false;
   }
   return (!soak.compares_command_outputs || result.command_outputs_match) &&
@@ -3017,13 +2876,7 @@ std::vector<LN_BenchmarkMeasuredRegressionDiagnostic> LN_GetBenchmarkMeasuredReg
         summary, LN_BenchmarkRunMode::LegacySerial);
     const LN_BenchmarkRunResult *optimized_serial = logic_nodes_find_run(
         summary, LN_BenchmarkRunMode::OptimizedSerial);
-    const LN_BenchmarkRunResult *legacy_parallel = logic_nodes_find_run(
-        summary, LN_BenchmarkRunMode::LegacyParallel);
-    const LN_BenchmarkRunResult *optimized_parallel = logic_nodes_find_run(
-        summary, LN_BenchmarkRunMode::OptimizedParallel);
-    if (legacy_serial == nullptr || optimized_serial == nullptr || legacy_parallel == nullptr ||
-        optimized_parallel == nullptr)
-    {
+    if (legacy_serial == nullptr || optimized_serial == nullptr) {
       continue;
     }
 
@@ -3036,12 +2889,6 @@ std::vector<LN_BenchmarkMeasuredRegressionDiagnostic> LN_GetBenchmarkMeasuredReg
                                                                         legacy_serial->p95_ms);
     diagnostic.optimized_serial_worst_ratio_x100 = logic_nodes_ratio_x100(
         optimized_serial->worst_frame_ms, legacy_serial->worst_frame_ms);
-    diagnostic.optimized_parallel_median_ratio_x100 = logic_nodes_ratio_x100(
-        optimized_parallel->median_ms, legacy_parallel->median_ms);
-    diagnostic.optimized_parallel_p95_ratio_x100 = logic_nodes_ratio_x100(
-        optimized_parallel->p95_ms, legacy_parallel->p95_ms);
-    diagnostic.optimized_parallel_worst_ratio_x100 = logic_nodes_ratio_x100(
-        optimized_parallel->worst_frame_ms, legacy_parallel->worst_frame_ms);
     diagnostic.serial_failed =
         !logic_nodes_ratio_within(optimized_serial->median_ms,
                                   legacy_serial->median_ms,
@@ -3052,16 +2899,6 @@ std::vector<LN_BenchmarkMeasuredRegressionDiagnostic> LN_GetBenchmarkMeasuredReg
         !logic_nodes_ratio_within(optimized_serial->worst_frame_ms,
                                   legacy_serial->worst_frame_ms,
                                   baseline.max_optimized_serial_worst_ratio_x100);
-    diagnostic.parallel_failed =
-        !logic_nodes_ratio_within(optimized_parallel->median_ms,
-                                  legacy_parallel->median_ms,
-                                  baseline.max_optimized_parallel_median_ratio_x100) ||
-        !logic_nodes_ratio_within(optimized_parallel->p95_ms,
-                                  legacy_parallel->p95_ms,
-                                  baseline.max_optimized_parallel_p95_ratio_x100) ||
-        !logic_nodes_ratio_within(optimized_parallel->worst_frame_ms,
-                                  legacy_parallel->worst_frame_ms,
-                                  baseline.max_optimized_parallel_worst_ratio_x100);
     diagnostics.push_back(diagnostic);
   }
   return diagnostics;
@@ -3163,8 +3000,6 @@ LN_RuntimeFeatureConfig LN_DefaultRuntimeFeatureConfig()
 {
   LN_RuntimeFeatureConfig config;
   config.enabled_features = LN_DEFAULT_STABLE_RUNTIME_FEATURES;
-  logic_nodes_apply_feature_env_override(
-      config, LN_RUNTIME_FEATURE_TYPED_COMMAND_STREAMS, "UPBGE_LN_FEATURE_TYPED_COMMAND_STREAMS");
   logic_nodes_apply_feature_env_override(config,
                                          LN_RUNTIME_FEATURE_REGISTER_EXPRESSION_EVALUATOR,
                                          "UPBGE_LN_FEATURE_REGISTER_EXPRESSION_EVALUATOR");
@@ -3202,8 +3037,7 @@ bool LN_RuntimeGuardrailAssertionEnabled(const LN_RuntimeFeatureConfig &config,
 
 std::string LN_FormatTickProfileLine(const LN_TickProfileMetrics &metrics)
 {
-  const double record_ms = metrics.serial_record_ms + metrics.parallel_record_ms +
-                           metrics.run_once_record_ms;
+  const double record_ms = metrics.serial_record_ms + metrics.run_once_record_ms;
   std::ostringstream stream;
   stream << "Logic Nodes tick: snapshot_ms=" << metrics.snapshot_ms;
   stream << " serial_ms=" << metrics.serial_record_ms;
@@ -3260,6 +3094,10 @@ std::string LN_FormatTickProfileLine(const LN_TickProfileMetrics &metrics)
   stream << " system_fallback_reasons=0x" << metrics.runtime_system_fallback_reason_mask
          << std::dec;
   stream << " system_fallbacks=" << metrics.runtime_system_fallback_count;
+  stream << " lean_trees=" << metrics.lean_trees;
+  stream << " lean_generic_ops=" << metrics.lean_generic_ops;
+  stream << " lean_native_ops=" << metrics.lean_native_ops;
+  stream << " lean_missing=" << metrics.lean_missing;
   stream << " serial_trees=" << metrics.serial_tree_count;
   stream << " run_once=" << metrics.run_once_count;
   stream << " batches=" << metrics.batch_count;
@@ -3267,5 +3105,11 @@ std::string LN_FormatTickProfileLine(const LN_TickProfileMetrics &metrics)
   stream << " batch_threads=" << metrics.batch_thread_count;
   stream << " batch_ms=" << metrics.batch_record_ms;
   stream << " batch_join_ms=" << metrics.batch_join_ms;
+  stream << " decide_ms=" << metrics.decide_ms;
+  stream << " mark_ms=" << metrics.mark_ms;
+  stream << " compact_ms=" << metrics.compact_ms;
+  stream << " input_ms=" << metrics.input_ms;
+  stream << " ui_ms=" << metrics.ui_ms;
+  stream << " warm_ms=" << metrics.warm_ms;
   return stream.str();
 }

@@ -4,6 +4,10 @@
 
 #include "testing/testing.h"
 
+#include <chrono>
+#include <deque>
+#include <set>
+
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -25,6 +29,9 @@
 #include "LN_Program.h"
 #include "LN_RuntimeSemantics.h"
 #include "LN_RuntimeTree.h"
+#include "LN_TestTrees.h"
+
+using ln_test::NamedPropertyWriter;
 
 namespace {
 
@@ -793,31 +800,11 @@ TEST(LN_CommandBuffer, FlushesAggregatedCommandsInSameTick)
   command.bool_value = false;
   command.sort_key = 1;
 
-  command_buffer.MergeRecordedCommands({command});
+  command_buffer.AppendLegacyCommandsForTests({command});
   ASSERT_EQ(command_buffer.Size(), 1u);
 
   command_buffer.Flush();
   EXPECT_EQ(command_buffer.Size(), 0u);
-}
-
-TEST(LN_CommandBuffer, MergeRecordedCommandsPreservesOrder)
-{
-  LN_CommandBuffer command_buffer;
-  command_buffer.SetMainThreadId(std::this_thread::get_id());
-  command_buffer.BeginRecording();
-  command_buffer.AppendSetWorldPosition(
-      FakeGameObjectPointer(1), MT_Vector3(1.0f, 0.0f, 0.0f), 10, 0);
-  command_buffer.EndRecording();
-
-  std::vector<LN_CommandBuffer::Command> worker_commands;
-  worker_commands.push_back(GamePropertyCommand("merged", 7.0f, 20, 1));
-
-  command_buffer.MergeRecordedCommands(std::move(worker_commands));
-
-  ASSERT_EQ(command_buffer.Size(), 2u);
-  EXPECT_EQ(command_buffer.GetCommandsForTests().front().type,
-            LN_CommandBuffer::CommandType::SetWorldPosition);
-  EXPECT_EQ(command_buffer.GetCommandsForTests().back().property_name, "merged");
 }
 
 TEST(LN_CommandBuffer, ClassifiesTypedCommandStreamPolicies)
@@ -863,29 +850,185 @@ TEST(LN_CommandBuffer, ClassifiesTypedCommandStreamPolicies)
   EXPECT_EQ(LN_CommandBuffer::GetCommandClass(CommandType::VehicleApplyEngineForce),
             LN_CommandBuffer::CommandClass::PhysicsServiceMutation);
 
-  EXPECT_EQ(LN_CommandBuffer::GetCommandBarrier(CommandType::ApplyForce),
-            LN_CommandBuffer::CommandBarrier::RelativeMutation);
-  EXPECT_EQ(LN_CommandBuffer::GetCommandBarrier(CommandType::RemoveObject),
-            LN_CommandBuffer::CommandBarrier::ObjectLifecycle);
-  EXPECT_EQ(LN_CommandBuffer::GetCommandBarrier(CommandType::SendEvent),
-            LN_CommandBuffer::CommandBarrier::EventMessage);
-  EXPECT_EQ(LN_CommandBuffer::GetCommandBarrier(CommandType::RestartGame),
-            LN_CommandBuffer::CommandBarrier::ExternalSideEffect);
   EXPECT_EQ(LN_CommandBuffer::GetCoalescingPolicy(CommandType::SetWorldPosition),
             LN_CommandBuffer::CoalescingPolicy::LastWriteWinsWithinBarrierSegment);
   EXPECT_EQ(LN_CommandBuffer::GetCoalescingPolicy(CommandType::SetMaterialParameter),
             LN_CommandBuffer::CoalescingPolicy::LastWriteWinsWithinBarrierSegment);
-  EXPECT_EQ(LN_CommandBuffer::GetCommandBarrier(CommandType::SetShapeKeyValue),
-            LN_CommandBuffer::CommandBarrier::SceneDatablockMutation);
   EXPECT_EQ(LN_CommandBuffer::GetCoalescingPolicy(CommandType::SetShapeKeyValue),
             LN_CommandBuffer::CoalescingPolicy::LastWriteWinsWithinBarrierSegment);
   EXPECT_EQ(LN_CommandBuffer::GetCoalescingPolicy(CommandType::PlaySound),
             LN_CommandBuffer::CoalescingPolicy::Forbidden);
 }
 
+/* Phase A6: the class and the merge policy of every command type are read from one table made at
+ * build time. The last-write-wins set below is the old switch's list, written out. */
+TEST(LN_CommandBuffer, TheTypeTableGivesTheOldClassesAndTheOldMergeSet)
+{
+  using CommandType = LN_CommandBuffer::CommandType;
+  const std::set<CommandType> last_write_wins = {CommandType::SetWorldPosition,
+                                                 CommandType::SetLocalPosition,
+                                                 CommandType::SetWorldOrientation,
+                                                 CommandType::SetLocalOrientation,
+                                                 CommandType::SetWorldScale,
+                                                 CommandType::SetLocalScale,
+                                                 CommandType::SetLinearVelocity,
+                                                 CommandType::SetLocalLinearVelocity,
+                                                 CommandType::SetAngularVelocity,
+                                                 CommandType::SetLocalAngularVelocity,
+                                                 CommandType::SetGameProperty,
+                                                 CommandType::SetTreeProperty,
+                                                 CommandType::SetMaterialParameter,
+                                                 CommandType::SetShapeKeyValue,
+                                                 CommandType::SetGeometryNodesInput,
+                                                 CommandType::SetGeometryNodeSocketValue,
+                                                 CommandType::SetCompositorNodeSocketValue,
+                                                 CommandType::SetNodeMute};
+  /* Every value of the enum, up to the last one (Set Volume). */
+  for (int value = 0; value <= int(CommandType::SetSoundVolume); value++) {
+    const CommandType type = CommandType(value);
+    SCOPED_TRACE(value);
+    EXPECT_EQ(LN_CommandBuffer::GetCoalescingPolicy(type) ==
+                  LN_CommandBuffer::CoalescingPolicy::LastWriteWinsWithinBarrierSegment,
+              last_write_wins.count(type) == 1);
+  }
+  /* The vector commands go to their stream by class: absolute setters, velocities, relative. */
+  EXPECT_EQ(LN_CommandBuffer::GetCommandClass(CommandType::ApplyMovement),
+            LN_CommandBuffer::CommandClass::RelativeObjectVector);
+  EXPECT_EQ(LN_CommandBuffer::GetCommandClass(CommandType::ApplyRotation),
+            LN_CommandBuffer::CommandClass::RelativeObjectVector);
+  EXPECT_EQ(LN_CommandBuffer::GetCommandClass(CommandType::SetLinearVelocity),
+            LN_CommandBuffer::CommandClass::AbsoluteObjectVelocity);
+  EXPECT_EQ(LN_CommandBuffer::GetCommandClass(CommandType::SetWorldScale),
+            LN_CommandBuffer::CommandClass::AbsoluteObjectTransform);
+}
+
+/* A micro benchmark of recording, not a check (DISABLED_: run with --gtest_also_run_disabled_tests
+ * --gtest_filter=*RecordCostBench). One step of 10,000 NPCs: a move, a turn and five number
+ * writes each, recorded, ended and cleared; the best of 15 steps. */
+TEST(LN_CommandBuffer, DISABLED_RecordCostBench)
+{
+  std::vector<std::string> names = {"p0", "p1", "p2", "p3", "p4"};
+  NamedPropertyWriter writer(names);
+  constexpr uint32_t npcs = 10000;
+  std::deque<ln_test::BatchObject> objects;
+  for (uint32_t index = 0; index < npcs; index++) {
+    objects.emplace_back(MT_Vector3(0.0f, 0.0f, 0.0f));
+  }
+  LN_PropertyNumber number;
+  number.type = LN_ValueType::Float;
+  number.float_value = 1.5f;
+  LN_CommandBuffer buffer;
+  /* [0] everything, [1] moves only, [2] turns only, [3] number writes only. */
+  double best[4] = {1.0e9, 1.0e9, 1.0e9, 1.0e9};
+  double order_best = 1.0e9, merge_best = 1.0e9;
+  for (int round = 0; round < 15; round++) {
+    for (int kind = 0; kind < 4; kind++) {
+      const auto start = std::chrono::steady_clock::now();
+      buffer.BeginRecording();
+      for (uint32_t index = 0; index < npcs; index++) {
+        KX_GameObject *object = &objects[index].object;
+        if (kind == 0 || kind == 1) {
+          buffer.AppendApplyMovement(object, MT_Vector3(0.0f, 0.002f, 0.0f), true, index, 1);
+        }
+        if (kind == 0 || kind == 2) {
+          buffer.AppendApplyRotation(object, MT_Vector3(0.0f, 0.0f, 0.002f), true, index, 2);
+        }
+        if (kind == 0 || kind == 3) {
+          for (uint32_t property = 0; property < 5; property++) {
+            writer.WriteNumber(buffer, object, names[property], number, index, 3 + property);
+          }
+        }
+      }
+      buffer.EndRecording();
+      const double recorded = std::chrono::duration<double, std::milli>(
+                                  std::chrono::steady_clock::now() - start)
+                                  .count();
+      if (kind == 0) {
+        /* The flush's order of all of it, without applying anything. */
+        const auto order_start = std::chrono::steady_clock::now();
+        buffer.DirectFlushOrderForTests(false);
+        order_best = std::min(order_best,
+                              std::chrono::duration<double, std::milli>(
+                                  std::chrono::steady_clock::now() - order_start)
+                                  .count());
+        const auto merge_start = std::chrono::steady_clock::now();
+        buffer.DirectFlushOrderForTests(true);
+        merge_best = std::min(merge_best,
+                              std::chrono::duration<double, std::milli>(
+                                  std::chrono::steady_clock::now() - merge_start)
+                                  .count());
+      }
+      buffer.Clear();
+      best[kind] = std::min(best[kind], recorded);
+    }
+  }
+  std::printf("RECORD_BENCH all %.3f ms, moves %.3f, turns %.3f, 5 number writes %.3f (%u NPCs); flush order %.3f, with merge marks %.3f; sizes %s\n",
+              best[0],
+              best[1],
+              best[2],
+              best[3],
+              npcs,
+              order_best,
+              merge_best,
+              LN_CommandBuffer::StreamEntrySizesForTests().c_str());
+}
+
+/* A micro benchmark of the flush (DISABLED_): 10,000 objects with five float properties, five
+ * number writes each, applied by name or through checked handles; best of 15. */
+TEST(LN_CommandBuffer, DISABLED_FlushCostBench)
+{
+  std::vector<std::string> names = {"p0", "p1", "p2", "p3", "p4"};
+  NamedPropertyWriter writer(names);
+  constexpr uint32_t npcs = 10000;
+  std::deque<ln_test::BatchObject> objects;
+  for (uint32_t index = 0; index < npcs; index++) {
+    objects.emplace_back(MT_Vector3(0.0f, 0.0f, 0.0f));
+    for (const std::string &name : names) {
+      EXP_Value *property = new EXP_FloatValue(0.0f);
+      objects.back().object.SetProperty(name, property);
+      property->Release();
+    }
+  }
+  LN_PropertyNumber number;
+  number.type = LN_ValueType::Float;
+  number.float_value = 1.5f;
+  LN_CommandBuffer buffer;
+  for (const int mode : {0, 1}) {
+    LN_CommandBuffer::SetLeanFlushModeForTests(mode);
+    double best = 1.0e9;
+    for (int round = 0; round < 15; round++) {
+      buffer.BeginRecording();
+      for (uint32_t index = 0; index < npcs; index++) {
+        KX_GameObject *object = &objects[index].object;
+        const uint64_t stamp = object->GetPropertyMapStamp();
+        for (uint32_t property = 0; property < 5; property++) {
+          buffer.AppendSetGamePropertyNumberRef(writer.Tree(),
+                                                object,
+                                                property,
+                                                number,
+                                                index,
+                                                3 + property,
+                                                object->GetProperty(names[property]),
+                                                stamp);
+        }
+      }
+      buffer.EndRecording();
+      const auto start = std::chrono::steady_clock::now();
+      buffer.Flush();
+      best = std::min(best,
+                      std::chrono::duration<double, std::milli>(
+                          std::chrono::steady_clock::now() - start)
+                          .count());
+    }
+    std::printf("FLUSH_BENCH mode %d: %.3f ms for %u x 5 number writes\n", mode, best, npcs);
+  }
+  LN_CommandBuffer::SetLeanFlushModeForTests(-1);
+}
+
 TEST(LN_CommandBuffer, TypedStreamsMaterializeInDeterministicRecordOrder)
 {
   LN_CommandBuffer command_buffer;
+  NamedPropertyWriter speed_writer({"Speed"});
   command_buffer.BeginRecording();
   command_buffer.AppendSetWorldPosition(
       FakeGameObjectPointer(1), MT_Vector3(1.0f, 0.0f, 0.0f), 30, 1);
@@ -898,7 +1041,7 @@ TEST(LN_CommandBuffer, TypedStreamsMaterializeInDeterministicRecordOrder)
   LN_Value property_value;
   property_value.type = LN_ValueType::Float;
   property_value.float_value = 4.0f;
-  command_buffer.AppendSetGameProperty(FakeGameObjectPointer(1), "Speed", property_value, 20, 3);
+  speed_writer.Write(command_buffer, FakeGameObjectPointer(1), "Speed", property_value, 20, 3);
   command_buffer.AppendSendEvent("Started", property_value, FakeGameObjectPointer(1), nullptr, 40, 4);
   command_buffer.AppendStopAllSounds(45, 8);
   command_buffer.AppendPlaySound("Ping", 0.5f, 1.25f, true, 50, 5);
@@ -1084,10 +1227,15 @@ TEST(LN_CommandBuffer, TypedLifecycleStreamsMaterializeInDeterministicOrder)
   object_ref.slot = 4;
   object_ref.generation = 5;
   object_ref.debug_name = "CubeTemplate";
+  LN_RuntimeRef cube_ref = object_ref;
+  cube_ref.debug_name = "Cube";
+  LN_RuntimeRef parent_ref = object_ref;
+  parent_ref.debug_name = "Parent";
 
   command_buffer.BeginRecording();
-  command_buffer.AppendAddObject(owner, "Cube", 0.0f, false, 30, 1);
-  command_buffer.AppendSetParent(owner, "Parent", true, false, 10, 2);
+  command_buffer.AppendAddObjectFromRef(
+      runtime_tree, owner, cube_ref, 0.0f, false, LN_INVALID_INDEX, 30, 1);
+  command_buffer.AppendSetParentFromRef(runtime_tree, owner, parent_ref, true, false, 10, 2);
   command_buffer.AppendReplaceMesh(owner, target, 20, 3);
   command_buffer.AppendAddObjectFromRef(runtime_tree, owner, object_ref, 2.5f, true, 6, 35, 7);
   command_buffer.AppendCopyProperty(owner, target, "speed", 40, 4);
@@ -1099,13 +1247,13 @@ TEST(LN_CommandBuffer, TypedLifecycleStreamsMaterializeInDeterministicOrder)
       command_buffer.GetLastCommandStreamStats();
 
   ASSERT_EQ(commands.size(), 6u);
-  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::SetParent);
-  EXPECT_EQ(commands[0].property_name, "Parent");
+  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::SetParentFromRef);
+  EXPECT_EQ(commands[0].runtime_ref.debug_name, "Parent");
   EXPECT_TRUE(commands[0].bool_value);
   EXPECT_EQ(commands[1].type, LN_CommandBuffer::CommandType::ReplaceMesh);
   EXPECT_EQ(reinterpret_cast<KX_GameObject *>(commands[1].runtime_tree), target);
-  EXPECT_EQ(commands[2].type, LN_CommandBuffer::CommandType::AddObject);
-  EXPECT_EQ(commands[2].property_name, "Cube");
+  EXPECT_EQ(commands[2].type, LN_CommandBuffer::CommandType::AddObjectFromRef);
+  EXPECT_EQ(commands[2].runtime_ref.debug_name, "Cube");
   EXPECT_EQ(commands[3].type, LN_CommandBuffer::CommandType::AddObjectFromRef);
   EXPECT_EQ(commands[3].runtime_tree, runtime_tree);
   EXPECT_EQ(commands[3].runtime_ref.kind, LN_RuntimeRefKind::Object);
@@ -1281,7 +1429,7 @@ TEST(LN_CommandBuffer, ShapeKeyWritesUseTypedStreamAndCoalesceByObjectAndName)
   EXPECT_EQ(command_buffer.GetLastCommandStreamStats().legacy_command_count, 0u);
   EXPECT_EQ(command_buffer.GetLastCommandStreamStats().typed_animation_count, 3u);
 
-  command_buffer.MergeRecordedCommands(std::move(commands));
+  command_buffer.AppendLegacyCommandsForTests(std::move(commands));
   const std::vector<LN_CommandBuffer::Command> planned =
       command_buffer.TakeFlushPlannedCommands();
   ASSERT_EQ(planned.size(), 2u);
@@ -1334,25 +1482,6 @@ TEST(LN_CommandBuffer, ShapeKeyWriteClampsToAuthoredRange)
   command_buffer.Flush();
 
   EXPECT_EQ(smile.curval, 0.75f);
-}
-
-TEST(LN_CommandBuffer, ShapeKeyWriteUsesLegacyFallbackWhenTypedStreamsAreDisabled)
-{
-  LN_CommandBuffer command_buffer;
-  command_buffer.SetTypedCommandStreamsEnabled(false);
-
-  command_buffer.BeginRecording();
-  command_buffer.AppendSetShapeKeyValue(FakeGameObjectPointer(1), "Smile", 0.625f, 10, 1);
-  command_buffer.EndRecording();
-
-  const std::vector<LN_CommandBuffer::Command> commands =
-      command_buffer.TakeRecordedCommands();
-  ASSERT_EQ(commands.size(), 1u);
-  EXPECT_EQ(commands[0].type, LN_CommandBuffer::CommandType::SetShapeKeyValue);
-  EXPECT_EQ(commands[0].property_name, "Smile");
-  EXPECT_EQ(commands[0].scalar_value, 0.625f);
-  EXPECT_EQ(command_buffer.GetLastCommandStreamStats().legacy_command_count, 1u);
-  EXPECT_EQ(command_buffer.GetLastCommandStreamStats().typed_animation_count, 0u);
 }
 
 TEST(LN_CommandBuffer, TypedMaterialStreamsMaterializeInDeterministicOrder)
@@ -1753,111 +1882,6 @@ TEST(LN_CommandBuffer, TypedMotionStreamsMaterializeInDeterministicOrder)
   EXPECT_EQ(stats.typed_motion_count, 4u);
 }
 
-TEST(LN_CommandBuffer, TypedCommandStreamsCanBeDisabledForLegacyABTesting)
-{
-  LN_CommandBuffer command_buffer;
-  command_buffer.SetTypedCommandStreamsEnabled(false);
-  command_buffer.BeginRecording();
-  command_buffer.AppendSetWorldPosition(
-      FakeGameObjectPointer(1), MT_Vector3(1.0f, 0.0f, 0.0f), 30, 1);
-  command_buffer.AppendSetLinearVelocity(
-      FakeGameObjectPointer(1), MT_Vector3(0.0f, 2.0f, 0.0f), 10, 2);
-  command_buffer.AppendApplyMovement(
-      FakeGameObjectPointer(1), MT_Vector3(3.0f, 0.0f, 0.0f), true, 25, 6);
-  command_buffer.AppendApplyForce(
-      FakeGameObjectPointer(1), MT_Vector3(0.0f, 0.0f, 7.0f), false, 35, 7);
-  LN_Value property_value;
-  property_value.type = LN_ValueType::Float;
-  property_value.float_value = 4.0f;
-  command_buffer.AppendSetGameProperty(FakeGameObjectPointer(1), "Speed", property_value, 20, 3);
-  command_buffer.AppendSendEvent("Started", property_value, FakeGameObjectPointer(1), nullptr, 40, 4);
-  command_buffer.AppendSetVisibility(FakeGameObjectPointer(1), true, false, 45, 8);
-  command_buffer.AppendSetGravity(
-      FakeGameObjectPointer(1), MT_Vector3(0.0f, 0.0f, -9.8f), 46, 14);
-  command_buffer.AppendApplyImpulse(FakeGameObjectPointer(1),
-                                    MT_Vector3(0.1f, 0.2f, 0.3f),
-                                    MT_Vector3(4.0f, 5.0f, 6.0f),
-                                    47,
-                                    9);
-  command_buffer.AppendStopAllSounds(48, 14);
-  command_buffer.AppendSetTimeScale(FakeGameObjectPointer(1), 0.5f, 49, 15);
-  command_buffer.AppendPlaySound("Ping", 0.5f, 1.25f, true, 50, 5);
-  command_buffer.AppendSetVSync(1, 55, 10);
-  command_buffer.AppendStopAction(FakeGameObjectPointer(1), 2, 60, 11);
-  LN_Value material_value;
-  material_value.type = LN_ValueType::DatablockRef;
-  material_value.exists = true;
-  material_value.reference_name = "Mat";
-  command_buffer.AppendSetMaterialNodeSocketValue(
-      nullptr, material_value, "Node", "Input", property_value, 65, 12);
-  command_buffer.AppendSetBonePoseLocation(
-      FakeGameObjectPointer(1), "Bone", MT_Vector3(1.0f, 2.0f, 3.0f), 70, 13);
-  command_buffer.EndRecording();
-
-  const std::vector<LN_CommandBuffer::Command> commands = command_buffer.TakeRecordedCommands();
-  const LN_CommandBuffer::CommandStreamStats &stats =
-      command_buffer.GetLastCommandStreamStats();
-
-  ASSERT_EQ(commands.size(), 16u);
-  EXPECT_EQ(stats.legacy_command_count, 16u);
-  EXPECT_EQ(stats.typed_transform_count, 0u);
-  EXPECT_EQ(stats.typed_velocity_count, 0u);
-  EXPECT_EQ(stats.typed_relative_vector_count, 0u);
-  EXPECT_EQ(stats.typed_motion_count, 0u);
-  EXPECT_EQ(stats.typed_property_count, 0u);
-  EXPECT_EQ(stats.typed_event_count, 0u);
-  EXPECT_EQ(stats.typed_audio_count, 0u);
-  EXPECT_EQ(stats.typed_object_service_count, 0u);
-  EXPECT_EQ(stats.typed_runtime_service_count, 0u);
-  EXPECT_EQ(stats.typed_animation_count, 0u);
-  EXPECT_EQ(stats.typed_armature_count, 0u);
-  EXPECT_EQ(stats.typed_material_count, 0u);
-  EXPECT_EQ(stats.typed_physics_count, 0u);
-  EXPECT_EQ(commands[7].type, LN_CommandBuffer::CommandType::SetGravity);
-  EXPECT_EQ(commands[7].vector_value.z(), -9.8f);
-  EXPECT_EQ(commands[8].type, LN_CommandBuffer::CommandType::ApplyImpulse);
-  EXPECT_EQ(commands[9].type, LN_CommandBuffer::CommandType::StopAllSounds);
-  EXPECT_EQ(commands[10].type, LN_CommandBuffer::CommandType::SetTimeScale);
-  EXPECT_EQ(commands[10].scalar_value, 0.5f);
-  EXPECT_EQ(commands[11].type, LN_CommandBuffer::CommandType::PlaySound);
-  EXPECT_EQ(commands[11].vector_value.x(), 0.5f);
-  EXPECT_EQ(commands[11].vector_value.y(), 1.25f);
-  EXPECT_TRUE(commands[11].bool_value);
-  EXPECT_EQ(commands[12].type, LN_CommandBuffer::CommandType::SetVSync);
-  EXPECT_EQ(commands[12].int_value, 1);
-  EXPECT_EQ(commands[13].type, LN_CommandBuffer::CommandType::StopAction);
-  EXPECT_EQ(commands[13].int_value, 2);
-  EXPECT_EQ(commands[14].type, LN_CommandBuffer::CommandType::SetMaterialNodeSocketValue);
-  EXPECT_EQ(commands[14].property_name, "Mat");
-  EXPECT_EQ(commands[14].tertiary_property_name, "Input");
-  EXPECT_EQ(commands[15].type, LN_CommandBuffer::CommandType::SetBonePoseLocation);
-  EXPECT_EQ(commands[15].property_name, "Bone");
-}
-
-TEST(LN_CommandBuffer, TypedCommandStreamDisableBypassesFlushCoalescing)
-{
-  LN_CommandBuffer command_buffer;
-  command_buffer.SetTypedCommandStreamsEnabled(false);
-
-  std::vector<LN_CommandBuffer::Command> commands;
-  LN_CommandBuffer::Command first;
-  first.type = LN_CommandBuffer::CommandType::SetTreeProperty;
-  first.property_ref_index = 7;
-  first.sort_key = 10;
-  commands.push_back(first);
-
-  LN_CommandBuffer::Command second = first;
-  second.sort_key = 20;
-  commands.push_back(second);
-
-  command_buffer.MergeRecordedCommands(std::move(commands));
-  const std::vector<LN_CommandBuffer::Command> planned =
-      command_buffer.TakeFlushPlannedCommands();
-
-  EXPECT_EQ(planned.size(), 2u);
-  EXPECT_EQ(command_buffer.GetLastCommandStreamStats().coalesced_command_count, 0u);
-}
-
 TEST(LN_CommandBuffer, FlushPlannerCoalescesLastWriteWinsTreePropertyCommands)
 {
   LN_CommandBuffer command_buffer;
@@ -1873,7 +1897,7 @@ TEST(LN_CommandBuffer, FlushPlannerCoalescesLastWriteWinsTreePropertyCommands)
   second.sort_key = 20;
   commands.push_back(second);
 
-  command_buffer.MergeRecordedCommands(std::move(commands));
+  command_buffer.AppendLegacyCommandsForTests(std::move(commands));
   command_buffer.Flush();
 
   EXPECT_EQ(command_buffer.GetLastCommandStreamStats().coalesced_command_count, 1u);
@@ -1902,7 +1926,7 @@ TEST(LN_CommandBuffer, RuntimeFlushSkipsTinyCoalescibleMinority)
     commands.push_back(barrier);
   }
 
-  command_buffer.MergeRecordedCommands(std::move(commands));
+  command_buffer.AppendLegacyCommandsForTests(std::move(commands));
   command_buffer.Flush();
 
   EXPECT_EQ(command_buffer.GetLastCommandStreamStats().coalesced_command_count, 0u);
@@ -1931,7 +1955,7 @@ TEST(LN_CommandBuffer, RemovedCoalescibleCommandsDoNotForcePlannerFlush)
     commands.push_back(std::move(command));
   }
 
-  command_buffer.MergeRecordedCommands(std::move(commands));
+  command_buffer.AppendLegacyCommandsForTests(std::move(commands));
   command_buffer.RemoveCommandsForGameObject(removed_object);
   command_buffer.Flush();
 
@@ -1957,7 +1981,7 @@ TEST(LN_CommandBuffer, FlushPlanningCanBeMeasuredWithoutApplyingCommands)
   second.sort_key = 20;
   commands.push_back(second);
 
-  command_buffer.MergeRecordedCommands(std::move(commands));
+  command_buffer.AppendLegacyCommandsForTests(std::move(commands));
   std::vector<LN_CommandBuffer::Command> planned_commands =
       command_buffer.TakeFlushPlannedCommands();
 
@@ -1989,7 +2013,7 @@ TEST(LN_CommandBuffer, FlushPlannerDoesNotCoalesceAcrossBarrierCommands)
   second.sort_key = 30;
   commands.push_back(second);
 
-  command_buffer.MergeRecordedCommands(std::move(commands));
+  command_buffer.AppendLegacyCommandsForTests(std::move(commands));
   command_buffer.Flush();
 
   EXPECT_EQ(command_buffer.GetLastCommandStreamStats().coalesced_command_count, 0u);
@@ -2003,6 +2027,8 @@ void RecordRandomFlushStep(LN_CommandBuffer &command_buffer,
                            const uint32_t seed,
                            const bool out_of_order = false)
 {
+  /* Left to live for the whole run: the buffers keep pointers to its program's property names. */
+  static NamedPropertyWriter &random_step_writer = *new NamedPropertyWriter({"a", "b"});
   uint32_t state = seed * 2654435761u + 1u;
   const auto next = [&state](const uint32_t range) {
     state = state * 1664525u + 1013904223u;
@@ -2038,7 +2064,7 @@ void RecordRandomFlushStep(LN_CommandBuffer &command_buffer,
         break;
       case 3:
       case 4:
-        command_buffer.AppendSetGameProperty(object, name, value, sort_key, 1);
+        random_step_writer.Write(command_buffer, object, name, value, sort_key, 1);
         break;
       case 5:
         command_buffer.AppendSetShapeKeyValue(object, name, float(index), sort_key, 1);
@@ -2069,7 +2095,7 @@ void RecordRandomFlushStep(LN_CommandBuffer &command_buffer,
     command.sort_key = sort_key;
     legacy.push_back(std::move(command));
   }
-  command_buffer.MergeRecordedCommands(std::move(legacy));
+  command_buffer.AppendLegacyCommandsForTests(std::move(legacy));
 }
 
 TEST(LN_CommandBuffer, DirectFlushAppliesAndCoalescesExactlyAsThePlannedFlush)
@@ -2157,6 +2183,7 @@ TEST(LN_CommandBuffer, ChunksAppendedInOrderEndAsOneRecording)
     float number;
   };
   const char *names[] = {"a", "b", "c"};
+  NamedPropertyWriter writer({"a", "b", "c"});
   const auto record = [&](LN_CommandBuffer &buffer, const Op &op) {
     KX_GameObject *object = FakeGameObjectPointer(1 + op.object);
     LN_Value value;
@@ -2175,7 +2202,7 @@ TEST(LN_CommandBuffer, ChunksAppendedInOrderEndAsOneRecording)
         break;
       case 3:
       case 4:
-        buffer.AppendSetGameProperty(object, names[op.name], value, op.sort_key, 1);
+        writer.Write(buffer, object, names[op.name], value, op.sort_key, 1);
         break;
       case 5:
         buffer.AppendSetShapeKeyValue(object, names[op.name], op.number, op.sort_key, 1);
@@ -2186,6 +2213,16 @@ TEST(LN_CommandBuffer, ChunksAppendedInOrderEndAsOneRecording)
       case 7:
         buffer.AppendApplyRotation(
             object, MT_Vector3(0, 0, op.number), false, op.sort_key, 1);
+        break;
+      case 9: {
+        LN_PropertyModify modify;
+        modify.op = LN_PropertyModifyOp::Add;
+        modify.operand = op.number;
+        writer.Modify(buffer, object, names[op.name], modify, op.sort_key, 1);
+        break;
+      }
+      case 10:
+        buffer.AppendSetWorldOrientation(object, MT_Vector3(0, op.number * 0.01f, 0), op.sort_key, 1);
         break;
       default:
         buffer.AppendPrint(names[op.name], op.sort_key, 1);
@@ -2201,7 +2238,10 @@ TEST(LN_CommandBuffer, ChunksAppendedInOrderEndAsOneRecording)
               "/" + std::to_string(command.vector_value.x()) + "," +
               std::to_string(command.vector_value.y()) + "," +
               std::to_string(command.vector_value.z()) + "/" + command.property_name + "/" +
-              std::to_string(command.property_value.float_value) + ";";
+              std::to_string(command.property_value.float_value) + "/" +
+              std::to_string(command.modify.operand) + "/" +
+              std::to_string(command.rotation_value.ToMatrix().getColumn(0).x()) + "," +
+              std::to_string(command.rotation_value.ToMatrix().getColumn(0).y()) + ";";
     }
     return text;
   };
@@ -2219,17 +2259,15 @@ TEST(LN_CommandBuffer, ChunksAppendedInOrderEndAsOneRecording)
       /* Sort keys mostly grow (trees in order), now and then go back (unsorted streams). */
       sort_key = next(12) == 0 ? sort_key - std::min<uint64_t>(sort_key - 1, next(4)) :
                                  sort_key + next(3);
-      ops[index] = Op{next(9), next(4), next(3), sort_key, float(index)};
+      ops[index] = Op{next(11), next(4), next(3), sort_key, float(index)};
     }
     /* Ops before the chunks, the chunks' ops (in up to 5 chunks), ops after them. */
     const size_t before = ops.empty() ? 0 : next(uint32_t(ops.size()) + 1);
     const size_t after = before + (ops.size() == before ? 0 : next(uint32_t(ops.size() - before) + 1));
     const uint32_t chunk_count = 1 + next(5);
     const bool index_first = next(2) == 0;
-    const bool typed_streams = next(5) != 0;
     for (const bool coalesce : {false, true}) {
       LN_CommandBuffer one;
-      one.SetTypedCommandStreamsEnabled(typed_streams);
       one.BeginRecording();
       for (const Op &op : ops) {
         record(one, op);
@@ -2237,7 +2275,6 @@ TEST(LN_CommandBuffer, ChunksAppendedInOrderEndAsOneRecording)
       one.EndRecording();
 
       LN_CommandBuffer joined;
-      joined.SetTypedCommandStreamsEnabled(typed_streams);
       joined.BeginRecording();
       for (size_t index = 0; index < before; index++) {
         record(joined, ops[index]);
@@ -2248,7 +2285,6 @@ TEST(LN_CommandBuffer, ChunksAppendedInOrderEndAsOneRecording)
       }
       std::vector<LN_CommandBuffer> chunks(chunk_count);
       for (uint32_t chunk = 0; chunk < chunk_count; chunk++) {
-        chunks[chunk].SetTypedCommandStreamsEnabled(typed_streams);
         chunks[chunk].BeginChunkRecording();
         const size_t first = before + (after - before) * chunk / chunk_count;
         const size_t last = before + (after - before) * (chunk + 1) / chunk_count;
@@ -2318,6 +2354,7 @@ TEST(LN_CommandBuffer, AChunkReadOfAPendingMoveAppliesNothingAndIsNoted)
 TEST(LN_CommandBuffer, ManyPropertyWritesFlushInPlaceAndKeepTheLastValue)
 {
   KX_GameObject object;
+  NamedPropertyWriter writer({"a", "b"});
   LN_CommandBuffer command_buffer;
   LN_Value value;
   value.type = LN_ValueType::Float;
@@ -2328,9 +2365,9 @@ TEST(LN_CommandBuffer, ManyPropertyWritesFlushInPlaceAndKeepTheLastValue)
   command_buffer.BeginRecording();
   for (uint32_t index = 0; index < 40; index++) {
     value.float_value = float(index);
-    command_buffer.AppendSetGameProperty(&object, "a", value, 2 * index, 1);
+    writer.Write(command_buffer, &object, "a", value, 2 * index, 1);
     value.float_value = float(100 + index);
-    command_buffer.AppendSetGameProperty(&object, "b", value, 2 * index + 1, 1);
+    writer.Write(command_buffer, &object, "b", value, 2 * index + 1, 1);
   }
   command_buffer.EndRecording();
   command_buffer.Flush();
@@ -2458,11 +2495,149 @@ TEST(LN_CommandBuffer, NumberPropertyWritesEndAsTheWholeValueWouldEnd)
   }
 }
 
+/* Plan A7: a number write may carry a checked handle (the property the tree's snapshot found and
+ * the target's property list stamp of that moment). Whatever the property held and whatever
+ * happened between the capture and the flush, the property must end exactly as when the write is
+ * found by name: the same type, number and text. The cases: a fresh handle; an earlier write in
+ * the same flush that changes the property (the old property object is kept alive here, so a
+ * write through it would show); a widget replacing the property between capture and record; a
+ * handle that belongs to another object; no handle. The modes: handles on, by name only, verify
+ * (it must find no difference). */
+TEST(LN_CommandBuffer, NumberWritesThroughCheckedHandlesEndAsTheNamePathEnds)
+{
+  struct ModeGuard {
+    ~ModeGuard()
+    {
+      LN_CommandBuffer::SetLeanFlushModeForTests(-1);
+    }
+  } mode_guard;
+  std::shared_ptr<LN_Program> program = std::make_shared<LN_Program>();
+  LN_GamePropertyRef property_ref;
+  property_ref.name = "p";
+  property_ref.value_type = LN_ValueType::Float;
+  program->AddGamePropertyRef(property_ref);
+
+  std::vector<LN_PropertyNumber> numbers;
+  for (const bool value : {false, true}) {
+    LN_PropertyNumber number;
+    number.type = LN_ValueType::Bool;
+    number.bool_value = value;
+    numbers.push_back(number);
+  }
+  for (const int32_t value : {0, -3, 2147483647}) {
+    LN_PropertyNumber number;
+    number.type = LN_ValueType::Int;
+    number.int_value = value;
+    numbers.push_back(number);
+  }
+  for (const float value : {0.0f, -0.0f, 2.5f, 1.0e9f}) {
+    LN_PropertyNumber number;
+    number.type = LN_ValueType::Float;
+    number.float_value = value;
+    numbers.push_back(number);
+  }
+
+  enum class Case { Fresh, EarlierWriteChangesIt, WidgetReplacesIt, OtherObjectsHandle, NoHandle };
+  const auto describe = [](KX_GameObject &object) {
+    EXP_Value *property = object.GetProperty("p");
+    if (property == nullptr) {
+      return std::string("none");
+    }
+    return std::to_string(int(property->GetValueType())) + "/" +
+           std::to_string(property->GetNumber()) + "/" + property->GetText();
+  };
+  /* One run of a case: the final description of the object's property. `with_handles`: false
+   * records no handle (the reference); the case's other events happen in both. */
+  const auto run = [&](const char *kind,
+                       const LN_PropertyNumber &number,
+                       const Case which,
+                       const bool with_handles) {
+    KX_GameObject object;
+    KX_GameObject other;
+    AddPropertyOfKind(object, kind);
+    AddPropertyOfKind(other, "float");
+    LN_RuntimeTree tree(program, &object, 1, 0);
+    EXP_Value *captured = object.GetProperty("p");
+    uint64_t stamp = object.GetPropertyMapStamp();
+    EXP_Value *kept_alive = nullptr;
+    if (which == Case::OtherObjectsHandle) {
+      captured = other.GetProperty("p");
+      stamp = other.GetPropertyMapStamp();
+    }
+    if (captured != nullptr) {
+      captured->AddRef(); /* the test may hold it past a replacement */
+      kept_alive = captured;
+    }
+    if (which == Case::WidgetReplacesIt) {
+      EXP_Value *replacement = new EXP_FloatValue(123.0f);
+      object.SetProperty("p", replacement);
+      replacement->Release();
+    }
+    LN_CommandBuffer buffer;
+    buffer.BeginRecording();
+    if (which == Case::EarlierWriteChangesIt) {
+      /* A text write earlier in the flush: it replaces a number property by a text one or
+       * converts, either way the property list changes. */
+      LN_Value text;
+      text.exists = true;
+      text.type = LN_ValueType::String;
+      text.string_value = "earlier";
+      buffer.AppendSetGamePropertyRef(&tree, &object, 0, text, 0, 0);
+    }
+    buffer.AppendSetGamePropertyNumberRef(&tree,
+                                          &object,
+                                          0,
+                                          number,
+                                          1,
+                                          1,
+                                          with_handles && which != Case::NoHandle ? captured :
+                                                                                    nullptr,
+                                          with_handles && which != Case::NoHandle ? stamp : 0);
+    buffer.EndRecording();
+    buffer.Flush();
+    const std::string result = describe(object);
+    if (kept_alive != nullptr) {
+      kept_alive->Release();
+    }
+    return result;
+  };
+
+  size_t compared = 0;
+  const uint32_t differences_before = LN_CommandBuffer::LeanFlushVerifyDifferencesForTests();
+  for (const char *kind : {"missing", "bool", "int", "float", "text", "vector"}) {
+    for (const LN_PropertyNumber &number : numbers) {
+      for (const Case which : {Case::Fresh,
+                               Case::EarlierWriteChangesIt,
+                               Case::WidgetReplacesIt,
+                               Case::OtherObjectsHandle,
+                               Case::NoHandle})
+      {
+        LN_CommandBuffer::SetLeanFlushModeForTests(0);
+        const std::string reference = run(kind, number, which, false);
+        for (const int mode : {0, 1, 2}) {
+          LN_CommandBuffer::SetLeanFlushModeForTests(mode);
+          EXPECT_EQ(run(kind, number, which, true), reference)
+              << kind << " number type " << int(number.type) << " case " << int(which)
+              << " mode " << mode;
+          compared++;
+        }
+      }
+    }
+  }
+  EXPECT_EQ(LN_CommandBuffer::LeanFlushVerifyDifferencesForTests(), differences_before);
+  EXPECT_EQ(compared, 6u * numbers.size() * 5u * 3u);
+}
+
 /* A write's value that is not a number waits in the buffer's side list; many of them in one step,
  * with numbers between, each reach their own property. */
 TEST(LN_CommandBuffer, PropertyWritesKeepTheirOwnValuesAmongMany)
 {
   KX_GameObject object;
+  std::vector<std::string> names;
+  for (uint32_t index = 0; index < 200; index++) {
+    names.push_back("s" + std::to_string(index));
+  }
+  NamedPropertyWriter writer(names);
   LN_CommandBuffer command_buffer;
   command_buffer.BeginRecording();
   for (uint32_t index = 0; index < 200; index++) {
@@ -2470,7 +2645,7 @@ TEST(LN_CommandBuffer, PropertyWritesKeepTheirOwnValuesAmongMany)
     value.exists = true;
     value.type = LN_ValueType::String;
     value.string_value = "text " + std::to_string(index);
-    command_buffer.AppendSetGameProperty(&object, "s" + std::to_string(index), value, index, 1);
+    writer.Write(command_buffer, &object, names[index], value, index, 1);
   }
   command_buffer.EndRecording();
   command_buffer.Flush();

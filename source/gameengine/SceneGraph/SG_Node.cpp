@@ -392,6 +392,9 @@ void SG_Node::ClearModified()
 void SG_Node::SetModified()
 {
   m_modified = true;
+  if (m_immediateUpdate) {
+    return;
+  }
   ActivateScheduleUpdateCallback();
 }
 

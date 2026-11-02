@@ -1,0 +1,996 @@
+# generator-version: 1
+# fingerprint: compiler=16.2.1 20261029 (Red Hat 16.2.1-3) glibc=2.43 sse4.2 pointer=64
+== every input reads false / 0 / empty
+Bool::Constant:
+Bool::GamePaused:
+Bool::SnapshotGameProperty:
+Bool::RuntimeTreeProperty:
+Bool::Not: B0
+Bool::And: B0
+Bool::Or: B0 B1
+Bool::FloatCompare: F0 F1
+Bool::StringContains: S0 S1
+Bool::StringStartsWith: S1 S0
+Bool::StringEndsWith: S1 S0
+Bool::SnapshotVisibility: A0
+Bool::WindowFullscreen:
+Bool::NextFrameDone:
+Bool::Once:
+Bool::ValueChanged: A0
+Bool::ValueChangedTo: A0
+Bool::SnapshotGamePropertyExists:
+Bool::InputStatus:
+Bool::ValueIsNone: A0
+Bool::KeyboardActive:
+Bool::MouseMoved:
+Bool::MouseWheelMoved:
+Bool::GamepadActive: I0
+Bool::GamepadButton: I0 I5
+Bool::PhysicsQueryDone: Q0
+Bool::PhysicsQueryHit: Q0
+Bool::PhysicsQueryBlocked: Q0
+Bool::PhysicsQueryHasUV: Q0
+Bool::PhysicsQueryStartedOverlapping: Q0
+Bool::PhysicsQueryAllHit: Q0
+Bool::MouseOverEnter: Q0
+Bool::MouseOverOver: Q0
+Bool::MouseOverExit: Q0
+Bool::UIScrolled: Q0
+Bool::UIScrollAtStart: Q0
+Bool::UIScrollAtEnd: Q0
+Bool::UIItemsRebound: Q0
+Bool::UICommandCompleted:
+Bool::UICommandSucceeded:
+Bool::UICommandFailed:
+Bool::ActionLifecycleEvent:
+Bool::ActionStarted:
+Bool::ActionCompleted:
+Bool::ActionInterrupted:
+Bool::ActionFailed:
+Bool::SnapshotCharacterOnGround: A0
+Bool::LogicTreeRunning: A0 S1
+Bool::LogicTreeStopped: A0 S1
+Bool::ActionDone: A0
+Bool::ObjectsColliding: A0 A1
+Bool::EventReceived: S0
+Bool::CollisionDetected: A0 S1 A2
+Bool::CollisionEnter: A0 S1 A2
+Bool::CollisionStay: A0 S1 A2
+Bool::CollisionExit: A0 S1 A2
+Bool::ConstraintBreak:
+Bool::AnimationPlaying: A0
+Bool::LoopActive:
+Bool::DictHasKey: A0 S1
+Bool::StoreValueDone:
+Bool::ListContains: A0 A1
+Bool::InstructionExecuted:
+Bool::InstructionReached:
+Bool::KeyLoggerPressed:
+Bool::FromGenericValue: A0
+Bool::RigidBodyAttribute: A0
+Bool::ValueCompare: A0 A1
+Bool::TweenValue: B0 B1 F3 B2
+Bool::TweenReached: B- B- F- B-
+Bool::TimerElapsed:
+Bool::DelayDone:
+Bool::PulsifyPulse:
+Bool::BarrierPassed:
+Bool::MaterialSlotFound: A0 I1
+Bool::MaterialNodeValueFound: A0 S2 S5
+Bool::EditorNodeValueFound: A0 S1 S2 S5
+Bool::RigidBodyConstraintFound: A0
+Bool::BooleanEdge: B0
+Bool::BooleanEdgeFalling: B0
+Bool::CooldownAccepted:
+Bool::CooldownBlocked:
+Bool::CooldownCompleted:
+Bool::CooldownReady:
+Bool::PersistenceCompleted:
+Bool::PersistenceSucceeded:
+Bool::GameLoadPulse:
+Bool::GameLoadSucceeded:
+Bool::FromInt: I0
+Bool::FromFloat: F0
+Bool::FromString: S0
+Bool::FromVector: V0
+Bool::FromColor: C0
+Bool::FlowGateOpen: B0
+Bool::FlowRouterSelected:
+Bool::FlowRouterLastRoute:
+Bool::RepeatLimitAccepted:
+Bool::RepeatLimitBlocked:
+Bool::RepeatLimitExhausted:
+Bool::QueryValid: Q0
+Bool::MotionValid:
+Bool::UIElementEventFired: Q0
+Bool::UIElementEventAccepted: Q0
+Bool::InputActionState: I0 S1
+Bool::UICommandClosed:
+Bool::PlayerViewShown: I0
+Bool::PlayerJoinPulse:
+Bool::PlayerGamepadConnected: I0
+Bool::PlayerGamepadJoined: I0
+Bool::UISoundFired: Q0
+Int::Constant:
+Int::SnapshotGameProperty:
+Int::RuntimeTreeProperty:
+Int::StringCount: S1 S0
+Int::SnapshotCollisionGroup: A0
+Int::MouseWheelDelta:
+Int::WindowResolutionWidth:
+Int::WindowResolutionHeight:
+Int::WindowVSyncMode:
+Int::SnapshotCharacterMaxJumps: A0
+Int::SnapshotCharacterJumpCount: A0
+Int::ListLength: A0
+Int::LoopIndex:
+Int::DictLength: A0
+Int::FromGenericValue: A0
+Int::Random: I0 I1
+Int::MaterialSlotCount: A0
+Int::CollisionContactCount: A0 S1 A2
+Int::PhysicsQueryFaceIndex: Q0
+Int::PhysicsQueryHitCount: Q0
+Int::PhysicsQueryRayCount: Q0
+Int::FromBool: B0
+Int::FromFloat: F0
+Int::FromString: S0
+Int::ConstraintBreakCount:
+Int::RepeatLimitRemaining:
+Int::QueryVectorCount: Q0
+Int::UICommandResult:
+Int::UICommandHandle:
+Int::UIFirstVisibleIndex: Q0
+Int::UILastVisibleIndex: Q0
+Int::UIElementEventIndex: Q0
+Int::UIElementEventTargetIndex: Q0
+Int::UIElementEventUser: Q0
+Int::UIElementEventAmount: Q0
+Int::UIViewPage: Q0
+Int::UIViewPageCount: Q0
+Int::PlayerViewCount:
+Int::PlayerJoinUser:
+Int::PlayerJoinGamepad:
+Int::PlayerGamepad: I0
+Int::MenuPlayerUser:
+Float::Constant:
+Float::UnscaledDeltaTime:
+Float::SnapshotGameProperty:
+Float::RuntimeTreeProperty:
+Float::Add: F0 F1
+Float::Subtract: F0 F1
+Float::Multiply: F0 F1
+Float::Divide: F1
+Float::SafeDivide: F1
+Float::Power: F1 F0
+Float::Minimum: F1 F0
+Float::Maximum: F1 F0
+Float::Absolute: F0
+Float::Sign: F0
+Float::Round: F0
+Float::Floor: F0
+Float::Ceil: F0
+Float::Truncate: F0
+Float::Fraction: F0
+Float::Modulo: F1
+Float::Sine: F0
+Float::Cosine: F0
+Float::Radians: F0
+Float::Degrees: F0
+Float::Negate: F0
+Float::Clamp: F0 F1 F2
+Float::Threshold: F0 F1 B3
+Float::RangedThreshold: F0 F1 F2
+Float::VectorComponent: V0
+Float::ColorComponent: C0
+Float::Random: F0 F1
+Float::Select: B3 F1
+Float::StoreValue:
+Float::SnapshotTimeScale:
+Float::SnapshotLightPower: A0
+Float::SnapshotElapsedTime:
+Float::SnapshotFrameDelta:
+Float::SnapshotFPS:
+Float::SnapshotDeltaFactor:
+Float::AnimationFrame: A0
+Float::BoneLength: A0
+Float::FromGenericValue: A0
+Float::GamepadButtonStrength: I0
+Float::Formula: S4 F0 F1
+Float::FloatCurve: F0 F1
+Float::TweenFactor: B- B- F- B- F-
+Float::TweenFloatResult: B- B- F- B- F- F1 F2
+Float::ObjectDistance: A0 A1
+Float::PhysicsQueryDistance: Q0
+Float::PhysicsQueryFraction: Q0
+Float::PhysicsQueryPenetrationDepth: Q0
+Float::RigidBodyAttribute: A0
+Float::ConstraintBreakLinearImpulse:
+Float::ConstraintBreakAngularImpulse:
+Float::ConstraintBreakAppliedImpulse:
+Float::CooldownRemaining:
+Float::CooldownProgress:
+Float::QueryDistance: Q0
+Float::QuerySquaredDistance: Q0
+Float::MotionSpeed:
+Float::FromBool: B3
+Float::FromInt: I0
+Float::FromString: S4
+Float::InputActionValue: I0 S4
+Float::PlayerViewArea: I0
+Float::StepTimePassed:
+String::Constant:
+String::SnapshotGameProperty:
+String::RuntimeTreeProperty:
+String::Join: S1 S0
+String::Replace: S2 S1 S0
+String::ToUppercase: S0
+String::ToLowercase: S0
+String::ZeroFill: I5 S0
+String::Format: S4 S3 S2 S1 S0
+String::AnimationActionName: A0
+String::KeyLoggerCharacter: I5
+String::KeyLoggerKeycode: I5
+String::FromGenericValue: A6
+String::MasterFolder: S0
+String::ObjectID: A0
+String::MaterialName: A0
+String::RigidBodyConstraintName: A6
+String::ConstraintBreakName:
+String::FromBool: B0
+String::FromInt: I0
+String::FromFloat: F0
+String::FromVector: V0
+String::FromColor: C0
+String::UIElementEventAction: Q0
+String::UIElementEventTargetAction: Q0
+String::UIElementEventOutcome: Q0
+String::InputBindingText: I2 I1 S0
+String::UIElementEventMenu: Q0
+Vector::Constant:
+Vector::SnapshotGravity:
+Vector::WindowResolution:
+Vector::WorldToScreen: A1 V0
+Vector::BoneHeadWorld: A0
+Vector::BoneTailWorld: A0
+Vector::BoneCenterWorld: A0
+Vector::BoneHeadPoseWorld: A0 S1
+Vector::BoneTailPoseWorld: A0 S1
+Vector::BoneCenterPoseWorld: A0 S1
+Vector::BonePoseLocation: A0 S1
+Vector::BonePoseScale: A0 S1
+Vector::ScreenToWorld: A0 F4 F2 F1
+Vector::Add: V1 V0
+Vector::Subtract: V1 V0
+Vector::Multiply: V0 V1
+Vector::Divide: V0 V1
+Vector::Absolute: V0
+Vector::Minimum: V0 V1
+Vector::Maximum: V0 V1
+Vector::Scale: F4 V0
+Vector::Normalize: V0
+Vector::Resize: V0
+Vector::RotateAroundAxis: V0 V1 F4
+Vector::VectorToRotation: V1 V0
+Vector::BoneRotationToObjectRotation: R0
+Vector::AxisVector: A0
+Vector::Combine: F2 F1 F0
+Vector::RuntimeTreeProperty:
+Vector::FromGenericValue: A0
+Vector::CursorPosition:
+Vector::CursorMovement:
+Vector::GamepadStick: I0 F1 F4
+Vector::PhysicsQueryPoint: Q0
+Vector::PhysicsQueryNormal: Q0
+Vector::PhysicsQueryCastPosition: Q0
+Vector::PhysicsQueryDirection: Q0
+Vector::PhysicsQueryEndPoint: Q0
+Vector::PhysicsQueryUV: Q0
+Vector::UIScrollOffset: Q0
+Vector::UIScrollNormalized: Q0
+Vector::SnapshotCharacterGravity: A0
+Vector::SnapshotCharacterWalkDirection: A0
+Vector::SnapshotCharacterLocalWalkDirection: A0
+Vector::CollisionHitPoint: A0 S1 A2
+Vector::CollisionHitNormal: A0 S1 A2
+Vector::ConstraintBreakAnchorPosition:
+Vector::EvaluateCurveAtFactor: A0
+Vector::InstructionNextPoint:
+Vector::Random: V0
+Vector::TweenVectorResult: B- B- F- B- F- V1 V2
+Vector::TweenRotationResult: R16 B- B- F- B- F- R1 R2
+Vector::QueryVectorAverage: Q0
+Vector::MotionPosition:
+Vector::MotionVelocity:
+Vector::MotionDirection:
+Vector::MotionPredictedPosition:
+Vector::RigidBodyAttribute: A0
+Vector::BroadcastFloat: F4
+Vector::BroadcastInt: I0
+Vector::FromColor: C0
+Vector::InputActionVector: I0 S1
+Color::Constant:
+Color::SnapshotObjectColor: A0
+Color::SnapshotLightColor: A0
+Color::RuntimeTreeProperty:
+Color::Combine: F3 F2 F1 F0
+Color::FromGenericValue: A0
+Value::Constant:
+Value::RuntimeTreeProperty:
+Value::Mix: F2 A1 A0
+Value::FromBool: B0
+Value::FromInt: I0
+Value::FromFloat: F0
+Value::FromString: S0
+Value::FromVector: V0
+Value::FromColor: C0
+Value::FromRotation: R0 V0
+Value::CombineVector4: F15 F14 F13 F12
+Value::ResizeVectorValue: A0
+Value::EulerToMatrix: V0
+Value::MatrixToEuler: A0
+Value::ActiveCamera:
+Value::OwnerObject:
+Value::ObjectByName: S0
+Value::ObjectParent: A0
+Value::ObjectChild: A0
+Value::ObjectChildByName: A0 A1
+Value::PhysicsQueryObject: Q0
+Value::PhysicsQueryObjects: Q0
+Value::PhysicsQueryPoints: Q0
+Value::PhysicsQueryNormals: Q0
+Value::PhysicsQueryDistances: Q0
+Value::PhysicsQueryCastPositions: Q0
+Value::PhysicsQueryFractions: Q0
+Value::PhysicsQueryPenetrationDepths: Q0
+Value::PhysicsQueryStartedOverlappingList: Q0
+Value::PhysicsQueryFaceIndices: Q0
+Value::PhysicsQueryHasUVs: Q0
+Value::PhysicsQueryUVs: Q0
+Value::PhysicsQueryHits: Q0
+Value::PhysicsQueryBlockedList: Q0
+Value::PhysicsQueryRayOrigins: Q0
+Value::PhysicsQueryRayDirections: Q0
+Value::PhysicsQueryEndPoints: Q0
+Value::EventContent: S0
+Value::EventMessenger: S0
+Value::CollisionHitObject: A0 S1 A2
+Value::CollisionHitObjects: A0 S1 A2
+Value::CollisionHitPoints: A0 S1 A2
+Value::CollisionHitNormals: A0 S1 A2
+Value::ConstraintBreakTargetObject:
+Value::ConstraintBreakEvents:
+Value::ObjectAttribute: A0
+Value::BoneAttribute: A0 S4
+Value::MaterialSlot: A0 I1
+Value::MaterialNodeValue: A0 S4 S2
+Value::EditorNodeValue: A0 S1 S4 S2
+Value::ObjectGameProperty: A0
+Value::LoopCurrentValue:
+Value::ListElement: A0
+Value::MakeList: A0 A1 A2
+Value::ListExtend: A0 A1
+Value::DictGetKey: A0 S1 A2
+Value::MakeDict: S0
+Value::DictGetKeys: A0
+Value::EmptyList: I0
+Value::EmptyDict:
+Value::ListDuplicate: A0
+Value::DictMerge: A0 A1
+Value::ListAppend: A0 A1
+Value::ListRemoveIndex: A0 I1
+Value::ListRemoveValue: A0 A1
+Value::ListSetIndex: A0 I1
+Value::DictSetKey: A0 S1
+Value::DictRemoveKey: A0 S1
+Value::DictRemoveKeyValue: A0 S1
+Value::ListFromItems: A12 A13 A14 A15
+Value::GetGlobalProperty: S0 S1 A2
+Value::ListGlobalProperties: S0
+Value::LoadVariable: S0 S1 S2 A12
+Value::LoadVariableDict: S0 S1
+Value::ListSavedVariables: S0 S1
+Value::CurrentScene:
+Value::CollectionObjects: A0
+Value::CollectionObjectNames: A0
+Value::RigidBodyConstraintNames: A0
+Value::ValueChangedOld: B0
+Value::ValueChangedNew: B0
+Value::ListRandomItem: A0
+Value::ValueSwitchList: B12 B14
+Value::ValueSwitchListCompare: A0 A12 A14 A1
+Value::ProjectileParabola: Q0
+Value::BonePoseRotation: A0 S4
+Value::UIFocusObject:
+Value::UIElementEventObject: Q0
+Value::UIElementEventTarget: Q0
+Value::UIElementEventItem: Q0
+Value::UIElementEventTargetItem: Q0
+Value::ListSort: A0 A1 A2
+Value::ListFindIndex: A0 A1
+Value::DictAddValue: A0 S1
+Value::InventoryEdit: A0 A- A15 A14 A- A13 A12
+Value::InventoryAmount: A0 A- A15 A14 A- A13 A12
+Value::InventoryItemCount: A0 A1
+Value::ItemLibraryInfo: A1 A0
+Value::InventoryMade: A0 A- A15 A14 A- A13 A12
+Value::InventoryOutcome: A0 A- A15 A14 A- A13 A12
+Value::RecipeInfo: A0
+Value::RecipeFind: A0 A1 A2
+Value::PlayerViewCamera:
+Value::MenuPlayerOwner:
+Value::InventoryChanged: A0 A- A15 A14 A- A13 A12
+Query::Raycast: A0 A3 A11 V1 V2 V4 F10 B10
+Query::RaycastAll: A0 A3 A11 V1 V2 V4 F10 B10
+Query::RaycastFromMesh: A0
+Query::ShapeCast: A0 A3 A11 V1 V2 R4 V5 B10 F10 F11 F12
+Query::ShapeCastAll: A0 A3 A11 V1 V2 R4 V5 B10 F10 F11 F12
+Query::MouseOver: A0
+Query::ObjectScrollView:
+Query::ObjectGridView:
+Query::MouseRay: F10 S10 B10 I10
+Query::CameraRay: A0 V1 F10
+Query::ProjectileRay: A0 V1 V2 B10
+Query::VectorAverage: A0
+Query::DistanceBetween: A0
+Query::UIElementEvent:
+== every input reads true / 3 / 2.5 / ab
+Bool::Constant:
+Bool::GamePaused:
+Bool::SnapshotGameProperty:
+Bool::RuntimeTreeProperty:
+Bool::Not: B0
+Bool::And: B0 B1
+Bool::Or: B0
+Bool::FloatCompare: F0 F1
+Bool::StringContains: S0 S1
+Bool::StringStartsWith: S1 S0
+Bool::StringEndsWith: S1 S0
+Bool::SnapshotVisibility: A0
+Bool::WindowFullscreen:
+Bool::NextFrameDone:
+Bool::Once:
+Bool::ValueChanged: A0
+Bool::ValueChangedTo: A0
+Bool::SnapshotGamePropertyExists:
+Bool::InputStatus:
+Bool::ValueIsNone: A0
+Bool::KeyboardActive:
+Bool::MouseMoved:
+Bool::MouseWheelMoved:
+Bool::GamepadActive: I0
+Bool::GamepadButton: I0 I5
+Bool::PhysicsQueryDone: Q0
+Bool::PhysicsQueryHit: Q0
+Bool::PhysicsQueryBlocked: Q0
+Bool::PhysicsQueryHasUV: Q0
+Bool::PhysicsQueryStartedOverlapping: Q0
+Bool::PhysicsQueryAllHit: Q0
+Bool::MouseOverEnter: Q0
+Bool::MouseOverOver: Q0
+Bool::MouseOverExit: Q0
+Bool::UIScrolled: Q0
+Bool::UIScrollAtStart: Q0
+Bool::UIScrollAtEnd: Q0
+Bool::UIItemsRebound: Q0
+Bool::UICommandCompleted:
+Bool::UICommandSucceeded:
+Bool::UICommandFailed:
+Bool::ActionLifecycleEvent:
+Bool::ActionStarted:
+Bool::ActionCompleted:
+Bool::ActionInterrupted:
+Bool::ActionFailed:
+Bool::SnapshotCharacterOnGround: A0
+Bool::LogicTreeRunning: A0 S1
+Bool::LogicTreeStopped: A0 S1
+Bool::ActionDone: A0
+Bool::ObjectsColliding: A0 A1
+Bool::EventReceived: S0
+Bool::CollisionDetected: A0 S1 A2
+Bool::CollisionEnter: A0 S1 A2
+Bool::CollisionStay: A0 S1 A2
+Bool::CollisionExit: A0 S1 A2
+Bool::ConstraintBreak:
+Bool::AnimationPlaying: A0
+Bool::LoopActive:
+Bool::DictHasKey: A0 S1
+Bool::StoreValueDone:
+Bool::ListContains: A0 A1
+Bool::InstructionExecuted:
+Bool::InstructionReached:
+Bool::KeyLoggerPressed:
+Bool::FromGenericValue: A0
+Bool::RigidBodyAttribute: A0
+Bool::ValueCompare: A0 A1
+Bool::TweenValue: B0 B1 F3 B2
+Bool::TweenReached: B- B- F- B-
+Bool::TimerElapsed:
+Bool::DelayDone:
+Bool::PulsifyPulse:
+Bool::BarrierPassed:
+Bool::MaterialSlotFound: A0 I1
+Bool::MaterialNodeValueFound: A0 S2 S5
+Bool::EditorNodeValueFound: A0 S1 S2 S5
+Bool::RigidBodyConstraintFound: A0
+Bool::BooleanEdge: B0
+Bool::BooleanEdgeFalling: B0
+Bool::CooldownAccepted:
+Bool::CooldownBlocked:
+Bool::CooldownCompleted:
+Bool::CooldownReady:
+Bool::PersistenceCompleted:
+Bool::PersistenceSucceeded:
+Bool::GameLoadPulse:
+Bool::GameLoadSucceeded:
+Bool::FromInt: I0
+Bool::FromFloat: F0
+Bool::FromString: S0
+Bool::FromVector: V0
+Bool::FromColor: C0
+Bool::FlowGateOpen: B0
+Bool::FlowRouterSelected:
+Bool::FlowRouterLastRoute:
+Bool::RepeatLimitAccepted:
+Bool::RepeatLimitBlocked:
+Bool::RepeatLimitExhausted:
+Bool::QueryValid: Q0
+Bool::MotionValid:
+Bool::UIElementEventFired: Q0
+Bool::UIElementEventAccepted: Q0
+Bool::InputActionState: I0 S1
+Bool::UICommandClosed:
+Bool::PlayerViewShown: I0
+Bool::PlayerJoinPulse:
+Bool::PlayerGamepadConnected: I0
+Bool::PlayerGamepadJoined: I0
+Bool::UISoundFired: Q0
+Int::Constant:
+Int::SnapshotGameProperty:
+Int::RuntimeTreeProperty:
+Int::StringCount: S1 S0
+Int::SnapshotCollisionGroup: A0
+Int::MouseWheelDelta:
+Int::WindowResolutionWidth:
+Int::WindowResolutionHeight:
+Int::WindowVSyncMode:
+Int::SnapshotCharacterMaxJumps: A0
+Int::SnapshotCharacterJumpCount: A0
+Int::ListLength: A0
+Int::LoopIndex:
+Int::DictLength: A0
+Int::FromGenericValue: A0
+Int::Random: I0 I1
+Int::MaterialSlotCount: A0
+Int::CollisionContactCount: A0 S1 A2
+Int::PhysicsQueryFaceIndex: Q0
+Int::PhysicsQueryHitCount: Q0
+Int::PhysicsQueryRayCount: Q0
+Int::FromBool: B0
+Int::FromFloat: F0
+Int::FromString: S0
+Int::ConstraintBreakCount:
+Int::RepeatLimitRemaining:
+Int::QueryVectorCount: Q0
+Int::UICommandResult:
+Int::UICommandHandle:
+Int::UIFirstVisibleIndex: Q0
+Int::UILastVisibleIndex: Q0
+Int::UIElementEventIndex: Q0
+Int::UIElementEventTargetIndex: Q0
+Int::UIElementEventUser: Q0
+Int::UIElementEventAmount: Q0
+Int::UIViewPage: Q0
+Int::UIViewPageCount: Q0
+Int::PlayerViewCount:
+Int::PlayerJoinUser:
+Int::PlayerJoinGamepad:
+Int::PlayerGamepad: I0
+Int::MenuPlayerUser:
+Float::Constant:
+Float::UnscaledDeltaTime:
+Float::SnapshotGameProperty:
+Float::RuntimeTreeProperty:
+Float::Add: F0 F1
+Float::Subtract: F0 F1
+Float::Multiply: F0 F1
+Float::Divide: F1 F0
+Float::SafeDivide: F1 F0
+Float::Power: F1 F0
+Float::Minimum: F1 F0
+Float::Maximum: F1 F0
+Float::Absolute: F0
+Float::Sign: F0
+Float::Round: F0
+Float::Floor: F0
+Float::Ceil: F0
+Float::Truncate: F0
+Float::Fraction: F0
+Float::Modulo: F1 F0
+Float::Sine: F0
+Float::Cosine: F0
+Float::Radians: F0
+Float::Degrees: F0
+Float::Negate: F0
+Float::Clamp: F0 F1 F2
+Float::Threshold: F0 F1 B3
+Float::RangedThreshold: F0 F1 F2
+Float::VectorComponent: V0
+Float::ColorComponent: C0
+Float::Random: F0 F1
+Float::Select: B3 F0
+Float::StoreValue:
+Float::SnapshotTimeScale:
+Float::SnapshotLightPower: A0
+Float::SnapshotElapsedTime:
+Float::SnapshotFrameDelta:
+Float::SnapshotFPS:
+Float::SnapshotDeltaFactor:
+Float::AnimationFrame: A0
+Float::BoneLength: A0
+Float::FromGenericValue: A0
+Float::GamepadButtonStrength: I0
+Float::Formula: S4 F0 F1
+Float::FloatCurve: F0 F1
+Float::TweenFactor: B- B- F- B- F-
+Float::TweenFloatResult: B- B- F- B- F- F1 F2
+Float::ObjectDistance: A0 A1
+Float::PhysicsQueryDistance: Q0
+Float::PhysicsQueryFraction: Q0
+Float::PhysicsQueryPenetrationDepth: Q0
+Float::RigidBodyAttribute: A0
+Float::ConstraintBreakLinearImpulse:
+Float::ConstraintBreakAngularImpulse:
+Float::ConstraintBreakAppliedImpulse:
+Float::CooldownRemaining:
+Float::CooldownProgress:
+Float::QueryDistance: Q0
+Float::QuerySquaredDistance: Q0
+Float::MotionSpeed:
+Float::FromBool: B3
+Float::FromInt: I0
+Float::FromString: S4
+Float::InputActionValue: I0 S4
+Float::PlayerViewArea: I0
+Float::StepTimePassed:
+String::Constant:
+String::SnapshotGameProperty:
+String::RuntimeTreeProperty:
+String::Join: S1 S0
+String::Replace: S2 S1 S0
+String::ToUppercase: S0
+String::ToLowercase: S0
+String::ZeroFill: I5 S0
+String::Format: S4 S3 S2 S1 S0
+String::AnimationActionName: A0
+String::KeyLoggerCharacter: I5
+String::KeyLoggerKeycode: I5
+String::FromGenericValue: A6
+String::MasterFolder: S0
+String::ObjectID: A0
+String::MaterialName: A0
+String::RigidBodyConstraintName: A6
+String::ConstraintBreakName:
+String::FromBool: B0
+String::FromInt: I0
+String::FromFloat: F0
+String::FromVector: V0
+String::FromColor: C0
+String::UIElementEventAction: Q0
+String::UIElementEventTargetAction: Q0
+String::UIElementEventOutcome: Q0
+String::InputBindingText: I2 I1 S0
+String::UIElementEventMenu: Q0
+Vector::Constant:
+Vector::SnapshotGravity:
+Vector::WindowResolution:
+Vector::WorldToScreen: A1 V0
+Vector::BoneHeadWorld: A0
+Vector::BoneTailWorld: A0
+Vector::BoneCenterWorld: A0
+Vector::BoneHeadPoseWorld: A0 S1
+Vector::BoneTailPoseWorld: A0 S1
+Vector::BoneCenterPoseWorld: A0 S1
+Vector::BonePoseLocation: A0 S1
+Vector::BonePoseScale: A0 S1
+Vector::ScreenToWorld: A0 F4 F2 F1
+Vector::Add: V1 V0
+Vector::Subtract: V1 V0
+Vector::Multiply: V0 V1
+Vector::Divide: V0 V1
+Vector::Absolute: V0
+Vector::Minimum: V0 V1
+Vector::Maximum: V0 V1
+Vector::Scale: F4 V0
+Vector::Normalize: V0
+Vector::Resize: V0
+Vector::RotateAroundAxis: V0 V1 F4
+Vector::VectorToRotation: V1 V0
+Vector::BoneRotationToObjectRotation: R0
+Vector::AxisVector: A0
+Vector::Combine: F2 F1 F0
+Vector::RuntimeTreeProperty:
+Vector::FromGenericValue: A0
+Vector::CursorPosition:
+Vector::CursorMovement:
+Vector::GamepadStick: I0 F1 F4
+Vector::PhysicsQueryPoint: Q0
+Vector::PhysicsQueryNormal: Q0
+Vector::PhysicsQueryCastPosition: Q0
+Vector::PhysicsQueryDirection: Q0
+Vector::PhysicsQueryEndPoint: Q0
+Vector::PhysicsQueryUV: Q0
+Vector::UIScrollOffset: Q0
+Vector::UIScrollNormalized: Q0
+Vector::SnapshotCharacterGravity: A0
+Vector::SnapshotCharacterWalkDirection: A0
+Vector::SnapshotCharacterLocalWalkDirection: A0
+Vector::CollisionHitPoint: A0 S1 A2
+Vector::CollisionHitNormal: A0 S1 A2
+Vector::ConstraintBreakAnchorPosition:
+Vector::EvaluateCurveAtFactor: A0
+Vector::InstructionNextPoint:
+Vector::Random: V0
+Vector::TweenVectorResult: B- B- F- B- F- V1 V2
+Vector::TweenRotationResult: R16 B- B- F- B- F- R1 R2
+Vector::QueryVectorAverage: Q0
+Vector::MotionPosition:
+Vector::MotionVelocity:
+Vector::MotionDirection:
+Vector::MotionPredictedPosition:
+Vector::RigidBodyAttribute: A0
+Vector::BroadcastFloat: F4
+Vector::BroadcastInt: I0
+Vector::FromColor: C0
+Vector::InputActionVector: I0 S1
+Color::Constant:
+Color::SnapshotObjectColor: A0
+Color::SnapshotLightColor: A0
+Color::RuntimeTreeProperty:
+Color::Combine: F3 F2 F1 F0
+Color::FromGenericValue: A0
+Value::Constant:
+Value::RuntimeTreeProperty:
+Value::Mix: F2 A1 A0
+Value::FromBool: B0
+Value::FromInt: I0
+Value::FromFloat: F0
+Value::FromString: S0
+Value::FromVector: V0
+Value::FromColor: C0
+Value::FromRotation: R0 V0
+Value::CombineVector4: F15 F14 F13 F12
+Value::ResizeVectorValue: A0
+Value::EulerToMatrix: V0
+Value::MatrixToEuler: A0
+Value::ActiveCamera:
+Value::OwnerObject:
+Value::ObjectByName: S0
+Value::ObjectParent: A0
+Value::ObjectChild: A0
+Value::ObjectChildByName: A0 A1
+Value::PhysicsQueryObject: Q0
+Value::PhysicsQueryObjects: Q0
+Value::PhysicsQueryPoints: Q0
+Value::PhysicsQueryNormals: Q0
+Value::PhysicsQueryDistances: Q0
+Value::PhysicsQueryCastPositions: Q0
+Value::PhysicsQueryFractions: Q0
+Value::PhysicsQueryPenetrationDepths: Q0
+Value::PhysicsQueryStartedOverlappingList: Q0
+Value::PhysicsQueryFaceIndices: Q0
+Value::PhysicsQueryHasUVs: Q0
+Value::PhysicsQueryUVs: Q0
+Value::PhysicsQueryHits: Q0
+Value::PhysicsQueryBlockedList: Q0
+Value::PhysicsQueryRayOrigins: Q0
+Value::PhysicsQueryRayDirections: Q0
+Value::PhysicsQueryEndPoints: Q0
+Value::EventContent: S0
+Value::EventMessenger: S0
+Value::CollisionHitObject: A0 S1 A2
+Value::CollisionHitObjects: A0 S1 A2
+Value::CollisionHitPoints: A0 S1 A2
+Value::CollisionHitNormals: A0 S1 A2
+Value::ConstraintBreakTargetObject:
+Value::ConstraintBreakEvents:
+Value::ObjectAttribute: A0
+Value::BoneAttribute: A0 S4
+Value::MaterialSlot: A0 I1
+Value::MaterialNodeValue: A0 S4 S2
+Value::EditorNodeValue: A0 S1 S4 S2
+Value::ObjectGameProperty: A0
+Value::LoopCurrentValue:
+Value::ListElement: A0
+Value::MakeList: A0 A1 A2
+Value::ListExtend: A0 A1
+Value::DictGetKey: A0 S1 A2
+Value::MakeDict: S0 A1
+Value::DictGetKeys: A0
+Value::EmptyList: I0
+Value::EmptyDict:
+Value::ListDuplicate: A0
+Value::DictMerge: A0 A1
+Value::ListAppend: A0 A1
+Value::ListRemoveIndex: A0 I1
+Value::ListRemoveValue: A0 A1
+Value::ListSetIndex: A0 I1
+Value::DictSetKey: A0 S1 A2
+Value::DictRemoveKey: A0 S1
+Value::DictRemoveKeyValue: A0 S1
+Value::ListFromItems: A12 A13 A14 A15
+Value::GetGlobalProperty: S0 S1 A2
+Value::ListGlobalProperties: S0
+Value::LoadVariable: S0 S1 S2 A12
+Value::LoadVariableDict: S0 S1
+Value::ListSavedVariables: S0 S1
+Value::CurrentScene:
+Value::CollectionObjects: A0
+Value::CollectionObjectNames: A0
+Value::RigidBodyConstraintNames: A0
+Value::ValueChangedOld: B0
+Value::ValueChangedNew: B0
+Value::ListRandomItem: A0
+Value::ValueSwitchList: B12 A13
+Value::ValueSwitchListCompare: A0 A12 A14 A1
+Value::ProjectileParabola: Q0
+Value::BonePoseRotation: A0 S4
+Value::UIFocusObject:
+Value::UIElementEventObject: Q0
+Value::UIElementEventTarget: Q0
+Value::UIElementEventItem: Q0
+Value::UIElementEventTargetItem: Q0
+Value::ListSort: A0 A1 A2
+Value::ListFindIndex: A0 A1
+Value::DictAddValue: A0 S1 A2
+Value::InventoryEdit: A0 A- A15 A14 A- A13 A12
+Value::InventoryAmount: A0 A- A15 A14 A- A13 A12
+Value::InventoryItemCount: A0 A1
+Value::ItemLibraryInfo: A1 A0
+Value::InventoryMade: A0 A- A15 A14 A- A13 A12
+Value::InventoryOutcome: A0 A- A15 A14 A- A13 A12
+Value::RecipeInfo: A0
+Value::RecipeFind: A0 A1 A2
+Value::PlayerViewCamera:
+Value::MenuPlayerOwner:
+Value::InventoryChanged: A0 A- A15 A14 A- A13 A12
+Query::Raycast: A0 A3 A11 V1 V2 V4 F10 B10
+Query::RaycastAll: A0 A3 A11 V1 V2 V4 F10 B10
+Query::RaycastFromMesh: A0
+Query::ShapeCast: A0 A3 A11 V1 V2 R4 V5 B10 F10 F11 F12 I10
+Query::ShapeCastAll: A0 A3 A11 V1 V2 R4 V5 B10 F10 F11 F12 I10 I11
+Query::MouseOver: A0
+Query::ObjectScrollView:
+Query::ObjectGridView:
+Query::MouseRay: F10 S10 B10 I10
+Query::CameraRay: A0 V1 F10
+Query::ProjectileRay: A0 V1 V2 B10 F10 S10 B11 I10 B12 F11 F12
+Query::VectorAverage: A0
+Query::DistanceBetween: A0
+Query::UIElementEvent:
+== vector kinds read as rotations, zero
+Vector::Constant:
+Vector::SnapshotGravity: V16
+Vector::WindowResolution: V16
+Vector::WorldToScreen: V16 A1 V0
+Vector::BoneHeadWorld: V16 A0
+Vector::BoneTailWorld: V16 A0
+Vector::BoneCenterWorld: V16 A0
+Vector::BoneHeadPoseWorld: V16 A0 S1
+Vector::BoneTailPoseWorld: V16 A0 S1
+Vector::BoneCenterPoseWorld: V16 A0 S1
+Vector::BonePoseLocation: V16 A0 S1
+Vector::BonePoseScale: V16 A0 S1
+Vector::ScreenToWorld: V16 A0 F4 F2 F1
+Vector::Add: V16 V1 V0
+Vector::Subtract: V16 V1 V0
+Vector::Multiply: V16 V0 V1
+Vector::Divide: V16 V0 V1
+Vector::Absolute: V16 V0
+Vector::Minimum: V16 V0 V1
+Vector::Maximum: V16 V0 V1
+Vector::Scale: V16 F4 V0
+Vector::Normalize: V16 V0
+Vector::Resize: V16 V0
+Vector::RotateAroundAxis: V16 V0 V1 F4
+Vector::VectorToRotation: V1 V0
+Vector::BoneRotationToObjectRotation: R0
+Vector::AxisVector: V16 A0
+Vector::Combine: F0 F1 F2
+Vector::RuntimeTreeProperty:
+Vector::FromGenericValue: A0
+Vector::CursorPosition: V16
+Vector::CursorMovement: V16
+Vector::GamepadStick: V16 I0 F1 F4
+Vector::PhysicsQueryPoint: V16 Q0
+Vector::PhysicsQueryNormal: V16 Q0
+Vector::PhysicsQueryCastPosition: V16 Q0
+Vector::PhysicsQueryDirection: V16 Q0
+Vector::PhysicsQueryEndPoint: V16 Q0
+Vector::PhysicsQueryUV: V16 Q0
+Vector::UIScrollOffset: V16 Q0
+Vector::UIScrollNormalized: V16 Q0
+Vector::SnapshotCharacterGravity: V16 A0
+Vector::SnapshotCharacterWalkDirection: V16 A0
+Vector::SnapshotCharacterLocalWalkDirection: V16 A0
+Vector::CollisionHitPoint: V16 A0 S1 A2
+Vector::CollisionHitNormal: V16 A0 S1 A2
+Vector::ConstraintBreakAnchorPosition: V16
+Vector::EvaluateCurveAtFactor: V16 A0
+Vector::InstructionNextPoint: V16
+Vector::Random: V16 V0
+Vector::TweenVectorResult: V16 B- B- F- B- F- V1 V2
+Vector::TweenRotationResult: B- B- F- B- F- R1 R2
+Vector::QueryVectorAverage: V16 Q0
+Vector::MotionPosition: V16
+Vector::MotionVelocity: V16
+Vector::MotionDirection: V16
+Vector::MotionPredictedPosition: V16
+Vector::RigidBodyAttribute: V16 A0
+Vector::BroadcastFloat: V16 F4
+Vector::BroadcastInt: V16 I0
+Vector::FromColor: V16 C0
+Vector::InputActionVector: V16 I0 S1
+== vector kinds read as rotations, nonzero
+Vector::Constant:
+Vector::SnapshotGravity: V16
+Vector::WindowResolution: V16
+Vector::WorldToScreen: V16 A1 V0
+Vector::BoneHeadWorld: V16 A0
+Vector::BoneTailWorld: V16 A0
+Vector::BoneCenterWorld: V16 A0
+Vector::BoneHeadPoseWorld: V16 A0 S1
+Vector::BoneTailPoseWorld: V16 A0 S1
+Vector::BoneCenterPoseWorld: V16 A0 S1
+Vector::BonePoseLocation: V16 A0 S1
+Vector::BonePoseScale: V16 A0 S1
+Vector::ScreenToWorld: V16 A0 F4 F2 F1
+Vector::Add: V16 V1 V0
+Vector::Subtract: V16 V1 V0
+Vector::Multiply: V16 V0 V1
+Vector::Divide: V16 V0 V1
+Vector::Absolute: V16 V0
+Vector::Minimum: V16 V0 V1
+Vector::Maximum: V16 V0 V1
+Vector::Scale: V16 F4 V0
+Vector::Normalize: V16 V0
+Vector::Resize: V16 V0
+Vector::RotateAroundAxis: V16 V0 V1 F4
+Vector::VectorToRotation: V1 V0
+Vector::BoneRotationToObjectRotation: R0
+Vector::AxisVector: V16 A0
+Vector::Combine: F0 F1 F2
+Vector::RuntimeTreeProperty:
+Vector::FromGenericValue: A0
+Vector::CursorPosition: V16
+Vector::CursorMovement: V16
+Vector::GamepadStick: V16 I0 F1 F4
+Vector::PhysicsQueryPoint: V16 Q0
+Vector::PhysicsQueryNormal: V16 Q0
+Vector::PhysicsQueryCastPosition: V16 Q0
+Vector::PhysicsQueryDirection: V16 Q0
+Vector::PhysicsQueryEndPoint: V16 Q0
+Vector::PhysicsQueryUV: V16 Q0
+Vector::UIScrollOffset: V16 Q0
+Vector::UIScrollNormalized: V16 Q0
+Vector::SnapshotCharacterGravity: V16 A0
+Vector::SnapshotCharacterWalkDirection: V16 A0
+Vector::SnapshotCharacterLocalWalkDirection: V16 A0
+Vector::CollisionHitPoint: V16 A0 S1 A2
+Vector::CollisionHitNormal: V16 A0 S1 A2
+Vector::ConstraintBreakAnchorPosition: V16
+Vector::EvaluateCurveAtFactor: V16 A0
+Vector::InstructionNextPoint: V16
+Vector::Random: V16 V0
+Vector::TweenVectorResult: V16 B- B- F- B- F- V1 V2
+Vector::TweenRotationResult: B- B- F- B- F- R1 R2
+Vector::QueryVectorAverage: V16 Q0
+Vector::MotionPosition: V16
+Vector::MotionVelocity: V16
+Vector::MotionDirection: V16
+Vector::MotionPredictedPosition: V16
+Vector::RigidBodyAttribute: V16 A0
+Vector::BroadcastFloat: V16 F4
+Vector::BroadcastInt: V16 I0
+Vector::FromColor: V16 C0
+Vector::InputActionVector: V16 I0 S1

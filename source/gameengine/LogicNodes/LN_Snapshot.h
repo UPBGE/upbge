@@ -401,7 +401,41 @@ class LN_Snapshot {
     return m_object.collision_group;
   }
 
-  const LN_Value *GetGamePropertyValue(uint32_t property_ref_index) const;
+  /** A kept game property ref's numbers (12 bytes; plan A10). */
+  struct GamePropertyCell {
+    bool exists = false;
+    bool bool_value = false;
+    int32_t int_value = 0;
+    float float_value = 0.0f;
+  };
+  /** The kept values of a game property ref, as small typed cells (plan A10). What a reader of
+   * a Bool, Int, Float or String expression needs; `string_value` is never null. */
+  struct GamePropertyView {
+    bool exists = false;
+    bool bool_value = false;
+    int32_t int_value = 0;
+    float float_value = 0.0f;
+    const std::string *string_value = nullptr;
+  };
+  /** False past the last capture's count of refs (the reader's fallback). */
+  bool ReadGameProperty(uint32_t property_ref_index, GamePropertyView &r_view) const;
+  /** The whole value of the ref (a Value expression, the state dump): the ref's default with
+   * `exists` and the value of the ref's type taken from the live property, exactly what the
+   * snapshot kept as an LN_Value before the cells. False past the last capture's count. */
+  bool BuildGamePropertyValue(uint32_t property_ref_index, LN_Value &r_value) const;
+  /** UPBGE_LN_TYPED_SNAPSHOT: 0 = the old kept LN_Values, unset/1 = cells, 2 or `verify` = both,
+   * compared at every capture (a "lean typed snapshot differs" warning). Tests set it; -1 goes
+   * back to the environment. */
+  static void SetTypedSnapshotModeForTests(int mode);
+  static uint32_t TypedSnapshotVerifyDifferencesForTests();
+  /** A checked handle (plan A7): the property of `object` that the last capture found for the
+   * ref (nullptr: it found none, or the capture was of another object or took no properties),
+   * with the object's KX_GameObject::GetPropertyMapStamp() at that capture in `r_stamp`. It
+   * stands for the property only while the object's stamp is still `r_stamp`: any add, replace or
+   * removal changes the stamp. */
+  EXP_Value *GetGamePropertyHandle(const KX_GameObject *object,
+                                   uint32_t property_ref_index,
+                                   uint64_t &r_stamp) const;
   /** Reads the owner's game properties again (a UI widget changed one after the capture). */
   void RefreshGameProperties(KX_GameObject *gameobj, const LN_Program *program);
 
@@ -475,8 +509,15 @@ class LN_Snapshot {
   /** The program's game properties (LN_Program::GetGamePropertyRefs), kept between captures:
    * each starts as its ref's default, and a capture rewrites only what the live property
    * decides (`exists` and the value of the ref's type). The first `m_gamePropertyCount` are the
-   * last capture's: none when it captured no properties. */
+   * last capture's: none when it captured no properties. Plan A10: kept as 12-byte cells (the
+   * numbers: those of other types stay the ref's defaults) and a text for each String ref,
+   * beside the layout shared by the program's trees; the old LN_Value per ref is kept only in
+   * the old and verify modes (m_gameStorageMode). */
   std::vector<LN_Value> m_gameProperties;
+  std::vector<GamePropertyCell> m_gameCells;
+  std::vector<std::string> m_gameStrings;
+  std::shared_ptr<const LN_GamePropertyLayout> m_gameLayout;
+  int8_t m_gameStorageMode = -1;
   uint32_t m_gamePropertyCount = 0;
   uint64_t m_gamePropertyProgramId = 0;
   /** Each ref's property of `m_gamePropertyObject`, found by name (nullptr: it has none), kept
