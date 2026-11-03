@@ -8,17 +8,20 @@
  * The lean program (lean runtime plan, phase A16): a program lowered for the lean VM, and the
  * switch that says which trees run it.
  *
- * Mode: `UPBGE_LN_LEAN` unset = Auto (since plan phase A27: the lean VM runs the events whose ops
- * all have a native handler, the old interpreter the others), `0` or `off` = Off (the old
- * interpreter only), `force` = Force (the lean VM for every event; the unit suite fails a Force run
- * that ran no lean tree). Tests set it with LN_SetLeanModeForTests.
+ * Mode (plan "Attribute and Retirement", step R3, 2026-11-02: the lean VM is the only interpreter):
+ * Lean, the default = every op through its native handler where it has one and every event that has
+ * a compiled route through it, the others through the generic handlers; Reference (`UPBGE_LN_LEAN`
+ * = `reference`, `generic`, `0` or `off`) = every op through the generic handlers, no native op, no
+ * route, no lean memo (decision D10: the test oracle, also a way out if a native handler were
+ * wrong). Before R3 there were Off (the old interpreter), Auto and Force. Tests set it with
+ * LN_SetLeanModeForTests (0 Reference, 1 or 2 Lean). The unit suite fails a run that ran no lean tree.
  *
  * The generic form: per event, one lean op for every op of the event's exec block program, in the
  * same order, each running the same handler template as the old interpreter but reading through
  * the lean reader (the kind functions straight), and one entry for every expression with its
  * original index. An op with a native handler (LN_LeanNative, plan phases A18 and A21) has a number
- * in `native` and what its lowering worked out once; the others run the generic handler. The
- * generic form is also the test-only reference mode of decision D10. */
+ * in `native` and what its lowering worked out once; the others run the generic handler. Every op
+ * through its generic handler is the reference mode (LN_LeanMode::Reference). */
 
 #include <array>
 #include <cstdint>
@@ -30,11 +33,11 @@
 
 class LN_Program;
 
-enum class LN_LeanMode : uint8_t { Off = 0, Auto, Force };
+enum class LN_LeanMode : uint8_t { Reference = 0, Lean = 1 };
 
 /** The mode in force: the test override if set, else UPBGE_LN_LEAN read once. */
 LN_LeanMode LN_GetLeanMode();
-/** -1: the environment again; 0 Off; 1 Auto; 2 Force. */
+/** -1: the environment again; 0 Reference; 1 or 2 Lean (the old Auto and Force). */
 void LN_SetLeanModeForTests(int mode);
 /** Trees that ran on the lean VM since the process started (a Force run that ran none fails). */
 uint64_t LN_LeanTreeRunCount();

@@ -30,8 +30,8 @@
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
 #include "SG_Node.h"
+#include "LN_LeanReader.h"
 #include "LN_TestTrees.h"
-#include "LN_TreeReader.h"
 
 class LN_RuntimeTreeTestAccess {
  public:
@@ -44,7 +44,7 @@ class LN_RuntimeTreeTestAccess {
       const LN_InventoryRules *list_rules)
   {
     LN_TickContext context;
-    LN_TreeReader in(tree, context);
+    LN_LeanReader in(tree, context);
     const auto result = tree.RunInventoryEdit(
         in, edit, slots, nullptr, list_rules, nullptr, tree.m_gameObject);
     return {result.amount, result.outcome};
@@ -116,7 +116,8 @@ class LN_RuntimeTreeTestAccess {
                                      const LN_Rotation &fallback,
                                      const LN_TickContext &context)
   {
-    return tree.ResolveRotationExpression(expression_index, fallback, context);
+    LN_LeanReader in(tree, context);
+    return in.Rotation(expression_index, fallback);
   }
 
   static float ResolveFloat(LN_RuntimeTree &tree,
@@ -124,7 +125,8 @@ class LN_RuntimeTreeTestAccess {
                             const float fallback,
                             const LN_TickContext &context)
   {
-    return tree.ResolveFloatExpression(expression_index, fallback, context);
+    LN_LeanReader in(tree, context);
+    return in.Float(expression_index, fallback);
   }
 
   static MT_Vector3 ResolveVector(LN_RuntimeTree &tree,
@@ -132,28 +134,32 @@ class LN_RuntimeTreeTestAccess {
                                   const MT_Vector3 &fallback,
                                   const LN_TickContext &context)
   {
-    return tree.ResolveVectorExpression(expression_index, fallback, context);
+    LN_LeanReader in(tree, context);
+    return in.Vector(expression_index, fallback);
   }
 
   static LN_Value ResolveValue(LN_RuntimeTree &tree,
                                const uint32_t expression_index,
                                const LN_TickContext &context)
   {
-    return tree.ResolveValueExpression(expression_index, LN_Value(), context);
+    LN_LeanReader in(tree, context);
+    return in.Value(expression_index, LN_Value());
   }
 
   static bool ResolveBool(LN_RuntimeTree &tree,
                           const uint32_t expression_index,
                           const LN_TickContext &context)
   {
-    return tree.ResolveBoolExpression(expression_index, false, context);
+    LN_LeanReader in(tree, context);
+    return in.Bool(expression_index, false);
   }
 
   static int32_t ResolveInt(LN_RuntimeTree &tree,
                             const uint32_t expression_index,
                             const LN_TickContext &context)
   {
-    return tree.ResolveIntExpression(expression_index, 0, context);
+    LN_LeanReader in(tree, context);
+    return in.Int(expression_index, 0);
   }
 
   static LN_RuntimeRef MakeObjectRef(LN_RuntimeTree &tree, KX_GameObject &object)
@@ -166,7 +172,7 @@ class LN_RuntimeTreeTestAccess {
                                                             const uint32_t list_expr_index,
                                                             const LN_TickContext &context)
   {
-    LN_TreeReader in(tree, context);
+    LN_LeanReader in(tree, context);
     return tree.ResolveIgnoreObjectRefs(in, object_expr_index, list_expr_index);
   }
 
@@ -174,7 +180,8 @@ class LN_RuntimeTreeTestAccess {
                                             const uint32_t expression_index,
                                             const LN_TickContext &context)
   {
-    return tree.ResolveQueryExpression(expression_index, context);
+    LN_LeanReader in(tree, context);
+    return in.Query(expression_index);
   }
 
   static void SeedQueryResult(LN_RuntimeTree &tree,

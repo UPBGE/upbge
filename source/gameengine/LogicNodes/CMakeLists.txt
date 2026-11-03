@@ -93,7 +93,6 @@ set(SRC
   LN_ExecFrame.h
   LN_LeanProgram.h
   LN_LeanReader.h
-  LN_TreeReader.h
   LN_Manager.h
   LN_NodeMetadata.h
   LN_NodeRegistry.h
@@ -156,6 +155,7 @@ if(WITH_GTESTS)
     tests/LN_LeanNative_test.cpp
     tests/LN_TreeBlock_test.cpp
     tests/LN_LeanRoute_test.cpp
+    tests/LN_ObjectAttribute_test.cpp
     tests/LN_KindCatalog_test.cpp
     tests/LN_LeanDifferential_test.cpp
     tests/LN_ConstantObjects_test.cpp

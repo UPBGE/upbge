@@ -10,15 +10,15 @@
  * same handler code can run under another reader and sink.
  *
  * - the READER: Bool, Int, Float, String, Vector, Rotation, Color and Value give an expression's
- *   value (`index`, and what to give when there is none). This frame reads through the tree's
- *   recursive Resolve* functions, as the handlers always did.
+ *   value (`index`, and what to give when there is none), through the lean reader (the kind
+ *   functions straight; the recursive Resolve* functions went with plan step R4).
  * - the SINK: `command_buffer`, whose Append functions record the writes.
  * - the event, the instructions' headers, the tick context (it belongs to ExecuteEvent, which
  *   changes it for loop bodies and Every N Steps routes) and the sort key every command of the
  *   event gets (the tree's: the command buffer keeps the record order within a tree).
  *
- * A handler is a member template of LN_RuntimeTree taking a frame, so a frame of another kind
- * (the lean VM's, which reads from slots) runs the same code. */
+ * A handler is a member template of LN_RuntimeTree taking a frame (one kind of frame since plan
+ * step R4: LN_LeanFrame). */
 
 #include <string>
 #include <vector>
@@ -26,7 +26,6 @@
 #include "LN_LeanProgram.h"
 #include "LN_LeanReader.h"
 #include "LN_RuntimeTree.h"
-#include "LN_TreeReader.h"
 
 template<class Reader>
 struct LN_ExecFrameT {
@@ -39,8 +38,8 @@ struct LN_ExecFrameT {
   /** The lean program the frame runs (set by ExecuteEvent for the lean VM's frame, else null):
    * the native ops read the constants the lowering made from it. */
   const LN_LeanProgram *lean = nullptr;
-  /** What the reads below ask: LN_TreeReader (the tree's own recursive Resolve functions) or
-   * LN_LeanReader (the kind functions straight, plan phase A16). */
+  /** What the reads below ask: LN_LeanReader (the kind functions straight, plan phase A16; since
+   * plan step R4 the only reader). */
   Reader reader;
 
   LN_ExecFrameT(LN_RuntimeTree &tree,
@@ -118,7 +117,5 @@ struct LN_ExecFrameT {
       const LN_Instruction &instruction);
 };
 
-/** The frame of the old interpreter: reads through the tree's recursive Resolve functions. */
-using LN_ExecFrame = LN_ExecFrameT<LN_TreeReader>;
 /** The frame of the lean runtime's generic form (plan phase A16): reads through the kind functions. */
 using LN_LeanFrame = LN_ExecFrameT<LN_LeanReader>;

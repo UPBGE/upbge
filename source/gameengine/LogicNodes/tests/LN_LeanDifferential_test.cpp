@@ -482,11 +482,12 @@ TEST(LN_LeanDifferential, TheProductionRunsMatchTheGoldens)
   EXPECT_EQ(verdict, "") << verdict;
 }
 
-/* The lean VM in Force mode (plan phase A16) against the old interpreter: the whole text of a run
+/* The lean VM (plan phase A16) against the reference mode (the generic handlers; the old
+ * interpreter until plan step R4, and the goldens were recorded from it): the whole text of a run
  * (commands, applied world, every tree's state) is the same for each fixed seed and each setting
  * of the table, in the serial recording and, for the batch eligible trees, in a batch on a pool
  * (lean programs are made on the main thread and only read on the helpers). */
-TEST(LN_LeanDifferential, TheLeanVMInForceModeMatchesTheOldInterpreter)
+TEST(LN_LeanDifferential, TheLeanVMMatchesTheReferenceMode)
 {
   size_t compared = 0, batches = 0;
   const uint64_t runs_before = LN_LeanTreeRunCount();
@@ -591,9 +592,9 @@ TEST(LN_LeanDifferential, CompiledRoutesMatchTheBlockWalk)
   EXPECT_GT(LN_RouteRunCount(), routes_before) << "no event ran as a compiled route";
 }
 
-/* The lean memo (plan phase A33) changes no result: for each fixed seed and probe, the old
- * interpreter, the lean VM in Force with routes and its memo on, and the same with the memo off
- * give the same text (also with both memos off, the old interpreter's too). */
+/* The lean memo (plan phase A33) changes no result: for each fixed seed and probe, the reference
+ * mode, the lean VM with routes and its memo on, and the same with the memo off give the same text
+ * (also with the per-tick memo switch off). */
 TEST(LN_LeanDifferential, TheLeanMemoChangesNoResult)
 {
   size_t compared = 0, memoized = 0;
@@ -717,7 +718,8 @@ TEST(LN_LeanDifferential, Soak)
                   return !VariantDifference(seed, budget, depth, true).empty();
                 });
     }
-    /* Must match since plan phase A16: the lean VM (generic form) equals the old interpreter. */
+    /* Must match since plan phase A16: the lean VM equals the reference mode (the old interpreter
+     * until plan step R4). */
     {
       diff::RunOptions old_way = OptionsFor(seed);
       old_way.lean = 0;
@@ -842,7 +844,7 @@ TEST(LN_LeanDifferential, Soak)
   }
   report += "compiled " + std::to_string(compiled_count) + " of " + std::to_string(count) +
             "; must-match failures " + std::to_string(must_match_failures) + "\n";
-  report += "lean VM (Force) against the old interpreter: " + std::to_string(lean_different) +
+  report += "lean VM against the reference mode: " + std::to_string(lean_different) +
             " of " + std::to_string(lean_compared) + " seeds differ (must be 0)\n";
   for (const std::string &example : lean_examples) {
     report += "  " + example + "\n";

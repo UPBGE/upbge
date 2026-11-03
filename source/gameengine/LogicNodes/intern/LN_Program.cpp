@@ -3230,6 +3230,11 @@ bool RegisterOpHasSimdKernel(const LN_RegisterExpressionOpKind kind)
 
 }  // namespace
 
+bool LN_OpcodeUsesVectorCommandPayload(const LN_OpCode opcode)
+{
+  return OpcodeUsesVectorCommandPayload(opcode);
+}
+
 uint64_t LN_Program::UniqueId::Next()
 {
   static std::atomic<uint64_t> last_id{0};
@@ -5684,9 +5689,51 @@ void LN_Program::RebuildRegisterExpressionIR()
                 nullptr,
                 ir.value_memo_class);
 
+  /* Each object attribute read by a constant name, as a number (plan step G2): the kind then reads
+   * no text and compares no names. */
+  ir.value_object_attribute.assign(m_valueExpressions.size(), uint8_t(LN_ObjectAttributeId::None));
+  for (size_t index = 0; index < m_valueExpressions.size(); index++) {
+    const LN_ValueExpression &expression = m_valueExpressions[index];
+    if (expression.kind != LN_ValueExpressionKind::ObjectAttribute ||
+        expression.input1 >= m_stringExpressions.size())
+    {
+      continue;
+    }
+    const LN_StringExpression &text = m_stringExpressions[expression.input1];
+    if (text.kind == LN_StringExpressionKind::Constant) {
+      ir.value_object_attribute[index] = uint8_t(LN_ObjectAttributeIdFromName(text.string_value));
+    }
+  }
+
   std::vector<std::string> errors;
   ir.valid = ValidateRegisterExpressionProgram(ir, errors);
   m_registerExpressionProgram = std::move(ir);
+}
+
+LN_ObjectAttributeId LN_ObjectAttributeIdFromName(const std::string &name)
+{
+  static const std::pair<const char *, LN_ObjectAttributeId> names[] = {
+      {"worldPosition", LN_ObjectAttributeId::WorldPosition},
+      {"position", LN_ObjectAttributeId::WorldPosition},
+      {"localPosition", LN_ObjectAttributeId::LocalPosition},
+      {"worldOrientation", LN_ObjectAttributeId::WorldOrientation},
+      {"localOrientation", LN_ObjectAttributeId::LocalOrientation},
+      {"worldScale", LN_ObjectAttributeId::WorldScale},
+      {"localScale", LN_ObjectAttributeId::LocalScale},
+      {"worldLinearVelocity", LN_ObjectAttributeId::WorldLinearVelocity},
+      {"localLinearVelocity", LN_ObjectAttributeId::LocalLinearVelocity},
+      {"worldAngularVelocity", LN_ObjectAttributeId::WorldAngularVelocity},
+      {"localAngularVelocity", LN_ObjectAttributeId::LocalAngularVelocity},
+      {"color", LN_ObjectAttributeId::Color},
+      {"visible", LN_ObjectAttributeId::Visible},
+      {"name", LN_ObjectAttributeId::Name},
+  };
+  for (const auto &[text, id] : names) {
+    if (name == text) {
+      return id;
+    }
+  }
+  return LN_ObjectAttributeId::None;
 }
 
 bool LN_Program::ValidateRegisterExpressionProgram(const LN_RegisterExpressionProgram &ir,

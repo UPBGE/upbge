@@ -2308,6 +2308,31 @@ struct LN_PropertyNumber {
   }
 };
 
+/** The attributes an ObjectAttribute value expression reads by name (plan "Attribute and
+ * Retirement", step G2), as numbers. Worked out once per program from the expression's constant
+ * text (LN_RegisterExpressionProgram::value_object_attribute); None: not an object attribute, a
+ * text that is not constant, or one that names no attribute (a game property). */
+enum class LN_ObjectAttributeId : uint8_t {
+  None = 0,
+  WorldPosition,
+  LocalPosition,
+  WorldOrientation,
+  LocalOrientation,
+  WorldScale,
+  LocalScale,
+  WorldLinearVelocity,
+  LocalLinearVelocity,
+  WorldAngularVelocity,
+  LocalAngularVelocity,
+  Color,
+  Visible,
+  Name,
+};
+
+/** The attribute a name stands for, exactly the names the ObjectAttribute kind knows ("position"
+ * is World Position); None for any other text. */
+LN_ObjectAttributeId LN_ObjectAttributeIdFromName(const std::string &name);
+
 struct LN_ValueExpression {
   LN_ValueExpressionKind kind = LN_ValueExpressionKind::Constant;
   uint32_t input0 = LN_INVALID_INDEX;

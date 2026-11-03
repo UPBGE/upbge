@@ -6,8 +6,8 @@
  * The native ops of the lean VM (lean runtime plan, phases A18 and A21): the flow core (Nop,
  * BranchRoute), Set Game Property number writes and Apply Movement / Apply Rotation each do what
  * the generic handler does. Every test builds a small tree by hand, runs it in the differential
- * world (diff::RunWorld: 3 owners with edge-case properties, 8 frames) by the old interpreter and
- * by the lean VM in Force mode, and compares the whole text (recorded commands, applied world,
+ * world (diff::RunWorld: 3 owners with edge-case properties, 8 frames) in the reference mode (the
+ * generic handlers; the old interpreter until plan step R4) and on the lean VM, and compares the whole text (recorded commands, applied world,
  * every tree's state); the tests that matter for a case also read results from the rig. */
 
 #include "testing/testing.h"
@@ -57,7 +57,7 @@ std::shared_ptr<LN_Program> CompileOrFail(TreeBuilder &b)
   return program;
 }
 
-/** The old interpreter, the lean VM (Force) walking its blocks and the lean VM running its
+/** The reference mode (generic handlers), the lean VM walking its blocks and the lean VM running its
  * compiled routes (plan phase A33) give the same text in the differential world; returns the
  * number of native ops the lean program has. A program with a route must run it. */
 uint32_t ExpectSameBothWays(const std::shared_ptr<LN_Program> &program, const char *what)
@@ -338,10 +338,10 @@ TEST(LN_LeanNative, AGetDistanceThatBecomesInvalidReadsInvalidAgain)
   }
 }
 
-/* Auto mode runs the lean VM only for an event whose every op has a native handler; an event with
- * an op that has none (a text write here) stays on the old interpreter, and both give their
- * results. Force runs the mixed event lean too. */
-TEST(LN_LeanNative, AutoRunsTheLeanVMOnlyForAnEventWhoseOpsAreAllNative)
+/* Plan step R3: every event runs on the lean VM whatever its ops (a text write has no native
+ * handler: its op runs the generic one in the same event); an event whose ops are all native runs
+ * as its compiled route; the reference mode makes no lean program and runs no route. */
+TEST(LN_LeanNative, EveryEventRunsOnTheLeanVMWhateverItsOps)
 {
   const auto build = [](const bool with_text) {
     TreeBuilder b;
@@ -362,24 +362,41 @@ TEST(LN_LeanNative, AutoRunsTheLeanVMOnlyForAnEventWhoseOpsAreAllNative)
   const std::shared_ptr<LN_Program> mixed = build(true);
   ASSERT_NE(native_only, nullptr);
   ASSERT_NE(mixed, nullptr);
+  struct RoutesOn { /* whatever UPBGE_LN_ROUTES says */
+    RoutesOn()
+    {
+      LN_SetRouteModeForTests(1);
+    }
+    ~RoutesOn()
+    {
+      LN_SetRouteModeForTests(-1);
+    }
+  } routes_on;
   struct Case {
     int mode;
     const std::shared_ptr<LN_Program> &program;
-    bool runs_lean;
+    bool route;
   };
   for (const Case &c : {Case{1, native_only, true},
                         Case{1, mixed, false},
                         Case{2, native_only, true},
-                        Case{2, mixed, true},
-                        Case{0, native_only, false}})
+                        Case{2, mixed, false},
+                        Case{0, native_only, false},
+                        Case{0, mixed, false}})
   {
     ModeScope scope(c.mode);
     SemRig rig(c.program, kMemoOff);
-    rig.Step(); /* the first step also runs On Init, an event with no op at all (always lean) */
+    rig.Step(); /* the first step also runs On Init, an event with no op at all */
     const uint64_t runs_before = LN_LeanTreeRunCount();
+    const uint64_t routes_before = LN_RouteRunCount();
     rig.Step();
-    const bool ran_lean = LN_LeanTreeRunCount() > runs_before;
-    EXPECT_EQ(ran_lean, c.runs_lean) << "mode " << c.mode << (c.program == mixed ? " mixed" : "");
+    EXPECT_GT(LN_LeanTreeRunCount(), runs_before)
+        << "mode " << c.mode << (c.program == mixed ? " mixed" : "");
+    EXPECT_EQ(LN_RouteRunCount() > routes_before, c.route)
+        << "mode " << c.mode << (c.program == mixed ? " mixed" : "");
+    if (c.mode != 0) { /* (the reference cases reuse programs the cases before lowered) */
+      EXPECT_NE(c.program->GetLeanProgram(), nullptr);
+    }
     EXPECT_EQ(rig.Float(rig.Object(0), "n"), 4.0f);
     if (c.program == mixed) {
       EXPECT_EQ(rig.Text(rig.Object(0), "t"), "hello");
@@ -548,9 +565,9 @@ TEST(LN_LeanNative, ModifyPropertyEndsAsTheGenericHandlerEndsIt)
   EXPECT_GE(native_ops, 28u);
 }
 
-/* Mode Off runs no native op: no lean tree run is counted, and the write is the old
- * interpreter's. */
-TEST(LN_LeanNative, ModeOffNeverRunsANativeOp)
+/* The reference mode runs no native op (it makes no lean program) and no route, and the write is
+ * the one the native handler makes. */
+TEST(LN_LeanNative, TheReferenceModeNeverRunsANativeOp)
 {
   TreeBuilder b;
   GenNode &event = b.Add("LogicNativeOnFixedUpdate");
@@ -562,8 +579,9 @@ TEST(LN_LeanNative, ModeOffNeverRunsANativeOp)
   ASSERT_NE(program, nullptr);
   ModeScope scope(0);
   SemRig rig(program, kMemoOff);
-  const uint64_t runs_before = LN_LeanTreeRunCount();
+  const uint64_t routes_before = LN_RouteRunCount();
   rig.Step();
-  EXPECT_EQ(LN_LeanTreeRunCount(), runs_before);
+  EXPECT_EQ(LN_RouteRunCount(), routes_before);
+  EXPECT_EQ(program->GetLeanProgram(), nullptr);
   EXPECT_EQ(rig.Float(rig.Object(0), "p"), 3.0f);
 }

@@ -343,8 +343,7 @@ using KindInputs = std::map<std::string, std::set<std::string>>;
 std::string RecordReadOrders(const std::vector<LN_KindDomain> &domains,
                              const bool truthy,
                              const bool as_rotation = false,
-                             KindInputs *inputs = nullptr,
-                             const bool lean = false)
+                             KindInputs *inputs = nullptr)
 {
   std::string text;
   size_t count = 0;
@@ -384,7 +383,7 @@ std::string RecordReadOrders(const std::vector<LN_KindDomain> &domains,
     context.tick_index = 1;
     LN_RuntimeTree::SetReadTraceForTests(&trace);
     rig.Tree(0).EvaluateExpressionForTests(
-        family, family == 'Q' ? 0 : kUnderTest, context, lean);
+        family, family == 'Q' ? 0 : kUnderTest, context);
     LN_RuntimeTree::SetReadTraceForTests(nullptr);
     text += std::string(info.name) + ":";
     if (inputs != nullptr) {
@@ -406,8 +405,9 @@ std::string RecordReadOrders(const std::vector<LN_KindDomain> &domains,
 
 }  // namespace
 
-/** The text of the read-order golden, read through the Resolve functions or the lean reader. */
-static std::string ReadOrderText(const bool lean)
+/** The text of the read-order golden (recorded through the old Resolve functions, plan A13; read
+ * through the lean reader since plan step R4). */
+static std::string ReadOrderText()
 {
   const std::vector<LN_KindDomain> domains = {LN_KindDomain::Bool,
                                               LN_KindDomain::Int,
@@ -418,29 +418,21 @@ static std::string ReadOrderText(const bool lean)
                                               LN_KindDomain::Value,
                                               LN_KindDomain::Query};
   return "== every input reads false / 0 / empty\n" +
-         RecordReadOrders(domains, false, false, nullptr, lean) +
+         RecordReadOrders(domains, false, false, nullptr) +
          "== every input reads true / 3 / 2.5 / ab\n" +
-         RecordReadOrders(domains, true, false, nullptr, lean) +
+         RecordReadOrders(domains, true, false, nullptr) +
          "== vector kinds read as rotations, zero\n" +
-         RecordReadOrders({LN_KindDomain::Vector}, false, true, nullptr, lean) +
+         RecordReadOrders({LN_KindDomain::Vector}, false, true, nullptr) +
          "== vector kinds read as rotations, nonzero\n" +
-         RecordReadOrders({LN_KindDomain::Vector}, true, true, nullptr, lean);
+         RecordReadOrders({LN_KindDomain::Vector}, true, true, nullptr);
 }
 
-/* Every kind of the covered tables reads its inputs in the order of the golden. */
+/* Every kind of the covered tables reads its inputs in the order of the golden, which was recorded
+ * from the old Resolve functions (the lean reader was held to it from plan phase A16 on). */
 TEST(LN_ReadOrder, EveryKindReadsItsInputsInTheRecordedOrder)
 {
-  const std::string text = ReadOrderText(false);
+  const std::string text = ReadOrderText();
   EXPECT_GT(text.size(), 1000u);
-  const std::string verdict = CheckGolden("read_order_v0", text);
-  EXPECT_TRUE(verdict.empty()) << verdict;
-}
-
-/* The lean reader (plan phase A16) reads in the very same order: its kinds run the same code,
- * and the reads go through the lean reader's functions. */
-TEST(LN_ReadOrder, EveryKindReadsItsInputsInTheSameOrderOnTheLeanReader)
-{
-  const std::string text = ReadOrderText(true);
   const std::string verdict = CheckGolden("read_order_v0", text);
   EXPECT_TRUE(verdict.empty()) << verdict;
 }

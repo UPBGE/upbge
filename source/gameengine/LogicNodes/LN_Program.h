@@ -459,3 +459,8 @@ class LN_Program {
   LN_SchedulerSummary m_schedulerSummary;
   LN_ProgramDependencySummary m_dependencySummary;
 };
+
+/** Whether an instruction of `opcode` keeps its vector command inputs in the vector command payload
+ * table (`command_payload_index`); Set Game Property's are in the game property table, Add Physics
+ * Constraint's in the rigid body constraint table. */
+bool LN_OpcodeUsesVectorCommandPayload(LN_OpCode opcode);

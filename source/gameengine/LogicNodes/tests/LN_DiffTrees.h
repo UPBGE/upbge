@@ -238,6 +238,26 @@ inline bool StringOperationOutputOk(const int16_t custom1,
   return !boolean && custom1 != 3; /* "String" */
 }
 
+/** Get Object Attribute (custom1 = the attribute): the outputs each attribute shows. Visible and
+ * Color read the snapshot and are covered by their own families' reads. */
+inline bool ObjectAttributeOutputOk(const int16_t custom1,
+                                    const int16_t /*custom2*/,
+                                    const std::string &output)
+{
+  const bool transform = custom1 == 13 || custom1 == 14;
+  if (output == "Vector") {
+    return custom1 == 0 || custom1 == 1 || custom1 == 4 || custom1 == 5 ||
+           (custom1 >= 9 && custom1 <= 12);
+  }
+  if (output == "Orientation") {
+    return custom1 == 7 || custom1 == 8 || transform;
+  }
+  if (output == "Position" || output == "Scale") {
+    return transform;
+  }
+  return output == "Name" && custom1 == 3;
+}
+
 /** Typecast builds only the output its target (custom1) names. */
 inline bool TypecastOutputOk(const int16_t custom1,
                              const int16_t /*custom2*/,
@@ -330,7 +350,13 @@ inline const std::vector<Family> &FamilyTable()
     t.push_back({"LogicNativeValueSwitchListCompare", Role::Data, 1, {}, {}, {}, nullptr, {Cat::Float, Cat::Int, Cat::String}});
     t.push_back({"LogicNativeToggleTreeProperty", Role::Flow, 2});
     t.push_back({"LogicNativeGetAxisVector", Role::Data, 3, {0, 1, 2, 3, 4, 5}});
-    t.push_back({"LogicNativeGetObjectAttribute", Role::Data, 3, {0, 1, 4, 5, 9, 10, 11, 12}, {}, {"Vector"}});
+    t.push_back({"LogicNativeGetObjectAttribute",
+                 Role::Data,
+                 3,
+                 {0, 1, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14},
+                 {},
+                 {"Vector", "Orientation", "Position", "Scale", "Name"},
+                 ObjectAttributeOutputOk});
     t.push_back({"LogicNativeGetDistance", Role::Data, 3, {0, 1}, {0, 1}, {"Distance", "Squared Distance", "Valid"}, nullptr, {}, true});
     return t;
   }();

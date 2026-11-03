@@ -260,6 +260,9 @@ struct LN_RegisterExpressionProgram {
   std::vector<uint8_t> color_memo_class;
   std::vector<uint8_t> string_memo_class;
   std::vector<uint8_t> value_memo_class;
+  /** Per value expression: the LN_ObjectAttributeId of an ObjectAttribute whose attribute text is
+   * a constant (plan step G2), 0 (None) for every other expression. */
+  std::vector<uint8_t> value_object_attribute;
 
   uint32_t bool_register_count = 0;
   uint32_t int_register_count = 0;

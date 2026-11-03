@@ -257,12 +257,9 @@ class LN_RuntimeTree {
     uint32_t index;
   };
   static void SetReadTraceForTests(std::vector<ReadTraceEntry> *trace);
-  /** Works out one expression of `family` (one of the letters above) and drops the result; with
-   * `lean`, through the lean reader (the kind straight) instead of the Resolve functions. */
-  void EvaluateExpressionForTests(char family,
-                                  uint32_t index,
-                                  const LN_TickContext &context,
-                                  bool lean = false);
+  /** Works out one expression of `family` (one of the letters above) through the lean reader and
+   * drops the result. */
+  void EvaluateExpressionForTests(char family, uint32_t index, const LN_TickContext &context);
   /** Object UI declarations stay registered every frame, even while this tree is paused or has
    * no wired output, so hover, focus and scroll state never reset behind the user's back. */
   bool CollectsObjectUI() const;
@@ -807,7 +804,6 @@ class LN_RuntimeTree {
   template<class R>
   friend struct LN_ExecFrameT;
   friend struct LN_LeanReader;
-  friend struct LN_TreeReader;
   friend class LN_RuntimeTreeTestAccess;
 
   void EnsureTreePropertyStateSize(bool preserve_existing);
@@ -872,7 +868,6 @@ class LN_RuntimeTree {
                                    const char *profile_counter_name,
                                    const char *removal_condition) const;
   void EnsureRegisterExpressionState(const LN_TickContext &context);
-  void ProfileRegisterExpressionHit();
   void ExecuteEvent(LN_Event event,
                     const std::vector<LN_InstructionHeader> &instructions,
                     LN_CommandBuffer &command_buffer,
@@ -1017,11 +1012,8 @@ class LN_RuntimeTree {
                                             const std::string &subject,
                                             KX_GameObject *filter_target) const;
   KX_GameObject *ResolveCollisionPayloadObjectRef(const LN_RuntimeRef &object_ref) const;
-  bool ResolveBoolExpression(uint32_t expression_index,
-                             bool fallback,
-                             const LN_TickContext &context);
   /* The kinds (plan phases A13 and A14): the switch of each Resolve function, reading its inputs
-   * through the reader `in` (LN_TreeReader). Defined in intern/LN_RuntimeTreeKinds.inl. */
+   * through the reader `in` (LN_LeanReader). Defined in intern/LN_RuntimeTreeKinds.inl. */
   template<class In>
   bool BoolKind(In &in,
                 uint32_t expression_index,
@@ -1065,6 +1057,36 @@ class LN_RuntimeTree {
                      uint32_t expression_index,
                      const LN_ValueExpression &expression,
                      const LN_Value &fallback);
+  /** Plan "Attribute and Retirement", steps G2 and G3 (UPBGE_LN_FAST_ATTRIBUTES: 0 / off = every
+   * read reads the attribute's text and builds the whole value, unset / 1 = what follows, verify =
+   * both, a "lean fast attributes differ" warning on any difference). The attribute id of value
+   * expression `value_index` when its typed read may skip the value: an ObjectAttribute with a
+   * constant attribute name, while neither profiling nor the read trace watch every read; None
+   * otherwise. */
+  LN_ObjectAttributeId FastObjectAttribute(uint32_t value_index) const;
+  /** The object an ObjectAttribute reads (its kind's own object resolution: empty Object = the
+   * owner). */
+  template<class In>
+  KX_GameObject *ObjectAttributeTarget(In &in, const LN_ValueExpression &attribute);
+  /** ObjectAttributeTarget of value expression `value_index`, for a typed read that skips its
+   * value. */
+  template<class In> KX_GameObject *TypedAttributeTarget(In &in, uint32_t value_index);
+  /** ResolveObjectValue(in.Value(value_index)), without making the value of a constant object
+   * (its steps repeated one by one). */
+  template<class In> KX_GameObject *ReadObjectInput(In &in, uint32_t value_index);
+  /** The object a Constant Object value expression's value resolves to (ValueKind's Constant case
+   * followed by ResolveObjectValue, without the value). */
+  KX_GameObject *ConstantObjectTarget(uint32_t value_index, const LN_Value &constant);
+  /** A verify-mode difference of the fast attributes (warns, counts). */
+  static void NoteFastAttributeDifference(const char *what);
+
+ public:
+  /** Tests: the mode of the fast attributes (0 off, 1 on, 2 verify; -1 back to the environment)
+   * and how many differences verify found. */
+  static void SetFastAttributeModeForTests(int mode);
+  static uint32_t FastAttributeVerifyDifferencesForTests();
+
+ private:
   /** The query kinds fill `state.cached_result` (the caching, the condition and the pass key are
    * in ResolveQueryExpression). */
   template<class In>
@@ -1078,22 +1100,8 @@ class LN_RuntimeTree {
   void DistanceBetweenKind(In &in,
                            const LN_QueryExpression &expression,
                            QueryExpressionRuntimeState &state);
-  int32_t ResolveIntExpression(uint32_t expression_index,
-                               int32_t fallback,
-                               const LN_TickContext &context = LN_TickContext());
-  float ResolveFloatExpression(uint32_t expression_index,
-                               float fallback,
-                               const LN_TickContext &context);
-  std::string ResolveStringExpression(uint32_t expression_index,
-                                      const std::string &fallback,
-                                      const LN_TickContext &context = LN_TickContext());
   LN_StringId ResolveStringExpressionId(uint32_t expression_index) const;
-  LN_Value ResolveValueExpression(uint32_t expression_index,
-                                  const LN_Value &fallback,
-                                  const LN_TickContext &context);
-  const LN_QueryResult &ResolveQueryExpression(uint32_t expression_index,
-                                               const LN_TickContext &context);
-  /** ResolveQueryExpression's body over a reader: the cache entry, the condition, the pass key and
+  /** A query expression read through a reader: the cache entry, the condition, the pass key and
    * QueryKind. */
   template<class In>
   const LN_QueryResult &QueryEntry(In &in, uint32_t expression_index);
@@ -1150,15 +1158,6 @@ class LN_RuntimeTree {
                   uint32_t constraint_name_expr_index,
                   uint32_t match_any_expr_index,
                   LN_RigidBodyConstraintMatchMode match_mode);
-  MT_Vector3 ResolveVectorExpression(uint32_t expression_index,
-                                     const MT_Vector3 &fallback,
-                                     const LN_TickContext &context);
-  LN_Rotation ResolveRotationExpression(uint32_t expression_index,
-                                        const LN_Rotation &fallback,
-                                        const LN_TickContext &context);
-  MT_Vector4 ResolveColorExpression(uint32_t expression_index,
-                                    const MT_Vector4 &fallback,
-                                    const LN_TickContext &context);
   KX_Camera *GetActiveCamera() const;
   KX_Camera *ResolveCameraValue(const LN_Value &value) const;
   KX_GameObject *ResolveObjectValue(const LN_Value &value, bool include_inactive = false) const;
@@ -1337,10 +1336,6 @@ class LN_RuntimeTree {
   LN_StateBlockMemory m_stateBlock;
   LN_StateSpan<InstructionStamp> m_instructionStamps;
   RegisterExpressionRuntimeState m_registerExpressionState;
-  /** The per-tick memo (plan A15): counts the reads of expressions that may change within a tick
-   * (LN_MEMO_TAINTS); an expression is kept only when the count did not move while it was worked
-   * out. */
-  uint32_t m_memoTaint = 0;
   LN_StateSpan<QueryExpressionRuntimeState> m_queryExpressionStates;
   LN_StateSpan<BoolExpressionRuntimeState> m_boolStates;
   LN_StateSpan<FloatExpressionRuntimeState> m_floatStates;

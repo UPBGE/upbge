@@ -129,18 +129,27 @@ void BuildLeanMemo(const LN_Program &program, LN_LeanProgram &lean)
     }
   };
 
-  /* Each expression's register op, and how often expressions and native ops read it. */
+  /* Each expression's register op, and how often a tick may work it out (`uses`: the reads of the
+   * ops first, then those of the expressions reading it, below). */
   std::array<std::vector<uint32_t>, kFamilies> op_of;
   std::array<std::vector<uint32_t>, kFamilies> uses;
   for (uint32_t family = 0; family < kFamilies; family++) {
     op_of[family].assign(sizes[family], LN_INVALID_INDEX);
     uses[family].assign(sizes[family], 0);
   }
-  const auto use = [&](const uint32_t family, const uint32_t index) {
+  constexpr uint32_t kUseLimit = 1u << 30;
+  const auto use = [&](const uint32_t family, const uint32_t index, const uint32_t count = 1) {
     if (index < sizes[family]) {
-      uses[family][index]++;
+      uses[family][index] = std::min(kUseLimit, uses[family][index] + std::min(kUseLimit, count));
     }
   };
+  /* `reads`: every read by an op or a register op, unweighted (A33's count). Readers the register
+   * IR does not list (queries, text and colour expressions without a register) pass no evaluations
+   * down, so an expression is kept when either count reaches two: never less than A33 kept. */
+  std::array<std::vector<uint32_t>, kFamilies> reads;
+  for (uint32_t family = 0; family < kFamilies; family++) {
+    reads[family].assign(sizes[family], 0);
+  }
   for (uint32_t op_index = 0; op_index < ir.ops.size(); op_index++) {
     const LN_RegisterExpressionOp &op = ir.ops[op_index];
     const uint32_t family = family_of(op.output_kind);
@@ -148,49 +157,124 @@ void BuildLeanMemo(const LN_Program &program, LN_LeanProgram &lean)
       op_of[family][op.expression_index] = op_index;
     }
     inputs_of(op, [&](const LN_RegisterExpressionRef &ref) {
-      use(family_of(ref.value_kind), ref.expression_index);
+      const uint32_t input_family = family_of(ref.value_kind);
+      if (ref.expression_index < sizes[input_family]) {
+        reads[input_family][ref.expression_index]++;
+      }
     });
   }
+  /* Every expression an op may read, once per op (plan "Attribute and Retirement", R1): the op's
+   * guard, every expression field of its instruction and of its command payload, whatever handler
+   * runs it. Generic ops count as native ones do, so the lean reader keeps what they share as the
+   * old interpreter's memo did. Counting a field the handler does not read only spends a memo
+   * register: a kept expression is pure, so the memo never changes a result. */
+  std::vector<std::pair<uint32_t, uint32_t>> op_reads;
+  const auto read = [&](const uint32_t family, const uint32_t index) {
+    if (index < sizes[family]) {
+      op_reads.emplace_back(family, index);
+    }
+  };
   for (size_t event_index = 0; event_index < lean.events.size(); event_index++) {
     const LN_Event event = LN_Event(event_index);
     const LN_ExecBlockProgram &exec = program.GetExecBlockProgram(event);
     const std::vector<LN_InstructionHeader> &headers = program.GetInstructionHeaders(event);
     for (uint32_t op_index = 0; op_index < exec.ops.size(); op_index++) {
       const LN_ExecOp &op = exec.ops[op_index];
-      use(0, op.guard_bool_expr_index);
-      if (op.instruction_index >= headers.size() || op_index >= lean.events[event_index].ops.size())
-      {
-        continue;
+      op_reads.clear();
+      read(0, op.guard_bool_expr_index);
+      if (op.instruction_index < headers.size()) {
+        const LN_Instruction &instruction = program.GetInstructionPayload(
+            event, headers[op.instruction_index]);
+        for (const uint32_t index : {instruction.bool_guard_expr_index,
+                                     instruction.bool_expr_index,
+                                     instruction.secondary_bool_expr_index,
+                                     instruction.tertiary_bool_expr_index,
+                                     instruction.quaternary_bool_expr_index})
+        {
+          read(0, index);
+        }
+        for (const uint32_t index : {instruction.int_expr_index,
+                                     instruction.secondary_int_expr_index,
+                                     instruction.tertiary_int_expr_index})
+        {
+          read(1, index);
+        }
+        for (const uint32_t index : {instruction.float_expr_index,
+                                     instruction.secondary_float_expr_index,
+                                     instruction.tertiary_float_expr_index,
+                                     instruction.quaternary_float_expr_index})
+        {
+          read(2, index);
+        }
+        read(3, instruction.vector_expr_index);
+        read(3, instruction.secondary_vector_expr_index);
+        read(4, instruction.color_expr_index);
+        for (const uint32_t index : {instruction.string_expr_index,
+                                     instruction.secondary_string_expr_index,
+                                     instruction.tertiary_string_expr_index})
+        {
+          read(5, index);
+        }
+        for (const uint32_t index : {instruction.value_expr_index,
+                                     instruction.secondary_value_expr_index,
+                                     instruction.tertiary_value_expr_index,
+                                     instruction.quaternary_value_expr_index})
+        {
+          read(6, index);
+        }
+        const uint32_t payload = instruction.command_payload_index;
+        if (LN_OpcodeUsesVectorCommandPayload(instruction.opcode)) {
+          if (payload < program.GetVectorCommandPayloads().size()) {
+            const LN_VectorCommandPayload &vector = program.GetVectorCommandPayloads()[payload];
+            read(6, vector.object_value_expr_index);
+            read(3, vector.vector_expr_index);
+            read(3, vector.secondary_vector_expr_index);
+            read(0, vector.bool_expr_index);
+          }
+        }
+        else if (instruction.opcode == LN_OpCode::SetGameProperty) {
+          if (payload < program.GetGamePropertyCommandPayloads().size()) {
+            const LN_GamePropertyCommandPayload &property =
+                program.GetGamePropertyCommandPayloads()[payload];
+            read(6, property.object_value_expr_index);
+            read(6, property.value_expr_index);
+            read(0, property.bool_expr_index);
+            read(1, property.int_expr_index);
+            read(2, property.float_expr_index);
+            read(5, property.string_expr_index);
+            read(3, property.vector_expr_index);
+            read(4, property.color_expr_index);
+            read(2, property.modify_min_expr_index);
+            read(2, property.modify_max_expr_index);
+          }
+        }
+        else if (instruction.opcode == LN_OpCode::AddPhysicsConstraint) {
+          if (payload < program.GetRigidBodyConstraintCommandPayloads().size()) {
+            const LN_RigidBodyConstraintCommandPayload &constraint =
+                program.GetRigidBodyConstraintCommandPayloads()[payload];
+            read(6, constraint.constraint_object_value_expr_index);
+            read(6, constraint.object_value_expr_index);
+            read(6, constraint.target_value_expr_index);
+            read(5, constraint.name_string_expr_index);
+            read(1, constraint.velocity_solver_iterations_int_expr_index);
+            read(1, constraint.position_solver_iterations_int_expr_index);
+            for (const uint32_t index : constraint.bool_expr_indices) {
+              read(0, index);
+            }
+            for (const uint32_t index : constraint.vector_expr_indices) {
+              read(3, index);
+            }
+            for (const uint32_t index : constraint.float_expr_indices) {
+              read(2, index);
+            }
+          }
+        }
       }
-      const LN_Instruction &instruction = program.GetInstructionPayload(event,
-                                                                        headers[op.instruction_index]);
-      switch (LN_LeanNative(lean.events[event_index].ops[op_index].native)) {
-        case LN_LeanNative::BranchRoute:
-          use(0, instruction.bool_expr_index);
-          break;
-        case LN_LeanNative::SetNumber:
-        case LN_LeanNative::ModifyProperty:
-          if (instruction.command_payload_index < program.GetGamePropertyCommandPayloads().size()) {
-            const LN_GamePropertyCommandPayload &payload =
-                program.GetGamePropertyCommandPayloads()[instruction.command_payload_index];
-            use(0, payload.bool_expr_index);
-            use(1, payload.int_expr_index);
-            use(2, payload.float_expr_index);
-            use(2, payload.modify_min_expr_index);
-            use(2, payload.modify_max_expr_index);
-          }
-          break;
-        case LN_LeanNative::VectorCommand:
-          if (instruction.command_payload_index < program.GetVectorCommandPayloads().size()) {
-            const LN_VectorCommandPayload &payload =
-                program.GetVectorCommandPayloads()[instruction.command_payload_index];
-            use(3, payload.vector_expr_index);
-            use(3, payload.secondary_vector_expr_index);
-            use(0, payload.bool_expr_index);
-          }
-          break;
-        default:
-          break;
+      std::sort(op_reads.begin(), op_reads.end());
+      op_reads.erase(std::unique(op_reads.begin(), op_reads.end()), op_reads.end());
+      for (const auto &[family, index] : op_reads) {
+        use(family, index);
+        reads[family][index]++;
       }
     }
   }
@@ -231,41 +315,56 @@ void BuildLeanMemo(const LN_Program &program, LN_LeanProgram &lean)
     state = result ? 1 : 2;
     return result;
   };
-  const auto keep = [&](const uint32_t family, const uint32_t index, const bool single_read) {
-    return index < classes[family]->size() &&
-           (*classes[family])[index] == uint8_t(LN_MEMO_STORE) && uses[family][index] >= 2 &&
-           !single_read && pure(family, index);
+  /* A property read alone is cheaper than its register: never kept. */
+  const auto single_read = [&](const uint32_t family, const uint32_t index) {
+    switch (family) {
+      case 0:
+        return program.GetBoolExpressions()[index].kind ==
+               LN_BoolExpressionKind::SnapshotGameProperty;
+      case 1:
+        return program.GetIntExpressions()[index].kind ==
+               LN_IntExpressionKind::SnapshotGameProperty;
+      case 2:
+        return program.GetFloatExpressions()[index].kind ==
+               LN_FloatExpressionKind::SnapshotGameProperty;
+      default:
+        return false;
+    }
+  };
+  /* The lean reader keeps Bool, Int, Float and Vector values. */
+  const auto keep = [&](const uint32_t family, const uint32_t index) {
+    return family <= 3 && index < classes[family]->size() &&
+           (*classes[family])[index] == uint8_t(LN_MEMO_STORE) &&
+           (uses[family][index] >= 2 || reads[family][index] >= 2) &&
+           !single_read(family, index) && pure(family, index);
   };
   lean.memo_bool.assign(sizes[0], 0);
   lean.memo_int.assign(sizes[1], 0);
   lean.memo_float.assign(sizes[2], 0);
   lean.memo_vector.assign(sizes[3], 0);
-  for (uint32_t index = 0; index < sizes[0]; index++) {
-    lean.memo_bool[index] = keep(0,
-                                 index,
-                                 program.GetBoolExpressions()[index].kind ==
-                                     LN_BoolExpressionKind::SnapshotGameProperty) ?
-                                1 :
-                                0;
-  }
-  for (uint32_t index = 0; index < sizes[1]; index++) {
-    lean.memo_int[index] = keep(1,
-                                index,
-                                program.GetIntExpressions()[index].kind ==
-                                    LN_IntExpressionKind::SnapshotGameProperty) ?
-                               1 :
-                               0;
-  }
-  for (uint32_t index = 0; index < sizes[2]; index++) {
-    lean.memo_float[index] = keep(2,
-                                  index,
-                                  program.GetFloatExpressions()[index].kind ==
-                                      LN_FloatExpressionKind::SnapshotGameProperty) ?
-                                 1 :
-                                 0;
-  }
-  for (uint32_t index = 0; index < sizes[3]; index++) {
-    lean.memo_vector[index] = keep(3, index, false) ? 1 : 0;
+  const std::array<std::vector<uint8_t> *, 4> memo = {
+      &lean.memo_bool, &lean.memo_int, &lean.memo_float, &lean.memo_vector};
+  /* An expression reads its inputs each time it is worked out: once a tick when it is kept, else
+   * at every read (plan "Attribute and Retirement", R1: a chain read through a value conversion
+   * the lean reader does not keep is kept below it). A register op comes after the ops of its
+   * inputs, so walking them backwards finishes an expression's count before its inputs get it. */
+  for (uint32_t op_index = uint32_t(ir.ops.size()); op_index-- > 0;) {
+    const LN_RegisterExpressionOp &op = ir.ops[op_index];
+    const uint32_t family = family_of(op.output_kind);
+    const uint32_t index = op.expression_index;
+    if (index >= sizes[family] || op_of[family][index] != op_index) {
+      continue;
+    }
+    const bool kept = keep(family, index);
+    if (kept) {
+      (*memo[family])[index] = 1;
+    }
+    const uint32_t passes = kept ? 1u : uses[family][index];
+    if (passes != 0) {
+      inputs_of(op, [&](const LN_RegisterExpressionRef &ref) {
+        use(family_of(ref.value_kind), ref.expression_index, passes);
+      });
+    }
   }
   lean.memo_count = 0;
   for (const std::vector<uint8_t> *memo :
@@ -374,21 +473,16 @@ LN_LeanMode mode_from_environment()
 {
   static const LN_LeanMode mode = []() {
     const char *value = std::getenv("UPBGE_LN_LEAN");
-    /* Unset: Auto since plan phase A27 (the lean VM for the events whose ops are all native). */
-    if (value == nullptr || value[0] == '\0') {
-      return LN_LeanMode::Auto;
-    }
-    if (std::strcmp(value, "0") == 0 || std::strcmp(value, "off") == 0 ||
-        std::strcmp(value, "OFF") == 0)
+    /* Unset or anything else: Lean. Reference: the generic handlers only (D10). "0" and "off"
+     * chose the old interpreter before plan step R3: they give the reference now. */
+    if (value != nullptr &&
+        (std::strcmp(value, "reference") == 0 || std::strcmp(value, "generic") == 0 ||
+         std::strcmp(value, "0") == 0 || std::strcmp(value, "off") == 0 ||
+         std::strcmp(value, "OFF") == 0))
     {
-      return LN_LeanMode::Off;
+      return LN_LeanMode::Reference;
     }
-    if (std::strcmp(value, "force") == 0 || std::strcmp(value, "FORCE") == 0 ||
-        std::strcmp(value, "2") == 0)
-    {
-      return LN_LeanMode::Force;
-    }
-    return LN_LeanMode::Auto; /* "auto", "1", anything else asked for */
+    return LN_LeanMode::Lean;
   }();
   return mode;
 }
@@ -406,7 +500,7 @@ LN_LeanMode LN_GetLeanMode()
 
 void LN_SetLeanModeForTests(const int mode)
 {
-  g_mode_override.store(mode < 0 ? -1 : (mode > 2 ? 2 : mode), std::memory_order_relaxed);
+  g_mode_override.store(mode < 0 ? -1 : (mode == 0 ? 0 : 1), std::memory_order_relaxed);
 }
 
 uint64_t LN_LeanTreeRunCount()

@@ -120,19 +120,20 @@ TEST(LN_LeanProgram, TheLeanProgramDumpIsStableAndMatchesItsGolden)
   EXPECT_TRUE(verdict.empty()) << verdict;
 }
 
+/* Plan step R3: the reference mode (0) and the lean VM (1 and 2, the old Auto and Force). */
 TEST(LN_LeanProgram, TheModeFollowsTheTestSetter)
 {
   {
     ModeScope scope(0);
-    EXPECT_EQ(LN_GetLeanMode(), LN_LeanMode::Off);
+    EXPECT_EQ(LN_GetLeanMode(), LN_LeanMode::Reference);
   }
   {
     ModeScope scope(1);
-    EXPECT_EQ(LN_GetLeanMode(), LN_LeanMode::Auto);
+    EXPECT_EQ(LN_GetLeanMode(), LN_LeanMode::Lean);
   }
   {
     ModeScope scope(2);
-    EXPECT_EQ(LN_GetLeanMode(), LN_LeanMode::Force);
+    EXPECT_EQ(LN_GetLeanMode(), LN_LeanMode::Lean);
   }
 }
 
@@ -171,7 +172,9 @@ TEST(LN_LeanProgram, AProgramGrownAfterItWasLoweredIsLoweredAgain)
 }
 
 /* Mode Off runs the old interpreter: the run count does not move and no lean form is made. */
-TEST(LN_LeanProgram, ModeOffRunsTheOldInterpreterAndMakesNoLeanProgram)
+/* Plan step R3: the reference mode (D10) runs every op through its generic handler and makes no
+ * lean program; its run is counted with the lean VM's (the only interpreter left). */
+TEST(LN_LeanProgram, TheReferenceModeMakesNoLeanProgram)
 {
   ModeScope scope(0);
   TreeBuilder b;
@@ -186,7 +189,7 @@ TEST(LN_LeanProgram, ModeOffRunsTheOldInterpreterAndMakesNoLeanProgram)
   SemRig rig(program, kMemoOff);
   const uint64_t runs_before = LN_LeanTreeRunCount();
   rig.Step();
-  EXPECT_EQ(LN_LeanTreeRunCount(), runs_before);
+  EXPECT_GT(LN_LeanTreeRunCount(), runs_before);
   EXPECT_EQ(program->GetLeanProgram(), nullptr);
   EXPECT_EQ(rig.Float(rig.Object(0), "p"), 4.0f);
 }
@@ -339,7 +342,12 @@ TEST(LN_LeanProgram, DISABLED_FootprintReport)
  * properties feeds twelve property writes. The old interpreter's per-tick memo works the chain out
  * once; the lean VM has no memo and works it out for each write. Decides whether making the lean
  * VM the only interpreter (plan A28 and on) would slow such trees down. */
-TEST(LN_LeanProgram, DISABLED_SharedSubexpressionBench)
+namespace {
+
+/** 12 writes of one 6-node chain (two property reads, Add, Multiply, Subtract...) by `writer`,
+ * on 4,000 NPCs: the record cost an NPC in the old interpreter (its memo works the chain out
+ * once a tick), lean Auto and lean Force. */
+void SharedChainBench(const char *writer, const char *what)
 {
   TreeBuilder b;
   GenNode &event = b.Add("LogicNativeOnFixedUpdate");
@@ -360,7 +368,7 @@ TEST(LN_LeanProgram, DISABLED_SharedSubexpressionBench)
   GenNode *flow = &event;
   const char *pin = "Out";
   for (int index = 0; index < 12; index++) {
-    GenNode &set = b.Add("LogicNativeSetGamePropertyFloat");
+    GenNode &set = b.Add(writer);
     b.String(set, "Property", ("o" + std::to_string(index)).c_str());
     b.Link(*chain, "Result", set, "Value");
     b.Link(*flow, pin, set, "Flow");
@@ -375,7 +383,9 @@ TEST(LN_LeanProgram, DISABLED_SharedSubexpressionBench)
     const char *name;
     int lean;
   };
-  for (const Setup &setup : {Setup{"old (memo)", 0}, Setup{"lean generic+native", 2}}) {
+  for (const Setup &setup :
+       {Setup{"old (memo)", 0}, Setup{"lean auto", 1}, Setup{"lean force", 2}})
+  {
     ModeScope scope(setup.lean);
     SemRig rig(program, kMemoOn, kOwners);
     rig.SetDump(false);
@@ -392,15 +402,27 @@ TEST(LN_LeanProgram, DISABLED_SharedSubexpressionBench)
       rig.Step();
       best = std::min(best, rig.Times().record_ms);
     }
-    std::printf("LEAN_BENCH shared chain %-20s record %.0f ns an NPC (12 writes of one 6 node chain)\n",
+    std::printf("LEAN_BENCH shared chain, %-22s %-12s record %.0f ns an NPC\n",
+                what,
                 setup.name,
                 best * 1.0e6 / kOwners);
   }
 }
 
+}  // namespace
+
+/* The memo-heavy tree of plan step A28: one chain read by 12 native writers (Set Game Property
+ * Float), then by 12 generic ones (Set Object Property: a value; plan "Attribute and Retirement",
+ * R1, where the lean memo must count the generic ops' reads). */
+TEST(LN_LeanProgram, DISABLED_SharedSubexpressionBench)
+{
+  SharedChainBench("LogicNativeSetGamePropertyFloat", "native writers");
+  SharedChainBench("LogicNativeSetGameProperty", "generic writers");
+}
+
 /* A micro benchmark of expression evaluation alone (DISABLED_): a tree-property sum chain of 40
- * Adds, a Multiply, a Divide, a Clamp and a compare, worked out 20,000 times in each setting: the
- * Resolve functions with the memo off, and the lean reader. Best of 7 rounds. */
+ * Adds, a Multiply, a Divide, a Clamp and a compare, worked out 20,000 times through the lean reader
+ * (the Resolve functions it was compared with went with plan step R4). Best of 7 rounds. */
 TEST(LN_LeanProgram, DISABLED_ExpressionBench)
 {
   LN_Program program;
@@ -445,22 +467,19 @@ TEST(LN_LeanProgram, DISABLED_ExpressionBench)
   LN_TickContext context;
   context.use_fixed_timestep = true;
   context.tick_index = 1;
-  for (const bool lean : {false, true}) {
-    double best = 1.0e9;
-    for (int round = 0; round < 7; round++) {
-      const auto start = std::chrono::steady_clock::now();
-      for (int index = 0; index < 20000; index++) {
-        rig.Tree(0).EvaluateExpressionForTests('F', root, context, lean);
-      }
-      best = std::min(best,
-                      std::chrono::duration<double, std::milli>(
-                          std::chrono::steady_clock::now() - start)
-                          .count());
+  double best = 1.0e9;
+  for (int round = 0; round < 7; round++) {
+    const auto start = std::chrono::steady_clock::now();
+    for (int index = 0; index < 20000; index++) {
+      rig.Tree(0).EvaluateExpressionForTests('F', root, context);
     }
-    std::printf("LEAN_BENCH expression chain %-12s %.3f ms for 20000 evaluations of 45 nodes\n",
-                lean ? "lean reader" : "Resolve",
-                best);
+    best = std::min(best,
+                    std::chrono::duration<double, std::milli>(
+                        std::chrono::steady_clock::now() - start)
+                        .count());
   }
+  std::printf("LEAN_BENCH expression chain, lean reader %.3f ms for 20000 evaluations of 45 nodes\n",
+              best);
 }
 
 /* A tree batch makes every tree's lean form on the main thread before the chunks go out (the

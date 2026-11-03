@@ -1079,8 +1079,8 @@ size_t LN_TreeBatchRecorder::Record(LN_JobPool &pool,
     m_chunks.push_back(std::make_unique<LN_CommandBuffer>());
   }
   /* Lean programs are made on the main thread only (plan phase A17): before the chunks go to the
-   * helpers, every tree's program has its lean form if the mode asks for one. */
-  if (LN_GetLeanMode() != LN_LeanMode::Off) {
+   * helpers, every tree's program has its lean form (none in the reference mode). */
+  if (LN_GetLeanMode() == LN_LeanMode::Lean) {
     for (size_t index = 0; index < count; index++) {
       trees[index]->PrepareLeanProgram();
     }

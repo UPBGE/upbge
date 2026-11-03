@@ -339,7 +339,7 @@ TEST(LN_LeanRoute, TheLeanMemoKeepsNothingThatReadsATreeProperty)
   const std::shared_ptr<LN_Program> program = b.Compile(&report);
   ASSERT_NE(program, nullptr) << report;
   for (const int lean_mode : {0, 2}) {
-    SCOPED_TRACE(lean_mode == 0 ? "old interpreter" : "lean VM with its memo");
+    SCOPED_TRACE(lean_mode == 0 ? "reference mode" : "lean VM with its memo");
     LeanScope lean(lean_mode);
     LN_RuntimeTree::SetLeanMemoForTests(1);
     SemRig rig(program, kMemoOn, 1);
@@ -349,4 +349,73 @@ TEST(LN_LeanRoute, TheLeanMemoKeepsNothingThatReadsATreeProperty)
     EXPECT_EQ(rig.Float(rig.Object(0), "after"), 6.0f) << "the second read sees the write";
     LN_RuntimeTree::SetLeanMemoForTests(-1);
   }
+}
+
+/* Plan "Attribute and Retirement", R1: a chain written by 12 generic writers (Set Object Property:
+ * it reads a value, which the lean reader does not keep) is kept below the value conversion, as the
+ * old interpreter's memo works it out once a tick; the written values are the old interpreter's,
+ * with the lean memo on and off. */
+TEST(LN_LeanRoute, TheLeanMemoKeepsAChainThatGenericOpsShare)
+{
+  TreeBuilder b;
+  GenNode &event = b.Add("LogicNativeOnFixedUpdate");
+  GenNode &a = b.Add("LogicNativeGetGamePropertyFloat");
+  b.String(a, "Property", "pf0");
+  GenNode &c = b.Add("LogicNativeGetGamePropertyFloat");
+  b.String(c, "Property", "pf1");
+  GenNode *chain = &b.Add("LogicNativeMath", int16_t(blender::NODE_MATH_ADD));
+  b.Link(a, "Value", *chain, "A");
+  b.Link(c, "Value", *chain, "B");
+  for (int step = 0; step < 5; step++) {
+    GenNode &next = b.Add("LogicNativeMath",
+                          int16_t(step % 2 == 0 ? blender::NODE_MATH_MULTIPLY :
+                                                  blender::NODE_MATH_SUBTRACT));
+    b.Link(*chain, "Result", next, "A");
+    b.Float(next, "B", 1.25f + float(step));
+    chain = &next;
+  }
+  GenNode *flow = &event;
+  const char *pin = "Out";
+  for (int index = 0; index < 12; index++) {
+    GenNode &set = b.Add("LogicNativeSetGameProperty");
+    b.String(set, "Property", ("o" + std::to_string(index)).c_str());
+    b.Link(*chain, "Result", set, "Value");
+    b.Link(*flow, pin, set, "Flow");
+    flow = &set;
+    pin = "Done";
+  }
+  std::string report;
+  const std::shared_ptr<LN_Program> program = b.Compile(&report);
+  ASSERT_NE(program, nullptr) << report;
+  const std::shared_ptr<const LN_LeanProgram> lean = LN_LowerToLean(*program);
+  ASSERT_NE(lean, nullptr);
+  EXPECT_GE(lean->memo_count, 1u);
+  EXPECT_GE(std::count(lean->memo_float.begin(), lean->memo_float.end(), uint8_t(1)), 1);
+
+  const auto run = [&](const int lean_mode, const int lean_memo) {
+    LeanScope scope(lean_mode);
+    LN_RuntimeTree::SetLeanMemoForTests(lean_memo);
+    SemRig rig(program, kMemoOn, 3);
+    for (uint32_t index = 0; index < 3; index++) {
+      rig.SetFloat(rig.Object(index), "pf0", float(index) * 1.5f - 2.0f);
+      rig.SetFloat(rig.Object(index), "pf1", 0.25f);
+    }
+    std::string out;
+    for (int step = 0; step < 3; step++) {
+      rig.Step();
+      for (uint32_t index = 0; index < 3; index++) {
+        for (int property = 0; property < 12; property++) {
+          out += Bits(rig.Float(rig.Object(index), ("o" + std::to_string(property)).c_str())) +
+                 " ";
+        }
+        out += "\n";
+      }
+    }
+    LN_RuntimeTree::SetLeanMemoForTests(-1);
+    return out;
+  };
+  const std::string reference = run(0, 1);
+  EXPECT_EQ(run(2, 1), reference);
+  EXPECT_EQ(run(2, 0), reference);
+  EXPECT_EQ(run(1, 1), reference);
 }

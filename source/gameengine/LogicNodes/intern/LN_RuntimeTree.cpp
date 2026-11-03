@@ -110,7 +110,7 @@
 #include "LN_RuntimeSemantics.h"
 #include "LN_TreeBatch.h"
 #include "LN_LeanReader.h"
-#include "LN_TreeReader.h"
+#include "LN_StrictDump.h"
 #include "LN_TypeConversion.h"
 #include "LN_UIService.h"
 #include "LN_ValueInterpolation.h"
@@ -4088,11 +4088,7 @@ LN_Value MakeValueFromEXPValue(EXP_Value *property, LN_RuntimeTree *runtime_tree
 
 void LN_RuntimeTree::CollectUIViews(const LN_TickContext &context)
 {
-  if (LeanProgramForRun() != nullptr) {
-    CollectUIViewsWith<LN_LeanReader>(context);
-    return;
-  }
-  CollectUIViewsWith<LN_TreeReader>(context);
+  CollectUIViewsWith<LN_LeanReader>(context);
 }
 
 template<class Reader>
@@ -4373,10 +4369,7 @@ void LN_RuntimeTree::CollectUIViewsWith(const LN_TickContext &context)
 
 size_t LN_RuntimeTree::WarmQueryCache(const LN_TickContext &context)
 {
-  if (LeanProgramForRun() != nullptr) {
-    return WarmQueryCacheWith<LN_LeanReader>(context);
-  }
-  return WarmQueryCacheWith<LN_TreeReader>(context);
+  return WarmQueryCacheWith<LN_LeanReader>(context);
 }
 
 template<class Reader>
@@ -4787,11 +4780,7 @@ bool LN_RuntimeTree::StepGateRuns(const uint32_t step_gate_index) const
 
 void LN_RuntimeTree::CollectPauseProcessingObjects(std::vector<KX_GameObject *> &r_objects)
 {
-  if (LeanProgramForRun() != nullptr) {
-    CollectPauseProcessingObjectsWith<LN_LeanReader>(r_objects);
-    return;
-  }
-  CollectPauseProcessingObjectsWith<LN_TreeReader>(r_objects);
+  CollectPauseProcessingObjectsWith<LN_LeanReader>(r_objects);
 }
 
 template<class Reader>
@@ -6055,6 +6044,100 @@ KX_GameObject *LN_RuntimeTree::ResolveConstantObject(const uint32_t expression_i
   return object;
 }
 
+namespace {
+
+enum class FastAttributesMode : int8_t { Off = 0, On = 1, Verify = 2 };
+std::atomic<int> g_fast_attributes_override{-1};
+std::atomic<uint32_t> g_fast_attributes_differences{0};
+
+FastAttributesMode fast_attributes_mode()
+{
+  const int override_mode = g_fast_attributes_override.load(std::memory_order_relaxed);
+  if (override_mode >= 0) {
+    return FastAttributesMode(override_mode);
+  }
+  static const FastAttributesMode from_environment = [] {
+    const char *value = std::getenv("UPBGE_LN_FAST_ATTRIBUTES");
+    if (value == nullptr || value[0] == '\0') {
+      return FastAttributesMode::On;
+    }
+    if (std::strcmp(value, "0") == 0 || std::strcmp(value, "off") == 0) {
+      return FastAttributesMode::Off;
+    }
+    if (std::strcmp(value, "verify") == 0) {
+      return FastAttributesMode::Verify;
+    }
+    return FastAttributesMode::On;
+  }();
+  return from_environment;
+}
+
+}  // namespace
+
+void LN_RuntimeTree::SetFastAttributeModeForTests(const int mode)
+{
+  g_fast_attributes_override.store(mode, std::memory_order_relaxed);
+}
+
+uint32_t LN_RuntimeTree::FastAttributeVerifyDifferencesForTests()
+{
+  return g_fast_attributes_differences.load(std::memory_order_relaxed);
+}
+
+void LN_RuntimeTree::NoteFastAttributeDifference(const char *what)
+{
+  g_fast_attributes_differences++;
+  CM_Warning("Logic Nodes: lean fast attributes differ: " << what);
+}
+
+LN_ObjectAttributeId LN_RuntimeTree::FastObjectAttribute(const uint32_t value_index) const
+{
+  const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
+  if (value_index >= ir.value_object_attribute.size() ||
+      ir.value_object_attribute[value_index] == uint8_t(LN_ObjectAttributeId::None))
+  {
+    return LN_ObjectAttributeId::None;
+  }
+  /* Profiling counts every read and the read trace lists it: both take the value path. A kept
+   * (memo STORE) attribute cannot be: the kind is not pure; the check keeps the typed reads
+   * exact whatever the catalog says. */
+  if (m_activeProfileCounters != nullptr || g_read_trace != nullptr ||
+      value_index >= ir.value_memo_class.size() ||
+      ir.value_memo_class[value_index] == uint8_t(LN_MEMO_STORE) ||
+      fast_attributes_mode() == FastAttributesMode::Off)
+  {
+    return LN_ObjectAttributeId::None;
+  }
+  return LN_ObjectAttributeId(ir.value_object_attribute[value_index]);
+}
+
+KX_GameObject *LN_RuntimeTree::ConstantObjectTarget(const uint32_t value_index,
+                                                    const LN_Value &constant)
+{
+  /* ValueKind's Constant case for an object makes a value that ResolveObjectValue then resolves:
+   * the same calls in the same cases, without the value. */
+  if (constant.runtime_ref.IsValid()) {
+    if (KX_GameObject *object = ResolveObjectRef(constant.runtime_ref)) {
+      return object;
+    }
+    return constant.reference_name.empty() ? nullptr :
+                                             FindSceneObjectByName(constant.reference_name);
+  }
+  KX_GameObject *object = ResolveConstantObject(value_index, constant);
+  if (object == nullptr) {
+    return constant.reference_name.empty() ? nullptr :
+                                             FindSceneObjectByName(constant.reference_name);
+  }
+  const LN_RuntimeRef ref = ConstantObjectRef(value_index, object);
+  if (ref.IsValid()) {
+    if (KX_GameObject *resolved = ResolveObjectRef(ref)) {
+      return resolved;
+    }
+  }
+  const std::string name = object->GetName();
+  return name.empty() ? nullptr : FindSceneObjectByName(name);
+}
+
 LN_RuntimeRef LN_RuntimeTree::ConstantObjectRef(const uint32_t expression_index,
                                                 KX_GameObject *object)
 {
@@ -7027,69 +7110,36 @@ void LN_RuntimeTree::SetReadTraceForTests(std::vector<ReadTraceEntry> *trace)
 
 void LN_RuntimeTree::EvaluateExpressionForTests(const char family,
                                                 const uint32_t index,
-                                                const LN_TickContext &context,
-                                                const bool lean)
+                                                const LN_TickContext &context)
 {
-  if (lean) {
-    LN_LeanReader in(*this, context);
-    switch (family) {
-      case 'B':
-        in.Bool(index, false);
-        break;
-      case 'I':
-        in.Int(index, 0);
-        break;
-      case 'F':
-        in.Float(index, 0.0f);
-        break;
-      case 'S':
-        in.String(index, std::string());
-        break;
-      case 'V':
-        in.Vector(index, MT_Vector3(0.0f, 0.0f, 0.0f));
-        break;
-      case 'R':
-        in.Rotation(index, LN_Rotation());
-        break;
-      case 'C':
-        in.Color(index, MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f));
-        break;
-      case 'A':
-        in.Value(index, MakeNoneValue());
-        break;
-      case 'Q':
-        in.Query(index);
-        break;
-    }
-    return;
-  }
+  LN_LeanReader in(*this, context);
   switch (family) {
     case 'B':
-      ResolveBoolExpression(index, false, context);
+      in.Bool(index, false);
       break;
     case 'I':
-      ResolveIntExpression(index, 0, context);
+      in.Int(index, 0);
       break;
     case 'F':
-      ResolveFloatExpression(index, 0.0f, context);
+      in.Float(index, 0.0f);
       break;
     case 'S':
-      ResolveStringExpression(index, std::string(), context);
+      in.String(index, std::string());
       break;
     case 'V':
-      ResolveVectorExpression(index, MT_Vector3(0.0f, 0.0f, 0.0f), context);
+      in.Vector(index, MT_Vector3(0.0f, 0.0f, 0.0f));
       break;
     case 'R':
-      ResolveRotationExpression(index, LN_Rotation(), context);
+      in.Rotation(index, LN_Rotation());
       break;
     case 'C':
-      ResolveColorExpression(index, MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f), context);
+      in.Color(index, MT_Vector4(0.0f, 0.0f, 0.0f, 1.0f));
       break;
     case 'A':
-      ResolveValueExpression(index, MakeNoneValue(), context);
+      in.Value(index, MakeNoneValue());
       break;
     case 'Q':
-      ResolveQueryExpression(index, context);
+      in.Query(index);
       break;
   }
 }
@@ -7665,13 +7715,6 @@ void LN_RuntimeTree::RecordRuntimeSystemFallback(const LN_RuntimeFallbackReason 
   m_runtimeFallbackReport.system_hits.push_back(std::move(hit));
 }
 
-void LN_RuntimeTree::ProfileRegisterExpressionHit()
-{
-  if (m_activeProfileCounters != nullptr) {
-    m_activeProfileCounters->register_expression_hit_count++;
-  }
-}
-
 void LN_RuntimeTree::EnsureRegisterExpressionState(const LN_TickContext &context)
 {
   if (m_program == nullptr) {
@@ -7858,14 +7901,14 @@ bool LN_RuntimeTree::AdvanceLoopFrame(const uint32_t loop_frame_index)
 
 void LN_RuntimeTree::PrepareLeanProgram() const
 {
-  if (m_program != nullptr && LN_GetLeanMode() != LN_LeanMode::Off) {
+  if (m_program != nullptr && LN_GetLeanMode() == LN_LeanMode::Lean) {
     m_program->EnsureLeanProgram();
   }
 }
 
 const LN_LeanProgram *LN_RuntimeTree::LeanProgramForRun() const
 {
-  if (m_program == nullptr || LN_GetLeanMode() == LN_LeanMode::Off) {
+  if (m_program == nullptr || LN_GetLeanMode() != LN_LeanMode::Lean) {
     return nullptr;
   }
   m_program->EnsureLeanProgram(); /* a no-op on a helper thread of the job pool */
@@ -7895,33 +7938,28 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     return;
   }
 
-  /* What the handlers read through and write into (LN_ExecFrame.h): the old interpreter's frame,
-   * or on the lean VM (plan phase A16) the lean frame, whose reads are the kind functions
-   * straight. Both run the same handler templates. */
-  const LN_LeanProgram *lean = LeanProgramForRun();
-  if (lean != nullptr && LN_GetLeanMode() == LN_LeanMode::Auto &&
-      !lean->events[size_t(event)].fully_native)
-  {
-    /* Auto: an event with an op that has no native handler stays on the old interpreter. */
-    lean = nullptr;
-  }
-  else if (lean == nullptr && LN_GetLeanMode() != LN_LeanMode::Off) {
-    /* Wanted, but there is none: a program grown on a helper thread (the prepare pass of a batch
-     * makes them on the main thread first). The old interpreter runs it; Force says so once. */
+  /* What the handlers read through and write into (LN_ExecFrame.h): the lean frame, whose reads
+   * are the kind functions straight (plan phase A16; since plan step R3 the only one). */
+  const bool reference = LN_GetLeanMode() == LN_LeanMode::Reference;
+  const LN_LeanProgram *lean = reference ? nullptr : LeanProgramForRun();
+  if (lean == nullptr && !reference) {
+    /* There is none: a program grown on a helper thread (the prepare pass of a batch makes them
+     * on the main thread first). Its ops run their generic handlers; said once. */
     if (m_activeProfileCounters != nullptr) {
       m_activeProfileCounters->lean_missing++;
     }
     static std::atomic<bool> warned{false};
-    if (LN_GetLeanMode() == LN_LeanMode::Force && !warned.exchange(true)) {
-      CM_Warning("Logic Nodes: lean missing: a tree ran on the old interpreter in Force mode");
+    if (!warned.exchange(true)) {
+      CM_Warning("Logic Nodes: lean missing: a tree ran the generic handlers without its lean "
+                 "program");
     }
   }
+  LN_LeanFrame lean_frame(*this, event, instructions, command_buffer, context);
   if (lean != nullptr) {
     LN_NoteLeanTreeRun();
     if (m_activeProfileCounters != nullptr) {
       m_activeProfileCounters->lean_trees++;
     }
-    LN_LeanFrame lean_frame(*this, event, instructions, command_buffer, context);
     lean_frame.lean = lean;
     lean_frame.reader.lean = lean;
     const LN_LeanEvent &lean_event = lean->events[size_t(event)];
@@ -7939,9 +7977,13 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
     });
     return;
   }
-  LN_ExecFrame ef(*this, event, instructions, command_buffer, context);
-  RunEventBlocks(ef, ir, context, event_scope_serial, [&](const uint32_t op_index) {
-    OpDirect(ef, ir.ops[op_index]);
+  /* The reference mode (D10), or no lean program: every op through its generic handler, read
+   * through the kind functions without the lean memo. */
+  if (reference) {
+    LN_NoteLeanTreeRun();
+  }
+  RunEventBlocks(lean_frame, ir, context, event_scope_serial, [&](const uint32_t op_index) {
+    OpDirect(lean_frame, ir.ops[op_index]);
   });
 }
 
@@ -7997,66 +8039,6 @@ void LN_RuntimeTree::RunBlock(LN_CommandBuffer &buffer,
     }
   }
   buffer.EndBlock();
-}
-
-LN_Value LN_RuntimeTree::ResolveValueExpression(const uint32_t expression_index,
-                                                const LN_Value &fallback,
-                                                const LN_TickContext &context)
-{
-  NoteExpressionRead('A', expression_index);
-  if (expression_index == LN_INVALID_INDEX || m_program == nullptr) {
-    return fallback;
-  }
-
-  const std::vector<LN_ValueExpression> &expressions = m_program->GetValueExpressions();
-  if (expression_index >= expressions.size()) {
-    return fallback;
-  }
-
-  const LN_ValueExpression &expression = expressions[expression_index];
-  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
-    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-        expression.kind);
-    ProfileExpressionEvaluation(semantics.fallback_requirements);
-    RecordMissingSnapshotChannelsForExpression(semantics);
-  }
-  const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  const uint8_t memo_class = expression_index < ir.value_memo_class.size() ?
-                                 ir.value_memo_class[expression_index] :
-                                 uint8_t(LN_MEMO_NONE);
-  uint32_t memo_register = LN_INVALID_INDEX;
-  if (memo_class == LN_MEMO_STORE && g_memo_enabled && context.tick_index != UINT64_MAX) {
-    EnsureRegisterExpressionState(context);
-    memo_register = ir.value_expression_registers[expression_index];
-    if (memo_register >= m_registerExpressionState.generic_values.size()) {
-      memo_register = LN_INVALID_INDEX;
-    }
-    else if (m_registerExpressionState.generic_valid[memo_register] ==
-             m_registerExpressionState.active_generation)
-    {
-      ProfileRegisterExpressionHit();
-      return m_registerExpressionState.generic_values[memo_register];
-    }
-  }
-  const uint32_t memo_taint_before = m_memoTaint;
-  LN_TreeReader in(*this, context);
-  LN_Value value = ValueKind(in, expression_index, expression, fallback);
-  if (memo_class == LN_MEMO_TAINTS) {
-    m_memoTaint++;
-  }
-  else if (memo_register != LN_INVALID_INDEX && m_memoTaint == memo_taint_before) {
-    m_registerExpressionState.generic_values[memo_register] = value;
-    m_registerExpressionState.generic_valid[memo_register] =
-        m_registerExpressionState.active_generation;
-  }
-  return value;
-}
-
-const LN_QueryResult &LN_RuntimeTree::ResolveQueryExpression(const uint32_t expression_index,
-                                                             const LN_TickContext &context)
-{
-  LN_TreeReader in(*this, context);
-  return QueryEntry(in, expression_index);
 }
 
 LN_RuntimeTree::CollisionEventPayload *LN_RuntimeTree::FindCollisionEventPayload(
@@ -8418,112 +8400,6 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(In
   return collision_result;
 }
 
-bool LN_RuntimeTree::ResolveBoolExpression(const uint32_t expression_index,
-                                           const bool fallback,
-                                           const LN_TickContext &context)
-{
-  NoteExpressionRead('B', expression_index);
-  if (expression_index == LN_INVALID_INDEX || m_program == nullptr) {
-    return fallback;
-  }
-
-  const std::vector<LN_BoolExpression> &expressions = m_program->GetBoolExpressions();
-  if (expression_index >= expressions.size()) {
-    return fallback;
-  }
-
-  const LN_BoolExpression &expression = expressions[expression_index];
-  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
-    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-        expression.kind);
-    ProfileExpressionEvaluation(semantics.fallback_requirements);
-    RecordMissingSnapshotChannelsForExpression(semantics);
-  }
-  const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  const uint8_t memo_class = expression_index < ir.bool_memo_class.size() ?
-                                 ir.bool_memo_class[expression_index] :
-                                 uint8_t(LN_MEMO_NONE);
-  uint32_t memo_register = LN_INVALID_INDEX;
-  if (memo_class == LN_MEMO_STORE && g_memo_enabled && context.tick_index != UINT64_MAX) {
-    EnsureRegisterExpressionState(context);
-    memo_register = ir.bool_expression_registers[expression_index];
-    if (memo_register >= m_registerExpressionState.bool_values.size()) {
-      memo_register = LN_INVALID_INDEX;
-    }
-    else if (m_registerExpressionState.bool_valid[memo_register] ==
-             m_registerExpressionState.active_generation)
-    {
-      ProfileRegisterExpressionHit();
-      return m_registerExpressionState.bool_values[memo_register];
-    }
-  }
-  const uint32_t memo_taint_before = m_memoTaint;
-  LN_TreeReader in(*this, context);
-  bool value = BoolKind(in, expression_index, expression, fallback);
-  if (memo_class == LN_MEMO_TAINTS) {
-    m_memoTaint++;
-  }
-  else if (memo_register != LN_INVALID_INDEX && m_memoTaint == memo_taint_before) {
-    m_registerExpressionState.bool_values[memo_register] = value;
-    m_registerExpressionState.bool_valid[memo_register] =
-        m_registerExpressionState.active_generation;
-  }
-  return value;
-}
-
-int32_t LN_RuntimeTree::ResolveIntExpression(uint32_t expression_index,
-                                             int32_t fallback,
-                                             const LN_TickContext &context)
-{
-  NoteExpressionRead('I', expression_index);
-  if (expression_index == LN_INVALID_INDEX || m_program == nullptr) {
-    return fallback;
-  }
-
-  const std::vector<LN_IntExpression> &expressions = m_program->GetIntExpressions();
-  if (expression_index >= expressions.size()) {
-    return fallback;
-  }
-
-  const LN_IntExpression &expression = expressions[expression_index];
-  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
-    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-        expression.kind);
-    ProfileExpressionEvaluation(semantics.fallback_requirements);
-    RecordMissingSnapshotChannelsForExpression(semantics);
-  }
-  const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  const uint8_t memo_class = expression_index < ir.int_memo_class.size() ?
-                                 ir.int_memo_class[expression_index] :
-                                 uint8_t(LN_MEMO_NONE);
-  uint32_t memo_register = LN_INVALID_INDEX;
-  if (memo_class == LN_MEMO_STORE && g_memo_enabled && context.tick_index != UINT64_MAX) {
-    EnsureRegisterExpressionState(context);
-    memo_register = ir.int_expression_registers[expression_index];
-    if (memo_register >= m_registerExpressionState.int_values.size()) {
-      memo_register = LN_INVALID_INDEX;
-    }
-    else if (m_registerExpressionState.int_valid[memo_register] ==
-             m_registerExpressionState.active_generation)
-    {
-      ProfileRegisterExpressionHit();
-      return m_registerExpressionState.int_values[memo_register];
-    }
-  }
-  const uint32_t memo_taint_before = m_memoTaint;
-  LN_TreeReader in(*this, context);
-  int32_t value = IntKind(in, expression_index, expression, fallback);
-  if (memo_class == LN_MEMO_TAINTS) {
-    m_memoTaint++;
-  }
-  else if (memo_register != LN_INVALID_INDEX && m_memoTaint == memo_taint_before) {
-    m_registerExpressionState.int_values[memo_register] = value;
-    m_registerExpressionState.int_valid[memo_register] =
-        m_registerExpressionState.active_generation;
-  }
-  return value;
-}
-
 template<class In>
 bool LN_RuntimeTree::UpdateTweenValue(In &in,
     const uint32_t tween_expr_index)
@@ -8760,59 +8636,6 @@ float LN_RuntimeTree::ResolveTweenMappedFactor(In &in,
   return EvaluateCurveTable(tween.int_expr_index, factor, 1.0f);
 }
 
-float LN_RuntimeTree::ResolveFloatExpression(const uint32_t expression_index,
-                                             const float fallback,
-                                             const LN_TickContext &context)
-{
-  NoteExpressionRead('F', expression_index);
-  if (expression_index == LN_INVALID_INDEX || m_program == nullptr) {
-    return fallback;
-  }
-
-  const std::vector<LN_FloatExpression> &expressions = m_program->GetFloatExpressions();
-  if (expression_index >= expressions.size()) {
-    return fallback;
-  }
-
-  const LN_FloatExpression &expression = expressions[expression_index];
-  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
-    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-        expression.kind);
-    ProfileExpressionEvaluation(semantics.fallback_requirements);
-    RecordMissingSnapshotChannelsForExpression(semantics);
-  }
-  const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  const uint8_t memo_class = expression_index < ir.float_memo_class.size() ?
-                                 ir.float_memo_class[expression_index] :
-                                 uint8_t(LN_MEMO_NONE);
-  uint32_t memo_register = LN_INVALID_INDEX;
-  if (memo_class == LN_MEMO_STORE && g_memo_enabled && context.tick_index != UINT64_MAX) {
-    EnsureRegisterExpressionState(context);
-    memo_register = ir.float_expression_registers[expression_index];
-    if (memo_register >= m_registerExpressionState.float_values.size()) {
-      memo_register = LN_INVALID_INDEX;
-    }
-    else if (m_registerExpressionState.float_valid[memo_register] ==
-             m_registerExpressionState.active_generation)
-    {
-      ProfileRegisterExpressionHit();
-      return m_registerExpressionState.float_values[memo_register];
-    }
-  }
-  const uint32_t memo_taint_before = m_memoTaint;
-  LN_TreeReader in(*this, context);
-  float value = FloatKind(in, expression_index, expression, fallback);
-  if (memo_class == LN_MEMO_TAINTS) {
-    m_memoTaint++;
-  }
-  else if (memo_register != LN_INVALID_INDEX && m_memoTaint == memo_taint_before) {
-    m_registerExpressionState.float_values[memo_register] = value;
-    m_registerExpressionState.float_valid[memo_register] =
-        m_registerExpressionState.active_generation;
-  }
-  return value;
-}
-
 LN_StringId LN_RuntimeTree::ResolveStringExpressionId(const uint32_t expression_index) const
 {
   if (expression_index == LN_INVALID_INDEX || m_program == nullptr) {
@@ -8840,203 +8663,6 @@ LN_StringId LN_RuntimeTree::ResolveStringExpressionId(const uint32_t expression_
     return expression.string_id;
   }
   return LN_StringId{};
-}
-
-std::string LN_RuntimeTree::ResolveStringExpression(uint32_t expression_index,
-                                                    const std::string &fallback,
-                                                    const LN_TickContext &context)
-{
-  NoteExpressionRead('S', expression_index);
-  if (expression_index == LN_INVALID_INDEX || m_program == nullptr) {
-    return fallback;
-  }
-
-  const std::vector<LN_StringExpression> &expressions = m_program->GetStringExpressions();
-  if (expression_index >= expressions.size()) {
-    return fallback;
-  }
-
-  const LN_StringExpression &expression = expressions[expression_index];
-  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
-    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-        expression.kind);
-    ProfileExpressionEvaluation(semantics.fallback_requirements);
-    RecordMissingSnapshotChannelsForExpression(semantics);
-  }
-  const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  const uint8_t memo_class = expression_index < ir.string_memo_class.size() ?
-                                 ir.string_memo_class[expression_index] :
-                                 uint8_t(LN_MEMO_NONE);
-  uint32_t memo_register = LN_INVALID_INDEX;
-  if (memo_class == LN_MEMO_STORE && g_memo_enabled && context.tick_index != UINT64_MAX) {
-    EnsureRegisterExpressionState(context);
-    memo_register = ir.string_expression_registers[expression_index];
-    if (memo_register >= m_registerExpressionState.string_values.size()) {
-      memo_register = LN_INVALID_INDEX;
-    }
-    else if (m_registerExpressionState.string_valid[memo_register] ==
-             m_registerExpressionState.active_generation)
-    {
-      ProfileRegisterExpressionHit();
-      return m_registerExpressionState.string_values[memo_register];
-    }
-  }
-  const uint32_t memo_taint_before = m_memoTaint;
-  LN_TreeReader in(*this, context);
-  std::string value = StringKind(in, expression_index, expression, fallback);
-  if (memo_class == LN_MEMO_TAINTS) {
-    m_memoTaint++;
-  }
-  else if (memo_register != LN_INVALID_INDEX && m_memoTaint == memo_taint_before) {
-    m_registerExpressionState.string_values[memo_register] = value;
-    m_registerExpressionState.string_valid[memo_register] =
-        m_registerExpressionState.active_generation;
-  }
-  return value;
-}
-
-LN_Rotation LN_RuntimeTree::ResolveRotationExpression(const uint32_t expression_index,
-                                                      const LN_Rotation &fallback,
-                                                      const LN_TickContext &context)
-{
-  NoteExpressionRead('R', expression_index);
-  if (expression_index == LN_INVALID_INDEX || m_program == nullptr) {
-    return fallback;
-  }
-
-  const std::vector<LN_VectorExpression> &expressions = m_program->GetVectorExpressions();
-  if (expression_index >= expressions.size()) {
-    return fallback;
-  }
-
-  const LN_VectorExpression &expression = expressions[expression_index];
-  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
-    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-        expression.kind);
-    ProfileExpressionEvaluation(semantics.fallback_requirements);
-    RecordMissingSnapshotChannelsForExpression(semantics);
-  }
-  LN_TreeReader in(*this, context);
-  /* (A rotation is worked out at every read: the per-tick rotation cache went with plan phase A15,
-   * decision D1 c. It kept the first rotation for Loop items, UI repeats, another object's live
-   * orientation, tree properties and generic values.) */
-  bool resolved = false;
-  LN_Rotation result = RotationKind(in, expression_index, expression, fallback, resolved);
-  /* A rotation read of a kind that may change within a tick taints the expressions above it, as
-   * the same kind read as a vector does. */
-  const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  if (expression_index < ir.vector_memo_class.size() &&
-      ir.vector_memo_class[expression_index] == LN_MEMO_TAINTS)
-  {
-    m_memoTaint++;
-  }
-  return result;
-}
-
-MT_Vector3 LN_RuntimeTree::ResolveVectorExpression(const uint32_t expression_index,
-                                                   const MT_Vector3 &fallback,
-                                                   const LN_TickContext &context)
-{
-  NoteExpressionRead('V', expression_index);
-  if (expression_index == LN_INVALID_INDEX || m_program == nullptr) {
-    return fallback;
-  }
-
-  const std::vector<LN_VectorExpression> &expressions = m_program->GetVectorExpressions();
-  if (expression_index >= expressions.size()) {
-    return fallback;
-  }
-
-  const LN_VectorExpression &expression = expressions[expression_index];
-  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
-    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-        expression.kind);
-    ProfileExpressionEvaluation(semantics.fallback_requirements);
-    RecordMissingSnapshotChannelsForExpression(semantics);
-  }
-  const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  const uint8_t memo_class = expression_index < ir.vector_memo_class.size() ?
-                                 ir.vector_memo_class[expression_index] :
-                                 uint8_t(LN_MEMO_NONE);
-  uint32_t memo_register = LN_INVALID_INDEX;
-  if (memo_class == LN_MEMO_STORE && g_memo_enabled && context.tick_index != UINT64_MAX) {
-    EnsureRegisterExpressionState(context);
-    memo_register = ir.vector_expression_registers[expression_index];
-    if (memo_register >= m_registerExpressionState.vector_values.size()) {
-      memo_register = LN_INVALID_INDEX;
-    }
-    else if (m_registerExpressionState.vector_valid[memo_register] ==
-             m_registerExpressionState.active_generation)
-    {
-      ProfileRegisterExpressionHit();
-      return m_registerExpressionState.vector_values[memo_register];
-    }
-  }
-  const uint32_t memo_taint_before = m_memoTaint;
-  LN_TreeReader in(*this, context);
-  MT_Vector3 value = VectorKind(in, expression_index, expression, fallback);
-  if (memo_class == LN_MEMO_TAINTS) {
-    m_memoTaint++;
-  }
-  else if (memo_register != LN_INVALID_INDEX && m_memoTaint == memo_taint_before) {
-    m_registerExpressionState.vector_values[memo_register] = value;
-    m_registerExpressionState.vector_valid[memo_register] =
-        m_registerExpressionState.active_generation;
-  }
-  return value;
-}
-
-MT_Vector4 LN_RuntimeTree::ResolveColorExpression(const uint32_t expression_index,
-                                                  const MT_Vector4 &fallback,
-                                                  const LN_TickContext &context)
-{
-  NoteExpressionRead('C', expression_index);
-  if (expression_index == LN_INVALID_INDEX || m_program == nullptr) {
-    return fallback;
-  }
-
-  const std::vector<LN_ColorExpression> &expressions = m_program->GetColorExpressions();
-  if (expression_index >= expressions.size()) {
-    return fallback;
-  }
-
-  const LN_ColorExpression &expression = expressions[expression_index];
-  if (m_activeProfileCounters != nullptr) { /* Profiling only: a call at every evaluation. */
-    const LN_RuntimeExpressionSemantics semantics = LN_GetRuntimeExpressionSemantics(
-        expression.kind);
-    ProfileExpressionEvaluation(semantics.fallback_requirements);
-    RecordMissingSnapshotChannelsForExpression(semantics);
-  }
-  const LN_RegisterExpressionProgram &ir = m_program->GetRegisterExpressionProgram();
-  const uint8_t memo_class = expression_index < ir.color_memo_class.size() ?
-                                 ir.color_memo_class[expression_index] :
-                                 uint8_t(LN_MEMO_NONE);
-  uint32_t memo_register = LN_INVALID_INDEX;
-  if (memo_class == LN_MEMO_STORE && g_memo_enabled && context.tick_index != UINT64_MAX) {
-    EnsureRegisterExpressionState(context);
-    memo_register = ir.color_expression_registers[expression_index];
-    if (memo_register >= m_registerExpressionState.color_values.size()) {
-      memo_register = LN_INVALID_INDEX;
-    }
-    else if (m_registerExpressionState.color_valid[memo_register] ==
-             m_registerExpressionState.active_generation)
-    {
-      ProfileRegisterExpressionHit();
-      return m_registerExpressionState.color_values[memo_register];
-    }
-  }
-  const uint32_t memo_taint_before = m_memoTaint;
-  LN_TreeReader in(*this, context);
-  MT_Vector4 value = ColorKind(in, expression_index, expression, fallback);
-  if (memo_class == LN_MEMO_TAINTS) {
-    m_memoTaint++;
-  }
-  else if (memo_register != LN_INVALID_INDEX && m_memoTaint == memo_taint_before) {
-    m_registerExpressionState.color_values[memo_register] = value;
-    m_registerExpressionState.color_valid[memo_register] =
-        m_registerExpressionState.active_generation;
-  }
-  return value;
 }
 
 uint64_t LN_RuntimeTree::CommandSortKey(uint32_t /*instruction_index*/,

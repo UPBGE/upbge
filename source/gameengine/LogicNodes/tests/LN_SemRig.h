@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "KX_NodeRelationships.h"
 #include "LN_DiffTrees.h"
 #include "LN_JobPool.h"
 #include "LN_TreeBatch.h"
@@ -109,6 +110,20 @@ class SemRig {
   KX_GameObject &Object(const size_t index)
   {
     return m_objects[index].object;
+  }
+  size_t ObjectCount() const
+  {
+    return m_objects.size();
+  }
+  /** Makes object `child` a child of object `parent` on the scene graph (a normal parent
+   * relation): its local pose stays as it was set, its world pose follows the parent's. */
+  void Parent(const size_t child, const size_t parent)
+  {
+    BatchObject &child_object = m_objects[child];
+    BatchObject &parent_object = m_objects[parent];
+    child_object.node.SetParentRelation(new KX_NormalParentRelation());
+    parent_object.node.AddChild(&child_object.node);
+    parent_object.object.NodeUpdateGS(0.0);
   }
   LN_RuntimeTree &Tree(const size_t index)
   {

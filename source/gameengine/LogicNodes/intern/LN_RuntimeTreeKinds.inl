@@ -9,8 +9,8 @@
  * String, Vector, Rotation, Color, Value and Query functions) and that the order of the reads inside
  * one expression is written out as sequenced locals (the order this GCC build used, decision D20;
  * pinned by LN_ReadOrder_test). Included at the end of LN_RuntimeTree.cpp so the helpers of that file
- * are visible; the old Resolve functions keep profiling, the register try and call these with
- * the recursive reader (LN_TreeReader). */
+ * are visible. The readers are LN_LeanReader's Lean* functions below (the old Resolve functions and
+ * their recursive reader went with plan step R4, attribute and retirement plan). */
 
 /** Whether instruction `instruction_index` ran in the execution scope being run (the guard of the
  * ops that follow a route). BoolKind's InstructionExecuted and the fast path of LeanBool. */
@@ -27,6 +27,99 @@ inline bool LN_RuntimeTree::InstructionExecutedNow(const LN_TickContext &context
   }
   return context.execution_scope_serial == 0 ||
          state.last_execution_scope_serial == context.execution_scope_serial;
+}
+
+/* ---- Object attributes read without their value (plan "Attribute and Retirement", G2/G3) ---- */
+
+template<class In>
+KX_GameObject *LN_RuntimeTree::ReadObjectInput(In &in, const uint32_t value_index)
+{
+  if (m_activeProfileCounters == nullptr && g_read_trace == nullptr &&
+      fast_attributes_mode() != FastAttributesMode::Off)
+  {
+    const std::vector<LN_ValueExpression> &values = m_program->GetValueExpressions();
+    if (value_index < values.size()) {
+      const LN_ValueExpression &constant = values[value_index];
+      /* A constant is never kept nor noted by the memo: only the value is skipped. */
+      if (constant.kind == LN_ValueExpressionKind::Constant &&
+          constant.value.type == LN_ValueType::ObjectRef && constant.value.exists)
+      {
+        KX_GameObject *object = ConstantObjectTarget(value_index, constant.value);
+        if (fast_attributes_mode() == FastAttributesMode::Verify &&
+            ResolveObjectValue(in.Value(value_index, MakeNoneValue())) != object)
+        {
+          NoteFastAttributeDifference("a constant object is not the one its value gives");
+        }
+        return object;
+      }
+    }
+  }
+  return ResolveObjectValue(in.Value(value_index, MakeNoneValue()));
+}
+
+template<class In>
+KX_GameObject *LN_RuntimeTree::ObjectAttributeTarget(In &in, const LN_ValueExpression &attribute)
+{
+  if (attribute.input0 != LN_INVALID_INDEX) {
+    return ReadObjectInput(in, attribute.input0);
+  }
+  return m_gameObject;
+}
+
+template<class In>
+KX_GameObject *LN_RuntimeTree::TypedAttributeTarget(In &in, const uint32_t value_index)
+{
+  return ObjectAttributeTarget(in, m_program->GetValueExpressions()[value_index]);
+}
+
+/** The attribute read straight into a vector, as ValueAsVector reads the attribute's value: an
+ * orientation as its Euler angles, a colour as its RGB. False for Visible and Name (no vector). */
+static bool ObjectAttributeAsVector(KX_GameObject &object,
+                                    const LN_ObjectAttributeId attribute,
+                                    MT_Vector3 &r_vector)
+{
+  switch (attribute) {
+    case LN_ObjectAttributeId::WorldPosition:
+      r_vector = object.NodeGetWorldPosition();
+      return true;
+    case LN_ObjectAttributeId::LocalPosition:
+      r_vector = object.NodeGetLocalPosition();
+      return true;
+    case LN_ObjectAttributeId::WorldOrientation:
+      r_vector = LN_Rotation::FromMatrix(object.NodeGetWorldOrientation()).ToEulerXYZ();
+      return true;
+    case LN_ObjectAttributeId::LocalOrientation:
+      r_vector = LN_Rotation::FromMatrix(object.NodeGetLocalOrientation()).ToEulerXYZ();
+      return true;
+    case LN_ObjectAttributeId::WorldScale:
+      r_vector = object.NodeGetWorldScaling();
+      return true;
+    case LN_ObjectAttributeId::LocalScale:
+      r_vector = object.NodeGetLocalScaling();
+      return true;
+    case LN_ObjectAttributeId::WorldLinearVelocity:
+      r_vector = object.GetLinearVelocity(false);
+      return true;
+    case LN_ObjectAttributeId::LocalLinearVelocity:
+      r_vector = object.GetLinearVelocity(true);
+      return true;
+    case LN_ObjectAttributeId::WorldAngularVelocity:
+      r_vector = object.GetAngularVelocity(false);
+      return true;
+    case LN_ObjectAttributeId::LocalAngularVelocity:
+      r_vector = object.GetAngularVelocity(true);
+      return true;
+    case LN_ObjectAttributeId::Color: {
+      const MT_Vector4 &color = object.GetObjectColor();
+      r_vector = MT_Vector3(color.x(), color.y(), color.z());
+      return true;
+    }
+    case LN_ObjectAttributeId::Visible:
+    case LN_ObjectAttributeId::Name:
+    case LN_ObjectAttributeId::None:
+      break;
+  }
+  return false;
 }
 
 template<class In>
@@ -1657,6 +1750,18 @@ std::string LN_RuntimeTree::StringKind(In &in,
       }
       return fallback;
     case LN_StringExpressionKind::FromGenericValue: {
+      if (FastObjectAttribute(expression.value_expr_index) == LN_ObjectAttributeId::Name) {
+        /* Plan G3: an object's name straight into the text, without its value (no object: the
+         * text of no value, empty). */
+        KX_GameObject *target = TypedAttributeTarget(in, expression.value_expr_index);
+        std::string name = target != nullptr ? target->GetName() : std::string();
+        if (fast_attributes_mode() == FastAttributesMode::Verify &&
+            ValueToText(in.Value(expression.value_expr_index, MakeNoneValue())) != name)
+        {
+          NoteFastAttributeDifference("a name read is not its value's");
+        }
+        return name;
+      }
       const LN_Value value = in.Value(expression.value_expr_index, MakeNoneValue());
       return ValueToText(value);
     }
@@ -2065,6 +2170,25 @@ MT_Vector3 LN_RuntimeTree::VectorKind(In &in,
       }
       return fallback;
     case LN_VectorExpressionKind::FromGenericValue: {
+      const LN_ObjectAttributeId attribute = FastObjectAttribute(expression.input0);
+      if (attribute != LN_ObjectAttributeId::None) {
+        /* Plan G3: the attribute straight into the vector, without its value. */
+        MT_Vector3 vector = fallback;
+        KX_GameObject *target = TypedAttributeTarget(in, expression.input0);
+        if (target == nullptr || !ObjectAttributeAsVector(*target, attribute, vector)) {
+          vector = fallback;
+        }
+        if (fast_attributes_mode() == FastAttributesMode::Verify) {
+          MT_Vector3 expected;
+          if (!ValueAsVector(in.Value(expression.input0, MakeNoneValue()), expected)) {
+            expected = fallback;
+          }
+          if (LN_DumpVector3(expected) != LN_DumpVector3(vector)) {
+            NoteFastAttributeDifference("a vector read is not its value's");
+          }
+        }
+        return vector;
+      }
       const LN_Value value = in.Value(expression.input0, MakeNoneValue());
       MT_Vector3 vector;
       if (ValueAsVector(value, vector)) {
@@ -2457,6 +2581,41 @@ LN_Rotation LN_RuntimeTree::RotationKind(In &in,
       }
       break;
     case LN_VectorExpressionKind::FromGenericValue: {
+      const LN_ObjectAttributeId attribute = FastObjectAttribute(expression.input0);
+      if (attribute != LN_ObjectAttributeId::None) {
+        /* Plan G3: the attribute straight into the rotation, without its value (an orientation as
+         * it is, a vector as Euler angles; Visible and Name give none). */
+        if (KX_GameObject *target = TypedAttributeTarget(in, expression.input0)) {
+          MT_Vector3 euler;
+          if (attribute == LN_ObjectAttributeId::WorldOrientation) {
+            result = LN_Rotation::FromMatrix(target->NodeGetWorldOrientation());
+            resolved = true;
+          }
+          else if (attribute == LN_ObjectAttributeId::LocalOrientation) {
+            result = LN_Rotation::FromMatrix(target->NodeGetLocalOrientation());
+            resolved = true;
+          }
+          else if (ObjectAttributeAsVector(*target, attribute, euler)) {
+            result = LN_Rotation::FromEulerXYZ(euler);
+            resolved = true;
+          }
+        }
+        if (fast_attributes_mode() == FastAttributesMode::Verify) {
+          const LN_Value value = in.Value(expression.input0, MakeNoneValue());
+          LN_Rotation expected = fallback;
+          MT_Vector3 euler;
+          if (value.type == LN_ValueType::Rotation) {
+            expected = value.rotation_value;
+          }
+          else if (ValueAsVector(value, euler)) {
+            expected = LN_Rotation::FromEulerXYZ(euler);
+          }
+          if (LN_DumpRotation(expected) != LN_DumpRotation(result)) {
+            NoteFastAttributeDifference("a rotation read is not its value's");
+          }
+        }
+        break;
+      }
       const LN_Value value = in.Value(expression.input0, MakeNoneValue());
       if (value.type == LN_ValueType::Rotation) {
         result = value.rotation_value;
@@ -3142,118 +3301,84 @@ LN_Value LN_RuntimeTree::ValueKind(In &in,
       return fallback;
     }
     case LN_ValueExpressionKind::ObjectAttribute: {
-      KX_GameObject *target_object = nullptr;
-      if (expression.input0 != LN_INVALID_INDEX) {
-        target_object = ResolveObjectValue(
-            in.Value(expression.input0, MakeNoneValue()));
-      }
-      else if (m_gameObject != nullptr) {
-        target_object = m_gameObject;
-      }
+      KX_GameObject *target_object = ObjectAttributeTarget(in, expression);
       if (target_object == nullptr) {
         return fallback;
       }
-      const std::string attr = in.String(expression.input1, std::string());
-      if (attr.empty()) {
-        return fallback;
+      /* Plan G2: a constant attribute name is a number worked out once per program; any other
+       * text is read and looked up here, at every read, as before. */
+      LN_ObjectAttributeId attribute = FastObjectAttribute(expression_index);
+      std::string attr;
+      if (attribute == LN_ObjectAttributeId::None) {
+        attr = in.String(expression.input1, std::string());
+        if (attr.empty()) {
+          return fallback;
+        }
+        attribute = LN_ObjectAttributeIdFromName(attr);
       }
-      if (attr == "worldPosition" || attr == "position") {
-        const MT_Vector3 pos = target_object->NodeGetWorldPosition();
-        LN_Value value;
-        value.type = LN_ValueType::Vector;
-        value.vector_value = pos;
-        value.exists = true;
-        return value;
+      else if (fast_attributes_mode() == FastAttributesMode::Verify &&
+               LN_ObjectAttributeIdFromName(in.String(expression.input1, std::string())) !=
+                   attribute)
+      {
+        NoteFastAttributeDifference("an attribute id is not the one its name gives");
       }
-      if (attr == "localPosition") {
-        const MT_Vector3 pos = target_object->NodeGetLocalPosition();
-        LN_Value value;
-        value.type = LN_ValueType::Vector;
-        value.vector_value = pos;
-        value.exists = true;
-        return value;
-      }
-      if (attr == "worldOrientation") {
-        const MT_Matrix3x3 rot = target_object->NodeGetWorldOrientation();
-        LN_Value value;
-        value.type = LN_ValueType::Rotation;
-        value.SetRotation(LN_Rotation::FromMatrix(rot));
-        value.exists = true;
-        return value;
-      }
-      if (attr == "localOrientation") {
-        const MT_Matrix3x3 rot = target_object->NodeGetLocalOrientation();
-        LN_Value value;
-        value.type = LN_ValueType::Rotation;
-        value.SetRotation(LN_Rotation::FromMatrix(rot));
-        value.exists = true;
-        return value;
-      }
-      if (attr == "worldScale") {
-        const MT_Vector3 scale = target_object->NodeGetWorldScaling();
-        LN_Value value;
-        value.type = LN_ValueType::Vector;
-        value.vector_value = scale;
-        value.exists = true;
-        return value;
-      }
-      if (attr == "localScale") {
-        const MT_Vector3 scale = target_object->NodeGetLocalScaling();
-        LN_Value value;
-        value.type = LN_ValueType::Vector;
-        value.vector_value = scale;
-        value.exists = true;
-        return value;
-      }
-      if (attr == "worldLinearVelocity") {
-        LN_Value value;
-        value.type = LN_ValueType::Vector;
-        value.vector_value = target_object->GetLinearVelocity(false);
-        value.exists = true;
-        return value;
-      }
-      if (attr == "localLinearVelocity") {
-        LN_Value value;
-        value.type = LN_ValueType::Vector;
-        value.vector_value = target_object->GetLinearVelocity(true);
-        value.exists = true;
-        return value;
-      }
-      if (attr == "worldAngularVelocity") {
-        LN_Value value;
-        value.type = LN_ValueType::Vector;
-        value.vector_value = target_object->GetAngularVelocity(false);
-        value.exists = true;
-        return value;
-      }
-      if (attr == "localAngularVelocity") {
-        LN_Value value;
-        value.type = LN_ValueType::Vector;
-        value.vector_value = target_object->GetAngularVelocity(true);
-        value.exists = true;
-        return value;
-      }
-      if (attr == "color") {
-        const MT_Vector4 color = target_object->GetObjectColor();
-        LN_Value value;
-        value.type = LN_ValueType::Color;
-        value.color_value = color;
-        value.exists = true;
-        return value;
-      }
-      if (attr == "visible") {
-        LN_Value value;
-        value.type = LN_ValueType::Bool;
-        value.bool_value = target_object->GetVisible();
-        value.exists = true;
-        return value;
-      }
-      if (attr == "name") {
-        LN_Value value;
-        value.type = LN_ValueType::String;
-        value.string_value = target_object->GetName();
-        value.exists = true;
-        return value;
+      LN_Value value;
+      value.exists = true;
+      switch (attribute) {
+        case LN_ObjectAttributeId::WorldPosition:
+          value.type = LN_ValueType::Vector;
+          value.vector_value = target_object->NodeGetWorldPosition();
+          return value;
+        case LN_ObjectAttributeId::LocalPosition:
+          value.type = LN_ValueType::Vector;
+          value.vector_value = target_object->NodeGetLocalPosition();
+          return value;
+        case LN_ObjectAttributeId::WorldOrientation:
+          value.type = LN_ValueType::Rotation;
+          value.SetRotation(LN_Rotation::FromMatrix(target_object->NodeGetWorldOrientation()));
+          return value;
+        case LN_ObjectAttributeId::LocalOrientation:
+          value.type = LN_ValueType::Rotation;
+          value.SetRotation(LN_Rotation::FromMatrix(target_object->NodeGetLocalOrientation()));
+          return value;
+        case LN_ObjectAttributeId::WorldScale:
+          value.type = LN_ValueType::Vector;
+          value.vector_value = target_object->NodeGetWorldScaling();
+          return value;
+        case LN_ObjectAttributeId::LocalScale:
+          value.type = LN_ValueType::Vector;
+          value.vector_value = target_object->NodeGetLocalScaling();
+          return value;
+        case LN_ObjectAttributeId::WorldLinearVelocity:
+          value.type = LN_ValueType::Vector;
+          value.vector_value = target_object->GetLinearVelocity(false);
+          return value;
+        case LN_ObjectAttributeId::LocalLinearVelocity:
+          value.type = LN_ValueType::Vector;
+          value.vector_value = target_object->GetLinearVelocity(true);
+          return value;
+        case LN_ObjectAttributeId::WorldAngularVelocity:
+          value.type = LN_ValueType::Vector;
+          value.vector_value = target_object->GetAngularVelocity(false);
+          return value;
+        case LN_ObjectAttributeId::LocalAngularVelocity:
+          value.type = LN_ValueType::Vector;
+          value.vector_value = target_object->GetAngularVelocity(true);
+          return value;
+        case LN_ObjectAttributeId::Color:
+          value.type = LN_ValueType::Color;
+          value.color_value = target_object->GetObjectColor();
+          return value;
+        case LN_ObjectAttributeId::Visible:
+          value.type = LN_ValueType::Bool;
+          value.bool_value = target_object->GetVisible();
+          return value;
+        case LN_ObjectAttributeId::Name:
+          value.type = LN_ValueType::String;
+          value.string_value = target_object->GetName();
+          return value;
+        case LN_ObjectAttributeId::None:
+          break;
       }
       /* Try as a game property. */
       EXP_Value *prop = target_object->GetProperty(attr);
