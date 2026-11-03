@@ -305,7 +305,7 @@ static Object *createRepresentation(bContext *C,
                                     Base *base)
 {
   float co[3], rot[3];
-  BMEditMesh *em;
+  EditMesh *em;
   int i, j, k;
   unsigned short *v;
   int face[3];
@@ -505,7 +505,7 @@ void MESH_OT_navmesh_make(wmOperatorType *ot)
 static wmOperatorStatus navmesh_face_copy_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
-  BMEditMesh *em = BKE_editmesh_from_object(obedit);
+  EditMesh *em = BKE_editmesh_from_object(obedit);
 
   /* do work here */
   BMFace *efa_act = BM_mesh_active_face_get(em->bm, false, false);
@@ -560,7 +560,7 @@ static int compare(const void *a, const void *b)
   return (*(int *)a - *(int *)b);
 }
 
-static int findFreeNavPolyIndex(BMEditMesh *em)
+static int findFreeNavPolyIndex(EditMesh *em)
 {
   /* construct vector of indices */
   int numfaces = em->bm->totface;
@@ -595,7 +595,7 @@ static int findFreeNavPolyIndex(BMEditMesh *em)
 static wmOperatorStatus navmesh_face_add_exec(bContext *C, wmOperator */*op*/)
 {
   Object *obedit = CTX_data_edit_object(C);
-  BMEditMesh *em = BKE_editmesh_from_object(obedit);
+  EditMesh *em = BKE_editmesh_from_object(obedit);
   BMFace *ef;
   BMIter iter;
 
