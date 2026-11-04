@@ -53,15 +53,28 @@ void DEV_Joystick::OnAxisEvent(SDL_Event *sdl_event)
   m_istrig_axis = 1;
 }
 
-/* See notes below in the event loop */
 void DEV_Joystick::OnButtonEvent(SDL_Event *sdl_event)
 {
+  const uint32_t bit = 1u << sdl_event->gbutton.button;
+  if (sdl_event->gbutton.down) {
+    m_buttons |= bit;
+    m_pressed |= bit; /* Survives a release in the same tick: sub-tick taps are not lost. */
+  }
+  else {
+    m_buttons &= ~bit;
+  }
   m_istrig_button = 1;
 }
 
 void DEV_Joystick::OnNothing(SDL_Event *sdl_event)
 {
-  m_istrig_axis = m_istrig_button = 0;
+  /* A tap that began and ended inside the previous tick was reported as pressed for that tick
+   * only. SCA_JoystickSensor re-evaluates only on ticks flagged by IsTrigButton(), so flag this
+   * tick too; otherwise the sensor would keep its positive state until an unrelated event. */
+  const uint32_t tapped = m_pressed & ~m_buttons;
+  m_istrig_axis = 0;
+  m_istrig_button = (tapped != 0);
+  m_pressed = 0;
 }
 
 bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
@@ -78,12 +91,8 @@ bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
     /* Note! m_instance[instance]
      * will segfault if over JOYINDEX_MAX, not too nice but what are the chances? */
 
-    /* Note!, with buttons, this wont care which button is pressed,
-     * only to set 'm_istrig_button', actual pressed buttons are detected by
-     * SDL_ControllerGetButton */
-
-    /* Note!, if you manage to press and release a button within 1 logic tick
-     * it wont work as it should */
+    /* Note!, button events maintain m_buttons/m_pressed; sensors and Python read those
+     * instead of querying SDL. */
 
     /* Note!, we need to use SDL_JOYDEVICE ADDED to find new controllers as
      * SDL_CONTROLLERDEVICEADDED doesn't report about all devices connected at beginning.

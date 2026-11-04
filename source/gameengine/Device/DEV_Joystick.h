@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include "DEV_JoystickDefines.h"
@@ -92,6 +93,14 @@ class DEV_Joystick
   /** is triggered for each event type */
   bool m_istrig_axis;
   bool m_istrig_button;
+
+  /**
+   * Button state maintained from SDL events, bit i = SDL_GamepadButton i.
+   * m_pressed latches down edges since the last logic tick so a press and release that both
+   * land inside one tick are still reported as pressed for that tick.
+   */
+  uint32_t m_buttons;
+  uint32_t m_pressed;
 
 #ifdef WITH_SDL
   /**

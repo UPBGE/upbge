@@ -43,6 +43,11 @@
 
 using namespace blender;
 
+#ifdef WITH_SDL
+static_assert(JOYBUT_MAX == SDL_GAMEPAD_BUTTON_COUNT, "JOYBUT_MAX must follow SDL");
+static_assert(JOYBUT_MAX <= 32, "button state is a single 32-bit mask");
+#endif
+
 DEV_Joystick::DEV_Joystick(short bge_joystick_slot)
     : m_bge_joystick_slot(bge_joystick_slot),
       m_prec(3200),
@@ -50,7 +55,9 @@ DEV_Joystick::DEV_Joystick(short bge_joystick_slot)
       m_buttonmax(-1),
       m_isinit(0),
       m_istrig_axis(0),
-      m_istrig_button(0)
+      m_istrig_button(0),
+      m_buttons(0),
+      m_pressed(0)
 {
   for (int i = 0; i < JOYAXIS_MAX; i++)
     m_axis_array[i] = 0;
@@ -179,39 +186,27 @@ bool DEV_Joystick::aAxisIsPositive(int axis_single)
   return std::abs(m_axis_array[axis_single]) > m_prec ? true : false;
 }
 
+/* Button queries read the event-maintained mask: one load and a bit test instead of
+ * SDL_GetGamepadButton(), which takes the joystick lock and scans every binding per call. */
 bool DEV_Joystick::aAnyButtonPressIsPositive(void)
 {
-#ifdef WITH_SDL
-  /* this is needed for the "all events" option
-   * so we know if there are no buttons pressed */
-  for (int i = 0; i < m_buttonmax; i++) {
-    if (SDL_GetGamepadButton(m_private->m_gamecontroller, (SDL_GamepadButton)i)) {
-      return true;
-    }
-  }
-#endif
-  return false;
+  return (m_buttons | m_pressed) != 0;
 }
 
 bool DEV_Joystick::aButtonPressIsPositive(int button)
 {
-#ifdef WITH_SDL
-  if (SDL_GetGamepadButton(m_private->m_gamecontroller, (SDL_GamepadButton)button)) {
-    return true;
+  if ((unsigned int)button >= JOYBUT_MAX) {
+    return false;
   }
-#endif
-  return false;
+  return ((m_buttons | m_pressed) >> button) & 1u;
 }
 
 bool DEV_Joystick::aButtonReleaseIsPositive(int button)
 {
-#ifdef WITH_SDL
-  if (!(SDL_GetGamepadButton(m_private->m_gamecontroller,
-                                    (SDL_GamepadButton)button))) {
-    return true;
+  if ((unsigned int)button >= JOYBUT_MAX) {
+    return false;
   }
-#endif
-  return false;
+  return !((m_buttons >> button) & 1u);
 }
 
 bool DEV_Joystick::CreateJoystickDevice(void)
@@ -267,19 +262,34 @@ bool DEV_Joystick::CreateJoystickDevice(void)
 
       /* A Game Controller has:
        *
-       * 6 axis availables:	   AXIS_LEFTSTICK_X, AXIS_LEFTSTICK_Y,
-       * (in order from 0 to 5)  AXIS_RIGHTSTICK_X, AXIS_RIGHTSTICK_Y,
-       *						   AXIS_TRIGGERLEFT and AXIS_TRIGGERRIGHT.
+       * 6 axis availables (indices 0 to 5):
+       *   SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_LEFTY,
+       *   SDL_GAMEPAD_AXIS_RIGHTX, SDL_GAMEPAD_AXIS_RIGHTY,
+       *   SDL_GAMEPAD_AXIS_LEFT_TRIGGER, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER.
+       *   Sticks span -32768 to 32767, with +Y pointing down; triggers span 0 to 32767.
        *
-       * 15 buttons availables:  BUTTON_A, BUTTON_B, BUTTON_X, BUTTON_Y,
-       * (in order from 0 to 14) BUTTON_BACK, BUTTON_GUIDE, BUTTON_START,
-       *						   BUTTON_LEFTSTICK, BUTTON_RIGHTSTICK,
-       *						   BUTTON_LEFTSHOULDER, BUTTON_RIGHTSHOULDER,
-       *						   BUTTON_DPAD_UP, BUTTON_DPAD_DOWN,
-       *						   BUTTON_DPAD_LEFT and BUTTON_DPAD_RIGHT.
+       * 26 buttons, indices 0 to 25 (bit i of m_buttons is button i, so they fit in 32 bits):
+       *   0-3   SDL_GAMEPAD_BUTTON_SOUTH, EAST, WEST, NORTH (A, B, X, Y on Xbox),
+       *   4-6   BACK, GUIDE, START,
+       *   7-10  LEFT_STICK, RIGHT_STICK, LEFT_SHOULDER, RIGHT_SHOULDER,
+       *   11-14 DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT,
+       *   15    MISC1 (Xbox Series share, PS5 microphone, Switch Pro capture),
+       *   16-19 RIGHT_PADDLE1, LEFT_PADDLE1, RIGHT_PADDLE2, LEFT_PADDLE2,
+       *   20    TOUCHPAD (PS4 and PS5 touchpad click),
+       *   21-25 MISC2 to MISC6.
+       * Buttons a controller does not have are never pressed.
        */
       m_axismax = SDL_GAMEPAD_AXIS_COUNT;
       m_buttonmax = SDL_GAMEPAD_BUTTON_COUNT;
+
+      /* Seed once from the live state (buttons held while plugging in); from here on only
+       * SDL events modify the mask. */
+      m_buttons = m_pressed = 0;
+      for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++) {
+        if (SDL_GetGamepadButton(m_private->m_gamecontroller, (SDL_GamepadButton)i)) {
+          m_buttons |= 1u << i;
+        }
+      }
     }
 
     /* Haptic configuration */
