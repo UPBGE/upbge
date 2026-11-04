@@ -21,6 +21,7 @@
 #include "GPU_compute.hh"
 
 #include "draw_cache.hh"
+#include "draw_context_private.hh"
 
 #include "workbench_private.hh"
 
@@ -460,7 +461,12 @@ void ShadowPass::object_sync(SceneState &scene_state,
 void ShadowPass::end_sync()
 {
   if (use_raytracing_) {
-    shadow_as_->build();
+    //shadow_as_->build();
+    /* UPBGE: Expose TLAS for post-skinning rebuild. */
+    const DRWContext *ctx = DRW_context_get();
+    if (ctx && ctx->data) {
+      ctx->data->shadow_tlas = shadow_as_.get();
+    }
   }
 }
 
@@ -491,7 +497,6 @@ void ShadowPass::draw(Manager &manager,
   fb_.bind();
 
   view_.setup(view, pass_data_.light_direction_ws, force_fail_method);
-
   view_.set_mode(PASS);
   manager.submit(pass_ps_, view_);
   view_.set_mode(FAIL);

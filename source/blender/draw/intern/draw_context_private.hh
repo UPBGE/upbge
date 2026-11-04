@@ -24,6 +24,7 @@
 #include "GPU_batch.hh"
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
+
 #include "GPU_viewport.hh"
 
 #include "../draw/intern/gpu_modifiers/draw_modifier_gpu_pipeline.hh"
@@ -106,6 +107,9 @@ struct DRWData {
   /** Map of original Mesh* -> processing info. Contains both scheduled free flag and optional
    * evaluated object used for GPU skinning. This replaces the previous two containers. */
   std::unordered_map<struct Mesh *, MeshProcessEntry> *meshes_to_process;
+
+  /* UPBGE: Workbench RT shadow TLAS, set by ShadowPass::end_sync(), rebuilt after GPU skinning scatter. */
+  void *shadow_tlas;
 
   /* Ensure modules are created. */
   void modules_init();
