@@ -496,10 +496,11 @@ bool KX_KetsjiEngine::NextFrame()
 #  endif  // WITH_PYTHON
     }
 
-    // Process Joystick force feedback duration
+    // Process Joystick force feedback duration. Instances exist only while connected, and an
+    // active rumble implies support, so the cached status alone gates the SDL work.
     for (unsigned short j = 0; j < JOYINDEX_MAX; ++j) {
       DEV_Joystick *joy = DEV_Joystick::GetInstance(j);
-      if (joy && joy->Connected() && joy->GetRumbleSupport() && joy->GetRumbleStatus()) {
+      if (joy && joy->GetRumbleStatus()) {
         joy->ProcessRumbleStatus();
       }
     }

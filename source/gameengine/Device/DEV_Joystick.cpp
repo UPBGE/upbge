@@ -250,7 +250,7 @@ bool DEV_Joystick::CreateJoystickDevice(void)
 
     if (!joy_error) {
       m_private->m_sdl_joystick_id = SDL_GetJoystickID(joy);
-      if (m_private->m_sdl_joystick_id < 0) {
+      if (m_private->m_sdl_joystick_id == 0) { /* 0 is the invalid id */
         joy_error = true;
         CM_Error("joystick instanced failed: " << SDL_GetError());
       }
@@ -297,17 +297,17 @@ bool DEV_Joystick::CreateJoystickDevice(void)
       bool has_gamepad_rumble = false;
       const SDL_PropertiesID gamepad_properties = SDL_GetGamepadProperties(
           m_private->m_gamecontroller);
-      if (gamepad_properties) {
-        has_gamepad_rumble = SDL_GetBooleanProperty(
-            gamepad_properties, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false);
+      m_private->m_hasRumble = SDL_GetBooleanProperty(
+          gamepad_properties, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false);
+
+      /* SDL_Haptic is only the fallback for devices without simple rumble. Use
+       * SDL_OpenHapticFromJoystick to correctly associate haptic with the
+       * game controller's underlying joystick. */
+      if (!m_private->m_hasRumble) {
+        m_private->m_haptic = SDL_OpenHapticFromJoystick(joy);
       }
 
-      /* Use SDL_OpenHapticFromJoystick to correctly associate haptic with the
-       * game controller's underlying joystick. SDL_HapticOpen(index) takes a
-       * haptic device index which does not match the joystick/controller index
-       * and can fail silently with newer SDL versions. */
-      m_private->m_haptic = SDL_OpenHapticFromJoystick(joy);
-      if (!m_private->m_haptic && !has_gamepad_rumble) {
+      if (!m_private->m_haptic && !m_private->m_hasRumble) {
         CM_Warning("Game Controller (" << GetName() << ") with index " << m_bge_joystick_slot
                                        << " has not force feedback (vibration) available");
       }

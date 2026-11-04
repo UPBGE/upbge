@@ -45,6 +45,7 @@ class DEV_Joystick::PrivateData {
    */
   SDL_Gamepad *m_gamecontroller;
   SDL_JoystickID m_sdl_joystick_id;
+  bool m_hasRumble;
   SDL_Haptic *m_haptic;
   SDL_HapticEffect m_hapticeffect;
   int m_hapticEffectId;
@@ -54,6 +55,7 @@ class DEV_Joystick::PrivateData {
   PrivateData()
       : m_gamecontroller(nullptr),
         m_sdl_joystick_id(0),
+        m_hasRumble(false),
         m_haptic(nullptr),
         m_hapticEffectStatus(JOYHAPTIC_STOPPED),
         m_hapticEndTime(0.0)

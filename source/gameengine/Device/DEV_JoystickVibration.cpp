@@ -24,6 +24,7 @@
  *  \ingroup device
  */
 
+#include <algorithm>
 
 #include "CM_Message.h"
 #include "DEV_Joystick.h"
@@ -32,30 +33,21 @@
 
 using namespace blender;
 
-#ifdef WITH_SDL
-static bool gamepad_has_rumble(SDL_Gamepad *gamepad)
-{
-  if (gamepad == nullptr) {
-    return false;
-  }
-
-  const SDL_PropertiesID gamepad_properties = SDL_GetGamepadProperties(gamepad);
-  if (!gamepad_properties) {
-    return false;
-  }
-
-  return SDL_GetBooleanProperty(gamepad_properties, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false);
-}
-#endif
-
 bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned int duration)
 {
 #ifdef WITH_SDL
   unsigned int effects;
   bool run_by_effect = false;
   bool effects_issue = false;
+  Uint16 data[2]; // data = channels * samples
 
-  if (gamepad_has_rumble(m_private->m_gamecontroller)) {
+  /* Clamp before scaling: a value marginally above 1 would wrap the Uint16 to near zero. */
+  strengthLeft = std::clamp(strengthLeft, 0.0f, 1.0f);
+  strengthRight = std::clamp(strengthRight, 0.0f, 1.0f);
+
+  if (m_private->m_hasRumble) {
+    /* SDL owns the expiration timer and the periodic re-send some drivers need; repeating
+     * identical strengths only moves the expiration, without device I/O. */
     if (SDL_RumbleGamepad(m_private->m_gamecontroller,
                           Uint16(strengthLeft * 0xFFFF),
                           Uint16(strengthRight * 0xFFFF),
@@ -92,17 +84,16 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
     }
 
     m_private->m_hapticeffect.leftright.length = duration;
-    m_private->m_hapticeffect.leftright.large_magnitude = (unsigned int)(strengthLeft * 0x7FFF);
-    m_private->m_hapticeffect.leftright.small_magnitude = (unsigned int)(strengthRight * 0x7FFF);
+    m_private->m_hapticeffect.leftright.large_magnitude = (Uint16)(strengthLeft * 0xFFFF);
+    m_private->m_hapticeffect.leftright.small_magnitude = (Uint16)(strengthRight * 0xFFFF);
     run_by_effect = true;
   }
   // Some Game Controllers only supports large/small magnitude motors using a custom effect
   else if ((effects & SDL_HAPTIC_CUSTOM) &&
            m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_RUMBLE_EFFECT) {
 
-    Uint16 data[2];  // data = channels * samples
-    data[0] = (Uint16)(strengthLeft * 0x7FFF);
-    data[1] = (Uint16)(strengthRight * 0x7FFF);
+    data[0] = (Uint16)(strengthLeft * 0xFFFF);
+    data[1] = (Uint16)(strengthRight * 0xFFFF);
 
     if (m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_EFFECT) {
       m_private->m_hapticeffect.type = SDL_HAPTIC_CUSTOM;
@@ -206,7 +197,7 @@ bool DEV_Joystick::RumbleStop()
 #ifdef WITH_SDL
   bool stopped = false;
 
-  if (gamepad_has_rumble(m_private->m_gamecontroller)) {
+  if (m_private->m_hasRumble) {
     stopped = SDL_RumbleGamepad(m_private->m_gamecontroller, 0, 0, 0);
   }
 
@@ -228,6 +219,12 @@ bool DEV_Joystick::RumbleStop()
 bool DEV_Joystick::GetRumbleStatus()
 {
 #ifdef WITH_SDL
+  if (m_private->m_hasRumble) {
+    /* SDL_RumbleGamepad() never touches m_hapticEffectStatus, so derive the status from the end
+     * time recorded in RumblePlay(). The zero test skips the clock read while idle. */
+    const double end_ms = m_private->m_hapticEndTime;
+    return end_ms != 0.0 && end_ms > blender::BLI_time_now_seconds() * 1000.0;
+  }
   return (m_private->m_hapticEffectStatus != JOYHAPTIC_STOPPED);
 #endif
   return false;
@@ -236,7 +233,7 @@ bool DEV_Joystick::GetRumbleStatus()
 bool DEV_Joystick::GetRumbleSupport()
 {
 #ifdef WITH_SDL
-  return gamepad_has_rumble(m_private->m_gamecontroller) || (m_private->m_haptic != nullptr);
+  return m_private->m_hasRumble || (m_private->m_haptic != nullptr);
 #endif
   return false;
 }
@@ -246,7 +243,8 @@ bool DEV_Joystick::GetRumbleSupport()
 void DEV_Joystick::ProcessRumbleStatus()
 {
 #ifdef WITH_SDL
-  if (!gamepad_has_rumble(m_private->m_gamecontroller) && m_private->m_haptic == nullptr) {
+  /* SDL expires SDL_RumbleGamepad() effects by itself; only SDL_Haptic needs our timer. */
+  if (m_private->m_haptic == nullptr) {
     return;
   }
 
