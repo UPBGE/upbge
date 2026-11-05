@@ -736,7 +736,7 @@ void ShaderGraph::optimize_volume_output()
   if (!has_valid_volume) {
     /* We can remove the entire volume shader. */
     LOG_TRACE << "Disconnect meaningless volume output.";
-    disconnect(volume_in->link);
+    disconnect(volume_in);
   }
 }
 
@@ -1226,7 +1226,7 @@ int ShaderGraph::get_num_closures()
   return num_closures;
 }
 
-void ShaderGraph::dump_graph(const char *filename)
+void ShaderGraph::dump_graph(const char *filename, const bool verbose)
 {
   FILE *fd = fopen(filename, "w");
 
@@ -1246,6 +1246,9 @@ void ShaderGraph::dump_graph(const char *filename)
     if (!node->inputs.empty()) {
       fprintf(fd, "{");
       for (ShaderInput *socket : node->inputs) {
+        if (!verbose && !socket->link) {
+          continue;
+        }
         if (socket != node->inputs[0]) {
           fprintf(fd, "|");
         }
@@ -1254,18 +1257,29 @@ void ShaderGraph::dump_graph(const char *filename)
       fprintf(fd, "}|");
     }
     fprintf(fd, "%s", node->name.c_str());
+    if (const auto *math = dynamic_cast<VectorMathNode *>(node)) {
+      const NodeEnum *node_enum = math->get_math_type_socket()->enum_values;
+      fprintf(fd, "\\n(%s)", (*node_enum)[math->get_math_type()].c_str());
+    }
+    else if (const auto *math = dynamic_cast<MathNode *>(node)) {
+      const NodeEnum *node_enum = math->get_math_type_socket()->enum_values;
+      fprintf(fd, "\\n(%s)", (*node_enum)[math->get_math_type()].c_str());
+    }
     if (node->bump == SHADER_BUMP_CENTER) {
-      fprintf(fd, " (bump:center)");
+      fprintf(fd, "\\n(bump:center)");
     }
     else if (node->bump == SHADER_BUMP_DX) {
-      fprintf(fd, " (bump:dx)");
+      fprintf(fd, "\\n(bump:dx)");
     }
     else if (node->bump == SHADER_BUMP_DY) {
-      fprintf(fd, " (bump:dy)");
+      fprintf(fd, "\\n(bump:dy)");
     }
     if (!node->outputs.empty()) {
       fprintf(fd, "|{");
       for (ShaderOutput *socket : node->outputs) {
+        if (!verbose && socket->links.empty()) {
+          continue;
+        }
         if (socket != node->outputs[0]) {
           fprintf(fd, "|");
         }

@@ -764,6 +764,13 @@ struct SymbolParser : NodeErrorHandler {
     fn.is_defined = false;
     fn.fwd = decl;
 
+    if (decl.defaulted_body().is_valid()) {
+      error(decl.defaulted_body(), Diag::UnsupportedDefaultedBody);
+    }
+    if (decl.deleted_body().is_valid()) {
+      error(decl.deleted_body(), Diag::UnsupportedDeletedBody);
+    }
+
     if (scope.poi) {
       /* Functions inherit the point of instantiation of their class. */
       fn.poi = scope.poi;
@@ -778,6 +785,23 @@ struct SymbolParser : NodeErrorHandler {
     parse_function_arguments(fn, decl.arguments());
     /* Record as function prototype. */
     scope.function_prototypes.emplace_back(decl, &fn);
+
+    /* Set resolved identifier in case the declaration is emitted without the definition. */
+    switch (fn.fn_type) {
+      case SymbolFunction::GLOBAL:
+      case SymbolFunction::STATIC:
+        /* TODO(fclem) */
+        // fn.identifier = fn_prefix + fn.identifier;
+        break;
+      case SymbolFunction::MEMBER:
+        /* Member function use overload resolution. */
+        fn.identifier = "_" + fn.identifier;
+        break;
+    }
+
+    if (fn.fn_type == SymbolFunction::MEMBER) {
+      link_virtual_overrides(fn, *fn.parent_class());
+    }
   }
 
   SymbolFunction *parse_func_decl(SymbolScope &def_scope,
@@ -818,6 +842,12 @@ struct SymbolParser : NodeErrorHandler {
       fn->arg_const.clear();
       fn->arg_types.clear();
       fn->arg_defaults.clear();
+      /* Also reset the identifier. */
+      fn->identifier = id.name().str();
+
+      if (fn->is_pure_virtual) {
+        error(id.name(), Diag::UnsupportedPureVirtualFunctionBody);
+      }
     }
     else if (ns) {
       error(id.name(), Diag::FunctionOutOfClassDefinition, id.name().str(), ns->original);
@@ -836,6 +866,30 @@ struct SymbolParser : NodeErrorHandler {
       }
     }
 
+    if (fn->fn_type == SymbolFunction::MEMBER) {
+      /* Virtual function override. */
+      const SymbolClass &cls = *fn->parent_class();
+      for (auto [_, base_cls] : cls.base_classes) {
+        if (auto it = base_cls->functions.find(fn->original); it != base_cls->functions.end()) {
+          SymbolFunction &base_fn = *it->second.second;
+          if (base_fn.is_virtual) {
+            base_fn.override_next = fn;
+            /* Function becomes virtual if at least one ancestor is virtual. */
+            fn->is_virtual = true;
+          }
+        }
+      }
+
+      /* Swizzle reserved identifier linting. */
+      if (fn->original.length() > 1 && fn->original.length() <= 4) {
+        if (fn->original.find_first_not_of("xyzw") == string::npos ||
+            fn->original.find_first_not_of("rgba") == string::npos)
+        {
+          error(func.identifier(), Diag::FunctionSwizzleReservedName, fn->original);
+        }
+      }
+    }
+
     if (poi) {
       fn->poi = poi;
     }
@@ -848,6 +902,11 @@ struct SymbolParser : NodeErrorHandler {
     std::string fn_prefix = ns ? scope_prefix(*ns) : prefix;
 
     parse_scope(*fn, func.body(), fn_prefix + fn->identifier + ns_sep, temp_params);
+
+    /* Template functions cannot override. */
+    if (fn->fn_type == SymbolFunction::MEMBER && !func.is_template()) {
+      link_virtual_overrides(*fn, *fn->parent_class());
+    }
 
     /* Set resolved identifier. */
     switch (fn->fn_type) {
@@ -873,8 +932,54 @@ struct SymbolParser : NodeErrorHandler {
     return fn;
   }
 
+  /* Mark the virtual functions overridden by the member function `fn` in the bases of `cls`.
+   * Requires the arguments of `fn` to be parsed. */
+  void link_virtual_overrides(SymbolFunction &fn, const SymbolClass &cls)
+  {
+    for (auto [_, base_cls] : cls.base_classes) {
+      if (auto it = base_cls->functions.find(fn.original); it != base_cls->functions.end()) {
+        /* Overloads with another signature are only hidden, not overridden. */
+        for (SymbolFunction *base_fn = it->second.second; base_fn;
+             base_fn = base_fn->overload_next)
+        {
+          if (base_fn->is_virtual && fn.has_same_signature(*base_fn)) {
+            base_fn->override_next = &fn;
+            /* Function becomes virtual if at least one ancestor is virtual. */
+            fn.is_virtual = true;
+          }
+        }
+      }
+      /* A virtual function can be hidden from `base_cls` by another overload. */
+      link_virtual_overrides(fn, *base_cls);
+    }
+  }
+
+  /* Report template functions without a body, which are neither a function nor a class template.
+   * Return true if `decl` is one of them. */
+  bool is_invalid_template_decl(FuncForwardDecl decl)
+  {
+    if (!decl.is_valid()) {
+      /* Not a function forward decl. */
+      return false;
+    }
+
+    if (decl.defaulted_body().is_valid()) {
+      error(decl.defaulted_body(), Diag::UnsupportedDefaultedBody);
+    }
+    else if (decl.deleted_body().is_valid()) {
+      error(decl.deleted_body(), Diag::UnsupportedDeletedBody);
+    }
+    else {
+      error(decl.identifier(), Diag::TemplateMissingDefinition);
+    }
+    return true;
+  }
+
   void parse_template_decl(SymbolScope &scope, TemplateDecl decl)
   {
+    if (is_invalid_template_decl(decl.decl())) {
+      return;
+    }
     /* Do not parse. Only keep the symbol definition. The instantiation will do the parsing. */
     if (decl.is_function()) {
       FuncDecl fn_decl(decl.decl());
@@ -1000,6 +1105,9 @@ struct SymbolParser : NodeErrorHandler {
 
   void parse_template_spec(SymbolScope &scope, TemplateSpec temp, const std::string &prefix)
   {
+    if (is_invalid_template_decl(temp.decl())) {
+      return;
+    }
     TemplateParamList temp_params = temp.parameters();
     /* Instantiate the whole symbol into the current namespace. */
     if (temp.is_function()) {

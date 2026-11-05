@@ -3466,7 +3466,7 @@ void button_string_get_ex(Button *but,
                                  value,
                                  &buf))
       {
-        STRNCPY(str, buf);
+        STRNCPY_UTF8(str, buf);
         buf = str.data();
       }
     }
