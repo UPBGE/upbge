@@ -102,6 +102,7 @@
 #include "DRW_engine.hh"
 #include "ED_asset.hh"
 #include "ED_datafiles.h"
+#include "ED_geometry.hh"
 #include "ED_gpencil_legacy.hh"
 #include "ED_grease_pencil.hh"
 #include "ED_keyframing.hh"
@@ -1833,7 +1834,9 @@ int main(int argc,
   BKE_tracking_clipboard_free();
   BKE_mask_clipboard_free();
   BKE_vfont_clipboard_free();
-  blender::ed::greasepencil::clipboard_free();
+  ed::greasepencil::clipboard_free();
+  ed::greasepencil::keyframe_clipboard_free();
+  ed::geometry::node_group_operator_static_eval_log_free();
   UV_clipboard_free();
   wm_clipboard_free();
 
