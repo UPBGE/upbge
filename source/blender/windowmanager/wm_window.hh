@@ -162,6 +162,8 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
                                                 void *ghostwin,
                                                 bool first_time_window);
 
+void WM_window_blenderplayer_csd_update();
+
 void wm_window_ghostwindow_embedded_ensure(wmWindowManager *wm, wmWindow *win);
 /* End of UPBGE */
 
