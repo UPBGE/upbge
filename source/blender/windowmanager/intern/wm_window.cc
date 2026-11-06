@@ -3806,9 +3806,10 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   }
 
 #ifndef __APPLE__
-  /* Set the state here, so minimized state comes up correct on windows. */
-  if (wm_init_state.window_focus) {
-    ghost_i_win->setState(ghost_i_win->getState());
+  if (first_time_window) {
+    if (wm_init_state.window_focus) {
+      ghost_i_win->setState(ghost_i_win->getState());
+    }
   }
 #endif
   GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
