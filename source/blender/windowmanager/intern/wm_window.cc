@@ -3752,6 +3752,18 @@ void WM_set_g_system_blenderplayer(void* ghost_system)
   g_system = (GHOST_ISystem *)ghost_system;
 }
 
+void WM_window_blenderplayer_csd_update()
+{
+#ifdef WITH_GHOST_CSD
+  if (wm_init_state.window_frame &&
+      ((WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_SERVER_SIDE) == 0))
+  {
+    g_system_use_csd = true;
+    WM_window_csd_params_update();   // ← c'est ça qui remplit layout_callback
+  }
+#endif
+}
+
 /* Reuse wm->message_bus when we restart game or load a new .blend */
 static void *runtime_msgbus;
 
@@ -3762,15 +3774,6 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
 {
   GHOST_IWindow *ghost_i_win = (GHOST_IWindow *)ghostwin;
   win->runtime->ghostwin = ghostwin;
-
-#ifdef WITH_GHOST_CSD
-  if (wm_init_state.window_frame &&
-      ((WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_SERVER_SIDE) == 0))
-  {
-    g_system_use_csd = true;
-    WM_window_csd_params_update();
-  }
-#endif /* WITH_GHOST_CSD */
 
   wm_window_clear_drawable(wm);
 

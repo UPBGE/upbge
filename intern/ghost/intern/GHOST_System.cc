@@ -410,7 +410,7 @@ GHOST_TSuccess GHOST_System::createFullScreenWindow(GHOST_Window **window,
                                          0,
                                          settings.xPixels,
                                          settings.yPixels,
-                                         GHOST_kWindowStateNormal,
+                                         GHOST_kWindowStateFullScreen,
                                          gpu_settings,
                                          true /*exclusive*/);
   return (*window == nullptr) ? GHOST_kFailure : GHOST_kSuccess;

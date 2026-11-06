@@ -151,9 +151,11 @@ bool LA_PlayerLauncher::EngineNextFrame()
   if (m_inputDevice->GetInput(SCA_IInputDevice::WINRESIZE).Find(SCA_InputEvent::ACTIVE)) {
     GHOST_Rect bnds;
     m_mainWindow->getClientBounds(bnds);
-    m_canvas->Resize(bnds.getWidth(), bnds.getHeight());
-    m_ketsjiEngine->Resize();
-    m_inputDevice->ConvertEvent(SCA_IInputDevice::WINRESIZE, 0, 0);
+    if (bnds.getWidth() != m_canvas->GetWidth() || bnds.getHeight() != m_canvas->GetHeight()) {
+      m_canvas->Resize(bnds.getWidth(), bnds.getHeight());
+      m_ketsjiEngine->Resize();
+      m_inputDevice->ConvertEvent(SCA_IInputDevice::WINRESIZE, 0, 0);
+    }
   }
 
   return LA_Launcher::EngineNextFrame();

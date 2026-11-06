@@ -1359,6 +1359,7 @@ int main(int argc,
       system = GHOST_ISystem::getSystem();
       GPU_backend_ghost_system_set(system);
       WM_set_g_system_blenderplayer(system);
+      WM_window_blenderplayer_csd_update(); // Before window creation and after system creation for wayland
       BLI_assert(system);
 
       if (!fullScreenWidth || !fullScreenHeight)
