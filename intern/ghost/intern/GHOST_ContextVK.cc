@@ -1369,7 +1369,7 @@ static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
       /* Fallthrough to select a supported mode. */
     }
 
-    if (vsync == GHOST_kVSyncModeAuto) {
+    if (vsync == GHOST_kVSyncModeAuto || vsync == GHOST_kVSyncModeOn) {
       /* "Auto"/Adaptive: prefer MAILBOX (low-latency vblank) if available, else fallback to FIFO. */
       for (auto present_mode : presents) {
         if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR) {
@@ -1381,12 +1381,6 @@ static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
       *r_presentMode = VK_PRESENT_MODE_FIFO_KHR;
       return GHOST_kSuccess;
     }
-    /* If VSync is explicitly ON, use FIFO which is guaranteed to be vblank-synced. */
-    if (vsync == GHOST_kVSyncModeOn) {
-      *r_presentMode = VK_PRESENT_MODE_FIFO_KHR;
-      return GHOST_kSuccess;
-    }
-
     /* For unset (no explicit user choice), prefer MAILBOX when available (lower latency),
      * otherwise FIFO. */
     for (auto present_mode : presents) {
