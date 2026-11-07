@@ -1540,6 +1540,13 @@ int main(int argc,
               }
             }
 
+            if (fullScreen) {
+              WM_init_state_fullscreen_set();
+            }
+            else {
+              WM_init_state_normal_set();
+            }
+
             if (!samplesParFound)
               aasamples = scene->gm.aasamples;
 
@@ -1632,6 +1639,13 @@ int main(int argc,
             blender::wmWindow *win = wm->windows.first();
             CTX_wm_manager_set(C, wm);
             CTX_wm_window_set(C, win);
+
+            if (fullScreen) {
+              win->windowstate = GHOST_kWindowStateFullScreen;
+            }
+            else {
+              win->windowstate = GHOST_kWindowStateNormal;
+            }
             InitBlenderContextVariables(C);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
             WM_check(C);
