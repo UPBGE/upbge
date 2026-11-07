@@ -6,7 +6,8 @@
 
 /** \file
  * Plan C1 (2026-11-03, `~/Desktop/CPP_LN_TESTS/Logic_Nodes_C1_Plan.md`): columns inside Logic
- * Nodes. On by default; `UPBGE_LN_COLUMNS=0` is the way back (a test's choice wins).
+ * Nodes. Since plan C2 P10 (2026-11-07) the only executor, in the game and in the tests: a tree
+ * no wide run takes runs the column pass (LN_RuntimeTree::ExecuteReady).
  *
  * The way ECS systems run (Unity DOTS, Flecs): the trees of one program are one archetype; a run
  * of consecutive trees of it (one tree is a run since plan C2 P1; 16 before,
@@ -69,12 +70,13 @@ class LN_RuntimeTree;
 struct LN_TickContext;
 struct LN_TickReadContext;
 
-enum class LN_ColumnMode : uint8_t { Off = 0, On, All };
-/** UPBGE_LN_COLUMNS: unset / 1 / on = On (the default since plan C1-6), 0 / off = Off, all = All
- * (plan C2 P0: every tree whose program lowers runs in columns, runs of 1 included even where
- * that is slower; for tests and coverage, never the default); a test's choice wins. */
+enum class LN_ColumnMode : uint8_t { On = 1, All };
+/** UPBGE_LN_COLUMNS: unset = On, all = All (plan C2 P0: every tree whose program lowers runs in
+ * wide runs, runs of 1 included even where that is slower; for tests and coverage, never the
+ * default); a test's choice wins. Since plan C2 P10 (2026-11-07) there is no Off: the old system
+ * is gone (0 / off is ignored with a warning). */
 LN_ColumnMode LN_GetColumnMode();
-/** -1: the environment again; 0 Off; 1 On; 2 All. */
+/** -1: the environment again; 2 All; any other value On. */
 void LN_SetColumnModeForTests(int mode);
 /** Trees run in columns since the process started (tests: a run that formed none). */
 uint64_t LN_ColumnLaneCount();
@@ -108,25 +110,19 @@ void LN_SetColumnPreApplyModeForTests(int mode);
  * (QRay). -1: the environment again; 0 off (bridged as before); 1 on. Lowering reads it. */
 void LN_SetColumnNativeRaysForTests(int mode);
 /** Direct column programs (plan C2 P5): a program event the column compiler refuses runs in its
- * tree's place as a run of 1 whose blocks the column runner walks itself (Every N Steps gates, a
- * Loop's Completed route, a Loop body) and whose ops run through the shared op handlers,
- * recording into the tick's buffer where the old system records them; its reads apply pending
- * moves where the old system's do (the same handlers and kinds). `UPBGE_LN_COLUMN_DIRECT`:
- * 0 / off = Off (the old system runs such trees), unset / 1 = Auto (only where the old system is
- * no faster: an event without a compiled route, and a program that is no tree batch candidate or
- * a tick without helpers), force = every program event direct (tests: the direct walk against the
- * old system). -1: the environment again; 0 Off; 1 Auto; 2 Force. Lowering reads it. */
-enum class LN_ColumnDirectMode : uint8_t { Off = 0, Auto, Force };
+ * tree's place as a column pass (LN_RuntimeTree::ExecuteReady: its compiled route, else the
+ * column walk of its blocks: Every N Steps gates, a Loop's Completed route, a Loop body), its ops
+ * through the shared op handlers, recording into the tick's buffer where a tree records; its reads
+ * apply pending moves where the reference's do (the same handlers and kinds).
+ * `UPBGE_LN_COLUMN_DIRECT`: unset = Auto (a refused event is a direct program), force = every
+ * program event direct, nothing lowered natively (tests: the column pass against the reference).
+ * -1: the environment again; 2 Force; any other value Auto. Lowering reads it. Since plan C2 P10
+ * (2026-11-07) there is no Off (0 / off is ignored with a warning). */
+enum class LN_ColumnDirectMode : uint8_t { Auto = 1, Force };
 LN_ColumnDirectMode LN_GetColumnDirectMode();
 void LN_SetColumnDirectModeForTests(int mode);
-/** Plan C2 P6: whether a tree no wide run takes runs the column system's pass
- * (LN_RuntimeTree::ColumnExecuteReady: the event's compiled route or the column walk of its
- * blocks, the op handlers recording where the old system records) instead of the old system's
- * ExecuteReady: columns on and direct programs not off. The manager, its tree batches and Run
- * Logic Tree passes ask it; the tests' reference rigs never do. */
-bool LN_ColumnPassesOn();
-/** Passes the column system ran outside wide runs (ColumnExecuteReady, ColumnExecuteForcedUpdate)
- * since the process started. */
+/** Column passes (LN_RuntimeTree::ExecuteReady, ExecuteForcedUpdate: the trees outside wide
+ * runs) since the process started. */
 uint64_t LN_ColumnDirectLaneCount();
 /** Counts `passes` such passes (their callers count in bulk: per tick, per tree batch). */
 void LN_AddColumnPasses(uint64_t passes);
@@ -165,7 +161,7 @@ LN_ColumnMemory LN_ColumnProgramMemory(const LN_ColumnProgram &program);
  * for a tree batch. Smaller trees take the size floors. */
 constexpr size_t LN_COLUMN_TAKE_ALL_AVERAGE_NODES = 26;
 /** The fewest trees a run of `program` needs by its size (plan C2 P1, the D3 gate: a small
- * program's run start and end cost more than its trees save where the old system runs them as
+ * program's run start and end cost more than its trees save where column passes run them as
  * tree batches): 4 below 16 column nodes, 2 below LN_COLUMN_TAKE_ALL_AVERAGE_NODES (26), else 1.
  * The runner applies it only with helpers (SetPlanHelpers), not when a shortest run was asked
  * for (UPBGE_LN_COLUMN_MIN_RUN, SetMinRunLanes), not in the All mode. */
@@ -179,11 +175,9 @@ struct LN_ColumnVerdict {
   enum class Kind : uint8_t {
     /** The program has no ops on this event. */
     None,
-    /** The column system is switched off (UPBGE_LN_COLUMNS=0): the old system runs it. */
-    Off,
     /** Its trees run in wide runs (node by node over arrays). */
     Wide,
-    /** Each of its trees runs alone as a column pass, at the old system's speed (`reason`). */
+    /** Each of its trees runs alone as a column pass (`reason`). */
     Pass,
   };
   Kind kind = Kind::None;

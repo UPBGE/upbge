@@ -201,9 +201,15 @@ _EVENT_TEXT = {"steps": "On Logic + Physics Step", "frames": "On Frame Update"}
 _KIND_TEXT = {
     "wide": ("wide column runs", 'CHECKMARK'),
     "wide_main": ("wide column runs, main thread only", 'CHECKMARK'),
-    "pass": ("one tree at a time (old speed)", 'ERROR'),
-    "off": ("the old system (columns off)", 'INFO'),
+    "pass": ("one tree at a time (no crowd speed-up)", 'ERROR'),
 }
+
+
+def _is_crowd(report, entry):
+    """Whether a tree runs on enough objects for wide runs to matter (the report's
+    "crowd_objects", set by the engine; 16 in reports written before it had one). A tree on fewer
+    objects that runs one at a time costs little and is shown without a warning."""
+    return entry.get("objects", 0) >= report.get("crowd_objects", 16)
 
 
 class NODE_PT_logic_nodes_performance(Panel):
@@ -217,15 +223,23 @@ class NODE_PT_logic_nodes_performance(Panel):
     def poll(cls, context):
         return logic_nodes_is_logic_editor_space(context.space_data)
 
-    def draw_tree(self, layout, context, entry):
+    def draw_tree(self, layout, context, report, entry):
+        crowd = _is_crowd(report, entry)
         for event in entry.get("events", []):
-            kind_text, icon = _KIND_TEXT.get(event.get("kind"), (event.get("kind", ""), 'QUESTION'))
+            kind = event.get("kind")
+            kind_text, icon = _KIND_TEXT.get(kind, (event.get("kind", ""), 'QUESTION'))
+            if kind == "pass" and not crowd:
+                # One at a time on a few objects: worth knowing, nothing to worry about.
+                icon = 'INFO'
             _wrapped(layout, context, "{:s}: {:s}".format(_EVENT_TEXT.get(event.get("event"), ""),
                                                           kind_text), icon)
             reason = event.get("reason", "")
-            if reason and event.get("kind") != "wide":
+            if reason and kind != "wide":
                 _wrapped(layout, context, "Why: " + reason)
-            if event.get("hint"):
+            if kind == "pass" and not crowd:
+                _wrapped(layout, context, "On few objects this costs little: wide runs pay for "
+                         "trees on many objects.")
+            elif event.get("hint"):
                 _wrapped(layout, context, "Try: " + event["hint"], 'LIGHT')
         awake = entry.get("never_sleeps", [])
         if awake:
@@ -255,14 +269,7 @@ class NODE_PT_logic_nodes_performance(Panel):
         if not this_file:
             _wrapped(layout, context, "This report is of another file: play this one again.",
                      'ERROR')
-        runs = report.get("tree_runs", {})
-        total = runs.get("wide", 0) + runs.get("pass", 0)
-        share = 100 * runs.get("wide", 0) // total if total else 0
-        _wrapped(layout, context, "Last play ({:s}): {:d}% of tree runs in wide column runs".format(
-            report.get("ended", ""), share))
-        if report.get("columns") == "off":
-            _wrapped(layout, context, "The column system was switched off (UPBGE_LN_COLUMNS=0).",
-                     'INFO')
+        _wrapped(layout, context, "Last play: " + report.get("ended", ""))
         trees = report.get("trees", [])
         tree = getattr(context.space_data, "edit_tree", None)
         if tree is not None:
@@ -273,10 +280,14 @@ class NODE_PT_logic_nodes_performance(Panel):
                 box.label(text="Not run in the last play", icon='INFO')
             else:
                 box.label(text="On {:d} objects".format(entry.get("objects", 0)))
-                self.draw_tree(box, context, entry)
-        slow = [t for t in trees if any(e.get("kind") == "pass" for e in t.get("events", []))]
+                self.draw_tree(box, context, report, entry)
+        # Only what is worth acting on: crowds without the speed-up, trees that never sleep.
+        slow = [t for t in trees if _is_crowd(report, t) and
+                any(e.get("kind") == "pass" for e in t.get("events", []))]
         awake = [t for t in trees if t.get("never_sleeps")]
-        for title, chosen in (("Trees run one at a time", slow),
+        if not slow and not awake:
+            _wrapped(layout, context, "Nothing to speed up found in the last play.", 'CHECKMARK')
+        for title, chosen in (("Crowd trees run one at a time", slow),
                               ("Trees that never sleep between their steps", awake)):
             if not chosen:
                 continue

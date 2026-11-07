@@ -1061,18 +1061,11 @@ size_t LN_TreeBatchRecorder::Record(LN_JobPool &pool,
     chunk_buffer.BeginChunkRecording();
     for (size_t index = first_tree(chunk); index < first_tree(chunk + 1); index++) {
       LN_RuntimeProfileCounters *counters = profile_counters ? &profile_counters[index] : nullptr;
-      if (m_columnPasses) {
-        trees[index]->ColumnExecuteReady(chunk_buffer, context, counters);
-      }
-      else {
-        trees[index]->ExecuteReady(chunk_buffer, context, counters);
-      }
+      trees[index]->ExecuteReady(chunk_buffer, context, counters);
     }
     chunk_buffer.EndChunkRecording();
   });
-  if (m_columnPasses) {
-    LN_AddColumnPasses(count);
-  }
+  LN_AddColumnPasses(count);
 
   const std::chrono::steady_clock::time_point join_start = std::chrono::steady_clock::now();
   size_t chunks_that_read_a_move = 0;

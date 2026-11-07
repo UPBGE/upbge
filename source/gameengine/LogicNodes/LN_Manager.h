@@ -164,7 +164,9 @@ class LN_Manager {
    * it can sleep under Every N Steps, and its compile messages. Written as JSON to Blender's
    * base temp folder (not the session's: blenderplayer's is deleted when it quits),
    * `logic_nodes_report_<scene>.json` (the Logic Nodes sidebar's Performance panel reads it and
-   * checks its "file"), with a short summary in the console. BeginShutdown calls it; nothing when
+   * checks its "file"; "crowd_objects" is the tree size from which running one tree at a time
+   * is worth a warning, 16), with a summary in the console only when something is worth speeding
+   * up (crowd trees run one at a time, trees that never sleep). BeginShutdown calls it; nothing when
    * the scene has no trees, the temp folder is unknown or UPBGE_LN_GAME_REPORT=0. Returns the
    * file written (empty: none). `r_json`: the text (tests). */
   std::string WriteGameReport(std::string *r_json = nullptr);

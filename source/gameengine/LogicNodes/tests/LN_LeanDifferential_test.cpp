@@ -937,9 +937,7 @@ TEST(LN_LeanDifferential, ColumnsEndAsTheLeanVM)
     }
   }
   std::printf("columns: %zu refused programs ran as direct programs\n", direct_programs);
-  if (LN_GetColumnDirectMode() != LN_ColumnDirectMode::Off) {
-    EXPECT_GT(direct_programs, 0u) << "no refused program ran as a direct program";
-  }
+  EXPECT_GT(direct_programs, 0u) << "no refused program ran as a direct program";
   std::printf("columns: %zu of %zu generated programs lower (%zu runs compared); with object "
               "finders %zu lower, %zu runs formed lanes\n",
               lowered,

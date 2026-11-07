@@ -125,8 +125,8 @@ void Spread(SemRig &rig, const uint32_t owners)
 }
 
 /** Plan C2 P5: UPBGE_LN_COLUMN_DIRECT=force runs every program as a direct program, so the checks
- * of how runs formed (waves, fallbacks to the old system, split runs, lane counts) do not hold;
- * the worlds are still compared with the old system's. */
+ * of how runs formed (waves, lanes given back to the column pass, split runs, lane counts) do not
+ * hold; the worlds are still compared with the rig without wide runs. */
 bool DirectForced()
 {
   return LN_GetColumnDirectMode() == LN_ColumnDirectMode::Force;
@@ -208,11 +208,12 @@ uint64_t ExpectColumnsMatch(const std::shared_ptr<LN_Program> &program,
 
 }  // namespace
 
-TEST(LN_Columns, ModeIsOnUnlessSwitchedOff)
+/* Since plan C2 P10 (2026-11-07) the column system is the only one: On, or All for tests. */
+TEST(LN_Columns, ModeIsOnOrAll)
 {
   {
     ColumnScope scope(0);
-    EXPECT_EQ(LN_GetColumnMode(), LN_ColumnMode::Off);
+    EXPECT_EQ(LN_GetColumnMode(), LN_ColumnMode::On);
   }
   {
     ColumnScope scope(1);
@@ -229,8 +230,8 @@ TEST(LN_Columns, ModeIsOnUnlessSwitchedOff)
 }
 
 /* Plan C2 P0: the All mode runs a run shorter than the shortest run (3 trees of one program,
- * shortest run 16) in columns, the On mode leaves it to the old system; both end as the old
- * system. */
+ * shortest run 16) in columns, the On mode leaves it to the column pass; both end as the rig
+ * without wide runs. */
 TEST(LN_Columns, TheAllModeRunsShortRunsInColumns)
 {
   if (DirectForced()) {
@@ -860,8 +861,7 @@ TEST(LN_Columns, AnOwnPoseReadAfterADistanceFromTheOwnerSeesTheAppliedPushes)
   }
 }
 
-/* A program with a node columns refuse stays on the lean VM (no lane); columns off plans
- * nothing. */
+/* A program with a node columns refuse runs as column passes (no lane). */
 TEST(LN_Columns, RefusedProgramsRunAsDirectPrograms)
 {
   TreeBuilder b;
@@ -884,15 +884,6 @@ TEST(LN_Columns, RefusedProgramsRunAsDirectPrograms)
   EXPECT_EQ(LN_CompileColumnProgram(*program, LN_Event::OnFixedUpdate, &refusal), nullptr);
   EXPECT_NE(refusal.find("no column kernel"), std::string::npos) << refusal;
   {
-    /* Direct programs off: the old system runs it. */
-    DirectScope off(0);
-    std::string tick_refusal;
-    EXPECT_EQ(
-        ExpectColumnsMatch(program, LN_Event::OnFixedUpdate, 50, 4, "cursor", 0, &tick_refusal),
-        0u);
-    EXPECT_FALSE(tick_refusal.empty());
-  }
-  {
     /* Plan C2 P5 / P6 (Auto): a direct program: no lane, its trees take the column system's pass
      * where the manager records them (On Init's tick too); the compiler's reason stays its
      * answer. */
@@ -907,7 +898,9 @@ TEST(LN_Columns, RefusedProgramsRunAsDirectPrograms)
       const uint64_t passes = LN_ColumnDirectLaneCount();
       EXPECT_EQ(ExpectColumnsMatch(program, LN_Event::OnFixedUpdate, 50, 4, "cursor direct", helpers),
                 0u);
-      EXPECT_EQ(LN_ColumnDirectLaneCount() - passes, 50u * 4u) << helpers << " helpers";
+      /* Both rigs, the one with wide runs and the one without, run every tree as a column pass:
+       * 50 trees, 4 ticks, twice. */
+      EXPECT_EQ(LN_ColumnDirectLaneCount() - passes, 2u * 50u * 4u) << helpers << " helpers";
     }
   }
   /* A Loop needs the bridge (plan C1-9: its body runs through the VM's walk). */
@@ -938,17 +931,6 @@ TEST(LN_Columns, RefusedProgramsRunAsDirectPrograms)
       unsetenv("UPBGE_LN_COLUMN_BRIDGE");
     }
   }
-
-  /* Columns off: nothing planned. */
-  BrainOfOptions options;
-  const std::shared_ptr<LN_Program> brain = BrainOf(options);
-  ColumnScope off(0);
-  SemRig rig(brain, kMemoOn, 50);
-  rig.SetColumns(true, 0, 1);
-  rig.Update();
-  rig.Update();
-  EXPECT_EQ(rig.LastColumnLanes(), 0u);
-  EXPECT_EQ(rig.LastColumnRefusal(), "off");
 }
 
 /* The cost (DISABLED_): the research brain on 10,000 objects, the lean VM against columns, one
@@ -2331,10 +2313,8 @@ TEST(LN_Columns, ABridgedRunWithPendingMovesFallsBackToTheVM)
   const uint64_t direct_before = LN_ColumnDirectLaneCount();
   ExpectColumnsMatch(
       measures, LN_Event::OnFixedUpdate, kOwners, 10, "fallback", 0, nullptr, step_extra, 2);
-  /* Plan C2 P6: the lanes a run gives back run as direct passes in their places. */
-  if (LN_GetColumnDirectMode() != LN_ColumnDirectMode::Off) {
-    EXPECT_GT(LN_ColumnDirectLaneCount(), direct_before) << "no given-back lane ran direct";
-  }
+  /* Plan C2 P6: the lanes a run gives back run as column passes in their places. */
+  EXPECT_GT(LN_ColumnDirectLaneCount(), direct_before) << "no given-back lane ran direct";
   if (!DirectForced()) {
     EXPECT_GT(LN_ColumnBridgeFallbackCount(), before) << "the pushed run never fell back";
   }
@@ -2458,7 +2438,7 @@ TEST(LN_Columns, AGatedRouteReadsItsGatesUnscaledDelta)
  * flow outputs unlinked, other data outputs, custom1 = 1..12 (the node's mode). A node counts only
  * when it leaves work in the program (the same tree without it has fewer instructions or
  * expressions). Verdicts: native (lowers with the bridge off), bridged (only with the bridge; "main
- * thread" when its run stays there), refused (the column compiler's reason), old system (On Init),
+ * thread" when its run stays there), refused (the column compiler's reason), column pass (On Init),
  * flow only, constant, nothing (compiles to no work in any shape), unavailable (no runtime in
  * either system), not built (no shape compiled). One line per node (tab separated: category, name,
  * idname, verdict, detail), then the counts; UPBGE_LN_SCAN_OUT=file writes the lines there too,
@@ -2942,8 +2922,8 @@ TEST(LN_Columns, DISABLED_ColumnCoverageScan)
         }
         if (bridged_columns == nullptr) {
           r_detail = why;
-          /* Plan C2 P5: a direct program (the Auto mode leaves an event with a compiled route,
-           * or a tree batch candidate while the game has helpers, to the old system). */
+          /* Plan C2 P5: a direct program: its trees run as column passes (an event with a
+           * compiled route runs it there, a tree batch candidate joins tree batches). */
           std::shared_ptr<const LN_ColumnProgram> direct;
           {
             BridgeOn bridge(true);
@@ -2953,10 +2933,10 @@ TEST(LN_Columns, DISABLED_ColumnCoverageScan)
           if (direct != nullptr) {
             const std::string text = LN_DescribeColumnProgram(*direct);
             if (text.find("has_route=1") != std::string::npos) {
-              r_detail += " (direct: an event with a route, the old system in Auto)";
+              r_detail += " (direct: an event with a route, run by the column pass)";
             }
             else if (text.find("batch_safe=1") != std::string::npos) {
-              r_detail += " (direct: a tree batch candidate, the old system with helpers)";
+              r_detail += " (direct: a tree batch candidate, column passes in batches)";
             }
             return "direct";
           }
@@ -3144,9 +3124,9 @@ TEST(LN_Columns, DISABLED_ColumnsBench)
   ColumnScope scope(1);
   /* UPBGE_LN_BENCH_SETUP: run only the setups whose name contains it (stack sampling). */
   const char *only_setup = std::getenv("UPBGE_LN_BENCH_SETUP");
-  for (const Setup &setup : {Setup{"lean, 1 thread", false, 0},
+  for (const Setup &setup : {Setup{"passes, 1 thread", false, 0},
                              Setup{"columns, 1 thread", true, 0},
-                             Setup{"lean batch, 9", false, 8},
+                             Setup{"passes batch, 9", false, 8},
                              Setup{"columns, 9", true, 8}})
   {
     if (only_setup != nullptr && std::strstr(setup.name, only_setup) == nullptr) {
@@ -3188,11 +3168,11 @@ TEST(LN_Columns, DISABLED_ColumnsBench)
   }
 }
 
-/* Plan C2 P1: short runs against the old system, ns an NPC (capture + record + flush, the best
+/* Plan C2 P1: short runs against column passes (no wide runs), ns an NPC (capture + record + flush, the best
  * round), one thread. (1) One program on 1, 2, 4, 8 and 16 objects (the brain with 4 and with 15
  * chains). (2) 1,000 objects of 10 programs (brains of 1 to 10 chains): interleaved, A B C ... A B
  * C (runs of 1), or sorted (runs of 100). Columns with the shortest run 1 (`min 1`) and 16 (the
- * default: the interleaved scene then runs on the old system). UPBGE_LN_BENCH_ROUNDS (default
+ * default then: the interleaved scene runs as column passes). UPBGE_LN_BENCH_ROUNDS (default
  * 400), UPBGE_LN_BENCH_SETUP (only setups whose name contains it). Run with
  * --gtest_also_run_disabled_tests. */
 TEST(LN_Columns, DISABLED_ShortRunsBench)
@@ -3242,15 +3222,15 @@ TEST(LN_Columns, DISABLED_ShortRunsBench)
     const char *name;
     bool columns;
     size_t min_run;
-    /* Helper threads: the old system's tree batches, the columns' chunks and waves. */
+    /* Helper threads: the column passes' tree batches, the columns' chunks and waves. */
     uint32_t helpers = 0;
   };
   /* (min_run 0: the runner's own shortest run, with the size floors and the wave rule.) */
-  const Way ways[] = {{"old", false, 1},
+  const Way ways[] = {{"passes", false, 1},
                       {"columns min 1", true, 1},
                       {"columns min 16", true, 16},
                       {"columns floors", true, 0},
-                      {"old 9 threads", false, 1, 8},
+                      {"passes 9 threads", false, 1, 8},
                       {"columns 9 threads", true, 1, 8},
                       {"columns floors 9 threads", true, 0, 8}};
   /* UPBGE_LN_BENCH_WAY: only the ways whose name contains it (stack sampling). */
@@ -5225,7 +5205,7 @@ uint64_t ExpectMixedColumnsMatch(const std::vector<std::shared_ptr<LN_Program>> 
 }
 
 /** On Logic + Physics Step: pf1 = sine of pf0, then Set Cursor Visibility (no column kernel, no
- * bridge: it stays on the old system). */
+ * bridge: it runs as a column pass). */
 std::shared_ptr<LN_Program> CursorTree()
 {
   TreeBuilder b;
@@ -5246,12 +5226,12 @@ std::shared_ptr<LN_Program> CursorTree()
 
 }  // namespace
 
-/* Plan C2 P1: runs of 1 (and of 2 to 4) among trees of other programs end as the old system: the
+/* Plan C2 P1: runs of 1 (and of 2 to 4) among trees of other programs end as column passes: the
  * brain on every step (4 and 15 chains), on every second step, a bridged writer of an own
  * property, a tree acting on the Target by name (moves, motions, colour: bridged too), and a tree
- * that stays on the old system, in turn (A B C ...), in blocks of 1 to 4, and shuffled; with no
+ * that runs as a column pass, in turn (A B C ...), in blocks of 1 to 4, and shuffled; with no
  * helper and with three. */
-TEST(LN_Columns, ShortRunsAmongOtherProgramsEndAsTheOldSystem)
+TEST(LN_Columns, ShortRunsAmongOtherProgramsEndAsColumnPasses)
 {
   BridgeOn bridge;
   std::vector<std::shared_ptr<LN_Program>> programs;
@@ -5342,10 +5322,10 @@ TEST(LN_Columns, ProgramsPreparedAtRegistrationAreNotLoweredInTheTick)
 
 /* An object a column program names (the Target every NPC measures) runs no lane, even when it has
  * a tree of the same program among the crowd's: in a run, its move would be a column write the
- * later NPCs' reads of it could not see, while on the old system their reads apply it. With the
+ * later NPCs' reads of it could not see, while as a column pass their reads apply it. With the
  * shortest run 1 and 16, the Target first, in the middle and last. (Plan C2 P1: no test held a
  * named object with a tree inside the crowd's run; a planted "no barriers" was missed.) */
-TEST(LN_Columns, AnObjectAColumnProgramNamesRunsOnTheOldSystemInItsPlace)
+TEST(LN_Columns, AnObjectAColumnProgramNamesRunsAsAColumnPassInItsPlace)
 {
   TreeBuilder b;
   GenNode &step = b.Add("LogicNativeOnFixedUpdate");
@@ -5476,10 +5456,10 @@ TEST(LN_Columns, ManyRunsOfOneLookAtTheLaneMapOnceATick)
 /* Plan C2 P1: waves. Consecutive short runs of native programs start in order here, run their
  * chunks together on the pool and end in order: the brains (4 and 15 chains, on every and on
  * every second step), measurers of the Target (named, moved by its own tree first) moving
- * themselves, in turn, in blocks of 1 to 4 and shuffled, with a tree of the old system every few
+ * themselves, in turn, in blocks of 1 to 4 and shuffled, with a column pass tree every few
  * trees (a wave stops at it); 1 and 3 helpers, the shortest wave 2 lanes. The worlds and states
- * end as the old system's after every tick, and waves ran. */
-TEST(LN_Columns, WavesOfShortRunsEndAsTheOldSystem)
+ * end as column passes' after every tick, and waves ran. */
+TEST(LN_Columns, WavesOfShortRunsEndAsColumnPasses)
 {
   std::vector<std::shared_ptr<LN_Program>> programs;
   for (const int every : {1, 2}) {
@@ -5508,7 +5488,7 @@ TEST(LN_Columns, WavesOfShortRunsEndAsTheOldSystem)
   }
   {
     /* A finder: Get Object By Name "Obj3" (a lane's object), measured: its lanes go back to the
-     * old system when its run starts (which must come after Obj3's run, wave or not). */
+     * column pass when its run starts (which must come after Obj3's run, wave or not). */
     TreeBuilder b;
     GenNode &event = b.Add("LogicNativeOnFixedUpdate");
     GenNode &find = b.Add("LogicNativeObjectByName");
@@ -5529,7 +5509,7 @@ TEST(LN_Columns, WavesOfShortRunsEndAsTheOldSystem)
   const size_t cursor = programs.size();
   programs.push_back(CursorTree());
   {
-    /* A watcher on the old system (Set Cursor Visibility), measuring "Obj7" (a lane of a wave):
+    /* A watcher as a column pass (Set Cursor Visibility), measuring "Obj7" (a lane of a wave):
      * its read applies Obj7's pending move, found through the lane map. */
     TreeBuilder b;
     GenNode &event = b.Add("LogicNativeOnFixedUpdate");
@@ -5599,9 +5579,9 @@ TEST(LN_Columns, WavesOfShortRunsEndAsTheOldSystem)
 
 /* Plan C2 P1's size floors (the D3 gate): with helpers a small program runs in columns only from a
  * few trees of it in a row (LN_ColumnSizeFloor: the brain without chains, 15 column nodes, from 4;
- * the big brain from 1), fewer stay on the old system; without helpers, with a shortest run asked
- * for (SetMinRunLanes) and in the All mode there is no floor. The worlds are the old system's in
- * every case. */
+ * the big brain from 1), fewer stay column passes; without helpers, with a shortest run asked
+ * for (SetMinRunLanes) and in the All mode there is no floor. The worlds are the column passes'
+ * in every case. */
 TEST(LN_Columns, SmallProgramsNeedAFewTreesInARow)
 {
   if (std::getenv("UPBGE_LN_COLUMN_MIN_RUN") != nullptr) {
@@ -5674,7 +5654,7 @@ TEST(LN_Columns, SmallProgramsNeedAFewTreesInARow)
 /* Plan C2 P1: runs in a row whose trees average LN_COLUMN_TAKE_ALL_AVERAGE_NODES column nodes are
  * all taken, a small program's runs of 1 included (left out, they cut the wave apart and make the
  * flush list the lanes' writes); smaller trees take the size floors; without helpers there is no
- * floor. Every world as the old system's. */
+ * floor. Every world as the column passes'. */
 TEST(LN_Columns, LargerTreesInARowTakeEveryRunAndSmallerOnesTakeTheFloors)
 {
   if (std::getenv("UPBGE_LN_COLUMN_MIN_RUN") != nullptr) {
@@ -6029,8 +6009,8 @@ uint64_t ExpectP2Matches(const std::vector<P2Object> &objects,
  * object, their parent or their pose only, all carts first or each cart with its turret, the
  * same program on carts and turrets (a run must end before a turret of an earlier cart), deep
  * chains, a ship the turrets measure (named: its pending moves under them give the turrets back
- * to the VM) and the old system's result every tick. */
-TEST(LN_Columns, ParentedLanesEndAsTheOldSystem)
+ * to the VM) and the column passes' result every tick. */
+TEST(LN_Columns, ParentedLanesEndAsColumnPasses)
 {
   const std::shared_ptr<LN_Program> mover = P2Mover(0.05f, 0.03f, false);
   ASSERT_NE(mover, nullptr);
@@ -6492,12 +6472,12 @@ TEST(LN_Columns, AnEventsBridgeIsDecidedByTheQueriesItsOwnOpsReach)
   EXPECT_GT(ExpectColumnsMatch(program, LN_Event::OnFixedUpdate, 30, 6, "input beside a menu"), 0u);
 }
 
-/* Plan C2 P5: direct programs (every program forced direct here) end as the old system: the
- * runner's own walk of the blocks (gates with their time and stride, a Loop body and its
- * Completed route, Delays) with the ops through the shared handlers, recording in the trees'
- * places, among trees of other programs, with and without helpers. And the Auto mode's rule: a
- * refused event with a compiled route (the old system runs it faster) stays there. */
-TEST(LN_Columns, DirectProgramsEndAsTheOldSystem)
+/* Plan C2 P5: direct programs (every program forced direct here) end as with wide runs: the
+ * column walk of the blocks (gates with their time and stride, a Loop body and its Completed
+ * route, Delays) with the ops through the shared handlers, recording in the trees' places, among
+ * trees of other programs, with and without helpers. And the Auto mode's rule: a refused event
+ * with a compiled route runs its route in the column pass. */
+TEST(LN_Columns, DirectProgramsEndAsWithWideRuns)
 {
   std::string report;
   {
@@ -6545,8 +6525,8 @@ TEST(LN_Columns, DirectProgramsEndAsTheOldSystem)
           << shape.what;
     }
     /* Objects with two direct trees each (a mover, then a reader of Obj5's distance): no group
-     * (a group would run every mover before Obj4's reader, which the old system runs with Obj5
-     * not moved yet: its read would apply Obj5's move). */
+     * (a group would run every mover before Obj4's reader, which the trees' own order runs with
+     * Obj5 not moved yet: its read would apply Obj5's move). */
     TreeBuilder rb;
     GenNode &rstep = rb.Add("LogicNativeOnFixedUpdate");
     GenNode &rdistance = rb.Add("LogicNativeGetDistance", 0, 0);
@@ -6568,9 +6548,8 @@ TEST(LN_Columns, DirectProgramsEndAsTheOldSystem)
   }
   /* A refused event that has a compiled route: a move, then the distance from the owner kept in
    * pf1 (the compiler refuses a distance first read after a move of the owner; both ops are
-   * native, so the event has a route). Since plan C2 P6 a direct pass runs the route as the old
-   * system does, so the Auto mode takes it too (before, it stayed on the old system), and it ends
-   * the same. */
+   * native, so the event has a route). Since plan C2 P6 the column pass runs the route, so the
+   * Auto mode takes it too, and it ends the same. */
   TreeBuilder b;
   GenNode &step = b.Add("LogicNativeOnFixedUpdate");
   GenNode &move = b.Add("LogicNativeApplyMovement");
@@ -6602,8 +6581,9 @@ TEST(LN_Columns, DirectProgramsEndAsTheOldSystem)
 
 /* Plan C2 P5's speed check (DISABLED_): a refused program (the brain's bookkeeping chains, then
  * Set Cursor Visibility, which has no column kernel; no compiled route) on 1, 16 and 1,000
- * objects, the old system against direct programs, one thread; and 1,000 objects whose trees are
- * that program and the native brain in turn. ns a tree, the best of UPBGE_LN_BENCH_ROUNDS (400). */
+ * objects, as column passes without and with the runner's planning, one thread; and 1,000 objects
+ * whose trees are that program and the native brain in turn (the brain in wide runs with planning).
+ * ns a tree, the best of UPBGE_LN_BENCH_ROUNDS (400). */
 TEST(LN_Columns, DISABLED_DirectBench)
 {
   const char *rounds_text = std::getenv("UPBGE_LN_BENCH_ROUNDS");
@@ -6664,9 +6644,8 @@ TEST(LN_Columns, DISABLED_DirectBench)
     for (const uint32_t owners : {1u, 16u, 1000u}) {
       std::string line = "DIRECT refused" + std::to_string(chains) + " x" +
                          std::to_string(owners) + ":";
-      for (const int way : {0, 1, 2}) {
-        /* 0: columns off; 1: columns on, direct programs off; 2: direct programs. */
-        DirectScope mode(way == 2 ? 1 : 0);
+      for (const int way : {0, 1}) {
+        /* 0: column passes, no planning; 1: planned, refused trees as column passes. */
         SemRig rig(program, kMemoOn, owners);
         Spread(rig, owners);
         rig.SetColumns(way != 0, 0, 1);
@@ -6674,7 +6653,7 @@ TEST(LN_Columns, DISABLED_DirectBench)
         std::snprintf(text,
                       sizeof(text),
                       "  %s %5.0f",
-                      way == 0 ? "old" : way == 1 ? "columns" : "direct",
+                      way == 0 ? "passes" : "planned",
                       measure(rig, owners));
         line += text;
       }
@@ -6685,9 +6664,8 @@ TEST(LN_Columns, DISABLED_DirectBench)
   const std::shared_ptr<LN_Program> brain = BrainOf(options);
   const std::shared_ptr<LN_Program> refused = refused_program(4);
   std::string line = "DIRECT 1000 objects, brain and refused in turn:";
-  for (const int way : {0, 1, 2}) {
-    /* 0: the old system; 1: columns, refused trees on the old system; 2: columns, direct. */
-    DirectScope mode(way == 2 ? 1 : 0);
+  for (const int way : {0, 1}) {
+    /* 0: every tree a column pass; 1: wide runs, refused trees as column passes. */
     SemRig rig(brain, kMemoOn, 0);
     for (uint32_t index = 0; index < 1000; index++) {
       rig.AddObject("Obj" + std::to_string(index), MT_Vector3(0.0f, 0.0f, 0.0f));
@@ -6699,7 +6677,7 @@ TEST(LN_Columns, DISABLED_DirectBench)
     std::snprintf(text,
                   sizeof(text),
                   "  %s %5.0f",
-                  way == 0 ? "old" : way == 1 ? "columns" : "columns+direct",
+                  way == 0 ? "passes" : "columns+passes",
                   measure(rig, 1000));
     line += text;
   }
@@ -6708,7 +6686,7 @@ TEST(LN_Columns, DISABLED_DirectBench)
 
 /* Plan C2 P5: Apply Force To Target of the owner in columns (its handler's math, one code:
  * ColumnForceToTarget, on the owner's live pose after a move of it): the forces (the rig notes
- * them), Reached, When Reached and Done end as on the old system; a target near enough to count
+ * them), Reached, When Reached and Done end as column passes; a target near enough to count
  * as reached, a stop distance that keeps some forces back; with and without helpers. */
 TEST(LN_Columns, ForceToTargetEndsAsOnTheLeanVM)
 {
@@ -6908,10 +6886,10 @@ TEST(LN_Columns, PredictMotionEndsAsOnTheLeanVM)
 }
 
 /* Plan C2 P8: Run Logic Tree passes (one forced pass after the step's trees, as the manager runs
- * them) through the column system's pass (ColumnExecuteForcedUpdate): the gated brain and the
- * time nodes on steps, two trees in five forced every step, against the old system; with and
+ * them) through the column pass (ExecuteForcedUpdate): the gated brain and the time nodes on
+ * steps, two trees in five forced every step, with and without wide runs around them; with and
  * without helpers. */
-TEST(LN_Columns, RunLogicTreePassesEndAsTheOldSystem)
+TEST(LN_Columns, RunLogicTreePassesEndAsWithoutWideRuns)
 {
   std::string report;
   BrainOfOptions gated;
@@ -6951,10 +6929,8 @@ TEST(LN_Columns, RunLogicTreePassesEndAsTheOldSystem)
         ASSERT_EQ(a, b) << what << ", " << helpers << " helpers, tick " << tick << ": "
                         << diff::FirstDifference(a, b);
       }
-      /* The forced passes took the column system's pass (the old system's with it off). */
-      if (LN_GetColumnDirectMode() != LN_ColumnDirectMode::Off) {
-        EXPECT_GE(LN_ColumnDirectLaneCount() - passes, 60u) << what;
-      }
+      /* The forced passes took the column pass. */
+      EXPECT_GE(LN_ColumnDirectLaneCount() - passes, 60u) << what;
     }
   }
 }
@@ -7038,9 +7014,9 @@ void PlantCrops(SemRig &rig, const uint32_t owners)
 
 }  // namespace
 
-/* The farm's crops end as on the old system, with the Boolean Edge (every step) and with the
+/* The farm's crops end as column passes, with the Boolean Edge (every step) and with the
  * Branch (asleep between their steps), over two whole cycles of Every 30 Steps. */
-TEST(LN_Columns, FarmCropsEndAsTheOldSystem)
+TEST(LN_Columns, FarmCropsEndAsColumnPasses)
 {
   for (const bool edge : {true, false}) {
     std::string report;
@@ -7067,7 +7043,7 @@ TEST(LN_Columns, FarmCropsEndAsTheOldSystem)
 }
 
 /* The farm's crops, ns a crop and step over whole cycles of Every 30 Steps (plan / capture /
- * record / flush), old system against columns, one thread and nine. UPBGE_LN_BENCH_OWNERS (default
+ * record / flush), column passes against wide runs, one thread and nine. UPBGE_LN_BENCH_OWNERS (default
  * 10,000), UPBGE_LN_BENCH_ROUNDS (cycles, default 6), UPBGE_LN_BENCH_SETUP. Run with
  * --gtest_also_run_disabled_tests. */
 TEST(LN_Columns, DISABLED_FarmBench)
@@ -7088,9 +7064,9 @@ TEST(LN_Columns, DISABLED_FarmBench)
     std::string report;
     const std::shared_ptr<LN_Program> program = CropTree(edge, &report);
     ASSERT_NE(program, nullptr) << report;
-    for (const Setup &setup : {Setup{"old, 1 thread", false, 0},
+    for (const Setup &setup : {Setup{"passes, 1 thread", false, 0},
                                Setup{"columns, 1 thread", true, 0},
-                               Setup{"old batch, 9", false, 8},
+                               Setup{"passes batch, 9", false, 8},
                                Setup{"columns, 9", true, 8}})
     {
       if (only_setup != nullptr && std::strstr(setup.name, only_setup) == nullptr) {
@@ -7186,9 +7162,10 @@ TEST(LN_Columns, ThePlayReportSaysHowTreesRunAndWhatKeepsThemAwake)
               "Read Get Distance before the nodes that move this object in the same step.");
   }
   {
+    /* (No Off since plan C2 P10: a setting asking for the removed old system gives On.) */
     ColumnScope scope(0);
     LN_ColumnRunner runner;
-    EXPECT_EQ(runner.Verdict(*edge, LN_Event::OnFixedUpdate).kind, LN_ColumnVerdict::Kind::Off);
+    EXPECT_EQ(runner.Verdict(*edge, LN_Event::OnFixedUpdate).kind, LN_ColumnVerdict::Kind::Wide);
   }
   EXPECT_TRUE(LN_ColumnRefusalHint("something no hint knows").empty());
 }
@@ -7445,7 +7422,7 @@ TEST(LN_Columns, AMoveOnAnotherRouteLeavesTheReadsAsTheVMReadsThem)
 
 /* Plan C2 fix 1 (the town's villagers, the physics game's crates): On Value Changed of a bool, an
  * int and a float runs natively (the VM's own step NPC by NPC, ValueChangeStep), its If Changed
- * route and its Old / New outputs (bridged reads of the state it wrote) end as on the old system;
+ * route and its Old / New outputs (bridged reads of the state it wrote) end as column passes;
  * its input from another object's property (a run invariant) keeps the program on the helpers. */
 TEST(LN_Columns, OnValueChangedOfNumbersRunsNatively)
 {

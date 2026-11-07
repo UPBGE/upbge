@@ -4454,60 +4454,6 @@ const LN_EventEntry *LN_RuntimeTree::FindFirstActiveEvent(const LN_EventSubjectI
   return m_logicManager->GetEventBus().FindFirst(subject_id, subject, target_handle);
 }
 
-void LN_RuntimeTree::ExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
-                                         const LN_TickContext &context,
-                                         LN_RuntimeProfileCounters *profile_counters)
-{
-  ClearRuntimeFallbackReport(context.tick_index);
-  if (!m_runtimeActive || m_program == nullptr || m_gameObject == nullptr) {
-    return;
-  }
-  RefreshStateBlockLayout();
-  if (m_gameObject->IsLogicSuspended()) {
-    return;
-  }
-
-  if (context.tick_index == UINT64_MAX || m_loopIterationBudgetTick != context.tick_index) {
-    m_remainingLoopIterationBudget = kMaxLoopIterationsPerTick;
-    m_loopIterationBudgetTick = context.tick_index;
-  }
-
-  LN_RuntimeProfileCounters *previous_profile_counters = m_activeProfileCounters;
-  if (profile_counters != nullptr) {
-    m_activeProfileCounters = profile_counters;
-  }
-
-  if (!m_initExecuted) {
-    ExecuteEvent(LN_Event::OnInit,
-                 m_program->GetInstructionHeaders(LN_Event::OnInit),
-                 command_buffer,
-                 context);
-    m_initExecuted = true;
-  }
-
-  if (m_hasTimeFlowRuntimeState) {
-    TickLatentTimeFlowStates(context);
-  }
-
-  /* "One fixed-update pass of the tree": its Every N Steps routes run too, with the time since
-   * they last ran; their own steps stay where they were and their next run counts from here. */
-  const bool fixed_gates = context.event == LN_Event::OnFixedUpdate && !m_stepGates.empty();
-  if (fixed_gates) {
-    PrepareForcedStepGates(context.phase_tick_index, context.delta_time, context.unscaled_dt);
-  }
-  const bool previous_forced = std::exchange(m_stepGatesForced, true);
-  ExecuteEvent(
-      context.event, m_program->GetInstructionHeaders(context.event), command_buffer, context);
-  m_stepGatesForced = previous_forced;
-  if (fixed_gates) {
-    NoteStepGatesRan(context.phase_tick_index, true);
-  }
-
-  if (profile_counters != nullptr) {
-    m_activeProfileCounters = previous_profile_counters;
-  }
-}
-
 namespace {
 
 /** Without a tree, objects become references of `shared_manager`'s shared domain (any tree and
@@ -4597,60 +4543,6 @@ LN_Value MakeValueFromEXPValue(EXP_Value *property, LN_RuntimeTree *runtime_tree
 LN_Value LN_GamePropertyValue(EXP_Value *property, LN_Manager *manager)
 {
   return MakeValueFromEXPValue(property, nullptr, manager);
-}
-
-void LN_RuntimeTree::ExecuteReady(LN_CommandBuffer &command_buffer,
-                                  const LN_TickContext &context,
-                                  LN_RuntimeProfileCounters *profile_counters)
-{
-  ClearRuntimeFallbackReport(context.tick_index);
-  if (!m_runtimeActive || !m_enabled || m_program == nullptr || m_gameObject == nullptr) {
-    return;
-  }
-  RefreshStateBlockLayout();
-  if (context.tick_index == UINT64_MAX || m_loopIterationBudgetTick != context.tick_index) {
-    m_remainingLoopIterationBudget = kMaxLoopIterationsPerTick;
-    m_loopIterationBudgetTick = context.tick_index;
-  }
-
-  LN_RuntimeProfileCounters *previous_profile_counters = m_activeProfileCounters;
-  if (profile_counters != nullptr) {
-    m_activeProfileCounters = profile_counters;
-  }
-
-  if (!m_initExecuted) {
-    /* A tree that starts while paused (a menu added then) initializes fully, so its UI event
-     * routes work at once. On Init is setup, not game time passing. */
-    const bool ui_event_routes_only = std::exchange(m_uiEventRoutesOnly, false);
-    ExecuteEvent(LN_Event::OnInit,
-                 m_program->GetInstructionHeaders(LN_Event::OnInit),
-                 command_buffer,
-                 context);
-    m_uiEventRoutesOnly = ui_event_routes_only;
-    m_initExecuted = true;
-  }
-
-  /* While paused, only states that UI event routes armed are ticked. Game time is frozen then, so
-   * of those Wait for Next Frame completes and the rest advance only with Ignore Timescale. */
-  if (m_hasTimeFlowRuntimeState) {
-    TickLatentTimeFlowStates(context);
-  }
-
-  /* Done by the manager before CanTick; here for callers without one (once per step). */
-  const bool fixed_gates = context.event == LN_Event::OnFixedUpdate && !m_stepGates.empty();
-  if (fixed_gates) {
-    PrepareStepGates(context.phase_tick_index, context.delta_time, context.unscaled_dt);
-  }
-
-  ExecuteEvent(
-      context.event, m_program->GetInstructionHeaders(context.event), command_buffer, context);
-  if (fixed_gates) {
-    NoteStepGatesRan(context.phase_tick_index, false);
-  }
-
-  if (profile_counters != nullptr) {
-    m_activeProfileCounters = previous_profile_counters;
-  }
 }
 
 bool LN_RuntimeTree::CanTick() const
@@ -8261,7 +8153,7 @@ void LN_RuntimeTree::TimeFlowResetCooldown(const uint32_t state_index,
 float LN_RuntimeTree::ColumnGateUnscaledDelta(const uint32_t step_gate_index,
                                               const LN_TickContext &context) const
 {
-  /* FloatKind's UnscaledDeltaTime inside RunLeanRoute's / RunBlocksWith's gate time. */
+  /* FloatKind's UnscaledDeltaTime inside RunLeanRoute's / the column walk's gate time. */
   if (step_gate_index != LN_INVALID_INDEX && step_gate_index < m_stepGates.size()) {
     return float(std::max(0.0, m_stepGates[step_gate_index].unscaled_time_passed));
   }
@@ -8288,7 +8180,7 @@ bool LN_RuntimeTree::ColumnEvalBool(const uint32_t index,
                                     LN_TickContext &context)
 {
   if (context.command_buffer != nullptr) {
-    /* A command-ordered query read here is the op's (RunBlocksWith gives each op a key). */
+    /* A command-ordered query read here is the op's (the column walk gives each op a key). */
     context.command_execution_key = NextCommandExecutionKey();
   }
   m_activeExecutionScopeSerial = context.execution_scope_serial;
@@ -8301,7 +8193,7 @@ int32_t LN_RuntimeTree::ColumnEvalInt(const uint32_t index,
                                       LN_TickContext &context)
 {
   if (context.command_buffer != nullptr) {
-    /* A command-ordered query read here is the op's (RunBlocksWith gives each op a key). */
+    /* A command-ordered query read here is the op's (the column walk gives each op a key). */
     context.command_execution_key = NextCommandExecutionKey();
   }
   m_activeExecutionScopeSerial = context.execution_scope_serial;
@@ -8314,7 +8206,7 @@ float LN_RuntimeTree::ColumnEvalFloat(const uint32_t index,
                                       LN_TickContext &context)
 {
   if (context.command_buffer != nullptr) {
-    /* A command-ordered query read here is the op's (RunBlocksWith gives each op a key). */
+    /* A command-ordered query read here is the op's (the column walk gives each op a key). */
     context.command_execution_key = NextCommandExecutionKey();
   }
   m_activeExecutionScopeSerial = context.execution_scope_serial;
@@ -8327,7 +8219,7 @@ MT_Vector3 LN_RuntimeTree::ColumnEvalVector(const uint32_t index,
                                             LN_TickContext &context)
 {
   if (context.command_buffer != nullptr) {
-    /* A command-ordered query read here is the op's (RunBlocksWith gives each op a key). */
+    /* A command-ordered query read here is the op's (the column walk gives each op a key). */
     context.command_execution_key = NextCommandExecutionKey();
   }
   m_activeExecutionScopeSerial = context.execution_scope_serial;
@@ -8340,7 +8232,7 @@ LN_Rotation LN_RuntimeTree::ColumnEvalRotation(const uint32_t index,
                                                LN_TickContext &context)
 {
   if (context.command_buffer != nullptr) {
-    /* A command-ordered query read here is the op's (RunBlocksWith gives each op a key). */
+    /* A command-ordered query read here is the op's (the column walk gives each op a key). */
     context.command_execution_key = NextCommandExecutionKey();
   }
   m_activeExecutionScopeSerial = context.execution_scope_serial;
@@ -8353,7 +8245,7 @@ MT_Vector4 LN_RuntimeTree::ColumnEvalColor(const uint32_t index,
                                            LN_TickContext &context)
 {
   if (context.command_buffer != nullptr) {
-    /* A command-ordered query read here is the op's (RunBlocksWith gives each op a key). */
+    /* A command-ordered query read here is the op's (the column walk gives each op a key). */
     context.command_execution_key = NextCommandExecutionKey();
   }
   m_activeExecutionScopeSerial = context.execution_scope_serial;
@@ -8386,8 +8278,8 @@ void LN_RuntimeTree::ColumnRunOp(const LN_Event event,
                                  LN_CommandBuffer &buffer,
                                  LN_TickContext &context)
 {
-  /* RunBlocksWith's per-op prelude, then the op as ExecuteEvent runs it: OpLean with the lean
-   * program, or, in the reference mode (and without one), its generic handler (OpDirect). */
+  /* The column walk's per-op prelude, then the op: OpLean with the lean program, or, in the
+   * reference mode (and without one), its generic handler (OpDirect). */
   const LN_LeanProgram *lean = LeanProgramForRun();
   const LN_ExecBlockProgram &ir = m_program->GetExecBlockProgram(event);
   if (op_index >= ir.ops.size() ||
@@ -8461,9 +8353,9 @@ void LN_RuntimeTree::ColumnWalkEvent(Frame &frame,
                                      const uint64_t scope_serial,
                                      RunOp &&run_op)
 {
-  /* The column system's walk of an event's blocks (plan C2 P5-P7). It follows RunBlocksWith's and
-   * RunEventBlocks' rules without their code, so the old system stays an independent reference;
-   * `run_op` is chosen once per event, as the old system's walk does. */
+  /* The column system's walk of an event's blocks (plan C2 P5-P7; the old system's walk, whose
+   * rules it took, was removed with the old system, P10). `run_op` is chosen once per event: a
+   * runner that branched per op cost 2-3% a tree. */
   LN_TickContext &context = frame.context;
   const std::vector<LN_StepGate> &gates = m_program->GetStepGates();
   std::vector<uint32_t> repeated_loop_frames;
@@ -8490,6 +8382,11 @@ void LN_RuntimeTree::ColumnWalkEvent(Frame &frame,
       {
         continue;
       }
+      /* The profile line's exec_blocks (the old walk counted them here; until plan C2 P10 a
+       * column pass left them out). */
+      if (m_activeProfileCounters != nullptr) {
+        m_activeProfileCounters->exec_block_count++;
+      }
       const uint32_t completed = block.completed_loop_frame_index;
       if (completed != LN_INVALID_INDEX &&
           (completed >= m_loopStates.size() ||
@@ -8497,7 +8394,7 @@ void LN_RuntimeTree::ColumnWalkEvent(Frame &frame,
       {
         continue;
       }
-      /* The gate's time and stride for the block (RunBlocksWith's ScopedStepGateTime). */
+      /* The gate's time and stride for the block (ScopedStepGateTime's rule). */
       const double delta_time = context.delta_time;
       const double unscaled_dt = context.unscaled_dt;
       const uint32_t stride = context.phase_tick_stride;
@@ -8537,7 +8434,7 @@ void LN_RuntimeTree::ColumnWalkEvent(Frame &frame,
   };
   walk(scope_serial, LN_INVALID_INDEX);
   /* On UI Event: each further event that matches a node this frame runs the node's route again,
-   * in a scope of its own, its outputs telling about that event (RunEventBlocks' rule). */
+   * in a scope of its own, its outputs telling about that event. */
   constexpr uint32_t max_ui_event_repeats = uint32_t(LN_UIService::kMaxEventsPerNodeFrame);
   for (const uint32_t state_index : ir.ui_event_states) {
     const QueryExpressionRuntimeState &first = QueryExpressionState(state_index);
@@ -8634,9 +8531,9 @@ void LN_RuntimeTree::ColumnExecuteEvent(const LN_Event event,
   ColumnRunDirectEvent(event, serial, buffer, context);
 }
 
-void LN_RuntimeTree::ColumnExecuteReady(LN_CommandBuffer &command_buffer,
-                                        const LN_TickContext &context,
-                                        LN_RuntimeProfileCounters *profile_counters)
+void LN_RuntimeTree::ExecuteReady(LN_CommandBuffer &command_buffer,
+                                  const LN_TickContext &context,
+                                  LN_RuntimeProfileCounters *profile_counters)
 {
   /* ExecuteReady's bookkeeping, in its order. */
   ClearRuntimeFallbackReport(context.tick_index);
@@ -8674,9 +8571,9 @@ void LN_RuntimeTree::ColumnExecuteReady(LN_CommandBuffer &command_buffer,
   }
 }
 
-void LN_RuntimeTree::ColumnExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
-                                               const LN_TickContext &context,
-                                               LN_RuntimeProfileCounters *profile_counters)
+void LN_RuntimeTree::ExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
+                                         const LN_TickContext &context,
+                                         LN_RuntimeProfileCounters *profile_counters)
 {
   /* ExecuteForcedUpdate's bookkeeping, in its order. */
   ClearRuntimeFallbackReport(context.tick_index);
@@ -8828,77 +8725,6 @@ const LN_LeanProgram *LN_RuntimeTree::LeanProgramForRun() const
   m_program->EnsureLeanProgram(); /* a no-op on a helper thread of the job pool */
   const std::shared_ptr<const LN_LeanProgram> &lean = m_program->GetLeanProgram();
   return lean != nullptr && lean->valid ? lean.get() : nullptr;
-}
-
-void LN_RuntimeTree::ExecuteEvent(LN_Event event,
-                                  const std::vector<LN_InstructionHeader> &instructions,
-                                  LN_CommandBuffer &command_buffer,
-                                  LN_TickContext context)
-{
-  context.event = event;
-  m_eventDeltaTime = std::max(0.0, context.delta_time);
-  const uint64_t event_scope_serial = NextExecutionScopeSerial();
-  context.execution_scope_serial = event_scope_serial;
-  m_activeExecutionScopeSerial = event_scope_serial;
-
-  const LN_ExecBlockProgram &ir = m_program->GetExecBlockProgram(event);
-  if (!ir.valid) {
-    RecordRuntimeSystemFallback(
-        LN_RuntimeFallbackReason::UnsupportedOpcode,
-        "invalid_exec_block_ir",
-        "exec_block_ir_invalid",
-        "Fix the Logic Nodes compiler or IR validation error; runtime no longer falls back to the "
-        "legacy instruction switch.");
-    return;
-  }
-
-  /* What the handlers read through and write into (LN_ExecFrame.h): the lean frame, whose reads
-   * are the kind functions straight (plan phase A16; since plan step R3 the only one). */
-  const bool reference = LN_GetLeanMode() == LN_LeanMode::Reference;
-  const LN_LeanProgram *lean = reference ? nullptr : LeanProgramForRun();
-  if (lean == nullptr && !reference) {
-    /* There is none: a program grown on a helper thread (the prepare pass of a batch makes them
-     * on the main thread first). Its ops run their generic handlers; said once. */
-    if (m_activeProfileCounters != nullptr) {
-      m_activeProfileCounters->lean_missing++;
-    }
-    static std::atomic<bool> warned{false};
-    if (!warned.exchange(true)) {
-      CM_Warning("Logic Nodes: lean missing: a tree ran the generic handlers without its lean "
-                 "program");
-    }
-  }
-  LN_LeanFrame lean_frame(*this, event, instructions, command_buffer, context);
-  if (lean != nullptr) {
-    LN_NoteLeanTreeRun();
-    if (m_activeProfileCounters != nullptr) {
-      m_activeProfileCounters->lean_trees++;
-    }
-    lean_frame.lean = lean;
-    lean_frame.reader.lean = lean;
-    const LN_LeanEvent &lean_event = lean->events[size_t(event)];
-    /* A compiled route (plan phase A33) when the event has one and nothing this run asks for
-     * what a route leaves out: paused UI routes, the profile counters, the read order trace. */
-    if (lean_event.has_route && !m_uiEventRoutesOnly && m_activeProfileCounters == nullptr &&
-        g_read_trace == nullptr && LN_GetRouteMode() == LN_RouteMode::On)
-    {
-      LN_NoteRouteRun();
-      RunLeanRoute(lean_frame, lean_event.route, event_scope_serial);
-      return;
-    }
-    RunEventBlocks(lean_frame, ir, context, event_scope_serial, [&](const uint32_t op_index) {
-      OpLean(lean_frame, ir.ops[op_index], lean_event.ops[op_index]);
-    });
-    return;
-  }
-  /* The reference mode (D10), or no lean program: every op through its generic handler, read
-   * through the kind functions without the lean memo. */
-  if (reference) {
-    LN_NoteLeanTreeRun();
-  }
-  RunEventBlocks(lean_frame, ir, context, event_scope_serial, [&](const uint32_t op_index) {
-    OpDirect(lean_frame, ir.ops[op_index]);
-  });
 }
 
 LN_RuntimeTree::CollisionEventPayload *LN_RuntimeTree::FindCollisionEventPayload(

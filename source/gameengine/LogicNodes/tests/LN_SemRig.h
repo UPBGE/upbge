@@ -350,12 +350,8 @@ class SemRig {
     const auto record_start = std::chrono::steady_clock::now();
     m_buffer.Clear();
     m_buffer.BeginRecording();
-    /* Plan C2 P6: a rig with columns records every tree outside the runs as the manager does,
-     * through the column system's pass (unless direct programs are off); a rig without columns
-     * is the old system's reference. */
-    const bool column_passes = m_use_columns &&
-                               LN_GetColumnMode() != LN_ColumnMode::Off &&
-                               LN_GetColumnDirectMode() != LN_ColumnDirectMode::Off;
+    /* Every tree outside the runs records as the manager records it, through the column pass
+     * (ExecuteReady); a rig without wide runs runs every tree that way. */
     const uint64_t passes_before = LN_ColumnDirectLaneCount();
     uint64_t column_pass_count = 0; /* (counted in bulk, as the manager counts) */
     if (m_recorder_override) {
@@ -370,21 +366,14 @@ class SemRig {
           continue;
         }
         LN_RuntimeProfileCounters counters;
-        /* Plan C2 P6: as the manager, the column system's pass (unless direct programs are off). */
-        if (column_passes) {
-          runnable[index]->ColumnExecuteReady(
-              m_buffer, context, m_mode.profiled ? &counters : nullptr);
-          column_pass_count++;
-        }
-        else {
-          runnable[index]->ExecuteReady(m_buffer, context, m_mode.profiled ? &counters : nullptr);
-        }
+        /* As the manager: the column pass. */
+        runnable[index]->ExecuteReady(m_buffer, context, m_mode.profiled ? &counters : nullptr);
+        column_pass_count++;
         index++;
       }
     }
     else if (m_batch_chunks > 0 && runnable.size() >= 2) {
       /* As a tree batch (benchmarks): the trees record in chunks on the pool. */
-      m_recorder.SetColumnPasses(column_passes);
       m_recorder.Record(m_pool,
                         m_buffer,
                         runnable.data(),
@@ -397,13 +386,8 @@ class SemRig {
     else {
       for (LN_RuntimeTree *tree : runnable) {
         LN_RuntimeProfileCounters counters;
-        if (column_passes) {
-          tree->ColumnExecuteReady(m_buffer, context, m_mode.profiled ? &counters : nullptr);
-          column_pass_count++;
-        }
-        else {
-          tree->ExecuteReady(m_buffer, context, m_mode.profiled ? &counters : nullptr);
-        }
+        tree->ExecuteReady(m_buffer, context, m_mode.profiled ? &counters : nullptr);
+        column_pass_count++;
       }
     }
     LN_AddColumnPasses(column_pass_count);
@@ -463,15 +447,9 @@ class SemRig {
     LN_RuntimeProfileCounters counters;
     LN_TickContext pass = context;
     pass.event = LN_Event::OnFixedUpdate;
-    /* Plan C2 P6: as the manager, the column system's forced pass in a rig with columns. */
-    if (m_use_columns && LN_ColumnPassesOn()) {
-      m_trees[index]->ColumnExecuteForcedUpdate(
-          buffer, pass, m_mode.profiled ? &counters : nullptr);
-      LN_AddColumnPasses(1);
-    }
-    else {
-      m_trees[index]->ExecuteForcedUpdate(buffer, pass, m_mode.profiled ? &counters : nullptr);
-    }
+    /* As the manager: the column pass. */
+    m_trees[index]->ExecuteForcedUpdate(buffer, pass, m_mode.profiled ? &counters : nullptr);
+    LN_AddColumnPasses(1);
   }
 
   /** What the Print node printed so far (until now). */
@@ -530,8 +508,10 @@ class SemRig {
     m_batch_chunks = chunks;
     m_pool.SetHelperCount(helpers);
   }
-  /** Plan C1 prototype: ticks plan and run columns as the manager does (LN_Columns.h), runs of at
-   * least `min_run` trees, chunks on a pool of `helpers` helper threads (0: this thread). */
+  /** On: ticks plan and run wide runs as the manager does (LN_Columns.h), runs of at least
+   * `min_run` trees, chunks on a pool of `helpers` helper threads (0: this thread). Off (the
+   * default): every tree runs the column pass, the column system's own pass for one tree; tests
+   * compare the two (since plan C2 P10 the column system is the only one, also in the tests). */
   void SetColumns(const bool on, const uint32_t helpers = 0, const size_t min_run = 1)
   {
     m_use_columns = on;
@@ -566,7 +546,7 @@ class SemRig {
     return m_last_column_lanes;
   }
   /** Plan C2 P6: the trees the last tick ran through the column system's pass outside the runs
-   * (ColumnExecuteReady, lanes given back included). */
+   * (ExecuteReady, lanes given back included). */
   size_t LastColumnPasses() const
   {
     return m_last_column_passes;

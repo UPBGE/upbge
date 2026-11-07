@@ -586,6 +586,11 @@ std::string json_text(const std::string &text)
   return out + "\"";
 }
 
+/** The play report's crowd: a tree on this many objects or more is worth running in wide runs, so
+ * one that runs one at a time is worth a warning (the panel reads it as "crowd_objects"). On fewer
+ * objects a column pass costs little: a warning there only worried creators of small games. */
+constexpr size_t kReportCrowdObjects = 16;
+
 }  // namespace
 
 std::string LN_Manager::WriteGameReport(std::string *r_json)
@@ -652,10 +657,9 @@ std::string LN_Manager::WriteGameReport(std::string *r_json)
   json += "  \"file\": " + json_text(blend_path != nullptr ? blend_path : "") + ",\n";
   json += "  \"scene\": " + json_text(m_scene.GetName()) + ",\n";
   json += "  \"ended\": " + json_text(ended) + ",\n";
-  json += std::string("  \"columns\": ") +
-          (LN_GetColumnMode() == LN_ColumnMode::Off ? "\"off\"" : "\"on\"") + ",\n";
   json += "  \"tree_runs\": {\"wide\": " + std::to_string(wide_runs) +
           ", \"pass\": " + std::to_string(passes) + "},\n";
+  json += "  \"crowd_objects\": " + std::to_string(kReportCrowdObjects) + ",\n";
   json += "  \"trees\": [";
   std::vector<std::string> summary;
   bool first_tree = true;
@@ -671,9 +675,8 @@ std::string LN_Manager::WriteGameReport(std::string *r_json)
       if (verdict.kind == LN_ColumnVerdict::Kind::None) {
         continue;
       }
-      const char *kind = verdict.kind == LN_ColumnVerdict::Kind::Off ? "off" :
-                         verdict.kind == LN_ColumnVerdict::Kind::Pass ? "pass" :
-                         verdict.main_thread                         ? "wide_main" :
+      const char *kind = verdict.kind == LN_ColumnVerdict::Kind::Pass ? "pass" :
+                         verdict.main_thread                          ? "wide_main" :
                                                                         "wide";
       const std::string hint = verdict.kind == LN_ColumnVerdict::Kind::Pass ?
                                    LN_ColumnRefusalHint(verdict.reason) :
@@ -683,15 +686,19 @@ std::string LN_Manager::WriteGameReport(std::string *r_json)
               kind + "\", \"reason\": " + json_text(verdict.reason) +
               ", \"hint\": " + json_text(hint) + "}";
       first_event = false;
-      if (verdict.kind == LN_ColumnVerdict::Kind::Pass && entry.objects >= 2) {
+      if (verdict.kind == LN_ColumnVerdict::Kind::Pass && entry.objects >= kReportCrowdObjects) {
         summary.push_back("'" + name + "' (" + std::to_string(entry.objects) + " objects, on " +
-                          on + "): column pass, " + verdict.reason);
+                          on + "): one tree at a time, " + verdict.reason);
       }
     }
     json += "]";
     /* Every N Steps routes next to routes that run every step: the tree never sleeps between its
      * steps (a Boolean Edge, a collision or an event sensor keeps it awake). */
     const std::vector<std::string> awake = LN_NodesKeepingTreesAwake(program);
+    if (!awake.empty()) {
+      summary.push_back("'" + name + "': never sleeps between its Every N Steps (" + awake[0] +
+                        (awake.size() > 1 ? ", ..." : "") + " runs every step)");
+    }
     json += ", \"never_sleeps\": [";
     for (size_t k = 0; k < awake.size() && k < 6; k++) {
       json += (k == 0 ? "" : ", ") + json_text(awake[k]);
@@ -738,11 +745,13 @@ std::string LN_Manager::WriteGameReport(std::string *r_json)
   std::fwrite(json.data(), 1, json.size(), file);
   std::fclose(file);
 
-  const uint64_t runs = wide_runs + passes;
+  /* The console says something only when there is something to speed up (crowd trees run one at
+   * a time, trees that never sleep): a share of tree runs read as a fault in small games. */
+  if (summary.empty()) {
+    return path;
+  }
   CM_Message("Logic Nodes: play report of scene '"
-             << m_scene.GetName() << "' (Logic Nodes sidebar > Performance): "
-             << (runs != 0 ? std::to_string(wide_runs * 100 / runs) : std::string("0"))
-             << "% of tree runs in wide column runs");
+             << m_scene.GetName() << "' (Logic Nodes sidebar > Performance), worth a look:");
   for (size_t k = 0; k < summary.size() && k < 6; k++) {
     CM_Message("  " << summary[k]);
   }
@@ -2042,30 +2051,27 @@ void LN_Manager::Tick(const double current_time,
   /* Plan C1 (LN_Columns.h, UPBGE_LN_COLUMNS): which runs of trees run in columns this tick,
    * decided before the snapshots (their trees capture only their game properties). Their writes
    * become the buffer's external writes until EndTick. */
-  m_columnsPlanned = false;
-  if (LN_GetColumnMode() != LN_ColumnMode::Off) {
-    m_columnTreesScratch.clear();
-    for (const RunnableTree &item : runnable_trees) {
-      m_columnTreesScratch.push_back(item.runtime_tree);
-    }
-    SyncJobPoolSize();
-    /* (RunLanes gets the pool when it has helpers: waves only then.) */
-    m_columnRunner.SetPlanHelpers(m_jobPool.GetHelperCount());
-    m_columnsPlanned = m_columnRunner.Plan(m_columnTreesScratch.data(),
-                                           m_columnTreesScratch.size(),
-                                           event,
-                                           m_commandBuffer,
-                                           has_due_run_once ? &pending_forced_trees : nullptr,
-                                           &m_sharedTickReadContext);
-    /* (Looked at only when it changed: the same reason comes back every tick.) */
-    if (!m_columnsPlanned && m_columnRunner.LastRefusal() != m_lastColumnRefusal) {
-      m_lastColumnRefusal = m_columnRunner.LastRefusal();
-      /* Each reason once, so a game's log says why no tree ran in columns. */
-      static std::unordered_set<std::string> reported;
-      const std::string note = "columns refused: " + m_lastColumnRefusal;
-      if (reported.insert(note).second) {
-        CM_Message("Logic Nodes: " << note);
-      }
+  m_columnTreesScratch.clear();
+  for (const RunnableTree &item : runnable_trees) {
+    m_columnTreesScratch.push_back(item.runtime_tree);
+  }
+  SyncJobPoolSize();
+  /* (RunLanes gets the pool when it has helpers: waves only then.) */
+  m_columnRunner.SetPlanHelpers(m_jobPool.GetHelperCount());
+  m_columnsPlanned = m_columnRunner.Plan(m_columnTreesScratch.data(),
+                                         m_columnTreesScratch.size(),
+                                         event,
+                                         m_commandBuffer,
+                                         has_due_run_once ? &pending_forced_trees : nullptr,
+                                         &m_sharedTickReadContext);
+  /* (Looked at only when it changed: the same reason comes back every tick.) */
+  if (!m_columnsPlanned && m_columnRunner.LastRefusal() != m_lastColumnRefusal) {
+    m_lastColumnRefusal = m_columnRunner.LastRefusal();
+    /* Each reason once, so a game's log says why no tree ran in wide runs. */
+    static std::unordered_set<std::string> reported;
+    const std::string note = "columns refused: " + m_lastColumnRefusal;
+    if (reported.insert(note).second) {
+      CM_Message("Logic Nodes: " << note);
     }
   }
 
@@ -2391,14 +2397,13 @@ void LN_Manager::NoteColumnTick(LN_TickProfileMetrics *profile)
   m_columnLogTrees = ran;
   m_columnLogGivenBack = given_back;
   std::string line = "columns run (" + std::to_string(ran) + " trees)";
-  const bool passes = LN_ColumnPassesOn();
   if (given_back != 0) {
     line += "; " + std::to_string(given_back) +
-            (passes ? " given back to the column pass" : " given back to the old system") +
-            " (a pending move or an object found while playing when their run started)";
+            " given back to the column pass (a pending move or an object found while playing "
+            "when their run started)";
   }
   if (!outside.empty()) {
-    line += (passes ? "; in column passes, not in runs: " : "; not in columns: ") + outside;
+    line += "; in column passes, not in runs: " + outside;
   }
   CM_Message("Logic Nodes: " << line);
 }
@@ -2408,15 +2413,9 @@ void LN_Manager::RecordTree(LN_RuntimeTree &runtime_tree,
                             LN_TickProfileMetrics *profile)
 {
   LN_RuntimeProfileCounters profile_counters;
-  /* Plan C2 P6: the column system's pass while columns run (the old system's otherwise). */
-  if (LN_ColumnPassesOn()) {
-    runtime_tree.ColumnExecuteReady(
-        m_commandBuffer, context, profile ? &profile_counters : nullptr);
-    m_columnPasses++;
-  }
-  else {
-    runtime_tree.ExecuteReady(m_commandBuffer, context, profile ? &profile_counters : nullptr);
-  }
+  /* The column system's pass (a tree no wide run takes; the only pass since plan C2 P10). */
+  runtime_tree.ExecuteReady(m_commandBuffer, context, profile ? &profile_counters : nullptr);
+  m_columnPasses++;
   if (profile != nullptr) {
     logic_nodes_accumulate_tree_profile(runtime_tree, profile_counters, *profile);
     profile->serial_tree_count++;
@@ -2540,7 +2539,6 @@ void LN_Manager::RecordTreeBatch(const std::vector<RunnableTree> &runnable_trees
                                  std::max<size_t>(2, threads * 4) :
                                  std::clamp<size_t>(
                                      count / LN_TREE_BATCH_MIN_CHUNK_TREES, 1, threads * 4);
-  m_batchRecorder.SetColumnPasses(LN_ColumnPassesOn());
   const size_t chunks_that_read_a_move = m_batchRecorder.Record(
       m_jobPool,
       m_commandBuffer,
@@ -4055,16 +4053,10 @@ uint32_t LN_Manager::ProcessPendingRunOnce(const LN_TickContext &context,
       continue;
     }
     LN_RuntimeProfileCounters profile_counters;
-    /* Plan C2 P6: through the column system's pass (its route or walk) while columns run. */
-    if (LN_ColumnPassesOn()) {
-      target_tree->ColumnExecuteForcedUpdate(
-          m_commandBuffer, context, profile != nullptr ? &profile_counters : nullptr);
-      LN_AddColumnPasses(1);
-    }
-    else {
-      target_tree->ExecuteForcedUpdate(
-          m_commandBuffer, context, profile != nullptr ? &profile_counters : nullptr);
-    }
+    /* Through the column system's pass (its route or walk; plan C2 P6). */
+    target_tree->ExecuteForcedUpdate(
+        m_commandBuffer, context, profile != nullptr ? &profile_counters : nullptr);
+    LN_AddColumnPasses(1);
     if (profile != nullptr) {
       logic_nodes_accumulate_tree_profile(*target_tree, profile_counters, *profile);
     }

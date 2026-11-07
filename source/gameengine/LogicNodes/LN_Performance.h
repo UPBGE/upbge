@@ -401,7 +401,7 @@ struct LN_TickProfileMetrics {
    * the lean VM (not in serial_tree_count). */
   uint32_t column_tree_count = 0;
   uint32_t column_given_back_count = 0;
-  /** Plan C2 P6: the trees that took the column pass outside the runs (ColumnExecuteReady in the
+  /** Plan C2 P6: the trees that took the column pass outside the runs (ExecuteReady in the
    * manager's recording, its tree batches and Run Logic Tree passes; the lanes given back take it
    * too, counted in column_given_back_count). */
   uint32_t column_pass_count = 0;

@@ -739,32 +739,37 @@ struct LN_ColumnProgram {
   bool captured_writes = false;
   /** Plan C2 P5: a direct program (LN_ColumnDirectMode). It has no nodes and no writes: its lane
    * runs alone, on the main thread, the runner walking the event's blocks (RunDirectLane) and the
-   * op handlers recording into the tick's buffer, as the old system's trees do; `bridged` is set
-   * too (its lanes capture their whole snapshot). `direct_why`: why the column compiler refused
-   * it (empty in the Force mode). `batch_safe`: the program is a tree batch candidate
-   * (LN_AnalyzeTreeBatchSafety), so in the Auto mode its trees stay on the old system while the
-   * tick has helpers (tree batches would record them at once); `has_route`: the event has a
-   * compiled route (the old system runs it faster: the Auto mode leaves it there). */
+   * op handlers recording into the tick's buffer; `bridged` is set too (its lanes capture their
+   * whole snapshot). `direct_why`: why the column compiler refused it (empty in the Force mode).
+   * `batch_safe`: the program is a tree batch candidate (LN_AnalyzeTreeBatchSafety), so its
+   * trees' column passes may record in tree batches while the tick has helpers; `has_route`: the
+   * event has a compiled route, which the column pass runs. */
   bool direct = false;
   bool batch_safe = false;
   bool has_route = false;
   std::string direct_why;
 };
 
+/** A setting asking for the old system, which plan C2 P10 removed (2026-11-07): said once. */
+static void warn_old_system_setting(const char *variable, const char *value)
+{
+  if (value != nullptr && (std::strcmp(value, "0") == 0 || std::strcmp(value, "off") == 0)) {
+    CM_Warning("Logic Nodes: " << variable << "=" << value
+                               << " is ignored: the old Logic Nodes system was removed, every "
+                                  "tree runs on the column system");
+  }
+}
+
 LN_ColumnMode LN_GetColumnMode()
 {
   const int override_mode = g_column_mode_override.load(std::memory_order_relaxed);
   if (override_mode >= 0) {
-    return override_mode == 0 ? LN_ColumnMode::Off :
-           override_mode == 2 ? LN_ColumnMode::All :
-                                LN_ColumnMode::On;
+    return override_mode == 2 ? LN_ColumnMode::All : LN_ColumnMode::On;
   }
   static const LN_ColumnMode mode = []() {
-    /* On by default since plan C1-6 (2026-11-03); 0 / off is the way back; all: runs of 1. */
+    /* all: runs of 1 too (plan C2 P0, tests and coverage). */
     const char *value = std::getenv("UPBGE_LN_COLUMNS");
-    if (value != nullptr && (std::strcmp(value, "0") == 0 || std::strcmp(value, "off") == 0)) {
-      return LN_ColumnMode::Off;
-    }
+    warn_old_system_setting("UPBGE_LN_COLUMNS", value);
     if (value != nullptr && std::strcmp(value, "all") == 0) {
       return LN_ColumnMode::All;
     }
@@ -829,20 +834,13 @@ LN_ColumnDirectMode LN_GetColumnDirectMode()
 {
   const int override_mode = g_column_direct_override.load(std::memory_order_relaxed);
   if (override_mode >= 0) {
-    return LN_ColumnDirectMode(std::min(override_mode, 2));
+    return override_mode == 2 ? LN_ColumnDirectMode::Force : LN_ColumnDirectMode::Auto;
   }
   static const LN_ColumnDirectMode from_environment = [] {
     const char *value = std::getenv("UPBGE_LN_COLUMN_DIRECT");
-    if (value == nullptr || value[0] == '\0' || std::strcmp(value, "1") == 0 ||
-        std::strcmp(value, "auto") == 0)
-    {
-      return LN_ColumnDirectMode::Auto;
-    }
-    if (std::strcmp(value, "0") == 0 || std::strcmp(value, "off") == 0) {
-      return LN_ColumnDirectMode::Off;
-    }
-    return std::strcmp(value, "force") == 0 ? LN_ColumnDirectMode::Force :
-                                              LN_ColumnDirectMode::Auto;
+    warn_old_system_setting("UPBGE_LN_COLUMN_DIRECT", value);
+    return value != nullptr && std::strcmp(value, "force") == 0 ? LN_ColumnDirectMode::Force :
+                                                                   LN_ColumnDirectMode::Auto;
   }();
   return from_environment;
 }
@@ -850,12 +848,6 @@ LN_ColumnDirectMode LN_GetColumnDirectMode()
 void LN_SetColumnDirectModeForTests(const int mode)
 {
   g_column_direct_override.store(mode < 0 ? -1 : std::min(mode, 2), std::memory_order_relaxed);
-}
-
-bool LN_ColumnPassesOn()
-{
-  return LN_GetColumnMode() != LN_ColumnMode::Off &&
-         LN_GetColumnDirectMode() != LN_ColumnDirectMode::Off;
 }
 
 void LN_AddColumnPasses(const uint64_t passes)
@@ -6653,12 +6645,12 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
 }
 
 /** Plan C2 P5: `event` of `program` as a direct program. Its lane runs alone in its tree's place
- * on the main thread; the runner walks the event's blocks as the old system's walk does
+ * on the main thread; the runner walks the event's blocks with the column walk
  * (RunDirectLane: a gated block on its gate's steps with its gate's time, a Loop's Completed route
  * where the loop completed in the pass, a Loop body through RunLoopBody) and runs each op through
  * the shared handlers (OpLean, OpDirect in the reference mode), which read their own inputs and
- * record into the tick's buffer: what the old system reads and records, in its order (On UI
- * Event routes included: plan C2 P7). */
+ * record into the tick's buffer, in the trees' own order (On UI Event routes included: plan C2
+ * P7). */
 bool CompileDirect(const LN_Program &program,
                    const LN_LeanProgram &lean,
                    const LN_Event event,
@@ -6667,7 +6659,7 @@ bool CompileDirect(const LN_Program &program,
 {
   const LN_ExecBlockProgram &ir = program.GetExecBlockProgram(event);
   /* (Plan C2 P7: On UI Event routes too: the walk repeats a route per further event of the
-   * frame, as RunEventBlocks does. An event without ops too: a tree in its first tick runs On
+   * frame. An event without ops too: a tree in its first tick runs On
    * Init, one with Delays or Timers counts them down, as ExecuteReady does.) */
   if (size_t(event) >= std::size(lean.events) ||
       lean.events[size_t(event)].ops.size() != ir.ops.size())
@@ -6705,8 +6697,9 @@ std::shared_ptr<const LN_ColumnProgram> LN_CompileColumnProgram(const LN_Program
   else {
     /* No tree batch rule is needed: the compiler takes only nodes it has kernels for, and checks
      * itself what makes a run read what the VM reads (distances, live poses, moves). */
-    const LN_ColumnDirectMode direct_mode = allow_direct ? LN_GetColumnDirectMode() :
-                                                           LN_ColumnDirectMode::Off;
+    /* (Without `allow_direct`, the compiler's answer alone: native or refused.) */
+    const bool force_direct = allow_direct &&
+                              LN_GetColumnDirectMode() == LN_ColumnDirectMode::Force;
     const auto fresh = [&]() {
       out = std::make_shared<LN_ColumnProgram>();
       out->serial = g_column_program_serial.fetch_add(1, std::memory_order_relaxed) + 1;
@@ -6715,7 +6708,7 @@ std::shared_ptr<const LN_ColumnProgram> LN_CompileColumnProgram(const LN_Program
       out->source_name = program.GetSourceTreeName();
     };
     bool lowered = false;
-    if (direct_mode != LN_ColumnDirectMode::Force) {
+    if (!force_direct) {
       fresh();
       ColumnCompiler compiler(program, *lean, event, *out);
       lowered = compiler.Compile(refusal);
@@ -6723,9 +6716,9 @@ std::shared_ptr<const LN_ColumnProgram> LN_CompileColumnProgram(const LN_Program
         out.reset();
       }
     }
-    if (!lowered && direct_mode != LN_ColumnDirectMode::Off) {
+    if (!lowered && allow_direct) {
       /* Plan C2 P5: the event as a direct program (its trees run alone, the op handlers recording
-       * where the old system records); `refusal` stays the compiler's answer (the report). */
+       * in the trees' places); `refusal` stays the compiler's answer (the report). */
       fresh();
       std::string direct_refusal;
       if (CompileDirect(program, *lean, event, *out, direct_refusal)) {
@@ -6845,7 +6838,7 @@ struct NamedObject {
 size_t LN_ColumnSizeFloor(const LN_ColumnProgram &program)
 {
   if (program.direct) {
-    return 1; /* (plan C2 P5: it runs alone, as the old system would run it) */
+    return 1; /* (plan C2 P5: it runs alone, as a column pass) */
   }
   const size_t nodes = program.nodes.size();
   return nodes < 16 ? 4 : nodes < LN_COLUMN_TAKE_ALL_AVERAGE_NODES ? 2 : 1;
@@ -7081,14 +7074,9 @@ struct LN_ColumnRunner::Impl {
   std::vector<uint8_t> lane;
   std::vector<const LN_ColumnProgram *> lane_program;
   /** A lane a run gives back (a pending move when it starts, an object found while playing that
-   * is a lane's): a direct pass in its place (plan C2 P6), the old system's ExecuteReady with
-   * direct programs off. */
+   * is a lane's): the column pass in its place (plan C2 P6). */
   void GiveBack(const size_t index, LN_CommandBuffer &buffer, const LN_TickContext &context)
   {
-    if (LN_GetColumnDirectMode() == LN_ColumnDirectMode::Off) {
-      trees[index]->ExecuteReady(buffer, context, nullptr);
-      return;
-    }
     RunDirectLane(index, buffer, context);
   }
   /** The column programs of this tick's lanes, each once (a program may grow and be compiled
@@ -7678,7 +7666,7 @@ struct LN_ColumnRunner::Impl {
               LN_CommandBuffer &buffer,
               const LN_TickContext &context,
               LN_JobPool *pool);
-  /** Plan C2 P6: lane `index`'s tree takes the column pass (ColumnExecuteReady) in its place, on
+  /** Plan C2 P6: lane `index`'s tree takes the column pass (ExecuteReady) in its place, on
    * the main thread: a lane a run gives back. */
   void RunDirectLane(size_t index, LN_CommandBuffer &buffer, const LN_TickContext &context);
   /** RunSet in three parts (plan C2 P1's waves: the starts of several short runs in order, their
@@ -7771,9 +7759,6 @@ void LN_ColumnRunner::SetMinRunLanes(const size_t lanes)
 
 void LN_ColumnRunner::PrepareProgram(const LN_Program &program, LN_RuntimeTree *tree)
 {
-  if (LN_GetColumnMode() == LN_ColumnMode::Off) {
-    return;
-  }
   for (const LN_Event event : {LN_Event::OnUpdate, LN_Event::OnFixedUpdate}) {
     if (!program.GetInstructionHeaders(event).empty()) {
       m_impl->Columns(program, event, tree);
@@ -7830,10 +7815,6 @@ LN_ColumnVerdict LN_ColumnRunner::Verdict(const LN_Program &program, const LN_Ev
 {
   LN_ColumnVerdict verdict;
   if (program.GetInstructionHeaders(event).empty()) {
-    return verdict;
-  }
-  if (LN_GetColumnMode() == LN_ColumnMode::Off) {
-    verdict.kind = LN_ColumnVerdict::Kind::Off;
     return verdict;
   }
   Impl::ProgramEntry *entry = nullptr;
@@ -7949,10 +7930,6 @@ bool LN_ColumnRunner::Plan(LN_RuntimeTree *const *trees,
   d.lane_owners_made = false; /* (made again, Clear first, when a run asks for it) */
   d.ClearWrittenKeys();
   d.plan_serial++;
-  if (LN_GetColumnMode() == LN_ColumnMode::Off) {
-    d.refusal = "off";
-    return false;
-  }
   /* The shortest run: 1 in the All mode (plan C2 P0: every tree whose program lowers). */
   const size_t min_run_lanes = LN_GetColumnMode() == LN_ColumnMode::All ? size_t(1) :
                                                                           d.min_run_lanes;
@@ -7982,8 +7959,8 @@ bool LN_ColumnRunner::Plan(LN_RuntimeTree *const *trees,
     }
   }
   /* The size floors (plan C2 P1's D3 gate: a small program's run needs a few trees in a row).
-   * Only with helpers: the trees they leave out are worth it only where the old system runs them
-   * as tree batches; on one thread a run of 1 of the smallest brain ties with the old system
+   * Only with helpers: the trees they leave out are worth it only where column passes run them
+   * as tree batches; on one thread a run of 1 of the smallest brain tied with the old system
    * (232 vs 233 ns a tree) and a tree left out makes the flush list the lanes' writes (1,000
    * trees of 10 programs in turn: 395 ns a tree, 470 with the floors). Not in the All mode
    * either (it runs every tree that lowers). */
@@ -8150,7 +8127,7 @@ bool LN_ColumnRunner::Plan(LN_RuntimeTree *const *trees,
       last_columns = columns.get();
       if (last_columns != nullptr && last_columns->direct) {
         /* Plan C2 P6: a direct program makes no lane; its trees take the column pass where the
-         * manager records them (LN_ColumnPassesOn), its tree batches too. */
+         * manager records them, its tree batches too. */
         last_columns = nullptr;
       }
       note_refused(refused_program, refused_trees);
@@ -8199,7 +8176,7 @@ bool LN_ColumnRunner::Plan(LN_RuntimeTree *const *trees,
     }
     /* (Plan C2 P6-P8: these trees take the column pass where the manager records them: On Init
      * first in their first tick, the UI routes while paused, a Run Logic Tree pass through
-     * ColumnExecuteForcedUpdate.) */
+     * ExecuteForcedUpdate.) */
     if (why >= 0) {
       not_lane[why]++;
       continue;
@@ -8281,7 +8258,7 @@ bool LN_ColumnRunner::Plan(LN_RuntimeTree *const *trees,
     }
     if (why >= 0) {
       /* (Plan C2 P6: it takes the column pass where the manager records it, whose handlers
-       * refuse such a move and read such a sensor where the old system reads them.) */
+       * refuse such a move and read such a sensor in the tree's own order.) */
       not_lane[why]++;
       d.lane_program[index] = nullptr;
       continue;
@@ -8739,7 +8716,7 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
   else if (capture != nullptr) {
     capture->buffer->TakeChunkOwnership();
   }
-  /* A route's context for the VM's code, NPC by NPC (RunBlocksWith's ScopedStepGateTime). */
+  /* A route's context for the VM's code, NPC by NPC (ScopedStepGateTime's rule). */
   const auto route_context = [&](LN_TickContext &route, const size_t l, const uint8_t gate_plus_one) {
     route.execution_scope_serial = s.serial[l];
     route.command_buffer = capture != nullptr ? capture->buffer.get() : nullptr;
@@ -9525,8 +9502,8 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
         break;
       }
       case NodeOp::STimeOp: {
-        /* OpTimeFlowControlInstruction, NPC by NPC, in the route's context (RunBlocksWith's
-         * ScopedStepGateTime behind a gate, the pass's scope). */
+        /* OpTimeFlowControlInstruction, NPC by NPC, in the route's context (ScopedStepGateTime's
+         * rule behind a gate, the pass's scope). */
         const uint8_t *ran = b(node.a);
         const float *value = node.b == kNone ? nullptr : f(node.b);
         const uint8_t *ignore = node.c == kNone ? nullptr : b(node.c);
@@ -10622,10 +10599,10 @@ void LN_ColumnRunner::Impl::RunDirectLane(const size_t index,
                                           LN_CommandBuffer &buffer,
                                           const LN_TickContext &context)
 {
-  /* The old system's pass in the column system's own form (ColumnExecuteReady: ExecuteReady's
-   * bookkeeping, the event's compiled route or the column walk of its blocks). A planned tree of
-   * any program (plan C2 P6: a lane a run gives back runs this way too). */
-  trees[index]->ColumnExecuteReady(buffer, context, nullptr);
+  /* The column pass (ExecuteReady: the pass's bookkeeping, the event's compiled route or the
+   * column walk of its blocks). A planned tree of any program (plan C2 P6: a lane a run gives
+   * back runs this way too). */
+  trees[index]->ExecuteReady(buffer, context, nullptr);
   direct_ran++;
 }
 

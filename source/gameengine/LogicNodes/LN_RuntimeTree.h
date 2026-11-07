@@ -152,22 +152,18 @@ class LN_RuntimeTree {
   void InvalidateUICollectionCaches();
   bool ShouldCaptureSnapshot() const;
   bool ShouldCaptureSnapshotForForcedUpdate() const;
-  void ExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
-                           const LN_TickContext &context,
-                           LN_RuntimeProfileCounters *profile_counters = nullptr);
+  /** A tree's pass outside the column system's wide runs (the column pass, plan C2 P6; named
+   * ColumnExecuteReady / ColumnExecuteForcedUpdate until P10 removed the old system, 2026-11-07):
+   * the pass's bookkeeping, On Init first when it has not run, every event through
+   * ColumnRunDirectEvent (its compiled route or the column walk of its blocks). The manager, its
+   * tree batches, Run Logic Tree passes and the runner's lanes given back call them.
+   * ExecuteForcedUpdate is a Run Logic Tree pass: its Every N Steps routes run too. */
   void ExecuteReady(LN_CommandBuffer &command_buffer,
                     const LN_TickContext &context,
                     LN_RuntimeProfileCounters *profile_counters = nullptr);
-  /** Plan C2 P6: ExecuteReady and ExecuteForcedUpdate of the column system (a direct pass: the
-   * same bookkeeping, On Init first when it has not run, every event through
-   * ColumnRunDirectEvent instead of ExecuteEvent). The old system's stay as they are (its
-   * reference). */
-  void ColumnExecuteReady(LN_CommandBuffer &command_buffer,
-                          const LN_TickContext &context,
-                          LN_RuntimeProfileCounters *profile_counters = nullptr);
-  void ColumnExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
-                                 const LN_TickContext &context,
-                                 LN_RuntimeProfileCounters *profile_counters = nullptr);
+  void ExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
+                           const LN_TickContext &context,
+                           LN_RuntimeProfileCounters *profile_counters = nullptr);
 
   bool CanTick() const;
   /** Return whether this tree has work in the requested recurring phase. A Logic + Physics step
@@ -339,7 +335,7 @@ class LN_RuntimeTree {
    * ColumnRunDirectEvent (plan C2 P6). */
   void ColumnExecuteEvent(LN_Event event, LN_CommandBuffer &buffer, LN_TickContext context);
   /** Plan C1-9: loop frame `frame` completed in the pass of scope `scope_serial` (its Completed
-   * route runs: RunBlocksWith's check). */
+   * route runs: the column walk's check). */
   bool ColumnLoopCompleted(uint32_t frame, uint64_t scope_serial) const;
   /** Plan C1-8: the op of stamp `state_index` ran in this pass (InstructionExecutedNow). */
   bool ColumnStampRan(uint32_t state_index, uint64_t tick_index, uint64_t scope_serial) const;
@@ -1051,10 +1047,6 @@ class LN_RuntimeTree {
                                    const char *profile_counter_name,
                                    const char *removal_condition) const;
   void EnsureRegisterExpressionState(const LN_TickContext &context);
-  void ExecuteEvent(LN_Event event,
-                    const std::vector<LN_InstructionHeader> &instructions,
-                    LN_CommandBuffer &command_buffer,
-                    LN_TickContext context);
   /* The handlers of one event's instructions, templates on the execution frame (LN_ExecFrame.h;
    * intern/LN_RuntimeTreeOps.inl). */
   uint64_t NextExecutionScopeSerial();
@@ -1155,9 +1147,9 @@ class LN_RuntimeTree {
                       const LN_Instruction &instruction,
                       const LN_GamePropertyCommandPayload &payload,
                       uint32_t state_index);
-  /** Runs an event as its compiled route (LN_LeanRoute, plan phase A33): RunEventBlocks for an
-   * event with no Loop and no UI event route, and each op its handler's prelude reduced to what
-   * changes between runs (the command key, the guard), then the shared body. */
+  /** Runs an event as its compiled route (LN_LeanRoute, plan phase A33): the walk of its blocks
+   * for an event with no Loop and no UI event route, and each op its handler's prelude reduced to
+   * what changes between runs (the command key, the guard), then the shared body. */
   template<class Frame>
   void RunLeanRoute(Frame &frame, const LN_LeanRoute &route, uint64_t scope_serial);
   template<class Frame>
@@ -1168,7 +1160,7 @@ class LN_RuntimeTree {
                            const MT_Vector3 &value,
                            const LN_Rotation &rotation);
   /** A Loop body's block: its frame begun, then as many iterations as the tick's batch and budget
-   * allow (RunBlocksWith's loop part; ColumnRunLoopBlock runs it for a column lane). */
+   * allow (the column walk's loop part; ColumnRunLoopBlock runs it for a column lane). */
   template<class Frame, class RunOp>
   void RunLoopBody(Frame &frame,
                    const LN_ExecBlockProgram &ir,
@@ -1184,22 +1176,6 @@ class LN_RuntimeTree {
                        const LN_ExecBlockProgram &ir,
                        uint64_t scope_serial,
                        RunOp &&run_op);
-  template<class Frame, class RunOp>
-  void RunBlocksWith(Frame &frame,
-                     const LN_ExecBlockProgram &ir,
-                     const std::vector<LN_StepGate> &step_gates,
-                     std::vector<uint32_t> &repeated_loop_frames,
-                     uint64_t scope_serial,
-                     uint32_t ui_event_state,
-                     RunOp &&run_op);
-  /** One event's blocks and the repeats for further UI events (ExecuteEvent's part that is the
-   * same for the old interpreter and the lean VM). */
-  template<class Frame, class RunOp>
-  void RunEventBlocks(Frame &frame,
-                      const LN_ExecBlockProgram &ir,
-                      LN_TickContext &context,
-                      uint64_t event_scope_serial,
-                      RunOp &&run_op);
   /** The lean program this tree runs on in this call, or null (mode Off, no lean program made
    * yet or an invalid one). Makes the program's lean form on the main thread. */
   const LN_LeanProgram *LeanProgramForRun() const;

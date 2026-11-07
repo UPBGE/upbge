@@ -5268,8 +5268,8 @@ void LN_RuntimeTree::LeanSetNumberBody(Frame &ef,
   MarkInstructionStamp(state_index, context.tick_index);
 }
 
-/** A compiled route (plan phase A33, LN_LeanRoute): exactly RunEventBlocks with RunBlocksWith for
- * an event without Loops and UI event routes, each op run as OpLean runs it. What the handlers'
+/** A compiled route (plan phase A33, LN_LeanRoute): exactly the walk of the event's blocks
+ * (ColumnWalkEvent) for an event without Loops and UI event routes, each op run as OpLean runs it. What the handlers'
  * preludes did at every op is left out because it cannot change during the event: the payload
  * lookups and their checks (made at the lowering; the lean program is dropped when the program
  * grows), the paused check (ExecuteEvent runs a route only when not paused), the profile counters
@@ -5290,7 +5290,7 @@ void LN_RuntimeTree::RunLeanRoute(Frame &ef, const LN_LeanRoute &route, const ui
     if (gate != LN_INVALID_INDEX && !StepGateRuns(gate)) {
       continue;
     }
-    /* RunBlocksWith's ScopedStepGateTime: the gate's time, and its stride when gated. */
+    /* ScopedStepGateTime's rule: the gate's time, and its stride when gated. */
     const double delta_time = context.delta_time;
     const double unscaled_dt = context.unscaled_dt;
     const uint32_t stride = context.phase_tick_stride;
@@ -5374,8 +5374,8 @@ void LN_RuntimeTree::RunLoopBody(Frame &ef,
                                  const uint32_t ui_event_state,
                                  RunOp &&run_op)
 {
-  /* A Loop body's block (moved out of RunBlocksWith, plan C1-9: a column run runs it NPC by NPC
-   * through this very code, ColumnRunLoopBlock). */
+  /* A Loop body's block (moved out of the old system's walk, plan C1-9: a column run runs it NPC
+   * by NPC through this very code, ColumnRunLoopBlock; the column walk calls it too). */
   LN_TickContext &context = ef.context;
   const auto selected = [&](const LN_ExecOp &op) {
     return ui_event_state == LN_INVALID_INDEX || op.ui_event_state_index == ui_event_state;
@@ -5451,153 +5451,3 @@ void LN_RuntimeTree::RunLoopBody(Frame &ef,
   m_activeExecutionScopeSerial = scope_serial;
 }
 
-template<class Frame, class RunOp>
-void LN_RuntimeTree::RunBlocksWith(Frame &ef,
-                                   const LN_ExecBlockProgram &ir,
-                                   const std::vector<LN_StepGate> &step_gates,
-                                   std::vector<uint32_t> &repeated_loop_frames,
-                                   const uint64_t scope_serial,
-                                   const uint32_t ui_event_state,
-                                   RunOp &&run_op)
-{
-  /* Every N Steps: a block runs with its gate's time, and its flow counts runs N steps apart. */
-  struct ScopedStepGateTime {
-    LN_TickContext &context;
-    const double delta_time;
-    const double unscaled_dt;
-    const uint32_t stride;
-
-    /** `gated`: the block is behind a gate; `state`: its gate's time. */
-    ScopedStepGateTime(LN_TickContext &context,
-                       const StepGateState *state,
-                       const uint32_t interval,
-                       const bool gated)
-        : context(context),
-          delta_time(context.delta_time),
-          unscaled_dt(context.unscaled_dt),
-          stride(context.phase_tick_stride)
-    {
-      if (state != nullptr) {
-        context.delta_time = state->time_passed;
-        context.unscaled_dt = state->unscaled_time_passed;
-      }
-      if (gated) {
-        context.phase_tick_stride = interval;
-      }
-    }
-    ~ScopedStepGateTime()
-    {
-      context.delta_time = delta_time;
-      context.unscaled_dt = unscaled_dt;
-      context.phase_tick_stride = stride;
-    }
-  };
-
-  const LN_Event event = ef.event;
-  LN_TickContext &context = ef.context;
-
-  const auto selected = [&](const LN_ExecOp &op) {
-    return ui_event_state == LN_INVALID_INDEX || op.ui_event_state_index == ui_event_state;
-  };
-  for (const LN_ExecBlock &block : ir.blocks) {
-    if (ui_event_state != LN_INVALID_INDEX &&
-        std::none_of(ir.ops.begin() + block.first_op,
-                     ir.ops.begin() + block.first_op + block.op_count,
-                     selected))
-    {
-      continue;
-    }
-    /* Every N Steps: off its steps the route does nothing, a Loop body in it waits too. */
-    if (block.step_gate_index != LN_INVALID_INDEX && !StepGateRuns(block.step_gate_index)) {
-      continue;
-    }
-    const ScopedStepGateTime step_gate_time(
-        context,
-        block.step_gate_index != LN_INVALID_INDEX &&
-                block.step_gate_index < m_stepGates.size() ?
-            &m_stepGates[block.step_gate_index] :
-            nullptr,
-        block.step_gate_index < step_gates.size() ? step_gates[block.step_gate_index].interval :
-                                                    1u,
-        block.step_gate_index < step_gates.size());
-    /* A loop body that is not entirely a UI event route must not advance while paused. */
-    if (m_uiEventRoutesOnly && block.loop_frame_index != LN_INVALID_INDEX &&
-        !block.ui_event_route)
-    {
-      continue;
-    }
-    if (m_activeProfileCounters != nullptr) {
-      m_activeProfileCounters->exec_block_count++;
-    }
-    if (block.completed_loop_frame_index != LN_INVALID_INDEX) {
-      if (block.completed_loop_frame_index >= m_loopStates.size() ||
-          m_loopStates[block.completed_loop_frame_index].completed_scope_serial != scope_serial)
-      {
-        continue;
-      }
-    }
-    if (block.loop_frame_index != LN_INVALID_INDEX) {
-      RunLoopBody(ef, ir, block, repeated_loop_frames, scope_serial, ui_event_state, run_op);
-    }
-    else {
-      context.execution_scope_serial = scope_serial;
-      m_activeExecutionScopeSerial = scope_serial;
-      for (uint32_t op_index = block.first_op; op_index < block.first_op + block.op_count;
-           op_index++)
-      {
-        if (selected(ir.ops[op_index])) {
-          run_op(op_index);
-        }
-      }
-    }
-  }
-}
-
-template<class Frame, class RunOp>
-void LN_RuntimeTree::RunEventBlocks(Frame &ef,
-                                    const LN_ExecBlockProgram &ir,
-                                    LN_TickContext &context,
-                                    const uint64_t event_scope_serial,
-                                    RunOp &&run_op)
-{
-  /* A route of On Logic + Physics Step's Every N Steps runs with the time since its last run, and
-   * nodes that need their flow on consecutive runs (Pulsify, Barrier...) count its runs N steps
-   * apart as consecutive, in a Run Logic Tree pass too (RunBlocksWith). */
-  const std::vector<LN_StepGate> &step_gates = m_program->GetStepGates();
-
-  /* Runs the blocks in the execution scope `scope_serial`. With `ui_event_state`, only the ops of
-   * that On UI Event's route: its repeat for a further event of this frame. */
-  std::vector<uint32_t> repeated_loop_frames;
-  RunBlocksWith(ef, ir, step_gates, repeated_loop_frames, event_scope_serial, LN_INVALID_INDEX, run_op);
-
-  /* On UI Event: each further event that matches a node this frame runs the node's route again,
-   * in its own execution scope, with the node's outputs telling about that event. */
-  /* (Other per-tick query caches are not run again: a query that takes an event's output as input,
-   * such as a Projectile Ray from a drop's Point, gives the first event's answer. Raycasts are
-   * evaluated per command and are not affected.) */
-  constexpr uint32_t max_ui_event_repeats = uint32_t(LN_UIService::kMaxEventsPerNodeFrame);
-  for (const uint32_t state_index : ir.ui_event_states) {
-    /* Looked up again after each run: running can grow the state table. */
-    const QueryExpressionRuntimeState &first = QueryExpressionState(state_index);
-    if (first.cached_tick != context.tick_index || first.cached_result.ui_event_count < 2) {
-      continue;
-    }
-    const uint32_t count = std::min(first.cached_result.ui_event_count, max_ui_event_repeats);
-    for (uint32_t cursor = 1; cursor < count; ++cursor) {
-      QueryExpressionRuntimeState &state = QueryExpressionState(state_index);
-      state.ui_event_cursor = cursor;
-      state.cached_tick = UINT64_MAX;
-      m_registerExpressionState.cached_tick = UINT64_MAX;
-      repeated_loop_frames.clear();
-      const uint64_t repeat_scope_serial = NextExecutionScopeSerial();
-      context.execution_scope_serial = repeat_scope_serial;
-      m_activeExecutionScopeSerial = repeat_scope_serial;
-      RunBlocksWith(ef, ir, step_gates, repeated_loop_frames, repeat_scope_serial, state_index, run_op);
-    }
-    /* The next frame starts at its first event again. Until then, what reads the node's outputs
-     * keeps the topmost event (the cached result of the last run). */
-    QueryExpressionState(state_index).ui_event_cursor = 0;
-  }
-  context.execution_scope_serial = event_scope_serial;
-  m_activeExecutionScopeSerial = event_scope_serial;
-}

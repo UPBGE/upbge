@@ -2202,7 +2202,8 @@ struct RunOptions {
   uint32_t helpers = 0;
   /** Add every tree's state meaning to the text. */
   bool states = true;
-  /** Plan C1: trees whose program lowers run in columns (LN_Columns.h, runs of any length). */
+  /** Plan C1: trees whose program lowers run in wide runs (LN_Columns.h, runs of any length).
+   * Off: every tree runs the column pass (the column system's pass for one tree). */
   bool columns = false;
   /** The text holds only the world after every tick (a column run records no commands and keeps
    * no tree bookkeeping: what a VM run and a column run are compared by). */
@@ -2493,10 +2494,8 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
     const bool columns = options.columns &&
                          column_runner.Plan(
                                              runnable.data(), runnable.size(), event, buffer, nullptr, &read);
-    /* Plan C2 P6: with columns, every tree outside the runs takes the column system's pass, as
-     * the manager records it (whether or not a run was planned). */
-    const bool column_passes = options.columns &&
-                               LN_GetColumnDirectMode() != LN_ColumnDirectMode::Off;
+    /* Every tree outside the runs takes the column pass, as the manager records it (whether or not
+     * a run was planned); without `columns` every tree does. */
     if (columns) {
       result.column_lanes += column_runner.LaneCount();
     }
@@ -2538,7 +2537,6 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
         }
       }
       if (end - at >= 2) {
-        recorder.SetColumnPasses(column_passes);
         const size_t read_a_move = recorder.Record(pool,
                                                    buffer,
                                                    runnable.data() + at,
@@ -2556,15 +2554,9 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
       }
       else {
         LN_RuntimeProfileCounters counters;
-        /* Plan C2 P6: with columns, as the manager: the column system's pass. */
-        if (column_passes) {
-          runnable[at]->ColumnExecuteReady(
-              buffer, context, options.profiled ? &counters : nullptr);
-          LN_AddColumnPasses(1);
-        }
-        else {
-          runnable[at]->ExecuteReady(buffer, context, options.profiled ? &counters : nullptr);
-        }
+        /* As the manager: the column pass. */
+        runnable[at]->ExecuteReady(buffer, context, options.profiled ? &counters : nullptr);
+        LN_AddColumnPasses(1);
         at++;
       }
     }

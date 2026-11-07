@@ -135,9 +135,9 @@ struct LN_RouteBlock {
   uint32_t step_gate_index = LN_INVALID_INDEX;
 };
 
-/** An event as a compiled route: what LN_RuntimeTree::RunBlocksWith and the native handlers do for
- * it, without the per-op lookups, checks and dispatch. Made for an event whose ops are all native,
- * with no Loop, no UI event route and no Delay-Done guard. */
+/** An event as a compiled route: what the column walk (LN_RuntimeTree::ColumnWalkEvent) and the
+ * native handlers do for it, without the per-op lookups, checks and dispatch. Made for an event
+ * whose ops are all native, with no Loop, no UI event route and no Delay-Done guard. */
 struct LN_LeanRoute {
   std::vector<LN_RouteOp> ops;
   std::vector<LN_RouteBlock> blocks;

@@ -171,15 +171,8 @@ class LN_TreeBatchRecorder {
   {
     return m_lastJoinMs;
   }
-  /** Plan C2 P6: the trees take the column system's pass (ColumnExecuteReady) instead of the old
-   * system's ExecuteReady (the manager sets LN_ColumnPassesOn; test rigs as they need). */
-  void SetColumnPasses(const bool column_passes)
-  {
-    m_columnPasses = column_passes;
-  }
 
  private:
-  bool m_columnPasses = false;
   std::vector<std::unique_ptr<LN_CommandBuffer>> m_chunks;
   std::vector<size_t> m_treesThatReadAMove;
   double m_lastJoinMs = 0.0;
