@@ -32,6 +32,7 @@
 #include "CM_Message.h"
 #include "DEV_Joystick.h"
 #include "DEV_JoystickPrivate.h"
+#include "DEV_RawJoystick.h"
 
 #ifdef WITH_SDL
 
@@ -64,7 +65,9 @@ void DEV_Joystick::OnNothing(SDL_Event *sdl_event)
   m_istrig_axis = m_istrig_button = 0;
 }
 
-bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
+bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX],
+                                short (&rawaddrem)[RAWJOYINDEX_MAX],
+                                bool &rawremap)
 {
   SDL_Event sdl_event;
   bool remap = false;
@@ -90,6 +93,11 @@ bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
      * Additionally we capture all devices this
      * way and we can inform properly (with ways to solve it) if the joystick it is not a game
      * controller */
+
+    /* Raw devices get every joystick, game controller or not. */
+    if (DEV_RawJoystick::HandleEvent(&sdl_event, rawaddrem)) {
+      rawremap = true;
+    }
 
     switch (sdl_event.type) {
       case SDL_EVENT_JOYSTICK_ADDED:
