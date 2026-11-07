@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_function_ref.hh"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -123,6 +124,9 @@ struct LN_TreeStateLayout {
   bool Matches(const LN_Program &program) const;
 };
 
+/** How close to zero a Delay, Timer... counts as done (the VM's and plan C1's time reads). */
+inline constexpr double LN_TIME_FLOW_EPSILON = 1.0e-6;
+
 class LN_RuntimeTree {
  public:
   LN_RuntimeTree(std::shared_ptr<const LN_Program> program,
@@ -154,6 +158,16 @@ class LN_RuntimeTree {
   void ExecuteReady(LN_CommandBuffer &command_buffer,
                     const LN_TickContext &context,
                     LN_RuntimeProfileCounters *profile_counters = nullptr);
+  /** Plan C2 P6: ExecuteReady and ExecuteForcedUpdate of the column system (a direct pass: the
+   * same bookkeeping, On Init first when it has not run, every event through
+   * ColumnRunDirectEvent instead of ExecuteEvent). The old system's stay as they are (its
+   * reference). */
+  void ColumnExecuteReady(LN_CommandBuffer &command_buffer,
+                          const LN_TickContext &context,
+                          LN_RuntimeProfileCounters *profile_counters = nullptr);
+  void ColumnExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
+                                 const LN_TickContext &context,
+                                 LN_RuntimeProfileCounters *profile_counters = nullptr);
 
   bool CanTick() const;
   /** Return whether this tree has work in the requested recurring phase. A Logic + Physics step
@@ -224,17 +238,154 @@ class LN_RuntimeTree {
    * object's own game properties, transform, colour and visibility, the tick's shared timing,
    * gravity and input qualify: reads of the scene that nothing changes meanwhile. */
   bool PrepareParallelCapture(const LN_TickReadContext *tick_context);
-  /** Block execution (plan phase B1): this tree may run `event` in a block now. It is a plain
-   * tree (initialized, no latent state, no Every N Steps gate, not paused to UI routes, not
-   * profiled) running a program whose event is a plain run of block-ok native ops on the lean VM. */
-  bool BlockEligible(LN_Event event) const;
-  /** Runs `count` trees of one program (all BlockEligible, the same event, none of them measuring
-   * what another moves: a tree batch's rules) op by op across all of them, into `buffer`; the
-   * buffer ends as if ExecuteReady had run each tree one after the other. */
-  static void RunBlock(LN_CommandBuffer &buffer,
-                       const LN_TickContext &context,
-                       LN_RuntimeTree *const *trees,
-                       size_t count);
+  /** Plan C1 (LN_Columns.h): a tree running in columns this tick has only its game properties
+   * captured (the snapshot's own rules, LN_Snapshot::CaptureGamePropertiesOnly), plus its transform
+   * when the column program reads it from the snapshot (`transform`), on any thread. */
+  void CaptureColumnProperties(uint64_t tick_index, bool transform);
+  /** Plan C1: what ExecuteReady and ExecuteEvent do for a pass of `context.event` before its ops
+   * (the fallback report, the state block, the loop budget, the event's delta, a new execution
+   * scope); returns the pass's scope serial. A lane's tree on its chunk's thread. */
+  uint64_t BeginColumnPass(const LN_TickContext &context);
+  /** Plan C1: what ExecuteReady does after a pass (the step gates that ran). */
+  void EndColumnPass(const LN_TickContext &context);
+  /** Plan C1: On Logic + Physics Step's Time Passed (StepTimePassed: the gate's, else the
+   * event's delta). */
+  float ColumnStepTimePassed(uint32_t step_gate_index) const;
+  /** Plan C1: the unscaled delta a block behind gate `step_gate_index` reads (its gate's time). */
+  float ColumnGateUnscaledDelta(uint32_t step_gate_index, const LN_TickContext &context) const;
+  /** Plan C1: the delta_time a block behind gate `step_gate_index` reads, as float (`raw`) or not
+   * below 0 (ScopedStepGateTime's time_passed). */
+  float ColumnGateDelta(uint32_t step_gate_index, bool raw, const LN_TickContext &context) const;
+  /** Plan C1: Move To's handler noting Reached for its stamp `state_index` this pass. */
+  void ColumnNoteReached(uint32_t state_index, uint64_t tick_index);
+  /** The time flow ops of OpTimeFlowControlInstruction (Wait for Next Frame, Timer, Delay,
+   * Pulsify, Barrier, Cooldown and its Reset), one code for the VM and plan C1's columns: the op's
+   * state `state_index`, `ui_event_route` its instruction's flag, `event` the event it runs in,
+   * `context` the route's (its gate's time and stride behind Every N Steps, the pass's scope
+   * serial). The inputs are read through the callbacks exactly where the VM reads them (some only
+   * on some paths: a Barrier's Duration only while its condition holds, a Cooldown's inputs only
+   * when it is not running). Nothing happens for a state the tree does not have. */
+  void TimeFlowArmNextFrame(uint32_t state_index, bool ui_event_route, const LN_TickContext &context);
+  void TimeFlowArmTimer(uint32_t state_index,
+                        bool ui_event_route,
+                        LN_Event event,
+                        const LN_TickContext &context,
+                        blender::FunctionRef<float()> duration,
+                        blender::FunctionRef<bool()> ignore_timescale);
+  void TimeFlowArmDelay(uint32_t state_index,
+                        bool ui_event_route,
+                        LN_Event event,
+                        const LN_TickContext &context,
+                        blender::FunctionRef<float()> duration,
+                        blender::FunctionRef<bool()> ignore_timescale);
+  void TimeFlowUpdatePulsify(uint32_t state_index,
+                             LN_Event event,
+                             const LN_TickContext &context,
+                             blender::FunctionRef<float()> interval,
+                             blender::FunctionRef<bool()> ignore_timescale);
+  void TimeFlowUpdateBarrier(uint32_t state_index,
+                             LN_Event event,
+                             const LN_TickContext &context,
+                             blender::FunctionRef<bool()> condition,
+                             blender::FunctionRef<float()> duration,
+                             blender::FunctionRef<bool()> ignore_timescale);
+  void TimeFlowTryCooldown(uint32_t state_index,
+                           bool ui_event_route,
+                           LN_Event event,
+                           const LN_TickContext &context,
+                           blender::FunctionRef<float()> duration,
+                           blender::FunctionRef<bool()> ignore_timescale);
+  void TimeFlowResetCooldown(uint32_t state_index, LN_Event event, const LN_TickContext &context);
+  /** Plan C1: the attribute of `object` as Get Object Attribute's vector output reads it (the
+   * typed read, ObjectAttributeAsVector). */
+  static bool ColumnObjectAttributeVector(KX_GameObject &object,
+                                          LN_ObjectAttributeId attribute,
+                                          MT_Vector3 &r_vector);
+  /** Plan C1-8, the bridge: an expression of this tree worked out by the VM's own kind functions
+   * (the lean reader) for a column run, in its route context (`context`: the pass's scope serial,
+   * a gate's time behind Every N Steps, the column run's capture buffer). */
+  bool ColumnEvalBool(uint32_t index, bool fallback, LN_TickContext &context);
+  int32_t ColumnEvalInt(uint32_t index, int32_t fallback, LN_TickContext &context);
+  float ColumnEvalFloat(uint32_t index, float fallback, LN_TickContext &context);
+  MT_Vector3 ColumnEvalVector(uint32_t index, const MT_Vector3 &fallback, LN_TickContext &context);
+  LN_Rotation ColumnEvalRotation(uint32_t index,
+                                 const LN_Rotation &fallback,
+                                 LN_TickContext &context);
+  MT_Vector4 ColumnEvalColor(uint32_t index, const MT_Vector4 &fallback, LN_TickContext &context);
+  /** Plan C1-8, the bridge: op `op_index` of `event` run by the VM's own handler for this tree
+   * (OpLean, as the block walk runs it: a fresh command key, the scope of `context`), recording
+   * into `buffer`. */
+  void ColumnRunOp(LN_Event event, uint32_t op_index, LN_CommandBuffer &buffer, LN_TickContext &context);
+  /** Plan C1-9: Loop body block `block_index` of `event` run by the VM's own block walk for this
+   * tree (RunLoopBody, its ops through OpLean), recording into `buffer`, in the pass scope of
+   * `context`. */
+  void ColumnRunLoopBlock(LN_Event event,
+                          uint32_t block_index,
+                          LN_CommandBuffer &buffer,
+                          LN_TickContext &context);
+  /** Plan C2 P5 / P6, a direct program's lane: the pass of `event` in scope `scope_serial` (its
+   * prelude made by BeginColumnPass), as ExecuteEvent runs one but with the column system's own
+   * walk: the event's compiled route when it has one and nothing asks for what a route leaves
+   * out (paused UI routes, the profile counters, the read order trace), else its blocks in their
+   * order (a gated block only on its gate's steps with its gate's time and stride, a Loop's
+   * Completed route only where the loop completed in this pass, a Loop body through RunLoopBody),
+   * every op through OpLean (OpDirect in the reference mode), recording into `buffer`.
+   * `context` is the pass's (one for the whole pass). */
+  void ColumnRunDirectEvent(LN_Event event,
+                            uint64_t scope_serial,
+                            LN_CommandBuffer &buffer,
+                            LN_TickContext &context);
+  /** ExecuteEvent's prelude (its context a copy, the event's delta, a new scope serial) and
+   * ColumnRunDirectEvent (plan C2 P6). */
+  void ColumnExecuteEvent(LN_Event event, LN_CommandBuffer &buffer, LN_TickContext context);
+  /** Plan C1-9: loop frame `frame` completed in the pass of scope `scope_serial` (its Completed
+   * route runs: RunBlocksWith's check). */
+  bool ColumnLoopCompleted(uint32_t frame, uint64_t scope_serial) const;
+  /** Plan C1-8: the op of stamp `state_index` ran in this pass (InstructionExecutedNow). */
+  bool ColumnStampRan(uint32_t state_index, uint64_t tick_index, uint64_t scope_serial) const;
+  /** Apply Force To Target's math, one code for its handler and plan C2 P5's column kernel: from
+   * the target position, Force, Reached Threshold and Stop Distance as read (the last two taken
+   * as not below 0) and where the moved object is, whether it counts as reached (`r_reached`)
+   * and whether a force is applied (the return value; the force in `r_force`). */
+  static bool ColumnForceToTarget(const MT_Vector3 &target_position,
+                                  float force,
+                                  float reached_threshold,
+                                  float stop_distance,
+                                  const MT_Vector3 &position,
+                                  bool &r_reached,
+                                  MT_Vector3 &r_force);
+  /** Plan C1: Vector To Rotation's Euler angles (VectorToRotationEuler). */
+  static MT_Vector3 ColumnVectorToRotationEuler(const MT_Vector3 &direction,
+                                                const MT_Vector3 &up,
+                                                int32_t axis_selector);
+  /** Plan C1: the hash Random Float / Random Integer draw from. */
+  static float ColumnHashToUnitFloat(uint64_t value);
+  /** Plan C1: the conversions of a generic value the kinds' FromGenericValue make. */
+  static bool ColumnValueAsFloat(const LN_Value &value, float &r_value);
+  /** ValueAsVector (plan C1-11: a tree property's generic value as a vector in columns). */
+  static bool ColumnValueAsVector(const LN_Value &value, MT_Vector3 &r_vector);
+  /** ResolveObjectValue (plan C1-11: the object a tree property holds, a write's object in
+   * columns; per tree, any thread whose chunk holds the tree). */
+  KX_GameObject *ColumnObjectOfValue(const LN_Value &value) const;
+  /** LN_Manager::PrepareObjectNameLookup of the tree's manager (main thread). */
+  void PrepareObjectNameLookup() const;
+  static int32_t ColumnValueAsInt(const LN_Value &value, LN_FloatToIntMode mode);
+  static bool ColumnValueAsBool(const LN_Value &value);
+  /** Plan C1 prototype: the object a value expression gives, read as an op's Object input reads it
+   * (the lean reader's Value, then ResolveObjectValue). Main thread. */
+  KX_GameObject *ResolveObjectValueExpressionForColumns(uint32_t value_expr_index,
+                                                        const LN_TickContext &context);
+  /** Plan C1-9: Get Average Center Position query `query_index` worked out by the VM's own code
+   * (VectorAverageKind through the lean reader), as a fresh query result. A column run calls it
+   * once for all its NPCs when the average's source is the same for each. Main thread. */
+  LN_QueryResult ColumnVectorAverage(uint32_t query_index, const LN_TickContext &context);
+  /** Plan C2 fix 1: expression `index` worked out by the VM's own kind function (the lean
+   * reader, no memo, no command key) with the fallback of its read site. A column run calls it
+   * once for all its NPCs for a read that is the same for each all the tick (another object's
+   * game property). Main thread. */
+  float ColumnInvariantFloat(uint32_t index, float fallback, const LN_TickContext &context);
+  int32_t ColumnInvariantInt(uint32_t index, int32_t fallback, const LN_TickContext &context);
+  bool ColumnInvariantBool(uint32_t index, bool fallback, const LN_TickContext &context);
   /** Off: layouts built from now on plan no state slots, so every slot state lives apart (the
    * storage before the state block), for tests comparing both. */
   static void SetStateSlotsPlannedForTests(bool planned);
@@ -287,6 +438,12 @@ class LN_RuntimeTree {
   {
     return m_batchNote;
   }
+  /** Plan C1 prototype: the tree runs in columns this tick (LN_ColumnRunner::Plan; its snapshot
+   * holds only its game properties then). */
+  bool IsColumnLane() const
+  {
+    return m_columnLane;
+  }
   /** Resolve statically-authored While Paused scopes before paused trees are scheduled. */
   void CollectPauseProcessingObjects(std::vector<KX_GameObject *> &r_objects);
   template<class Reader>
@@ -330,7 +487,9 @@ class LN_RuntimeTree {
       const std::string &property_name = std::string(),
       bool xray = false,
       const std::vector<LN_RuntimeRef> &extra_ignore_object_refs = {});
-  std::vector<LN_PhysicsQueryResult> RayCast(
+  /** The hits into `r_results` (cleared first; plan C2 P3: a query's cached results are refilled
+   * in place, not a new vector each cast). */
+  void RayCast(
       const PHY_RayQuerySettings &settings,
       const LN_RuntimeRef &ignore_object_ref,
       uint32_t collision_mask,
@@ -339,8 +498,9 @@ class LN_RuntimeTree {
       const std::vector<LN_RuntimeRef> &extra_ignore_object_refs,
       bool &r_blocked,
       LN_PhysicsQueryResult &r_blocker,
-      bool &r_supported);
-  std::vector<LN_PhysicsQueryResult> ShapeCast(
+      bool &r_supported,
+      std::vector<LN_PhysicsQueryResult> &r_results);
+  void ShapeCast(
       const PHY_ShapeCastSettings &settings,
       const LN_RuntimeRef &ignore_object_ref,
       uint32_t collision_mask,
@@ -349,10 +509,12 @@ class LN_RuntimeTree {
       const std::vector<LN_RuntimeRef> &extra_ignore_object_refs,
       bool &r_blocked,
       LN_PhysicsQueryResult &r_blocker,
-      bool &r_supported);
+      bool &r_supported,
+      std::vector<LN_PhysicsQueryResult> &r_results);
 
   const LN_Value *GetTreePropertyValue(uint32_t property_ref_index) const;
   bool SetTreePropertyValue(uint32_t property_ref_index, const LN_Value &value);
+  bool SetTreePropertyValue(uint32_t property_ref_index, LN_Value &&value);
   void CompletePersistenceOperation(uint32_t expression_index, bool success);
   /** Whether one deferred UI result can be accepted without dropping an older result. */
   bool CanCompleteUIOperation(uint32_t expression_index) const;
@@ -698,10 +860,19 @@ class LN_RuntimeTree {
      * fields: the next evaluation of it starts by clearing those three instead of building a
      * fresh result (a kilobyte of strings and vectors) at every read (plan A21). */
     bool cached_result_distance_only = false;
+    /** Plan C2 P3: the last result was a ray's or shape cast's (PhysicsOnlyQuery): it set its
+     * physics fields and nothing else, so only those are reset. */
+    bool cached_result_physics_only = false;
     std::array<HoverRuntimeState, 3> hover_by_event;
     /** On UI Event: which of this frame's matching events the query reports (0: the first). */
     uint32_t ui_event_cursor = 0;
   };
+  /** Plan C2 P3: query `index` (a Raycast, LN_Columns' QRay node) worked out by QueryKind into
+   * `scratch` (the run's per-thread result, not the tree's query cache), its inputs read as the
+   * VM reads them. */
+  const LN_QueryResult &ColumnCastQuery(uint32_t index,
+                                        LN_TickContext &context,
+                                        QueryExpressionRuntimeState &scratch);
 
   /** The register file: values in the state block, valid while their generation is the active
    * one (a new tick starts a new generation). */
@@ -805,6 +976,8 @@ class LN_RuntimeTree {
   friend struct LN_ExecFrameT;
   friend struct LN_LeanReader;
   friend class LN_RuntimeTreeTestAccess;
+  /** Plan C1 prototype (LN_Columns.h): reads the per-tree checks and the program it plans with. */
+  friend class LN_ColumnRunner;
 
   void EnsureTreePropertyStateSize(bool preserve_existing);
   void RefreshOptimizedPathEligibility();
@@ -829,6 +1002,16 @@ class LN_RuntimeTree {
   const InstructionMotionState *FindMotionState(uint32_t state_index) const;
   ValueChangeState &ValueChangeStateOf(uint32_t expression_index);
   const ValueChangeState *FindValueChangeState(uint32_t expression_index) const;
+  /** On Value Changed's step with the value read (plan C2 fix 1: one code for BoolKind's
+   * ValueChanged / ValueChangedTo and the column kernel SValueChanged): the first sample (or, when
+   * `wait_for_value`, a missing value before it) is kept and gives false (the state's result and
+   * tick written, returns false); later ones set `r_changed` and the old / new values (returns
+   * true: the caller writes the state's result). */
+  bool ValueChangeStep(uint32_t expression_index,
+                       bool wait_for_value,
+                       const LN_Value &value,
+                       uint64_t tick,
+                       bool &r_changed);
   TimeFlowRuntimeState *FindTimeFlowState(uint32_t state_index);
   const TimeFlowRuntimeState *FindTimeFlowState(uint32_t state_index) const;
   FlowControlRuntimeState *FindFlowControlState(uint32_t state_index);
@@ -984,6 +1167,23 @@ class LN_RuntimeTree {
                            KX_GameObject *target,
                            const MT_Vector3 &value,
                            const LN_Rotation &rotation);
+  /** A Loop body's block: its frame begun, then as many iterations as the tick's batch and budget
+   * allow (RunBlocksWith's loop part; ColumnRunLoopBlock runs it for a column lane). */
+  template<class Frame, class RunOp>
+  void RunLoopBody(Frame &frame,
+                   const LN_ExecBlockProgram &ir,
+                   const LN_ExecBlock &block,
+                   std::vector<uint32_t> &repeated_loop_frames,
+                   uint64_t scope_serial,
+                   uint32_t ui_event_state,
+                   RunOp &&run_op);
+  /** Plan C2 P5-P7: the column system's walk of an event's blocks and its On UI Event repeats
+   * (ColumnRunDirectEvent). */
+  template<class Frame, class RunOp>
+  void ColumnWalkEvent(Frame &frame,
+                       const LN_ExecBlockProgram &ir,
+                       uint64_t scope_serial,
+                       RunOp &&run_op);
   template<class Frame, class RunOp>
   void RunBlocksWith(Frame &frame,
                      const LN_ExecBlockProgram &ir,
@@ -1094,6 +1294,9 @@ class LN_RuntimeTree {
                  uint32_t expression_index,
                  const LN_QueryExpression &expression,
                  QueryExpressionRuntimeState &state);
+  /** QueryKind's Get Average Center Position case (plan C1-9). */
+  template<class In>
+  void VectorAverageKind(In &in, const LN_QueryExpression &expression, LN_QueryResult &result);
   /** QueryKind's Get Distance case, on its own (plan phase A33): a brain's one query, called
    * without entering the big switch of every query kind. */
   template<class In>
@@ -1288,6 +1491,14 @@ class LN_RuntimeTree {
   bool m_runtimeActive = true;
   bool m_initExecuted = false;
   BatchNote m_batchNote;
+  /** IsColumnLane (set and cleared by LN_ColumnRunner). */
+  bool m_columnLane = false;
+  /** LN_ColumnRunner's entry of this tree's program (plan C2 P1: no hash lookup a tick), valid
+   * while the runner (its id, never repeated) and the program's unique id are those it was found
+   * for. */
+  uint64_t m_columnEntryRunner = 0;
+  uint64_t m_columnEntryProgramId = 0;
+  void *m_columnEntry = nullptr;
   bool m_uiEventRoutesOnly = false;
   /** Every N Steps gates of the program, one each (PrepareStepGates). */
   struct StepGateState {

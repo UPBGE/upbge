@@ -266,8 +266,7 @@ TEST(LN_LeanProgram, DISABLED_BrainBench)
     }
     ModeScope scope(setup.lean);
     SemRig rig(program, kMemoOn, kOwners);
-    /* UPBGE_LN_BENCH_BATCH=chunks: record as a tree batch on no helper thread (with
-     * UPBGE_LN_BLOCKS=force the batch runs its trees in blocks). */
+    /* UPBGE_LN_BENCH_BATCH=chunks: record as a tree batch on no helper thread. */
     const char *batch_text = std::getenv("UPBGE_LN_BENCH_BATCH");
     if (batch_text != nullptr) {
       rig.SetBatchRecording(uint32_t(std::max(1, std::atoi(batch_text))), 0);

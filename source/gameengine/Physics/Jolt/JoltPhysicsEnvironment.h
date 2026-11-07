@@ -883,6 +883,15 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   std::vector<JoltRemovedContactPair> m_removedContactPairsScratch;
   std::vector<JoltContactEvent> m_contactEventsScratch;
   std::unordered_map<JPH::SubShapeIDPair, JoltContactPair> m_logicActiveContactPairs;
+  /** The keys of m_logicActiveContactPairs by body (each pair under both its bodies), made at the
+   * first RemoveLogicActiveContactsForBody after the map gained or lost pairs other than through
+   * it (2026-11-03): a Translate of each of 4,000 dynamic bodies scanned the whole map, O(N^2) a
+   * step. Keys whose pair is gone are skipped there (find). */
+  std::unordered_map<JPH::uint32, std::vector<JPH::SubShapeIDPair>> m_logicPairsByBody;
+  bool m_logicPairsByBodyValid = false;
+  /** The contact caches made from m_logicActiveContactPairs, made again at the next read; maps
+   * already empty are left alone (clearing a large empty map still zeroes its buckets). */
+  void InvalidateLogicContactCaches();
   /** The active pairs by sub-shape pair: logic sees the contacts of a step in the same order on
    * every machine (the map's own order is its standard library's). */
   std::vector<const JoltContactPair *> m_logicContactOrderScratch;

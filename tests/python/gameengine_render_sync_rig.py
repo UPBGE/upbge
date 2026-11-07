@@ -2057,6 +2057,231 @@ def step(tick):
             left, middle, right, values.get("middle_lit", 0), late_on, late_off)
 
 
+@case("parented_direct", "check",
+      "Parented objects on the direct pose path (2026-11-04): carts with a turret (their Blender "
+      "child), one turret with a barrel (a grandchild), one turret with a modifier (it and its "
+      "cart stay on Blender's evaluation) and one turret parented to a cart's vertex (not a plain "
+      "object parent: Blender's evaluation). The carts move and turn, the turrets turn and rise, "
+      "a cart's turret is moved on its own, then everything stops. Every picture (while moving and "
+      "on the still view after) must equal the one with UPBGE_DIRECT_PARENTED=0 and every object "
+      "drawn as its own, shadows included: with the direct path (Own), and with the carts and "
+      "turrets drawn as Auto groups.",
+      settings={"DRAW": "OWN"}, timeout=300)
+class ParentedDirect:
+    variants = [{"ENV_UPBGE_DIRECT_PARENTED": "0", "DRAW": "OWN"},
+                {"ENV_UPBGE_DIRECT_PARENTED": "1", "DRAW": "OWN"},
+                {"ENV_UPBGE_DIRECT_PARENTED": "1", "DRAW": "AUTO"}]
+
+    def build(settings):
+        bpy = bpy_module()
+        white = diffuse_material("RigWhite", (0.9, 0.9, 0.9))
+        red = diffuse_material("RigRed", (0.8, 0.2, 0.1))
+        new_object("Floor", box_mesh("FloorMesh", (40.0, 40.0, 0.2)), (0.0, 0.0, -0.1), white)
+        cart_mesh = box_mesh("CartMesh", (1.2, 0.8, 0.5))
+        cart_mesh.materials.append(white)
+        turret_mesh = box_mesh("TurretMesh", (0.5, 0.5, 0.4))
+        turret_mesh.materials.append(red)
+        barrel_mesh = box_mesh("BarrelMesh", (0.9, 0.15, 0.15))
+        barrel_mesh.materials.append(red)
+        turrets = []
+        for index in range(5):
+            cart = new_object("Cart%d" % index, cart_mesh, (index * 2.5 - 5.0, 0.0, 0.25))
+            cart.rotation_euler = (0.0, 0.0, 0.3 * index)
+            turret = new_object("Turret%d" % index, turret_mesh, (0.0, 0.0, 0.0))
+            turret.parent = cart
+            if index == 4:
+                # Parented to the cart's vertices: Blender's evaluation, as before.
+                turret.parent_type = 'VERTEX'
+                turret.parent_vertices = (0, 0, 0)
+            turret.matrix_parent_inverse = cart.matrix_basis.inverted()
+            turret.location = (cart.location.x, cart.location.y, cart.location.z + 0.45)
+            turrets.append(turret)
+        # A barrel on the first turret (a grandchild of the cart).
+        barrel = new_object("Barrel0", barrel_mesh, (0.0, 0.0, 0.0))
+        barrel.parent = turrets[0]
+        barrel.matrix_parent_inverse = turrets[0].matrix_world.inverted()
+        barrel.location = (turrets[0].location.x + 0.6, turrets[0].location.y,
+                           turrets[0].location.z)
+        # A turret whose shape depends on where it is (a Displace in world coordinates): it and its
+        # cart stay on Blender's evaluation, and its shape must follow every move.
+        texture = bpy.data.textures.new("RigClouds", 'CLOUDS')
+        texture.noise_scale = 0.3
+        turret_mesh_fine = box_mesh("TurretMeshFine", (0.5, 0.5, 0.4))
+        turret_mesh_fine.materials.append(red)
+        turrets[3].data = turret_mesh_fine
+        subdivide = turrets[3].modifiers.new("Subdivide", 'SUBSURF')
+        subdivide.subdivision_type = 'SIMPLE'
+        subdivide.levels = 3
+        displace = turrets[3].modifiers.new("Displace", 'DISPLACE')
+        displace.texture = texture
+        displace.texture_coords = 'GLOBAL'
+        displace.strength = 0.15
+        # A watcher turned toward Cart0 by a Track To constraint, its pose taken from Blender
+        # (Override transform priority): Cart0 must keep Blender's evaluation, or it stops turning.
+        watcher = new_object("Watcher", barrel_mesh, (0.0, 4.0, 1.5))
+        track = watcher.constraints.new('TRACK_TO')
+        track.target = bpy.data.objects["Cart0"]
+        track.track_axis = 'TRACK_X'
+        track.up_axis = 'UP_Z'
+        watcher.override_game_transform_priority = True
+        for ob in bpy.data.objects:
+            if ob.type == 'MESH':
+                ob.game.draw_as = settings["DRAW"] if ob.name != "Floor" else 'OWN'
+        game_settings()
+        add_sun((50.0, 0.0, 30.0)).data.angle = 0.0
+        return add_camera("Cam", (0.0, -12.0, 7.0), (60.0, 0.0, 0.0))
+
+    logic = r'''
+import math
+
+POSED = ["Cart%d" % i for i in range(5)] + ["Turret%d" % i for i in range(5)] + ["Barrel0"]
+
+
+def shape_sum(name):
+    """The evaluated mesh's vertices, summed (the Displace in world coordinates moves them)."""
+    import bpy
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    total = 0.0
+    for vertex in bpy.data.objects[name].evaluated_get(depsgraph).data.vertices:
+        total += vertex.co.x + 2.0 * vertex.co.y + 3.0 * vertex.co.z
+    return total
+
+
+def check_drawn():
+    """After each draw: the pose Blender's evaluated object holds (what an Own object is drawn
+    with) against the game's pose. Auto members draw from the game's pose directly."""
+    import bpy
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    worst = store.get("worst", 0.0)
+    for name in POSED:
+        game = scene().objects[name]
+        drawn = bpy.data.objects[name].evaluated_get(depsgraph).matrix_world
+        pose = game.worldTransform
+        for row in range(4):
+            for column in range(4):
+                worst = max(worst, abs(drawn[row][column] - pose[row][column]))
+    store["worst"] = worst
+    store["checked"] = store.get("checked", 0) + 1
+
+
+def step(tick):
+    objects = scene().objects
+    if tick == 1 and S["DRAW"] == "OWN":
+        scene().post_draw.append(check_drawn)
+    if tick == 50 and S["DRAW"] == "AUTO":
+        import bpy
+        # Grouped objects leave Blender's graph (their own objects disabled in viewports).
+        save(grouped=sorted(name for name in POSED if bpy.data.objects[name].hide_viewport))
+    if tick <= 120:
+        for index in range(5):
+            cart = objects["Cart%d" % index]
+            cart.applyMovement((0.01 * (1 + index % 2), 0.008, 0.0), False)
+            cart.applyRotation((0.0, 0.0, 0.01 + 0.004 * index), False)
+            turret = objects["Turret%d" % index]
+            turret.applyRotation((0.0, 0.0, -0.03), True)
+            turret.localPosition = (turret.localPosition.x, turret.localPosition.y,
+                                    0.45 + 0.2 * math.sin(tick * 0.05))
+        objects["Barrel0"].applyRotation((0.0, 0.02, 0.0), True)
+    if tick == 80:
+        # A turret moved on its own (its cart still moving).
+        objects["Turret2"].applyMovement((0.0, 0.0, 0.3), False)
+    if tick == 100:
+        if S["DRAW"] == "OWN":
+            save(shape=shape_sum("Turret3"),
+                 watcher=[list(row) for row in objects["Watcher"].worldOrientation])
+        shot("moving")
+    elif tick == 200:
+        shot("still")
+    elif tick == 206:
+        save(worst=store.get("worst", -1.0), checked=store.get("checked", 0))
+        finish()
+'''
+
+    def after(settings, out):
+        import json
+        import numpy
+        if settings["DRAW"] != "AUTO":
+            return {}
+        result = {}
+        for run in ("0_OWN", "1_OWN"):
+            with open(os.path.join(os.path.dirname(out), run, "game.json")) as handle:
+                game = json.load(handle)
+            result[run + "_worst"] = game.get("worst", -1.0)
+            result[run + "_checked"] = game.get("checked", 0)
+            result[run + "_shape"] = game.get("shape")
+            result[run + "_watcher"] = game.get("watcher")
+        with open(os.path.join(out, "game.json")) as handle:
+            result["grouped"] = json.load(handle).get("grouped", [])
+        for run in ("1_OWN", "1_AUTO"):
+            for name in ("moving", "still"):
+                on = load_picture(os.path.join(os.path.dirname(out), run, name + ".png"))
+                off = load_picture(os.path.join(os.path.dirname(out), "0_OWN", name + ".png"))
+                if on.shape != off.shape:
+                    result[run + "_" + name] = None
+                    continue
+                # EEVEE's anti-aliasing and shadow history depend on how many updates a run
+                # made (the old path re-evaluates every object each frame): what differs there
+                # is edge shading, under a level a misplaced object always exceeds.
+                difference = numpy.abs(on - off).max(axis=2)
+                result[run + "_" + name] = int((difference > 0.0).sum())
+                result[run + "_" + name + "_strong"] = int((difference > 0.6).sum())
+                result["lit"] = int((luminance(off) > 0.05).sum())
+        for name in ("moving", "still"):
+            on = load_picture(os.path.join(os.path.dirname(out), "1_AUTO", name + ".png"))
+            own = load_picture(os.path.join(os.path.dirname(out), "1_OWN", name + ".png"))
+            difference = numpy.abs(on - own).max(axis=2)
+            result["auto_vs_own_" + name] = int((difference > 0.0).sum())
+            # Over the anti-aliasing noise two runs of one build show (up to ~0.16 there).
+            result["auto_vs_own_" + name + "_strong"] = int((difference > 0.25).sum())
+        old_still = load_picture(os.path.join(os.path.dirname(out), "0_OWN", "still.png"))
+        new_still = load_picture(os.path.join(os.path.dirname(out), "1_OWN", "still.png"))
+        result["old_vs_new_still_strong"] = int(
+            (numpy.abs(old_still - new_still).max(axis=2) > 0.25).sum())
+        return result
+
+    def judge(settings, values, log_text):
+        keys = ("1_OWN_moving", "1_OWN_still", "1_AUTO_moving", "1_AUTO_still")
+        if any(values.get(key) is None for key in keys):
+            return False, "the pictures could not be compared"
+        strong = [values[key + "_strong"] for key in keys]
+        worst_old, worst_new = values["0_OWN_worst"], values["1_OWN_worst"]
+        # The proof: Blender's evaluated objects hold the game's pose after every draw (Own), and
+        # Auto groups draw the very picture Own objects draw (the same updates: identical).
+        # Carts 1-2 and turrets 0-2 group (Cart0 is read by the Watcher's constraint; the barrel
+        # is alone; cart 3's turret moves its shape, cart 4's turret has a vertex parent: those
+        # carts keep their own objects, as their turrets).
+        expected = ["Cart1", "Cart2", "Turret0", "Turret1", "Turret2"]
+        shape_old, shape_new = values.get("0_OWN_shape"), values.get("1_OWN_shape")
+        watcher_old, watcher_new = values.get("0_OWN_watcher"), values.get("1_OWN_watcher")
+        shape_ok = shape_old is not None and shape_new is not None and \
+            abs(shape_old - shape_new) < 1e-3
+        watcher_ok = watcher_old is not None and watcher_new is not None and all(
+            abs(a - b) < 1e-5 for row_a, row_b in zip(watcher_old, watcher_new)
+            for a, b in zip(row_a, row_b))
+        # EEVEE's sample history differs from run to run (edges, dithering: two runs of one build
+        # differ there too), so pictures count only on the still view, over that noise.
+        ok = (values.get("grouped") == expected and shape_ok and watcher_ok and
+              values["auto_vs_own_still_strong"] == 0 and
+              values["old_vs_new_still_strong"] == 0 and
+              0.0 <= worst_new < 1e-4 and 0.0 <= worst_old < 1e-4 and
+              values["1_OWN_checked"] > 100 and values.get("lit", 0) > 1000)
+        return ok, ("Turret3's displaced shape at tick 100: %s on the old path, %s on the new "
+                    "(must match); the Watcher's turn the same: %s; still view, pixels over the "
+                    "noise: Auto against Own %d, new against old %d (must be 0); "
+                    "grouped as Auto: %s (expected %s); "
+                    "drawn pose against the game's, largest difference after a draw: %g on the "
+                    "old path, %g on the direct path (%d draws checked; both under 1e-4); Auto "
+                    "against Own: %d / %d pixels moving / still; against the old path: Own %d / "
+                    "%d, Auto %d / %d, over 0.6: "
+                    "%s") % (
+            shape_old, shape_new, watcher_ok, values["auto_vs_own_still_strong"],
+            values["old_vs_new_still_strong"],
+            values.get("grouped"), expected,
+            worst_old, worst_new, values["1_OWN_checked"], values["auto_vs_own_moving"],
+            values["auto_vs_own_still"], values["1_OWN_moving"], values["1_OWN_still"],
+            values["1_AUTO_moving"], values["1_AUTO_still"], strong)
+
+
 # --------------------------------------------------------------------------------------------
 # Benchmarks.
 

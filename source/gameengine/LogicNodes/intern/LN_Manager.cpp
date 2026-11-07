@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <ctime>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -23,8 +24,10 @@
 #include <utility>
 
 #include "BLI_assert.h"
+#include "BKE_appdir.hh"
 #include "BKE_context.hh"
 #include "BKE_game_physics.hh"
+#include "BKE_global.hh"
 #include "BKE_main.hh"
 #include "CM_Message.h"
 #include "DNA_node_types.h"
@@ -167,6 +170,11 @@ LN_Manager::LN_Manager(KX_Scene &scene)
 {
   static std::atomic<uint32_t> next_shared_ref_domain{1};
   m_sharedRefDomain = next_shared_ref_domain.fetch_add(1, std::memory_order_relaxed);
+  m_columnRunner.SetOverlayTest(
+      [this](KX_GameObject *object) { return m_scene.IsOverlayRuntimeObject(object); },
+      [this]() { return m_scene.HasOverlayRuntimeObjects(); });
+  m_reportLanesAtStart = LN_ColumnLaneCount();
+  m_reportPassesAtStart = LN_ColumnDirectLaneCount();
   /* A scene that starts later (Restart Scene, the next level) hears On Player Join for the
    * players already in, then the joins after it. */
   const LN_InputMap &input_map = LN_InputMap::Get();
@@ -258,6 +266,7 @@ LN_RuntimeTree *LN_Manager::RegisterCompiledProgram(KX_GameObject *gameobj,
     IndexRuntimeTree(runtime_tree);
     CacheCompiledProgram(runtime_tree->GetProgram());
     m_commandBuffer.PrewarmMaterialParameterBindings(*runtime_tree);
+    m_columnRunner.PrepareProgram(*runtime_tree->GetProgram(), runtime_tree);
     return runtime_tree;
   }
 
@@ -272,6 +281,11 @@ LN_RuntimeTree *LN_Manager::RegisterCompiledProgram(KX_GameObject *gameobj,
   IndexRuntimeTree(runtime_tree);
   CacheCompiledProgram(runtime_tree->GetProgram());
   m_commandBuffer.PrewarmMaterialParameterBindings(*runtime_tree);
+  /* Plan C2 P1: lowered to columns now (scene start, a copy, an installed tree), not in the
+   * tick it first runs (2-6 us an event, ~100 at most: a hitch with many programs). */
+  if (runtime_tree->GetProgram() != nullptr) {
+    m_columnRunner.PrepareProgram(*runtime_tree->GetProgram(), runtime_tree);
+  }
   return runtime_tree;
 }
 
@@ -533,8 +547,206 @@ void LN_Manager::BeginShutdown()
   }
 
   m_isShuttingDown = true;
+  /* (Before Clear: the report reads the trees' programs.) */
+  WriteGameReport();
   LN_CommandBuffer::ForgetSpatialSoundScene(&m_scene);
   Clear();
+}
+
+namespace {
+
+std::string json_text(const std::string &text)
+{
+  std::string out = "\"";
+  for (const unsigned char c : text) {
+    switch (c) {
+      case '"':
+        out += "\\\"";
+        break;
+      case '\\':
+        out += "\\\\";
+        break;
+      case '\n':
+        out += "\\n";
+        break;
+      case '\t':
+        out += "\\t";
+        break;
+      default:
+        if (c < 0x20) {
+          char code[8];
+          std::snprintf(code, sizeof(code), "\\u%04x", unsigned(c));
+          out += code;
+        }
+        else {
+          out += char(c);
+        }
+    }
+  }
+  return out + "\"";
+}
+
+}  // namespace
+
+std::string LN_Manager::WriteGameReport(std::string *r_json)
+{
+  AssertMainThread();
+  if (m_runtimeTrees.empty()) {
+    return std::string();
+  }
+  const char *switch_value = std::getenv("UPBGE_LN_GAME_REPORT");
+  if (r_json == nullptr && switch_value != nullptr && std::strcmp(switch_value, "0") == 0) {
+    return std::string();
+  }
+  /* (Only a running game writes it: unit tests have no engine, and some managers of theirs a
+   * stand-in scene; they ask for the text only.) */
+  if (r_json == nullptr && (KX_GetActiveEngine() == nullptr || blender::G.main == nullptr)) {
+    return std::string();
+  }
+  const std::string folder = r_json == nullptr ? blender::BKE_tempdir_base() : "";
+  if (r_json == nullptr && folder.empty()) {
+    return std::string();
+  }
+
+  /* One entry per tree (placed objects may compile a program of their own: the same tree). */
+  struct TreeEntry {
+    const LN_Program *program = nullptr;
+    size_t objects = 0;
+  };
+  std::vector<std::string> order;
+  std::unordered_map<std::string, TreeEntry> trees;
+  for (const std::unique_ptr<LN_RuntimeTree> &tree : m_runtimeTrees) {
+    const LN_Program *program = tree != nullptr && tree->IsAttached() ?
+                                    tree->GetProgramPointer() :
+                                    nullptr;
+    if (program == nullptr) {
+      continue;
+    }
+    const std::string &name = program->GetSourceTreeName().empty() ?
+                                  program->GetName() :
+                                  program->GetSourceTreeName();
+    auto [found, made] = trees.try_emplace(name);
+    if (made) {
+      found->second.program = program;
+      order.push_back(name);
+    }
+    found->second.objects++;
+  }
+  if (order.empty()) {
+    return std::string();
+  }
+  std::stable_sort(order.begin(), order.end(), [&](const std::string &a, const std::string &b) {
+    return trees[a].objects > trees[b].objects;
+  });
+
+  const uint64_t wide_runs = LN_ColumnLaneCount() - m_reportLanesAtStart;
+  const uint64_t passes = LN_ColumnDirectLaneCount() - m_reportPassesAtStart;
+  char ended[32] = "";
+  const std::time_t now = std::time(nullptr);
+  std::strftime(ended, sizeof(ended), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
+  const char *blend_path = blender::G.main != nullptr ?
+                               blender::BKE_main_blendfile_path_from_global() :
+                                               nullptr;
+
+  std::string json = "{\n  \"format\": 1,\n";
+  json += "  \"file\": " + json_text(blend_path != nullptr ? blend_path : "") + ",\n";
+  json += "  \"scene\": " + json_text(m_scene.GetName()) + ",\n";
+  json += "  \"ended\": " + json_text(ended) + ",\n";
+  json += std::string("  \"columns\": ") +
+          (LN_GetColumnMode() == LN_ColumnMode::Off ? "\"off\"" : "\"on\"") + ",\n";
+  json += "  \"tree_runs\": {\"wide\": " + std::to_string(wide_runs) +
+          ", \"pass\": " + std::to_string(passes) + "},\n";
+  json += "  \"trees\": [";
+  std::vector<std::string> summary;
+  bool first_tree = true;
+  for (const std::string &name : order) {
+    const TreeEntry &entry = trees[name];
+    const LN_Program &program = *entry.program;
+    json += std::string(first_tree ? "\n" : ",\n") + "    {\"tree\": " + json_text(name) +
+            ", \"objects\": " + std::to_string(entry.objects) + ", \"events\": [";
+    first_tree = false;
+    bool first_event = true;
+    for (const LN_Event event : {LN_Event::OnFixedUpdate, LN_Event::OnUpdate}) {
+      const LN_ColumnVerdict verdict = m_columnRunner.Verdict(program, event);
+      if (verdict.kind == LN_ColumnVerdict::Kind::None) {
+        continue;
+      }
+      const char *kind = verdict.kind == LN_ColumnVerdict::Kind::Off ? "off" :
+                         verdict.kind == LN_ColumnVerdict::Kind::Pass ? "pass" :
+                         verdict.main_thread                         ? "wide_main" :
+                                                                        "wide";
+      const std::string hint = verdict.kind == LN_ColumnVerdict::Kind::Pass ?
+                                   LN_ColumnRefusalHint(verdict.reason) :
+                                   std::string();
+      const char *on = event == LN_Event::OnFixedUpdate ? "steps" : "frames";
+      json += std::string(first_event ? "" : ", ") + "{\"event\": \"" + on + "\", \"kind\": \"" +
+              kind + "\", \"reason\": " + json_text(verdict.reason) +
+              ", \"hint\": " + json_text(hint) + "}";
+      first_event = false;
+      if (verdict.kind == LN_ColumnVerdict::Kind::Pass && entry.objects >= 2) {
+        summary.push_back("'" + name + "' (" + std::to_string(entry.objects) + " objects, on " +
+                          on + "): column pass, " + verdict.reason);
+      }
+    }
+    json += "]";
+    /* Every N Steps routes next to routes that run every step: the tree never sleeps between its
+     * steps (a Boolean Edge, a collision or an event sensor keeps it awake). */
+    const std::vector<std::string> awake = LN_NodesKeepingTreesAwake(program);
+    json += ", \"never_sleeps\": [";
+    for (size_t k = 0; k < awake.size() && k < 6; k++) {
+      json += (k == 0 ? "" : ", ") + json_text(awake[k]);
+    }
+    json += "], \"issues\": [";
+    const std::vector<LN_SourceRef> &refs = program.GetSourceRefs();
+    bool first_issue = true;
+    for (const LN_CompileIssue &issue : program.GetCompileReport().GetIssues()) {
+      if (issue.severity == LN_CompileSeverity::Info) {
+        continue;
+      }
+      const std::string node = issue.source_ref_index < refs.size() ?
+                                   refs[issue.source_ref_index].node_name :
+                                   std::string();
+      json += std::string(first_issue ? "" : ", ") + "{\"severity\": \"" +
+              (issue.severity == LN_CompileSeverity::Error ? "error" : "warning") +
+              "\", \"node\": " + json_text(node) + ", \"message\": " + json_text(issue.message) +
+              "}";
+      first_issue = false;
+    }
+    json += "]}";
+  }
+  json += "\n  ]\n}\n";
+  if (r_json != nullptr) {
+    *r_json = json;
+    return std::string();
+  }
+
+  std::string scene_name = m_scene.GetName();
+  for (char &c : scene_name) {
+    if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') {
+      c = '_';
+    }
+  }
+  std::string path = folder;
+  if (!path.empty() && path.back() != '/' && path.back() != '\\') {
+    path += '/';
+  }
+  path += "logic_nodes_report_" + scene_name + ".json";
+  FILE *file = std::fopen(path.c_str(), "wb");
+  if (file == nullptr) {
+    return std::string();
+  }
+  std::fwrite(json.data(), 1, json.size(), file);
+  std::fclose(file);
+
+  const uint64_t runs = wide_runs + passes;
+  CM_Message("Logic Nodes: play report of scene '"
+             << m_scene.GetName() << "' (Logic Nodes sidebar > Performance): "
+             << (runs != 0 ? std::to_string(wide_runs * 100 / runs) : std::string("0"))
+             << "% of tree runs in wide column runs");
+  for (size_t k = 0; k < summary.size() && k < 6; k++) {
+    CM_Message("  " << summary[k]);
+  }
+  return path;
 }
 
 void LN_Manager::ReplicateRuntimeTrees(KX_GameObject *source_gameobj,
@@ -717,6 +929,10 @@ void LN_Manager::AbsorbRuntimeTreesFrom(LN_Manager &other)
     if (runtime_tree != nullptr) {
       CacheCompiledProgram(runtime_tree->GetProgram());
       m_commandBuffer.PrewarmMaterialParameterBindings(*runtime_tree);
+      /* (The merged scene's programs lowered in its own runner; this one has its own.) */
+      if (runtime_tree->GetProgram() != nullptr) {
+        m_columnRunner.PrepareProgram(*runtime_tree->GetProgram(), runtime_tree.get());
+      }
     }
   }
   /* The merged scene's waiting calls keep their order, after this scene's, with serials of this
@@ -1823,6 +2039,36 @@ void LN_Manager::Tick(const double current_time,
     m_objectNameCacheValid = false;
   }
 
+  /* Plan C1 (LN_Columns.h, UPBGE_LN_COLUMNS): which runs of trees run in columns this tick,
+   * decided before the snapshots (their trees capture only their game properties). Their writes
+   * become the buffer's external writes until EndTick. */
+  m_columnsPlanned = false;
+  if (LN_GetColumnMode() != LN_ColumnMode::Off) {
+    m_columnTreesScratch.clear();
+    for (const RunnableTree &item : runnable_trees) {
+      m_columnTreesScratch.push_back(item.runtime_tree);
+    }
+    SyncJobPoolSize();
+    /* (RunLanes gets the pool when it has helpers: waves only then.) */
+    m_columnRunner.SetPlanHelpers(m_jobPool.GetHelperCount());
+    m_columnsPlanned = m_columnRunner.Plan(m_columnTreesScratch.data(),
+                                           m_columnTreesScratch.size(),
+                                           event,
+                                           m_commandBuffer,
+                                           has_due_run_once ? &pending_forced_trees : nullptr,
+                                           &m_sharedTickReadContext);
+    /* (Looked at only when it changed: the same reason comes back every tick.) */
+    if (!m_columnsPlanned && m_columnRunner.LastRefusal() != m_lastColumnRefusal) {
+      m_lastColumnRefusal = m_columnRunner.LastRefusal();
+      /* Each reason once, so a game's log says why no tree ran in columns. */
+      static std::unordered_set<std::string> reported;
+      const std::string note = "columns refused: " + m_lastColumnRefusal;
+      if (reported.insert(note).second) {
+        CM_Message("Logic Nodes: " << note);
+      }
+    }
+  }
+
   std::chrono::steady_clock::time_point snapshot_start;
   if (report_tick_timings) {
     snapshot_start = std::chrono::steady_clock::now();
@@ -1884,6 +2130,9 @@ void LN_Manager::Tick(const double current_time,
   m_captureForceScratch.clear();
   for (size_t index = 0; index < m_runtimeTrees.size(); index++) {
     LN_RuntimeTree *runtime_tree = m_runtimeTrees[index].get();
+    if (runtime_tree->IsColumnLane()) {
+      continue; /* its game properties are captured below (CaptureLanes) */
+    }
     const bool force_snapshot = !pending_forced_trees.empty() &&
                                 pending_forced_trees.find(runtime_tree) !=
                                     pending_forced_trees.end();
@@ -1942,6 +2191,10 @@ void LN_Manager::Tick(const double current_time,
     }
     m_captureTreesScratch.clear();
     m_captureForceScratch.clear();
+  }
+  if (m_columnsPlanned) {
+    m_columnRunner.CaptureLanes(context.tick_index,
+                                m_jobPool.GetHelperCount() > 0 ? &m_jobPool : nullptr);
   }
 
   if (resolves_ui) {
@@ -2003,7 +2256,9 @@ void LN_Manager::Tick(const double current_time,
     const bool force_snapshot = !pending_forced_trees.empty() &&
                                 pending_forced_trees.find(runtime_tree) !=
                                     pending_forced_trees.end();
-    if (!tree_runs_this_tick(index) && !(force_snapshot && pause_eligible(*runtime_tree))) {
+    if ((!tree_runs_this_tick(index) && !(force_snapshot && pause_eligible(*runtime_tree))) ||
+        runtime_tree->IsColumnLane())
+    {
       continue;
     }
     const size_t query_count = runtime_tree->WarmQueryCache(context);
@@ -2032,7 +2287,18 @@ void LN_Manager::Tick(const double current_time,
     }
 
     m_commandBuffer.BeginRecording();
+    const uint64_t column_passes_before = LN_ColumnDirectLaneCount();
     RecordRunnableTrees(runnable_trees, context, report_tick_timings ? &*profile : nullptr);
+    LN_AddColumnPasses(std::exchange(m_columnPasses, 0));
+    if (report_tick_timings) {
+      profile->column_pass_count += uint32_t(LN_ColumnDirectLaneCount() - column_passes_before);
+    }
+    if (report_tick_timings) {
+      profile->runnable_tree_count += uint32_t(runnable_trees.size());
+    }
+    if (m_columnsPlanned) {
+      NoteColumnTick(report_tick_timings ? &*profile : nullptr);
+    }
     if (report_tick_timings) {
       const auto serial_end = std::chrono::steady_clock::now();
       profile->serial_record_ms = std::chrono::duration<double, std::milli>(serial_end -
@@ -2069,6 +2335,7 @@ void LN_Manager::Tick(const double current_time,
     if (report_tick_timings) {
       flush_start = std::chrono::steady_clock::now();
     }
+    /* The column runs' writes are applied by the flush, at their trees' sort keys. */
     m_commandBuffer.Flush();
     PollActionOperations();
     if (report_tick_timings) {
@@ -2085,6 +2352,10 @@ void LN_Manager::Tick(const double current_time,
     }
   }
 
+  if (m_columnsPlanned) {
+    m_columnRunner.EndTick();
+    m_columnsPlanned = false;
+  }
   m_isTicking = false;
   m_hasSharedTickInput = false;
   m_sharedTickReadContext = LN_TickReadContext();
@@ -2096,12 +2367,56 @@ void LN_Manager::Tick(const double current_time,
   RemoveDetachedRuntimeTrees();
 }
 
+void LN_Manager::NoteColumnTick(LN_TickProfileMetrics *profile)
+{
+  const size_t lanes = m_columnRunner.LaneCount();
+  const size_t given_back = std::min(m_columnRunner.GivenBackCount(), lanes);
+  if (profile != nullptr) {
+    profile->column_tree_count += uint32_t(lanes - given_back);
+    profile->column_given_back_count += uint32_t(given_back);
+  }
+  /* The log says how many trees ran in columns, and what kept the others out, once for each
+   * new picture (a count that changes by under a quarter is the same picture: spawns and
+   * removals would make every tick new). */
+  const std::string &outside = m_columnRunner.LastOutsideNote();
+  const size_t ran = lanes - given_back;
+  const bool new_picture = outside != m_columnLogOutside ||
+                           (given_back != 0) != (m_columnLogGivenBack != 0) ||
+                           ran * 4 < m_columnLogTrees * 3 || ran * 3 > m_columnLogTrees * 4;
+  if (!new_picture || m_columnLogLines >= 32) {
+    return;
+  }
+  m_columnLogLines++;
+  m_columnLogOutside = outside;
+  m_columnLogTrees = ran;
+  m_columnLogGivenBack = given_back;
+  std::string line = "columns run (" + std::to_string(ran) + " trees)";
+  const bool passes = LN_ColumnPassesOn();
+  if (given_back != 0) {
+    line += "; " + std::to_string(given_back) +
+            (passes ? " given back to the column pass" : " given back to the old system") +
+            " (a pending move or an object found while playing when their run started)";
+  }
+  if (!outside.empty()) {
+    line += (passes ? "; in column passes, not in runs: " : "; not in columns: ") + outside;
+  }
+  CM_Message("Logic Nodes: " << line);
+}
+
 void LN_Manager::RecordTree(LN_RuntimeTree &runtime_tree,
                             const LN_TickContext &context,
                             LN_TickProfileMetrics *profile)
 {
   LN_RuntimeProfileCounters profile_counters;
-  runtime_tree.ExecuteReady(m_commandBuffer, context, profile ? &profile_counters : nullptr);
+  /* Plan C2 P6: the column system's pass while columns run (the old system's otherwise). */
+  if (LN_ColumnPassesOn()) {
+    runtime_tree.ColumnExecuteReady(
+        m_commandBuffer, context, profile ? &profile_counters : nullptr);
+    m_columnPasses++;
+  }
+  else {
+    runtime_tree.ExecuteReady(m_commandBuffer, context, profile ? &profile_counters : nullptr);
+  }
   if (profile != nullptr) {
     logic_nodes_accumulate_tree_profile(runtime_tree, profile_counters, *profile);
     profile->serial_tree_count++;
@@ -2130,6 +2445,10 @@ void LN_Manager::RecordRunnableTrees(const std::vector<RunnableTree> &runnable_t
     }
   }
   if (!batches_possible) {
+    if (m_columnsPlanned) {
+      RecordRunnableTreesWithColumns(runnable_trees, context, profile);
+      return;
+    }
     for (const RunnableTree &item : runnable_trees) {
       if (item.runtime_tree != nullptr) {
         RecordTree(*item.runtime_tree, context, profile);
@@ -2137,9 +2456,23 @@ void LN_Manager::RecordRunnableTrees(const std::vector<RunnableTree> &runnable_t
     }
     return;
   }
+  if (m_columnsPlanned) {
+    /* Plan C1: the trees running in columns are no batch's; batch reads of the column runs'
+     * pending moves (helper threads) find them through a map made here, on this thread. */
+    for (size_t index = 0; index < count; index++) {
+      if (m_columnRunner.IsLane(index)) {
+        m_batchTreeScratch[index] = 0;
+      }
+    }
+  }
+  LN_JobPool *column_pool = m_jobPool.GetHelperCount() > 0 ? &m_jobPool : nullptr;
 
   size_t index = 0;
   while (index < count) {
+    if (m_columnsPlanned && m_columnRunner.IsLane(index)) {
+      index = m_columnRunner.RunLanes(index, m_commandBuffer, context, column_pool);
+      continue;
+    }
     LN_RuntimeTree *runtime_tree = runnable_trees[index].runtime_tree;
     if (runtime_tree == nullptr) {
       index++;
@@ -2168,6 +2501,9 @@ void LN_Manager::RecordRunnableTrees(const std::vector<RunnableTree> &runnable_t
         RecordTree(*runnable_trees[index].runtime_tree, context, profile);
       }
       continue;
+    }
+    if (m_columnsPlanned) {
+      m_columnRunner.PrepareForBatchReads();
     }
     RecordTreeBatch(runnable_trees, index, end, context, profile);
     index = end;
@@ -2204,6 +2540,7 @@ void LN_Manager::RecordTreeBatch(const std::vector<RunnableTree> &runnable_trees
                                  std::max<size_t>(2, threads * 4) :
                                  std::clamp<size_t>(
                                      count / LN_TREE_BATCH_MIN_CHUNK_TREES, 1, threads * 4);
+  m_batchRecorder.SetColumnPasses(LN_ColumnPassesOn());
   const size_t chunks_that_read_a_move = m_batchRecorder.Record(
       m_jobPool,
       m_commandBuffer,
@@ -2286,9 +2623,7 @@ bool LN_Manager::NoteBatchMeasuredObjects(const LN_Program &program)
   return true;
 }
 
-bool LN_Manager::MarkBatchableTrees(const std::vector<RunnableTree> &runnable_trees,
-                                    const LN_TreeBatchMode mode,
-                                    const size_t min_trees)
+void LN_Manager::SyncJobPoolSize()
 {
   /* The game's cores are the physics' (Physics CPU Use): logic and physics never run at once. */
   const blender::Scene *blender_scene = m_scene.GetBlenderScene();
@@ -2302,6 +2637,31 @@ bool LN_Manager::MarkBatchableTrees(const std::vector<RunnableTree> &runnable_tr
                                         blender::BKE_game_physics_computer_cores()) -
             1)));
   }
+}
+
+void LN_Manager::RecordRunnableTreesWithColumns(const std::vector<RunnableTree> &runnable_trees,
+                                                const LN_TickContext &context,
+                                                LN_TickProfileMetrics *profile)
+{
+  LN_JobPool *pool = m_jobPool.GetHelperCount() > 0 ? &m_jobPool : nullptr;
+  size_t index = 0;
+  while (index < runnable_trees.size()) {
+    if (m_columnRunner.IsLane(index)) {
+      index = m_columnRunner.RunLanes(index, m_commandBuffer, context, pool);
+      continue;
+    }
+    if (runnable_trees[index].runtime_tree != nullptr) {
+      RecordTree(*runnable_trees[index].runtime_tree, context, profile);
+    }
+    index++;
+  }
+}
+
+bool LN_Manager::MarkBatchableTrees(const std::vector<RunnableTree> &runnable_trees,
+                                    const LN_TreeBatchMode mode,
+                                    const size_t min_trees)
+{
+  SyncJobPoolSize();
   if (mode != LN_TreeBatchMode::Force && m_jobPool.GetHelperCount() == 0) {
     return false;
   }
@@ -3182,16 +3542,49 @@ void LN_Manager::FinishInputRebind(const bool success)
 void LN_Manager::RebuildObjectNameCache()
 {
   m_objectByName.clear();
+  m_objectByBlenderName.clear();
   if (EXP_ListValue<KX_GameObject> *object_list = m_scene.GetObjectList()) {
     for (KX_GameObject *game_object : *object_list) {
       if (game_object == nullptr) {
         continue;
       }
-      m_objectByName.emplace(game_object->GetName(), game_object);
+      const std::string &name = game_object->GetName();
+      m_objectByName.emplace(name, game_object);
+      /* The scan's other match (game_object_matches_name): the Blender object's name. */
+      if (blender::Object *blender_object = game_object->GetBlenderObject()) {
+        const char *blender_name = blender_object->id.name + 2;
+        if (name != blender_name) {
+          m_objectByBlenderName.emplace(blender_name, game_object);
+        }
+      }
     }
   }
   m_objectNameCacheValid = true;
   m_objectNameCacheGeneration = m_scene.GetObjectListGeneration();
+}
+
+void LN_Manager::PrepareObjectNameLookup()
+{
+  if (LN_GetSceneAccessForTests() == nullptr && m_isTicking && !m_objectNameCacheValid) {
+    RebuildObjectNameCache();
+  }
+}
+
+bool LN_Manager::AnswerObjectNameMiss(const std::string &name, KX_GameObject *&r_object) const
+{
+  r_object = nullptr;
+  if (LN_GetSceneAccessForTests() != nullptr || !m_isTicking || !m_objectNameCacheValid ||
+      m_objectNameCacheGeneration != m_scene.GetObjectListGeneration())
+  {
+    return false;
+  }
+  /* No object of the list has the game name (FindObjectByName missed it, and the list is the one
+   * the lookup was made from): the scan's first match is the first one by its Blender name. */
+  const auto iter = m_objectByBlenderName.find(name);
+  if (iter != m_objectByBlenderName.end()) {
+    r_object = iter->second;
+  }
+  return true;
 }
 
 static const LN_SceneAccessForTests *g_scene_access_for_tests = nullptr;
@@ -3662,8 +4055,16 @@ uint32_t LN_Manager::ProcessPendingRunOnce(const LN_TickContext &context,
       continue;
     }
     LN_RuntimeProfileCounters profile_counters;
-    target_tree->ExecuteForcedUpdate(
-        m_commandBuffer, context, profile != nullptr ? &profile_counters : nullptr);
+    /* Plan C2 P6: through the column system's pass (its route or walk) while columns run. */
+    if (LN_ColumnPassesOn()) {
+      target_tree->ColumnExecuteForcedUpdate(
+          m_commandBuffer, context, profile != nullptr ? &profile_counters : nullptr);
+      LN_AddColumnPasses(1);
+    }
+    else {
+      target_tree->ExecuteForcedUpdate(
+          m_commandBuffer, context, profile != nullptr ? &profile_counters : nullptr);
+    }
     if (profile != nullptr) {
       logic_nodes_accumulate_tree_profile(*target_tree, profile_counters, *profile);
     }

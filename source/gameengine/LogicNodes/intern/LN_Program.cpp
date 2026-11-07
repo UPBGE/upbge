@@ -24,6 +24,43 @@
 #include "LN_TypeConversion.h"
 
 namespace {
+std::atomic<uint64_t> g_programs_changed{0};
+}  // namespace
+
+bool LN_Program::TreePropertyOnlySetBySetTreeProperty(const uint32_t ref) const
+{
+  if (ref >= m_treePropertyRefs.size()) {
+    return false;
+  }
+  if (m_treePropertyOtherWriters.size() != m_treePropertyRefs.size()) {
+    m_treePropertyOtherWriters.assign(m_treePropertyRefs.size(), 0);
+    for (const LN_Event event : {LN_Event::OnInit, LN_Event::OnUpdate, LN_Event::OnFixedUpdate}) {
+      for (const LN_InstructionHeader &header : GetInstructionHeaders(event)) {
+        const LN_Instruction &instruction = GetInstructionPayload(event, header);
+        if ((instruction.opcode == LN_OpCode::AddObject ||
+             instruction.opcode == LN_OpCode::InventoryEdit ||
+             instruction.opcode == LN_OpCode::AssignGeometryNodesModifier) &&
+            instruction.property_ref_index < m_treePropertyOtherWriters.size())
+        {
+          m_treePropertyOtherWriters[instruction.property_ref_index] = 1;
+        }
+      }
+    }
+  }
+  return m_treePropertyOtherWriters[ref] == 0;
+}
+
+void LN_NoteProgramsChanged()
+{
+  g_programs_changed.fetch_add(1, std::memory_order_relaxed);
+}
+
+uint64_t LN_ProgramsChangedSerial()
+{
+  return g_programs_changed.load(std::memory_order_relaxed);
+}
+
+namespace {
 
 bool OpcodeEmitsCommands(LN_OpCode opcode);
 LN_MainThreadOnlyReason MainThreadOnlyReasonForOpcode(LN_OpCode opcode);
@@ -3309,6 +3346,8 @@ uint32_t LN_Program::AddTimeFlowState()
 {
   m_treeStateLayout.reset();
   m_leanProgram.reset();
+  m_treePropertyOtherWriters.clear();
+  LN_NoteProgramsChanged();
   m_treeBatchProfile.reset();
   return m_timeFlowStateCount++;
 }
@@ -3317,6 +3356,8 @@ uint32_t LN_Program::AddFlowControlState()
 {
   m_treeStateLayout.reset();
   m_leanProgram.reset();
+  m_treePropertyOtherWriters.clear();
+  LN_NoteProgramsChanged();
   m_treeBatchProfile.reset();
   return m_flowControlStateCount++;
 }
@@ -3678,6 +3719,8 @@ uint32_t LN_Program::AddStepGate(const LN_StepGate &gate)
   }
   m_treeStateLayout.reset();
   m_leanProgram.reset();
+  m_treePropertyOtherWriters.clear();
+  LN_NoteProgramsChanged();
   m_treeBatchProfile.reset();
   m_stepGates.push_back(gate);
   return uint32_t(m_stepGates.size() - 1);
@@ -3939,6 +3982,8 @@ void LN_Program::RebuildExecBlockIR(const LN_Event event)
   /* Instructions changed: trees lay their state out again (LN_RuntimeTree::RefreshStateBlockLayout). */
   m_treeStateLayout.reset();
   m_leanProgram.reset();
+  m_treePropertyOtherWriters.clear();
+  LN_NoteProgramsChanged();
   m_treeBatchProfile.reset();
   LN_ExecBlockProgram &ir = m_execBlockPrograms[size_t(event)];
   const std::vector<LN_InstructionHeader> &headers = GetInstructionHeaders(event);
@@ -4124,6 +4169,8 @@ void LN_Program::RebuildRegisterExpressionIR()
   /* Expressions or registers changed (every Add*Expression comes here): see RebuildExecBlockIR. */
   m_treeStateLayout.reset();
   m_leanProgram.reset();
+  m_treePropertyOtherWriters.clear();
+  LN_NoteProgramsChanged();
   m_treeBatchProfile.reset();
   LN_RegisterExpressionProgram ir;
   ir.program_version = m_programVersion;

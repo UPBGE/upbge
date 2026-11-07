@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <sstream>
 
@@ -54,11 +55,28 @@ std::string LN_DumpNames::Collection(const void *collection)
 
 /* ---- numbers and text ---- */
 
+/** UPBGE_LN_DUMP_NAN=asis: a NaN's own bits (the dumps before 2026-11-04: goldens recorded then
+ * can be checked against that format). */
+bool LN_DumpNaNAsIs()
+{
+  static const bool as_is = []() {
+    const char *value = std::getenv("UPBGE_LN_DUMP_NAN");
+    return value != nullptr && std::strcmp(value, "asis") == 0;
+  }();
+  return as_is;
+}
+
 std::string LN_DumpFloatBits(const float value)
 {
   uint32_t bits;
   static_assert(sizeof(bits) == sizeof(value));
   std::memcpy(&bits, &value, sizeof(bits));
+  if (value != value && !LN_DumpNaNAsIs()) {
+    /* Every NaN as one: its sign and payload depend on the order the compiler put the operands
+     * of `+` and `*` in (x86 passes on the first NaN), which differs between instances of the
+     * same code (2026-11-04, soak seeds 35108 and 16306). */
+    bits = 0x7fc00000u;
+  }
   char text[16];
   std::snprintf(text, sizeof(text), "0x%08x", bits);
   return text;
@@ -69,6 +87,9 @@ std::string LN_DumpDoubleBits(const double value)
   uint64_t bits;
   static_assert(sizeof(bits) == sizeof(value));
   std::memcpy(&bits, &value, sizeof(bits));
+  if (value != value && !LN_DumpNaNAsIs()) {
+    bits = 0x7ff8000000000000ull; /* every NaN as one (LN_DumpFloatBits) */
+  }
   char text[24];
   std::snprintf(text, sizeof(text), "0x%016llx", static_cast<unsigned long long>(bits));
   return text;

@@ -15,6 +15,8 @@
 #include "LN_KindCatalog.h"
 #include "LN_TreeBatch.h"
 
+#include "LN_Columns.h"
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -950,47 +952,6 @@ LN_TreeBatchMode tree_batch_mode_from_environment()
 }  // namespace
 
 namespace {
-std::atomic<int> g_block_mode_override{-1};
-std::atomic<uint64_t> g_block_lanes{0};
-}  // namespace
-
-LN_TreeBlockMode LN_GetBlockMode()
-{
-  const int override_mode = g_block_mode_override.load(std::memory_order_relaxed);
-  if (override_mode >= 0) {
-    return LN_TreeBlockMode(override_mode > 2 ? 2 : override_mode);
-  }
-  static const LN_TreeBlockMode mode = []() {
-    const char *value = std::getenv("UPBGE_LN_BLOCKS");
-    if (value == nullptr || value[0] == '\0' || std::strcmp(value, "0") == 0 ||
-        std::strcmp(value, "off") == 0)
-    {
-      return LN_TreeBlockMode::Off;
-    }
-    if (std::strcmp(value, "force") == 0 || std::strcmp(value, "2") == 0) {
-      return LN_TreeBlockMode::Force;
-    }
-    return LN_TreeBlockMode::Auto;
-  }();
-  return mode;
-}
-
-void LN_SetBlockModeForTests(const int mode)
-{
-  g_block_mode_override.store(mode < 0 ? -1 : (mode > 2 ? 2 : mode), std::memory_order_relaxed);
-}
-
-uint64_t LN_BlockLaneCount()
-{
-  return g_block_lanes.load(std::memory_order_relaxed);
-}
-
-void LN_NoteBlockLanes(const size_t lanes)
-{
-  g_block_lanes.fetch_add(lanes, std::memory_order_relaxed);
-}
-
-namespace {
 int parallel_capture_setting()
 {
   static const int setting = []() {
@@ -1098,33 +1059,20 @@ size_t LN_TreeBatchRecorder::Record(LN_JobPool &pool,
   pool.Run(chunk_count, [&](const size_t chunk, uint32_t /*thread*/) {
     LN_CommandBuffer &chunk_buffer = *m_chunks[chunk];
     chunk_buffer.BeginChunkRecording();
-    const size_t chunk_end = first_tree(chunk + 1);
-    const LN_TreeBlockMode block_mode = LN_GetBlockMode();
-    const bool blocks = block_mode != LN_TreeBlockMode::Off && profile_counters == nullptr;
-    const size_t min_lanes = block_mode == LN_TreeBlockMode::Force ? 2 : LN_TREE_BLOCK_MIN_LANES;
-    for (size_t index = first_tree(chunk); index < chunk_end;) {
-      if (blocks && trees[index]->BlockEligible(context.event)) {
-        /* Consecutive trees of the same program run together, op by op. */
-        const LN_Program *program = trees[index]->GetProgramPointer();
-        size_t end = index + 1;
-        while (end < chunk_end && end - index < LN_TREE_BLOCK_MAX_LANES &&
-               trees[end]->GetProgramPointer() == program && trees[end]->BlockEligible(context.event))
-        {
-          end++;
-        }
-        if (end - index >= min_lanes) {
-          LN_RuntimeTree::RunBlock(chunk_buffer, context, trees + index, end - index);
-          LN_NoteBlockLanes(end - index);
-          index = end;
-          continue;
-        }
+    for (size_t index = first_tree(chunk); index < first_tree(chunk + 1); index++) {
+      LN_RuntimeProfileCounters *counters = profile_counters ? &profile_counters[index] : nullptr;
+      if (m_columnPasses) {
+        trees[index]->ColumnExecuteReady(chunk_buffer, context, counters);
       }
-      trees[index]->ExecuteReady(
-          chunk_buffer, context, profile_counters ? &profile_counters[index] : nullptr);
-      index++;
+      else {
+        trees[index]->ExecuteReady(chunk_buffer, context, counters);
+      }
     }
     chunk_buffer.EndChunkRecording();
   });
+  if (m_columnPasses) {
+    LN_AddColumnPasses(count);
+  }
 
   const std::chrono::steady_clock::time_point join_start = std::chrono::steady_clock::now();
   size_t chunks_that_read_a_move = 0;
@@ -1142,6 +1090,54 @@ size_t LN_TreeBatchRecorder::Record(LN_JobPool &pool,
                                                            join_start)
                      .count();
   return chunks_that_read_a_move;
+}
+
+const char *LN_BatchExpressionRefusal(const LN_Program &program,
+                                      const uint8_t domain,
+                                      const uint32_t index)
+{
+  const auto in = [&](const auto &table) { return index < table.size(); };
+  switch (LN_KindDomain(domain)) {
+    case LN_KindDomain::Bool:
+      return in(program.GetBoolExpressions()) ?
+                 bool_kind_refusal(program.GetBoolExpressions()[index]) :
+                 "no such expression";
+    case LN_KindDomain::Int:
+      return in(program.GetIntExpressions()) ?
+                 int_kind_refusal(program.GetIntExpressions()[index]) :
+                 "no such expression";
+    case LN_KindDomain::Float:
+      return in(program.GetFloatExpressions()) ?
+                 float_kind_refusal(program.GetFloatExpressions()[index]) :
+                 "no such expression";
+    case LN_KindDomain::String:
+      return in(program.GetStringExpressions()) ?
+                 string_kind_refusal(program.GetStringExpressions()[index]) :
+                 "no such expression";
+    case LN_KindDomain::Vector:
+      return in(program.GetVectorExpressions()) ?
+                 vector_kind_refusal(program.GetVectorExpressions()[index]) :
+                 "no such expression";
+    case LN_KindDomain::Color:
+      return in(program.GetColorExpressions()) ?
+                 color_kind_refusal(program.GetColorExpressions()[index]) :
+                 "no such expression";
+    case LN_KindDomain::Value:
+      return in(program.GetValueExpressions()) ?
+                 value_kind_refusal(program, program.GetValueExpressions()[index]) :
+                 "no such expression";
+    case LN_KindDomain::Query:
+      return in(program.GetQueryExpressions()) ?
+                 query_refusal(program, program.GetQueryExpressions()[index]) :
+                 "no such expression";
+    default:
+      return "not an expression table";
+  }
+}
+
+const char *LN_BatchOpRefusal(const LN_Program &program, const LN_Instruction &instruction)
+{
+  return op_refusal(program, instruction);
 }
 
 const char *LN_BatchKindRefusalForTests(const uint8_t domain, const uint16_t value)

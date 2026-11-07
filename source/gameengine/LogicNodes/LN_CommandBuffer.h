@@ -16,6 +16,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "BLI_function_ref.hh"
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
 
@@ -40,6 +41,81 @@ struct bNodeSocket;
 struct bNodeTree;
 struct bSound;
 }
+
+/** Plan C2 P5, tests only: every force and torque the flush or a column run applies (the object,
+ * the vector, local, a torque), in the order applied; nullptr (the game): none. Main thread. */
+using LN_ForceObserver = void (*)(void *user,
+                                  const KX_GameObject *object,
+                                  const MT_Vector3 &vector,
+                                  bool local,
+                                  bool torque);
+void LN_SetForceObserverForTests(LN_ForceObserver observer, void *user);
+
+class LN_CommandBuffer;
+struct LN_FlushWriteKey;
+
+/** Plan C1 (LN_Columns.h): writes made outside the streams that behave exactly as recorded commands
+ * of their trees: applied in the flush at their sort keys among the other commands, and their
+ * moves applied early by a read that applies the moved object's pending moves. */
+/** A write of LN_ExternalWrites as the flush's merge decision sees it (MarkSupersededWrites): the
+ * fields its recorded command's key would have (LN_FlushWriteKey). */
+struct LN_ExternalWriteKey {
+  uint64_t sort_key = 0;
+  /** A last-write-wins write (else it ends a run of merged writes, as any other command does). */
+  bool last_write_wins = false;
+  /** An LN_CommandBuffer::CommandType. */
+  uint8_t type = 0;
+  const void *object = nullptr;
+  const void *runtime_tree = nullptr;
+  uint32_t property_id = UINT32_MAX;
+  uint32_t property_ref_index = UINT32_MAX;
+  /** A command another buffer recorded (a bridged op's, plan C1-8): its key is that command's own,
+   * names included (`foreign_ref` = stream << 32 | index); the fields above but `sort_key` and
+   * `last_write_wins` are then not read. */
+  const LN_CommandBuffer *foreign_buffer = nullptr;
+  uint64_t foreign_ref = 0;
+};
+
+class LN_ExternalWrites {
+ public:
+  virtual ~LN_ExternalWrites() = default;
+  /** Some write is still to apply (the flush interleaves only then). */
+  virtual bool HasWrites() const = 0;
+  /** The writes left to apply, counted as their recorded commands would count for the flush's
+   * merge gate: all of them, and the last-write-wins ones (writes already applied whose command
+   * the flush would apply again, as a tree property's, included). */
+  virtual void CountWrites(uint32_t &r_total, uint32_t &r_last_write_wins) const = 0;
+  /** Lists, in flush order (sort key, then op order), the writes left to apply that the merge can
+   * see: a last-write-wins write that may share its key (with another write of its own tree, or
+   * with a command of the buffer on its object: `buffer_objects`, sorted), and the writes that end
+   * a run (one per tree is enough when none of its writes is listed). A write left out can neither
+   * be merged nor end a run: the merge's result is the same. Returns how many; WriteKey and
+   * MarkSuperseded take their index in this list. `buffer_can_merge` false: no two of the
+   * buffer's own writes can merge (fewer than two last-write-wins writes, or no run of two), so
+   * when no last-write-wins write would be listed nothing is listed (0: no merge can happen). */
+  virtual size_t ListWrites(const std::vector<const void *> &buffer_objects,
+                            bool buffer_can_merge) = 0;
+  virtual const LN_ExternalWriteKey &WriteKey(size_t index) const = 0;
+  /** The flush's merge supersedes the write: it is not applied. */
+  virtual void MarkSuperseded(size_t index) = 0;
+  /** After the merge, before the first ApplyWritesBefore (plan C1-11 C-4): writes whose result
+   * cannot depend on when the flush applies them may be applied now (in parallel); the
+   * ApplyWritesBefore calls then leave them out. Main thread, inside the buffer's flush. */
+  virtual void PrepareApply(LN_CommandBuffer & /*buffer*/) {}
+  /** Applies every write whose sort key is below `sort_key` (UINT64_MAX: all that are left), in
+   * sort key order. During the buffer's flush, main thread. */
+  virtual void ApplyWritesBefore(uint64_t sort_key, LN_CommandBuffer &buffer) = 0;
+  /** The object has a move made but not applied yet. Any thread while the writes do not change
+   * (tree batches read it). */
+  virtual bool HasPendingMove(const KX_GameObject *object) const = 0;
+  /** The sort key of the object's pending moves; false when it has none. */
+  virtual bool PendingMoveSortKey(const KX_GameObject *object, uint64_t &r_sort_key) const = 0;
+  /** Applies now (a read's early apply) the pending moves of the tree whose sort key is
+   * `sort_key` of the `count` objects (the read's object and parents it moves), in its record
+   * order: a tree may move an object and its parent (a turret and its NPC, plan C1-9). They are
+   * not applied again. */
+  virtual void ApplyPendingMoves(uint64_t sort_key, KX_GameObject *const *objects, size_t count) = 0;
+};
 
 class LN_CommandBuffer {
  public:
@@ -287,8 +363,6 @@ class LN_CommandBuffer {
      * a table). The stream a command goes to comes from its type at the append
      * (GetCommandClass), not from the header. */
     CoalescingPolicy coalescing = CoalescingPolicy::Forbidden;
-    /** Block recording (BeginBlock): the lane of the block the command belongs to. */
-    uint16_t lane = 0;
   };
 
   struct Command {
@@ -346,8 +420,92 @@ class LN_CommandBuffer {
   static CoalescingPolicy GetCoalescingPolicy(CommandType type);
   static bool AllowsObjectlessFlush(CommandType type);
 
+  /** Plan C1 prototype (LN_Columns.h): a write applied at once, exactly as the flush applies the
+   * same write recorded. A number write (Set Game Property Bool / Int / Float): through the checked
+   * handle while the object's property list is the one it was found in, in place when the property
+   * is a number, else the whole value. Modify Property: on the live value. The eight transform
+   * kinds: ApplyObjectTransform. Main thread. */
+  static void ApplyNumberWriteNow(const LN_RuntimeTree *runtime_tree,
+                                  KX_GameObject *object,
+                                  const std::string &property_name,
+                                  const LN_PropertyNumber &number,
+                                  EXP_Value *property_handle,
+                                  uint64_t handle_stamp);
+  static void ApplyModifyNow(KX_GameObject *object,
+                             const std::string &property_name,
+                             const LN_PropertyModify &modify);
+  /** Plan C1-11 C-4, writes applied ahead of the flush, on any thread, to an object no other
+   * thread touches meanwhile. The property a number write / Modify Property of `object` would
+   * change in place, exactly where ApplyNumberWriteNow / ApplyModifyNow find it (the checked
+   * handle, else the name), when it is an existing Bool, Int or Float property (they change it in
+   * place then, nothing else); null otherwise (they would make or replace a property, or warn). */
+  static EXP_Value *NumberWriteInPlaceTarget(KX_GameObject *object,
+                                             const std::string &property_name,
+                                             EXP_Value *property_handle,
+                                             uint64_t handle_stamp);
+  static EXP_Value *ModifyInPlaceTarget(KX_GameObject *object, const std::string &property_name);
+  /** The in-place change ApplyNumberWriteNow / ApplyModifyNow make to that property (the same
+   * code). */
+  static void ApplyNumberInPlace(EXP_Value *target, const LN_PropertyNumber &number);
+  static void ApplyModifyInPlace(EXP_Value *target, const LN_PropertyModify &modify);
+  /** Plan C1-11 C-4: what applying command `ref` (stream << 32 | index) of this buffer may do to
+   * game properties: appends the objects whose properties it reads or writes, or which it removes
+   * (Set / Modify Game Property's object, Copy Property's two, Remove Object's), and returns true;
+   * false when it may touch any object's (a scene, save, load, menu or subsystem command, any
+   * type not known to leave game properties alone). `AllCommandsPropertyObjects`: every command
+   * this buffer holds. */
+  bool CommandPropertyObjects(uint64_t ref, std::vector<const void *> &r_objects) const;
+  bool AllCommandsPropertyObjects(std::vector<const void *> &r_objects) const;
+  /** Move To, Align Axis To Vector, Rotate To applied now, as the flush applies their commands
+   * (the same code, ApplyMotionBody). */
+  /** Plan C1-8, the column bridge: how many commands each stream holds (what an op recorded is
+   * the commands since a mark). */
+  struct RecordMark {
+    uint32_t sizes[16] = {};
+  };
+  RecordMark Mark() const;
+  /** The commands recorded since `mark`, in record order, as references (stream << 32 | index) to
+   * this buffer's commands; `r_moves`: one of them is a move (a transform or relative stream
+   * command, which a read could apply early: the bridge never records one). */
+  void CommandsSince(const RecordMark &mark, std::vector<uint64_t> &r_refs, bool &r_moves) const;
+  /** Whether command `ref` of this buffer is a last-write-wins write (the flush's gate counts). */
+  bool CommandIsLastWriteWins(uint64_t ref) const;
+  /** The object of the key the flush's merge gives command `ref` of this buffer (nullptr: the
+   * command is no last-write-wins write, or its key names no object: a tree's, a scene's). */
+  const void *CommandMergeObject(uint64_t ref) const;
+  /** Inside Flush only (an external write's apply): command `ref` of `source` applied as this
+   * flush applies its own commands of that stream (the same code, this flush's state: removed
+   * objects, warnings...). A side-list value (a rotation, a property value or change) is copied
+   * into this buffer's lists first. */
+  void ApplyForeignCommand(LN_CommandBuffer &source, uint64_t ref);
+  void ApplyMotionNow(CommandType type,
+                      KX_GameObject *object,
+                      const MT_Vector3 &vector_value,
+                      const MT_Vector3 &secondary_vector_value,
+                      float scalar_value,
+                      int32_t int_value,
+                      int32_t secondary_int_value,
+                      bool bool_value,
+                      bool secondary_bool_value);
+  /** Set Visible, Set Object Color and Set Object Attribute's Teleport (ResetSmoothing) applied
+   * now, as the flush applies their object service commands (the same code). */
+  static void ApplyObjectStateNow(CommandType type,
+                                  KX_GameObject *object,
+                                  const MT_Vector4 &color_value,
+                                  bool bool_value,
+                                  bool secondary_bool_value);
+  static void ApplyTransformNow(CommandType type,
+                                KX_GameObject *object,
+                                const MT_Vector3 &vector_value,
+                                const LN_Rotation &rotation_value,
+                                bool local);
+
   void SetMainThreadId(std::thread::id main_thread_id);
   void SetLogicManager(LN_Manager *logic_manager);
+  LN_Manager *GetLogicManager() const
+  {
+    return m_logicManager;
+  }
   bool CanFlushPendingObjectTransformCommands() const;
   void BeginRecording();
   void EndRecording();
@@ -357,6 +515,9 @@ class LN_CommandBuffer {
    * is noted instead (ChunkReadPendingMove). */
   void BeginChunkRecording();
   void EndChunkRecording();
+  /** A chunk buffer recorded in turns by several threads, one at a time (plan C1-9: a column
+   * run's segments): the calling thread owns it from now on. */
+  void TakeChunkOwnership();
   bool ChunkReadPendingMove() const
   {
     return m_chunkReadPendingMove;
@@ -366,20 +527,6 @@ class LN_CommandBuffer {
    * pending move index follow. The chunk is left empty (its memory kept). Main thread, while
    * this buffer records. */
   void AppendRecordedChunk(LN_CommandBuffer &chunk);
-  /** Block recording (plan phase B1): the trees of a block run their ops one op at a time across
-   * all the lanes, so the commands arrive op by op. Between BeginBlock and EndBlock each command
-   * is tagged with the lane SetBlockLane named and numbered inside its lane; EndBlock puts the
-   * commands of every lane together again, in the order the lanes' recordings would have made
-   * one after the other, and gives them the record sequences that order would have given: the
-   * buffer ends exactly as if the lanes had recorded one after the other. Only the typed streams
-   * of property writes, transforms, velocities and relative moves take part: a block only holds
-   * ops that append to those (LN_LeanOp::block_ok). */
-  void BeginBlock(uint32_t lane_count);
-  void SetBlockLane(const uint32_t lane)
-  {
-    m_blockLane = lane;
-  }
-  void EndBlock();
   /** The object (with `include_parents`, or one of its parents) has a recorded move that is not
    * applied yet: a read that must see the step's moves would apply it now. */
   bool HasPendingTransforms(KX_GameObject *gameobj, bool include_parents);
@@ -406,6 +553,22 @@ class LN_CommandBuffer {
    * (LN_Manager) and the test rigs turn it on; moves already recorded are marked then. Only one
    * marking buffer may record moves of an object at a time (one buffer per scene). */
   void SetMarksPendingMoves(bool marks);
+  /** Plan C1: writes outside the streams (a tick's column runs) to interleave into the flush and
+   * into the reads' early applies; nullptr: none. Set by the owner for a tick. */
+  void SetExternalWrites(LN_ExternalWrites *writes)
+  {
+    m_externalWrites = writes;
+  }
+  /** An external move of `object` is pending: the object gets this buffer's pending mark (the
+   * marks must never say "none" for it). Main thread, while recording. */
+  void NoteExternalPendingMove(KX_GameObject *object);
+  /** During the flush: a Remove Object of an earlier command took the object (its later writes are
+   * not applied). */
+  bool ObjectRemovedDuringFlush(KX_GameObject *object) const
+  {
+    return object != nullptr && !m_removedObjectsDuringFlush.empty() &&
+           m_removedObjectsDuringFlush.find(object) != m_removedObjectsDuringFlush.end();
+  }
   /** Before chunks record against this buffer: their reads also look for this buffer's pending
    * moves (SetChunkTickBuffer), through its index, made complete here (nothing appends to it
    * while the chunks record). */
@@ -588,11 +751,15 @@ class LN_CommandBuffer {
                                 const LN_PropertyModify &modify,
                                 uint64_t sort_key,
                                 uint32_t source_ref_index);
+  /** `flush_redundant` (plan C2 P4): the op wrote the value already and no other op of the tree's
+   * program writes this property (LN_Program::TreePropertyOnlySetBySetTreeProperty): the flush
+   * keeps the command (its count and key) but writes nothing. */
   void AppendSetTreeProperty(LN_RuntimeTree *runtime_tree,
                              uint32_t property_ref_index,
                              const LN_Value &value,
                              uint64_t sort_key,
-                             uint32_t source_ref_index);
+                             uint32_t source_ref_index,
+                             bool flush_redundant = false);
   void AppendAddObjectFromRef(LN_RuntimeTree *runtime_tree,
                               KX_GameObject *gameobj,
                               const LN_RuntimeRef &source_ref,
@@ -1354,6 +1521,8 @@ class LN_CommandBuffer {
     uint32_t value_index = LN_INVALID_INDEX;
     /** Modify Property: its change, m_propertyModifies[modify_index]. */
     uint32_t modify_index = LN_INVALID_INDEX;
+    /** Set Tree Property: the flush writes nothing (AppendSetTreeProperty). */
+    bool flush_redundant = false;
   };
 
   struct TypedEventCommand {
@@ -1502,6 +1671,7 @@ class LN_CommandBuffer {
   };
 
   void AssertMainThread() const;
+  static void ApplyMotionBody(KX_GameObject *object, const TypedMotionCommand &typed_command);
   void FlushPendingObjectTransformCommandsInternal(KX_GameObject *gameobj,
                                                    bool include_parents);
   /** Puts a stream's last command in the pending transform index, once the index is made. */
@@ -1685,17 +1855,6 @@ class LN_CommandBuffer {
   /** A tree batch's chunk buffer (BeginChunkRecording). */
   bool m_isChunk = false;
   bool m_chunkReadPendingMove = false;
-  /** Block recording: see BeginBlock. */
-  bool m_blockMode = false;
-  bool m_blockSortedBefore = true;
-  uint32_t m_blockLane = 0;
-  uint64_t m_blockBase = 0;
-  size_t m_blockMarks[4] = {};
-  size_t m_blockLegacyMark = 0;
-  std::vector<uint32_t> m_blockLaneCounts;
-  std::vector<uint32_t> m_blockScratchCounts;
-  std::vector<TypedVectorCommand> m_blockVectorScratch;
-  std::vector<TypedPropertyCommand> m_blockPropertyScratch;
   const LN_CommandBuffer *m_chunkTickBuffer = nullptr;
   bool m_commandStreamsSorted = true;
   uint32_t m_coalescibleCommandCount = 0;
@@ -1730,6 +1889,8 @@ class LN_CommandBuffer {
   };
   PendingMarkGeneration m_pendingMarkGeneration;
   bool m_marksPendingMoves = false;
+  /** SetExternalWrites. */
+  LN_ExternalWrites *m_externalWrites = nullptr;
   /** Writes applied by such reads, left in their streams until EndRecording. */
   uint32_t m_appliedTransformCount = 0;
   /** Of those, the last-write-wins ones (CompactAppliedTransforms takes them off the count). */
@@ -1767,6 +1928,11 @@ class LN_CommandBuffer {
   /** Marks the writes the planned flush's coalescing drops (a later write to the same target
    * with only last-write-wins writes between), without copying any command. Returns how many. */
   uint32_t MarkSupersededWrites();
+  /** The key logic_node_command_coalescing_key gives command (stream, index) as the planned flush
+   * builds it, read from the stream itself; false: no last-write-wins write (it ends a run).
+   * MarkSupersededWrites reads this buffer's commands and the column bridge's captured ones
+   * (another buffer's) through it. */
+  bool FlushWriteKeyAt(FlushStream stream, uint32_t index, LN_FlushWriteKey &r_key) const;
   CommandHeader FlushCommandHeader(FlushStream stream, uint32_t index) const;
   /** A Modify Property write's change (nothing for another write). */
   const LN_PropertyModify &ModifyOf(const TypedPropertyCommand &command) const;
@@ -1780,6 +1946,8 @@ class LN_CommandBuffer {
                                        LN_Value &r_scratch) const;
   /** Kept between flushes: once the game has warmed up, a flush allocates nothing. */
   std::vector<FlushOrderEntry> m_flushOrder;
+  /** Set while Flush runs: applies another buffer's command with this flush's code (the bridge). */
+  blender::FunctionRef<void(LN_CommandBuffer &, uint64_t)> m_foreignApply;
   uint32_t m_flushMergeableCount = 0;
   /** The most last-write-wins writes in a row in m_flushOrder: MarkSupersededWrites' table. */
   uint32_t m_flushLongestMergeableRun = 0;
@@ -1798,5 +1966,7 @@ class LN_CommandBuffer {
     uint32_t order_index = 0;
   };
   std::vector<FlushWriteSlot> m_flushWriteSlots;
+  /** The objects of the buffer's last-write-wins commands, for the external writes' list. */
+  std::vector<const void *> m_flushBufferObjects;
   uint64_t m_flushWriteSegment = 0;
 };

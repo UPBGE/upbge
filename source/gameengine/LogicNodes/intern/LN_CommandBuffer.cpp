@@ -603,18 +603,15 @@ static const char *property_kind_name(EXP_Value *property)
 
 /** Writes \a value; a property keeps its kind (see #property_kind_name). On failure \a r_reason
  * says why. */
-static bool apply_game_property_value(KX_GameObject *object,
-                                      const std::string &property_name,
-                                      const LN_Value &value,
-                                      const LN_RuntimeTree *runtime_tree,
-                                      std::string &r_reason)
+/** apply_game_property_value with the object's property of that name already looked up
+ * (`old_value`, null: none). */
+static bool apply_game_property_value_to(KX_GameObject *object,
+                                         const std::string &property_name,
+                                         EXP_Value *old_value,
+                                         const LN_Value &value,
+                                         const LN_RuntimeTree *runtime_tree,
+                                         std::string &r_reason)
 {
-  r_reason = "unsupported game-property payload type";
-  if (object == nullptr || property_name.empty()) {
-    return false;
-  }
-
-  EXP_Value *old_value = object->GetProperty(property_name);
   if (old_value != nullptr && try_update_existing_game_property_no_alloc(old_value, value)) {
     return true;
   }
@@ -639,6 +636,20 @@ static bool apply_game_property_value(KX_GameObject *object,
   }
   new_value->Release();
   return true;
+}
+
+static bool apply_game_property_value(KX_GameObject *object,
+                                      const std::string &property_name,
+                                      const LN_Value &value,
+                                      const LN_RuntimeTree *runtime_tree,
+                                      std::string &r_reason)
+{
+  r_reason = "unsupported game-property payload type";
+  if (object == nullptr || property_name.empty()) {
+    return false;
+  }
+  return apply_game_property_value_to(
+      object, property_name, object->GetProperty(property_name), value, runtime_tree, r_reason);
 }
 
 /** Same results as the float expression operations Modify Property used to compile to. */
@@ -671,16 +682,10 @@ static float logic_node_modify_property_value(const LN_PropertyModifyOp op,
 
 /** Apply Modify Property to the live value, so modifications recorded earlier in the same flush
  * (loop iterations, other trees) are included. A missing property starts from zero. */
-static bool apply_game_property_modify(KX_GameObject *object,
-                                       const std::string &property_name,
-                                       const LN_PropertyModify &modify,
-                                       std::string &r_reason)
+/** The value Modify Property writes: the operation on the property's number (0 without one),
+ * clamped, a Bool for Toggle, else a Float. */
+static LN_Value game_property_modify_value(EXP_Value *current, const LN_PropertyModify &modify)
 {
-  r_reason = "unsupported game-property payload type";
-  if (object == nullptr || property_name.empty()) {
-    return false;
-  }
-  EXP_Value *current = object->GetProperty(property_name);
   float result = logic_node_modify_property_value(
       modify.op, current != nullptr ? float(current->GetNumber()) : 0.0f, modify.operand);
   if (modify.clamped) {
@@ -697,7 +702,22 @@ static bool apply_game_property_modify(KX_GameObject *object,
     value.type = LN_ValueType::Float;
     value.float_value = result;
   }
-  return apply_game_property_value(object, property_name, value, nullptr, r_reason);
+  return value;
+}
+
+static bool apply_game_property_modify(KX_GameObject *object,
+                                       const std::string &property_name,
+                                       const LN_PropertyModify &modify,
+                                       std::string &r_reason)
+{
+  r_reason = "unsupported game-property payload type";
+  if (object == nullptr || property_name.empty()) {
+    return false;
+  }
+  EXP_Value *current = object->GetProperty(property_name);
+  /* (The property read is the one to write: nothing changed it since.) */
+  return apply_game_property_value_to(
+      object, property_name, current, game_property_modify_value(current, modify), nullptr, r_reason);
 }
 
 static void warn_command_failure_once(const LN_CommandBuffer::Command &command,
@@ -4308,7 +4328,544 @@ void ApplyObjectTransformCommand(const LN_CommandBuffer::Command &command)
                        command.bool_value);
 }
 
+/** Plan C2 P5: the tests' observer of forces and torques (LN_SetForceObserverForTests); the game
+ * has none. */
+LN_ForceObserver g_force_observer = nullptr;
+void *g_force_observer_user = nullptr;
+
+void apply_force_or_torque(KX_GameObject *object,
+                           const MT_Vector3 &vector,
+                           const bool local,
+                           const bool torque)
+{
+  if (g_force_observer != nullptr) {
+    g_force_observer(g_force_observer_user, object, vector, local, torque);
+  }
+  if (torque) {
+    object->ApplyTorque(vector, local);
+  }
+  else {
+    object->ApplyForce(vector, local);
+  }
+}
+
 }  // namespace
+
+void LN_SetForceObserverForTests(const LN_ForceObserver observer, void *user)
+{
+  g_force_observer = observer;
+  g_force_observer_user = user;
+}
+
+void LN_CommandBuffer::ApplyTransformNow(const CommandType type,
+                                         KX_GameObject *object,
+                                         const MT_Vector3 &vector_value,
+                                         const LN_Rotation &rotation_value,
+                                         const bool local)
+{
+  /* flush_typed_vector_command's cases (a velocity or force command's bool value is `local`). */
+  switch (type) {
+    case CommandType::SetLinearVelocity:
+      object->setLinearVelocity(vector_value, false);
+      return;
+    case CommandType::SetLocalLinearVelocity:
+      object->setLinearVelocity(vector_value, true);
+      return;
+    case CommandType::SetAngularVelocity:
+      object->setAngularVelocity(vector_value, false);
+      return;
+    case CommandType::SetLocalAngularVelocity:
+      object->setAngularVelocity(vector_value, true);
+      return;
+    case CommandType::ApplyForce:
+      apply_force_or_torque(object, vector_value, local, false);
+      return;
+    case CommandType::ApplyTorque:
+      apply_force_or_torque(object, vector_value, local, true);
+      return;
+    default:
+      ApplyObjectTransform(type, object, vector_value, rotation_value, local);
+      return;
+  }
+}
+
+void LN_CommandBuffer::ApplyMotionBody(KX_GameObject *object, const TypedMotionCommand &typed_command)
+{
+  /* The flush's Move To / Align Axis To Vector / Rotate To (flush_typed_motion_command), moved
+   * here unchanged so a column run's writes apply through the same code. */
+  switch (typed_command.type) {
+      case CommandType::MoveToward: {
+        const float dt = std::max(typed_command.secondary_vector_value.y(), 0.0f);
+        const MT_Vector3 current = object->NodeGetWorldPosition();
+        const MT_Vector3 target = typed_command.vector_value;
+        const MT_Vector3 direction = target - current;
+        const float distance = direction.length();
+        const float stop_distance = typed_command.secondary_vector_value.x();
+        if (distance <= stop_distance) {
+          break;
+        }
+        const float speed = typed_command.scalar_value;
+        if (typed_command.bool_value) {
+          MT_Vector3 velocity_direction = direction;
+          velocity_direction.z() = 0.0f;
+          if (velocity_direction.length2() <= MT_EPSILON * MT_EPSILON) {
+            break;
+          }
+          velocity_direction.normalize();
+          MT_Vector3 velocity = velocity_direction * speed;
+          velocity.z() = object->GetLinearVelocity(false).z();
+          object->setLinearVelocity(velocity, false);
+          break;
+        }
+        const float step = std::min(speed * (typed_command.secondary_bool_value ? dt : 1.0f),
+                                    distance - stop_distance);
+        const MT_Vector3 movement = direction.normalized() * step;
+        object->ApplyMovement(movement, false);
+        break;
+      }
+      case CommandType::AlignAxisToVector: {
+        if (typed_command.vector_value.fuzzyZero()) {
+          break;
+        }
+        object->AlignAxisToVect(typed_command.vector_value,
+                                std::clamp(typed_command.int_value, 0, 2),
+                                std::clamp(typed_command.scalar_value, 0.0f, 1.0f));
+        break;
+      }
+      case CommandType::RotateToward: {
+        const MT_Vector3 position = object->NodeGetWorldPosition();
+        MT_Vector3 to_target = typed_command.vector_value - position;
+        if (to_target.length2() < 1e-10f) {
+          break;
+        }
+        to_target.normalize();
+
+        const int32_t rot_axis_index = std::clamp(typed_command.int_value, 0, 2);
+        const int32_t front_axis_index = std::clamp(typed_command.secondary_int_value, 0, 5);
+        const bool use_max_angular_step = typed_command.bool_value;
+        const float rotation_amount = use_max_angular_step ?
+                                          std::max(typed_command.scalar_value, 0.0f) :
+                                          std::clamp(typed_command.scalar_value, 0.0f, 1.0f);
+
+        const MT_Matrix3x3 orientation = object->NodeGetWorldOrientation();
+        MT_Vector3 local_rot_axis(0.0f, 0.0f, 0.0f);
+        local_rot_axis[rot_axis_index] = 1.0f;
+        const MT_Vector3 rot_axis_world = (orientation * local_rot_axis).normalized();
+
+        const int front_axis = front_axis_index % 3;
+        const bool front_negative = front_axis_index >= 3;
+        MT_Vector3 local_front_axis(0.0f, 0.0f, 0.0f);
+        local_front_axis[front_axis] = front_negative ? -1.0f : 1.0f;
+        const MT_Vector3 front_world = orientation * local_front_axis;
+
+        auto project_on_plane = [](const MT_Vector3 &vector, const MT_Vector3 &normal) {
+          return vector - normal * vector.dot(normal);
+        };
+
+        MT_Vector3 desired_dir = project_on_plane(to_target, rot_axis_world);
+        MT_Vector3 front_dir = project_on_plane(front_world, rot_axis_world);
+        if (desired_dir.length2() < 1e-10f || front_dir.length2() < 1e-10f) {
+          break;
+        }
+        desired_dir.normalize();
+        front_dir.normalize();
+
+        const MT_Vector3 cross = front_dir.cross(desired_dir);
+        const float dot = front_dir.dot(desired_dir);
+        if (cross.length2() < 1e-10f) {
+          if (dot < 0.0f) {
+            const float step = use_max_angular_step ? std::min(float(M_PI), rotation_amount) :
+                                                      float(M_PI) * rotation_amount;
+            MT_Quaternion q(rot_axis_world, MT_Scalar(step));
+            object->NodeSetLocalOrientation(MT_Matrix3x3(q) * object->NodeGetLocalOrientation());
+          }
+          break;
+        }
+
+        float angle = acos(std::clamp(dot, -1.0f, 1.0f));
+        if (cross.dot(rot_axis_world) < 0.0f) {
+          angle = -angle;
+        }
+        angle = use_max_angular_step ?
+                    std::copysign(std::min(std::fabs(angle), rotation_amount), angle) :
+                    angle * rotation_amount;
+        MT_Quaternion q(rot_axis_world, MT_Scalar(angle));
+        object->NodeSetLocalOrientation(MT_Matrix3x3(q) * object->NodeGetLocalOrientation());
+        break;
+      }
+    default:
+      break;
+  }
+}
+
+void LN_CommandBuffer::ApplyMotionNow(const CommandType type,
+                                      KX_GameObject *object,
+                                      const MT_Vector3 &vector_value,
+                                      const MT_Vector3 &secondary_vector_value,
+                                      const float scalar_value,
+                                      const int32_t int_value,
+                                      const int32_t secondary_int_value,
+                                      const bool bool_value,
+                                      const bool secondary_bool_value)
+{
+  TypedMotionCommand command;
+  command.type = type;
+  command.object = object;
+  command.vector_value = vector_value;
+  command.secondary_vector_value = secondary_vector_value;
+  command.scalar_value = scalar_value;
+  command.int_value = int_value;
+  command.secondary_int_value = secondary_int_value;
+  command.bool_value = bool_value;
+  command.secondary_bool_value = secondary_bool_value;
+  ApplyMotionBody(object, command);
+}
+
+void LN_CommandBuffer::ApplyNumberWriteNow(const LN_RuntimeTree *runtime_tree,
+                                           KX_GameObject *object,
+                                           const std::string &property_name,
+                                           const LN_PropertyNumber &number,
+                                           EXP_Value *property_handle,
+                                           const uint64_t handle_stamp)
+{
+  if (object == nullptr || property_name.empty()) {
+    return;
+  }
+  /* flush_typed_property_command's number branch and its number_write_target. */
+  EXP_Value *target = nullptr;
+  const LeanFlushMode mode = lean_flush_mode();
+  if (mode != LeanFlushMode::Off && property_handle != nullptr &&
+      object->GetPropertyMapStamp() == handle_stamp)
+  {
+    target = property_handle;
+  }
+  else {
+    target = object->GetProperty(property_name);
+  }
+  if (number.IsNumber() && try_update_existing_game_property_number(target, number)) {
+    return;
+  }
+  std::string reason;
+  if (!apply_game_property_value(object, property_name, number.ToValue(), runtime_tree, reason)) {
+    Command command;
+    command.type = CommandType::SetGameProperty;
+    command.object = object;
+    command.property_value = number.ToValue();
+    warn_command_failure_once(command, reason);
+  }
+}
+
+void LN_CommandBuffer::ApplyModifyNow(KX_GameObject *object,
+                                      const std::string &property_name,
+                                      const LN_PropertyModify &modify)
+{
+  std::string reason;
+  if (!apply_game_property_modify(object, property_name, modify, reason)) {
+    Command command;
+    command.type = CommandType::ModifyGameProperty;
+    command.object = object;
+    warn_command_failure_once(command, reason);
+  }
+}
+
+/** A Bool, Int or Float property: the number writes and Modify Property change it in place. */
+static bool is_in_place_number_property(EXP_Value *value)
+{
+  if (value == nullptr) {
+    return false;
+  }
+  const int type = value->GetValueType();
+  return type == VALUE_BOOL_TYPE || type == VALUE_INT_TYPE || type == VALUE_FLOAT_TYPE;
+}
+
+EXP_Value *LN_CommandBuffer::NumberWriteInPlaceTarget(KX_GameObject *object,
+                                                      const std::string &property_name,
+                                                      EXP_Value *property_handle,
+                                                      const uint64_t handle_stamp)
+{
+  if (object == nullptr || property_name.empty()) {
+    return nullptr;
+  }
+  /* ApplyNumberWriteNow's choice. */
+  EXP_Value *target = nullptr;
+  if (lean_flush_mode() != LeanFlushMode::Off && property_handle != nullptr &&
+      object->GetPropertyMapStamp() == handle_stamp)
+  {
+    target = property_handle;
+  }
+  else {
+    target = object->GetProperty(property_name);
+  }
+  return is_in_place_number_property(target) ? target : nullptr;
+}
+
+EXP_Value *LN_CommandBuffer::ModifyInPlaceTarget(KX_GameObject *object,
+                                                 const std::string &property_name)
+{
+  if (object == nullptr || property_name.empty()) {
+    return nullptr;
+  }
+  EXP_Value *current = object->GetProperty(property_name);
+  return is_in_place_number_property(current) ? current : nullptr;
+}
+
+void LN_CommandBuffer::ApplyNumberInPlace(EXP_Value *target, const LN_PropertyNumber &number)
+{
+  /* ApplyNumberWriteNow's first step, which always succeeds on such a property. */
+  const bool done = number.IsNumber() && try_update_existing_game_property_number(target, number);
+  BLI_assert(done);
+  UNUSED_VARS_NDEBUG(done);
+}
+
+void LN_CommandBuffer::ApplyModifyInPlace(EXP_Value *target, const LN_PropertyModify &modify)
+{
+  /* apply_game_property_modify -> apply_game_property_value_to's first step, which always
+   * succeeds on such a property (a Bool or a Float value, a number property). */
+  const bool done = try_update_existing_game_property_no_alloc(
+      target, game_property_modify_value(target, modify));
+  BLI_assert(done);
+  UNUSED_VARS_NDEBUG(done);
+}
+
+/** Plan C1-11 C-4: what a command's apply may do to game properties. */
+enum class PropertyReach : uint8_t {
+  /** Reads, writes and removes no game property and no object. */
+  None,
+  /** Only those of its object (and Copy Property's target): Set / Modify Game Property, Copy
+   * Property, Remove Object. */
+  Objects,
+  /** Anything (scenes, save and load, menus, subsystems, every type not listed). */
+  Any,
+};
+
+static PropertyReach command_property_reach(const LN_CommandBuffer::CommandType type)
+{
+  using CT = LN_CommandBuffer::CommandType;
+  switch (type) {
+    case CT::SetGameProperty:
+    case CT::ModifyGameProperty:
+    case CT::CopyProperty:
+    case CT::RemoveObject:
+      return PropertyReach::Objects;
+    /* Transforms, velocities, forces and motions. */
+    case CT::SetWorldPosition:
+    case CT::SetLocalPosition:
+    case CT::SetWorldOrientation:
+    case CT::SetLocalOrientation:
+    case CT::SetWorldScale:
+    case CT::SetLocalScale:
+    case CT::SetLinearVelocity:
+    case CT::SetLocalLinearVelocity:
+    case CT::SetAngularVelocity:
+    case CT::SetLocalAngularVelocity:
+    case CT::ApplyImpulse:
+    case CT::ApplyMovement:
+    case CT::ApplyRotation:
+    case CT::ApplyForce:
+    case CT::ApplyTorque:
+    case CT::MoveToward:
+    case CT::SlowFollow:
+    case CT::AlignAxisToVector:
+    case CT::RotateToward:
+    case CT::ResetSmoothing:
+    /* Looks and lights. */
+    case CT::SetVisibility:
+    case CT::SetObjectColor:
+    case CT::MakeLightUnique:
+    case CT::SetLightColor:
+    case CT::SetLightPower:
+    case CT::SetLightShadow:
+    /* New objects come from inactive objects only (lookup_add_object_source,
+     * IsAddObjectSourceInactiveCached), never from one a tree runs on; the copy is new. */
+    case CT::AddObject:
+    case CT::AddObjectFromRef:
+    case CT::SetParent:
+    case CT::SetParentFromRef:
+    case CT::RemoveParent:
+    case CT::ReplaceMesh:
+    /* Physics, characters, vehicles. */
+    case CT::SetGravity:
+    case CT::SetCollisionGroup:
+    case CT::SetPhysics:
+    case CT::SetPhysicsPaused:
+    case CT::SetDynamics:
+    case CT::RebuildCollisionShape:
+    case CT::SetRigidBodyAttribute:
+    case CT::CharacterJump:
+    case CT::SetCharacterGravity:
+    case CT::SetCharacterJumpSpeed:
+    case CT::SetCharacterMaxJumps:
+    case CT::SetCharacterWalkDirection:
+    case CT::SetCharacterVelocity:
+    case CT::VehicleControl:
+    case CT::VehicleApplyEngineForce:
+    case CT::VehicleApplyBraking:
+    case CT::VehicleApplySteering:
+    case CT::SetVehicleSuspensionCompression:
+    case CT::SetVehicleSuspensionStiffness:
+    case CT::SetVehicleSuspensionDamping:
+    case CT::SetVehicleWheelFriction:
+    /* A tree's own properties, text, events (their content is recorded), sounds. */
+    case CT::SetTreeProperty:
+    case CT::Print:
+    case CT::SendEvent:
+    case CT::StopAllSounds:
+    case CT::PlaySound:
+    case CT::PlaySound3D:
+    case CT::PauseSound:
+    case CT::ResumeSound:
+    case CT::StopSound:
+    case CT::SetSoundVolume:
+    /* Actions, shape keys, bones, materials, nodes, modifiers. */
+    case CT::PlayAction:
+    case CT::StopAction:
+    case CT::SetActionFrame:
+    case CT::SetShapeKeyValue:
+    case CT::SetBonePoseLocation:
+    case CT::SetBonePoseRotation:
+    case CT::SetBonePoseScale:
+    case CT::SetBonePoseTransform:
+    case CT::SetBoneAttribute:
+    case CT::SetBoneConstraintInfluence:
+    case CT::SetBoneConstraintTarget:
+    case CT::SetBoneConstraintAttribute:
+    case CT::SetMaterialSlot:
+    case CT::SetMaterialParameter:
+    case CT::SetMaterialNodeSocketValue:
+    case CT::SetGeometryNodesInput:
+    case CT::SetGeometryNodeSocketValue:
+    case CT::SetCompositorNodeSocketValue:
+    case CT::MakeNodeTreeUnique:
+    case CT::SetNodeMute:
+    case CT::EnableDisableModifier:
+    /* Cameras, players, input devices, the window. */
+    case CT::SetTimeScale:
+    case CT::SetActiveCamera:
+    case CT::SetCameraFov:
+    case CT::SetCameraOrthoScale:
+    case CT::SetPlayerCamera:
+    case CT::SetSplitScreen:
+    case CT::SetCameraViewport:
+    case CT::SetCameraVisibility:
+    case CT::SetPlayerGamepad:
+    case CT::SetCursorVisibility:
+    case CT::SetCursorPosition:
+    case CT::SetGamepadVibration:
+    case CT::SetWindowSize:
+    case CT::SetFullscreen:
+    case CT::SetVSync:
+    case CT::SetShowFramerate:
+    case CT::SetShowProfile:
+      return PropertyReach::None;
+    default:
+      return PropertyReach::Any;
+  }
+}
+
+bool LN_CommandBuffer::CommandPropertyObjects(const uint64_t ref,
+                                              std::vector<const void *> &r_objects) const
+{
+  const FlushStream stream = FlushStream(ref >> 32);
+  const uint32_t index = uint32_t(ref);
+  CommandType type = CommandType::SetWorldPosition;
+  const void *object = nullptr;
+  /* Copy Property's target (its runtime_tree field holds the object). */
+  const void *copy_target = nullptr;
+  switch (stream) {
+    case FlushStream::Legacy: {
+      const Command &command = m_commands[index];
+      type = command.type;
+      object = command.object;
+      copy_target = command.runtime_tree;
+      break;
+    }
+    case FlushStream::Transform:
+      type = m_transformCommands[index].type;
+      object = m_transformCommands[index].object;
+      break;
+    case FlushStream::Velocity:
+      type = m_velocityCommands[index].type;
+      object = m_velocityCommands[index].object;
+      break;
+    case FlushStream::RelativeVector:
+      type = m_relativeVectorCommands[index].type;
+      object = m_relativeVectorCommands[index].object;
+      break;
+    case FlushStream::Motion:
+      type = m_motionCommands[index].type;
+      object = m_motionCommands[index].object;
+      break;
+    case FlushStream::Property:
+      type = m_propertyCommands[index].type;
+      object = m_propertyCommands[index].object;
+      break;
+    case FlushStream::Event:
+      type = CommandType::SendEvent;
+      break;
+    case FlushStream::Audio:
+      type = m_audioCommands[index].type;
+      break;
+    case FlushStream::Lifecycle:
+      type = m_lifecycleCommands[index].type;
+      object = m_lifecycleCommands[index].object;
+      copy_target = m_lifecycleCommands[index].runtime_tree;
+      break;
+    case FlushStream::ObjectService:
+      type = m_objectServiceCommands[index].type;
+      object = m_objectServiceCommands[index].object;
+      break;
+    case FlushStream::RuntimeService:
+      type = m_runtimeServiceCommands[index].type;
+      break;
+    case FlushStream::Animation:
+      type = m_animationCommands[index].type;
+      object = m_animationCommands[index].object;
+      break;
+    case FlushStream::Armature:
+      type = m_armatureCommands[index].type;
+      object = m_armatureCommands[index].object;
+      break;
+    case FlushStream::Material:
+      type = m_materialCommands[index].type;
+      object = m_materialCommands[index].object;
+      break;
+    case FlushStream::Physics:
+      type = m_physicsCommands[index].type;
+      object = m_physicsCommands[index].object;
+      break;
+    default:
+      return false;
+  }
+  switch (command_property_reach(type)) {
+    case PropertyReach::None:
+      return true;
+    case PropertyReach::Objects:
+      if (object != nullptr) {
+        r_objects.push_back(object);
+      }
+      if (type == CommandType::CopyProperty && copy_target != nullptr) {
+        r_objects.push_back(copy_target);
+      }
+      return true;
+    case PropertyReach::Any:
+      break;
+  }
+  return false;
+}
+
+bool LN_CommandBuffer::AllCommandsPropertyObjects(std::vector<const void *> &r_objects) const
+{
+  const RecordMark sizes = Mark();
+  for (uint32_t stream = 0; stream <= uint32_t(FlushStream::Physics); stream++) {
+    /* (Every command by its type: a stream's routing is by command class, not by type.) */
+    for (uint32_t index = 0; index < sizes.sizes[stream]; index++) {
+      if (!CommandPropertyObjects((uint64_t(stream) << 32) | index, r_objects)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
 
 void LN_CommandBuffer::UpdateSpatialSounds(const KX_Scene *scene)
 {
@@ -5249,14 +5806,7 @@ LN_CommandBuffer::CommandHeader LN_CommandBuffer::MakeCommandHeader(
 {
   CommandHeader header;
   header.sort_key = sort_key;
-  if (m_blockMode) {
-    /* Numbered inside the lane for now; EndBlock gives the sequence the serial order would. */
-    header.lane = uint16_t(m_blockLane);
-    header.record_sequence = ++m_blockLaneCounts[m_blockLane];
-  }
-  else {
-    header.record_sequence = m_nextRecordSequence++;
-  }
+  header.record_sequence = m_nextRecordSequence++;
   header.source_ref_index = source_ref_index;
   header.coalescing = GetCoalescingPolicy(type);
   return header;
@@ -5284,7 +5834,7 @@ void LN_CommandBuffer::AppendLegacyCommand(Command command)
 template<typename TypedCommand>
 void LN_CommandBuffer::AppendTypedCommand(std::vector<TypedCommand> &stream, TypedCommand command)
 {
-  if (!m_blockMode && !stream.empty() &&
+  if (!stream.empty() &&
       !logic_node_command_order_less_or_equal(stream.back().header.sort_key,
                                               stream.back().header.record_sequence,
                                               command.header.sort_key,
@@ -5302,7 +5852,7 @@ template<typename TypedCommand>
 TypedCommand &LN_CommandBuffer::BeginTypedCommand(std::vector<TypedCommand> &stream,
                                                   const CommandHeader &header)
 {
-  if (!m_blockMode && !stream.empty() &&
+  if (!stream.empty() &&
       !logic_node_command_order_less_or_equal(stream.back().header.sort_key,
                                               stream.back().header.record_sequence,
                                               header.sort_key,
@@ -6955,85 +7505,18 @@ void LN_CommandBuffer::BeginChunkRecording()
   m_isRecording = true;
 }
 
+void LN_CommandBuffer::TakeChunkOwnership()
+{
+  BLI_assert_msg(m_isChunk, "Logic Nodes: only a chunk buffer changes its owner thread");
+  m_mainThreadId = std::this_thread::get_id();
+}
+
 void LN_CommandBuffer::EndChunkRecording()
 {
   BLI_assert_msg(m_isRecording && m_isChunk,
                  "Logic Nodes chunk buffer cannot end recording before begin");
   BLI_assert(m_appliedTransformCount == 0);
   m_isRecording = false;
-}
-
-void LN_CommandBuffer::BeginBlock(const uint32_t lane_count)
-{
-  BLI_assert_msg(m_isRecording && !m_blockMode, "a block begins while the buffer records");
-  m_blockMode = true;
-  m_blockLane = 0;
-  m_blockLaneCounts.assign(lane_count, 0u);
-  m_blockBase = m_nextRecordSequence;
-  m_blockSortedBefore = m_commandStreamsSorted;
-  m_blockMarks[0] = m_propertyCommands.size();
-  m_blockMarks[1] = m_transformCommands.size();
-  m_blockMarks[2] = m_velocityCommands.size();
-  m_blockMarks[3] = m_relativeVectorCommands.size();
-  m_blockLegacyMark = m_commands.size();
-}
-
-void LN_CommandBuffer::EndBlock()
-{
-  BLI_assert_msg(m_blockMode, "a block ends after it began");
-  m_blockMode = false;
-  const uint32_t lanes = uint32_t(m_blockLaneCounts.size());
-  /* Where each lane's commands start in the numbering of the serial order. */
-  std::vector<uint32_t> &lane_offset = m_blockScratchCounts;
-  lane_offset.assign(size_t(lanes) + 1, 0u);
-  for (uint32_t lane = 0; lane < lanes; lane++) {
-    lane_offset[lane + 1] = lane_offset[lane] + m_blockLaneCounts[lane];
-  }
-  const uint32_t total = lane_offset[lanes];
-  BLI_assert_msg(m_commands.size() == m_blockLegacyMark,
-                 "a block holds only ops that append to the typed streams");
-  bool sorted = m_blockSortedBefore;
-
-  /* One stream: the commands from `mark` on, regrouped by lane (stable: inside a lane they are
-   * in op order, which is the order the lane recorded them), with the sequences of the serial
-   * order. Counting sort by lane through a scratch copy. */
-  const auto regroup = [&](auto &stream, auto &scratch, const size_t mark) {
-    const size_t count = stream.size() - mark;
-    if (count == 0) {
-      return;
-    }
-    std::vector<uint32_t> start(size_t(lanes) + 1, 0u);
-    for (size_t index = mark; index < stream.size(); index++) {
-      start[stream[index].header.lane + 1]++;
-    }
-    for (uint32_t lane = 0; lane < lanes; lane++) {
-      start[lane + 1] += start[lane];
-    }
-    scratch.resize(count);
-    for (size_t index = mark; index < stream.size(); index++) {
-      auto &command = stream[index];
-      const uint32_t lane = command.header.lane;
-      command.header.record_sequence = m_blockBase + lane_offset[lane] +
-                                       (command.header.record_sequence - 1);
-      scratch[start[lane]++] = std::move(command);
-    }
-    for (size_t index = 0; index < count; index++) {
-      stream[mark + index] = std::move(scratch[index]);
-    }
-    /* The order flag the serial appends would have set, over this stream's new commands. */
-    for (size_t index = mark == 0 ? 1 : mark; index < stream.size() && sorted; index++) {
-      sorted = logic_node_command_order_less_or_equal(stream[index - 1].header.sort_key,
-                                                      stream[index - 1].header.record_sequence,
-                                                      stream[index].header.sort_key,
-                                                      stream[index].header.record_sequence);
-    }
-  };
-  regroup(m_propertyCommands, m_blockPropertyScratch, m_blockMarks[0]);
-  regroup(m_transformCommands, m_blockVectorScratch, m_blockMarks[1]);
-  regroup(m_velocityCommands, m_blockVectorScratch, m_blockMarks[2]);
-  regroup(m_relativeVectorCommands, m_blockVectorScratch, m_blockMarks[3]);
-  m_commandStreamsSorted = sorted;
-  m_nextRecordSequence = m_blockBase + total;
 }
 
 void LN_CommandBuffer::AppendRecordedChunk(LN_CommandBuffer &chunk)
@@ -7163,10 +7646,46 @@ bool LN_CommandBuffer::HasPendingTransforms(KX_GameObject *gameobj, const bool i
   return HasPendingTransformsByIndex(gameobj, include_parents);
 }
 
+/** Plan C1: an external move (a column run's) of the object or, with `include_parents`, of a
+ * parent is pending. */
+static bool external_move_pending(const LN_ExternalWrites *writes,
+                                  KX_GameObject *gameobj,
+                                  const bool include_parents)
+{
+  if (writes == nullptr) {
+    return false;
+  }
+  int depth = 0;
+  for (KX_GameObject *object = gameobj; object != nullptr && depth < 64;
+       object = include_parents ? object->GetParent() : nullptr, depth++)
+  {
+    if (writes->HasPendingMove(object)) {
+      return true;
+    }
+    if (!include_parents) {
+      break;
+    }
+  }
+  return false;
+}
+
+void LN_CommandBuffer::NoteExternalPendingMove(KX_GameObject *object)
+{
+  if (m_marksPendingMoves && !m_isChunk && object != nullptr) {
+    object->SetLogicNodesPendingMove(m_pendingMarkGeneration.value);
+  }
+}
+
 bool LN_CommandBuffer::HasPendingTransformsByIndex(KX_GameObject *gameobj,
                                                    const bool include_parents)
 {
-  if (gameobj == nullptr || Size() == 0) {
+  if (gameobj == nullptr) {
+    return false;
+  }
+  if (external_move_pending(m_externalWrites, gameobj, include_parents)) {
+    return true;
+  }
+  if (Size() == 0) {
     return false;
   }
   IndexPendingTransforms();
@@ -7191,7 +7710,13 @@ bool LN_CommandBuffer::HasIndexedPendingTransforms(KX_GameObject *gameobj,
 bool LN_CommandBuffer::HasIndexedPendingTransformsByIndex(KX_GameObject *gameobj,
                                                           const bool include_parents) const
 {
-  if (gameobj == nullptr || Size() == 0) {
+  if (gameobj == nullptr) {
+    return false;
+  }
+  if (external_move_pending(m_externalWrites, gameobj, include_parents)) {
+    return true;
+  }
+  if (Size() == 0) {
     return false;
   }
   blender::Vector<KX_GameObject *, 8> objects;
@@ -7538,7 +8063,8 @@ void LN_CommandBuffer::AppendSetTreeProperty(LN_RuntimeTree *runtime_tree,
                                              const uint32_t property_ref_index,
                                              const LN_Value &value,
                                              const uint64_t sort_key,
-                                             const uint32_t source_ref_index)
+                                             const uint32_t source_ref_index,
+                                             const bool flush_redundant)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -7554,6 +8080,7 @@ void LN_CommandBuffer::AppendSetTreeProperty(LN_RuntimeTree *runtime_tree,
   command.runtime_tree = runtime_tree;
   command.property_ref_index = property_ref_index;
   command.value_index = StorePropertyValue(value);
+  command.flush_redundant = flush_redundant;
   AppendTypedCommand(m_propertyCommands, std::move(command));
 }
 
@@ -8556,6 +9083,27 @@ void LN_CommandBuffer::AppendApplyImpulse(KX_GameObject *gameobj,
                             source_ref_index);
 }
 
+void LN_CommandBuffer::ApplyObjectStateNow(const CommandType type,
+                                           KX_GameObject *object,
+                                           const MT_Vector4 &color_value,
+                                           const bool bool_value,
+                                           const bool secondary_bool_value)
+{
+  switch (type) {
+    case CommandType::SetVisibility:
+      object->SetVisible(bool_value, secondary_bool_value);
+      break;
+    case CommandType::ResetSmoothing:
+      object->ResetSmoothing(0.0f);
+      break;
+    case CommandType::SetObjectColor:
+      object->SetObjectColor(color_value);
+      break;
+    default:
+      break;
+  }
+}
+
 void LN_CommandBuffer::AppendSetVisibility(KX_GameObject *gameobj,
                                            bool visible,
                                            bool recursive,
@@ -8881,9 +9429,7 @@ bool LN_CommandBuffer::PendingMarksSayNone(KX_GameObject *gameobj,
 void LN_CommandBuffer::IndexAppendedTransform(const std::vector<TypedVectorCommand> &stream)
 {
   MarkPendingMove(stream.back());
-  /* A block's commands change places when EndBlock puts the lanes together: the next read
-   * catches the index up. */
-  if (!m_pendingTransformsIndexed || m_blockMode) {
+  if (!m_pendingTransformsIndexed) {
     return;
   }
   const bool relative = &stream == &m_relativeVectorCommands;
@@ -8981,6 +9527,75 @@ const LN_Value &LN_CommandBuffer::PropertyCommandValue(const TypedPropertyComman
   }
   r_scratch = command.number.ToValue();
   return r_scratch;
+}
+
+LN_CommandBuffer::RecordMark LN_CommandBuffer::Mark() const
+{
+  RecordMark mark;
+  mark.sizes[size_t(FlushStream::Legacy)] = uint32_t(m_commands.size());
+  mark.sizes[size_t(FlushStream::Transform)] = uint32_t(m_transformCommands.size());
+  mark.sizes[size_t(FlushStream::Velocity)] = uint32_t(m_velocityCommands.size());
+  mark.sizes[size_t(FlushStream::RelativeVector)] = uint32_t(m_relativeVectorCommands.size());
+  mark.sizes[size_t(FlushStream::Motion)] = uint32_t(m_motionCommands.size());
+  mark.sizes[size_t(FlushStream::Property)] = uint32_t(m_propertyCommands.size());
+  mark.sizes[size_t(FlushStream::Event)] = uint32_t(m_eventCommands.size());
+  mark.sizes[size_t(FlushStream::Audio)] = uint32_t(m_audioCommands.size());
+  mark.sizes[size_t(FlushStream::Lifecycle)] = uint32_t(m_lifecycleCommands.size());
+  mark.sizes[size_t(FlushStream::ObjectService)] = uint32_t(m_objectServiceCommands.size());
+  mark.sizes[size_t(FlushStream::RuntimeService)] = uint32_t(m_runtimeServiceCommands.size());
+  mark.sizes[size_t(FlushStream::Animation)] = uint32_t(m_animationCommands.size());
+  mark.sizes[size_t(FlushStream::Armature)] = uint32_t(m_armatureCommands.size());
+  mark.sizes[size_t(FlushStream::Material)] = uint32_t(m_materialCommands.size());
+  mark.sizes[size_t(FlushStream::Physics)] = uint32_t(m_physicsCommands.size());
+  return mark;
+}
+
+void LN_CommandBuffer::CommandsSince(const RecordMark &mark,
+                                     std::vector<uint64_t> &r_refs,
+                                     bool &r_moves) const
+{
+  const RecordMark now = Mark();
+  const size_t first = r_refs.size();
+  for (uint32_t stream = 0; stream <= uint32_t(FlushStream::Physics); stream++) {
+    for (uint32_t index = mark.sizes[stream]; index < now.sizes[stream]; index++) {
+      r_refs.push_back((uint64_t(stream) << 32) | index);
+      if (FlushStream(stream) == FlushStream::Transform ||
+          FlushStream(stream) == FlushStream::RelativeVector)
+      {
+        r_moves = true;
+      }
+    }
+  }
+  if (r_refs.size() - first > 1) {
+    /* One op's commands in the order it recorded them. */
+    std::sort(r_refs.begin() + first, r_refs.end(), [&](const uint64_t a, const uint64_t b) {
+      return FlushCommandHeader(FlushStream(a >> 32), uint32_t(a)).record_sequence <
+             FlushCommandHeader(FlushStream(b >> 32), uint32_t(b)).record_sequence;
+    });
+  }
+}
+
+bool LN_CommandBuffer::CommandIsLastWriteWins(const uint64_t ref) const
+{
+  return FlushCommandHeader(FlushStream(ref >> 32), uint32_t(ref)).coalescing ==
+         CoalescingPolicy::LastWriteWinsWithinBarrierSegment;
+}
+
+const void *LN_CommandBuffer::CommandMergeObject(const uint64_t ref) const
+{
+  LN_FlushWriteKey key;
+  if (!FlushWriteKeyAt(FlushStream(ref >> 32), uint32_t(ref), key)) {
+    return nullptr;
+  }
+  return reinterpret_cast<const void *>(key.object);
+}
+
+void LN_CommandBuffer::ApplyForeignCommand(LN_CommandBuffer &source, const uint64_t ref)
+{
+  BLI_assert_msg(bool(m_foreignApply), "a foreign command is applied only inside Flush");
+  if (m_foreignApply) {
+    m_foreignApply(source, ref);
+  }
 }
 
 LN_CommandBuffer::CommandHeader LN_CommandBuffer::FlushCommandHeader(const FlushStream stream,
@@ -9232,128 +9847,186 @@ void LN_CommandBuffer::BuildFlushOrder()
   }
 }
 
+bool LN_CommandBuffer::FlushWriteKeyAt(const FlushStream stream,
+                                       const uint32_t index,
+                                       LN_FlushWriteKey &r_key) const
+{
+  constexpr CoalescingPolicy last_write_wins = CoalescingPolicy::LastWriteWinsWithinBarrierSegment;
+  switch (stream) {
+    case FlushStream::Legacy:
+      return logic_node_flush_write_key(m_commands[index], r_key);
+    case FlushStream::Transform:
+    case FlushStream::Velocity: {
+      const TypedVectorCommand &command = stream == FlushStream::Transform ?
+                                              m_transformCommands[index] :
+                                              m_velocityCommands[index];
+      if (command.header.coalescing != last_write_wins) {
+        return false;
+      }
+      r_key = LN_FlushWriteKey();
+      r_key.type = command.type;
+      r_key.object = reinterpret_cast<uintptr_t>(command.object);
+      return true;
+    }
+    case FlushStream::Property: {
+      const TypedPropertyCommand &command = m_propertyCommands[index];
+      if (command.header.coalescing != last_write_wins) {
+        return false;
+      }
+      r_key = LN_FlushWriteKey();
+      r_key.type = command.type;
+      if (command.type == CommandType::SetTreeProperty) {
+        r_key.runtime_tree = reinterpret_cast<uintptr_t>(command.runtime_tree);
+        r_key.property_ref_index = command.property_ref_index;
+        return true;
+      }
+      if (command.type != CommandType::SetGameProperty) {
+        return false;
+      }
+      r_key.object = reinterpret_cast<uintptr_t>(command.object);
+      if (command.game_property_id.IsValid()) {
+        r_key.property_id = command.game_property_id.index;
+      }
+      else if (command.property_ref_index != LN_INVALID_INDEX) {
+        r_key.runtime_tree = reinterpret_cast<uintptr_t>(command.runtime_tree);
+        r_key.property_ref_index = command.property_ref_index;
+      }
+      else {
+        /* (A property write always has a ref index since the by-name append was retired.) */
+        return false;
+      }
+      return true;
+    }
+    case FlushStream::Animation: {
+      const TypedAnimationCommand &command = m_animationCommands[index];
+      if (command.header.coalescing != last_write_wins ||
+          command.type != CommandType::SetShapeKeyValue)
+      {
+        return false;
+      }
+      r_key = LN_FlushWriteKey();
+      r_key.type = command.type;
+      r_key.object = reinterpret_cast<uintptr_t>(command.object);
+      r_key.property_name = command.target_name;
+      return true;
+    }
+    case FlushStream::Material: {
+      const TypedMaterialCommand &command = m_materialCommands[index];
+      if (command.header.coalescing != last_write_wins) {
+        return false;
+      }
+      r_key = LN_FlushWriteKey();
+      r_key.type = command.type;
+      switch (command.type) {
+        case CommandType::SetMaterialParameter:
+          r_key.object = reinterpret_cast<uintptr_t>(command.object);
+          r_key.runtime_tree = reinterpret_cast<uintptr_t>(command.runtime_tree);
+          r_key.property_id = command.runtime_ref.slot;
+          r_key.property_ref_index = command.runtime_ref.generation;
+          r_key.secondary_property_id = uint32_t(command.runtime_ref.kind);
+          r_key.int_value = command.int_value;
+          r_key.property_name = command.material_name;
+          r_key.secondary_property_name = command.node_name;
+          r_key.tertiary_property_name = command.internal_name;
+          return true;
+        case CommandType::SetGeometryNodesInput:
+        case CommandType::SetGeometryNodeSocketValue:
+          r_key.object = reinterpret_cast<uintptr_t>(command.object);
+          r_key.property_name = command.material_name;
+          r_key.secondary_property_name = command.node_name;
+          r_key.tertiary_property_name = command.internal_name;
+          return true;
+        case CommandType::SetCompositorNodeSocketValue:
+          r_key.int_value = command.int_value;
+          r_key.property_name = command.material_name;
+          r_key.secondary_property_name = command.node_name;
+          r_key.tertiary_property_name = command.internal_name;
+          return true;
+        case CommandType::SetNodeMute:
+          r_key.int_value = command.int_value;
+          r_key.property_name = command.material_name;
+          r_key.secondary_property_name = command.node_name;
+          return true;
+        default:
+          return false;
+      }
+    }
+    default:
+      return false;
+  }
+}
+
 uint32_t LN_CommandBuffer::MarkSupersededWrites()
 {
+  /* Plan C1: the column runs' writes take part as the commands they stand for, merged into the
+   * walk by sort key (ApplyWritesBefore's order: before every command of a later key). */
+  const bool has_external = m_externalWrites != nullptr && m_externalWrites->HasWrites();
   /* A write can only supersede one of its own run (consecutive last-write-wins writes). */
-  if (m_flushMergeableCount < 2 || m_flushLongestMergeableRun < 2) {
+  if (!has_external && (m_flushMergeableCount < 2 || m_flushLongestMergeableRun < 2)) {
     return 0;
   }
 
-  /* The key logic_node_command_coalescing_key gives the command as the planned flush builds it
-   * (BuildPlannedCommands' append_* copies), read from the stream itself. False: no
-   * last-write-wins write, which ends the run. A last-write-wins type in a stream that never
-   * records one would end the run too: its writes are then all applied, in order. */
+  /* (FlushWriteKeyAt: a last-write-wins type in a stream that never records one ends the run
+   * too: its writes are then all applied, in order.) */
   const auto key_of = [this](const FlushOrderEntry &entry, LN_FlushWriteKey &r_key) -> bool {
-    constexpr CoalescingPolicy last_write_wins = CoalescingPolicy::LastWriteWinsWithinBarrierSegment;
-    switch (entry.stream) {
-      case FlushStream::Legacy:
-        return logic_node_flush_write_key(m_commands[entry.index], r_key);
-      case FlushStream::Transform:
-      case FlushStream::Velocity: {
-        const TypedVectorCommand &command = entry.stream == FlushStream::Transform ?
-                                                m_transformCommands[entry.index] :
-                                                m_velocityCommands[entry.index];
-        if (command.header.coalescing != last_write_wins) {
-          return false;
-        }
-        r_key = LN_FlushWriteKey();
-        r_key.type = command.type;
-        r_key.object = reinterpret_cast<uintptr_t>(command.object);
-        return true;
-      }
-      case FlushStream::Property: {
-        const TypedPropertyCommand &command = m_propertyCommands[entry.index];
-        if (command.header.coalescing != last_write_wins) {
-          return false;
-        }
-        r_key = LN_FlushWriteKey();
-        r_key.type = command.type;
-        if (command.type == CommandType::SetTreeProperty) {
-          r_key.runtime_tree = reinterpret_cast<uintptr_t>(command.runtime_tree);
-          r_key.property_ref_index = command.property_ref_index;
-          return true;
-        }
-        if (command.type != CommandType::SetGameProperty) {
-          return false;
-        }
-        r_key.object = reinterpret_cast<uintptr_t>(command.object);
-        if (command.game_property_id.IsValid()) {
-          r_key.property_id = command.game_property_id.index;
-        }
-        else if (command.property_ref_index != LN_INVALID_INDEX) {
-          r_key.runtime_tree = reinterpret_cast<uintptr_t>(command.runtime_tree);
-          r_key.property_ref_index = command.property_ref_index;
-        }
-        else {
-          /* (A property write always has a ref index since the by-name append was retired.) */
-          return false;
-        }
-        return true;
-      }
-      case FlushStream::Animation: {
-        const TypedAnimationCommand &command = m_animationCommands[entry.index];
-        if (command.header.coalescing != last_write_wins ||
-            command.type != CommandType::SetShapeKeyValue)
-        {
-          return false;
-        }
-        r_key = LN_FlushWriteKey();
-        r_key.type = command.type;
-        r_key.object = reinterpret_cast<uintptr_t>(command.object);
-        r_key.property_name = command.target_name;
-        return true;
-      }
-      case FlushStream::Material: {
-        const TypedMaterialCommand &command = m_materialCommands[entry.index];
-        if (command.header.coalescing != last_write_wins) {
-          return false;
-        }
-        r_key = LN_FlushWriteKey();
-        r_key.type = command.type;
-        switch (command.type) {
-          case CommandType::SetMaterialParameter:
-            r_key.object = reinterpret_cast<uintptr_t>(command.object);
-            r_key.runtime_tree = reinterpret_cast<uintptr_t>(command.runtime_tree);
-            r_key.property_id = command.runtime_ref.slot;
-            r_key.property_ref_index = command.runtime_ref.generation;
-            r_key.secondary_property_id = uint32_t(command.runtime_ref.kind);
-            r_key.int_value = command.int_value;
-            r_key.property_name = command.material_name;
-            r_key.secondary_property_name = command.node_name;
-            r_key.tertiary_property_name = command.internal_name;
-            return true;
-          case CommandType::SetGeometryNodesInput:
-          case CommandType::SetGeometryNodeSocketValue:
-            r_key.object = reinterpret_cast<uintptr_t>(command.object);
-            r_key.property_name = command.material_name;
-            r_key.secondary_property_name = command.node_name;
-            r_key.tertiary_property_name = command.internal_name;
-            return true;
-          case CommandType::SetCompositorNodeSocketValue:
-            r_key.int_value = command.int_value;
-            r_key.property_name = command.material_name;
-            r_key.secondary_property_name = command.node_name;
-            r_key.tertiary_property_name = command.internal_name;
-            return true;
-          case CommandType::SetNodeMute:
-            r_key.int_value = command.int_value;
-            r_key.property_name = command.material_name;
-            r_key.secondary_property_name = command.node_name;
-            return true;
-          default:
-            return false;
-        }
-      }
-      default:
-        return false;
-    }
+    return FlushWriteKeyAt(entry.stream, entry.index, r_key);
   };
+
+  size_t external_count = 0;
+  if (has_external) {
+    /* The objects the buffer's last-write-wins commands write: only an external write on one of
+     * them (or one sharing its key with another of its tree's) can merge. */
+    m_flushBufferObjects.clear();
+    LN_FlushWriteKey buffer_key;
+    for (const FlushOrderEntry &entry : m_flushOrder) {
+      if (key_of(entry, buffer_key) && buffer_key.object != 0) {
+        m_flushBufferObjects.push_back(reinterpret_cast<const void *>(buffer_key.object));
+      }
+    }
+    std::sort(m_flushBufferObjects.begin(), m_flushBufferObjects.end());
+    m_flushBufferObjects.erase(std::unique(m_flushBufferObjects.begin(), m_flushBufferObjects.end()),
+                               m_flushBufferObjects.end());
+    const bool buffer_can_merge = !(m_flushMergeableCount < 2 || m_flushLongestMergeableRun < 2);
+    external_count = m_externalWrites->ListWrites(m_flushBufferObjects, buffer_can_merge);
+    if (external_count == 0 && !buffer_can_merge) {
+      return 0;
+    }
+  }
+  /* Entries of the walk: a flush order index, or an external write's index with this bit. */
+  constexpr uint32_t external_bit = 0x80000000u;
+  uint32_t longest_run = m_flushLongestMergeableRun;
+  if (external_count != 0) {
+    /* The longest run of the merged walk (headers only: an upper bound, as key_of may still end a
+     * run the header calls mergeable). */
+    longest_run = 0;
+    uint32_t run = 0;
+    size_t next_external = 0;
+    const auto note = [&](const bool mergeable) {
+      run = mergeable ? run + 1 : 0;
+      longest_run = std::max(longest_run, run);
+    };
+    for (const FlushOrderEntry &entry : m_flushOrder) {
+      const CommandHeader header = FlushCommandHeader(entry.stream, entry.index);
+      while (next_external < external_count &&
+             m_externalWrites->WriteKey(next_external).sort_key < header.sort_key)
+      {
+        note(m_externalWrites->WriteKey(next_external++).last_write_wins);
+      }
+      note(header.coalescing == CoalescingPolicy::LastWriteWinsWithinBarrierSegment);
+    }
+    while (next_external < external_count) {
+      note(m_externalWrites->WriteKey(next_external++).last_write_wins);
+    }
+    if (longest_run < 2) {
+      return 0;
+    }
+  }
 
   /* At least twice the longest run's writes, so probing stays short and the table small (it was
    * sized by all of the step's writes: 3 MB for 10,000 NPCs, each run probing it at random);
    * only grown, never cleared: a slot belongs to a run (segment), and each run has a new one. */
   size_t capacity = 16;
-  while (capacity < size_t(m_flushLongestMergeableRun) * 2) {
+  while (capacity < size_t(longest_run) * 2) {
     capacity <<= 1;
   }
   if (m_flushWriteSlots.size() < capacity) {
@@ -9365,11 +10038,34 @@ uint32_t LN_CommandBuffer::MarkSupersededWrites()
   uint32_t superseded = 0;
   LN_FlushWriteKey key;
   LN_FlushWriteKey earlier;
-  for (uint32_t order_index = 0; order_index < uint32_t(m_flushOrder.size()); order_index++) {
-    if (!key_of(m_flushOrder[order_index], key)) {
+  /* The key of a walk entry; false when it is no last-write-wins write. An external write's key
+   * has the fields its recorded command's would have (key_of's Property and vector cases). */
+  const auto key_at = [&](const uint32_t entry, LN_FlushWriteKey &r_key) -> bool {
+    if ((entry & external_bit) == 0) {
+      return key_of(m_flushOrder[entry], r_key);
+    }
+    const LN_ExternalWriteKey &write = m_externalWrites->WriteKey(entry & ~external_bit);
+    if (!write.last_write_wins) {
+      return false;
+    }
+    if (write.foreign_buffer != nullptr) {
+      /* A bridged op's command: the key its own buffer gives it (names point into it). */
+      return write.foreign_buffer->FlushWriteKeyAt(
+          FlushStream(write.foreign_ref >> 32), uint32_t(write.foreign_ref), r_key);
+    }
+    r_key = LN_FlushWriteKey();
+    r_key.type = CommandType(write.type);
+    r_key.object = reinterpret_cast<uintptr_t>(write.object);
+    r_key.runtime_tree = reinterpret_cast<uintptr_t>(write.runtime_tree);
+    r_key.property_id = write.property_id;
+    r_key.property_ref_index = write.property_ref_index;
+    return true;
+  };
+  const auto visit = [&](const uint32_t entry) {
+    if (!key_at(entry, key)) {
       /* Any other command ends the run (logic_node_command_stream_coalesce). */
       segment = ++m_flushWriteSegment;
-      continue;
+      return;
     }
     const uint64_t hash = key.Hash();
     size_t slot_index = size_t(hash) & mask;
@@ -9378,18 +10074,43 @@ uint32_t LN_CommandBuffer::MarkSupersededWrites()
       if (slot.segment != segment) {
         slot.hash = hash;
         slot.segment = segment;
-        slot.order_index = order_index;
+        slot.order_index = entry;
         break;
       }
-      if (slot.hash == hash && key_of(m_flushOrder[slot.order_index], earlier) && earlier == key)
-      {
-        m_flushOrder[slot.order_index].superseded = true;
+      if (slot.hash == hash && key_at(slot.order_index, earlier) && earlier == key) {
+        if ((slot.order_index & external_bit) != 0) {
+          m_externalWrites->MarkSuperseded(slot.order_index & ~external_bit);
+        }
+        else {
+          m_flushOrder[slot.order_index].superseded = true;
+        }
         superseded++;
-        slot.order_index = order_index;
+        slot.order_index = entry;
         break;
       }
       slot_index = (slot_index + 1) & mask;
     }
+  };
+  if (external_count == 0) {
+    for (uint32_t order_index = 0; order_index < uint32_t(m_flushOrder.size()); order_index++) {
+      visit(order_index);
+    }
+    return superseded;
+  }
+  size_t next_external = 0;
+  for (uint32_t order_index = 0; order_index < uint32_t(m_flushOrder.size()); order_index++) {
+    const uint64_t sort_key = FlushCommandHeader(m_flushOrder[order_index].stream,
+                                                 m_flushOrder[order_index].index)
+                                  .sort_key;
+    while (next_external < external_count &&
+           m_externalWrites->WriteKey(next_external).sort_key < sort_key)
+    {
+      visit(external_bit | uint32_t(next_external++));
+    }
+    visit(order_index);
+  }
+  while (next_external < external_count) {
+    visit(external_bit | uint32_t(next_external++));
   }
   return superseded;
 }
@@ -9419,7 +10140,9 @@ void LN_CommandBuffer::FlushPendingObjectTransformCommandsInternal(KX_GameObject
     return;
   }
 
-  if (Size() == 0 || PendingMarksSayNone(gameobj, include_parents, true)) {
+  if ((Size() == 0 && m_externalWrites == nullptr) ||
+      PendingMarksSayNone(gameobj, include_parents, true))
+  {
     return;
   }
 
@@ -9431,21 +10154,45 @@ void LN_CommandBuffer::FlushPendingObjectTransformCommandsInternal(KX_GameObject
     flush_objects.append(object);
   }
 
+  /* Plan C1: the column runs' moves of these objects, applied among their recorded ones by sort
+   * key (one tree's moves have one key: a run's never equals a recorded command's). */
+  struct ExternalMove {
+    uint64_t sort_key;
+    KX_GameObject *object;
+  };
+  blender::Vector<ExternalMove, 4> external;
+  if (m_externalWrites != nullptr) {
+    for (KX_GameObject *object : flush_objects) {
+      uint64_t sort_key = 0;
+      if (m_externalWrites->PendingMoveSortKey(object, sort_key)) {
+        external.append({sort_key, object});
+      }
+    }
+    std::sort(external.begin(), external.end(), [](const ExternalMove &a, const ExternalMove &b) {
+      return a.sort_key < b.sort_key;
+    });
+  }
+  if (Size() == 0 && external.is_empty()) {
+    return;
+  }
+
   /* Only these objects' writes, found through the index and applied in the order the step's
    * flush applies them (SortCommands). They stay in their streams marked as applied (no
    * object, record sequence 0) so the other places stay valid; EndRecording drops them. The
    * index catches up with appended chunks first. */
-  IndexPendingTransforms();
   blender::Vector<TypedVectorCommand *, 8> pending;
-  for (KX_GameObject *object : flush_objects) {
-    if (const std::optional<blender::Vector<uint32_t, 2>> places = m_pendingTransforms.pop_try(
-            object))
-    {
-      for (const uint32_t place : *places) {
-        std::vector<TypedVectorCommand> &stream = (place & k_relative_transform_place) ?
-                                                      m_relativeVectorCommands :
-                                                      m_transformCommands;
-        pending.append(&stream[place & ~k_relative_transform_place]);
+  if (Size() != 0) {
+    IndexPendingTransforms();
+    for (KX_GameObject *object : flush_objects) {
+      if (const std::optional<blender::Vector<uint32_t, 2>> places = m_pendingTransforms.pop_try(
+              object))
+      {
+        for (const uint32_t place : *places) {
+          std::vector<TypedVectorCommand> &stream = (place & k_relative_transform_place) ?
+                                                        m_relativeVectorCommands :
+                                                        m_transformCommands;
+          pending.append(&stream[place & ~k_relative_transform_place]);
+        }
       }
     }
   }
@@ -9457,7 +10204,39 @@ void LN_CommandBuffer::FlushPendingObjectTransformCommandsInternal(KX_GameObject
               }
               return left->header.record_sequence < right->header.record_sequence;
             });
+  size_t next_external = 0;
+  /* Applies the next external tree's moves of all the objects it moves here (one tree's moves
+   * share one key: a lane may move an object and its parent, applied in its op order), then puts
+   * each object back in line at its next one (an object with column lanes of several trees has
+   * one a tree, plan C1-9). */
+  blender::Vector<KX_GameObject *, 4> same_tree;
+  const auto apply_next_external = [&]() {
+    const uint64_t key = external[next_external].sort_key;
+    same_tree.clear();
+    while (next_external < external.size() && external[next_external].sort_key == key) {
+      same_tree.append(external[next_external++].object);
+    }
+    m_externalWrites->ApplyPendingMoves(key, same_tree.data(), size_t(same_tree.size()));
+    for (KX_GameObject *object : same_tree) {
+      uint64_t sort_key = 0;
+      if (m_externalWrites->PendingMoveSortKey(object, sort_key)) {
+        ExternalMove next{sort_key, object};
+        auto at = std::upper_bound(external.begin() + next_external,
+                                   external.end(),
+                                   next,
+                                   [](const ExternalMove &a, const ExternalMove &b) {
+                                     return a.sort_key < b.sort_key;
+                                   });
+        external.insert(int64_t(at - external.begin()), next);
+      }
+    }
+  };
   for (TypedVectorCommand *command : pending) {
+    while (next_external < external.size() &&
+           external[next_external].sort_key < command->header.sort_key)
+    {
+      apply_next_external();
+    }
     ApplyObjectTransform(command->type,
                          command->object,
                          command->value,
@@ -9468,6 +10247,9 @@ void LN_CommandBuffer::FlushPendingObjectTransformCommandsInternal(KX_GameObject
     if (command->header.coalescing == CoalescingPolicy::LastWriteWinsWithinBarrierSegment) {
       m_appliedCoalescibleCount++;
     }
+  }
+  while (next_external < external.size()) {
+    apply_next_external();
   }
   m_appliedTransformCount += uint32_t(pending.size());
 }
@@ -12688,10 +13470,10 @@ void LN_CommandBuffer::Flush()
         ApplyObjectTransformCommand(command);
         break;
       case CommandType::ApplyForce:
-        command.object->ApplyForce(command.vector_value, command.bool_value);
+        apply_force_or_torque(command.object, command.vector_value, command.bool_value, false);
         break;
       case CommandType::ApplyTorque:
-        command.object->ApplyTorque(command.vector_value, command.bool_value);
+        apply_force_or_torque(command.object, command.vector_value, command.bool_value, true);
         break;
       case CommandType::SetGameProperty: {
         if (!command.game_property_id.IsValid() && m_logicManager != nullptr &&
@@ -14364,10 +15146,10 @@ void LN_CommandBuffer::Flush()
         object->setAngularVelocity(typed_command.value, true);
         break;
       case CommandType::ApplyForce:
-        object->ApplyForce(typed_command.value, typed_command.bool_value);
+        apply_force_or_torque(object, typed_command.value, typed_command.bool_value, false);
         break;
       case CommandType::ApplyTorque:
-        object->ApplyTorque(typed_command.value, typed_command.bool_value);
+        apply_force_or_torque(object, typed_command.value, typed_command.bool_value, true);
         break;
       default: {
         Command command;
@@ -14423,9 +15205,14 @@ void LN_CommandBuffer::Flush()
 
     if (typed_command.type == CommandType::SetTreeProperty) {
       if (typed_command.runtime_tree != nullptr) {
-        LN_Value scratch;
-        typed_command.runtime_tree->SetTreePropertyValue(
-            typed_command.property_ref_index, PropertyCommandValue(typed_command, scratch));
+        /* Plan C2 P4: only Set Tree Property ops write the property, each wrote its value when
+         * it ran: the last write of the step is already there, and nothing reads tree properties
+         * between the flush's writes of them. */
+        if (!typed_command.flush_redundant) {
+          LN_Value scratch;
+          typed_command.runtime_tree->SetTreePropertyValue(
+              typed_command.property_ref_index, PropertyCommandValue(typed_command, scratch));
+        }
       }
       else {
         warn_command_failure_once(make_warning_command(),
@@ -14679,16 +15466,16 @@ void LN_CommandBuffer::Flush()
 
     switch (typed_command.type) {
       case CommandType::SetVisibility:
-        object->SetVisible(typed_command.bool_value, typed_command.secondary_bool_value);
+      case CommandType::ResetSmoothing:
+      case CommandType::SetObjectColor:
+        ApplyObjectStateNow(typed_command.type,
+                            object,
+                            typed_command.color_value,
+                            typed_command.bool_value,
+                            typed_command.secondary_bool_value);
         break;
       case CommandType::SetUIInteractable:
         object->SetUIInteractable(typed_command.bool_value);
-        break;
-      case CommandType::ResetSmoothing:
-        object->ResetSmoothing(0.0f);
-        break;
-      case CommandType::SetObjectColor:
-        object->SetObjectColor(typed_command.color_value);
         break;
       case CommandType::MakeLightUnique:
         EnsureLightDataUnique(object);
@@ -15202,35 +15989,12 @@ void LN_CommandBuffer::Flush()
     }
 
     switch (typed_command.type) {
-      case CommandType::MoveToward: {
-        const float dt = std::max(typed_command.secondary_vector_value.y(), 0.0f);
-        const MT_Vector3 current = object->NodeGetWorldPosition();
-        const MT_Vector3 target = typed_command.vector_value;
-        const MT_Vector3 direction = target - current;
-        const float distance = direction.length();
-        const float stop_distance = typed_command.secondary_vector_value.x();
-        if (distance <= stop_distance) {
-          break;
-        }
-        const float speed = typed_command.scalar_value;
-        if (typed_command.bool_value) {
-          MT_Vector3 velocity_direction = direction;
-          velocity_direction.z() = 0.0f;
-          if (velocity_direction.length2() <= MT_EPSILON * MT_EPSILON) {
-            break;
-          }
-          velocity_direction.normalize();
-          MT_Vector3 velocity = velocity_direction * speed;
-          velocity.z() = object->GetLinearVelocity(false).z();
-          object->setLinearVelocity(velocity, false);
-          break;
-        }
-        const float step = std::min(speed * (typed_command.secondary_bool_value ? dt : 1.0f),
-                                    distance - stop_distance);
-        const MT_Vector3 movement = direction.normalized() * step;
-        object->ApplyMovement(movement, false);
+      case CommandType::MoveToward:
+      case CommandType::AlignAxisToVector:
+      case CommandType::RotateToward:
+        /* Shared with the column runs' writes (ApplyMotionNow). */
+        ApplyMotionBody(object, typed_command);
         break;
-      }
       case CommandType::SlowFollow: {
         KX_GameObject *follow_target = typed_command.target_object;
         if (follow_target == nullptr || object_removed_during_flush(follow_target)) {
@@ -15243,76 +16007,6 @@ void LN_CommandBuffer::Flush()
         const float factor = std::clamp(typed_command.scalar_value, 0.0f, 1.0f);
         const MT_Vector3 new_pos = current.lerp(target_pos, factor);
         object->NodeSetWorldPosition(new_pos);
-        break;
-      }
-      case CommandType::AlignAxisToVector: {
-        if (typed_command.vector_value.fuzzyZero()) {
-          break;
-        }
-        object->AlignAxisToVect(typed_command.vector_value,
-                                std::clamp(typed_command.int_value, 0, 2),
-                                std::clamp(typed_command.scalar_value, 0.0f, 1.0f));
-        break;
-      }
-      case CommandType::RotateToward: {
-        const MT_Vector3 position = object->NodeGetWorldPosition();
-        MT_Vector3 to_target = typed_command.vector_value - position;
-        if (to_target.length2() < 1e-10f) {
-          break;
-        }
-        to_target.normalize();
-
-        const int32_t rot_axis_index = std::clamp(typed_command.int_value, 0, 2);
-        const int32_t front_axis_index = std::clamp(typed_command.secondary_int_value, 0, 5);
-        const bool use_max_angular_step = typed_command.bool_value;
-        const float rotation_amount = use_max_angular_step ?
-                                          std::max(typed_command.scalar_value, 0.0f) :
-                                          std::clamp(typed_command.scalar_value, 0.0f, 1.0f);
-
-        const MT_Matrix3x3 orientation = object->NodeGetWorldOrientation();
-        MT_Vector3 local_rot_axis(0.0f, 0.0f, 0.0f);
-        local_rot_axis[rot_axis_index] = 1.0f;
-        const MT_Vector3 rot_axis_world = (orientation * local_rot_axis).normalized();
-
-        const int front_axis = front_axis_index % 3;
-        const bool front_negative = front_axis_index >= 3;
-        MT_Vector3 local_front_axis(0.0f, 0.0f, 0.0f);
-        local_front_axis[front_axis] = front_negative ? -1.0f : 1.0f;
-        const MT_Vector3 front_world = orientation * local_front_axis;
-
-        auto project_on_plane = [](const MT_Vector3 &vector, const MT_Vector3 &normal) {
-          return vector - normal * vector.dot(normal);
-        };
-
-        MT_Vector3 desired_dir = project_on_plane(to_target, rot_axis_world);
-        MT_Vector3 front_dir = project_on_plane(front_world, rot_axis_world);
-        if (desired_dir.length2() < 1e-10f || front_dir.length2() < 1e-10f) {
-          break;
-        }
-        desired_dir.normalize();
-        front_dir.normalize();
-
-        const MT_Vector3 cross = front_dir.cross(desired_dir);
-        const float dot = front_dir.dot(desired_dir);
-        if (cross.length2() < 1e-10f) {
-          if (dot < 0.0f) {
-            const float step = use_max_angular_step ? std::min(float(M_PI), rotation_amount) :
-                                                      float(M_PI) * rotation_amount;
-            MT_Quaternion q(rot_axis_world, MT_Scalar(step));
-            object->NodeSetLocalOrientation(MT_Matrix3x3(q) * object->NodeGetLocalOrientation());
-          }
-          break;
-        }
-
-        float angle = acos(std::clamp(dot, -1.0f, 1.0f));
-        if (cross.dot(rot_axis_world) < 0.0f) {
-          angle = -angle;
-        }
-        angle = use_max_angular_step ?
-                    std::copysign(std::min(std::fabs(angle), rotation_amount), angle) :
-                    angle * rotation_amount;
-        MT_Quaternion q(rot_axis_world, MT_Scalar(angle));
-        object->NodeSetLocalOrientation(MT_Matrix3x3(q) * object->NodeGetLocalOrientation());
         break;
       }
       default:
@@ -15461,6 +16155,94 @@ void LN_CommandBuffer::Flush()
     }
   };
 
+  /* Plan C1-8: a column run's bridged op recorded its commands into a buffer of its own; they are
+   * applied here, at the tree's place, by the code that applies this buffer's own. */
+  auto apply_foreign = [&](LN_CommandBuffer &source, const uint64_t ref) {
+    const uint32_t index = uint32_t(ref);
+    switch (FlushStream(ref >> 32)) {
+      case FlushStream::Legacy:
+        flush_command(source.m_commands[index]);
+        break;
+      case FlushStream::Transform:
+      case FlushStream::Velocity:
+      case FlushStream::RelativeVector: {
+        const FlushStream stream = FlushStream(ref >> 32);
+        TypedVectorCommand command = stream == FlushStream::Transform ?
+                                         source.m_transformCommands[index] :
+                                         (stream == FlushStream::Velocity ?
+                                              source.m_velocityCommands[index] :
+                                              source.m_relativeVectorCommands[index]);
+        if (command.rotation_index != LN_INVALID_INDEX &&
+            command.rotation_index < source.m_rotationValues.size())
+        {
+          m_rotationValues.push_back(source.m_rotationValues[command.rotation_index]);
+          command.rotation_index = uint32_t(m_rotationValues.size() - 1);
+        }
+        flush_typed_vector_command(command);
+        break;
+      }
+      case FlushStream::Motion:
+        flush_typed_motion_command(source.m_motionCommands[index]);
+        break;
+      case FlushStream::Property: {
+        TypedPropertyCommand command = source.m_propertyCommands[index];
+        /* (Plan C2 P4: a redundant Set Tree Property writes nothing: its value is not copied.) */
+        if (command.type == CommandType::SetTreeProperty && command.flush_redundant) {
+          command.value_index = LN_INVALID_INDEX;
+        }
+        if (command.value_index != LN_INVALID_INDEX &&
+            command.value_index < source.m_propertyValues.size())
+        {
+          m_propertyValues.push_back(source.m_propertyValues[command.value_index]);
+          command.value_index = uint32_t(m_propertyValues.size() - 1);
+        }
+        if (command.modify_index != LN_INVALID_INDEX &&
+            command.modify_index < source.m_propertyModifies.size())
+        {
+          m_propertyModifies.push_back(source.m_propertyModifies[command.modify_index]);
+          command.modify_index = uint32_t(m_propertyModifies.size() - 1);
+        }
+        flush_typed_property_command(command);
+        break;
+      }
+      case FlushStream::Event:
+        flush_typed_event_command(source.m_eventCommands[index]);
+        break;
+      case FlushStream::Audio:
+        flush_typed_audio_command(source.m_audioCommands[index]);
+        break;
+      case FlushStream::Lifecycle:
+        flush_typed_lifecycle_command(source.m_lifecycleCommands[index]);
+        break;
+      case FlushStream::ObjectService:
+        flush_typed_object_service_command(source.m_objectServiceCommands[index]);
+        break;
+      case FlushStream::RuntimeService:
+        flush_typed_runtime_service_command(source.m_runtimeServiceCommands[index]);
+        break;
+      case FlushStream::Animation:
+        flush_typed_animation_command(source.m_animationCommands[index]);
+        break;
+      case FlushStream::Armature:
+        flush_typed_armature_command(source.m_armatureCommands[index]);
+        break;
+      case FlushStream::Material:
+        flush_typed_material_command(source.m_materialCommands[index]);
+        break;
+      case FlushStream::Physics:
+        flush_typed_physics_command(source.m_physicsCommands[index]);
+        break;
+    }
+  };
+  m_foreignApply = apply_foreign;
+  struct ForeignApplyScope {
+    blender::FunctionRef<void(LN_CommandBuffer &, uint64_t)> &apply;
+    ~ForeignApplyScope()
+    {
+      apply = {};
+    }
+  } foreign_apply_scope{m_foreignApply};
+
   auto flush_stream_command = [&](const FlushStream stream, const size_t index) {
     switch (stream) {
       case FlushStream::Legacy:
@@ -15518,6 +16300,20 @@ void LN_CommandBuffer::Flush()
   auto flush_direct_ordered_streams = [&](const bool coalesce) {
     BuildFlushOrder();
     const uint32_t superseded = coalesce ? MarkSupersededWrites() : 0u;
+    if (m_externalWrites != nullptr && m_externalWrites->HasWrites()) {
+      /* Plan C1-11 C-4: what may be applied ahead (in parallel), after the merge. */
+      m_externalWrites->PrepareApply(*this);
+      /* Plan C1: the column runs' writes, each tree's at its own sort key among the commands. */
+      for (const FlushOrderEntry &entry : m_flushOrder) {
+        m_externalWrites->ApplyWritesBefore(FlushCommandHeader(entry.stream, entry.index).sort_key,
+                                            *this);
+        if (!entry.superseded) {
+          flush_stream_command(entry.stream, entry.index);
+        }
+      }
+      m_externalWrites->ApplyWritesBefore(UINT64_MAX, *this);
+      return superseded;
+    }
     for (const FlushOrderEntry &entry : m_flushOrder) {
       if (!entry.superseded) {
         flush_stream_command(entry.stream, entry.index);
@@ -15526,8 +16322,16 @@ void LN_CommandBuffer::Flush()
     return superseded;
   };
 
-  const uint32_t coalescible_command_count = CountCoalescibleCommands();
-  const size_t total_command_count = Size();
+  uint32_t coalescible_command_count = CountCoalescibleCommands();
+  size_t total_command_count = Size();
+  if (m_externalWrites != nullptr && m_externalWrites->HasWrites()) {
+    /* Plan C1: the column runs' writes count as the commands they stand for (the gate decides as
+     * if the trees had recorded them). */
+    uint32_t external_total = 0, external_last_write_wins = 0;
+    m_externalWrites->CountWrites(external_total, external_last_write_wins);
+    coalescible_command_count += external_last_write_wins;
+    total_command_count += external_total;
+  }
   const bool enable_flush_coalescing =
       coalescible_command_count != 0u &&
       (coalescible_command_count >= k_logic_node_min_coalescible_commands_for_runtime_flush ||

@@ -79,6 +79,8 @@
 #include <atomic>
 #include <cfloat>
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <string>
@@ -427,10 +429,35 @@ void KX_GameObject::ForceIgnoreParentTx()
   m_forceIgnoreParentTx = true;
 }
 
-/** Blender computes the evaluated pose from other things than the original's own transform. */
-static bool pose_computed_by_blender(const blender::Object *ob)
+/** UPBGE_DIRECT_PARENTED=0: every object with a Blender parent, and every parent, takes the
+ * Tagged path, as before 2026-11-04 (A/B tests). */
+static bool direct_parented_enabled()
 {
-  return (ob->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY) || ob->parent != nullptr ||
+  static const bool on = []() {
+    const char *value = std::getenv("UPBGE_DIRECT_PARENTED");
+    return value == nullptr || (std::strcmp(value, "0") != 0 && std::strcmp(value, "off") != 0);
+  }();
+  return on;
+}
+
+/** A child whose pose the game makes itself: parented to an object (not to vertices or a bone),
+ * and the game's own parent of it is that object. The scene graph gives its world pose, which the
+ * engine writes into Blender's objects whatever Blender would compute from the parent. */
+static bool parent_posed_by_game(KX_GameObject &gameobj, const blender::Object *ob)
+{
+  if (!direct_parented_enabled() || ob->parent == nullptr || ob->partype != PAROBJECT) {
+    return false;
+  }
+  KX_GameObject *parent = gameobj.GetParent();
+  return parent != nullptr && parent->GetBlenderObject() == ob->parent;
+}
+
+/** Blender computes the evaluated pose from other things than the original's own transform (a
+ * parent counts unless the game poses the object from it, parent_posed_by_game). */
+static bool pose_computed_by_blender(KX_GameObject &gameobj, const blender::Object *ob)
+{
+  return (ob->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY) ||
+         (ob->parent != nullptr && !parent_posed_by_game(gameobj, ob)) ||
          !BLI_listbase_is_empty(&ob->constraints) ||
          (ob->adt != nullptr && !BLI_listbase_is_empty(&ob->adt->drivers));
 }
@@ -464,9 +491,50 @@ bool KX_BlenderSimulatesObject(const blender::Object *ob)
   return false;
 }
 
+/** A child (or deeper descendant) of `gameobj` in Blender that reads its transform only to place
+ * itself, whose every move the game writes into Blender's objects anyway: an object of the game's
+ * own hierarchy under `gameobj` (each link a plain object parent the game mirrors), with nothing
+ * else of Blender's to evaluate from the position (no modifiers, constraints, drivers, simulation,
+ * Override transform priority). Its geometry does not depend on where it is, and its pose comes
+ * from the scene graph (parent_posed_by_game), so Blender need not evaluate it when `gameobj`
+ * moves. */
+static bool dependent_posed_by_game(KX_GameObject &gameobj,
+                                    const std::vector<KX_GameObject *> &descendants,
+                                    const blender::ID *id)
+{
+  if (GS(id->name) != blender::ID_OB) {
+    return false;
+  }
+  const blender::Object *ob_parent = gameobj.GetBlenderObject();
+  for (const blender::Object *link = reinterpret_cast<const blender::Object *>(id);
+       link != ob_parent;
+       link = link->parent)
+  {
+    if (link == nullptr) {
+      return false; /* not under `gameobj` in Blender */
+    }
+    KX_GameObject *link_game = nullptr;
+    for (KX_GameObject *descendant : descendants) {
+      if (descendant->GetBlenderObject() == link) {
+        link_game = descendant;
+        break;
+      }
+    }
+    if (link_game == nullptr || link_game->IsUpbgeDupliInstance() ||
+        KX_BlenderSimulatesObject(link) || !BLI_listbase_is_empty(&link->modifiers) ||
+        pose_computed_by_blender(*link_game, link))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
 /** Nothing of Blender's reads the object's position (other than its own geometry, which the
- * first moves find out): its moves can skip Blender's evaluation. */
+ * first moves find out, and children the game poses itself, dependent_posed_by_game): its moves
+ * can skip Blender's evaluation. */
 static bool pose_can_skip_evaluation(const blender::Depsgraph *depsgraph,
+                                     KX_GameObject &gameobj,
                                      const blender::Object *ob)
 {
   if (KX_BlenderSimulatesObject(ob)) {
@@ -474,15 +542,40 @@ static bool pose_can_skip_evaluation(const blender::Depsgraph *depsgraph,
   }
   /* Another object, a modifier's or geometry nodes' object, a material, a child... */
   bool read_elsewhere = false;
+  bool descendants_made = false;
+  std::vector<KX_GameObject *> descendants;
   DEG_foreach_dependent_ID_component(
       depsgraph,
       &ob->id,
       DEG_OB_COMP_TRANSFORM,
       DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
-      [&](blender::ID * /*id*/, blender::eDepsObjectComponentType /*component*/) {
-        read_elsewhere = true;
+      [&](blender::ID *id, blender::eDepsObjectComponentType /*component*/) {
+        if (read_elsewhere) {
+          return;
+        }
+        if (!direct_parented_enabled()) {
+          read_elsewhere = true;
+          return;
+        }
+        if (!descendants_made) {
+          descendants = gameobj.GetChildrenRecursive();
+          descendants_made = true;
+        }
+        read_elsewhere = !dependent_posed_by_game(gameobj, descendants, id);
       });
   return !read_elsewhere;
+}
+
+bool KX_GameObject::ParentPosedByGame()
+{
+  const blender::Object *ob = GetBlenderObject();
+  return ob != nullptr && parent_posed_by_game(*this, ob);
+}
+
+bool KX_GameObject::DependentPosedByGame(const blender::ID *id)
+{
+  return direct_parented_enabled() &&
+         dependent_posed_by_game(*this, GetChildrenRecursive(), id);
 }
 
 bool KX_GameObject::UsesDirectPose(const RenderSyncPass &pass, blender::Object *ob_orig)
@@ -494,7 +587,7 @@ bool KX_GameObject::UsesDirectPose(const RenderSyncPass &pass, blender::Object *
   if (m_posePath != PosePath::Unknown) {
     return m_posePath == PosePath::Direct;
   }
-  if (m_poseFromBlender || !pose_can_skip_evaluation(pass.depsgraph, ob_orig)) {
+  if (m_poseFromBlender || !pose_can_skip_evaluation(pass.depsgraph, *this, ob_orig)) {
     m_posePath = PosePath::Tagged;
     return false;
   }
@@ -523,10 +616,21 @@ void KX_GameObject::TagForTransformUpdate(const RenderSyncPass &pass, bool is_ov
     m_posePath = PosePath::Unknown;
     m_posePathProbes = 0;
     m_posePathProbeStart = 0;
-    m_poseFromBlender = !m_isUpbgeDupliInstance && pose_computed_by_blender(ob_orig);
+    m_poseFromBlender = !m_isUpbgeDupliInstance && pose_computed_by_blender(*this, ob_orig);
+    m_parentPosedByGame = !m_isUpbgeDupliInstance && ob_orig->parent != nullptr &&
+                          !m_poseFromBlender;
   }
   if (m_poseFromBlender) {
     NotePoseCheck(pass);
+  }
+  else if (m_parentPosedByGame) {
+    /* A child the game poses (parent_posed_by_game): when Blender evaluates its parent, it
+     * evaluates the child from it too, so it is looked at after the update unless the parent
+     * skips Blender's evaluation (PosePath::Direct). */
+    KX_GameObject *parent = GetParent();
+    if (parent == nullptr || parent->m_posePath != PosePath::Direct) {
+      NotePoseCheck(pass);
+    }
   }
 
   bool skip_transform = !m_isUpbgeDupliInstance &&
@@ -636,7 +740,8 @@ void KX_GameObject::TagForTransformUpdate(const RenderSyncPass &pass, bool is_ov
       std::vector<blender::Object *> childrenObjects;
       for (KX_GameObject *go : children) {
         blender::Object *child = go->GetBlenderObject();
-        if (child) {
+        /* A grouped child draws from the game's pose, never from its own Blender object. */
+        if (child && !go->IsUpbgeDupliInstance()) {
           childrenObjects.push_back(child);
         }
       }
@@ -1142,11 +1247,13 @@ void KX_GameObject::WriteOwnBlenderObject()
   if (ob == nullptr) {
     return;
   }
-  /* Grouped objects have no Blender parent (KX_Scene::SetupGameDrawing). */
+  /* A grouped object may have a Blender parent the game poses it from (2026-11-04): its local
+   * pose against the parent's original, as the transform sync writes it. */
   float object_to_world[4][4];
   NodeGetWorldTransform().getValue(&object_to_world[0][0]);
   copy_m4_m4(ob->runtime->object_to_world.ptr(), object_to_world);
-  BKE_object_apply_mat4(ob, object_to_world, false, false);
+  BKE_object_apply_mat4(
+      ob, object_to_world, false, ob->parent != nullptr && ob->partype != PARVERT1);
   copy_v4_v4(ob->color, m_objectColor.getValue());
 }
 

@@ -397,6 +397,16 @@ struct LN_TickProfileMetrics {
   uint32_t batch_count = 0;
   uint32_t batch_tree_count = 0;
   uint32_t batch_thread_count = 0;
+  /** Columns (LN_Columns.h): the trees that ran in columns, and the lanes their runs gave back to
+   * the lean VM (not in serial_tree_count). */
+  uint32_t column_tree_count = 0;
+  uint32_t column_given_back_count = 0;
+  /** Plan C2 P6: the trees that took the column pass outside the runs (ColumnExecuteReady in the
+   * manager's recording, its tree batches and Run Logic Tree passes; the lanes given back take it
+   * too, counted in column_given_back_count). */
+  uint32_t column_pass_count = 0;
+  /** The trees that ran in the tick (plan C2 P0: col_share = column_tree_count of these). */
+  uint32_t runnable_tree_count = 0;
   double batch_record_ms = 0.0;
   /** Of batch_record_ms: the main thread appending the chunks in order. */
   double batch_join_ms = 0.0;

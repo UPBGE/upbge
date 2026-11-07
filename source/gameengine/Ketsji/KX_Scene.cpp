@@ -3164,7 +3164,12 @@ static const char *game_draw_refusal(KX_GameObject *gameobj,
   if (KX_BlenderSimulatesObject(ob) || BKE_modifiers_findby_type(ob, eModifierType_Armature)) {
     return "Blender simulates or deforms it (physics, particles, an armature)";
   }
-  if (ob->parent != nullptr || parents.contains(ob) || !BLI_listbase_is_empty(&ob->constraints) ||
+  /* Auto (2026-11-04): a plain parent the game poses the object from, and children the game
+   * poses (SetupAutoDrawing asks Blender's graph who reads the object), are fine: every member
+   * draws at its own pose from the scene graph. Merged bakes the poses: no hierarchy. */
+  const bool parent_ok = shared && ob->parent != nullptr && gameobj->ParentPosedByGame();
+  if ((ob->parent != nullptr && !parent_ok) || (parents.contains(ob) && !shared) ||
+      !BLI_listbase_is_empty(&ob->constraints) ||
       (ob->adt != nullptr && !BLI_listbase_is_empty(&ob->adt->drivers)) ||
       (ob->transflag & OB_TRANSFLAG_OVERRIDE_GAME_PRIORITY))
   {
@@ -3374,7 +3379,8 @@ void KX_Scene::SetupAutoDrawing(blender::Depsgraph *depsgraph,
    * another object, an instancer): its own object leaves the graph. Its collections only gather
    * it. Asked of the graph as the conversion found it: it may still hold objects the conversion
    * hid since, which can only keep more objects out of a group, never fewer. */
-  const auto read_elsewhere = [&](blender::Object *ob) {
+  const auto read_elsewhere = [&](KX_GameObject *member) {
+    blender::Object *ob = member->GetBlenderObject();
     bool read = false;
     DEG_foreach_dependent_ID_component(
         depsgraph,
@@ -3382,7 +3388,8 @@ void KX_Scene::SetupAutoDrawing(blender::Depsgraph *depsgraph,
         DEG_OB_COMP_ANY,
         DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
         [&](blender::ID *id, blender::eDepsObjectComponentType /*component*/) {
-          if (GS(id->name) != ID_GR) {
+          /* Children the game poses (2026-11-04) read it only to place themselves. */
+          if (!read && GS(id->name) != ID_GR && !member->DependentPosedByGame(id)) {
             read = true;
           }
         });
@@ -3391,9 +3398,7 @@ void KX_Scene::SetupAutoDrawing(blender::Depsgraph *depsgraph,
   for (std::vector<KX_GameObject *> &group : groups) {
     group.erase(std::remove_if(group.begin(),
                                group.end(),
-                               [&](KX_GameObject *member) {
-                                 return read_elsewhere(member->GetBlenderObject());
-                               }),
+                               [&](KX_GameObject *member) { return read_elsewhere(member); }),
                 group.end());
   }
 
@@ -3451,6 +3456,13 @@ void KX_Scene::SetupAutoDrawing(blender::Depsgraph *depsgraph,
       continue;
     }
     id_us_min(&base->id);
+    /* No parent: members draw at their own poses, and a base following a member's parent would
+     * make Blender evaluate that parent's moves for nothing. */
+    if (base->parent != nullptr) {
+      base->parent = nullptr;
+      base->parsubstr[0] = '\0';
+      unit_m4(base->parentinv);
+    }
     base->visibility_flag &= ~OB_HIDE_VIEWPORT;
     BKE_collection_object_add(bmain, scene->master_collection, base);
     m_sharedDrawBases.push_back(base);

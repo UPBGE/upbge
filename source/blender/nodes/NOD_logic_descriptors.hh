@@ -4133,7 +4133,9 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeGetChildByName",
    "Objects/Object Data",
    "Get Child By Name",
-   "Child by name in the children of an object",
+   "The child of Parent named as the Child object. Blender gives placed objects unique names "
+   "(Turret, Turret.001...): to find each placed NPC's own child use Get Child with an index; "
+   "Add Object copies keep their source's names",
    pin_span(get_child_by_name_inputs),
    pin_span(get_child_by_name_outputs),
    false,

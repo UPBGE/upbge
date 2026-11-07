@@ -1130,8 +1130,15 @@ inline std::string DumpWorld(const std::vector<KX_GameObject *> &objects)
         out += "-";
         continue;
       }
-      out += std::to_string(property->GetValueType()) + "/" + LN_DumpQuoted(property->GetText()) +
-             "/" + LN_DumpDoubleBits(property->GetNumber());
+      /* A NaN's text as one ("-nan" and "nan": its sign is no logic, LN_DumpFloatBits). */
+      std::string text = property->GetText();
+      for (size_t at = text.find("-nan"); at != std::string::npos && !LN_DumpNaNAsIs();
+           at = text.find("-nan", at))
+      {
+        text.erase(at, 1);
+      }
+      out += std::to_string(property->GetValueType()) + "/" + LN_DumpQuoted(text) + "/" +
+             LN_DumpDoubleBits(property->GetNumber());
     }
     out += "\n";
   }

@@ -38,6 +38,7 @@ set(INC_SYS
 
 set(SRC
   intern/LN_BindingSource.cpp
+  intern/LN_Columns.cpp
   intern/LN_CommandBuffer.cpp
   intern/LN_CommandDiagnostics.cpp
   intern/LN_DenseIds.cpp
@@ -78,6 +79,7 @@ set(SRC
   intern/LN_Program.cpp
 
   LN_BindingSource.h
+  LN_Columns.h
   LN_CommandBuffer.h
   LN_CommandDiagnostics.h
   LN_CompileReport.h
@@ -154,6 +156,7 @@ if(WITH_GTESTS)
     tests/LN_LeanProgram_test.cpp
     tests/LN_LeanNative_test.cpp
     tests/LN_TreeBlock_test.cpp
+    tests/LN_Columns_test.cpp
     tests/LN_LeanRoute_test.cpp
     tests/LN_ObjectAttribute_test.cpp
     tests/LN_KindCatalog_test.cpp

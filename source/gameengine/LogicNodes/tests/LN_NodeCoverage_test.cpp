@@ -750,4 +750,25 @@ TEST(LN_NodeCoverage, PickerNodesGetSoundAndGetImageHaveNoReaderAndCompile)
   EXPECT_NE(program, nullptr) << report;
 }
 
+/* Get Scene gives the owner's scene: none without one (the rig's objects have no scene), so Value
+ * Valid says false. Its value in a game (the scene by name) is read by nothing a probe can see
+ * without changing scenes. (Plan C2 P0 found Get Scene in no test: lean_plan/uncovered.txt said
+ * this file's scene-node test ran it, which it did not.) */
+TEST(LN_NodeCoverage, GetSceneGivesNoSceneWithoutOne)
+{
+  TreeBuilder b;
+  Writer w(b);
+  GenNode &scene = b.Add("LogicNativeGetScene");
+  GenNode &valid = b.Add("LogicNativeValueValid");
+  b.Link(scene, "Scene", valid, "Value");
+  w.Bool(valid, "If Valid", "valid");
+  const std::shared_ptr<LN_Program> program = CompileOrFail(b);
+  ASSERT_NE(program, nullptr);
+  SemRig rig(program, kProduction);
+  KX_GameObject &o = rig.Object(0);
+  rig.SetBool(o, "valid", true);
+  rig.Step();
+  EXPECT_EQ(rig.Float(o, "valid"), 0.0f);
+}
+
 }  // namespace

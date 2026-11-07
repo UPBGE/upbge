@@ -692,25 +692,6 @@ std::shared_ptr<const LN_LeanProgram> LN_LowerToLean(const LN_Program &program)
             break;
         }
       }
-      /* Ops a block may hold (plan phase B1): the flow core and the writes whose commands go to
-       * the typed streams a block regroups. Apply Force / Torque (Apply Physics Vector) append to
-       * the physics stream: not yet. */
-      switch (LN_LeanNative(op.native)) {
-        case LN_LeanNative::Nop:
-        case LN_LeanNative::BranchRoute:
-        case LN_LeanNative::SetNumber:
-        case LN_LeanNative::ModifyProperty:
-          op.block_ok = !op.guard_is_delay_done;
-          break;
-        case LN_LeanNative::VectorCommand:
-          op.block_ok = !op.guard_is_delay_done &&
-                        program.GetInstructionPayload(LN_Event(event_index),
-                                                      headers[exec.instruction_index])
-                                .opcode != LN_OpCode::ApplyPhysicsVector;
-          break;
-        case LN_LeanNative::Generic:
-          break;
-      }
       if (op.native == uint16_t(LN_LeanNative::Generic)) {
         lean->generic_op_count++;
         event.fully_native = false;
@@ -719,18 +700,6 @@ std::shared_ptr<const LN_LeanProgram> LN_LowerToLean(const LN_Program &program)
         lean->native_op_count++;
       }
     }
-    /* A plain run of block-ok ops. */
-    bool plain = !ir.ops.empty() && ir.ui_event_states.empty() && program.GetStepGates().empty();
-    for (const LN_ExecBlock &block : ir.blocks) {
-      plain = plain && block.loop_frame_index == LN_INVALID_INDEX &&
-              block.completed_loop_frame_index == LN_INVALID_INDEX &&
-              block.step_gate_index == LN_INVALID_INDEX;
-    }
-    for (uint32_t op_index = 0; op_index < ir.ops.size() && plain; op_index++) {
-      plain = event.ops[op_index].block_ok && !ir.ops[op_index].ui_event_route &&
-              ir.ops[op_index].ui_event_state_index == LN_INVALID_INDEX;
-    }
-    event.block_ok = plain;
     BuildRoute(program, LN_Event(event_index), ir, state_offset, event);
   }
   BuildLeanMemo(program, *lean);
@@ -788,8 +757,7 @@ std::string LN_DumpLeanProgramText(const LN_LeanProgram &lean, const LN_Program 
     const LN_ExecBlockProgram &ir = program.GetExecBlockProgram(LN_Event(event_index));
     text << "event " << event_names[event_index] << " ops=" << event.ops.size()
          << " blocks=" << ir.blocks.size() << " fully_native=" << (event.fully_native ? 1 : 0)
-         << " route=" << (event.has_route ? 1 : 0)
-         << " block_ok=" << (event.block_ok ? 1 : 0) << "\n";
+         << " route=" << (event.has_route ? 1 : 0) << "\n";
     for (size_t op_index = 0; op_index < event.ops.size(); op_index++) {
       const LN_LeanOp &op = event.ops[op_index];
       const LN_ExecOp &exec = ir.ops[op.exec_op_index];

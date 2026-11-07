@@ -20,3 +20,5 @@ std::string LN_DescribeCommandFailure(const LN_CommandBuffer::Command &command,
 /** Emit each fully contextualized command failure only once per process. Thread-safe. */
 void LN_WarnCommandFailureOnce(const LN_CommandBuffer::Command &command,
                                const std::string &reason);
+/** Tests: forget the warnings issued, so a run prints its own whatever ran before it. */
+void LN_ResetCommandFailureWarningsForTests();

@@ -525,187 +525,58 @@ void LN_RuntimeTree::OpTimeFlowControlInstruction(Frame &ef,
   switch (instruction.opcode) {
     case LN_OpCode::ArmNextFrame: {
       if (instruction.int_value >= 0) {
-        if (TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(instruction.int_value))) {
-          state->kind = TimeFlowRuntimeKind::NextFrame;
-          state->ui_event_route = ui_event_route;
-          state->active = true;
-          state->event = LN_Event::OnUpdate;
-          state->ignore_timescale = true;
-          state->last_update_tick = context.tick_index;
-          state->last_update_phase_tick = context.phase_tick_index;
-        }
+        TimeFlowArmNextFrame(uint32_t(instruction.int_value), ui_event_route, context);
       }
       break;
     }
     case LN_OpCode::ArmTimer: {
       if (instruction.int_value >= 0) {
-        if (TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(instruction.int_value))) {
-          const float duration = std::max(
-              0.0f, ef.Float(instruction.float_expr_index, 0.0f));
-          state->kind = TimeFlowRuntimeKind::Timer;
-          state->ui_event_route = ui_event_route;
-          state->ignore_timescale = ef.Bool(
-              instruction.secondary_bool_expr_index, false);
-          state->event = TimeFlowContinuationEvent(event);
-          state->pulse_tick = UINT64_MAX;
-          state->last_update_tick = context.tick_index;
-          state->last_update_phase_tick = context.phase_tick_index;
-          state->accumulated_time = 0.0;
-          if (duration <= 0.0f) {
-            state->active = false;
-            state->remaining_time = 0.0;
-            if (context.tick_index != UINT64_MAX) {
-              state->pulse_tick = context.tick_index;
-            }
-          }
-          else {
-            state->active = true;
-            state->remaining_time = double(duration);
-          }
-        }
+        TimeFlowArmTimer(
+            uint32_t(instruction.int_value),
+            ui_event_route,
+            event,
+            context,
+            [&]() { return ef.Float(instruction.float_expr_index, 0.0f); },
+            [&]() { return ef.Bool(instruction.secondary_bool_expr_index, false); });
       }
       break;
     }
     case LN_OpCode::ArmDelay: {
       if (instruction.int_value >= 0) {
-        if (TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(instruction.int_value))) {
-          state->kind = TimeFlowRuntimeKind::Delay;
-          state->ui_event_route = ui_event_route;
-          state->ignore_timescale = ef.Bool(
-              instruction.secondary_bool_expr_index, false);
-          state->event = TimeFlowContinuationEvent(event);
-          state->last_update_tick = context.tick_index;
-          state->last_update_phase_tick = context.phase_tick_index;
-          const float duration = std::max(
-              0.0f, ef.Float(instruction.float_expr_index, 0.0f));
-          if (state->pulse_tick != context.tick_index) {
-            state->pulse_tick = UINT64_MAX;
-          }
-          state->accumulated_time = 0.0;
-
-          TimeFlowRuntimeState::PendingPulse pulse;
-          pulse.remaining_time = double(duration);
-          pulse.tree_properties = m_treeProperties;
-
-          if (duration <= 0.0f && context.tick_index != UINT64_MAX &&
-              state->pulse_tick != context.tick_index)
-          {
-            state->remaining_time = 0.0;
-            state->active_tree_properties = std::move(pulse.tree_properties);
-            state->has_active_tree_properties = true;
-            state->pulse_tick = context.tick_index;
-          }
-          else {
-            state->pending_pulses.push_back(std::move(pulse));
-            state->active = true;
-            state->remaining_time = state->pending_pulses.front().remaining_time;
-            for (const TimeFlowRuntimeState::PendingPulse &queued_pulse : state->pending_pulses)
-            {
-              state->remaining_time = std::min(state->remaining_time,
-                                               queued_pulse.remaining_time);
-            }
-          }
-        }
+        TimeFlowArmDelay(
+            uint32_t(instruction.int_value),
+            ui_event_route,
+            event,
+            context,
+            [&]() { return ef.Float(instruction.float_expr_index, 0.0f); },
+            [&]() { return ef.Bool(instruction.secondary_bool_expr_index, false); });
       }
       break;
     }
     case LN_OpCode::UpdatePulsify: {
       if (instruction.int_value >= 0) {
-        if (TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(instruction.int_value))) {
-          const float interval = std::max(
-              0.0f, ef.Float(instruction.float_expr_index, 0.5f));
-          const LN_Event continuation_event = TimeFlowContinuationEvent(event);
-          const bool continuous = state->active && state->event == continuation_event &&
-                                  IsContinuousPhaseTick(state->last_update_phase_tick,
-                                                        context.phase_tick_index,
-                                                        context.phase_tick_stride);
-          state->kind = TimeFlowRuntimeKind::Pulsify;
-          state->ignore_timescale = ef.Bool(
-              instruction.secondary_bool_expr_index, false);
-          state->event = continuation_event;
-          if (!continuous) {
-            state->active = true;
-            state->accumulated_time = 0.0;
-            if (context.tick_index != UINT64_MAX) {
-              state->pulse_tick = context.tick_index;
-            }
-          }
-          else if (context.tick_index != state->last_update_tick) {
-            const double step = TimeFlowStep(context, state->ignore_timescale);
-            if (interval <= 0.0f) {
-              state->pulse_tick = context.tick_index;
-            }
-            else {
-              state->accumulated_time += step;
-              if (state->accumulated_time + LN_TIME_FLOW_EPSILON >= double(interval)) {
-                state->pulse_tick = context.tick_index;
-                const double interval_time = double(interval);
-                state->accumulated_time = std::fmod(
-                    std::max(0.0, state->accumulated_time - interval_time), interval_time);
-                if (state->accumulated_time <= LN_TIME_FLOW_EPSILON) {
-                  state->accumulated_time = 0.0;
-                }
-              }
-              else {
-                state->pulse_tick = UINT64_MAX;
-              }
-            }
-          }
-          state->remaining_time = double(interval);
-          state->last_update_tick = context.tick_index;
-          state->last_update_phase_tick = context.phase_tick_index;
-          state->last_update_phase_stride = context.phase_tick_stride;
-        }
+        TimeFlowUpdatePulsify(
+            uint32_t(instruction.int_value),
+            event,
+            context,
+            [&]() { return ef.Float(instruction.float_expr_index, 0.5f); },
+            [&]() { return ef.Bool(instruction.secondary_bool_expr_index, false); });
       }
       break;
     }
     case LN_OpCode::UpdateBarrier: {
       if (instruction.int_value >= 0) {
-        if (TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(instruction.int_value))) {
-          const bool condition = instruction.bool_expr_index == LN_INVALID_INDEX ?
-                                     true :
-                                     ef.Bool(
-                                         instruction.bool_expr_index, false);
-          const LN_Event continuation_event = TimeFlowContinuationEvent(event);
-          const bool continuous = state->active && state->event == continuation_event &&
-                                  IsContinuousPhaseTick(state->last_update_phase_tick,
-                                                        context.phase_tick_index,
-                                                        context.phase_tick_stride);
-          state->kind = TimeFlowRuntimeKind::Barrier;
-          state->ignore_timescale = ef.Bool(
-              instruction.secondary_bool_expr_index, false);
-          state->event = continuation_event;
-          if (!condition) {
-            state->active = false;
-            state->accumulated_time = 0.0;
-            if (state->pulse_tick != context.tick_index) {
-              state->pulse_tick = UINT64_MAX;
-            }
-          }
-          else {
-            const float duration = std::max(
-                0.0f, ef.Float(instruction.float_expr_index, 0.0f));
-            if (!continuous) {
-              state->active = true;
-              state->accumulated_time = 0.0;
-            }
-            else if (context.tick_index != state->last_update_tick) {
-              state->accumulated_time += TimeFlowStep(context, state->ignore_timescale);
-            }
-            state->remaining_time = double(duration);
-            if (duration <= 0.0f ||
-                state->accumulated_time + LN_TIME_FLOW_EPSILON >= double(duration))
-            {
-              if (context.tick_index != UINT64_MAX) {
-                state->pulse_tick = context.tick_index;
-              }
-              state->accumulated_time = std::max(state->accumulated_time, double(duration));
-            }
-          }
-          state->last_update_tick = context.tick_index;
-          state->last_update_phase_tick = context.phase_tick_index;
-          state->last_update_phase_stride = context.phase_tick_stride;
-        }
+        TimeFlowUpdateBarrier(
+            uint32_t(instruction.int_value),
+            event,
+            context,
+            [&]() {
+              return instruction.bool_expr_index == LN_INVALID_INDEX ?
+                         true :
+                         ef.Bool(instruction.bool_expr_index, false);
+            },
+            [&]() { return ef.Float(instruction.float_expr_index, 0.0f); },
+            [&]() { return ef.Bool(instruction.secondary_bool_expr_index, false); });
       }
       break;
     }
@@ -781,52 +652,19 @@ void LN_RuntimeTree::OpTimeFlowControlInstruction(Frame &ef,
     }
     case LN_OpCode::TryCooldown: {
       if (instruction.int_value >= 0) {
-        if (TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(instruction.int_value))) {
-          state->kind = TimeFlowRuntimeKind::Cooldown;
-          if (state->active) {
-            state->accepted_scope_serial = 0;
-            state->blocked_scope_serial = context.execution_scope_serial;
-            break;
-          }
-
-          state->accepted_scope_serial = context.execution_scope_serial;
-          state->blocked_scope_serial = 0;
-          state->ui_event_route = ui_event_route;
-          float duration = ef.Float(instruction.float_expr_index, 0.0f);
-          if (!std::isfinite(duration) || duration <= 0.0f) {
-            duration = 0.0f;
-          }
-          state->ignore_timescale = ef.Bool(
-              instruction.secondary_bool_expr_index, false);
-          state->event = TimeFlowContinuationEvent(event);
-          state->remaining_time = double(duration);
-          /* Cooldown uses accumulated_time as its sampled total duration. */
-          state->accumulated_time = double(duration);
-          state->last_update_tick = context.tick_index;
-          state->last_update_phase_tick = context.phase_tick_index;
-          state->active = duration > 0.0f;
-          if (state->pulse_tick != context.tick_index) {
-            state->pulse_tick = UINT64_MAX;
-          }
-        }
+        TimeFlowTryCooldown(
+            uint32_t(instruction.int_value),
+            ui_event_route,
+            event,
+            context,
+            [&]() { return ef.Float(instruction.float_expr_index, 0.0f); },
+            [&]() { return ef.Bool(instruction.secondary_bool_expr_index, false); });
       }
       break;
     }
     case LN_OpCode::ResetCooldown: {
       if (instruction.int_value >= 0) {
-        if (TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(instruction.int_value))) {
-          state->kind = TimeFlowRuntimeKind::Cooldown;
-          state->active = false;
-          state->remaining_time = 0.0;
-          state->accumulated_time = 0.0;
-          state->pulse_tick = UINT64_MAX;
-          state->last_update_tick = context.tick_index;
-          state->last_update_phase_tick = context.phase_tick_index;
-          state->accepted_scope_serial = 0;
-          state->blocked_scope_serial = 0;
-          state->ignore_timescale = false;
-          state->event = TimeFlowContinuationEvent(event);
-        }
+        TimeFlowResetCooldown(uint32_t(instruction.int_value), event, context);
       }
       break;
     }
@@ -2917,27 +2755,27 @@ void LN_RuntimeTree::OpDirectPhysicsCommand(Frame &ef,
       const float stop_distance = std::max(
           ef.Float(instruction.tertiary_float_expr_index, 0.1f), 0.0f);
       if (KX_GameObject *target = ef.ResolveCommandTarget(instruction)) {
-        const MT_Vector3 delta = target_position - target->NodeGetWorldPosition();
-        const float distance_sq = delta.length2();
-        if (vector_is_finite(delta)) {
-          if (distance_sq <= reached_threshold * reached_threshold) {
-            const uint32_t state_index = InstructionStateIndex(event, instruction_id);
-            if (state_index != LN_INVALID_INDEX && state_index < m_instructionStamps.size()) {
-              InstructionMotionState &state = MotionState(state_index);
-              state.last_reached_tick = context.tick_index;
-              state.last_reached_scope_serial = m_activeExecutionScopeSerial;
-            }
+        /* (One code with the column kernel: ColumnForceToTarget.) */
+        bool reached = false;
+        MT_Vector3 force_vector;
+        const bool apply = ColumnForceToTarget(target_position,
+                                               force,
+                                               reached_threshold,
+                                               stop_distance,
+                                               target->NodeGetWorldPosition(),
+                                               reached,
+                                               force_vector);
+        if (reached) {
+          const uint32_t state_index = InstructionStateIndex(event, instruction_id);
+          if (state_index != LN_INVALID_INDEX && state_index < m_instructionStamps.size()) {
+            InstructionMotionState &state = MotionState(state_index);
+            state.last_reached_tick = context.tick_index;
+            state.last_reached_scope_serial = m_activeExecutionScopeSerial;
           }
-          if (std::isfinite(force) && distance_sq > stop_distance * stop_distance &&
-              distance_sq > MT_EPSILON * MT_EPSILON && std::fabs(force) > MT_EPSILON)
-          {
-            const MT_Vector3 force_vector = delta * (force / std::sqrt(distance_sq));
-            command_buffer.AppendApplyForce(target,
-                                            force_vector,
-                                            false,
-                                            ef.SortKey(),
-                                            instruction.source_ref_index);
-          }
+        }
+        if (apply) {
+          command_buffer.AppendApplyForce(
+              target, force_vector, false, ef.SortKey(), instruction.source_ref_index);
         }
       }
       mark_done();
@@ -4887,12 +4725,15 @@ void LN_RuntimeTree::OpDirectTreePropertyCommand(Frame &ef,
     value = property_refs[instruction.property_ref_index].default_value;
   }
 
-  SetTreePropertyValue(instruction.property_ref_index, value);
-  command_buffer.AppendSetTreeProperty(this,
-                                       instruction.property_ref_index,
-                                       value,
-                                       ef.SortKey(),
-                                       instruction.source_ref_index);
+  /* (Plan C2 P4: recorded first, then moved into the property: one copy fewer.) */
+  command_buffer.AppendSetTreeProperty(
+      this,
+      instruction.property_ref_index,
+      value,
+      ef.SortKey(),
+      instruction.source_ref_index,
+      m_program->TreePropertyOnlySetBySetTreeProperty(instruction.property_ref_index));
+  SetTreePropertyValue(instruction.property_ref_index, std::move(value));
   MarkInstructionExecuted(event, instruction_id, context.tick_index);
 }
 
@@ -5525,6 +5366,92 @@ void LN_RuntimeTree::RunLeanRoute(Frame &ef, const LN_LeanRoute &route, const ui
 /** The block driver: `run_op(op_index)` runs the op `op_index` of `ir` (the old interpreter's
  * OpDirect, or the lean VM's OpLean). */
 template<class Frame, class RunOp>
+void LN_RuntimeTree::RunLoopBody(Frame &ef,
+                                 const LN_ExecBlockProgram &ir,
+                                 const LN_ExecBlock &block,
+                                 std::vector<uint32_t> &repeated_loop_frames,
+                                 const uint64_t scope_serial,
+                                 const uint32_t ui_event_state,
+                                 RunOp &&run_op)
+{
+  /* A Loop body's block (moved out of RunBlocksWith, plan C1-9: a column run runs it NPC by NPC
+   * through this very code, ColumnRunLoopBlock). */
+  LN_TickContext &context = ef.context;
+  const auto selected = [&](const LN_ExecOp &op) {
+    return ui_event_state == LN_INVALID_INDEX || op.ui_event_state_index == ui_event_state;
+  };
+  /* A repeat starts a Loop of the route again, once per repeat (a body copy per incoming
+   * path shares the frame). One that still runs over more ticks keeps going instead. */
+  if (ui_event_state != LN_INVALID_INDEX &&
+      std::find(repeated_loop_frames.begin(),
+                repeated_loop_frames.end(),
+                block.loop_frame_index) == repeated_loop_frames.end())
+  {
+    repeated_loop_frames.push_back(block.loop_frame_index);
+    LoopRuntimeState &repeated = LoopState(block.loop_frame_index);
+    if (!repeated.active) {
+      repeated.last_batch_tick_index = UINT64_MAX;
+    }
+  }
+  BeginLoopFrame(ef, block.loop_frame_index);
+  LoopRuntimeState &loop_state = LoopState(block.loop_frame_index);
+  if ((loop_state.triggered || loop_state.active) &&
+      loop_state.last_batch_tick_index != context.tick_index)
+  {
+    loop_state.last_batch_tick_index = context.tick_index;
+    if (loop_state.batch_end_iteration <= loop_state.iteration_index) {
+      const size_t base_batch_size = loop_state.iteration_count / loop_state.batch_count;
+      const size_t larger_batch_count = loop_state.iteration_count % loop_state.batch_count;
+      const size_t batch_size = base_batch_size +
+                                (loop_state.batch_index < larger_batch_count ? 1 : 0);
+      loop_state.batch_end_iteration = std::min(loop_state.iteration_count,
+                                                loop_state.iteration_index + batch_size);
+    }
+    const size_t remaining_in_batch = loop_state.batch_end_iteration -
+                                      loop_state.iteration_index;
+    const size_t iterations_to_run = std::min(remaining_in_batch,
+                                              m_remainingLoopIterationBudget);
+    size_t batch_iterations = 0;
+    while (batch_iterations < iterations_to_run && AdvanceLoopFrame(block.loop_frame_index))
+    {
+      batch_iterations++;
+      const uint32_t previous_loop_body_frame = m_activeLoopBodyFrame;
+      m_activeLoopBodyFrame = block.loop_frame_index;
+      context.execution_scope_serial = NextExecutionScopeSerial();
+      m_activeExecutionScopeSerial = context.execution_scope_serial;
+      for (uint32_t op_index = block.first_op; op_index < block.first_op + block.op_count;
+           op_index++)
+      {
+        if (selected(ir.ops[op_index])) {
+          run_op(op_index);
+        }
+        if (loop_state.break_requested) {
+          break;
+        }
+      }
+      m_activeLoopBodyFrame = previous_loop_body_frame;
+      if (loop_state.break_requested) {
+        loop_state.active = false;
+        break;
+      }
+    }
+    m_remainingLoopIterationBudget -= batch_iterations;
+    if (loop_state.break_requested ||
+        loop_state.iteration_index >= loop_state.iteration_count)
+    {
+      loop_state.active = false;
+      loop_state.completed_scope_serial = scope_serial;
+    }
+    else if (loop_state.iteration_index >= loop_state.batch_end_iteration) {
+      loop_state.batch_index++;
+      loop_state.batch_end_iteration = 0;
+    }
+  }
+  context.execution_scope_serial = scope_serial;
+  m_activeExecutionScopeSerial = scope_serial;
+}
+
+template<class Frame, class RunOp>
 void LN_RuntimeTree::RunBlocksWith(Frame &ef,
                                    const LN_ExecBlockProgram &ir,
                                    const std::vector<LN_StepGate> &step_gates,
@@ -5610,75 +5537,7 @@ void LN_RuntimeTree::RunBlocksWith(Frame &ef,
       }
     }
     if (block.loop_frame_index != LN_INVALID_INDEX) {
-      /* A repeat starts a Loop of the route again, once per repeat (a body copy per incoming
-       * path shares the frame). One that still runs over more ticks keeps going instead. */
-      if (ui_event_state != LN_INVALID_INDEX &&
-          std::find(repeated_loop_frames.begin(),
-                    repeated_loop_frames.end(),
-                    block.loop_frame_index) == repeated_loop_frames.end())
-      {
-        repeated_loop_frames.push_back(block.loop_frame_index);
-        LoopRuntimeState &repeated = LoopState(block.loop_frame_index);
-        if (!repeated.active) {
-          repeated.last_batch_tick_index = UINT64_MAX;
-        }
-      }
-      BeginLoopFrame(ef, block.loop_frame_index);
-      LoopRuntimeState &loop_state = LoopState(block.loop_frame_index);
-      if ((loop_state.triggered || loop_state.active) &&
-          loop_state.last_batch_tick_index != context.tick_index)
-      {
-        loop_state.last_batch_tick_index = context.tick_index;
-        if (loop_state.batch_end_iteration <= loop_state.iteration_index) {
-          const size_t base_batch_size = loop_state.iteration_count / loop_state.batch_count;
-          const size_t larger_batch_count = loop_state.iteration_count % loop_state.batch_count;
-          const size_t batch_size = base_batch_size +
-                                    (loop_state.batch_index < larger_batch_count ? 1 : 0);
-          loop_state.batch_end_iteration = std::min(loop_state.iteration_count,
-                                                    loop_state.iteration_index + batch_size);
-        }
-        const size_t remaining_in_batch = loop_state.batch_end_iteration -
-                                          loop_state.iteration_index;
-        const size_t iterations_to_run = std::min(remaining_in_batch,
-                                                  m_remainingLoopIterationBudget);
-        size_t batch_iterations = 0;
-        while (batch_iterations < iterations_to_run && AdvanceLoopFrame(block.loop_frame_index))
-        {
-          batch_iterations++;
-          const uint32_t previous_loop_body_frame = m_activeLoopBodyFrame;
-          m_activeLoopBodyFrame = block.loop_frame_index;
-          context.execution_scope_serial = NextExecutionScopeSerial();
-          m_activeExecutionScopeSerial = context.execution_scope_serial;
-          for (uint32_t op_index = block.first_op; op_index < block.first_op + block.op_count;
-               op_index++)
-          {
-            if (selected(ir.ops[op_index])) {
-              run_op(op_index);
-            }
-            if (loop_state.break_requested) {
-              break;
-            }
-          }
-          m_activeLoopBodyFrame = previous_loop_body_frame;
-          if (loop_state.break_requested) {
-            loop_state.active = false;
-            break;
-          }
-        }
-        m_remainingLoopIterationBudget -= batch_iterations;
-        if (loop_state.break_requested ||
-            loop_state.iteration_index >= loop_state.iteration_count)
-        {
-          loop_state.active = false;
-          loop_state.completed_scope_serial = scope_serial;
-        }
-        else if (loop_state.iteration_index >= loop_state.batch_end_iteration) {
-          loop_state.batch_index++;
-          loop_state.batch_end_iteration = 0;
-        }
-      }
-      context.execution_scope_serial = scope_serial;
-      m_activeExecutionScopeSerial = scope_serial;
+      RunLoopBody(ef, ir, block, repeated_loop_frames, scope_serial, ui_event_state, run_op);
     }
     else {
       context.execution_scope_serial = scope_serial;

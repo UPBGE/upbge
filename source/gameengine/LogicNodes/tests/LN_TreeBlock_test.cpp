@@ -3,10 +3,12 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * The block phases of the lean runtime plan (B0 and on): the wider batch allow lists (B0) and the
- * block executor (B1 and on). Every test compares a run of the production path with the same run
- * in the shape under test (a tree batch on helper threads; later a block), by the whole text of
- * the differential world (recorded commands, applied world, every tree's state). */
+ * What phase B of the lean runtime plan (tree blocks) kept: the wider batch allow lists (B0),
+ * parallel snapshot capture and trees sharing their object in batches. The block executor itself
+ * (B1-B2, op by op across trees) measured slower than tree batches and was removed on 2026-11-03.
+ * Every test compares a run of the production path with the same run as a tree batch on helper
+ * threads, by the whole text of the differential world (recorded commands, applied world, every
+ * tree's state). */
 
 #include "testing/testing.h"
 
@@ -67,28 +69,6 @@ std::shared_ptr<LN_Program> AttributeReader(const int16_t attribute,
   b.Link(event, "Out", store, "Flow");
   std::string report;
   return b.Compile(&report);
-}
-
-/** The program as a tree batch in blocks (Force: any two trees of it run together), against the
- * serial recording: the whole text must be the same. Returns the lanes that ran in blocks. */
-uint64_t ExpectBlocksEqualSerial(const std::shared_ptr<LN_Program> &program,
-                                 const char *what,
-                                 const uint32_t objects = 17)
-{
-  diff::RunOptions serial;
-  serial.objects = objects;
-  serial.lean = 2;
-  serial.blocks = 0;
-  diff::RunOptions blocks = serial;
-  blocks.chunks = 2;
-  blocks.helpers = 3;
-  blocks.blocks = 2;
-  const uint64_t lanes_before = LN_BlockLaneCount();
-  const diff::RunResult a = diff::RunWorld(program, serial);
-  const diff::RunResult b = diff::RunWorld(program, blocks);
-  EXPECT_EQ(a.text, b.text) << what << ": " << diff::FirstDifference(a.text, b.text);
-  EXPECT_TRUE(b.failure.empty()) << what << ": " << b.failure;
-  return LN_BlockLaneCount() - lanes_before;
 }
 
 /** Whether a tree batch of the program ends as the serial recording ends it. */
@@ -162,29 +142,13 @@ TEST(LN_TreeBlock, VelocitiesStayOutOfBatchesAndTheSwitchTurnsTheWideListsOff)
   }
 }
 
-/* B1: the brain (flow, number writes, Get Distance, Apply Movement / Rotation) in blocks ends
- * exactly as the serial recording ends it, commands and record sequences included. */
-TEST(LN_TreeBlock, TheBrainInBlocksEndsAsTheSerialRecordingEndsIt)
-{
-  for (const bool measure : {true, false}) {
-    BrainOfOptions options;
-    options.step_every = 1;
-    options.measure_distance = measure;
-    const std::shared_ptr<LN_Program> program = BrainOf(options);
-    ASSERT_NE(program, nullptr);
-    EXPECT_GT(ExpectBlocksEqualSerial(program, measure ? "brain" : "brain, stored distance"), 0u)
-        << "no lane ran in a block";
-  }
-}
-
-/* The native number writes, Modify Property and vector commands of the LeanNative sweeps, in
- * blocks, end as serial. */
-TEST(LN_TreeBlock, NativeWritesInBlocksEndAsSerial)
+/* The native number writes, Modify Property and vector commands of the LeanNative sweeps, in a
+ * tree batch, end as serial. */
+TEST(LN_TreeBlock, NativeWritesInBatchesEndAsSerial)
 {
   /* B0's allow lists (an UPBGE_LN_BATCH_WIDE=0 run would batch fewer of these programs). */
   WideScope wide(1);
   uint32_t compiled = 0;
-  uint64_t block_lanes = 0;
   for (int16_t custom1 = 0; custom1 < 40; custom1++) {
     for (const bool linked : {false, true}) {
       TreeBuilder b;
@@ -214,11 +178,10 @@ TEST(LN_TreeBlock, NativeWritesInBlocksEndAsSerial)
         continue;
       }
       compiled++;
-      block_lanes += ExpectBlocksEqualSerial(program, "set object attribute", 9);
+      ExpectBatchEqualsSerial(program, "set object attribute");
     }
   }
   EXPECT_GE(compiled, 10u);
-  EXPECT_GT(block_lanes, 0u);
 }
 
 /* Parallel snapshot capture: capturing the snapshots of many trees on helper threads gives the

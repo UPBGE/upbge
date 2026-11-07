@@ -3103,6 +3103,20 @@ std::string LN_FormatTickProfileLine(const LN_TickProfileMetrics &metrics)
   stream << " batches=" << metrics.batch_count;
   stream << " batch_trees=" << metrics.batch_tree_count;
   stream << " batch_threads=" << metrics.batch_thread_count;
+  stream << " col_trees=" << metrics.column_tree_count;
+  stream << " col_back=" << metrics.column_given_back_count;
+  stream << " col_passes=" << metrics.column_pass_count;
+  stream << " col_of=" << metrics.runnable_tree_count;
+  /* (Plan C2 P6: the share of the tick's trees the column system ran: wide runs and column passes,
+   * the lanes given back included, which take the column pass.) */
+  stream << " col_share="
+         << (metrics.runnable_tree_count != 0 ?
+                 std::min(100.0,
+                          100.0 *
+                              double(metrics.column_tree_count + metrics.column_given_back_count +
+                                     metrics.column_pass_count) /
+                              double(metrics.runnable_tree_count)) :
+                 0.0);
   stream << " batch_ms=" << metrics.batch_record_ms;
   stream << " batch_join_ms=" << metrics.batch_join_ms;
   stream << " decide_ms=" << metrics.decide_ms;

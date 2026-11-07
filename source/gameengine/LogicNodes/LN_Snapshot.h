@@ -438,6 +438,12 @@ class LN_Snapshot {
                                    uint64_t &r_stamp) const;
   /** Reads the owner's game properties again (a UI widget changed one after the capture). */
   void RefreshGameProperties(KX_GameObject *gameobj, const LN_Program *program);
+  /** Plan C1 prototype (LN_Columns.h): a capture of the game properties alone, by the very rules
+   * of a full capture (the cells, the kept handles); every other channel counts as not captured. */
+  void CaptureGamePropertiesOnly(KX_GameObject *gameobj,
+                                 const LN_Program &program,
+                                 uint64_t tick_index,
+                                 bool transform = false);
 
   const LN_InputSnapshot &GetInputSnapshot() const
   {

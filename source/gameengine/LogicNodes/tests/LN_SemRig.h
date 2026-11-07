@@ -15,9 +15,11 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "KX_NodeRelationships.h"
+#include "LN_Columns.h"
 #include "LN_DiffTrees.h"
 #include "LN_JobPool.h"
 #include "LN_TreeBatch.h"
@@ -62,9 +64,12 @@ inline std::string Bits(const float value)
 class SemRig {
  public:
   /** `owners` objects "Obj0".. each with a tree of `program`; more objects are added by Add. */
+  /** `scene_index_stride`: tree i's sort key is that of scene object i x stride (2: room for other
+   * trees' keys between them, AddTree). */
   SemRig(const std::shared_ptr<LN_Program> &program,
          const SemMode &mode = kProduction,
-         const uint32_t owners = 1)
+         const uint32_t owners = 1,
+         const uint32_t scene_index_stride = 1)
       : m_program(program), m_mode(mode)
   {
     LN_RuntimeTree::SetMemoForTests(mode.memo ? 1 : 0);
@@ -74,8 +79,11 @@ class SemRig {
       AddObject("Obj" + std::to_string(index), MT_Vector3(0.0f, 0.0f, 0.0f));
     }
     for (uint32_t index = 0; index < owners; index++) {
-      m_trees.push_back(std::make_unique<LN_RuntimeTree>(program, &m_objects[index].object, index, 0));
+      m_trees.push_back(std::make_unique<LN_RuntimeTree>(
+          program, &m_objects[index].object, index * scene_index_stride, 0));
       m_trees.back()->SetStepSpread(index);
+      /* Each owner has this one tree (what the manager's tree index notes). */
+      m_trees.back()->GetBatchNote().sole_tree = true;
     }
     Publish();
   }
@@ -97,6 +105,93 @@ class SemRig {
       Publish();
     }
     return object;
+  }
+
+  /** A tree of another program on object `object_index` (its only tree), with the sort key of
+   * scene object `scene_index`, recorded before the others (`first`) or after them. */
+  LN_RuntimeTree &AddTree(const std::shared_ptr<LN_Program> &program,
+                          const size_t object_index,
+                          const uint32_t scene_index,
+                          const bool first)
+  {
+    auto tree = std::make_unique<LN_RuntimeTree>(
+        program, &m_objects[object_index].object, scene_index, 0);
+    tree->SetStepSpread(uint32_t(m_trees.size()));
+    tree->GetBatchNote().sole_tree = true;
+    LN_RuntimeTree &added = *tree;
+    if (first) {
+      m_trees.insert(m_trees.begin(), std::move(tree));
+    }
+    else {
+      m_trees.push_back(std::move(tree));
+    }
+    return added;
+  }
+
+  /** A tree of `program` on object `object_index` after the others, with the sort key of scene
+   * object `scene_index` and applied tree index `tree_index` (an object's second tree is 1, as
+   * the manager orders an object's trees). Call MarkSharedObjects after the last one. */
+  LN_RuntimeTree &AddTreeOf(const std::shared_ptr<LN_Program> &program,
+                            const size_t object_index,
+                            const uint32_t scene_index,
+                            const uint32_t tree_index)
+  {
+    auto tree = std::make_unique<LN_RuntimeTree>(
+        program, &m_objects[object_index].object, scene_index, tree_index);
+    tree->SetStepSpread(uint32_t(m_trees.size()));
+    tree->GetBatchNote().sole_tree = true;
+    LN_RuntimeTree &added = *tree;
+    m_trees.push_back(std::move(tree));
+    return added;
+  }
+  /** Marks the trees of objects that have several as no object's only tree (as the manager's
+   * index does). */
+  void MarkSharedObjects()
+  {
+    std::unordered_map<const KX_GameObject *, size_t> trees_of;
+    for (const std::unique_ptr<LN_RuntimeTree> &tree : m_trees) {
+      trees_of[tree->GetGameObject()]++;
+    }
+    for (std::unique_ptr<LN_RuntimeTree> &tree : m_trees) {
+      tree->GetBatchNote().sole_tree = trees_of[tree->GetGameObject()] == 1;
+    }
+  }
+  /** Which objects are menu copies for the columns' plan (the manager's scene says it in the
+   * game; names of a copy's trees find its counterparts through SetOverlayCounterpart). */
+  void SetOverlayCopies(std::function<bool(KX_GameObject *)> is_copy)
+  {
+    m_columns.SetOverlayTest(std::move(is_copy));
+  }
+
+  /** Gives each of the first `owners` trees' objects a second tree of `program`, right after its
+   * own (the same scene object, applied tree index 1, as the manager orders an object's trees):
+   * objects with two trees (plan C1-9's groups). */
+  void AddSecondTrees(const std::shared_ptr<LN_Program> &program, const size_t owners)
+  {
+    std::vector<std::unique_ptr<LN_RuntimeTree>> trees;
+    for (size_t index = 0; index < m_trees.size(); index++) {
+      LN_RuntimeTree *first = m_trees[index].get();
+      trees.push_back(std::move(m_trees[index]));
+      if (index < owners) {
+        first->GetBatchNote().sole_tree = false;
+        auto second = std::make_unique<LN_RuntimeTree>(
+            program, first->GetGameObject(), first->GetSceneObjectIndex(), 1);
+        second->SetStepSpread(uint32_t(trees.size()));
+        second->GetBatchNote().sole_tree = false;
+        trees.push_back(std::move(second));
+      }
+    }
+    m_trees = std::move(trees);
+  }
+
+  /** Binds every tree's ids in one registry, as the manager does (plan C1-10): game property
+   * names get ids, so two trees' writes of one property share a merge key in the flush (without,
+   * each tree's write is keyed by its tree). Call after the trees are added. */
+  void BindIds()
+  {
+    for (std::unique_ptr<LN_RuntimeTree> &tree : m_trees) {
+      tree->BindDenseIds(m_ids);
+    }
   }
 
   /** A menu copy rule: the object a tree finds by name instead of `object` (Publish keeps it). */
@@ -171,6 +266,11 @@ class SemRig {
   void Tick(const LN_Event event,
             const std::function<void(LN_CommandBuffer &, const LN_TickContext &)> &forced = {})
   {
+    /* The scene seam is one for the process: with two rigs alive, each ticks in its own world
+     * (PublishEachTick; off, a test may point the seam elsewhere before a tick). */
+    if (m_publish_each_tick) {
+      LN_SetSceneAccessForTests(&m_access);
+    }
     LN_TickContext context = MakeContext(event);
     const bool fixed = event == LN_Event::OnFixedUpdate;
     std::vector<LN_RuntimeTree *> runnable;
@@ -194,8 +294,31 @@ class SemRig {
           .count();
     };
     const auto capture_start = std::chrono::steady_clock::now();
+    /* Plan C1 prototype: as the manager plans its columns (LN_Columns.h). */
+    /* A Run Logic Tree pass here may run any tree: none is a lane then. */
+    std::unordered_set<LN_RuntimeTree *> all_forced;
+    if (forced) {
+      all_forced.insert(runnable.begin(), runnable.end());
+    }
+    const auto plan_start = std::chrono::steady_clock::now();
+    m_columns.SetPlanHelpers(m_column_pool.GetHelperCount());
+    const bool columns = m_use_columns && m_columns.Plan(runnable.data(),
+                                                         runnable.size(),
+                                                         event,
+                                                         m_buffer,
+                                                         forced ? &all_forced : nullptr,
+                                                         &read);
+    if (m_use_columns) {
+      m_times.plan_ms += time_since(plan_start);
+    }
+    LN_JobPool *column_pool = m_column_pool.GetHelperCount() > 0 ? &m_column_pool : nullptr;
     std::vector<LN_RuntimeTree *> parallel_captures;
-    for (LN_RuntimeTree *tree : runnable) {
+    for (size_t index = 0; index < runnable.size(); index++) {
+      LN_RuntimeTree *tree = runnable[index];
+      /* As the manager: a lane's tree captures only its properties (a bridged one all of it). */
+      if (columns && tree->IsColumnLane()) {
+        continue;
+      }
       if (tree->ShouldCaptureSnapshot()) {
         if (m_capture_pool.GetHelperCount() > 0 && tree->PrepareParallelCapture(&read)) {
           parallel_captures.push_back(tree);
@@ -215,18 +338,53 @@ class SemRig {
       });
       m_parallel_captured += count;
     }
-    for (LN_RuntimeTree *tree : runnable) {
-      tree->WarmQueryCache(context);
+    if (columns) {
+      m_columns.CaptureLanes(context.tick_index, column_pool);
+    }
+    for (size_t index = 0; index < runnable.size(); index++) {
+      if (!(columns && m_columns.IsLane(index))) {
+        runnable[index]->WarmQueryCache(context);
+      }
     }
     m_times.capture_ms += time_since(capture_start);
     const auto record_start = std::chrono::steady_clock::now();
     m_buffer.Clear();
     m_buffer.BeginRecording();
+    /* Plan C2 P6: a rig with columns records every tree outside the runs as the manager does,
+     * through the column system's pass (unless direct programs are off); a rig without columns
+     * is the old system's reference. */
+    const bool column_passes = m_use_columns &&
+                               LN_GetColumnMode() != LN_ColumnMode::Off &&
+                               LN_GetColumnDirectMode() != LN_ColumnDirectMode::Off;
+    const uint64_t passes_before = LN_ColumnDirectLaneCount();
+    uint64_t column_pass_count = 0; /* (counted in bulk, as the manager counts) */
     if (m_recorder_override) {
       m_recorder_override(m_buffer, context, runnable);
     }
+    else if (columns) {
+      /* The manager's order: runs of lanes in columns, the other trees one after the other. */
+      size_t index = 0;
+      while (index < runnable.size()) {
+        if (m_columns.IsLane(index)) {
+          index = m_columns.RunLanes(index, m_buffer, context, column_pool);
+          continue;
+        }
+        LN_RuntimeProfileCounters counters;
+        /* Plan C2 P6: as the manager, the column system's pass (unless direct programs are off). */
+        if (column_passes) {
+          runnable[index]->ColumnExecuteReady(
+              m_buffer, context, m_mode.profiled ? &counters : nullptr);
+          column_pass_count++;
+        }
+        else {
+          runnable[index]->ExecuteReady(m_buffer, context, m_mode.profiled ? &counters : nullptr);
+        }
+        index++;
+      }
+    }
     else if (m_batch_chunks > 0 && runnable.size() >= 2) {
-      /* As a tree batch (benchmarks of blocks): the trees record in chunks on the pool. */
+      /* As a tree batch (benchmarks): the trees record in chunks on the pool. */
+      m_recorder.SetColumnPasses(column_passes);
       m_recorder.Record(m_pool,
                         m_buffer,
                         runnable.data(),
@@ -239,9 +397,16 @@ class SemRig {
     else {
       for (LN_RuntimeTree *tree : runnable) {
         LN_RuntimeProfileCounters counters;
-        tree->ExecuteReady(m_buffer, context, m_mode.profiled ? &counters : nullptr);
+        if (column_passes) {
+          tree->ColumnExecuteReady(m_buffer, context, m_mode.profiled ? &counters : nullptr);
+          column_pass_count++;
+        }
+        else {
+          tree->ExecuteReady(m_buffer, context, m_mode.profiled ? &counters : nullptr);
+        }
       }
     }
+    LN_AddColumnPasses(column_pass_count);
     if (forced) {
       forced(m_buffer, context);
     }
@@ -256,11 +421,23 @@ class SemRig {
       if (m_capture_prints) {
         testing::internal::CaptureStdout();
       }
-      m_buffer.Flush();
+      /* Forces and torques have no physics to act on here: the rig notes them (Forces). */
+      LN_SetForceObserverForTests(&SemRig::NoteForce, this);
+      m_buffer.Flush(); /* the column runs' writes too, at their sort keys */
+      LN_SetForceObserverForTests(nullptr, nullptr);
       if (m_capture_prints) {
         m_printed += testing::internal::GetCapturedStdout();
       }
       m_times.flush_ms += time_since(flush_start);
+    }
+    m_last_column_passes = size_t(LN_ColumnDirectLaneCount() - passes_before);
+    if (columns) {
+      m_last_column_lanes = m_columns.LaneCount();
+      m_columns.EndTick();
+    }
+    else {
+      m_last_column_lanes = 0;
+      m_last_column_refusal = m_use_columns ? m_columns.LastRefusal() : std::string();
     }
     m_last_context = context;
     m_time += kStep;
@@ -286,13 +463,39 @@ class SemRig {
     LN_RuntimeProfileCounters counters;
     LN_TickContext pass = context;
     pass.event = LN_Event::OnFixedUpdate;
-    m_trees[index]->ExecuteForcedUpdate(buffer, pass, m_mode.profiled ? &counters : nullptr);
+    /* Plan C2 P6: as the manager, the column system's forced pass in a rig with columns. */
+    if (m_use_columns && LN_ColumnPassesOn()) {
+      m_trees[index]->ColumnExecuteForcedUpdate(
+          buffer, pass, m_mode.profiled ? &counters : nullptr);
+      LN_AddColumnPasses(1);
+    }
+    else {
+      m_trees[index]->ExecuteForcedUpdate(buffer, pass, m_mode.profiled ? &counters : nullptr);
+    }
   }
 
   /** What the Print node printed so far (until now). */
   const std::string &Printed() const
   {
     return m_printed;
+  }
+  /** Every force and torque the flushes applied, in order (plan C2 P5: the rig has no physics). */
+  const std::string &Forces() const
+  {
+    return m_forces;
+  }
+  static void NoteForce(void *user,
+                        const KX_GameObject *object,
+                        const MT_Vector3 &vector,
+                        const bool local,
+                        const bool torque)
+  {
+    SemRig &rig = *static_cast<SemRig *>(user);
+    rig.m_forces += (object != nullptr ? const_cast<KX_GameObject *>(object)->GetName() :
+                                         std::string("-")) +
+                    (torque ? " torque " : " force ") + LN_DumpFloatBits(vector.x()) + "," +
+                    LN_DumpFloatBits(vector.y()) + "," + LN_DumpFloatBits(vector.z()) +
+                    (local ? " local\n" : "\n");
   }
 
   /** The scene seam the rig publishes (tests of the object lookups change its lists by hand;
@@ -309,6 +512,8 @@ class SemRig {
   /** The milliseconds the ticks spent in each phase since the last ResetTimes (benchmarks). */
   struct PhaseTimes {
     double capture_ms = 0.0, record_ms = 0.0, flush_ms = 0.0;
+    /** The columns' Plan alone (counted in capture_ms too). */
+    double plan_ms = 0.0;
   };
   const PhaseTimes &Times() const
   {
@@ -324,6 +529,51 @@ class SemRig {
   {
     m_batch_chunks = chunks;
     m_pool.SetHelperCount(helpers);
+  }
+  /** Plan C1 prototype: ticks plan and run columns as the manager does (LN_Columns.h), runs of at
+   * least `min_run` trees, chunks on a pool of `helpers` helper threads (0: this thread). */
+  void SetColumns(const bool on, const uint32_t helpers = 0, const size_t min_run = 1)
+  {
+    m_use_columns = on;
+    m_column_pool.SetHelperCount(helpers);
+    /* 0 keeps the runner's own shortest run (1, with the size floors of small programs). */
+    if (min_run != 0) {
+      m_columns.SetMinRunLanes(min_run);
+    }
+  }
+  /** Each tick points the process's scene seam at this rig first (two rigs alive side by side:
+   * by-name lookups find this rig's objects). */
+  void PublishEachTick(const bool on)
+  {
+    m_publish_each_tick = on;
+  }
+  /** The fewest lanes a wave of short runs takes (0: none; plan C2 P1). */
+  void SetMinWaveLanes(const size_t lanes)
+  {
+    m_columns.SetMinWaveLanes(lanes);
+  }
+  /** Lowers every tree's program to columns now, as the manager does when a tree registers
+   * (plan C2 P1). */
+  void PrepareColumns()
+  {
+    for (std::unique_ptr<LN_RuntimeTree> &tree : m_trees) {
+      m_columns.PrepareProgram(*tree->GetProgram(), tree.get());
+    }
+  }
+  /** How many trees the last tick ran in columns, and why it ran none (with columns on). */
+  size_t LastColumnLanes() const
+  {
+    return m_last_column_lanes;
+  }
+  /** Plan C2 P6: the trees the last tick ran through the column system's pass outside the runs
+   * (ColumnExecuteReady, lanes given back included). */
+  size_t LastColumnPasses() const
+  {
+    return m_last_column_passes;
+  }
+  const std::string &LastColumnRefusal() const
+  {
+    return m_last_column_refusal;
   }
   /** Snapshots are captured on a pool of `helpers` helper threads where a tree allows it (the
    * manager's capture loop does the same); 0: one after the other. */
@@ -406,11 +656,14 @@ class SemRig {
   std::shared_ptr<LN_Program> m_program;
   SemMode m_mode;
   std::deque<BatchObject> m_objects;
+  /** BindIds' registry (before the trees: it outlives them). */
+  LN_DenseIdRegistry m_ids;
   std::vector<std::unique_ptr<LN_RuntimeTree>> m_trees;
   LN_SceneAccessForTests m_access;
   LN_CommandBuffer m_buffer;
   LN_TickContext m_last_context;
   std::string m_printed;
+  std::string m_forces;
   std::string m_last_dump;
   bool m_published = false;
   bool m_flush = true;
@@ -422,6 +675,13 @@ class SemRig {
   bool m_dump = true;
   bool m_capture_prints = true;
   Recorder m_recorder_override;
+  bool m_use_columns = false;
+  bool m_publish_each_tick = false;
+  LN_ColumnRunner m_columns;
+  LN_JobPool m_column_pool;
+  size_t m_last_column_lanes = 0;
+  size_t m_last_column_passes = 0;
+  std::string m_last_column_refusal;
   PhaseTimes m_times;
   double m_time = 0.0;
   uint64_t m_tick_index = 0, m_update_index = 0, m_fixed_index = 0;

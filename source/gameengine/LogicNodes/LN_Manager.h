@@ -31,6 +31,7 @@
 #include "LN_GameState.h"
 #include "LN_InputMap.h"
 #include "LN_Inventory.h"
+#include "LN_Columns.h"
 #include "LN_JobPool.h"
 #include "LN_Snapshot.h"
 #include "LN_TreeBatch.h"
@@ -158,6 +159,15 @@ class LN_Manager {
   void InvalidateRuntimeRefs(LN_RuntimeRefKind kind, const void *pointer);
   void ClearPendingRuntimeWork();
   void BeginShutdown();
+  /** The play report (2026-11-06): for each tree, how the column system runs it on steps and on
+   * frames (wide runs, or column passes and why, with a hint how to write it so it fits), whether
+   * it can sleep under Every N Steps, and its compile messages. Written as JSON to Blender's
+   * base temp folder (not the session's: blenderplayer's is deleted when it quits),
+   * `logic_nodes_report_<scene>.json` (the Logic Nodes sidebar's Performance panel reads it and
+   * checks its "file"), with a short summary in the console. BeginShutdown calls it; nothing when
+   * the scene has no trees, the temp folder is unknown or UPBGE_LN_GAME_REPORT=0. Returns the
+   * file written (empty: none). `r_json`: the text (tests). */
+  std::string WriteGameReport(std::string *r_json = nullptr);
   void ReplicateRuntimeTrees(KX_GameObject *source_gameobj,
                              KX_GameObject *replica_gameobj,
                              uint32_t scene_object_index);
@@ -329,6 +339,15 @@ class LN_Manager {
 
   /** Per-tick object name lookup (valid only while `m_isTicking`). */
   KX_GameObject *FindObjectByName(const std::string &name);
+  /** After FindObjectByName missed `name` (plan C1-10): true when the answer of
+   * LN_RuntimeTree::FindSceneObjectByName's scan of the object list is known without it, i.e. no
+   * object was added since the lookup was made (the scene's object list generation); then
+   * `r_object` is the first object of the list whose Blender object has that name (its game
+   * name differs: a copy's), or null. False: scan. */
+  bool AnswerObjectNameMiss(const std::string &name, KX_GameObject *&r_object) const;
+  /** Builds the name lookup now if it is due (main thread, during a tick): helper threads that
+   * find objects by name then only read it (plan C1-11; column runs call it before their chunks). */
+  void PrepareObjectNameLookup();
 
   /** A value shown in text, `token` from between braces: "Player.gold" (an object's game
    * property) or "health" (of `font`, else of its nearest parent that has it), with ":N" for N
@@ -622,6 +641,9 @@ class LN_Manager {
   bool m_mouseLookHeld = false;
   bool m_isTicking = false;
   bool m_isShuttingDown = false;
+  /** The column counters when the scene started (the play report's share of tree runs). */
+  uint64_t m_reportLanesAtStart = 0;
+  uint64_t m_reportPassesAtStart = 0;
   bool m_hasDetachedRuntimeTrees = false;
   bool m_debugBindingsScanned = false;
   bool m_reportedVariableTimestepSkip = false;
@@ -696,6 +718,9 @@ class LN_Manager {
   void RecordRunnableTrees(const std::vector<RunnableTree> &runnable_trees,
                            const LN_TickContext &context,
                            LN_TickProfileMetrics *profile);
+  /** After a tick with column lanes: the profile's column counts, and a log line whenever the
+   * picture changes (how many trees ran in columns, how many went back, what kept others out). */
+  void NoteColumnTick(LN_TickProfileMetrics *profile);
   void RecordTree(LN_RuntimeTree &runtime_tree,
                   const LN_TickContext &context,
                   LN_TickProfileMetrics *profile);
@@ -720,8 +745,27 @@ class LN_Manager {
 
   LN_JobPool m_jobPool;
   LN_TreeBatchRecorder m_batchRecorder;
+  /** Plan C2 P6: trees RecordTree ran through the column pass this tick (counted in bulk). */
+  uint64_t m_columnPasses = 0;
   /** The Physics CPU Use setting the pool was sized for (INT32_MIN: not yet). */
   int32_t m_jobPoolCoresSetting = INT32_MIN;
+  /** Sizes the job pool by the scene's Physics CPU Use (logic and physics never run at once). */
+  void SyncJobPoolSize();
+  /** Plan C1 prototype (LN_Columns.h, UPBGE_LN_COLUMNS): runs of trees in columns this tick. */
+  LN_ColumnRunner m_columnRunner;
+  std::vector<LN_RuntimeTree *> m_columnTreesScratch;
+  bool m_columnsPlanned = false;
+  /** The last refusal Tick looked at (the log's once-per-reason check runs only on a change). */
+  std::string m_lastColumnRefusal;
+  /** NoteColumnTick's last logged picture (at most 32 lines a game). */
+  std::string m_columnLogOutside;
+  size_t m_columnLogTrees = 0;
+  size_t m_columnLogGivenBack = 0;
+  uint32_t m_columnLogLines = 0;
+  /** RecordRunnableTrees' column path: runs of lanes in columns, the other trees one by one. */
+  void RecordRunnableTreesWithColumns(const std::vector<RunnableTree> &runnable_trees,
+                                      const LN_TickContext &context,
+                                      LN_TickProfileMetrics *profile);
   /** Each of `trees` (one object's) is its object's only tree or not (LN_RuntimeTree::BatchNote). */
   void NoteSoleTrees(const std::vector<LN_RuntimeTree *> &trees);
   /** Per runnable tree, this tick: 1 when a batch may hold it. */
@@ -755,6 +799,9 @@ class LN_Manager {
   std::unordered_set<KX_GameObject *> m_pauseProcessingObjects;
   std::vector<KX_GameObject *> m_pauseProcessingObjectsScratch;
   std::unordered_map<std::string, KX_GameObject *> m_objectByName;
+  /** The first object of the list whose Blender object's name differs from its game name, by
+   * that name (AnswerObjectNameMiss; built with m_objectByName). */
+  std::unordered_map<std::string, KX_GameObject *> m_objectByBlenderName;
   bool m_objectNameCacheValid = false;
   /** The scene's object list generation m_objectByName was built at (KX_Scene::
    * GetObjectListGeneration); a new one at a tick's start rebuilds it at its next use. */

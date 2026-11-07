@@ -542,12 +542,13 @@ std::string LN_DescribeCommandFailure(const LN_CommandBuffer::Command &command,
   return stream.str();
 }
 
+static std::mutex issued_warnings_mutex;
+static std::unordered_set<std::string> issued_warnings;
+
 void LN_WarnCommandFailureOnce(const LN_CommandBuffer::Command &command,
                                const std::string &reason)
 {
   const std::string message = LN_DescribeCommandFailure(command, reason);
-  static std::mutex issued_warnings_mutex;
-  static std::unordered_set<std::string> issued_warnings;
   {
     std::lock_guard lock(issued_warnings_mutex);
     if (!issued_warnings.insert(message).second) {
@@ -555,4 +556,10 @@ void LN_WarnCommandFailureOnce(const LN_CommandBuffer::Command &command,
     }
   }
   CM_Warning(message);
+}
+
+void LN_ResetCommandFailureWarningsForTests()
+{
+  std::lock_guard lock(issued_warnings_mutex);
+  issued_warnings.clear();
 }

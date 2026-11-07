@@ -39,9 +39,13 @@ class LN_DumpNames {
   std::unordered_map<const void *, uint32_t> m_ordinals;
 };
 
-/** 0x%08x of the float's bits. */
+/** UPBGE_LN_DUMP_NAN=asis: dumps keep a NaN's own bits and text (the format before
+ * 2026-11-04, to check goldens recorded then). */
+bool LN_DumpNaNAsIs();
+/** 0x%08x of the float's bits; every NaN as 0x7fc00000 (a NaN's sign follows the compiler's
+ * operand order, not the logic: two instances of the same code may differ). */
 std::string LN_DumpFloatBits(float value);
-/** 0x%016llx of the double's bits. */
+/** 0x%016llx of the double's bits; every NaN as 0x7ff8000000000000. */
 std::string LN_DumpDoubleBits(double value);
 std::string LN_DumpQuoted(const std::string &text);
 std::string LN_DumpVector3(const MT_Vector3 &value);

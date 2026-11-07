@@ -371,6 +371,13 @@ class PHY_IPhysicsController : public PHY_IController {
   {
     return nullptr;
   }
+  /** Whether a read of this object's logic collisions works them out then (a sensor shape
+   * queried on demand) instead of reading the step's contact cache: such a read writes the
+   * environment's caches, so Logic Nodes make it on the main thread only (plan C1-9). */
+  virtual bool LogicCollisionsQueriedOnDemand() const
+  {
+    return false;
+  }
 
   virtual void SetMargin(float margin) = 0;
   virtual float GetMargin() const = 0;

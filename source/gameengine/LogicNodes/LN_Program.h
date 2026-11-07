@@ -23,6 +23,12 @@
 struct LN_TreeStateLayout;
 struct LN_TreeBatchProfile;
 
+/** Counts every change of what a tree runs (a tree given a program, a program that dropped its
+ * lean program because it grew): the column runner keeps its "no run is possible" answer while
+ * the count and the tick's tree list are unchanged (plan C2 P1). Any thread. */
+void LN_NoteProgramsChanged();
+uint64_t LN_ProgramsChangedSerial();
+
 class LN_Program {
  public:
   LN_Program();
@@ -101,6 +107,10 @@ class LN_Program {
   {
     return m_treePropertyRefs;
   }
+  /** Plan C2 P4: no op but Set Tree Property writes tree property `ref` (no Add Object,
+   * Inventory or Assign Geometry Nodes Modifier result): its flush-time re-write is redundant.
+   * Worked out once (main thread), again after the program grows. */
+  bool TreePropertyOnlySetBySetTreeProperty(uint32_t ref) const;
 
   const std::vector<std::string> &GetStringTable() const
   {
@@ -428,6 +438,8 @@ class LN_Program {
   std::vector<LN_StepGate> m_stepGates;
   mutable std::shared_ptr<const LN_TreeStateLayout> m_treeStateLayout;
   mutable std::shared_ptr<const LN_LeanProgram> m_leanProgram;
+  /** TreePropertyOnlySetBySetTreeProperty's answers (1: another op writes it), per ref. */
+  mutable std::vector<uint8_t> m_treePropertyOtherWriters;
   mutable std::shared_ptr<const LN_TreeBatchProfile> m_treeBatchProfile;
   mutable std::shared_ptr<const LN_GamePropertyLayout> m_gamePropertyLayout;
   bool m_hasUIEventRoutes = false;

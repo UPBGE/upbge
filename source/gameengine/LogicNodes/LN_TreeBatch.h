@@ -35,6 +35,7 @@ class LN_CommandBuffer;
 class LN_JobPool;
 class LN_Manager;
 class LN_Program;
+struct LN_Instruction;
 class LN_RuntimeTree;
 struct LN_QueryExpression;
 struct LN_RuntimeProfileCounters;
@@ -62,16 +63,6 @@ bool LN_TreeBatchWide();
 void LN_SetBatchWideForTests(int wide);
 void LN_ClearTreeBatchModeForTests();
 
-/** Block execution (plan phases B1 and on): the trees of a batch chunk that run the same program
- * run it op by op across all of them (LN_RuntimeTree::RunBlock). Off (the default until the plan's
- * B9 gate), Auto (blocks of at least LN_TREE_BLOCK_MIN_LANES trees), Force (any two). Works only
- * inside tree batches. UPBGE_LN_BLOCKS = 0, auto or force, read once; a test's choice wins. */
-enum class LN_TreeBlockMode : uint8_t {
-  Off = 0,
-  Auto,
-  Force,
-};
-constexpr size_t LN_TREE_BLOCK_MIN_LANES = 16;
 /** Parallel snapshot capture: at least this many trees to capture, and chunks of at least
  * LN_PARALLEL_CAPTURE_MIN_CHUNK of them. */
 constexpr size_t LN_PARALLEL_CAPTURE_MIN_TREES = 256;
@@ -80,14 +71,6 @@ constexpr size_t LN_PARALLEL_CAPTURE_MIN_CHUNK = 64;
  * (tests: the acceptance suite plays with it); 0 never; unset the limits above. */
 size_t LN_ParallelCaptureMinTrees();
 size_t LN_ParallelCaptureMinChunk();
-/** The most trees in one block (their frames and contexts are kept together). */
-constexpr size_t LN_TREE_BLOCK_MAX_LANES = 128;
-LN_TreeBlockMode LN_GetBlockMode();
-/** -1: the environment again; 0 Off; 1 Auto; 2 Force. */
-void LN_SetBlockModeForTests(int mode);
-/** Lanes that ran in blocks since the process started (tests: a Force run that formed none). */
-uint64_t LN_BlockLaneCount();
-void LN_NoteBlockLanes(size_t lanes);
 
 /** Tests (lean runtime plan A2): the reason the tree batch lists refuse a kind judged by the kind
  * alone (a default expression or instruction of that kind, in an empty program), or nullptr when
@@ -96,6 +79,12 @@ void LN_NoteBlockLanes(size_t lanes);
  * the kind catalog calls those kinds Conditional. `value` is the kind's enumerator value in the
  * enum of `domain` (LN_KindCatalog.h). */
 const char *LN_BatchKindRefusalForTests(uint8_t domain, uint16_t value);
+/** Why expression `index` of table `domain` (LN_KindDomain: Bool .. Query) of `program` may not be
+ * worked out on a helper thread by its own kind (nullptr: it may; its inputs are not looked at),
+ * or why `instruction`'s op may not run there: the tree batches' allow lists (plan C1-9: the
+ * column bridge runs such nodes on the helpers too). */
+const char *LN_BatchExpressionRefusal(const LN_Program &program, uint8_t domain, uint32_t index);
+const char *LN_BatchOpRefusal(const LN_Program &program, const LN_Instruction &instruction);
 
 /** Fewer trees in a row are recorded on the main thread: a batch's start and end cost about as
  * much as 4-13 us of logic (measured with the job pool's round trip). */
@@ -182,8 +171,15 @@ class LN_TreeBatchRecorder {
   {
     return m_lastJoinMs;
   }
+  /** Plan C2 P6: the trees take the column system's pass (ColumnExecuteReady) instead of the old
+   * system's ExecuteReady (the manager sets LN_ColumnPassesOn; test rigs as they need). */
+  void SetColumnPasses(const bool column_passes)
+  {
+    m_columnPasses = column_passes;
+  }
 
  private:
+  bool m_columnPasses = false;
   std::vector<std::unique_ptr<LN_CommandBuffer>> m_chunks;
   std::vector<size_t> m_treesThatReadAMove;
   double m_lastJoinMs = 0.0;

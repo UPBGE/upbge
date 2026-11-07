@@ -366,6 +366,12 @@ class JoltPhysicsController : public PHY_IPhysicsController {
     return m_logicCollisionQueryActive && !m_physicsSuspended && !m_isCompoundChild &&
            m_isSensor;
   }
+  /* JoltPhysicsEnvironment::GetCachedCollisionContactRefs collects such a controller's
+   * overlaps at the read (CollectLogicObjectQueryOverlaps). */
+  bool LogicCollisionsQueriedOnDemand() const override
+  {
+    return IsLogicCollisionQueryActive();
+  }
   void SetLogicObjectSensorIncludeStatic(bool includeStatic);
   bool GetLogicObjectSensorIncludeStatic() const
   {

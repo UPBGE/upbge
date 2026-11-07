@@ -112,6 +112,7 @@
 #include "LN_LeanReader.h"
 #include "LN_StrictDump.h"
 #include "LN_TypeConversion.h"
+#include "LN_Columns.h"
 #include "LN_UIService.h"
 #include "LN_ValueInterpolation.h"
 #include "MT_Matrix3x3.h"
@@ -135,7 +136,6 @@ namespace {
 static constexpr float LN_PI = 3.14159265358979323846f;
 static constexpr float LN_WAYPOINT_RADIUS = 0.25f;
 static constexpr double LN_PATH_UPDATE_PERIOD = 0.5;
-static constexpr double LN_TIME_FLOW_EPSILON = 1.0e-6;
 static constexpr int32_t LN_RAYCAST_MAX_COLLISION_MASK = (1 << 10) - 1;
 static constexpr int32_t LN_RAYCAST_FROM_MESH_MAX_RAYS = 256;
 
@@ -3693,6 +3693,35 @@ static std::string ValueToPrintString(const LN_Value &value, const int depth)
 
 }  // namespace
 
+bool LN_RuntimeTree::ValueChangeStep(const uint32_t expression_index,
+                                     const bool wait_for_value,
+                                     const LN_Value &value,
+                                     const uint64_t tick,
+                                     bool &r_changed)
+{
+  BoolExpressionRuntimeState &state = BoolExpressionState(expression_index);
+  ValueChangeState &values = ValueChangeStateOf(expression_index);
+  if (!values.has_previous_value) {
+    if (wait_for_value && (!value.exists || value.type == LN_ValueType::None)) {
+      state.cached_result = false;
+      state.last_update_tick = tick;
+      return false;
+    }
+    values.previous_value = value;
+    values.has_previous_value = true;
+    values.stored_old_value = value;
+    values.stored_new_value = value;
+    state.cached_result = false;
+    state.last_update_tick = tick;
+    return false;
+  }
+  r_changed = !ValuesEqual(value, values.previous_value);
+  values.stored_old_value = values.previous_value;
+  values.stored_new_value = value;
+  values.previous_value = value;
+  return true;
+}
+
 bool LN_RuntimeTree::ItemOf(const LN_Value &value, std::string &r_item, int32_t &r_count) const
 {
   if (value.exists && value.type == LN_ValueType::ObjectRef) {
@@ -3948,6 +3977,7 @@ LN_RuntimeTree::LN_RuntimeTree(std::shared_ptr<const LN_Program> program,
       m_sceneObjectIndex(scene_object_index),
       m_appliedTreeIndex(applied_tree_index)
 {
+  LN_NoteProgramsChanged();
   RefreshOptimizedPathEligibility();
   RebuildStateBlock(StateKeep::None);
   EnsureTreePropertyStateSize(false);
@@ -4891,6 +4921,7 @@ void LN_RuntimeTree::SetProgram(std::shared_ptr<const LN_Program> program)
     return;
   }
 
+  LN_NoteProgramsChanged();
   m_programRevision++;
   m_actionCompletions.clear();
   m_denseRuntimeTreeId = LN_RuntimeTreeId{};
@@ -5494,7 +5525,7 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::RaycastAll(
   return callback.GetResults();
 }
 
-std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::RayCast(
+void LN_RuntimeTree::RayCast(
     const PHY_RayQuerySettings &settings,
     const LN_RuntimeRef &ignore_object_ref,
     const uint32_t collision_mask,
@@ -5503,15 +5534,17 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::RayCast(
     const std::vector<LN_RuntimeRef> &extra_ignore_object_refs,
     bool &r_blocked,
     LN_PhysicsQueryResult &r_blocker,
-    bool &r_supported)
+    bool &r_supported,
+    std::vector<LN_PhysicsQueryResult> &r_results)
 {
+  r_results.clear();
   r_blocked = false;
   r_blocker = LN_PhysicsQueryResult();
   r_supported = false;
   KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
   PHY_IPhysicsEnvironment *environment = scene ? scene->GetPhysicsEnvironment() : nullptr;
   if (!environment) {
-    return {};
+    return;
   }
 
   KX_GameObject *ignore_object = ResolveObjectRef(ignore_object_ref);
@@ -5521,19 +5554,21 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::RayCast(
                                    collision_mask,
                                    property_name,
                                    xray);
-  std::vector<PHY_RayCastResult> physics_results;
+  /* (Kept per thread: rays run on helpers in a column run's segments.) */
+  thread_local std::vector<PHY_RayCastResult> physics_results;
+  physics_results.clear();
   r_supported = environment->RayCast(settings, filter, physics_results);
   if (!r_supported) {
-    return {};
+    return;
   }
 
   const MT_Vector3 displacement = settings.destination - settings.origin;
   const float cast_length = displacement.length();
   if (!std::isfinite(cast_length) || cast_length <= MT_EPSILON) {
-    return {};
+    return;
   }
   const MT_Vector3 direction = displacement / cast_length;
-  std::vector<LN_PhysicsQueryResult> results;
+  std::vector<LN_PhysicsQueryResult> &results = r_results;
   results.reserve(physics_results.size());
   for (const PHY_RayCastResult &physics_result : physics_results) {
     KX_ClientObjectInfo *info = physics_result.m_controller ?
@@ -5584,12 +5619,11 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::RayCast(
       }
       continue;
     }
-    results.push_back(result);
+    results.push_back(std::move(result));
   }
-  return results;
 }
 
-std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::ShapeCast(
+void LN_RuntimeTree::ShapeCast(
     const PHY_ShapeCastSettings &settings,
     const LN_RuntimeRef &ignore_object_ref,
     const uint32_t collision_mask,
@@ -5598,15 +5632,17 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::ShapeCast(
     const std::vector<LN_RuntimeRef> &extra_ignore_object_refs,
     bool &r_blocked,
     LN_PhysicsQueryResult &r_blocker,
-    bool &r_supported)
+    bool &r_supported,
+    std::vector<LN_PhysicsQueryResult> &r_results)
 {
+  r_results.clear();
   r_blocked = false;
   r_blocker = LN_PhysicsQueryResult();
   r_supported = false;
   KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
   PHY_IPhysicsEnvironment *environment = scene ? scene->GetPhysicsEnvironment() : nullptr;
   if (!environment) {
-    return {};
+    return;
   }
 
   KX_GameObject *ignore_object = ResolveObjectRef(ignore_object_ref);
@@ -5616,20 +5652,22 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::ShapeCast(
                                     collision_mask,
                                     property_name,
                                     xray);
-  std::vector<PHY_ShapeCastResult> physics_results;
+  /* (Kept per thread: rays run on helpers in a column run's segments.) */
+  thread_local std::vector<PHY_ShapeCastResult> physics_results;
+  physics_results.clear();
   r_supported = environment->ShapeCast(settings, filter, physics_results);
   if (!r_supported) {
-    return {};
+    return;
   }
 
   const MT_Vector3 displacement = settings.destination - settings.origin;
   const float cast_length = displacement.length();
   if (!std::isfinite(cast_length)) {
-    return {};
+    return;
   }
   const MT_Vector3 direction = cast_length > MT_EPSILON ? displacement / cast_length :
                                                           MT_Vector3(0.0f, 0.0f, 0.0f);
-  std::vector<LN_PhysicsQueryResult> results;
+  std::vector<LN_PhysicsQueryResult> &results = r_results;
   results.reserve(physics_results.size());
   for (const PHY_ShapeCastResult &physics_result : physics_results) {
     KX_ClientObjectInfo *info = physics_result.controller ?
@@ -5682,9 +5720,8 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::ShapeCast(
       }
       continue;
     }
-    results.push_back(result);
+    results.push_back(std::move(result));
   }
-  return results;
 }
 
 const LN_Value *LN_RuntimeTree::GetTreePropertyValue(const uint32_t property_ref_index) const
@@ -5730,6 +5767,15 @@ bool LN_RuntimeTree::SetTreePropertyValue(const uint32_t property_ref_index, con
     return false;
   }
   m_treeProperties[property_ref_index] = value;
+  return true;
+}
+
+bool LN_RuntimeTree::SetTreePropertyValue(const uint32_t property_ref_index, LN_Value &&value)
+{
+  if (property_ref_index >= m_treeProperties.size()) {
+    return false;
+  }
+  m_treeProperties[property_ref_index] = std::move(value);
   return true;
 }
 
@@ -5879,6 +5925,16 @@ KX_GameObject *LN_RuntimeTree::FindSceneObjectByName(const std::string &name,
   if (LN_Manager *manager = scene->GetLogicNodeManager()) {
     if (KX_GameObject *object = manager->FindObjectByName(name)) {
       return scene->OverlayCounterpart(object, m_gameObject);
+    }
+    /* Plan C1-10: no object was added since the lookup was made, so the scan below would find
+     * the first object whose Blender object has the name, or none: the lookup knows it (a name
+     * no object has, read by every NPC of a crowd, scanned the whole list each time). */
+    KX_GameObject *by_blender_name = nullptr;
+    if (manager->AnswerObjectNameMiss(name, by_blender_name)) {
+      if (by_blender_name != nullptr) {
+        return scene->OverlayCounterpart(by_blender_name, m_gameObject);
+      }
+      return include_inactive ? find_inactive() : nullptr;
     }
   }
 
@@ -7175,18 +7231,6 @@ bool LN_RuntimeTree::PrepareParallelCapture(const LN_TickReadContext *tick_conte
   return true;
 }
 
-bool LN_RuntimeTree::BlockEligible(const LN_Event event) const
-{
-  if (!m_runtimeActive || !m_enabled || m_program == nullptr || m_gameObject == nullptr ||
-      !m_initExecuted || m_hasTimeFlowRuntimeState || !m_stepGates.empty() ||
-      m_uiEventRoutesOnly || m_activeProfileCounters != nullptr)
-  {
-    return false;
-  }
-  const LN_LeanProgram *lean = LeanProgramForRun();
-  return lean != nullptr && lean->events[size_t(event)].block_ok;
-}
-
 LN_RuntimeTree::StateBlockInfo LN_RuntimeTree::GetStateBlockInfo() const
 {
   StateBlockInfo info;
@@ -7906,6 +7950,876 @@ void LN_RuntimeTree::PrepareLeanProgram() const
   }
 }
 
+void LN_RuntimeTree::CaptureColumnProperties(const uint64_t tick_index, const bool transform)
+{
+  if (m_program != nullptr && m_gameObject != nullptr) {
+    m_snapshot.CaptureGamePropertiesOnly(m_gameObject, *m_program, tick_index, transform);
+  }
+}
+
+uint64_t LN_RuntimeTree::BeginColumnPass(const LN_TickContext &context)
+{
+  /* ExecuteReady's prelude (On Init has run: a lane needs it). */
+  ClearRuntimeFallbackReport(context.tick_index);
+  RefreshStateBlockLayout();
+  if (context.tick_index == UINT64_MAX || m_loopIterationBudgetTick != context.tick_index) {
+    m_remainingLoopIterationBudget = kMaxLoopIterationsPerTick;
+    m_loopIterationBudgetTick = context.tick_index;
+  }
+  /* The Delays, Timers... count the tick's time down before the pass. */
+  if (m_hasTimeFlowRuntimeState) {
+    TickLatentTimeFlowStates(context);
+  }
+  if (context.event == LN_Event::OnFixedUpdate && !m_stepGates.empty()) {
+    PrepareStepGates(context.phase_tick_index, context.delta_time, context.unscaled_dt);
+  }
+  /* ExecuteEvent's. */
+  m_eventDeltaTime = std::max(0.0, context.delta_time);
+  const uint64_t serial = NextExecutionScopeSerial();
+  m_activeExecutionScopeSerial = serial;
+  return serial;
+}
+
+void LN_RuntimeTree::EndColumnPass(const LN_TickContext &context)
+{
+  if (context.event == LN_Event::OnFixedUpdate && !m_stepGates.empty()) {
+    NoteStepGatesRan(context.phase_tick_index, false);
+  }
+}
+
+float LN_RuntimeTree::ColumnStepTimePassed(const uint32_t step_gate_index) const
+{
+  /* FloatKind's StepTimePassed. */
+  if (step_gate_index != LN_INVALID_INDEX && step_gate_index < m_stepGates.size()) {
+    return float(m_stepGates[step_gate_index].time_passed);
+  }
+  return float(m_eventDeltaTime);
+}
+
+float LN_RuntimeTree::ColumnGateDelta(const uint32_t step_gate_index,
+                                      const bool raw,
+                                      const LN_TickContext &context) const
+{
+  const double delta = step_gate_index != LN_INVALID_INDEX && step_gate_index < m_stepGates.size() ?
+                           m_stepGates[step_gate_index].time_passed :
+                           context.delta_time;
+  return raw ? float(delta) : float(std::max(0.0, delta));
+}
+
+void LN_RuntimeTree::ColumnNoteReached(const uint32_t state_index, const uint64_t tick_index)
+{
+  /* MoveToward's handler. */
+  if (state_index != LN_INVALID_INDEX && state_index < m_instructionStamps.size()) {
+    InstructionMotionState &state = MotionState(state_index);
+    state.last_reached_tick = tick_index;
+    state.last_reached_scope_serial = m_activeExecutionScopeSerial;
+  }
+}
+
+void LN_RuntimeTree::TimeFlowArmNextFrame(const uint32_t state_index,
+                                          const bool ui_event_route,
+                                          const LN_TickContext &context)
+{
+  if (TimeFlowRuntimeState *state = FindTimeFlowState(state_index)) {
+    state->kind = TimeFlowRuntimeKind::NextFrame;
+    state->ui_event_route = ui_event_route;
+    state->active = true;
+    state->event = LN_Event::OnUpdate;
+    state->ignore_timescale = true;
+    state->last_update_tick = context.tick_index;
+    state->last_update_phase_tick = context.phase_tick_index;
+  }
+}
+
+void LN_RuntimeTree::TimeFlowArmTimer(const uint32_t state_index,
+                                      const bool ui_event_route,
+                                      const LN_Event event,
+                                      const LN_TickContext &context,
+                                      const blender::FunctionRef<float()> duration_input,
+                                      const blender::FunctionRef<bool()> ignore_timescale)
+{
+  if (TimeFlowRuntimeState *state = FindTimeFlowState(state_index)) {
+    const float duration = std::max(0.0f, duration_input());
+    state->kind = TimeFlowRuntimeKind::Timer;
+    state->ui_event_route = ui_event_route;
+    state->ignore_timescale = ignore_timescale();
+    state->event = TimeFlowContinuationEvent(event);
+    state->pulse_tick = UINT64_MAX;
+    state->last_update_tick = context.tick_index;
+    state->last_update_phase_tick = context.phase_tick_index;
+    state->accumulated_time = 0.0;
+    if (duration <= 0.0f) {
+      state->active = false;
+      state->remaining_time = 0.0;
+      if (context.tick_index != UINT64_MAX) {
+        state->pulse_tick = context.tick_index;
+      }
+    }
+    else {
+      state->active = true;
+      state->remaining_time = double(duration);
+    }
+  }
+}
+
+void LN_RuntimeTree::TimeFlowArmDelay(const uint32_t state_index,
+                                      const bool ui_event_route,
+                                      const LN_Event event,
+                                      const LN_TickContext &context,
+                                      const blender::FunctionRef<float()> duration_input,
+                                      const blender::FunctionRef<bool()> ignore_timescale)
+{
+  if (TimeFlowRuntimeState *state = FindTimeFlowState(state_index)) {
+    state->kind = TimeFlowRuntimeKind::Delay;
+    state->ui_event_route = ui_event_route;
+    state->ignore_timescale = ignore_timescale();
+    state->event = TimeFlowContinuationEvent(event);
+    state->last_update_tick = context.tick_index;
+    state->last_update_phase_tick = context.phase_tick_index;
+    const float duration = std::max(0.0f, duration_input());
+    if (state->pulse_tick != context.tick_index) {
+      state->pulse_tick = UINT64_MAX;
+    }
+    state->accumulated_time = 0.0;
+
+    TimeFlowRuntimeState::PendingPulse pulse;
+    pulse.remaining_time = double(duration);
+    pulse.tree_properties = m_treeProperties;
+
+    if (duration <= 0.0f && context.tick_index != UINT64_MAX &&
+        state->pulse_tick != context.tick_index)
+    {
+      state->remaining_time = 0.0;
+      state->active_tree_properties = std::move(pulse.tree_properties);
+      state->has_active_tree_properties = true;
+      state->pulse_tick = context.tick_index;
+    }
+    else {
+      state->pending_pulses.push_back(std::move(pulse));
+      state->active = true;
+      state->remaining_time = state->pending_pulses.front().remaining_time;
+      for (const TimeFlowRuntimeState::PendingPulse &queued_pulse : state->pending_pulses) {
+        state->remaining_time = std::min(state->remaining_time, queued_pulse.remaining_time);
+      }
+    }
+  }
+}
+
+void LN_RuntimeTree::TimeFlowUpdatePulsify(const uint32_t state_index,
+                                           const LN_Event event,
+                                           const LN_TickContext &context,
+                                           const blender::FunctionRef<float()> interval_input,
+                                           const blender::FunctionRef<bool()> ignore_timescale)
+{
+  if (TimeFlowRuntimeState *state = FindTimeFlowState(state_index)) {
+    const float interval = std::max(0.0f, interval_input());
+    const LN_Event continuation_event = TimeFlowContinuationEvent(event);
+    const bool continuous = state->active && state->event == continuation_event &&
+                            IsContinuousPhaseTick(state->last_update_phase_tick,
+                                                  context.phase_tick_index,
+                                                  context.phase_tick_stride);
+    state->kind = TimeFlowRuntimeKind::Pulsify;
+    state->ignore_timescale = ignore_timescale();
+    state->event = continuation_event;
+    if (!continuous) {
+      state->active = true;
+      state->accumulated_time = 0.0;
+      if (context.tick_index != UINT64_MAX) {
+        state->pulse_tick = context.tick_index;
+      }
+    }
+    else if (context.tick_index != state->last_update_tick) {
+      const double step = TimeFlowStep(context, state->ignore_timescale);
+      if (interval <= 0.0f) {
+        state->pulse_tick = context.tick_index;
+      }
+      else {
+        state->accumulated_time += step;
+        if (state->accumulated_time + LN_TIME_FLOW_EPSILON >= double(interval)) {
+          state->pulse_tick = context.tick_index;
+          const double interval_time = double(interval);
+          state->accumulated_time = std::fmod(
+              std::max(0.0, state->accumulated_time - interval_time), interval_time);
+          if (state->accumulated_time <= LN_TIME_FLOW_EPSILON) {
+            state->accumulated_time = 0.0;
+          }
+        }
+        else {
+          state->pulse_tick = UINT64_MAX;
+        }
+      }
+    }
+    state->remaining_time = double(interval);
+    state->last_update_tick = context.tick_index;
+    state->last_update_phase_tick = context.phase_tick_index;
+    state->last_update_phase_stride = context.phase_tick_stride;
+  }
+}
+
+void LN_RuntimeTree::TimeFlowUpdateBarrier(const uint32_t state_index,
+                                           const LN_Event event,
+                                           const LN_TickContext &context,
+                                           const blender::FunctionRef<bool()> condition_input,
+                                           const blender::FunctionRef<float()> duration_input,
+                                           const blender::FunctionRef<bool()> ignore_timescale)
+{
+  if (TimeFlowRuntimeState *state = FindTimeFlowState(state_index)) {
+    const bool condition = condition_input();
+    const LN_Event continuation_event = TimeFlowContinuationEvent(event);
+    const bool continuous = state->active && state->event == continuation_event &&
+                            IsContinuousPhaseTick(state->last_update_phase_tick,
+                                                  context.phase_tick_index,
+                                                  context.phase_tick_stride);
+    state->kind = TimeFlowRuntimeKind::Barrier;
+    state->ignore_timescale = ignore_timescale();
+    state->event = continuation_event;
+    if (!condition) {
+      state->active = false;
+      state->accumulated_time = 0.0;
+      if (state->pulse_tick != context.tick_index) {
+        state->pulse_tick = UINT64_MAX;
+      }
+    }
+    else {
+      const float duration = std::max(0.0f, duration_input());
+      if (!continuous) {
+        state->active = true;
+        state->accumulated_time = 0.0;
+      }
+      else if (context.tick_index != state->last_update_tick) {
+        state->accumulated_time += TimeFlowStep(context, state->ignore_timescale);
+      }
+      state->remaining_time = double(duration);
+      if (duration <= 0.0f || state->accumulated_time + LN_TIME_FLOW_EPSILON >= double(duration)) {
+        if (context.tick_index != UINT64_MAX) {
+          state->pulse_tick = context.tick_index;
+        }
+        state->accumulated_time = std::max(state->accumulated_time, double(duration));
+      }
+    }
+    state->last_update_tick = context.tick_index;
+    state->last_update_phase_tick = context.phase_tick_index;
+    state->last_update_phase_stride = context.phase_tick_stride;
+  }
+}
+
+void LN_RuntimeTree::TimeFlowTryCooldown(const uint32_t state_index,
+                                         const bool ui_event_route,
+                                         const LN_Event event,
+                                         const LN_TickContext &context,
+                                         const blender::FunctionRef<float()> duration_input,
+                                         const blender::FunctionRef<bool()> ignore_timescale)
+{
+  if (TimeFlowRuntimeState *state = FindTimeFlowState(state_index)) {
+    state->kind = TimeFlowRuntimeKind::Cooldown;
+    if (state->active) {
+      state->accepted_scope_serial = 0;
+      state->blocked_scope_serial = context.execution_scope_serial;
+      return;
+    }
+
+    state->accepted_scope_serial = context.execution_scope_serial;
+    state->blocked_scope_serial = 0;
+    state->ui_event_route = ui_event_route;
+    float duration = duration_input();
+    if (!std::isfinite(duration) || duration <= 0.0f) {
+      duration = 0.0f;
+    }
+    state->ignore_timescale = ignore_timescale();
+    state->event = TimeFlowContinuationEvent(event);
+    state->remaining_time = double(duration);
+    /* Cooldown uses accumulated_time as its sampled total duration. */
+    state->accumulated_time = double(duration);
+    state->last_update_tick = context.tick_index;
+    state->last_update_phase_tick = context.phase_tick_index;
+    state->active = duration > 0.0f;
+    if (state->pulse_tick != context.tick_index) {
+      state->pulse_tick = UINT64_MAX;
+    }
+  }
+}
+
+void LN_RuntimeTree::TimeFlowResetCooldown(const uint32_t state_index,
+                                           const LN_Event event,
+                                           const LN_TickContext &context)
+{
+  if (TimeFlowRuntimeState *state = FindTimeFlowState(state_index)) {
+    state->kind = TimeFlowRuntimeKind::Cooldown;
+    state->active = false;
+    state->remaining_time = 0.0;
+    state->accumulated_time = 0.0;
+    state->pulse_tick = UINT64_MAX;
+    state->last_update_tick = context.tick_index;
+    state->last_update_phase_tick = context.phase_tick_index;
+    state->accepted_scope_serial = 0;
+    state->blocked_scope_serial = 0;
+    state->ignore_timescale = false;
+    state->event = TimeFlowContinuationEvent(event);
+  }
+}
+
+float LN_RuntimeTree::ColumnGateUnscaledDelta(const uint32_t step_gate_index,
+                                              const LN_TickContext &context) const
+{
+  /* FloatKind's UnscaledDeltaTime inside RunLeanRoute's / RunBlocksWith's gate time. */
+  if (step_gate_index != LN_INVALID_INDEX && step_gate_index < m_stepGates.size()) {
+    return float(std::max(0.0, m_stepGates[step_gate_index].unscaled_time_passed));
+  }
+  return float(std::max(0.0, context.unscaled_dt));
+}
+
+namespace {
+
+/** The reader a column run's bridge reads through: the lean reader with the event's lean program
+ * (what ExecuteEvent gives the lean frame's reader). */
+struct ColumnBridgeReader {
+  LN_LeanReader reader;
+  ColumnBridgeReader(LN_RuntimeTree &tree, LN_TickContext &context, const LN_LeanProgram *lean)
+      : reader(tree, context)
+  {
+    reader.lean = lean;
+  }
+};
+
+}  // namespace
+
+bool LN_RuntimeTree::ColumnEvalBool(const uint32_t index,
+                                    const bool fallback,
+                                    LN_TickContext &context)
+{
+  if (context.command_buffer != nullptr) {
+    /* A command-ordered query read here is the op's (RunBlocksWith gives each op a key). */
+    context.command_execution_key = NextCommandExecutionKey();
+  }
+  m_activeExecutionScopeSerial = context.execution_scope_serial;
+  ColumnBridgeReader bridge(*this, context, LeanProgramForRun());
+  return LeanBool(bridge.reader, index, fallback);
+}
+
+int32_t LN_RuntimeTree::ColumnEvalInt(const uint32_t index,
+                                      const int32_t fallback,
+                                      LN_TickContext &context)
+{
+  if (context.command_buffer != nullptr) {
+    /* A command-ordered query read here is the op's (RunBlocksWith gives each op a key). */
+    context.command_execution_key = NextCommandExecutionKey();
+  }
+  m_activeExecutionScopeSerial = context.execution_scope_serial;
+  ColumnBridgeReader bridge(*this, context, LeanProgramForRun());
+  return LeanInt(bridge.reader, index, fallback);
+}
+
+float LN_RuntimeTree::ColumnEvalFloat(const uint32_t index,
+                                      const float fallback,
+                                      LN_TickContext &context)
+{
+  if (context.command_buffer != nullptr) {
+    /* A command-ordered query read here is the op's (RunBlocksWith gives each op a key). */
+    context.command_execution_key = NextCommandExecutionKey();
+  }
+  m_activeExecutionScopeSerial = context.execution_scope_serial;
+  ColumnBridgeReader bridge(*this, context, LeanProgramForRun());
+  return LeanFloat(bridge.reader, index, fallback);
+}
+
+MT_Vector3 LN_RuntimeTree::ColumnEvalVector(const uint32_t index,
+                                            const MT_Vector3 &fallback,
+                                            LN_TickContext &context)
+{
+  if (context.command_buffer != nullptr) {
+    /* A command-ordered query read here is the op's (RunBlocksWith gives each op a key). */
+    context.command_execution_key = NextCommandExecutionKey();
+  }
+  m_activeExecutionScopeSerial = context.execution_scope_serial;
+  ColumnBridgeReader bridge(*this, context, LeanProgramForRun());
+  return LeanVector(bridge.reader, index, fallback);
+}
+
+LN_Rotation LN_RuntimeTree::ColumnEvalRotation(const uint32_t index,
+                                               const LN_Rotation &fallback,
+                                               LN_TickContext &context)
+{
+  if (context.command_buffer != nullptr) {
+    /* A command-ordered query read here is the op's (RunBlocksWith gives each op a key). */
+    context.command_execution_key = NextCommandExecutionKey();
+  }
+  m_activeExecutionScopeSerial = context.execution_scope_serial;
+  ColumnBridgeReader bridge(*this, context, LeanProgramForRun());
+  return LeanRotation(bridge.reader, index, fallback);
+}
+
+MT_Vector4 LN_RuntimeTree::ColumnEvalColor(const uint32_t index,
+                                           const MT_Vector4 &fallback,
+                                           LN_TickContext &context)
+{
+  if (context.command_buffer != nullptr) {
+    /* A command-ordered query read here is the op's (RunBlocksWith gives each op a key). */
+    context.command_execution_key = NextCommandExecutionKey();
+  }
+  m_activeExecutionScopeSerial = context.execution_scope_serial;
+  ColumnBridgeReader bridge(*this, context, LeanProgramForRun());
+  return LeanColor(bridge.reader, index, fallback);
+}
+
+const LN_QueryResult &LN_RuntimeTree::ColumnCastQuery(const uint32_t index,
+                                                     LN_TickContext &context,
+                                                     QueryExpressionRuntimeState &scratch)
+{
+  /* QueryEntry without its cache: the result reset as it resets a ray's (only the physics
+   * fields once the scratch holds a ray's result), then the kind. */
+  m_activeExecutionScopeSerial = context.execution_scope_serial;
+  if (scratch.cached_result_physics_only) {
+    scratch.cached_result.physics_query = LN_PhysicsQueryResult();
+    scratch.cached_result.physics_query_results.clear();
+  }
+  else {
+    scratch.cached_result = LN_QueryResult();
+  }
+  scratch.cached_result_physics_only = true; /* (a Raycast sets its physics fields only) */
+  ColumnBridgeReader bridge(*this, context, LeanProgramForRun());
+  QueryKind(bridge.reader, index, m_program->GetQueryExpressions()[index], scratch);
+  return scratch.cached_result;
+}
+
+void LN_RuntimeTree::ColumnRunOp(const LN_Event event,
+                                 const uint32_t op_index,
+                                 LN_CommandBuffer &buffer,
+                                 LN_TickContext &context)
+{
+  /* RunBlocksWith's per-op prelude, then the op as ExecuteEvent runs it: OpLean with the lean
+   * program, or, in the reference mode (and without one), its generic handler (OpDirect). */
+  const LN_LeanProgram *lean = LeanProgramForRun();
+  const LN_ExecBlockProgram &ir = m_program->GetExecBlockProgram(event);
+  if (op_index >= ir.ops.size() ||
+      (lean != nullptr && op_index >= lean->events[size_t(event)].ops.size()))
+  {
+    return;
+  }
+  LN_CommandBuffer *const previous_buffer = context.command_buffer;
+  context.event = event;
+  context.command_buffer = &buffer;
+  context.command_execution_key = NextCommandExecutionKey();
+  m_activeExecutionScopeSerial = context.execution_scope_serial;
+  LN_LeanFrame frame(*this, event, m_program->GetInstructionHeaders(event), buffer, context);
+  if (lean != nullptr) {
+    frame.lean = lean;
+    frame.reader.lean = lean;
+    OpLean(frame, ir.ops[op_index], lean->events[size_t(event)].ops[op_index]);
+  }
+  else {
+    OpDirect(frame, ir.ops[op_index]);
+  }
+  context.command_buffer = previous_buffer;
+}
+
+void LN_RuntimeTree::ColumnRunLoopBlock(const LN_Event event,
+                                        const uint32_t block_index,
+                                        LN_CommandBuffer &buffer,
+                                        LN_TickContext &context)
+{
+  const LN_LeanProgram *lean = LeanProgramForRun();
+  const LN_ExecBlockProgram &ir = m_program->GetExecBlockProgram(event);
+  if (block_index >= ir.blocks.size()) {
+    return;
+  }
+  LN_CommandBuffer *const previous_buffer = context.command_buffer;
+  context.event = event;
+  context.command_buffer = &buffer;
+  m_activeExecutionScopeSerial = context.execution_scope_serial;
+  LN_LeanFrame frame(*this, event, m_program->GetInstructionHeaders(event), buffer, context);
+  std::vector<uint32_t> repeated_loop_frames;
+  const uint64_t scope_serial = context.execution_scope_serial;
+  if (lean != nullptr) {
+    frame.lean = lean;
+    frame.reader.lean = lean;
+    const LN_LeanEvent &lean_event = lean->events[size_t(event)];
+    RunLoopBody(frame,
+                ir,
+                ir.blocks[block_index],
+                repeated_loop_frames,
+                scope_serial,
+                LN_INVALID_INDEX,
+                [&](const uint32_t op_index) {
+                  OpLean(frame, ir.ops[op_index], lean_event.ops[op_index]);
+                });
+  }
+  else {
+    RunLoopBody(frame,
+                ir,
+                ir.blocks[block_index],
+                repeated_loop_frames,
+                scope_serial,
+                LN_INVALID_INDEX,
+                [&](const uint32_t op_index) { OpDirect(frame, ir.ops[op_index]); });
+  }
+  context.command_buffer = previous_buffer;
+}
+
+template<class Frame, class RunOp>
+void LN_RuntimeTree::ColumnWalkEvent(Frame &frame,
+                                     const LN_ExecBlockProgram &ir,
+                                     const uint64_t scope_serial,
+                                     RunOp &&run_op)
+{
+  /* The column system's walk of an event's blocks (plan C2 P5-P7). It follows RunBlocksWith's and
+   * RunEventBlocks' rules without their code, so the old system stays an independent reference;
+   * `run_op` is chosen once per event, as the old system's walk does. */
+  LN_TickContext &context = frame.context;
+  const std::vector<LN_StepGate> &gates = m_program->GetStepGates();
+  std::vector<uint32_t> repeated_loop_frames;
+  /* The blocks once, in scope `serial`; with `ui_event_state`, only that On UI Event's route's ops
+   * (a repeat for a further event of this frame). */
+  const auto walk = [&](const uint64_t serial, const uint32_t ui_event_state) {
+    const auto selected = [&](const LN_ExecOp &op) {
+      return ui_event_state == LN_INVALID_INDEX || op.ui_event_state_index == ui_event_state;
+    };
+    for (const LN_ExecBlock &block : ir.blocks) {
+      if (ui_event_state != LN_INVALID_INDEX &&
+          std::none_of(ir.ops.begin() + block.first_op,
+                       ir.ops.begin() + block.first_op + block.op_count,
+                       selected))
+      {
+        continue;
+      }
+      const uint32_t gate = block.step_gate_index;
+      if (gate != LN_INVALID_INDEX && !StepGateRuns(gate)) {
+        continue;
+      }
+      if (m_uiEventRoutesOnly && block.loop_frame_index != LN_INVALID_INDEX &&
+          !block.ui_event_route)
+      {
+        continue;
+      }
+      const uint32_t completed = block.completed_loop_frame_index;
+      if (completed != LN_INVALID_INDEX &&
+          (completed >= m_loopStates.size() ||
+           m_loopStates[completed].completed_scope_serial != serial))
+      {
+        continue;
+      }
+      /* The gate's time and stride for the block (RunBlocksWith's ScopedStepGateTime). */
+      const double delta_time = context.delta_time;
+      const double unscaled_dt = context.unscaled_dt;
+      const uint32_t stride = context.phase_tick_stride;
+      if (gate != LN_INVALID_INDEX) {
+        if (gate < m_stepGates.size()) {
+          context.delta_time = m_stepGates[gate].time_passed;
+          context.unscaled_dt = m_stepGates[gate].unscaled_time_passed;
+        }
+        if (gate < gates.size()) {
+          context.phase_tick_stride = gates[gate].interval;
+        }
+      }
+      if (block.loop_frame_index != LN_INVALID_INDEX) {
+        RunLoopBody(frame, ir, block, repeated_loop_frames, serial, ui_event_state, run_op);
+      }
+      else {
+        context.execution_scope_serial = serial;
+        m_activeExecutionScopeSerial = serial;
+        const uint32_t end = block.first_op + block.op_count;
+        if (ui_event_state == LN_INVALID_INDEX) {
+          for (uint32_t op_index = block.first_op; op_index < end; op_index++) {
+            run_op(op_index);
+          }
+        }
+        else {
+          for (uint32_t op_index = block.first_op; op_index < end; op_index++) {
+            if (selected(ir.ops[op_index])) {
+              run_op(op_index);
+            }
+          }
+        }
+      }
+      context.delta_time = delta_time;
+      context.unscaled_dt = unscaled_dt;
+      context.phase_tick_stride = stride;
+    }
+  };
+  walk(scope_serial, LN_INVALID_INDEX);
+  /* On UI Event: each further event that matches a node this frame runs the node's route again,
+   * in a scope of its own, its outputs telling about that event (RunEventBlocks' rule). */
+  constexpr uint32_t max_ui_event_repeats = uint32_t(LN_UIService::kMaxEventsPerNodeFrame);
+  for (const uint32_t state_index : ir.ui_event_states) {
+    const QueryExpressionRuntimeState &first = QueryExpressionState(state_index);
+    if (first.cached_tick != context.tick_index || first.cached_result.ui_event_count < 2) {
+      continue;
+    }
+    const uint32_t count = std::min(first.cached_result.ui_event_count, max_ui_event_repeats);
+    for (uint32_t cursor = 1; cursor < count; ++cursor) {
+      QueryExpressionRuntimeState &state = QueryExpressionState(state_index);
+      state.ui_event_cursor = cursor;
+      state.cached_tick = UINT64_MAX;
+      m_registerExpressionState.cached_tick = UINT64_MAX;
+      repeated_loop_frames.clear();
+      const uint64_t repeat_serial = NextExecutionScopeSerial();
+      context.execution_scope_serial = repeat_serial;
+      m_activeExecutionScopeSerial = repeat_serial;
+      walk(repeat_serial, state_index);
+    }
+    QueryExpressionState(state_index).ui_event_cursor = 0;
+  }
+  context.execution_scope_serial = scope_serial;
+  m_activeExecutionScopeSerial = scope_serial;
+}
+
+void LN_RuntimeTree::ColumnRunDirectEvent(const LN_Event event,
+                                          const uint64_t scope_serial,
+                                          LN_CommandBuffer &buffer,
+                                          LN_TickContext &context)
+{
+  /* ExecuteEvent's frame and choice of route or walk (a frame holds no state between ops). */
+  const LN_ExecBlockProgram &ir = m_program->GetExecBlockProgram(event);
+  if (!ir.valid) {
+    RecordRuntimeSystemFallback(
+        LN_RuntimeFallbackReason::UnsupportedOpcode,
+        "invalid_exec_block_ir",
+        "exec_block_ir_invalid",
+        "Fix the Logic Nodes compiler or IR validation error; runtime no longer falls back to the "
+        "legacy instruction switch.");
+    return;
+  }
+  const bool reference = LN_GetLeanMode() == LN_LeanMode::Reference;
+  const LN_LeanProgram *lean = reference ? nullptr : LeanProgramForRun();
+  if (lean != nullptr && lean->events[size_t(event)].ops.size() != ir.ops.size()) {
+    lean = nullptr; /* (a program that changed since it was lowered: the generic handlers) */
+  }
+  if (lean == nullptr && !reference) {
+    if (m_activeProfileCounters != nullptr) {
+      m_activeProfileCounters->lean_missing++;
+    }
+    static std::atomic<bool> warned{false};
+    if (!warned.exchange(true)) {
+      CM_Warning("Logic Nodes: lean missing: a tree ran the generic handlers without its lean "
+                 "program");
+    }
+  }
+  LN_LeanFrame frame(*this, event, m_program->GetInstructionHeaders(event), buffer, context);
+  if (lean != nullptr) {
+    LN_NoteLeanTreeRun();
+    if (m_activeProfileCounters != nullptr) {
+      m_activeProfileCounters->lean_trees++;
+    }
+    frame.lean = lean;
+    frame.reader.lean = lean;
+    const LN_LeanEvent &lean_event = lean->events[size_t(event)];
+    if (lean_event.has_route && !m_uiEventRoutesOnly && m_activeProfileCounters == nullptr &&
+        g_read_trace == nullptr && LN_GetRouteMode() == LN_RouteMode::On)
+    {
+      LN_NoteRouteRun();
+      RunLeanRoute(frame, lean_event.route, scope_serial);
+      return;
+    }
+    ColumnWalkEvent(frame, ir, scope_serial, [&](const uint32_t op_index) {
+      OpLean(frame, ir.ops[op_index], lean_event.ops[op_index]);
+    });
+    return;
+  }
+  if (reference) {
+    LN_NoteLeanTreeRun();
+  }
+  ColumnWalkEvent(
+      frame, ir, scope_serial, [&](const uint32_t op_index) { OpDirect(frame, ir.ops[op_index]); });
+}
+
+void LN_RuntimeTree::ColumnExecuteEvent(const LN_Event event,
+                                        LN_CommandBuffer &buffer,
+                                        LN_TickContext context)
+{
+  /* ExecuteEvent's prelude: the event's delta, a new scope. */
+  context.event = event;
+  m_eventDeltaTime = std::max(0.0, context.delta_time);
+  const uint64_t serial = NextExecutionScopeSerial();
+  context.execution_scope_serial = serial;
+  m_activeExecutionScopeSerial = serial;
+  ColumnRunDirectEvent(event, serial, buffer, context);
+}
+
+void LN_RuntimeTree::ColumnExecuteReady(LN_CommandBuffer &command_buffer,
+                                        const LN_TickContext &context,
+                                        LN_RuntimeProfileCounters *profile_counters)
+{
+  /* ExecuteReady's bookkeeping, in its order. */
+  ClearRuntimeFallbackReport(context.tick_index);
+  if (!m_runtimeActive || !m_enabled || m_program == nullptr || m_gameObject == nullptr) {
+    return;
+  }
+  RefreshStateBlockLayout();
+  if (context.tick_index == UINT64_MAX || m_loopIterationBudgetTick != context.tick_index) {
+    m_remainingLoopIterationBudget = kMaxLoopIterationsPerTick;
+    m_loopIterationBudgetTick = context.tick_index;
+  }
+  LN_RuntimeProfileCounters *previous_profile_counters = m_activeProfileCounters;
+  if (profile_counters != nullptr) {
+    m_activeProfileCounters = profile_counters;
+  }
+  if (!m_initExecuted) {
+    const bool ui_event_routes_only = std::exchange(m_uiEventRoutesOnly, false);
+    ColumnExecuteEvent(LN_Event::OnInit, command_buffer, context);
+    m_uiEventRoutesOnly = ui_event_routes_only;
+    m_initExecuted = true;
+  }
+  if (m_hasTimeFlowRuntimeState) {
+    TickLatentTimeFlowStates(context);
+  }
+  const bool fixed_gates = context.event == LN_Event::OnFixedUpdate && !m_stepGates.empty();
+  if (fixed_gates) {
+    PrepareStepGates(context.phase_tick_index, context.delta_time, context.unscaled_dt);
+  }
+  ColumnExecuteEvent(context.event, command_buffer, context);
+  if (fixed_gates) {
+    NoteStepGatesRan(context.phase_tick_index, false);
+  }
+  if (profile_counters != nullptr) {
+    m_activeProfileCounters = previous_profile_counters;
+  }
+}
+
+void LN_RuntimeTree::ColumnExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
+                                               const LN_TickContext &context,
+                                               LN_RuntimeProfileCounters *profile_counters)
+{
+  /* ExecuteForcedUpdate's bookkeeping, in its order. */
+  ClearRuntimeFallbackReport(context.tick_index);
+  if (!m_runtimeActive || m_program == nullptr || m_gameObject == nullptr) {
+    return;
+  }
+  RefreshStateBlockLayout();
+  if (m_gameObject->IsLogicSuspended()) {
+    return;
+  }
+  if (context.tick_index == UINT64_MAX || m_loopIterationBudgetTick != context.tick_index) {
+    m_remainingLoopIterationBudget = kMaxLoopIterationsPerTick;
+    m_loopIterationBudgetTick = context.tick_index;
+  }
+  LN_RuntimeProfileCounters *previous_profile_counters = m_activeProfileCounters;
+  if (profile_counters != nullptr) {
+    m_activeProfileCounters = profile_counters;
+  }
+  if (!m_initExecuted) {
+    ColumnExecuteEvent(LN_Event::OnInit, command_buffer, context);
+    m_initExecuted = true;
+  }
+  if (m_hasTimeFlowRuntimeState) {
+    TickLatentTimeFlowStates(context);
+  }
+  const bool fixed_gates = context.event == LN_Event::OnFixedUpdate && !m_stepGates.empty();
+  if (fixed_gates) {
+    PrepareForcedStepGates(context.phase_tick_index, context.delta_time, context.unscaled_dt);
+  }
+  const bool previous_forced = std::exchange(m_stepGatesForced, true);
+  ColumnExecuteEvent(context.event, command_buffer, context);
+  m_stepGatesForced = previous_forced;
+  if (fixed_gates) {
+    NoteStepGatesRan(context.phase_tick_index, true);
+  }
+  if (profile_counters != nullptr) {
+    m_activeProfileCounters = previous_profile_counters;
+  }
+}
+
+bool LN_RuntimeTree::ColumnLoopCompleted(const uint32_t frame, const uint64_t scope_serial) const
+{
+  return frame < m_loopStates.size() && m_loopStates[frame].completed_scope_serial == scope_serial;
+}
+
+bool LN_RuntimeTree::ColumnStampRan(const uint32_t state_index,
+                                    const uint64_t tick_index,
+                                    const uint64_t scope_serial) const
+{
+  /* InstructionExecutedNow by stamp index. */
+  if (state_index >= m_instructionStamps.size()) {
+    return false;
+  }
+  const InstructionStamp &state = m_instructionStamps[state_index];
+  if (state.last_execution_tick != tick_index) {
+    return false;
+  }
+  return scope_serial == 0 || state.last_execution_scope_serial == scope_serial;
+}
+
+bool LN_RuntimeTree::ColumnForceToTarget(const MT_Vector3 &target_position,
+                                         const float force,
+                                         const float reached_threshold,
+                                         const float stop_distance,
+                                         const MT_Vector3 &position,
+                                         bool &r_reached,
+                                         MT_Vector3 &r_force)
+{
+  const float reached = std::max(reached_threshold, 0.0f);
+  const float stop = std::max(stop_distance, 0.0f);
+  const MT_Vector3 delta = target_position - position;
+  const float distance_sq = delta.length2();
+  r_reached = false;
+  if (!(std::isfinite(delta.x()) && std::isfinite(delta.y()) && std::isfinite(delta.z()))) {
+    return false;
+  }
+  r_reached = distance_sq <= reached * reached;
+  if (std::isfinite(force) && distance_sq > stop * stop && distance_sq > MT_EPSILON * MT_EPSILON &&
+      std::fabs(force) > MT_EPSILON)
+  {
+    r_force = delta * (force / std::sqrt(distance_sq));
+    return true;
+  }
+  return false;
+}
+
+MT_Vector3 LN_RuntimeTree::ColumnVectorToRotationEuler(const MT_Vector3 &direction,
+                                                       const MT_Vector3 &up,
+                                                       const int32_t axis_selector)
+{
+  return VectorToRotationEuler(direction, up, axis_selector);
+}
+
+float LN_RuntimeTree::ColumnHashToUnitFloat(const uint64_t value)
+{
+  return HashToUnitFloat(value);
+}
+
+bool LN_RuntimeTree::ColumnValueAsFloat(const LN_Value &value, float &r_value)
+{
+  return ValueAsFloat(value, r_value);
+}
+
+bool LN_RuntimeTree::ColumnValueAsVector(const LN_Value &value, MT_Vector3 &r_vector)
+{
+  return ValueAsVector(value, r_vector);
+}
+
+KX_GameObject *LN_RuntimeTree::ColumnObjectOfValue(const LN_Value &value) const
+{
+  return ResolveObjectValue(value);
+}
+
+void LN_RuntimeTree::PrepareObjectNameLookup() const
+{
+  if (m_logicManager != nullptr) {
+    m_logicManager->PrepareObjectNameLookup();
+  }
+}
+
+int32_t LN_RuntimeTree::ColumnValueAsInt(const LN_Value &value, const LN_FloatToIntMode mode)
+{
+  return ValueAsInt(value, mode);
+}
+
+bool LN_RuntimeTree::ColumnValueAsBool(const LN_Value &value)
+{
+  return ValueAsBool(value);
+}
+
+KX_GameObject *LN_RuntimeTree::ResolveObjectValueExpressionForColumns(
+    const uint32_t value_expr_index, const LN_TickContext &context)
+{
+  /* A named object (a constant): the same calls without the 304-byte value (ReadObjectInput's
+   * way; plan C2 P1: a run of 1 resolved its named objects through the whole value, ~10% of a
+   * 1,000-tree scene of runs of 1). */
+  LN_LeanReader in(*this, context);
+  if (m_program != nullptr) {
+    return ReadObjectInput(in, value_expr_index);
+  }
+  return ResolveObjectValue(in.Value(value_expr_index, MakeNoneValue()));
+}
+
 const LN_LeanProgram *LN_RuntimeTree::LeanProgramForRun() const
 {
   if (m_program == nullptr || LN_GetLeanMode() != LN_LeanMode::Lean) {
@@ -7985,60 +8899,6 @@ void LN_RuntimeTree::ExecuteEvent(LN_Event event,
   RunEventBlocks(lean_frame, ir, context, event_scope_serial, [&](const uint32_t op_index) {
     OpDirect(lean_frame, ir.ops[op_index]);
   });
-}
-
-void LN_RuntimeTree::RunBlock(LN_CommandBuffer &buffer,
-                              const LN_TickContext &base_context,
-                              LN_RuntimeTree *const *trees,
-                              const size_t count)
-{
-  const LN_Event event = base_context.event;
-  /* Per thread, kept between blocks: each lane's tick context and frame. */
-  thread_local std::vector<LN_TickContext> contexts;
-  thread_local std::vector<LN_LeanFrame> frames;
-  frames.clear();
-  contexts.assign(count, base_context);
-  frames.reserve(count);
-
-  const LN_LeanProgram *lean = trees[0]->LeanProgramForRun();
-  const LN_ExecBlockProgram &ir = trees[0]->m_program->GetExecBlockProgram(event);
-  const LN_LeanEvent &lean_event = lean->events[size_t(event)];
-  const std::vector<LN_InstructionHeader> &instructions =
-      trees[0]->m_program->GetInstructionHeaders(event);
-
-  /* Each lane's start: what ExecuteReady and the start of ExecuteEvent do before the first op. */
-  for (size_t lane = 0; lane < count; lane++) {
-    LN_RuntimeTree &tree = *trees[lane];
-    LN_TickContext &context = contexts[lane];
-    tree.ClearRuntimeFallbackReport(context.tick_index);
-    tree.RefreshStateBlockLayout();
-    if (context.tick_index == UINT64_MAX || tree.m_loopIterationBudgetTick != context.tick_index) {
-      tree.m_remainingLoopIterationBudget = kMaxLoopIterationsPerTick;
-      tree.m_loopIterationBudgetTick = context.tick_index;
-    }
-    context.event = event;
-    tree.m_eventDeltaTime = std::max(0.0, context.delta_time);
-    const uint64_t event_scope_serial = tree.NextExecutionScopeSerial();
-    context.execution_scope_serial = event_scope_serial;
-    tree.m_activeExecutionScopeSerial = event_scope_serial;
-    LN_NoteLeanTreeRun();
-    frames.emplace_back(tree, event, instructions, buffer, context);
-    frames.back().lean = lean;
-    frames.back().reader.lean = lean;
-  }
-
-  /* Op by op across the lanes. A lane's commands are tagged with it and numbered inside it; the
-   * buffer puts the lanes together again at the end of the block. */
-  buffer.BeginBlock(uint32_t(count));
-  for (uint32_t op_index = 0; op_index < ir.ops.size(); op_index++) {
-    const LN_ExecOp &op = ir.ops[op_index];
-    const LN_LeanOp &lean_op = lean_event.ops[op_index];
-    for (size_t lane = 0; lane < count; lane++) {
-      buffer.SetBlockLane(uint32_t(lane));
-      trees[lane]->OpLean(frames[lane], op, lean_op);
-    }
-  }
-  buffer.EndBlock();
 }
 
 LN_RuntimeTree::CollisionEventPayload *LN_RuntimeTree::FindCollisionEventPayload(
@@ -8677,3 +9537,61 @@ uint64_t LN_RuntimeTree::CommandSortKey(uint32_t /*instruction_index*/,
 
 /* The expression kinds (plan phases A13 and A14); last, so every helper above is visible. */
 #include "LN_RuntimeTreeKinds.inl"
+
+/* Plan C1-9: after LN_RuntimeTreeKinds.inl, which defines VectorAverageKind. */
+LN_QueryResult LN_RuntimeTree::ColumnVectorAverage(const uint32_t query_index,
+                                                   const LN_TickContext &context)
+{
+  LN_QueryResult result;
+  const std::vector<LN_QueryExpression> &queries = m_program->GetQueryExpressions();
+  if (query_index < queries.size()) {
+    LN_LeanReader in(*this, context);
+    VectorAverageKind(in, queries[query_index], result);
+  }
+  return result;
+}
+
+float LN_RuntimeTree::ColumnInvariantFloat(const uint32_t index,
+                                           const float fallback,
+                                           const LN_TickContext &context)
+{
+  const std::vector<LN_FloatExpression> &floats = m_program->GetFloatExpressions();
+  if (index >= floats.size()) {
+    return fallback;
+  }
+  LN_LeanReader in(*this, context);
+  return FloatKind(in, index, floats[index], fallback);
+}
+
+int32_t LN_RuntimeTree::ColumnInvariantInt(const uint32_t index,
+                                           const int32_t fallback,
+                                           const LN_TickContext &context)
+{
+  const std::vector<LN_IntExpression> &ints = m_program->GetIntExpressions();
+  if (index >= ints.size()) {
+    return fallback;
+  }
+  LN_LeanReader in(*this, context);
+  return IntKind(in, index, ints[index], fallback);
+}
+
+bool LN_RuntimeTree::ColumnInvariantBool(const uint32_t index,
+                                         const bool fallback,
+                                         const LN_TickContext &context)
+{
+  const std::vector<LN_BoolExpression> &bools = m_program->GetBoolExpressions();
+  if (index >= bools.size()) {
+    return fallback;
+  }
+  LN_LeanReader in(*this, context);
+  return BoolKind(in, index, bools[index], fallback);
+}
+
+
+/* Plan C1: after LN_RuntimeTreeKinds.inl, which defines ObjectAttributeAsVector. */
+bool LN_RuntimeTree::ColumnObjectAttributeVector(KX_GameObject &object,
+                                                 const LN_ObjectAttributeId attribute,
+                                                 MT_Vector3 &r_vector)
+{
+  return ObjectAttributeAsVector(object, attribute, r_vector);
+}

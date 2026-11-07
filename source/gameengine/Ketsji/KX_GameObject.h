@@ -284,6 +284,9 @@ class KX_GameObject : public SCA_IObject {
   /** Blender computes the evaluated pose from other things (a parent, constraints, drivers, or
    * the object takes its pose from Blender): looked at after every pass's update. */
   bool m_poseFromBlender = false;
+  /** The object has a Blender parent, from which the game poses it itself (2026-11-04: its moves
+   * may skip Blender's evaluation, PosePath::Direct). */
+  bool m_parentPosedByGame = false;
   /** The pass (KX_Scene's count) the object was last listed in for a look after the update. */
   uint64_t m_poseCheckPass = 0;
 
@@ -530,6 +533,13 @@ class KX_GameObject : public SCA_IObject {
   /** A Dupli Base placed in the scene (not hidden): its moves always take the direct path
    * (upstream UPBGE's name and meaning). */
   void SetIsUpbgeDupliBase();
+  /** 2026-11-04: the game poses this object from its Blender parent itself (a plain object
+   * parent the scene graph mirrors): Blender's evaluation of it from the parent is not needed. */
+  bool ParentPosedByGame();
+  /** 2026-11-04: `id` reads this object's transform in Blender's graph only to place itself, and
+   * the game writes its every pose anyway (a plain-parented descendant in the game's hierarchy,
+   * no modifiers, constraints, drivers or simulation). */
+  bool DependentPosedByGame(const blender::ID *id);
   /** Whether this move takes PosePath::Direct, choosing the path when it is unknown. */
   bool UsesDirectPose(const RenderSyncPass &pass, blender::Object *ob_orig);
   /** Lists the object (once a pass) for TagForTransformUpdateEvaluated. */

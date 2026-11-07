@@ -23,6 +23,8 @@
 #include <cassert>
 #include <cctype>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <deque>
 #include <functional>
@@ -42,6 +44,9 @@
 #include "EXP_IntValue.h"
 #include "EXP_StringValue.h"
 
+#include "KX_NodeRelationships.h"
+#include "LN_Columns.h"
+#include "LN_CommandDiagnostics.h"
 #include "LN_JobPool.h"
 #include "LN_KindCatalog.h"
 #include "LN_Manager.h"
@@ -222,6 +227,16 @@ struct Family {
   std::vector<Cat> generic = {};
   /** Needs the object seam (a constant object by name). */
   bool needs_scene = false;
+  /** Compiles only behind a Logic + Physics Step root (Required Phase Fixed Update). */
+  bool fixed_only = false;
+  /** The editor's socket types for collision layers, assets and scenes (GenNode::real_sockets;
+   * the rows from descriptors, AutoFamily: the table's own rows keep the trees the goldens
+   * hold). */
+  bool real_sockets = false;
+  /** A row of plan C2 P0's accepted list: random trees take it only with
+   * TreeGen::SetAcceptedFamilies (the fixed seeds keep the table their goldens were recorded
+   * with, and enough batch-safe trees); its probe tree is always made. */
+  bool accepted_row = false;
 };
 
 inline bool StringOperationOutputOk(const int16_t custom1,
@@ -265,6 +280,260 @@ inline bool TypecastOutputOk(const int16_t custom1,
 {
   return (output == "Integer" && custom1 == 0) || (output == "Boolean" && custom1 == 1) ||
          (output == "String" && custom1 == 2) || (output == "Float" && custom1 == 3);
+}
+
+/** Plan C2 P0: a family row worked out from a node's descriptor (its role from its pins, Logic +
+ * Physics Step only when its phase says so, every output, any scalar on a generic pin, mode 0);
+ * nullopt for a node the generator cannot feed (a pin that must be linked whose type it does not
+ * make: lists, dictionaries, assets) and for an event without flow outputs. */
+inline std::optional<Family> AutoFamily(const char *idname, const int weight)
+{
+  const NodeMetadata *meta = blender::nodes::logic::find_logic_node_metadata(idname);
+  if (meta == nullptr) {
+    return std::nullopt;
+  }
+  bool flow_in = false, flow_out = false;
+  for (const PinMetadata &pin : meta->inputs) {
+    if (pin.type == PinType::Execution) {
+      flow_in = true;
+      continue;
+    }
+    if (pin.requires_link && CategoryOf(pin.type) == Cat::None) {
+      return std::nullopt;
+    }
+  }
+  for (const PinMetadata &pin : meta->outputs) {
+    flow_out = flow_out || pin.type == PinType::Execution;
+  }
+  Family family{meta->idname, Role::Data, weight};
+  if (std::string(meta->category) == "Events" && !flow_in) {
+    if (!flow_out) {
+      return std::nullopt;
+    }
+    family.role = Role::Event;
+  }
+  else if (flow_in) {
+    family.role = Role::Flow;
+  }
+  family.fixed_only = meta->required_phase == blender::nodes::logic::RequiredPhase::FixedUpdate;
+  family.real_sockets = true;
+  return family;
+}
+
+/** UPBGE_LN_DIFF_EXTRA_FAMILIES (comma separated, "idname:weight"): nodes probed as families
+ * (c2_p0/family_probe.py; the goldens are recorded without it). */
+inline const std::vector<std::pair<std::string, int>> &ProbedFamilyNames()
+{
+  static const std::vector<std::pair<std::string, int>> names = [] {
+    std::vector<std::pair<std::string, int>> out;
+    if (const char *extra = std::getenv("UPBGE_LN_DIFF_EXTRA_FAMILIES")) {
+      std::string text = extra;
+      size_t start = 0;
+      while (start <= text.size()) {
+        const size_t comma = text.find(',', start);
+        std::string item = text.substr(start, comma == std::string::npos ? std::string::npos :
+                                                                           comma - start);
+        int weight = 1;
+        const size_t colon = item.find(':');
+        if (colon != std::string::npos) {
+          weight = std::max(1, std::atoi(item.c_str() + colon + 1));
+          item = item.substr(0, colon);
+        }
+        if (!item.empty()) {
+          out.emplace_back(item, weight);
+        }
+        if (comma == std::string::npos) {
+          break;
+        }
+        start = comma + 1;
+      }
+    }
+    return out;
+  }();
+  return names;
+}
+
+/** The node idnames the table takes from their descriptors (AutoFamily) after its own rows: plan
+ * C2 P0's accepted list, weight 1 (each probed alone first by c2_p0/family_probe.py: compiles
+ * alone and in random trees, runs in the rig without a scene, every mode and columns end alike),
+ * then the probed ones. */
+inline const std::vector<std::pair<std::string, int>> &AutoFamilyNames()
+{
+  static const std::vector<std::pair<std::string, int>> names = [] {
+    static const char *const accepted[] = {
+        /* c2_p0/family_probe.tsv, 2026-11-05: accepted, and four that compile in fewer random
+         * trees (While Paused, String Switch Flow, Vehicle Control, Loop From List). */
+        "LogicNativeApplyForce",
+        "LogicNativeApplyImpulse",
+        "LogicNativeApplyTorque",
+        "LogicNativeAssignGeometryNodesModifier",
+        "LogicNativeBoneRotationToObjectRotation",
+        "LogicNativeCharacterJump",
+        "LogicNativeCollision",
+        "LogicNativeColorRGB",
+        "LogicNativeCombineXY",
+        "LogicNativeCombineXYZW",
+        "LogicNativeCopyProperty",
+        "LogicNativeCursorMovement",
+        "LogicNativeCursorPosition",
+        "LogicNativeDeltaFactor",
+        "LogicNativeDictAddValue",
+        "LogicNativeDictHasKey",
+        "LogicNativeDictLength",
+        "LogicNativeDictRemoveKey",
+        "LogicNativeDictSetKey",
+        "LogicNativeDraw",
+        "LogicNativeDrawBox",
+        "LogicNativeDrawCube",
+        "LogicNativeDrawLine",
+        "LogicNativeEnableDisableModifier",
+        "LogicNativeEvaluateCurve",
+        "LogicNativeEvaluateProperty",
+        "LogicNativeFindRecipe",
+        "LogicNativeFloatCurve",
+        "LogicNativeFollowPath",
+        "LogicNativeFormula",
+        "LogicNativeGamepadActive",
+        "LogicNativeGamepadStick",
+        "LogicNativeGetAverageCenterPosition",
+        "LogicNativeGetBoneAttribute",
+        "LogicNativeGetBoneCenterPoseWorld",
+        "LogicNativeGetBoneCenterWorld",
+        "LogicNativeGetBoneHeadPoseWorld",
+        "LogicNativeGetBoneHeadWorld",
+        "LogicNativeGetBoneLength",
+        "LogicNativeGetBonePoseRotation",
+        "LogicNativeGetBonePoseScale",
+        "LogicNativeGetBoneTailPoseWorld",
+        "LogicNativeGetBoneTailWorld",
+        "LogicNativeGetCharacterInfo",
+        "LogicNativeGetCollisionGroup",
+        "LogicNativeGetFullscreen",
+        "LogicNativeGetGameProperty",
+        "LogicNativeGetGamePropertyBool",
+        "LogicNativeGetGamePropertyFloat",
+        "LogicNativeGetGamePropertyInt",
+        "LogicNativeGetGamePropertyString",
+        "LogicNativeGetGlobalProperty",
+        "LogicNativeGetInputBinding",
+        "LogicNativeGetItemInfo",
+        "LogicNativeGetLightColor",
+        "LogicNativeGetLightPower",
+        "LogicNativeGetMasterFolder",
+        "LogicNativeGetMaterialFromSlot",
+        "LogicNativeGetMaterialName",
+        "LogicNativeGetMaterialParameter",
+        "LogicNativeGetMaterialSlotCount",
+        "LogicNativeGetMenuPlayer",
+        "LogicNativeGetObjectID",
+        "LogicNativeGetPlayerGamepad",
+        "LogicNativeGetRecipeInfo",
+        "LogicNativeGetResolution",
+        "LogicNativeGetRigidBodyConstraints",
+        "LogicNativeGetTimescale",
+        "LogicNativeGetVSync",
+        "LogicNativeInputAction",
+        "LogicNativeItemCount",
+        "LogicNativeKeyLogger",
+        "LogicNativeKeyboardActive",
+        "LogicNativeListAppend",
+        "LogicNativeListContains",
+        "LogicNativeListFindIndex",
+        "LogicNativeListGlobalProperties",
+        "LogicNativeListLength",
+        "LogicNativeListRemoveIndex",
+        "LogicNativeListRemoveValue",
+        "LogicNativeListSavedVariables",
+        "LogicNativeListSetIndex",
+        "LogicNativeLoadVariable",
+        "LogicNativeLogicTreeStatus",
+        "LogicNativeLoopFromList",
+        "LogicNativeMakeLightUnique",
+        "LogicNativeMatrixToXYZ",
+        "LogicNativeModifyProperty",
+        "LogicNativeMouseWheel",
+        "LogicNativeNone",
+        "LogicNativeNotNone",
+        "LogicNativeObjectsColliding",
+        "LogicNativeOnCollision",
+        "LogicNativeOnConstraintBreak",
+        "LogicNativeOnGameLoaded",
+        "LogicNativeOnPlayerJoin",
+        "LogicNativePauseSound",
+        "LogicNativePlayAction",
+        "LogicNativePlaySound",
+        "LogicNativePlaySound3D",
+        "LogicNativeRandomValue",
+        "LogicNativeRaycast",
+        "LogicNativeRaycastAll",
+        "LogicNativeRebuildCollisionShape",
+        "LogicNativeReceiveEvent",
+        "LogicNativeRemoveObject",
+        "LogicNativeResizeVector",
+        "LogicNativeResumeSound",
+        "LogicNativeScreenToWorld",
+        "LogicNativeSendEvent",
+        "LogicNativeSeparateEuler",
+        "LogicNativeSeparateXY",
+        "LogicNativeSetBoneConstraintAttribute",
+        "LogicNativeSetBoneConstraintInfluence",
+        "LogicNativeSetBoneConstraintTarget",
+        "LogicNativeSetBonePoseLocation",
+        "LogicNativeSetBonePoseRotation",
+        "LogicNativeSetBonePoseScale",
+        "LogicNativeSetBonePoseTransform",
+        "LogicNativeSetCharacterGravity",
+        "LogicNativeSetCharacterJumpSpeed",
+        "LogicNativeSetCharacterMaxJumps",
+        "LogicNativeSetCharacterVelocity",
+        "LogicNativeSetCharacterWalkDirection",
+        "LogicNativeSetCollisionGroup",
+        "LogicNativeSetDynamics",
+        "LogicNativeSetGameProperty",
+        "LogicNativeSetGeometryNodesInput",
+        "LogicNativeSetLightColor",
+        "LogicNativeSetLightPower",
+        "LogicNativeSetLightShadow",
+        "LogicNativeSetMaterialParameter",
+        "LogicNativeSetMaterialSlot",
+        "LogicNativeSetNodeMute",
+        "LogicNativeSetPhysics",
+        "LogicNativeSetRigidBodyAttribute",
+        "LogicNativeSetShapeKeyValue",
+        "LogicNativeSetText",
+        "LogicNativeSetVolume",
+        "LogicNativeShapeCast",
+        "LogicNativeShapeCastAll",
+        "LogicNativeSlowFollow",
+        "LogicNativeStopAllSounds",
+        "LogicNativeStopSound",
+        "LogicNativeSwitchFlowInt",
+        "LogicNativeSwitchFlowString",
+        "LogicNativeTime",
+        "LogicNativeToggleProperty",
+        "LogicNativeTweenValue",
+        "LogicNativeValueChanged",
+        "LogicNativeValueChangedTo",
+        "LogicNativeValueValid",
+        "LogicNativeVehicleAccelerate",
+        "LogicNativeVehicleBrake",
+        "LogicNativeVehicleControl",
+        "LogicNativeVehicleSetAttributes",
+        "LogicNativeVehicleSteer",
+        "LogicNativeWhilePaused",
+        "LogicNativeWorldToScreen",
+        "LogicNativeXYZToMatrix",
+    };
+    std::vector<std::pair<std::string, int>> out;
+    for (const char *idname : accepted) {
+      out.emplace_back(idname, 1);
+    }
+    for (const auto &entry : ProbedFamilyNames()) {
+      out.push_back(entry);
+    }
+    return out;
+  }();
+  return names;
 }
 
 inline const std::vector<Family> &FamilyTable()
@@ -358,6 +627,41 @@ inline const std::vector<Family> &FamilyTable()
                  {"Vector", "Orientation", "Position", "Scale", "Name"},
                  ObjectAttributeOutputOk});
     t.push_back({"LogicNativeGetDistance", Role::Data, 3, {0, 1}, {0, 1}, {"Distance", "Squared Distance", "Valid"}, nullptr, {}, true});
+    /* Added in plan C1-7 (nodes the columns gained). */
+    t.push_back({"LogicNativeBooleanEdge", Role::Event, 2});
+    t.push_back({"LogicNativeFlowGate", Role::Flow, 2, {}, {}, {"Is Open"}});
+    t.push_back({"LogicNativeTranslate", Role::Flow, 3, {}, {}, {}, nullptr, {}, false, true});
+    t.push_back({"LogicNativeMoveToward", Role::Flow, 3, {}, {}, {}, nullptr, {}, false, true});
+    t.push_back({"LogicNativeRotateToward", Role::Flow, 2, {}, {}, {}, nullptr, {}, false, true});
+    t.push_back({"LogicNativeAlignAxisToVector", Role::Flow, 2, {}, {}, {}, nullptr, {}, false, true});
+    t.push_back({"LogicNativeHasProperty", Role::Data, 1});
+    t.push_back({"LogicNativeGetGravity", Role::Data, 1});
+    t.push_back({"LogicNativeBarrier", Role::Flow, 2});
+    /* Positions, orientations (Value as Euler angles), velocities, scales, color, visibility;
+     * every axis. */
+    t.push_back({"LogicNativeSetObjectAttribute", Role::Flow, 3, {0, 1, 2, 3, 5, 6, 7, 8, 9, 11, 12, 13}, {15}, {}, nullptr, {}, false, true});
+    t.push_back({"LogicNativeEuler", Role::Data, 2});
+    t.push_back({"LogicNativeColorRGBA", Role::Data, 1});
+    /* Plan C2 P0: rows worked out from descriptors (AutoFamilyNames), never twice. */
+    for (const auto &[idname, weight] : AutoFamilyNames()) {
+      const bool listed = std::any_of(t.begin(), t.end(), [&](const Family &family) {
+        return idname == family.idname;
+      });
+      if (listed) {
+        continue;
+      }
+      if (std::optional<Family> family = AutoFamily(idname.c_str(), weight)) {
+        /* A probed name (UPBGE_LN_DIFF_EXTRA_FAMILIES) is in every random tree. */
+        const auto &probed = ProbedFamilyNames();
+        family->accepted_row = std::none_of(
+            probed.begin(), probed.end(), [&](const auto &entry) { return entry.first == idname; });
+        t.push_back(*family);
+      }
+      else {
+        std::fprintf(stderr, "extra family skipped: %s (the generator cannot feed it)\n",
+                     idname.c_str());
+      }
+    }
     return t;
   }();
   return table;
@@ -386,7 +690,18 @@ struct GenNode {
   std::deque<blender::bNodeSocketValueRotation> rotations;
   std::deque<blender::bNodeSocketValueRGBA> colors;
   std::deque<blender::bNodeSocketValueObject> objects;
+  /* Plan C2 P0: asset pins of a TreeBuilder with real sockets (SetRealSockets). */
+  std::deque<blender::bNodeSocketValueCollection> collections;
+  std::deque<blender::bNodeSocketValueMaterial> materials;
+  std::deque<blender::bNodeSocketValueImage> images;
+  std::deque<blender::bNodeSocketValueSound> sounds;
+  std::deque<blender::bNodeSocketValueFont> fonts;
+  std::deque<blender::bNodeSocketValueText> texts;
   std::deque<std::string> names;
+  /** The editor's socket types for the pins the generator leaves untyped: collision layers as
+   * ints, collections / materials / images / sounds / fonts / texts with their own values, a
+   * scene by its name. Off for the random generator (its trees and goldens stay as they are). */
+  bool real_sockets = false;
   const NodeMetadata *meta = nullptr;
   const Family *family = nullptr;
   /** The descriptors' pins, one per socket (variadic pins repeated with numbered names). */
@@ -454,6 +769,45 @@ struct GenNode {
         datatype = blender::SOCK_CUSTOM;
         break;
     }
+    if (real_sockets && datatype == blender::SOCK_CUSTOM) {
+      switch (pin.type) {
+        case PinType::CollisionLayers:
+          datatype = blender::SOCK_INT;
+          default_value = input ? &ints.emplace_back() : nullptr;
+          break;
+        case PinType::Collection:
+          datatype = blender::SOCK_COLLECTION;
+          default_value = input ? &collections.emplace_back() : nullptr;
+          break;
+        case PinType::Material:
+          datatype = blender::SOCK_MATERIAL;
+          default_value = input ? &materials.emplace_back() : nullptr;
+          break;
+        case PinType::Image:
+          datatype = blender::SOCK_IMAGE;
+          default_value = input ? &images.emplace_back() : nullptr;
+          break;
+        case PinType::Sound:
+          datatype = blender::SOCK_SOUND;
+          default_value = input ? &sounds.emplace_back() : nullptr;
+          break;
+        case PinType::Font:
+          datatype = blender::SOCK_FONT;
+          default_value = input ? &fonts.emplace_back() : nullptr;
+          break;
+        case PinType::Text:
+          datatype = blender::SOCK_TEXT_ID;
+          default_value = input ? &texts.emplace_back() : nullptr;
+          break;
+        case PinType::Scene:
+          /* (The compiler reads a scene pin's default as its name.) */
+          datatype = blender::SOCK_STRING;
+          default_value = input ? &strings.emplace_back() : nullptr;
+          break;
+        default:
+          break;
+      }
+    }
     InitSocketWithIdentifier(socket,
                              pin.identifier,
                              pin.ui_name,
@@ -492,6 +846,18 @@ struct GenNode {
            family->output_ok(node.custom1, node.custom2, identifier);
   }
 };
+
+/** Plan C1-9: the Blender objects "Leader" and "Turret" (a finder world's root object and the
+ * owners' children's name, Get Child By Name's hint). */
+inline blender::Object &FinderBlenderObject(const char *name)
+{
+  static blender::Object leader, turret;
+  static const bool named = (SetCString(leader.id.name, "OBLeader"),
+                             SetCString(turret.id.name, "OBTurret"),
+                             true);
+  (void)named;
+  return std::string(name) == "Leader" ? leader : turret;
+}
 
 /** The Blender object a constant object input points at; the world's "Target" has its name. */
 inline blender::Object &TargetBlenderObject()
@@ -607,6 +973,21 @@ class TreeGen {
     m_excluded = idnames;
   }
 
+  /** Plan C1-9: Object inputs may take objects found while playing (Get Object By Name, Get
+   * Child, Get Child By Name, Get Object, Get Owner) and numbers may come from Get Average Center
+   * Position of an object list. Off by default (the goldens' trees stay as recorded); run such a
+   * tree in a world with `RunOptions::finder_world`. */
+  void SetObjectFinders(const bool on)
+  {
+    m_finders = on;
+  }
+
+  /** Plan C2 P0: the trees also take the accepted rows (Family::accepted_row). */
+  void SetAcceptedFamilies(const bool on)
+  {
+    m_accepted = on;
+  }
+
   /** The tree's property reads become constants with the values of `values` (the folded twin of
    * a tree: the compiler folds what has only constant inputs). Null: live reads. */
   void SetFold(const FoldValues *values)
@@ -621,6 +1002,10 @@ class TreeGen {
     for (int index = 0; index < roots; index++) {
       GenNode *event = AddFamilyNode(PickFamily(Role::Event));
       m_result->events++;
+      {
+        const std::string root = event->meta->idname;
+        m_root_fixed = root == "LogicNativeOnFixedUpdate" || root == "LogicNativeBooleanEdge";
+      }
       const size_t exec = FirstExecOutput(*event);
       if (event->family->data_outputs.size() == 1) {
         PoolAdd(*event, 1); /* On Logic + Physics Step's Time Passed */
@@ -700,7 +1085,8 @@ class TreeGen {
       SetCustom(*node, custom1, custom2);
       return std::move(m_result);
     }
-    GenNode *event = AddFamilyNode(*FindFamily("LogicNativeOnUpdate"));
+    GenNode *event = AddFamilyNode(
+        *FindFamily(family.fixed_only ? "LogicNativeOnFixedUpdate" : "LogicNativeOnUpdate"));
     GenNode *node = AddFamilyNode(family);
     SetCustom(*node, custom1, custom2);
     size_t exec_input = 0;
@@ -731,8 +1117,18 @@ class TreeGen {
   /** Probes read every input from a live source: constants would be folded by the compiler and
    * the runtime kinds behind them would never run. */
   bool m_live_inputs = false;
+  bool m_finders = false;
+  bool m_accepted = false;
   const FoldValues *m_fold = nullptr;
   std::set<std::string> m_excluded;
+  /** The root being built is a Logic + Physics Step event: fixed-only flow nodes may follow. */
+  bool m_root_fixed = false;
+
+  bool Picks(const Family &family, const Role role) const
+  {
+    return family.role == role && m_excluded.count(family.idname) == 0 &&
+           (!family.fixed_only || m_root_fixed) && (!family.accepted_row || m_accepted);
+  }
 
   void SetCustom(GenNode &node, const int16_t custom1, const int16_t custom2)
   {
@@ -746,13 +1142,13 @@ class TreeGen {
   {
     int total = 0;
     for (const Family &family : FamilyTable()) {
-      if (family.role == role && m_excluded.count(family.idname) == 0) {
+      if (Picks(family, role)) {
         total += family.weight;
       }
     }
     int roll = int(m_rng.below(uint32_t(total)));
     for (const Family &family : FamilyTable()) {
-      if (family.role != role || m_excluded.count(family.idname) != 0) {
+      if (!Picks(family, role)) {
         continue;
       }
       if (roll < family.weight) {
@@ -769,7 +1165,9 @@ class TreeGen {
     std::vector<const Family *> fitting;
     int total = 0;
     for (const Family &family : FamilyTable()) {
-      if (family.role != Role::Data || m_excluded.count(family.idname) != 0) {
+      if (family.role != Role::Data || m_excluded.count(family.idname) != 0 ||
+          (family.accepted_row && !m_accepted))
+      {
         continue;
       }
       const NodeMetadata *meta = blender::nodes::logic::find_logic_node_metadata(family.idname);
@@ -816,6 +1214,7 @@ class TreeGen {
     GenNode &gen = *owned;
     gen.meta = meta;
     gen.family = &family;
+    gen.real_sockets = family.real_sockets;
     const int32_t identifier = m_result->next_identifier++;
     InitNode(gen.node,
              family.idname,
@@ -914,6 +1313,9 @@ class TreeGen {
       const Family &family = PickFamily(Role::Flow);
       GenNode *node = AddFamilyNode(family);
       left--;
+      if (std::string(family.idname) == "LogicNativeOnNextFrame") {
+        m_root_fixed = false; /* its Completed route runs on the next frame */
+      }
       /* The first execution input takes the flow. */
       size_t exec_input = SIZE_MAX;
       for (size_t index = 0; index < node->inputs.size(); index++) {
@@ -1087,12 +1489,18 @@ class TreeGen {
         continue;
       }
       if (category == Cat::Object) {
+        if (m_finders && m_rng.chance(0.5)) {
+          GenNode *finder = MakeFinder(depth + 1);
+          Link(*finder, 0, node, index);
+        }
         continue; /* empty: the owner (End B of Get Distance is set below) */
       }
       if (idname == "LogicNativeGate") {
         continue; /* the one multi-link input is filled below */
       }
-      if (std::string(pin.identifier) == "Property") {
+      if (std::string(pin.identifier) == "Property" ||
+          (idname == "LogicNativeHasProperty" && std::string(pin.identifier) == "Name"))
+      {
         SetPropertyName(node, index);
         continue;
       }
@@ -1188,6 +1596,17 @@ class TreeGen {
     else if (idname.find("String") != std::string::npos) {
       names = &StringNames();
     }
+    else if (idname == "LogicNativeHasProperty") {
+      /* Any kind of property, or one no object has. */
+      static const std::vector<std::string> has_names = [] {
+        std::vector<std::string> all = FloatNames();
+        all.insert(all.end(), IntNames().begin(), IntNames().end());
+        all.insert(all.end(), BoolNames().begin(), BoolNames().end());
+        all.push_back("nowhere");
+        return all;
+      }();
+      names = &has_names;
+    }
     SetCString(
         static_cast<blender::bNodeSocketValueString *>(node.inputs[index]->default_value)->value,
         m_rng.pick(*names).c_str());
@@ -1244,6 +1663,12 @@ class TreeGen {
         break;
       }
       default:
+        /* Collision layers (real sockets): the pin's default (every layer), no random mask. */
+        if (node.real_sockets && node.in_pins[index].type == PinType::CollisionLayers) {
+          const char *text = node.in_pins[index].default_value;
+          static_cast<blender::bNodeSocketValueInt *>(value)->value =
+              text != nullptr ? int32_t(std::strtol(text, nullptr, 0)) : 0;
+        }
         break;
     }
     if (std::string(node.meta->idname) == "LogicNativeFormattedString" && pin == "Format String") {
@@ -1255,8 +1680,118 @@ class TreeGen {
 
   /** A data source of category `wanted`: a leaf (a property read), a node of the table, or an
    * output already made (a shared source: a DAG, and a state node read twice). */
+  /** Plan C1-9: the finder families (made only with SetObjectFinders). */
+  static const Family &FinderFamily(const char *idname)
+  {
+    static const std::vector<Family> families = {
+        {"LogicNativeObjectByName", Role::Data, 1, {}, {}, {}, nullptr, {}, true},
+        {"LogicNativeGetChild", Role::Data, 1, {}, {}, {}, nullptr, {}, true},
+        {"LogicNativeGetChildByName", Role::Data, 1, {}, {}, {}, nullptr, {}, true},
+        {"LogicNativeFindObject", Role::Data, 1, {}, {}, {}, nullptr, {}, true},
+        {"LogicNativeGetOwner", Role::Data, 1},
+        /* Plan C1-10: a parent of a find, a name the owner keeps in a text property. */
+        {"LogicNativeGetParent", Role::Data, 1, {}, {}, {}, nullptr, {}, true},
+        {"LogicNativeGetGamePropertyString", Role::Data, 1},
+        {"LogicNativeListFromItems", Role::Data, 1, {10}},
+        {"LogicNativeGetAverageCenterPosition", Role::Data, 1, {1}, {}, {}, nullptr, {}, true},
+    };
+    for (const Family &family : families) {
+      if (std::string(family.idname) == idname) {
+        return family;
+      }
+    }
+    return families.front();
+  }
+
+  /** An object found while playing (a node whose first output is the object). */
+  GenNode *MakeFinder(const int depth)
+  {
+    const uint32_t roll = m_rng.below(7);
+    if (roll == 5 && depth < m_max_depth + 2) {
+      /* Plan C1-10: the parent of another find (a turret's NPC, an NPC's none). */
+      GenNode *node = AddFamilyNode(FinderFamily("LogicNativeGetParent"));
+      GenNode *child = MakeFinder(depth + 1);
+      Link(*child, 0, *node, 0);
+      return node;
+    }
+    if (roll == 6) {
+      /* Plan C1-10: the object named by the owner's text property "fname" (RunOptions::
+       * finder_world gives the owners one: the Target, an NPC, Turret, Leader, nobody, nothing). */
+      GenNode *node = AddFamilyNode(FinderFamily("LogicNativeObjectByName"));
+      GenNode *name = AddFamilyNode(FinderFamily("LogicNativeGetGamePropertyString"));
+      SetCString(static_cast<blender::bNodeSocketValueString *>(
+                     name->inputs[In(*name, "Property")]->default_value)
+                     ->value,
+                 "fname");
+      Link(*name, 0, *node, In(*node, "Name"));
+      return node;
+    }
+    if (roll == 0) {
+      GenNode *node = AddFamilyNode(FinderFamily("LogicNativeObjectByName"));
+      static const char *const names[] = {"Target", "Obj1", "Turret", "Leader", "Nobody"};
+      SetCString(static_cast<blender::bNodeSocketValueString *>(
+                     node->inputs[In(*node, "Name")]->default_value)
+                     ->value,
+                 names[m_rng.below(5)]);
+      return node;
+    }
+    if (roll == 1 || roll == 2) {
+      GenNode *node = AddFamilyNode(FinderFamily(roll == 1 ? "LogicNativeGetChild" :
+                                                             "LogicNativeGetChildByName"));
+      GenNode *owner = AddFamilyNode(FinderFamily("LogicNativeGetOwner"));
+      Link(*owner, 0, *node, 0);
+      if (roll == 2) {
+        static_cast<blender::bNodeSocketValueObject *>(
+            node->inputs[In(*node, "Child")]->default_value)
+            ->value = &FinderBlenderObject("Turret");
+      }
+      return node;
+    }
+    if (roll == 3) {
+      GenNode *node = AddFamilyNode(FinderFamily("LogicNativeFindObject"));
+      static_cast<blender::bNodeSocketValueObject *>(node->inputs[0]->default_value)->value =
+          m_rng.chance(0.5) ? &TargetBlenderObject() : &FinderBlenderObject("Leader");
+      return node;
+    }
+    (void)depth;
+    return AddFamilyNode(FinderFamily("LogicNativeGetOwner"));
+  }
+
+  /** Get Average Center Position of a list of one to three objects found as MakeFinder finds
+   * them: its Center, Count or Valid. */
+  std::optional<Source> MakeAverage(const Cat wanted, const int depth)
+  {
+    GenNode *list = AddFamilyNode(FinderFamily("LogicNativeListFromItems"));
+    SetCustom(*list, 10, 0); /* the Objects input */
+    const size_t items = In(*list, "Objects");
+    const int count = 1 + int(m_rng.below(3));
+    for (int item = 0; item < count; item++) {
+      GenNode *finder = MakeFinder(depth + 1);
+      InitLink(m_result->links.emplace_back(),
+               finder->node,
+               *finder->outputs[0],
+               list->node,
+               *list->inputs[items]);
+      Append(m_result->tree.links, m_result->links.back());
+      list->input_linked[items] = true;
+    }
+    GenNode *average = AddFamilyNode(FinderFamily("LogicNativeGetAverageCenterPosition"));
+    SetCustom(*average, 1, 0); /* Object List */
+    Link(*list, Out(*list, "Objects"), *average, In(*average, "Objects"));
+    const char *output = wanted == Cat::Vector ? "Center" : wanted == Cat::Int ? "Count" : "Valid";
+    const size_t out = Out(*average, output);
+    Source source{average, out, average->output_category(out)};
+    m_pool[wanted].push_back(source);
+    return source;
+  }
+
   std::optional<Source> MakeData(const Cat wanted, const int depth)
   {
+    if (m_finders && depth < m_max_depth &&
+        (wanted == Cat::Vector || wanted == Cat::Int || wanted == Cat::Bool) && m_rng.chance(0.15))
+    {
+      return MakeAverage(wanted, depth);
+    }
     std::vector<Source> &pool = m_pool[wanted];
     if (!pool.empty() && m_rng.chance(0.3)) {
       return pool[m_rng.below(uint32_t(pool.size()))];
@@ -1381,6 +1916,7 @@ class TreeBuilder {
     auto owned = std::make_unique<GenNode>();
     GenNode &gen = *owned;
     gen.meta = meta;
+    gen.real_sockets = m_real_sockets;
     const int32_t identifier = m_result->next_identifier++;
     InitNode(gen.node,
              idname,
@@ -1464,6 +2000,50 @@ class TreeBuilder {
     static_cast<blender::bNodeSocketValueObject *>(Default(node, pin))->value = object;
   }
 
+  /** Nodes added from now on get the editor's socket types for collision layers and asset pins
+   * (GenNode::real_sockets). */
+  void SetRealSockets(const bool on)
+  {
+    m_real_sockets = on;
+  }
+  /** An asset pin's value (a node added with real sockets): the ID by the socket's type. */
+  void Asset(GenNode &node, const char *pin, blender::ID *id)
+  {
+    blender::bNodeSocket &socket = *node.inputs[PinIndex(node.in_pins, pin)];
+    switch (socket.type) {
+      case blender::SOCK_COLLECTION:
+        static_cast<blender::bNodeSocketValueCollection *>(socket.default_value)->value =
+            reinterpret_cast<blender::Collection *>(id);
+        break;
+      case blender::SOCK_MATERIAL:
+        static_cast<blender::bNodeSocketValueMaterial *>(socket.default_value)->value =
+            reinterpret_cast<blender::Material *>(id);
+        break;
+      case blender::SOCK_IMAGE:
+        static_cast<blender::bNodeSocketValueImage *>(socket.default_value)->value =
+            reinterpret_cast<blender::Image *>(id);
+        break;
+      case blender::SOCK_SOUND:
+        static_cast<blender::bNodeSocketValueSound *>(socket.default_value)->value =
+            reinterpret_cast<blender::bSound *>(id);
+        break;
+      case blender::SOCK_FONT:
+        static_cast<blender::bNodeSocketValueFont *>(socket.default_value)->value =
+            reinterpret_cast<blender::VFont *>(id);
+        break;
+      case blender::SOCK_TEXT_ID:
+        static_cast<blender::bNodeSocketValueText *>(socket.default_value)->value =
+            reinterpret_cast<blender::Text *>(id);
+        break;
+      case blender::SOCK_OBJECT:
+        static_cast<blender::bNodeSocketValueObject *>(socket.default_value)->value =
+            reinterpret_cast<blender::Object *>(id);
+        break;
+      default:
+        break;
+    }
+  }
+
   /** The value nodes (Value String / Color ...) keep their value on the output socket. */
   void OutputString(GenNode &node, const char *pin, const char *value)
   {
@@ -1500,6 +2080,7 @@ class TreeBuilder {
 
  private:
   std::unique_ptr<GeneratedTree> m_result;
+  bool m_real_sockets = false;
 
   static size_t PinIndex(const std::vector<PinMetadata> &pins, const char *identifier)
   {
@@ -1582,6 +2163,14 @@ class TreeBuilder {
         }
         break;
       default:
+        if (gen.real_sockets && pin.type == PinType::CollisionLayers) {
+          static_cast<blender::bNodeSocketValueInt *>(value)->value = numbers.empty() ?
+                                                                           0 :
+                                                                           int32_t(numbers[0]);
+        }
+        else if (gen.real_sockets && pin.type == PinType::Scene) {
+          SetCString(static_cast<blender::bNodeSocketValueString *>(value)->value, text.c_str());
+        }
         break;
     }
   }
@@ -1601,9 +2190,6 @@ struct RunOptions {
   /** The lean VM (plan phase A16): -1 as set (environment or test setter), 0 the old interpreter,
    * 1 Auto, 2 Force. Results must not depend on it. */
   int lean = -1;
-  /** Block execution (plan phase B1): -1 as set (environment or test setter), 0 off, 1 Auto,
-   * 2 Force. Only inside a tree batch (chunks > 0). Results must not depend on it. */
-  int blocks = -1;
   /** Compiled routes (plan phase A33): -1 as set (environment or test setter), 0 off, 1 on. Results
    * must not depend on it. */
   int routes = -1;
@@ -1616,11 +2202,26 @@ struct RunOptions {
   uint32_t helpers = 0;
   /** Add every tree's state meaning to the text. */
   bool states = true;
+  /** Plan C1: trees whose program lowers run in columns (LN_Columns.h, runs of any length). */
+  bool columns = false;
+  /** The text holds only the world after every tick (a column run records no commands and keeps
+   * no tree bookkeeping: what a VM run and a column run are compared by). */
+  bool world_only = false;
   /** Serial recording with a profile counter set per tree, as with UPBGE_LOGIC_NODES_PROFILE. */
   bool profiled = false;
   /** Every owner holds the same property values (FoldValuesFor) and none changes between frames:
    * the setting of the folded-against-runtime pair. */
   bool identical_objects = false;
+  /** Plan C1-9 (trees made with TreeGen::SetObjectFinders): two owners in three get a child
+   * "Turret" (half a metre beside, a metre over them), and a root "Leader" stands apart. */
+  bool finder_world = false;
+  /** Plan C2 P2: owners in a hierarchy: owner 1, 4, 7... is a child of the owner before it (a
+   * cart and its turret, both with the tree), owner 2, 5, 8... a child of the Target (the
+   * object the trees measure by name). */
+  bool parented_owners = false;
+  /** Plan C2 P2: every owner has the tree twice (applied tree indices 0 and 1, as an object's
+   * trees): groups, or alone in their places where no group takes them (parented owners). */
+  bool two_trees = false;
 };
 
 struct RunResult {
@@ -1631,6 +2232,9 @@ struct RunResult {
   /** Something no variant may do (a batch safety net firing, a Warning). */
   std::string failure;
   bool batched = false;
+  /** Columns: the reasons ticks planned no lanes (each once), and the lanes run. */
+  std::string column_refusals;
+  uint64_t column_lanes = 0;
   uint64_t tree_runs = 0;
   uint64_t warnings = 0;
 };
@@ -1675,6 +2279,9 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
 {
   RunResult result;
   Rng world(options.world_seed);
+  /* A run prints its own command warnings, whatever ran before it in the process (they print
+   * once per process in the game: two runs of one tree differed in them). */
+  LN_ResetCommandFailureWarningsForTests();
   /* What the run prints (the Print node, warnings) is caught once for the whole run: a capture
    * costs a temporary file. */
   testing::internal::CaptureStdout();
@@ -1731,6 +2338,41 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
       }
     }
   }
+  if (options.finder_world) {
+    /* Plan C1-10: a name each owner keeps (TreeGen's "fname" finds): the Target, another owner,
+     * the first Turret, the Leader, nobody, nothing. */
+    for (uint32_t index = 0; index < options.objects; index++) {
+      const std::string other = "Obj" + std::to_string((index + 1) % options.objects);
+      const std::string names[] = {"Target", other, "Turret", "Leader", "Nobody", ""};
+      objects[index].object.SetProperty(
+          "fname", new EXP_StringValue(names[(index * 5 + 1) % 6], "fname"));
+    }
+    for (uint32_t index = 0; index < options.objects; index++) {
+      if (index % 3 == 2) {
+        continue;
+      }
+      objects.emplace_back(MT_Vector3(0.5f, 0.0f, 1.0f));
+      BatchObject &turret = objects.back();
+      turret.object.SetName("Turret");
+      turret.node.SetParentRelation(new KX_NormalParentRelation());
+      objects[index].node.AddChild(&turret.node);
+      objects[index].object.NodeUpdateGS(0.0);
+    }
+    objects.emplace_back(MT_Vector3(-3.0f, 2.0f, 0.25f));
+    objects.back().object.SetName("Leader");
+  }
+  if (options.parented_owners) {
+    BatchObject &target = objects[options.objects];
+    for (uint32_t index = 1; index < options.objects; index++) {
+      if (index % 3 == 0) {
+        continue;
+      }
+      BatchObject &parent = index % 3 == 1 ? objects[index - 1] : target;
+      objects[index].node.SetParentRelation(new KX_NormalParentRelation());
+      parent.node.AddChild(&objects[index].node);
+      parent.object.NodeUpdateGS(0.0);
+    }
+  }
   std::vector<KX_GameObject *> world_objects;
   for (BatchObject &object : objects) {
     world_objects.push_back(&object.object);
@@ -1742,23 +2384,41 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
   std::vector<std::unique_ptr<LN_RuntimeTree>> trees;
   std::vector<LN_RuntimeTree *> tree_pointers;
   for (uint32_t index = 0; index < options.objects; index++) {
-    trees.push_back(std::make_unique<LN_RuntimeTree>(program, &objects[index].object, index, 0));
-    trees.back()->SetStepSpread(index);
-    tree_pointers.push_back(trees.back().get());
+    for (uint32_t k = 0; k < (options.two_trees ? 2u : 1u); k++) {
+      trees.push_back(std::make_unique<LN_RuntimeTree>(program, &objects[index].object, index, k));
+      trees.back()->SetStepSpread(uint32_t(trees.size() - 1));
+      /* each owner has this one tree, or two */
+      trees.back()->GetBatchNote().sole_tree = !options.two_trees;
+      tree_pointers.push_back(trees.back().get());
+    }
   }
+  /* Plan C1: the column runner of the run (columns on only for it). */
+  struct ColumnModeScope {
+    explicit ColumnModeScope(const bool on) : on(on)
+    {
+      if (on) {
+        LN_SetColumnModeForTests(1);
+      }
+    }
+    ~ColumnModeScope()
+    {
+      if (on) {
+        LN_SetColumnModeForTests(-1);
+      }
+    }
+    bool on;
+  } column_mode(options.columns);
+  LN_ColumnRunner column_runner;
+  column_runner.SetMinRunLanes(1);
 
   struct MemoScope {
-    MemoScope(const int mode, const int lean_mode, const int block_mode, const int route_mode)
+    MemoScope(const int mode, const int lean_mode, const int route_mode)
     {
       LN_RuntimeTree::SetMemoForTests(mode);
       if (lean_mode >= 0) {
         LN_SetLeanModeForTests(lean_mode);
       }
       restore_lean = lean_mode >= 0;
-      if (block_mode >= 0) {
-        LN_SetBlockModeForTests(block_mode);
-      }
-      restore_blocks = block_mode >= 0;
       if (route_mode >= 0) {
         LN_SetRouteModeForTests(route_mode);
       }
@@ -1777,9 +2437,6 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
       if (restore_lean) {
         LN_SetLeanModeForTests(-1);
       }
-      if (restore_blocks) {
-        LN_SetBlockModeForTests(-1);
-      }
       if (restore_routes) {
         LN_SetRouteModeForTests(-1);
       }
@@ -1788,10 +2445,9 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
       }
     }
     bool restore_lean = false;
-    bool restore_blocks = false;
     bool restore_routes = false;
     bool restore_lean_memo = false;
-  } memo_scope(options.memo, options.lean, options.blocks, options.routes);
+  } memo_scope(options.memo, options.lean, options.routes);
   memo_scope.SetLeanMemo(options.lean_memo);
   const bool eligible = program->GetTreeBatchProfile().eligible;
 
@@ -1834,19 +2490,47 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
     read.fps = 60.0f;
     read.tick_index = context.tick_index;
     read.has_gravity = true;
-    for (LN_RuntimeTree *tree : runnable) {
-      if (tree->ShouldCaptureSnapshot()) {
-        tree->CaptureSnapshot(&read, float(step), context.tick_index, false);
+    const bool columns = options.columns &&
+                         column_runner.Plan(
+                                             runnable.data(), runnable.size(), event, buffer, nullptr, &read);
+    /* Plan C2 P6: with columns, every tree outside the runs takes the column system's pass, as
+     * the manager records it (whether or not a run was planned). */
+    const bool column_passes = options.columns &&
+                               LN_GetColumnDirectMode() != LN_ColumnDirectMode::Off;
+    if (columns) {
+      result.column_lanes += column_runner.LaneCount();
+    }
+    else if (options.columns &&
+             result.column_refusals.find(column_runner.LastRefusal()) == std::string::npos)
+    {
+      result.column_refusals += column_runner.LastRefusal() + "\n";
+    }
+    for (size_t index = 0; index < runnable.size(); index++) {
+      /* As the manager: a lane's tree captures only its properties (a bridged one all of it). */
+      if (columns && runnable[index]->IsColumnLane()) {
+        continue;
+      }
+      if (runnable[index]->ShouldCaptureSnapshot()) {
+        runnable[index]->CaptureSnapshot(&read, float(step), context.tick_index, false);
       }
     }
-    for (LN_RuntimeTree *tree : runnable) {
-      tree->WarmQueryCache(context);
+    if (columns) {
+      column_runner.CaptureLanes(context.tick_index, nullptr);
+    }
+    for (size_t index = 0; index < runnable.size(); index++) {
+      if (!(columns && column_runner.IsLane(index))) {
+        runnable[index]->WarmQueryCache(context);
+      }
     }
 
     buffer.Clear();
     buffer.BeginRecording();
     size_t at = 0;
     while (at < runnable.size()) {
+      if (columns && column_runner.IsLane(at)) {
+        at = column_runner.RunLanes(at, buffer, context, nullptr);
+        continue;
+      }
       size_t end = at;
       if (options.chunks > 0 && eligible) {
         while (end < runnable.size() && runnable[end]->IsInitExecuted()) {
@@ -1854,6 +2538,7 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
         }
       }
       if (end - at >= 2) {
+        recorder.SetColumnPasses(column_passes);
         const size_t read_a_move = recorder.Record(pool,
                                                    buffer,
                                                    runnable.data() + at,
@@ -1871,7 +2556,15 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
       }
       else {
         LN_RuntimeProfileCounters counters;
-        runnable[at]->ExecuteReady(buffer, context, options.profiled ? &counters : nullptr);
+        /* Plan C2 P6: with columns, as the manager: the column system's pass. */
+        if (column_passes) {
+          runnable[at]->ColumnExecuteReady(
+              buffer, context, options.profiled ? &counters : nullptr);
+          LN_AddColumnPasses(1);
+        }
+        else {
+          runnable[at]->ExecuteReady(buffer, context, options.profiled ? &counters : nullptr);
+        }
         at++;
       }
     }
@@ -1885,14 +2578,63 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
      * as the last dump shows it (and the final dump below). Trees that did not run keep their
      * state, so only the ones that ran are dumped each tick. */
     const bool recorded = buffer.Size() > 0;
+    /* Forces and torques (plan C2 P5: no physics here to show them), in the text only when some
+     * were applied (the goldens' seeds apply none). */
+    std::string forces;
+    /* UPBGE_LN_DIFF_FORCES=0: without them (the text recorded before plan C2 P5, so the goldens
+     * of then can show that the forces are their only change). */
+    static const bool note_forces = [] {
+      const char *value = std::getenv("UPBGE_LN_DIFF_FORCES");
+      return value == nullptr || std::strcmp(value, "0") != 0;
+    }();
+    const auto flush_noting_forces = [&]() {
+      if (!note_forces) {
+        buffer.Flush();
+        return;
+      }
+      LN_SetForceObserverForTests(
+          [](void *user,
+             const KX_GameObject *object,
+             const MT_Vector3 &vector,
+             const bool local,
+             const bool torque) {
+            *static_cast<std::string *>(user) +=
+                (object != nullptr ? const_cast<KX_GameObject *>(object)->GetName() :
+                                     std::string("-")) +
+                (torque ? " torque " : " force ") + LN_DumpFloatBits(vector.x()) + "," +
+                LN_DumpFloatBits(vector.y()) + "," + LN_DumpFloatBits(vector.z()) +
+                (local ? " local\n" : "\n");
+          },
+          &forces);
+      buffer.Flush();
+      LN_SetForceObserverForTests(nullptr, nullptr);
+    };
+    if (options.world_only) {
+      flush_noting_forces();
+      if (columns) {
+        column_runner.EndTick();
+      }
+      result.text += DumpWorld(world_objects);
+      if (!forces.empty()) {
+        result.text += "forces:\n" + forces;
+      }
+      time += step;
+      return;
+    }
     if (recorded) {
       result.text += "-- record\n" + buffer.DumpRecordedForTests(Order::Record);
       result.text += "-- flush\n" + buffer.DumpRecordedForTests(Order::Flush);
       result.text += "-- coalesced\n" + buffer.DumpRecordedForTests(Order::FlushCoalesced);
     }
-    buffer.Flush();
+    flush_noting_forces();
+    if (columns) {
+      column_runner.EndTick();
+    }
     if (recorded) {
       result.text += "-- after flush\n" + DumpWorld(world_objects);
+    }
+    if (!forces.empty()) {
+      result.text += "forces:\n" + forces;
     }
     if (options.states) {
       for (LN_RuntimeTree *tree : runnable) {
@@ -1940,7 +2682,7 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
 
   result.final_world = DumpWorld(world_objects);
   result.text += "== end\n" + result.final_world;
-  if (options.states) {
+  if (options.states && !options.world_only) {
     for (size_t index = 0; index < tree_pointers.size(); index++) {
       result.text += "-- state " + std::to_string(index) + "\n" +
                      tree_pointers[index]->DumpStateForTests(tick_index - 1).meaning;
@@ -1949,8 +2691,14 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
   tree_pointers.clear();
   trees.clear();
   LN_SetSceneAccessForTests(nullptr);
-  const std::string printed = testing::internal::GetCapturedStdout();
+  std::string printed = testing::internal::GetCapturedStdout();
   const std::string errors = testing::internal::GetCapturedStderr();
+  /* A NaN's sign is no logic (LN_DumpFloatBits): "-nan" printed as "nan". */
+  for (size_t at = printed.find("-nan"); at != std::string::npos && !LN_DumpNaNAsIs();
+       at = printed.find("-nan", at))
+  {
+    printed.erase(at, 1);
+  }
   result.warnings = CountWarnings(printed) + CountWarnings(errors);
   result.text += "== printed\n" + printed;
   result.final_world += "== printed\n" + printed;

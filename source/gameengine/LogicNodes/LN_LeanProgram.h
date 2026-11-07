@@ -81,10 +81,6 @@ struct LN_LeanOp {
    * LN_LeanProgram::rotation_constants of the rotation its constant Euler vector stands for (the
    * value the generic handler works out at every run as the fallback of the rotation read). */
   uint32_t constant_index = LN_INVALID_INDEX;
-  /** The op may run in a block (plan phase B1): a native op whose commands go to the typed streams
-   * of property writes, transforms, velocities or relative moves (LN_CommandBuffer::BeginBlock),
-   * with no latent state of its own. */
-  bool block_ok = false;
 };
 
 /** Compiled routes (plan phase A33): `UPBGE_LN_ROUTES` = 0 / off (the lean VM walks its blocks op by
@@ -155,9 +151,6 @@ struct LN_LeanEvent {
   /** Every op of the event has a native handler. Auto mode runs the lean VM only for such an
    * event (one with an op that has none stays on the old interpreter); Force runs them all. */
   bool fully_native = true;
-  /** The trees running this event may run it in a block: every op is block_ok and the event is
-   * a plain run of ops (no Loop, no Every N Steps gate, no UI event route). */
-  bool block_ok = false;
 };
 
 struct LN_LeanProgram {

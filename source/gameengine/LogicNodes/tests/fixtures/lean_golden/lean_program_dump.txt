@@ -9,8 +9,8 @@ expressions vector 4
 expressions color 0
 expressions value 0
 expressions query 1
-event OnInit ops=0 blocks=0 fully_native=1 route=0 block_ok=0
-event OnUpdate ops=16 blocks=1 fully_native=1 route=1 block_ok=1
+event OnInit ops=0 blocks=0 fully_native=1 route=0
+event OnUpdate ops=16 blocks=1 fully_native=1 route=1
   [0] Op::Nop exec=0 native=Nop
   [1] Op::SetGameProperty exec=1 native=SetNumber
   [2] Op::BranchRoute exec=2 native=BranchRoute
@@ -27,7 +27,7 @@ event OnUpdate ops=16 blocks=1 fully_native=1 route=1 block_ok=1
   [13] Op::BranchRoute exec=13 native=BranchRoute
   [14] Op::ApplyTransformVector exec=14 native=VectorCommand
   [15] Op::ApplyTransformVector exec=15 native=VectorCommand
-event OnFixedUpdate ops=0 blocks=0 fully_native=1 route=0 block_ok=0
+event OnFixedUpdate ops=0 blocks=0 fully_native=1 route=0
 ----
 lean program valid=1 generic_ops=0 native_ops=14 native_expressions=0 memo=1
 expressions bool 9
@@ -38,9 +38,9 @@ expressions vector 3
 expressions color 0
 expressions value 0
 expressions query 0
-event OnInit ops=0 blocks=0 fully_native=1 route=0 block_ok=0
-event OnUpdate ops=0 blocks=0 fully_native=1 route=0 block_ok=0
-event OnFixedUpdate ops=14 blocks=1 fully_native=1 route=1 block_ok=0
+event OnInit ops=0 blocks=0 fully_native=1 route=0
+event OnUpdate ops=0 blocks=0 fully_native=1 route=0
+event OnFixedUpdate ops=14 blocks=1 fully_native=1 route=1
   [0] Op::Nop exec=0 native=Nop
   [1] Op::SetGameProperty exec=1 native=SetNumber
   [2] Op::BranchRoute exec=2 native=BranchRoute

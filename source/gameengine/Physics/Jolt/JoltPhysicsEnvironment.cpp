@@ -4731,6 +4731,7 @@ void JoltPhysicsEnvironment::SetLogicCollisionContactCacheEnabled(const bool ena
     m_logicCollisionContactsByController.clear();
     m_logicCollisionContactsByObject.clear();
     m_logicActiveContactPairs.clear();
+    m_logicPairsByBodyValid = false;
     m_removedContactPairsScratch.clear();
     m_contactEventsScratch.clear();
     if (!m_collectContactsForCallbacks.load(std::memory_order_relaxed)) {
@@ -6679,6 +6680,7 @@ bool JoltPhysicsEnvironment::RestorePhysicsState(const std::vector<uint8_t> &inB
   m_logicCollisionContactCacheValid = false;
   m_logicCollisionContactDetailsValid = false;
   m_logicActiveContactPairs.clear();
+  m_logicPairsByBodyValid = false;
   m_logicCollisionContacts.clear();
   m_logicObjectSensorOverlapsByController.clear();
   m_logicCollisionContactsByController.clear();
@@ -6722,6 +6724,7 @@ bool JoltPhysicsEnvironment::RestorePhysicsState(const std::vector<uint8_t> &inB
         continue;
       }
       m_logicActiveContactPairs[pair.subShapePair] = pair;
+      m_logicPairsByBodyValid = false;
     }
   }
 
@@ -6939,23 +6942,52 @@ void JoltPhysicsEnvironment::RemoveLogicActiveContactsForBody(const JPH::BodyID 
       break;
     }
   }
-  for (auto it = m_logicActiveContactPairs.begin(); it != m_logicActiveContactPairs.end();) {
-    const JoltContactPair &pair = it->second;
-    if (pair.bodyID1 == bodyID || pair.bodyID2 == bodyID) {
-      removed = true;
-      it = m_logicActiveContactPairs.erase(it);
+  if (!m_logicPairsByBodyValid) {
+    for (auto &entry : m_logicPairsByBody) {
+      entry.second.clear();
     }
-    else {
-      ++it;
+    for (const auto &item : m_logicActiveContactPairs) {
+      m_logicPairsByBody[item.second.bodyID1.GetIndexAndSequenceNumber()].push_back(item.first);
+      if (item.second.bodyID2 != item.second.bodyID1) {
+        m_logicPairsByBody[item.second.bodyID2.GetIndexAndSequenceNumber()].push_back(item.first);
+      }
     }
+    m_logicPairsByBodyValid = true;
+  }
+  /* The same pairs the whole map's scan erased: those with this body on either side. */
+  const auto found = m_logicPairsByBody.find(bodyID.GetIndexAndSequenceNumber());
+  if (found != m_logicPairsByBody.end()) {
+    for (const JPH::SubShapeIDPair &key : found->second) {
+      const auto it = m_logicActiveContactPairs.find(key);
+      if (it != m_logicActiveContactPairs.end() &&
+          (it->second.bodyID1 == bodyID || it->second.bodyID2 == bodyID))
+      {
+        removed = true;
+        m_logicActiveContactPairs.erase(it);
+      }
+    }
+    found->second.clear();
   }
 
   if (removed) {
-    m_logicCollisionContactCacheValid = false;
-    m_logicCollisionContactDetailsValid = false;
+    InvalidateLogicContactCaches();
+  }
+}
+
+void JoltPhysicsEnvironment::InvalidateLogicContactCaches()
+{
+  m_logicCollisionContactCacheValid = false;
+  m_logicCollisionContactDetailsValid = false;
+  if (!m_logicCollisionContacts.empty()) {
     m_logicCollisionContacts.clear();
+  }
+  if (!m_logicObjectSensorOverlapsByController.empty()) {
     m_logicObjectSensorOverlapsByController.clear();
+  }
+  if (!m_logicCollisionContactsByController.empty()) {
     m_logicCollisionContactsByController.clear();
+  }
+  if (!m_logicCollisionContactsByObject.empty()) {
     m_logicCollisionContactsByObject.clear();
   }
 }
@@ -6993,12 +7025,7 @@ void JoltPhysicsEnvironment::RemoveLogicActiveContactsForController(JoltPhysicsC
   }
 
   if (removed) {
-    m_logicCollisionContactCacheValid = false;
-    m_logicCollisionContactDetailsValid = false;
-    m_logicCollisionContacts.clear();
-    m_logicObjectSensorOverlapsByController.clear();
-    m_logicCollisionContactsByController.clear();
-    m_logicCollisionContactsByObject.clear();
+    InvalidateLogicContactCaches();
   }
 }
 
@@ -7154,6 +7181,7 @@ void JoltPhysicsEnvironment::CallbackTriggers()
     m_logicCollisionContactCacheValid = false;
     m_logicCollisionContactDetailsValid = false;
     m_logicActiveContactPairs.clear();
+    m_logicPairsByBodyValid = false;
     m_logicCollisionContacts.clear();
     m_logicObjectSensorOverlapsByController.clear();
     m_logicCollisionContactsByController.clear();
@@ -7211,6 +7239,7 @@ void JoltPhysicsEnvironment::CallbackTriggers()
         return;
       }
       m_logicActiveContactPairs[pair.subShapePair] = pair;
+      m_logicPairsByBodyValid = false;
     };
     auto processRemoval = [&](const JoltRemovedContactPair &removal) {
       auto it = m_logicActiveContactPairs.find(removal.subShapePair);
@@ -7354,6 +7383,7 @@ void JoltPhysicsEnvironment::CallbackTriggers()
   }
   else {
     m_logicActiveContactPairs.clear();
+    m_logicPairsByBodyValid = false;
     m_logicCollisionContacts.clear();
     m_logicObjectSensorOverlapsByController.clear();
     m_logicCollisionContactsByController.clear();

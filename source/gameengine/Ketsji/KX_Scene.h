@@ -811,6 +811,11 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
     return m_overlayResources.IndependentEnabled(collection);
   }
   bool IsOverlayRuntimeObject(const KX_GameObject *game_object) const;
+  /** Whether any object is a menu copy now (Logic Nodes' column plan asks once a tick). */
+  bool HasOverlayRuntimeObjects() const
+  {
+    return !m_overlayRuntimeObjects.empty();
+  }
   bool SetRuntimeCollectionRenderVisibility(blender::Collection *collection,
                                             bool visible,
                                             bool include_child_collections);

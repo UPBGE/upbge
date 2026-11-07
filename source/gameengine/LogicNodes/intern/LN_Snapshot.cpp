@@ -1305,6 +1305,34 @@ void LN_Snapshot::RefreshGameProperties(KX_GameObject *gameobj, const LN_Program
   }
 }
 
+void LN_Snapshot::CaptureGamePropertiesOnly(KX_GameObject *gameobj,
+                                            const LN_Program &program,
+                                            const uint64_t tick_index,
+                                            const bool transform)
+{
+  m_tickContext = nullptr;
+  m_tickIndex = tick_index;
+  m_captureStats = LN_SnapshotCaptureStats();
+  /* As CaptureSnapshot: the properties only when the program reads some. */
+  const LN_SnapshotChannelMask declared = LN_SnapshotChannelMaskForProgram(&program);
+  LN_SnapshotChannelMask channels = declared & LN_SNAPSHOT_CHANNEL_GAME_PROPERTY;
+  if (transform) {
+    channels |= LN_SNAPSHOT_CHANNEL_TRANSFORM;
+  }
+  m_captureStats.declared_channels = channels;
+  m_object.object = gameobj;
+  m_gamePropertyCount = 0;
+  if (HasSnapshotChannel(channels, LN_SNAPSHOT_CHANNEL_GAME_PROPERTY)) {
+    CaptureGameProperties(gameobj, program);
+  }
+  if (transform && gameobj != nullptr) {
+    /* The full capture's own code for the channel (Get Axis Vector of the owner reads it). */
+    capture_object_state(*gameobj, LN_SNAPSHOT_CHANNEL_TRANSFORM, m_gravity, m_object);
+  }
+  m_captureStats.captured_channels = channels;
+  m_captureStats.skipped_channels = LN_SNAPSHOT_CHANNEL_ALL & ~channels;
+}
+
 EXP_Value *LN_Snapshot::GetGamePropertyHandle(const KX_GameObject *object,
                                               const uint32_t property_ref_index,
                                               uint64_t &r_stamp) const

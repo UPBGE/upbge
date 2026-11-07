@@ -37,6 +37,10 @@ KX_GameObject *LN_RuntimeTree::ReadObjectInput(In &in, const uint32_t value_inde
   if (m_activeProfileCounters == nullptr && g_read_trace == nullptr &&
       fast_attributes_mode() != FastAttributesMode::Off)
   {
+    if (value_index == LN_INVALID_INDEX) {
+      /* No input (a ray from the owner, plan C2 P3): ResolveObjectValue of the None fallback. */
+      return nullptr;
+    }
     const std::vector<LN_ValueExpression> &values = m_program->GetValueExpressions();
     if (value_index < values.size()) {
       const LN_ValueExpression &constant = values[value_index];
@@ -1017,26 +1021,13 @@ bool LN_RuntimeTree::BoolKind(In &in,
       }
 
       const LN_Value value = in.Value(expression.input0, MakeNoneValue());
-      ValueChangeState &values = ValueChangeStateOf(expression_index);
-      if (!values.has_previous_value) {
-        if (expression.bool_value && (!value.exists || value.type == LN_ValueType::None)) {
-          state.cached_result = false;
-          state.last_update_tick = context.tick_index;
-          return false;
-        }
-        values.previous_value = value;
-        values.has_previous_value = true;
-        values.stored_old_value = value;
-        values.stored_new_value = value;
-        state.cached_result = false;
-        state.last_update_tick = context.tick_index;
+      bool changed = false;
+      if (!ValueChangeStep(
+              expression_index, expression.bool_value, value, context.tick_index, changed))
+      {
         return false;
       }
-
-      const bool changed = !ValuesEqual(value, values.previous_value);
-      values.stored_old_value = values.previous_value;
-      values.stored_new_value = value;
-      values.previous_value = value;
+      const ValueChangeState &values = ValueChangeStateOf(expression_index);
 
       if (expression.kind == LN_BoolExpressionKind::ValueChanged) {
         state.cached_result = changed;
@@ -4480,8 +4471,8 @@ void LN_RuntimeTree::QueryKind(In &in,
     case LN_QueryExpressionKind::Raycast:
     case LN_QueryExpressionKind::RaycastAll: {
       const bool collect_all = expression.kind == LN_QueryExpressionKind::RaycastAll;
-      const LN_Value caster_value = in.Value(expression.input0, MakeNoneValue());
-      KX_GameObject *caster_object = ResolveObjectValue(caster_value);
+      /* (Plan C2 P3: the object without its LN_Value, ResolveObjectValue's answer.) */
+      KX_GameObject *caster_object = ReadObjectInput(in, expression.input0);
       const std::vector<LN_RuntimeRef> extra_ignore_refs = ResolveIgnoreObjectRefs(in, expression.input3, expression.ignore_list_expr_index);
 
       MT_Vector3 origin = in.Vector(expression.input1, expression.vector_value);
@@ -4582,27 +4573,30 @@ void LN_RuntimeTree::QueryKind(In &in,
       settings.include_sensors = in.Bool(expression.quaternary_bool_expr_index, false);
       settings.hit_back_faces = in.Bool(expression.quinary_bool_expr_index, false);
 
-      LN_PhysicsQueryResult fallback;
-      fallback.hit_position = destination;
-      fallback.hit_normal = MT_Vector3(0.0f, 0.0f, 0.0f);
-      fallback.ray_direction = direction;
-      fallback.end_position = destination;
-      fallback.hit_fraction = 1.0f;
-      fallback.hit_distance = cast_distance;
-      state.cached_result.physics_query = fallback;
+      /* The fallback result, written in place (QueryEntry left the fields at their defaults). */
+      {
+        LN_PhysicsQueryResult &fallback = state.cached_result.physics_query;
+        fallback.hit_position = destination;
+        fallback.hit_normal = MT_Vector3(0.0f, 0.0f, 0.0f);
+        fallback.ray_direction = direction;
+        fallback.end_position = destination;
+        fallback.hit_fraction = 1.0f;
+        fallback.hit_distance = cast_distance;
+      }
 
       bool blocked = false;
       bool supported = false;
       LN_PhysicsQueryResult blocker;
-      state.cached_result.physics_query_results = RayCast(settings,
-                                                          caster_ref,
-                                                          uint32_t(mask_value),
-                                                          property_name,
-                                                          xray,
-                                                          extra_ignore_refs,
-                                                          blocked,
-                                                          blocker,
-                                                          supported);
+      RayCast(settings,
+              caster_ref,
+              uint32_t(mask_value),
+              property_name,
+              xray,
+              extra_ignore_refs,
+              blocked,
+              blocker,
+              supported,
+              state.cached_result.physics_query_results);
       if (!supported) {
         state.cached_result.physics_query = LN_PhysicsQueryResult();
         state.cached_result.physics_query.diagnostic_status =
@@ -4875,8 +4869,7 @@ void LN_RuntimeTree::QueryKind(In &in,
     case LN_QueryExpressionKind::ShapeCast:
     case LN_QueryExpressionKind::ShapeCastAll: {
       const bool collect_all = expression.kind == LN_QueryExpressionKind::ShapeCastAll;
-      const LN_Value caster_value = in.Value(expression.input0, MakeNoneValue());
-      KX_GameObject *caster_object = ResolveObjectValue(caster_value);
+      KX_GameObject *caster_object = ReadObjectInput(in, expression.input0);
       const std::vector<LN_RuntimeRef> extra_ignore_refs = ResolveIgnoreObjectRefs(in, expression.input3, expression.ignore_list_expr_index);
 
       MT_Vector3 origin = in.Vector(expression.input1, expression.vector_value);
@@ -4976,15 +4969,16 @@ void LN_RuntimeTree::QueryKind(In &in,
       bool blocked = false;
       bool supported = false;
       LN_PhysicsQueryResult blocker;
-      state.cached_result.physics_query_results = ShapeCast(settings,
-                                                            caster_ref,
-                                                            uint32_t(mask_value),
-                                                            property_name,
-                                                            xray,
-                                                            extra_ignore_refs,
-                                                            blocked,
-                                                            blocker,
-                                                            supported);
+      ShapeCast(settings,
+                caster_ref,
+                uint32_t(mask_value),
+                property_name,
+                xray,
+                extra_ignore_refs,
+                blocked,
+                blocker,
+                supported,
+                state.cached_result.physics_query_results);
       if (!supported) {
         state.cached_result.physics_query = LN_PhysicsQueryResult();
         state.cached_result.physics_query.diagnostic_status =
@@ -5453,69 +5447,9 @@ void LN_RuntimeTree::QueryKind(In &in,
       state.cached_result.physics_query = hit_result;
       break;
     }
-    case LN_QueryExpressionKind::VectorAverage: {
-      const LN_Value source = in.Value(expression.input0, MakeNoneValue());
-      double sum[3] = {0.0, 0.0, 0.0};
-      uint64_t count = 0;
-
-      switch (expression.average_center_source) {
-        case LN_AverageCenterSource::VectorList:
-          if (source.exists && source.type == LN_ValueType::List) {
-            for (const LN_Value &item : source.list_value) {
-              if (item.exists && item.type == LN_ValueType::Vector) {
-                accumulate_finite_position(item.vector_value, sum, count);
-              }
-            }
-          }
-          break;
-        case LN_AverageCenterSource::ObjectList:
-          if (source.exists && source.type == LN_ValueType::List) {
-            for (const LN_Value &item : source.list_value) {
-              if (KX_GameObject *game_object = ResolveObjectValue(item)) {
-                accumulate_finite_position(game_object->NodeGetWorldPosition(), sum, count);
-              }
-            }
-          }
-          break;
-        case LN_AverageCenterSource::Collection: {
-          blender::Collection *collection = source.exists ?
-                                                ResolveCollectionByValue(this, source) :
-                                                nullptr;
-          KX_Scene *scene = m_gameObject != nullptr ? m_gameObject->GetScene() : nullptr;
-          if (collection != nullptr && scene != nullptr) {
-            for (blender::CollectionObject &collection_object : collection->gobject) {
-              if (collection_object.ob == nullptr) {
-                continue;
-              }
-              if (KX_GameObject *game_object = scene->GetGameObjectFromObject(
-                      collection_object.ob))
-              {
-                accumulate_finite_position(game_object->NodeGetWorldPosition(), sum, count);
-              }
-            }
-          }
-          break;
-        }
-        default:
-          break;
-      }
-      if (count == 0) {
-        break;
-      }
-
-      const double inverse_count = 1.0 / double(count);
-      const MT_Vector3 average(float(sum[0] * inverse_count),
-                               float(sum[1] * inverse_count),
-                               float(sum[2] * inverse_count));
-      if (!vector_is_finite(average)) {
-        break;
-      }
-      state.cached_result.vector_average = average;
-      state.cached_result.vector_count = int32_t(
-          std::min(count, uint64_t(std::numeric_limits<int32_t>::max())));
-      state.cached_result.valid = true;
+    case LN_QueryExpressionKind::VectorAverage:
+      VectorAverageKind(in, expression, state.cached_result);
       break;
-    }
     case LN_QueryExpressionKind::DistanceBetween:
       DistanceBetweenKind(in, expression, state);
       break;
@@ -5524,6 +5458,76 @@ void LN_RuntimeTree::QueryKind(In &in,
   }
 }
 
+
+/** QueryKind's Get Average Center Position case, on its own (plan C1-9: a column run works it
+ * out once for its NPCs when its source is the same for all of them, LN_RuntimeTree::
+ * ColumnVectorAverage). `result` starts as a fresh LN_QueryResult. */
+template<class In>
+void LN_RuntimeTree::VectorAverageKind(In &in,
+                                       const LN_QueryExpression &expression,
+                                       LN_QueryResult &result)
+{
+  const LN_Value source = in.Value(expression.input0, MakeNoneValue());
+  double sum[3] = {0.0, 0.0, 0.0};
+  uint64_t count = 0;
+
+  switch (expression.average_center_source) {
+    case LN_AverageCenterSource::VectorList:
+      if (source.exists && source.type == LN_ValueType::List) {
+        for (const LN_Value &item : source.list_value) {
+          if (item.exists && item.type == LN_ValueType::Vector) {
+            accumulate_finite_position(item.vector_value, sum, count);
+          }
+        }
+      }
+      break;
+    case LN_AverageCenterSource::ObjectList:
+      if (source.exists && source.type == LN_ValueType::List) {
+        for (const LN_Value &item : source.list_value) {
+          if (KX_GameObject *game_object = ResolveObjectValue(item)) {
+            accumulate_finite_position(game_object->NodeGetWorldPosition(), sum, count);
+          }
+        }
+      }
+      break;
+    case LN_AverageCenterSource::Collection: {
+      blender::Collection *collection = source.exists ?
+                                            ResolveCollectionByValue(this, source) :
+                                            nullptr;
+      KX_Scene *scene = m_gameObject != nullptr ? m_gameObject->GetScene() : nullptr;
+      if (collection != nullptr && scene != nullptr) {
+        for (blender::CollectionObject &collection_object : collection->gobject) {
+          if (collection_object.ob == nullptr) {
+            continue;
+          }
+          if (KX_GameObject *game_object = scene->GetGameObjectFromObject(
+                  collection_object.ob))
+          {
+            accumulate_finite_position(game_object->NodeGetWorldPosition(), sum, count);
+          }
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  if (count == 0) {
+    return;
+  }
+
+  const double inverse_count = 1.0 / double(count);
+  const MT_Vector3 average(float(sum[0] * inverse_count),
+                           float(sum[1] * inverse_count),
+                           float(sum[2] * inverse_count));
+  if (!vector_is_finite(average)) {
+    return;
+  }
+  result.vector_average = average;
+  result.vector_count = int32_t(
+      std::min(count, uint64_t(std::numeric_limits<int32_t>::max())));
+  result.valid = true;
+}
 
 template<class In>
 void LN_RuntimeTree::DistanceBetweenKind(In &in,
@@ -5643,6 +5647,13 @@ const LN_QueryResult &LN_RuntimeTree::QueryEntry(In &in, const uint32_t expressi
   state.cached_tick = context.tick_index;
   state.cached_command_execution_key = command_execution_key;
   state.cached_command_ordered = command_ordered_cache;
+  /* Rays and shape casts (plan C2 P3): they set their physics fields and nothing else (the state
+   * holds what they left: the rest is still the default). */
+  const bool physics_only = expression.kind == LN_QueryExpressionKind::Raycast ||
+                            expression.kind == LN_QueryExpressionKind::RaycastAll ||
+                            expression.kind == LN_QueryExpressionKind::RaycastFromMesh ||
+                            expression.kind == LN_QueryExpressionKind::ShapeCast ||
+                            expression.kind == LN_QueryExpressionKind::ShapeCastAll;
   if (state.cached_result_distance_only && expression.kind == LN_QueryExpressionKind::DistanceBetween)
   {
     /* The last result of this query set its distance fields and nothing else. */
@@ -5650,10 +5661,15 @@ const LN_QueryResult &LN_RuntimeTree::QueryEntry(In &in, const uint32_t expressi
     state.cached_result.squared_distance = 0.0f;
     state.cached_result.valid = false;
   }
+  else if (state.cached_result_physics_only && physics_only) {
+    state.cached_result.physics_query = LN_PhysicsQueryResult();
+    state.cached_result.physics_query_results.clear();
+  }
   else {
     state.cached_result = LN_QueryResult();
   }
   state.cached_result_distance_only = false;
+  state.cached_result_physics_only = false;
 
   if (expression.condition_bool_expr_index != LN_INVALID_INDEX &&
       !in.Bool(expression.condition_bool_expr_index, false))
@@ -5669,6 +5685,7 @@ const LN_QueryResult &LN_RuntimeTree::QueryEntry(In &in, const uint32_t expressi
     QueryKind(in, expression_index, expression, state);
   }
   state.cached_result_distance_only = expression.kind == LN_QueryExpressionKind::DistanceBetween;
+  state.cached_result_physics_only = physics_only;
 
   return state.cached_result;
 }
