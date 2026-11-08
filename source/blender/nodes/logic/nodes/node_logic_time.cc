@@ -17,6 +17,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Delta (Frametime)"_ustr, "Delta"_ustr)
       .description("Scaled frame time in seconds");
   b.add_output<decl::Float>("FPS"_ustr).description("Frames per second (1 / delta)");
+  b.add_output<decl::Float>("Delta Factor"_ustr)
+      .description("Delta x 60: 1 at 60 frames a second (today's Delta Factor node)");
 }
 
 static void node_register()

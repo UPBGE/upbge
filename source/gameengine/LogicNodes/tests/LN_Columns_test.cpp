@@ -1901,6 +1901,59 @@ TEST(LN_Columns, CopyPropertyEndsAsOnTheLeanVM)
             0u);
 }
 
+/* The list and dictionary nodes in Game Property mode (2026-11-08) run bridged: each NPC's changes
+ * of its own list and dictionary and of the Target's shared list are applied at its place in the
+ * flush, in order with its number writes (the native write after them, the pre-apply kept off
+ * the objects they name). */
+TEST(LN_Columns, ListAndDictionaryChangesEndAsColumnPasses)
+{
+  BridgeOn bridge;
+  TreeBuilder b;
+  GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+  const auto read = [&](const char *idname, const char *property) -> GenNode & {
+    GenNode &node = b.Add(idname);
+    b.String(node, "Property", property);
+    return node;
+  };
+  GenNode &pf1 = read("LogicNativeGetGameProperty", "pf1");
+  GenNode &pi0 = read("LogicNativeGetGameProperty", "pi0");
+  GenNode *flow = &step;
+  const char *flow_pin = "Out";
+  const auto change = [&](const char *idname, const char *property) -> GenNode & {
+    GenNode &node = b.Add(idname, LN_COLLECTION_STORE_GAME_PROPERTY);
+    b.String(node, "Property", property);
+    b.Link(*flow, flow_pin, node, "Flow");
+    flow = &node;
+    flow_pin = "Done";
+    return node;
+  };
+  b.Link(pf1, "Value", change("LogicNativeListAppend", "visits"), "Value");
+  b.Link(pi0, "Value", change("LogicNativeListAppend", "visits"), "Value");
+  change("LogicNativeListRemoveIndex", "visits");
+  GenNode &count = change("LogicNativeDictAddValue", "seen");
+  b.String(count, "Key", "steps");
+  b.Float(count, "Amount", 1.0f);
+  GenNode &last = change("LogicNativeDictSetKey", "seen");
+  b.String(last, "Key", "last");
+  b.Link(pf1, "Value", last, "Value");
+  GenNode &shared = change("LogicNativeListAppend", "log");
+  b.ObjectNamed(shared, "Object", &diff::TargetBlenderObject());
+  b.Link(pi0, "Value", shared, "Value");
+  GenNode &after = b.Add("LogicNativeSetGamePropertyFloat");
+  b.String(after, "Property", "pf0");
+  b.Float(after, "Value", 0.5f);
+  b.Link(*flow, flow_pin, after, "Flow");
+  std::string report;
+  const std::shared_ptr<LN_Program> program = b.Compile(&report);
+  ASSERT_NE(program, nullptr) << report;
+  std::string refusal;
+  ASSERT_NE(LN_CompileColumnProgram(*program, LN_Event::OnFixedUpdate, &refusal), nullptr)
+      << refusal;
+  EXPECT_GT(ExpectColumnsMatch(program, LN_Event::OnFixedUpdate, 40, 10, "list changes"), 0u);
+  EXPECT_GT(ExpectColumnsMatch(program, LN_Event::OnFixedUpdate, 300, 6, "list changes (3)", 3),
+            0u);
+}
+
 TEST(LN_Columns, TheQueryWalkFollowsTheRecordedInputsAndDistrustsOthers)
 {
   std::string report;
@@ -3991,7 +4044,7 @@ std::shared_ptr<LN_Program> VictimTree(const Victim victim, const bool clamped, 
       break;
     }
     case Victim::Collision:
-      found = &b.Add("LogicNativeCollision");
+      found = &b.Add("LogicNativeOnCollision");
       out = "Collided Object";
       break;
   }
@@ -4168,7 +4221,7 @@ TEST(LN_Columns, ACollisionsObjectIsOnlyWrittenAndGroupsKeepFindsApart)
   const auto collision_tree = [](const int extra, std::string *r_report) {
     TreeBuilder b;
     GenNode &step = b.Add("LogicNativeOnFixedUpdate");
-    GenNode &touch = b.Add(extra == 1 ? "LogicNativeOnCollision" : "LogicNativeCollision");
+    GenNode &touch = b.Add("LogicNativeOnCollision");
     GenNode &write = b.Add("LogicNativeSetGamePropertyFloat");
     b.Link(touch, "Collided Object", write, "Object");
     b.String(write, "Property", "hp");
@@ -4414,7 +4467,7 @@ std::shared_ptr<LN_Program> ActsTree(const Acted acted, const bool bridged, std:
     case Acted::NamedTranslateOnly:
       break;
     case Acted::Collision:
-      found = &b.Add("LogicNativeCollision");
+      found = &b.Add("LogicNativeOnCollision");
       out = "Collided Object";
       break;
   }
@@ -6684,6 +6737,63 @@ TEST(LN_Columns, DISABLED_DirectBench)
   std::printf("%s\n", line.c_str());
 }
 
+/* Random Value (2026-11-07, LN_Random.h) in wide runs: every type, Per Object (each lane with its
+ * tree's stream) and Same for All, a Seed from a game property that differs per object or none,
+ * with and without helpers: the same bits as column passes. */
+TEST(LN_Columns, RandomValuesEndAsColumnPasses)
+{
+  for (const int16_t variation : {int16_t(0), int16_t(1)}) {
+    TreeBuilder b;
+    GenNode &event = b.Add("LogicNativeOnFixedUpdate");
+    GenNode &seed = b.Add("LogicNativeGetGamePropertyInt");
+    b.String(seed, "Property", "pi0");
+    GenNode *flow = &event;
+    const char *flow_pin = "Out";
+    const auto write = [&](const char *kind, const char *name, GenNode &source, const char *pin) {
+      GenNode &writer = b.Add(kind);
+      b.String(writer, "Property", name);
+      b.Link(*flow, flow_pin, writer, "Flow");
+      b.Link(source, pin, writer, "Value");
+      flow = &writer;
+      flow_pin = "Done";
+    };
+    GenNode &rf = b.Add("LogicNativeRandomValue", 0, variation);
+    b.Float(rf, "Min", -3.0f);
+    b.Float(rf, "Max", 8.0f);
+    b.Link(seed, "Value", rf, "Seed");
+    write("LogicNativeSetGamePropertyFloat", "rf", rf, "Value");
+    GenNode &ri = b.Add("LogicNativeRandomValue", 1, variation);
+    b.Int(ri, "Min_Int", -50);
+    b.Int(ri, "Max_Int", 50);
+    write("LogicNativeSetGamePropertyInt", "ri", ri, "Value_Int");
+    GenNode &rv = b.Add("LogicNativeRandomValue", 2, variation);
+    b.Vector(rv, "Min_Vector", -1.0f, -1.0f, 0.0f);
+    b.Vector(rv, "Max_Vector", 1.0f, 1.0f, 0.0f);
+    b.Link(seed, "Value", rv, "Seed");
+    GenNode &split = b.Add("LogicNativeSeparateXYZ");
+    b.Link(rv, "Value_Vector", split, "Vector");
+    write("LogicNativeSetGamePropertyFloat", "rvx", split, "X");
+    write("LogicNativeSetGamePropertyFloat", "rvy", split, "Y");
+    write("LogicNativeSetGamePropertyFloat", "rvz", split, "Z");
+    GenNode &rb = b.Add("LogicNativeRandomValue", 3, variation);
+    b.Float(rb, "Probability", 0.4f);
+    write("LogicNativeSetGamePropertyBool", "rb", rb, "Value_Bool");
+    std::string report;
+    const std::shared_ptr<LN_Program> program = b.Compile(&report);
+    ASSERT_NE(program, nullptr) << report;
+    for (const uint32_t helpers : {0u, 3u}) {
+      const uint64_t lanes = ExpectColumnsMatch(program,
+                                                LN_Event::OnFixedUpdate,
+                                                70,
+                                                4,
+                                                "random variation " + std::to_string(variation) +
+                                                    ", " + std::to_string(helpers) + " helpers",
+                                                helpers);
+      EXPECT_GT(lanes, 0u) << "the program runs in wide runs";
+    }
+  }
+}
+
 /* Plan C2 P5: Apply Force To Target of the owner in columns (its handler's math, one code:
  * ColumnForceToTarget, on the owner's live pose after a move of it): the forces (the rig notes
  * them), Reached, When Reached and Done end as column passes; a target near enough to count
@@ -7616,7 +7726,7 @@ TEST(LN_Columns, ABooleanEdgeOfCollidingLowers)
   BridgeOn bridge;
   TreeBuilder b;
   GenNode &step = b.Add("LogicNativeOnFixedUpdate");
-  GenNode &touch = b.Add("LogicNativeCollision");
+  GenNode &touch = b.Add("LogicNativeOnCollision");
   b.String(touch, "Property", "ball");
   GenNode &edge = b.Add("LogicNativeBooleanEdge");
   b.Link(touch, "Colliding", edge, "Condition");
@@ -7645,7 +7755,7 @@ TEST(LN_Columns, ABooleanEdgeOfCollidingLowers)
   GenNode &step2 = c.Add("LogicNativeOnFixedUpdate");
   GenNode &find = c.Add("LogicNativeObjectByName");
   c.String(find, "Name", "Target");
-  GenNode &touch2 = c.Add("LogicNativeCollision");
+  GenNode &touch2 = c.Add("LogicNativeOnCollision");
   c.Link(find, "Object", touch2, "Object");
   GenNode &edge2 = c.Add("LogicNativeBooleanEdge");
   c.Link(touch2, "Colliding", edge2, "Condition");
@@ -7661,4 +7771,320 @@ TEST(LN_Columns, ABooleanEdgeOfCollidingLowers)
   ASSERT_NE(found, nullptr) << report;
   EXPECT_EQ(LN_CompileColumnProgram(*found, LN_Event::OnFixedUpdate, &refusal), nullptr);
   EXPECT_NE(refusal.find("inside another stateful node's input"), std::string::npos) << refusal;
+}
+
+/* Column soak seed 9387 (2026-11-08): a vector command (Apply Movement, Set Position...) reads
+ * its Vector or Rotation first and its Local input after it (LeanVectorBody, then
+ * AppendVectorCommand). The column compiler read Local first. A turret that moves by its own
+ * world position, in local space while it is far from the Target: the VM reads the pose before
+ * the distance applies its cart's pending move, the compiler took the pose for a read after a
+ * sure distance, and the turret's run applied the move at the distance node, before the pose
+ * node. Pose first, the compiler now makes the run start quietly (nothing pending under it). The
+ * same program on the carts too (one chain of lanes, each turret after its cart). */
+TEST(LN_Columns, AVectorCommandReadsItsLocalInputAfterItsVector)
+{
+  const std::shared_ptr<LN_Program> mover = P2Mover(0.05f, 0.03f, false);
+  ASSERT_NE(mover, nullptr);
+  TreeBuilder b;
+  GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+  GenNode &own = b.Add("LogicNativeGetObjectAttribute", 0);
+  GenNode &distance = b.Add("LogicNativeGetDistance", 0, 0);
+  b.ObjectNamed(distance, "Object B", &diff::TargetBlenderObject());
+  GenNode &far = b.Add("LogicNativeCompare", 4);
+  b.Link(distance, "Distance", far, "A");
+  b.Float(far, "B", 1.0f);
+  GenNode &move = b.Add("LogicNativeApplyMovement");
+  b.Link(own, "Vector", move, "Vector");
+  b.Link(far, "Result", move, "Local");
+  b.Link(step, "Out", move, "Flow");
+  std::string report;
+  const std::shared_ptr<LN_Program> turret = b.Compile(&report);
+  ASSERT_NE(turret, nullptr) << report;
+  std::string refusal;
+  ASSERT_NE(LN_CompileColumnProgram(*turret, LN_Event::OnFixedUpdate, &refusal), nullptr)
+      << refusal;
+  constexpr int kCarts = 8;
+  for (const uint32_t helpers : {0u, 3u}) {
+    for (const bool same_program : {false, true}) {
+      const std::shared_ptr<LN_Program> &cart = same_program ? turret : mover;
+      const std::string name = std::string(same_program ? "one program" : "carts move") +
+                               ", helpers " + std::to_string(helpers);
+      std::vector<P2Object> in_turn;
+      for (int k = 0; k < kCarts; k++) {
+        in_turn.push_back({"Cart" + std::to_string(k), -1, {cart}});
+        in_turn.push_back({"Turret" + std::to_string(k), int(in_turn.size()) - 1, {turret}});
+      }
+      in_turn.push_back({"Target", -1, {}});
+      ExpectP2Matches(in_turn, name + ", in turn", helpers);
+      std::vector<P2Object> sorted;
+      for (int k = 0; k < kCarts; k++) {
+        sorted.push_back({"Cart" + std::to_string(k), -1, {cart}});
+      }
+      for (int k = 0; k < kCarts; k++) {
+        sorted.push_back({"Turret" + std::to_string(k), k, {turret}});
+      }
+      sorted.push_back({"Target", -1, {}});
+      ExpectP2Matches(sorted, name + ", sorted", helpers);
+    }
+  }
+}
+
+/* Column soak seed 18125 (2026-11-08): a run that moves an object found while playing (Get
+ * Object By Name "Target") that is a parent, or a grandparent, of one of its own lanes (plan C2
+ * P2 made owners with a parent lanes; the give-back rule was written when every lane was a root).
+ * The VM's read of that lane's distance from itself applies the moves the earlier trees recorded
+ * (the lane moves with its parent); the run's lanes read without them. Such a run gives its lanes
+ * back to the VM; one whose lanes are not under the moved object still runs in columns. */
+TEST(LN_Columns, ARunMovingALanesParentGivesItsLanesBack)
+{
+  TreeBuilder b;
+  GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+  GenNode &find = b.Add("LogicNativeObjectByName");
+  b.String(find, "Name", "Target");
+  GenNode &push = b.Add("LogicNativeApplyMovement");
+  b.Link(find, "Object", push, "Object");
+  b.Vector(push, "Vector", 0.25f, -0.125f, 0.0f);
+  b.Link(step, "Out", push, "Flow");
+  GenNode &distance = b.Add("LogicNativeGetDistance", 0, 1);
+  b.Vector(distance, "Position B", 3.0f, 4.0f, 0.0f);
+  GenNode &keep = b.Add("LogicNativeSetGamePropertyFloat");
+  b.String(keep, "Property", "pf1");
+  b.Link(distance, "Distance", keep, "Value");
+  b.Link(push, "Done", keep, "Flow");
+  std::string report;
+  const std::shared_ptr<LN_Program> program = b.Compile(&report);
+  ASSERT_NE(program, nullptr) << report;
+  std::string refusal;
+  ASSERT_NE(LN_CompileColumnProgram(*program, LN_Event::OnFixedUpdate, &refusal), nullptr)
+      << refusal;
+  for (const uint32_t helpers : {0u, 3u}) {
+    const std::string name = "helpers " + std::to_string(helpers);
+    /* A lane under the Target, after lanes that move it; under a child of it; first. */
+    for (const int shape : {0, 1, 2}) {
+      std::vector<P2Object> objects;
+      if (shape == 2) {
+        objects.push_back({"Kid", 4, {program}});
+      }
+      objects.push_back({"Obj0", -1, {program}});
+      objects.push_back({"Obj1", -1, {program}});
+      objects.push_back({"Mid", 4, {}});
+      if (shape != 2) {
+        objects.push_back({"Kid", shape == 0 ? 4 : 2, {program}});
+      }
+      objects.push_back({"Target", -1, {}});
+      const uint64_t back = LN_ColumnRuntimeFallbackCount();
+      ExpectP2Matches(objects, name + ", shape " + std::to_string(shape), helpers);
+      if (!DirectForced()) { /* (forced column passes form no run to give back) */
+        EXPECT_GT(LN_ColumnRuntimeFallbackCount(), back) << name << ", shape " << shape;
+      }
+    }
+    /* No lane under the Target: the run stays in columns. */
+    std::vector<P2Object> roots;
+    for (int k = 0; k < 6; k++) {
+      roots.push_back({"Obj" + std::to_string(k), -1, {program}});
+    }
+    roots.push_back({"Target", -1, {}});
+    const uint64_t back = LN_ColumnRuntimeFallbackCount();
+    EXPECT_GT(ExpectP2Matches(roots, name + ", roots", helpers), 0u) << name;
+    EXPECT_EQ(LN_ColumnRuntimeFallbackCount(), back) << name;
+  }
+}
+
+/* Column soak seed 57572 (2026-11-08): a kind that returns its reader's fallback (Get Axis Vector
+ * of a found object that is not there) read by two ops with different fallbacks: Translate reads
+ * its Vector with its own value (0, 0, 0), Align Axis To Vector with (0, 0, 1). The compiler kept
+ * one compile of an expression per index, so Align Axis got (0, 0, 0) and an NPC without a turret
+ * did not turn (the VM turns its X axis up). Compiled per expression and fallback now. */
+TEST(LN_Columns, AnExpressionReadWithTwoFallbacksGivesEachReaderItsOwn)
+{
+  for (const bool align_first : {false, true}) {
+    TreeBuilder b;
+    GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+    GenNode &owner = b.Add("LogicNativeGetOwner");
+    GenNode &turret = b.Add("LogicNativeGetChildByName");
+    b.Link(owner, "Owner Object", turret, "Parent");
+    b.ObjectNamed(turret, "Child", &TurretBlenderObject());
+    GenNode &axis = b.Add("LogicNativeGetAxisVector");
+    b.Link(turret, "Child", axis, "Object");
+    GenNode &translate = b.Add("LogicNativeTranslate");
+    b.Link(axis, "Vector", translate, "Vector");
+    GenNode &align = b.Add("LogicNativeAlignAxisToVector");
+    b.Link(axis, "Vector", align, "Vector");
+    b.Int(align, "Axis", 0);
+    if (align_first) {
+      b.Link(step, "Out", align, "Flow");
+      b.Link(align, "Done", translate, "Flow");
+    }
+    else {
+      b.Link(step, "Out", translate, "Flow");
+      b.Link(translate, "When Done", align, "Flow");
+    }
+    std::string report;
+    const std::shared_ptr<LN_Program> program = b.Compile(&report);
+    ASSERT_NE(program, nullptr) << report;
+    std::string refusal;
+    ASSERT_NE(LN_CompileColumnProgram(*program, LN_Event::OnFixedUpdate, &refusal), nullptr)
+        << refusal;
+    /* Every other NPC has a turret. */
+    std::vector<P2Object> objects;
+    for (int k = 0; k < 8; k++) {
+      objects.push_back({"Obj" + std::to_string(k), -1, {program}});
+      if (k % 2 == 0) {
+        objects.push_back({"Turret", int(objects.size()) - 1, {}});
+      }
+    }
+    objects.push_back({"Target", -1, {}});
+    for (const uint32_t helpers : {0u, 3u}) {
+      EXPECT_GT(ExpectP2Matches(objects,
+                                std::string(align_first ? "align first" : "translate first") +
+                                    ", helpers " + std::to_string(helpers),
+                                helpers),
+                0u);
+    }
+  }
+}
+
+/* Column soak seed 59527 (2026-11-08): a lane's snapshot holds only its properties (and its pose
+ * when its column program reads it); a run reads time, input and gravity from the tick. A lane
+ * given back to the column pass read them from its snapshot: its Time was the elapsed time of
+ * its first tick (Modify Property added 0 every step). Given-back lanes now take the rest of the
+ * tick's capture first (keeping the pose they took at the tick's start). Two ways back: a
+ * parented lane whose parent's move is pending under a distance read (plan C2 P2), and a run that
+ * moves a lane's parent found while playing (the parent test above). */
+TEST(LN_Columns, ALaneGivenBackReadsTheTicksTime)
+{
+  for (const int way : {0, 1}) {
+    TreeBuilder b;
+    GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+    GenNode *last = &step;
+    const char *last_out = "Out";
+    if (way == 1) {
+      GenNode &find = b.Add("LogicNativeObjectByName");
+      b.String(find, "Name", "Target");
+      GenNode &push = b.Add("LogicNativeApplyMovement");
+      b.Link(find, "Object", push, "Object");
+      b.Vector(push, "Vector", 0.25f, -0.125f, 0.0f);
+      b.Link(step, "Out", push, "Flow");
+      last = &push;
+      last_out = "Done";
+    }
+    GenNode &distance = b.Add("LogicNativeGetDistance", 0, 1);
+    b.Vector(distance, "Position B", 3.0f, 4.0f, 0.0f);
+    GenNode &stored = b.Add("LogicNativeStoreValue");
+    b.Link(distance, "Distance", stored, "Value");
+    b.Link(*last, last_out, stored, "Flow");
+    GenNode &move = b.Add("LogicNativeApplyMovement");
+    b.Vector(move, "Vector", 0.05f, 0.0f, 0.0f);
+    b.Link(stored, "Done", move, "Flow");
+    GenNode &time = b.Add("LogicNativeTime");
+    GenNode &sum = b.Add("LogicNativeModifyProperty");
+    b.String(sum, "Property", "pf3");
+    b.Link(time, "Time", sum, "Value");
+    b.Link(move, "Done", sum, "Flow");
+    std::string report;
+    const std::shared_ptr<LN_Program> program = b.Compile(&report);
+    ASSERT_NE(program, nullptr) << report;
+    std::string refusal;
+    ASSERT_NE(LN_CompileColumnProgram(*program, LN_Event::OnFixedUpdate, &refusal), nullptr)
+        << refusal;
+    std::vector<P2Object> objects;
+    if (way == 0) {
+      for (int k = 0; k < 6; k++) {
+        objects.push_back({"Obj" + std::to_string(k), k % 2 == 1 ? k - 1 : -1, {program}});
+      }
+      objects.push_back({"Target", -1, {}});
+    }
+    else {
+      objects.push_back({"Obj0", -1, {program}});
+      objects.push_back({"Obj1", -1, {program}});
+      objects.push_back({"Kid", 3, {program}});
+      objects.push_back({"Target", -1, {}});
+    }
+    for (const uint32_t helpers : {0u, 3u}) {
+      const std::string name = std::string(way == 0 ? "parented lanes" : "parent found") +
+                               ", helpers " + std::to_string(helpers);
+      uint64_t splits0 = 0, fallbacks0 = 0, splits1 = 0, fallbacks1 = 0;
+      LN_ColumnDependCounts(splits0, fallbacks0);
+      const uint64_t runtime0 = LN_ColumnRuntimeFallbackCount();
+      ExpectP2Matches(objects, name, helpers);
+      LN_ColumnDependCounts(splits1, fallbacks1);
+      if (!DirectForced()) { /* (a lane given back on the way the test is about) */
+        if (way == 0) {
+          EXPECT_GT(fallbacks1, fallbacks0) << name;
+        }
+        else {
+          EXPECT_GT(LN_ColumnRuntimeFallbackCount(), runtime0) << name;
+        }
+      }
+    }
+  }
+}
+
+/* Column soak seed 43704 (2026-11-08): a distance from the owner read surely on an Every N Steps
+ * route and also on the ungated route after a Delay. The run's start applies the owner's pending
+ * moves only for NPCs whose gate is due; on other steps the Delay route's read applied them in
+ * the VM (a parent's, or the object's other tree's move: before a pending Align Axis To Vector,
+ * so in the old frame) and nothing in the run. A read no sure read covers now makes the run start
+ * quietly (nothing pending for what it reads). A program whose reads are all covered stays as it
+ * was. */
+TEST(LN_Columns, ADistanceReadOutsideItsGatesRoutesStartsTheRunQuietly)
+{
+  const auto tree = [](const bool read_after_delay) {
+    TreeBuilder b;
+    GenNode &step = b.Add("LogicNativeOnFixedUpdate", 3, 1);
+    GenNode &distance = b.Add("LogicNativeGetDistance", 0, 0);
+    b.ObjectNamed(distance, "Object B", &diff::TargetBlenderObject());
+    GenNode &first = b.Add("LogicNativeApplyMovement");
+    b.Link(distance, "Valid", first, "Local");
+    b.Link(step, "Out", first, "Flow");
+    GenNode &delay = b.Add("LogicNativeDelay");
+    b.Float(delay, "Delay", 0.03f);
+    b.Link(first, "Done", delay, "Flow");
+    GenNode &align = b.Add("LogicNativeAlignAxisToVector");
+    b.Vector(align, "Vector", 13.8f, 10.1f, -9.7f);
+    b.Link(delay, "Out", align, "Flow");
+    GenNode &move = b.Add("LogicNativeApplyMovement");
+    b.Vector(move, "Vector", 2.12f, 2.24f, 1.41f);
+    if (read_after_delay) {
+      b.Link(distance, "Valid", move, "Local");
+    }
+    else {
+      b.Bool(move, "Local", true);
+    }
+    b.Link(align, "Done", move, "Flow");
+    std::string report;
+    std::shared_ptr<LN_Program> program = b.Compile(&report);
+    EXPECT_NE(program, nullptr) << report;
+    return program;
+  };
+  for (const bool read_after_delay : {true, false}) {
+    const std::shared_ptr<LN_Program> program = tree(read_after_delay);
+    ASSERT_NE(program, nullptr);
+    std::string refusal;
+    const std::shared_ptr<const LN_ColumnProgram> columns = LN_CompileColumnProgram(
+        *program, LN_Event::OnFixedUpdate, &refusal);
+    ASSERT_NE(columns, nullptr) << refusal;
+    const bool quiet = LN_DescribeColumnProgram(*columns).find("quiet_reads=1") !=
+                       std::string::npos;
+    EXPECT_EQ(quiet, read_after_delay) << LN_DescribeColumnProgram(*columns).substr(0, 400);
+    for (const int shape : {1, 2, 3}) {
+      /* 1: parented NPCs, 2: two trees on each NPC, 3: both. */
+      std::vector<P2Object> objects;
+      for (int k = 0; k < 6; k++) {
+        std::vector<std::shared_ptr<LN_Program>> trees((shape & 2) ? 2 : 1, program);
+        objects.push_back(
+            {"Obj" + std::to_string(k), ((shape & 1) && k % 3 == 1) ? k - 1 : -1, trees});
+      }
+      objects.push_back({"Target", -1, {}});
+      for (const uint32_t helpers : {0u, 3u}) {
+        ExpectP2Matches(objects,
+                        std::string(read_after_delay ? "read after the Delay" : "covered") +
+                            ", shape " + std::to_string(shape) + ", helpers " +
+                            std::to_string(helpers),
+                        helpers,
+                        {},
+                        12);
+      }
+    }
+  }
 }

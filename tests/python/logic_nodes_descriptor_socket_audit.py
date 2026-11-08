@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from dataclasses import dataclass
@@ -51,9 +52,15 @@ SOCKET_HELPER_RE = re.compile(
     re.DOTALL | re.MULTILINE,
 )
 SOCKET_HELPER_CALL_RE = re.compile(r"(?:\w+::)*(add_\w+)\(b\);")
-IDNAME_RE = re.compile(r'logic_node_type_base\([^,]+,\s*"(LogicNative[^"]+)"')
+# logic_option_type_base: an option of a merged node (node_logic_<merged>_options.cc).
+IDNAME_RE = re.compile(r'logic_(?:node|option)_type_base\([^,]+,\s*"(LogicNative[^"]+)"')
 TYPE_BASE_RE = re.compile(
-    r'logic_node_type_base\(\s*&?(\w+)\s*,\s*"([^"]+)"_ustr\)'
+    r'logic_(?:node|option)_type_base\(\s*&?(\w+)\s*,\s*"([^"]+)"_ustr\)'
+)
+# A file holding several older nodes (the options of a merged node), each in its own namespace.
+NAMESPACE_BLOCK_RE = re.compile(
+    r"^namespace (blender::nodes::node_logic_\w+_cc) \{\n(.*?)^\}  // namespace \1$",
+    re.DOTALL | re.MULTILINE,
 )
 DECLARE_ASSIGN_RE = re.compile(r"(\w+)\.declare\s*=\s*(\w+);")
 DECLARE_FN_RE = re.compile(
@@ -61,7 +68,7 @@ DECLARE_FN_RE = re.compile(
     re.DOTALL | re.MULTILINE,
 )
 REGISTER_C_TIER_RE = re.compile(
-    r'REGISTER_C_TIER_(?:WIDE_)?NODE\(\s*\w+\s*,\s*"(LogicNative[^"]+)"\s*,\s*[^,]+,'
+    r'REGISTER_C_TIER_(?:WIDE_|OPTION_)?NODE\(\s*\w+\s*,\s*"(LogicNative[^"]+)"\s*,\s*[^,]+,'
     r'\s*(\w+)\s*,',
     re.DOTALL,
 )
@@ -227,6 +234,20 @@ def parse_node_cc_file(
     helpers: dict[str, tuple[list[SocketDecl], list[SocketDecl]]],
 ) -> dict[str, tuple[list[SocketDecl], list[SocketDecl]]]:
     text = path.read_text(encoding="utf-8")
+    blocks = [match.group(2) for match in NAMESPACE_BLOCK_RE.finditer(text)]
+    if len(blocks) > 1 and path.name.endswith("_options.cc"):
+        # The options of a merged node: every namespace has its own node_declare.
+        entries: dict[str, tuple[list[SocketDecl], list[SocketDecl]]] = {}
+        for block in blocks:
+            entries.update(parse_node_cc_text(block, helpers))
+        return entries
+    return parse_node_cc_text(text, helpers)
+
+
+def parse_node_cc_text(
+    text: str,
+    helpers: dict[str, tuple[list[SocketDecl], list[SocketDecl]]],
+) -> dict[str, tuple[list[SocketDecl], list[SocketDecl]]]:
     entries: dict[str, tuple[list[SocketDecl], list[SocketDecl]]] = {}
 
     local_helpers = dict(helpers)
@@ -563,13 +584,225 @@ def audit_blender_runtime() -> list[str]:
                         f"  Blender:    {socket.is_multi_input}"
                     )
             tree.nodes.remove(node)
+        errors.extend(audit_merged_nodes(tree))
+        errors.extend(audit_former_types_unregistered())
     finally:
         bpy.data.node_groups.remove(tree)
     return errors
 
 
+MERGED_HH = REPO_ROOT / "source/blender/nodes/NOD_logic_merged.hh"
+MERGED_OPTIONS_RE = re.compile(r"inline constexpr MergedNodeOption (\w+)\[\] = \{(.*?)\n\};", re.S)
+MERGED_NODE_RE = re.compile(
+    r'\{"(LogicNative\w+)", "([^"]+)",.*?merged_detail::options\(merged_detail::(\w+)\)', re.S)
+
+
+def parse_merged_nodes() -> list[tuple[str, list[str]]]:
+    """(merged idname, the older idname of each option) from NOD_logic_merged.hh."""
+    text = MERGED_HH.read_text(encoding="utf-8")
+    arrays = {match.group(1): re.findall(r'"(LogicNative\w+)"\}', match.group(2))
+              for match in MERGED_OPTIONS_RE.finditer(text)}
+    return [(match.group(1), arrays[match.group(3)]) for match in MERGED_NODE_RE.finditer(text)]
+
+
+def socket_signature(socket) -> tuple:
+    value = None
+    if hasattr(socket, "default_value"):
+        value = socket.default_value
+        if hasattr(value, "__len__") and not isinstance(value, str):
+            value = tuple(round(v, 6) for v in value)
+        elif isinstance(value, float):
+            value = round(value, 6)
+        elif hasattr(value, "name"):
+            value = value.name
+    return (socket.identifier, socket.name, socket.bl_idname, socket.enabled, socket.hide_value,
+            socket.is_multi_input, value)
+
+
+def node_settings(node, names) -> dict:
+    return {name: getattr(node, name) for name in names}
+
+
+def own_setting_names(node) -> list[str]:
+    import bpy
+    base = set(bpy.types.Node.bl_rna.properties.keys())
+    return [p.identifier for p in node.bl_rna.properties
+            if p.identifier not in base and not p.is_readonly and p.type != "COLLECTION"]
+
+
+def plain(value):
+    """A socket default or setting as the recording keeps it (JSON)."""
+    if isinstance(value, (list, tuple)):
+        return [plain(v) for v in value]
+    if isinstance(value, float):
+        return round(value, 6)
+    if hasattr(value, "name") and not isinstance(value, str):
+        return "ID:" + value.name
+    return value
+
+
+MERGED_OPTIONS_RECORDING = Path(__file__).with_name("logic_nodes_merged_options_v0.json")
+# The 20 nodes another node does exactly, removed 2026-11-08 (the converted files use their
+# replacements).
+REMOVED_DUPLICATES = [
+    "LogicNative" + name for name in (
+        "HasProperty", "LimitRange", "JoinPath", "GetBonePoseRotation", "GetBonePoseScale",
+        "DrawLine", "DrawCube", "DrawBox", "ColorRGB", "CombineXY", "SeparateXY", "Collision",
+        "MakeList", "ListDuplicate", "DeltaFactor", "ActionDone", "ValueValid", "RandomFloat",
+        "RandomInt", "RandomVector")]
+
+
+def audit_merged_nodes(tree) -> list[str]:
+    """Merged nodes (NOD_logic_merged.hh): a merged node switched to an option has exactly the
+    sockets (identifiers, names, types, defaults, visibility, multi-input) and starting settings
+    the former node had, as recorded from Blender on 2026-11-08 before the former node types were
+    removed (logic_nodes_merged_options_v0.json), plus the merged node's extra outputs; its
+    variant_idname names the former node; links on sockets both options have survive a switch.
+    Draw shows only its mode's inputs."""
+    errors: list[str] = []
+    merged_nodes = parse_merged_nodes()
+    if len(merged_nodes) != 32:
+        errors.append(f"merged node table: {len(merged_nodes)} entries parsed, expected 32")
+    recording = json.loads(MERGED_OPTIONS_RECORDING.read_text(encoding="utf-8"))
+    extras = {"LogicNativeGetGamePropertyValue": ["Exists"]}
+    for idname, olders in merged_nodes:
+        try:
+            node = tree.nodes.new(idname)
+        except RuntimeError as exc:
+            errors.append(f"{idname}: failed to spawn in Blender: {exc}")
+            continue
+        items = [item.identifier for item in node.bl_rna.properties["variant"].enum_items]
+        if len(items) != len(olders):
+            errors.append(f"{idname}: {len(items)} options in RNA, {len(olders)} in the table")
+        for index, older_idname in enumerate(olders):
+            if index >= len(items):
+                break
+            node.variant = items[index]
+            if node.variant_idname != older_idname:
+                errors.append(f"{idname} {items[index]}: works as {node.variant_idname!r}, "
+                              f"expected {older_idname!r}")
+            older = recording.get(older_idname)
+            if older is None:
+                errors.append(f"{idname} {items[index]}: {older_idname} is not in the recording")
+                continue
+            want_in = older["inputs"]
+            got_in = [plain(socket_signature(s)) for s in node.inputs]
+            want_out = older["outputs"]
+            got_out = [plain(socket_signature(s)) for s in node.outputs]
+            extra = extras.get(idname, [])
+            if got_in != want_in:
+                errors.append(f"{idname} {items[index]}: inputs differ from {older_idname}\n"
+                              f"  recorded: {want_in}\n  merged:   {got_in}")
+            if [s[0] for s in got_out] != [s[0] for s in want_out] + extra or \
+                    got_out[:len(want_out)] != want_out:
+                errors.append(f"{idname} {items[index]}: outputs differ from {older_idname}\n"
+                              f"  recorded: {want_out} + {extra}\n  merged:   {got_out}")
+            # Threshold's own Operation is the merged node's Pass When (checked below).
+            names = [n for n in older["settings"]
+                     if not (idname == "LogicNativeThresholdValue" and n == "operation")]
+            missing = [n for n in names if n not in node.bl_rna.properties]
+            if missing:
+                errors.append(f"{idname} {items[index]}: settings of {older_idname} missing: {missing}")
+            else:
+                got = {n: plain(getattr(node, n)) for n in names}
+                want = {n: older["settings"][n] for n in names}
+                if got != want:
+                    errors.append(f"{idname} {items[index]}: settings start differently from "
+                                  f"{older_idname}: {got} vs {want}")
+        tree.nodes.remove(node)
+
+    # Links on a socket both options have survive a switch (Get Game Property's Object).
+    owner = tree.nodes.new("LogicNativeGetOwner")
+    node = tree.nodes.new("LogicNativeGetGamePropertyValue")
+    tree.links.new(owner.outputs[0], node.inputs["Object"])
+    node.variant = "INT"
+    node.variant = "STRING"
+    if not node.inputs["Object"].is_linked:
+        errors.append("Get Game Property: the Object link was lost when the Type changed")
+    node.variant = "FLOAT"
+    tree.nodes.remove(node)
+    tree.nodes.remove(owner)
+
+    # Threshold's Pass When: Above / Below are Threshold's Greater / Less, Within / Outside Ranged
+    # Threshold's Within / Outside.
+    node = tree.nodes.new("LogicNativeThresholdValue")
+    for pass_when, older_idname in (("ABOVE", "LogicNativeThreshold"),
+                                    ("BELOW", "LogicNativeThreshold"),
+                                    ("WITHIN", "LogicNativeRangedThreshold"),
+                                    ("OUTSIDE", "LogicNativeRangedThreshold"),
+                                    ("ABOVE", "LogicNativeThreshold")):
+        node.pass_when = pass_when
+        if node.variant_idname != older_idname or node.pass_when != pass_when:
+            errors.append(f"Threshold Pass When {pass_when}: works as {node.variant_idname}, "
+                          f"reads back {node.pass_when}")
+    tree.nodes.remove(node)
+    # Modify Property's Operation: Toggle is Toggle Property, the others Modify Property's own.
+    node = tree.nodes.new("LogicNativeModifyGameProperty")
+    for operation, older_idname in (("MUL", "LogicNativeModifyProperty"),
+                                    ("TOGGLE", "LogicNativeToggleProperty"),
+                                    ("SUB", "LogicNativeModifyProperty")):
+        node.operation = operation
+        if node.variant_idname != older_idname or node.operation != operation:
+            errors.append(f"Modify Property Operation {operation}: works as "
+                          f"{node.variant_idname}, reads back {node.operation}")
+    tree.nodes.remove(node)
+
+    # Draw shows only the inputs its mode reads (CompileDrawNode).
+    shown = {"LINE": {"Flow", "Color", "Origin", "Target"},
+             "ARROW": {"Flow", "Color", "Origin", "Target"},
+             "PATH": {"Flow", "Color", "Points"},
+             "CUBE": {"Flow", "Color", "Origin", "Width"},
+             "BOX": {"Flow", "Color", "Origin", "Width", "Length", "Height"},
+             "MESH": {"Flow", "Color", "Object"},
+             "AXIS": {"Flow", "Length", "Object"}}
+    node = tree.nodes.new("LogicNativeDraw")
+    for item in node.bl_rna.properties["mode"].enum_items:
+        node.mode = item.identifier
+        enabled = {s.identifier for s in node.inputs if s.enabled}
+        if item.identifier in shown and enabled != shown[item.identifier]:
+            errors.append(f"Draw {item.identifier}: shows {sorted(enabled)}, expected "
+                          f"{sorted(shown[item.identifier])}")
+    tree.nodes.remove(node)
+    return errors
+
+
+def audit_former_nodes_gone() -> list[str]:
+    """The merged nodes are in the catalog and the Add menu; their options' former nodes and the
+    removed duplicates are in neither (they are no node types any more, 2026-11-08)."""
+    sys.path.insert(0, str(REPO_ROOT / "scripts/startup/bl_ui"))
+    from node_add_menu_logic_catalog import LOGIC_NODE_PARITY_CATALOG  # noqa: E402
+    menu_text = (REPO_ROOT / "scripts/startup/bl_ui/node_add_menu_logic.py").read_text(
+        encoding="utf-8")
+    errors: list[str] = []
+    former = list(REMOVED_DUPLICATES)
+    for idname, olders in parse_merged_nodes():
+        entry = LOGIC_NODE_PARITY_CATALOG.get(idname)
+        if entry is None or not entry["visible"]:
+            errors.append(f"{idname}: merged node missing or hidden in the catalog")
+        if f'_node_item("{idname}"' not in menu_text:
+            errors.append(f"{idname}: merged node missing from the Add menu")
+        former.extend(olders)
+    for older in former:
+        if older in LOGIC_NODE_PARITY_CATALOG:
+            errors.append(f"{older}: a former node is still in the catalog")
+        if f'_node_item("{older}"' in menu_text:
+            errors.append(f"{older}: a former node is still in the Add menu")
+    return errors
+
+
+def audit_former_types_unregistered() -> list[str]:
+    """In Blender: no former node is a node type (an option lives only inside its merged node)."""
+    import bpy
+    former = list(REMOVED_DUPLICATES)
+    for _idname, olders in parse_merged_nodes():
+        former.extend(olders)
+    return [f"{idname}: still a Blender node type" for idname in former
+            if getattr(bpy.types, idname, None) is not None]
+
+
 def main() -> int:
     errors = audit_descriptors_vs_cc()
+    errors.extend(audit_former_nodes_gone())
     print(f"Static descriptor vs .cc audit: {len(errors)} issue(s)")
     for err in errors:
         print(err)

@@ -1903,6 +1903,31 @@ class SCENE_PT_game_inventory_rules(SceneButtonsPanel, Panel):
             draw_inventory_rules(layout, gs.inventory_rules[index])
 
 
+class SCENE_PT_game_random(SceneButtonsPanel, Panel):
+    """Where the Logic Nodes' random numbers start from in each play."""
+    bl_label = "Random Numbers"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return (scene and scene.render.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        gs = context.scene.game_settings
+        layout.prop(gs, "random_seed_mode")
+        row = layout.row()
+        row.active = gs.random_seed_mode == 'FIXED'
+        row.prop(gs, "random_seed")
+
+
 class SCENE_PT_game_input_map_settings(SceneButtonsPanel, Panel):
     bl_label = "Settings"
     bl_parent_id = "SCENE_PT_game_input_map"
@@ -2099,6 +2124,7 @@ classes = (
     SCENE_PT_game_input_map_settings,
     SCENE_PT_game_items_ui,
     SCENE_PT_game_inventory_rules,
+    SCENE_PT_game_random,
     OBJECT_MT_lod_tools,
     OBJECT_PT_upbge_dupli_base,
     OBJECT_PT_game_draw_as,

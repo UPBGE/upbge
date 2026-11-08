@@ -444,6 +444,16 @@ class LN_Snapshot {
                                  const LN_Program &program,
                                  uint64_t tick_index,
                                  bool transform = false);
+  /** A column lane's snapshot made whole for a column pass (the lane given back: column soak
+   * seed 59527, 2026-11-08): the full capture now, which gives what the tick's capture gave (time,
+   * input, gravity, visibility, colour, properties change only at the flush), but the pose the
+   * lane's capture took at the tick's start is kept (`transform_taken`: a read may have applied a
+   * pending move of the owner since). */
+  void CompleteLaneCapture(KX_GameObject *gameobj,
+                           const LN_Program &program,
+                           const LN_TickReadContext *tick_context,
+                           float fixed_delta,
+                           bool transform_taken);
 
   const LN_InputSnapshot &GetInputSnapshot() const
   {

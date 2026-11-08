@@ -1,0 +1,5063 @@
+{
+ "LogicNativeApplyForce": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Force",
+    "Force",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Local",
+    "Local",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "merged": "LogicNativeApplyPhysicsForce",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeApplyImpulse": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Attach",
+    "Attach",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Impulse",
+    "Impulse",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  ],
+  "merged": "LogicNativeApplyPhysicsForce",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeApplyMovement": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Vector",
+    "Vector",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Local",
+    "Local",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "merged": "LogicNativeApplyTransform",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeApplyRotation": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Rotation",
+    "Rotation",
+    "NodeSocketLogicRotation",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Local",
+    "Local",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "merged": "LogicNativeApplyTransform",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeApplyTorque": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Torque",
+    "Torque",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Local",
+    "Local",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "merged": "LogicNativeApplyPhysicsForce",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeClearVariables": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Path",
+    "Path",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "//Data"
+   ],
+   [
+    "File",
+    "File",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "variables"
+   ]
+  ],
+  "merged": "LogicNativeVariableRemove",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeCursorMovement": {
+  "inputs": [],
+  "merged": "LogicNativeCursor",
+  "outputs": [
+   [
+    "Movement",
+    "Movement",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "X",
+    "X",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Y",
+    "Y",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeCursorPosition": {
+  "inputs": [],
+  "merged": "LogicNativeCursor",
+  "outputs": [
+   [
+    "Position",
+    "Position",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "X",
+    "X",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Y",
+    "Y",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ]
+  ],
+  "settings": {
+   "invert_y": false
+  }
+ },
+ "LogicNativeDelay": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Delay",
+    "Delay",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Ignore Timescale",
+    "Ignore Timescale",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "merged": "LogicNativeDelayFlow",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGamepadButton": {
+  "inputs": [
+   [
+    "Index",
+    "Index",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    0
+   ]
+  ],
+  "merged": "LogicNativeKeyButton",
+  "outputs": [
+   [
+    "Out",
+    "Triggered",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Active",
+    "Active",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Pressed",
+    "Pressed",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Released",
+    "Released",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Strength",
+    "Strength",
+    "NodeSocketLogicFloat",
+    false,
+    false,
+    false,
+    0.0
+   ]
+  ],
+  "settings": {
+   "gamepad_button": "A_CROSS",
+   "input_type": "TAP",
+   "use_ui_input": false
+  }
+ },
+ "LogicNativeGetBoneCenterPoseWorld": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Bone Name",
+    "Bone Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Bone"
+   ]
+  ],
+  "merged": "LogicNativeGetBonePoint",
+  "outputs": [
+   [
+    "Position",
+    "Position",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  ],
+  "settings": {
+   "space": "WORLD"
+  }
+ },
+ "LogicNativeGetBoneCenterWorld": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Bone Name",
+    "Bone Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Bone"
+   ]
+  ],
+  "merged": "LogicNativeGetBonePoint",
+  "outputs": [
+   [
+    "Position",
+    "Position",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetBoneHeadPoseWorld": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Bone Name",
+    "Bone Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Bone"
+   ]
+  ],
+  "merged": "LogicNativeGetBonePoint",
+  "outputs": [
+   [
+    "Position",
+    "Position",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  ],
+  "settings": {
+   "space": "WORLD"
+  }
+ },
+ "LogicNativeGetBoneHeadWorld": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Bone Name",
+    "Bone Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Bone"
+   ]
+  ],
+  "merged": "LogicNativeGetBonePoint",
+  "outputs": [
+   [
+    "Position",
+    "Position",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetBoneLength": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Bone Name",
+    "Bone Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Bone"
+   ]
+  ],
+  "merged": "LogicNativeGetBonePoint",
+  "outputs": [
+   [
+    "Length",
+    "Length",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetBoneTailPoseWorld": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Bone Name",
+    "Bone Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Bone"
+   ]
+  ],
+  "merged": "LogicNativeGetBonePoint",
+  "outputs": [
+   [
+    "Position",
+    "Position",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  ],
+  "settings": {
+   "space": "WORLD"
+  }
+ },
+ "LogicNativeGetBoneTailWorld": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Bone Name",
+    "Bone Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Bone"
+   ]
+  ],
+  "merged": "LogicNativeGetBonePoint",
+  "outputs": [
+   [
+    "Position",
+    "Position",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetChild": {
+  "inputs": [
+   [
+    "Parent Object",
+    "Parent",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Index",
+    "Index",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    0
+   ]
+  ],
+  "merged": "LogicNativeGetChildObject",
+  "outputs": [
+   [
+    "Child Object",
+    "Child",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetChildByName": {
+  "inputs": [
+   [
+    "Parent",
+    "Parent",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Child",
+    "Child",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeGetChildObject",
+  "outputs": [
+   [
+    "Child",
+    "Child",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetFullscreen": {
+  "inputs": [],
+  "merged": "LogicNativeGetDisplaySetting",
+  "outputs": [
+   [
+    "Fullscreen",
+    "Fullscreen",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetGameProperty": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ]
+  ],
+  "merged": "LogicNativeGetGamePropertyValue",
+  "outputs": [
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicGeneric",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetGamePropertyBool": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ]
+  ],
+  "merged": "LogicNativeGetGamePropertyValue",
+  "outputs": [
+   [
+    "Value",
+    "Property Value",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetGamePropertyFloat": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ]
+  ],
+  "merged": "LogicNativeGetGamePropertyValue",
+  "outputs": [
+   [
+    "Value",
+    "Property Value",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetGamePropertyInt": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ]
+  ],
+  "merged": "LogicNativeGetGamePropertyValue",
+  "outputs": [
+   [
+    "Value",
+    "Property Value",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    0
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetGamePropertyString": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ]
+  ],
+  "merged": "LogicNativeGetGamePropertyValue",
+  "outputs": [
+   [
+    "Value",
+    "Property Value",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetLightColor": {
+  "inputs": [
+   [
+    "Object",
+    "Light Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeGetLightAttribute",
+  "outputs": [
+   [
+    "Color",
+    "Color",
+    "NodeSocketLogicColor",
+    true,
+    false,
+    false,
+    [
+     0.8,
+     0.8,
+     0.8,
+     1.0
+    ]
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetLightPower": {
+  "inputs": [
+   [
+    "Object",
+    "Light Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeGetLightAttribute",
+  "outputs": [
+   [
+    "Power",
+    "Power",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetResolution": {
+  "inputs": [],
+  "merged": "LogicNativeGetDisplaySetting",
+  "outputs": [
+   [
+    "Width",
+    "Width",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    0
+   ],
+   [
+    "Height",
+    "Height",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    0
+   ],
+   [
+    "Resolution",
+    "Resolution",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetVSync": {
+  "inputs": [],
+  "merged": "LogicNativeGetDisplaySetting",
+  "outputs": [
+   [
+    "Mode",
+    "Mode",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    0
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeInstallLogicTree": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Tree Name",
+    "Tree Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
+   ],
+   [
+    "Initialize",
+    "Initialize",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    true
+   ]
+  ],
+  "merged": "LogicNativeControlLogicTree",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeKeyboardKey": {
+  "inputs": [
+   [
+    "Key",
+    "Key",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "A"
+   ]
+  ],
+  "merged": "LogicNativeKeyButton",
+  "outputs": [
+   [
+    "Out",
+    "Triggered",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Active",
+    "Active",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Pressed",
+    "Pressed",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Released",
+    "Released",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "settings": {
+   "input_type": "TAP",
+   "use_ui_input": false
+  }
+ },
+ "LogicNativeLoadScene": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Scene",
+    "Scene",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
+   ]
+  ],
+  "merged": "LogicNativeChangeScene",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeLoadVariable": {
+  "inputs": [
+   [
+    "Path",
+    "Path",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "//Data"
+   ],
+   [
+    "File",
+    "File",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "variables"
+   ],
+   [
+    "Name",
+    "Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "var"
+   ],
+   [
+    "Default Value",
+    "Default Value",
+    "NodeSocketLogicGeneric",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeVariableLoad",
+  "outputs": [
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicGeneric",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeLoadVariableDict": {
+  "inputs": [
+   [
+    "Path",
+    "Path",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "//Data"
+   ],
+   [
+    "File",
+    "File",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "variables"
+   ]
+  ],
+  "merged": "LogicNativeVariableLoad",
+  "outputs": [
+   [
+    "Variables",
+    "Variables",
+    "NodeSocketLogicDictionary",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeModifyProperty": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Min",
+    "Min",
+    "NodeSocketLogicFloat",
+    false,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Max",
+    "Max",
+    "NodeSocketLogicFloat",
+    false,
+    false,
+    false,
+    1.0
+   ]
+  ],
+  "merged": "LogicNativeModifyGameProperty",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {
+   "clamp": false,
+   "operation": "ADD"
+  }
+ },
+ "LogicNativeMouseButton": {
+  "inputs": [
+   [
+    "Button",
+    "Button",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "LEFTMOUSE"
+   ]
+  ],
+  "merged": "LogicNativeKeyButton",
+  "outputs": [
+   [
+    "Out",
+    "Triggered",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Active",
+    "Active",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Pressed",
+    "Pressed",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Released",
+    "Released",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "settings": {
+   "input_type": "TAP",
+   "mouse_button": "LEFTMOUSE",
+   "use_ui_input": false
+  }
+ },
+ "LogicNativeNone": {
+  "inputs": [
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicGeneric",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeIsNone",
+  "outputs": [
+   [
+    "If None",
+    "If None",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeNotNone": {
+  "inputs": [
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicGeneric",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeIsNone",
+  "outputs": [
+   [
+    "If Not None",
+    "If Not None",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativePauseSound": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeControlSound",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {
+   "sound": null
+  }
+ },
+ "LogicNativeRangedThreshold": {
+  "inputs": [
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Min",
+    "Min",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Max",
+    "Max",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    1.0
+   ]
+  ],
+  "merged": "LogicNativeThresholdValue",
+  "outputs": [
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ]
+  ],
+  "settings": {
+   "operation": "INSIDE"
+  }
+ },
+ "LogicNativeRaycast": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Caster",
+    "Caster",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Ignore Object",
+    "Ignore Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Ignore Objects",
+    "Ignore Objects",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Origin",
+    "Origin",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Destination",
+    "Destination",
+    "NodeSocketLogicVector",
+    false,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   [
+    "Direction",
+    "Direction",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   [
+    "Max Distance",
+    "Max Distance",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    100.0
+   ],
+   [
+    "Local",
+    "Local",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
+   ],
+   [
+    "X-Ray",
+    "X-Ray",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Mask",
+    "Mask",
+    "NodeSocketLogicCollisionLayers",
+    true,
+    false,
+    false,
+    1023
+   ],
+   [
+    "Include Sensors",
+    "Include Sensors",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Hit Backfaces",
+    "Hit Backfaces",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Visualize",
+    "Visualize",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "merged": "LogicNativeCastRay",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Has Result",
+    "Has Result",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Blocked",
+    "Blocked",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Picked Object",
+    "Hit Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Point",
+    "Hit Point",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Normal",
+    "Hit Normal",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Direction",
+    "Direction",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "End Point",
+    "End Point",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Distance",
+    "Distance",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Fraction",
+    "Fraction",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Face Index",
+    "Face Index",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    0
+   ],
+   [
+    "Has UV",
+    "Has UV",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "UV",
+    "UV",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  ],
+  "settings": {
+   "input_mode": "DIRECTION_DISTANCE"
+  }
+ },
+ "LogicNativeRaycastAll": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Caster",
+    "Caster",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Ignore Object",
+    "Ignore Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Ignore Objects",
+    "Ignore Objects",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Origin",
+    "Origin",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Destination",
+    "Destination",
+    "NodeSocketLogicVector",
+    false,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   [
+    "Direction",
+    "Direction",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   [
+    "Max Distance",
+    "Max Distance",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    100.0
+   ],
+   [
+    "Local",
+    "Local",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
+   ],
+   [
+    "X-Ray",
+    "X-Ray",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Mask",
+    "Mask",
+    "NodeSocketLogicCollisionLayers",
+    true,
+    false,
+    false,
+    1023
+   ],
+   [
+    "Include Sensors",
+    "Include Sensors",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Hit Backfaces",
+    "Hit Backfaces",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Max Results",
+    "Max Results",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    32
+   ],
+   [
+    "Visualize",
+    "Visualize",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "merged": "LogicNativeCastRay",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Has Result",
+    "Has Result",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Blocked",
+    "Blocked",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Hit Count",
+    "Hit Count",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    0
+   ],
+   [
+    "Direction",
+    "Direction",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "End Point",
+    "End Point",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Hit Objects",
+    "Hit Objects",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Points",
+    "Points",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Normals",
+    "Normals",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Distances",
+    "Distances",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Fractions",
+    "Fractions",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Face Indices",
+    "Face Indices",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Has UVs",
+    "Has UVs",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "UVs",
+    "UVs",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "settings": {
+   "input_mode": "DIRECTION_DISTANCE"
+  }
+ },
+ "LogicNativeRemoveOverlayCollection": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Collection",
+    "Collection",
+    "NodeSocketLogicCollection",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeOverlayCollection",
+  "outputs": [
+   [
+    "Success",
+    "Success",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Failed",
+    "Failed",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Result",
+    "Result",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    0
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeRemoveVariable": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Path",
+    "Path",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "//Data"
+   ],
+   [
+    "File",
+    "File",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "variables"
+   ],
+   [
+    "Name",
+    "Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "var"
+   ]
+  ],
+  "merged": "LogicNativeVariableRemove",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeResumeSound": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeControlSound",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {
+   "sound": null
+  }
+ },
+ "LogicNativeRunLogicTree": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Tree Name",
+    "Tree Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
+   ]
+  ],
+  "merged": "LogicNativeControlLogicTree",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSaveVariable": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Path",
+    "Path",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "//Data"
+   ],
+   [
+    "File",
+    "File",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "variables"
+   ],
+   [
+    "Name",
+    "Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "var"
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicGeneric",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeVariableSave",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSaveVariableDict": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Path",
+    "Path",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "//Data"
+   ],
+   [
+    "File",
+    "File",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "variables"
+   ],
+   [
+    "Variables",
+    "Variables",
+    "NodeSocketLogicDictionary",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeVariableSave",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetBoneConstraintAttribute": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Armature",
+    "Armature",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Bone",
+    "Bone",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Bone"
+   ],
+   [
+    "Constraint",
+    "Constraint",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Constraint"
+   ],
+   [
+    "Attribute",
+    "Attribute",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "influence"
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicGeneric",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeSetBoneConstraint",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetBoneConstraintInfluence": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Bone Name",
+    "Bone Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Bone"
+   ],
+   [
+    "Constraint Name",
+    "Constraint Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Constraint"
+   ],
+   [
+    "Influence",
+    "Influence",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    1.0
+   ]
+  ],
+  "merged": "LogicNativeSetBoneConstraint",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetBoneConstraintTarget": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Armature",
+    "Armature",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Bone",
+    "Bone",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Bone"
+   ],
+   [
+    "Constraint",
+    "Constraint",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Constraint"
+   ],
+   [
+    "Target",
+    "Target",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeSetBoneConstraint",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetCameraFov": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Camera",
+    "Camera",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "FOV",
+    "FOV",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    90.0
+   ]
+  ],
+  "merged": "LogicNativeSetCameraLens",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    false,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetCameraOrthoScale": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Camera",
+    "Camera",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Scale",
+    "Scale",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    1.0
+   ]
+  ],
+  "merged": "LogicNativeSetCameraLens",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    false,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetCharacterGravity": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Gravity",
+    "Gravity",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     -9.8
+    ]
+   ]
+  ],
+  "merged": "LogicNativeSetCharacterAttribute",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    false,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetCharacterJumpSpeed": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Force",
+    "Force",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ]
+  ],
+  "merged": "LogicNativeSetCharacterAttribute",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    false,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetCharacterMaxJumps": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Max Jumps",
+    "Max Jumps",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    1
+   ]
+  ],
+  "merged": "LogicNativeSetCharacterAttribute",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    false,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetGamePaused": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Paused",
+    "Paused",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    true
+   ]
+  ],
+  "merged": "LogicNativeSetPaused",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetGameProperty": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicGeneric",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeSetGamePropertyValue",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetGamePropertyBool": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "merged": "LogicNativeSetGamePropertyValue",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetGamePropertyFloat": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ]
+  ],
+  "merged": "LogicNativeSetGamePropertyValue",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetGamePropertyInt": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    0
+   ]
+  ],
+  "merged": "LogicNativeSetGamePropertyValue",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetGamePropertyString": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
+   ]
+  ],
+  "merged": "LogicNativeSetGamePropertyValue",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetLightColor": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Light Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Color",
+    "Color",
+    "NodeSocketLogicColor",
+    true,
+    false,
+    false,
+    [
+     0.8,
+     0.8,
+     0.8,
+     1.0
+    ]
+   ]
+  ],
+  "merged": "LogicNativeSetLightAttribute",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    false,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetLightPower": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Light Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Power",
+    "Power",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    1.0
+   ]
+  ],
+  "merged": "LogicNativeSetLightAttribute",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    false,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetLightShadow": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Light Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Use Shadow",
+    "Use Shadow",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    true
+   ]
+  ],
+  "merged": "LogicNativeSetLightAttribute",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    false,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetOverlayCollection": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Camera",
+    "Camera",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Collection",
+    "Collection",
+    "NodeSocketLogicCollection",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeOverlayCollection",
+  "outputs": [
+   [
+    "Success",
+    "Success",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Failed",
+    "Failed",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Result",
+    "Result",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    0
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetPhysicsPaused": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Paused",
+    "Paused",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    true
+   ]
+  ],
+  "merged": "LogicNativeSetPaused",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetScene": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Scene",
+    "Scene",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
+   ]
+  ],
+  "merged": "LogicNativeChangeScene",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeShapeCast": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Caster",
+    "Caster",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Ignore Object",
+    "Ignore Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Ignore Objects",
+    "Ignore Objects",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Origin",
+    "Origin",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Destination",
+    "Destination",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   [
+    "Rotation",
+    "Rotation",
+    "NodeSocketLogicRotation",
+    false,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Radius",
+    "Radius",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.5
+   ],
+   [
+    "Half Extents",
+    "Half Extents",
+    "NodeSocketLogicVector",
+    false,
+    false,
+    false,
+    [
+     0.5,
+     0.5,
+     0.5
+    ]
+   ],
+   [
+    "Height",
+    "Height",
+    "NodeSocketLogicFloat",
+    false,
+    false,
+    false,
+    2.0
+   ],
+   [
+    "Extra Radius",
+    "Extra Radius",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Local",
+    "Local",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
+   ],
+   [
+    "X-Ray",
+    "X-Ray",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Mask",
+    "Mask",
+    "NodeSocketLogicCollisionLayers",
+    true,
+    false,
+    false,
+    1023
+   ],
+   [
+    "Include Sensors",
+    "Include Sensors",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Hit Backfaces",
+    "Hit Backfaces",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Visualize",
+    "Visualize",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "merged": "LogicNativeCastShape",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Has Result",
+    "Has Result",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Blocked",
+    "Blocked",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Hit Object",
+    "Hit Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Point",
+    "Hit Point",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Normal",
+    "Hit Normal",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Cast Position",
+    "Cast Position",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Direction",
+    "Direction",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Distance",
+    "Distance",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Fraction",
+    "Fraction",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Started Overlapping",
+    "Started Overlapping",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Penetration Depth",
+    "Penetration Depth",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Face Index",
+    "Face Index",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    -1
+   ],
+   [
+    "Has UV",
+    "Has UV",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "UV",
+    "UV",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ]
+  ],
+  "settings": {
+   "shape_type": "SPHERE"
+  }
+ },
+ "LogicNativeShapeCastAll": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Caster",
+    "Caster",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Ignore Object",
+    "Ignore Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Ignore Objects",
+    "Ignore Objects",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Origin",
+    "Origin",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Destination",
+    "Destination",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   [
+    "Rotation",
+    "Rotation",
+    "NodeSocketLogicRotation",
+    false,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Radius",
+    "Radius",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.5
+   ],
+   [
+    "Half Extents",
+    "Half Extents",
+    "NodeSocketLogicVector",
+    false,
+    false,
+    false,
+    [
+     0.5,
+     0.5,
+     0.5
+    ]
+   ],
+   [
+    "Height",
+    "Height",
+    "NodeSocketLogicFloat",
+    false,
+    false,
+    false,
+    2.0
+   ],
+   [
+    "Extra Radius",
+    "Extra Radius",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Local",
+    "Local",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
+   ],
+   [
+    "X-Ray",
+    "X-Ray",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Mask",
+    "Mask",
+    "NodeSocketLogicCollisionLayers",
+    true,
+    false,
+    false,
+    1023
+   ],
+   [
+    "Include Sensors",
+    "Include Sensors",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Hit Backfaces",
+    "Hit Backfaces",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Max Results",
+    "Max Results",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    32
+   ],
+   [
+    "Visualize",
+    "Visualize",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "merged": "LogicNativeCastShape",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Has Result",
+    "Has Result",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Blocked",
+    "Blocked",
+    "NodeSocketLogicCondition",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Hit Count",
+    "Hit Count",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    0
+   ],
+   [
+    "Hit Objects",
+    "Hit Objects",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Points",
+    "Points",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Normals",
+    "Normals",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Cast Positions",
+    "Cast Positions",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Distances",
+    "Distances",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Fractions",
+    "Fractions",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Started Overlapping",
+    "Started Overlapping",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Penetration Depths",
+    "Penetration Depths",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Face Indices",
+    "Face Indices",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Has UVs",
+    "Has UVs",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "UVs",
+    "UVs",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "settings": {
+   "shape_type": "SPHERE"
+  }
+ },
+ "LogicNativeShowFramerate": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Show",
+    "Show",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "merged": "LogicNativeShowDebugOverlay",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeShowProfile": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Show",
+    "Show",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "merged": "LogicNativeShowDebugOverlay",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeStartLogicTree": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Tree Name",
+    "Tree Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
+   ]
+  ],
+  "merged": "LogicNativeControlLogicTree",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeStopAllSounds": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeControlSound",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeStopLogicTree": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Tree Name",
+    "Tree Name",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
+   ]
+  ],
+  "merged": "LogicNativeControlLogicTree",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeStopSound": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeControlSound",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {
+   "sound": null
+  }
+ },
+ "LogicNativeSwitchFlowInt": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Index",
+    "Index",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    0
+   ]
+  ],
+  "merged": "LogicNativeSwitchFlow",
+  "outputs": [
+   [
+    "Then 0",
+    "Then 0",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Then 1",
+    "Then 1",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Default",
+    "Default",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSwitchFlowString": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
+   ],
+   [
+    "Case 0",
+    "Case 0",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Case 0"
+   ],
+   [
+    "Case 1",
+    "Case 1",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "Case 1"
+   ]
+  ],
+  "merged": "LogicNativeSwitchFlow",
+  "outputs": [
+   [
+    "Then 0",
+    "Then 0",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Then 1",
+    "Then 1",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Default",
+    "Default",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeThreshold": {
+  "inputs": [
+   [
+    "Else 0",
+    "Else 0",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    true
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Threshold",
+    "Threshold",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ]
+  ],
+  "merged": "LogicNativeThresholdValue",
+  "outputs": [
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ]
+  ],
+  "settings": {
+   "operation": "GREATER"
+  }
+ },
+ "LogicNativeTimer": {
+  "inputs": [
+   [
+    "Set Timer",
+    "Set Timer",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Seconds",
+    "Seconds",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Ignore Timescale",
+    "Ignore Timescale",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ]
+  ],
+  "merged": "LogicNativeDelayFlow",
+  "outputs": [
+   [
+    "Out",
+    "When Elapsed",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeToggleProperty": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ]
+  ],
+  "merged": "LogicNativeModifyGameProperty",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeTranslate": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Local",
+    "Local",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Vector",
+    "Vector",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   [
+    "Speed",
+    "Speed",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    1.0
+   ]
+  ],
+  "merged": "LogicNativeApplyTransform",
+  "outputs": [
+   [
+    "When Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeValueChanged": {
+  "inputs": [
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicGeneric",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeOnValueChange",
+  "outputs": [
+   [
+    "If Changed",
+    "If Changed",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Old",
+    "Old",
+    "NodeSocketLogicGeneric",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "New",
+    "New",
+    "NodeSocketLogicGeneric",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "settings": {
+   "ignore_initial_none": false
+  }
+ },
+ "LogicNativeValueChangedTo": {
+  "inputs": [
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicGeneric",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Target",
+    "Target",
+    "NodeSocketLogicGeneric",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeOnValueChange",
+  "outputs": [
+   [
+    "Result",
+    "If Changed To",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeVehicleAccelerate": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Vehicle",
+    "Vehicle",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Wheels",
+    "Wheels",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    2
+   ],
+   [
+    "Power",
+    "Power",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    1.0
+   ]
+  ],
+  "merged": "LogicNativeDriveVehicle",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {
+   "vehicle_axis": "REAR"
+  }
+ },
+ "LogicNativeVehicleBrake": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Vehicle",
+    "Vehicle",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Wheels",
+    "Wheels",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    2
+   ],
+   [
+    "Power",
+    "Power",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    1.0
+   ]
+  ],
+  "merged": "LogicNativeDriveVehicle",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {
+   "vehicle_axis": "REAR"
+  }
+ },
+ "LogicNativeVehicleSteer": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Vehicle",
+    "Vehicle",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Wheels",
+    "Wheels",
+    "NodeSocketLogicInt",
+    true,
+    false,
+    false,
+    2
+   ],
+   [
+    "Steer",
+    "Steer",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ]
+  ],
+  "merged": "LogicNativeDriveVehicle",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {
+   "vehicle_axis": "FRONT"
+  }
+ }
+}

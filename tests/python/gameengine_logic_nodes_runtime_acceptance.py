@@ -16,6 +16,48 @@ import addon_utils
 import bpy
 
 
+# Merged Logic Nodes (2026-11-08): the former node types that became options of a merged node are
+# no node types any more. Tests keep naming them: new_logic_node makes such a name as its merged
+# node holding that option; logic_idname reads a node back as the type it works as.
+_LOGIC_OPTIONS = None
+
+
+def _logic_options():
+    """Former idname -> (merged idname, option identifier), from Blender's merged nodes."""
+    global _LOGIC_OPTIONS
+    if _LOGIC_OPTIONS is None:
+        _LOGIC_OPTIONS = {}
+        tree = bpy.data.node_groups.new("__logic_options", "LogicNodeTree")
+        try:
+            for name in dir(bpy.types):
+                rna = getattr(getattr(bpy.types, name, None), "bl_rna", None)
+                if (not name.startswith("LogicNative") or rna is None or
+                        "variant_idname" not in rna.properties):
+                    continue
+                node = tree.nodes.new(name)
+                for item in rna.properties["variant"].enum_items:
+                    node.variant = item.identifier
+                    _LOGIC_OPTIONS[node.variant_idname] = (name, item.identifier)
+        finally:
+            bpy.data.node_groups.remove(tree)
+    return _LOGIC_OPTIONS
+
+
+def new_logic_node(nodes, idname):
+    """nodes.new(idname), a former node type made as its merged node."""
+    option = _logic_options().get(idname)
+    if option is None:
+        return nodes.new(idname)
+    node = nodes.new(option[0])
+    node.variant = option[1]
+    return node
+
+
+def logic_idname(node):
+    """The node type a node works as (a merged node's option counts as the former type)."""
+    return getattr(node, "variant_idname", "") or node.bl_idname
+
+
 LOGIC_NODES_TREE_PROPERTY = "__ln_logic_tree"
 LOGIC_NODES_ENABLED_PROPERTY = "__ln_logic_enabled"
 LOGIC_NODES_STATUS_PROPERTY = "__ln_logic_status"
@@ -82,13 +124,13 @@ def value_output(node):
 
 
 def new_get_object_attribute(tree, attribute_type):
-    node = tree.nodes.new("LogicNativeGetObjectAttribute")
+    node = new_logic_node(tree.nodes, "LogicNativeGetObjectAttribute")
     node.attribute_type = attribute_type
     return node
 
 
 def new_set_object_attribute(tree, attribute_type):
-    node = tree.nodes.new("LogicNativeSetObjectAttribute")
+    node = new_logic_node(tree.nodes, "LogicNativeSetObjectAttribute")
     node.attribute_type = attribute_type
     return node
 
@@ -9154,7 +9196,7 @@ def bind_tree(obj, tree_name, enabled=True):
 
 def build_move_tree(name, position, event="INIT", target_obj=None):
     tree = new_logic_tree(name)
-    event_node = tree.nodes.new("LogicNativeOnInit" if event == "INIT" else "LogicNativeOnUpdate")
+    event_node = new_logic_node(tree.nodes, "LogicNativeOnInit" if event == "INIT" else "LogicNativeOnUpdate")
     set_position = new_set_object_attribute(tree, "WORLD_POSITION")
     if target_obj is not None:
         set_position.inputs["Object"].default_value = target_obj
@@ -9165,10 +9207,10 @@ def build_move_tree(name, position, event="INIT", target_obj=None):
 
 def build_logic_gate_tree(name, position):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    conditions = [tree.nodes.new("LogicNativeGetGamePropertyBool") for _index in range(5)]
-    gate = tree.nodes.new("LogicNativeGate")
-    branch = tree.nodes.new("LogicNativeBranch")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    conditions = [new_logic_node(tree.nodes, "LogicNativeGetGamePropertyBool") for _index in range(5)]
+    gate = new_logic_node(tree.nodes, "LogicNativeGate")
+    branch = new_logic_node(tree.nodes, "LogicNativeBranch")
     set_position = new_set_object_attribute(tree, "WORLD_POSITION")
 
     for index, condition in enumerate(conditions):
@@ -9186,18 +9228,18 @@ def build_logic_gate_tree(name, position):
 
 def build_execution_flow_tree(name):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    sequence = tree.nodes.new("LogicNativeSequence")
-    close_sequence = tree.nodes.new("LogicNativeSequence")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    sequence = new_logic_node(tree.nodes, "LogicNativeSequence")
+    close_sequence = new_logic_node(tree.nodes, "LogicNativeSequence")
     set_sequence_output_count(tree, sequence, 4)
-    any_flow = tree.nodes.new("LogicNativeAnyFlow")
-    gate = tree.nodes.new("LogicNativeFlowGate")
-    movement = tree.nodes.new("LogicNativeApplyMovement")
-    verify_initially_closed = tree.nodes.new("LogicNativeBranch")
-    verify_stays_closed = tree.nodes.new("LogicNativeBranch")
-    unexpected_initial_movement = tree.nodes.new("LogicNativeApplyMovement")
-    unexpected_later_movement = tree.nodes.new("LogicNativeApplyMovement")
+    any_flow = new_logic_node(tree.nodes, "LogicNativeAnyFlow")
+    gate = new_logic_node(tree.nodes, "LogicNativeFlowGate")
+    movement = new_logic_node(tree.nodes, "LogicNativeApplyMovement")
+    verify_initially_closed = new_logic_node(tree.nodes, "LogicNativeBranch")
+    verify_stays_closed = new_logic_node(tree.nodes, "LogicNativeBranch")
+    unexpected_initial_movement = new_logic_node(tree.nodes, "LogicNativeApplyMovement")
+    unexpected_later_movement = new_logic_node(tree.nodes, "LogicNativeApplyMovement")
 
     gate.inputs["Start Open"].default_value = False
     movement.inputs["Vector"].default_value = (1.0, 0.0, 0.0)
@@ -9232,8 +9274,8 @@ def build_execution_flow_tree(name):
 
 def build_euler_orientation_tree(name, rotation, target_obj=None):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    euler = tree.nodes.new("LogicNativeEuler")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    euler = new_logic_node(tree.nodes, "LogicNativeEuler")
     set_orientation = new_set_object_attribute(tree, "WORLD_ORIENTATION")
 
     euler.inputs["X"].default_value = rotation[0]
@@ -9249,7 +9291,7 @@ def build_euler_orientation_tree(name, rotation, target_obj=None):
 
 def build_orientation_tree(name):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
     get_world_orientation = new_get_object_attribute(tree, "WORLD_ORIENTATION")
     get_local_orientation = new_get_object_attribute(tree, "LOCAL_ORIENTATION")
     set_world_orientation = new_set_object_attribute(tree, "WORLD_ORIENTATION")
@@ -9268,7 +9310,7 @@ def build_orientation_tree(name):
 
 def build_velocity_tree(name, velocity, target_obj=None):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
     set_velocity = new_set_object_attribute(tree, "WORLD_LINEAR_VELOCITY")
     if target_obj is not None:
         set_velocity.inputs["Object"].default_value = target_obj
@@ -9279,8 +9321,8 @@ def build_velocity_tree(name, velocity, target_obj=None):
 
 def build_impulse_tree(name, impulse, target_obj=None):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    apply_impulse = tree.nodes.new("LogicNativeApplyImpulse")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    apply_impulse = new_logic_node(tree.nodes, "LogicNativeApplyImpulse")
     if target_obj is not None:
         apply_impulse.inputs["Object"].default_value = target_obj
     apply_impulse.inputs["Attach"].default_value = (0.0, 0.0, 0.0)
@@ -9291,14 +9333,14 @@ def build_impulse_tree(name, impulse, target_obj=None):
 
 def build_object_actions_tree(name, movement, rotation, force, torque, color, visible, target_obj=None):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
     set_visibility = new_set_object_attribute(tree, "VISIBLE")
-    color_rgba = tree.nodes.new("LogicNativeColorRGBA")
+    color_rgba = new_logic_node(tree.nodes, "LogicNativeColorRGBA")
     set_color = new_set_object_attribute(tree, "COLOR")
     set_position = new_set_object_attribute(tree, "WORLD_POSITION")
     set_orientation = new_set_object_attribute(tree, "WORLD_ORIENTATION")
-    apply_force = tree.nodes.new("LogicNativeApplyForce")
-    apply_torque = tree.nodes.new("LogicNativeApplyTorque")
+    apply_force = new_logic_node(tree.nodes, "LogicNativeApplyForce")
+    apply_torque = new_logic_node(tree.nodes, "LogicNativeApplyTorque")
 
     action_nodes = (
         set_visibility,
@@ -9337,11 +9379,11 @@ def build_object_actions_tree(name, movement, rotation, force, torque, color, vi
 
 def build_property_branch_tree(name, position):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    get_enabled = tree.nodes.new("LogicNativeGetGamePropertyBool")
-    branch = tree.nodes.new("LogicNativeBranch")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    get_enabled = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyBool")
+    branch = new_logic_node(tree.nodes, "LogicNativeBranch")
     set_position = new_set_object_attribute(tree, "WORLD_POSITION")
-    set_moved = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    set_moved = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     get_enabled.inputs["Property"].default_value = "enabled"
     set_position.inputs["Value"].default_value = position
@@ -9357,10 +9399,10 @@ def build_property_branch_tree(name, position):
 
 def build_property_writes_tree(name):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    set_score = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_done = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_state = tree.nodes.new("LogicNativeSetGamePropertyString")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    set_score = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_done = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_state = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
 
     set_score.inputs["Property"].default_value = "score"
     set_score.inputs["Value"].default_value = 42.5
@@ -9377,8 +9419,8 @@ def build_property_writes_tree(name):
 
 def build_property_target_tree(name, target):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    set_score = tree.nodes.new("LogicNativeSetGamePropertyInt")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    set_score = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
 
     set_score.inputs["Object"].default_value = target
     set_score.inputs["Property"].default_value = "score"
@@ -9391,13 +9433,13 @@ def build_property_target_tree(name, target):
 def build_property_advanced_tree(name):
     """On-init writes that mirror toggle/modify/switch/store outcomes (editor tree covers those nodes)."""
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    set_hit = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_enabled = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_speed = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_throttle = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_choice = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_stored = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    set_hit = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_enabled = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_speed = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_throttle = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_choice = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_stored = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
 
     set_hit.inputs["Property"].default_value = "has_hit"
     set_hit.inputs["Value"].default_value = True
@@ -9419,12 +9461,12 @@ def build_property_advanced_tree(name):
 
 def build_tree_property_tree(name):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    value_float = tree.nodes.new("LogicNativeValueFloat")
-    set_tree_property = tree.nodes.new("LogicNativeSetTreeProperty")
-    get_tree_property = tree.nodes.new("LogicNativeGetTreeProperty")
-    set_tree_value = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    value_float = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    set_tree_property = new_logic_node(tree.nodes, "LogicNativeSetTreeProperty")
+    get_tree_property = new_logic_node(tree.nodes, "LogicNativeGetTreeProperty")
+    set_tree_value = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
 
     value_output(value_float).default_value = 3.5
     set_tree_property.inputs["Property"].default_value = "tree_score"
@@ -9441,10 +9483,10 @@ def build_tree_property_tree(name):
 
 def build_bone_parent_tree(name, armature_obj, child_obj):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
 
-    set_parent = tree.nodes.new("LogicNativeSetParent")
+    set_parent = new_logic_node(tree.nodes, "LogicNativeSetParent")
     set_parent.parent_type = "BONE"
     parent_inputs = {socket.identifier: socket for socket in set_parent.inputs}
     parent_inputs["Child Object"].default_value = child_obj
@@ -9452,7 +9494,7 @@ def build_bone_parent_tree(name, armature_obj, child_obj):
     parent_inputs["Bone Name"].default_value = "Bone"
     tree.links.new(on_init.outputs["Out"], flow_input(set_parent))
 
-    move_bone = tree.nodes.new("LogicNativeSetBonePoseLocation")
+    move_bone = new_logic_node(tree.nodes, "LogicNativeSetBonePoseLocation")
     move_bone.space = "POSE_CHANNEL"
     move_bone.inputs["Object"].default_value = armature_obj
     move_bone.inputs["Bone Name"].default_value = "Bone"
@@ -9463,7 +9505,7 @@ def build_bone_parent_tree(name, armature_obj, child_obj):
 
 def build_bone_pose_tree(name, armature_obj):
     tree = new_logic_tree(name)
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
 
     def configure_bone_node(node, bone_name):
         node.inputs["Object"].default_value = armature_obj
@@ -9471,26 +9513,26 @@ def build_bone_pose_tree(name, armature_obj):
         return node
 
     def make_rotation(values):
-        node = tree.nodes.new("LogicNativeEuler")
+        node = new_logic_node(tree.nodes, "LogicNativeEuler")
         for axis, value in zip(("X", "Y", "Z"), values):
             node.inputs[axis].default_value = value
         return node.outputs["Rotation"]
 
     def make_vector(values):
-        node = tree.nodes.new("LogicNativeCombineXYZ")
+        node = new_logic_node(tree.nodes, "LogicNativeCombineXYZ")
         for axis, value in zip(("X", "Y", "Z"), values):
             node.inputs[axis].default_value = value
         return node.outputs["Vector"]
 
     def store_components(property_prefix, value_socket, rotation=False):
-        separate = tree.nodes.new(
+        separate = new_logic_node(tree.nodes, 
             "LogicNativeSeparateEuler" if rotation else "LogicNativeSeparateXYZ")
         tree.links.new(
             value_socket,
             separate.inputs["Rotation" if rotation else "Vector"],
         )
         for axis in ("X", "Y", "Z"):
-            setter = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+            setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
             setter.inputs["Property"].default_value = f"{property_prefix}_{axis.lower()}"
             tree.links.new(on_update.outputs["Out"], flow_input(setter))
             tree.links.new(separate.outputs[axis], setter.inputs["Value"])
@@ -9499,21 +9541,21 @@ def build_bone_pose_tree(name, armature_obj):
     # native bone orientation is not. The explicit conversion must produce the equivalent
     # ordinary-object orientation even for an authored rest direction and roll.
     get_reference_channel = configure_bone_node(
-        tree.nodes.new("LogicNativeGetBonePoseRotation"), "Reference")
+        new_logic_node(tree.nodes, "LogicNativeGetBonePoseTransform"), "Reference")
     get_reference_channel.space = "POSE_CHANNEL"
     store_components(
         "reference_channel", get_reference_channel.outputs["Rotation"], rotation=True)
 
     get_reference_native = configure_bone_node(
-        tree.nodes.new("LogicNativeGetBonePoseRotation"), "Reference")
+        new_logic_node(tree.nodes, "LogicNativeGetBonePoseTransform"), "Reference")
     get_reference_native.space = "ARMATURE"
     store_components(
         "reference_native", get_reference_native.outputs["Rotation"], rotation=True)
 
     get_reference_world = configure_bone_node(
-        tree.nodes.new("LogicNativeGetBonePoseRotation"), "Reference")
+        new_logic_node(tree.nodes, "LogicNativeGetBonePoseTransform"), "Reference")
     get_reference_world.space = "WORLD"
-    bone_to_object = tree.nodes.new("LogicNativeBoneRotationToObjectRotation")
+    bone_to_object = new_logic_node(tree.nodes, "LogicNativeBoneRotationToObjectRotation")
     tree.links.new(
         get_reference_world.outputs["Rotation"], bone_to_object.inputs["Bone Rotation"])
     store_components(
@@ -9522,51 +9564,51 @@ def build_bone_pose_tree(name, armature_obj):
     # Pose Channel is a raw Blender channel contract. Get and Set must preserve native bone-axis
     # components, and scale must not silently swap Y/Z.
     set_channel_rotation = configure_bone_node(
-        tree.nodes.new("LogicNativeSetBonePoseRotation"), "Bone")
+        new_logic_node(tree.nodes, "LogicNativeSetBonePoseRotation"), "Bone")
     set_channel_rotation.space = "POSE_CHANNEL"
     tree.links.new(on_update.outputs["Out"], flow_input(set_channel_rotation))
     tree.links.new(
         make_rotation((0.12, -0.21, 0.33)), set_channel_rotation.inputs["Rotation"])
 
     get_channel_rotation = configure_bone_node(
-        tree.nodes.new("LogicNativeGetBonePoseRotation"), "Bone")
+        new_logic_node(tree.nodes, "LogicNativeGetBonePoseTransform"), "Bone")
     get_channel_rotation.space = "POSE_CHANNEL"
     store_components(
         "channel_rotation", get_channel_rotation.outputs["Rotation"], rotation=True)
 
     set_channel_scale = configure_bone_node(
-        tree.nodes.new("LogicNativeSetBonePoseScale"), "Bone")
+        new_logic_node(tree.nodes, "LogicNativeSetBonePoseScale"), "Bone")
     tree.links.new(on_update.outputs["Out"], flow_input(set_channel_scale))
     tree.links.new(make_vector((1.25, 0.75, 1.5)), set_channel_scale.inputs["Scale"])
 
     get_channel_scale = configure_bone_node(
-        tree.nodes.new("LogicNativeGetBonePoseScale"), "Bone")
+        new_logic_node(tree.nodes, "LogicNativeGetBonePoseTransform"), "Bone")
     store_components("channel_scale", get_channel_scale.outputs["Scale"])
 
     # Absolute Armature and World modes are tested on bones with non-default rest directions and
     # roll. This exercises Blender's parent/rest pose conversion instead of only the trivial bone.
     set_armature_rotation = configure_bone_node(
-        tree.nodes.new("LogicNativeSetBonePoseRotation"), "ArmatureTarget")
+        new_logic_node(tree.nodes, "LogicNativeSetBonePoseRotation"), "ArmatureTarget")
     set_armature_rotation.space = "ARMATURE"
     tree.links.new(on_update.outputs["Out"], flow_input(set_armature_rotation))
     tree.links.new(
         make_rotation((0.24, -0.16, 0.41)), set_armature_rotation.inputs["Rotation"])
 
     get_armature_rotation = configure_bone_node(
-        tree.nodes.new("LogicNativeGetBonePoseRotation"), "ArmatureTarget")
+        new_logic_node(tree.nodes, "LogicNativeGetBonePoseTransform"), "ArmatureTarget")
     get_armature_rotation.space = "ARMATURE"
     store_components(
         "armature_rotation", get_armature_rotation.outputs["Rotation"], rotation=True)
 
     set_world_rotation = configure_bone_node(
-        tree.nodes.new("LogicNativeSetBonePoseRotation"), "WorldTarget")
+        new_logic_node(tree.nodes, "LogicNativeSetBonePoseRotation"), "WorldTarget")
     set_world_rotation.space = "WORLD"
     tree.links.new(on_update.outputs["Out"], flow_input(set_world_rotation))
     tree.links.new(
         make_rotation((-0.19, 0.28, -0.34)), set_world_rotation.inputs["Rotation"])
 
     get_world_rotation = configure_bone_node(
-        tree.nodes.new("LogicNativeGetBonePoseRotation"), "WorldTarget")
+        new_logic_node(tree.nodes, "LogicNativeGetBonePoseTransform"), "WorldTarget")
     get_world_rotation.space = "WORLD"
     store_components(
         "world_rotation", get_world_rotation.outputs["Rotation"], rotation=True)
@@ -9574,14 +9616,14 @@ def build_bone_pose_tree(name, armature_obj):
     # The combined transform node has its own compiler/command path, so verify it independently
     # from the individual rotation and location nodes.
     set_transform = configure_bone_node(
-        tree.nodes.new("LogicNativeSetBonePoseTransform"), "TransformBone")
+        new_logic_node(tree.nodes, "LogicNativeSetBonePoseTransform"), "TransformBone")
     set_transform.space = "WORLD"
     tree.links.new(on_update.outputs["Out"], flow_input(set_transform))
     tree.links.new(make_vector((2.1, -1.4, 0.8)), set_transform.inputs["Location"])
     tree.links.new(make_rotation((-0.14, 0.22, -0.31)), set_transform.inputs["Rotation"])
 
     get_transform = configure_bone_node(
-        tree.nodes.new("LogicNativeGetBonePoseTransform"), "TransformBone")
+        new_logic_node(tree.nodes, "LogicNativeGetBonePoseTransform"), "TransformBone")
     get_transform.space = "WORLD"
     store_components("transform_location", get_transform.outputs["Location"])
     store_components("transform_rotation", get_transform.outputs["Rotation"], rotation=True)
@@ -9590,15 +9632,15 @@ def build_bone_pose_tree(name, armature_obj):
     # Bone Local Offset must use evaluated native bone axes. An input on +Y therefore follows the
     # authored bone direction, including the armature object's world rotation.
     set_local_offset = configure_bone_node(
-        tree.nodes.new("LogicNativeSetBonePoseLocation"), "OffsetBone")
+        new_logic_node(tree.nodes, "LogicNativeSetBonePoseLocation"), "OffsetBone")
     set_local_offset.space = "BONE_LOCAL_OFFSET"
     tree.links.new(on_update.outputs["Out"], flow_input(set_local_offset))
     tree.links.new(make_vector((0.0, 0.5, 0.0)), set_local_offset.inputs["Location"])
 
     get_rest_head = configure_bone_node(
-        tree.nodes.new("LogicNativeGetBoneHeadWorld"), "OffsetBone")
+        new_logic_node(tree.nodes, "LogicNativeGetBoneHeadWorld"), "OffsetBone")
     get_pose_head = configure_bone_node(
-        tree.nodes.new("LogicNativeGetBoneHeadPoseWorld"), "OffsetBone")
+        new_logic_node(tree.nodes, "LogicNativeGetBoneHeadPoseWorld"), "OffsetBone")
     store_components("offset_rest_head", get_rest_head.outputs["Position"])
     store_components("offset_pose_head", get_pose_head.outputs["Position"])
     return tree
@@ -9606,15 +9648,15 @@ def build_bone_pose_tree(name, armature_obj):
 
 def build_bone_read_tree(name, armature_obj):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    get_bone_length = tree.nodes.new("LogicNativeGetBoneLength")
-    get_bone_head = tree.nodes.new("LogicNativeGetBoneHeadWorld")
-    get_bone_center = tree.nodes.new("LogicNativeGetBoneCenterWorld")
-    separate_head = tree.nodes.new("LogicNativeSeparateXYZ")
-    separate_center = tree.nodes.new("LogicNativeSeparateXYZ")
-    set_bone_length = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_bone_head_z = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_bone_center_z = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    get_bone_length = new_logic_node(tree.nodes, "LogicNativeGetBoneLength")
+    get_bone_head = new_logic_node(tree.nodes, "LogicNativeGetBoneHeadWorld")
+    get_bone_center = new_logic_node(tree.nodes, "LogicNativeGetBoneCenterWorld")
+    separate_head = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    separate_center = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    set_bone_length = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_bone_head_z = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_bone_center_z = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
 
     get_bone_length.inputs["Object"].default_value = armature_obj
     get_bone_head.inputs["Object"].default_value = armature_obj
@@ -9636,71 +9678,70 @@ def build_bone_read_tree(name, armature_obj):
 
 def build_data_containers_tree(name):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
 
-    item_a = tree.nodes.new("LogicNativeValueFloat")
-    item_b = tree.nodes.new("LogicNativeValueFloat")
-    item_c = tree.nodes.new("LogicNativeValueFloat")
-    make_list = tree.nodes.new("LogicNativeMakeList")
-    list_length = tree.nodes.new("LogicNativeListLength")
-    set_list_len = tree.nodes.new("LogicNativeSetGamePropertyInt")
+    item_a = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    item_b = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    item_c = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    make_list = new_logic_node(tree.nodes, "LogicNativeListFromItems")
+    list_length = new_logic_node(tree.nodes, "LogicNativeListLength")
+    set_list_len = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
 
-    dict_value = tree.nodes.new("LogicNativeValueFloat")
-    make_dict = tree.nodes.new("LogicNativeMakeDict")
-    dict_length = tree.nodes.new("LogicNativeDictLength")
-    dict_get_key = tree.nodes.new("LogicNativeDictGetKey")
-    dict_get_keys = tree.nodes.new("LogicNativeDictGetKeys")
-    dict_keys_length = tree.nodes.new("LogicNativeListLength")
-    set_dict_len = tree.nodes.new("LogicNativeSetGamePropertyInt")
-    set_dict_keys_len = tree.nodes.new("LogicNativeSetGamePropertyInt")
-    set_dict_answer = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    dict_value = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    make_dict = new_logic_node(tree.nodes, "LogicNativeMakeDict")
+    dict_length = new_logic_node(tree.nodes, "LogicNativeDictLength")
+    dict_get_key = new_logic_node(tree.nodes, "LogicNativeDictGetKey")
+    dict_get_keys = new_logic_node(tree.nodes, "LogicNativeDictGetKeys")
+    dict_keys_length = new_logic_node(tree.nodes, "LogicNativeListLength")
+    set_dict_len = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
+    set_dict_keys_len = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
+    set_dict_answer = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
 
-    loop_node = tree.nodes.new("LogicNativeLoop")
-    modify_loop = tree.nodes.new("LogicNativeModifyProperty")
-    set_loop_done = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    loop_node = new_logic_node(tree.nodes, "LogicNativeLoop")
+    modify_loop = new_logic_node(tree.nodes, "LogicNativeModifyProperty")
+    set_loop_done = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
-    empty_list = tree.nodes.new("LogicNativeEmptyList")
-    empty_list_length = tree.nodes.new("LogicNativeListLength")
-    set_empty_list_len = tree.nodes.new("LogicNativeSetGamePropertyInt")
-    empty_dict = tree.nodes.new("LogicNativeEmptyDict")
-    empty_dict_length = tree.nodes.new("LogicNativeDictLength")
-    set_empty_dict_len = tree.nodes.new("LogicNativeSetGamePropertyInt")
+    empty_list = new_logic_node(tree.nodes, "LogicNativeEmptyList")
+    empty_list_length = new_logic_node(tree.nodes, "LogicNativeListLength")
+    set_empty_list_len = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
+    empty_dict = new_logic_node(tree.nodes, "LogicNativeEmptyDict")
+    empty_dict_length = new_logic_node(tree.nodes, "LogicNativeDictLength")
+    set_empty_dict_len = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
 
-    sum_item_a = tree.nodes.new("LogicNativeValueFloat")
-    sum_item_b = tree.nodes.new("LogicNativeValueFloat")
-    sum_item_c = tree.nodes.new("LogicNativeValueFloat")
-    sum_list = tree.nodes.new("LogicNativeMakeList")
-    loop_from_list = tree.nodes.new("LogicNativeLoopFromList")
-    modify_sum = tree.nodes.new("LogicNativeModifyProperty")
+    sum_item_a = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    sum_item_b = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    sum_item_c = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    sum_list = new_logic_node(tree.nodes, "LogicNativeListFromItems")
+    loop_from_list = new_logic_node(tree.nodes, "LogicNativeLoopFromList")
+    modify_sum = new_logic_node(tree.nodes, "LogicNativeModifyProperty")
 
-    list_index = tree.nodes.new("LogicNativeValueInt")
-    list_get_item = tree.nodes.new("LogicNativeListGetItem")
-    set_list_item_value = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    dict_has_answer = tree.nodes.new("LogicNativeDictHasKey")
-    dict_has_missing = tree.nodes.new("LogicNativeDictHasKey")
-    branch_has_answer = tree.nodes.new("LogicNativeBranch")
-    branch_has_missing = tree.nodes.new("LogicNativeBranch")
-    set_has_answer_key = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_has_missing_key = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    list_index = new_logic_node(tree.nodes, "LogicNativeValueInt")
+    list_get_item = new_logic_node(tree.nodes, "LogicNativeListGetItem")
+    set_list_item_value = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    dict_has_answer = new_logic_node(tree.nodes, "LogicNativeDictHasKey")
+    dict_has_missing = new_logic_node(tree.nodes, "LogicNativeDictHasKey")
+    branch_has_answer = new_logic_node(tree.nodes, "LogicNativeBranch")
+    branch_has_missing = new_logic_node(tree.nodes, "LogicNativeBranch")
+    set_has_answer_key = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_has_missing_key = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
-    list_duplicate = tree.nodes.new("LogicNativeListDuplicate")
-    list_dup_length = tree.nodes.new("LogicNativeListLength")
-    set_list_dup_len = tree.nodes.new("LogicNativeSetGamePropertyInt")
+    list_dup_length = new_logic_node(tree.nodes, "LogicNativeListLength")
+    set_list_dup_len = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
 
-    dict_extra_value = tree.nodes.new("LogicNativeValueFloat")
-    make_dict_extra = tree.nodes.new("LogicNativeMakeDict")
-    dict_merge = tree.nodes.new("LogicNativeDictMerge")
-    merged_dict_length = tree.nodes.new("LogicNativeDictLength")
-    set_merged_dict_len = tree.nodes.new("LogicNativeSetGamePropertyInt")
+    dict_extra_value = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    make_dict_extra = new_logic_node(tree.nodes, "LogicNativeMakeDict")
+    dict_merge = new_logic_node(tree.nodes, "LogicNativeDictMerge")
+    merged_dict_length = new_logic_node(tree.nodes, "LogicNativeDictLength")
+    set_merged_dict_len = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
 
-    contains_two_value = tree.nodes.new("LogicNativeValueFloat")
-    contains_nine_value = tree.nodes.new("LogicNativeValueFloat")
-    list_contains_two = tree.nodes.new("LogicNativeListContains")
-    list_contains_nine = tree.nodes.new("LogicNativeListContains")
-    branch_list_has_two = tree.nodes.new("LogicNativeBranch")
-    branch_list_has_nine = tree.nodes.new("LogicNativeBranch")
-    set_list_has_two = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_list_has_nine = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    contains_two_value = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    contains_nine_value = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    list_contains_two = new_logic_node(tree.nodes, "LogicNativeListContains")
+    list_contains_nine = new_logic_node(tree.nodes, "LogicNativeListContains")
+    branch_list_has_two = new_logic_node(tree.nodes, "LogicNativeBranch")
+    branch_list_has_nine = new_logic_node(tree.nodes, "LogicNativeBranch")
+    set_list_has_two = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_list_has_nine = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     value_output(item_a).default_value = 1.0
     value_output(item_b).default_value = 2.0
@@ -9747,26 +9788,26 @@ def build_data_containers_tree(name):
     set_list_has_nine.inputs["Property"].default_value = "list_has_nine"
     set_list_has_nine.inputs["Value"].default_value = True
 
-    nested_item_a = tree.nodes.new("LogicNativeValueFloat")
-    nested_item_b = tree.nodes.new("LogicNativeValueFloat")
-    nested_inner_list = tree.nodes.new("LogicNativeMakeList")
-    nested_outer_value = tree.nodes.new("LogicNativeValueFloat")
-    nested_outer_list = tree.nodes.new("LogicNativeMakeList")
-    nested_needle_a = tree.nodes.new("LogicNativeValueFloat")
-    nested_needle_b = tree.nodes.new("LogicNativeValueFloat")
-    nested_needle_list = tree.nodes.new("LogicNativeMakeList")
-    list_contains_nested = tree.nodes.new("LogicNativeListContains")
-    branch_list_has_nested = tree.nodes.new("LogicNativeBranch")
-    set_list_has_nested = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    nested_item_a = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    nested_item_b = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    nested_inner_list = new_logic_node(tree.nodes, "LogicNativeListFromItems")
+    nested_outer_value = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    nested_outer_list = new_logic_node(tree.nodes, "LogicNativeListFromItems")
+    nested_needle_a = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    nested_needle_b = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    nested_needle_list = new_logic_node(tree.nodes, "LogicNativeListFromItems")
+    list_contains_nested = new_logic_node(tree.nodes, "LogicNativeListContains")
+    branch_list_has_nested = new_logic_node(tree.nodes, "LogicNativeBranch")
+    set_list_has_nested = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
-    typed_item_a = tree.nodes.new("LogicNativeValueFloat")
-    typed_item_b = tree.nodes.new("LogicNativeValueFloat")
-    typed_item_c = tree.nodes.new("LogicNativeValueFloat")
-    list_from_items = tree.nodes.new("LogicNativeListFromItems")
-    typed_list_length = tree.nodes.new("LogicNativeListLength")
-    set_typed_list_len = tree.nodes.new("LogicNativeSetGamePropertyInt")
-    typed_loop_from_list = tree.nodes.new("LogicNativeLoopFromList")
-    modify_typed_sum = tree.nodes.new("LogicNativeModifyProperty")
+    typed_item_a = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    typed_item_b = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    typed_item_c = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    list_from_items = new_logic_node(tree.nodes, "LogicNativeListFromItems")
+    typed_list_length = new_logic_node(tree.nodes, "LogicNativeListLength")
+    set_typed_list_len = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
+    typed_loop_from_list = new_logic_node(tree.nodes, "LogicNativeLoopFromList")
+    modify_typed_sum = new_logic_node(tree.nodes, "LogicNativeModifyProperty")
 
     value_output(nested_item_a).default_value = 1.0
     value_output(nested_item_b).default_value = 2.0
@@ -9784,26 +9825,26 @@ def build_data_containers_tree(name):
     modify_typed_sum.inputs["Property"].default_value = "typed_list_sum"
 
     tree.links.new(on_init.outputs["Out"], branch_list_has_two.inputs["Flow"])
-    tree.links.new(make_list.outputs["List"], list_contains_two.inputs["List"])
+    tree.links.new(make_list.outputs["Values"], list_contains_two.inputs["List"])
     tree.links.new(value_output(contains_two_value), list_contains_two.inputs["Value"])
     tree.links.new(list_contains_two.outputs["Contains"], branch_list_has_two.inputs["Condition"])
     tree.links.new(branch_list_has_two.outputs["True"], flow_input(set_list_has_two))
 
     tree.links.new(on_init.outputs["Out"], branch_list_has_nine.inputs["Flow"])
-    tree.links.new(make_list.outputs["List"], list_contains_nine.inputs["List"])
+    tree.links.new(make_list.outputs["Values"], list_contains_nine.inputs["List"])
     tree.links.new(value_output(contains_nine_value), list_contains_nine.inputs["Value"])
     tree.links.new(list_contains_nine.outputs["Contains"], branch_list_has_nine.inputs["Condition"])
     tree.links.new(branch_list_has_nine.outputs["True"], flow_input(set_list_has_nine))
 
-    tree.links.new(value_output(nested_item_a), nested_inner_list.inputs["Item A"])
-    tree.links.new(value_output(nested_item_b), nested_inner_list.inputs["Item B"])
-    tree.links.new(nested_inner_list.outputs["List"], nested_outer_list.inputs["Item A"])
-    tree.links.new(value_output(nested_outer_value), nested_outer_list.inputs["Item B"])
-    tree.links.new(value_output(nested_needle_a), nested_needle_list.inputs["Item A"])
-    tree.links.new(value_output(nested_needle_b), nested_needle_list.inputs["Item B"])
+    tree.links.new(value_output(nested_item_a), nested_inner_list.inputs["Values"])
+    tree.links.new(value_output(nested_item_b), nested_inner_list.inputs["Values"])
+    tree.links.new(nested_inner_list.outputs["Values"], nested_outer_list.inputs["Values"])
+    tree.links.new(value_output(nested_outer_value), nested_outer_list.inputs["Values"])
+    tree.links.new(value_output(nested_needle_a), nested_needle_list.inputs["Values"])
+    tree.links.new(value_output(nested_needle_b), nested_needle_list.inputs["Values"])
     tree.links.new(on_init.outputs["Out"], branch_list_has_nested.inputs["Flow"])
-    tree.links.new(nested_outer_list.outputs["List"], list_contains_nested.inputs["List"])
-    tree.links.new(nested_needle_list.outputs["List"], list_contains_nested.inputs["Value"])
+    tree.links.new(nested_outer_list.outputs["Values"], list_contains_nested.inputs["List"])
+    tree.links.new(nested_needle_list.outputs["Values"], list_contains_nested.inputs["Value"])
     tree.links.new(list_contains_nested.outputs["Contains"], branch_list_has_nested.inputs["Condition"])
     tree.links.new(branch_list_has_nested.outputs["True"], flow_input(set_list_has_nested))
 
@@ -9819,8 +9860,8 @@ def build_data_containers_tree(name):
     tree.links.new(typed_loop_from_list.outputs["List Item"], modify_typed_sum.inputs["Value"])
 
     tree.links.new(on_init.outputs["Out"], flow_input(set_list_dup_len))
-    tree.links.new(make_list.outputs["List"], list_duplicate.inputs["List"])
-    tree.links.new(list_duplicate.outputs["List"], list_dup_length.inputs["List"])
+    # Duplicate List gave its input back (removed 2026-11-08): the list itself.
+    tree.links.new(make_list.outputs["Values"], list_dup_length.inputs["List"])
     tree.links.new(list_dup_length.outputs["Length"], set_list_dup_len.inputs["Value"])
 
     tree.links.new(on_init.outputs["Out"], flow_input(set_merged_dict_len))
@@ -9831,7 +9872,7 @@ def build_data_containers_tree(name):
     tree.links.new(merged_dict_length.outputs["Length"], set_merged_dict_len.inputs["Value"])
 
     tree.links.new(on_init.outputs["Out"], flow_input(set_list_item_value))
-    tree.links.new(make_list.outputs["List"], list_get_item.inputs["List"])
+    tree.links.new(make_list.outputs["Values"], list_get_item.inputs["List"])
     tree.links.new(value_output(list_index), list_get_item.inputs["Index"])
     tree.links.new(list_get_item.outputs["Value"], set_list_item_value.inputs["Value"])
 
@@ -9853,19 +9894,19 @@ def build_data_containers_tree(name):
     tree.links.new(empty_dict.outputs["Dictionary"], empty_dict_length.inputs["Dictionary"])
     tree.links.new(empty_dict_length.outputs["Length"], set_empty_dict_len.inputs["Value"])
 
-    tree.links.new(value_output(sum_item_a), sum_list.inputs["Item A"])
-    tree.links.new(value_output(sum_item_b), sum_list.inputs["Item B"])
-    tree.links.new(value_output(sum_item_c), sum_list.inputs["Item C"])
+    tree.links.new(value_output(sum_item_a), sum_list.inputs["Values"])
+    tree.links.new(value_output(sum_item_b), sum_list.inputs["Values"])
+    tree.links.new(value_output(sum_item_c), sum_list.inputs["Values"])
     tree.links.new(on_init.outputs["Out"], flow_input(loop_from_list))
-    tree.links.new(sum_list.outputs["List"], loop_from_list.inputs["List"])
+    tree.links.new(sum_list.outputs["Values"], loop_from_list.inputs["List"])
     tree.links.new(loop_from_list.outputs["Loop"], modify_sum.inputs["Flow"])
     tree.links.new(loop_from_list.outputs["List Item"], modify_sum.inputs["Value"])
 
     tree.links.new(on_init.outputs["Out"], flow_input(set_list_len))
-    tree.links.new(value_output(item_a), make_list.inputs["Item A"])
-    tree.links.new(value_output(item_b), make_list.inputs["Item B"])
-    tree.links.new(value_output(item_c), make_list.inputs["Item C"])
-    tree.links.new(make_list.outputs["List"], list_length.inputs["List"])
+    tree.links.new(value_output(item_a), make_list.inputs["Values"])
+    tree.links.new(value_output(item_b), make_list.inputs["Values"])
+    tree.links.new(value_output(item_c), make_list.inputs["Values"])
+    tree.links.new(make_list.outputs["Values"], list_length.inputs["List"])
     tree.links.new(list_length.outputs["Length"], set_list_len.inputs["Value"])
 
     tree.links.new(on_init.outputs["Out"], flow_input(set_dict_len))
@@ -9891,16 +9932,16 @@ def build_data_containers_tree(name):
 def build_time_state_tree(name):
     """Drive the time nodes with short second values and record their elapsed outputs."""
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    next_frame = tree.nodes.new("LogicNativeOnNextFrame")
-    delay = tree.nodes.new("LogicNativeDelay")
-    timer = tree.nodes.new("LogicNativeTimer")
-    pulsify = tree.nodes.new("LogicNativePulsify")
-    barrier = tree.nodes.new("LogicNativeBarrier")
-    time_node = tree.nodes.new("LogicNativeTime")
-    set_time = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_delta = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    next_frame = new_logic_node(tree.nodes, "LogicNativeOnNextFrame")
+    delay = new_logic_node(tree.nodes, "LogicNativeDelay")
+    timer = new_logic_node(tree.nodes, "LogicNativeTimer")
+    pulsify = new_logic_node(tree.nodes, "LogicNativePulsify")
+    barrier = new_logic_node(tree.nodes, "LogicNativeBarrier")
+    time_node = new_logic_node(tree.nodes, "LogicNativeTime")
+    set_time = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_delta = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
 
     delay.inputs["Delay"].default_value = 0.05
     timer.inputs["Seconds"].default_value = 0.05
@@ -9912,7 +9953,7 @@ def build_time_state_tree(name):
 
     setters = {}
     for flag_name in ("next_frame", "delay", "timer", "pulsify", "barrier"):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyBool")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
         setter.inputs["Property"].default_value = flag_name
         setter.inputs["Value"].default_value = True
         setters[flag_name] = setter
@@ -9936,17 +9977,17 @@ def build_time_state_tree(name):
 
 def build_scene_state_tree(name, gravity, timescale):
     tree = new_logic_tree(name)
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    get_gravity = tree.nodes.new("LogicNativeGetGravity")
-    separate_gravity = tree.nodes.new("LogicNativeSeparateXYZ")
-    set_gravity = tree.nodes.new("LogicNativeSetGravity")
-    get_timescale = tree.nodes.new("LogicNativeGetTimescale")
-    set_timescale = tree.nodes.new("LogicNativeSetTimescale")
-    set_gravity_x = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_gravity_y = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_gravity_z = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_timescale_property = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    get_gravity = new_logic_node(tree.nodes, "LogicNativeGetGravity")
+    separate_gravity = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    set_gravity = new_logic_node(tree.nodes, "LogicNativeSetGravity")
+    get_timescale = new_logic_node(tree.nodes, "LogicNativeGetTimescale")
+    set_timescale = new_logic_node(tree.nodes, "LogicNativeSetTimescale")
+    set_gravity_x = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_gravity_y = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_gravity_z = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_timescale_property = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
 
     set_gravity.inputs["Gravity"].default_value = gravity
     set_timescale.inputs["Timescale"].default_value = timescale
@@ -9975,9 +10016,9 @@ def build_scene_state_tree(name, gravity, timescale):
 
 def build_inactive_overlay_collection_tree(name, camera_obj, collection):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    set_overlay = tree.nodes.new("LogicNativeSetOverlayCollection")
-    set_result = tree.nodes.new("LogicNativeSetGamePropertyString")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    set_overlay = new_logic_node(tree.nodes, "LogicNativeSetOverlayCollection")
+    set_result = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
 
     set_overlay.inputs["Camera"].default_value = camera_obj
     set_overlay.inputs["Collection"].default_value = collection
@@ -9996,22 +10037,22 @@ def build_object_menu_session_tree(name, camera_obj, collection, detail_collecti
     its overlay alive through an external removal, so the tree then closes that menu itself.
     """
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    open_first = tree.nodes.new("LogicNativeOpenObjectMenu")
-    open_second = tree.nodes.new("LogicNativeOpenObjectMenu")
-    close_first = tree.nodes.new("LogicNativeCloseObjectMenu")
-    close_second = tree.nodes.new("LogicNativeCloseObjectMenu")
-    close_repeat = tree.nodes.new("LogicNativeCloseObjectMenu")
-    open_external = tree.nodes.new("LogicNativeOpenObjectMenu")
-    set_repeat_closed = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_external_ready = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    get_external_removed = tree.nodes.new("LogicNativeGetGamePropertyBool")
-    external_removed_branch = tree.nodes.new("LogicNativeBranch")
-    close_external_once = tree.nodes.new("LogicNativeOnce")
-    get_external_handle = tree.nodes.new("LogicNativeGetGamePropertyInt")
-    close_external = tree.nodes.new("LogicNativeCloseObjectMenu")
-    set_session_done = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    open_first = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
+    open_second = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
+    close_first = new_logic_node(tree.nodes, "LogicNativeCloseObjectMenu")
+    close_second = new_logic_node(tree.nodes, "LogicNativeCloseObjectMenu")
+    close_repeat = new_logic_node(tree.nodes, "LogicNativeCloseObjectMenu")
+    open_external = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
+    set_repeat_closed = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_external_ready = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    get_external_removed = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyBool")
+    external_removed_branch = new_logic_node(tree.nodes, "LogicNativeBranch")
+    close_external_once = new_logic_node(tree.nodes, "LogicNativeOnce")
+    get_external_handle = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyInt")
+    close_external = new_logic_node(tree.nodes, "LogicNativeCloseObjectMenu")
+    set_session_done = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     for node, context, menu_collection in (
         (open_first, "Inventory", collection),
@@ -10035,7 +10076,7 @@ def build_object_menu_session_tree(name, camera_obj, collection, detail_collecti
     set_external_ready.inputs["Value"].default_value = True
 
     def add_int_step(property_name, value_socket):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyInt")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
         setter.inputs["Property"].default_value = property_name
         tree.links.new(value_socket, setter.inputs["Value"])
         return setter
@@ -10060,7 +10101,7 @@ def build_object_menu_session_tree(name, camera_obj, collection, detail_collecti
         "menu_close_external_result", close_external.outputs["Result"])
     failure_nodes = []
     for _operation in range(7):
-        failure = tree.nodes.new("LogicNativeSetGamePropertyBool")
+        failure = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
         failure.inputs["Property"].default_value = "menu_session_failed"
         failure.inputs["Value"].default_value = True
         failure_nodes.append(failure)
@@ -10109,22 +10150,22 @@ def build_object_menu_session_tree(name, camera_obj, collection, detail_collecti
 
 def build_camera_state_tree(name, camera_obj, point, depth, fov, ortho_scale):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    get_active_camera = tree.nodes.new("LogicNativeGetActiveCamera")
-    set_camera = tree.nodes.new("LogicNativeSetCamera")
-    set_camera_fov = tree.nodes.new("LogicNativeSetCameraFov")
-    set_camera_ortho_scale = tree.nodes.new("LogicNativeSetCameraOrthoScale")
-    world_to_screen = tree.nodes.new("LogicNativeWorldToScreen")
-    separate_screen = tree.nodes.new("LogicNativeSeparateXY")
-    screen_to_world = tree.nodes.new("LogicNativeScreenToWorld")
-    separate_world = tree.nodes.new("LogicNativeSeparateXYZ")
-    set_active_camera_present = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_screen_x = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_screen_y = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_world_x = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_world_y = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_world_z = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    get_active_camera = new_logic_node(tree.nodes, "LogicNativeGetActiveCamera")
+    set_camera = new_logic_node(tree.nodes, "LogicNativeSetCamera")
+    set_camera_fov = new_logic_node(tree.nodes, "LogicNativeSetCameraFov")
+    set_camera_ortho_scale = new_logic_node(tree.nodes, "LogicNativeSetCameraOrthoScale")
+    world_to_screen = new_logic_node(tree.nodes, "LogicNativeWorldToScreen")
+    separate_screen = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    screen_to_world = new_logic_node(tree.nodes, "LogicNativeScreenToWorld")
+    separate_world = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    set_active_camera_present = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_screen_x = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_screen_y = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_world_x = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_world_y = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_world_z = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
 
     set_camera.inputs["Camera"].default_value = camera_obj
     set_camera_fov.inputs["Camera"].default_value = camera_obj
@@ -10169,19 +10210,19 @@ def build_camera_state_tree(name, camera_obj, point, depth, fov, ortho_scale):
 
 def build_render_state_tree(name):
     tree = new_logic_tree(name)
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    get_fullscreen = tree.nodes.new("LogicNativeGetFullscreen")
-    set_fullscreen = tree.nodes.new("LogicNativeSetFullscreen")
-    get_resolution = tree.nodes.new("LogicNativeGetResolution")
-    set_resolution = tree.nodes.new("LogicNativeSetResolution")
-    get_vsync = tree.nodes.new("LogicNativeGetVSync")
-    set_vsync = tree.nodes.new("LogicNativeSetVSync")
-    show_framerate = tree.nodes.new("LogicNativeShowFramerate")
-    show_profile = tree.nodes.new("LogicNativeShowProfile")
-    set_fullscreen_property = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_width_property = tree.nodes.new("LogicNativeSetGamePropertyInt")
-    set_height_property = tree.nodes.new("LogicNativeSetGamePropertyInt")
-    set_vsync_property = tree.nodes.new("LogicNativeSetGamePropertyInt")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    get_fullscreen = new_logic_node(tree.nodes, "LogicNativeGetFullscreen")
+    set_fullscreen = new_logic_node(tree.nodes, "LogicNativeSetFullscreen")
+    get_resolution = new_logic_node(tree.nodes, "LogicNativeGetResolution")
+    set_resolution = new_logic_node(tree.nodes, "LogicNativeSetResolution")
+    get_vsync = new_logic_node(tree.nodes, "LogicNativeGetVSync")
+    set_vsync = new_logic_node(tree.nodes, "LogicNativeSetVSync")
+    show_framerate = new_logic_node(tree.nodes, "LogicNativeShowFramerate")
+    show_profile = new_logic_node(tree.nodes, "LogicNativeShowProfile")
+    set_fullscreen_property = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_width_property = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
+    set_height_property = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
+    set_vsync_property = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
 
     set_vsync.vsync_mode = "OFF"
     show_framerate.inputs["Show"].default_value = False
@@ -10220,15 +10261,15 @@ def build_render_state_tree(name):
 
 def build_light_state_tree(name, source_light, mirror_light, color, power, use_shadow):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    set_source_color = tree.nodes.new("LogicNativeSetLightColor")
-    set_source_power = tree.nodes.new("LogicNativeSetLightPower")
-    set_source_shadow = tree.nodes.new("LogicNativeSetLightShadow")
-    get_source_color = tree.nodes.new("LogicNativeGetLightColor")
-    get_source_power = tree.nodes.new("LogicNativeGetLightPower")
-    set_mirror_color = tree.nodes.new("LogicNativeSetLightColor")
-    set_mirror_power = tree.nodes.new("LogicNativeSetLightPower")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    set_source_color = new_logic_node(tree.nodes, "LogicNativeSetLightColor")
+    set_source_power = new_logic_node(tree.nodes, "LogicNativeSetLightPower")
+    set_source_shadow = new_logic_node(tree.nodes, "LogicNativeSetLightShadow")
+    get_source_color = new_logic_node(tree.nodes, "LogicNativeGetLightColor")
+    get_source_power = new_logic_node(tree.nodes, "LogicNativeGetLightPower")
+    set_mirror_color = new_logic_node(tree.nodes, "LogicNativeSetLightColor")
+    set_mirror_power = new_logic_node(tree.nodes, "LogicNativeSetLightPower")
 
     set_source_color.inputs["Object"].default_value = source_light
     set_source_color.inputs["Color"].default_value = color
@@ -10254,11 +10295,11 @@ def build_light_state_tree(name, source_light, mirror_light, color, power, use_s
 
 def build_light_unique_tree(name, source_light, color, power, use_shadow):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    make_unique = tree.nodes.new("LogicNativeMakeLightUnique")
-    set_source_color = tree.nodes.new("LogicNativeSetLightColor")
-    set_source_power = tree.nodes.new("LogicNativeSetLightPower")
-    set_source_shadow = tree.nodes.new("LogicNativeSetLightShadow")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    make_unique = new_logic_node(tree.nodes, "LogicNativeMakeLightUnique")
+    set_source_color = new_logic_node(tree.nodes, "LogicNativeSetLightColor")
+    set_source_power = new_logic_node(tree.nodes, "LogicNativeSetLightPower")
+    set_source_shadow = new_logic_node(tree.nodes, "LogicNativeSetLightShadow")
 
     make_unique.inputs["Object"].default_value = source_light
     set_source_color.inputs["Object"].default_value = source_light
@@ -10277,12 +10318,12 @@ def build_light_unique_tree(name, source_light, color, power, use_shadow):
 
 def build_physics_state_tree(name, target_obj, collision_group):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    get_group = tree.nodes.new("LogicNativeGetCollisionGroup")
-    set_group = tree.nodes.new("LogicNativeSetCollisionGroup")
-    set_physics = tree.nodes.new("LogicNativeSetPhysics")
-    set_dynamics = tree.nodes.new("LogicNativeSetDynamics")
-    set_group_property = tree.nodes.new("LogicNativeSetGamePropertyInt")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    get_group = new_logic_node(tree.nodes, "LogicNativeGetCollisionGroup")
+    set_group = new_logic_node(tree.nodes, "LogicNativeSetCollisionGroup")
+    set_physics = new_logic_node(tree.nodes, "LogicNativeSetPhysics")
+    set_dynamics = new_logic_node(tree.nodes, "LogicNativeSetDynamics")
+    set_group_property = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
 
     get_group.inputs["Object"].default_value = target_obj
     set_group.inputs["Object"].default_value = target_obj
@@ -10308,27 +10349,27 @@ def build_physics_state_tree(name, target_obj, collision_group):
 def build_character_state_tree(name, target_obj, gravity, walk_direction, velocity, velocity_time,
                                max_jumps, jump_speed):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    once = tree.nodes.new("LogicNativeOnce")
-    next_fixed_tick = tree.nodes.new("LogicNativeTimer")
-    get_character = tree.nodes.new("LogicNativeGetCharacterInfo")
-    character_jump = tree.nodes.new("LogicNativeCharacterJump")
-    set_gravity = tree.nodes.new("LogicNativeSetCharacterGravity")
-    set_jump_speed = tree.nodes.new("LogicNativeSetCharacterJumpSpeed")
-    set_max_jumps = tree.nodes.new("LogicNativeSetCharacterMaxJumps")
-    set_walk_direction = tree.nodes.new("LogicNativeSetCharacterWalkDirection")
-    set_velocity = tree.nodes.new("LogicNativeSetCharacterVelocity")
-    separate_gravity = tree.nodes.new("LogicNativeSeparateXYZ")
-    separate_walk = tree.nodes.new("LogicNativeSeparateXYZ")
-    set_gravity_x = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_gravity_y = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_gravity_z = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_walk_x = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_walk_y = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_walk_z = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_max_jumps_property = tree.nodes.new("LogicNativeSetGamePropertyInt")
-    set_jump_count_property = tree.nodes.new("LogicNativeSetGamePropertyInt")
-    set_on_ground_property = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    once = new_logic_node(tree.nodes, "LogicNativeOnce")
+    next_fixed_tick = new_logic_node(tree.nodes, "LogicNativeTimer")
+    get_character = new_logic_node(tree.nodes, "LogicNativeGetCharacterInfo")
+    character_jump = new_logic_node(tree.nodes, "LogicNativeCharacterJump")
+    set_gravity = new_logic_node(tree.nodes, "LogicNativeSetCharacterGravity")
+    set_jump_speed = new_logic_node(tree.nodes, "LogicNativeSetCharacterJumpSpeed")
+    set_max_jumps = new_logic_node(tree.nodes, "LogicNativeSetCharacterMaxJumps")
+    set_walk_direction = new_logic_node(tree.nodes, "LogicNativeSetCharacterWalkDirection")
+    set_velocity = new_logic_node(tree.nodes, "LogicNativeSetCharacterVelocity")
+    separate_gravity = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    separate_walk = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    set_gravity_x = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_gravity_y = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_gravity_z = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_walk_x = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_walk_y = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_walk_z = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_max_jumps_property = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
+    set_jump_count_property = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
+    set_on_ground_property = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     for node in (
         get_character,
@@ -10407,10 +10448,10 @@ def build_character_state_tree(name, target_obj, gravity, walk_direction, veloci
 def build_object_lifecycle_tree(name, template_obj, replica_transform_obj, full_copy_transform_obj,
                                 remove_parent_target):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    add_object = tree.nodes.new("LogicNativeAddObject")
-    add_object_full = tree.nodes.new("LogicNativeAddObject")
-    remove_parent = tree.nodes.new("LogicNativeRemoveParent")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    add_object = new_logic_node(tree.nodes, "LogicNativeAddObject")
+    add_object_full = new_logic_node(tree.nodes, "LogicNativeAddObject")
+    remove_parent = new_logic_node(tree.nodes, "LogicNativeRemoveParent")
 
     add_object.inputs["Object to Add"].default_value = template_obj
     add_object.inputs["Copy Transform"].default_value = replica_transform_obj
@@ -10432,8 +10473,8 @@ def build_object_lifecycle_tree(name, template_obj, replica_transform_obj, full_
 
 def build_add_object_single_tree(name, template_obj, transform_obj, full_copy=False, life=0.0):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    add_object = tree.nodes.new("LogicNativeAddObject")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    add_object = new_logic_node(tree.nodes, "LogicNativeAddObject")
     add_object.inputs["Object to Add"].default_value = template_obj
     add_object.inputs["Copy Transform"].default_value = transform_obj
     add_object.inputs["Life"].default_value = life
@@ -10444,8 +10485,8 @@ def build_add_object_single_tree(name, template_obj, transform_obj, full_copy=Fa
 
 def build_add_object_update_tree(name, template_obj, transform_obj, full_copy=False):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    add_object = tree.nodes.new("LogicNativeAddObject")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    add_object = new_logic_node(tree.nodes, "LogicNativeAddObject")
     add_object.inputs["Object to Add"].default_value = template_obj
     add_object.inputs["Copy Transform"].default_value = transform_obj
     add_object.inputs["Life"].default_value = 0.0
@@ -10456,8 +10497,8 @@ def build_add_object_update_tree(name, template_obj, transform_obj, full_copy=Fa
 
 def build_add_object_result_move_tree(name, template_obj, transform_obj, final_position):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    add_object = tree.nodes.new("LogicNativeAddObject")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    add_object = new_logic_node(tree.nodes, "LogicNativeAddObject")
     set_position = new_set_object_attribute(tree, "WORLD_POSITION")
     add_object.inputs["Object to Add"].default_value = template_obj
     add_object.inputs["Copy Transform"].default_value = transform_obj
@@ -10472,13 +10513,13 @@ def build_add_object_result_move_tree(name, template_obj, transform_obj, final_p
 
 def build_add_object_get_id_tree(name, template_obj, transform_obj):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    add_object_a = tree.nodes.new("LogicNativeAddObject")
-    add_object_b = tree.nodes.new("LogicNativeAddObject")
-    get_id_a = tree.nodes.new("LogicNativeGetObjectID")
-    get_id_b = tree.nodes.new("LogicNativeGetObjectID")
-    set_id_a = tree.nodes.new("LogicNativeSetGamePropertyString")
-    set_id_b = tree.nodes.new("LogicNativeSetGamePropertyString")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    add_object_a = new_logic_node(tree.nodes, "LogicNativeAddObject")
+    add_object_b = new_logic_node(tree.nodes, "LogicNativeAddObject")
+    get_id_a = new_logic_node(tree.nodes, "LogicNativeGetObjectID")
+    get_id_b = new_logic_node(tree.nodes, "LogicNativeGetObjectID")
+    set_id_a = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
+    set_id_b = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
 
     for add_object in (add_object_a, add_object_b):
         add_object.inputs["Object to Add"].default_value = template_obj
@@ -10504,9 +10545,9 @@ def build_add_object_get_id_tree(name, template_obj, transform_obj):
 
 def build_add_object_after_move_tree(name, template_obj, transform_obj, final_position):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
     set_position = new_set_object_attribute(tree, "WORLD_POSITION")
-    add_object = tree.nodes.new("LogicNativeAddObject")
+    add_object = new_logic_node(tree.nodes, "LogicNativeAddObject")
     set_position.inputs["Object"].default_value = transform_obj
     set_position.inputs["Value"].default_value = final_position
     add_object.inputs["Object to Add"].default_value = template_obj
@@ -10520,8 +10561,8 @@ def build_add_object_after_move_tree(name, template_obj, transform_obj, final_po
 
 def build_spawned_replica_init_tree(name):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    set_property = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    set_property = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     set_property.inputs["Property"].default_value = "spawn_logic_ran"
     set_property.inputs["Value"].default_value = True
     tree.links.new(on_init.outputs["Out"], flow_input(set_property))
@@ -10530,8 +10571,8 @@ def build_spawned_replica_init_tree(name):
 
 def build_set_parent_tree(name, child_obj, parent_obj, compound=False):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    set_parent = tree.nodes.new("LogicNativeSetParent")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    set_parent = new_logic_node(tree.nodes, "LogicNativeSetParent")
     set_parent.parent_type = "OBJECT"
     set_parent.inputs["Child Object"].default_value = child_obj
     set_parent.inputs["Parent Object"].default_value = parent_obj
@@ -10542,8 +10583,8 @@ def build_set_parent_tree(name, child_obj, parent_obj, compound=False):
 
 def build_remove_object_tree(name, target_obj):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    remove_object = tree.nodes.new("LogicNativeRemoveObject")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    remove_object = new_logic_node(tree.nodes, "LogicNativeRemoveObject")
     remove_object.inputs["Object"].default_value = target_obj
     tree.links.new(on_init.outputs["Out"], flow_input(remove_object))
     return tree
@@ -10551,19 +10592,19 @@ def build_remove_object_tree(name, target_obj):
 
 def build_object_query_tree(name, child_obj, parent_obj):
     tree = new_logic_tree(name)
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    get_parent = tree.nodes.new("LogicNativeGetParent")
-    get_child = tree.nodes.new("LogicNativeGetChild")
-    get_missing_child = tree.nodes.new("LogicNativeGetChild")
-    has_parent = tree.nodes.new("LogicNativeNotNone")
-    has_child = tree.nodes.new("LogicNativeNotNone")
-    missing_child_is_none = tree.nodes.new("LogicNativeNone")
-    has_parent_branch = tree.nodes.new("LogicNativeBranch")
-    has_child_branch = tree.nodes.new("LogicNativeBranch")
-    missing_child_branch = tree.nodes.new("LogicNativeBranch")
-    set_has_parent = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_has_child = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_missing_child = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    get_parent = new_logic_node(tree.nodes, "LogicNativeGetParent")
+    get_child = new_logic_node(tree.nodes, "LogicNativeGetChild")
+    get_missing_child = new_logic_node(tree.nodes, "LogicNativeGetChild")
+    has_parent = new_logic_node(tree.nodes, "LogicNativeNotNone")
+    has_child = new_logic_node(tree.nodes, "LogicNativeNotNone")
+    missing_child_is_none = new_logic_node(tree.nodes, "LogicNativeNone")
+    has_parent_branch = new_logic_node(tree.nodes, "LogicNativeBranch")
+    has_child_branch = new_logic_node(tree.nodes, "LogicNativeBranch")
+    missing_child_branch = new_logic_node(tree.nodes, "LogicNativeBranch")
+    set_has_parent = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_has_child = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_missing_child = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     get_parent.inputs["Child Object"].default_value = child_obj
     get_child.inputs["Parent Object"].default_value = parent_obj
@@ -10595,22 +10636,22 @@ def build_object_query_tree(name, child_obj, parent_obj):
 
 def build_average_center_position_tree(name, collection, empty_collection):
     tree = new_logic_tree(name)
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
 
-    vector_a = tree.nodes.new("LogicNativeValueVector")
-    vector_b = tree.nodes.new("LogicNativeValueVector")
+    vector_a = new_logic_node(tree.nodes, "LogicNativeValueVector")
+    vector_b = new_logic_node(tree.nodes, "LogicNativeValueVector")
     vector_a.outputs["Vector"].default_value = (10.0, 20.0, 30.0)
     vector_b.outputs["Vector"].default_value = (-2.0, 4.0, 6.0)
-    vector_list = tree.nodes.new("LogicNativeMakeList")
-    tree.links.new(vector_a.outputs["Vector"], vector_list.inputs["Item A"])
-    tree.links.new(vector_b.outputs["Vector"], vector_list.inputs["Item B"])
-    empty_list = tree.nodes.new("LogicNativeEmptyList")
+    vector_list = new_logic_node(tree.nodes, "LogicNativeListFromItems")
+    tree.links.new(vector_a.outputs["Vector"], vector_list.inputs["Values"])
+    tree.links.new(vector_b.outputs["Vector"], vector_list.inputs["Values"])
+    empty_list = new_logic_node(tree.nodes, "LogicNativeEmptyList")
 
-    collection_objects = tree.nodes.new("LogicNativeGetCollectionObjects")
+    collection_objects = new_logic_node(tree.nodes, "LogicNativeGetCollectionObjects")
     collection_objects.inputs["Collection"].default_value = collection
 
     sources = (
-        ("vector_center", "VECTOR_LIST", vector_list.outputs["List"], "Vectors", None),
+        ("vector_center", "VECTOR_LIST", vector_list.outputs["Values"], "Vectors", None),
         ("object_center", "OBJECT_LIST", collection_objects.outputs["Objects"], "Objects", None),
         ("collection_center", "COLLECTION", None, "Collection", collection),
         ("empty_vector_center", "VECTOR_LIST", empty_list.outputs["List"], "Vectors", None),
@@ -10618,27 +10659,27 @@ def build_average_center_position_tree(name, collection, empty_collection):
         ("empty_collection_center", "COLLECTION", None, "Collection", empty_collection),
     )
     for prefix, source_type, source_socket, input_name, default_value in sources:
-        average = tree.nodes.new("LogicNativeGetAverageCenterPosition")
+        average = new_logic_node(tree.nodes, "LogicNativeGetAverageCenterPosition")
         average.source_type = source_type
         if source_socket is None:
             average.inputs[input_name].default_value = default_value
         else:
             tree.links.new(source_socket, average.inputs[input_name])
 
-        separate = tree.nodes.new("LogicNativeSeparateXYZ")
+        separate = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
         tree.links.new(average.outputs["Center"], separate.inputs["Vector"])
         for component in ("X", "Y", "Z"):
-            setter = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+            setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
             setter.inputs["Property"].default_value = f"{prefix}_{component.lower()}"
             tree.links.new(on_update.outputs["Out"], flow_input(setter))
             tree.links.new(separate.outputs[component], setter.inputs["Value"])
 
-        count_setter = tree.nodes.new("LogicNativeSetGamePropertyInt")
+        count_setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
         count_setter.inputs["Property"].default_value = f"{prefix}_count"
         tree.links.new(on_update.outputs["Out"], flow_input(count_setter))
         tree.links.new(average.outputs["Count"], count_setter.inputs["Value"])
 
-        valid_setter = tree.nodes.new("LogicNativeSetGamePropertyBool")
+        valid_setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
         valid_setter.inputs["Property"].default_value = f"{prefix}_valid"
         tree.links.new(on_update.outputs["Out"], flow_input(valid_setter))
         tree.links.new(average.outputs["Valid"], valid_setter.inputs["Value"])
@@ -10647,40 +10688,43 @@ def build_average_center_position_tree(name, collection, empty_collection):
 
 def build_tier_a_tree(name, target_name, mover):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
 
-    empty_list = tree.nodes.new("LogicNativeEmptyList")
-    append_one = tree.nodes.new("LogicNativeValueFloat")
-    list_append_a = tree.nodes.new("LogicNativeListAppend")
-    append_two = tree.nodes.new("LogicNativeValueFloat")
-    list_append_b = tree.nodes.new("LogicNativeListAppend")
-    list_length = tree.nodes.new("LogicNativeListLength")
-    set_list_len = tree.nodes.new("LogicNativeSetGamePropertyInt")
+    empty_list = new_logic_node(tree.nodes, "LogicNativeEmptyList")
+    append_one = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    list_append_a = new_logic_node(tree.nodes, "LogicNativeListAppend")
+    append_two = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    list_append_b = new_logic_node(tree.nodes, "LogicNativeListAppend")
+    list_length = new_logic_node(tree.nodes, "LogicNativeListLength")
+    set_list_len = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
 
-    empty_dict = tree.nodes.new("LogicNativeEmptyDict")
-    dict_value = tree.nodes.new("LogicNativeValueFloat")
-    dict_set = tree.nodes.new("LogicNativeDictSetKey")
-    dict_length = tree.nodes.new("LogicNativeDictLength")
-    set_dict_len = tree.nodes.new("LogicNativeSetGamePropertyInt")
+    empty_dict = new_logic_node(tree.nodes, "LogicNativeEmptyDict")
+    dict_value = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    dict_set = new_logic_node(tree.nodes, "LogicNativeDictSetKey")
+    dict_length = new_logic_node(tree.nodes, "LogicNativeDictLength")
+    set_dict_len = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
 
-    set_global = tree.nodes.new("LogicNativeSetGlobalProperty")
-    global_value = tree.nodes.new("LogicNativeValueFloat")
-    get_global = tree.nodes.new("LogicNativeGetGlobalProperty")
-    set_global_read = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    set_global = new_logic_node(tree.nodes, "LogicNativeSetGlobalProperty")
+    global_value = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    get_global = new_logic_node(tree.nodes, "LogicNativeGetGlobalProperty")
+    set_global_read = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
 
-    object_by_name = tree.nodes.new("LogicNativeObjectByName")
-    found_branch = tree.nodes.new("LogicNativeNotNone")
-    found_flow_branch = tree.nodes.new("LogicNativeBranch")
-    set_found = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    object_by_name = new_logic_node(tree.nodes, "LogicNativeObjectByName")
+    found_branch = new_logic_node(tree.nodes, "LogicNativeNotNone")
+    found_flow_branch = new_logic_node(tree.nodes, "LogicNativeBranch")
+    set_found = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
-    get_owner = tree.nodes.new("LogicNativeGetOwner")
-    owner_branch = tree.nodes.new("LogicNativeNotNone")
-    owner_flow_branch = tree.nodes.new("LogicNativeBranch")
-    set_owner_ok = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    get_owner = new_logic_node(tree.nodes, "LogicNativeGetOwner")
+    owner_branch = new_logic_node(tree.nodes, "LogicNativeNotNone")
+    owner_flow_branch = new_logic_node(tree.nodes, "LogicNativeBranch")
+    set_owner_ok = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
-    translate = tree.nodes.new("LogicNativeTranslate")
+    translate = new_logic_node(tree.nodes, "LogicNativeTranslate")
 
+    # Output Only: these build values (new list and dictionary nodes change a game property).
+    for node in (list_append_a, list_append_b, dict_set):
+        node.store = 'OUTPUT'
     value_output(append_one).default_value = 1.0
     value_output(append_two).default_value = 2.0
     value_output(dict_value).default_value = 3.0
@@ -10728,7 +10772,7 @@ def build_tier_a_tree(name, target_name, mover):
         owner_flow_branch,
     ):
         tree.links.new(on_init.outputs["Out"], flow_input(node))
-    global_sequence = tree.nodes.new("LogicNativeSequence")
+    global_sequence = new_logic_node(tree.nodes, "LogicNativeSequence")
     tree.links.new(on_init.outputs["Out"], global_sequence.inputs["Flow"])
     tree.links.new(global_sequence.outputs["Then 0"], flow_input(set_global))
     tree.links.new(global_sequence.outputs["Then 1"], flow_input(set_global_read))
@@ -10743,21 +10787,21 @@ def build_tier_a_tree(name, target_name, mover):
 
 def build_raycast_tree(name, single_ignore, ignore_collection):
     tree = new_logic_tree(name)
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    raycast = tree.nodes.new("LogicNativeRaycast")
-    raycast_all = tree.nodes.new("LogicNativeRaycastAll")
-    shape_cast = tree.nodes.new("LogicNativeShapeCast")
-    shape_cast_all = tree.nodes.new("LogicNativeShapeCastAll")
-    collection_objects = tree.nodes.new("LogicNativeGetCollectionObjects")
-    point = tree.nodes.new("LogicNativeSeparateXYZ")
-    normal = tree.nodes.new("LogicNativeSeparateXYZ")
-    direction = tree.nodes.new("LogicNativeSeparateXYZ")
-    end_point = tree.nodes.new("LogicNativeSeparateXYZ")
-    object_hit = tree.nodes.new("LogicNativeNotNone")
-    hit_branch = tree.nodes.new("LogicNativeBranch")
-    object_branch = tree.nodes.new("LogicNativeBranch")
-    set_hit = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_object = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    raycast = new_logic_node(tree.nodes, "LogicNativeRaycast")
+    raycast_all = new_logic_node(tree.nodes, "LogicNativeRaycastAll")
+    shape_cast = new_logic_node(tree.nodes, "LogicNativeShapeCast")
+    shape_cast_all = new_logic_node(tree.nodes, "LogicNativeShapeCastAll")
+    collection_objects = new_logic_node(tree.nodes, "LogicNativeGetCollectionObjects")
+    point = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    normal = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    direction = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    end_point = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    object_hit = new_logic_node(tree.nodes, "LogicNativeNotNone")
+    hit_branch = new_logic_node(tree.nodes, "LogicNativeBranch")
+    object_branch = new_logic_node(tree.nodes, "LogicNativeBranch")
+    set_hit = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_object = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     raycast.input_mode = "END_POINT"
     raycast.inputs["Origin"].default_value = (0.0, 0.0, 5.0)
@@ -10804,13 +10848,13 @@ def build_raycast_tree(name, single_ignore, ignore_collection):
     tree.links.new(object_branch.outputs["True"], flow_input(set_object))
 
     def record_bool(query, output_name, property_name):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyBool")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
         setter.inputs["Property"].default_value = property_name
         tree.links.new(query.outputs["Done"], flow_input(setter))
         tree.links.new(query.outputs[output_name], setter.inputs["Value"])
 
     def record_int(query, output_name, property_name):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyInt")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
         setter.inputs["Property"].default_value = property_name
         tree.links.new(query.outputs["Done"], flow_input(setter))
         tree.links.new(query.outputs[output_name], setter.inputs["Value"])
@@ -10828,7 +10872,7 @@ def build_raycast_tree(name, single_ignore, ignore_collection):
         ("Y", "ray_point_y"),
         ("Z", "ray_point_z"),
     ):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
         setter.inputs["Property"].default_value = property_name
         tree.links.new(hit_branch.outputs["True"], flow_input(setter))
         tree.links.new(point.outputs[socket_name], setter.inputs["Value"])
@@ -10838,7 +10882,7 @@ def build_raycast_tree(name, single_ignore, ignore_collection):
         ("Y", "ray_normal_y"),
         ("Z", "ray_normal_z"),
     ):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
         setter.inputs["Property"].default_value = property_name
         tree.links.new(hit_branch.outputs["True"], flow_input(setter))
         tree.links.new(normal.outputs[socket_name], setter.inputs["Value"])
@@ -10848,7 +10892,7 @@ def build_raycast_tree(name, single_ignore, ignore_collection):
         ("Y", "ray_direction_y"),
         ("Z", "ray_direction_z"),
     ):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
         setter.inputs["Property"].default_value = property_name
         tree.links.new(hit_branch.outputs["True"], flow_input(setter))
         tree.links.new(direction.outputs[socket_name], setter.inputs["Value"])
@@ -10858,7 +10902,7 @@ def build_raycast_tree(name, single_ignore, ignore_collection):
         ("Y", "ray_end_point_y"),
         ("Z", "ray_end_point_z"),
     ):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
         setter.inputs["Property"].default_value = property_name
         tree.links.new(hit_branch.outputs["True"], flow_input(setter))
         tree.links.new(end_point.outputs[socket_name], setter.inputs["Value"])
@@ -10868,11 +10912,11 @@ def build_raycast_tree(name, single_ignore, ignore_collection):
 
 def build_raycast_from_mesh_tree(name, source, right_target, left_target, ignore_collection):
     tree = new_logic_tree(name)
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    face_query = tree.nodes.new("LogicNativeRaycastFromMesh")
-    vertex_query = tree.nodes.new("LogicNativeRaycastFromMesh")
-    blocked_query = tree.nodes.new("LogicNativeRaycastFromMesh")
-    collection_objects = tree.nodes.new("LogicNativeGetCollectionObjects")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    face_query = new_logic_node(tree.nodes, "LogicNativeRaycastFromMesh")
+    vertex_query = new_logic_node(tree.nodes, "LogicNativeRaycastFromMesh")
+    blocked_query = new_logic_node(tree.nodes, "LogicNativeRaycastFromMesh")
+    collection_objects = new_logic_node(tree.nodes, "LogicNativeGetCollectionObjects")
     collection_objects.inputs["Collection"].default_value = ignore_collection
 
     face_query.mesh_domain = "FACES"
@@ -10919,7 +10963,7 @@ def build_raycast_from_mesh_tree(name, source, right_target, left_target, ignore
         tree.links.new(on_update.outputs["Out"], query.inputs["Flow"])
 
     def record_bool(flow, value, property_name):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyBool")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
         setter.inputs["Property"].default_value = property_name
         tree.links.new(flow, setter.inputs["Flow"])
         if value is None:
@@ -10928,13 +10972,13 @@ def build_raycast_from_mesh_tree(name, source, right_target, left_target, ignore
             tree.links.new(value, setter.inputs["Value"])
 
     def record_int(flow, value, property_name):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyInt")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
         setter.inputs["Property"].default_value = property_name
         tree.links.new(flow, setter.inputs["Flow"])
         tree.links.new(value, setter.inputs["Value"])
 
     def record_float(flow, value, property_name):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
         setter.inputs["Property"].default_value = property_name
         tree.links.new(flow, setter.inputs["Flow"])
         tree.links.new(value, setter.inputs["Value"])
@@ -10965,7 +11009,7 @@ def build_raycast_from_mesh_tree(name, source, right_target, left_target, ignore
 
     def record_list_lengths(query, property_prefix):
         for socket_name, suffix in list_property_names.items():
-            length = tree.nodes.new("LogicNativeListLength")
+            length = new_logic_node(tree.nodes, "LogicNativeListLength")
             tree.links.new(query.outputs[socket_name], length.inputs["List"])
             record_int(
                 query.outputs["Done"],
@@ -10977,9 +11021,9 @@ def build_raycast_from_mesh_tree(name, source, right_target, left_target, ignore
     record_list_lengths(blocked_query, "mesh_blocked")
 
     def record_average(query, property_prefix):
-        average = tree.nodes.new("LogicNativeGetAverageCenterPosition")
+        average = new_logic_node(tree.nodes, "LogicNativeGetAverageCenterPosition")
         average.source_type = "VECTOR_LIST"
-        separate = tree.nodes.new("LogicNativeSeparateXYZ")
+        separate = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
         tree.links.new(query.outputs["Points"], average.inputs["Vectors"])
         tree.links.new(average.outputs["Center"], separate.inputs["Vector"])
         record_int(query.outputs["Done"], average.outputs["Count"], f"{property_prefix}_count")
@@ -10995,8 +11039,8 @@ def build_raycast_from_mesh_tree(name, source, right_target, left_target, ignore
     record_average(blocked_query, "mesh_blocked_average")
 
     def record_first_bool(query, list_name, property_name):
-        item = tree.nodes.new("LogicNativeListGetItem")
-        cast = tree.nodes.new("LogicNativeTypecast")
+        item = new_logic_node(tree.nodes, "LogicNativeListGetItem")
+        cast = new_logic_node(tree.nodes, "LogicNativeTypecast")
         cast.to_type = "BOOL"
         tree.links.new(query.outputs[list_name], item.inputs["List"])
         tree.links.new(item.outputs["Value"], cast.inputs["Value"])
@@ -11004,8 +11048,8 @@ def build_raycast_from_mesh_tree(name, source, right_target, left_target, ignore
 
     record_first_bool(face_query, "Hits", "mesh_face_first_hit")
     record_first_bool(face_query, "Blocked", "mesh_face_first_blocked")
-    first_object = tree.nodes.new("LogicNativeListGetItem")
-    object_exists = tree.nodes.new("LogicNativeTypecast")
+    first_object = new_logic_node(tree.nodes, "LogicNativeListGetItem")
+    object_exists = new_logic_node(tree.nodes, "LogicNativeTypecast")
     object_exists.to_type = "BOOL"
     tree.links.new(face_query.outputs["Hit Objects"], first_object.inputs["List"])
     tree.links.new(first_object.outputs["Value"], object_exists.inputs["Value"])
@@ -11050,12 +11094,12 @@ def build_raycast_from_mesh_tree(name, source, right_target, left_target, ignore
 
 def build_send_receive_event_tree(name):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    send_event = tree.nodes.new("LogicNativeSendEvent")
-    receive_event = tree.nodes.new("LogicNativeReceiveEvent")
-    branch = tree.nodes.new("LogicNativeBranch")
-    set_event_ok = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    send_event = new_logic_node(tree.nodes, "LogicNativeSendEvent")
+    receive_event = new_logic_node(tree.nodes, "LogicNativeReceiveEvent")
+    branch = new_logic_node(tree.nodes, "LogicNativeBranch")
+    set_event_ok = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     send_event.inputs["Subject"].default_value = "acceptance_event"
     receive_event.inputs["Subject"].default_value = "acceptance_event"
@@ -11072,8 +11116,8 @@ def build_send_receive_event_tree(name):
 
 def build_move_toward_tree(name, target_position, target_obj=None):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    move_toward = tree.nodes.new("LogicNativeMoveToward")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    move_toward = new_logic_node(tree.nodes, "LogicNativeMoveToward")
 
     move_toward.inputs["Target Position"].default_value = target_position
     move_toward.inputs["Speed"].default_value = 4.0
@@ -11087,8 +11131,8 @@ def build_move_toward_tree(name, target_position, target_obj=None):
 
 def build_navigate_visualize_tree(name, target_position, target_obj=None):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    navigate = tree.nodes.new("LogicNativeNavigate")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    navigate = new_logic_node(tree.nodes, "LogicNativeNavigate")
     set_position = new_set_object_attribute(tree, "WORLD_POSITION")
 
     navigate.inputs["Destination"].default_value = target_position
@@ -11109,10 +11153,10 @@ def build_navigate_visualize_tree(name, target_position, target_obj=None):
 
 def build_copy_property_tree(name, source_obj, target_obj, property_name, property_value):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    set_source = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    copy_property = tree.nodes.new("LogicNativeCopyProperty")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    set_source = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    copy_property = new_logic_node(tree.nodes, "LogicNativeCopyProperty")
 
     set_source.inputs["Property"].default_value = property_name
     set_source.inputs["Value"].default_value = property_value
@@ -11127,14 +11171,14 @@ def build_copy_property_tree(name, source_obj, target_obj, property_name, proper
 
 def build_get_object_attribute_tree(name, expected_position):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
     set_position = new_set_object_attribute(tree, "WORLD_POSITION")
     get_attribute = new_get_object_attribute(tree, "WORLD_POSITION")
-    separate = tree.nodes.new("LogicNativeSeparateXYZ")
-    set_x = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_y = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    set_z = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    separate = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    set_x = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_y = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    set_z = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
 
     set_position.inputs["Value"].default_value = expected_position
     set_x.inputs["Property"].default_value = "read_x"
@@ -11154,8 +11198,8 @@ def build_get_object_attribute_tree(name, expected_position):
 
 def build_rotate_toward_tree(name, target_position, target_obj=None):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    rotate_toward = tree.nodes.new("LogicNativeRotateToward")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    rotate_toward = new_logic_node(tree.nodes, "LogicNativeRotateToward")
 
     rotate_toward.inputs["Target"].default_value = target_position
     rotate_toward.inputs["Factor"].default_value = 0.35
@@ -11170,14 +11214,14 @@ def build_rotate_toward_tree(name, target_position, target_obj=None):
 
 def build_collision_tree(name):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    collision = tree.nodes.new("LogicNativeCollision")
-    branch = tree.nodes.new("LogicNativeBranch")
-    set_collided = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    typecast_object = tree.nodes.new("LogicNativeTypecast")
-    set_object_name = tree.nodes.new("LogicNativeSetGamePropertyString")
-    separate_point = tree.nodes.new("LogicNativeSeparateXYZ")
-    separate_normal = tree.nodes.new("LogicNativeSeparateXYZ")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    collision = new_logic_node(tree.nodes, "LogicNativeOnCollision")
+    branch = new_logic_node(tree.nodes, "LogicNativeBranch")
+    set_collided = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    typecast_object = new_logic_node(tree.nodes, "LogicNativeTypecast")
+    set_object_name = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
+    separate_point = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    separate_normal = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
 
     collision.inputs["Property"].default_value = "collider_marker"
     typecast_object.to_type = "STRING"
@@ -11194,7 +11238,7 @@ def build_collision_tree(name):
             "collision_normal_x",
             "collision_normal_y",
             "collision_normal_z"):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
         setter.inputs["Property"].default_value = property_name
         float_setters[property_name] = setter
 
@@ -11223,10 +11267,10 @@ def build_collision_tree(name):
 
 def build_objects_colliding_tree(name, object_a, object_b):
     tree = new_logic_tree(name)
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    colliding = tree.nodes.new("LogicNativeObjectsColliding")
-    branch = tree.nodes.new("LogicNativeBranch")
-    set_colliding = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    colliding = new_logic_node(tree.nodes, "LogicNativeObjectsColliding")
+    branch = new_logic_node(tree.nodes, "LogicNativeBranch")
+    set_colliding = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     colliding.inputs["Object A"].default_value = object_a
     colliding.inputs["Object B"].default_value = object_b
@@ -11241,12 +11285,12 @@ def build_objects_colliding_tree(name, object_a, object_b):
 
 def build_animation_status_tree(name, action):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    play_action = tree.nodes.new("LogicNativePlayAction")
-    animation_status = tree.nodes.new("LogicNativeAnimationStatus")
-    branch = tree.nodes.new("LogicNativeBranch")
-    set_playing = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    play_action = new_logic_node(tree.nodes, "LogicNativePlayAction")
+    animation_status = new_logic_node(tree.nodes, "LogicNativeAnimationStatus")
+    branch = new_logic_node(tree.nodes, "LogicNativeBranch")
+    set_playing = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     play_action.action = action
     play_action.play_mode = "LOOP"
@@ -11263,7 +11307,7 @@ def build_animation_status_tree(name, action):
     # Animation Status. The short one-shot runs on layer 1 while the loop above remains active on
     # layer 0, proving that Completed belongs to the accepted request rather than to an inferred
     # timeout or a global object state.
-    lifecycle_action = tree.nodes.new("LogicNativePlayAction")
+    lifecycle_action = new_logic_node(tree.nodes, "LogicNativePlayAction")
     lifecycle_action.action = action
     lifecycle_action.play_mode = "PLAY"
     lifecycle_action.inputs["Start Frame"].default_value = 1.0
@@ -11276,22 +11320,22 @@ def build_animation_status_tree(name, action):
             ("Completed", "action_lifecycle_completed"),
             ("Interrupted", "action_lifecycle_interrupted"),
             ("Failed", "action_lifecycle_failed")):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyBool")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
         setter.inputs["Property"].default_value = property_name
         setter.inputs["Value"].default_value = True
         tree.links.new(lifecycle_action.outputs[output_name], flow_input(setter))
 
     # A looping request cannot complete naturally. Stop it only after its Started result has been
     # delivered, then require the exact request's Interrupted result on a later fixed tick.
-    interrupted_action = tree.nodes.new("LogicNativePlayAction")
+    interrupted_action = new_logic_node(tree.nodes, "LogicNativePlayAction")
     interrupted_action.action = action
     interrupted_action.play_mode = "LOOP"
     interrupted_action.inputs["Start Frame"].default_value = 1.0
     interrupted_action.inputs["End Frame"].default_value = 40.0
     interrupted_action.inputs["Layer"].default_value = 2
-    stop_interrupted_action = tree.nodes.new("LogicNativeStopAction")
+    stop_interrupted_action = new_logic_node(tree.nodes, "LogicNativeStopAction")
     stop_interrupted_action.inputs["Layer"].default_value = 2
-    set_interrupted = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    set_interrupted = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     set_interrupted.inputs["Property"].default_value = "action_interruption_observed"
     set_interrupted.inputs["Value"].default_value = True
     tree.links.new(on_init.outputs["Out"], flow_input(interrupted_action))
@@ -11300,9 +11344,9 @@ def build_animation_status_tree(name, action):
 
     # No action datablock is deliberately selected. This must compile as a recoverable request and
     # pulse Failed after command validation rather than pretending that playback started.
-    failed_action = tree.nodes.new("LogicNativePlayAction")
+    failed_action = new_logic_node(tree.nodes, "LogicNativePlayAction")
     failed_action.inputs["Layer"].default_value = 3
-    set_failed = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    set_failed = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     set_failed.inputs["Property"].default_value = "action_failure_observed"
     set_failed.inputs["Value"].default_value = True
     tree.links.new(on_init.outputs["Out"], flow_input(failed_action))
@@ -11312,8 +11356,8 @@ def build_animation_status_tree(name, action):
 
 def build_save_game_tree(name, save_path):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    save_game = tree.nodes.new("LogicNativeSaveGame")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    save_game = new_logic_node(tree.nodes, "LogicNativeSaveGame")
     save_game.inputs["Path"].default_value = save_path
     tree.links.new(on_init.outputs["Out"], flow_input(save_game))
     return tree
@@ -11321,8 +11365,8 @@ def build_save_game_tree(name, save_path):
 
 def build_load_game_tree(name, save_path):
     tree = new_logic_tree(name)
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    load_game = tree.nodes.new("LogicNativeLoadGame")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    load_game = new_logic_node(tree.nodes, "LogicNativeLoadGame")
     load_game.inputs["Path"].default_value = save_path
     tree.links.new(on_update.outputs["Out"], flow_input(load_game))
     return tree
@@ -11330,8 +11374,8 @@ def build_load_game_tree(name, save_path):
 
 def build_align_axis_tree(name, target_obj=None):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    align_axis = tree.nodes.new("LogicNativeAlignAxisToVector")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    align_axis = new_logic_node(tree.nodes, "LogicNativeAlignAxisToVector")
 
     align_axis.inputs["Vector"].default_value = (1.0, 0.0, 0.0)
     align_axis.inputs["Axis"].default_value = 2
@@ -11345,8 +11389,8 @@ def build_align_axis_tree(name, target_obj=None):
 
 def build_slow_follow_tree(name, target_obj, follower_obj=None):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    slow_follow = tree.nodes.new("LogicNativeSlowFollow")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    slow_follow = new_logic_node(tree.nodes, "LogicNativeSlowFollow")
 
     slow_follow.inputs["Target"].default_value = target_obj
     slow_follow.inputs["Factor"].default_value = 0.25
@@ -11359,9 +11403,9 @@ def build_slow_follow_tree(name, target_obj, follower_obj=None):
 
 def build_replace_mesh_tree(name, mesh_obj, target_obj=None):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    replace_mesh = tree.nodes.new("LogicNativeReplaceMesh")
-    set_done = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    replace_mesh = new_logic_node(tree.nodes, "LogicNativeReplaceMesh")
+    set_done = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     replace_mesh.inputs["Mesh Object"].default_value = mesh_obj
     set_done.inputs["Property"].default_value = "mesh_replaced"
@@ -11376,16 +11420,16 @@ def build_replace_mesh_tree(name, mesh_obj, target_obj=None):
 
 def build_mouse_over_tree(name, target_obj, keep_cursor_centered=False):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    set_cursor = tree.nodes.new("LogicNativeSetCursorPosition")
-    mouse_over = tree.nodes.new("LogicNativeMouseOver")
-    point = tree.nodes.new("LogicNativeSeparateXYZ")
-    normal = tree.nodes.new("LogicNativeSeparateXYZ")
-    set_enter = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_over = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_exit = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_hit_object = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    count_over = tree.nodes.new("LogicNativeModifyProperty")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    set_cursor = new_logic_node(tree.nodes, "LogicNativeSetCursorPosition")
+    mouse_over = new_logic_node(tree.nodes, "LogicNativeMouseOver")
+    point = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    normal = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    set_enter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_over = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_exit = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_hit_object = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    count_over = new_logic_node(tree.nodes, "LogicNativeModifyProperty")
 
     set_cursor.inputs["Screen X"].default_value = 0.5
     set_cursor.inputs["Screen Y"].default_value = 0.5
@@ -11406,8 +11450,8 @@ def build_mouse_over_tree(name, target_obj, keep_cursor_centered=False):
 
     tree.links.new(on_init.outputs["Out"], flow_input(set_cursor))
     if keep_cursor_centered:
-        on_fixed = tree.nodes.new("LogicNativeOnFixedUpdate")
-        fixed_cursor = tree.nodes.new("LogicNativeSetCursorPosition")
+        on_fixed = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+        fixed_cursor = new_logic_node(tree.nodes, "LogicNativeSetCursorPosition")
         fixed_cursor.inputs["Screen X"].default_value = 0.5
         fixed_cursor.inputs["Screen Y"].default_value = 0.5
         tree.links.new(on_fixed.outputs["Out"], flow_input(fixed_cursor))
@@ -11425,7 +11469,7 @@ def build_mouse_over_tree(name, target_obj, keep_cursor_centered=False):
         ("Y", "mouse_point_y"),
         ("Z", "mouse_point_z"),
     ):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
         setter.inputs["Property"].default_value = property_name
         tree.links.new(mouse_over.outputs["On Over"], flow_input(setter))
         tree.links.new(point.outputs[socket_name], setter.inputs["Value"])
@@ -11435,7 +11479,7 @@ def build_mouse_over_tree(name, target_obj, keep_cursor_centered=False):
         ("Y", "mouse_normal_y"),
         ("Z", "mouse_normal_z"),
     ):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
         setter.inputs["Property"].default_value = property_name
         tree.links.new(mouse_over.outputs["On Over"], flow_input(setter))
         tree.links.new(normal.outputs[socket_name], setter.inputs["Value"])
@@ -11455,7 +11499,7 @@ def create_mix_factor_material(name):
     material.use_nodes = True
     ntree = material.node_tree
 
-    mix = ntree.nodes.new("ShaderNodeMix")
+    mix = new_logic_node(ntree.nodes, "ShaderNodeMix")
     mix.name = "Mix"
     mix.data_type = "RGBA"
     socket_by_identifier(mix.inputs, "Factor_Float").default_value = 0.0
@@ -11471,8 +11515,8 @@ def create_mix_factor_material(name):
 
 def build_material_shader_input_tree(name):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    set_input = tree.nodes.new("LogicNativeSetEditorNodeValue")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    set_input = new_logic_node(tree.nodes, "LogicNativeSetEditorNodeValue")
     set_input.node_editor_type = "SHADER"
     set_input.target_scope = "OWNER"
     set_input.value_type = "FLOAT"
@@ -11817,8 +11861,8 @@ def run_material_actions_acceptance(status_path):
     library.hide_viewport = True
 
     tree = new_logic_tree(f"{PREFIX}_MATree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    play = tree.nodes.new("LogicNativePlayAction")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    play = new_logic_node(tree.nodes, "LogicNativePlayAction")
     play.action = action
     play.inputs["Start Frame"].default_value = 1.0
     play.inputs["End Frame"].default_value = 5.0
@@ -11901,13 +11945,13 @@ def run_property_target_acceptance(status_path):
 
 def build_add_one_chain(tree, previous, property_name):
     """Flow `previous` -> the Float game property `property_name` + 1. Returns the Done output."""
-    read = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+    read = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyFloat")
     read.inputs["Property"].default_value = property_name
-    add = tree.nodes.new("LogicNativeMath")
+    add = new_logic_node(tree.nodes, "LogicNativeMath")
     add.operation = 'ADD'
     add.inputs["B"].default_value = 1.0
     tree.links.new(read.outputs[0], add.inputs["A"])
-    write = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    write = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
     write.inputs["Property"].default_value = property_name
     tree.links.new(add.outputs["Result"], write.inputs["Value"])
     tree.links.new(previous, write.inputs["Flow"])
@@ -11927,7 +11971,7 @@ def run_logic_tree_once_acceptance(status_path):
     set_game_property(steps, "steps", "FLOAT", 0.0)
     steps_tree = new_logic_tree(f"{PREFIX}_RunOnceStepsTree")
     build_add_one_chain(
-        steps_tree, steps_tree.nodes.new("LogicNativeOnFixedUpdate").outputs[0], "steps")
+        steps_tree, new_logic_node(steps_tree.nodes, "LogicNativeOnFixedUpdate").outputs[0], "steps")
     bind_tree(steps, steps_tree.name, True)
 
     def make_target(name, x):
@@ -11940,12 +11984,12 @@ def run_logic_tree_once_acceptance(status_path):
         def count(event_type, property_name):
             # Modify Property adds to the live value when the step's writes apply: two passes in
             # one step count 2 (a Get + 1 -> Set would write the same value twice).
-            add = tree.nodes.new("LogicNativeModifyProperty")
+            add = new_logic_node(tree.nodes, "LogicNativeModifyProperty")
             add.operation = 'ADD'
             add.clamp = False
             add.inputs["Property"].default_value = property_name
             add.inputs["Value"].default_value = 1.0
-            tree.links.new(tree.nodes.new(event_type).outputs[0], add.inputs["Flow"])
+            tree.links.new(new_logic_node(tree.nodes, event_type).outputs[0], add.inputs["Flow"])
 
         count("LogicNativeOnFixedUpdate", "runs")
         # A Run Logic Tree pass is a fixed-update pass: this frame logic must never run.
@@ -11959,16 +12003,16 @@ def run_logic_tree_once_acceptance(status_path):
         set_game_property(driver, "calls", "FLOAT", 0.0)
         set_game_property(driver, "min_lag", "FLOAT", 99.0)
         tree = new_logic_tree(f"{PREFIX}_{name}Tree")
-        calls = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+        calls = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyFloat")
         calls.inputs["Property"].default_value = "calls"
-        below = tree.nodes.new("LogicNativeCompare")
+        below = new_logic_node(tree.nodes, "LogicNativeCompare")
         below.operation = 'LESS_THAN'
         below.inputs["B"].default_value = 10.0
         tree.links.new(calls.outputs[0], below.inputs["A"])
-        gate = tree.nodes.new("LogicNativeBranch")
-        tree.links.new(tree.nodes.new(event_type).outputs[0], gate.inputs["Flow"])
+        gate = new_logic_node(tree.nodes, "LogicNativeBranch")
+        tree.links.new(new_logic_node(tree.nodes, event_type).outputs[0], gate.inputs["Flow"])
         tree.links.new(below.outputs["Result"], gate.inputs["Condition"])
-        run = tree.nodes.new("LogicNativeRunLogicTree")
+        run = new_logic_node(tree.nodes, "LogicNativeRunLogicTree")
         run.inputs["Object"].default_value = target
         run.inputs["Tree Name"].default_value = target_tree.name
         tree.links.new(gate.outputs["True"], run.inputs["Flow"])
@@ -11976,27 +12020,27 @@ def run_logic_tree_once_acceptance(status_path):
         if track_lag:
             # Calls made minus the target's passes, as the step starts (writes apply at its end):
             # the previous step's call is the only one waiting, from the second step on.
-            runs = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+            runs = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyFloat")
             runs.inputs["Object"].default_value = target
             runs.inputs["Property"].default_value = "runs"
-            lag = tree.nodes.new("LogicNativeMath")
+            lag = new_logic_node(tree.nodes, "LogicNativeMath")
             lag.operation = 'SUBTRACT'
             tree.links.new(calls.outputs[0], lag.inputs["A"])
             tree.links.new(runs.outputs[0], lag.inputs["B"])
-            min_lag = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+            min_lag = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyFloat")
             min_lag.inputs["Property"].default_value = "min_lag"
-            lowest = tree.nodes.new("LogicNativeMath")
+            lowest = new_logic_node(tree.nodes, "LogicNativeMath")
             lowest.operation = 'MINIMUM'
             tree.links.new(min_lag.outputs[0], lowest.inputs["A"])
             tree.links.new(lag.outputs["Result"], lowest.inputs["B"])
-            started = tree.nodes.new("LogicNativeCompare")
+            started = new_logic_node(tree.nodes, "LogicNativeCompare")
             started.operation = 'GREATER_THAN'
             started.inputs["B"].default_value = 0.5
             tree.links.new(calls.outputs[0], started.inputs["A"])
-            after_first = tree.nodes.new("LogicNativeBranch")
+            after_first = new_logic_node(tree.nodes, "LogicNativeBranch")
             tree.links.new(done, after_first.inputs["Flow"])
             tree.links.new(started.outputs["Result"], after_first.inputs["Condition"])
-            write = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+            write = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
             write.inputs["Property"].default_value = "min_lag"
             tree.links.new(lowest.outputs["Result"], write.inputs["Value"])
             tree.links.new(after_first.outputs["True"], write.inputs["Flow"])
@@ -12029,18 +12073,18 @@ def run_every_n_steps_acceptance(status_path):
     set_game_property(clock, "steps", "FLOAT", 0.0)
     clock_tree = new_logic_tree(f"{PREFIX}_EveryClockTree")
     build_add_one_chain(
-        clock_tree, clock_tree.nodes.new("LogicNativeOnFixedUpdate").outputs[0], "steps")
+        clock_tree, new_logic_node(clock_tree.nodes, "LogicNativeOnFixedUpdate").outputs[0], "steps")
     bind_tree(clock, clock_tree.name, True)
 
     def make_tree(name, spread):
         tree = new_logic_tree(f"{PREFIX}_{name}")
-        slow = tree.nodes.new("LogicNativeOnFixedUpdate")
+        slow = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
         slow.step_interval = 4
         slow.use_step_spread = spread
 
         def add(flow, property_name, value_socket=None):
             # Modify Property adds to the live value at the step's end.
-            modify = tree.nodes.new("LogicNativeModifyProperty")
+            modify = new_logic_node(tree.nodes, "LogicNativeModifyProperty")
             modify.operation = 'ADD'
             modify.clamp = False
             modify.inputs["Property"].default_value = property_name
@@ -12052,14 +12096,14 @@ def run_every_n_steps_acceptance(status_path):
         add(slow.outputs["Out"], "runs")
         add(slow.outputs["Out"], "time", slow.outputs["Time Passed"])
         # The clock's step count as this step starts: which step of the 4 the object runs on.
-        steps = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+        steps = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyFloat")
         steps.inputs["Object"].default_value = clock
         steps.inputs["Property"].default_value = "steps"
-        seen = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+        seen = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
         seen.inputs["Property"].default_value = "seen"
         tree.links.new(steps.outputs[0], seen.inputs["Value"])
         tree.links.new(slow.outputs["Out"], seen.inputs["Flow"])
-        add(tree.nodes.new("LogicNativeOnFixedUpdate").outputs["Out"], "fast")
+        add(new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate").outputs["Out"], "fast")
         return tree
 
     def make_objects(name, tree, count, y):
@@ -12090,45 +12134,45 @@ def build_brain_crowd_tree(tree, player, chains):
     Logic + Physics steps: the distance to `player` (a constant Object), nearer than 6 m walk on
     (local move), else turn and walk; the distance is stored in "dist"; `chains` chains read a
     property, add 0.01 and write it back; and for each Math operation m_<op> = Math(a, b)."""
-    update = tree.nodes.new("LogicNativeOnFixedUpdate").outputs["Out"]
-    distance = tree.nodes.new("LogicNativeGetDistance")
+    update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate").outputs["Out"]
+    distance = new_logic_node(tree.nodes, "LogicNativeGetDistance")
     distance.inputs["Object B"].default_value = player
-    near = tree.nodes.new("LogicNativeCompare")
+    near = new_logic_node(tree.nodes, "LogicNativeCompare")
     near.operation = 'LESS_THAN'
     near.inputs["B"].default_value = 6.0
     tree.links.new(distance.outputs[0], near.inputs["A"])
-    branch = tree.nodes.new("LogicNativeBranch")
+    branch = new_logic_node(tree.nodes, "LogicNativeBranch")
     tree.links.new(update, branch.inputs["Flow"])
     tree.links.new(near.outputs["Result"], branch.inputs["Condition"])
-    approach = tree.nodes.new("LogicNativeApplyMovement")
+    approach = new_logic_node(tree.nodes, "LogicNativeApplyMovement")
     approach.inputs["Vector"].default_value = (0.0, 0.002, 0.0)
     approach.inputs["Local"].default_value = True
     tree.links.new(branch.outputs["True"], approach.inputs["Flow"])
-    turn = tree.nodes.new("LogicNativeApplyRotation")
+    turn = new_logic_node(tree.nodes, "LogicNativeApplyRotation")
     turn.inputs["Rotation"].default_value = (0.0, 0.0, 0.002)
     turn.inputs["Local"].default_value = True
     tree.links.new(branch.outputs["False"], turn.inputs["Flow"])
-    walk = tree.nodes.new("LogicNativeApplyMovement")
+    walk = new_logic_node(tree.nodes, "LogicNativeApplyMovement")
     walk.inputs["Vector"].default_value = (0.0, 0.001, 0.0)
     walk.inputs["Local"].default_value = True
     tree.links.new(turn.outputs["Done"], walk.inputs["Flow"])
-    store = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    store = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
     store.inputs["Property"].default_value = "dist"
     tree.links.new(distance.outputs[0], store.inputs["Value"])
     tree.links.new(update, store.inputs["Flow"])
     previous = store.outputs["Done"]
     for index in range(chains):
         previous = build_add_property_chain(tree, previous, f"t{index}", 0.01)
-    read_a = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+    read_a = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyFloat")
     read_a.inputs["Property"].default_value = "a"
-    read_b = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+    read_b = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyFloat")
     read_b.inputs["Property"].default_value = "b"
     for op in BRAIN_CROWD_MATH_OPS:
-        math_node = tree.nodes.new("LogicNativeMath")
+        math_node = new_logic_node(tree.nodes, "LogicNativeMath")
         math_node.operation = op
         tree.links.new(read_a.outputs[0], math_node.inputs["A"])
         tree.links.new(read_b.outputs[0], math_node.inputs["B"])
-        write = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+        write = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
         write.inputs["Property"].default_value = "m_" + op
         tree.links.new(math_node.outputs["Result"], write.inputs["Value"])
         tree.links.new(previous, write.inputs["Flow"])
@@ -12137,13 +12181,13 @@ def build_brain_crowd_tree(tree, player, chains):
 
 def build_add_property_chain(tree, previous, property_name, amount):
     """Flow `previous` -> the Float game property `property_name` + `amount`. Returns Done."""
-    read = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+    read = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyFloat")
     read.inputs["Property"].default_value = property_name
-    add = tree.nodes.new("LogicNativeMath")
+    add = new_logic_node(tree.nodes, "LogicNativeMath")
     add.operation = 'ADD'
     add.inputs["B"].default_value = amount
     tree.links.new(read.outputs[0], add.inputs["A"])
-    write = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    write = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
     write.inputs["Property"].default_value = property_name
     tree.links.new(add.outputs["Result"], write.inputs["Value"])
     tree.links.new(previous, write.inputs["Flow"])
@@ -12207,11 +12251,11 @@ def build_uncovered_nodes_tree(tree, refs):
     reads, Get Rigid Body Attribute (a plain object and a rigid body), Logic Tree Status, Action
     Done, Evaluate Curve, the three bone world reads and Get Item Info. `refs` holds the Blender
     objects, materials and collections the nodes point at."""
-    update = tree.nodes.new("LogicNativeOnFixedUpdate").outputs["Out"]
+    update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate").outputs["Out"]
     state = {"previous": update}
 
     def run(kind, property_name, source=None, constant=None, value_pin="Value"):
-        node = tree.nodes.new(kind)
+        node = new_logic_node(tree.nodes, kind)
         node.inputs["Property"].default_value = property_name
         if source is not None:
             tree.links.new(source, node.inputs[value_pin])
@@ -12234,69 +12278,69 @@ def build_uncovered_nodes_tree(tree, refs):
         run("LogicNativeSetGamePropertyString", name, source)
 
     def put_vector(prefix, source):
-        split = tree.nodes.new("LogicNativeSeparateXYZ")
+        split = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
         tree.links.new(source, split.inputs["Vector"])
         for axis in ("X", "Y", "Z"):
             put_float(prefix + axis.lower(), split.outputs[axis])
 
     # Find Object -> the object it found (name, position, distance from the owner).
-    find = tree.nodes.new("LogicNativeFindObject")
+    find = new_logic_node(tree.nodes, "LogicNativeFindObject")
     find.inputs["Object"].default_value = refs["target"]
-    info = tree.nodes.new("LogicNativeGetObjectAttribute")
+    info = new_logic_node(tree.nodes, "LogicNativeGetObjectAttribute")
     info.attribute_type = "NAME"
     tree.links.new(find.outputs["Object"], info.inputs["Object"])
     put_string("f_name", info.outputs["Name"])
-    where = tree.nodes.new("LogicNativeGetObjectAttribute")
+    where = new_logic_node(tree.nodes, "LogicNativeGetObjectAttribute")
     where.attribute_type = "WORLD_POSITION"
     tree.links.new(find.outputs["Object"], where.inputs["Object"])
-    split = tree.nodes.new("LogicNativeSeparateXYZ")
+    split = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
     tree.links.new(where.outputs["Vector"], split.inputs["Vector"])
     put_float("f_x", split.outputs["X"])
-    distance = tree.nodes.new("LogicNativeGetDistance")
+    distance = new_logic_node(tree.nodes, "LogicNativeGetDistance")
     tree.links.new(find.outputs["Object"], distance.inputs["Object B"])
     put_float("f_dist", distance.outputs["Distance"])
 
     # Get Collection Object Names -> its length and three names.
-    names = tree.nodes.new("LogicNativeGetCollectionObjectNames")
+    names = new_logic_node(tree.nodes, "LogicNativeGetCollectionObjectNames")
     names.inputs["Collection"].default_value = refs["collection"]
-    length = tree.nodes.new("LogicNativeListLength")
+    length = new_logic_node(tree.nodes, "LogicNativeListLength")
     tree.links.new(names.outputs["Object Names"], length.inputs["List"])
     put_int("c_count", length.outputs["Length"])
     for index in range(3):
-        item = tree.nodes.new("LogicNativeListGetItem")
+        item = new_logic_node(tree.nodes, "LogicNativeListGetItem")
         tree.links.new(names.outputs["Object Names"], item.inputs["List"])
         item.inputs["Index"].default_value = index
         run("LogicNativeSetGameProperty", f"c_{index}", item.outputs["Value"])
 
     # Materials: the slot count, slot 1 and a slot that does not exist, a material by itself.
-    slots = tree.nodes.new("LogicNativeGetMaterialSlotCount")
+    slots = new_logic_node(tree.nodes, "LogicNativeGetMaterialSlotCount")
     slots.inputs["Object"].default_value = refs["owner"]
     put_int("m_count", slots.outputs["Count"])
-    slot1 = tree.nodes.new("LogicNativeGetMaterialFromSlot")
+    slot1 = new_logic_node(tree.nodes, "LogicNativeGetMaterialFromSlot")
     slot1.inputs["Object"].default_value = refs["owner"]
     slot1.inputs["Slot"].default_value = 1
     put_bool("m_found", slot1.outputs["Found"])
-    slot1_name = tree.nodes.new("LogicNativeGetMaterialName")
+    slot1_name = new_logic_node(tree.nodes, "LogicNativeGetMaterialName")
     tree.links.new(slot1.outputs["Material"], slot1_name.inputs["Material"])
     put_string("m_slot1_name", slot1_name.outputs["Name"])
-    far = tree.nodes.new("LogicNativeGetMaterialFromSlot")
+    far = new_logic_node(tree.nodes, "LogicNativeGetMaterialFromSlot")
     far.inputs["Object"].default_value = refs["owner"]
     far.inputs["Slot"].default_value = 5
     put_bool("m_found_far", far.outputs["Found"])
-    material = tree.nodes.new("LogicNativeGetMaterialName")
+    material = new_logic_node(tree.nodes, "LogicNativeGetMaterialName")
     material.inputs["Material"].default_value = refs["mat0"]
     put_string("m_name", material.outputs["Name"])
 
     # Get Rigid Body Attribute: a plain object has none; the rigid body gives mass, gravity
     # factor and damping.
-    plain = tree.nodes.new("LogicNativeGetRigidBodyAttribute")
+    plain = new_logic_node(tree.nodes, "LogicNativeGetRigidBodyAttribute")
     plain.inputs["Object"].default_value = refs["owner"]
     put_bool("rb_valid_plain", plain.outputs["Valid"])
     for attribute, outputs in (("MASS", (("Value", "rb_mass"), ("Valid", "rb_valid"))),
                                ("GRAVITY_FACTOR", (("Value", "rb_gravity"),)),
                                ("DAMPING", (("Linear Damping", "rb_lin"),
                                             ("Angular Damping", "rb_ang")))):
-        node = tree.nodes.new("LogicNativeGetRigidBodyAttribute")
+        node = new_logic_node(tree.nodes, "LogicNativeGetRigidBodyAttribute")
         node.attribute_type = attribute
         node.inputs["Object"].default_value = refs["rigid"]
         for pin, name in outputs:
@@ -12308,23 +12352,23 @@ def build_uncovered_nodes_tree(tree, refs):
     # Logic Tree Status: this tree runs; a name nobody has does not.
     for tree_name, running, stopped in ((tree.name, "t_running", "t_stopped"),
                                         ("NoSuchTree", "t_other_running", "t_other_stopped")):
-        status = tree.nodes.new("LogicNativeLogicTreeStatus")
+        status = new_logic_node(tree.nodes, "LogicNativeLogicTreeStatus")
         status.inputs["Object"].default_value = refs["owner"]
         status.inputs["Tree Name"].default_value = tree_name
         put_bool(running, status.outputs["Running"])
         put_bool(stopped, status.outputs["Stopped"])
 
     # Action Done with no action playing.
-    done = tree.nodes.new("LogicNativeActionDone")
+    done = new_logic_node(tree.nodes, "LogicNativeAnimationStatus")
     done.inputs["Object"].default_value = refs["owner"]
     put_bool("a_done", done.outputs["Done"])
 
     # Evaluate Curve along a straight curve from x 0 to 4.
     for factor, prefix in ((0.0, "cv0_"), (0.5, "cv5_"), (1.0, "cv1_")):
-        curve = tree.nodes.new("LogicNativeEvaluateCurve")
+        curve = new_logic_node(tree.nodes, "LogicNativeEvaluateCurve")
         curve.inputs["Curve"].default_value = refs["curve"]
         curve.inputs["Factor"].default_value = factor
-        split = tree.nodes.new("LogicNativeSeparateXYZ")
+        split = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
         tree.links.new(curve.outputs["Point"], split.inputs["Vector"])
         put_float(prefix + "x", split.outputs["X"])
         put_float(prefix + "y", split.outputs["Y"])
@@ -12333,41 +12377,41 @@ def build_uncovered_nodes_tree(tree, refs):
     for kind, prefix in (("LogicNativeGetBoneTailWorld", "bt_"),
                          ("LogicNativeGetBoneTailPoseWorld", "bp_"),
                          ("LogicNativeGetBoneCenterPoseWorld", "bc_")):
-        bone = tree.nodes.new(kind)
+        bone = new_logic_node(tree.nodes, kind)
         bone.inputs["Object"].default_value = refs["armature"]
         bone.inputs["Bone Name"].default_value = "Bone"
         put_vector(prefix, bone.outputs["Position"])
 
     # Start Logic Tree starts the owner's second tree (bound but not enabled), which counts runs.
-    start = tree.nodes.new("LogicNativeStartLogicTree")
+    start = new_logic_node(tree.nodes, "LogicNativeStartLogicTree")
     start.inputs["Object"].default_value = refs["owner"]
     start.inputs["Tree Name"].default_value = refs["second_tree"]
     tree.links.new(state["previous"], start.inputs["Flow"])
     state["previous"] = start.outputs["Done"]
-    second = tree.nodes.new("LogicNativeLogicTreeStatus")
+    second = new_logic_node(tree.nodes, "LogicNativeLogicTreeStatus")
     second.inputs["Object"].default_value = refs["owner"]
     second.inputs["Tree Name"].default_value = refs["second_tree"]
     put_bool("t2_running", second.outputs["Running"])
 
     # Camera Ray from a camera looking along +Y at a static cube: object and point hit.
-    ray = tree.nodes.new("LogicNativeCameraRay")
+    ray = new_logic_node(tree.nodes, "LogicNativeCameraRay")
     # (by position: the key "Camera" is not found in this node's inputs by name.)
     ray.inputs[1].default_value = refs["camera"]
     tree.links.new(state["previous"], ray.inputs["Flow"])
     state["previous"] = ray.outputs["Done"] if "Done" in ray.outputs else state["previous"]
     put_bool("cr_found", ray.outputs["Has Result"])
-    picked = tree.nodes.new("LogicNativeGetObjectAttribute")
+    picked = new_logic_node(tree.nodes, "LogicNativeGetObjectAttribute")
     picked.attribute_type = "NAME"
     tree.links.new(ray.outputs["Picked Object"], picked.inputs["Object"])
     put_string("cr_name", picked.outputs["Name"])
-    split = tree.nodes.new("LogicNativeSeparateXYZ")
+    split = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
     tree.links.new(ray.outputs["Picked Point"], split.inputs["Vector"])
     put_float("cr_x", split.outputs["X"])
     put_float("cr_y", split.outputs["Y"])
 
     # Get Item Info from the scene's Item Library, and an item it does not have.
     for item, found in (("Apple", "i_found"), ("Nothing", "i_found_missing")):
-        info = tree.nodes.new("LogicNativeGetItemInfo")
+        info = new_logic_node(tree.nodes, "LogicNativeGetItemInfo")
         info.inputs["Item"].default_value = item
         put_bool(found, info.outputs["Found"])
         if item == "Apple":
@@ -12443,7 +12487,7 @@ def run_uncovered_nodes_acceptance(status_path):
     camera.rotation_euler = (math.radians(90.0), 0.0, 0.0)
 
     second_tree = new_logic_tree(f"{PREFIX}_UncoveredSecondTree")
-    second_update = second_tree.nodes.new("LogicNativeOnFixedUpdate")
+    second_update = new_logic_node(second_tree.nodes, "LogicNativeOnFixedUpdate")
     build_add_property_chain(second_tree, second_update.outputs["Out"], "second_runs", 1.0)
     tree = new_logic_tree(f"{PREFIX}_UncoveredTree")
     build_uncovered_nodes_tree(tree, {
@@ -12697,8 +12741,8 @@ def run_data_containers_acceptance(status_path):
 def build_input_map_tree(name, data_dir):
     """Save, load and reset the player's Input Map, name bindings, and let a rebind time out."""
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
     operations = {}
     for key, operation, file_name in (
         ("saved", "SAVE", "ln_input_map_probe"),
@@ -12706,7 +12750,7 @@ def build_input_map_tree(name, data_dir):
         ("reset", "RESET", "ln_input_map_probe"),
         ("missing", "LOAD", "ln_input_map_missing"),
     ):
-        node = tree.nodes.new("LogicNativeInputMap")
+        node = new_logic_node(tree.nodes, "LogicNativeInputMap")
         # Reset hides Path and File: fill them in first.
         node.inputs["Path"].default_value = data_dir
         node.inputs["File"].default_value = file_name
@@ -12719,7 +12763,7 @@ def build_input_map_tree(name, data_dir):
     tree.links.new(operations["reset"].outputs["Done"], operations["missing"].inputs["Flow"])
 
     def record_bool(source_flow, property_name, value_socket=None):
-        setter = tree.nodes.new("LogicNativeSetGamePropertyBool")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
         setter.inputs["Property"].default_value = property_name
         setter.inputs["Value"].default_value = True
         tree.links.new(source_flow, flow_input(setter))
@@ -12733,7 +12777,7 @@ def build_input_map_tree(name, data_dir):
                 operations["missing"].outputs["Success"])
 
     # Nothing presses a key: the rebind gives up after its timeout.
-    rebind = tree.nodes.new("LogicNativeRebindInputAction")
+    rebind = new_logic_node(tree.nodes, "LogicNativeRebindInputAction")
     rebind.inputs["Action"].default_value = "Jump"
     rebind.inputs["Timeout"].default_value = 0.2
     tree.links.new(on_init.outputs["Out"], rebind.inputs["Flow"])
@@ -12745,15 +12789,15 @@ def build_input_map_tree(name, data_dir):
         ("jump_button", "Jump", "GAMEPAD"),
         ("accept_auto", "Accept", "AUTOMATIC"),
     ):
-        binding = tree.nodes.new("LogicNativeGetInputBinding")
+        binding = new_logic_node(tree.nodes, "LogicNativeGetInputBinding")
         binding.inputs["Action"].default_value = action
         binding.input_device = device
-        setter = tree.nodes.new("LogicNativeSetGamePropertyString")
+        setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
         setter.inputs["Property"].default_value = property_name
         tree.links.new(on_fixed_update.outputs["Out"], flow_input(setter))
         tree.links.new(binding.outputs["Text"], setter.inputs["Value"])
 
-    input_action = tree.nodes.new("LogicNativeInputAction")
+    input_action = new_logic_node(tree.nodes, "LogicNativeInputAction")
     input_action.inputs["Action"].default_value = "Jump"
     record_bool(on_fixed_update.outputs["Out"], "jump_active", input_action.outputs["Active"])
     record_bool(input_action.outputs["Out"], "jump_triggered")
@@ -12830,13 +12874,13 @@ def run_inventory_recipes_acceptance(status_path):
 
     tree = new_logic_tree(f"{PREFIX}_RecipesTree")
     nodes = tree.nodes
-    flow = nodes.new("LogicNativeOnInit").outputs["Out"]
+    flow = new_logic_node(nodes, "LogicNativeOnInit").outputs["Out"]
 
     # Each Inventory node edits a property in place: a scenario is a property, and every result is
     # stored right after the steps it is about.
     def inventory(prop, operation, **inputs):
         nonlocal flow
-        node = nodes.new("LogicNativeInventory")
+        node = new_logic_node(nodes, "LogicNativeInventory")
         node.operation = operation
         node.inputs["Property"].default_value = prop
         for name, value in inputs.items():
@@ -12852,25 +12896,25 @@ def run_inventory_recipes_acceptance(status_path):
         return inventory(prop, "ADD_ITEM", Item=item, Amount=amount)
 
     def current(prop):
-        node = nodes.new("LogicNativeGetGameProperty")
+        node = new_logic_node(nodes, "LogicNativeGetGameProperty")
         node.inputs["Property"].default_value = prop
         return node.outputs["Value"]
 
     def count(item, source):
-        node = nodes.new("LogicNativeItemCount")
+        node = new_logic_node(nodes, "LogicNativeItemCount")
         node.inputs["Item"].default_value = item
         tree.links.new(source, node.inputs["Inventory"])
         return node.outputs["Count"]
 
     def store(name, value):
         nonlocal flow
-        setter = nodes.new("LogicNativeSetGameProperty")
+        setter = new_logic_node(nodes, "LogicNativeSetGameProperty")
         setter.inputs["Property"].default_value = name
         tree.links.new(flow, setter.inputs["Flow"])
         tree.links.new(value, setter.inputs["Value"])
         flow = setter.outputs["Done"]
 
-    recipe_list = nodes.new("LogicNativeGetGameProperty")
+    recipe_list = new_logic_node(nodes, "LogicNativeGetGameProperty")
     recipe_list.inputs["Property"].default_value = "recipes"
     # [Apple 2, Mushroom 1, Gem 1, Coin 5]; an Apple dropped on the Mushroom makes a Potion.
     for item, amount in (("Apple", 2), ("Mushroom", 1), ("Gem", 1), ("Coin", 5)):
@@ -12882,22 +12926,22 @@ def run_inventory_recipes_acceptance(status_path):
     store("move_outcome", move.outputs["Outcome"])
     store("move_made", move.outputs["Made"])
     store("potions", count("Potion", current("bag")))
-    key_info = nodes.new("LogicNativeGetRecipeInfo")
+    key_info = new_logic_node(nodes, "LogicNativeGetRecipeInfo")
     key_info.inputs["Recipe"].default_value = "Gem + Coin = Key"
     tree.links.new(current("bag"), key_info.inputs["Inventory"])
     store("can_craft", key_info.outputs["Can Craft"])
-    info = nodes.new("LogicNativeGetRecipeInfo")
+    info = new_logic_node(nodes, "LogicNativeGetRecipeInfo")
     info.inputs["Recipe"].default_value = "2 Wood + Stone = 3 Arrow @ Bench"
     # Typed inputs read the same outputs: a Branch on Can Craft, an integer property.
-    branch = nodes.new("LogicNativeBranch")
+    branch = new_logic_node(nodes, "LogicNativeBranch")
     tree.links.new(flow, flow_input(branch))
     tree.links.new(key_info.outputs["Can Craft"], branch.inputs["Condition"])
-    typed = nodes.new("LogicNativeSetGamePropertyInt")
+    typed = new_logic_node(nodes, "LogicNativeSetGamePropertyInt")
     typed.inputs["Property"].default_value = "typed_arrows"
     tree.links.new(branch.outputs["True"], flow_input(typed))
     tree.links.new(info.outputs["Count"], typed.inputs["Value"])
     flow = typed.outputs["Done"]
-    find = nodes.new("LogicNativeFindRecipe")
+    find = new_logic_node(nodes, "LogicNativeFindRecipe")
     tree.links.new(recipe_list.outputs["Value"], find.inputs["Recipes"])
     tree.links.new(key_info.outputs["Ingredients"], find.inputs["Items"])
     store("found_index", find.outputs["Index"])
@@ -12922,7 +12966,7 @@ def run_inventory_recipes_acceptance(status_path):
     # Craft as many as the ingredients allow (Times 0): [Wood 10, Stone 3] makes 3 Axes.
     add("wood_bag", "Wood", 10)
     add("wood_bag", "Stone", 3)
-    many_info = nodes.new("LogicNativeGetRecipeInfo")
+    many_info = new_logic_node(nodes, "LogicNativeGetRecipeInfo")
     many_info.inputs["Recipe"].default_value = "2 Wood + Stone = Axe"
     tree.links.new(current("wood_bag"), many_info.inputs["Inventory"])
     store("craftable", many_info.outputs["Craftable"])
@@ -12932,7 +12976,7 @@ def run_inventory_recipes_acceptance(status_path):
     milk_recipe = "Milk Bucket = Butter + Bucket"
     add("milk_bag", "Milk Bucket", 1)
     inventory("milk_bag", "CRAFT", Recipe=milk_recipe)
-    milk_info = nodes.new("LogicNativeGetRecipeInfo")
+    milk_info = new_logic_node(nodes, "LogicNativeGetRecipeInfo")
     milk_info.inputs["Recipe"].default_value = milk_recipe
     store("byproducts", count("Bucket", milk_info.outputs["Results"]))
     store("buckets", count("Bucket", current("milk_bag")))
@@ -12941,7 +12985,7 @@ def run_inventory_recipes_acceptance(status_path):
     add("tool_bag", "Milk", 5)
     inventory("tool_bag", "CRAFT", Recipe="Bucket + Milk = Butter + Bucket", Amount=0)
     store("tool_butter", count("Butter", current("tool_bag")))
-    done = nodes.new("LogicNativeSetGamePropertyBool")
+    done = new_logic_node(nodes, "LogicNativeSetGamePropertyBool")
     done.inputs["Property"].default_value = "recipes_done"
     done.inputs["Value"].default_value = True
     tree.links.new(flow, flow_input(done))
@@ -13005,11 +13049,11 @@ def run_inventory_rule_sets_acceptance(status_path):
 
     tree = new_logic_tree(f"{PREFIX}_RulesTree")
     nodes = tree.nodes
-    flow = nodes.new("LogicNativeOnInit").outputs["Out"]
+    flow = new_logic_node(nodes, "LogicNativeOnInit").outputs["Out"]
 
     def inventory(operation, prop, **inputs):
         nonlocal flow
-        node = nodes.new("LogicNativeInventory")
+        node = new_logic_node(nodes, "LogicNativeInventory")
         node.operation = operation
         node.inputs["Property"].default_value = prop
         for name, value in inputs.items():
@@ -13020,7 +13064,7 @@ def run_inventory_rule_sets_acceptance(status_path):
 
     def store(name, output):
         nonlocal flow
-        setter = nodes.new("LogicNativeSetGameProperty")
+        setter = new_logic_node(nodes, "LogicNativeSetGameProperty")
         setter.inputs["Property"].default_value = name
         tree.links.new(flow, setter.inputs["Flow"])
         tree.links.new(output, setter.inputs["Value"])
@@ -13045,7 +13089,7 @@ def run_inventory_rule_sets_acceptance(status_path):
     move = inventory("MOVE_TO_SLOT", "inventory", Slot=0, **{"Other Slot": 1,
                                                             "To Property": "weapon"})
     store("move_outcome", move.outputs["Outcome"])
-    done = nodes.new("LogicNativeSetGamePropertyBool")
+    done = new_logic_node(nodes, "LogicNativeSetGamePropertyBool")
     done.inputs["Property"].default_value = "rules_done"
     done.inputs["Value"].default_value = True
     tree.links.new(flow, flow_input(done))
@@ -13083,11 +13127,11 @@ def run_inventory_in_place_acceptance(status_path):
 
     tree = new_logic_tree(f"{PREFIX}_InPlaceTree")
     nodes = tree.nodes
-    flow = nodes.new("LogicNativeOnInit").outputs["Out"]
+    flow = new_logic_node(nodes, "LogicNativeOnInit").outputs["Out"]
 
     def inventory(operation, **inputs):
         nonlocal flow
-        node = nodes.new("LogicNativeInventory")
+        node = new_logic_node(nodes, "LogicNativeInventory")
         node.operation = operation
         for name, value in inputs.items():
             node.inputs[name].default_value = value
@@ -13100,7 +13144,7 @@ def run_inventory_in_place_acceptance(status_path):
 
     def store(name, output):
         nonlocal flow
-        setter = nodes.new("LogicNativeSetGameProperty")
+        setter = new_logic_node(nodes, "LogicNativeSetGameProperty")
         setter.inputs["Property"].default_value = name
         tree.links.new(flow, setter.inputs["Flow"])
         tree.links.new(output, setter.inputs["Value"])
@@ -13110,15 +13154,15 @@ def run_inventory_in_place_acceptance(status_path):
     second = inventory("ADD_ITEM", Item="Coin", Amount=4)
     store("leftover2", second.outputs["Leftover"])
     picked = inventory("ADD_ITEM", Amount=0)
-    by_name = nodes.new("LogicNativeObjectByName")
+    by_name = new_logic_node(nodes, "LogicNativeObjectByName")
     by_name.inputs["Name"].default_value = pickup.name
     tree.links.new(by_name.outputs["Object"], picked.inputs["Item"])
     whole = inventory("REMOVE_FROM_SLOT", Slot=0, Amount=0)
     store("removed_whole", whole.outputs["Removed"])
-    current = nodes.new("LogicNativeGetGameProperty")
+    current = new_logic_node(nodes, "LogicNativeGetGameProperty")
     current.inputs["Property"].default_value = "inventory"
     for name, item in (("coins", "Coin"), ("gems", "Gem")):
-        count = nodes.new("LogicNativeItemCount")
+        count = new_logic_node(nodes, "LogicNativeItemCount")
         count.inputs["Item"].default_value = item
         tree.links.new(current.outputs["Value"], count.inputs["Inventory"])
         store(name, count.outputs["Count"])
@@ -13128,21 +13172,21 @@ def run_inventory_in_place_acceptance(status_path):
     partial = inventory("ADD_ITEM", Item="Gem", Amount=9, Capacity=2)
     store("added_partial", partial.outputs["Removed"])
     store("leftover_partial", partial.outputs["Leftover"])
-    drop = nodes.new("LogicNativeDropItem")
+    drop = new_logic_node(nodes, "LogicNativeDropItem")
     drop.inputs["Item"].default_value = "Gem"
     drop.inputs["Amount"].default_value = 2
     drop.inputs["Position"].default_value = (5.0, 0.0, 1.0)
     tree.links.new(flow, drop.inputs["Flow"])
     flow = drop.outputs["Done"]
-    done = nodes.new("LogicNativeSetGamePropertyBool")
+    done = new_logic_node(nodes, "LogicNativeSetGamePropertyBool")
     done.inputs["Property"].default_value = "inventory_done"
     done.inputs["Value"].default_value = True
     tree.links.new(flow, flow_input(done))
     # A drop from a frame route (it waits for the next Logic + Physics step).
-    on_update = nodes.new("LogicNativeOnUpdate")
-    once = nodes.new("LogicNativeOnce")
+    on_update = new_logic_node(nodes, "LogicNativeOnUpdate")
+    once = new_logic_node(nodes, "LogicNativeOnce")
     tree.links.new(on_update.outputs["Out"], once.inputs["Flow"])
-    frame_drop = nodes.new("LogicNativeDropItem")
+    frame_drop = new_logic_node(nodes, "LogicNativeDropItem")
     frame_drop.inputs["Item"].default_value = "Coin"
     frame_drop.inputs["Amount"].default_value = 3
     frame_drop.inputs["Position"].default_value = (7.0, 0.0, 1.0)
@@ -13171,11 +13215,11 @@ def run_inventory_two_inventories_acceptance(status_path):
 
     tree = new_logic_tree(f"{PREFIX}_TwoTree")
     nodes = tree.nodes
-    flow = nodes.new("LogicNativeOnInit").outputs["Out"]
+    flow = new_logic_node(nodes, "LogicNativeOnInit").outputs["Out"]
 
     def inventory(operation, **inputs):
         nonlocal flow
-        node = nodes.new("LogicNativeInventory")
+        node = new_logic_node(nodes, "LogicNativeInventory")
         node.operation = operation
         for name, value in inputs.items():
             node.inputs[name].default_value = value
@@ -13188,17 +13232,17 @@ def run_inventory_two_inventories_acceptance(status_path):
 
     def store(name, output):
         nonlocal flow
-        setter = nodes.new("LogicNativeSetGameProperty")
+        setter = new_logic_node(nodes, "LogicNativeSetGameProperty")
         setter.inputs["Property"].default_value = name
         tree.links.new(flow, setter.inputs["Flow"])
         tree.links.new(output, setter.inputs["Value"])
         flow = setter.outputs["Done"]
 
     def count(obj, prop, item):
-        get = nodes.new("LogicNativeGetGameProperty")
+        get = new_logic_node(nodes, "LogicNativeGetGameProperty")
         get.inputs["Object"].default_value = obj
         get.inputs["Property"].default_value = prop
-        node = nodes.new("LogicNativeItemCount")
+        node = new_logic_node(nodes, "LogicNativeItemCount")
         node.inputs["Item"].default_value = item
         tree.links.new(get.outputs["Value"], node.inputs["Inventory"])
         return node.outputs["Count"]
@@ -13220,15 +13264,15 @@ def run_inventory_two_inventories_acceptance(status_path):
         "To Property": "weapon", "Other Slot": 5})
     store("o_full", full.outputs["Outcome"])
     store("bag_apples", count(target, "bag", "Apple"))
-    bag = nodes.new("LogicNativeGetGameProperty")
+    bag = new_logic_node(nodes, "LogicNativeGetGameProperty")
     bag.inputs["Property"].default_value = "bag"
-    length = nodes.new("LogicNativeListLength")
+    length = new_logic_node(nodes, "LogicNativeListLength")
     tree.links.new(bag.outputs["Value"], length.inputs["List"])
     store("bag_slots", length.outputs["Length"])
     store("chest_apples", count(chest, "chest", "Apple"))
     store("chest_swords", count(chest, "chest", "Sword"))
     store("weapon_apples", count(target, "weapon", "Apple"))
-    done = nodes.new("LogicNativeSetGamePropertyBool")
+    done = new_logic_node(nodes, "LogicNativeSetGamePropertyBool")
     done.inputs["Property"].default_value = "two_done"
     done.inputs["Value"].default_value = True
     tree.links.new(flow, flow_input(done))
@@ -13258,17 +13302,17 @@ def run_ui_menu_replace_inside_acceptance(status_path):
     menu_b = make_ui_collection(f"{PREFIX}_RTMenuB", (b_panel,))
 
     tree = new_logic_tree(f"{PREFIX}_RTTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    open_a = tree.nodes.new("LogicNativeOpenObjectMenu")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    open_a = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
     open_a.inputs["Camera"].default_value = overlay_camera
     open_a.inputs["Collection"].default_value = menu_a
     tree.links.new(on_init.outputs["Out"], flow_input(open_a))
 
     tab_tree = new_logic_tree(f"{PREFIX}_RTTabTree")
-    tab_init = tab_tree.nodes.new("LogicNativeOnInit")
-    delay = tab_tree.nodes.new("LogicNativeDelay")
+    tab_init = new_logic_node(tab_tree.nodes, "LogicNativeOnInit")
+    delay = new_logic_node(tab_tree.nodes, "LogicNativeDelay")
     delay.inputs["Delay"].default_value = 0.3
-    open_b = tab_tree.nodes.new("LogicNativeOpenObjectMenu")
+    open_b = new_logic_node(tab_tree.nodes, "LogicNativeOpenObjectMenu")
     open_b.menu_open_mode = "REPLACE_TOP"
     open_b.inputs["Camera"].default_value = overlay_camera
     open_b.inputs["Collection"].default_value = menu_b
@@ -13336,30 +13380,30 @@ def run_ui_player_menu_acceptance(status_path):
 
     tree = new_logic_tree(f"{PREFIX}_PMTree")
     nodes = tree.nodes
-    on_init = nodes.new("LogicNativeOnInit")
-    open_menu = nodes.new("LogicNativeOpenObjectMenu")
+    on_init = new_logic_node(nodes, "LogicNativeOnInit")
+    open_menu = new_logic_node(nodes, "LogicNativeOpenObjectMenu")
     open_menu.inputs["Camera"].default_value = overlay_camera
     open_menu.inputs["Collection"].default_value = menu
     open_menu.inputs["User"].default_value = 1
     tree.links.new(on_init.outputs["Out"], flow_input(open_menu))
-    on_highlight = nodes.new("LogicNativeOnUIEvent")
+    on_highlight = new_logic_node(nodes, "LogicNativeOnUIEvent")
     on_highlight.ui_event = "HIGHLIGHT"
-    store_user = nodes.new("LogicNativeSetGameProperty")
+    store_user = new_logic_node(nodes, "LogicNativeSetGameProperty")
     store_user.inputs["Property"].default_value = "hl_user"
     tree.links.new(on_highlight.outputs["Out"], store_user.inputs["Flow"])
     tree.links.new(on_highlight.outputs["User"], store_user.inputs["Value"])
-    store_action = nodes.new("LogicNativeSetGameProperty")
+    store_action = new_logic_node(nodes, "LogicNativeSetGameProperty")
     store_action.inputs["Property"].default_value = "hl_action"
     tree.links.new(store_user.outputs["Done"], store_action.inputs["Flow"])
     tree.links.new(on_highlight.outputs["Action"], store_action.inputs["Value"])
-    on_update = nodes.new("LogicNativeOnUpdate")
+    on_update = new_logic_node(nodes, "LogicNativeOnUpdate")
     flow = on_update.outputs["Out"]
     for user, name in ((1, "focus1"), (0, "focus0")):
-        get_focus = nodes.new("LogicNativeGetUIFocus")
+        get_focus = new_logic_node(nodes, "LogicNativeGetUIFocus")
         get_focus.inputs["User"].default_value = user
-        to_name = nodes.new("LogicNativeTypecast")
+        to_name = new_logic_node(nodes, "LogicNativeTypecast")
         to_name.to_type = "STRING"
-        setter = nodes.new("LogicNativeSetGamePropertyString")
+        setter = new_logic_node(nodes, "LogicNativeSetGamePropertyString")
         setter.inputs["Property"].default_value = name
         tree.links.new(get_focus.outputs["Object"], to_name.inputs["Value"])
         tree.links.new(to_name.outputs["String"], setter.inputs["Value"])
@@ -13389,16 +13433,16 @@ def run_loop_routes_acceptance(status_path):
         set_game_property(target, name, "FLOAT", 0.0)
     tree = new_logic_tree(f"{PREFIX}_LoopRoutesTree")
     nodes = tree.nodes
-    on_init = nodes.new("LogicNativeOnInit").outputs["Out"]
+    on_init = new_logic_node(nodes, "LogicNativeOnInit").outputs["Out"]
 
     def counter(name, flow):
-        node = nodes.new("LogicNativeModifyProperty")
+        node = new_logic_node(nodes, "LogicNativeModifyProperty")
         node.inputs["Property"].default_value = name
         node.inputs["Value"].default_value = 1.0
         tree.links.new(flow, node.inputs["Flow"])
 
     def loop_body():
-        node = nodes.new("LogicNativeLoop")
+        node = new_logic_node(nodes, "LogicNativeLoop")
         node.inputs["Count"].default_value = 3
         node.inputs["Ticks to Complete"].default_value = 1
         tree.links.new(on_init, node.inputs["Flow"])
@@ -13406,14 +13450,15 @@ def run_loop_routes_acceptance(status_path):
 
     counter("c_other", on_init)
     counter("c_direct", loop_body())
-    append = nodes.new("LogicNativeListAppend")
+    append = new_logic_node(nodes, "LogicNativeListAppend")
+    append.store = 'OUTPUT'  # a data node's Done route (Game Property mode needs a property)
     tree.links.new(loop_body(), append.inputs["Flow"])
     counter("c_append", append.outputs["Done"])
-    inventory = nodes.new("LogicNativeInventory")
+    inventory = new_logic_node(nodes, "LogicNativeInventory")
     inventory.inputs["Item"].default_value = "Apple"
     tree.links.new(loop_body(), inventory.inputs["Flow"])
     counter("c_inventory", inventory.outputs["Done"])
-    branch = nodes.new("LogicNativeBranch")
+    branch = new_logic_node(nodes, "LogicNativeBranch")
     branch.inputs["Condition"].default_value = True
     tree.links.new(loop_body(), branch.inputs["Flow"])
     counter("c_branch", branch.outputs["True"])
@@ -13503,10 +13548,10 @@ def run_inactive_overlay_collection_acceptance(status_path):
     tree = build_inactive_overlay_collection_tree(
         f"{PREFIX}_InactiveOverlayTree", overlay_camera, overlay_collection)
     item_tree = new_logic_tree(f"{PREFIX}_InactiveOverlayItemTree")
-    item_on_init = item_tree.nodes.new("LogicNativeOnInit")
-    item_on_fixed = item_tree.nodes.new("LogicNativeOnFixedUpdate")
-    set_item_init = item_tree.nodes.new("LogicNativeSetGamePropertyString")
-    set_item_fixed = item_tree.nodes.new("LogicNativeSetGamePropertyString")
+    item_on_init = new_logic_node(item_tree.nodes, "LogicNativeOnInit")
+    item_on_fixed = new_logic_node(item_tree.nodes, "LogicNativeOnFixedUpdate")
+    set_item_init = new_logic_node(item_tree.nodes, "LogicNativeSetGamePropertyString")
+    set_item_fixed = new_logic_node(item_tree.nodes, "LogicNativeSetGamePropertyString")
     set_item_init.inputs["Property"].default_value = "overlay_item_init"
     set_item_init.inputs["Value"].default_value = "ran"
     set_item_fixed.inputs["Property"].default_value = "overlay_item_fixed"
@@ -13516,10 +13561,10 @@ def run_inactive_overlay_collection_acceptance(status_path):
     bind_tree(overlay_item, item_tree.name, True)
     bind_tree(overlay_child, item_tree.name, True)
     camera_tree = new_logic_tree(f"{PREFIX}_InactiveOverlayCameraTree")
-    camera_on_init = camera_tree.nodes.new("LogicNativeOnInit")
-    camera_on_fixed = camera_tree.nodes.new("LogicNativeOnFixedUpdate")
-    set_camera_init = camera_tree.nodes.new("LogicNativeSetGamePropertyString")
-    set_camera_fixed = camera_tree.nodes.new("LogicNativeSetGamePropertyString")
+    camera_on_init = new_logic_node(camera_tree.nodes, "LogicNativeOnInit")
+    camera_on_fixed = new_logic_node(camera_tree.nodes, "LogicNativeOnFixedUpdate")
+    set_camera_init = new_logic_node(camera_tree.nodes, "LogicNativeSetGamePropertyString")
+    set_camera_fixed = new_logic_node(camera_tree.nodes, "LogicNativeSetGamePropertyString")
     set_camera_init.inputs["Property"].default_value = "overlay_camera_init"
     set_camera_init.inputs["Value"].default_value = "ran"
     set_camera_fixed.inputs["Property"].default_value = "overlay_camera_fixed"
@@ -13600,8 +13645,8 @@ def run_object_menu_session_acceptance(status_path):
     menu_tree = build_object_menu_session_tree(
         f"{PREFIX}_ObjectMenuSessionTree", menu_camera, menu_collection, detail_collection)
     item_tree = new_logic_tree(f"{PREFIX}_ObjectMenuItemTree")
-    item_init = item_tree.nodes.new("LogicNativeOnInit")
-    mark_item_logic = item_tree.nodes.new("LogicNativeSetGamePropertyBool")
+    item_init = new_logic_node(item_tree.nodes, "LogicNativeOnInit")
+    mark_item_logic = new_logic_node(item_tree.nodes, "LogicNativeSetGamePropertyBool")
     mark_item_logic.inputs["Object"].default_value = driver
     mark_item_logic.inputs["Property"].default_value = "menu_item_logic_ran"
     mark_item_logic.inputs["Value"].default_value = True
@@ -13732,27 +13777,27 @@ def run_ui_elements_acceptance(status_path):
     badge.game.ui.focus = "NONE"
 
     tree = new_logic_tree(f"{PREFIX}_UIElementsTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    show_hud = tree.nodes.new("LogicNativeSetOverlayCollection")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    show_hud = new_logic_node(tree.nodes, "LogicNativeSetOverlayCollection")
     show_hud.inputs["Camera"].default_value = overlay_camera
     show_hud.inputs["Collection"].default_value = hud
-    open_menu = tree.nodes.new("LogicNativeOpenObjectMenu")
+    open_menu = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
     open_menu.inputs["Camera"].default_value = overlay_camera
     open_menu.inputs["Collection"].default_value = menu
     tree.links.new(on_init.outputs["Out"], flow_input(show_hud))
     tree.links.new(show_hud.outputs["Success"], flow_input(open_menu))
-    on_focus = tree.nodes.new("LogicNativeOnUIEvent")
+    on_focus = new_logic_node(tree.nodes, "LogicNativeOnUIEvent")
     on_focus.ui_event = "FOCUS"
-    store_focus = tree.nodes.new("LogicNativeSetGamePropertyString")
+    store_focus = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
     store_focus.inputs["Property"].default_value = "ui_focused_action"
     tree.links.new(on_focus.outputs["Out"], flow_input(store_focus))
     tree.links.new(on_focus.outputs["Action"], store_focus.inputs[3])
     # Report which button the menu selected for keyboard and gamepad.
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    get_focus = tree.nodes.new("LogicNativeGetUIFocus")
-    focus_name = tree.nodes.new("LogicNativeTypecast")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    get_focus = new_logic_node(tree.nodes, "LogicNativeGetUIFocus")
+    focus_name = new_logic_node(tree.nodes, "LogicNativeTypecast")
     focus_name.to_type = "STRING"
-    store_focus_name = tree.nodes.new("LogicNativeSetGamePropertyString")
+    store_focus_name = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
     store_focus_name.inputs["Property"].default_value = "ui_focus_name"
     tree.links.new(on_update.outputs["Out"], flow_input(store_focus_name))
     tree.links.new(get_focus.outputs["Object"], focus_name.inputs["Value"])
@@ -13786,10 +13831,10 @@ def make_ui_collection(name, objects=()):
 
 def new_focus_name_setter(tree, property_name):
     """Set Game Property String of the UI focus object's name; returns (setter, flow input)."""
-    get_focus = tree.nodes.new("LogicNativeGetUIFocus")
-    to_name = tree.nodes.new("LogicNativeTypecast")
+    get_focus = new_logic_node(tree.nodes, "LogicNativeGetUIFocus")
+    to_name = new_logic_node(tree.nodes, "LogicNativeTypecast")
     to_name.to_type = "STRING"
-    setter = tree.nodes.new("LogicNativeSetGamePropertyString")
+    setter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
     setter.inputs["Property"].default_value = property_name
     tree.links.new(get_focus.outputs["Object"], to_name.inputs["Value"])
     tree.links.new(to_name.outputs["String"], setter.inputs["Value"])
@@ -13814,25 +13859,25 @@ def run_ui_menu_focus_restore_acceptance(status_path):
     submenu = make_ui_collection(f"{PREFIX}_UIFocusSubmenu", buttons[2:])
 
     tree = new_logic_tree(f"{PREFIX}_UIFocusRestoreTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    open_menu = tree.nodes.new("LogicNativeOpenObjectMenu")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    open_menu = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
     open_menu.inputs["Camera"].default_value = overlay_camera
     open_menu.inputs["Collection"].default_value = menu
-    wait_menu = tree.nodes.new("LogicNativeDelay")
+    wait_menu = new_logic_node(tree.nodes, "LogicNativeDelay")
     wait_menu.inputs["Delay"].default_value = 0.3
-    find_b = tree.nodes.new("LogicNativeObjectByName")
+    find_b = new_logic_node(tree.nodes, "LogicNativeObjectByName")
     find_b.inputs["Name"].default_value = f"{PREFIX}_UIMenuButtonB"
-    set_focus = tree.nodes.new("LogicNativeSetUIFocus")
-    focus_failed = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    set_focus = new_logic_node(tree.nodes, "LogicNativeSetUIFocus")
+    focus_failed = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     focus_failed.inputs["Property"].default_value = "ui_set_focus_failed"
     focus_failed.inputs["Value"].default_value = True
-    open_submenu = tree.nodes.new("LogicNativeOpenObjectMenu")
+    open_submenu = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
     open_submenu.inputs["Camera"].default_value = overlay_camera
     open_submenu.inputs["Collection"].default_value = submenu
-    wait_submenu = tree.nodes.new("LogicNativeDelay")
+    wait_submenu = new_logic_node(tree.nodes, "LogicNativeDelay")
     wait_submenu.inputs["Delay"].default_value = 0.3
     store_submenu_focus = new_focus_name_setter(tree, "ui_submenu_focus")
-    close_submenu = tree.nodes.new("LogicNativeCloseObjectMenu")
+    close_submenu = new_logic_node(tree.nodes, "LogicNativeCloseObjectMenu")
     store_restored_focus = new_focus_name_setter(tree, "ui_restored_focus")
 
     tree.links.new(on_init.outputs["Out"], flow_input(open_menu))
@@ -13883,24 +13928,24 @@ def run_ui_paused_routes_acceptance(status_path):
     hud = make_ui_collection(f"{PREFIX}_UIPauseHud", (backdrop,))
 
     tree = new_logic_tree(f"{PREFIX}_UIPausedRoutesTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    pause = tree.nodes.new("LogicNativeSetGamePaused")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    pause = new_logic_node(tree.nodes, "LogicNativeSetGamePaused")
     pause.inputs["Paused"].default_value = True
-    show_hud = tree.nodes.new("LogicNativeSetOverlayCollection")
+    show_hud = new_logic_node(tree.nodes, "LogicNativeSetOverlayCollection")
     show_hud.inputs["Camera"].default_value = overlay_camera
     show_hud.inputs["Collection"].default_value = hud
     # Both on init: the overlay appears in the first paused frame.
     tree.links.new(on_init.outputs["Out"], flow_input(pause))
     tree.links.new(on_init.outputs["Out"], flow_input(show_hud))
-    on_enter = tree.nodes.new("LogicNativeOnUIEvent")
+    on_enter = new_logic_node(tree.nodes, "LogicNativeOnUIEvent")
     on_enter.ui_event = "ENTER"
-    mark_enter = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    mark_enter = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     mark_enter.inputs["Property"].default_value = "ui_enter_while_paused"
     mark_enter.inputs["Value"].default_value = True
     tree.links.new(on_enter.outputs["Out"], flow_input(mark_enter))
     # Frame logic of the same tree must wait while paused.
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    count_updates = tree.nodes.new("LogicNativeModifyProperty")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    count_updates = new_logic_node(tree.nodes, "LogicNativeModifyProperty")
     count_updates.inputs["Property"].default_value = "update_count"
     count_updates.inputs["Value"].default_value = 1.0
     tree.links.new(on_update.outputs["Out"], count_updates.inputs["Flow"])
@@ -13940,8 +13985,8 @@ def run_ui_sound_events_acceptance(status_path):
         button.game.ui.use_element = True
         button.game.ui.action = action
         mover = new_logic_tree(f"{PREFIX}_UISoundMove_{action}")
-        init = mover.nodes.new("LogicNativeOnInit")
-        wait = mover.nodes.new("LogicNativeDelay")
+        init = new_logic_node(mover.nodes, "LogicNativeOnInit")
+        wait = new_logic_node(mover.nodes, "LogicNativeDelay")
         wait.inputs["Delay"].default_value = 0.5
         place = new_set_object_attribute(mover, "WORLD_POSITION")
         place.inputs["Value"].default_value = later
@@ -13952,22 +13997,22 @@ def run_ui_sound_events_acceptance(status_path):
     hud = make_ui_collection(f"{PREFIX}_UISoundHud", buttons)
 
     tree = new_logic_tree(f"{PREFIX}_UISoundEventsTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    show_hud = tree.nodes.new("LogicNativeSetOverlayCollection")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    show_hud = new_logic_node(tree.nodes, "LogicNativeSetOverlayCollection")
     show_hud.inputs["Camera"].default_value = overlay_camera
     show_hud.inputs["Collection"].default_value = hud
     tree.links.new(on_init.outputs["Out"], flow_input(show_hud))
-    on_sound = tree.nodes.new("LogicNativeOnUISound")
-    store_action = tree.nodes.new("LogicNativeSetGamePropertyString")
+    on_sound = new_logic_node(tree.nodes, "LogicNativeOnUISound")
+    store_action = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
     store_action.inputs["Property"].default_value = "last_move"
     tree.links.new(on_sound.outputs["Action"], store_action.inputs["Value"])
-    store_menu = tree.nodes.new("LogicNativeSetGamePropertyString")
+    store_menu = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
     store_menu.inputs["Property"].default_value = "last_menu"
     tree.links.new(on_sound.outputs["Menu"], store_menu.inputs["Value"])
-    store_user = tree.nodes.new("LogicNativeSetGamePropertyInt")
+    store_user = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
     store_user.inputs["Property"].default_value = "last_user"
     tree.links.new(on_sound.outputs["User"], store_user.inputs["Value"])
-    count = tree.nodes.new("LogicNativeModifyProperty")
+    count = new_logic_node(tree.nodes, "LogicNativeModifyProperty")
     count.inputs["Property"].default_value = "move_count"
     count.inputs["Value"].default_value = 1.0
     chain_flows(tree, on_sound.outputs["Move"], [store_action, store_menu, store_user, count])
@@ -13992,23 +14037,23 @@ def run_sound_groups_acceptance(status_path):
     configure_game_settings(True)
     driver = create_cube(f"{PREFIX}_SoundGroupsDriver")
     tree = new_logic_tree(f"{PREFIX}_SoundGroupsTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    play = tree.nodes.new("LogicNativePlaySound")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    play = new_logic_node(tree.nodes, "LogicNativePlaySound")
     play.sound = load_acceptance_test_sound()
     play.sound_group = "MUSIC"
     play.inputs["Volume"].default_value = 0.05
-    music = tree.nodes.new("LogicNativeSetVolume")
+    music = new_logic_node(tree.nodes, "LogicNativeSetVolume")
     music.sound_group = "MUSIC"
     music.inputs["Volume"].default_value = 0.5
-    effects = tree.nodes.new("LogicNativeSetVolume")
+    effects = new_logic_node(tree.nodes, "LogicNativeSetVolume")
     effects.sound_group = "EFFECTS"
     effects.inputs["Volume"].default_value = 0.0
     effects.inputs["Fade"].default_value = 0.2
     # A new Set Volume is for Master.
-    master = tree.nodes.new("LogicNativeSetVolume")
+    master = new_logic_node(tree.nodes, "LogicNativeSetVolume")
     require(master.sound_group == "MASTER", f"Set Volume starts as {master.sound_group}")
     master.inputs["Volume"].default_value = 0.25
-    mark = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    mark = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     mark.inputs["Property"].default_value = "volume_done"
     mark.inputs["Value"].default_value = True
     chain_flows(tree, on_init.outputs["Out"], [play, music, effects, master, mark])
@@ -14049,28 +14094,28 @@ def run_smooth_motion_acceptance(status_path):
     configure_game_settings(True)
     driver = create_cube(f"{PREFIX}_SmoothDriver")
     move = new_logic_tree(f"{PREFIX}_SmoothMoveTree")
-    move_step = move.nodes.new("LogicNativeOnFixedUpdate")
-    apply_move = move.nodes.new("LogicNativeApplyMovement")
+    move_step = new_logic_node(move.nodes, "LogicNativeOnFixedUpdate")
+    apply_move = new_logic_node(move.nodes, "LogicNativeApplyMovement")
     apply_move.inputs["Vector"].default_value = (0.1, 0.0, 0.0)
     move.links.new(move_step.outputs["Out"], flow_input(apply_move))
 
     # The node teleporter moves too, until node_jump sends it to x = 500 with Teleport.
     jump = new_logic_tree(f"{PREFIX}_SmoothJumpTree")
-    jump_step = jump.nodes.new("LogicNativeOnFixedUpdate")
-    branch = jump.nodes.new("LogicNativeBranch")
-    read_jump = jump.nodes.new("LogicNativeGetGamePropertyBool")
+    jump_step = new_logic_node(jump.nodes, "LogicNativeOnFixedUpdate")
+    branch = new_logic_node(jump.nodes, "LogicNativeBranch")
+    read_jump = new_logic_node(jump.nodes, "LogicNativeGetGamePropertyBool")
     read_jump.inputs["Property"].default_value = "node_jump"
     jump.links.new(jump_step.outputs["Out"], flow_input(branch))
     jump.links.new(read_jump.outputs["Value"], branch.inputs["Condition"])
     set_far = new_set_object_attribute(jump, "WORLD_POSITION")
     set_far.inputs["Value"].default_value = (500.0, 0.0, 0.0)
     set_far.inputs["Teleport"].default_value = True
-    jumped = jump.nodes.new("LogicNativeSetGamePropertyBool")
+    jumped = new_logic_node(jump.nodes, "LogicNativeSetGamePropertyBool")
     jumped.inputs["Property"].default_value = "node_jump"
     jumped.inputs["Value"].default_value = False
     jump.links.new(branch.outputs["True"], flow_input(set_far))
     jump.links.new(set_far.outputs["Done"], flow_input(jumped))
-    keep_moving = jump.nodes.new("LogicNativeApplyMovement")
+    keep_moving = new_logic_node(jump.nodes, "LogicNativeApplyMovement")
     keep_moving.inputs["Vector"].default_value = (0.1, 0.0, 0.0)
     jump.links.new(branch.outputs["False"], flow_input(keep_moving))
 
@@ -14119,13 +14164,13 @@ def run_frame_pacing_acceptance(status_path):
     configure_game_settings(True)
     driver = create_cube(f"{PREFIX}_PacingDriver")
     tree = new_logic_tree(f"{PREFIX}_PacingTree")
-    read_pause = tree.nodes.new("LogicNativeGetGamePropertyBool")
+    read_pause = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyBool")
     read_pause.inputs["Property"].default_value = "want_pause"
     # On Update pauses; while paused only While Paused runs (it resumes).
     for event_name, output in (("LogicNativeOnUpdate", "Out"),
                                ("LogicNativeWhilePaused", "Update")):
-        event = tree.nodes.new(event_name)
-        pause = tree.nodes.new("LogicNativeSetGamePaused")
+        event = new_logic_node(tree.nodes, event_name)
+        pause = new_logic_node(tree.nodes, "LogicNativeSetGamePaused")
         tree.links.new(event.outputs[output], flow_input(pause))
         tree.links.new(read_pause.outputs["Value"], pause.inputs["Paused"])
     set_game_property(driver, "want_pause", "BOOL", False)
@@ -14164,23 +14209,23 @@ def run_ui_overlay_visibility_acceptance(status_path):
     menu = make_ui_collection(f"{PREFIX}_UIVisibilityMenu", (item,))
 
     tree = new_logic_tree(f"{PREFIX}_UIOverlayVisibilityTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
     chain = []
     for collection in (plain_hud, template_hud):
-        show = tree.nodes.new("LogicNativeSetOverlayCollection")
+        show = new_logic_node(tree.nodes, "LogicNativeSetOverlayCollection")
         show.inputs["Camera"].default_value = overlay_camera
         show.inputs["Collection"].default_value = collection
         chain.append((show, "Success"))
     for collection in (plain_hud, template_hud):
-        hide = tree.nodes.new("LogicNativeSetCollectionVisibility")
+        hide = new_logic_node(tree.nodes, "LogicNativeSetCollectionVisibility")
         hide.inputs["Collection"].default_value = collection
         hide.inputs["Visible"].default_value = False
         chain.append((hide, "Done"))
-    open_menu = tree.nodes.new("LogicNativeOpenObjectMenu")
+    open_menu = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
     open_menu.inputs["Camera"].default_value = overlay_camera
     open_menu.inputs["Collection"].default_value = menu
     chain.append((open_menu, "Opened"))
-    wait_menu = tree.nodes.new("LogicNativeDelay")
+    wait_menu = new_logic_node(tree.nodes, "LogicNativeDelay")
     wait_menu.inputs["Delay"].default_value = 0.2
     chain.append((wait_menu, "Done"))
     tree.links.new(on_init.outputs["Out"], flow_input(chain[0][0]))
@@ -14190,26 +14235,26 @@ def run_ui_overlay_visibility_acceptance(status_path):
     # While the menu is open, record whether each hidden HUD object is visible.
     for name, property_name in ((plain.name, "ui_plain_visible_with_menu"),
                                 (template.name, "ui_template_visible_with_menu")):
-        find = tree.nodes.new("LogicNativeObjectByName")
+        find = new_logic_node(tree.nodes, "LogicNativeObjectByName")
         find.inputs["Name"].default_value = name
         get_visible = new_get_object_attribute(tree, "VISIBLE")
-        store = tree.nodes.new("LogicNativeSetGamePropertyBool")
+        store = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
         store.inputs["Property"].default_value = property_name
         tree.links.new(find.outputs["Object"], get_visible.inputs["Object"])
         tree.links.new(get_visible.outputs["Visible"], store.inputs["Value"])
         tree.links.new(wait_menu.outputs["Done"], flow_input(store))
-    mark_opened = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    mark_opened = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     mark_opened.inputs["Property"].default_value = "ui_menu_opened"
     mark_opened.inputs["Value"].default_value = True
     tree.links.new(wait_menu.outputs["Done"], flow_input(mark_opened))
 
-    close_menu = tree.nodes.new("LogicNativeCloseObjectMenu")
+    close_menu = new_logic_node(tree.nodes, "LogicNativeCloseObjectMenu")
     tree.links.new(wait_menu.outputs["Done"], flow_input(close_menu))
-    show_plain = tree.nodes.new("LogicNativeSetCollectionVisibility")
+    show_plain = new_logic_node(tree.nodes, "LogicNativeSetCollectionVisibility")
     show_plain.inputs["Collection"].default_value = plain_hud
     show_plain.inputs["Visible"].default_value = True
     tree.links.new(close_menu.outputs["Closed"], flow_input(show_plain))
-    mark_done = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    mark_done = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     mark_done.inputs["Property"].default_value = "ui_cycle_done"
     mark_done.inputs["Value"].default_value = True
     tree.links.new(show_plain.outputs["Done"], flow_input(mark_done))
@@ -14264,10 +14309,10 @@ def run_ui_grid_template_acceptance(status_path):
     library = make_ui_collection(f"{PREFIX}_UIGridLibrary", items)
 
     grid_tree = new_logic_tree(f"{PREFIX}_UIGridTree")
-    shown = grid_tree.nodes.new("LogicNativeGetGlobalProperty")
+    shown = new_logic_node(grid_tree.nodes, "LogicNativeGetGlobalProperty")
     shown.inputs["Category"].default_value = "Inventory"
     shown.inputs["Property"].default_value = "items"
-    grid = grid_tree.nodes.new("LogicNativeObjectGridView")
+    grid = new_logic_node(grid_tree.nodes, "LogicNativeObjectGridView")
     grid.inputs["Columns"].default_value = 3
     grid.inputs["Cull Outside"].default_value = False
     # Items gives the list: its icons come from the scene's Item Library.
@@ -14279,34 +14324,34 @@ def run_ui_grid_template_acceptance(status_path):
 
     # [Apple x4, Gem x1], then open and close the menu twice.
     tree = new_logic_tree(f"{PREFIX}_UIGridDriverTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
     chain = []
     for name, amount in (("Apple", 4), ("Gem", 1)):
-        add = tree.nodes.new("LogicNativeInventory")
+        add = new_logic_node(tree.nodes, "LogicNativeInventory")
         add.operation = "ADD_ITEM"
         add.inputs["Property"].default_value = "grid_items"
         add.inputs["Item"].default_value = f"{PREFIX}_UIGrid{name}"
         add.inputs["Amount"].default_value = amount
         chain.append((add, "Done"))
-    grid_items = tree.nodes.new("LogicNativeGetGameProperty")
+    grid_items = new_logic_node(tree.nodes, "LogicNativeGetGameProperty")
     grid_items.inputs["Property"].default_value = "grid_items"
-    store = tree.nodes.new("LogicNativeSetGlobalProperty")
+    store = new_logic_node(tree.nodes, "LogicNativeSetGlobalProperty")
     store.inputs["Category"].default_value = "Inventory"
     store.inputs["Property"].default_value = "items"
     tree.links.new(grid_items.outputs["Value"], store.inputs["Value"])
     chain.append((store, "Done"))
     for _cycle in range(2):
-        open_menu = tree.nodes.new("LogicNativeOpenObjectMenu")
+        open_menu = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
         open_menu.inputs["Camera"].default_value = overlay_camera
         open_menu.inputs["Collection"].default_value = menu
-        wait_open = tree.nodes.new("LogicNativeDelay")
+        wait_open = new_logic_node(tree.nodes, "LogicNativeDelay")
         wait_open.inputs["Delay"].default_value = 0.5
-        close_menu = tree.nodes.new("LogicNativeCloseObjectMenu")
-        wait_closed = tree.nodes.new("LogicNativeDelay")
+        close_menu = new_logic_node(tree.nodes, "LogicNativeCloseObjectMenu")
+        wait_closed = new_logic_node(tree.nodes, "LogicNativeDelay")
         wait_closed.inputs["Delay"].default_value = 0.2
         chain += [(open_menu, "Opened"), (wait_open, "Done"), (close_menu, "Closed"),
                   (wait_closed, "Done")]
-    mark_done = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    mark_done = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     mark_done.inputs["Property"].default_value = "ui_cycle_done"
     mark_done.inputs["Value"].default_value = True
     chain.append((mark_done, "Done"))
@@ -14383,7 +14428,7 @@ def run_ui_grid_inventory_acceptance(status_path):
     # The menu's tree: two grids naming their lists, with Inventory on, reporting to the driver.
     grid_tree = new_logic_tree(f"{PREFIX}_GITree")
     nodes = grid_tree.nodes
-    bag = nodes.new("LogicNativeObjectGridView")
+    bag = new_logic_node(nodes, "LogicNativeObjectGridView")
     bag.inputs["Property"].default_value = "inventory"
     bag.inputs["Slot Template"].default_value = slot
     bag.inputs["Rows"].default_value = 1
@@ -14392,7 +14437,7 @@ def run_ui_grid_inventory_acceptance(status_path):
     bag.inputs["Cull Outside"].default_value = False
     bag.inputs["Show Empty"].default_value = True
     bag.inputs["Handle Moves"].default_value = True
-    chest_grid = nodes.new("LogicNativeObjectGridView")
+    chest_grid = new_logic_node(nodes, "LogicNativeObjectGridView")
     chest_grid.inputs["Object"].default_value = chest
     chest_grid.inputs["Property"].default_value = "chest"
     chest_grid.inputs["Slot Template"].default_value = chest_slot
@@ -14400,19 +14445,19 @@ def run_ui_grid_inventory_acceptance(status_path):
     chest_grid.inputs["Columns"].default_value = 1
     chest_grid.inputs["Cull Outside"].default_value = False
     chest_grid.inputs["Handle Moves"].default_value = True
-    flow = nodes.new("LogicNativeOnUpdate").outputs["Out"]
+    flow = new_logic_node(nodes, "LogicNativeOnUpdate").outputs["Out"]
     for name, output in (("bag_last", bag.outputs["Last Visible"]),
                          ("chest_pages", chest_grid.outputs["Page Count"])):
-        setter = nodes.new("LogicNativeSetGameProperty")
+        setter = new_logic_node(nodes, "LogicNativeSetGameProperty")
         setter.inputs["Object"].default_value = driver
         setter.inputs["Property"].default_value = name
         grid_tree.links.new(flow, setter.inputs["Flow"])
         grid_tree.links.new(output, setter.inputs["Value"])
         flow = setter.outputs["Done"]
     # What a grid did with a drop (none comes here: no pointer).
-    on_drop = nodes.new("LogicNativeOnUIEvent")
+    on_drop = new_logic_node(nodes, "LogicNativeOnUIEvent")
     on_drop.ui_event = "DROP_RECEIVED"
-    outcome = nodes.new("LogicNativeSetGameProperty")
+    outcome = new_logic_node(nodes, "LogicNativeSetGameProperty")
     outcome.inputs["Object"].default_value = driver
     outcome.inputs["Property"].default_value = "outcome"
     grid_tree.links.new(on_drop.outputs["Out"], outcome.inputs["Flow"])
@@ -14420,12 +14465,12 @@ def run_ui_grid_inventory_acceptance(status_path):
 
     # The driver's lists, then the menu for player 1 (its owner: the driver, which opens it).
     tree = new_logic_tree(f"{PREFIX}_GIDriverTree")
-    flow = tree.nodes.new("LogicNativeOnInit").outputs["Out"]
+    flow = new_logic_node(tree.nodes, "LogicNativeOnInit").outputs["Out"]
     for target, prop, item, amount in ((None, "inventory", "Apple", 3),
                                        (None, "inventory", "Gem", 1),
                                        (chest, "chest", "Gem", 2),
                                        (chest, "chest", "Apple", 1)):
-        add = tree.nodes.new("LogicNativeInventory")
+        add = new_logic_node(tree.nodes, "LogicNativeInventory")
         add.operation = "ADD_ITEM"
         if target is not None:
             add.inputs["Object"].default_value = target
@@ -14434,7 +14479,7 @@ def run_ui_grid_inventory_acceptance(status_path):
         add.inputs["Amount"].default_value = amount
         tree.links.new(flow, add.inputs["Flow"])
         flow = add.outputs["Done"]
-    open_menu = tree.nodes.new("LogicNativeOpenObjectMenu")
+    open_menu = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
     open_menu.inputs["Camera"].default_value = overlay_camera
     open_menu.inputs["Collection"].default_value = menu
     open_menu.inputs["User"].default_value = 1
@@ -14472,14 +14517,14 @@ def run_ui_menu_pause_toggle_acceptance(status_path):
     tree = new_logic_tree(f"{PREFIX}_PauseTree")
 
     def prop_node(idname, name, value=None):
-        node = tree.nodes.new(idname)
+        node = new_logic_node(tree.nodes, idname)
         node.inputs["Property"].default_value = name
         if value is not None:
             node.inputs["Value"].default_value = value
         return node
 
     def add_one(name):
-        node = tree.nodes.new("LogicNativeModifyProperty")
+        node = new_logic_node(tree.nodes, "LogicNativeModifyProperty")
         node.operation = "ADD"
         node.inputs["Property"].default_value = name
         node.inputs["Value"].default_value = 1.0
@@ -14487,7 +14532,7 @@ def run_ui_menu_pause_toggle_acceptance(status_path):
 
     def at_least(name, value):
         read = prop_node("LogicNativeGetGameProperty", name)
-        compare = tree.nodes.new("LogicNativeCompare")
+        compare = new_logic_node(tree.nodes, "LogicNativeCompare")
         compare.operation = "GREATER_EQUAL"
         compare.inputs["B"].default_value = value
         tree.links.new(read.outputs["Value"], compare.inputs["A"])
@@ -14499,9 +14544,9 @@ def run_ui_menu_pause_toggle_acceptance(status_path):
         tree.links.new(read.outputs["Value"], write.inputs["Value"])
         return write
 
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    open_or_close = tree.nodes.new("LogicNativeAnyFlow")
-    open_menu = tree.nodes.new("LogicNativeOpenObjectMenu")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    open_or_close = new_logic_node(tree.nodes, "LogicNativeAnyFlow")
+    open_menu = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
     open_menu.inputs["Camera"].default_value = overlay_camera
     open_menu.inputs["Collection"].default_value = menu
     open_menu.use_pause_game = True
@@ -14516,33 +14561,33 @@ def run_ui_menu_pause_toggle_acceptance(status_path):
     tree.links.new(closed.outputs["Done"], flow_input(at_close))
 
     # Logic + Physics steps count only while the game runs.
-    step = tree.nodes.new("LogicNativeOnFixedUpdate")
+    step = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
     count_step = add_one("steps")
     tree.links.new(step.outputs["Out"], flow_input(count_step))
-    after_close = tree.nodes.new("LogicNativeBranch")
+    after_close = new_logic_node(tree.nodes, "LogicNativeBranch")
     tree.links.new(step.outputs["Out"], flow_input(after_close))
     tree.links.new(prop_node("LogicNativeGetGamePropertyBool", "toggled_closed").outputs["Value"],
                    after_close.inputs["Condition"])
     count_after = add_one("steps_after_close")
     tree.links.new(after_close.outputs["True"], flow_input(count_after))
-    resumed = tree.nodes.new("LogicNativeBranch")
+    resumed = new_logic_node(tree.nodes, "LogicNativeBranch")
     tree.links.new(after_close.outputs["True"], flow_input(resumed))
     tree.links.new(at_least("steps_after_close", 5), resumed.inputs["Condition"])
     done = prop_node("LogicNativeSetGamePropertyBool", "ui_cycle_done", True)
     tree.links.new(resumed.outputs["True"], flow_input(done))
 
     # While paused: count frames, note the steps at the start, then toggle the menu closed.
-    paused = tree.nodes.new("LogicNativeWhilePaused")
+    paused = new_logic_node(tree.nodes, "LogicNativeWhilePaused")
     count_paused = add_one("paused_frames")
     tree.links.new(paused.outputs["Update"], flow_input(count_paused))
-    first = tree.nodes.new("LogicNativeOnce")
+    first = new_logic_node(tree.nodes, "LogicNativeOnce")
     tree.links.new(paused.outputs["Update"], flow_input(first))
     at_pause = copy_steps("steps_at_pause")
     tree.links.new(first.outputs["Out"], flow_input(at_pause))
-    enough = tree.nodes.new("LogicNativeBranch")
+    enough = new_logic_node(tree.nodes, "LogicNativeBranch")
     tree.links.new(paused.outputs["Update"], flow_input(enough))
     tree.links.new(at_least("paused_frames", 30), enough.inputs["Condition"])
-    close_once = tree.nodes.new("LogicNativeOnce")
+    close_once = new_logic_node(tree.nodes, "LogicNativeOnce")
     tree.links.new(enough.outputs["True"], flow_input(close_once))
     tree.links.new(close_once.outputs["Out"], open_or_close.inputs["In"])
 
@@ -14631,43 +14676,43 @@ def run_ui_text_values_bar_acceptance(status_path):
     bar(f"{PREFIX}_TVSlotBar", (-8.0, 0.0, 0.1), slot, driver, 120.0, "")
 
     tree = new_logic_tree(f"{PREFIX}_TVTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    wait = tree.nodes.new("LogicNativeDelay")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    wait = new_logic_node(tree.nodes, "LogicNativeDelay")
     wait.inputs["Delay"].default_value = 0.3
-    set_gold = tree.nodes.new("LogicNativeSetGamePropertyInt")
+    set_gold = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
     set_gold.inputs["Property"].default_value = "gold"
     set_gold.inputs["Value"].default_value = 42
-    set_hp = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    set_hp = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
     set_hp.inputs["Property"].default_value = "hp"
     set_hp.inputs["Value"].default_value = 90.0
-    wait_more = tree.nodes.new("LogicNativeDelay")
+    wait_more = new_logic_node(tree.nodes, "LogicNativeDelay")
     wait_more.inputs["Delay"].default_value = 0.3
     # Four items in a grid of 2 columns, one row and then two: the second row's slots are copies
     # of the template made while its bar shows a value (its fill already shrunk).
-    add_items = tree.nodes.new("LogicNativeInventory")
+    add_items = new_logic_node(tree.nodes, "LogicNativeInventory")
     add_items.operation = "ADD_ITEM"
     add_items.inputs["Property"].default_value = "grid_items"
     add_items.inputs["Item"].default_value = "Apple"
     add_items.inputs["Amount"].default_value = 4
     add_items.inputs["Max Stack"].default_value = 1
     add_items.inputs["Override"].default_value = True
-    grid_items = tree.nodes.new("LogicNativeGetGameProperty")
+    grid_items = new_logic_node(tree.nodes, "LogicNativeGetGameProperty")
     grid_items.inputs["Property"].default_value = "grid_items"
-    grid_rows = tree.nodes.new("LogicNativeGetGameProperty")
+    grid_rows = new_logic_node(tree.nodes, "LogicNativeGetGameProperty")
     grid_rows.inputs["Property"].default_value = "grid_rows"
-    grid = tree.nodes.new("LogicNativeObjectGridView")
+    grid = new_logic_node(tree.nodes, "LogicNativeObjectGridView")
     grid.inputs["Columns"].default_value = 2
     grid.inputs["Cull Outside"].default_value = False
     grid.inputs["Slot Template"].default_value = slot
     grid.inputs["Spacing"].default_value = (2.5, 1.0, 0.0)
     tree.links.new(grid_items.outputs["Value"], grid.inputs["Items"])
     tree.links.new(grid_rows.outputs["Value"], grid.inputs["Rows"])
-    more_rows = tree.nodes.new("LogicNativeSetGamePropertyInt")
+    more_rows = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
     more_rows.inputs["Property"].default_value = "grid_rows"
     more_rows.inputs["Value"].default_value = 2
-    wait_rows = tree.nodes.new("LogicNativeDelay")
+    wait_rows = new_logic_node(tree.nodes, "LogicNativeDelay")
     wait_rows.inputs["Delay"].default_value = 0.3
-    done = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    done = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     done.inputs["Property"].default_value = "ui_cycle_done"
     done.inputs["Value"].default_value = True
     chain = [(on_init, "Out"), (add_items, "Done"), (wait, "Out"), (set_gold, "Done"),
@@ -14711,19 +14756,19 @@ def run_ui_menu_camera_hidden_acceptance(status_path):
 
     # On the camera: at start, say it runs; a key (never pressed) would open the menu with it.
     tree = new_logic_tree(f"{PREFIX}_MCTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    awake = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    awake = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     awake.inputs["Object"].default_value = driver
     awake.inputs["Property"].default_value = "camera_awake"
     awake.inputs["Value"].default_value = True
-    done = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    done = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     done.inputs["Object"].default_value = driver
     done.inputs["Property"].default_value = "ui_cycle_done"
     done.inputs["Value"].default_value = True
     tree.links.new(on_init.outputs["Out"], flow_input(awake))
     tree.links.new(awake.outputs["Done"], flow_input(done))
-    key = tree.nodes.new("LogicNativeKeyboardKey")
-    open_menu = tree.nodes.new("LogicNativeOpenObjectMenu")
+    key = new_logic_node(tree.nodes, "LogicNativeKeyboardKey")
+    open_menu = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
     open_menu.inputs["Camera"].default_value = camera
     open_menu.inputs["Collection"].default_value = menu
     tree.links.new(key.outputs["Out"], flow_input(open_menu))
@@ -14752,11 +14797,11 @@ def run_ui_example_file_acceptance(status_path):
     bpy.context.scene.collection.objects.link(driver)
     driver.location = (0.0, 0.0, -50.0)
     tree = bpy.data.node_groups.new(f"{PREFIX}_ExampleMenus", "LogicNodeTree")
-    start = tree.nodes.new("LogicNativeOnInit")
+    start = new_logic_node(tree.nodes, "LogicNativeOnInit")
     for name in ("InventoryMenu", "ChestMenu", "SettingsMenu", "Pause Menu"):
         menu = bpy.data.collections.get(name)
         require(menu is not None, f"The UI example has no menu collection {name!r}")
-        open_menu = tree.nodes.new("LogicNativeOpenObjectMenu")
+        open_menu = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
         open_menu.inputs["Camera"].default_value = camera
         open_menu.inputs["Collection"].default_value = menu
         tree.links.new(start.outputs["Out"], flow_input(open_menu))
@@ -14820,11 +14865,11 @@ def run_ui_templates_acceptance(status_path):
     bpy.context.scene.collection.objects.link(driver)
     driver.location = (0.0, 0.0, -50.0)
     tree = bpy.data.node_groups.new(f"{PREFIX}_TemplateMenus", "LogicNodeTree")
-    start = tree.nodes.new("LogicNativeOnInit")
+    start = new_logic_node(tree.nodes, "LogicNativeOnInit")
     for name in ("InventoryMenu", "ChestMenu", "SettingsMenu", "Pause Menu"):
         menu = bpy.data.collections.get(name)
         require(menu is not None, f"The templates made no menu collection {name!r}")
-        open_menu = tree.nodes.new("LogicNativeOpenObjectMenu")
+        open_menu = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
         open_menu.inputs["Camera"].default_value = camera
         open_menu.inputs["Collection"].default_value = menu
         tree.links.new(start.outputs["Out"], flow_input(open_menu))
@@ -14876,25 +14921,25 @@ def run_ui_grid_parented_template_acceptance(status_path):
     panel.scale = (2.0, 2.0, 2.0)
 
     tree = new_logic_tree(f"{PREFIX}_GPTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    add = tree.nodes.new("LogicNativeInventory")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    add = new_logic_node(tree.nodes, "LogicNativeInventory")
     add.operation = "ADD_ITEM"
     add.inputs["Property"].default_value = "grid_items"
     add.inputs["Item"].default_value = "Apple"
     add.inputs["Amount"].default_value = 4
     add.inputs["Max Stack"].default_value = 1
     add.inputs["Override"].default_value = True
-    wait = tree.nodes.new("LogicNativeDelay")
+    wait = new_logic_node(tree.nodes, "LogicNativeDelay")
     wait.inputs["Delay"].default_value = 0.4
-    done = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    done = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     done.inputs["Property"].default_value = "ui_cycle_done"
     done.inputs["Value"].default_value = True
     tree.links.new(on_init.outputs["Out"], flow_input(add))
     tree.links.new(add.outputs["Done"], flow_input(wait))
     tree.links.new(wait.outputs["Out"], flow_input(done))
-    items = tree.nodes.new("LogicNativeGetGameProperty")
+    items = new_logic_node(tree.nodes, "LogicNativeGetGameProperty")
     items.inputs["Property"].default_value = "grid_items"
-    grid = tree.nodes.new("LogicNativeObjectGridView")
+    grid = new_logic_node(tree.nodes, "LogicNativeObjectGridView")
     grid.inputs["Columns"].default_value = 2
     grid.inputs["Rows"].default_value = 2
     grid.inputs["Cull Outside"].default_value = False
@@ -14929,21 +14974,21 @@ def run_ui_grid_pages_acceptance(status_path):
 
     # The driver: ten apples, one per entry, then the menu.
     tree = new_logic_tree(f"{PREFIX}_UIPagesDriverTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    add = tree.nodes.new("LogicNativeInventory")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    add = new_logic_node(tree.nodes, "LogicNativeInventory")
     add.operation = "ADD_ITEM"
     add.inputs["Property"].default_value = "grid_items"
     add.inputs["Item"].default_value = "Apple"
     add.inputs["Amount"].default_value = 10
     add.inputs["Max Stack"].default_value = 1
     add.inputs["Override"].default_value = True
-    grid_items = tree.nodes.new("LogicNativeGetGameProperty")
+    grid_items = new_logic_node(tree.nodes, "LogicNativeGetGameProperty")
     grid_items.inputs["Property"].default_value = "grid_items"
-    store = tree.nodes.new("LogicNativeSetGlobalProperty")
+    store = new_logic_node(tree.nodes, "LogicNativeSetGlobalProperty")
     store.inputs["Category"].default_value = "Pages"
     store.inputs["Property"].default_value = "items"
     tree.links.new(grid_items.outputs["Value"], store.inputs["Value"])
-    open_menu = tree.nodes.new("LogicNativeOpenObjectMenu")
+    open_menu = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
     open_menu.inputs["Camera"].default_value = overlay_camera
     open_menu.inputs["Collection"].default_value = menu
     tree.links.new(on_init.outputs["Out"], flow_input(add))
@@ -14952,40 +14997,40 @@ def run_ui_grid_pages_acceptance(status_path):
 
     # The panel: the grid, and a few scrolls with what Page / Page Count / First Visible say.
     grid_tree = new_logic_tree(f"{PREFIX}_UIPagesTree")
-    shown = grid_tree.nodes.new("LogicNativeGetGlobalProperty")
+    shown = new_logic_node(grid_tree.nodes, "LogicNativeGetGlobalProperty")
     shown.inputs["Category"].default_value = "Pages"
     shown.inputs["Property"].default_value = "items"
-    grid = grid_tree.nodes.new("LogicNativeObjectGridView")
+    grid = new_logic_node(grid_tree.nodes, "LogicNativeObjectGridView")
     grid.inputs["Columns"].default_value = 2
     grid.inputs["Rows"].default_value = 2
     grid.inputs["Cull Outside"].default_value = False
     grid.inputs["Slot Template"].default_value = slot
     grid.inputs["Spacing"].default_value = (1.0, 1.0, 0.0)
     grid_tree.links.new(shown.outputs["Value"], grid.inputs["Items"])
-    line = grid_tree.nodes.new("LogicNativeFormattedString")
+    line = new_logic_node(grid_tree.nodes, "LogicNativeFormattedString")
     line.inputs["Format String"].default_value = "{} / {} / {}"
     grid_tree.links.new(grid.outputs["Page"], line.inputs["A"])
     grid_tree.links.new(grid.outputs["Page Count"], line.inputs["B"])
     grid_tree.links.new(grid.outputs["First Visible"], line.inputs["C"])
-    last_item = grid_tree.nodes.new("LogicNativeValueInt")
+    last_item = new_logic_node(grid_tree.nodes, "LogicNativeValueInt")
     last_item.outputs["Int"].default_value = 9
-    start = grid_tree.nodes.new("LogicNativeOnInit")
+    start = new_logic_node(grid_tree.nodes, "LogicNativeOnInit")
     chain = []
 
     def wait(seconds):
-        delay = grid_tree.nodes.new("LogicNativeDelay")
+        delay = new_logic_node(grid_tree.nodes, "LogicNativeDelay")
         delay.inputs["Delay"].default_value = seconds
         chain.append((delay, "Done"))
 
     def record(name):
-        write = grid_tree.nodes.new("LogicNativeSetGamePropertyString")
+        write = new_logic_node(grid_tree.nodes, "LogicNativeSetGamePropertyString")
         write.inputs["Object"].default_value = driver
         write.inputs["Property"].default_value = name
         grid_tree.links.new(line.outputs["String"], write.inputs["Value"])
         chain.append((write, "Done"))
 
     def scroll(mode):
-        node = grid_tree.nodes.new("LogicNativeScrollObjectView")
+        node = new_logic_node(grid_tree.nodes, "LogicNativeScrollObjectView")
         node.scroll_mode = mode
         if mode == "SHOW_ITEM":
             grid_tree.links.new(last_item.outputs["Int"], node.inputs["Item"])
@@ -14998,7 +15043,7 @@ def run_ui_grid_pages_acceptance(status_path):
         scroll(mode)
         wait(0.3)
         record(name)
-    done = grid_tree.nodes.new("LogicNativeSetGamePropertyBool")
+    done = new_logic_node(grid_tree.nodes, "LogicNativeSetGamePropertyBool")
     done.inputs["Object"].default_value = driver
     done.inputs["Property"].default_value = "ui_cycle_done"
     done.inputs["Value"].default_value = True
@@ -15047,13 +15092,13 @@ def run_ui_grid_scrollbar_acceptance(status_path):
     menu = make_ui_collection(f"{PREFIX}_UIScrollMenu", (panel, slot, bar, handle))
 
     grid_tree = new_logic_tree(f"{PREFIX}_UIScrollTree")
-    shown = grid_tree.nodes.new("LogicNativeGetGlobalProperty")
+    shown = new_logic_node(grid_tree.nodes, "LogicNativeGetGlobalProperty")
     shown.inputs["Category"].default_value = "Inventory"
     shown.inputs["Property"].default_value = "items"
-    first = grid_tree.nodes.new("LogicNativeGetGamePropertyInt")
+    first = new_logic_node(grid_tree.nodes, "LogicNativeGetGamePropertyInt")
     first.inputs["Object"].default_value = driver
     first.inputs["Property"].default_value = "first"
-    grid = grid_tree.nodes.new("LogicNativeObjectGridView")
+    grid = new_logic_node(grid_tree.nodes, "LogicNativeObjectGridView")
     grid.inputs["Columns"].default_value = 2
     grid.inputs["Cull Outside"].default_value = False
     grid.inputs["Slot Template"].default_value = slot
@@ -15065,38 +15110,38 @@ def run_ui_grid_scrollbar_acceptance(status_path):
 
     # Open the menu with 2 items, add 4 more, show the last row, close.
     tree = new_logic_tree(f"{PREFIX}_UIScrollDriverTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
     chain = []
 
     def add_items(names):
         # The driver's own inventory property, edited in place, then shared with the menu.
         for name in names:
-            add = tree.nodes.new("LogicNativeInventory")
+            add = new_logic_node(tree.nodes, "LogicNativeInventory")
             add.operation = "ADD_ITEM"
             add.inputs["Property"].default_value = "grid_items"
             add.inputs["Item"].default_value = name
             chain.append((add, "Done"))
-        current = tree.nodes.new("LogicNativeGetGameProperty")
+        current = new_logic_node(tree.nodes, "LogicNativeGetGameProperty")
         current.inputs["Property"].default_value = "grid_items"
-        store = tree.nodes.new("LogicNativeSetGlobalProperty")
+        store = new_logic_node(tree.nodes, "LogicNativeSetGlobalProperty")
         store.inputs["Category"].default_value = "Inventory"
         store.inputs["Property"].default_value = "items"
         tree.links.new(current.outputs["Value"], store.inputs["Value"])
         chain.append((store, "Done"))
 
     def set_int(name, value):
-        node = tree.nodes.new("LogicNativeSetGamePropertyInt")
+        node = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
         node.inputs["Property"].default_value = name
         node.inputs["Value"].default_value = value
         chain.append((node, "Done"))
 
     def wait(seconds):
-        node = tree.nodes.new("LogicNativeDelay")
+        node = new_logic_node(tree.nodes, "LogicNativeDelay")
         node.inputs["Delay"].default_value = seconds
         chain.append((node, "Done"))
 
     add_items(("I1", "I2"))
-    open_menu = tree.nodes.new("LogicNativeOpenObjectMenu")
+    open_menu = new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu")
     open_menu.inputs["Camera"].default_value = overlay_camera
     open_menu.inputs["Collection"].default_value = menu
     chain.append((open_menu, "Opened"))
@@ -15110,10 +15155,10 @@ def run_ui_grid_scrollbar_acceptance(status_path):
     set_int("ui_phase", 3)
     wait(0.5)
     set_int("ui_phase", 4)
-    close_menu = tree.nodes.new("LogicNativeCloseObjectMenu")
+    close_menu = new_logic_node(tree.nodes, "LogicNativeCloseObjectMenu")
     chain.append((close_menu, "Closed"))
     wait(0.2)
-    mark_done = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    mark_done = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     mark_done.inputs["Property"].default_value = "ui_cycle_done"
     mark_done.inputs["Value"].default_value = True
     chain.append((mark_done, "Done"))
@@ -15210,18 +15255,18 @@ def run_game_property_types_acceptance(status_path, output_dir):
         Path(save_path).unlink()
 
     tree = new_logic_tree(f"{PREFIX}_GamePropertyTypesTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
     chain = []
 
     def get_property(name, obj=None):
-        node = tree.nodes.new("LogicNativeGetGameProperty")
+        node = new_logic_node(tree.nodes, "LogicNativeGetGameProperty")
         node.inputs["Property"].default_value = name
         if obj is not None:
             node.inputs["Object"].default_value = obj
         return node.outputs["Value"]
 
     def set_property(name, value_output, obj=None):
-        node = tree.nodes.new("LogicNativeSetGameProperty")
+        node = new_logic_node(tree.nodes, "LogicNativeSetGameProperty")
         node.inputs["Property"].default_value = name
         if obj is not None:
             node.inputs["Object"].default_value = obj
@@ -15229,14 +15274,14 @@ def run_game_property_types_acceptance(status_path, output_dir):
         chain.append((node, "Done"))
         return node
 
-    add_spawn = tree.nodes.new("LogicNativeAddObject")
+    add_spawn = new_logic_node(tree.nodes, "LogicNativeAddObject")
     add_spawn.inputs["Object to Add"].default_value = spawn
     add_spawn.inputs["Life"].default_value = 0.0
     chain.append((add_spawn, "Done"))
     set_property("spawned", add_spawn.outputs["Added Object"])
     set_property("copied_list", get_property("numbers"))
     set_property("copied_target", get_property("target"))
-    add_item = tree.nodes.new("LogicNativeInventory")
+    add_item = new_logic_node(tree.nodes, "LogicNativeInventory")
     add_item.operation = 'ADD_ITEM'
     add_item.inputs["Property"].default_value = "items"
     add_item.inputs["Item"].default_value = "Apple"
@@ -15244,49 +15289,49 @@ def run_game_property_types_acceptance(status_path, output_dir):
     chain.append((add_item, "Done"))
     set_property("from_driver", get_property("vec"), target)
     # Older nodes on the new kinds: a property keeps its kind, and typed reads agree.
-    modify = tree.nodes.new("LogicNativeModifyProperty")
+    modify = new_logic_node(tree.nodes, "LogicNativeModifyProperty")
     modify.inputs["Property"].default_value = "numbers"
     modify.inputs["Value"].default_value = 1.0
     chain.append((modify, "Done"))
-    set_float = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    set_float = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
     set_float.inputs["Property"].default_value = "vec"
     set_float.inputs["Value"].default_value = 9.0
     chain.append((set_float, "Done"))
     for name, obj, store in (("vec", None, "own_vec_float"),
                              ("spot", target, "other_vec_float")):
-        get_float = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+        get_float = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyFloat")
         get_float.inputs["Property"].default_value = name
         if obj is not None:
             get_float.inputs["Object"].default_value = obj
-        set_store = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+        set_store = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
         set_store.inputs["Property"].default_value = store
         tree.links.new(get_float.outputs[0], set_store.inputs["Value"])
         chain.append((set_store, "Done"))
-    save_game = tree.nodes.new("LogicNativeSaveGame")
+    save_game = new_logic_node(tree.nodes, "LogicNativeSaveGame")
     save_game.inputs["Path"].default_value = save_path
     chain.append((save_game, "Done"))
-    empty_list = tree.nodes.new("LogicNativeEmptyList")
+    empty_list = new_logic_node(tree.nodes, "LogicNativeEmptyList")
     set_property("numbers", empty_list.outputs["List"])
     set_property("items", empty_list.outputs["List"])
-    owner = tree.nodes.new("LogicNativeGetOwner")
+    owner = new_logic_node(tree.nodes, "LogicNativeGetOwner")
     set_property("target", owner.outputs["Owner Object"])
     # The other saved kinds change too, so Load Game must restore each of them.
     set_property("vec", get_property("spot", target))
     set_property("tint", get_property("shade", target))
     set_property("name_ref", owner.outputs["Owner Object"])
-    set_mode = tree.nodes.new("LogicNativeSetGamePropertyString")
+    set_mode = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
     set_mode.inputs["Property"].default_value = "mode"
     set_mode.inputs["Value"].default_value = "A"
     chain.append((set_mode, "Done"))
-    load_game = tree.nodes.new("LogicNativeLoadGame")
+    load_game = new_logic_node(tree.nodes, "LogicNativeLoadGame")
     load_game.inputs["Path"].default_value = save_path
     chain.append((load_game, "Done"))
     tree.links.new(on_init.outputs["Out"], flow_input(chain[0][0]))
     for (node, output), (next_node, _next_output) in zip(chain, chain[1:]):
         tree.links.new(node.outputs[output], flow_input(next_node))
-    on_loaded = tree.nodes.new("LogicNativeOnGameLoaded")
-    loaded = tree.nodes.new("LogicNativeBranch")
-    mark_loaded = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_loaded = new_logic_node(tree.nodes, "LogicNativeOnGameLoaded")
+    loaded = new_logic_node(tree.nodes, "LogicNativeBranch")
+    mark_loaded = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     mark_loaded.inputs["Property"].default_value = "props_loaded"
     mark_loaded.inputs["Value"].default_value = True
     tree.links.new(on_loaded.outputs["Out"], loaded.inputs["Flow"])
@@ -15344,9 +15389,9 @@ def chain_flows(tree, start_output, nodes):
 def add_player_view_reads(tree, on_update, user, outputs):
     """Get Player View for one player; outputs maps its output names to property names. A str
     user is a property read while the game runs."""
-    view = tree.nodes.new("LogicNativeGetPlayerView")
+    view = new_logic_node(tree.nodes, "LogicNativeGetPlayerView")
     if isinstance(user, str):
-        read_user = tree.nodes.new("LogicNativeGetGamePropertyInt")
+        read_user = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyInt")
         read_user.inputs["Property"].default_value = user
         tree.links.new(read_user.outputs[0], view.inputs["User"])
     else:
@@ -15357,7 +15402,7 @@ def add_player_view_reads(tree, on_update, user, outputs):
         "INT": "LogicNativeSetGamePropertyInt",
     }
     for output_name, (property_name, property_type) in outputs.items():
-        setter = tree.nodes.new(setters[property_type])
+        setter = new_logic_node(tree.nodes, setters[property_type])
         setter.inputs["Property"].default_value = property_name
         tree.links.new(on_update.outputs["Out"], flow_input(setter))
         tree.links.new(view.outputs[output_name], setter.inputs["Value"])
@@ -15366,20 +15411,20 @@ def add_player_view_reads(tree, on_update, user, outputs):
 
 def build_split_screen_tree(name, cameras, minimap):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
     chain = []
     for user, camera in enumerate(cameras):
-        set_camera = tree.nodes.new("LogicNativeSetCamera")
+        set_camera = new_logic_node(tree.nodes, "LogicNativeSetCamera")
         set_camera.inputs["Camera"].default_value = camera
         set_camera.inputs["User"].default_value = user
         chain.append(set_camera)
-    split = tree.nodes.new("LogicNativeSetSplitScreen")
+    split = new_logic_node(tree.nodes, "LogicNativeSetSplitScreen")
     split.split_three_players = "FAVOR_TOP"
     split.split_field_of_view = "CROP"
     split.inputs["Divider"].default_value = 2
     chain.append(split)
-    viewport = tree.nodes.new("LogicNativeSetCameraViewport")
+    viewport = new_logic_node(tree.nodes, "LogicNativeSetCameraViewport")
     viewport.inputs["Camera"].default_value = minimap
     viewport.inputs["Left"].default_value = 0.7
     viewport.inputs["Top"].default_value = 0.05
@@ -15400,25 +15445,25 @@ def build_split_screen_tree(name, cameras, minimap):
 
 def build_split_screen_leave_tree(name, cameras):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
     chain = []
     for user, camera in enumerate(cameras):
-        set_camera = tree.nodes.new("LogicNativeSetCamera")
+        set_camera = new_logic_node(tree.nodes, "LogicNativeSetCamera")
         set_camera.inputs["Camera"].default_value = camera
         set_camera.inputs["User"].default_value = user
         chain.append(set_camera)
     # After the four views were drawn: remove player 2's camera, clear player 3's view.
-    delay = tree.nodes.new("LogicNativeDelay")
+    delay = new_logic_node(tree.nodes, "LogicNativeDelay")
     delay.inputs["Delay"].default_value = 0.3
     chain.append(delay)
-    remove_camera = tree.nodes.new("LogicNativeRemoveObject")
+    remove_camera = new_logic_node(tree.nodes, "LogicNativeRemoveObject")
     remove_camera.inputs["Object"].default_value = cameras[2]
     chain.append(remove_camera)
-    clear_player = tree.nodes.new("LogicNativeSetCamera")
+    clear_player = new_logic_node(tree.nodes, "LogicNativeSetCamera")
     clear_player.inputs["User"].default_value = 3
     chain.append(clear_player)
-    mark_done = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    mark_done = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     mark_done.inputs["Property"].default_value = "left_done"
     mark_done.inputs["Value"].default_value = True
     chain.append(mark_done)
@@ -15432,27 +15477,27 @@ def build_split_screen_leave_tree(name, cameras):
 
 def build_split_screen_players_tree(name, cameras, hud, idle_hud, speaker):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
 
     def read_int(property_name):
-        read = tree.nodes.new("LogicNativeGetGamePropertyInt")
+        read = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyInt")
         read.inputs["Property"].default_value = property_name
         return read.outputs[0]
 
     chain = []
     for user, camera in enumerate(cameras):
-        set_camera = tree.nodes.new("LogicNativeSetCamera")
+        set_camera = new_logic_node(tree.nodes, "LogicNativeSetCamera")
         set_camera.inputs["Camera"].default_value = camera
         set_camera.inputs["User"].default_value = user
         chain.append(set_camera)
-    give = tree.nodes.new("LogicNativeSetPlayerGamepad")
+    give = new_logic_node(tree.nodes, "LogicNativeSetPlayerGamepad")
     give.inputs["User"].default_value = 1
     give.inputs["Gamepad"].default_value = 3
     chain.append(give)
     sound = load_acceptance_test_sound()
     for listener in ("NEAREST_PLAYER", "PLAYER"):
-        play = tree.nodes.new("LogicNativePlaySound3D")
+        play = new_logic_node(tree.nodes, "LogicNativePlaySound3D")
         play.sound = sound
         play.sound_listener = listener
         play.inputs["Speaker"].default_value = speaker
@@ -15461,14 +15506,14 @@ def build_split_screen_players_tree(name, cameras, hud, idle_hud, speaker):
         if listener == "PLAYER":
             tree.links.new(read_int("hud_user"), play.inputs["User"])
         chain.append(play)
-    mark_started = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    mark_started = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     mark_started.inputs["Property"].default_value = "sound_started"
     mark_started.inputs["Value"].default_value = True
     chain.append(mark_started)
     chain_flows(tree, on_init.outputs["Out"], chain)
 
     for anchored, user in ((hud, "hud_user"), (idle_hud, 5)):
-        anchor = tree.nodes.new("LogicNativeScreenAnchor")
+        anchor = new_logic_node(tree.nodes, "LogicNativeScreenAnchor")
         anchor.screen_anchor = "TOP_LEFT"
         anchor.screen_area = "PLAYER_VIEW"
         anchor.inputs["Object"].default_value = anchored
@@ -15480,13 +15525,13 @@ def build_split_screen_players_tree(name, cameras, hud, idle_hud, speaker):
         tree.links.new(on_update.outputs["Out"], flow_input(anchor))
 
     for user in (1, 2, 3):
-        pad = tree.nodes.new("LogicNativeGetPlayerGamepad")
+        pad = new_logic_node(tree.nodes, "LogicNativeGetPlayerGamepad")
         pad.inputs["User"].default_value = user
         outputs = [("Gamepad", f"p{user}_pad", "LogicNativeSetGamePropertyInt")]
         if user == 1:
             outputs.append(("Joined", "p1_joined", "LogicNativeSetGamePropertyBool"))
         for output_name, property_name, setter_idname in outputs:
-            setter = tree.nodes.new(setter_idname)
+            setter = new_logic_node(tree.nodes, setter_idname)
             setter.inputs["Property"].default_value = property_name
             tree.links.new(on_update.outputs["Out"], flow_input(setter))
             tree.links.new(pad.outputs[output_name], setter.inputs["Value"])
@@ -15600,8 +15645,8 @@ def run_camera_minimap_options_acceptance(status_path):
     joined.scale = (0.5, 0.5, 0.5)
     joined.color = (0.0, 0.6, 0.6, 1.0)
     join_tree = new_logic_tree(f"{PREFIX}_MOJoinTree")
-    join_start = join_tree.nodes.new("LogicNativeOnInit")
-    join = join_tree.nodes.new("LogicNativeSetCollectionMember")
+    join_start = new_logic_node(join_tree.nodes, "LogicNativeOnInit")
+    join = new_logic_node(join_tree.nodes, "LogicNativeSetCollectionMember")
     join.inputs["Collection"].default_value = markers
     join_tree.links.new(join_start.outputs["Out"], join.inputs["Flow"])
     bind_tree(joined, join_tree.name, True)
@@ -15700,14 +15745,14 @@ def run_camera_visibility_still_acceptance(status_path):
     scene.camera = create_camera_looking_at(f"{PREFIX}_CVSMain", (0.0, -12.0, 8.0))
 
     tree = new_logic_tree(f"{PREFIX}_CVSTree")
-    start = tree.nodes.new("LogicNativeOnInit")
-    hide_other = tree.nodes.new("LogicNativeSetCameraVisibility")
+    start = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    hide_other = new_logic_node(tree.nodes, "LogicNativeSetCameraVisibility")
     hide_other.inputs["Object"].default_value = other
     hide_other.inputs["Camera"].default_value = top
     hide_other.inputs["Visible"].default_value = False
-    wait = tree.nodes.new("LogicNativeDelay")
+    wait = new_logic_node(tree.nodes, "LogicNativeDelay")
     wait.inputs["Delay"].default_value = 1.5
-    hide = tree.nodes.new("LogicNativeSetCameraVisibility")
+    hide = new_logic_node(tree.nodes, "LogicNativeSetCameraVisibility")
     hide.inputs["Object"].default_value = cube
     hide.inputs["Camera"].default_value = top
     hide.inputs["Visible"].default_value = False
@@ -15811,25 +15856,25 @@ def run_collection_membership_acceptance(status_path, output_dir):
         Path(save_path).unlink()
 
     tree = new_logic_tree(f"{PREFIX}_CMTree")
-    get_minimap = tree.nodes.new("LogicNativeGetCollection")
+    get_minimap = new_logic_node(tree.nodes, "LogicNativeGetCollection")
     get_minimap.inputs["Collection"].default_value = minimap
 
     def set_property(node_type, name, target=driver):
-        setter = tree.nodes.new(node_type)
+        setter = new_logic_node(tree.nodes, node_type)
         setter.inputs["Object"].default_value = target
         setter.inputs["Property"].default_value = name
         return setter
 
     # Steps on the Logic + Physics step, which Add Object needs. The driver waits for the tree to
     # clear each step's flag: the step's property writes apply with that clear.
-    on_step = tree.nodes.new("LogicNativeOnFixedUpdate")
+    on_step = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
 
     def step(flag):
         """The flag's branch: its True output runs the step, and clears the flag."""
-        read = tree.nodes.new("LogicNativeGetGamePropertyBool")
+        read = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyBool")
         read.inputs["Object"].default_value = driver
         read.inputs["Property"].default_value = flag
-        branch = tree.nodes.new("LogicNativeBranch")
+        branch = new_logic_node(tree.nodes, "LogicNativeBranch")
         tree.links.new(on_step.outputs["Out"], branch.inputs["Flow"])
         tree.links.new(read.outputs["Value"], branch.inputs["Condition"])
         clear = set_property("LogicNativeSetGamePropertyBool", flag)
@@ -15843,27 +15888,27 @@ def run_collection_membership_acceptance(status_path, output_dir):
     # each object in it seen.
     record = step("cm_do_mark")
     for name, include_children in (("cm_direct", False), ("cm_all", True), ("cm_linked", None)):
-        length = tree.nodes.new("LogicNativeListLength")
+        length = new_logic_node(tree.nodes, "LogicNativeListLength")
         if include_children is None:
             tree.links.new(get_minimap.outputs["Collection"], length.inputs["List"])
         else:
-            objects = tree.nodes.new("LogicNativeGetCollectionObjects")
+            objects = new_logic_node(tree.nodes, "LogicNativeGetCollectionObjects")
             objects.inputs["Include Child Collections"].default_value = include_children
             tree.links.new(get_minimap.outputs["Collection"], objects.inputs["Collection"])
             tree.links.new(objects.outputs["Objects"], length.inputs["List"])
         setter = set_property("LogicNativeSetGamePropertyInt", name)
         tree.links.new(record, flow_input(setter))
         tree.links.new(length.outputs["Length"], setter.inputs["Value"])
-    loop = tree.nodes.new("LogicNativeLoopFromList")
+    loop = new_logic_node(tree.nodes, "LogicNativeLoopFromList")
     tree.links.new(record, loop.inputs["Flow"])
     tree.links.new(get_minimap.outputs["Collection"], loop.inputs["List"])
-    mark_seen = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    mark_seen = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     mark_seen.inputs["Property"].default_value = "cm_seen"
     mark_seen.inputs["Value"].default_value = True
     tree.links.new(loop.outputs["Loop"], flow_input(mark_seen))
     tree.links.new(loop.outputs["List Item"], mark_seen.inputs["Object"])
 
-    spawn = tree.nodes.new("LogicNativeAddObject")
+    spawn = new_logic_node(tree.nodes, "LogicNativeAddObject")
     spawn.inputs["Object to Add"].default_value = blip
     spawn.inputs["Copy Transform"].default_value = ring
     spawn.inputs["Life"].default_value = 0.0
@@ -15871,13 +15916,13 @@ def run_collection_membership_acceptance(status_path, output_dir):
     tree.links.new(step("cm_do_spawn"), spawn.inputs["Flow"])
     spawn_nests = step("cm_do_spawn_nest")
     for nest in (enemy_nest, friend_nest):
-        spawn_nest = tree.nodes.new("LogicNativeAddObject")
+        spawn_nest = new_logic_node(tree.nodes, "LogicNativeAddObject")
         spawn_nest.inputs["Object to Add"].default_value = nest
         spawn_nest.inputs["Copy Transform"].default_value = enemy
         spawn_nest.inputs["Life"].default_value = 0.0
         spawn_nest.inputs["Full Copy"].default_value = False
         tree.links.new(spawn_nests, spawn_nest.inputs["Flow"])
-    end_nest = tree.nodes.new("LogicNativeRemoveObject")
+    end_nest = new_logic_node(tree.nodes, "LogicNativeRemoveObject")
     end_nest.inputs["Object"].default_value = instancer
     tree.links.new(step("cm_do_end_nest"), flow_input(end_nest))
     for flag, target, member, include_children in (
@@ -15887,7 +15932,7 @@ def run_collection_membership_acceptance(status_path, output_dir):
         ("cm_do_nest", instancer, True, False),
         ("cm_do_join", enemy, True, False),
     ):
-        set_member = tree.nodes.new("LogicNativeSetCollectionMember")
+        set_member = new_logic_node(tree.nodes, "LogicNativeSetCollectionMember")
         set_member.inputs["Object"].default_value = target
         set_member.inputs["Collection"].default_value = minimap
         set_member.inputs["Member"].default_value = member
@@ -15895,13 +15940,13 @@ def run_collection_membership_acceptance(status_path, output_dir):
         tree.links.new(step(flag), set_member.inputs["Flow"])
     hide_step = step("cm_do_hide")
     for hidden_collection in (enemies, assets):
-        hide = tree.nodes.new("LogicNativeSetCollectionVisibility")
+        hide = new_logic_node(tree.nodes, "LogicNativeSetCollectionVisibility")
         hide.inputs["Collection"].default_value = hidden_collection
         hide.inputs["Visible"].default_value = False
         tree.links.new(hide_step, hide.inputs["Flow"])
     for flag, node_type, prefix in (("cm_do_save", "LogicNativeSaveGame", "cm_save"),
                                     ("cm_do_load", "LogicNativeLoadGame", "cm_load")):
-        game_state = tree.nodes.new(node_type)
+        game_state = new_logic_node(tree.nodes, node_type)
         game_state.inputs["Path"].default_value = save_path
         tree.links.new(step(flag), game_state.inputs["Flow"])
         ok = set_property("LogicNativeSetGamePropertyBool", prefix + "_ok")
@@ -16008,21 +16053,21 @@ def run_lod_nearest_view_acceptance(status_path):
 
     tree = new_logic_tree(f"{PREFIX}_LodTree")
     chain = []
-    set_camera = tree.nodes.new("LogicNativeSetCamera")
+    set_camera = new_logic_node(tree.nodes, "LogicNativeSetCamera")
     set_camera.inputs["Camera"].default_value = cameras[1]
     set_camera.inputs["User"].default_value = 1
     chain.append(set_camera)
-    split = tree.nodes.new("LogicNativeSetSplitScreen")
+    split = new_logic_node(tree.nodes, "LogicNativeSetSplitScreen")
     split.split_two_players = "SIDE_BY_SIDE"
     chain.append(split)
-    viewport = tree.nodes.new("LogicNativeSetCameraViewport")
+    viewport = new_logic_node(tree.nodes, "LogicNativeSetCameraViewport")
     viewport.inputs["Camera"].default_value = minimap
     chain.append(viewport)
-    overlay = tree.nodes.new("LogicNativeSetOverlayCollection")
+    overlay = new_logic_node(tree.nodes, "LogicNativeSetOverlayCollection")
     overlay.inputs["Camera"].default_value = menu_camera
     overlay.inputs["Collection"].default_value = menu
     chain.append(overlay)
-    chain_flows(tree, tree.nodes.new("LogicNativeOnInit").outputs["Out"], chain)
+    chain_flows(tree, new_logic_node(tree.nodes, "LogicNativeOnInit").outputs["Out"], chain)
     add_status_controller(driver, status_path, "lod_nearest_view", required_frame=8,
                           required_seconds=1.0)
     set_game_property(driver, "__ln_acceptance_run", "STRING", "lod_nearest_view_0")
@@ -16069,14 +16114,14 @@ def run_lod_view_size_acceptance(status_path):
         tree = new_logic_tree(f"{PREFIX}_ViewSizeTree")
         chain = []
         for user in range(1, players):
-            set_camera = tree.nodes.new("LogicNativeSetCamera")
+            set_camera = new_logic_node(tree.nodes, "LogicNativeSetCamera")
             set_camera.inputs["Camera"].default_value = cameras[user]
             set_camera.inputs["User"].default_value = user
             chain.append(set_camera)
-        split = tree.nodes.new("LogicNativeSetSplitScreen")
+        split = new_logic_node(tree.nodes, "LogicNativeSetSplitScreen")
         split.split_two_players = "SIDE_BY_SIDE"
         chain.append(split)
-        chain_flows(tree, tree.nodes.new("LogicNativeOnInit").outputs["Out"], chain)
+        chain_flows(tree, new_logic_node(tree.nodes, "LogicNativeOnInit").outputs["Out"], chain)
         driver = create_cube(f"{PREFIX}_ViewSizeDriver")
         driver.location = (0.0, 0.0, -30.0)
         run_id = f"lod_view_size_{run}"
@@ -16114,29 +16159,29 @@ def run_ui_element_players_acceptance(status_path):
     elements["Hidden"].game.ui.use_any_player = True
 
     tree = new_logic_tree(f"{PREFIX}_PlayersTree")
-    set_camera = tree.nodes.new("LogicNativeSetCamera")
+    set_camera = new_logic_node(tree.nodes, "LogicNativeSetCamera")
     set_camera.inputs["Camera"].default_value = cameras[1]
     set_camera.inputs["User"].default_value = 1
-    split = tree.nodes.new("LogicNativeSetSplitScreen")
+    split = new_logic_node(tree.nodes, "LogicNativeSetSplitScreen")
     split.split_two_players = "SIDE_BY_SIDE"
-    hide = tree.nodes.new("LogicNativeSetCameraVisibility")
+    hide = new_logic_node(tree.nodes, "LogicNativeSetCameraVisibility")
     hide.inputs["Object"].default_value = elements["Hidden"]
     hide.inputs["Camera"].default_value = cameras[1]
-    wait = tree.nodes.new("LogicNativeDelay")
+    wait = new_logic_node(tree.nodes, "LogicNativeDelay")
     wait.inputs["Delay"].default_value = 0.5
-    chain_flows(tree, tree.nodes.new("LogicNativeOnInit").outputs["Out"],
+    chain_flows(tree, new_logic_node(tree.nodes, "LogicNativeOnInit").outputs["Out"],
                 [set_camera, split, hide, wait])
     driver = create_cube(f"{PREFIX}_PlayersDriver")
     driver.location = (0.0, 0.0, -30.0)
     for name, element, user in (("p1_user1", "P1", 1), ("p1_user0", "P1", 0),
                                 ("any_user2", "Any", 2), ("hidden_user1", "Hidden", 1),
                                 ("hidden_user0", "Hidden", 0)):
-        set_focus = tree.nodes.new("LogicNativeSetUIFocus")
+        set_focus = new_logic_node(tree.nodes, "LogicNativeSetUIFocus")
         set_focus.inputs["Object"].default_value = elements[element]
         set_focus.inputs["User"].default_value = user
         tree.links.new(wait.outputs["Done"], flow_input(set_focus))
         for result in ("Done", "Failed"):
-            record = tree.nodes.new("LogicNativeSetGamePropertyString")
+            record = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
             record.inputs["Property"].default_value = "focus_" + name
             record.inputs["Value"].default_value = result.lower()
             tree.links.new(set_focus.outputs[result], flow_input(record))
@@ -16183,34 +16228,34 @@ def run_ui_take_control_pointer_acceptance(status_path):
     driver.location = (0.0, 0.0, -30.0)
 
     def take(user, value=True):
-        node = tree.nodes.new("LogicNativeTakeUIControl")
+        node = new_logic_node(tree.nodes, "LogicNativeTakeUIControl")
         node.inputs["Object"].default_value = screen
         node.inputs["User"].default_value = user
         node.inputs["Take"].default_value = value
         return node
 
     def record(output, name, value):
-        node = tree.nodes.new("LogicNativeSetGamePropertyString")
+        node = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
         node.inputs["Property"].default_value = "tc_" + name
         node.inputs["Value"].default_value = value
         tree.links.new(output, flow_input(node))
         return node
 
     def wait(seconds):
-        node = tree.nodes.new("LogicNativeDelay")
+        node = new_logic_node(tree.nodes, "LogicNativeDelay")
         node.inputs["Delay"].default_value = seconds
         tree.links.new(on_init.outputs["Out"], flow_input(node))
         return node
 
     def pointer(enabled):
-        node = tree.nodes.new("LogicNativeSetPlayerPointer")
+        node = new_logic_node(tree.nodes, "LogicNativeSetPlayerPointer")
         node.inputs["User"].default_value = 1
         node.inputs["Enabled"].default_value = enabled
         node.inputs["Surface"].default_value = screen
         node.inputs["Cursor"].default_value = parts["Cursor"]
         return node
 
-    on_init = tree.nodes.new("LogicNativeOnInit")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
     take1 = take(1)
     tree.links.new(on_init.outputs["Out"], flow_input(take1))
     record(take1.outputs["Done"], "take1", "done")
@@ -16221,7 +16266,7 @@ def run_ui_take_control_pointer_acceptance(status_path):
     tree.links.new(wait(0.4).outputs["Done"], flow_input(take2))
     record(take2.outputs["Done"], "take2", "done")
     record(take2.outputs["Failed"], "take2", "failed")
-    result = tree.nodes.new("LogicNativeSetGamePropertyInt")
+    result = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
     result.inputs["Property"].default_value = "tc_take2_result"
     tree.links.new(take2.outputs["Failed"], flow_input(result))
     tree.links.new(take2.outputs["Result"], result.inputs["Value"])
@@ -16300,7 +16345,7 @@ def run_ui_view_center_acceptance(status_path):
                 source.objects.unlink(obj)
 
     tree = new_logic_tree(f"{PREFIX}_VCTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
     chain = [on_init]
 
     def then(node):
@@ -16310,45 +16355,45 @@ def run_ui_view_center_acceptance(status_path):
         return node
 
     for user, camera in enumerate(cameras):
-        set_camera = then(tree.nodes.new("LogicNativeSetCamera"))
+        set_camera = then(new_logic_node(tree.nodes, "LogicNativeSetCamera"))
         set_camera.inputs["Camera"].default_value = camera
         set_camera.inputs["User"].default_value = user
-    then(tree.nodes.new("LogicNativeSetSplitScreen")).inputs["Enabled"].default_value = True
+    then(new_logic_node(tree.nodes, "LogicNativeSetSplitScreen")).inputs["Enabled"].default_value = True
     for user in (0, 1):
-        pointer = then(tree.nodes.new("LogicNativeSetPlayerPointer"))
+        pointer = then(new_logic_node(tree.nodes, "LogicNativeSetPlayerPointer"))
         pointer.pointer_mode = "VIEW_CENTER"
         pointer.inputs["User"].default_value = user
         pointer.inputs["Reach"].default_value = 6.0
-    hide_veil = then(tree.nodes.new("LogicNativeSetCameraVisibility"))
+    hide_veil = then(new_logic_node(tree.nodes, "LogicNativeSetCameraVisibility"))
     hide_veil.inputs["Object"].default_value = veil
     hide_veil.inputs["Camera"].default_value = cameras[1]
     hide_veil.inputs["Visible"].default_value = False
-    then(tree.nodes.new("LogicNativeSetCursorVisibility")).cursor_mode = "IN_MENUS"
+    then(new_logic_node(tree.nodes, "LogicNativeSetCursorVisibility")).cursor_mode = "IN_MENUS"
 
     def after(seconds, node):
-        delay = tree.nodes.new("LogicNativeDelay")
+        delay = new_logic_node(tree.nodes, "LogicNativeDelay")
         delay.inputs["Delay"].default_value = seconds
         tree.links.new(on_init.outputs["Out"], flow_input(delay))
         tree.links.new(delay.outputs["Done"], flow_input(node))
         return node
 
-    open_menu = after(0.8, tree.nodes.new("LogicNativeOpenObjectMenu"))
+    open_menu = after(0.8, new_logic_node(tree.nodes, "LogicNativeOpenObjectMenu"))
     open_menu.inputs["Camera"].default_value = menu_camera
     open_menu.inputs["Collection"].default_value = menu_collection
-    after(1.0, tree.nodes.new("LogicNativeRemoveObject")).inputs["Object"].default_value = wall
-    after(1.6, tree.nodes.new("LogicNativeCloseObjectMenu"))
+    after(1.0, new_logic_node(tree.nodes, "LogicNativeRemoveObject")).inputs["Object"].default_value = wall
+    after(1.6, new_logic_node(tree.nodes, "LogicNativeCloseObjectMenu"))
 
     for event, names in (("ENTER", ("vc_enter_0", "vc_enter_1")), ("EXIT", ("vc_exit_0", None))):
-        on_event = tree.nodes.new("LogicNativeOnUIEvent")
+        on_event = new_logic_node(tree.nodes, "LogicNativeOnUIEvent")
         on_event.ui_event = event
         on_event.inputs["Action"].default_value = "vc"
-        by_user = tree.nodes.new("LogicNativeSwitchFlowInt")
+        by_user = new_logic_node(tree.nodes, "LogicNativeSwitchFlowInt")
         tree.links.new(on_event.outputs["Out"], flow_input(by_user))
         tree.links.new(on_event.outputs["User"], by_user.inputs["Index"])
         for output, name in zip(("Then 0", "Then 1"), names):
             if name is None:
                 continue
-            mark = tree.nodes.new("LogicNativeSetGamePropertyBool")
+            mark = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
             mark.inputs["Property"].default_value = name
             mark.inputs["Value"].default_value = True
             tree.links.new(by_user.outputs[output], flow_input(mark))
@@ -16479,9 +16524,9 @@ def run_ui_menu_per_player_acceptance(status_path):
     popup.scale = (0.2, 0.2, 0.05)
     set_game_property(popup, "popup_user", "INT", -1)
     popup_tree = new_logic_tree(f"{PREFIX}_PPPopupTree")
-    popup_update = popup_tree.nodes.new("LogicNativeOnUpdate")
-    popup_player = popup_tree.nodes.new("LogicNativeGetMenuPlayer")
-    store_popup = popup_tree.nodes.new("LogicNativeSetGamePropertyInt")
+    popup_update = new_logic_node(popup_tree.nodes, "LogicNativeOnUpdate")
+    popup_player = new_logic_node(popup_tree.nodes, "LogicNativeGetMenuPlayer")
+    store_popup = new_logic_node(popup_tree.nodes, "LogicNativeSetGamePropertyInt")
     store_popup.inputs["Property"].default_value = "popup_user"
     popup_tree.links.new(popup_update.outputs["Out"], flow_input(store_popup))
     popup_tree.links.new(popup_player.outputs["User"], store_popup.inputs["Value"])
@@ -16492,40 +16537,40 @@ def run_ui_menu_per_player_acceptance(status_path):
 
     # The menu's own logic: whose menu it is.
     panel_tree = new_logic_tree(f"{PREFIX}_PPPanelTree")
-    on_update = panel_tree.nodes.new("LogicNativeOnUpdate")
-    menu_player = panel_tree.nodes.new("LogicNativeGetMenuPlayer")
-    store_user = panel_tree.nodes.new("LogicNativeSetGamePropertyInt")
+    on_update = new_logic_node(panel_tree.nodes, "LogicNativeOnUpdate")
+    menu_player = new_logic_node(panel_tree.nodes, "LogicNativeGetMenuPlayer")
+    store_user = new_logic_node(panel_tree.nodes, "LogicNativeSetGamePropertyInt")
     store_user.inputs["Property"].default_value = "menu_user"
     panel_tree.links.new(on_update.outputs["Out"], flow_input(store_user))
     panel_tree.links.new(menu_player.outputs["User"], store_user.inputs["Value"])
-    gold = panel_tree.nodes.new("LogicNativeGetGamePropertyInt")
+    gold = new_logic_node(panel_tree.nodes, "LogicNativeGetGamePropertyInt")
     gold.inputs["Property"].default_value = "gold"
     panel_tree.links.new(menu_player.outputs["Owner"], gold.inputs["Object"])
-    store_gold = panel_tree.nodes.new("LogicNativeSetGamePropertyInt")
+    store_gold = new_logic_node(panel_tree.nodes, "LogicNativeSetGamePropertyInt")
     store_gold.inputs["Property"].default_value = "owner_gold"
     panel_tree.links.new(on_update.outputs["Out"], flow_input(store_gold))
     panel_tree.links.new(gold.outputs[0], store_gold.inputs["Value"])
-    tag_text = panel_tree.nodes.new("LogicNativeFormattedString")
+    tag_text = new_logic_node(panel_tree.nodes, "LogicNativeFormattedString")
     tag_text.inputs["Format String"].default_value = "player {}"
     panel_tree.links.new(menu_player.outputs["User"], tag_text.inputs["A"])
-    set_tag = panel_tree.nodes.new("LogicNativeSetText")
+    set_tag = new_logic_node(panel_tree.nodes, "LogicNativeSetText")
     set_tag.inputs["Object"].default_value = tag
     panel_tree.links.new(on_update.outputs["Out"], flow_input(set_tag))
     panel_tree.links.new(tag_text.outputs["String"], set_tag.inputs["Text"])
-    add_popup = panel_tree.nodes.new("LogicNativeAddObject")
+    add_popup = new_logic_node(panel_tree.nodes, "LogicNativeAddObject")
     add_popup.inputs["Object to Add"].default_value = popup
-    panel_tree.links.new(panel_tree.nodes.new("LogicNativeOnInit").outputs["Out"],
+    panel_tree.links.new(new_logic_node(panel_tree.nodes, "LogicNativeOnInit").outputs["Out"],
                          flow_input(add_popup))
     bind_tree(panel, panel_tree.name, True)
 
     # Each player opens it from their own object (the owner); one tree for both.
     opener = new_logic_tree(f"{PREFIX}_PPOpenerTree")
-    on_init = opener.nodes.new("LogicNativeOnInit")
-    delay = opener.nodes.new("LogicNativeDelay")
+    on_init = new_logic_node(opener.nodes, "LogicNativeOnInit")
+    delay = new_logic_node(opener.nodes, "LogicNativeDelay")
     delay.inputs["Delay"].default_value = 0.1
-    read_user = opener.nodes.new("LogicNativeGetGamePropertyInt")
+    read_user = new_logic_node(opener.nodes, "LogicNativeGetGamePropertyInt")
     read_user.inputs["Property"].default_value = "user"
-    open_menu = opener.nodes.new("LogicNativeOpenObjectMenu")
+    open_menu = new_logic_node(opener.nodes, "LogicNativeOpenObjectMenu")
     open_menu.inputs["Camera"].default_value = overlay_camera
     open_menu.inputs["Collection"].default_value = menu
     open_menu.menu_routing = "PASS_THROUGH"
@@ -16546,21 +16591,21 @@ def run_ui_menu_per_player_acceptance(status_path):
     tree = new_logic_tree(f"{PREFIX}_PPDriverTree")
     chain = []
     for user, camera in enumerate(cameras):
-        set_camera = tree.nodes.new("LogicNativeSetCamera")
+        set_camera = new_logic_node(tree.nodes, "LogicNativeSetCamera")
         set_camera.inputs["Camera"].default_value = camera
         set_camera.inputs["User"].default_value = user
         chain.append(set_camera)
-    split = tree.nodes.new("LogicNativeSetSplitScreen")
+    split = new_logic_node(tree.nodes, "LogicNativeSetSplitScreen")
     split.split_two_players = "SIDE_BY_SIDE"
     chain.append(split)
-    wait = tree.nodes.new("LogicNativeDelay")
+    wait = new_logic_node(tree.nodes, "LogicNativeDelay")
     wait.inputs["Delay"].default_value = 0.9
     chain.append(wait)
-    close = tree.nodes.new("LogicNativeCloseObjectMenu")
+    close = new_logic_node(tree.nodes, "LogicNativeCloseObjectMenu")
     close.menu_close_operation = "TOP"
     close.inputs["User"].default_value = 0
     chain.append(close)
-    chain_flows(tree, tree.nodes.new("LogicNativeOnInit").outputs["Out"], chain)
+    chain_flows(tree, new_logic_node(tree.nodes, "LogicNativeOnInit").outputs["Out"], chain)
     add_status_controller(driver, status_path, "ui_menu_per_player", required_frame=8,
                           required_seconds=2.5)
     set_game_property(driver, "__ln_acceptance_panel", "STRING", panel.name)
@@ -17113,8 +17158,8 @@ def run_raycast_from_mesh_acceptance(status_path):
     auxiliary.location = (0.0, 8.0, 0.0)
     set_game_property(auxiliary, "parallel_aux_tick", "BOOL", False)
     auxiliary_tree = new_logic_tree(f"{PREFIX}_RaycastFromMeshParallelAuxTree")
-    auxiliary_update = auxiliary_tree.nodes.new("LogicNativeOnUpdate")
-    auxiliary_set = auxiliary_tree.nodes.new("LogicNativeSetGamePropertyBool")
+    auxiliary_update = new_logic_node(auxiliary_tree.nodes, "LogicNativeOnUpdate")
+    auxiliary_set = new_logic_node(auxiliary_tree.nodes, "LogicNativeSetGamePropertyBool")
     auxiliary_set.inputs["Property"].default_value = "parallel_aux_tick"
     auxiliary_set.inputs["Value"].default_value = True
     auxiliary_tree.links.new(auxiliary_update.outputs["Out"], auxiliary_set.inputs["Flow"])
@@ -17313,14 +17358,14 @@ def run_phase6_cross_scene_save_load_acceptance(status_path, output_dir):
 
     save_tree = new_logic_tree(f"{PREFIX}_Phase6CrossSceneSaveTree")
     save_tree_name = save_tree.name
-    on_init = save_tree.nodes.new("LogicNativeOnInit")
-    save_game = save_tree.nodes.new("LogicNativeSaveGame")
-    save_succeeded = save_tree.nodes.new("LogicNativeBranch")
-    mark_save_completed = save_tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_init = new_logic_node(save_tree.nodes, "LogicNativeOnInit")
+    save_game = new_logic_node(save_tree.nodes, "LogicNativeSaveGame")
+    save_succeeded = new_logic_node(save_tree.nodes, "LogicNativeBranch")
+    mark_save_completed = new_logic_node(save_tree.nodes, "LogicNativeSetGamePropertyBool")
     destination_tree = new_logic_tree(f"{PREFIX}_Phase6CrossSceneDestinationTree")
-    on_game_loaded = destination_tree.nodes.new("LogicNativeOnGameLoaded")
-    load_succeeded = destination_tree.nodes.new("LogicNativeBranch")
-    mark_load_completed = destination_tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_game_loaded = new_logic_node(destination_tree.nodes, "LogicNativeOnGameLoaded")
+    load_succeeded = new_logic_node(destination_tree.nodes, "LogicNativeBranch")
+    mark_load_completed = new_logic_node(destination_tree.nodes, "LogicNativeSetGamePropertyBool")
 
     save_game.inputs["Path"].default_value = save_path
     mark_save_completed.inputs["Property"].default_value = "save_completed"
@@ -17366,8 +17411,8 @@ def run_phase6_cross_scene_save_load_acceptance(status_path, output_dir):
     loader = create_cube(f"{PREFIX}_Phase6CrossSceneLoader")
     set_game_property(loader, "__ln_acceptance_await_scene", "STRING", scene_a_name)
     loader_tree = new_logic_tree(f"{PREFIX}_Phase6CrossSceneLoaderTree")
-    loader_init = loader_tree.nodes.new("LogicNativeOnInit")
-    load_game = loader_tree.nodes.new("LogicNativeLoadGame")
+    loader_init = new_logic_node(loader_tree.nodes, "LogicNativeOnInit")
+    load_game = new_logic_node(loader_tree.nodes, "LogicNativeLoadGame")
     load_game.inputs["Path"].default_value = save_path
     loader_tree.links.new(loader_init.outputs["Out"], flow_input(load_game))
     bind_tree(loader, loader_tree.name, True)
@@ -17419,48 +17464,48 @@ def run_phase6_save_load_acceptance(status_path, output_dir):
         save_file.unlink()
 
     tree = new_logic_tree(f"{PREFIX}_Phase6SaveLoadTree")
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    once_after_init = tree.nodes.new("LogicNativeOnce")
-    get_run_checkpoint_sequence = tree.nodes.new("LogicNativeGetGamePropertyBool")
-    run_checkpoint_sequence = tree.nodes.new("LogicNativeBranch")
-    initial_tree_value = tree.nodes.new("LogicNativeValueFloat")
-    set_initial_tree_property = tree.nodes.new("LogicNativeSetTreeProperty")
-    set_saved_gravity = tree.nodes.new("LogicNativeSetGravity")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    once_after_init = new_logic_node(tree.nodes, "LogicNativeOnce")
+    get_run_checkpoint_sequence = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyBool")
+    run_checkpoint_sequence = new_logic_node(tree.nodes, "LogicNativeBranch")
+    initial_tree_value = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    set_initial_tree_property = new_logic_node(tree.nodes, "LogicNativeSetTreeProperty")
+    set_saved_gravity = new_logic_node(tree.nodes, "LogicNativeSetGravity")
     set_saved_position = new_set_object_attribute(tree, "WORLD_POSITION")
-    set_saved_no_collision = tree.nodes.new("LogicNativeSetDynamics")
-    set_saved_ghost = tree.nodes.new("LogicNativeSetDynamics")
-    set_saved_physics = tree.nodes.new("LogicNativeSetPhysics")
-    add_saved_replica = tree.nodes.new("LogicNativeAddObject")
-    save_game = tree.nodes.new("LogicNativeSaveGame")
-    save_succeeded = tree.nodes.new("LogicNativeBranch")
-    mutated_tree_value = tree.nodes.new("LogicNativeValueFloat")
-    set_mutated_tree_property = tree.nodes.new("LogicNativeSetTreeProperty")
-    set_mutated_physics = tree.nodes.new("LogicNativeSetPhysics")
-    set_mutated_dynamics = tree.nodes.new("LogicNativeSetDynamics")
-    set_mutated_ghost = tree.nodes.new("LogicNativeSetDynamics")
-    set_mutated_gravity = tree.nodes.new("LogicNativeSetGravity")
-    mutate_score = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    mutate_transient_score = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    set_saved_no_collision = new_logic_node(tree.nodes, "LogicNativeSetDynamics")
+    set_saved_ghost = new_logic_node(tree.nodes, "LogicNativeSetDynamics")
+    set_saved_physics = new_logic_node(tree.nodes, "LogicNativeSetPhysics")
+    add_saved_replica = new_logic_node(tree.nodes, "LogicNativeAddObject")
+    save_game = new_logic_node(tree.nodes, "LogicNativeSaveGame")
+    save_succeeded = new_logic_node(tree.nodes, "LogicNativeBranch")
+    mutated_tree_value = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    set_mutated_tree_property = new_logic_node(tree.nodes, "LogicNativeSetTreeProperty")
+    set_mutated_physics = new_logic_node(tree.nodes, "LogicNativeSetPhysics")
+    set_mutated_dynamics = new_logic_node(tree.nodes, "LogicNativeSetDynamics")
+    set_mutated_ghost = new_logic_node(tree.nodes, "LogicNativeSetDynamics")
+    set_mutated_gravity = new_logic_node(tree.nodes, "LogicNativeSetGravity")
+    mutate_score = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    mutate_transient_score = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
     mutate_position = new_set_object_attribute(tree, "WORLD_POSITION")
     mutate_parent_position = new_set_object_attribute(tree, "WORLD_POSITION")
     mutate_parent_orientation = new_set_object_attribute(tree, "WORLD_ORIENTATION")
     mutate_parent_scale = new_set_object_attribute(tree, "WORLD_SCALE")
-    remove_saved_parent = tree.nodes.new("LogicNativeRemoveParent")
+    remove_saved_parent = new_logic_node(tree.nodes, "LogicNativeRemoveParent")
     mutate_soft_color = new_set_object_attribute(tree, "COLOR")
     mutate_removed_color = new_set_object_attribute(tree, "COLOR")
-    remove_saved_object = tree.nodes.new("LogicNativeRemoveObject")
-    add_current_object = tree.nodes.new("LogicNativeAddObject")
-    load_game = tree.nodes.new("LogicNativeLoadGame")
-    load_succeeded = tree.nodes.new("LogicNativeBranch")
-    get_restored_tree_property = tree.nodes.new("LogicNativeGetTreeProperty")
-    copy_restored_tree_property = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    get_restored_gravity = tree.nodes.new("LogicNativeGetGravity")
-    separate_restored_gravity = tree.nodes.new("LogicNativeSeparateXYZ")
-    copy_restored_gravity = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    missing_load = tree.nodes.new("LogicNativeLoadGame")
-    missing_load_failed = tree.nodes.new("LogicNativeBranch")
-    mark_load_completed = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    remove_saved_object = new_logic_node(tree.nodes, "LogicNativeRemoveObject")
+    add_current_object = new_logic_node(tree.nodes, "LogicNativeAddObject")
+    load_game = new_logic_node(tree.nodes, "LogicNativeLoadGame")
+    load_succeeded = new_logic_node(tree.nodes, "LogicNativeBranch")
+    get_restored_tree_property = new_logic_node(tree.nodes, "LogicNativeGetTreeProperty")
+    copy_restored_tree_property = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    get_restored_gravity = new_logic_node(tree.nodes, "LogicNativeGetGravity")
+    separate_restored_gravity = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
+    copy_restored_gravity = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    missing_load = new_logic_node(tree.nodes, "LogicNativeLoadGame")
+    missing_load_failed = new_logic_node(tree.nodes, "LogicNativeBranch")
+    mark_load_completed = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     get_run_checkpoint_sequence.inputs["Object"].default_value = target
     get_run_checkpoint_sequence.inputs["Property"].default_value = "run_checkpoint_sequence"
     value_output(initial_tree_value).default_value = 3.5
@@ -17726,11 +17771,11 @@ def run_phase6_save_load_acceptance(status_path, output_dir):
         target, "__ln_acceptance_removed_object", "STRING", removed_object_name)
 
     load_tree = new_logic_tree(f"{PREFIX}_Phase6SaveLoadRevisionTree")
-    on_update = load_tree.nodes.new("LogicNativeOnUpdate")
-    once = load_tree.nodes.new("LogicNativeOnce")
-    load_game = load_tree.nodes.new("LogicNativeLoadGame")
-    load_succeeded = load_tree.nodes.new("LogicNativeBranch")
-    mark_load_completed = load_tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_update = new_logic_node(load_tree.nodes, "LogicNativeOnUpdate")
+    once = new_logic_node(load_tree.nodes, "LogicNativeOnce")
+    load_game = new_logic_node(load_tree.nodes, "LogicNativeLoadGame")
+    load_succeeded = new_logic_node(load_tree.nodes, "LogicNativeBranch")
+    mark_load_completed = new_logic_node(load_tree.nodes, "LogicNativeSetGamePropertyBool")
     load_game.inputs["Path"].default_value = save_path
     mark_load_completed.inputs["Object"].default_value = target
     mark_load_completed.inputs["Property"].default_value = "load_completed"
@@ -17772,9 +17817,9 @@ def run_phase6_save_load_structure_acceptance(status_path, output_dir):
         name="Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
     value_output_socket = geometry_tree.interface.new_socket(
         name="Result", in_out="OUTPUT", socket_type="NodeSocketFloat")
-    group_input = geometry_tree.nodes.new("NodeGroupInput")
-    group_output = geometry_tree.nodes.new("NodeGroupOutput")
-    internal_ico = geometry_tree.nodes.new("GeometryNodeMeshIcoSphere")
+    group_input = new_logic_node(geometry_tree.nodes, "NodeGroupInput")
+    group_output = new_logic_node(geometry_tree.nodes, "NodeGroupOutput")
+    internal_ico = new_logic_node(geometry_tree.nodes, "GeometryNodeMeshIcoSphere")
     internal_ico.name = f"{PREFIX}_RuntimeIcoSphere"
     internal_radius_socket = internal_ico.inputs["Radius"]
     saved_internal_radius = 0.2
@@ -17810,7 +17855,7 @@ def run_phase6_save_load_structure_acceptance(status_path, output_dir):
     compositor_tree = bpy.data.node_groups.new(
         f"{PREFIX}_PersistentCompositor", "CompositorNodeTree")
     compositor_tree.use_fake_user = True
-    compositor_node = compositor_tree.nodes.new("CompositorNodeBrightContrast")
+    compositor_node = new_logic_node(compositor_tree.nodes, "CompositorNodeBrightContrast")
     compositor_node.name = f"{PREFIX}_RuntimeCompositorBrightness"
     compositor_socket = compositor_node.inputs["Brightness"]
     saved_compositor_value = 12.5
@@ -17822,8 +17867,8 @@ def run_phase6_save_load_structure_acceptance(status_path, output_dir):
     transient_compositor_tree.use_fake_user = True
 
     installed_tree = new_logic_tree(f"{PREFIX}_RuntimeInstalledTree")
-    installed_update = installed_tree.nodes.new("LogicNativeOnUpdate")
-    mark_installed_running = installed_tree.nodes.new(
+    installed_update = new_logic_node(installed_tree.nodes, "LogicNativeOnUpdate")
+    mark_installed_running = new_logic_node(installed_tree.nodes, 
         "LogicNativeSetGamePropertyBool")
     mark_installed_running.inputs["Object"].default_value = target
     mark_installed_running.inputs["Property"].default_value = "installed_tree_restored"
@@ -17832,8 +17877,8 @@ def run_phase6_save_load_structure_acceptance(status_path, output_dir):
         installed_update.outputs["Out"], flow_input(mark_installed_running))
 
     transient_tree = new_logic_tree(f"{PREFIX}_TransientRuntimeTree")
-    transient_update = transient_tree.nodes.new("LogicNativeOnUpdate")
-    mark_transient_running = transient_tree.nodes.new(
+    transient_update = new_logic_node(transient_tree.nodes, "LogicNativeOnUpdate")
+    mark_transient_running = new_logic_node(transient_tree.nodes, 
         "LogicNativeSetGamePropertyBool")
     mark_transient_running.inputs["Object"].default_value = target
     mark_transient_running.inputs["Property"].default_value = "transient_tree_running"
@@ -17847,28 +17892,28 @@ def run_phase6_save_load_structure_acceptance(status_path, output_dir):
         save_file.unlink()
 
     tree = new_logic_tree(f"{PREFIX}_Phase6SaveLoadStructureTree")
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    once = tree.nodes.new("LogicNativeOnce")
-    install_saved_tree = tree.nodes.new("LogicNativeInstallLogicTree")
-    wait_before_save = tree.nodes.new("LogicNativeDelay")
-    save_game = tree.nodes.new("LogicNativeSaveGame")
-    save_succeeded = tree.nodes.new("LogicNativeBranch")
-    stop_saved_tree = tree.nodes.new("LogicNativeStopLogicTree")
-    mutate_geometry_input = tree.nodes.new("LogicNativeSetGeometryNodesInput")
-    append_geometry_modifier = tree.nodes.new(
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    once = new_logic_node(tree.nodes, "LogicNativeOnce")
+    install_saved_tree = new_logic_node(tree.nodes, "LogicNativeInstallLogicTree")
+    wait_before_save = new_logic_node(tree.nodes, "LogicNativeDelay")
+    save_game = new_logic_node(tree.nodes, "LogicNativeSaveGame")
+    save_succeeded = new_logic_node(tree.nodes, "LogicNativeBranch")
+    stop_saved_tree = new_logic_node(tree.nodes, "LogicNativeStopLogicTree")
+    mutate_geometry_input = new_logic_node(tree.nodes, "LogicNativeSetGeometryNodesInput")
+    append_geometry_modifier = new_logic_node(tree.nodes, 
         "LogicNativeAssignGeometryNodesModifier")
-    install_transient_tree = tree.nodes.new("LogicNativeInstallLogicTree")
-    request_output_mutation = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    collision = tree.nodes.new("LogicNativeOnCollision")
-    mutate_internal_node = tree.nodes.new("LogicNativeSetEditorNodeValue")
-    mark_collision_mutation = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    wait_before_load = tree.nodes.new("LogicNativeDelay")
-    clear_installed_marker = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    load_game = tree.nodes.new("LogicNativeLoadGame")
-    load_succeeded = tree.nodes.new("LogicNativeBranch")
-    clear_transient_marker = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    wait_after_load = tree.nodes.new("LogicNativeDelay")
-    mark_load_completed = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    install_transient_tree = new_logic_node(tree.nodes, "LogicNativeInstallLogicTree")
+    request_output_mutation = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    collision = new_logic_node(tree.nodes, "LogicNativeOnCollision")
+    mutate_internal_node = new_logic_node(tree.nodes, "LogicNativeSetEditorNodeValue")
+    mark_collision_mutation = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    wait_before_load = new_logic_node(tree.nodes, "LogicNativeDelay")
+    clear_installed_marker = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    load_game = new_logic_node(tree.nodes, "LogicNativeLoadGame")
+    load_succeeded = new_logic_node(tree.nodes, "LogicNativeBranch")
+    clear_transient_marker = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    wait_after_load = new_logic_node(tree.nodes, "LogicNativeDelay")
+    mark_load_completed = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     install_saved_tree.inputs["Object"].default_value = target
     install_saved_tree.inputs["Tree Name"].default_value = installed_tree.name
@@ -18267,18 +18312,18 @@ def run_phase6_save_load_material_acceptance(status_path, output_dir):
         save_file.unlink()
 
     tree = new_logic_tree(f"{PREFIX}_Phase6SaveLoadMaterialTree")
-    on_update = tree.nodes.new("LogicNativeOnUpdate")
-    once = tree.nodes.new("LogicNativeOnce")
-    set_saved_parameter = tree.nodes.new("LogicNativeSetMaterialParameter")
-    set_saved_shared_value = tree.nodes.new("LogicNativeSetEditorNodeValue")
-    save_game = tree.nodes.new("LogicNativeSaveGame")
-    save_succeeded = tree.nodes.new("LogicNativeBranch")
-    set_mutated_parameter = tree.nodes.new("LogicNativeSetMaterialParameter")
-    set_mutated_shared_value = tree.nodes.new("LogicNativeSetEditorNodeValue")
-    set_mutated_slot = tree.nodes.new("LogicNativeSetMaterialSlot")
-    load_game = tree.nodes.new("LogicNativeLoadGame")
-    load_succeeded = tree.nodes.new("LogicNativeBranch")
-    mark_load_completed = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+    once = new_logic_node(tree.nodes, "LogicNativeOnce")
+    set_saved_parameter = new_logic_node(tree.nodes, "LogicNativeSetMaterialParameter")
+    set_saved_shared_value = new_logic_node(tree.nodes, "LogicNativeSetEditorNodeValue")
+    save_game = new_logic_node(tree.nodes, "LogicNativeSaveGame")
+    save_succeeded = new_logic_node(tree.nodes, "LogicNativeBranch")
+    set_mutated_parameter = new_logic_node(tree.nodes, "LogicNativeSetMaterialParameter")
+    set_mutated_shared_value = new_logic_node(tree.nodes, "LogicNativeSetEditorNodeValue")
+    set_mutated_slot = new_logic_node(tree.nodes, "LogicNativeSetMaterialSlot")
+    load_game = new_logic_node(tree.nodes, "LogicNativeLoadGame")
+    load_succeeded = new_logic_node(tree.nodes, "LogicNativeBranch")
+    mark_load_completed = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     for node, color in (
         (set_saved_parameter, saved_color),
@@ -18466,16 +18511,16 @@ def run_phase6_save_load_material_acceptance(status_path, output_dir):
         status_observer, "__ln_acceptance_mode", "phase6_save_load_material_fresh")
 
     load_tree = new_logic_tree(f"{PREFIX}_Phase6SaveLoadMaterialFreshTree")
-    fresh_init = load_tree.nodes.new("LogicNativeOnInit")
-    fresh_parameter_guard = load_tree.nodes.new("LogicNativeBranch")
-    fresh_parameter_declaration = load_tree.nodes.new("LogicNativeSetMaterialParameter")
-    fresh_update = load_tree.nodes.new("LogicNativeOnUpdate")
-    fresh_once = load_tree.nodes.new("LogicNativeOnce")
-    fresh_mutate_shared = load_tree.nodes.new("LogicNativeSetEditorNodeValue")
-    fresh_mutate_slot = load_tree.nodes.new("LogicNativeSetMaterialSlot")
-    fresh_load = load_tree.nodes.new("LogicNativeLoadGame")
-    fresh_load_succeeded = load_tree.nodes.new("LogicNativeBranch")
-    fresh_complete = load_tree.nodes.new("LogicNativeSetGamePropertyBool")
+    fresh_init = new_logic_node(load_tree.nodes, "LogicNativeOnInit")
+    fresh_parameter_guard = new_logic_node(load_tree.nodes, "LogicNativeBranch")
+    fresh_parameter_declaration = new_logic_node(load_tree.nodes, "LogicNativeSetMaterialParameter")
+    fresh_update = new_logic_node(load_tree.nodes, "LogicNativeOnUpdate")
+    fresh_once = new_logic_node(load_tree.nodes, "LogicNativeOnce")
+    fresh_mutate_shared = new_logic_node(load_tree.nodes, "LogicNativeSetEditorNodeValue")
+    fresh_mutate_slot = new_logic_node(load_tree.nodes, "LogicNativeSetMaterialSlot")
+    fresh_load = new_logic_node(load_tree.nodes, "LogicNativeLoadGame")
+    fresh_load_succeeded = new_logic_node(load_tree.nodes, "LogicNativeBranch")
+    fresh_complete = new_logic_node(load_tree.nodes, "LogicNativeSetGamePropertyBool")
     fresh_parameter_guard.inputs["Condition"].default_value = False
     fresh_parameter_declaration.inputs["Object"].default_value = target
     fresh_parameter_declaration.inputs["Slot"].default_value = 0
@@ -18569,23 +18614,23 @@ def run_phase6_save_load_existence_acceptance(status_path, output_dir):
         save_file.unlink()
 
     tree = new_logic_tree(f"{PREFIX}_Phase6SaveLoadExistenceTree")
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    once = tree.nodes.new("LogicNativeOnce")
-    add_object = tree.nodes.new("LogicNativeAddObject")
-    promote = tree.nodes.new("LogicNativeSetSaveExistence")
-    promote_succeeded = tree.nodes.new("LogicNativeBranch")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    once = new_logic_node(tree.nodes, "LogicNativeOnce")
+    add_object = new_logic_node(tree.nodes, "LogicNativeAddObject")
+    promote = new_logic_node(tree.nodes, "LogicNativeSetSaveExistence")
+    promote_succeeded = new_logic_node(tree.nodes, "LogicNativeBranch")
     set_spawn_position = new_set_object_attribute(tree, "WORLD_POSITION")
-    remove_tombstone = tree.nodes.new("LogicNativeRemoveObject")
-    save_game = tree.nodes.new("LogicNativeSaveGame")
-    save_succeeded = tree.nodes.new("LogicNativeBranch")
-    add_transient = tree.nodes.new("LogicNativeAddObject")
-    remove_present = tree.nodes.new("LogicNativeRemoveObject")
-    remove_spawn = tree.nodes.new("LogicNativeRemoveObject")
-    load_game = tree.nodes.new("LogicNativeLoadGame")
-    load_succeeded = tree.nodes.new("LogicNativeBranch")
-    promote_transient_after_load = tree.nodes.new("LogicNativeSetSaveExistence")
-    transient_promotion_succeeded = tree.nodes.new("LogicNativeBranch")
-    mark_load_completed = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    remove_tombstone = new_logic_node(tree.nodes, "LogicNativeRemoveObject")
+    save_game = new_logic_node(tree.nodes, "LogicNativeSaveGame")
+    save_succeeded = new_logic_node(tree.nodes, "LogicNativeBranch")
+    add_transient = new_logic_node(tree.nodes, "LogicNativeAddObject")
+    remove_present = new_logic_node(tree.nodes, "LogicNativeRemoveObject")
+    remove_spawn = new_logic_node(tree.nodes, "LogicNativeRemoveObject")
+    load_game = new_logic_node(tree.nodes, "LogicNativeLoadGame")
+    load_succeeded = new_logic_node(tree.nodes, "LogicNativeBranch")
+    promote_transient_after_load = new_logic_node(tree.nodes, "LogicNativeSetSaveExistence")
+    transient_promotion_succeeded = new_logic_node(tree.nodes, "LogicNativeBranch")
+    mark_load_completed = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     add_object.inputs["Object to Add"].default_value = replica_template
     add_object.inputs["Copy Transform"].default_value = spawn_anchor
@@ -18698,14 +18743,14 @@ def run_phase6_save_load_existence_acceptance(status_path, output_dir):
     set_existing_game_property_value(owner, "load_completed", False)
 
     load_tree = new_logic_tree(f"{PREFIX}_Phase6SaveLoadExistenceFreshTree")
-    on_fixed_update = load_tree.nodes.new("LogicNativeOnFixedUpdate")
-    once = load_tree.nodes.new("LogicNativeOnce")
-    add_transient = load_tree.nodes.new("LogicNativeAddObject")
-    load_game = load_tree.nodes.new("LogicNativeLoadGame")
-    load_succeeded = load_tree.nodes.new("LogicNativeBranch")
-    promote_transient_after_load = load_tree.nodes.new("LogicNativeSetSaveExistence")
-    transient_promotion_succeeded = load_tree.nodes.new("LogicNativeBranch")
-    mark_load_completed = load_tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_fixed_update = new_logic_node(load_tree.nodes, "LogicNativeOnFixedUpdate")
+    once = new_logic_node(load_tree.nodes, "LogicNativeOnce")
+    add_transient = new_logic_node(load_tree.nodes, "LogicNativeAddObject")
+    load_game = new_logic_node(load_tree.nodes, "LogicNativeLoadGame")
+    load_succeeded = new_logic_node(load_tree.nodes, "LogicNativeBranch")
+    promote_transient_after_load = new_logic_node(load_tree.nodes, "LogicNativeSetSaveExistence")
+    transient_promotion_succeeded = new_logic_node(load_tree.nodes, "LogicNativeBranch")
+    mark_load_completed = new_logic_node(load_tree.nodes, "LogicNativeSetGamePropertyBool")
     add_transient.inputs["Object to Add"].default_value = transient_template
     add_transient.inputs["Copy Transform"].default_value = owner
     add_transient.inputs["Life"].default_value = 0.0
@@ -18788,19 +18833,19 @@ def run_phase6_replace_mesh_acceptance(status_path):
 
 def build_input_nodes_tree(name):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
-    keyboard = tree.nodes.new("LogicNativeKeyboardKey")
-    mouse = tree.nodes.new("LogicNativeMouseButton")
-    gamepad = tree.nodes.new("LogicNativeGamepadActive")
-    branch_keyboard = tree.nodes.new("LogicNativeBranch")
-    branch_mouse = tree.nodes.new("LogicNativeBranch")
-    branch_gamepad = tree.nodes.new("LogicNativeBranch")
-    set_keyboard = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_mouse = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_gamepad = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_keyboard_active = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_mouse_active = tree.nodes.new("LogicNativeSetGamePropertyBool")
-    set_gamepad_active = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
+    keyboard = new_logic_node(tree.nodes, "LogicNativeKeyboardKey")
+    mouse = new_logic_node(tree.nodes, "LogicNativeMouseButton")
+    gamepad = new_logic_node(tree.nodes, "LogicNativeGamepadActive")
+    branch_keyboard = new_logic_node(tree.nodes, "LogicNativeBranch")
+    branch_mouse = new_logic_node(tree.nodes, "LogicNativeBranch")
+    branch_gamepad = new_logic_node(tree.nodes, "LogicNativeBranch")
+    set_keyboard = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_mouse = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_gamepad = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_keyboard_active = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_mouse_active = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
+    set_gamepad_active = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     keyboard.inputs["Key"].default_value = "SPACE"
     mouse.inputs["Button"].default_value = "LEFTMOUSE"
@@ -18833,13 +18878,13 @@ def build_input_nodes_tree(name):
 
 def build_values_math_tree(name):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    value_a = tree.nodes.new("LogicNativeValueFloat")
-    value_b = tree.nodes.new("LogicNativeValueFloat")
-    math_node = tree.nodes.new("LogicNativeMath")
-    set_result = tree.nodes.new("LogicNativeSetGamePropertyFloat")
-    float_curve = tree.nodes.new("LogicNativeFloatCurve")
-    set_curve_result = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    value_a = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    value_b = new_logic_node(tree.nodes, "LogicNativeValueFloat")
+    math_node = new_logic_node(tree.nodes, "LogicNativeMath")
+    set_result = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
+    float_curve = new_logic_node(tree.nodes, "LogicNativeFloatCurve")
+    set_curve_result = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
 
     value_output(value_a).default_value = 2.0
     value_output(value_b).default_value = 3.0
@@ -18863,31 +18908,31 @@ def build_values_math_tree(name):
 
 def build_c_tier_values_tree(name):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
 
-    combine = tree.nodes.new("LogicNativeCombineXYZW")
+    combine = new_logic_node(tree.nodes, "LogicNativeCombineXYZW")
     combine.inputs["X"].default_value = 1.5
     combine.inputs["Y"].default_value = 2.5
     combine.inputs["Z"].default_value = 3.5
     combine.inputs["W"].default_value = 4.5
 
-    resize = tree.nodes.new("LogicNativeResizeVector")
+    resize = new_logic_node(tree.nodes, "LogicNativeResizeVector")
     resize.to_size = "VECTOR_4D"
 
-    vector4_string = tree.nodes.new("LogicNativeTypecast")
-    resize_string = tree.nodes.new("LogicNativeTypecast")
-    matrix_string = tree.nodes.new("LogicNativeTypecast")
+    vector4_string = new_logic_node(tree.nodes, "LogicNativeTypecast")
+    resize_string = new_logic_node(tree.nodes, "LogicNativeTypecast")
+    matrix_string = new_logic_node(tree.nodes, "LogicNativeTypecast")
     for typecast in (vector4_string, resize_string, matrix_string):
         typecast.to_type = "STRING"
-    set_vector4_text = tree.nodes.new("LogicNativeSetGamePropertyString")
-    set_resize4_text = tree.nodes.new("LogicNativeSetGamePropertyString")
-    set_matrix_text = tree.nodes.new("LogicNativeSetGamePropertyString")
+    set_vector4_text = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
+    set_resize4_text = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
+    set_matrix_text = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyString")
     set_vector4_text.inputs["Property"].default_value = "vector4_text"
     set_resize4_text.inputs["Property"].default_value = "resize4_text"
     set_matrix_text.inputs["Property"].default_value = "matrix_euler_text"
 
-    xyz_to_matrix = tree.nodes.new("LogicNativeXYZToMatrix")
-    matrix_to_xyz = tree.nodes.new("LogicNativeMatrixToXYZ")
+    xyz_to_matrix = new_logic_node(tree.nodes, "LogicNativeXYZToMatrix")
+    matrix_to_xyz = new_logic_node(tree.nodes, "LogicNativeMatrixToXYZ")
 
     xyz_to_matrix.inputs["XYZ"].default_value = (0.25, -0.5, 0.75)
     matrix_to_xyz.output = "EULER"
@@ -18913,37 +18958,37 @@ def build_c_tier_values_tree(name):
 
 def build_b_tier_core_tree(name, target_obj):
     tree = new_logic_tree(name)
-    on_fixed_update = tree.nodes.new("LogicNativeOnFixedUpdate")
+    on_fixed_update = new_logic_node(tree.nodes, "LogicNativeOnFixedUpdate")
 
-    formula = tree.nodes.new("LogicNativeFormula")
+    formula = new_logic_node(tree.nodes, "LogicNativeFormula")
     formula.predefined_formulas = "USER_DEFINED"
     formula.formula = "abs(a) + pi + e"
     formula.inputs["a"].default_value = -2.0
-    set_formula = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    set_formula = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
     set_formula.inputs["Property"].default_value = "formula_result"
 
-    evaluate = tree.nodes.new("LogicNativeEvaluateProperty")
+    evaluate = new_logic_node(tree.nodes, "LogicNativeEvaluateProperty")
     evaluate.mode = "GAME_PROPERTY"
     evaluate.operation = "EQUAL"
     evaluate.inputs["Object"].default_value = target_obj
     evaluate.inputs["Property"].default_value = "typed_source"
-    compare_value = tree.nodes.new("LogicNativeValueFloat")
+    compare_value = new_logic_node(tree.nodes, "LogicNativeValueFloat")
     value_output(compare_value).default_value = 12.5
-    set_eval_ok = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    set_eval_ok = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     set_eval_ok.inputs["Property"].default_value = "eval_ok"
     set_eval_ok.inputs["Value"].default_value = True
-    eval_branch = tree.nodes.new("LogicNativeBranch")
+    eval_branch = new_logic_node(tree.nodes, "LogicNativeBranch")
 
-    tween = tree.nodes.new("LogicNativeTweenValue")
+    tween = new_logic_node(tree.nodes, "LogicNativeTweenValue")
     tween.on_demand = True
     tween.instant_reset = True
     socket_by_identifier(tween.inputs, "FromFloat").default_value = 0.0
     socket_by_identifier(tween.inputs, "ToFloat").default_value = 1.0
     tween.inputs["Duration"].default_value = 0.25
-    set_tween = tree.nodes.new("LogicNativeSetGamePropertyFloat")
+    set_tween = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
     set_tween.inputs["Property"].default_value = "tween_result"
 
-    projectile = tree.nodes.new("LogicNativeProjectileRay")
+    projectile = new_logic_node(tree.nodes, "LogicNativeProjectileRay")
     projectile.inputs["Caster"].default_value = target_obj
     projectile.inputs["Origin"].default_value = (0.0, 0.0, 0.0)
     projectile.inputs["Aim"].default_value = (0.0, 1.0, 0.0)
@@ -18952,7 +18997,7 @@ def build_b_tier_core_tree(name, target_obj):
     projectile.inputs["Distance"].default_value = 10.0
     projectile.inputs["Resolution"].default_value = 0.9
     projectile.inputs["Mask"].default_value = 1023
-    set_projectile_hit = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    set_projectile_hit = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     set_projectile_hit.inputs["Property"].default_value = "projectile_hit"
 
     for setter in (set_formula, set_tween, set_projectile_hit):
@@ -18971,9 +19016,9 @@ def build_b_tier_core_tree(name, target_obj):
 
 def build_sound_state_tree(name):
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    stop_all = tree.nodes.new("LogicNativeStopAllSounds")
-    set_done = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    stop_all = new_logic_node(tree.nodes, "LogicNativeStopAllSounds")
+    set_done = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     set_done.inputs["Property"].default_value = "sound_stopped"
     set_done.inputs["Value"].default_value = True
@@ -18993,11 +19038,11 @@ def load_acceptance_test_sound():
 def build_sound_advanced_tree(name):
     tree = new_logic_tree(name)
     sound = load_acceptance_test_sound()
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    play_3d = tree.nodes.new("LogicNativePlaySound3D")
-    pause = tree.nodes.new("LogicNativePauseSound")
-    resume = tree.nodes.new("LogicNativeResumeSound")
-    set_done = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    play_3d = new_logic_node(tree.nodes, "LogicNativePlaySound3D")
+    pause = new_logic_node(tree.nodes, "LogicNativePauseSound")
+    resume = new_logic_node(tree.nodes, "LogicNativeResumeSound")
+    set_done = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
 
     play_3d.sound = sound
     pause.sound = sound
@@ -19015,8 +19060,8 @@ def build_sound_advanced_tree(name):
 def build_vehicle_control_compile_tree(name):
     """On-init smoke; vehicle nodes are covered by catalog parity and C++ registry gtests."""
     tree = new_logic_tree(name)
-    on_init = tree.nodes.new("LogicNativeOnInit")
-    set_ok = tree.nodes.new("LogicNativeSetGamePropertyBool")
+    on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+    set_ok = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
     set_ok.inputs["Property"].default_value = "vehicle_nodes_ok"
     set_ok.inputs["Value"].default_value = True
     tree.links.new(on_init.outputs["Out"], flow_input(set_ok))
@@ -19333,7 +19378,7 @@ def run_phase10_service_blend_load_acceptance(status_path):
                 f"Service fixture LogicNodeTree has no OnInit event: {fixture_name}",
             )
             require(
-                any(node.bl_idname == "LogicNativeSetGamePropertyString" for node in tree.nodes),
+                any(logic_idname(node) == "LogicNativeSetGamePropertyString" for node in tree.nodes),
                 f"Service fixture LogicNodeTree has no executable marker write: {fixture_name}",
             )
         driver = bpy.data.objects.get(f"LN_Phase10_{fixture_kind}_Driver")
@@ -19362,14 +19407,14 @@ def run_phase10_service_blend_load_acceptance(status_path):
             )
             set_marker = next(
                 (node for node in tree.nodes
-                 if node.bl_idname == "LogicNativeSetGamePropertyString"),
+                 if logic_idname(node) == "LogicNativeSetGamePropertyString"),
                 None,
             )
             require(
                 set_marker is not None,
                 f"Service fixture LogicNodeTree has no marker command: {fixture_name}",
             )
-            quit_node = tree.nodes.new("LogicNativeQuitGame")
+            quit_node = new_logic_node(tree.nodes, "LogicNativeQuitGame")
             quit_node.name = f"LN_Phase10_{fixture_kind}_CompileGateQuit"
             try:
                 tree.links.new(set_marker.outputs["Done"], quit_node.inputs["Flow"])

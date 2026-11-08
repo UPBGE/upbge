@@ -56,11 +56,45 @@ struct ID;
 void LN_ClearGlobalProperties();
 
 class EXP_Value;
+class LN_RuntimeTree;
 /** A game property's value as Logic Nodes read it, for code without a tree (the UI service):
  * objects in it become references of \a manager's shared domain, the very objects that
  * LN_CommandBuffer::ApplyGamePropertyValue without a tree writes back (by name without a
  * manager). An empty value when \a property is null. Main thread only. */
 LN_Value LN_GamePropertyValue(EXP_Value *property, LN_Manager *manager);
+/** A game property (not null) read as a Bool or as text by the rules of every read of a value
+ * (ValueAsBool, ValueToText of its value, as Get Game Property of another object gives it): the
+ * snapshot's typed reads of a property of another type (2026-11-08). They only read the property:
+ * any thread (the parallel capture). */
+bool LN_GamePropertyAsBool(EXP_Value *property);
+std::string LN_GamePropertyAsText(EXP_Value *property);
+
+/** The list and dictionary nodes' change \a op on \a collection (a List for the list changes, a
+ * Dict for the others), by the very rules of their Output Only results (the ListAppend ...
+ * DictRemoveKey kinds, compared in LN_NodeCoverage's ListAndDictionaryChangesEndAsTheirOutputs):
+ * negative indexes count from the end, an index outside the list or an empty key changes
+ * nothing, Remove Value removes the first equal item, Add to Dictionary Value keeps whole counts
+ * integers. Returns whether the collection changed. */
+bool LN_ApplyPropertyEdit(LN_Value &collection,
+                          LN_PropertyEditOp op,
+                          const LN_Value &value,
+                          int32_t index,
+                          const std::string &key,
+                          float amount);
+/** CommandType::EditGameProperty at the flush: reads \a property_name of \a object live, changes
+ * it (LN_ApplyPropertyEdit) and writes it back when it changed (objects in it through
+ * \a runtime_tree's references, as the Inventory node). A missing property starts empty for
+ * Append, Set Dictionary Key and Add to Dictionary Value (the others have nothing to change); a
+ * property holding anything else is left as it is: false and \a r_reason. Main thread only. */
+bool LN_ApplyGamePropertyEdit(KX_GameObject *object,
+                              const std::string &property_name,
+                              LN_PropertyEditOp op,
+                              const LN_Value &value,
+                              int32_t index,
+                              const std::string &key,
+                              float amount,
+                              LN_RuntimeTree *runtime_tree,
+                              std::string &r_reason);
 
 /** Where the per-object state of a tree running one program lives in its state block
  * (LN_RuntimeTree::StateBlock, 2026-10-31). Built once per program and shared by all of its
@@ -193,6 +227,26 @@ class LN_RuntimeTree {
   {
     return m_hasStepSpread;
   }
+  /** The tree's random stream (LN_Random.h): what makes a Per Object random node's numbers this
+   * object's own. The manager numbers the trees of one source tree as they start
+   * (LN_Manager::AssignRandomStream), so the same play gives every object the same numbers again;
+   * a tree no manager numbers takes one from its object and tree indexes. */
+  void SetRandomStream(const uint64_t stream)
+  {
+    m_randomStream = stream;
+  }
+  uint64_t GetRandomStream() const
+  {
+    return m_randomStream;
+  }
+  /** The tick count a random node hashes now: the steps done for On Init (run in the tree's first
+   * tick, a frame or a step: either way the same count), else the event's own count (steps on
+   * Logic + Physics Step routes, frames on Frame Update routes). */
+  uint64_t RandomTick(const LN_TickContext &context) const
+  {
+    return m_randomInInit && context.event != LN_Event::OnFixedUpdate ? context.steps_done :
+                                                                         context.phase_tick_index;
+  }
   /** The program has Every N Steps gates. */
   bool HasStepGates() const
   {
@@ -238,6 +292,14 @@ class LN_RuntimeTree {
    * captured (the snapshot's own rules, LN_Snapshot::CaptureGamePropertiesOnly), plus its transform
    * when the column program reads it from the snapshot (`transform`), on any thread. */
   void CaptureColumnProperties(uint64_t tick_index, bool transform);
+  /** A lane given back to the column pass (LN_ColumnRunner's GiveBack): its snapshot holds only
+   * what CaptureColumnProperties took, while the pass reads every channel from it (time, input,
+   * gravity...). Takes the rest as the tick's capture would have, keeping the pose taken then
+   * (LN_Snapshot::CompleteLaneCapture); the tree is no lane after it. Main thread. */
+  void CompleteColumnLaneSnapshot(const LN_TickReadContext *tick_context,
+                                  float fixed_delta,
+                                  uint64_t tick_index,
+                                  bool transform_taken);
   /** Plan C1: what ExecuteReady and ExecuteEvent do for a pass of `context.event` before its ops
    * (the fallback report, the state block, the loop budget, the event's delta, a new execution
    * scope); returns the pass's scope serial. A lane's tree on its chunk's thread. */
@@ -247,6 +309,10 @@ class LN_RuntimeTree {
   /** Plan C1: On Logic + Physics Step's Time Passed (StepTimePassed: the gate's, else the
    * event's delta). */
   float ColumnStepTimePassed(uint32_t step_gate_index) const;
+  /** The steps a run of a route behind gate `step_gate_index` covers (Every N Steps: N, the steps
+   * since its last run; no gate: 1): LN_StepFactor's count, for the VM's handlers and the
+   * columns' FStepFactor alike. */
+  uint32_t StepGateStepsCovered(uint32_t step_gate_index) const;
   /** Plan C1: the unscaled delta a block behind gate `step_gate_index` reads (its gate's time). */
   float ColumnGateUnscaledDelta(uint32_t step_gate_index, const LN_TickContext &context) const;
   /** Plan C1: the delta_time a block behind gate `step_gate_index` reads, as float (`raw`) or not
@@ -334,6 +400,8 @@ class LN_RuntimeTree {
   /** ExecuteEvent's prelude (its context a copy, the event's delta, a new scope serial) and
    * ColumnRunDirectEvent (plan C2 P6). */
   void ColumnExecuteEvent(LN_Event event, LN_CommandBuffer &buffer, LN_TickContext context);
+  /** On Init through ColumnExecuteEvent, its random numbers counted in steps (RandomTick). */
+  void RunInitEvent(LN_CommandBuffer &command_buffer, const LN_TickContext &context);
   /** Plan C1-9: loop frame `frame` completed in the pass of scope `scope_serial` (its Completed
    * route runs: the column walk's check). */
   bool ColumnLoopCompleted(uint32_t frame, uint64_t scope_serial) const;
@@ -354,8 +422,6 @@ class LN_RuntimeTree {
   static MT_Vector3 ColumnVectorToRotationEuler(const MT_Vector3 &direction,
                                                 const MT_Vector3 &up,
                                                 int32_t axis_selector);
-  /** Plan C1: the hash Random Float / Random Integer draw from. */
-  static float ColumnHashToUnitFloat(uint64_t value);
   /** Plan C1: the conversions of a generic value the kinds' FromGenericValue make. */
   static bool ColumnValueAsFloat(const LN_Value &value, float &r_value);
   /** ValueAsVector (plan C1-11: a tree property's generic value as a vector in columns). */
@@ -1481,6 +1547,8 @@ class LN_RuntimeTree {
     bool due = false;
     double time_passed = 0.0;
     double unscaled_time_passed = 0.0;
+    /** The steps `time_passed` covers (StepGateStepsSinceLastRun): StepGateStepsCovered. */
+    uint32_t steps = 1;
     /** The step of the routes' last run, a Run Logic Tree pass's included: their next run covers
      * the steps since (a pass between due steps counted its steps twice before 2026-10-31). */
     uint64_t last_run_step = UINT64_MAX;
@@ -1494,6 +1562,9 @@ class LN_RuntimeTree {
   double m_eventDeltaTime = 0.0;
   uint32_t m_stepSpread = 0;
   bool m_hasStepSpread = false;
+  uint64_t m_randomStream = 0;
+  /** On Init runs now (RandomTick). */
+  bool m_randomInInit = false;
   bool m_stepGatesAnyDue = false;
   /** A Run Logic Tree pass runs every route of the step, gated ones too, each with the time since
    * it last ran (StepGateStepsSinceLastRun). */

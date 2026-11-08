@@ -163,7 +163,8 @@ bool LN_RuntimeTree::BoolKind(In &in,
       const float b = in.Float(expression.input1, 0.0f);
       switch (expression.float_compare_operation) {
         case LN_FloatCompareOperation::Equal:
-          return std::fabs(a - b) <= 1.0e-6f;
+          /* (a == b first: infinity minus itself is NaN, so Equal(inf, inf) was false.) */
+          return a == b || std::fabs(a - b) <= 1.0e-6f;
         case LN_FloatCompareOperation::NotEqual:
           return std::fabs(a - b) > 1.0e-6f;
         case LN_FloatCompareOperation::GreaterThan:
@@ -732,6 +733,26 @@ bool LN_RuntimeTree::BoolKind(In &in,
       const LN_QueryResult &sound = in.Query(expression.input0);
       return sound.valid && sound.ui_sound == expression.int_value;
     }
+    case LN_BoolExpressionKind::Random: {
+      const float probability = in.Float(expression.float_expr_index, 0.5f);
+      const int32_t seed = in.Int(expression.int_expr_index, 0);
+      return LN_RandomChance(
+          RandomNodeBits(
+              uint32_t(expression.int_value), seed, 0, RandomTick(context), m_randomStream),
+          probability);
+    }
+    case LN_BoolExpressionKind::ObjectGamePropertyExists: {
+      /* ObjectGameProperty's object and name reads, then whether the property is there. */
+      KX_GameObject *target_object = m_gameObject;
+      if (expression.input0 != LN_INVALID_INDEX) {
+        target_object = ResolveObjectValue(in.Value(expression.input0, MakeNoneValue()));
+      }
+      if (target_object == nullptr) {
+        return false;
+      }
+      const std::string property_name = in.String(expression.input1, std::string());
+      return target_object->GetProperty(property_name) != nullptr;
+    }
     case LN_BoolExpressionKind::UIElementEventAccepted:
       return in.Query(expression.input0).ui_accepted;
     case LN_BoolExpressionKind::UIScrolled:
@@ -1194,11 +1215,15 @@ int32_t LN_RuntimeTree::IntKind(In &in,
     case LN_IntExpressionKind::Random: {
       const int32_t min_value = in.Int(expression.input0, 0);
       const int32_t max_value = in.Int(expression.input1, 1);
-      const int32_t lower = std::min(min_value, max_value);
-      const int32_t upper = std::max(min_value, max_value);
-      const uint64_t seed = (uint64_t(expression_index) << 32) ^ context.tick_index;
-      return lower + int32_t(HashToUnitFloat(seed) * float(upper - lower + 1));
+      const int32_t seed = in.Int(expression.input2, 0);
+      return LN_RandomIntInRange(
+          RandomNodeBits(
+              uint32_t(expression.int_value), seed, 0, RandomTick(context), m_randomStream),
+          min_value,
+          max_value);
     }
+    case LN_IntExpressionKind::GameRandomSeed:
+      return int32_t(LN_GetRandomGameSeed());
     case LN_IntExpressionKind::MaterialSlotCount: {
       KX_GameObject *target_object = m_gameObject;
       if (expression.input0 != LN_INVALID_INDEX) {
@@ -1519,9 +1544,9 @@ float LN_RuntimeTree::FloatKind(In &in,
       const float max_value = in.Float(expression.input2, 0.0f);
       switch (expression.range_operation) {
         case LN_RangeOperation::Inside:
-          return (min_value < value && value < max_value) ? value : 0.0f;
         case LN_RangeOperation::Outside:
-          return (value < min_value || value > max_value) ? value : 0.0f;
+          return LN_RangeHolds(expression.range_operation, value, min_value, max_value) ? value :
+                                                                                          0.0f;
       }
       break;
     }
@@ -1554,10 +1579,12 @@ float LN_RuntimeTree::FloatKind(In &in,
     case LN_FloatExpressionKind::Random: {
       const float min_value = in.Float(expression.input0, 0.0f);
       const float max_value = in.Float(expression.input1, 1.0f);
-      const float lower = std::min(min_value, max_value);
-      const float upper = std::max(min_value, max_value);
-      const uint64_t seed = (uint64_t(expression_index) << 32) ^ context.tick_index;
-      return lower + (upper - lower) * HashToUnitFloat(seed);
+      const int32_t seed = in.Int(expression.input2, 0);
+      return LN_RandomFloatInRange(
+          RandomNodeBits(
+              uint32_t(expression.int_value), seed, 0, RandomTick(context), m_randomStream),
+          min_value,
+          max_value);
     }
     case LN_FloatExpressionKind::Select: {
       const bool condition = in.Bool(expression.bool_expr_index, expression.bool_value);
@@ -2524,17 +2551,20 @@ MT_Vector3 LN_RuntimeTree::VectorKind(In &in,
       return state->next_path_point;
     }
     case LN_VectorExpressionKind::Random: {
-      const MT_Vector3 axes = in.Vector(expression.input0, MT_Vector3(1.0f, 1.0f, 1.0f));
+      /* Each axis between its Min and Max (salts 1, 2, 3); an axis whose ends are equal is that
+       * value. The old Random Vector node gives Min (0, 0, 0) and its Axes as Max. */
+      const MT_Vector3 min_value = in.Vector(expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const MT_Vector3 max_value = in.Vector(expression.input1, MT_Vector3(1.0f, 1.0f, 1.0f));
+      const int32_t seed = in.Int(expression.input2, 0);
+      const uint64_t node = LN_RandomNodePart(
+          LN_GetRandomGameSeed(), uint32_t(expression.int_value), RandomTick(context));
+      const uint64_t stream = (uint32_t(expression.int_value) & LN_RANDOM_SAME_FOR_ALL) != 0 ?
+                                  0 :
+                                  m_randomStream;
       return MT_Vector3(
-          axes.x() != 0.0f ?
-              HashToUnitFloat((uint64_t(expression_index) << 32) ^ context.tick_index ^ 0x13579u) :
-              0.0f,
-          axes.y() != 0.0f ?
-              HashToUnitFloat((uint64_t(expression_index) << 32) ^ context.tick_index ^ 0x24680u) :
-              0.0f,
-          axes.z() != 0.0f ? HashToUnitFloat((uint64_t(expression_index) << 32) ^
-                                             context.tick_index ^ 0xabcdefu) :
-                             0.0f);
+          LN_RandomFloatInRange(LN_RandomBits(node, seed, stream, 1), min_value.x(), max_value.x()),
+          LN_RandomFloatInRange(LN_RandomBits(node, seed, stream, 2), min_value.y(), max_value.y()),
+          LN_RandomFloatInRange(LN_RandomBits(node, seed, stream, 3), min_value.z(), max_value.z()));
     }
     case LN_VectorExpressionKind::Count:
       break;
@@ -3690,9 +3720,13 @@ LN_Value LN_RuntimeTree::ValueKind(In &in,
       {
         return fallback;
       }
-      const uint64_t seed = (uint64_t(expression_index) << 32) ^ context.tick_index;
-      const size_t index = std::min(size_t(HashToUnitFloat(seed) * list_value.list_value.size()),
-                                    list_value.list_value.size() - 1);
+      const int32_t seed = in.Int(expression.input1, 0);
+      const size_t index = LN_RandomIndex(RandomNodeBits(uint32_t(expression.value.int_value),
+                                                         seed,
+                                                         0,
+                                                         RandomTick(context),
+                                                         m_randomStream),
+                                          list_value.list_value.size());
       return list_value.list_value[index];
     }
     case LN_ValueExpressionKind::ValueSwitchList: {
@@ -5081,14 +5115,12 @@ void LN_RuntimeTree::QueryKind(In &in,
       break;
     }
     case LN_QueryExpressionKind::CameraRay: {
-      /* The Camera input when it is a camera the engine has drawn with (its projection matrix is
-       * set: a camera never drawn has none to cast through), else the scene's active camera. */
+      /* The Camera input, through its own lens (ProjectScreenToWorld asks the engine for the
+       * projection of a camera not drawn with: 2026-11-08, such a camera fell back to the active
+       * one), else (empty) the scene's active camera. */
       KX_Camera *camera = nullptr;
       if (expression.input0 != LN_INVALID_INDEX) {
-        KX_Camera *requested = ResolveCameraValue(in.Value(expression.input0, MakeNoneValue()));
-        if (requested != nullptr && requested->hasValidProjectionMatrix()) {
-          camera = requested;
-        }
+        camera = ResolveCameraValue(in.Value(expression.input0, MakeNoneValue()));
       }
       if (camera == nullptr) {
         camera = GetActiveCamera();

@@ -8,7 +8,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -291,6 +293,15 @@ enum class LN_OpCode : uint8_t {
   /** Set Volume: int_value the LN_SoundGroup (Master too), float_expr_index Volume,
    * secondary_float_expr_index Fade (seconds). */
   SetSoundVolume,
+  /** Set Random Seed: int_value 0 = the Seed input (int_expr_index), 1 = a new seed from the
+   * clock. Applied after the tick (LN_RequestRandomGameSeed). */
+  SetRandomSeed,
+  /** A list or dictionary node in Game Property mode (2026-11-08): changes the list or dictionary
+   * a game property holds, at the flush (CommandType::EditGameProperty). int_value the
+   * LN_PropertyEditOp, value_expr_index Object (none: the owner), string_expr_index Property,
+   * int_expr_index Index, secondary_string_expr_index Key, secondary_value_expr_index Value,
+   * tertiary_value_expr_index Amount. */
+  EditGameProperty,
   Count,
 };
 
@@ -763,6 +774,14 @@ enum class LN_BoolExpressionKind : uint8_t {
   /** On UI Sound: the UI's sound this frame is the one of int_value (LN_UIService::UISound).
    * input0 = the node's query (a UIElementEvent query of LN_UIElementEvent::UISound). */
   UISoundFired,
+  /** Random Value (Boolean): true with float_expr_index Probability; int_expr_index Seed,
+   * int_value the node's identity with bit 0 = Same for All (LN_Random.h). */
+  Random,
+  /** Get Game Property's Exists of another object (and of its Any option): the object has the
+   * property, whatever it holds. input0 = the object (a value; none: the owner), input1 = the
+   * name (a string). An Object property holding nothing counts (2026-11-08: Not(ValueIsNone)
+   * of the value called it missing, while the owner's typed Exists, the snapshot's, did not). */
+  ObjectGamePropertyExists,
   Count,
 };
 
@@ -775,6 +794,40 @@ enum class LN_RangeOperation : uint8_t {
   Inside = 0,
   Outside,
 };
+
+/** Within Range and Ranged Threshold (2026-11-08): Min and Max in either order (lo = std::min,
+ * hi = std::max, as the Minimum / Maximum kinds Within Range's route is built from), both ends
+ * inside; Outside is the rest (a NaN value is neither). Before, both ends were neither inside nor
+ * outside and a Max below Min was never inside. Folding, the VM and the columns all call this. */
+inline bool LN_RangeHolds(const LN_RangeOperation operation,
+                          const float value,
+                          const float min_value,
+                          const float max_value)
+{
+  const float lo = std::min(min_value, max_value);
+  const float hi = std::max(min_value, max_value);
+  switch (operation) {
+    case LN_RangeOperation::Inside:
+      return lo <= value && value <= hi;
+    case LN_RangeOperation::Outside:
+      return value < lo || value > hi;
+  }
+  return false;
+}
+
+/** A factor applied once a Logic + Physics step (Slow Follow, Rotate To, Align Axis To Vector:
+ * "the fraction of the way each fixed step"), for a run covering `steps` steps (a route behind
+ * Every N Steps: N): as if applied once each step, 1 - (1 - f)^steps (2026-11-08: such a route
+ * followed N times slower, while Translate and Move To keep their speed through Time Passed).
+ * One step: the factor as it is. The VM's handlers and the columns' FStepFactor call this. */
+inline float LN_StepFactor(const float factor, const uint32_t steps)
+{
+  if (steps <= 1) {
+    return factor;
+  }
+  const float f = std::clamp(factor, 0.0f, 1.0f);
+  return 1.0f - std::pow(1.0f - f, float(steps));
+}
 
 enum class LN_FloatCompareOperation : uint8_t {
   Equal = 0,
@@ -825,6 +878,8 @@ enum class LN_FloatExpressionKind : uint8_t {
   RangedThreshold,
   VectorComponent,
   ColorComponent,
+  /** Random Value (Float): input0 Min, input1 Max, input2 Seed (int), int_value the node's
+   * identity with bit 0 = Same for All (LN_Random.h). */
   Random,
   Select,
   StoreValue,
@@ -910,6 +965,8 @@ enum class LN_IntExpressionKind : uint8_t {
   LoopIndex,
   DictLength,
   FromGenericValue,
+  /** Random Value (Integer): input0 Min, input1 Max (both included), input2 Seed, int_value the
+   * node's identity with bit 0 = Same for All (LN_Random.h). */
   Random,
   MaterialSlotCount,
   CollisionContactCount,
@@ -946,6 +1003,8 @@ enum class LN_IntExpressionKind : uint8_t {
   PlayerGamepad,
   /** Get Menu Player: the player whose menu the tree's object is in (0 outside menus). */
   MenuPlayerUser,
+  /** Set Random Seed's Seed output: the game's random seed now (LN_GetRandomGameSeed). */
+  GameRandomSeed,
   Count,
 };
 
@@ -1047,6 +1106,8 @@ enum class LN_VectorExpressionKind : uint8_t {
   ConstraintBreakAnchorPosition,
   EvaluateCurveAtFactor,
   InstructionNextPoint,
+  /** Random Value (Vector): input0 Min, input1 Max (vectors), input2 Seed (int), int_value the
+   * node's identity with bit 0 = Same for All (LN_Random.h). */
   Random,
   TweenVectorResult,
   TweenRotationResult,
@@ -1157,6 +1218,8 @@ enum class LN_ValueExpressionKind : uint8_t {
   RigidBodyConstraintNames,
   ValueChangedOld,
   ValueChangedNew,
+  /** Get Random List Item: input0 List, input1 Seed (int), value.int_value the node's identity
+   * with bit 0 = Same for All (LN_Random.h). */
   ListRandomItem,
   ValueSwitchList,
   ValueSwitchListCompare,
@@ -1921,6 +1984,30 @@ struct LN_PropertyModify {
   float max_value = 0.0f;
 };
 
+/** The list and dictionary nodes' changes (node custom1 LN_COLLECTION_STORE_GAME_PROPERTY):
+ * applied to the list or dictionary a game property holds when commands flush, in the order
+ * they ran, so two changes in one step both take effect (LN_ApplyGamePropertyEdit). */
+enum class LN_PropertyEditOp : uint8_t {
+  ListAppend = 0,
+  ListRemoveIndex,
+  ListRemoveValue,
+  ListSetIndex,
+  DictSetKey,
+  DictAddValue,
+  DictRemoveKey,
+};
+
+/** The list and dictionary nodes' custom1: 0 gives the changed copy at the output (every node
+ * saved before 2026-11-08), 1 changes the game property (new nodes). */
+inline constexpr int16_t LN_COLLECTION_STORE_OUTPUT_ONLY = 0;
+inline constexpr int16_t LN_COLLECTION_STORE_GAME_PROPERTY = 1;
+
+inline constexpr bool LN_PropertyEditIsList(const LN_PropertyEditOp op)
+{
+  return op == LN_PropertyEditOp::ListAppend || op == LN_PropertyEditOp::ListRemoveIndex ||
+         op == LN_PropertyEditOp::ListRemoveValue || op == LN_PropertyEditOp::ListSetIndex;
+}
+
 struct LN_GamePropertyCommandPayload {
   uint32_t object_value_expr_index = LN_INVALID_INDEX;
   uint32_t property_ref_index = LN_INVALID_INDEX;
@@ -2093,6 +2180,8 @@ struct LN_VectorExpression {
   LN_Rotation rotation_value;
   LN_ValueType output_type = LN_ValueType::Vector;
   float float_value = 0.0f;
+  /** Random: the node's identity (LN_Random.h). */
+  int32_t int_value = 0;
   bool bool_value = false;
 };
 
@@ -2396,6 +2485,10 @@ struct LN_TickContext {
   LN_CommandBuffer *command_buffer = nullptr;
   uint64_t tick_index = 0;
   uint64_t phase_tick_index = 0;
+  /** Logic + Physics steps run before this tick (in a step tick, its phase_tick_index). On Init's
+   * random numbers count steps with it, whether the tree's first tick is a frame or a step: a
+   * copy added in step N rolls the same numbers at any frame rate (2026-11-07). */
+  uint64_t steps_done = 0;
   /** Steps between two runs of the route being executed: 1, or N inside a route of On Logic +
    * Physics Step's Every N Steps. Nodes that need their flow on consecutive runs (Pulsify,
    * Barrier, an on-demand Tween) count a run this many steps later as the next one. */

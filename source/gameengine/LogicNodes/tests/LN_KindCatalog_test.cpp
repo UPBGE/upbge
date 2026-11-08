@@ -103,7 +103,11 @@ TEST(LN_KindCatalog, EveryKindOfTheEnumsIsListedOnce)
   const LN_KindInfo *rows = LN_KindCatalog(&count);
   ASSERT_NE(rows, nullptr);
   EXPECT_EQ(count, total) << "the table has rows that no enumerator has, or twice";
-  EXPECT_EQ(count, 606u); /* 619 before plan phase A12 deleted the 13 dead kinds */
+  /* 619 before plan phase A12 deleted the 13 dead kinds; 609 since Random Value's Boolean, Set
+   * Random Seed and its Seed output (2026-11-07); 610 since Bool::ObjectGamePropertyExists
+   * (2026-11-08); 611 since Op::EditGameProperty (the list and dictionary nodes' Game Property
+   * mode, 2026-11-08). */
+  EXPECT_EQ(count, 611u);
   /* Each (domain, value) pair appears once. */
   std::set<std::pair<int, int>> seen;
   std::set<std::string> names_seen;

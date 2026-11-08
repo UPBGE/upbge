@@ -510,6 +510,12 @@ class LN_Manager {
    * objects using it take turns (only trees whose program has step gates). `renumber`: also a
    * tree numbered by another scene's manager (Load Scene). */
   void AssignStepSpread(LN_RuntimeTree &runtime_tree, bool renumber = false);
+  /** Random numbers (LN_Random.h): the tree's stream, from its source tree and how many trees of
+   * it started before it, so every object gets its own numbers and the same play gives them
+   * again. Every tree as it starts; again for a tree another scene's manager numbered (Load
+   * Scene) or Load Game restored. Also says the play's seed once, when a New Each Play game's
+   * first random node starts. */
+  void AssignRandomStream(LN_RuntimeTree &runtime_tree);
   void CacheCompiledProgram(const std::shared_ptr<const LN_Program> &program);
   std::shared_ptr<const LN_Program> EnsureCompiledProgram(const std::string &tree_name);
   std::shared_ptr<const LN_Program> EnsureCompiledProgram(
@@ -638,6 +644,11 @@ class LN_Manager {
   uint64_t m_fixedTickIndex = 0;
   /** The next step spread of each source tree (AssignStepSpread), by tree name and library. */
   std::unordered_map<std::string, uint32_t> m_stepSpreadCounters;
+  /** The next random stream number of each source tree (AssignRandomStream). */
+  std::unordered_map<std::string, uint32_t> m_randomStreamCounters;
+  /** The last program AssignRandomStream looked through for random nodes (a crowd's copies share
+   * it). */
+  const LN_Program *m_randomScanProgram = nullptr;
   /** LN_TickContext::mouse_ui_serial, and whether the last frame paused or held Mouse Look. */
   uint64_t m_mouseUISerial = 0;
   bool m_mouseLookHeld = false;

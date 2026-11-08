@@ -16,7 +16,9 @@
 #include "KX_GameObject.h"
 #include "LN_CommandBuffer.h"
 #include "LN_Program.h"
+#include "LN_RuntimeTree.h"
 #include "LN_Snapshot.h"
+#include "LN_TypeConversion.h"
 #include "SCA_InputEvent.h"
 
 namespace {
@@ -73,7 +75,9 @@ std::shared_ptr<LN_Program> CreateGamePropertyProgram(const std::vector<LN_GameP
 
 /** A game property's snapshot value as captures built it before they kept their values and the
  * properties they found (2026-10-30): a fresh copy of the default, filled from the property
- * looked up by name. */
+ * looked up by name. A property of another type than the ref's converts as every other read of a
+ * value (2026-11-08): text read as a number is its number (the default when it is none), empty
+ * text is False, anything but text read as text is its value's text. */
 LN_Value ReferenceGamePropertyValue(KX_GameObject &object, const LN_GamePropertyRef &property_ref)
 {
   LN_Value value = property_ref.default_value;
@@ -87,28 +91,43 @@ LN_Value ReferenceGamePropertyValue(KX_GameObject &object, const LN_GameProperty
     return value;
   }
   const int type = property->GetValueType();
-  const bool number_or_text = type == VALUE_BOOL_TYPE || type == VALUE_INT_TYPE ||
-                              type == VALUE_FLOAT_TYPE || type == VALUE_STRING_TYPE;
+  const bool number = type == VALUE_BOOL_TYPE || type == VALUE_INT_TYPE ||
+                      type == VALUE_FLOAT_TYPE;
+  float text_number = 0.0f;
+  const bool text_is_number = type == VALUE_STRING_TYPE &&
+                              LN_TryParseTypecastFloat(property->GetText(), text_number);
   switch (property_ref.value_type) {
     case LN_ValueType::Bool:
-      value.bool_value = object.GetPropertyNumber(
-                             property_ref.name,
-                             property_ref.default_value.bool_value ? 1.0f : 0.0f) != 0.0f;
+      if (number) {
+        value.bool_value = object.GetPropertyNumber(property_ref.name, 0.0f) != 0.0f;
+      }
+      else if (type == VALUE_STRING_TYPE) {
+        value.bool_value = !property->GetText().empty();
+      }
+      else {
+        value.bool_value = LN_GamePropertyAsBool(property);
+      }
       break;
     case LN_ValueType::Int:
-      if (number_or_text) {
-        value.int_value = int32_t(
-            object.GetPropertyNumber(property_ref.name, property_ref.default_value.int_value));
+      if (number) {
+        value.int_value = LN_ConvertFloatToInt(
+            object.GetPropertyNumber(property_ref.name, 0.0f), LN_FloatToIntMode::Truncate);
+      }
+      else if (text_is_number) {
+        value.int_value = LN_ConvertFloatToInt(text_number, LN_FloatToIntMode::Truncate);
       }
       break;
     case LN_ValueType::Float:
-      if (number_or_text) {
-        value.float_value = object.GetPropertyNumber(property_ref.name,
-                                                     property_ref.default_value.float_value);
+      if (number) {
+        value.float_value = object.GetPropertyNumber(property_ref.name, 0.0f);
+      }
+      else if (text_is_number) {
+        value.float_value = text_number;
       }
       break;
     case LN_ValueType::String:
-      value.string_value = property->GetText();
+      value.string_value = type == VALUE_STRING_TYPE ? property->GetText() :
+                                                       LN_GamePropertyAsText(property);
       break;
     default:
       break;

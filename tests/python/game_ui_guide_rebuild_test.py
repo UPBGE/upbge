@@ -625,7 +625,7 @@ def check_pictures(page, recipe):
                     continue
                 if socket.identifier not in drawn | headers:
                     # In a folded section the picture leaves closed: a new node's value.
-                    if G.socket_value(socket) != G.new_node_inputs(node.bl_idname)[
+                    if G.socket_value(socket) != G.new_node_inputs(node)[
                             socket.identifier]:
                         raise RuntimeError(f"{tree.name} › {node.name}: {socket.identifier} is "
                                            "set, but its section is drawn closed")
@@ -633,11 +633,13 @@ def check_pictures(page, recipe):
                 value = G.socket_value(socket)
                 if value is None or isinstance(value, bool):
                     continue
-                if (node.bl_idname, socket.identifier) in G.SOCKET_DRAWS:
+                if (G.works_as(node), socket.identifier) in G.SOCKET_DRAWS:
                     # Its row shows settings (X, Y, Z) instead: Blender shows no value to set,
                     # so it must be a new node's.
                     fresh = bpy.data.node_groups.new("__fresh", tree.bl_idname)
                     new = fresh.nodes.new(node.bl_idname)
+                    if hasattr(node, "variant"):  # a merged node: the same option
+                        new.variant = node.variant
                     same = G.socket_value(next(s for s in new.inputs
                                                if s.identifier == socket.identifier)) == value
                     bpy.data.node_groups.remove(fresh)

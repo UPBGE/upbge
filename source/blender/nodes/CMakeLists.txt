@@ -157,6 +157,7 @@ set(SRC
   NOD_inverse_eval_path.hh
   NOD_inverse_eval_run.hh
   NOD_logic_descriptors.hh
+  NOD_logic_merged.hh
   NOD_logic.hh
   NOD_math_functions.hh
   NOD_menu_value.hh

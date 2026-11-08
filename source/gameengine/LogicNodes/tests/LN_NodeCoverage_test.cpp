@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <unistd.h>
 #include <map>
+#include <random>
 #include <set>
 
 #include "SCA_IInputDevice.h"
@@ -299,8 +300,9 @@ TEST(LN_NodeCoverage, ValueStringKeyCodeFilePathAndTheInputReadsWithoutADevice)
   w.String(path, "Path", "path");
   GenNode &master = b.Add("LogicNativeGetMasterFolder");
   w.String(master, "Path", "master");
-  GenNode &delta = b.Add("LogicNativeDeltaFactor");
-  w.Float(delta, "Factor", "delta");
+  GenNode &delta = b.Add("LogicNativeTime"); /* its Delta Factor (the Delta Factor node until
+                                               * 2026-11-08) */
+  w.Float(delta, "Delta Factor", "delta");
   GenNode &keyboard = b.Add("LogicNativeKeyboardActive");
   w.Bool(keyboard, "Active", "keyboard");
   GenNode &movement = b.Add("LogicNativeCursorMovement");
@@ -326,22 +328,23 @@ TEST(LN_NodeCoverage, ValueStringKeyCodeFilePathAndTheInputReadsWithoutADevice)
   }
 }
 
-/* Value Valid says TRUE for a value that exists. (It also says TRUE for a tree property that was
- * never set: it tests that a value was produced, not that one was set.) */
-TEST(LN_NodeCoverage, PinsValueValidIsTrueEvenForATreePropertyNeverSet)
+/* Not None (Is None's option; the Value Valid node did the same until 2026-11-08) says TRUE for a
+ * value that exists. (It also says TRUE for a tree property that was never set: it tests that a
+ * value was produced, not that one was set.) */
+TEST(LN_NodeCoverage, PinsNotNoneIsTrueEvenForATreePropertyNeverSet)
 {
   TreeBuilder b;
   Writer w(b);
   GenNode &v = b.Add("LogicNativeGetGamePropertyFloat");
   b.String(v, "Property", "v");
-  GenNode &valid = b.Add("LogicNativeValueValid");
+  GenNode &valid = b.Add("LogicNativeNotNone");
   b.Link(v, "Value", valid, "Value");
-  w.Bool(valid, "If Valid", "valid");
+  w.Bool(valid, "If Not None", "valid");
   GenNode &tree_property = b.Add("LogicNativeGetTreeProperty");
   b.String(tree_property, "Property", "never_set");
-  GenNode &valid_unset = b.Add("LogicNativeValueValid");
+  GenNode &valid_unset = b.Add("LogicNativeNotNone");
   b.Link(tree_property, "Value", valid_unset, "Value");
-  w.Bool(valid_unset, "If Valid", "valid_unset");
+  w.Bool(valid_unset, "If Not None", "valid_unset");
   const std::shared_ptr<LN_Program> program = CompileOrFail(b);
   ASSERT_NE(program, nullptr);
   SemRig rig(program, kMemoOff);
@@ -528,6 +531,49 @@ TEST(LN_NodeCoverage, VariableNodesSaveLoadRemoveListAndClear)
   std::filesystem::remove_all(folder);
 }
 
+/* Save Variable Dict of a value that is no dictionary (a missing property's None, a number) leaves
+ * the file as it was (2026-11-08: it wrote an empty dictionary over the whole file). */
+TEST(LN_NodeCoverage, SaveVariableDictOfNoDictionaryKeepsTheFile)
+{
+  const std::filesystem::path folder = std::filesystem::temp_directory_path() /
+                                       ("ln_node_coverage_dict_" + std::to_string(::getpid()));
+  std::filesystem::create_directories(folder);
+  const std::string path = folder.string();
+  for (const bool from_number : {false, true}) {
+    TreeBuilder b;
+    Writer w(b);
+    const auto with_file = [&](GenNode &node) {
+      b.String(node, "Path", path.c_str());
+      b.String(node, "File", "keep");
+    };
+    GenNode &v = b.Add("LogicNativeGetGamePropertyFloat");
+    b.String(v, "Property", "v");
+    GenNode &save = b.Add("LogicNativeSaveVariable");
+    with_file(save);
+    b.String(save, "Name", "score");
+    b.Link(v, "Value", save, "Value");
+    w.Run(save);
+    GenNode &not_a_dict = b.Add("LogicNativeGetGameProperty");
+    b.String(not_a_dict, "Property", from_number ? "v" : "missing");
+    GenNode &save_dict = b.Add("LogicNativeSaveVariableDict");
+    with_file(save_dict);
+    b.Link(not_a_dict, "Value", save_dict, "Variables");
+    w.Run(save_dict);
+    GenNode &load = b.Add("LogicNativeLoadVariable");
+    with_file(load);
+    b.String(load, "Name", "score");
+    w.Float(load, "Value", "loaded");
+    const std::shared_ptr<LN_Program> program = CompileOrFail(b);
+    ASSERT_NE(program, nullptr);
+    SemRig rig(program, kMemoOff);
+    KX_GameObject &o = rig.Object(0);
+    rig.SetFloat(o, "v", 6.5f);
+    rig.Step();
+    EXPECT_EQ(rig.Float(o, "loaded"), 6.5f) << (from_number ? "a number" : "a missing property");
+  }
+  std::filesystem::remove_all(folder);
+}
+
 
 /* ---- nodes that act on the scene: their command is recorded (nothing is applied) ---- */
 
@@ -592,9 +638,6 @@ TEST(LN_NodeCoverage, SceneNodesWithoutASceneRunAndRecordNothing)
   for (const char *idname : {"LogicNativeApplyForceToTarget",
                              "LogicNativeCameraRay",
                              "LogicNativeDraw",
-                             "LogicNativeDrawBox",
-                             "LogicNativeDrawCube",
-                             "LogicNativeDrawLine",
                              "LogicNativeFollowPath",
                              "LogicNativeMouseRay",
                              "LogicNativeSetNodeMute",
@@ -609,8 +652,9 @@ TEST(LN_NodeCoverage, SceneNodesWithoutASceneRunAndRecordNothing)
 /* Nodes that do not compile as the editor makes them. Pinned so that a fix is a deliberate change:
  * - Load File Content and Play Material Sequence have no runtime command ("unavailable in this
  *   release"; the Add menu already hides them as deferred nodes);
- * - Set Bone Attribute and Start Speaker need a setting (selection, loop mode) the default lacks
- *   (a design choice: the user picks one, plan phase A15 left it). */
+ * - Set Bone Attribute needs a setting (selection) the default lacks (a design choice: the user
+ *   picks one, plan phase A15 left it). Start Speaker, the other one, was removed 2026-11-08: Play
+ *   Sound 3D with no Sound plays the Speaker object's own sound. */
 TEST(LN_NodeCoverage, PinsNodesThatDoNotCompileAsTheEditorMakesThem)
 {
   const struct {
@@ -620,7 +664,6 @@ TEST(LN_NodeCoverage, PinsNodesThatDoNotCompileAsTheEditorMakesThem)
       {"LogicNativeLoadFileContent", "unavailable in this release"},
       {"LogicNativePlayMaterialSequence", "unavailable in this release"},
       {"LogicNativeSetBoneAttribute", "Unsupported Set Bone Attribute selection"},
-      {"LogicNativeStartSpeaker", "requires a speaker object and loop mode"},
   };
   for (const auto &entry : expected) {
     SCOPED_TRACE(entry.idname);
@@ -628,24 +671,6 @@ TEST(LN_NodeCoverage, PinsNodesThatDoNotCompileAsTheEditorMakesThem)
     EXPECT_NE(result.find("no program"), std::string::npos) << result;
     EXPECT_NE(result.find(entry.error), std::string::npos) << result;
   }
-}
-
-/* Join Path joins its two inputs. (Its second input has the same name as the first and the
- * identifier "Path_001"; the compiler matched sockets to pins by name first and failed every tree
- * with a Join Path until plan phase A15 matched the identifier first, bug B1.) */
-TEST(LN_NodeCoverage, JoinPathJoinsItsTwoInputs)
-{
-  TreeBuilder b;
-  Writer w(b);
-  GenNode &join = b.Add("LogicNativeJoinPath");
-  b.String(join, "Path", "folder/");
-  b.String(join, "Path_001", "file.txt");
-  w.String(join, "Path", "joined");
-  const std::shared_ptr<LN_Program> program = CompileOrFail(b);
-  ASSERT_NE(program, nullptr);
-  SemRig rig(program, kMemoOff);
-  rig.Step();
-  EXPECT_EQ(rig.Text(rig.Object(0), "joined"), "folder/file.txt");
 }
 
 /* Value Color keeps the color on its output (all four channels); List Global Category gives the
@@ -705,37 +730,6 @@ TEST(LN_NodeCoverage, ValueColorListGlobalCategoryAndMouseMoved)
   EXPECT_FALSE(rig.Has(o, "moved"));
 }
 
-/* Get Node Group Socket Value has a compile handler but no builder for its Value output (the
- * node never gives a value): linked into any value input the tree does not compile ("requires a
- * value input", "requires a float value input"), so the node cannot be used at all today. Loud,
- * not a silent default. Pinned: a fix is a deliberate change. */
-TEST(LN_NodeCoverage, PinsGetNodeGroupSocketValueGivesNoValueToALinkedInput)
-{
-  {
-    TreeBuilder b;
-    Writer w(b);
-    GenNode &get = b.Add("LogicNativeGetNodeGroupSocketValue");
-    b.String(get, "Node Name", "N");
-    GenNode &set = b.Add("LogicNativeSetGameProperty");
-    b.String(set, "Property", "from_group");
-    b.Link(get, "Value", set, "Value");
-    w.Run(set);
-    std::string report;
-    EXPECT_EQ(b.Compile(&report), nullptr);
-    EXPECT_NE(report.find("requires a value input"), std::string::npos) << report;
-  }
-  {
-    TreeBuilder b;
-    Writer w(b);
-    GenNode &get = b.Add("LogicNativeGetNodeGroupSocketValue");
-    b.String(get, "Node Name", "N");
-    w.Float(get, "Value", "from_group");
-    std::string report;
-    EXPECT_EQ(b.Compile(&report), nullptr);
-    EXPECT_NE(report.find("requires a float value input"), std::string::npos) << report;
-  }
-}
-
 /* Get Sound and Get Image are pickers: their output is the datablock picked in the node, and no
  * other node has a Sound or Image input to read it (Play Sound and the others pick their own sound
  * in the node), so nothing at runtime can show what they give. A tree that holds them compiles. */
@@ -759,9 +753,9 @@ TEST(LN_NodeCoverage, GetSceneGivesNoSceneWithoutOne)
   TreeBuilder b;
   Writer w(b);
   GenNode &scene = b.Add("LogicNativeGetScene");
-  GenNode &valid = b.Add("LogicNativeValueValid");
+  GenNode &valid = b.Add("LogicNativeNotNone");
   b.Link(scene, "Scene", valid, "Value");
-  w.Bool(valid, "If Valid", "valid");
+  w.Bool(valid, "If Not None", "valid");
   const std::shared_ptr<LN_Program> program = CompileOrFail(b);
   ASSERT_NE(program, nullptr);
   SemRig rig(program, kProduction);
@@ -769,6 +763,494 @@ TEST(LN_NodeCoverage, GetSceneGivesNoSceneWithoutOne)
   rig.SetBool(o, "valid", true);
   rig.Step();
   EXPECT_EQ(rig.Float(o, "valid"), 0.0f);
+}
+
+/* Set VSync's From Input (3, 2026-11-08) takes the mode from its Mode input, linked to a value
+ * read while the game runs; the dropdown's modes stay constants. */
+TEST(LN_NodeCoverage, SetVSyncFromInputReadsItsModeInput)
+{
+  for (const int16_t mode : {int16_t(1), int16_t(3)}) {
+    TreeBuilder b;
+    Writer w(b);
+    GenNode &vsync = b.Add("LogicNativeSetVSync", mode);
+    GenNode &read = b.Add("LogicNativeGetGamePropertyInt");
+    b.String(read, "Property", "vsync");
+    b.Link(read, "Value", vsync, "Mode");
+    w.Run(vsync);
+    const std::shared_ptr<LN_Program> program = CompileOrFail(b);
+    ASSERT_NE(program, nullptr);
+    const LN_Instruction *set = nullptr;
+    for (const LN_Instruction &instruction : program->GetInstructions(LN_Event::OnFixedUpdate)) {
+      if (instruction.opcode == LN_OpCode::SetVSync) {
+        set = &instruction;
+      }
+    }
+    ASSERT_NE(set, nullptr);
+    ASSERT_LT(set->int_expr_index, program->GetIntExpressions().size());
+    const LN_IntExpression &expression = program->GetIntExpressions()[set->int_expr_index];
+    if (mode == 3) {
+      EXPECT_NE(expression.kind, LN_IntExpressionKind::Constant) << "the Mode input, read live";
+    }
+    else {
+      EXPECT_EQ(expression.kind, LN_IntExpressionKind::Constant);
+      EXPECT_EQ(expression.int_value, 1);
+    }
+  }
+}
+
+/* Mouse Ray, Camera Ray and Projectile Ray cast with their Flow unlinked (2026-11-08; their
+ * condition was a constant false, so they never cast, though the tooltip calls Flow optional):
+ * unlinked, the condition is a constant true, as the Raycast family's. */
+TEST(LN_NodeCoverage, RaysWithoutAFlowCastWhenTheirOutputIsRead)
+{
+  for (const char *idname :
+       {"LogicNativeMouseRay", "LogicNativeCameraRay", "LogicNativeProjectileRay"})
+  {
+    SCOPED_TRACE(idname);
+    TreeBuilder b;
+    /* (Mask is a Collision Layers socket: an Int socket as the editor makes it.) */
+    b.SetRealSockets(true);
+    Writer w(b);
+    GenNode &ray = b.Add(idname);
+    /* A value it gives, read by a write that runs every step (Projectile Ray's pin identifiers
+     * are its own: "POINT"). */
+    GenNode &split = b.Add("LogicNativeSeparateXYZ");
+    b.Link(ray,
+           std::strcmp(idname, "LogicNativeProjectileRay") == 0 ? "POINT" : "Picked Point",
+           split,
+           "Vector");
+    w.Float(split, "X", "hit_x");
+    const std::shared_ptr<LN_Program> program = CompileOrFail(b);
+    ASSERT_NE(program, nullptr);
+    bool found = false;
+    for (const LN_QueryExpression &query : program->GetQueryExpressions()) {
+      if (query.condition_bool_expr_index == LN_INVALID_INDEX) {
+        continue;
+      }
+      ASSERT_LT(query.condition_bool_expr_index, program->GetBoolExpressions().size());
+      const LN_BoolExpression &condition =
+          program->GetBoolExpressions()[query.condition_bool_expr_index];
+      EXPECT_EQ(condition.kind, LN_BoolExpressionKind::Constant);
+      EXPECT_TRUE(condition.bool_value);
+      found = true;
+    }
+    EXPECT_TRUE(found) << "no query with a condition";
+  }
+}
+
+/* Slow Follow's factor is per Logic + Physics step: a route behind Every 2 Steps covers 2 steps a
+ * run and follows as far as two steps would (2026-11-08: it followed half as fast). Factor 0.5
+ * from x 0 to a Target at x 1: the first run (step 0) covers one step, x 0.5; the next (step 2)
+ * two, x 0.875, where one run a step is after steps 0, 1 and 2 (it was 0.75). */
+TEST(LN_NodeCoverage, SlowFollowBehindEveryNStepsFollowsAsFarAsItsSteps)
+{
+  for (const int16_t every : {int16_t(1), int16_t(2)}) {
+    SCOPED_TRACE("every " + std::to_string(every));
+    TreeBuilder b;
+    GenNode &step = b.Add("LogicNativeOnFixedUpdate", every, 1);
+    GenNode &follow = b.Add("LogicNativeSlowFollow");
+    b.ObjectNamed(follow, "Target", &diff::TargetBlenderObject());
+    b.Float(follow, "Factor", 0.5f);
+    b.Link(step, "Out", follow, "Flow");
+    const std::shared_ptr<LN_Program> program = CompileOrFail(b);
+    ASSERT_NE(program, nullptr);
+    SemRig rig(program, kProduction);
+    rig.AddObject("Target", MT_Vector3(1.0f, 0.0f, 0.0f));
+    /* A step, then the scene graph's update (Slow Follow sets the world position; the scene
+     * updates world poses between steps, the rig does not). */
+    const auto step_x = [&]() {
+      rig.Step();
+      rig.Object(0).NodeUpdateGS(0.0);
+      return float(rig.Object(0).NodeGetWorldPosition().x());
+    };
+    EXPECT_FLOAT_EQ(step_x(), 0.5f);
+    EXPECT_FLOAT_EQ(step_x(), every == 1 ? 0.75f : 0.5f);
+    EXPECT_FLOAT_EQ(step_x(), 0.875f);
+  }
+}
+
+/* Combine XYZW linked into a Vector input warns that W is dropped there (2026-11-08); a Generic
+ * input (Set Game Property's Value) keeps all four, without a warning. */
+TEST(LN_NodeCoverage, CombineXYZWWarnsWhereItsWIsDropped)
+{
+  for (const bool into_vector : {true, false}) {
+    TreeBuilder b;
+    Writer w(b);
+    GenNode &xyzw = b.Add("LogicNativeCombineXYZW");
+    GenNode *target = nullptr;
+    if (into_vector) {
+      target = &b.Add("LogicNativeApplyMovement");
+      b.Link(xyzw, "Vector", *target, "Vector");
+    }
+    else {
+      target = &b.Add("LogicNativeSetGameProperty");
+      b.String(*target, "Property", "v4");
+      b.Link(xyzw, "Vector", *target, "Value");
+    }
+    w.Run(*target);
+    std::string report;
+    const std::shared_ptr<LN_Program> program = b.Compile(&report);
+    ASSERT_NE(program, nullptr) << report;
+    bool warned = false;
+    for (const LN_CompileIssue &issue : program->GetCompileReport().GetIssues()) {
+      warned = warned || (issue.severity == LN_CompileSeverity::Warning &&
+                          issue.message.find("W is dropped") != std::string::npos);
+    }
+    EXPECT_EQ(warned, into_vector) << report;
+  }
+}
+
+/* ---- list and dictionary nodes in Game Property mode (2026-11-08) ---- */
+
+LN_Value TestItem(const LN_ValueType type, const int number, const char *text = "")
+{
+  LN_Value value;
+  value.type = type;
+  value.exists = true;
+  if (type == LN_ValueType::Int) {
+    value.int_value = number;
+  }
+  else if (type == LN_ValueType::Float) {
+    value.float_value = float(number) * 0.75f;
+  }
+  else {
+    value.string_value = text;
+  }
+  return value;
+}
+
+/** Writes `value` into the game property as Logic Nodes write one. */
+void PutValue(KX_GameObject &object, const char *name, const LN_Value &value)
+{
+  std::string reason;
+  ASSERT_TRUE(LN_CommandBuffer::ApplyGamePropertyValue(&object, name, value, nullptr, reason))
+      << reason;
+}
+
+/** The game property as Logic Nodes read it, every field. */
+std::string StoredValue(KX_GameObject &object, const char *name)
+{
+  EXP_Value *property = object.GetProperty(name);
+  if (property == nullptr) {
+    return "<none>";
+  }
+  LN_DumpNames names;
+  return LN_DumpValue(LN_GamePropertyValue(property, nullptr), names);
+}
+
+/** `value` as StoredValue gives it once written into a property (the same round trip). */
+std::string AsStored(KX_GameObject &object, const LN_Value &value)
+{
+  /* (A write never changes a property's type: a list after a dictionary is refused.) */
+  object.RemoveProperty("__expected");
+  PutValue(object, "__expected", value);
+  return StoredValue(object, "__expected");
+}
+
+struct CollectionNodeCase {
+  const char *idname;
+  LN_PropertyEditOp op;
+  /** The collection input and output (List or Dictionary). */
+  const char *collection;
+  bool index, key, value, amount;
+};
+
+const CollectionNodeCase kCollectionNodes[] = {
+    {"LogicNativeListAppend", LN_PropertyEditOp::ListAppend, "List", false, false, true, false},
+    {"LogicNativeListRemoveIndex",
+     LN_PropertyEditOp::ListRemoveIndex,
+     "List",
+     true,
+     false,
+     false,
+     false},
+    {"LogicNativeListRemoveValue",
+     LN_PropertyEditOp::ListRemoveValue,
+     "List",
+     false,
+     false,
+     true,
+     false},
+    {"LogicNativeListSetIndex", LN_PropertyEditOp::ListSetIndex, "List", true, false, true, false},
+    {"LogicNativeDictSetKey", LN_PropertyEditOp::DictSetKey, "Dictionary", false, true, true, false},
+    {"LogicNativeDictAddValue",
+     LN_PropertyEditOp::DictAddValue,
+     "Dictionary",
+     false,
+     true,
+     false,
+     true},
+    {"LogicNativeDictRemoveKey",
+     LN_PropertyEditOp::DictRemoveKey,
+     "Dictionary",
+     false,
+     true,
+     false,
+     false},
+};
+
+/* The Game Property mode (one rule: LN_ApplyPropertyEdit at the flush) changes the stored list or
+ * dictionary exactly as the Output Only result (the kinds, unchanged since before 2026-11-08)
+ * changes its copy: both modes of each node on the same inputs, read live from properties, over
+ * 400 random lists or dictionaries (indexes in and out of range, negative ones, empty and missing
+ * keys, equal and unequal values, whole and broken amounts). */
+TEST(LN_NodeCoverage, ListAndDictionaryChangesEndAsTheirOutputs)
+{
+  for (const CollectionNodeCase &c : kCollectionNodes) {
+    SCOPED_TRACE(c.idname);
+    TreeBuilder b;
+    GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+    const auto read = [&](const char *idname, const char *property) -> GenNode & {
+      GenNode &node = b.Add(idname);
+      b.String(node, "Property", property);
+      return node;
+    };
+    GenNode &source = read("LogicNativeGetGameProperty", "src");
+    GenNode &index = read("LogicNativeGetGamePropertyInt", "i");
+    GenNode &key = read("LogicNativeGetGamePropertyString", "k");
+    GenNode &value = read("LogicNativeGetGameProperty", "v");
+    GenNode &amount = read("LogicNativeGetGameProperty", "a");
+    const auto inputs = [&](GenNode &node) {
+      if (c.index) {
+        b.Link(index, "Value", node, "Index");
+      }
+      if (c.key) {
+        b.Link(key, "Value", node, "Key");
+      }
+      if (c.value) {
+        b.Link(value, "Value", node, "Value");
+      }
+      if (c.amount) {
+        b.Link(amount, "Value", node, "Amount");
+      }
+    };
+    GenNode &copy = b.Add(c.idname, LN_COLLECTION_STORE_OUTPUT_ONLY);
+    b.Link(step, "Out", copy, "Flow");
+    b.Link(source, "Value", copy, c.collection);
+    inputs(copy);
+    GenNode &keep = b.Add("LogicNativeSetGameProperty");
+    b.String(keep, "Property", "out");
+    b.Link(copy, c.collection, keep, "Value");
+    b.Link(copy, "Done", keep, "Flow");
+    GenNode &edit = b.Add(c.idname, LN_COLLECTION_STORE_GAME_PROPERTY);
+    b.String(edit, "Property", "dst");
+    b.Link(step, "Out", edit, "Flow");
+    inputs(edit);
+    const std::shared_ptr<LN_Program> program = CompileOrFail(b);
+    ASSERT_NE(program, nullptr);
+    SemRig rig(program, kMemoOff);
+    KX_GameObject &o = rig.Object(0);
+    std::mt19937 random(uint32_t(c.op) * 7919u + 13u);
+    const auto pick = [&](const int count) { return int(random() % uint32_t(count)); };
+    const char *keys[] = {"a", "b", "c", "d"};
+    const auto item = [&]() {
+      switch (pick(3)) {
+        case 0:
+          return TestItem(LN_ValueType::Int, pick(5) - 2);
+        case 1:
+          return TestItem(LN_ValueType::Float, pick(5) - 2);
+        default:
+          return TestItem(LN_ValueType::String, 0, pick(2) == 0 ? "x" : "y");
+      }
+    };
+    for (int round = 0; round < 400; round++) {
+      LN_Value collection;
+      collection.exists = true;
+      if (LN_PropertyEditIsList(c.op)) {
+        collection.type = LN_ValueType::List;
+        for (int n = pick(6); n > 0; n--) {
+          collection.list_value.push_back(item());
+        }
+      }
+      else {
+        collection.type = LN_ValueType::Dict;
+        for (const char *k : keys) {
+          if (pick(2) == 0) {
+            collection.dict_value[k] = item();
+          }
+        }
+      }
+      PutValue(o, "src", collection);
+      PutValue(o, "dst", collection);
+      rig.SetInt(o, "i", pick(13) - 6);
+      rig.SetString(o, "k", pick(5) == 0 ? "" : keys[pick(4)]);
+      /* Remove Value: mostly a value the list holds. */
+      PutValue(o,
+               "v",
+               !collection.list_value.empty() && pick(3) != 0 ?
+                   collection.list_value[size_t(pick(int(collection.list_value.size())))] :
+                   item());
+      const float amounts[] = {0.0f, 1.0f, -2.0f, 2.5f, 1.0e6f, 0.1f};
+      rig.SetFloat(o, "a", amounts[pick(6)]);
+      rig.Step();
+      ASSERT_EQ(StoredValue(o, "dst"), StoredValue(o, "out")) << "round " << round;
+    }
+  }
+}
+
+/* What Game Property mode adds: every change of a step takes effect, in order, after the step's
+ * earlier writes of the property (the Output Only nodes' trap: two Appends in one step kept one
+ * item); Done follows the change; a missing property starts empty; one of another type is left as
+ * it is; another object's property changes too. In every interpreter mode. */
+TEST(LN_NodeCoverage, ListAndDictionaryNodesChangeTheirGamePropertyInOrder)
+{
+  for (const SemMode &mode : AllModes()) {
+    SCOPED_TRACE(mode.name);
+    TreeBuilder b;
+    Writer w(b);
+    const auto read = [&](const char *idname, const char *property) -> GenNode & {
+      GenNode &node = b.Add(idname);
+      b.String(node, "Property", property);
+      return node;
+    };
+    GenNode &one = read("LogicNativeGetGameProperty", "one");
+    GenNode &two = read("LogicNativeGetGameProperty", "two");
+    GenNode &empty = read("LogicNativeGetGameProperty", "empty");
+    const auto change = [&](const char *idname, const char *property) -> GenNode & {
+      GenNode &node = b.Add(idname, LN_COLLECTION_STORE_GAME_PROPERTY);
+      b.String(node, "Property", property);
+      w.Run(node);
+      return node;
+    };
+    /* Two Appends in one step, after a Set Object Property of the same list. */
+    GenNode &reset = b.Add("LogicNativeSetGameProperty");
+    b.String(reset, "Property", "items");
+    b.Link(empty, "Value", reset, "Value");
+    w.Run(reset);
+    b.Link(one, "Value", change("LogicNativeListAppend", "items"), "Value");
+    b.Link(two, "Value", change("LogicNativeListAppend", "items"), "Value");
+    /* A later Set Object Property wins over an earlier Append. */
+    b.Link(one, "Value", change("LogicNativeListAppend", "replaced"), "Value");
+    GenNode &replace = b.Add("LogicNativeSetGameProperty");
+    b.String(replace, "Property", "replaced");
+    b.Link(empty, "Value", replace, "Value");
+    w.Run(replace);
+    /* Missing properties: an Append and a Set Dictionary Key make them, a removal does not. */
+    b.Link(two, "Value", change("LogicNativeListAppend", "fresh"), "Value");
+    GenNode &set_key = change("LogicNativeDictSetKey", "fresh_dict");
+    b.String(set_key, "Key", "k");
+    b.Link(one, "Value", set_key, "Value");
+    change("LogicNativeListRemoveIndex", "missing");
+    /* A property of another type stays as it is. */
+    b.Link(one, "Value", change("LogicNativeListAppend", "number"), "Value");
+    /* Counts: two adds to one key in one step, then a removed key. */
+    GenNode &add_a = change("LogicNativeDictAddValue", "counts");
+    b.String(add_a, "Key", "n");
+    b.Float(add_a, "Amount", 2.0f);
+    GenNode &add_b = change("LogicNativeDictAddValue", "counts");
+    b.String(add_b, "Key", "n");
+    b.Float(add_b, "Amount", 3.0f);
+    GenNode &remove_key = change("LogicNativeDictRemoveKey", "counts");
+    b.String(remove_key, "Key", "gone");
+    /* Another object's list. */
+    GenNode &other = change("LogicNativeListAppend", "log");
+    b.ObjectNamed(other, "Object", &diff::TargetBlenderObject());
+    b.Link(two, "Value", other, "Value");
+    /* Done follows: one count a step. */
+    GenNode &count = b.Add("LogicNativeModifyProperty", blender::NODE_MATH_ADD);
+    b.String(count, "Property", "done");
+    b.Float(count, "Value", 1.0f);
+    w.Run(count);
+    const std::shared_ptr<LN_Program> program = CompileOrFail(b);
+    ASSERT_NE(program, nullptr);
+    /* Three owners: the later trees have sort keys of their own (the first one's is 0, which
+     * hid a change recorded at key 0 in front of the tree's other writes). */
+    constexpr size_t kOwners = 3;
+    SemRig rig(program, mode, kOwners);
+    KX_GameObject &target = rig.AddObject("Target", MT_Vector3(1.0f, 0.0f, 0.0f));
+    KX_GameObject &scratch = rig.AddObject("Scratch", MT_Vector3(0.0f, 0.0f, 0.0f));
+    LN_Value empty_list;
+    empty_list.type = LN_ValueType::List;
+    empty_list.exists = true;
+    LN_Value nine = empty_list;
+    nine.list_value.push_back(TestItem(LN_ValueType::Int, 9));
+    LN_Value counts;
+    counts.type = LN_ValueType::Dict;
+    counts.exists = true;
+    counts.dict_value["n"] = TestItem(LN_ValueType::Int, 1);
+    counts.dict_value["gone"] = TestItem(LN_ValueType::Int, 4);
+    for (size_t owner = 0; owner < kOwners; owner++) {
+      KX_GameObject &o = rig.Object(owner);
+      PutValue(o, "one", TestItem(LN_ValueType::Int, 1));
+      PutValue(o, "two", TestItem(LN_ValueType::String, 0, "two"));
+      PutValue(o, "empty", empty_list);
+      PutValue(o, "items", nine);
+      PutValue(o, "replaced", nine);
+      PutValue(o, "counts", counts);
+      rig.SetFloat(o, "number", 3.5f);
+      rig.SetFloat(o, "done", 0.0f);
+    }
+    rig.Step();
+    LN_Value both = empty_list;
+    both.list_value = {TestItem(LN_ValueType::Int, 1), TestItem(LN_ValueType::String, 0, "two")};
+    LN_Value just_two = empty_list;
+    just_two.list_value = {TestItem(LN_ValueType::String, 0, "two")};
+    LN_Value fresh_dict;
+    fresh_dict.type = LN_ValueType::Dict;
+    fresh_dict.exists = true;
+    fresh_dict.dict_value["k"] = TestItem(LN_ValueType::Int, 1);
+    LN_Value counted = counts;
+    counted.dict_value.erase("gone");
+    counted.dict_value["n"] = TestItem(LN_ValueType::Int, 6);
+    for (size_t owner = 0; owner < kOwners; owner++) {
+      SCOPED_TRACE("owner " + std::to_string(owner));
+      KX_GameObject &o = rig.Object(owner);
+      EXPECT_EQ(StoredValue(o, "items"), AsStored(scratch, both))
+          << "the Set first, then both Appends in order";
+      EXPECT_EQ(StoredValue(o, "replaced"), AsStored(scratch, empty_list));
+      EXPECT_EQ(StoredValue(o, "fresh"), AsStored(scratch, just_two));
+      EXPECT_EQ(StoredValue(o, "fresh_dict"), AsStored(scratch, fresh_dict));
+      EXPECT_FALSE(rig.Has(o, "missing"));
+      EXPECT_EQ(rig.Float(o, "number"), 3.5f);
+      EXPECT_EQ(StoredValue(o, "counts"), AsStored(scratch, counted)) << "1 + 2 + 3, an Int";
+      EXPECT_EQ(rig.Float(o, "done"), 1.0f);
+    }
+    LN_Value log = empty_list;
+    log.list_value.assign(kOwners, TestItem(LN_ValueType::String, 0, "two"));
+    EXPECT_EQ(StoredValue(target, "log"), AsStored(scratch, log)) << "one item a tree";
+    rig.Step();
+    log.list_value.assign(2 * kOwners, TestItem(LN_ValueType::String, 0, "two"));
+    EXPECT_EQ(StoredValue(target, "log"), AsStored(scratch, log)) << "one more a tree a step";
+    EXPECT_EQ(rig.Float(rig.Object(kOwners - 1), "done"), 2.0f);
+  }
+}
+
+/* Game Property mode needs a property name; Output Only (every node saved before 2026-11-08)
+ * still compiles as a value node, Flow unlinked included. */
+TEST(LN_NodeCoverage, ListAndDictionaryNodesNeedAPropertyOnlyInGamePropertyMode)
+{
+  for (const CollectionNodeCase &c : kCollectionNodes) {
+    SCOPED_TRACE(c.idname);
+    {
+      TreeBuilder b;
+      Writer w(b);
+      w.Run(b.Add(c.idname, LN_COLLECTION_STORE_GAME_PROPERTY));
+      std::string report;
+      EXPECT_EQ(b.Compile(&report), nullptr);
+      EXPECT_NE(report.find("needs the name of the game property"), std::string::npos) << report;
+    }
+    {
+      TreeBuilder b;
+      Writer w(b);
+      GenNode &copy = b.Add(c.idname, LN_COLLECTION_STORE_OUTPUT_ONLY);
+      GenNode &length = b.Add(LN_PropertyEditIsList(c.op) ? "LogicNativeListLength" :
+                                                             "LogicNativeDictLength");
+      b.Link(copy, c.collection, length, c.collection);
+      w.Int(length, "Length", "length");
+      const std::shared_ptr<LN_Program> program = CompileOrFail(b);
+      ASSERT_NE(program, nullptr);
+      SemRig rig(program, kMemoOff);
+      rig.Step();
+      EXPECT_TRUE(rig.Has(rig.Object(0), "length"));
+    }
+  }
+}
+
+/* Start Speaker was removed (2026-11-08): Play Sound 3D with no Sound records its play (the
+ * Speaker object's own sound is found when it starts, LN_CommandBuffer::SpeakerPlayOf). */
+TEST(LN_NodeCoverage, PlaySound3DWithoutASoundRecordsItsPlay)
+{
+  EXPECT_EQ(RecordedTypes("LogicNativePlaySound3D"), "PlaySound3D");
 }
 
 }  // namespace

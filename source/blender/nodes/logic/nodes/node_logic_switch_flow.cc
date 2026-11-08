@@ -50,11 +50,11 @@ static void draw_case_count(ui::Layout &layout,
   RNA_int_set(&op_ptr, "delta", 1);
 }
 
-static wmOperatorStatus change_case_count(bContext *C,
-                                          wmOperator *op,
-                                          const char *node_idname)
+/* The buttons of both options of the merged Switch Flow (NOD_logic_merged.hh). */
+static wmOperatorStatus change_case_count(bContext *C, wmOperator *op)
 {
-  PointerRNA node_ptr = socket_items::ops::get_active_node_to_operate_on(C, op, node_idname);
+  PointerRNA node_ptr = socket_items::ops::get_active_node_to_operate_on(
+      C, op, "LogicNativeSwitchFlow");
   if (node_ptr.data == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -101,7 +101,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static wmOperatorStatus node_case_count_exec(bContext *C, wmOperator *op)
 {
-  return change_case_count(C, op, "LogicNativeSwitchFlowInt");
+  return change_case_count(C, op);
 }
 
 static void NODE_OT_logic_switch_flow_int_case_count(wmOperatorType *ot)
@@ -130,14 +130,14 @@ static void node_register()
 {
   static bke::bNodeType int_ntype;
 
-  logic_node_type_base(&int_ntype, "LogicNativeSwitchFlowInt"_ustr);
+  logic_option_type_base(&int_ntype, "LogicNativeSwitchFlowInt"_ustr);
   int_ntype.nclass = NODE_CLASS_CONVERTER;
   int_ntype.declare = int_node_declare;
   int_ntype.draw_buttons = node_layout;
   int_ntype.initfunc = node_init;
   int_ntype.register_operators = node_operators;
 
-  bke::node_register_type(int_ntype);
+  logic_option_register(int_ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -176,7 +176,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static wmOperatorStatus node_case_count_exec(bContext *C, wmOperator *op)
 {
-  return change_case_count(C, op, "LogicNativeSwitchFlowString");
+  return change_case_count(C, op);
 }
 
 static void NODE_OT_logic_switch_flow_string_case_count(wmOperatorType *ot)
@@ -205,14 +205,14 @@ static void node_register()
 {
   static bke::bNodeType string_ntype;
 
-  logic_node_type_base(&string_ntype, "LogicNativeSwitchFlowString"_ustr);
+  logic_option_type_base(&string_ntype, "LogicNativeSwitchFlowString"_ustr);
   string_ntype.nclass = NODE_CLASS_CONVERTER;
   string_ntype.declare = string_node_declare;
   string_ntype.draw_buttons = node_layout;
   string_ntype.initfunc = node_init;
   string_ntype.register_operators = node_operators;
 
-  bke::node_register_type(string_ntype);
+  logic_option_register(string_ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

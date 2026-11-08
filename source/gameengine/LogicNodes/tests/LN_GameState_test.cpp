@@ -207,6 +207,41 @@ TEST(LN_GameState, CurrentCheckpointGoldenDocumentIsStableAndReadable)
   EXPECT_EQ(rewritten, expected);
 }
 
+/* The game's random seed (2026-11-07) is saved with the game and comes back with it; a file saved
+ * before has none (the golden document above, which also stays byte for byte). */
+TEST(LN_GameState, TheRandomSeedIsSavedAndLoadedWithTheGame)
+{
+  using namespace upbge::logic_nodes::game_state;
+
+  Checkpoint checkpoint;
+  checkpoint.scene_uuid = kSceneUuid;
+  checkpoint.scene_name = "Seeded";
+  checkpoint.has_random_seed = true;
+  checkpoint.random_seed = 2147483647u;
+
+  std::string contents;
+  std::string error;
+  ASSERT_EQ(encode_checkpoint(checkpoint, contents, error), LN_GameStateResult::Success) << error;
+  EXPECT_NE(contents.find("\"random_seed\":2147483647"), std::string::npos) << contents;
+  Checkpoint decoded;
+  ASSERT_EQ(decode_checkpoint(contents, decoded, error), LN_GameStateResult::Success) << error;
+  EXPECT_TRUE(decoded.has_random_seed);
+  EXPECT_EQ(decoded.random_seed, 2147483647u);
+  std::string rewritten;
+  ASSERT_EQ(encode_checkpoint(decoded, rewritten, error), LN_GameStateResult::Success) << error;
+  EXPECT_EQ(rewritten, contents);
+
+  Checkpoint older;
+  older.scene_uuid = kSceneUuid;
+  older.scene_name = "Older";
+  ASSERT_EQ(encode_checkpoint(older, contents, error), LN_GameStateResult::Success) << error;
+  EXPECT_EQ(contents.find("random_seed"), std::string::npos);
+  Checkpoint decoded_older;
+  ASSERT_EQ(decode_checkpoint(contents, decoded_older, error), LN_GameStateResult::Success)
+      << error;
+  EXPECT_FALSE(decoded_older.has_random_seed);
+}
+
 TEST(LN_GameState, CurrentCheckpointRoundTripsUnifiedObjectState)
 {
   using namespace upbge::logic_nodes::game_state;

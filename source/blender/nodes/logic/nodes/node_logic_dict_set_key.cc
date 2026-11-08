@@ -14,6 +14,10 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
+  b.add_input<decl::Object>("Object"_ustr)
+      .description(logic::collection_store_object_description());
+  b.add_input<decl::String>("Property"_ustr)
+      .description(logic::collection_store_property_description("dictionary"));
   b.add_input<decl::Dictionary>("Dictionary"_ustr);
   b.add_input<decl::String>("Key"_ustr).default_value("key");
   b.add_input<decl::Generic>("Value"_ustr);
@@ -28,6 +32,9 @@ static void node_register()
   logic_node_type_base(&ntype, "LogicNativeDictSetKey"_ustr);
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
+  ntype.draw_buttons = logic::collection_store_layout;
+  ntype.initfunc = logic::collection_store_init;
+  ntype.updatefunc = logic::collection_store_update;
 
   bke::node_register_type(ntype);
 }

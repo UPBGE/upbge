@@ -934,6 +934,17 @@ void LN_RuntimeTree::OpGlobalPropertyInstruction(Frame &ef,
   const LN_Event event = ef.event;
   LN_TickContext &context = ef.context;
 
+  if (instruction.opcode == LN_OpCode::SetRandomSeed) {
+    /* Set Random Seed: the game's seed changes after this tick, so every tree of the tick sees
+     * one seed (the last request of the tick wins). int_value 1: a new seed from the clock. */
+    const uint32_t seed = instruction.int_value == 1 ?
+                              LN_NewRandomGameSeed() :
+                              uint32_t(ef.Int(instruction.int_expr_index, 0));
+    LN_RequestRandomGameSeed(seed);
+    MarkInstructionExecuted(event, instruction_id, context.tick_index);
+    return;
+  }
+
   const std::string category = ef.String(
       instruction.string_expr_index, std::string());
   const std::string property = ef.String(
@@ -990,12 +1001,18 @@ void LN_RuntimeTree::OpVariableInstruction(Frame &ef,
           instruction.string_expr_index, "//Data");
       const std::string file_name = ef.String(
           instruction.secondary_string_expr_index, "variables");
-      LN_Value dict = ef.Value(
+      const LN_Value dict = ef.Value(
           instruction.value_expr_index, MakeNoneValue());
-      if (dict.type != LN_ValueType::Dict) {
-        dict.type = LN_ValueType::Dict;
-        dict.exists = true;
-        dict.dict_value.clear();
+      if (!dict.exists || dict.type != LN_ValueType::Dict) {
+        /* Nothing is written (2026-11-08: anything that is no dictionary, a missing property or
+         * an unlinked input, wrote an empty one over the whole file). Clear Variables empties a
+         * file; an empty dictionary still does. */
+        static std::atomic<bool> warned{false};
+        if (!warned.exchange(true)) {
+          CM_Warning("Save Variable Dict: the Variables value is no dictionary, so the file '"
+                     << file_name << "' was left as it was");
+        }
+        break;
       }
       SaveVariableDictToFile(path, file_name, dict);
       break;
@@ -3026,7 +3043,9 @@ void LN_RuntimeTree::OpDirectPhysicsCommand(Frame &ef,
       const MT_Vector3 vector = ef.Vector(
           instruction.vector_expr_index, MT_Vector3(0.0f, 0.0f, 1.0f));
       const int32_t axis = ef.Int(instruction.int_expr_index, 2);
-      const float factor = ef.Float(instruction.float_expr_index, 1.0f);
+      /* (Per step: a run behind Every N Steps covers N.) */
+      const float factor = LN_StepFactor(ef.Float(instruction.float_expr_index, 1.0f),
+                                         StepGateStepsCovered(instruction.step_gate_index));
       if (KX_GameObject *target = ef.ResolveCommandTarget(instruction)) {
         command_buffer.AppendAlignAxisToVector(
             target,
@@ -3042,7 +3061,9 @@ void LN_RuntimeTree::OpDirectPhysicsCommand(Frame &ef,
     case LN_OpCode::RotateToward: {
       const MT_Vector3 target_point = ef.Vector(
           instruction.vector_expr_index, MT_Vector3(1.0f, 0.0f, 0.0f));
-      const float factor = ef.Float(instruction.float_expr_index, 1.0f);
+      /* (Per step: a run behind Every N Steps covers N.) */
+      const float factor = LN_StepFactor(ef.Float(instruction.float_expr_index, 1.0f),
+                                         StepGateStepsCovered(instruction.step_gate_index));
       const int32_t rot_axis = ef.Int(instruction.int_expr_index, 2);
       const int32_t front_axis = ef.Int(
           instruction.secondary_int_expr_index, 1);
@@ -3061,7 +3082,9 @@ void LN_RuntimeTree::OpDirectPhysicsCommand(Frame &ef,
     }
     case LN_OpCode::SlowFollow: {
       if (KX_GameObject *target = ef.ResolveCommandTarget(instruction)) {
-        const float factor = ef.Float(instruction.float_expr_index, 1.0f);
+        /* (Per step: a run behind Every N Steps covers N.) */
+        const float factor = LN_StepFactor(ef.Float(instruction.float_expr_index, 1.0f),
+                                           StepGateStepsCovered(instruction.step_gate_index));
         KX_GameObject *follow_target = nullptr;
         if (instruction.secondary_value_expr_index != LN_INVALID_INDEX) {
           const LN_Value target_val = ef.Value(
@@ -3750,7 +3773,8 @@ void LN_RuntimeTree::OpDirectAudioCommand(Frame &ef,
                                      loop,
                                      ef.SortKey(),
                                      instruction.source_ref_index,
-                                     instruction.secondary_int_value);
+                                     instruction.secondary_int_value,
+                                     m_gameObject);
       break;
     }
     case LN_OpCode::SetSoundVolume: {
@@ -3785,24 +3809,12 @@ void LN_RuntimeTree::OpDirectAudioCommand(Frame &ef,
       if (speaker == nullptr) {
         speaker = m_gameObject;
       }
-      float default_volume = instruction.vector_value.x();
-      float default_pitch = instruction.vector_value.y();
-      std::string sound_name = ef.String(
-          instruction.string_expr_index, std::string());
-      if (sound_name.empty()) {
-        sound_name = SoundNameFromSpeakerObject(speaker, default_volume, default_pitch);
-      }
-      if (sound_name.empty()) {
-        return;
-      }
-      const float volume = ef.Float(
-          instruction.float_expr_index, default_volume);
-      const float pitch = ef.Float(
-          instruction.secondary_float_expr_index, default_pitch);
-      const bool loop = instruction.bool_expr_index != LN_INVALID_INDEX ?
-                            ef.Bool(
-                                instruction.bool_expr_index, instruction.bool_value) :
-                            ef.Int(instruction.int_expr_index, 0) != 0;
+      /* No Sound picked (an empty name): the Speaker object's own, with its settings, found when
+       * the sound starts (LN_CommandBuffer::SpeakerPlayOf). */
+      const std::string sound_name = ef.String(instruction.string_expr_index, std::string());
+      const float volume = ef.Float(instruction.float_expr_index, 1.0f);
+      const float pitch = ef.Float(instruction.secondary_float_expr_index, 1.0f);
+      const bool loop = ef.Bool(instruction.bool_expr_index, instruction.bool_value);
       command_buffer.AppendPlaySound3D(
           speaker,
           sound_name,
@@ -4692,6 +4704,41 @@ void LN_RuntimeTree::OpDirectObjectReferenceCommand(Frame &ef,
                                           property,
                                           ef.SortKey(),
                                           instruction.source_ref_index);
+      }
+      MarkInstructionExecuted(event, instruction_id, context.tick_index);
+      break;
+    }
+    case LN_OpCode::EditGameProperty: {
+      /* A list or dictionary node in Game Property mode: the change is recorded and made on the
+       * live property at the flush, after this step's earlier writes of it (LN_PropertyEditOp).
+       * No Object input: the owner; a linked one that gives no object changes nothing. Reads in
+       * socket order. */
+      KX_GameObject *target = m_gameObject;
+      if (instruction.value_expr_index != LN_INVALID_INDEX) {
+        target = ResolveObjectValue(ef.Value(instruction.value_expr_index, MakeNoneValue()));
+      }
+      const std::string property = ef.String(instruction.string_expr_index, std::string());
+      const int32_t index = ef.Int(instruction.int_expr_index, 0);
+      const std::string key = ef.String(instruction.secondary_string_expr_index, std::string());
+      const LN_Value value = instruction.secondary_value_expr_index != LN_INVALID_INDEX ?
+                                 ef.Value(instruction.secondary_value_expr_index,
+                                          MakeNoneValue()) :
+                                 MakeNoneValue();
+      float amount = 0.0f;
+      if (instruction.tertiary_value_expr_index != LN_INVALID_INDEX) {
+        ValueAsFloat(ef.Value(instruction.tertiary_value_expr_index, MakeNoneValue()), amount);
+      }
+      if (target != nullptr && !property.empty()) {
+        command_buffer.AppendEditGameProperty(this,
+                                              target,
+                                              property,
+                                              LN_PropertyEditOp(instruction.int_value),
+                                              value,
+                                              index,
+                                              key,
+                                              amount,
+                                              ef.SortKey(),
+                                              instruction.source_ref_index);
       }
       MarkInstructionExecuted(event, instruction_id, context.tick_index);
       break;

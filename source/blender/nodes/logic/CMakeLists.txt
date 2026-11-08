@@ -20,17 +20,13 @@ set(INC_SYS
 set(SRC
   nodes/node_logic_character_jump.cc
   nodes/node_logic_dict_add_value.cc
-  nodes/node_logic_get_bone_head_world.cc
   nodes/node_logic_get_character_info.cc
-  nodes/node_logic_combine_xy.cc
   nodes/node_logic_combine_xyz.cc
-  nodes/node_logic_color_rgb.cc
   nodes/node_logic_color_rgba.cc
   nodes/node_logic_collision.cc
   nodes/node_logic_compare.cc
   nodes/node_logic_cooldown.cc
   nodes/node_logic_copy_property.cc
-  nodes/node_logic_clear_variables.cc
   nodes/node_logic_euler.cc
   nodes/node_logic_evaluate_property.cc
   nodes/node_logic_drop_item.cc
@@ -53,13 +49,7 @@ set(SRC
   nodes/node_logic_repeat_limit.cc
   nodes/node_logic_break_loop.cc
   nodes/node_logic_gate.cc
-  nodes/node_logic_apply_impulse.cc
-  nodes/node_logic_apply_force.cc
   nodes/node_logic_apply_force_to_target.cc
-  nodes/node_logic_apply_movement.cc
-  nodes/node_logic_apply_rotation.cc
-  nodes/node_logic_apply_torque.cc
-  nodes/node_logic_action_done.cc
   nodes/node_logic_add_object.cc
   nodes/node_logic_align_axis_to_vector.cc
   nodes/node_logic_animation_status.cc
@@ -71,74 +61,48 @@ set(SRC
   nodes/node_logic_find_object.cc
   nodes/node_logic_follow_path.cc
   nodes/node_logic_add_physics_constraint.cc
-  nodes/node_logic_get_game_property.cc
-  nodes/node_logic_get_game_property_bool.cc
-  nodes/node_logic_get_game_property_float.cc
-  nodes/node_logic_get_game_property_int.cc
-  nodes/node_logic_get_game_property_string.cc
   nodes/node_logic_get_collision_group.cc
   nodes/node_logic_get_gravity.cc
   nodes/node_logic_get_active_camera.cc
-  nodes/node_logic_get_fullscreen.cc
-  nodes/node_logic_get_vsync.cc
-  nodes/node_logic_get_child.cc
-  nodes/node_logic_get_child_by_name.cc
   nodes/node_logic_get_collection.cc
   nodes/node_logic_get_collection_object_names.cc
   nodes/node_logic_get_collection_objects.cc
   nodes/node_logic_get_rigid_body_constraints.cc
   nodes/node_logic_get_distance.cc
   nodes/node_logic_get_average_center_position.cc
-  nodes/node_logic_get_light_color.cc
-  nodes/node_logic_get_light_power.cc
   nodes/node_logic_get_parent.cc
   nodes/node_logic_get_owner.cc
   nodes/node_logic_get_global_property.cc
-  nodes/node_logic_get_resolution.cc
   nodes/node_logic_get_scene.cc
   nodes/node_logic_get_object_attribute.cc
   nodes/node_logic_get_rigid_body_attribute.cc
   nodes/node_logic_get_tree_property.cc
   nodes/node_logic_get_timescale.cc
-  nodes/node_logic_has_property.cc
   nodes/node_logic_keyboard_active.cc
-  nodes/node_logic_keyboard_key.cc
   nodes/node_logic_key_code.cc
   nodes/node_logic_key_logger.cc
   nodes/node_logic_quit_game.cc
-  nodes/node_logic_delay.cc
   nodes/node_logic_load_blend_file.cc
   nodes/node_logic_loop.cc
   nodes/node_logic_loop_from_list.cc
   nodes/node_logic_list_length.cc
   nodes/node_logic_list_get_item.cc
   nodes/node_logic_list_random_item.cc
-  nodes/node_logic_make_list.cc
   nodes/node_logic_list_extend.cc
   nodes/node_logic_dict_get_key.cc
   nodes/node_logic_make_dict.cc
   nodes/node_logic_dict_length.cc
   nodes/node_logic_dict_get_keys.cc
-  nodes/node_logic_get_bone_tail_world.cc
-  nodes/node_logic_get_bone_length.cc
-  nodes/node_logic_get_bone_center_world.cc
-  nodes/node_logic_get_bone_head_pose_world.cc
-  nodes/node_logic_get_bone_tail_pose_world.cc
-  nodes/node_logic_get_bone_center_pose_world.cc
   nodes/node_logic_bone_rotation_to_object_rotation.cc
-  nodes/node_logic_get_bone_pose_rotation.cc
-  nodes/node_logic_get_bone_pose_scale.cc
   nodes/node_logic_get_bone_pose_transform.cc
   nodes/node_logic_set_bone_pose_location.cc
   nodes/node_logic_set_bone_pose_rotation.cc
   nodes/node_logic_set_bone_pose_scale.cc
   nodes/node_logic_set_bone_pose_transform.cc
-  nodes/node_logic_set_bone_constraint_influence.cc
   nodes/node_logic_list_contains.cc
   nodes/node_logic_empty_list.cc
   nodes/node_logic_empty_dict.cc
   nodes/node_logic_dict_has_key.cc
-  nodes/node_logic_list_duplicate.cc
   nodes/node_logic_dict_merge.cc
   nodes/node_logic_list_global_properties.cc
   nodes/node_logic_list_saved_variables.cc
@@ -150,25 +114,44 @@ set(SRC
   nodes/node_logic_dict_remove_key.cc
   nodes/node_logic_list_from_items.cc
   nodes/node_logic_load_game.cc
-  nodes/node_logic_load_variable.cc
-  nodes/node_logic_load_variable_dict.cc
-  nodes/node_logic_load_scene.cc
-  nodes/node_logic_install_logic_tree.cc
   nodes/node_logic_logic_tree_status.cc
-  nodes/node_logic_run_logic_tree.cc
-  nodes/node_logic_start_logic_tree.cc
   nodes/node_logic_stop_action.cc
-  nodes/node_logic_stop_all_sounds.cc
-  nodes/node_logic_stop_sound.cc
-  nodes/node_logic_stop_logic_tree.cc
-  nodes/node_logic_delta_factor.cc
-  nodes/node_logic_limit_range.cc
   nodes/node_logic_map_range.cc
   nodes/node_logic_mix_value.cc
   nodes/node_logic_math.cc
-  nodes/node_logic_modify_property.cc
+  nodes/node_logic_merged.cc
+  nodes/node_logic_apply_physics_force_options.cc
+  nodes/node_logic_apply_transform_options.cc
+  nodes/node_logic_cast_ray_options.cc
+  nodes/node_logic_cast_shape_options.cc
+  nodes/node_logic_change_scene_options.cc
+  nodes/node_logic_control_logic_tree_options.cc
+  nodes/node_logic_control_sound_options.cc
+  nodes/node_logic_cursor_options.cc
+  nodes/node_logic_delay_flow_options.cc
+  nodes/node_logic_drive_vehicle_options.cc
+  nodes/node_logic_get_bone_point_options.cc
+  nodes/node_logic_get_child_object_options.cc
+  nodes/node_logic_get_display_setting_options.cc
+  nodes/node_logic_get_game_property_value_options.cc
+  nodes/node_logic_get_light_attribute_options.cc
+  nodes/node_logic_is_none_options.cc
+  nodes/node_logic_key_button_options.cc
+  nodes/node_logic_modify_game_property_options.cc
+  nodes/node_logic_on_value_change_options.cc
+  nodes/node_logic_overlay_collection_options.cc
+  nodes/node_logic_set_bone_constraint_options.cc
+  nodes/node_logic_set_camera_lens_options.cc
+  nodes/node_logic_set_character_attribute_options.cc
+  nodes/node_logic_set_game_property_value_options.cc
+  nodes/node_logic_set_light_attribute_options.cc
+  nodes/node_logic_set_paused_options.cc
+  nodes/node_logic_show_debug_overlay_options.cc
+  nodes/node_logic_threshold_value_options.cc
+  nodes/node_logic_variable_load_options.cc
+  nodes/node_logic_variable_remove_options.cc
+  nodes/node_logic_variable_save_options.cc
   nodes/node_logic_move_toward.cc
-  nodes/node_logic_mouse_button.cc
   nodes/node_logic_mouse_moved.cc
   nodes/node_logic_mouse_over.cc
   nodes/node_logic_object_scroll_view.cc
@@ -201,67 +184,41 @@ set(SRC
   nodes/node_logic_play_sound.cc
   nodes/node_logic_play_sound_3d.cc
   nodes/node_logic_set_volume.cc
-  nodes/node_logic_pause_sound.cc
-  nodes/node_logic_resume_sound.cc
+  nodes/node_logic_set_random_seed.cc
   nodes/node_logic_evaluate_curve.cc
   nodes/node_logic_set_material_slot.cc
   nodes/node_logic_print.cc
   nodes/node_logic_predict_motion.cc
   nodes/node_logic_pulsify.cc
   nodes/node_logic_random_value.cc
-  nodes/node_logic_random_float.cc
-  nodes/node_logic_random_int.cc
-  nodes/node_logic_random_vector.cc
   nodes/node_logic_remove_object.cc
-  nodes/node_logic_remove_overlay_collection.cc
   nodes/node_logic_remove_physics_constraint.cc
   nodes/node_logic_remove_parent.cc
-  nodes/node_logic_remove_variable.cc
-  nodes/node_logic_raycast.cc
-  nodes/node_logic_raycast_all.cc
   nodes/node_logic_raycast_from_mesh.cc
-  nodes/node_logic_shape_cast.cc
-  nodes/node_logic_shape_cast_all.cc
   nodes/node_logic_projectile_ray.cc
   nodes/node_logic_rebuild_collision_shape.cc
   nodes/node_logic_receive_event.cc
   nodes/node_logic_replace_mesh.cc
   nodes/node_logic_rotate_toward.cc
-  nodes/node_logic_ranged_threshold.cc
   nodes/node_logic_restart_game.cc
   nodes/node_logic_save_game.cc
-  nodes/node_logic_save_variable.cc
-  nodes/node_logic_save_variable_dict.cc
   nodes/node_logic_send_event.cc
   nodes/node_logic_set_collection_member.cc
   nodes/node_logic_set_collection_visibility.cc
-  nodes/node_logic_set_overlay_collection.cc
-  nodes/node_logic_set_scene.cc
   nodes/node_logic_set_save_existence.cc
   nodes/node_logic_separate_euler.cc
-  nodes/node_logic_separate_xy.cc
   nodes/node_logic_slow_follow.cc
   nodes/node_logic_separate_xyz.cc
-  nodes/node_logic_set_game_property.cc
-  nodes/node_logic_set_game_property_bool.cc
-  nodes/node_logic_set_game_property_float.cc
-  nodes/node_logic_set_game_property_int.cc
-  nodes/node_logic_set_game_property_string.cc
   nodes/node_logic_set_global_property.cc
-  nodes/node_logic_set_game_paused.cc
   nodes/node_logic_set_collision_group.cc
   nodes/node_logic_set_cursor_position.cc
   nodes/node_logic_set_cursor_visibility.cc
   nodes/node_logic_set_dynamics.cc
   nodes/node_logic_set_gravity.cc
   nodes/node_logic_make_light_unique.cc
-  nodes/node_logic_set_light_color.cc
-  nodes/node_logic_set_light_power.cc
-  nodes/node_logic_set_light_shadow.cc
   nodes/node_logic_set_object_attribute.cc
   nodes/node_logic_set_parent.cc
   nodes/node_logic_set_physics.cc
-  nodes/node_logic_set_physics_paused.cc
   nodes/node_logic_set_rigid_body_attribute.cc
   nodes/node_logic_set_action_frame.cc
   nodes/node_logic_set_shape_key_value.cc
@@ -276,35 +233,23 @@ set(SRC
   nodes/node_logic_set_player_gamepad.cc
   nodes/node_logic_get_player_gamepad.cc
   nodes/node_logic_get_menu_player.cc
-  nodes/node_logic_set_camera_fov.cc
-  nodes/node_logic_set_camera_ortho_scale.cc
-  nodes/node_logic_set_character_gravity.cc
-  nodes/node_logic_set_character_jump_speed.cc
-  nodes/node_logic_set_character_max_jumps.cc
   nodes/node_logic_set_character_velocity.cc
   nodes/node_logic_set_character_walk_direction.cc
   nodes/node_logic_set_fullscreen.cc
   nodes/node_logic_set_resolution.cc
   nodes/node_logic_set_tree_property.cc
   nodes/node_logic_set_vsync.cc
-  nodes/node_logic_show_framerate.cc
-  nodes/node_logic_show_profile.cc
   nodes/node_logic_screen_to_world.cc
   nodes/node_logic_sequence.cc
   nodes/node_logic_set_timescale.cc
   nodes/node_logic_string_operation.cc
-  nodes/node_logic_threshold.cc
   nodes/node_logic_time.cc
-  nodes/node_logic_translate.cc
   nodes/node_logic_typecast.cc
-  nodes/node_logic_toggle_property.cc
   nodes/node_logic_toggle_tree_property.cc
   nodes/node_logic_tween_value.cc
   nodes/node_logic_value_clamp.cc
   nodes/node_logic_value_invert.cc
   nodes/node_logic_value_bool.cc
-  nodes/node_logic_value_changed.cc
-  nodes/node_logic_value_changed_to.cc
   nodes/node_logic_value_color.cc
   nodes/node_logic_value_float.cc
   nodes/node_logic_value_int.cc
@@ -313,18 +258,11 @@ set(SRC
   nodes/node_logic_value_switch.cc
   nodes/node_logic_value_switch_list.cc
   nodes/node_logic_value_switch_list_compare.cc
-  nodes/node_logic_value_valid.cc
   nodes/node_logic_value_vector.cc
   nodes/node_logic_vector_math.cc
   nodes/node_logic_vehicle_control.cc
-  nodes/node_logic_vehicle_accelerate.cc
-  nodes/node_logic_vehicle_brake.cc
   nodes/node_logic_vehicle_set_attributes.cc
-  nodes/node_logic_vehicle_steer.cc
-  nodes/node_logic_cursor_movement.cc
-  nodes/node_logic_cursor_position.cc
   nodes/node_logic_gamepad_active.cc
-  nodes/node_logic_gamepad_button.cc
   nodes/node_logic_get_input_binding.cc
   nodes/node_logic_input_action.cc
   nodes/node_logic_input_map.cc
@@ -332,9 +270,6 @@ set(SRC
   nodes/node_logic_gamepad_look.cc
   nodes/node_logic_gamepad_stick.cc
   nodes/node_logic_gamepad_vibration.cc
-  nodes/node_logic_none.cc
-  nodes/node_logic_not_none.cc
-  nodes/node_logic_timer.cc
   nodes/node_logic_within_range.cc
   nodes/node_logic_world_to_screen.cc
 

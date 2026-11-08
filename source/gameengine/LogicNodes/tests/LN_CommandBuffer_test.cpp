@@ -327,6 +327,9 @@ static constexpr CommandTypeRuntimeFamilyCase kCommandRuntimeFamilies[] = {
     {LN_CommandBuffer::CommandType::SetGameProperty,
      LN_OpCode::SetGameProperty,
      LN_RuntimeCommandFamily::ObjectProperty},
+    {LN_CommandBuffer::CommandType::EditGameProperty,
+     LN_OpCode::EditGameProperty,
+     LN_RuntimeCommandFamily::ObjectProperty},
     {LN_CommandBuffer::CommandType::AddObject,
      LN_OpCode::AddObject,
      LN_RuntimeCommandFamily::ObjectLifecycle},
@@ -883,8 +886,8 @@ TEST(LN_CommandBuffer, TheTypeTableGivesTheOldClassesAndTheOldMergeSet)
                                                  CommandType::SetGeometryNodeSocketValue,
                                                  CommandType::SetCompositorNodeSocketValue,
                                                  CommandType::SetNodeMute};
-  /* Every value of the enum, up to the last one (Set Volume). */
-  for (int value = 0; value <= int(CommandType::SetSoundVolume); value++) {
+  /* Every value of the enum, up to the last one (the list and dictionary changes). */
+  for (int value = 0; value <= int(CommandType::EditGameProperty); value++) {
     const CommandType type = CommandType(value);
     SCOPED_TRACE(value);
     EXPECT_EQ(LN_CommandBuffer::GetCoalescingPolicy(type) ==

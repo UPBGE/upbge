@@ -50,6 +50,7 @@
 #include "LN_JobPool.h"
 #include "LN_KindCatalog.h"
 #include "LN_Manager.h"
+#include "LN_Random.h"
 #include "LN_TestTrees.h"
 #include "LN_TreeBatch.h"
 
@@ -317,6 +318,19 @@ inline std::optional<Family> AutoFamily(const char *idname, const int weight)
   }
   family.fixed_only = meta->required_phase == blender::nodes::logic::RequiredPhase::FixedUpdate;
   family.real_sockets = true;
+  /* Random Value (2026-11-07): every type (custom1) and variation (custom2), each type's own
+   * output; Get Random List Item's variation. */
+  if (std::string(meta->idname) == "LogicNativeRandomValue") {
+    family.custom1 = {0, 1, 2, 3};
+    family.custom2 = {0, 1};
+    family.output_ok = [](const int16_t custom1, const int16_t, const std::string &output) {
+      static const char *outputs[] = {"Value", "Value_Int", "Value_Vector", "Value_Bool"};
+      return custom1 >= 0 && custom1 < 4 && output == outputs[custom1];
+    };
+  }
+  else if (std::string(meta->idname) == "LogicNativeListRandomItem") {
+    family.custom2 = {0, 1};
+  }
   return family;
 }
 
@@ -369,23 +383,16 @@ inline const std::vector<std::pair<std::string, int>> &AutoFamilyNames()
         "LogicNativeAssignGeometryNodesModifier",
         "LogicNativeBoneRotationToObjectRotation",
         "LogicNativeCharacterJump",
-        "LogicNativeCollision",
-        "LogicNativeColorRGB",
-        "LogicNativeCombineXY",
         "LogicNativeCombineXYZW",
         "LogicNativeCopyProperty",
         "LogicNativeCursorMovement",
         "LogicNativeCursorPosition",
-        "LogicNativeDeltaFactor",
         "LogicNativeDictAddValue",
         "LogicNativeDictHasKey",
         "LogicNativeDictLength",
         "LogicNativeDictRemoveKey",
         "LogicNativeDictSetKey",
         "LogicNativeDraw",
-        "LogicNativeDrawBox",
-        "LogicNativeDrawCube",
-        "LogicNativeDrawLine",
         "LogicNativeEnableDisableModifier",
         "LogicNativeEvaluateCurve",
         "LogicNativeEvaluateProperty",
@@ -402,8 +409,6 @@ inline const std::vector<std::pair<std::string, int>> &AutoFamilyNames()
         "LogicNativeGetBoneHeadPoseWorld",
         "LogicNativeGetBoneHeadWorld",
         "LogicNativeGetBoneLength",
-        "LogicNativeGetBonePoseRotation",
-        "LogicNativeGetBonePoseScale",
         "LogicNativeGetBoneTailPoseWorld",
         "LogicNativeGetBoneTailWorld",
         "LogicNativeGetCharacterInfo",
@@ -474,7 +479,6 @@ inline const std::vector<std::pair<std::string, int>> &AutoFamilyNames()
         "LogicNativeScreenToWorld",
         "LogicNativeSendEvent",
         "LogicNativeSeparateEuler",
-        "LogicNativeSeparateXY",
         "LogicNativeSetBoneConstraintAttribute",
         "LogicNativeSetBoneConstraintInfluence",
         "LogicNativeSetBoneConstraintTarget",
@@ -514,7 +518,6 @@ inline const std::vector<std::pair<std::string, int>> &AutoFamilyNames()
         "LogicNativeTweenValue",
         "LogicNativeValueChanged",
         "LogicNativeValueChangedTo",
-        "LogicNativeValueValid",
         "LogicNativeVehicleAccelerate",
         "LogicNativeVehicleBrake",
         "LogicNativeVehicleControl",
@@ -596,7 +599,6 @@ inline const std::vector<Family> &FamilyTable()
     t.push_back({"LogicNativeCombineXYZ", Role::Data, 3});
     t.push_back({"LogicNativeSeparateXYZ", Role::Data, 3});
     t.push_back({"LogicNativeClampValue", Role::Data, 2});
-    t.push_back({"LogicNativeLimitRange", Role::Data, 2});
     t.push_back({"LogicNativeInvertValue", Role::Data, 1});
     t.push_back({"LogicNativeMapRange", Role::Data, 2});
     t.push_back({"LogicNativeThreshold", Role::Data, 1, {0, 1}});
@@ -605,9 +607,6 @@ inline const std::vector<Family> &FamilyTable()
     t.push_back({"LogicNativeGate", Role::Data, 3, {0, 1, 2, 3, 4, 5, 6}});
     t.push_back({"LogicNativeStringOperation", Role::Data, 5, {0, 2, 3, 4, 5, 6, 7, 8, 9}, {}, {}, StringOperationOutputOk});
     t.push_back({"LogicNativeFormattedString", Role::Data, 2});
-    t.push_back({"LogicNativeRandomFloat", Role::Data, 2});
-    t.push_back({"LogicNativeRandomInt", Role::Data, 1});
-    t.push_back({"LogicNativeRandomVector", Role::Data, 1});
     t.push_back({"LogicNativeTypecast", Role::Data, 5, {0, 1, 2, 3}, {0, 1, 2, 3}, {}, TypecastOutputOk, {Cat::Float, Cat::Int, Cat::Bool}});
     t.push_back({"LogicNativeMixValue", Role::Data, 1, {}, {}, {}, nullptr, {Cat::Float, Cat::Vector}});
     t.push_back({"LogicNativeValueSwitch", Role::Data, 1});
@@ -634,7 +633,6 @@ inline const std::vector<Family> &FamilyTable()
     t.push_back({"LogicNativeMoveToward", Role::Flow, 3, {}, {}, {}, nullptr, {}, false, true});
     t.push_back({"LogicNativeRotateToward", Role::Flow, 2, {}, {}, {}, nullptr, {}, false, true});
     t.push_back({"LogicNativeAlignAxisToVector", Role::Flow, 2, {}, {}, {}, nullptr, {}, false, true});
-    t.push_back({"LogicNativeHasProperty", Role::Data, 1});
     t.push_back({"LogicNativeGetGravity", Role::Data, 1});
     t.push_back({"LogicNativeBarrier", Role::Flow, 2});
     /* Positions, orientations (Value as Euler angles), velocities, scales, color, visibility;
@@ -1073,6 +1071,76 @@ class TreeGen {
     return std::move(m_result);
   }
 
+  /** A flow node (set to `custom1` / `custom2`) behind its event, one of its outputs used: a data
+   * output written to a property every tick by a writer on the same event, a route followed by a
+   * Print. The kinds behind a flow node's outputs (Play Action's Failed...) run in a probe of
+   * their own, not only when a random tree uses them (2026-11-08: removing the merged nodes'
+   * former rows reshuffled the seeds, and Play Action's Failed was then reached by one random tree
+   * only). */
+  std::unique_ptr<GeneratedTree> ProbeFlowOutput(const Family &family,
+                                                 const int16_t custom1,
+                                                 const int16_t custom2,
+                                                 const size_t output)
+  {
+    m_result = std::make_unique<GeneratedTree>();
+    m_live_inputs = true;
+    GenNode *event = AddFamilyNode(
+        *FindFamily(family.fixed_only ? "LogicNativeOnFixedUpdate" : "LogicNativeOnUpdate"));
+    GenNode *node = AddFamilyNode(family);
+    SetCustom(*node, custom1, custom2);
+    size_t exec_input = 0;
+    for (size_t index = 0; index < node->inputs.size(); index++) {
+      if (node->input_category(index) == Cat::Exec) {
+        exec_input = index;
+        break;
+      }
+    }
+    Link(*event, FirstExecOutput(*event), *node, exec_input);
+    FillInputs(*node, m_max_depth);
+    if (output >= node->outputs.size()) {
+      /* Fewer outputs than the shape counted (a node whose outputs vary). */
+      return std::move(m_result);
+    }
+    const char *sink_name = "LogicNativePrint";
+    size_t sink_input = 1;
+    switch (node->output_category(output)) {
+      case Cat::Float:
+        sink_name = "LogicNativeSetGamePropertyFloat";
+        sink_input = 3;
+        break;
+      case Cat::Int:
+        sink_name = "LogicNativeSetGamePropertyInt";
+        sink_input = 3;
+        break;
+      case Cat::Bool:
+        sink_name = "LogicNativeSetGamePropertyBool";
+        sink_input = 3;
+        break;
+      case Cat::String:
+        sink_name = "LogicNativeSetGamePropertyString";
+        sink_input = 3;
+        break;
+      default:
+        break;
+    }
+    GenNode *sink = AddFamilyNode(*FindFamily(sink_name));
+    if (node->output_category(output) == Cat::Exec) {
+      /* A route (Done, Failed...): a Print behind it, so its condition is compiled and runs. */
+      Link(*node, output, *sink, 0);
+    }
+    else {
+      Link(*event, FirstExecOutput(*event), *sink, 0);
+      Link(*node, output, *sink, sink_input);
+    }
+    FillInputs(*sink, m_max_depth);
+    if (std::string(sink_name) != "LogicNativePrint") {
+      SetCString(static_cast<blender::bNodeSocketValueString *>(
+                     sink->inputs[In(*sink, "Property")]->default_value)->value,
+                 "po");
+    }
+    return std::move(m_result);
+  }
+
   /** A tree of one flow node (set to `custom1` / `custom2`) behind an On Update. */
   std::unique_ptr<GeneratedTree> ProbeFlow(const Family &family,
                                            const int16_t custom1,
@@ -1498,9 +1566,7 @@ class TreeGen {
       if (idname == "LogicNativeGate") {
         continue; /* the one multi-link input is filled below */
       }
-      if (std::string(pin.identifier) == "Property" ||
-          (idname == "LogicNativeHasProperty" && std::string(pin.identifier) == "Name"))
-      {
+      if (std::string(pin.identifier) == "Property") {
         SetPropertyName(node, index);
         continue;
       }
@@ -1595,17 +1661,6 @@ class TreeGen {
     }
     else if (idname.find("String") != std::string::npos) {
       names = &StringNames();
-    }
-    else if (idname == "LogicNativeHasProperty") {
-      /* Any kind of property, or one no object has. */
-      static const std::vector<std::string> has_names = [] {
-        std::vector<std::string> all = FloatNames();
-        all.insert(all.end(), IntNames().begin(), IntNames().end());
-        all.insert(all.end(), BoolNames().begin(), BoolNames().end());
-        all.push_back("nowhere");
-        return all;
-      }();
-      names = &has_names;
     }
     SetCString(
         static_cast<blender::bNodeSocketValueString *>(node.inputs[index]->default_value)->value,
@@ -1946,6 +2001,12 @@ class TreeBuilder {
                 " c2=" + std::to_string(custom2);
     m_result->nodes.push_back(std::move(owned));
     return *m_result->nodes.back();
+  }
+
+  /** One more output after the node's own (a merged node's extra output, NOD_logic_merged.hh). */
+  void AddOutputPin(GenNode &node, const PinMetadata &pin)
+  {
+    AddPin(node, false, pin);
   }
 
   /** `from.out` into `to.in` (pin identifiers). */
@@ -2472,6 +2533,7 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
     context.unscaled_dt = step;
     context.use_fixed_timestep = true;
     context.tick_index = tick_index++;
+    context.steps_done = fixed_index;
     context.phase_tick_index = event == LN_Event::OnUpdate ? update_index++ : fixed_index++;
     const bool fixed = event == LN_Event::OnFixedUpdate;
 
@@ -2582,6 +2644,7 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
     const auto flush_noting_forces = [&]() {
       if (!note_forces) {
         buffer.Flush();
+        LN_ApplyPendingRandomGameSeed();
         return;
       }
       LN_SetForceObserverForTests(
@@ -2600,6 +2663,8 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
           &forces);
       buffer.Flush();
       LN_SetForceObserverForTests(nullptr, nullptr);
+      /* As the manager: Set Random Seed takes effect after the tick's flush. */
+      LN_ApplyPendingRandomGameSeed();
     };
     if (options.world_only) {
       flush_noting_forces();

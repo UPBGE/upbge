@@ -14,6 +14,7 @@
 #include "LN_Manager.h"
 #include "LN_PersistenceCapability.h"
 #include "LN_Program.h"
+#include "LN_Random.h"
 
 #include <algorithm>
 #include <atomic>
@@ -974,6 +975,8 @@ LN_GameStateResult capture_checkpoint(KX_Scene &scene,
   }
   r_checkpoint.scene_uuid = uuid_string(scene_uuid);
   r_checkpoint.scene_name = scene.GetName();
+  r_checkpoint.has_random_seed = true;
+  r_checkpoint.random_seed = LN_GetRandomGameSeed();
   if (!is_valid_checkpoint_text(r_checkpoint.scene_name, kMaxNameBytes)) {
     r_error = "scene name contains invalid or oversized text";
     return LN_GameStateResult::UnsupportedContent;
@@ -3794,6 +3797,11 @@ class LN_GameStateService::Impl {
                                       << " authored record(s) and "
                                       << skipped_spawn_sources
                                       << " spawned source record(s) removed from the current build");
+    }
+    /* The saved game's random seed comes back with it (a run that is replayed from a save rolls
+     * from the same seed). */
+    if (checkpoint.has_random_seed) {
+      LN_SetRandomGameSeed(checkpoint.random_seed);
     }
     return LN_GameStateResult::Success;
   }

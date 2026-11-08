@@ -59,6 +59,7 @@
 #include "LA_SystemCommandLine.h"
 #ifdef WITH_GAMEENGINE_LOGICNODES
 #  include "LN_InputMap.h"
+#  include "LN_Random.h"
 #  include "LN_SoundGroups.h"
 #endif
 
@@ -371,6 +372,11 @@ void LA_Launcher::InitEngine()
 #ifdef WITH_GAMEENGINE_LOGICNODES
   /* Set Volume's groups start at full volume in every game. */
   LN_ResetSoundGroups();
+  /* This play's random seed (Scene > Game > Random Numbers), before the first tree starts. */
+  LN_StartRandomGameSeed(m_startScene->gm.random_seed_mode == GAME_RANDOM_SEED_NEW_EACH_PLAY ?
+                             LN_RandomSeedMode::NewEachPlay :
+                             LN_RandomSeedMode::Fixed,
+                         m_startScene->gm.random_seed);
 #endif
 
   m_converter->SetAlwaysUseExpandFraming(GetUseAlwaysExpandFraming());

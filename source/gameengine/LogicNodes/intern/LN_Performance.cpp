@@ -263,6 +263,7 @@ bool logic_nodes_phase10_opcode_has_direct_exec_path(const LN_OpCode opcode)
     case LN_OpCode::RemoveObject:
     case LN_OpCode::ReplaceMesh:
     case LN_OpCode::CopyProperty:
+    case LN_OpCode::EditGameProperty:
     case LN_OpCode::SetLogicTreeEnabled:
     case LN_OpCode::RunLogicTreeOnce:
     case LN_OpCode::InstallLogicTree:
@@ -270,6 +271,7 @@ bool logic_nodes_phase10_opcode_has_direct_exec_path(const LN_OpCode opcode)
     case LN_OpCode::SetGameProperty:
     case LN_OpCode::SetTreeProperty:
     case LN_OpCode::SetGlobalProperty:
+    case LN_OpCode::SetRandomSeed:
     case LN_OpCode::SaveVariable:
     case LN_OpCode::SaveVariableDict:
     case LN_OpCode::ClearVariables:
@@ -345,6 +347,7 @@ LN_RuntimeFallbackReason logic_nodes_phase10_opcode_fallback_reason(
 
   switch (entry.opcode) {
     case LN_OpCode::SetGlobalProperty:
+    case LN_OpCode::SetRandomSeed:
     case LN_OpCode::SaveVariable:
     case LN_OpCode::SaveVariableDict:
     case LN_OpCode::ClearVariables:

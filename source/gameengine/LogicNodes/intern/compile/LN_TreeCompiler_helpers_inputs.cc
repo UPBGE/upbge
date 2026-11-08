@@ -1386,7 +1386,7 @@ bool EvaluateFloatCompare(LN_FloatCompareOperation operation, float a, float b)
 {
   switch (operation) {
     case LN_FloatCompareOperation::Equal:
-      return std::fabs(a - b) <= 1.0e-6f;
+      return a == b || std::fabs(a - b) <= 1.0e-6f; /* (the runtime's: Equal(inf, inf)) */
     case LN_FloatCompareOperation::NotEqual:
       return std::fabs(a - b) > 1.0e-6f;
     case LN_FloatCompareOperation::GreaterThan:
@@ -1442,13 +1442,7 @@ float EvaluateThreshold(LN_ThresholdOperation operation,
 
 bool EvaluateRange(LN_RangeOperation operation, float value, float min_value, float max_value)
 {
-  switch (operation) {
-    case LN_RangeOperation::Inside:
-      return min_value < value && value < max_value;
-    case LN_RangeOperation::Outside:
-      return value < min_value || value > max_value;
-  }
-  return false;
+  return LN_RangeHolds(operation, value, min_value, max_value);
 }
 
 uint32_t AddConstantBoolExpression(LN_Program &program, bool value)
@@ -2492,15 +2486,17 @@ std::optional<uint32_t> BuildMouseRayQueryExpression(
   if (definition_iter == node_definitions.end()) {
     return std::nullopt;
   }
+  /* Flow optional, as the Raycast family's (2026-11-08: unlinked, it never cast, while the tooltip
+   * calls it optional): unlinked, the ray is cast whenever an output is read. */
   const std::optional<uint32_t> condition_expr =
-      BuildPrimaryExecutionExpression(program,
-                                                        node,
-                                                        *definition_iter->second,
-                                                        node_definitions,
-                                                        input_links,
-                                                        value_cache,
-                                                        float_expression_cache,
-                                                        bool_expression_cache);
+      BuildOptionalExecutionCondition(program,
+                                      node,
+                                      "Flow",
+                                      node_definitions,
+                                      input_links,
+                                      value_cache,
+                                      float_expression_cache,
+                                      bool_expression_cache);
   const std::optional<uint32_t> property_expr = BuildInputStringExpression(program,
                                                                            node,
                                                                            "Property",
@@ -2588,15 +2584,16 @@ std::optional<uint32_t> BuildCameraRayQueryExpression(
   if (definition_iter == node_definitions.end()) {
     return std::nullopt;
   }
+  /* Flow optional, as the Raycast family's (2026-11-08: unlinked, it never cast). */
   const std::optional<uint32_t> condition_expr =
-      BuildPrimaryExecutionExpression(program,
-                                                        node,
-                                                        *definition_iter->second,
-                                                        node_definitions,
-                                                        input_links,
-                                                        value_cache,
-                                                        float_expression_cache,
-                                                        bool_expression_cache);
+      BuildOptionalExecutionCondition(program,
+                                      node,
+                                      "Flow",
+                                      node_definitions,
+                                      input_links,
+                                      value_cache,
+                                      float_expression_cache,
+                                      bool_expression_cache);
   const std::optional<uint32_t> aim_expr = BuildInputVectorExpression(program,
                                                                       node,
                                                                       "Aim",

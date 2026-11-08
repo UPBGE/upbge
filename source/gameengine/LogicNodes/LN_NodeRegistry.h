@@ -9,9 +9,14 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "LN_Types.h"
+
+namespace blender {
+struct bNode;
+}
 
 enum class LN_NodeKind : uint16_t {
   EventOnInit = 0,
@@ -38,15 +43,12 @@ enum class LN_NodeKind : uint16_t {
   Timer,
   Pulsify,
   Barrier,
-  LimitRange,
   RandomValue,
   ValueSwitch,
   ValueSwitchList,
   ValueSwitchListCompare,
   Typecast,
-  ValueValid,
   StoreValue,
-  HasProperty,
   ToggleProperty,
   ModifyProperty,
   IsNone,
@@ -145,15 +147,12 @@ enum class LN_NodeKind : uint16_t {
   StringOperation,
   FormattedString,
   ValueColor,
-  ColorRGB,
   ColorRGBA,
   ValueVector,
   Euler,
   VectorToRotation,
   BoneRotationToObjectRotation,
-  CombineXY,
   CombineXYZ,
-  SeparateXY,
   SeparateXYZ,
   InvertValue,
   ClampValue,
@@ -189,7 +188,6 @@ enum class LN_NodeKind : uint16_t {
   ShapeCast,
   ShapeCastAll,
   Time,
-  DeltaFactor,
   StartLogicTree,
   StopLogicTree,
   RunLogicTree,
@@ -202,7 +200,6 @@ enum class LN_NodeKind : uint16_t {
   StopAction,
   SetActionFrame,
   SetShapeKeyValue,
-  ActionDone,
   ObjectsColliding,
   StopAllSounds,
   PlaySound,
@@ -214,7 +211,6 @@ enum class LN_NodeKind : uint16_t {
   LoadBlendFile,
   SendEvent,
   ReceiveEvent,
-  Collision,
   OnCollision,
   OnConstraintBreak,
   AnimationStatus,
@@ -246,7 +242,6 @@ enum class LN_NodeKind : uint16_t {
   ListLength,
   ListGetItem,
   ListRandomItem,
-  MakeList,
   ListExtend,
   DictGetKey,
   MakeDict,
@@ -258,7 +253,6 @@ enum class LN_NodeKind : uint16_t {
   EmptyList,
   EmptyDict,
   DictHasKey,
-  ListDuplicate,
   DictMerge,
   ListContains,
   ListAppend,
@@ -280,9 +274,6 @@ enum class LN_NodeKind : uint16_t {
   EvaluateCurve,
   EvaluateProperty,
   ToggleTreeProperty,
-  RandomFloat,
-  RandomInt,
-  RandomVector,
   MixValue,
   FloatCurve,
   TweenValue,
@@ -308,8 +299,6 @@ enum class LN_NodeKind : uint16_t {
   SetNodeMute,
   EnableDisableModifier,
   AssignGeometryNodesModifier,
-  GetNodeGroupSocketValue,
-  SetNodeGroupSocketValue,
   PlayMaterialSequence,
   CombineXYZW,
   ResizeVector,
@@ -317,20 +306,13 @@ enum class LN_NodeKind : uint16_t {
   MatrixToXYZ,
   VectorRotate,
   FilePath,
-  StartSpeaker,
   GetSound,
   GetImage,
   GetObjectID,
   GetAxisVector,
-  DrawLine,
-  DrawCube,
-  DrawBox,
   Draw,
-  JoinPath,
   GetMasterFolder,
   LoadFileContent,
-  GetBonePoseRotation,
-  GetBonePoseScale,
   GetBonePoseTransform,
   SetBonePoseScale,
   SetBonePoseTransform,
@@ -373,6 +355,7 @@ enum class LN_NodeKind : uint16_t {
   ShowMessage,
   OnUISound,
   SetVolume,
+  SetRandomSeed,
 };
 
 enum class LN_RequiredPhase : uint8_t {
@@ -433,6 +416,10 @@ class LN_NodeRegistry {
   static const LN_NodeRegistry &GetBuiltin();
 
   const LN_NodeDefinition *FindNodeDefinition(const std::string &idname) const;
+  /** The definition a node compiles with: its own, or for a merged node (NOD_logic_merged.hh) the
+   * older node its option is (custom4), with the merged node's extra outputs. So an option
+   * compiles exactly as the older node. Null for an unknown node type. */
+  const LN_NodeDefinition *FindNodeDefinitionForNode(const blender::bNode &node) const;
   const std::vector<LN_NodeDefinition> &GetNodeDefinitions() const
   {
     return m_definitions;
@@ -440,4 +427,7 @@ class LN_NodeRegistry {
 
  private:
   std::vector<LN_NodeDefinition> m_definitions;
+  /** Options of merged nodes that add outputs: the older node's definition plus those outputs,
+   * keyed by the merged idname and the option ("idname:option"). */
+  std::vector<std::pair<std::string, LN_NodeDefinition>> m_mergedDefinitions;
 };

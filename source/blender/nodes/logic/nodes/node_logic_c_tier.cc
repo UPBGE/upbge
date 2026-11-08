@@ -104,11 +104,6 @@ static void layout_draw(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
   }
 }
 
-static void layout_volume_origin(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  layout.prop(ptr, "use_volume_origin", UI_ITEM_NONE, nullptr, ICON_NONE);
-}
-
 static constexpr int set_socket_value_float = 0;
 static constexpr int set_socket_value_int = 1;
 static constexpr int set_socket_value_bool = 2;
@@ -704,6 +699,15 @@ static void init_set_bone_attribute(bNodeTree * /*tree*/, bNode *node)
   node->custom2 = 1; /* Full, matching the existing scale-mode enum values. */
 }
 
+/* Inherit Scale (2) takes its mode from the Scale Mode dropdown and never reads the Bool (the
+ * compiler builds it only for the on/off attributes): hidden there (2026-11-08). */
+static void update_set_bone_attribute(bNodeTree *ntree, bNode *node)
+{
+  if (bNodeSocket *socket = node->input_by_identifier("Bool"_ustr)) {
+    bke::node_set_socket_availability(*ntree, *socket, node->custom1 != 2);
+  }
+}
+
 static void declare_set_constraint_target(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
@@ -795,24 +799,6 @@ static void declare_set_material_parameter(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Value"_ustr, "Vector Value"_ustr).default_value(float3(0.0f));
   b.add_input<decl::Color>("Value"_ustr, "Color Value"_ustr)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_output<decl::Execution>("Done"_ustr);
-}
-
-static void declare_get_tree_socket(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Datablock>("Tree"_ustr);
-  b.add_input<decl::String>("Node Name"_ustr);
-  b.add_input<decl::Int>("Input"_ustr).min(0).default_value(0);
-  b.add_output<decl::Generic>("Value"_ustr);
-}
-
-static void declare_set_tree_socket(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::Datablock>("Tree"_ustr);
-  b.add_input<decl::String>("Node Name"_ustr);
-  b.add_input<decl::Int>("Input"_ustr).min(0).default_value(0);
-  b.add_input<decl::Generic>("Value"_ustr);
   b.add_output<decl::Execution>("Done"_ustr);
 }
 
@@ -3037,20 +3023,6 @@ static void declare_file_path(NodeDeclarationBuilder &b)
   b.add_output<decl::String>("Path"_ustr);
 }
 
-static void declare_start_speaker(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::Object>("Speaker"_ustr);
-  b.add_input<decl::Bool>("Use Occlusion"_ustr);
-  b.add_input<decl::Float>("Transition"_ustr).default_value(0.1f).min(0.0f).max(1.0f);
-  b.add_input<decl::Float>("Lowpass"_ustr).default_value(0.1f).min(0.0f).max(1.0f);
-  b.add_input<decl::Int>("Mode"_ustr).default_value(0);
-  b.add_input<decl::Bool>("Ignore Timescale"_ustr);
-  b.add_output<decl::Execution>("On Start"_ustr);
-  b.add_output<decl::Execution>("On Finish"_ustr);
-  b.add_output<decl::Generic>("Sound"_ustr);
-}
-
 static void declare_get_sound(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Sound>("Sound File"_ustr);
@@ -3075,35 +3047,6 @@ static void declare_get_axis_vector(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Vector"_ustr);
 }
 
-static void declare_draw_line(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::Color>("Color"_ustr).default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_input<decl::Vector>("From"_ustr);
-  b.add_input<decl::Vector>("To"_ustr);
-  b.add_output<decl::Execution>("Done"_ustr);
-}
-
-static void declare_draw_cube(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::Color>("Color"_ustr).default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_input<decl::Vector>("Origin"_ustr);
-  b.add_input<decl::Float>("Width"_ustr).default_value(1.0f).min(0.0f);
-  b.add_output<decl::Execution>("Done"_ustr);
-}
-
-static void declare_draw_box(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::Color>("Color"_ustr).default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_input<decl::Vector>("Origin"_ustr);
-  b.add_input<decl::Float>("Width"_ustr, "Width (X)"_ustr).default_value(1.0f).min(0.0f);
-  b.add_input<decl::Float>("Length"_ustr, "Length (Y)"_ustr).default_value(1.0f).min(0.0f);
-  b.add_input<decl::Float>("Height"_ustr, "Height (Z)"_ustr).default_value(1.0f).min(0.0f);
-  b.add_output<decl::Execution>("Done"_ustr);
-}
-
 static void declare_draw(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
@@ -3116,13 +3059,6 @@ static void declare_draw(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Height"_ustr).default_value(1.0f).min(0.0f);
   b.add_input<decl::Object>("Object"_ustr);
   b.add_output<decl::Execution>("Done"_ustr);
-}
-
-static void declare_join_path(NodeDeclarationBuilder &b)
-{
-  b.add_input<decl::String>("Path"_ustr);
-  b.add_input<decl::String>("Path_001"_ustr, "Path"_ustr);
-  b.add_output<decl::String>("Path"_ustr);
 }
 
 static void declare_get_master_folder(NodeDeclarationBuilder &b)
@@ -3162,6 +3098,20 @@ static void setup_node_type(bke::bNodeType &ntype,
   }
 
 /* The bone nodes are wide enough for their socket names (Bone Name, Constraint). */
+/* An option of a merged node (Set Bone Constraint's Target and Other Setting): kept out
+ * of Blender's node registry, the merged node forwards to it (node_logic_merged.cc). */
+#define REGISTER_C_TIER_OPTION_NODE(func, idname, node_class, declare_fn, layout_fn) \
+  static void func() \
+  { \
+    static bke::bNodeType ntype; \
+    logic_option_type_base(&ntype, UString(idname)); \
+    ntype.nclass = node_class; \
+    ntype.declare = declare_fn; \
+    ntype.draw_buttons = layout_fn; \
+    bke::node_type_size(ntype, 190, 140, NODE_DEFAULT_MAX_WIDTH); \
+    logic_option_register(ntype); \
+  }
+
 #define REGISTER_C_TIER_WIDE_NODE(func, idname, nclass, declare_fn, layout_fn) \
   static void func() \
   { \
@@ -3187,15 +3137,16 @@ static void register_set_bone_attribute()
                   layout_bone_set_attribute);
   bke::node_type_size(ntype, 190, 140, NODE_DEFAULT_MAX_WIDTH);
   ntype.initfunc = init_set_bone_attribute;
+  ntype.updatefunc = update_set_bone_attribute;
   bke::node_register_type(ntype);
 }
 
-REGISTER_C_TIER_WIDE_NODE(register_set_constraint_target,
+REGISTER_C_TIER_OPTION_NODE(register_set_constraint_target,
                           "LogicNativeSetBoneConstraintTarget",
                           NODE_CLASS_OP_VECTOR,
                           declare_set_constraint_target,
                           nullptr)
-REGISTER_C_TIER_WIDE_NODE(register_set_constraint_attribute,
+REGISTER_C_TIER_OPTION_NODE(register_set_constraint_attribute,
                           "LogicNativeSetBoneConstraintAttribute",
                           NODE_CLASS_OP_VECTOR,
                           declare_set_constraint_attribute,
@@ -3320,16 +3271,9 @@ static void register_assign_geometry_nodes_modifier()
   ntype.updatefunc = set_assign_geometry_nodes_modifier_availability;
   bke::node_register_type(ntype);
 }
-REGISTER_C_TIER_NODE(register_get_node_group_socket_value,
-                     "LogicNativeGetNodeGroupSocketValue",
-                     NODE_CLASS_INPUT,
-                     declare_get_tree_socket,
-                     nullptr)
-REGISTER_C_TIER_NODE(register_set_node_group_socket_value,
-                     "LogicNativeSetNodeGroupSocketValue",
-                     NODE_CLASS_OP_VECTOR,
-                     declare_set_tree_socket,
-                     nullptr)
+/* Get / Set Node Group Socket (hidden, never able to work: no output builder, Set refused by the
+ * compiler) were deleted 2026-11-08; Get / Set Editor Node Value and Set Geometry Nodes Input
+ * reach a group's inputs. */
 REGISTER_C_TIER_NODE(register_play_material_sequence,
                      "LogicNativePlayMaterialSequence",
                      NODE_CLASS_OP_VECTOR,
@@ -3393,11 +3337,6 @@ static void register_vector_to_rotation()
 
 REGISTER_C_TIER_NODE(
     register_file_path, "LogicNativeFilePath", NODE_CLASS_INPUT, declare_file_path, nullptr)
-REGISTER_C_TIER_NODE(register_start_speaker,
-                     "LogicNativeStartSpeaker",
-                     NODE_CLASS_OP_VECTOR,
-                     declare_start_speaker,
-                     nullptr)
 REGISTER_C_TIER_NODE(
     register_get_sound, "LogicNativeGetSound", NODE_CLASS_INPUT, declare_get_sound, nullptr)
 REGISTER_C_TIER_NODE(
@@ -3412,22 +3351,39 @@ REGISTER_C_TIER_NODE(register_get_axis_vector,
                      NODE_CLASS_OP_VECTOR,
                      declare_get_axis_vector,
                      layout_axis)
-REGISTER_C_TIER_NODE(
-    register_draw_line, "LogicNativeDrawLine", NODE_CLASS_OP_VECTOR, declare_draw_line, nullptr)
-REGISTER_C_TIER_NODE(register_draw_cube,
-                     "LogicNativeDrawCube",
-                     NODE_CLASS_OP_VECTOR,
-                     declare_draw_cube,
-                     layout_volume_origin)
-REGISTER_C_TIER_NODE(register_draw_box,
-                     "LogicNativeDrawBox",
-                     NODE_CLASS_OP_VECTOR,
-                     declare_draw_box,
-                     layout_volume_origin)
-REGISTER_C_TIER_NODE(
-    register_draw, "LogicNativeDraw", NODE_CLASS_OP_VECTOR, declare_draw, layout_draw)
-REGISTER_C_TIER_NODE(
-    register_join_path, "LogicNativeJoinPath", NODE_CLASS_CONVERTER, declare_join_path, nullptr)
+/** Draw shows only the inputs its mode reads (2026-11-07; CompileDrawNode reads no others):
+ * Line / Arrow Color Origin Target, Path Color Points, Cube Color Origin Width, Box Color Origin
+ * Width Length Height, Mesh Color Object, Axis Length Object. Draw Line / Cube / Box left the
+ * Add menu for these modes. */
+static void update_draw(bNodeTree *ntree, bNode *node)
+{
+  if (ntree == nullptr || node == nullptr) {
+    return;
+  }
+  const int mode = node->custom1;
+  const bool known_mode = mode >= 0 && mode <= 6;
+  const auto set_available = [&](const UString identifier, const bool available) {
+    if (bNodeSocket *socket = node->input_by_identifier(identifier)) {
+      bke::node_set_socket_availability(*ntree, *socket, !known_mode || available);
+    }
+  };
+  set_available("Color"_ustr, mode != 6);
+  set_available("Origin"_ustr, ELEM(mode, 0, 1, 3, 4));
+  set_available("Target"_ustr, ELEM(mode, 0, 1));
+  set_available("Points"_ustr, mode == 2);
+  set_available("Width"_ustr, ELEM(mode, 3, 4));
+  set_available("Length"_ustr, ELEM(mode, 4, 6));
+  set_available("Height"_ustr, mode == 4);
+  set_available("Object"_ustr, ELEM(mode, 5, 6));
+}
+
+static void register_draw()
+{
+  static bke::bNodeType ntype;
+  setup_node_type(ntype, "LogicNativeDraw", NODE_CLASS_OP_VECTOR, declare_draw, layout_draw);
+  ntype.updatefunc = update_draw;
+  bke::node_register_type(ntype);
+}
 REGISTER_C_TIER_NODE(register_get_master_folder,
                      "LogicNativeGetMasterFolder",
                      NODE_CLASS_INPUT,
@@ -3459,8 +3415,6 @@ static void node_register()
   register_set_node_mute();
   register_enable_disable_modifier();
   register_assign_geometry_nodes_modifier();
-  register_get_node_group_socket_value();
-  register_set_node_group_socket_value();
   register_play_material_sequence();
   register_combine_xyzw();
   register_resize_vector();
@@ -3469,16 +3423,11 @@ static void node_register()
   register_vector_rotate();
   register_vector_to_rotation();
   register_file_path();
-  register_start_speaker();
   register_get_sound();
   register_get_image();
   register_get_object_id();
   register_get_axis_vector();
-  register_draw_line();
-  register_draw_cube();
-  register_draw_box();
   register_draw();
-  register_join_path();
   register_get_master_folder();
   register_load_file_content();
 }

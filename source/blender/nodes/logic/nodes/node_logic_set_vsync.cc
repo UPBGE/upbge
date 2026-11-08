@@ -16,9 +16,16 @@
 namespace blender::nodes::node_logic_set_vsync_cc {
 namespace decl = blender::nodes::logic::decl;
 
+/* The dropdown's From Input item (VSYNC_* are 0-2; rna_nodetree.cc, LN_TreeCompiler.cpp). */
+constexpr int kVSyncFromInput = 3;
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
+  b.add_input<decl::Int>("Mode"_ustr)
+      .default_value(VSYNC_OFF)
+      .description("0 On, 1 Off, 2 Adaptive (the numbers Get Display Setting's VSync gives); any "
+                   "other number turns VSync off");
   b.add_output<decl::Execution>("Done"_ustr, "Out"_ustr);
   b.add_output<decl::Execution>("Done"_ustr).available(false);
 }
@@ -33,6 +40,13 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->custom1 = VSYNC_OFF;
 }
 
+static void node_update(bNodeTree *ntree, bNode *node)
+{
+  if (bNodeSocket *socket = node->input_by_identifier("Mode"_ustr)) {
+    bke::node_set_socket_availability(*ntree, *socket, node->custom1 == kVSyncFromInput);
+  }
+}
+
 static void node_register()
 {
   static bke::bNodeType ntype;
@@ -42,6 +56,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
+  ntype.updatefunc = node_update;
 
   bke::node_register_type(ntype);
 }

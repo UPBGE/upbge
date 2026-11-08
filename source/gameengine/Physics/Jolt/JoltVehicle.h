@@ -290,9 +290,12 @@ class JoltVehicle : public PHY_IVehicle {
   float m_rightInput;
   float m_brakeInput;
   float m_handBrakeInput;
-  /* True when any SetForwardInput / SetRightInput / SetBrakeInput /
-   * SetHandBrakeInput setter was called this frame. When true, PreStep
-   * ignores per-wheel forward/steering fallback so the two input paths
-   * cannot fight each other. Cleared inside PreStep after consumption. */
-  bool m_useDriverInput;
+  /* Whether this frame's SetForwardInput / SetRightInput gave a non-zero value: then PreStep
+   * takes it for that channel and ignores the per-wheel forward / steering values. A channel the
+   * normalized setters leave at 0 takes the per-wheel average (2026-11-08: a Vehicle Control
+   * running every step with Throttle 0 cancelled every per-wheel Accelerate and Steer node, as one
+   * flag set by any of the four setters did). Brakes need none: both paths merge by max().
+   * Cleared inside PreStep after consumption. */
+  bool m_driverForwardSet;
+  bool m_driverRightSet;
 };

@@ -892,8 +892,12 @@ typedef struct GameData {
   short fixed_max_logic_step = 5;   /* Max logic frames per render for fixed physics mode */
   short _pad_fixed_rates = 0;
 
-  /* Reserved padding for removed depsgraph transform optimization setting. */
-  int _pad_depsgraph_opt[2] = {0, 0};
+  /** Random numbers of Logic Nodes (UPBGE, 2026-11-07; in the padding the removed depsgraph
+   * transform optimization setting left): #GAME_RANDOM_SEED_FIXED (0, every scene's default) or
+   * #GAME_RANDOM_SEED_NEW_EACH_PLAY, and the fixed seed. */
+  int random_seed = 0;
+  char random_seed_mode = 0;
+  char _pad_random_seed[3] = {};
 
   /* Jolt Physics configuration (only used when physicsEngine == WOPHY_JOLT) */
   /* Physics CPU Use: the most CPU cores physics uses at once, the game's own included (1 = only
@@ -933,6 +937,11 @@ typedef struct GameData {
   int active_inventory_rules = 0;
   int _pad_inventory_rules = 0;
 } GameData;
+
+/* GameData.random_seed_mode. Fixed is 0: a node's Seed then always gives the same numbers, as
+ * Blender's own Random Value node does (the user's call, 2026-11-07). */
+#define GAME_RANDOM_SEED_FIXED 0
+#define GAME_RANDOM_SEED_NEW_EACH_PLAY 1
 
 /* GameInputBinding.device */
 #define GAME_INPUT_KEYBOARD 0

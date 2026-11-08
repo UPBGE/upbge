@@ -14,6 +14,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Bool>("Is Playing"_ustr);
   b.add_output<decl::String>("Action Name"_ustr);
   b.add_output<decl::Float>("Action Frame"_ustr);
+  b.add_output<decl::Bool>("Done"_ustr).description(
+      "True when the layer plays no action, or a Play-mode action reached its end (today's "
+      "Action Done node)");
 }
 
 static void node_register()

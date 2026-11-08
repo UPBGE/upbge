@@ -253,6 +253,7 @@ static constexpr LN_RuntimeInstructionSemantics semantics_catalog[] = {
                                     Ordering::ObservableGlobal,
                                     LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP),
     LN_MAIN_DIRECT(SetGlobalProperty, WRITE_DIRECT_GLOBAL, Ordering::ObservableGlobal),
+    LN_MAIN_DIRECT(SetRandomSeed, WRITE_DIRECT_GLOBAL, Ordering::ObservableGlobal),
     LN_MAIN_DIRECT(SaveVariable, WRITE_DIRECT_FILE, Ordering::ObservableGlobal),
     LN_MAIN_DIRECT(SaveVariableDict, WRITE_DIRECT_FILE, Ordering::ObservableGlobal),
     LN_MAIN_DIRECT(ClearVariables, WRITE_DIRECT_FILE, Ordering::ObservableGlobal),
@@ -320,6 +321,7 @@ static constexpr LN_RuntimeInstructionSemantics semantics_catalog[] = {
     LN_WORKER_COMMAND(RotateToward, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
     LN_WORKER_COMMAND(ReplaceMesh, WRITE_COMMAND_RENDER, Ordering::ObservablePerTarget),
     LN_WORKER_COMMAND(CopyProperty, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
+    LN_WORKER_COMMAND(EditGameProperty, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
     LN_WORKER_COMMAND(SetBonePoseLocation, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
     LN_WORKER_COMMAND(SetBonePoseRotation, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
     LN_WORKER_COMMAND(SetBonePoseScale, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
@@ -651,6 +653,7 @@ LN_RuntimeCommandFamily LN_GetRuntimeCommandFamily(const LN_OpCode opcode)
       return LN_RuntimeCommandFamily::ObjectState;
     case LN_OpCode::SetGameProperty:
     case LN_OpCode::CopyProperty:
+    case LN_OpCode::EditGameProperty:
     case LN_OpCode::InventoryEdit:
       return LN_RuntimeCommandFamily::ObjectProperty;
     case LN_OpCode::AddObject:
@@ -779,6 +782,7 @@ LN_RuntimeCommandFamily LN_GetRuntimeCommandFamily(const LN_OpCode opcode)
     case LN_OpCode::InputMap:
       return LN_RuntimeCommandFamily::File;
     case LN_OpCode::SetGlobalProperty:
+    case LN_OpCode::SetRandomSeed:
       return LN_RuntimeCommandFamily::GlobalState;
     case LN_OpCode::Print:
       return LN_RuntimeCommandFamily::Render;
@@ -825,6 +829,7 @@ LN_RuntimeSideEffectDelivery LN_GetRuntimeSideEffectDelivery(const LN_OpCode opc
     case LN_OpCode::BranchRoute:
       return LN_RuntimeSideEffectDelivery::RuntimeTreeState;
     case LN_OpCode::SetGlobalProperty:
+    case LN_OpCode::SetRandomSeed:
     case LN_OpCode::SaveVariable:
     case LN_OpCode::SaveVariableDict:
     case LN_OpCode::ClearVariables:
@@ -997,6 +1002,7 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_BoolExpr
                   LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP | LN_RUNTIME_FALLBACK_STALE_HANDLE);
     case LN_BoolExpressionKind::Constant:
     case LN_BoolExpressionKind::GamePaused:
+    case LN_BoolExpressionKind::Random:
     case LN_BoolExpressionKind::Not:
     case LN_BoolExpressionKind::And:
     case LN_BoolExpressionKind::Or:
@@ -1036,6 +1042,16 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_BoolExpr
     case LN_BoolExpressionKind::PlayerGamepadConnected:
     case LN_BoolExpressionKind::PlayerGamepadJoined:
       LN_EXPR_MAIN(Bool, PlayerGamepadConnected, READ_SCENE_EXPRESSION);
+    case LN_BoolExpressionKind::ObjectGamePropertyExists:
+      /* As Value::ObjectGameProperty: a live read of an object's properties. */
+      return Expr(LN_RuntimeExpressionFamily::Bool,
+                  uint32_t(kind),
+                  "ObjectGamePropertyExists",
+                  READ_SCENE_EXPRESSION,
+                  LN_RUNTIME_SEMANTIC_WRITE_NONE,
+                  Threading::MainThreadRecord,
+                  LN_RUNTIME_FALLBACK_MAIN_THREAD_LIVE_READ |
+                      LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP);
     case LN_BoolExpressionKind::Count:
       break;
   }
@@ -1172,6 +1188,7 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_IntExpre
     case LN_IntExpressionKind::ListLength:
     case LN_IntExpressionKind::DictLength:
     case LN_IntExpressionKind::Random:
+    case LN_IntExpressionKind::GameRandomSeed:
     case LN_IntExpressionKind::FromBool:
     case LN_IntExpressionKind::FromFloat:
     case LN_IntExpressionKind::FromString:

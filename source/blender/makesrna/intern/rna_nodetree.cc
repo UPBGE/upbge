@@ -37,6 +37,9 @@
 #include "RNA_enum_types.hh"
 
 #include "NOD_common.hh"
+#ifdef WITH_GAMEENGINE_LOGICNODES
+#  include "NOD_logic_merged.hh"
+#endif
 
 #include "rna_internal.hh"
 #include "rna_internal_types.hh"
@@ -626,6 +629,8 @@ static constexpr int logic_native_set_rigid_body_attribute_lock_rotation_x = 1 <
 static constexpr int logic_native_set_rigid_body_attribute_lock_rotation_y = 1 << 4;
 static constexpr int logic_native_set_rigid_body_attribute_lock_rotation_z = 1 << 5;
 static constexpr int logic_native_modify_property_clamp = 1 << 0;
+/** The merged Modify Property's Operation value for Toggle (its other values are Math's). */
+static constexpr int logic_merged_toggle_operation = 1000;
 static constexpr int logic_set_socket_value_float = 0;
 static constexpr int logic_set_socket_value_int = 1;
 static constexpr int logic_set_socket_value_bool = 2;
@@ -4083,6 +4088,111 @@ void rna_Node_socket_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 constexpr int16_t logic_set_parent_settings_initialized = 1 << 14;
 
+#  ifdef WITH_GAMEENGINE_LOGICNODES
+/* Merged Logic Nodes (NOD_logic_merged.hh): a new option starts as that older node starts, so
+ * custom1 / custom2 hold that node's own settings (its init sets them). */
+static void rna_LogicMerged_set_option(bNodeTree *tree,
+                                       bNode *node,
+                                       const nodes::logic::MergedNode &merged,
+                                       const int option)
+{
+  if (option < 0 || option >= int(merged.options.size()) ||
+      option == nodes::logic::merged_option_index(merged, *node))
+  {
+    return;
+  }
+  node->custom4 = float(option);
+  node->custom1 = 0;
+  node->custom2 = 0;
+  /* The option's own node type (no Blender node type since 2026-11-08). */
+  const bke::bNodeType *type = nodes::logic::find_option_node_type(merged.options[option].idname);
+  if (type != nullptr && type->initfunc != nullptr) {
+    type->initfunc(tree, node);
+  }
+}
+
+static int rna_LogicMerged_variant_get(PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  const nodes::logic::MergedNode *merged = nodes::logic::find_merged_node(node->idname);
+  return merged != nullptr ? nodes::logic::merged_option_index(*merged, *node) : 0;
+}
+
+static void rna_LogicMerged_variant_set(PointerRNA *ptr, const int value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  if (const nodes::logic::MergedNode *merged = nodes::logic::find_merged_node(node->idname)) {
+    rna_LogicMerged_set_option(reinterpret_cast<bNodeTree *>(ptr->owner_id), node, *merged, value);
+  }
+}
+
+static const char *rna_LogicMerged_option_idname(PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  const nodes::logic::MergedNode *merged = nodes::logic::find_merged_node(node->idname);
+  return merged != nullptr ? nodes::logic::merged_option_idname(*merged, *node) : "";
+}
+
+static void rna_LogicMerged_variant_idname_get(PointerRNA *ptr, char *value)
+{
+  strcpy(value, rna_LogicMerged_option_idname(ptr));
+}
+
+static int rna_LogicMerged_variant_idname_length(PointerRNA *ptr)
+{
+  return int(strlen(rna_LogicMerged_option_idname(ptr)));
+}
+
+/* Modify Property: the operations are Modify Property's own (custom1), Toggle is option 1. */
+static int rna_LogicMergedModify_operation_get(PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  const nodes::logic::MergedNode *merged = nodes::logic::find_merged_node(node->idname);
+  if (merged != nullptr && nodes::logic::merged_option_index(*merged, *node) == 1) {
+    return logic_merged_toggle_operation;
+  }
+  return node->custom1;
+}
+
+static void rna_LogicMergedModify_operation_set(PointerRNA *ptr, const int value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  const nodes::logic::MergedNode *merged = nodes::logic::find_merged_node(node->idname);
+  if (merged == nullptr) {
+    return;
+  }
+  bNodeTree *tree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
+  if (value == logic_merged_toggle_operation) {
+    rna_LogicMerged_set_option(tree, node, *merged, 1);
+    return;
+  }
+  rna_LogicMerged_set_option(tree, node, *merged, 0);
+  node->custom1 = int16_t(value);
+}
+
+/* Threshold: Above / Below are Threshold's own operation, Within / Outside Ranged
+ * Threshold's (custom1 0 / 1 in both). */
+static int rna_LogicMergedThreshold_pass_when_get(PointerRNA *ptr)
+{
+  const bNode *node = static_cast<const bNode *>(ptr->data);
+  const nodes::logic::MergedNode *merged = nodes::logic::find_merged_node(node->idname);
+  const int option = merged != nullptr ? nodes::logic::merged_option_index(*merged, *node) : 0;
+  return option * 2 + std::clamp(int(node->custom1), 0, 1);
+}
+
+static void rna_LogicMergedThreshold_pass_when_set(PointerRNA *ptr, const int value)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  const nodes::logic::MergedNode *merged = nodes::logic::find_merged_node(node->idname);
+  if (merged == nullptr) {
+    return;
+  }
+  rna_LogicMerged_set_option(
+      reinterpret_cast<bNodeTree *>(ptr->owner_id), node, *merged, std::clamp(value, 0, 3) / 2);
+  node->custom1 = int16_t(std::clamp(value, 0, 3) % 2);
+}
+#  endif
+
 static int rna_LogicNativeInput_input_type_get(PointerRNA *ptr)
 {
   const bNode *node = static_cast<const bNode *>(ptr->data);
@@ -5788,30 +5898,10 @@ static void def_logic_math(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 
-static void def_logic_modify_property(BlenderRNA * /*brna*/, StructRNA *srna)
+/** Modify Property's Clamp (custom2 bit); also part of the merged Modify Property node. */
+static void def_logic_modify_property_clamp(StructRNA *srna)
 {
-  static const EnumPropertyItem logic_modify_property_operation_items[] = {
-      {NODE_MATH_ADD, "ADD", 0, "Add", "A + B"},
-      {NODE_MATH_SUBTRACT, "SUB", 0, "Subtract", "A - B"},
-      {NODE_MATH_DIVIDE, "DIV", 0, "Divide", "A / B"},
-      {NODE_MATH_MULTIPLY, "MUL", 0, "Multiply", "A * B"},
-      {NODE_MATH_POWER, "POW", 0, "Power", "A power B"},
-      {NODE_MATH_MODULO, "MOD", 0, "Modulo", "The remainder of A / B"},
-      {NODE_MATH_FLOOR, "FDIV", 0, "Floor Divide", "floor(A / B)"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  PropertyRNA *prop;
-
-  prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
-  RNA_def_property_enum_items(prop, logic_modify_property_operation_items);
-  RNA_def_property_ui_text(prop, "Operation", "");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-
-  prop = RNA_def_property(srna, "clamp", PROP_BOOLEAN, PROP_NONE);
+  PropertyRNA *prop = RNA_def_property(srna, "clamp", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "custom2", logic_native_modify_property_clamp);
   RNA_def_property_ui_text(prop, "Clamp", "Clamp the modified value to the Min and Max inputs");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
@@ -5900,15 +5990,9 @@ static void def_logic_use_ui_input(StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
-static void def_logic_mouse_button(BlenderRNA * /*brna*/, StructRNA *srna)
+/** Mouse Button's button (custom2); also part of the merged Key / Button node. */
+static void def_logic_mouse_button_prop(StructRNA *srna)
 {
-  static const EnumPropertyItem logic_mouse_input_type_items[] = {
-      {0, "TAP", 0, "Pressed", "Pulse once when the input becomes active"},
-      {1, "DOWN", 0, "While Held", "Pulse on every selected update while the input is active"},
-      {2, "UP", 0, "Released", "Pulse once when the input becomes inactive"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem logic_mouse_button_items[] = {
       {0, "LEFTMOUSE", 0, "Left Button", "Left Mouse Button"},
       {1, "MIDDLEMOUSE", 0, "Middle Button", "Middle Mouse Button"},
@@ -5916,28 +6000,13 @@ static void def_logic_mouse_button(BlenderRNA * /*brna*/, StructRNA *srna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  PropertyRNA *prop;
-
-  prop = RNA_def_property(srna, "input_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, logic_mouse_input_type_items);
-  RNA_def_property_enum_funcs(prop,
-                              "rna_LogicNativeInput_input_type_get",
-                              "rna_LogicNativeInput_input_type_set",
-                              nullptr);
-  RNA_def_property_ui_text(prop, "Input Type", "Type of input recognition");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-
-  prop = RNA_def_property(srna, "mouse_button", PROP_ENUM, PROP_NONE);
+  PropertyRNA *prop = RNA_def_property(srna, "mouse_button", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "custom2");
   RNA_def_property_enum_items(prop, logic_mouse_button_items);
   RNA_def_property_ui_text(prop, "Button", "Mouse button to test");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeMouseButton_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-
-  def_logic_use_ui_input(srna);
 }
 
 static void def_logic_keyboard_key(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -6122,15 +6191,9 @@ static void def_logic_gamepad_look(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
-static void def_logic_gamepad_button(BlenderRNA * /*brna*/, StructRNA *srna)
+/** Gamepad Button's button (custom2); also part of the merged Key / Button node. */
+static void def_logic_gamepad_button_prop(StructRNA *srna)
 {
-  static const EnumPropertyItem logic_input_type_items[] = {
-      {0, "TAP", 0, "Pressed", "Pulse once when the input becomes active"},
-      {1, "DOWN", 0, "While Held", "Pulse on every selected update while the input is active"},
-      {2, "UP", 0, "Released", "Pulse once when the input becomes inactive"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem logic_gamepad_button_items[] = {
       {0, "A_CROSS", 0, "A / Cross", "A / Cross Button"},
       {1, "B_CIRCLE", 0, "B / Circle", "B / Circle Button"},
@@ -6153,17 +6216,6 @@ static void def_logic_gamepad_button(BlenderRNA * /*brna*/, StructRNA *srna)
 
   PropertyRNA *prop;
 
-  prop = RNA_def_property(srna, "input_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, logic_input_type_items);
-  RNA_def_property_enum_funcs(prop,
-                              "rna_LogicNativeInput_input_type_get",
-                              "rna_LogicNativeInput_input_type_set",
-                              nullptr);
-  RNA_def_property_ui_text(prop, "Input Type", "Type of input recognition");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-
   prop = RNA_def_property(srna, "gamepad_button", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "custom2");
   RNA_def_property_enum_items(prop, logic_gamepad_button_items);
@@ -6171,8 +6223,6 @@ static void def_logic_gamepad_button(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeGamepadButton_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-
-  def_logic_use_ui_input(srna);
 }
 
 static void def_logic_gamepad_stick(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -6197,12 +6247,21 @@ static void def_logic_gamepad_stick(BlenderRNA * /*brna*/, StructRNA *srna)
 static void def_logic_compare(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem logic_compare_items[] = {
-      {0, "EQUAL", 0, "Equal", "A equals B"},
-      {1, "NOT_EQUAL", 0, "Not Equal", "A does not equal B"},
-      {2, "GREATER_THAN", 0, "Greater Than", "A is greater than B"},
-      {3, "LESS_THAN", 0, "Less Than", "A is less than B"},
-      {4, "GREATER_EQUAL", 0, "Greater or Equal", "A is greater than or equal to B"},
-      {5, "LESS_EQUAL", 0, "Less or Equal", "A is less than or equal to B"},
+      {0,
+       "EQUAL",
+       0,
+       "Equal",
+       "A equals B, within a small tolerance (0.000001; Evaluate Object Property: 0.0001)"},
+      {1,
+       "NOT_EQUAL",
+       0,
+       "Not Equal",
+       "A and B differ by more than a small tolerance (0.000001; Evaluate Object Property: "
+       "0.0001)"},
+      {2, "GREATER_THAN", 0, "Greater Than", "A is greater than B (exactly)"},
+      {3, "LESS_THAN", 0, "Less Than", "A is less than B (exactly)"},
+      {4, "GREATER_EQUAL", 0, "Greater or Equal", "A is greater than or equal to B (exactly)"},
+      {5, "LESS_EQUAL", 0, "Less or Equal", "A is less than or equal to B (exactly)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -7230,30 +7289,19 @@ static void def_logic_gate(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 
-static void def_logic_threshold(BlenderRNA * /*brna*/, StructRNA *srna)
-{
-  static const EnumPropertyItem logic_threshold_items[] = {
-      {0, "GREATER", 0, "Greater", "Value greater than threshold"},
-      {1, "LESS", 0, "Less", "Value less than threshold"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  PropertyRNA *prop;
-
-  prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
-  RNA_def_property_enum_items(prop, logic_threshold_items);
-  RNA_def_property_ui_text(prop, "Operation", "");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-}
-
 static void def_logic_within_range(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem logic_within_range_items[] = {
-      {0, "INSIDE", 0, "Within", "Value is within range"},
-      {1, "OUTSIDE", 0, "Outside", "Value is outside range"},
+      {0,
+       "INSIDE",
+       0,
+       "Within",
+       "Value is between Min and Max, either one included (Min and Max in either order)"},
+      {1,
+       "OUTSIDE",
+       0,
+       "Outside",
+       "Value is below the smaller or above the larger of Min and Max"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -7279,6 +7327,37 @@ static void def_logic_map_range(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 
+/* The list and dictionary action nodes (node_logic_util.hh collection_store_*): custom1 1 changes
+ * a game property (new nodes), 0 gives the changed copy at the output (every node saved before
+ * 2026-11-08). */
+static void def_logic_collection_store(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem logic_collection_store_items[] = {
+      {1,
+       "GAME_PROPERTY",
+       0,
+       "Game Property",
+       "Change the list or dictionary a game property holds (Object, Property), at the end of "
+       "the step: every change of a step takes effect, in order, after the step's earlier writes "
+       "of the property"},
+      {0,
+       "OUTPUT",
+       0,
+       "Output Only",
+       "Give the changed list or dictionary at the output; nothing is stored (save it with Set "
+       "Game Property or Set Tree Property)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "store", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, logic_collection_store_items);
+  RNA_def_property_ui_text(prop, "Change", "What the node changes");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
 static void def_logic_vsync_mode(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem logic_vsync_mode_items[] = {
@@ -7289,6 +7368,14 @@ static void def_logic_vsync_mode(BlenderRNA * /*brna*/, StructRNA *srna)
        0,
        "Adaptive",
        "Enable adaptive VSync when supported by the active canvas"},
+      /* 3: the node's own value (VSYNC_* are 0-2), added 2026-11-08 so logic can choose the
+       * mode (a saved setting, an options menu). */
+      {3,
+       "FROM_INPUT",
+       0,
+       "From Input",
+       "Take the mode from the Mode input: 0 On, 1 Off, 2 Adaptive (the numbers Get Display "
+       "Setting's VSync gives); any other number turns VSync off"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -7450,6 +7537,81 @@ static void def_logic_play_sound(BlenderRNA *brna, StructRNA *srna)
   def_logic_sound_group(srna);
 }
 
+/* Random nodes (2026-11-07): Variation (custom2) Per Object or Same for All (LN_Random.h). */
+static void def_logic_random_variation(StructRNA *srna)
+{
+  static const EnumPropertyItem variation_items[] = {
+      {0,
+       "PER_OBJECT",
+       0,
+       "Per Object",
+       "Every object gets its own numbers (also copies made while playing)"},
+      {1,
+       "SAME_FOR_ALL",
+       0,
+       "Same for All",
+       "Every object with this tree gets the same number (lights flickering together, one "
+       "roll for an event)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "variation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, variation_items);
+  RNA_def_property_ui_text(prop, "Variation", "Whether every object gets its own numbers");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+/* Random Value: the type (custom1) and the variation (custom2). */
+static void def_logic_random_value(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem type_items[] = {
+      {0, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "A number between Min and Max"},
+      {1, "INT", ICON_NODE_SOCKET_INT, "Integer", "A whole number from Min to Max, both included"},
+      {2, "FLOAT_VECTOR", ICON_NODE_SOCKET_VECTOR, "Vector", "Each axis between its Min and Max"},
+      {3,
+       "BOOLEAN",
+       ICON_NODE_SOCKET_BOOLEAN,
+       "Boolean",
+       "True with the Probability (0.25: one time in four)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, type_items);
+  RNA_def_property_ui_text(prop, "Type", "What kind of random value the node gives");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  def_logic_random_variation(srna);
+}
+
+static void def_logic_list_random_item(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  def_logic_random_variation(srna);
+}
+
+/* Set Random Seed: where the new seed comes from (custom1). */
+static void def_logic_set_random_seed(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem source_items[] = {
+      {0, "SEED", 0, "Seed", "The Seed input: the same number gives the same random numbers"},
+      {1,
+       "NEW",
+       0,
+       "New From Clock",
+       "A new seed every time (a new game, a new world): random numbers no play had before"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "seed_source", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, source_items);
+  RNA_def_property_ui_text(prop, "Seed Source", "Where the new random seed comes from");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 /* Set Volume: which group (custom1, LN_SoundGroup; Master is every sound). */
 static void def_logic_set_volume(BlenderRNA * /*brna*/, StructRNA *srna)
 {
@@ -7565,38 +7727,6 @@ static void def_logic_get_bone_pose_position(BlenderRNA * /*brna*/, StructRNA *s
   RNA_def_property_enum_sdna(prop, nullptr, "custom1");
   RNA_def_property_enum_items(prop, logic_bone_pose_position_space_items);
   RNA_def_property_ui_text(prop, "Space", "Coordinate space for the evaluated pose point");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-}
-
-static void def_logic_get_bone_pose_rotation(BlenderRNA * /*brna*/, StructRNA *srna)
-{
-  static const EnumPropertyItem logic_bone_pose_rotation_space_items[] = {
-      {0,
-       "POSE_CHANNEL",
-       0,
-       "Pose Channel",
-       "Return the native Blender pose bone rotation channel in bone-local axes. This does not "
-       "include the rest orientation, parent pose, constraints, or armature object transform"},
-      {1,
-       "ARMATURE",
-       0,
-       "Armature Space",
-       "Return the evaluated native bone orientation in armature object coordinates, including "
-       "the rest orientation, roll, parent pose, and constraints but ignoring the armature "
-       "object's world transform"},
-      {2,
-       "WORLD",
-       0,
-       "World Space",
-       "Return the evaluated native bone orientation in game world coordinates, including the "
-       "rest orientation, roll, parent pose, constraints, and armature object's world rotation"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-  PropertyRNA *prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
-  RNA_def_property_enum_items(prop, logic_bone_pose_rotation_space_items);
-  RNA_def_property_ui_text(prop, "Space", "Coordinate space for the returned pose rotation");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
@@ -7953,15 +8083,6 @@ static void def_logic_draw_mode(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 
   prop = RNA_def_property(srna, "use_volume_origin", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
-  RNA_def_property_ui_text(prop, "Use Volume Origin", "Offset origin by half dimensions");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-}
-
-static void def_logic_volume_origin(BlenderRNA * /*brna*/, StructRNA *srna)
-{
-  PropertyRNA *prop = RNA_def_property(srna, "use_volume_origin", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
   RNA_def_property_ui_text(prop, "Use Volume Origin", "Offset origin by half dimensions");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
@@ -13931,6 +14052,132 @@ static void rna_def_node_instance_hash(BlenderRNA *brna)
    */
 }
 
+#ifdef WITH_GAMEENGINE_LOGICNODES
+/** Merged Logic Nodes (2026-11-07, NOD_logic_merged.hh): the option dropdown "variant" (custom4),
+ * the older node the option is ("variant_idname", read only), and the options' own settings,
+ * which their buttons draw. Modify Property shows its options inside one Operation dropdown
+ * (Toggle beside the operations), Threshold inside one Pass When dropdown. */
+static void def_logic_merged(BlenderRNA *brna, StructRNA *srna)
+{
+  const nodes::logic::MergedNode *merged = nodes::logic::find_merged_node(srna->identifier);
+  BLI_assert(merged != nullptr);
+  if (merged == nullptr) {
+    return;
+  }
+
+  /* The generator writes the items into the generated code, so they only need to outlive it
+   * (not MEM_*: the generator reports unfreed blocks). */
+  EnumPropertyItem *items = new EnumPropertyItem[merged->options.size() + 1]();
+  for (const int index : merged->options.index_range()) {
+    const nodes::logic::MergedNodeOption &option = merged->options[index];
+    items[index] = {index, option.identifier, ICON_NONE, option.name, option.description};
+  }
+  PropertyRNA *prop = RNA_def_property(srna, "variant", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, items);
+  RNA_def_property_enum_funcs(
+      prop, "rna_LogicMerged_variant_get", "rna_LogicMerged_variant_set", nullptr);
+  RNA_def_property_ui_text(prop,
+                           merged->option_label,
+                           "Which of the older nodes this node works as: each option is "
+                           "exactly that node");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "variant_idname", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_funcs(prop,
+                                "rna_LogicMerged_variant_idname_get",
+                                "rna_LogicMerged_variant_idname_length",
+                                nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Works As", "The older node the chosen option is");
+
+  const StringRef idname = merged->idname;
+  if (idname == "LogicNativeModifyGameProperty") {
+    static const EnumPropertyItem operation_items[] = {
+        {NODE_MATH_ADD, "ADD", 0, "Add", "A + B"},
+        {NODE_MATH_SUBTRACT, "SUB", 0, "Subtract", "A - B"},
+        {NODE_MATH_DIVIDE, "DIV", 0, "Divide", "A / B"},
+        {NODE_MATH_MULTIPLY, "MUL", 0, "Multiply", "A * B"},
+        {NODE_MATH_POWER, "POW", 0, "Power", "A power B"},
+        {NODE_MATH_MODULO, "MOD", 0, "Modulo", "The remainder of A / B"},
+        {NODE_MATH_FLOOR, "FDIV", 0, "Floor Divide", "floor(A / B)"},
+        {logic_merged_toggle_operation,
+         "TOGGLE",
+         0,
+         "Toggle",
+         "Flip a true / false property (today's Toggle Property)"},
+        {0, nullptr, 0, nullptr, nullptr},
+    };
+    prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+    RNA_def_property_enum_items(prop, operation_items);
+    RNA_def_property_enum_funcs(prop,
+                                "rna_LogicMergedModify_operation_get",
+                                "rna_LogicMergedModify_operation_set",
+                                nullptr);
+    RNA_def_property_ui_text(prop, "Operation", "");
+    RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+    RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+    RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+    def_logic_modify_property_clamp(srna);
+  }
+  else if (idname == "LogicNativeThresholdValue") {
+    static const EnumPropertyItem pass_when_items[] = {
+        {0, "ABOVE", 0, "Above", "The value when it is above Threshold (today's Threshold)"},
+        {1, "BELOW", 0, "Below", "The value when it is below Threshold (today's Threshold)"},
+        {2,
+         "WITHIN",
+         0,
+         "Within Range",
+         "The value when it is between Min and Max, either one included (Min and Max in either "
+         "order; today's Ranged Threshold)"},
+        {3,
+         "OUTSIDE",
+         0,
+         "Outside Range",
+         "The value when it is not between Min and Max (today's Ranged Threshold)"},
+        {0, nullptr, 0, nullptr, nullptr},
+    };
+    prop = RNA_def_property(srna, "pass_when", PROP_ENUM, PROP_NONE);
+    RNA_def_property_enum_items(prop, pass_when_items);
+    RNA_def_property_enum_funcs(prop,
+                                "rna_LogicMergedThreshold_pass_when_get",
+                                "rna_LogicMergedThreshold_pass_when_set",
+                                nullptr);
+    RNA_def_property_ui_text(prop, "Pass When", "When the value goes through");
+    RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+    RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+    RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  }
+  else if (idname == "LogicNativeKeyButton") {
+    def_logic_keyboard_key(brna, srna); /* Input Type, Also in Menus. */
+    def_logic_mouse_button_prop(srna);
+    def_logic_gamepad_button_prop(srna);
+  }
+  else if (idname == "LogicNativeOnValueChange") {
+    def_logic_value_changed(brna, srna);
+  }
+  else if (idname == "LogicNativeCastRay") {
+    def_logic_raycast(brna, srna);
+  }
+  else if (idname == "LogicNativeCastShape") {
+    def_logic_shape_cast(brna, srna);
+  }
+  else if (idname == "LogicNativeDriveVehicle") {
+    def_logic_vehicle_axis(brna, srna);
+  }
+  else if (idname == "LogicNativeControlSound") {
+    def_logic_sound_datablock(brna, srna);
+  }
+  else if (idname == "LogicNativeGetBonePoint") {
+    def_logic_get_bone_pose_position(brna, srna);
+  }
+  else if (idname == "LogicNativeCursor") {
+    def_logic_cursor_position(brna, srna);
+  }
+}
+#endif
+
 static void rna_def_nodes(BlenderRNA *brna)
 {
   const auto define = [&](const char *base_name,
@@ -13968,25 +14215,18 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("NodeInternal", "NodeStoreBundleItem");
 
 #ifdef WITH_GAMEENGINE_LOGICNODES
-  define("LogicNode", "LogicNativeApplyForce");
   define("LogicNode", "LogicNativeApplyForceToTarget");
   define("LogicNode", "LogicNativeBarrier");
   define("LogicNode", "LogicNativeBooleanEdge");
   define("LogicNode", "LogicNativeBranch");
-  define("LogicNode", "LogicNativeClearVariables");
   define("LogicNode", "LogicNativeClampValue");
-  define("LogicNode", "LogicNativeColorRGB");
   define("LogicNode", "LogicNativeColorRGBA");
-  define("LogicNode", "LogicNativeCombineXY");
   define("LogicNode", "LogicNativeCombineXYZ");
   define("LogicNode", "LogicNativeCombineXYZW");
   define("LogicNode", "LogicNativeCompare", def_logic_compare);
   define("LogicNode", "LogicNativeCooldown");
-  define("LogicNode", "LogicNativeDelay");
   define("LogicNode", "LogicNativeFlowGate");
   define("LogicNode", "LogicNativeAnyFlow");
-  define("LogicNode", "LogicNativeSwitchFlowInt");
-  define("LogicNode", "LogicNativeSwitchFlowString");
   define("LogicNode", "LogicNativeFlowRouter");
   define("LogicNode", "LogicNativeFlipFlop");
   define("LogicNode", "LogicNativeRepeatLimit");
@@ -13996,21 +14236,10 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeBoneRotationToObjectRotation");
   define("LogicNode", "LogicNativeEvaluateProperty", def_logic_evaluate_property);
   define("LogicNode", "LogicNativeGate", def_logic_gate);
-  define("LogicNode", "LogicNativeApplyMovement");
-  define("LogicNode", "LogicNativeApplyRotation");
-  define("LogicNode", "LogicNativeApplyTorque");
-  define("LogicNode", "LogicNativeGetGamePropertyBool");
-  define("LogicNode", "LogicNativeGetGamePropertyFloat");
-  define("LogicNode", "LogicNativeGetGamePropertyInt");
-  define("LogicNode", "LogicNativeGetGamePropertyString");
-  define("LogicNode", "LogicNativeGetGameProperty");
-  define("LogicNode", "LogicNativeSetGameProperty");
   define("LogicNode", "LogicNativeAddObject");
   define("LogicNode", "LogicNativeAddPhysicsConstraint", def_logic_physics_constraint);
   define("LogicNode", "LogicNativeFormula", def_logic_formula);
   define("LogicNode", "LogicNativeFormattedString");
-  define("LogicNode", "LogicNativeGetChild");
-  define("LogicNode", "LogicNativeGetChildByName");
   define("LogicNode", "LogicNativeGetOwner");
   define("LogicNode", "LogicNativeGetParent");
   define("LogicNode", "LogicNativeFindObject");
@@ -14023,35 +14252,24 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeGetObjectID");
   define("LogicNode", "LogicNativeGetAxisVector", def_logic_axis_selector);
   define("LogicNode", "LogicNativeGetCollisionGroup");
-  define("LogicNode", "LogicNativeHasProperty");
-  define("LogicNode", "LogicNativeNone");
-  define("LogicNode", "LogicNativeNotNone");
   define("LogicNode", "LogicNativeGetTreeProperty");
   define("LogicNode", "LogicNativeSetTreeProperty");
   define("LogicNode", "LogicNativeGetGlobalProperty");
   define("LogicNode", "LogicNativeSetGlobalProperty");
   define("LogicNode", "LogicNativeListGlobalProperties");
-  define("LogicNode", "LogicNativeLoadVariable");
-  define("LogicNode", "LogicNativeSaveVariable");
-  define("LogicNode", "LogicNativeLoadVariableDict");
-  define("LogicNode", "LogicNativeSaveVariableDict");
   define("LogicNode", "LogicNativeKeyboardActive");
-  define("LogicNode", "LogicNativeKeyboardKey", def_logic_keyboard_key);
   define("LogicNode", "LogicNativeKeyCode");
   define("LogicNode", "LogicNativeKeyLogger");
-  define("LogicNode", "LogicNativeLimitRange");
   define("LogicNode", "LogicNativeListGetItem");
-  define("LogicNode", "LogicNativeListRandomItem");
+  define("LogicNode", "LogicNativeListRandomItem", def_logic_list_random_item);
   define("LogicNode", "LogicNativeListSavedVariables");
   define("LogicNode", "LogicNativeListLength");
   define("LogicNode", "LogicNativeLoop");
   define("LogicNode", "LogicNativeLoopFromList");
   define("LogicNode", "LogicNativeMath", def_logic_math);
-  define("LogicNode", "LogicNativeModifyProperty", def_logic_modify_property);
   define("LogicNode", "LogicNativeMoveToward");
   define("LogicNode", "LogicNativeNavigate");
   define("LogicNode", "LogicNativeFollowPath");
-  define("LogicNode", "LogicNativeTranslate");
   define("LogicNode", "LogicNativeMouseMoved", def_logic_mouse_moved);
   define("LogicNode", "LogicNativeMouseOver", def_logic_interaction_view);
   define("LogicNode", "LogicNativeObjectScrollView", def_logic_interaction_view);
@@ -14068,16 +14286,12 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeSetUIInteractable");
   define("LogicNode", "LogicNativeScrollObjectView", def_logic_scroll_object_view);
   define("LogicNode", "LogicNativeShowMessage");
-  define("LogicNode", "LogicNativeMouseButton", def_logic_mouse_button);
   define("LogicNode", "LogicNativeMouseLook", def_logic_mouse_look);
   define("LogicNode", "LogicNativeMouseWheel", def_logic_mouse_wheel);
   define("LogicNode", "LogicNativeMouseRay", def_logic_interaction_view);
-  define("LogicNode", "LogicNativeCursorPosition", def_logic_cursor_position);
-  define("LogicNode", "LogicNativeCursorMovement");
   define("LogicNode", "LogicNativeSetCursorVisibility", def_logic_set_cursor_visibility);
   define("LogicNode", "LogicNativeSetCursorPosition");
   define("LogicNode", "LogicNativeGamepadActive");
-  define("LogicNode", "LogicNativeGamepadButton", def_logic_gamepad_button);
   define("LogicNode", "LogicNativeInputAction", def_logic_input_action);
   define("LogicNode", "LogicNativeGetInputBinding", def_logic_get_input_binding);
   define("LogicNode", "LogicNativeRebindInputAction", def_logic_rebind_input_action);
@@ -14097,24 +14311,18 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeCameraRay");
   define("LogicNode", "LogicNativeGetGravity");
   define("LogicNode", "LogicNativeGetCharacterInfo", def_logic_local_space);
-  define("LogicNode", "LogicNativeGetLightColor");
-  define("LogicNode", "LogicNativeGetLightPower");
   define("LogicNode", "LogicNativeGetTimescale");
   define("LogicNode", "LogicNativeTime");
-  define("LogicNode", "LogicNativeDeltaFactor");
   define("LogicNode", "LogicNativeQuitGame");
   define("LogicNode", "LogicNativeRestartGame");
   define("LogicNode", "LogicNativePlayAction", def_logic_play_action);
   define("LogicNode", "LogicNativePlaySound", def_logic_play_sound);
   define("LogicNode", "LogicNativePlaySound3D", def_logic_play_sound_3d);
   define("LogicNode", "LogicNativeSetVolume", def_logic_set_volume);
-  define("LogicNode", "LogicNativeStartSpeaker");
-  define("LogicNode", "LogicNativePauseSound", def_logic_sound_datablock);
-  define("LogicNode", "LogicNativeResumeSound", def_logic_sound_datablock);
+  define("LogicNode", "LogicNativeSetRandomSeed", def_logic_set_random_seed);
   define("LogicNode", "LogicNativeStopAction");
   define("LogicNode", "LogicNativeSetActionFrame");
   define("LogicNode", "LogicNativeSetShapeKeyValue");
-  define("LogicNode", "LogicNativeActionDone");
   define("LogicNode", "LogicNativeAlignAxisToVector");
   define("LogicNode", "LogicNativeRotateToward");
   define("LogicNode", "LogicNativeSetObjectAttribute", def_logic_set_object_attribute);
@@ -14124,12 +14332,9 @@ static void rna_def_nodes(BlenderRNA *brna)
          def_logic_rigid_body_constraint_match_mode);
   define("LogicNode", "LogicNativeSetRigidBodyAttribute", def_logic_set_rigid_body_attribute);
   define("LogicNode", "LogicNativeAnimationStatus");
-  define("LogicNode", "LogicNativeCollision");
   define("LogicNode", "LogicNativeOnCollision");
   define("LogicNode", "LogicNativeCopyProperty");
   define("LogicNode", "LogicNativeObjectsColliding");
-  define("LogicNode", "LogicNativeStopAllSounds");
-  define("LogicNode", "LogicNativeStopSound", def_logic_sound_datablock);
   define("LogicNode", "LogicNativeSetMaterialSlot", def_logic_material_datablock);
   define("LogicNode", "LogicNativeSetMaterialParameter", def_logic_set_material_parameter);
   define("LogicNode", "LogicNativeGetMaterialFromSlot");
@@ -14145,31 +14350,15 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode",
          "LogicNativeAssignGeometryNodesModifier",
          def_logic_assign_geometry_nodes_modifier);
-  define("LogicNode", "LogicNativeGetNodeGroupSocketValue");
-  define("LogicNode", "LogicNativeSetNodeGroupSocketValue");
   define("LogicNode", "LogicNativePlayMaterialSequence");
   define("LogicNode", "LogicNativeLoadBlendFile");
   define("LogicNode", "LogicNativeLoadGame");
-  define("LogicNode", "LogicNativeLoadScene");
-  define("LogicNode", "LogicNativeStartLogicTree");
-  define("LogicNode", "LogicNativeStopLogicTree");
-  define("LogicNode", "LogicNativeRunLogicTree");
-  define("LogicNode", "LogicNativeInstallLogicTree");
   define("LogicNode", "LogicNativeLogicTreeStatus");
-  define("LogicNode", "LogicNativeMakeList");
   define("LogicNode", "LogicNativeListExtend");
   define("LogicNode", "LogicNativeDictGetKey");
   define("LogicNode", "LogicNativeMakeDict");
   define("LogicNode", "LogicNativeDictLength");
   define("LogicNode", "LogicNativeDictGetKeys");
-  define("LogicNode", "LogicNativeGetBoneTailWorld");
-  define("LogicNode", "LogicNativeGetBoneLength");
-  define("LogicNode", "LogicNativeGetBoneCenterWorld");
-  define("LogicNode", "LogicNativeGetBoneHeadPoseWorld", def_logic_get_bone_pose_position);
-  define("LogicNode", "LogicNativeGetBoneTailPoseWorld", def_logic_get_bone_pose_position);
-  define("LogicNode", "LogicNativeGetBoneCenterPoseWorld", def_logic_get_bone_pose_position);
-  define("LogicNode", "LogicNativeGetBonePoseRotation", def_logic_get_bone_pose_rotation);
-  define("LogicNode", "LogicNativeGetBonePoseScale");
   define("LogicNode", "LogicNativeGetBonePoseTransform", def_logic_get_bone_pose_transform);
   define("LogicNode", "LogicNativeGetBoneAttribute", def_logic_bone_attribute);
   define("LogicNode", "LogicNativeSetBonePoseLocation", def_logic_set_bone_pose_location);
@@ -14177,36 +14366,30 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeSetBonePoseScale");
   define("LogicNode", "LogicNativeSetBonePoseTransform", def_logic_set_bone_pose_transform);
   define("LogicNode", "LogicNativeSetBoneAttribute", def_logic_set_bone_attribute);
-  define("LogicNode", "LogicNativeSetBoneConstraintInfluence");
-  define("LogicNode", "LogicNativeSetBoneConstraintTarget");
-  define("LogicNode", "LogicNativeSetBoneConstraintAttribute");
   define("LogicNode", "LogicNativeEvaluateCurve");
   define("LogicNode", "LogicNativeListContains");
   define("LogicNode", "LogicNativeEmptyList");
   define("LogicNode", "LogicNativeEmptyDict");
   define("LogicNode", "LogicNativeDictHasKey");
-  define("LogicNode", "LogicNativeListDuplicate");
   define("LogicNode", "LogicNativeDictMerge");
-  define("LogicNode", "LogicNativeListAppend");
+  define("LogicNode", "LogicNativeListAppend", def_logic_collection_store);
   define("LogicNode", "LogicNativeListSort");
   define("LogicNode", "LogicNativeListFindIndex");
-  define("LogicNode", "LogicNativeListRemoveIndex");
-  define("LogicNode", "LogicNativeListRemoveValue");
-  define("LogicNode", "LogicNativeListSetIndex");
-  define("LogicNode", "LogicNativeDictSetKey");
-  define("LogicNode", "LogicNativeDictAddValue");
+  define("LogicNode", "LogicNativeListRemoveIndex", def_logic_collection_store);
+  define("LogicNode", "LogicNativeListRemoveValue", def_logic_collection_store);
+  define("LogicNode", "LogicNativeListSetIndex", def_logic_collection_store);
+  define("LogicNode", "LogicNativeDictSetKey", def_logic_collection_store);
+  define("LogicNode", "LogicNativeDictAddValue", def_logic_collection_store);
   define("LogicNode", "LogicNativeInventory", def_logic_inventory);
   define("LogicNode", "LogicNativeItemCount");
   define("LogicNode", "LogicNativeGetItemInfo");
   define("LogicNode", "LogicNativeGetRecipeInfo");
   define("LogicNode", "LogicNativeFindRecipe");
   define("LogicNode", "LogicNativeDropItem");
-  define("LogicNode", "LogicNativeDictRemoveKey");
+  define("LogicNode", "LogicNativeDictRemoveKey", def_logic_collection_store);
   define("LogicNode", "LogicNativeListFromItems", def_logic_list_from_items);
   define("LogicNode", "LogicNativeGetActiveCamera");
   define("LogicNode", "LogicNativeSetCamera");
-  define("LogicNode", "LogicNativeSetCameraFov");
-  define("LogicNode", "LogicNativeSetCameraOrthoScale");
   define("LogicNode", "LogicNativeSetSplitScreen", def_logic_set_split_screen);
   define("LogicNode", "LogicNativeGetPlayerView");
   define("LogicNode", "LogicNativeSetCameraViewport", def_logic_set_camera_viewport);
@@ -14217,60 +14400,32 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeSetCameraVisibility");
   define("LogicNode", "LogicNativeWorldToScreen");
   define("LogicNode", "LogicNativeScreenToWorld");
-  define("LogicNode", "LogicNativeGetFullscreen");
   define("LogicNode", "LogicNativeSetFullscreen");
-  define("LogicNode", "LogicNativeGetResolution");
   define("LogicNode", "LogicNativeSetResolution");
-  define("LogicNode", "LogicNativeGetVSync");
   define("LogicNode", "LogicNativeSetVSync", def_logic_vsync_mode);
-  define("LogicNode", "LogicNativeShowFramerate");
-  define("LogicNode", "LogicNativeShowProfile");
   define("LogicNode", "LogicNativePulsify");
-  define("LogicNode", "LogicNativeRandomValue");
-  define("LogicNode", "LogicNativeRandomFloat");
-  define("LogicNode", "LogicNativeRandomInt");
-  define("LogicNode", "LogicNativeRandomVector");
+  define("LogicNode", "LogicNativeRandomValue", def_logic_random_value);
   define("LogicNode", "LogicNativeMixValue");
   define("LogicNode", "LogicNativeFloatCurve", def_float_curve);
-  define("LogicNode", "LogicNativeRaycast", def_logic_raycast);
-  define("LogicNode", "LogicNativeRaycastAll", def_logic_raycast);
   define("LogicNode", "LogicNativeRaycastFromMesh", def_logic_raycast_from_mesh);
-  define("LogicNode", "LogicNativeShapeCast", def_logic_shape_cast);
-  define("LogicNode", "LogicNativeShapeCastAll", def_logic_shape_cast);
   define("LogicNode", "LogicNativeRemoveObject");
-  define("LogicNode", "LogicNativeRemoveOverlayCollection");
   define("LogicNode", "LogicNativeRemoveParent");
-  define("LogicNode", "LogicNativeRemoveVariable");
   define("LogicNode", "LogicNativeRemovePhysicsConstraint");
   define("LogicNode", "LogicNativeResizeVector", def_logic_resize_vector);
-  define("LogicNode", "LogicNativeRangedThreshold", def_logic_within_range);
-  define("LogicNode", "LogicNativeSeparateXY");
   define("LogicNode", "LogicNativeSeparateEuler");
   define("LogicNode", "LogicNativeSeparateXYZ");
   define("LogicNode", "LogicNativeSequence");
-  define("LogicNode", "LogicNativeSetGamePropertyBool");
-  define("LogicNode", "LogicNativeSetGamePropertyFloat");
-  define("LogicNode", "LogicNativeSetGamePropertyInt");
-  define("LogicNode", "LogicNativeSetGamePropertyString");
   define("LogicNode", "LogicNativeSetCollisionGroup");
   define("LogicNode", "LogicNativeCharacterJump");
-  define("LogicNode", "LogicNativeSetCharacterGravity");
-  define("LogicNode", "LogicNativeSetCharacterJumpSpeed");
-  define("LogicNode", "LogicNativeSetCharacterMaxJumps");
   define("LogicNode", "LogicNativeSetCharacterWalkDirection", def_logic_local_space);
   define("LogicNode", "LogicNativeSetCharacterVelocity", def_logic_local_space);
   define("LogicNode", "LogicNativeSetDynamics", def_logic_set_dynamics);
   define("LogicNode", "LogicNativeSetGravity");
   define("LogicNode", "LogicNativeMakeLightUnique");
-  define("LogicNode", "LogicNativeSetLightColor");
-  define("LogicNode", "LogicNativeSetLightPower");
-  define("LogicNode", "LogicNativeSetLightShadow");
   define("LogicNode", "LogicNativeSetParent", def_logic_set_parent);
   define("LogicNode", "LogicNativeSetPhysics");
-  define("LogicNode", "LogicNativeSetPhysicsPaused");
   define("LogicNode", "LogicNativeRebuildCollisionShape");
   define("LogicNode", "LogicNativeSetTimescale");
-  define("LogicNode", "LogicNativeSetGamePaused");
   define("LogicNode", "LogicNativeStringOperation", def_logic_string_operation);
   define("LogicNode", "LogicNativeVectorRotate", def_logic_vector_rotate);
   define("LogicNode", "LogicNativeXYZToMatrix");
@@ -14279,19 +14434,12 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeGetSound");
   define("LogicNode", "LogicNativeGetImage");
   define("LogicNode", "LogicNativeSetText");
-  define("LogicNode", "LogicNativeDrawLine");
-  define("LogicNode", "LogicNativeDrawCube", def_logic_volume_origin);
-  define("LogicNode", "LogicNativeDrawBox", def_logic_volume_origin);
   define("LogicNode", "LogicNativeDraw", def_logic_draw_mode);
-  define("LogicNode", "LogicNativeJoinPath");
   define("LogicNode", "LogicNativeGetMasterFolder");
   define("LogicNode", "LogicNativeLoadFileContent");
-  define("LogicNode", "LogicNativeToggleProperty");
   define("LogicNode", "LogicNativeToggleTreeProperty");
   define("LogicNode", "LogicNativeTypecast", def_logic_typecast);
   define("LogicNode", "LogicNativeValueBool");
-  define("LogicNode", "LogicNativeValueChanged", def_logic_value_changed);
-  define("LogicNode", "LogicNativeValueChangedTo");
   define("LogicNode", "LogicNativeValueColor");
   define("LogicNode", "LogicNativeValueFloat");
   define("LogicNode", "LogicNativeValueInt");
@@ -14300,21 +14448,13 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeValueSwitch");
   define("LogicNode", "LogicNativeValueSwitchList");
   define("LogicNode", "LogicNativeValueSwitchListCompare", def_logic_compare);
-  define("LogicNode", "LogicNativeValueValid");
   define("LogicNode", "LogicNativeValueVector");
   define("LogicNode", "LogicNativeVehicleControl");
-  define("LogicNode", "LogicNativeVehicleAccelerate", def_logic_vehicle_axis);
-  define("LogicNode", "LogicNativeVehicleBrake", def_logic_vehicle_axis);
-  define("LogicNode", "LogicNativeVehicleSteer", def_logic_vehicle_axis);
   define("LogicNode", "LogicNativeVehicleSetAttributes", def_logic_vehicle_axis);
   define("LogicNode", "LogicNativeInvertValue");
   define("LogicNode", "LogicNativeMapRange", def_logic_map_range);
-  define("LogicNode", "LogicNativeThreshold", def_logic_threshold);
-  define("LogicNode", "LogicNativeTimer");
   define("LogicNode", "LogicNativeTweenValue", def_logic_tween_value);
   define("LogicNode", "LogicNativeProjectileRay");
-  define("LogicNode", "LogicNativeApplyImpulse");
-  define("LogicNode", "LogicNativeGetBoneHeadWorld");
   define("LogicNode", "LogicNativeVectorMath", def_logic_vector_math);
   define("LogicNode", "LogicNativeWithinRange", def_logic_within_range);
   define("LogicNode", "LogicNativePrint");
@@ -14322,7 +14462,6 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeReplaceMesh");
   define("LogicNode", "LogicNativeSaveGame");
   define("LogicNode", "LogicNativeSendEvent", def_logic_send_event);
-  define("LogicNode", "LogicNativeSetScene");
   define("LogicNode", "LogicNativeSetSaveExistence");
   define("LogicNode", "LogicNativeGetScene");
   define("LogicNode", "LogicNativeGetCollection");
@@ -14330,8 +14469,11 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeGetCollectionObjectNames");
   define("LogicNode", "LogicNativeSetCollectionMember");
   define("LogicNode", "LogicNativeSetCollectionVisibility");
-  define("LogicNode", "LogicNativeSetOverlayCollection");
   define("LogicNode", "LogicNativeSlowFollow");
+  /* Merged Logic Nodes (NOD_logic_merged.hh): one struct each, all set up by def_logic_merged. */
+  for (const nodes::logic::MergedNode &merged : nodes::logic::merged_nodes()) {
+    define("LogicNode", merged.idname, def_logic_merged);
+  }
 #endif
 
   define("ShaderNode", "ShaderNodeAddShader");

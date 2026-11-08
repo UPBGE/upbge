@@ -132,6 +132,7 @@ const char *bool_kind_refusal(const LN_BoolExpression &expression)
   switch (expression.kind) {
     case LN_BoolExpressionKind::Constant:
     case LN_BoolExpressionKind::GamePaused:
+    case LN_BoolExpressionKind::Random:
     case LN_BoolExpressionKind::SnapshotGameProperty:
     case LN_BoolExpressionKind::SnapshotGamePropertyExists:
     case LN_BoolExpressionKind::RuntimeTreeProperty:
@@ -214,6 +215,7 @@ const char *int_kind_refusal(const LN_IntExpression &expression)
     case LN_IntExpressionKind::DictLength:
     case LN_IntExpressionKind::FromGenericValue:
     case LN_IntExpressionKind::Random:
+    case LN_IntExpressionKind::GameRandomSeed:
     case LN_IntExpressionKind::FromBool:
     case LN_IntExpressionKind::FromFloat:
     case LN_IntExpressionKind::FromString:
@@ -630,6 +632,9 @@ const char *op_refusal(const LN_Program &program, const LN_Instruction &instruct
     case LN_OpCode::StopAction:
     case LN_OpCode::SetActionFrame:
     case LN_OpCode::Print:
+    /* A list or dictionary change of a game property: recorded, made at the flush (its value's
+     * objects through the tree's own references, as Set Object Property's). */
+    case LN_OpCode::EditGameProperty:
       return nullptr;
     case LN_OpCode::SampleMotion:
       /* Predict Motion of an object applies its pending moves; of a position it does not. */

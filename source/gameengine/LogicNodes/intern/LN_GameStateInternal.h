@@ -352,6 +352,10 @@ struct ObjectState {
 struct Checkpoint {
   std::string scene_uuid;
   std::string scene_name;
+  /** The game's random seed when it was saved (LN_Random.h): a loaded game keeps it. Files saved
+   * before 2026-11-07 have none (the seed stays as it is). */
+  bool has_random_seed = false;
+  uint32_t random_seed = 0;
   std::vector<ObjectState> authored_objects;
   std::vector<ObjectState> spawned_instances;
   std::vector<SharedMaterialState> shared_materials;

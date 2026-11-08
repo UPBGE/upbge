@@ -15,9 +15,17 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Speaker"_ustr).description(
-      "Object used as the 3D sound emitter; defaults to the owner when unset");
-  b.add_input<decl::Float>("Volume"_ustr).default_value(1.0f).min(0.0f);
-  b.add_input<decl::Float>("Pitch"_ustr).default_value(1.0f).min(0.0001f);
+      "Object the sound plays at; empty uses this tree's object. A Speaker object plays as in "
+      "Blender: its own sound when no Sound is picked, its volume, pitch, distances, attenuation "
+      "and cone (nothing while it is muted)");
+  b.add_input<decl::Float>("Volume"_ustr)
+      .default_value(1.0f)
+      .min(0.0f)
+      .description("Times a Speaker object's own volume");
+  b.add_input<decl::Float>("Pitch"_ustr)
+      .default_value(1.0f)
+      .min(0.0001f)
+      .description("Times a Speaker object's own pitch");
   b.add_input<decl::Bool>("Loop"_ustr).default_value(false);
   b.add_input<decl::Int>("User"_ustr)
       .default_value(0)

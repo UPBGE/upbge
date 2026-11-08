@@ -613,6 +613,7 @@ struct SteppedTrees {
     context.use_fixed_timestep = true;
     context.tick_index = step + 1;
     context.phase_tick_index = step;
+    context.steps_done = step;
     context.delta_time = delta;
     context.unscaled_dt = delta;
     return context;

@@ -363,6 +363,7 @@ void AddInstructionDependencyDetails(LN_ProgramDependencySummary &summary,
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
       break;
     case LN_OpCode::SetGlobalProperty:
+    case LN_OpCode::SetRandomSeed:
     case LN_OpCode::SaveVariable:
     case LN_OpCode::SaveVariableDict:
     case LN_OpCode::ClearVariables:
@@ -1692,7 +1693,8 @@ bool TryEvaluateFloatCompare(const LN_FloatCompareOperation operation,
 {
   switch (operation) {
     case LN_FloatCompareOperation::Equal:
-      r_value = std::fabs(a - b) <= 1.0e-6f;
+      /* (The runtime's: Equal(inf, inf) is true, 2026-11-08.) */
+      r_value = a == b || std::fabs(a - b) <= 1.0e-6f;
       return true;
     case LN_FloatCompareOperation::NotEqual:
       r_value = std::fabs(a - b) > 1.0e-6f;
@@ -2150,6 +2152,7 @@ LN_MainThreadOnlyReason MainThreadOnlyReasonForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SetSaveExistence:
       return LN_MainThreadOnlyReason::ObjectLifecycleCommand;
     case LN_OpCode::SetGlobalProperty:
+    case LN_OpCode::SetRandomSeed:
       return LN_MainThreadOnlyReason::GlobalPropertyPersistence;
     case LN_OpCode::SaveVariable:
     case LN_OpCode::SaveVariableDict:
@@ -2251,12 +2254,14 @@ LN_InstructionPayloadKind PayloadKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SetGameProperty:
     case LN_OpCode::SetTreeProperty:
     case LN_OpCode::SetGlobalProperty:
+    case LN_OpCode::SetRandomSeed:
     case LN_OpCode::SaveVariable:
     case LN_OpCode::SaveVariableDict:
     case LN_OpCode::ClearVariables:
     case LN_OpCode::RemoveVariable:
     case LN_OpCode::InputMap:
     case LN_OpCode::CopyProperty:
+    case LN_OpCode::EditGameProperty:
       return LN_InstructionPayloadKind::Property;
     case LN_OpCode::AddObject:
     case LN_OpCode::SetParent:
@@ -2474,6 +2479,7 @@ uint32_t CommandResourceAccessForOpcode(const LN_OpCode opcode)
     case LN_OpCode::AlignAxisToVector:
     case LN_OpCode::RotateToward:
     case LN_OpCode::CopyProperty:
+    case LN_OpCode::EditGameProperty:
     case LN_OpCode::SetTransformVector:
     case LN_OpCode::ApplyTransformVector:
       return LN_SCHEDULER_RESOURCE_WORLD;
@@ -2988,6 +2994,7 @@ LN_ExecOpKind ExecOpKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SetParent:
     case LN_OpCode::ReplaceMesh:
     case LN_OpCode::CopyProperty:
+    case LN_OpCode::EditGameProperty:
       return LN_ExecOpKind::ObjectReferenceCommand;
     case LN_OpCode::SetGameProperty:
       return LN_ExecOpKind::GamePropertyCommand;
@@ -3000,6 +3007,7 @@ LN_ExecOpKind ExecOpKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SendEvent:
       return LN_ExecOpKind::SendEvent;
     case LN_OpCode::SetGlobalProperty:
+    case LN_OpCode::SetRandomSeed:
       return LN_ExecOpKind::GlobalPropertyCommand;
     case LN_OpCode::SaveVariable:
     case LN_OpCode::SaveVariableDict:
@@ -3180,11 +3188,13 @@ bool OpcodeHasDirectExecOp(const LN_Instruction &instruction)
     case LN_OpCode::RemoveObject:
     case LN_OpCode::ReplaceMesh:
     case LN_OpCode::CopyProperty:
+    case LN_OpCode::EditGameProperty:
     case LN_OpCode::SendEvent:
     case LN_OpCode::SetLogicTreeEnabled:
     case LN_OpCode::RunLogicTreeOnce:
     case LN_OpCode::InstallLogicTree:
     case LN_OpCode::SetGlobalProperty:
+    case LN_OpCode::SetRandomSeed:
     case LN_OpCode::SaveVariable:
     case LN_OpCode::SaveVariableDict:
     case LN_OpCode::ClearVariables:
@@ -4454,7 +4464,11 @@ void LN_Program::RebuildRegisterExpressionIR()
               LN_RegisterValueKind::Int, expression.input0, ir.int_expression_registers);
           op.input1 = make_ref(
               LN_RegisterValueKind::Int, expression.input1, ir.int_expression_registers);
-          supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
+          /* The Seed input (2026-11-07): a Random fed by a Loop's Index is as pure as that. */
+          op.input2 = make_ref(
+              LN_RegisterValueKind::Int, expression.input2, ir.int_expression_registers);
+          supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1) &&
+                      (expression.input2 == LN_INVALID_INDEX || RegisterRefIsValid(op.input2));
           op.kind = LN_RegisterExpressionOpKind::IntRandom;
           break;
         default:
@@ -4821,7 +4835,10 @@ void LN_Program::RebuildRegisterExpressionIR()
               LN_RegisterValueKind::Float, expression.input0, ir.float_expression_registers);
           op.input1 = make_ref(
               LN_RegisterValueKind::Float, expression.input1, ir.float_expression_registers);
-          supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1);
+          op.input2 = make_ref(
+              LN_RegisterValueKind::Int, expression.input2, ir.int_expression_registers);
+          supported = RegisterRefIsValid(op.input0) && RegisterRefIsValid(op.input1) &&
+                      (expression.input2 == LN_INVALID_INDEX || RegisterRefIsValid(op.input2));
           op.kind = LN_RegisterExpressionOpKind::FloatRandom;
           break;
         default:
@@ -4999,9 +5016,16 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.kind = LN_RegisterExpressionOpKind::VectorCombine;
           break;
         case LN_VectorExpressionKind::Random:
+          /* Min (none: the old Random Vector node), Max, Seed. */
           op.input0 = make_ref(
               LN_RegisterValueKind::Vector, expression.input0, ir.vector_expression_registers);
-          supported = RegisterRefIsValid(op.input0);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Vector, expression.input1, ir.vector_expression_registers);
+          op.input2 = make_ref(
+              LN_RegisterValueKind::Int, expression.input2, ir.int_expression_registers);
+          supported = (expression.input0 == LN_INVALID_INDEX || RegisterRefIsValid(op.input0)) &&
+                      (expression.input1 == LN_INVALID_INDEX || RegisterRefIsValid(op.input1)) &&
+                      (expression.input2 == LN_INVALID_INDEX || RegisterRefIsValid(op.input2));
           op.kind = LN_RegisterExpressionOpKind::VectorRandom;
           break;
         default:
@@ -5453,7 +5477,10 @@ void LN_Program::RebuildRegisterExpressionIR()
           op.input0 = make_ref(LN_RegisterValueKind::GenericValue,
                                expression.input0,
                                ir.value_expression_registers);
-          supported = RegisterRefIsValid(op.input0);
+          op.input1 = make_ref(
+              LN_RegisterValueKind::Int, expression.input1, ir.int_expression_registers);
+          supported = RegisterRefIsValid(op.input0) &&
+                      (expression.input1 == LN_INVALID_INDEX || RegisterRefIsValid(op.input1));
           op.kind = LN_RegisterExpressionOpKind::ValueListRandomItem;
           break;
         case LN_ValueExpressionKind::ValueSwitchList: {

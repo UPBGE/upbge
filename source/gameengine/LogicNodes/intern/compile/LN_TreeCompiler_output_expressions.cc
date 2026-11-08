@@ -1260,7 +1260,6 @@ std::optional<uint32_t> BuildOutputIntExpression(
         }
       }
       break;
-    case LN_NodeKind::Collision:
     case LN_NodeKind::OnCollision: {
       if (!NamesMatch(output_socket.name, output_socket.identifier, "Contact Count")) {
         break;
@@ -1817,7 +1816,6 @@ std::optional<uint32_t> BuildOutputFloatExpression(
       }
       break;
     }
-    case LN_NodeKind::SeparateXY:
     case LN_NodeKind::SeparateXYZ:
     case LN_NodeKind::SeparateEuler: {
       const std::optional<uint32_t> vector =
@@ -2252,30 +2250,6 @@ std::optional<uint32_t> BuildOutputStringExpression(
       }
       break;
     }
-    case LN_NodeKind::JoinPath: {
-      const std::optional<uint32_t> input0 = BuildInputStringExpression(program,
-                                                                        node,
-                                                                        "Path",
-                                                                        node_definitions,
-                                                                        input_links,
-                                                                        value_cache,
-                                                                        string_expression_cache);
-      const std::optional<uint32_t> input1 = BuildInputStringExpression(program,
-                                                                        node,
-                                                                        "Path_001",
-                                                                        node_definitions,
-                                                                        input_links,
-                                                                        value_cache,
-                                                                        string_expression_cache);
-      if (input0 && input1) {
-        LN_StringExpression expression;
-        expression.kind = LN_StringExpressionKind::Join;
-        expression.input0 = *input0;
-        expression.input1 = *input1;
-        result = program.AddStringExpression(expression);
-      }
-      break;
-    }
     case LN_NodeKind::StringOperation: {
       if (!NamesMatch(output_socket.name, output_socket.identifier, "String")) {
         break;
@@ -2633,7 +2607,6 @@ std::optional<uint32_t> BuildOutputVectorExpression(
   }
 
   switch (definition.kind) {
-    case LN_NodeKind::Collision:
     case LN_NodeKind::OnCollision: {
       const bool point_output = NamesMatch(output_socket.name, output_socket.identifier, "Point");
       const bool normal_output = NamesMatch(output_socket.name, output_socket.identifier, "Normal");
@@ -2722,7 +2695,6 @@ std::optional<uint32_t> BuildOutputVectorExpression(
       }
       break;
     }
-    case LN_NodeKind::GetBonePoseRotation:
     case LN_NodeKind::GetBonePoseTransform: {
       if (definition.kind == LN_NodeKind::GetBonePoseTransform &&
           !NamesMatch(output_socket.name, output_socket.identifier, "Rotation"))
@@ -2763,7 +2735,6 @@ std::optional<uint32_t> BuildOutputVectorExpression(
       }
       break;
     }
-    case LN_NodeKind::CombineXY:
     case LN_NodeKind::CombineXYZ:
     case LN_NodeKind::CombineXYZW:
     case LN_NodeKind::Euler: {
@@ -3158,7 +3129,6 @@ std::optional<uint32_t> BuildOutputColorExpression(
       }
       break;
     }
-    case LN_NodeKind::ColorRGB:
     case LN_NodeKind::ColorRGBA: {
       const std::optional<uint32_t> r = BuildInputFloatExpression(program,
                                                                   node,
@@ -3449,7 +3419,7 @@ std::optional<uint32_t> BuildOutputValueExpression(
 
   const LN_NodeDefinition &definition = *definition_iter->second;
 
-  if ((definition.kind == LN_NodeKind::Collision || definition.kind == LN_NodeKind::OnCollision) &&
+  if (definition.kind == LN_NodeKind::OnCollision &&
       (NamesMatch(output_socket.name, output_socket.identifier, "Colliding") ||
        NamesMatch(output_socket.name, output_socket.identifier, "On Collision")))
   {
@@ -3471,7 +3441,7 @@ std::optional<uint32_t> BuildOutputValueExpression(
     return result;
   }
 
-  if ((definition.kind == LN_NodeKind::Collision || definition.kind == LN_NodeKind::OnCollision) &&
+  if (definition.kind == LN_NodeKind::OnCollision &&
       NamesMatch(output_socket.name, output_socket.identifier, "Contact Count"))
   {
     const std::optional<uint32_t> int_expr = BuildOutputIntExpression(program,
@@ -3491,7 +3461,7 @@ std::optional<uint32_t> BuildOutputValueExpression(
     return result;
   }
 
-  if ((definition.kind == LN_NodeKind::Collision || definition.kind == LN_NodeKind::OnCollision) &&
+  if (definition.kind == LN_NodeKind::OnCollision &&
       (NamesMatch(output_socket.name, output_socket.identifier, "Point") ||
        NamesMatch(output_socket.name, output_socket.identifier, "Normal")))
   {
@@ -3576,7 +3546,6 @@ std::optional<uint32_t> BuildOutputValueExpression(
   }
 
   switch (definition.kind) {
-    case LN_NodeKind::Collision:
     case LN_NodeKind::OnCollision: {
       const bool collided_object_output = NamesMatch(
           output_socket.name, output_socket.identifier, "Collided Object");
@@ -3726,10 +3695,8 @@ std::optional<uint32_t> BuildOutputValueExpression(
                                                 color_expression_cache,
                                                 value_expression_cache);
       break;
-    case LN_NodeKind::GetBonePoseRotation:
     case LN_NodeKind::GetBonePoseTransform:
-      if (definition.kind == LN_NodeKind::GetBonePoseRotation ||
-          NamesMatch(output_socket.name, output_socket.identifier, "Rotation"))
+      if (NamesMatch(output_socket.name, output_socket.identifier, "Rotation"))
       {
         result = BuildBonePoseRotationValueExpression(program,
                                                      node,
@@ -4017,7 +3984,6 @@ std::optional<LN_Value> EvaluateOutputValue(
     case LN_NodeKind::ValueString:
       result = ReadSocketDefault(output_socket, LN_ValueType::String);
       break;
-    case LN_NodeKind::GetBonePoseRotation:
     case LN_NodeKind::GetBonePoseTransform:
     case LN_NodeKind::GetRigidBodyAttribute:
       break;
@@ -4177,7 +4143,6 @@ std::optional<LN_Value> EvaluateOutputValue(
     case LN_NodeKind::ValueColor:
       result = ReadSocketDefault(output_socket, LN_ValueType::Color);
       break;
-    case LN_NodeKind::ColorRGB:
     case LN_NodeKind::ColorRGBA: {
       const std::optional<LN_Value> r = ReadInputValue(node,
                                                        "R",
@@ -4208,7 +4173,7 @@ std::optional<LN_Value> EvaluateOutputValue(
       }
       if (r && r->type == LN_ValueType::Float && g && g->type == LN_ValueType::Float && b &&
           b->type == LN_ValueType::Float &&
-          (definition.kind == LN_NodeKind::ColorRGB || (a && a->type == LN_ValueType::Float)))
+          a && a->type == LN_ValueType::Float)
       {
         LN_Value color_value;
         color_value.type = LN_ValueType::Color;
@@ -4262,7 +4227,6 @@ std::optional<LN_Value> EvaluateOutputValue(
       }
       break;
     }
-    case LN_NodeKind::CombineXY:
     case LN_NodeKind::CombineXYZ:
     case LN_NodeKind::Euler: {
       const std::optional<LN_Value> x = ReadInputValue(node,
@@ -4286,9 +4250,8 @@ std::optional<LN_Value> EvaluateOutputValue(
                            input_links,
                            value_cache);
       }
-      if (x && x->type == LN_ValueType::Float && y && y->type == LN_ValueType::Float &&
-          (definition.kind == LN_NodeKind::CombineXY ||
-           (z && z->type == LN_ValueType::Float)))
+      if (x && x->type == LN_ValueType::Float && y && y->type == LN_ValueType::Float && z &&
+          z->type == LN_ValueType::Float)
       {
         LN_Value vector_value;
         if (definition.kind == LN_NodeKind::Euler) {
@@ -4398,7 +4361,6 @@ std::optional<LN_Value> EvaluateOutputValue(
       }
       break;
     }
-    case LN_NodeKind::SeparateXY:
     case LN_NodeKind::SeparateXYZ:
     case LN_NodeKind::SeparateEuler: {
       const std::optional<LN_Value> value =
@@ -4766,6 +4728,7 @@ std::optional<LN_Value> EvaluateOutputValue(
     case LN_NodeKind::PlaySound:
     case LN_NodeKind::StopSound:
     case LN_NodeKind::SetVolume:
+    case LN_NodeKind::SetRandomSeed:
     case LN_NodeKind::SetBonePoseLocation:
     case LN_NodeKind::SetBonePoseRotation:
     case LN_NodeKind::SetBonePoseScale:

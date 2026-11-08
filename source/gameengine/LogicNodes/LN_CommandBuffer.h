@@ -40,6 +40,7 @@ struct bNode;
 struct bNodeSocket;
 struct bNodeTree;
 struct bSound;
+struct Speaker;
 }
 
 /** Plan C2 P5, tests only: every force and torque the flush or a column run applies (the object,
@@ -260,6 +261,13 @@ class LN_CommandBuffer {
     TakeUIControl,
     /** Set Volume: sound_group = the group (Master too), vector_value = (volume, fade seconds). */
     SetSoundVolume,
+    /** A list or dictionary node in Game Property mode: object = the target, property_name =
+     * the game property, int_value = LN_PropertyEditOp, property_value = Value,
+     * secondary_int_value = Index, secondary_property_name = Key, scalar_value = Amount. Applied
+     * to the live property when it flushes (LN_ApplyGamePropertyEdit), never coalesced: every
+     * change of a step takes effect, in order. Kept in the legacy stream (rare, and its value,
+     * key and amount travel in the command itself). */
+    EditGameProperty,
   };
 
   enum class ModifierTarget : int32_t {
@@ -792,6 +800,21 @@ class LN_CommandBuffer {
   static void ForgetSpatialSoundSpeaker(const KX_GameObject *speaker);
   /** A scene ending: its sounds are no longer placed. */
   static void ForgetSpatialSoundScene(const KX_Scene *scene);
+  /** What Play Sound 3D plays at a Blender Speaker object (2026-11-08, Start Speaker's job): the
+   * node's \a picked sound, else the speaker's own; the node's volume and pitch times the
+   * speaker's; nothing while the speaker is muted. Any other object (\a speaker null) plays the
+   * picked sound at the node's volume and pitch. The 3D settings (distances, attenuation, cone)
+   * are set on the playing sound. */
+  struct SpeakerPlay {
+    std::string sound;
+    float volume = 1.0f;
+    float pitch = 1.0f;
+    bool muted = false;
+  };
+  static SpeakerPlay SpeakerPlayOf(const blender::Speaker *speaker,
+                                   const std::string &picked,
+                                   float volume,
+                                   float pitch);
   /** Writes a game property now, the way Set Object Property does at a flush. */
   static bool ApplyGamePropertyValue(KX_GameObject *object,
                                      const std::string &property_name,
@@ -1046,14 +1069,16 @@ class LN_CommandBuffer {
                               uint64_t sort_key,
                               uint32_t source_ref_index);
   void AppendStopAllSounds(uint64_t sort_key, uint32_t source_ref_index);
-  /** `group` is the sound's volume group (LN_SoundGroup). */
+  /** `group` is the sound's volume group (LN_SoundGroup); `emitter` the tree's owner (the same
+   * sound from it restarts, another emitter's plays beside it). */
   void AppendPlaySound(const std::string &sound_name,
                        float volume,
                        float pitch,
                        bool loop,
                        uint64_t sort_key,
                        uint32_t source_ref_index,
-                       int32_t group = 0);
+                       int32_t group = 0,
+                       KX_GameObject *emitter = nullptr);
   /** Set Volume: `group`'s volume (Master too) becomes `volume`, at once or over `fade`
    * seconds. */
   void AppendSetSoundVolume(int32_t group,
@@ -1240,6 +1265,17 @@ class LN_CommandBuffer {
                           const std::string &property_name,
                           uint64_t sort_key,
                           uint32_t source_ref_index);
+  /** A list or dictionary node in Game Property mode (CommandType::EditGameProperty). */
+  void AppendEditGameProperty(LN_RuntimeTree *runtime_tree,
+                              KX_GameObject *target,
+                              const std::string &property_name,
+                              LN_PropertyEditOp op,
+                              const LN_Value &value,
+                              int32_t index,
+                              const std::string &key,
+                              float amount,
+                              uint64_t sort_key,
+                              uint32_t source_ref_index);
   void AppendSetBonePoseLocation(KX_GameObject *armature_object,
                                  const std::string &bone_name,
                                  const MT_Vector3 &location,
@@ -1542,6 +1578,10 @@ class LN_CommandBuffer {
     CommandHeader header;
     CommandType type = CommandType::PlaySound;
     KX_GameObject *speaker = nullptr;
+    /** Who plays the sound (Play Sound 3D: the speaker; Play Sound: the tree's owner): the same
+     * sound from the same emitter restarts, from another one it plays beside it. Only compared,
+     * never read, and apart from `speaker`, which a removed object's commands are dropped by. */
+    KX_GameObject *emitter = nullptr;
     LN_SoundId sound_id;
     std::string sound_name;
     float volume = 1.0f;

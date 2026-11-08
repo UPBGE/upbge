@@ -654,6 +654,9 @@ std::shared_ptr<DictionaryValue> encode_checkpoint_root(const Checkpoint &checkp
   if (!checkpoint.scene_name.empty()) {
     root->append_str("scene_name", checkpoint.scene_name);
   }
+  if (checkpoint.has_random_seed) {
+    root->append_int("random_seed", int64_t(checkpoint.random_seed));
+  }
   auto append_transform = [](DictionaryValue &object,
                              const char *key,
                              const MT_Vector3 &position_value,
@@ -2938,7 +2941,7 @@ LN_GameStateResult decode_checkpoint_root_data(const Value &root_value,
                        "runtime_node_trees",
                        "compositor_state",
                        "checksum"},
-                      {"scene_name"},
+                      {"scene_name", "random_seed"},
                       r_error))
   {
     return LN_GameStateResult::CorruptData;
@@ -2953,6 +2956,12 @@ LN_GameStateResult decode_checkpoint_root_data(const Value &root_value,
       !read_string(*root, "scene_name", r_checkpoint.scene_name, r_error))
   {
     return LN_GameStateResult::CorruptData;
+  }
+  if (lookup_value(*root, "random_seed") != nullptr) {
+    if (!read_uint32(*root, "random_seed", r_checkpoint.random_seed, r_error)) {
+      return LN_GameStateResult::CorruptData;
+    }
+    r_checkpoint.has_random_seed = true;
   }
   if (format != kFormatName) {
     r_error = "not an UPBGE Save Game file";

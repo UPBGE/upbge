@@ -169,6 +169,12 @@ def _looks_down(camera):
     return rotation.rotation_difference(Quaternion()).angle < 1e-3
 
 
+def _works_as(node):
+    """The node type a node works as: a merged node's option counts as the node it was (Set
+    Overlay Collection is an option of Overlay Collection since 2026-11-08)."""
+    return getattr(node, "variant_idname", "") or node.bl_idname
+
+
 def _menu_camera_in_use(scene):
     """The camera this scene's menus are already shown with (only one can show them): one of the
     scene, used by the logic of its objects, looking straight down."""
@@ -178,7 +184,7 @@ def _menu_camera_in_use(scene):
         if tree.bl_idname != "LogicNodeTree":
             continue
         for node in tree.nodes:
-            if node.bl_idname in {"LogicNativeOpenObjectMenu", "LogicNativeSetOverlayCollection"}:
+            if _works_as(node) in {"LogicNativeOpenObjectMenu", "LogicNativeSetOverlayCollection"}:
                 camera = node.inputs["Camera"].default_value
                 if (camera is not None and camera.type == 'CAMERA' and
                         scene in camera.users_scene and _looks_down(camera)):
@@ -204,7 +210,7 @@ def _shown_collections():
         if tree.bl_idname != "LogicNodeTree":
             continue
         for node in tree.nodes:
-            if node.bl_idname in {"LogicNativeOpenObjectMenu", "LogicNativeSetOverlayCollection"}:
+            if _works_as(node) in {"LogicNativeOpenObjectMenu", "LogicNativeSetOverlayCollection"}:
                 collection = node.inputs["Collection"].default_value
                 if collection is not None:
                     shown.add(collection)

@@ -11,6 +11,8 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 
+#include "BLI_map.hh"
+
 #include "DNA_scene_types.h"
 
 #include "RNA_prototypes.hh"
@@ -22,6 +24,7 @@
 
 #include "BLO_read_write.hh"
 
+#include "NOD_logic_merged.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "node_util.hh"
@@ -117,6 +120,54 @@ void draw_input_action_socket(CustomSocketDrawParams &params)
                             true);
 }
 
+/* The engine's LN_COLLECTION_STORE_OUTPUT_ONLY (0) / LN_COLLECTION_STORE_GAME_PROPERTY (1). */
+static constexpr int16_t collection_store_game_property = 1;
+
+std::string collection_store_object_description()
+{
+  return "Object with the game property; empty uses this tree's object";
+}
+
+std::string collection_store_property_description(const char *collection)
+{
+  return std::string("The game property holding the ") + collection +
+         ": changed at the end of the step, after this step's earlier writes of it (a missing "
+         "one starts empty)";
+}
+
+void collection_store_init(bNodeTree *tree, bNode *node)
+{
+  node->custom1 = collection_store_game_property;
+  collection_store_update(tree, node);
+}
+
+void collection_store_update(bNodeTree *tree, bNode *node)
+{
+  const bool game_property = node->custom1 == collection_store_game_property;
+  /* The lookups below read the socket maps (a new node's are made here). */
+  tree->ensure_topology_cache();
+  const auto show = [&](bNodeSocket *socket, const bool available) {
+    if (socket != nullptr) {
+      bke::node_set_socket_availability(*tree, *socket, available);
+    }
+  };
+  show(node->input_by_identifier("Object"_ustr), game_property);
+  show(node->input_by_identifier("Property"_ustr), game_property);
+  show(node->input_by_identifier("List"_ustr), !game_property);
+  show(node->input_by_identifier("Dictionary"_ustr), !game_property);
+  /* Game Property mode changes the property at the end of the step: its outputs would show the
+   * list as the tree reads it now, without this step's earlier changes. Read it in the next step
+   * (Get Game Property) instead. */
+  show(node->output_by_identifier("List"_ustr), !game_property);
+  show(node->output_by_identifier("Dictionary"_ustr), !game_property);
+  show(node->output_by_identifier("Value"_ustr), !game_property);
+}
+
+void collection_store_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  layout.prop(ptr, "store", UI_ITEM_NONE, "", ICON_NONE);
+}
+
 CurveMapping *curve_mapping_create_default()
 {
   CurveMapping *mapping = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
@@ -190,5 +241,40 @@ void logic_node_type_base(bke::bNodeType *ntype, UString idname)
   ntype->insert_link = node_insert_link_default;
   ntype->gather_link_search_ops = nodes::search_link_ops_for_basic_node;
 }
+
+/* The options of the merged nodes, by their former idname. Filled while the node types register
+ * (NOD_REGISTER_NODE), read by the merged nodes afterwards; never changed after start-up. */
+static Map<StringRef, const bke::bNodeType *> &logic_option_types()
+{
+  static Map<StringRef, const bke::bNodeType *> types;
+  return types;
+}
+
+void logic_option_type_base(bke::bNodeType *ntype, UString idname)
+{
+  /* NODE_CUSTOM: no RNA struct of its own (node_type_base looks one up for a Blender node type);
+   * the merged node's RNA holds the option's settings. */
+  bke::node_type_base(*ntype, idname, NODE_CUSTOM);
+  if (const nodes::logic::NodeMetadata *metadata = nodes::logic::node_metadata(idname.ref())) {
+    ntype->ui_name = metadata->ui_name;
+    ntype->ui_description = metadata->ui_description;
+  }
+  ntype->poll = logic_node_poll_default;
+}
+
+void logic_option_register(bke::bNodeType &ntype)
+{
+  BLI_assert(nodes::logic::find_merged_node_of_option(ntype.idname.ref()) != nullptr);
+  logic_option_types().add_new(ntype.idname.ref(), &ntype);
+}
+
+namespace nodes::logic {
+
+const bke::bNodeType *find_option_node_type(const StringRef idname)
+{
+  return logic_option_types().lookup_default(idname, nullptr);
+}
+
+}  // namespace nodes::logic
 
 }  // namespace blender

@@ -8102,6 +8102,40 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
                            "off (games that must follow real time exactly, such as network games)");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
+  /* Random numbers of Logic Nodes (UPBGE, 2026-11-07). */
+  static const EnumPropertyItem random_seed_mode_items[] = {
+      {GAME_RANDOM_SEED_FIXED,
+       "FIXED",
+       0,
+       "Fixed",
+       "The same seed every play: random nodes give the same numbers each time, unless the "
+       "player does something at another moment (tests, replays, shared worlds, a bug that "
+       "must happen again)"},
+      {GAME_RANDOM_SEED_NEW_EACH_PLAY,
+       "NEW_EACH_PLAY",
+       0,
+       "New Each Play",
+       "A new random seed at every game start: random nodes give other numbers each play, "
+       "whatever their Seed (the seed of a play is shown in the console and the Logic Nodes "
+       "Performance panel; type it into Fixed to play those numbers again)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "random_seed_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "random_seed_mode");
+  RNA_def_property_enum_items(prop, random_seed_mode_items);
+  RNA_def_property_ui_text(
+      prop, "Random Seed", "Where the random numbers of Logic Nodes start from in each play");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "random_seed", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "random_seed");
+  RNA_def_property_range(prop, 0, INT_MAX);
+  RNA_def_property_ui_text(prop,
+                           "Seed",
+                           "The seed of every play (Fixed). Another number gives other random "
+                           "numbers; the same number gives the same ones again");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
   prop = RNA_def_property(srna, "time_scale", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "timeScale");
   RNA_def_property_ui_range(prop, 0.0, 10000.0, 2, 3);

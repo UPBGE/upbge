@@ -447,29 +447,6 @@ case LN_NodeKind::GetGamePropertyBool:
         result = program.AddBoolExpression(expression);
       }
       break;
-    }case LN_NodeKind::HasProperty:
-      r_handled = true;
-      {
-      r_handled = true;
-      const std::optional<LN_Value> name = ReadInputValue(node,
-                                                          "Name",
-                                                          LN_ValueType::String,
-                                                          node_definitions,
-                                                          input_links,
-                                                          value_cache);
-      if (name && name->type == LN_ValueType::String && !name->string_value.empty()) {
-        LN_Value default_value;
-        const uint32_t property_ref_index = AddGamePropertyRef(
-            program, name->string_value, LN_ValueType::None, default_value);
-        LN_BoolExpression expression;
-        expression.kind = LN_BoolExpressionKind::SnapshotGamePropertyExists;
-        expression.property_ref_index = property_ref_index;
-        result = program.AddBoolExpression(expression);
-      }
-      else if (name && name->type == LN_ValueType::String) {
-        result = AddConstantBoolExpression(program, false);
-      }
-      break;
     }case LN_NodeKind::GetTreeProperty:
       r_handled = true;
       {
@@ -792,49 +769,6 @@ case LN_NodeKind::GetGamePropertyBool:
       expression.input1 = *tree_name_expr;
       result = program.AddBoolExpression(expression);
       break;
-    }case LN_NodeKind::ActionDone:
-      r_handled = true;
-      {
-      r_handled = true;
-      IntExpressionCache int_expression_cache;
-      StringExpressionCache string_expression_cache;
-      VectorExpressionCache vector_expression_cache;
-      ColorExpressionCache color_expression_cache;
-      ValueExpressionCache value_expression_cache;
-      const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
-          program,
-          node,
-          "Object",
-          node_definitions,
-          input_links,
-          value_cache,
-          bool_expression_cache,
-          int_expression_cache,
-          float_expression_cache,
-          string_expression_cache,
-          vector_expression_cache,
-          color_expression_cache,
-          value_expression_cache);
-      const std::optional<uint32_t> layer_expr = BuildInputIntExpression(program,
-                                                                         node,
-                                                                         "Layer",
-                                                                         node_definitions,
-                                                                         input_links,
-                                                                         value_cache,
-                                                                         int_expression_cache);
-      if (!layer_expr) {
-        break;
-      }
-      if (NamesMatch(output_socket.name, output_socket.identifier, "Done")) {
-        LN_BoolExpression expression;
-        expression.kind = LN_BoolExpressionKind::ActionDone;
-        if (object_expr) {
-          expression.input0 = *object_expr;
-        }
-        expression.int_expr_index = *layer_expr;
-        result = program.AddBoolExpression(expression);
-      }
-      break;
     }case LN_NodeKind::ObjectsColliding:
       r_handled = true;
       {
@@ -936,19 +870,23 @@ case LN_NodeKind::GetGamePropertyBool:
       {
       uint32_t object_expr = LN_INVALID_INDEX;
       uint32_t layer_expr = LN_INVALID_INDEX;
-      if (NamesMatch(output_socket.name, output_socket.identifier, "Is Playing") &&
+      const bool is_playing = NamesMatch(
+          output_socket.name, output_socket.identifier, "Is Playing");
+      /* Done (2026-11-07): the Action Done node's expression on the same inputs. */
+      const bool done = NamesMatch(output_socket.name, output_socket.identifier, "Done");
+      if ((is_playing || done) &&
           AnimationStatusInputs(
               program, node, node_definitions, input_links, value_cache, object_expr, layer_expr))
       {
         LN_BoolExpression expression;
-        expression.kind = LN_BoolExpressionKind::AnimationPlaying;
+        expression.kind = is_playing ? LN_BoolExpressionKind::AnimationPlaying :
+                                       LN_BoolExpressionKind::ActionDone;
         expression.input0 = object_expr;
         expression.int_expr_index = layer_expr;
         result = program.AddBoolExpression(expression);
       }
       break;
-    }case LN_NodeKind::Collision:
-    case LN_NodeKind::OnCollision:
+    }case LN_NodeKind::OnCollision:
       r_handled = true;
       {
       r_handled = true;
@@ -1517,8 +1455,9 @@ case LN_NodeKind::GetGamePropertyBool:
     }case LN_NodeKind::WithinRange:
       r_handled = true;
       {
-      /* Constant inputs fold earlier; this checks values that change while the game runs.
-       * Inside: Min < Value < Max. Outside: Value < Min or Value > Max. */
+      /* Constant inputs fold earlier; this checks values that change while the game runs, by
+       * LN_RangeHolds' rule (2026-11-08): with lo = Minimum(Min, Max), hi = Maximum(Min, Max),
+       * Inside: lo <= Value <= hi. Outside: Value < lo or Value > hi. */
       const std::optional<LN_RangeOperation> operation = RangeOperationFromCustom1(node.custom1);
       const std::optional<uint32_t> value = BuildInputFloatExpression(
           program, node, "Value", node_definitions, input_links, value_cache, float_expression_cache);
@@ -1528,17 +1467,27 @@ case LN_NodeKind::GetGamePropertyBool:
           program, node, "Max", node_definitions, input_links, value_cache, float_expression_cache);
       if (operation && value && min_value && max_value) {
         const bool inside = *operation == LN_RangeOperation::Inside;
+        LN_FloatExpression lo;
+        lo.kind = LN_FloatExpressionKind::Minimum;
+        lo.input0 = *min_value;
+        lo.input1 = *max_value;
+        const uint32_t lo_expr = program.AddFloatExpression(lo);
+        LN_FloatExpression hi;
+        hi.kind = LN_FloatExpressionKind::Maximum;
+        hi.input0 = *min_value;
+        hi.input1 = *max_value;
+        const uint32_t hi_expr = program.AddFloatExpression(hi);
         LN_BoolExpression expression;
         expression.kind = inside ? LN_BoolExpressionKind::And : LN_BoolExpressionKind::Or;
         expression.input0 = inside ? AddFloatCompareBoolExpression(
-                                         program, *min_value, *value, LN_FloatCompareOperation::LessThan) :
+                                         program, lo_expr, *value, LN_FloatCompareOperation::LessEqual) :
                                      AddFloatCompareBoolExpression(
-                                         program, *value, *min_value, LN_FloatCompareOperation::LessThan);
+                                         program, *value, lo_expr, LN_FloatCompareOperation::LessThan);
         expression.input1 = AddFloatCompareBoolExpression(
             program,
             *value,
-            *max_value,
-            inside ? LN_FloatCompareOperation::LessThan : LN_FloatCompareOperation::GreaterThan);
+            hi_expr,
+            inside ? LN_FloatCompareOperation::LessEqual : LN_FloatCompareOperation::GreaterThan);
         result = program.AddBoolExpression(expression);
       }
       break;
@@ -2159,6 +2108,17 @@ case LN_NodeKind::GetGamePropertyInt:
       }
       break;
     }
+    case LN_NodeKind::SetRandomSeed: {
+      r_handled = true;
+      /* Set Random Seed's Seed output: the game's random seed now, whether the node ran or not
+       * (a new seed takes effect after the tick it was set in). */
+      if (NamesMatch(output_socket.name, output_socket.identifier, "Seed")) {
+        LN_IntExpression expression;
+        expression.kind = LN_IntExpressionKind::GameRandomSeed;
+        result = program.AddIntExpression(expression);
+      }
+      break;
+    }
     default:
       break;
   }
@@ -2284,67 +2244,7 @@ static std::optional<uint32_t> TryCompileExpressionFloatOutput(
       }
       break;
     }
-case LN_NodeKind::LimitRange:
-      r_handled = true;
-      {
-      r_handled = true;
-      const std::optional<uint32_t> value = BuildInputFloatExpression(program,
-                                                                      node,
-                                                                      "Value",
-                                                                      node_definitions,
-                                                                      input_links,
-                                                                      value_cache,
-                                                                      float_expression_cache);
-      const std::optional<uint32_t> min_value = BuildInputFloatExpression(program,
-                                                                          node,
-                                                                          "Min",
-                                                                          node_definitions,
-                                                                          input_links,
-                                                                          value_cache,
-                                                                          float_expression_cache);
-      const std::optional<uint32_t> max_value = BuildInputFloatExpression(program,
-                                                                          node,
-                                                                          "Max",
-                                                                          node_definitions,
-                                                                          input_links,
-                                                                          value_cache,
-                                                                          float_expression_cache);
-      if (value && min_value && max_value) {
-        LN_FloatExpression expression;
-        expression.kind = LN_FloatExpressionKind::Clamp;
-        expression.input0 = *value;
-        expression.input1 = *min_value;
-        expression.input2 = *max_value;
-        result = program.AddFloatExpression(expression);
-      }
-      break;
-    }case LN_NodeKind::RandomValue:
-      r_handled = true;
-      {
-      r_handled = true;
-      const std::optional<uint32_t> min_value = BuildInputFloatExpression(program,
-                                                                          node,
-                                                                          "Min",
-                                                                          node_definitions,
-                                                                          input_links,
-                                                                          value_cache,
-                                                                          float_expression_cache);
-      const std::optional<uint32_t> max_value = BuildInputFloatExpression(program,
-                                                                          node,
-                                                                          "Max",
-                                                                          node_definitions,
-                                                                          input_links,
-                                                                          value_cache,
-                                                                          float_expression_cache);
-      if (min_value && max_value) {
-        LN_FloatExpression expression;
-        expression.kind = LN_FloatExpressionKind::Random;
-        expression.input0 = *min_value;
-        expression.input1 = *max_value;
-        result = program.AddFloatExpression(expression);
-      }
-      break;
-    }case LN_NodeKind::ValueSwitch:
+case LN_NodeKind::ValueSwitch:
       r_handled = true;
       {
       r_handled = true;
@@ -2525,17 +2425,13 @@ case LN_NodeKind::LimitRange:
       else if (NamesMatch(output_socket.name, output_socket.identifier, "FPS")) {
         expression.kind = LN_FloatExpressionKind::SnapshotFPS;
       }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Delta Factor")) {
+        /* 2026-11-07: the Delta Factor node's expression. */
+        expression.kind = LN_FloatExpressionKind::SnapshotDeltaFactor;
+      }
       else {
         break;
       }
-      result = program.AddFloatExpression(expression);
-      break;
-    }case LN_NodeKind::DeltaFactor:
-      r_handled = true;
-      {
-      r_handled = true;
-      LN_FloatExpression expression;
-      expression.kind = LN_FloatExpressionKind::SnapshotDeltaFactor;
       result = program.AddFloatExpression(expression);
       break;
     }case LN_NodeKind::GetRigidBodyAttribute:
@@ -3156,7 +3052,6 @@ case LN_NodeKind::OnConstraintBreak:
       result = program.AddVectorExpression(expression);
       break;
     }
-    case LN_NodeKind::GetBonePoseScale:
     case LN_NodeKind::GetBonePoseTransform: {
       const bool is_transform = definition.kind == LN_NodeKind::GetBonePoseTransform;
       if ((!is_transform && !NamesMatch(output_socket.name, output_socket.identifier, "Scale")) ||
@@ -4317,19 +4212,28 @@ static std::optional<uint32_t> TryCompileExpressionValueOutput(
       r_handled = true;
       {
       r_handled = true;
-      const std::optional<uint32_t> object_expr = BuildInputValueExpression(program,
-                                                                            node,
-                                                                            "Parent Object",
-                                                                            node_definitions,
-                                                                            input_links,
-                                                                            value_cache,
-                                                                            bool_expression_cache,
-                                                                            int_expression_cache,
-                                                                            float_expression_cache,
-                                                                            string_expression_cache,
-                                                                            vector_expression_cache,
-                                                                            color_expression_cache,
-                                                                            value_expression_cache);
+      /* An empty Parent is the owner, as on Get Child By Name and Get Parent (2026-11-07; it
+       * was a constant object with no name, so the output was always empty). A link that did
+       * not compile gives nothing, never the owner. */
+      std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
+          program,
+          node,
+          "Parent Object",
+          node_definitions,
+          input_links,
+          value_cache,
+          bool_expression_cache,
+          int_expression_cache,
+          float_expression_cache,
+          string_expression_cache,
+          vector_expression_cache,
+          color_expression_cache,
+          value_expression_cache);
+      if (!object_expr && !IsInputSocketLinked(node, "Parent Object", input_links)) {
+        LN_ValueExpression owner_expression;
+        owner_expression.kind = LN_ValueExpressionKind::OwnerObject;
+        object_expr = program.AddValueExpression(owner_expression);
+      }
       const std::optional<uint32_t> index_expr = BuildInputIntExpression(program,
                                                                          node,
                                                                          "Index",

@@ -107,6 +107,7 @@
 #include "LN_Inventory.h"
 #include "LN_Manager.h"
 #include "LN_Performance.h"
+#include "LN_Random.h"
 #include "LN_RuntimeSemantics.h"
 #include "LN_TreeBatch.h"
 #include "LN_LeanReader.h"
@@ -2226,26 +2227,6 @@ static void DrawDebugArrow(const MT_Vector3 &from, const MT_Vector3 &to, const M
   KX_RasterizerDrawDebugLine(to, base - up * head_width, color);
 }
 
-static std::string SoundNameFromSpeakerObject(KX_GameObject *speaker,
-                                              float &r_volume,
-                                              float &r_pitch)
-{
-  const blender::Object *blender_object = speaker ? speaker->GetBlenderObject() : nullptr;
-  if (blender_object == nullptr || blender_object->type != blender::OB_SPEAKER ||
-      blender_object->data == nullptr)
-  {
-    return std::string();
-  }
-  const blender::Speaker *speaker_data = reinterpret_cast<const blender::Speaker *>(
-      blender_object->data);
-  if (speaker_data->sound == nullptr) {
-    return std::string();
-  }
-  r_volume = speaker_data->volume;
-  r_pitch = speaker_data->pitch;
-  return std::string(speaker_data->sound->id.name + 2);
-}
-
 static bool ValueAsMatrix(const LN_Value &value, MT_Matrix3x3 &r_matrix)
 {
   if (value.type == LN_ValueType::Matrix) {
@@ -3494,14 +3475,19 @@ static std::string ZeroFillString(const std::string &value, const int32_t width)
   return result;
 }
 
-static float HashToUnitFloat(uint64_t value)
+/** A random node's bits in a tree now (LN_Random.h): the game's seed, the node, its event's tick
+ * count, its Seed input and, unless the node is Same for All, the tree's stream. The column
+ * kernels compute the same through LN_RandomNodePart / LN_RandomBits. */
+static uint64_t RandomNodeBits(const uint32_t identity,
+                               const int32_t seed,
+                               const uint32_t salt,
+                               const uint64_t tick,
+                               const uint64_t stream)
 {
-  value ^= value >> 33;
-  value *= 0xff51afd7ed558ccdull;
-  value ^= value >> 33;
-  value *= 0xc4ceb9fe1a85ec53ull;
-  value ^= value >> 33;
-  return float(value & 0x00ffffffu) / float(0x01000000u);
+  return LN_RandomBits(LN_RandomNodePart(LN_GetRandomGameSeed(), identity, tick),
+                       seed,
+                       (identity & LN_RANDOM_SAME_FOR_ALL) != 0 ? 0 : stream,
+                       salt);
 }
 
 static const std::string &FormatInputString(const size_t index,
@@ -3977,6 +3963,10 @@ LN_RuntimeTree::LN_RuntimeTree(std::shared_ptr<const LN_Program> program,
       m_sceneObjectIndex(scene_object_index),
       m_appliedTreeIndex(applied_tree_index)
 {
+  /* Until the manager numbers it (AssignRandomStream): the object's and tree's indexes, so test
+   * rigs without a manager give each object its own numbers too. */
+  m_randomStream = LN_RandomMix((uint64_t(scene_object_index) << 32) ^ applied_tree_index ^
+                                0x5eed5eed00000000ull);
   LN_NoteProgramsChanged();
   RefreshOptimizedPathEligibility();
   RebuildStateBlock(StateKeep::None);
@@ -4545,6 +4535,133 @@ LN_Value LN_GamePropertyValue(EXP_Value *property, LN_Manager *manager)
   return MakeValueFromEXPValue(property, nullptr, manager);
 }
 
+bool LN_GamePropertyAsBool(EXP_Value *property)
+{
+  return ValueAsBool(MakeValueFromEXPValue(property, nullptr, nullptr));
+}
+
+std::string LN_GamePropertyAsText(EXP_Value *property)
+{
+  return ValueToText(MakeValueFromEXPValue(property, nullptr, nullptr));
+}
+
+bool LN_ApplyPropertyEdit(LN_Value &collection,
+                          const LN_PropertyEditOp op,
+                          const LN_Value &value,
+                          const int32_t index,
+                          const std::string &key,
+                          const float amount)
+{
+  std::vector<LN_Value> &list = collection.list_value;
+  size_t normalized_index = 0;
+  switch (op) {
+    case LN_PropertyEditOp::ListAppend:
+      list.push_back(value);
+      return true;
+    case LN_PropertyEditOp::ListRemoveIndex:
+      if (!NormalizeListIndex(index, list.size(), normalized_index)) {
+        return false;
+      }
+      list.erase(list.begin() + normalized_index);
+      return true;
+    case LN_PropertyEditOp::ListRemoveValue: {
+      const auto iter = std::find_if(list.begin(), list.end(), [&](const LN_Value &item) {
+        return ValuesEqual(item, value);
+      });
+      if (iter == list.end()) {
+        return false;
+      }
+      list.erase(iter);
+      return true;
+    }
+    case LN_PropertyEditOp::ListSetIndex:
+      if (!NormalizeListIndex(index, list.size(), normalized_index)) {
+        return false;
+      }
+      list[normalized_index] = value;
+      return true;
+    case LN_PropertyEditOp::DictSetKey:
+      if (key.empty()) {
+        return false;
+      }
+      collection.dict_value[key] = value;
+      return true;
+    case LN_PropertyEditOp::DictAddValue: {
+      if (key.empty()) {
+        return false;
+      }
+      /* The DictAddValue kind's arithmetic, word for word. */
+      LN_Value &entry = collection.dict_value[key];
+      const bool was_int = entry.exists && entry.type == LN_ValueType::Int;
+      if ((was_int || !entry.exists) && std::isfinite(amount) && amount == std::trunc(amount)) {
+        /* Whole amounts keep counts as integers. */
+        const double sum = double(was_int ? entry.int_value : 0) + double(amount);
+        entry = MakeIntValue(int32_t(std::clamp(sum, double(INT32_MIN), double(INT32_MAX))));
+      }
+      else {
+        float current = 0.0f;
+        ValueAsFloat(entry, current);
+        entry = MakeFloatValue(current + amount);
+      }
+      return true;
+    }
+    case LN_PropertyEditOp::DictRemoveKey: {
+      if (key.empty()) {
+        return false;
+      }
+      const auto iter = collection.dict_value.find(key);
+      if (iter == collection.dict_value.end()) {
+        return false;
+      }
+      collection.dict_value.erase(iter);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool LN_ApplyGamePropertyEdit(KX_GameObject *object,
+                              const std::string &property_name,
+                              const LN_PropertyEditOp op,
+                              const LN_Value &value,
+                              const int32_t index,
+                              const std::string &key,
+                              const float amount,
+                              LN_RuntimeTree *runtime_tree,
+                              std::string &r_reason)
+{
+  if (object == nullptr || property_name.empty()) {
+    r_reason = "a list or dictionary change needs an object and a property name";
+    return false;
+  }
+  const bool list = LN_PropertyEditIsList(op);
+  const LN_ValueType type = list ? LN_ValueType::List : LN_ValueType::Dict;
+  LN_Value collection;
+  EXP_Value *current = object->GetProperty(property_name);
+  if (current == nullptr) {
+    if (op != LN_PropertyEditOp::ListAppend && op != LN_PropertyEditOp::DictSetKey &&
+        op != LN_PropertyEditOp::DictAddValue)
+    {
+      return true; /* Nothing to remove or replace. */
+    }
+    collection.type = type;
+    collection.exists = true;
+  }
+  else {
+    collection = MakeValueFromEXPValue(current, runtime_tree);
+    if (!collection.exists || collection.type != type) {
+      r_reason = "game property '" + property_name + "' holds no " +
+                 (list ? "List" : "Dictionary") + ": the change was not made";
+      return false;
+    }
+  }
+  if (!LN_ApplyPropertyEdit(collection, op, value, index, key, amount)) {
+    return true;
+  }
+  return LN_CommandBuffer::ApplyGamePropertyValue(
+      object, property_name, collection, runtime_tree, r_reason);
+}
+
 bool LN_RuntimeTree::CanTick() const
 {
   if (!m_runtimeActive || !m_enabled || m_program == nullptr || m_gameObject == nullptr) {
@@ -4644,6 +4761,7 @@ void LN_RuntimeTree::PrepareStepGates(const uint64_t step,
     const uint64_t steps = StepGateStepsSinceLastRun(state, step, interval);
     state.time_passed = double(steps) * std::max(0.0, delta_time);
     state.unscaled_time_passed = double(steps) * std::max(0.0, unscaled_delta_time);
+    state.steps = uint32_t(steps);
   }
 }
 
@@ -4679,6 +4797,7 @@ void LN_RuntimeTree::PrepareForcedStepGates(const uint64_t step,
     const uint64_t steps = StepGateStepsSinceLastRun(state, step, gates[index].interval);
     state.time_passed = double(steps) * std::max(0.0, delta_time);
     state.unscaled_time_passed = double(steps) * std::max(0.0, unscaled_delta_time);
+    state.steps = uint32_t(steps);
   }
 }
 
@@ -6415,6 +6534,34 @@ bool LN_RuntimeTree::ProjectWorldToScreen(KX_Camera *camera,
   return LN_ProjectWorldToScreen(camera, world_position, r_screen_position);
 }
 
+/** A camera's projection for a ray through the screen: the one it was last drawn with, or, for a
+ * camera not drawn with (never, or not since its lens changed), the one the engine would draw it
+ * with, as ProjectCanvasPixelToWorld asks for it (2026-11-08: Camera Ray took the active camera
+ * instead of such a camera). Without an engine (unit tests) the camera's own. Only reads. */
+static MT_Matrix4x4 camera_ray_projection(KX_Camera *camera)
+{
+  if (!camera->hasValidProjectionMatrix()) {
+    KX_KetsjiEngine *engine = KX_GetActiveEngine();
+    RAS_ICanvas *canvas = engine ? engine->GetCanvas() : nullptr;
+    RAS_Rasterizer *rasterizer = engine ? engine->GetRasterizer() : nullptr;
+    KX_Scene *scene = camera->GetScene();
+    if (canvas != nullptr && rasterizer != nullptr && scene != nullptr &&
+        canvas->GetWidth() > 0 && canvas->GetHeight() > 0)
+    {
+      const RAS_Rect display_area = rasterizer->GetRenderArea(canvas,
+                                                              RAS_Rasterizer::RAS_STEREO_LEFTEYE);
+      RAS_Rect camera_area;
+      RAS_Rect viewport;
+      engine->GetSceneViewport(scene, camera, display_area, camera_area, viewport);
+      if (viewport.GetWidth() > 0 && viewport.GetHeight() > 0) {
+        return engine->GetCameraProjectionMatrix(
+            scene, camera, RAS_Rasterizer::RAS_STEREO_LEFTEYE, viewport, camera_area);
+      }
+    }
+  }
+  return camera->GetProjectionMatrix();
+}
+
 bool LN_RuntimeTree::ProjectScreenToWorld(KX_Camera *camera,
                                           const float screen_x,
                                           const float screen_y,
@@ -6428,7 +6575,7 @@ bool LN_RuntimeTree::ProjectScreenToWorld(KX_Camera *camera,
   const float ndc_x = screen_x * 2.0f - 1.0f;
   const float ndc_y = (1.0f - screen_y) * 2.0f - 1.0f;
 
-  MT_Matrix4x4 inverse_projection = camera->GetProjectionMatrix();
+  MT_Matrix4x4 inverse_projection = camera_ray_projection(camera);
   inverse_projection.invert();
   const MT_Matrix4x4 camera_to_world(camera->GetCameraToWorld());
   const MT_Vector4 near_clip(ndc_x, ndc_y, 0.0f, 1.0f);
@@ -7849,6 +7996,26 @@ void LN_RuntimeTree::CaptureColumnProperties(const uint64_t tick_index, const bo
   }
 }
 
+void LN_RuntimeTree::CompleteColumnLaneSnapshot(const LN_TickReadContext *tick_context,
+                                                const float fixed_delta,
+                                                const uint64_t tick_index,
+                                                const bool transform_taken)
+{
+  if (!m_columnLane) {
+    return;
+  }
+  m_columnLane = false;
+  /* As the manager's capture loop: only a tree that captures at all (CaptureSnapshot's test). */
+  if (!ShouldCaptureSnapshot()) {
+    return;
+  }
+  RefreshStateBlockLayout();
+  m_snapshot.CompleteLaneCapture(
+      m_gameObject, *m_program, tick_context, fixed_delta, transform_taken);
+  m_snapshotTick = tick_index;
+  m_queryCacheWarmTick = UINT64_MAX;
+}
+
 uint64_t LN_RuntimeTree::BeginColumnPass(const LN_TickContext &context)
 {
   /* ExecuteReady's prelude (On Init has run: a lane needs it). */
@@ -7877,6 +8044,14 @@ void LN_RuntimeTree::EndColumnPass(const LN_TickContext &context)
   if (context.event == LN_Event::OnFixedUpdate && !m_stepGates.empty()) {
     NoteStepGatesRan(context.phase_tick_index, false);
   }
+}
+
+uint32_t LN_RuntimeTree::StepGateStepsCovered(const uint32_t step_gate_index) const
+{
+  if (step_gate_index != LN_INVALID_INDEX && step_gate_index < m_stepGates.size()) {
+    return std::max<uint32_t>(m_stepGates[step_gate_index].steps, 1);
+  }
+  return 1;
 }
 
 float LN_RuntimeTree::ColumnStepTimePassed(const uint32_t step_gate_index) const
@@ -8531,6 +8706,23 @@ void LN_RuntimeTree::ColumnExecuteEvent(const LN_Event event,
   ColumnRunDirectEvent(event, serial, buffer, context);
 }
 
+void LN_RuntimeTree::RunInitEvent(LN_CommandBuffer &command_buffer, const LN_TickContext &context)
+{
+  /* On Init's random numbers count the steps done (RandomTick). In a frame tick that is another
+   * count than the frame's own routes use, so the tick's memo keeps nothing across On Init: a
+   * random value read by both would be the first one's (a step tick has one count for both). */
+  const bool frame_tick = context.event != LN_Event::OnFixedUpdate;
+  if (frame_tick) {
+    m_registerExpressionState.cached_tick = UINT64_MAX;
+  }
+  m_randomInInit = true;
+  ColumnExecuteEvent(LN_Event::OnInit, command_buffer, context);
+  m_randomInInit = false;
+  if (frame_tick) {
+    m_registerExpressionState.cached_tick = UINT64_MAX;
+  }
+}
+
 void LN_RuntimeTree::ExecuteReady(LN_CommandBuffer &command_buffer,
                                   const LN_TickContext &context,
                                   LN_RuntimeProfileCounters *profile_counters)
@@ -8551,7 +8743,7 @@ void LN_RuntimeTree::ExecuteReady(LN_CommandBuffer &command_buffer,
   }
   if (!m_initExecuted) {
     const bool ui_event_routes_only = std::exchange(m_uiEventRoutesOnly, false);
-    ColumnExecuteEvent(LN_Event::OnInit, command_buffer, context);
+    RunInitEvent(command_buffer, context);
     m_uiEventRoutesOnly = ui_event_routes_only;
     m_initExecuted = true;
   }
@@ -8593,7 +8785,7 @@ void LN_RuntimeTree::ExecuteForcedUpdate(LN_CommandBuffer &command_buffer,
     m_activeProfileCounters = profile_counters;
   }
   if (!m_initExecuted) {
-    ColumnExecuteEvent(LN_Event::OnInit, command_buffer, context);
+    RunInitEvent(command_buffer, context);
     m_initExecuted = true;
   }
   if (m_hasTimeFlowRuntimeState) {
@@ -8665,11 +8857,6 @@ MT_Vector3 LN_RuntimeTree::ColumnVectorToRotationEuler(const MT_Vector3 &directi
                                                        const int32_t axis_selector)
 {
   return VectorToRotationEuler(direction, up, axis_selector);
-}
-
-float LN_RuntimeTree::ColumnHashToUnitFloat(const uint64_t value)
-{
-  return HashToUnitFloat(value);
 }
 
 bool LN_RuntimeTree::ColumnValueAsFloat(const LN_Value &value, float &r_value)

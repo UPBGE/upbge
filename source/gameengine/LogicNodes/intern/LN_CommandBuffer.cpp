@@ -57,6 +57,8 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_sound_types.h"
+#include "DNA_speaker_types.h"
 
 #ifdef WITH_AUDASPACE
 #  include "BKE_sound.hh"
@@ -122,6 +124,7 @@
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IVehicle.h"
+#include "RAS_FramingManager.h"
 #include "RAS_ICanvas.h"
 #include "RNA_access.hh"
 #include "SCA_LogicManager.h"
@@ -945,7 +948,13 @@ static void warn_add_object_source_not_inactive(const LN_CommandBuffer::Command 
  * `stopAll()`.
  * - Each tracked sound is in a volume group (Set Volume): its volume is its own (the node's
  *   Volume) times its group's, also while it plays. Master is the device's volume.
- * - Finished sounds leave the list; at the cap the oldest playing one is stopped.
+ * - Finished sounds leave the list; at the cap the oldest playing sound that does not loop is
+ *   stopped (the oldest of all only when every one loops: background music outlives a crowd's
+ *   footsteps).
+ * - A sound is played once at a time per emitter (the speaker of Play Sound 3D, the tree's owner
+ *   of Play Sound): playing it again from the same emitter restarts it, another emitter plays its
+ *   own copy (2026-11-08; keyed by the name alone before, so two enemies' footsteps cut each other
+ *   off). Stop, Pause and Resume Sound still act on every copy of the name.
  */
 constexpr size_t k_logic_native_sound_handle_cap = 256;
 struct LogicNativeSoundHandle {
@@ -955,6 +964,9 @@ struct LogicNativeSoundHandle {
   LN_SoundGroup group = LN_SoundGroup::Effects;
   /** Its own volume, which its group's volume scales. */
   float volume = 1.0f;
+  /** Who plays it (compared, never read; null once the object is removed: ForgetSoundEmitter). */
+  const KX_GameObject *emitter = nullptr;
+  bool loop = false;
 };
 static std::vector<LogicNativeSoundHandle> g_logic_native_sound_handles;
 static LN_SoundGroupVolumes g_logic_native_sound_groups;
@@ -1011,6 +1023,21 @@ static void logic_native_sound_handles_stop_all()
   g_logic_native_sound_handles.clear();
 }
 
+/** A new play of `name` from `emitter`: its own earlier copy stops (a restart). */
+static void logic_native_sound_handles_stop_emitted(const std::string &name,
+                                                    const KX_GameObject *emitter)
+{
+  for (auto it = g_logic_native_sound_handles.begin(); it != g_logic_native_sound_handles.end();) {
+    if (it->name == name && it->emitter == emitter && it->handle) {
+      it->handle->stop();
+      it = g_logic_native_sound_handles.erase(it);
+    }
+    else {
+      ++it;
+    }
+  }
+}
+
 static void logic_native_sound_handles_stop_by_name(const std::string &name)
 {
   for (auto it = g_logic_native_sound_handles.begin(); it != g_logic_native_sound_handles.end();) {
@@ -1055,6 +1082,8 @@ struct LogicNativeSpatialSound {
   int32_t user = 0;
   /** Nearest Player: the player it is heard from now (-1 before the first choice). */
   int32_t player = -1;
+  /** A Speaker object with a sound cone (outer angle under 360): its turn is followed. */
+  bool oriented = false;
   MT_Vector3 position = MT_Vector3(0.0f, 0.0f, 0.0f);
   MT_Vector3 velocity = MT_Vector3(0.0f, 0.0f, 0.0f);
 };
@@ -1120,13 +1149,19 @@ static void logic_native_spatial_sound_place(LogicNativeSpatialSound &sound)
   if (camera == nullptr) {
     return;
   }
-  /* No orientation: it only turns a sound cone, which these sounds don't have. */
   const MT_Matrix3x3 world_to_camera = camera->NodeGetWorldOrientation().transposed();
   float data[3];
   (world_to_camera * (sound.position - camera->NodeGetWorldPosition())).getValue(data);
   sound.h3d->setLocation(aud::Vector3(data[0], data[1], data[2]));
   (world_to_camera * (sound.velocity - camera->GetLinearVelocity())).getValue(data);
   sound.h3d->setVelocity(aud::Vector3(data[0], data[1], data[2]));
+  /* Only a cone turns with its speaker (its local -Z, as Blender's own speakers), seen from the
+   * camera like the location. */
+  if (sound.oriented && sound.speaker != nullptr && scene != nullptr) {
+    const MT_Quaternion turn =
+        (world_to_camera * sound.speaker->NodeGetWorldOrientation()).getRotation();
+    sound.h3d->setOrientation(aud::Quaternion(turn.w(), turn.x(), turn.y(), turn.z()));
+  }
 }
 
 /** Places a new 3D sound and keeps placing it every frame while it plays. */
@@ -1134,7 +1169,8 @@ static void logic_native_spatial_sound_start(const AUD_Handle &handle,
                                              const std::shared_ptr<aud::I3DHandle> &h3d,
                                              KX_GameObject *speaker,
                                              const int32_t listener,
-                                             const int32_t user)
+                                             const int32_t user,
+                                             const bool oriented)
 {
   if (!h3d || speaker == nullptr || speaker->GetScene() == nullptr) {
     return;
@@ -1148,6 +1184,7 @@ static void logic_native_spatial_sound_start(const AUD_Handle &handle,
                                                int32_t(LN_SoundListener::NearestPlayer),
                                                int32_t(LN_SoundListener::ActiveCamera)));
   sound.user = user;
+  sound.oriented = oriented;
   logic_native_spatial_sound_place(sound);
   if (g_logic_native_spatial_sounds.size() >= k_logic_native_sound_handle_cap) {
     g_logic_native_spatial_sounds.erase(g_logic_native_spatial_sounds.begin());
@@ -1161,23 +1198,34 @@ static void logic_native_spatial_sound_start(const AUD_Handle &handle,
 static void logic_native_sound_handles_register(const std::string &name,
                                                 AUD_Handle handle,
                                                 const LN_SoundGroup group,
-                                                const float volume)
+                                                const float volume,
+                                                const KX_GameObject *emitter,
+                                                const bool loop)
 {
   if (!handle) {
     return;
   }
   logic_native_sound_handles_prune();
   if (g_logic_native_sound_handles.size() >= k_logic_native_sound_handle_cap) {
-    if (g_logic_native_sound_handles.front().handle) {
-      g_logic_native_sound_handles.front().handle->stop();
+    /* The oldest one that does not loop (the list is in start order), else the oldest. */
+    auto oldest = std::find_if(g_logic_native_sound_handles.begin(),
+                               g_logic_native_sound_handles.end(),
+                               [](const LogicNativeSoundHandle &entry) { return !entry.loop; });
+    if (oldest == g_logic_native_sound_handles.end()) {
+      oldest = g_logic_native_sound_handles.begin();
     }
-    g_logic_native_sound_handles.erase(g_logic_native_sound_handles.begin());
+    if (oldest->handle) {
+      oldest->handle->stop();
+    }
+    g_logic_native_sound_handles.erase(oldest);
   }
   LogicNativeSoundHandle &entry = g_logic_native_sound_handles.emplace_back();
   entry.name = name;
   entry.handle = std::move(handle);
   entry.group = group;
   entry.volume = volume;
+  entry.emitter = emitter;
+  entry.loop = loop;
   logic_native_sound_apply_volume(entry);
 }
 
@@ -1216,18 +1264,35 @@ static blender::Main *logic_native_sound_main()
   return bmain != nullptr ? bmain : G_MAIN;
 }
 
+/** The Blender Speaker of a 3D sound's speaker object; null for any other object. */
+static const blender::Speaker *logic_native_speaker_data(KX_GameObject *speaker)
+{
+  const blender::Object *object = speaker != nullptr ? speaker->GetBlenderObject() : nullptr;
+  if (object == nullptr || object->type != blender::OB_SPEAKER || object->data == nullptr) {
+    return nullptr;
+  }
+  return reinterpret_cast<const blender::Speaker *>(object->data);
+}
+
 /** Plays the Sound named `name` (Play Sound, and Play Sound 3D with a `speaker`) and tracks it in
- * `group`. The same sound already playing stops first: a sound plays once at a time. */
+ * `group`. The same sound already playing from the same `emitter` stops first: a sound plays
+ * once at a time per emitter (Play Sound 3D's speaker, Play Sound's tree owner). A Speaker object
+ * plays as Blender plays speakers (LN_CommandBuffer::SpeakerPlayOf): its own sound when the node
+ * picks none, its volume, pitch, distances, attenuation and cone. */
 static void logic_native_sound_play(const std::string &name,
                                     const LN_SoundGroup group,
                                     const float volume,
                                     const float pitch,
                                     const bool loop,
-                                    KX_GameObject *speaker = nullptr,
-                                    const int32_t listener = 0,
-                                    const int32_t user = 0)
+                                    KX_GameObject *speaker,
+                                    const int32_t listener,
+                                    const int32_t user,
+                                    const KX_GameObject *emitter)
 {
-  if (name.empty()) {
+  const blender::Speaker *speaker_data = logic_native_speaker_data(speaker);
+  const LN_CommandBuffer::SpeakerPlay play = LN_CommandBuffer::SpeakerPlayOf(
+      speaker_data, name, volume, pitch);
+  if (play.sound.empty() || play.muted) {
     return;
   }
   auto device = aud::DeviceManager::getDevice();
@@ -1235,26 +1300,44 @@ static void logic_native_sound_play(const std::string &name,
     return;
   }
   try {
-    AUD_Sound snd = logic_native_sound_resolve(logic_native_sound_main(), name);
+    AUD_Sound snd = logic_native_sound_resolve(logic_native_sound_main(), play.sound);
     if (!snd) {
       return;
     }
-    logic_native_sound_handles_stop_by_name(name);
+    logic_native_sound_handles_stop_emitted(play.sound, emitter);
     AUD_Handle handle = device->play(snd, false);
     if (!handle) {
       return;
     }
     if (auto h3d = std::dynamic_pointer_cast<aud::I3DHandle>(handle)) {
       h3d->setRelative(true);
+      if (speaker_data != nullptr) {
+        /* As BKE_sound_update_scene sets them on a speaker's sound. */
+        h3d->setVolumeMaximum(speaker_data->volume_max);
+        h3d->setVolumeMinimum(speaker_data->volume_min);
+        h3d->setDistanceMaximum(speaker_data->distance_max);
+        h3d->setDistanceReference(speaker_data->distance_reference);
+        h3d->setAttenuation(speaker_data->attenuation);
+        h3d->setConeAngleOuter(speaker_data->cone_angle_outer);
+        h3d->setConeAngleInner(speaker_data->cone_angle_inner);
+        h3d->setConeVolumeOuter(speaker_data->cone_volume_outer);
+      }
       if (speaker != nullptr) {
-        logic_native_spatial_sound_start(handle, h3d, speaker, listener, user);
+        logic_native_spatial_sound_start(
+            handle,
+            h3d,
+            speaker,
+            listener,
+            user,
+            speaker_data != nullptr && speaker_data->cone_angle_outer < 360.0f);
       }
     }
-    handle->setPitch(std::max(pitch, 0.0001f));
+    handle->setPitch(std::max(play.pitch, 0.0001f));
     if (loop) {
       handle->setLoopCount(-1);
     }
-    logic_native_sound_handles_register(name, std::move(handle), group, volume);
+    logic_native_sound_handles_register(
+        play.sound, std::move(handle), group, play.volume, emitter, loop);
   }
   catch (const aud::Exception &) {
   }
@@ -4389,6 +4472,41 @@ void LN_CommandBuffer::ApplyTransformNow(const CommandType type,
   }
 }
 
+/** Rotate To's turn: `object`'s world orientation becomes the world-space rotation `q` times its
+ * own. A child's local orientation takes its parent's out, as KX_GameObject::AlignAxisToVect does
+ * (2026-11-08: q was put on the local orientation, right only for a root or an unturned parent: a
+ * turret on a tilted vehicle spun instead of turning to its target); a root's write is the old
+ * one, bit for bit. */
+static void rotate_object_in_world(KX_GameObject *object, const MT_Quaternion &q)
+{
+  const SG_Node *parent = object->GetSGNode() != nullptr ? object->GetSGNode()->GetSGParent() :
+                                                           nullptr;
+  if (parent == nullptr) {
+    object->NodeSetLocalOrientation(MT_Matrix3x3(q) * object->NodeGetLocalOrientation());
+    return;
+  }
+  object->NodeSetLocalOrientation(parent->GetWorldOrientation().inverse() *
+                                  (MT_Matrix3x3(q) * object->NodeGetWorldOrientation()));
+}
+
+/** Set FOV: the lens for which Blender's Field of View is `degrees`, the angle along the side the
+ * camera's Sensor Fit names (BKE_camera_sensor_size: the sensor height for Vertical, its width
+ * otherwise), clamped to Blender's range (0.367 to 172.847 degrees). 2026-11-08: always the
+ * width (a Vertical camera got another angle than Blender shows) and no upper limit (180 degrees
+ * gave a degenerate lens); a number that is not finite changes nothing. */
+static void set_camera_fov(KX_Camera *camera, const float degrees)
+{
+  if (!std::isfinite(degrees)) {
+    return;
+  }
+  constexpr float radians_per_degree = 0.01745329251994329577f;
+  const float fov_radians = std::clamp(degrees, 0.367f, 172.847f) * radians_per_degree;
+  const float sensor = camera->GetSensorFit() == RAS_SENSORFIT_VERT ? camera->GetSensorHeight() :
+                                                                      camera->GetSensorWidth();
+  camera->GetCameraData()->m_lens = sensor / (2.0f * std::tan(0.5f * fov_radians));
+  camera->InvalidateProjectionMatrix();
+}
+
 void LN_CommandBuffer::ApplyMotionBody(KX_GameObject *object, const TypedMotionCommand &typed_command)
 {
   /* The flush's Move To / Align Axis To Vector / Rotate To (flush_typed_motion_command), moved
@@ -4477,7 +4595,7 @@ void LN_CommandBuffer::ApplyMotionBody(KX_GameObject *object, const TypedMotionC
             const float step = use_max_angular_step ? std::min(float(M_PI), rotation_amount) :
                                                       float(M_PI) * rotation_amount;
             MT_Quaternion q(rot_axis_world, MT_Scalar(step));
-            object->NodeSetLocalOrientation(MT_Matrix3x3(q) * object->NodeGetLocalOrientation());
+            rotate_object_in_world(object, q);
           }
           break;
         }
@@ -4490,7 +4608,7 @@ void LN_CommandBuffer::ApplyMotionBody(KX_GameObject *object, const TypedMotionC
                     std::copysign(std::min(std::fabs(angle), rotation_amount), angle) :
                     angle * rotation_amount;
         MT_Quaternion q(rot_axis_world, MT_Scalar(angle));
-        object->NodeSetLocalOrientation(MT_Matrix3x3(q) * object->NodeGetLocalOrientation());
+        rotate_object_in_world(object, q);
         break;
       }
     default:
@@ -4644,6 +4762,7 @@ static PropertyReach command_property_reach(const LN_CommandBuffer::CommandType 
   switch (type) {
     case CT::SetGameProperty:
     case CT::ModifyGameProperty:
+    case CT::EditGameProperty:
     case CT::CopyProperty:
     case CT::RemoveObject:
       return PropertyReach::Objects;
@@ -4895,6 +5014,13 @@ void LN_CommandBuffer::ForgetSpatialSoundSpeaker(const KX_GameObject *speaker)
   for (LogicNativeSpatialSound &sound : g_logic_native_spatial_sounds) {
     if (sound.speaker == speaker) {
       sound.speaker = nullptr;
+    }
+  }
+  /* Its sounds play on with no emitter: a new object at the same address must not restart
+   * them. */
+  for (LogicNativeSoundHandle &entry : g_logic_native_sound_handles) {
+    if (entry.emitter == speaker) {
+      entry.emitter = nullptr;
     }
   }
 #  else
@@ -5196,6 +5322,7 @@ LN_CommandBuffer::CommandSubsystem LN_CommandBuffer::GetCommandSubsystem(const C
       return CommandSubsystem::Light;
     case CommandType::SetGameProperty:
     case CommandType::ModifyGameProperty:
+    case CommandType::EditGameProperty:
       return CommandSubsystem::ObjectProperty;
     case CommandType::SetTreeProperty:
     case CommandType::SetLogicTreeEnabled:
@@ -5468,6 +5595,7 @@ LN_CommandBuffer::CommandThreadPolicy LN_CommandBuffer::GetCommandThreadPolicy(
     case CommandType::ApplyTorque:
     case CommandType::SetGameProperty:
     case CommandType::ModifyGameProperty:
+    case CommandType::EditGameProperty:
     case CommandType::AddObject:
     case CommandType::AddObjectFromRef:
     case CommandType::SetParent:
@@ -5706,12 +5834,12 @@ constexpr CoalescingPolicy ComputeCoalescing(const CommandType type)
 
 /** What a command type is, for every type, made when the program is built: recording a command
  * reads one entry instead of running two switches (and a third, the unused barrier, that was
- * removed). SetSoundVolume is the last type. */
+ * removed). EditGameProperty is the last type. */
 struct CommandTypeTraits {
   CommandClass command_class = CommandClass::LegacyFallback;
   CoalescingPolicy coalescing = CoalescingPolicy::Forbidden;
 };
-constexpr size_t kCommandTypeCount = size_t(CommandType::SetSoundVolume) + 1;
+constexpr size_t kCommandTypeCount = size_t(CommandType::EditGameProperty) + 1;
 
 constexpr std::array<CommandTypeTraits, kCommandTypeCount> MakeCommandTypeTraits()
 {
@@ -6757,6 +6885,8 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
     Command command;
     command.type = typed_command.type;
     command.object = typed_command.speaker;
+    /* (The sound's emitter: no removal check reads this field for sound commands.) */
+    command.event_target_object = typed_command.emitter;
     command.property_name = typed_command.sound_name;
     if (command.property_name.empty() && typed_command.sound_id.IsValid() &&
         m_logicManager != nullptr)
@@ -8183,6 +8313,27 @@ bool LN_CommandBuffer::ApplyGamePropertyValue(KX_GameObject *object,
                                               std::string &r_reason)
 {
   return apply_game_property_value(object, property_name, value, runtime_tree, r_reason);
+}
+
+LN_CommandBuffer::SpeakerPlay LN_CommandBuffer::SpeakerPlayOf(const blender::Speaker *speaker,
+                                                              const std::string &picked,
+                                                              const float volume,
+                                                              const float pitch)
+{
+  SpeakerPlay play;
+  play.sound = picked;
+  play.volume = volume;
+  play.pitch = pitch;
+  if (speaker == nullptr) {
+    return play;
+  }
+  if (play.sound.empty() && speaker->sound != nullptr) {
+    play.sound = speaker->sound->id.name + 2;
+  }
+  play.volume *= speaker->volume;
+  play.pitch *= speaker->pitch;
+  play.muted = (int(speaker->flag) & int(blender::SPK_MUTED)) != 0;
+  return play;
 }
 
 KX_GameObject *LN_CommandBuffer::ExecuteAddObjectFromRefImmediate(
@@ -10634,7 +10785,8 @@ void LN_CommandBuffer::AppendPlaySound(const std::string &sound_name,
                                        const bool loop,
                                        const uint64_t sort_key,
                                        const uint32_t source_ref_index,
-                                       const int32_t group)
+                                       const int32_t group,
+                                       KX_GameObject *emitter)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -10648,6 +10800,7 @@ void LN_CommandBuffer::AppendPlaySound(const std::string &sound_name,
   TypedAudioCommand command;
   command.header = MakeCommandHeader(CommandType::PlaySound, sort_key, source_ref_index);
   command.type = CommandType::PlaySound;
+  command.emitter = emitter;
   command.sound_id = m_logicManager ? m_logicManager->InternSoundName(sound_name) : LN_SoundId{};
   command.sound_name = sound_name;
   command.volume = volume;
@@ -10713,7 +10866,8 @@ void LN_CommandBuffer::AppendPlaySound3D(KX_GameObject *speaker_object,
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
 
-  if (sound_name.empty()) {
+  /* No sound picked: the Speaker object's own, found when it plays (SpeakerPlayOf). */
+  if (sound_name.empty() && speaker_object == nullptr) {
     return;
   }
   const int32_t sound_group = int32_t(LN_SoundGroupFromInt(group, false));
@@ -10722,7 +10876,10 @@ void LN_CommandBuffer::AppendPlaySound3D(KX_GameObject *speaker_object,
   command.header = MakeCommandHeader(CommandType::PlaySound3D, sort_key, source_ref_index);
   command.type = CommandType::PlaySound3D;
   command.speaker = speaker_object;
-  command.sound_id = m_logicManager ? m_logicManager->InternSoundName(sound_name) : LN_SoundId{};
+  command.emitter = speaker_object;
+  command.sound_id = m_logicManager && !sound_name.empty() ?
+                         m_logicManager->InternSoundName(sound_name) :
+                         LN_SoundId{};
   command.sound_name = sound_name;
   command.volume = volume;
   command.pitch = pitch;
@@ -12221,6 +12378,62 @@ void LN_CommandBuffer::AppendCopyProperty(KX_GameObject *source,
   AppendTypedCommand(m_lifecycleCommands, std::move(command));
 }
 
+void LN_CommandBuffer::AppendEditGameProperty(LN_RuntimeTree *runtime_tree,
+                                              KX_GameObject *target,
+                                              const std::string &property_name,
+                                              const LN_PropertyEditOp op,
+                                              const LN_Value &value,
+                                              const int32_t index,
+                                              const std::string &key,
+                                              const float amount,
+                                              const uint64_t sort_key,
+                                              const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+
+  if (target == nullptr || property_name.empty()) {
+    return;
+  }
+
+  Command command;
+  command.type = CommandType::EditGameProperty;
+  command.subsystem = CommandSubsystem::ObjectProperty;
+  command.object = target;
+  command.runtime_tree = runtime_tree;
+  command.property_name = property_name;
+  command.int_value = int32_t(op);
+  /* Only what the change uses: the flush and the dumps compare the rest as defaults. */
+  switch (op) {
+    case LN_PropertyEditOp::ListAppend:
+    case LN_PropertyEditOp::ListRemoveValue:
+      command.property_value = value;
+      break;
+    case LN_PropertyEditOp::ListRemoveIndex:
+      command.secondary_int_value = index;
+      break;
+    case LN_PropertyEditOp::ListSetIndex:
+      command.secondary_int_value = index;
+      command.property_value = value;
+      break;
+    case LN_PropertyEditOp::DictSetKey:
+      command.secondary_property_name = key;
+      command.property_value = value;
+      break;
+    case LN_PropertyEditOp::DictAddValue:
+      command.secondary_property_name = key;
+      command.scalar_value = amount;
+      break;
+    case LN_PropertyEditOp::DictRemoveKey:
+      command.secondary_property_name = key;
+      break;
+  }
+  command.sort_key = sort_key;
+  command.source_ref_index = source_ref_index;
+  AppendLegacyCommand(std::move(command));
+}
+
 void LN_CommandBuffer::AppendSubsystemCommand(const CommandSubsystem subsystem,
                                               const std::string &action_name,
                                               KX_GameObject *gameobj,
@@ -13509,6 +13722,22 @@ void LN_CommandBuffer::Flush()
         }
         break;
       }
+      case CommandType::EditGameProperty: {
+        std::string reason;
+        if (!LN_ApplyGamePropertyEdit(command.object,
+                                      command.property_name,
+                                      LN_PropertyEditOp(command.int_value),
+                                      command.property_value,
+                                      command.secondary_int_value,
+                                      command.secondary_property_name,
+                                      command.scalar_value,
+                                      command.runtime_tree,
+                                      reason))
+        {
+          warn_command_failure_once(command, reason);
+        }
+        break;
+      }
       case CommandType::SetTreeProperty:
         if (command.runtime_tree != nullptr) {
           command.runtime_tree->SetTreePropertyValue(command.property_ref_index,
@@ -13636,12 +13865,7 @@ void LN_CommandBuffer::Flush()
         break;
       case CommandType::SetCameraFov:
         if (KX_Camera *camera = dynamic_cast<KX_Camera *>(command.object)) {
-          constexpr float radians_per_degree = 0.01745329251994329577f;
-          const float fov_radians = std::max(command.scalar_value, 0.001f) * radians_per_degree;
-          RAS_CameraData *camera_data = camera->GetCameraData();
-          const float width = camera->GetSensorWidth();
-          camera_data->m_lens = width / (2.0f * std::tan(0.5f * fov_radians));
-          camera->InvalidateProjectionMatrix();
+          set_camera_fov(camera, command.scalar_value);
         }
         break;
       case CommandType::SetCameraOrthoScale:
@@ -14144,7 +14368,8 @@ void LN_CommandBuffer::Flush()
                                 command.bool_value,
                                 spatial ? command.object : nullptr,
                                 command.int_value,
-                                command.secondary_int_value);
+                                command.secondary_int_value,
+                                command.event_target_object);
 #endif
         break;
       }
@@ -14668,8 +14893,7 @@ void LN_CommandBuffer::Flush()
             const float step = use_max_angular_step ? std::min(float(M_PI), rotation_amount) :
                                                       float(M_PI) * rotation_amount;
             MT_Quaternion q(rot_axis_world, MT_Scalar(step));
-            command.object->NodeSetLocalOrientation(MT_Matrix3x3(q) *
-                                                    command.object->NodeGetLocalOrientation());
+            rotate_object_in_world(command.object, q);
           }
           break;
         }
@@ -14682,8 +14906,7 @@ void LN_CommandBuffer::Flush()
                     std::copysign(std::min(std::fabs(angle), rotation_amount), angle) :
                     angle * rotation_amount;
         MT_Quaternion q(rot_axis_world, MT_Scalar(angle));
-        command.object->NodeSetLocalOrientation(MT_Matrix3x3(q) *
-                                                command.object->NodeGetLocalOrientation());
+        rotate_object_in_world(command.object, q);
         break;
       }
       case CommandType::ReplaceMesh: {
@@ -14941,12 +15164,19 @@ void LN_CommandBuffer::Flush()
         if (!BKE_constraint_targets_get(constraint, &targets)) {
           break;
         }
+        /* An IK constraint's second target is its pole (2026-11-07): Set Target writes the main
+         * target only; writing every target put the pole on the same object. Other constraints
+         * keep every target re-pointed (an Armature constraint's bones all name one armature). */
+        const bool main_target_only = constraint->type == blender::CONSTRAINT_TYPE_KINEMATIC;
         for (blender::bConstraintTarget *ct =
                  static_cast<blender::bConstraintTarget *>(targets.first);
              ct != nullptr;
              ct = ct->next)
         {
           ct->tar = target;
+          if (main_target_only) {
+            break;
+          }
         }
         BKE_constraint_targets_flush(constraint, &targets, false);
         MarkArmatureObjectPoseDirty(command.object);
@@ -15361,7 +15591,8 @@ void LN_CommandBuffer::Flush()
                                 typed_command.loop,
                                 spatial ? typed_command.speaker : nullptr,
                                 typed_command.listener,
-                                typed_command.listener_user);
+                                typed_command.listener_user,
+                                typed_command.emitter);
 #endif
         break;
       }
@@ -15530,13 +15761,7 @@ void LN_CommandBuffer::Flush()
         break;
       case CommandType::SetCameraFov:
         if (KX_Camera *camera = dynamic_cast<KX_Camera *>(object)) {
-          constexpr float radians_per_degree = 0.01745329251994329577f;
-          const float fov_radians = std::max(typed_command.scalar_value, 0.001f) *
-                                    radians_per_degree;
-          RAS_CameraData *camera_data = camera->GetCameraData();
-          const float width = camera->GetSensorWidth();
-          camera_data->m_lens = width / (2.0f * std::tan(0.5f * fov_radians));
-          camera->InvalidateProjectionMatrix();
+          set_camera_fov(camera, typed_command.scalar_value);
         }
         break;
       case CommandType::SetCameraOrthoScale:

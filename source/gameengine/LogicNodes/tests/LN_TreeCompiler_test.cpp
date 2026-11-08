@@ -826,7 +826,7 @@ TEST(LN_TreeCompiler, RejectsHiddenUnsupportedRuntimeNodeEvenWhenInactive)
   InitTree(tree);
 
   blender::bNode hidden_node = {};
-  InitNode(hidden_node, "LogicNativeSetNodeGroupSocketValue", "Set Node Group Socket", 1);
+  InitNode(hidden_node, "LogicNativeLoadFileContent", "Load File Content", 1);
   Append(tree.nodes, hidden_node);
 
   const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
@@ -1880,7 +1880,7 @@ TEST(LN_TreeCompiler, EmitsGetBonePoseRotationSpace)
   blender::bNodeSocket bone_object = {};
   blender::bNodeSocket bone_name = {};
   blender::bNodeSocket rotation = {};
-  InitNode(get_bone, "LogicNativeGetBonePoseRotation", "Get Bone Pose Rotation", 2);
+  InitNode(get_bone, "LogicNativeGetBonePoseTransform", "Get Bone Pose Transform", 2);
   get_bone.custom1 = int(LN_BonePoseRotationSpace::World);
   InitSocket(bone_object, "Object", blender::SOCK_OBJECT, nullptr);
   InitSocket(bone_name, "Bone Name", blender::SOCK_STRING, &bone_name_default);
@@ -1941,7 +1941,7 @@ TEST(LN_TreeCompiler, CompilesNativeBoneRotationToObjectRotationAsTypedExpressio
   blender::bNodeSocket bone_object = {};
   blender::bNodeSocket bone_name = {};
   blender::bNodeSocket native_rotation = {};
-  InitNode(get_bone, "LogicNativeGetBonePoseRotation", "Get Bone Pose Rotation", 2);
+  InitNode(get_bone, "LogicNativeGetBonePoseTransform", "Get Bone Pose Transform", 2);
   get_bone.custom1 = int(LN_BonePoseRotationSpace::Armature);
   InitSocket(bone_object, "Object", blender::SOCK_OBJECT, nullptr);
   InitSocket(bone_name, "Bone Name", blender::SOCK_STRING, &bone_name_default);
@@ -2804,7 +2804,7 @@ TEST(LN_TreeCompiler, PrintAcceptsCollisionVectorOutputs)
   blender::bNodeSocket collision_on = {};
   blender::bNodeSocket collision_point = {};
   blender::bNodeSocket collision_normal = {};
-  InitNode(collision, "LogicNativeCollision", "Is Colliding", 1);
+  InitNode(collision, "LogicNativeOnCollision", "On Collision", 1);
   InitSocket(collision_object, "Object", blender::SOCK_OBJECT, nullptr);
   InitSocket(collision_property, "Property", blender::SOCK_STRING, &property_default);
   InitSocket(collision_on, "Colliding", blender::SOCK_BOOLEAN, nullptr);
@@ -2914,7 +2914,7 @@ TEST(LN_TreeCompiler, RemoveObjectUsesCollisionHitObjectTarget)
   blender::bNodeSocket collision_property = {};
   blender::bNodeSocket collision_on = {};
   blender::bNodeSocket collision_hit_object = {};
-  InitNode(collision, "LogicNativeCollision", "Is Colliding", 1);
+  InitNode(collision, "LogicNativeOnCollision", "On Collision", 1);
   InitSocket(collision_object, "Object", blender::SOCK_OBJECT, nullptr);
   InitSocket(collision_property, "Property", blender::SOCK_STRING, nullptr);
   InitSocket(collision_on, "Colliding", blender::SOCK_BOOLEAN, nullptr);
@@ -3311,7 +3311,7 @@ TEST(LN_TreeCompiler, CollisionCollidingConditionCompilesAsPrintValue)
   blender::bNodeSocket collision_property = {};
   blender::bNodeSocket collision_material = {};
   blender::bNodeSocket collision_colliding = {};
-  InitNode(collision, "LogicNativeCollision", "Is Colliding", 2);
+  InitNode(collision, "LogicNativeOnCollision", "On Collision", 2);
   InitSocket(collision_object, "Object", blender::SOCK_OBJECT, nullptr, "NodeSocketLogicObject");
   InitSocket(
       collision_property, "Property", blender::SOCK_STRING, nullptr, "NodeSocketLogicString");
@@ -14127,7 +14127,9 @@ TEST(LN_TreeCompiler, SpatialAnalysisNodesCompileEverySocketContract)
             nullptr);
 }
 
-TEST(LN_TreeCompiler, HasPropertyReadsTheObjectOfAUIEvent)
+/* Get Game Property's Exists (Float option: what Has Property was until 2026-11-08) of the object of
+ * a UI event. */
+TEST(LN_TreeCompiler, GamePropertyExistsReadsTheObjectOfAUIEvent)
 {
   blender::bNodeTree tree = {};
   InitTree(tree);
@@ -14155,11 +14157,11 @@ TEST(LN_TreeCompiler, HasPropertyReadsTheObjectOfAUIEvent)
   blender::bNodeSocket property_object = {};
   blender::bNodeSocket property_name = {};
   blender::bNodeSocket property_exists = {};
-  InitNode(has_property, "LogicNativeHasProperty", "Has Property", 2);
+  InitNode(has_property, "LogicNativeGetGamePropertyValue", "Get Game Property", 2);
+  has_property.custom4 = 0.0f; /* Float */
   InitSocket(property_object, "Object", blender::SOCK_OBJECT, &object_default);
-  InitSocket(property_name, "Name", blender::SOCK_STRING, &property_name_default);
-  InitSocketWithIdentifier(
-      property_exists, "Out", "If True", blender::SOCK_BOOLEAN, nullptr);
+  InitSocket(property_name, "Property", blender::SOCK_STRING, &property_name_default);
+  InitSocket(property_exists, "Exists", blender::SOCK_BOOLEAN, nullptr);
   Append(has_property.inputs, property_object);
   Append(has_property.inputs, property_name);
   Append(has_property.outputs, property_exists);
@@ -14231,15 +14233,19 @@ TEST(LN_TreeCompiler, HasPropertyReadsTheObjectOfAUIEvent)
   EXPECT_EQ(name_expression->string_value, "exit");
   EXPECT_TRUE(program->GetGamePropertyRefs().empty());
 
+  /* Exists of another object: the property is there (ObjectGamePropertyExists, 2026-11-08; an
+   * Object property holding nothing counts), on the UI event's object, by the same name. */
   const LN_Instruction *route = FindBranchRouteWithConditionKind(
       *program,
       program->GetInstructions(LN_Event::OnUpdate),
-      LN_BoolExpressionKind::ValueIsNone);
+      LN_BoolExpressionKind::ObjectGamePropertyExists);
   ASSERT_NE(route, nullptr);
-  EXPECT_TRUE(BoolExpressionTreeContainsKind(
-      *program, route->bool_expr_index, LN_BoolExpressionKind::ValueIsNone));
-  EXPECT_TRUE(BoolExpressionTreeContainsKind(
-      *program, route->bool_expr_index, LN_BoolExpressionKind::Not));
+  const LN_BoolExpression &exists = program->GetBoolExpressions()[route->bool_expr_index];
+  EXPECT_EQ(exists.kind, LN_BoolExpressionKind::ObjectGamePropertyExists);
+  EXPECT_EQ(exists.input0, target_expression_index);
+  const LN_StringExpression *exists_name = StringExpressionAt(*program, exists.input1);
+  ASSERT_NE(exists_name, nullptr);
+  EXPECT_EQ(exists_name->string_value, "exit");
   EXPECT_EQ(program->GetMainThreadOnlyReason(), LN_MainThreadOnlyReason::QueryExpression);
 
   /* Leaving Object empty retains the existing tree-owner snapshot fast path. */
@@ -14249,7 +14255,7 @@ TEST(LN_TreeCompiler, HasPropertyReadsTheObjectOfAUIEvent)
   EXPECT_FALSE(owner_program->GetCompileReport().HasErrors())
       << FormatCompileReport(owner_program->GetCompileReport());
   ASSERT_TRUE(owner_program->ValidateInstructionPayloads());
-  EXPECT_TRUE(HasGamePropertyRef(*owner_program, "exit", LN_ValueType::None));
+  EXPECT_TRUE(HasGamePropertyRef(*owner_program, "exit", LN_ValueType::Float));
   EXPECT_TRUE(std::none_of(owner_program->GetValueExpressions().begin(),
                            owner_program->GetValueExpressions().end(),
                            [](const LN_ValueExpression &expression) {
@@ -14257,7 +14263,8 @@ TEST(LN_TreeCompiler, HasPropertyReadsTheObjectOfAUIEvent)
                                     LN_ValueExpressionKind::ObjectGameProperty;
                            }));
 
-  /* A blank name is always False: the rest of the tree must still compile. */
+  /* A blank name is an error that names the input (Has Property made it a False with a
+   * warning). */
   SetCString(property_name_default.value, "");
   for (const bool object_linked : {false, true}) {
     if (object_linked) {
@@ -14265,16 +14272,10 @@ TEST(LN_TreeCompiler, HasPropertyReadsTheObjectOfAUIEvent)
     }
     const std::shared_ptr<LN_Program> blank_program = LN_TreeCompiler().Compile(tree);
     ASSERT_NE(blank_program, nullptr);
-    EXPECT_FALSE(blank_program->GetCompileReport().HasErrors())
+    EXPECT_TRUE(blank_program->GetCompileReport().HasErrors());
+    EXPECT_NE(FormatCompileReport(blank_program->GetCompileReport()).find("property name"),
+              std::string::npos)
         << FormatCompileReport(blank_program->GetCompileReport());
-    EXPECT_TRUE(HasWarningContaining(blank_program->GetCompileReport(), "always False"));
-    ASSERT_TRUE(blank_program->ValidateInstructionPayloads());
-    EXPECT_TRUE(blank_program->GetGamePropertyRefs().empty());
-    EXPECT_EQ(FindBranchRouteWithConditionKind(*blank_program,
-                                               blank_program->GetInstructions(
-                                                   LN_Event::OnFixedUpdate),
-                                               LN_BoolExpressionKind::ValueIsNone),
-              nullptr);
   }
 }
 
@@ -15402,6 +15403,11 @@ TEST(LN_TreeCompiler, ARouteInsideALoopBodyRunsInEveryIteration)
         blender::bNodeSocket middle_value = {};
         blender::bNodeSocket middle_out = {};
         blender::bNodeSocket middle_list = {};
+        /* (Since 2026-11-08 List Append also has Object and Property, for Game Property mode;
+         * the node here is Output Only, custom1 0, a data node's Done route.) */
+        blender::bNodeSocket middle_object = {};
+        blender::bNodeSocket middle_property = {};
+        blender::bNodeSocketValueString property_default = {};
         InitNode(middle, middle_idname, "Middle", 3);
         InitSocket(middle_flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
         Append(middle.inputs, middle_flow);
@@ -15412,10 +15418,14 @@ TEST(LN_TreeCompiler, ARouteInsideALoopBodyRunsInEveryIteration)
           Append(middle.outputs, middle_out);
         }
         else {
+          InitSocket(middle_object, "Object", blender::SOCK_OBJECT, nullptr);
+          InitSocket(middle_property, "Property", blender::SOCK_STRING, &property_default);
           InitSocket(middle_second, "List", blender::SOCK_CUSTOM, nullptr);
           InitSocketWithIdentifier(middle_value, "Value", "", blender::SOCK_CUSTOM, nullptr);
           InitSocket(middle_out, "Done", blender::SOCK_BOOLEAN, nullptr);
           InitSocket(middle_list, "List", blender::SOCK_CUSTOM, nullptr);
+          Append(middle.inputs, middle_object);
+          Append(middle.inputs, middle_property);
           Append(middle.inputs, middle_second);
           Append(middle.inputs, middle_value);
           Append(middle.outputs, middle_out);
@@ -16855,46 +16865,6 @@ TEST(LN_TreeCompiler, StringSwitchFlowComparesALinkedNumberAsText)
   EXPECT_EQ(prints_per_step.back(), std::vector<std::string>{"two"});
 }
 
-/* Make List holds only the items that are linked. */
-TEST(LN_TreeCompiler, MakeListHoldsOnlyLinkedItems)
-{
-  blender::bNodeTree tree = {};
-  InitTree(tree);
-  TestNode step(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 1);
-  blender::bNodeSocket &tick = step.flow(false, "Out");
-  TestNode number(tree, "LogicNativeValueInt", "Integer", 2);
-  blender::bNodeSocketValueInt five = {};
-  five.value = 5;
-  blender::bNodeSocket &number_out = number.add(false, "Int", blender::SOCK_INT, &five);
-  TestNode make(tree, "LogicNativeMakeList", "Make List", 3);
-  blender::bNodeSocket &item_a = make.add(
-      true, "Item A", blender::SOCK_CUSTOM, nullptr, "NodeSocketLogicGeneric");
-  make.add(true, "Item B", blender::SOCK_CUSTOM, nullptr, "NodeSocketLogicGeneric");
-  make.add(true, "Item C", blender::SOCK_CUSTOM, nullptr, "NodeSocketLogicGeneric");
-  blender::bNodeSocket &list = make.add(
-      false, "List", blender::SOCK_CUSTOM, nullptr, "NodeSocketLogicList");
-  TestNode length(tree, "LogicNativeListLength", "List Length", 4);
-  blender::bNodeSocket &length_list = length.add(
-      true, "List", blender::SOCK_CUSTOM, nullptr, "NodeSocketLogicList");
-  blender::bNodeSocket &length_out = length.add(false, "Length", blender::SOCK_INT, nullptr);
-  TestNode print(tree, "LogicNativePrint", "Print", 5);
-  blender::bNodeSocket &print_flow = print.flow(true, "Flow");
-  blender::bNodeSocket &print_value = print.in_string("Value", "");
-  std::deque<blender::bNodeLink> links;
-  InitLink(links.emplace_back(), step.node, tick, print.node, print_flow);
-  InitLink(links.emplace_back(), number.node, number_out, make.node, item_a);
-  InitLink(links.emplace_back(), make.node, list, length.node, length_list);
-  InitLink(links.emplace_back(), length.node, length_out, print.node, print_value);
-  for (blender::bNodeLink &link : links) {
-    Append(tree.links, link);
-  }
-  const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
-  ASSERT_NE(program, nullptr);
-  EXPECT_FALSE(program->GetCompileReport().HasErrors())
-      << FormatCompileReport(program->GetCompileReport());
-  EXPECT_EQ(PrintsOfFixedSteps(program, 1).back(), std::vector<std::string>{"1"});
-}
-
 /* Store Value keeps what its Value was when its Flow ran (On Init here), and does not store
  * again on later steps. */
 TEST(LN_TreeCompiler, StoreValueStoresOnlyWhenItsFlowRuns)
@@ -16906,9 +16876,16 @@ TEST(LN_TreeCompiler, StoreValueStoresOnlyWhenItsFlowRuns)
   TestNode step(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 2);
   blender::bNodeSocket &tick = step.flow(false, "Out");
   /* A value that changes on every step. */
-  TestNode random(tree, "LogicNativeRandomFloat", "Random Float", 3);
+  TestNode random(tree, "LogicNativeRandomValue", "Random Value", 3);
   random.in_float("Min", 0.0f);
   random.in_float("Max", 1000000.0f);
+  /* Random Value's other types' inputs (a hand-made node needs them all). */
+  random.in_int("Min_Int", 0);
+  random.in_int("Max_Int", 100);
+  random.in_vector("Min_Vector", MT_Vector3(0.0f, 0.0f, 0.0f));
+  random.in_vector("Max_Vector", MT_Vector3(1.0f, 1.0f, 1.0f));
+  random.in_float("Probability", 0.5f);
+  random.in_int("Seed", 0);
   blender::bNodeSocket &random_out = random.add(false, "Value", blender::SOCK_FLOAT, nullptr);
   TestNode store(tree, "LogicNativeStoreValue", "Store Value", 4);
   store.node.custom1 = 1; /* Initialize off: only the Flow stores. */

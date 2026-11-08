@@ -62,6 +62,7 @@ set(SRC
   intern/LN_Performance.cpp
   intern/LN_RuntimeTree.cpp
   intern/LN_ProgramDump.cpp
+  intern/LN_Random.cpp
   intern/LN_StrictDump.cpp
   intern/LN_QueryDiagnostics.cpp
   intern/LN_RuntimeSemantics.cpp
@@ -101,6 +102,7 @@ set(SRC
   LN_Performance.h
   LN_Program.h
   LN_QueryDiagnostics.h
+  LN_Random.h
   LN_RegisterExpressionIR.h
   LN_Rotation.h
   LN_BonePoseRotation.h
@@ -172,6 +174,8 @@ if(WITH_GTESTS)
     tests/LN_Program_test.cpp
     tests/LN_Rotation_test.cpp
     tests/LN_RuntimeTree_test.cpp
+    tests/LN_Random_test.cpp
+    tests/LN_MergedNodes_test.cpp
     tests/LN_Semantics_test.cpp
     tests/LN_Snapshot_test.cpp
     tests/LN_StrictDump_test.cpp

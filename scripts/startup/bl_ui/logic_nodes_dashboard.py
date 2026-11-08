@@ -270,6 +270,10 @@ class NODE_PT_logic_nodes_performance(Panel):
             _wrapped(layout, context, "This report is of another file: play this one again.",
                      'ERROR')
         _wrapped(layout, context, "Last play: " + report.get("ended", ""))
+        if "random_seed" in report:
+            # Typed into Scene > Game > Random Numbers > Fixed, the same numbers come again.
+            _wrapped(layout, context, "Random seed: {:d}{:s}".format(
+                report["random_seed"], " (new each play)" if report.get("random_seed_new") else ""))
         trees = report.get("trees", [])
         tree = getattr(context.space_data, "edit_tree", None)
         if tree is not None:

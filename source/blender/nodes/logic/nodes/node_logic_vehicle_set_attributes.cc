@@ -17,7 +17,7 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::Object>("Collider"_ustr, "Vehicle"_ustr).description(
+  b.add_input<decl::Object>("Vehicle"_ustr).description(
       "Vehicle chassis object to affect; defaults to the owner when unset");
   b.add_input<decl::Int>("Wheels"_ustr).default_value(2).min(0).description(
       "How many wheels from the selected axis group to affect");

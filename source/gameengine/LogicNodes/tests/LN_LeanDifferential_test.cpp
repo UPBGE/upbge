@@ -315,6 +315,43 @@ void ForEachProbe(
       }
     }
   }
+  /* The outputs of flow nodes (data and routes), each in a probe of its own (after every other
+   * probe, so those keep their places). */
+  for (const diff::Family &family : diff::FamilyTable()) {
+    if (family.role != diff::Role::Flow) {
+      continue;
+    }
+    const std::vector<int16_t> first = family.custom1.empty() ? std::vector<int16_t>{0} :
+                                                                family.custom1;
+    const std::vector<int16_t> second = family.custom2.empty() ? std::vector<int16_t>{0} :
+                                                                 family.custom2;
+    for (const int16_t custom1 : first) {
+      for (const int16_t custom2 : second) {
+        TreeGen shape{1};
+        const size_t outputs = shape.OutputCount(family);
+        for (size_t output = 0; output < outputs; output++) {
+          TreeGen generator{7};
+          generator.SetFold(fold);
+          std::unique_ptr<GeneratedTree> tree = generator.ProbeFlowOutput(
+              family, custom1, custom2, output);
+          diff::GenNode &node = *tree->nodes[1];
+          if (output >= node.outputs.size() || !node.output_allowed(output) ||
+              tree->nodes.size() < 3)
+          {
+            continue;
+          }
+          /* Extra coverage, not the "every setting compiles" check (the probes above): a route
+           * used alone may not compile (Switch Flow's Default without its cases). */
+          if (!CompileFailure(*tree).empty()) {
+            continue;
+          }
+          visit(std::string(family.idname + 11) + " c1=" + std::to_string(custom1) + " c2=" +
+                    std::to_string(custom2) + " flow out=" + node.out_pins[output].identifier,
+                std::move(tree));
+        }
+      }
+    }
+  }
 }
 
 /** The probes that compile and have something to run (a flow node behind On Update, a data node
@@ -798,8 +835,7 @@ TEST(LN_LeanDifferential, ColumnsEndAsTheLeanVM)
       "LogicNativeClampValue",
       "LogicNativeThreshold",
       "LogicNativeRangedThreshold",
-      "LogicNativeRandomFloat",
-      "LogicNativeRandomInt",
+      "LogicNativeRandomValue",
       "LogicNativeTypecast",
       "LogicNativeGetTreeProperty",
       "LogicNativeGetAxisVector",
@@ -813,10 +849,8 @@ TEST(LN_LeanDifferential, ColumnsEndAsTheLeanVM)
       "LogicNativeMoveToward",
       "LogicNativeRotateToward",
       "LogicNativeAlignAxisToVector",
-      "LogicNativeHasProperty",
       "LogicNativeGetGravity",
       "LogicNativeStoreValue",
-      "LogicNativeRandomVector",
       "LogicNativeVectorRotate",
       "LogicNativeDelay",
       "LogicNativeTimer",
@@ -1166,7 +1200,8 @@ TEST(LN_LeanDifferential, Soak)
       if (live[index].second.program == nullptr || folded[index].second.program == nullptr ||
           name.find("Random") != std::string::npos || name.find("TreeProperty") != std::string::npos)
       {
-        continue; /* a Random value follows the expression index (D2); tree properties are state */
+        continue; /* random nodes are left out (their numbers are not what folding changes);
+                   * tree properties are state */
       }
       const diff::RunResult a = diff::RunWorld(live[index].second.program, options);
       const diff::RunResult b = diff::RunWorld(folded[index].second.program, options);

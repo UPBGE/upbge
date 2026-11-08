@@ -112,8 +112,31 @@ def _statements(source, start):
 
 
 def node_idnames(source):
-    """The logic node types a node source file registers."""
-    return re.findall(r'logic_node_type_base\(\s*&\w+\s*,\s*"(LogicNative\w+)"_ustr', source)
+    """The logic node types a node source file registers (an option of a merged node, which is
+    no node type of its own, too)."""
+    return re.findall(r'logic_(?:node|option)_type_base\(\s*&\w+\s*,\s*"(LogicNative\w+)"_ustr',
+                      source)
+
+
+def node_sources():
+    """(file name, text) of each node's source: a merged node's options file holds its options,
+    each the node it was in a namespace of its own, so each namespace counts apart."""
+    for name in sorted(os.listdir(NODE_SOURCES)):
+        if not name.endswith(".cc"):
+            continue
+        source = open(os.path.join(NODE_SOURCES, name), encoding="utf-8").read()
+        if name.endswith("_options.cc"):
+            blocks = re.findall(r"^namespace (blender::nodes::node_logic_\w+_cc) \{\n(.*?)^\}  "
+                                r"// namespace \1$", source, re.S | re.M)
+            for _namespace, block in blocks:
+                yield name, block
+            continue
+        yield name, source
+
+
+def works_as(node):
+    """The node type a node works as: a merged node's option counts as the node it was."""
+    return getattr(node, "variant_idname", "") or node.bl_idname
 
 
 def prop_label(struct_rna, identifier):
@@ -237,10 +260,7 @@ def node_draws():
     prop_call = re.compile(r'\.prop\(\s*ptr\s*,\s*"(\w+)"\s*,\s*([^,]+),\s*'
                            r'(std::nullopt|IFACE_\("(?:[^"\\]|\\.)*"\)|"(?:[^"\\]|\\.)*")'
                            r'|template_id\(\s*&layout\s*,\s*\w+\s*,\s*ptr\s*,\s*"(\w+)"')
-    for name in sorted(os.listdir(NODE_SOURCES)):
-        if not name.endswith(".cc"):
-            continue
-        source = open(os.path.join(NODE_SOURCES, name), encoding="utf-8").read()
+    for name, source in node_sources():
         idnames = node_idnames(source)
         props = []
         draw = re.search(r"draw_buttons\s*=\s*(\w+)\s*;", source)
@@ -286,10 +306,7 @@ def node_panels():
     panels = {}
     panel_call = re.compile(r'PanelDeclarationBuilder\s*&\s*(\w+)\s*=\s*b\.add_panel\(\s*'
                             r'"([^"]*)"_ustr')
-    for name in sorted(os.listdir(NODE_SOURCES)):
-        if not name.endswith(".cc"):
-            continue
-        source = open(os.path.join(NODE_SOURCES, name), encoding="utf-8").read()
+    for name, source in node_sources():
         found = []
         for match in panel_call.finditer(source):
             builder, title = match.groups()
@@ -325,11 +342,9 @@ NODE_TITLE_SETTINGS = {"LogicNativeInventory": "operation", "LogicNativeMath": "
 
 def _titled_nodes():
     titled = set()
-    for name in os.listdir(NODE_SOURCES):
-        if name.endswith(".cc"):
-            source = open(os.path.join(NODE_SOURCES, name), encoding="utf-8").read()
-            if "labelfunc" in source:
-                titled.update(node_idnames(source))
+    for _name, source in node_sources():
+        if "labelfunc" in source:
+            titled.update(node_idnames(source))
     unknown = titled - set(NODE_TITLE_SETTINGS)
     if unknown:
         raise RuntimeError(f"say what the header of {sorted(unknown)} shows (NODE_TITLE_SETTINGS)")
@@ -349,10 +364,27 @@ def node_title(node):
     return node.bl_label
 
 
+def node_draw_list(node):
+    """[(property, label, expanded)] a node draws, as NODE_DRAWS has them. A merged node draws its
+    dropdown (Threshold its Pass When; Modify Property its Operation, which holds Toggle), then
+    its option's own settings (node_logic_merged.cc's node_layout)."""
+    if not hasattr(node, "variant_idname"):
+        return NODE_DRAWS.get(node.bl_idname)
+    option = NODE_DRAWS.get(node.variant_idname)
+    if option is None:
+        return None
+    if node.bl_idname == "LogicNativeThresholdValue":
+        return [("pass_when", "", False)]
+    if node.bl_idname == "LogicNativeModifyGameProperty":
+        return option if node.variant == node.bl_rna.properties["variant"].enum_items[0].identifier \
+            else [("operation", "", False)]
+    return [("variant", "", False)] + option
+
+
 def node_props(node):
     """The node's own settings as the editor draws them: (label or "", value, checkbox state,
     expanded enum items)."""
-    draws = NODE_DRAWS.get(node.bl_idname)
+    draws = node_draw_list(node)
     if draws is None:
         raise RuntimeError(f"the guide cannot read how {node.bl_idname} draws its settings")
     rows = []
@@ -394,17 +426,23 @@ def socket_value(socket):
 _NEW_NODE_INPUTS = {}
 
 
-def new_node_inputs(idname):
-    """A new node's input values (as socket_value gives them), by identifier."""
-    if idname not in _NEW_NODE_INPUTS:
+def new_node_inputs(node_of_kind):
+    """A new node's input values (as socket_value gives them), by identifier: a node of the same
+    kind (and, for a merged node, the same option)."""
+    idname = node_of_kind.bl_idname
+    variant = getattr(node_of_kind, "variant", None)
+    key = (idname, variant)
+    if key not in _NEW_NODE_INPUTS:
         tree = bpy.data.node_groups.new("__guide_new_node", "LogicNodeTree")
         try:
             node = tree.nodes.new(idname)
-            _NEW_NODE_INPUTS[idname] = {socket.identifier: socket_value(socket)
-                                        for socket in node.inputs}
+            if variant is not None:
+                node.variant = variant
+            _NEW_NODE_INPUTS[key] = {socket.identifier: socket_value(socket)
+                                     for socket in node.inputs}
         finally:
             bpy.data.node_groups.remove(tree)
-    return _NEW_NODE_INPUTS[idname]
+    return _NEW_NODE_INPUTS[key]
 
 
 def node_layout(node):
@@ -420,7 +458,7 @@ def node_layout(node):
             rows.append(("out", socket))
     for row in node_props(node):
         rows.append(("prop", row))
-    panels = NODE_PANELS.get(node.bl_idname, ())
+    panels = NODE_PANELS.get(works_as(node), ())
     if len(panels) != len(node.panel_states):
         raise RuntimeError(f"{node.name}: the guide reads {len(panels)} folded sections, the node "
                            f"has {len(node.panel_states)}")
@@ -436,7 +474,7 @@ def node_layout(node):
         if not sockets and header is None:
             # Blender draws no section with nothing in it.
             continue
-        new = new_node_inputs(node.bl_idname)
+        new = new_node_inputs(node)
         shown_open = not state.is_collapsed or any(
             socket.is_linked or socket_value(socket) != new[socket.identifier]
             for socket in sockets)
@@ -516,7 +554,7 @@ def frame_svg(tree, frame):
         x, y, w, h, rows = boxes[node.name]
         x -= left
         y -= top
-        kind = header_kind(node.bl_idname)
+        kind = header_kind(works_as(node))
         parts.append(f'<rect x="{x:.0f}" y="{y:.0f}" width="{w:.0f}" height="{h:.0f}" rx="6" '
                      f'class="n-body"/>')
         parts.append(f'<path d="M{x:.0f},{y + HEADER:.0f} v-{HEADER - 6} a6,6 0 0 1 6,-6 '
@@ -597,7 +635,7 @@ def frame_svg(tree, frame):
                 cx, cy = x, row_y - 4
                 sockets[(node.name, "in", item.identifier)] = (cx, cy, color)
                 parts.append(_socket_mark(cx, cy, color, item.bl_idname))
-                drawn = SOCKET_DRAWS.get((node.bl_idname, item.identifier))
+                drawn = SOCKET_DRAWS.get((works_as(node), item.identifier))
                 if drawn is not None and not item.is_linked:
                     # Settings drawn in the input's row (X, Y, Z toggles) instead of its value.
                     row_label, props = drawn
@@ -1084,9 +1122,9 @@ class Example:
                     raise RuntimeError(f"{where} is muted")
                 if node.label:
                     raise RuntimeError(f"{where} has a label: the guide never says to set one")
-                drawn = {prop for prop, _label, _expanded in NODE_DRAWS.get(node.bl_idname) or ()}
+                drawn = {prop for prop, _label, _expanded in node_draw_list(node) or ()}
                 for (idname, _identifier), (_label, props) in SOCKET_DRAWS.items():
-                    if idname == node.bl_idname:
+                    if idname == works_as(node):
                         drawn |= set(props)
                 for key in spec["settings"]:
                     if key not in drawn:
@@ -2038,7 +2076,7 @@ FRAMES = {
         "If <code>sort_by</code> contains “Count”, <b>Inventory › Sort Inventory</b> sorts by "
         "count, smallest stacks first.",
         "Otherwise it sorts A to Z by item.",
-        "Then <b>Scroll Object View › Top</b> shows the first row.",
+        "Then <b>Scroll View To › Top</b> shows the first row.",
     ),
     ("Inventory", "Drop: drag a cell out of the menu to drop it in the world"): (
         "<i>Drop Outside</i>: a cell was let go over a world object, like the ground.",

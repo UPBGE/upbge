@@ -13,8 +13,12 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::Object>("Camera"_ustr).available(false);
+  b.add_input<decl::Execution>("Flow"_ustr).description(
+      "Optional trigger; unconnected, the ray is cast whenever an output is read");
+  /* Shown since 2026-11-08 (hidden before, so only Python could set it). */
+  b.add_input<decl::Object>("Camera"_ustr)
+      .description("The camera to cast from, through its own lens; empty: the scene's active "
+                   "camera");
   b.add_input<decl::Vector>("Aim"_ustr).default_value({0.5f, 0.5f, 0.0f});
   b.add_input<decl::String>("Property"_ustr);
   b.add_input<decl::Bool>("X-Ray"_ustr).default_value(false);

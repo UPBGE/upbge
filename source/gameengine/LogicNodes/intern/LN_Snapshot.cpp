@@ -28,6 +28,8 @@
 #include "KX_Scene.h"
 #include "LN_InputMap.h"
 #include "LN_Program.h"
+#include "LN_RuntimeTree.h"
+#include "LN_TypeConversion.h"
 #include "MT_Matrix3x3.h"
 #include "PHY_ICharacter.h"
 #include "PHY_IPhysicsEnvironment.h"
@@ -36,13 +38,6 @@
 #include "SCA_InputEvent.h"
 
 namespace {
-bool is_number_or_text(EXP_Value *property)
-{
-  const int type = property->GetValueType();
-  return type == VALUE_BOOL_TYPE || type == VALUE_INT_TYPE || type == VALUE_FLOAT_TYPE ||
-         type == VALUE_STRING_TYPE;
-}
-
 static_assert(LN_MAX_GAMEPADS <= JOYINDEX_MAX);
 static_assert(LN_MAX_GAMEPAD_AXES <= JOYAXIS_MAX);
 static_assert(LN_MAX_GAMEPAD_BUTTONS <= JOYBUT_MAX);
@@ -1065,6 +1060,47 @@ void LN_Snapshot::Capture(KX_GameObject *gameobj,
       previous_property_capacity;
 }
 
+/* A typed read of a present game property (2026-11-08): the ref's own type as before (numbers as
+ * EXP_Value::GetNumber gives them: a float); a property of another type by the rules of every other
+ * read of a value (Get Game Property of another object, links, Typecast: ValueAsBool,
+ * ValueAsFloat, ValueAsInt with Truncate, ValueToText). Before, text read as a number gave
+ * GetNumber's -1, text read as a Bool was always true and a number read as text EXP's own text
+ * ("5.000000", "TRUE"), while the same node reading another object gave 5, False and "5". */
+static bool snapshot_property_bool(EXP_Value *property)
+{
+  switch (property->GetValueType()) {
+    case VALUE_BOOL_TYPE:
+    case VALUE_INT_TYPE:
+    case VALUE_FLOAT_TYPE:
+      return float(property->GetNumber()) != 0.0f;
+    default:
+      return LN_GamePropertyAsBool(property);
+  }
+}
+
+/** False when the property gives no number (a vector, list or object, or text that is no number):
+ * the ref's default then, as when the node reads another object. */
+static bool snapshot_property_float(EXP_Value *property, float &r_value)
+{
+  switch (property->GetValueType()) {
+    case VALUE_BOOL_TYPE:
+    case VALUE_INT_TYPE:
+    case VALUE_FLOAT_TYPE:
+      r_value = float(property->GetNumber());
+      return true;
+    case VALUE_STRING_TYPE:
+      return LN_TryParseTypecastFloat(property->GetText(), r_value);
+    default:
+      return false;
+  }
+}
+
+static std::string snapshot_property_text(EXP_Value *property)
+{
+  return property->GetValueType() == VALUE_STRING_TYPE ? property->GetText() :
+                                                         LN_GamePropertyAsText(property);
+}
+
 /**
  * One game property's value as the snapshot gives it: the ref's default, with `exists` and the
  * value of the ref's type taken from the live property (`property`, nullptr: the object has
@@ -1080,27 +1116,25 @@ static void update_game_property_value(LN_Value &value,
   }
   const LN_Value &default_value = property_ref.default_value;
   value.exists = property != nullptr;
-  /* Numbers as EXP_Value::GetPropertyNumber gives them: a float. */
+  float number = 0.0f;
   switch (property_ref.value_type) {
     case LN_ValueType::Bool:
-      value.bool_value = property != nullptr ? float(property->GetNumber()) != 0.0f :
+      value.bool_value = property != nullptr ? snapshot_property_bool(property) :
                                                default_value.bool_value;
       break;
     case LN_ValueType::Int:
-      /* A vector, list or object is no number: the default, as when the node reads another
-       * object. */
-      value.int_value = property != nullptr && is_number_or_text(property) ?
-                            int32_t(float(property->GetNumber())) :
+      value.int_value = property != nullptr && snapshot_property_float(property, number) ?
+                            LN_ConvertFloatToInt(number, LN_FloatToIntMode::Truncate) :
                             default_value.int_value;
       break;
     case LN_ValueType::Float:
-      value.float_value = property != nullptr && is_number_or_text(property) ?
-                              float(property->GetNumber()) :
+      value.float_value = property != nullptr && snapshot_property_float(property, number) ?
+                              number :
                               default_value.float_value;
       break;
     case LN_ValueType::String:
       if (property != nullptr) {
-        value.string_value = property->GetText();
+        value.string_value = snapshot_property_text(property);
       }
       else {
         value.string_value = default_value.string_value;
@@ -1175,25 +1209,26 @@ static void update_game_property_cell(LN_Snapshot::GamePropertyCell &cell,
   }
   const LN_Value &default_value = property_ref.default_value;
   cell.exists = property != nullptr;
+  float number = 0.0f;
   switch (property_ref.value_type) {
     case LN_ValueType::Bool:
-      cell.bool_value = property != nullptr ? float(property->GetNumber()) != 0.0f :
+      cell.bool_value = property != nullptr ? snapshot_property_bool(property) :
                                               default_value.bool_value;
       break;
     case LN_ValueType::Int:
-      cell.int_value = property != nullptr && is_number_or_text(property) ?
-                           int32_t(float(property->GetNumber())) :
+      cell.int_value = property != nullptr && snapshot_property_float(property, number) ?
+                           LN_ConvertFloatToInt(number, LN_FloatToIntMode::Truncate) :
                            default_value.int_value;
       break;
     case LN_ValueType::Float:
-      cell.float_value = property != nullptr && is_number_or_text(property) ?
-                             float(property->GetNumber()) :
+      cell.float_value = property != nullptr && snapshot_property_float(property, number) ?
+                             number :
                              default_value.float_value;
       break;
     case LN_ValueType::String:
       if (live_text != nullptr) {
         if (property != nullptr) {
-          *live_text = property->GetText();
+          *live_text = snapshot_property_text(property);
         }
         else {
           *live_text = default_value.string_value;
@@ -1331,6 +1366,25 @@ void LN_Snapshot::CaptureGamePropertiesOnly(KX_GameObject *gameobj,
   }
   m_captureStats.captured_channels = channels;
   m_captureStats.skipped_channels = LN_SNAPSHOT_CHANNEL_ALL & ~channels;
+}
+
+void LN_Snapshot::CompleteLaneCapture(KX_GameObject *gameobj,
+                                      const LN_Program &program,
+                                      const LN_TickReadContext *tick_context,
+                                      const float fixed_delta,
+                                      const bool transform_taken)
+{
+  const LN_ObjectSnapshot taken = m_object;
+  Capture(gameobj, &program, tick_context, fixed_delta);
+  if (transform_taken) {
+    /* (capture_object_state's transform channel, as the lane's capture took it) */
+    m_object.world_position = taken.world_position;
+    m_object.local_position = taken.local_position;
+    m_object.world_orientation = taken.world_orientation;
+    m_object.local_orientation = taken.local_orientation;
+    m_object.world_scale = taken.world_scale;
+    m_object.local_scale = taken.local_scale;
+  }
 }
 
 EXP_Value *LN_Snapshot::GetGamePropertyHandle(const KX_GameObject *object,

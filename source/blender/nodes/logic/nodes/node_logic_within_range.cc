@@ -18,7 +18,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Float>("Value"_ustr).default_value(0.0f);
   b.add_input<decl::Float>("Min"_ustr).default_value(0.0f);
-  b.add_input<decl::Float>("Max"_ustr).default_value(0.0f);
+  /* 1 (0 until 2026-11-08: a new node's range was a point, Within never true). */
+  b.add_input<decl::Float>("Max"_ustr).default_value(1.0f);
   b.add_output<decl::Bool>("Result"_ustr);
 }
 

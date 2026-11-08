@@ -309,6 +309,7 @@ void LN_Manager::CommitGameStateRuntimeTreeRestore(
     /* As every registration does: without it every restored tree ran its Spread Out gates on
      * the same steps (fixed 2026-10-31). */
     AssignStepSpread(*runtime_tree);
+    AssignRandomStream(*runtime_tree);
     m_runtimeTrees.push_back(std::move(runtime_tree));
   }
   prepared.runtime_trees.clear();

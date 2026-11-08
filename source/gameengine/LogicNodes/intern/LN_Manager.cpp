@@ -35,6 +35,7 @@
 #include "LN_BindingSource.h"
 #include "LN_Performance.h"
 #include "LN_Program.h"
+#include "LN_Random.h"
 #include "LN_RuntimeTree.h"
 #include "LN_TreeCompiler.h"
 #include "LN_Types.h"
@@ -263,6 +264,7 @@ LN_RuntimeTree *LN_Manager::RegisterCompiledProgram(KX_GameObject *gameobj,
     runtime_tree->SetRuntimeActive(runtime_active);
     runtime_tree->BindDenseIds(m_denseIds);
     AssignStepSpread(*runtime_tree);
+    AssignRandomStream(*runtime_tree);
     IndexRuntimeTree(runtime_tree);
     CacheCompiledProgram(runtime_tree->GetProgram());
     m_commandBuffer.PrewarmMaterialParameterBindings(*runtime_tree);
@@ -278,6 +280,7 @@ LN_RuntimeTree *LN_Manager::RegisterCompiledProgram(KX_GameObject *gameobj,
   runtime_tree->SetRuntimeActive(runtime_active);
   runtime_tree->BindDenseIds(m_denseIds);
   AssignStepSpread(*runtime_tree);
+  AssignRandomStream(*runtime_tree);
   IndexRuntimeTree(runtime_tree);
   CacheCompiledProgram(runtime_tree->GetProgram());
   m_commandBuffer.PrewarmMaterialParameterBindings(*runtime_tree);
@@ -302,6 +305,62 @@ void LN_Manager::AssignStepSpread(LN_RuntimeTree &runtime_tree, const bool renum
   key.push_back('\0');
   key += program->GetSourceTreeLibraryPath();
   runtime_tree.SetStepSpread(m_stepSpreadCounters[key]++);
+}
+
+/** Whether a program has a random node (Random Value, its older nodes, Get Random List Item). */
+static bool program_uses_random(const LN_Program &program)
+{
+  for (const LN_FloatExpression &expression : program.GetFloatExpressions()) {
+    if (expression.kind == LN_FloatExpressionKind::Random) {
+      return true;
+    }
+  }
+  for (const LN_IntExpression &expression : program.GetIntExpressions()) {
+    if (expression.kind == LN_IntExpressionKind::Random) {
+      return true;
+    }
+  }
+  for (const LN_VectorExpression &expression : program.GetVectorExpressions()) {
+    if (expression.kind == LN_VectorExpressionKind::Random) {
+      return true;
+    }
+  }
+  for (const LN_BoolExpression &expression : program.GetBoolExpressions()) {
+    if (expression.kind == LN_BoolExpressionKind::Random) {
+      return true;
+    }
+  }
+  for (const LN_ValueExpression &expression : program.GetValueExpressions()) {
+    if (expression.kind == LN_ValueExpressionKind::ListRandomItem) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void LN_Manager::AssignRandomStream(LN_RuntimeTree &runtime_tree)
+{
+  const LN_Program *program = runtime_tree.GetProgramPointer();
+  if (program == nullptr) {
+    return;
+  }
+  /* By source tree, as the step spread: placed objects may each have compiled their own copy. A
+   * stable text hash (FNV-1a), not std::hash: every platform numbers the same. */
+  std::string key = program->GetSourceTreeName();
+  key.push_back('\0');
+  key += program->GetSourceTreeLibraryPath();
+  const uint32_t number = m_randomStreamCounters[key]++;
+  runtime_tree.SetRandomStream(LN_RandomMix(LN_RandomHashText(key.data(), key.size()) ^
+                                            LN_RandomMix(uint64_t(number) + 1u)));
+  if (LN_RandomGameSeedIsNew() && program != m_randomScanProgram) {
+    m_randomScanProgram = program;
+    if (program_uses_random(*program) && LN_NoteRandomSeedOnce()) {
+      CM_Message("Logic Nodes: random seed " << LN_GetRandomGameSeed()
+                                             << " for this play (Scene > Game > Random Numbers: "
+                                                "New Each Play; Fixed with this number plays the "
+                                                "same numbers again)");
+    }
+  }
 }
 
 void LN_Manager::NotifyGameObjectQueuedForRemoval(KX_GameObject *gameobj,
@@ -660,6 +719,10 @@ std::string LN_Manager::WriteGameReport(std::string *r_json)
   json += "  \"tree_runs\": {\"wide\": " + std::to_string(wide_runs) +
           ", \"pass\": " + std::to_string(passes) + "},\n";
   json += "  \"crowd_objects\": " + std::to_string(kReportCrowdObjects) + ",\n";
+  /* The play's random seed (LN_Random.h): typed into Scene > Game > Random Numbers > Fixed, it
+   * gives the same numbers again. */
+  json += "  \"random_seed\": " + std::to_string(LN_GetRandomGameSeed()) +
+          ", \"random_seed_new\": " + (LN_RandomGameSeedIsNew() ? "true" : "false") + ",\n";
   json += "  \"trees\": [";
   std::vector<std::string> summary;
   bool first_tree = true;
@@ -920,6 +983,8 @@ void LN_Manager::AbsorbRuntimeTreesFrom(LN_Manager &other)
       runtime_tree->RestartStepGates();
       AssignStepSpread(*runtime_tree, true);
     }
+    /* Its random stream too: the other scene's manager numbered its trees from 0 as well. */
+    AssignRandomStream(*runtime_tree);
     m_runtimeTrees.push_back(std::move(runtime_tree));
   }
   m_denseIds.ClearSceneLocalState();
@@ -2037,6 +2102,7 @@ void LN_Manager::Tick(const double current_time,
   }
   context.mouse_ui_serial = m_mouseUISerial;
   context.tick_index = m_tickIndex++;
+  context.steps_done = m_fixedTickIndex;
   context.phase_tick_index =
       event == LN_Event::OnUpdate ? m_updateTickIndex++ : m_fixedTickIndex++;
 
@@ -2343,6 +2409,8 @@ void LN_Manager::Tick(const double current_time,
     }
     /* The column runs' writes are applied by the flush, at their trees' sort keys. */
     m_commandBuffer.Flush();
+    /* Set Random Seed: the seed asked for in this tick takes effect now, for the next tick. */
+    LN_ApplyPendingRandomGameSeed();
     PollActionOperations();
     if (report_tick_timings) {
       const auto flush_end = std::chrono::steady_clock::now();
@@ -2829,6 +2897,8 @@ void LN_Manager::Clear()
   m_updateTickIndex = 0;
   m_fixedTickIndex = 0;
   m_stepSpreadCounters.clear();
+  m_randomStreamCounters.clear();
+  m_randomScanProgram = nullptr;
   m_isTicking = false;
   m_hasDetachedRuntimeTrees = false;
   m_debugBindingsScanned = false;

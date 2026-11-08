@@ -9,6 +9,7 @@
 #include "LN_TreeCompiler.h"
 #include "LN_FormulaEval.hh"
 #include "LN_InputMap.h"
+#include "LN_Random.h"
 #include "LN_SoundGroups.h"
 #include "LN_TreeCompiler_internal.hh"
 
@@ -36,6 +37,7 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_speaker_types.h"
 #include "SCA_IInputDevice.h"
 #include "SCA_InputEvent.h"
 #include "SCA_JoystickSensor.h"
@@ -2389,6 +2391,52 @@ static void ValidateEventInputs(LN_Program &program,
   }
 }
 
+/** Combine XYZW linked into a Vector input loses its W: the input holds X, Y and Z (a warning on
+ * that input, 2026-11-08; it was dropped without a word). A Generic input (Set Game Property,
+ * Typecast, a material's or Geometry Nodes' input) keeps all four. */
+static void WarnCombineXYZWIntoVectorInputs(LN_Program &program,
+                                            const blender::bNodeTree &tree,
+                                            const std::vector<const blender::bNode *> &nodes,
+                                            const NodeDefinitionMap &node_definitions,
+                                            const InputLinkMap &input_links,
+                                            const ActiveNodeSet &active_nodes)
+{
+  for (const blender::bNode *node : nodes) {
+    if (!IsNodeActive(active_nodes, node)) {
+      continue;
+    }
+    for (const blender::bNodeSocket *socket =
+             static_cast<const blender::bNodeSocket *>(node->inputs.first);
+         socket;
+         socket = socket->next)
+    {
+      if (socket->type != blender::SOCK_VECTOR || (socket->flag & blender::SOCK_UNAVAIL) != 0) {
+        continue;
+      }
+      const auto links = input_links.find(socket);
+      if (links == input_links.end()) {
+        continue;
+      }
+      for (const ResolvedLink &link : links->second) {
+        const auto source = node_definitions.find(link.fromnode);
+        if (source != node_definitions.end() &&
+            source->second->kind == LN_NodeKind::CombineXYZW)
+        {
+          AddNodeIssue(program,
+                       tree,
+                       *node,
+                       socket->name,
+                       LN_CompileSeverity::Warning,
+                       std::string("Combine XYZW's W is dropped here: ") + socket->name +
+                           " holds X, Y and Z (a Generic input, as Set Game Property's or "
+                           "Typecast's, keeps W)");
+          break;
+        }
+      }
+    }
+  }
+}
+
 const char *EditorNodeValueSocketIdentifier(int value_type);
 constexpr int set_material_node_value_per_object_only = 1 << 0;
 constexpr int set_material_node_value_string_type = 5;
@@ -3707,8 +3755,8 @@ void CompileSetShapeKeyValueNode(CompilerContext &context);
 void CompileStopAllSoundsNode(CompilerContext &context);
 void CompilePlaySoundNode(CompilerContext &context);
 void CompileSetVolumeNode(CompilerContext &context);
+void CompileSetRandomSeedNode(CompilerContext &context);
 void CompilePlaySound3DNode(CompilerContext &context);
-void CompileStartSpeakerNode(CompilerContext &context);
 void CompilePauseSoundNode(CompilerContext &context);
 void CompileResumeSoundNode(CompilerContext &context);
 void CompileStopSoundNode(CompilerContext &context);
@@ -3744,9 +3792,6 @@ void CompileMakeNodeTreeUniqueNode(CompilerContext &context);
 void CompileSetNodeMuteNode(CompilerContext &context);
 void CompileEnableDisableModifierNode(CompilerContext &context);
 void CompileAssignGeometryNodesModifierNode(CompilerContext &context);
-void CompileDrawLineNode(CompilerContext &context);
-void CompileDrawCubeNode(CompilerContext &context);
-void CompileDrawBoxNode(CompilerContext &context);
 void CompileDrawNode(CompilerContext &context);
 void CompileUnsupportedCommandNode(CompilerContext &context);
 void CompileSetMaterialSlotNode(CompilerContext &context);
@@ -3757,7 +3802,6 @@ void CompileEvaluatePropertyNode(CompilerContext &context);
 void CompileGetGamePropertyNode(CompilerContext &context);
 void CompileSetGamePropertyNode(CompilerContext &context);
 void CompileTypecastNode(CompilerContext &context);
-void CompileValueValidNode(CompilerContext &context);
 void CompileMixValueNode(CompilerContext &context);
 void CompileFloatCurveNode(CompilerContext &context);
 void CompileValueSwitchListNode(CompilerContext &context);
@@ -3789,9 +3833,8 @@ void CompileCloseObjectMenuNode(CompilerContext &context);
 void CompileSetUIFocusNode(CompilerContext &context);
 void CompileGetUIFocusNode(CompilerContext &context);
 void CompileScreenAnchorNode(CompilerContext &context);
-void CompileRandomFloatNode(CompilerContext &context);
-void CompileRandomIntNode(CompilerContext &context);
-void CompileRandomVectorNode(CompilerContext &context);
+void CompileRandomValueNode(CompilerContext &context);
+static int32_t RandomNodeIdentity(const CompilerContext &context, bool same_for_all);
 void CompileFormulaNode(CompilerContext &context);
 void CompileTweenValueNode(CompilerContext &context);
 void CompileAddPhysicsConstraintNode(CompilerContext &context);
@@ -3999,6 +4042,118 @@ static uint32_t ListPrintHeader(CompilerContext &context,
   return context.program.AddStringExpression(header);
 }
 
+static void CachePrecompiledRoutes(CompilerContext &context,
+                                   const char *output_name,
+                                   const std::vector<FlowPath> &paths);
+
+/** The list and dictionary nodes in Game Property mode (custom1
+ * LN_COLLECTION_STORE_GAME_PROPERTY, every new node): an EditGameProperty instruction on each
+ * flow path, applied to the game property at the flush, in order with the step's other writes;
+ * Done follows the instruction. Returns false in Output Only mode (custom1 0, every node saved
+ * before 2026-11-08), which gives the changed copy at the output as before. */
+static bool CompileCollectionEdit(CompilerContext &context, const LN_PropertyEditOp op)
+{
+  if (context.node.custom1 != LN_COLLECTION_STORE_GAME_PROPERTY) {
+    return false;
+  }
+  const char *node_name = "";
+  switch (op) {
+    case LN_PropertyEditOp::ListAppend:
+      node_name = "Append";
+      break;
+    case LN_PropertyEditOp::ListRemoveIndex:
+      node_name = "Remove Index";
+      break;
+    case LN_PropertyEditOp::ListRemoveValue:
+      node_name = "Remove Value";
+      break;
+    case LN_PropertyEditOp::ListSetIndex:
+      node_name = "Set List Index";
+      break;
+    case LN_PropertyEditOp::DictSetKey:
+      node_name = "Set Dictionary Key";
+      break;
+    case LN_PropertyEditOp::DictAddValue:
+      node_name = "Add to Dictionary Value";
+      break;
+    case LN_PropertyEditOp::DictRemoveKey:
+      node_name = "Remove Dictionary Key";
+      break;
+  }
+
+  const std::optional<uint32_t> object_expr = context.BuildOptionalObject("Object");
+  if (!context.InputIsLinked("Property")) {
+    const std::optional<LN_Value> name = context.ReadValue("Property", LN_ValueType::String);
+    if (!name || name->type != LN_ValueType::String || name->string_value.empty()) {
+      context.AddError("Property",
+                       std::string(node_name) + " needs the name of the game property to change");
+      return true;
+    }
+  }
+  const std::optional<uint32_t> property_expr = context.BuildString("Property");
+  if (!property_expr) {
+    context.AddError("Property", std::string(node_name) + " Property input did not compile");
+    return true;
+  }
+  const bool uses_index = op == LN_PropertyEditOp::ListRemoveIndex ||
+                          op == LN_PropertyEditOp::ListSetIndex;
+  const bool uses_key = op == LN_PropertyEditOp::DictSetKey ||
+                        op == LN_PropertyEditOp::DictAddValue ||
+                        op == LN_PropertyEditOp::DictRemoveKey;
+  const bool uses_value = op == LN_PropertyEditOp::ListAppend ||
+                          op == LN_PropertyEditOp::ListRemoveValue ||
+                          op == LN_PropertyEditOp::ListSetIndex ||
+                          op == LN_PropertyEditOp::DictSetKey;
+  uint32_t index_expr = LN_INVALID_INDEX;
+  uint32_t key_expr = LN_INVALID_INDEX;
+  uint32_t value_expr = LN_INVALID_INDEX;
+  uint32_t amount_expr = LN_INVALID_INDEX;
+  if (uses_index) {
+    index_expr = context.BuildInt("Index").value_or(LN_INVALID_INDEX);
+  }
+  if (uses_key) {
+    key_expr = context.BuildString("Key").value_or(LN_INVALID_INDEX);
+  }
+  if (uses_value) {
+    value_expr = context.BuildValueExpression("Value").value_or(LN_INVALID_INDEX);
+  }
+  if (op == LN_PropertyEditOp::DictAddValue) {
+    amount_expr = context.BuildValueExpression("Amount").value_or(LN_INVALID_INDEX);
+  }
+
+  const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
+      std::string(node_name) +
+      " with Game Property must be driven by an event or another flow output");
+  if (!flow_events) {
+    return true;
+  }
+  std::vector<FlowPath> done_paths;
+  std::vector<uint32_t> done_pulses;
+  done_paths.reserve(flow_events->paths.size());
+  for (const FlowPath &path : flow_events->paths) {
+    LN_Instruction instruction;
+    instruction.opcode = LN_OpCode::EditGameProperty;
+    instruction.source_ref_index = context.MakeSourceRef("Flow");
+    instruction.int_value = int32_t(op);
+    instruction.value_expr_index = object_expr.value_or(LN_INVALID_INDEX);
+    instruction.string_expr_index = *property_expr;
+    instruction.int_expr_index = index_expr;
+    instruction.secondary_string_expr_index = key_expr;
+    instruction.secondary_value_expr_index = value_expr;
+    instruction.tertiary_value_expr_index = amount_expr;
+    const uint32_t instruction_index = AppendFlowInstruction(context.program, path, instruction);
+    FlowPath done_path = path;
+    done_path.bool_guard_expr_index = AddInstructionPulseExpression(
+        context.program, LN_BoolExpressionKind::InstructionExecuted, path.event, instruction_index);
+    done_path.execution_order.push_back(instruction_index + 1u);
+    done_pulses.push_back(done_path.bool_guard_expr_index);
+    done_paths.push_back(std::move(done_path));
+  }
+  context.CacheBoolOutputPin("Done", CombineBoolExpressionsWithOr(context.program, done_pulses));
+  CachePrecompiledRoutes(context, "Done", done_paths);
+  return true;
+}
+
 void CompileDataContainerNode(CompilerContext &context)
 {
   switch (context.definition.kind) {
@@ -4137,9 +4292,13 @@ void CompileDataContainerNode(CompilerContext &context)
       break;
     }
     case LN_NodeKind::ListAppend: {
-      const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
-      if (done_expr) {
-        context.CacheBoolOutputPin("Done", *done_expr);
+      /* Game Property mode: the change itself; the (hidden) outputs keep their Output Only
+       * meaning, so a link left from them still compiles. */
+      if (!CompileCollectionEdit(context, LN_PropertyEditOp::ListAppend)) {
+        const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
+        if (done_expr) {
+          context.CacheBoolOutputPin("Done", *done_expr);
+        }
       }
       LN_ValueExpression expression;
       expression.kind = LN_ValueExpressionKind::ListAppend;
@@ -4153,9 +4312,11 @@ void CompileDataContainerNode(CompilerContext &context)
       break;
     }
     case LN_NodeKind::ListRemoveIndex: {
-      const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
-      if (done_expr) {
-        context.CacheBoolOutputPin("Done", *done_expr);
+      if (!CompileCollectionEdit(context, LN_PropertyEditOp::ListRemoveIndex)) {
+        const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
+        if (done_expr) {
+          context.CacheBoolOutputPin("Done", *done_expr);
+        }
       }
       LN_ValueExpression expression;
       expression.kind = LN_ValueExpressionKind::ListRemoveIndex;
@@ -4169,9 +4330,11 @@ void CompileDataContainerNode(CompilerContext &context)
       break;
     }
     case LN_NodeKind::ListRemoveValue: {
-      const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
-      if (done_expr) {
-        context.CacheBoolOutputPin("Done", *done_expr);
+      if (!CompileCollectionEdit(context, LN_PropertyEditOp::ListRemoveValue)) {
+        const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
+        if (done_expr) {
+          context.CacheBoolOutputPin("Done", *done_expr);
+        }
       }
       LN_ValueExpression expression;
       expression.kind = LN_ValueExpressionKind::ListRemoveValue;
@@ -4185,9 +4348,11 @@ void CompileDataContainerNode(CompilerContext &context)
       break;
     }
     case LN_NodeKind::ListSetIndex: {
-      const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
-      if (done_expr) {
-        context.CacheBoolOutputPin("Done", *done_expr);
+      if (!CompileCollectionEdit(context, LN_PropertyEditOp::ListSetIndex)) {
+        const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
+        if (done_expr) {
+          context.CacheBoolOutputPin("Done", *done_expr);
+        }
       }
       LN_ValueExpression expression;
       expression.kind = LN_ValueExpressionKind::ListSetIndex;
@@ -4204,9 +4369,11 @@ void CompileDataContainerNode(CompilerContext &context)
       break;
     }
     case LN_NodeKind::DictSetKey: {
-      const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
-      if (done_expr) {
-        context.CacheBoolOutputPin("Done", *done_expr);
+      if (!CompileCollectionEdit(context, LN_PropertyEditOp::DictSetKey)) {
+        const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
+        if (done_expr) {
+          context.CacheBoolOutputPin("Done", *done_expr);
+        }
       }
       LN_ValueExpression expression;
       expression.kind = LN_ValueExpressionKind::DictSetKey;
@@ -4223,9 +4390,11 @@ void CompileDataContainerNode(CompilerContext &context)
       break;
     }
     case LN_NodeKind::DictRemoveKey: {
-      const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
-      if (done_expr) {
-        context.CacheBoolOutputPin("Done", *done_expr);
+      if (!CompileCollectionEdit(context, LN_PropertyEditOp::DictRemoveKey)) {
+        const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
+        if (done_expr) {
+          context.CacheBoolOutputPin("Done", *done_expr);
+        }
       }
       LN_ValueExpression dict_expression;
       dict_expression.kind = LN_ValueExpressionKind::DictRemoveKey;
@@ -4359,15 +4528,6 @@ void CompileDataContainerNode(CompilerContext &context)
       }
       break;
     }
-    case LN_NodeKind::ListDuplicate: {
-      LN_ValueExpression expression;
-      expression.kind = LN_ValueExpressionKind::ListDuplicate;
-      if (const std::optional<uint32_t> list_expr = context.BuildValueExpression("List")) {
-        expression.input0 = *list_expr;
-      }
-      context.CacheValueOutputPin("List", context.program.AddValueExpression(expression));
-      break;
-    }
     case LN_NodeKind::DictMerge: {
       LN_ValueExpression expression;
       expression.kind = LN_ValueExpressionKind::DictMerge;
@@ -4445,27 +4605,6 @@ void CompileDataContainerNode(CompilerContext &context)
       context.CacheValueOutputPin("Dictionary", context.program.AddValueExpression(expression));
       break;
     }
-    case LN_NodeKind::MakeList: {
-      /* Only linked items: an empty slot holds no value (it is no None item). */
-      LN_ValueExpression expression;
-      expression.kind = LN_ValueExpressionKind::MakeList;
-      const auto linked_item = [&](const char *socket) -> std::optional<uint32_t> {
-        return InputSocketIdentifierIsLinked(context.node, socket, context.input_links) ?
-                   context.BuildValueExpression(socket) :
-                   std::nullopt;
-      };
-      if (const std::optional<uint32_t> item_a = linked_item("Item A")) {
-        expression.input0 = *item_a;
-      }
-      if (const std::optional<uint32_t> item_b = linked_item("Item B")) {
-        expression.input1 = *item_b;
-      }
-      if (const std::optional<uint32_t> item_c = linked_item("Item C")) {
-        expression.input2 = *item_c;
-      }
-      context.CacheValueOutputPin("List", context.program.AddValueExpression(expression));
-      break;
-    }
     case LN_NodeKind::ListSort:
     case LN_NodeKind::ListFindIndex: {
       const bool sort = context.definition.kind == LN_NodeKind::ListSort;
@@ -4491,9 +4630,11 @@ void CompileDataContainerNode(CompilerContext &context)
       break;
     }
     case LN_NodeKind::DictAddValue: {
-      const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
-      if (done_expr) {
-        context.CacheBoolOutputPin("Done", *done_expr);
+      if (!CompileCollectionEdit(context, LN_PropertyEditOp::DictAddValue)) {
+        const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
+        if (done_expr) {
+          context.CacheBoolOutputPin("Done", *done_expr);
+        }
       }
       LN_ValueExpression expression;
       expression.kind = LN_ValueExpressionKind::DictAddValue;
@@ -4653,27 +4794,26 @@ void CompileToggleTreePropertyNode(CompilerContext &context)
   }
 }
 
+/** The merged Get Game Property's Exists output for a property read as a value: Has Property's
+ * test of another object, Not(ValueIsNone). */
+/** Exists read live: the object (`object_expr`, none: the owner) has the property named by
+ * `name_expr`, whatever it holds (2026-11-08: Not(ValueIsNone(the value)) called an Object
+ * property holding nothing missing, where the owner's typed Exists said present). */
+static void CacheValueExistsPin(CompilerContext &context,
+                                const uint32_t object_expr,
+                                const uint32_t name_expr)
+{
+  LN_BoolExpression exists;
+  exists.kind = LN_BoolExpressionKind::ObjectGamePropertyExists;
+  exists.input0 = object_expr;
+  exists.input1 = name_expr;
+  context.CacheBoolOutputPin("Exists", context.program.AddBoolExpression(exists));
+}
+
 void CompileGamePropertyReadNode(CompilerContext &context)
 {
-  const bool is_has_property = context.definition.kind == LN_NodeKind::HasProperty;
-  if (is_has_property) {
-    /* Game property names are never empty, so a blank name is a constant False instead of an
-     * error that would disable the whole tree. */
-    const std::optional<LN_Value> name = context.ReadValue("Name", LN_ValueType::String);
-    if (name && name->type == LN_ValueType::String && name->string_value.empty()) {
-      context.AddWarning("Name", "Has Property has no property name and is always False");
-      context.CacheBoolOutputPin("If True", AddConstantBoolExpression(context.program, false));
-      return;
-    }
-  }
-  const std::optional<std::string> property_name =
-      is_has_property ?
-          ReadRequiredConstantString(
-              context, "Name", "Has Property requires a constant property name") :
-          ReadRequiredConstantStringWithFallback(context,
-                                                 "Property",
-                                                 "Name",
-                                                 "Get Game Property requires a constant property name");
+  const std::optional<std::string> property_name = ReadRequiredConstantStringWithFallback(
+      context, "Property", "Name", "Get Game Property requires a constant property name");
   if (!property_name) {
     return;
   }
@@ -4699,14 +4839,16 @@ void CompileGamePropertyReadNode(CompilerContext &context)
     }
     const uint32_t property_ref_index = AddGamePropertyRef(
         context.program, *property_name, property_type, MakeDefaultValue(property_type));
+    /* The merged Get Game Property's Exists (NOD_logic_merged.hh): the exists flag the snapshot
+     * keeps for the same reference (any type; what the Has Property node read until 2026-11-08).
+     * Built only when linked, so an option compiles exactly as its older node otherwise. */
+    if (context.OutputIsLinked("Exists")) {
+      LN_BoolExpression exists;
+      exists.kind = LN_BoolExpressionKind::SnapshotGamePropertyExists;
+      exists.property_ref_index = property_ref_index;
+      context.CacheBoolOutputPin("Exists", context.program.AddBoolExpression(exists));
+    }
     switch (context.definition.kind) {
-      case LN_NodeKind::HasProperty: {
-        LN_BoolExpression expression;
-        expression.kind = LN_BoolExpressionKind::SnapshotGamePropertyExists;
-        expression.property_ref_index = property_ref_index;
-        context.CacheBoolOutputPin("If True", context.program.AddBoolExpression(expression));
-        return;
-      }
       case LN_NodeKind::GetGamePropertyBool: {
         LN_BoolExpression expression;
         expression.kind = LN_BoolExpressionKind::SnapshotGameProperty;
@@ -4745,18 +4887,12 @@ void CompileGamePropertyReadNode(CompilerContext &context)
   property.input0 = *object_expr;
   property.input1 = AddConstantStringExpression(context.program, *property_name);
   const uint32_t property_expr = context.program.AddValueExpression(property);
+  /* Exists of another object's property: the property is there. */
+  if (context.OutputIsLinked("Exists")) {
+    CacheValueExistsPin(context, property.input0, property.input1);
+  }
 
   switch (context.definition.kind) {
-    case LN_NodeKind::HasProperty: {
-      LN_BoolExpression is_none;
-      is_none.kind = LN_BoolExpressionKind::ValueIsNone;
-      is_none.input0 = property_expr;
-      LN_BoolExpression exists;
-      exists.kind = LN_BoolExpressionKind::Not;
-      exists.input0 = context.program.AddBoolExpression(is_none);
-      context.CacheBoolOutputPin("If True", context.program.AddBoolExpression(exists));
-      return;
-    }
     case LN_NodeKind::GetGamePropertyBool: {
       LN_BoolExpression expression;
       expression.kind = LN_BoolExpressionKind::FromGenericValue;
@@ -4804,7 +4940,12 @@ void CompileGetGamePropertyNode(CompilerContext &context)
     return;
   }
   expression.input1 = *name_expr;
-  context.CacheValueOutputPin("Value", context.program.AddValueExpression(expression));
+  const uint32_t property_expr = context.program.AddValueExpression(expression);
+  context.CacheValueOutputPin("Value", property_expr);
+  /* The merged Get Game Property's Exists in its Any option. */
+  if (context.OutputIsLinked("Exists")) {
+    CacheValueExistsPin(context, expression.input0, expression.input1);
+  }
 }
 
 /** Set Object Property: any value; the target goes in `value_expr_index`, the value next. */
@@ -5216,20 +5357,6 @@ void CompileTypecastNode(CompilerContext &context)
   context.CacheVectorOutputPin("Vector", context.program.AddVectorExpression(expression));
 }
 
-void CompileValueValidNode(CompilerContext &context)
-{
-  const std::optional<uint32_t> value_expr = context.BuildValueExpression("Value");
-  if (!value_expr) {
-    return;
-  }
-  LN_BoolExpression none_expr;
-  none_expr.kind = LN_BoolExpressionKind::ValueIsNone;
-  none_expr.input0 = *value_expr;
-  context.CacheBoolOutputPin(
-      "If Valid",
-      AddNotBoolExpression(context.program, context.program.AddBoolExpression(none_expr)));
-}
-
 void CompileMixValueNode(CompilerContext &context)
 {
   const std::optional<uint32_t> a_expr = context.BuildValueExpression("A");
@@ -5317,10 +5444,13 @@ void CompileValueSwitchListCompareNode(CompilerContext &context)
 
 void CompileListRandomItemNode(CompilerContext &context)
 {
+  /* custom2: 0 Per Object, 1 Same for All (as Random Value); the identity in value.int_value. */
   if (const std::optional<uint32_t> list_expr = context.BuildValueExpression("List")) {
     LN_ValueExpression expression;
     expression.kind = LN_ValueExpressionKind::ListRandomItem;
     expression.input0 = *list_expr;
+    expression.input1 = context.BuildInt("Seed").value_or(LN_INVALID_INDEX);
+    expression.value.int_value = RandomNodeIdentity(context, context.node.custom2 == 1);
     context.CacheValueOutputPin("Value", context.program.AddValueExpression(expression));
   }
 }
@@ -6405,39 +6535,108 @@ void CompileScreenAnchorNode(CompilerContext &context)
   context.CacheBoolOutputPin("Done", CombineBoolExpressionsWithOr(context.program, done_outputs));
 }
 
-void CompileRandomFloatNode(CompilerContext &context)
+/** A random node's identity (LN_Random.h): a hash of its tree's and its own name, so its numbers
+ * stay the same while other nodes are added or removed; bit 0 = Same for All. */
+static int32_t RandomNodeIdentity(const CompilerContext &context, const bool same_for_all)
 {
-  const std::optional<uint32_t> min_expr = context.BuildFloat("Min");
-  const std::optional<uint32_t> max_expr = context.BuildFloat("Max");
-  if (min_expr && max_expr) {
-    LN_FloatExpression expression;
-    expression.kind = LN_FloatExpressionKind::Random;
-    expression.input0 = *min_expr;
-    expression.input1 = *max_expr;
-    context.CacheFloatOutputPin("Value", context.program.AddFloatExpression(expression));
+  const char *tree_name = context.tree.id.name + 2;
+  uint64_t hash = LN_RandomHashText(tree_name, std::strlen(tree_name));
+  hash = LN_RandomHashText("", 1, hash); /* (the '\0' between the two names) */
+  hash = LN_RandomHashText(context.node.name, std::strlen(context.node.name), hash);
+  uint32_t identity = uint32_t(hash ^ (hash >> 32)) & ~LN_RANDOM_SAME_FOR_ALL;
+  if (same_for_all) {
+    identity |= LN_RANDOM_SAME_FOR_ALL;
+  }
+  return int32_t(identity);
+}
+
+/** Random Value (2026-11-07): custom1 the type (0 Float, 1 Integer, 2 Vector, 3 Boolean), custom2
+ * the variation (0 Per Object, 1 Same for All), an optional Seed. Each type has its own sockets
+ * (identifiers Min/Max/Value for Float, as the node had before; Min_Int ... Value_Bool). */
+void CompileRandomValueNode(CompilerContext &context)
+{
+  const int32_t identity = RandomNodeIdentity(context, context.node.custom2 == 1);
+  const uint32_t seed = context.BuildInt("Seed").value_or(LN_INVALID_INDEX);
+  switch (context.node.custom1) {
+    case 1: {
+      const std::optional<uint32_t> min_expr = context.BuildInt("Min_Int");
+      const std::optional<uint32_t> max_expr = context.BuildInt("Max_Int");
+      if (min_expr && max_expr) {
+        LN_IntExpression expression;
+        expression.kind = LN_IntExpressionKind::Random;
+        expression.input0 = *min_expr;
+        expression.input1 = *max_expr;
+        expression.input2 = seed;
+        expression.int_value = identity;
+        context.CacheIntOutputPin("Value_Int", context.program.AddIntExpression(expression));
+      }
+      break;
+    }
+    case 2: {
+      const std::optional<uint32_t> min_expr = context.BuildVector("Min_Vector");
+      const std::optional<uint32_t> max_expr = context.BuildVector("Max_Vector");
+      if (min_expr && max_expr) {
+        LN_VectorExpression expression;
+        expression.kind = LN_VectorExpressionKind::Random;
+        expression.input0 = *min_expr;
+        expression.input1 = *max_expr;
+        expression.input2 = seed;
+        expression.int_value = identity;
+        context.CacheVectorOutputPin("Value_Vector",
+                                     context.program.AddVectorExpression(expression));
+      }
+      break;
+    }
+    case 3: {
+      if (const std::optional<uint32_t> probability = context.BuildFloat("Probability")) {
+        LN_BoolExpression expression;
+        expression.kind = LN_BoolExpressionKind::Random;
+        expression.float_expr_index = *probability;
+        expression.int_expr_index = seed;
+        expression.int_value = identity;
+        context.CacheBoolOutputPin("Value_Bool", context.program.AddBoolExpression(expression));
+      }
+      break;
+    }
+    default: {
+      const std::optional<uint32_t> min_expr = context.BuildFloat("Min");
+      const std::optional<uint32_t> max_expr = context.BuildFloat("Max");
+      if (min_expr && max_expr) {
+        LN_FloatExpression expression;
+        expression.kind = LN_FloatExpressionKind::Random;
+        expression.input0 = *min_expr;
+        expression.input1 = *max_expr;
+        expression.input2 = seed;
+        expression.int_value = identity;
+        context.CacheFloatOutputPin("Value", context.program.AddFloatExpression(expression));
+      }
+      break;
+    }
   }
 }
 
-void CompileRandomIntNode(CompilerContext &context)
+/** Set Random Seed (2026-11-07): custom1 0 = the Seed input, 1 = a new seed from the clock. The
+ * seed takes effect after the tick (LN_RequestRandomGameSeed). */
+void CompileSetRandomSeedNode(CompilerContext &context)
 {
-  const std::optional<uint32_t> min_expr = context.BuildInt("Min");
-  const std::optional<uint32_t> max_expr = context.BuildInt("Max");
-  if (min_expr && max_expr) {
-    LN_IntExpression expression;
-    expression.kind = LN_IntExpressionKind::Random;
-    expression.input0 = *min_expr;
-    expression.input1 = *max_expr;
-    context.CacheIntOutputPin("Value", context.program.AddIntExpression(expression));
+  const bool from_clock = context.node.custom1 == 1;
+  const std::optional<uint32_t> seed_expr = from_clock ? std::nullopt : context.BuildInt("Seed");
+  if (!from_clock && !seed_expr) {
+    context.AddError("Seed", "Set Random Seed requires a Seed");
+    return;
   }
-}
-
-void CompileRandomVectorNode(CompilerContext &context)
-{
-  if (const std::optional<uint32_t> axes_expr = context.BuildVector("Axes")) {
-    LN_VectorExpression expression;
-    expression.kind = LN_VectorExpressionKind::Random;
-    expression.input0 = *axes_expr;
-    context.CacheVectorOutputPin("Vector", context.program.AddVectorExpression(expression));
+  const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
+      "Set Random Seed flow must be driven by an event or branch");
+  if (!flow_events) {
+    return;
+  }
+  for (const FlowPath &path : flow_events->paths) {
+    LN_Instruction instruction;
+    instruction.opcode = LN_OpCode::SetRandomSeed;
+    instruction.source_ref_index = context.MakeSourceRef("Flow");
+    instruction.int_value = from_clock ? 1 : 0;
+    instruction.int_expr_index = seed_expr.value_or(LN_INVALID_INDEX);
+    AppendFlowInstruction(context.program, path, instruction);
   }
 }
 
@@ -6698,7 +6897,11 @@ void CompileGetRigidBodyConstraintsNode(CompilerContext &context)
 
 void CompileProjectileRayNode(CompilerContext &context)
 {
-  const std::optional<uint32_t> condition_expr = context.BuildPrimaryExecution();
+  /* Flow optional, as the Raycast family's (2026-11-08: unlinked, it never cast). */
+  const std::optional<uint32_t> condition_expr =
+      IsInputSocketLinked(context.node, "Flow", context.input_links) ?
+          context.BuildPrimaryExecution() :
+          std::optional<uint32_t>(AddConstantBoolExpression(context.program, true));
   /* Caster is optional, as for Raycast (empty: no object ignored; in Local space the owner). An
    * empty Caster made the whole node compile to nothing, its outputs reading their defaults, until
    * 2026-11-01. */
@@ -9180,8 +9383,29 @@ static bool CompileSoundNameFromNode(CompilerContext &context, std::string &r_so
 
 void CompilePlaySound3DNode(CompilerContext &context)
 {
+  /* No Sound picked: the Speaker object's own sound, played with its settings (the former Start
+   * Speaker node, removed 2026-11-08). */
   std::string sound_name;
-  if (!CompileSoundNameFromNode(context, sound_name)) {
+  if (context.node.id == nullptr) {
+    const blender::bNodeSocket *speaker_socket = FindInputSocket(context.node, "Speaker");
+    const auto *speaker_default =
+        speaker_socket != nullptr && !context.InputIsLinked("Speaker") ?
+            static_cast<const blender::bNodeSocketValueObject *>(speaker_socket->default_value) :
+            nullptr;
+    const blender::Object *speaker_object = speaker_default != nullptr ? speaker_default->value :
+                                                                         nullptr;
+    if (speaker_object != nullptr &&
+        (speaker_object->type != blender::OB_SPEAKER || speaker_object->data == nullptr ||
+         reinterpret_cast<const blender::Speaker *>(speaker_object->data)->sound == nullptr))
+    {
+      context.AddWarning("sound",
+                         "Play Sound 3D has no Sound: it plays the Speaker object's own sound, "
+                         "and '" +
+                             std::string(speaker_object->id.name + 2) +
+                             "' is no Speaker with a sound");
+    }
+  }
+  else if (!CompileSoundNameFromNode(context, sound_name)) {
     return;
   }
   const uint32_t name_expr = AddConstantStringExpression(context.program, sound_name);
@@ -9223,31 +9447,6 @@ void CompilePlaySound3DNode(CompilerContext &context)
     if (speaker_expr) {
       instruction.value_expr_index = *speaker_expr;
     }
-    AppendFlowInstruction(context.program, path, instruction);
-  }
-}
-
-void CompileStartSpeakerNode(CompilerContext &context)
-{
-  const std::optional<uint32_t> speaker_expr = context.BuildOptionalObject("Speaker");
-  const std::optional<uint32_t> loop_count_expr = context.BuildInt("Mode");
-  if (!speaker_expr || !loop_count_expr) {
-    context.AddError("Speaker", "Start Speaker requires a speaker object and loop mode");
-    return;
-  }
-
-  const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
-      "Start Speaker flow must be driven by an event or branch");
-  if (!flow_events) {
-    return;
-  }
-
-  for (const FlowPath &path : flow_events->paths) {
-    LN_Instruction instruction;
-    instruction.opcode = LN_OpCode::PlaySound3D;
-    instruction.source_ref_index = context.MakeSourceRef("Flow");
-    instruction.value_expr_index = *speaker_expr;
-    instruction.int_expr_index = *loop_count_expr;
     AppendFlowInstruction(context.program, path, instruction);
   }
 }
@@ -10436,31 +10635,6 @@ void CompileAssignGeometryNodesModifierNode(CompilerContext &context)
   }
 }
 
-void CompileDrawLineNode(CompilerContext &context)
-{
-  const std::optional<uint32_t> color_expr = context.BuildColor("Color");
-  const std::optional<uint32_t> from_expr = context.BuildVector("From");
-  const std::optional<uint32_t> to_expr = context.BuildVector("To");
-  if (!color_expr || !from_expr || !to_expr) {
-    context.AddError("To", "Draw Line requires color, from, and to inputs");
-    return;
-  }
-  const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
-      "Draw Line flow must be driven by an event or branch");
-  if (!flow_events) {
-    return;
-  }
-  for (const FlowPath &path : flow_events->paths) {
-    LN_Instruction instruction;
-    instruction.opcode = LN_OpCode::DrawLine;
-    instruction.source_ref_index = context.MakeSourceRef("Flow");
-    instruction.color_expr_index = *color_expr;
-    instruction.vector_expr_index = *from_expr;
-    instruction.secondary_vector_expr_index = *to_expr;
-    AppendFlowInstruction(context.program, path, instruction);
-  }
-}
-
 static void CompileDrawBoxLikeNode(CompilerContext &context, const bool cube)
 {
   const std::optional<uint32_t> color_expr = context.BuildColor("Color");
@@ -10492,16 +10666,6 @@ static void CompileDrawBoxLikeNode(CompilerContext &context, const bool cube)
     instruction.bool_value = context.node.custom2 != 0;
     AppendFlowInstruction(context.program, path, instruction);
   }
-}
-
-void CompileDrawCubeNode(CompilerContext &context)
-{
-  CompileDrawBoxLikeNode(context, true);
-}
-
-void CompileDrawBoxNode(CompilerContext &context)
-{
-  CompileDrawBoxLikeNode(context, false);
 }
 
 void CompileDrawNode(CompilerContext &context)
@@ -11431,8 +11595,21 @@ void CompileSetVSyncNode(CompilerContext &context)
     return;
   }
 
-  const uint32_t mode_expr = AddConstantIntExpression(context.program,
-                                                      int32_t(context.node.custom1));
+  /* The dropdown's mode, or (From Input, 3: rna_nodetree.cc) the Mode input's number; a number
+   * that is no mode turns VSync off at the apply (SanitizeVSyncMode). */
+  constexpr int kVSyncFromInput = 3;
+  uint32_t mode_expr = LN_INVALID_INDEX;
+  if (context.node.custom1 == kVSyncFromInput) {
+    const std::optional<uint32_t> input = context.BuildInt("Mode");
+    if (!input) {
+      context.AddError("Mode", "Set VSync needs a Mode number with From Input");
+      return;
+    }
+    mode_expr = *input;
+  }
+  else {
+    mode_expr = AddConstantIntExpression(context.program, int32_t(context.node.custom1));
+  }
   for (const FlowPath &path : flow_events->paths) {
     LN_Instruction instruction;
     instruction.opcode = LN_OpCode::SetVSync;
@@ -12916,13 +13093,11 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     CONST_HANDLER(StringOperation, ValueExpression, "string.operation", FlowResolverKind::Invalid),
     CONST_HANDLER(FormattedString, ValueExpression, "string.format", FlowResolverKind::Invalid),
     CONST_HANDLER(ValueColor, ValueExpression, "value.color", FlowResolverKind::Invalid),
-    CONST_HANDLER(ColorRGB, ValueExpression, "color.rgb", FlowResolverKind::Invalid),
     CONST_HANDLER(ColorRGBA, ValueExpression, "color.rgba", FlowResolverKind::Invalid),
     CONST_HANDLER(ValueVector, ValueExpression, "value.vector", FlowResolverKind::Invalid),
     CONST_HANDLER(Euler, ValueExpression, "vector.euler", FlowResolverKind::Invalid),
     CONST_HANDLER(
         SeparateEuler, ValueExpression, "rotation.separate_euler", FlowResolverKind::Invalid),
-    CONST_HANDLER(CombineXY, ValueExpression, "vector.xy", FlowResolverKind::Invalid),
     CONST_HANDLER(CombineXYZ, ValueExpression, "vector.xyz", FlowResolverKind::Invalid),
     CUSTOM_EXPR_HANDLER(
         CombineXYZW, "vector.xyzw", FlowResolverKind::Invalid, CompileExpressionOutputsNode),
@@ -12954,13 +13129,10 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
                         "object.axis_vector",
                         FlowResolverKind::Invalid,
                         CompileExpressionOutputsNode),
-    CUSTOM_EXPR_HANDLER(
-        JoinPath, "path.join", FlowResolverKind::Invalid, CompileExpressionOutputsNode),
     CUSTOM_EXPR_HANDLER(GetMasterFolder,
                         "path.master_folder",
                         FlowResolverKind::Invalid,
                         CompileExpressionOutputsNode),
-    CONST_HANDLER(SeparateXY, ValueExpression, "vector.separate_xy", FlowResolverKind::Invalid),
     CONST_HANDLER(SeparateXYZ, ValueExpression, "vector.separate_xyz", FlowResolverKind::Invalid),
     CONST_HANDLER(InvertValue, ValueExpression, "value.invert", FlowResolverKind::Invalid),
     CONST_HANDLER(ClampValue, ValueExpression, "value.clamp", FlowResolverKind::Invalid),
@@ -13052,7 +13224,6 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
                         "data.list_random_item",
                         FlowResolverKind::Invalid,
                         CompileListRandomItemNode),
-    DATA_CONTAINER_HANDLER(MakeList, "data.make_list"),
     DATA_CONTAINER_HANDLER(ListExtend, "data.list_extend"),
     DATA_CONTAINER_HANDLER(DictGetKey, "data.dict_get_key"),
     DATA_CONTAINER_HANDLER(MakeDict, "data.make_dict"),
@@ -13061,7 +13232,6 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     DATA_CONTAINER_HANDLER(EmptyList, "data.empty_list"),
     DATA_CONTAINER_HANDLER(EmptyDict, "data.empty_dict"),
     DATA_CONTAINER_HANDLER(DictHasKey, "data.dict_has_key"),
-    DATA_CONTAINER_HANDLER(ListDuplicate, "data.list_duplicate"),
     DATA_CONTAINER_HANDLER(DictMerge, "data.dict_merge"),
     DATA_ACTION_HANDLER(ListAppend, "data.list_append"),
     DATA_ACTION_HANDLER(ListRemoveIndex, "data.list_remove_index"),
@@ -13087,12 +13257,10 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     EXPRESSION_HANDLER(
         GetBoneCenterWorld, Expression, "animation.bone_center_world", FlowResolverKind::Invalid),
     DATA_CONTAINER_HANDLER(ListContains, "data.list_contains"),
-    EXPRESSION_HANDLER(LimitRange, Expression, "value.limit", FlowResolverKind::Invalid),
-    EXPRESSION_HANDLER(RandomValue, Expression, "value.random", FlowResolverKind::Invalid),
+    CUSTOM_EXPR_HANDLER(
+        RandomValue, "value.random", FlowResolverKind::Invalid, CompileRandomValueNode),
     CUSTOM_EXPR_HANDLER(
         Typecast, "value.typecast", FlowResolverKind::Invalid, CompileTypecastNode),
-    CUSTOM_EXPR_HANDLER(
-        ValueValid, "value.valid", FlowResolverKind::Invalid, CompileValueValidNode),
     CUSTOM_EXPR_HANDLER(MixValue, "value.mix", FlowResolverKind::Invalid, CompileMixValueNode),
     CUSTOM_EXPR_HANDLER(
         FloatCurve, "math.float_curve", FlowResolverKind::Invalid, CompileFloatCurveNode),
@@ -13110,8 +13278,6 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
                                "value.store",
                                FlowResolverKind::FlowConditionRoute,
                                CompileStoreValueNode),
-    CUSTOM_EXPR_HANDLER(
-        HasProperty, "property.exists", FlowResolverKind::Invalid, CompileGamePropertyReadNode),
     EXPRESSION_HANDLER(IsNone, Expression, "value.is_none", FlowResolverKind::Invalid),
     EXPRESSION_HANDLER(NotNone, Expression, "value.not_none", FlowResolverKind::Invalid),
     CHECKED_EXPRESSION_HANDLER(KeyboardKey,
@@ -13182,7 +13348,6 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     SNAPSHOT_TRANSFORM_HANDLER(GetGravity, "scene.gravity"),
     EXPRESSION_HANDLER(GetTimescale, Expression, "scene.timescale", FlowResolverKind::Invalid),
     EXPRESSION_HANDLER(Time, Expression, "time.data", FlowResolverKind::Invalid),
-    EXPRESSION_HANDLER(DeltaFactor, Expression, "time.delta_factor", FlowResolverKind::Invalid),
     EXPRESSION_HANDLER(
         GetActiveCamera, ValueExpression, "scene.active_camera", FlowResolverKind::Invalid),
     EXPRESSION_HANDLER(
@@ -13259,14 +13424,6 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
                        FlowResolverKind::Invalid),
     CUSTOM_EXPR_HANDLER(GetBoneAttribute,
                         "animation.bone_attribute",
-                        FlowResolverKind::Invalid,
-                        CompileExpressionOutputsNode),
-    CUSTOM_EXPR_HANDLER(GetBonePoseRotation,
-                        "animation.bone_pose_rotation",
-                        FlowResolverKind::Invalid,
-                        CompileExpressionOutputsNode),
-    CUSTOM_EXPR_HANDLER(GetBonePoseScale,
-                        "animation.bone_pose_scale",
                         FlowResolverKind::Invalid,
                         CompileExpressionOutputsNode),
     CUSTOM_EXPR_HANDLER(GetBonePoseTransform,
@@ -13384,6 +13541,7 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     COMMAND_HANDLER(ResumeSound, "audio.resume_sound", CompileResumeSoundNode),
     COMMAND_HANDLER(StopSound, "audio.stop_sound", CompileStopSoundNode),
     COMMAND_HANDLER(SetVolume, "audio.set_volume", CompileSetVolumeNode),
+    COMMAND_HANDLER(SetRandomSeed, "logic.set_random_seed", CompileSetRandomSeedNode),
     COMMAND_HANDLER(StartLogicTree, "logic.tree.start", CompileStartLogicTreeNode),
     COMMAND_HANDLER(StopLogicTree, "logic.tree.stop", CompileStopLogicTreeNode),
     COMMAND_HANDLER(RunLogicTree, "logic.tree.run_once", CompileRunLogicTreeNode),
@@ -13482,26 +13640,15 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     COMMAND_HANDLER(AssignGeometryNodesModifier,
                     "geometry.assign_nodes_modifier",
                     CompileAssignGeometryNodesModifierNode),
-    CUSTOM_EXPR_HANDLER(GetNodeGroupSocketValue,
-                        "node_group.get_socket",
-                        FlowResolverKind::Invalid,
-                        CompileExpressionOutputsNode),
-    UNSUPPORTED_COMMAND_HANDLER(SetNodeGroupSocketValue, "node_group.set_socket"),
     UNSUPPORTED_COMMAND_HANDLER(PlayMaterialSequence, "material.play_sequence"),
-    COMMAND_HANDLER(StartSpeaker, "audio.start_speaker", CompileStartSpeakerNode),
-    COMMAND_HANDLER(DrawLine, "debug.draw_line", CompileDrawLineNode),
-    COMMAND_HANDLER(DrawCube, "debug.draw_cube", CompileDrawCubeNode),
-    COMMAND_HANDLER(DrawBox, "debug.draw_box", CompileDrawBoxNode),
     COMMAND_HANDLER(Draw, "debug.draw", CompileDrawNode),
     UNSUPPORTED_COMMAND_HANDLER(LoadFileContent, "file.load_content"),
     EXPRESSION_HANDLER(
         ReceiveEvent, Expression, "events.receive_event", FlowResolverKind::PollingEventRoute),
     EXPRESSION_HANDLER(
         LogicTreeStatus, Expression, "logic.tree_status", FlowResolverKind::Invalid),
-    EXPRESSION_HANDLER(ActionDone, Expression, "animation.action_done", FlowResolverKind::Invalid),
     EXPRESSION_HANDLER(
         ObjectsColliding, Expression, "physics.objects_colliding", FlowResolverKind::Invalid),
-    EXPRESSION_HANDLER(Collision, Expression, "physics.is_colliding", FlowResolverKind::Invalid),
     EXPRESSION_HANDLER(
         OnCollision, Expression, "physics.on_collision", FlowResolverKind::PollingEventRoute),
     CUSTOM_EXPR_HANDLER(OnConstraintBreak,
@@ -13529,12 +13676,6 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     EXPRESSION_HANDLER(MouseRay, Expression, "physics.mouse_ray", FlowResolverKind::Invalid),
     EXPRESSION_HANDLER(CameraRay, Expression, "physics.camera_ray", FlowResolverKind::Invalid),
     EXPRESSION_HANDLER(EvaluateCurve, Expression, "curve.evaluate", FlowResolverKind::Invalid),
-    CUSTOM_EXPR_HANDLER(
-        RandomFloat, "math.random_float", FlowResolverKind::Invalid, CompileRandomFloatNode),
-    CUSTOM_EXPR_HANDLER(
-        RandomInt, "math.random_int", FlowResolverKind::Invalid, CompileRandomIntNode),
-    CUSTOM_EXPR_HANDLER(
-        RandomVector, "math.random_vector", FlowResolverKind::Invalid, CompileRandomVectorNode),
     CUSTOM_EXPR_HANDLER(Formula, "math.formula", FlowResolverKind::Invalid, CompileFormulaNode),
     CUSTOM_EXPR_HANDLER(TweenValue,
                         "time.tween_value",
@@ -13890,7 +14031,8 @@ std::shared_ptr<LN_Program> LN_TreeCompiler::Compile(const blender::bNodeTree &t
     }
 
     nodes.push_back(node);
-    const LN_NodeDefinition *definition = m_registry.FindNodeDefinition(node->idname);
+    /* A merged node (NOD_logic_merged.hh) compiles as the older node its option is. */
+    const LN_NodeDefinition *definition = m_registry.FindNodeDefinitionForNode(*node);
     if (definition == nullptr) {
       AddNodeIssue(*program,
                    tree,
@@ -14284,6 +14426,8 @@ std::shared_ptr<LN_Program> LN_TreeCompiler::Compile(const blender::bNodeTree &t
   }
 
   ValidateEventInputs(*program, tree, nodes, node_definitions, input_links, active_nodes);
+  WarnCombineXYZWIntoVectorInputs(
+      *program, tree, nodes, node_definitions, input_links, active_nodes);
 
   if (program->m_compileReport.HasErrors()) {
     program->m_compileReport.SetDisabledReason("Logic Nodes compilation failed");

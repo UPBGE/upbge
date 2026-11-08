@@ -485,18 +485,19 @@ TEST(LN_Semantics, AndAndOrOfAFlagAndAFlowGateStateGiveTheirTruthTableInEveryMod
   }
 }
 
-/* Random: every object gets the same number in a tick (the seed is the expression index and the
- * tick: decision D2, kept through A and B), a new number each tick, and two Random nodes differ. */
-TEST(LN_Semantics, RandomGivesEveryObjectTheSameNumberInATickAndTwoNodesDiffer)
+/* Random (2026-11-07, LN_Random.h; decision D2's "every object the same number" ended): every
+ * object gets its own number in a tick (Random Value Float, Per Object), a new number
+ * each tick, and two Random nodes differ. LN_Random_test.cpp has the rest. */
+TEST(LN_Semantics, RandomGivesEveryObjectItsOwnNumberInATickAndTwoNodesDiffer)
 {
   for (const SemMode &mode : {kProduction, kMemoOff}) {
     SCOPED_TRACE(mode.name);
     TreeBuilder b;
     GenNode &event = b.Add("LogicNativeOnFixedUpdate");
-    GenNode &first = b.Add("LogicNativeRandomFloat");
+    GenNode &first = b.Add("LogicNativeRandomValue", 0, 0);
     b.Float(first, "Min", 0.0f);
     b.Float(first, "Max", 1.0f);
-    GenNode &second = b.Add("LogicNativeRandomFloat");
+    GenNode &second = b.Add("LogicNativeRandomValue", 0, 0);
     b.Float(second, "Min", 0.0f);
     b.Float(second, "Max", 1.0f);
     GenNode &sequence = b.Add("LogicNativeSequence", 0, 0, 2);
@@ -518,10 +519,10 @@ TEST(LN_Semantics, RandomGivesEveryObjectTheSameNumberInATickAndTwoNodesDiffer)
       const std::string r1 = Bits(rig.Float(rig.Object(0), "r1"));
       const std::string r2 = Bits(rig.Float(rig.Object(0), "r2"));
       for (int owner = 1; owner < 3; owner++) {
-        EXPECT_EQ(Bits(rig.Float(rig.Object(owner), "r1")), r1);
-        EXPECT_EQ(Bits(rig.Float(rig.Object(owner), "r2")), r2);
+        EXPECT_NE(Bits(rig.Float(rig.Object(owner), "r1")), r1) << "each object its own";
+        EXPECT_NE(Bits(rig.Float(rig.Object(owner), "r2")), r2) << "each object its own";
       }
-      EXPECT_NE(r1, r2) << "the seed includes the expression index";
+      EXPECT_NE(r1, r2) << "each node its own (its name)";
       EXPECT_NE(r1, previous) << "a new number every tick";
       previous = r1;
     }

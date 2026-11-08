@@ -21,6 +21,7 @@
 #include "KX_NodeRelationships.h"
 #include "LN_Columns.h"
 #include "LN_DiffTrees.h"
+#include "LN_Random.h"
 #include "LN_JobPool.h"
 #include "LN_TreeBatch.h"
 
@@ -414,6 +415,8 @@ class SemRig {
       }
       m_times.flush_ms += time_since(flush_start);
     }
+    /* As the manager: Set Random Seed takes effect after the tick's flush. */
+    LN_ApplyPendingRandomGameSeed();
     m_last_column_passes = size_t(LN_ColumnDirectLaneCount() - passes_before);
     if (columns) {
       m_last_column_lanes = m_columns.LaneCount();
@@ -615,6 +618,7 @@ class SemRig {
     context.unscaled_dt = kStep;
     context.use_fixed_timestep = true;
     context.tick_index = m_tick_index++;
+    context.steps_done = m_fixed_index;
     context.phase_tick_index = event == LN_Event::OnUpdate ? m_update_index++ : m_fixed_index++;
     return context;
   }

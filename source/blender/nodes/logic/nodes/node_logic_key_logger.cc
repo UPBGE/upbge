@@ -16,7 +16,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Only Characters"_ustr).default_value(true);
   b.add_output<decl::Condition>("Pressed"_ustr);
   b.add_output<decl::String>("Character"_ustr);
-  b.add_output<decl::String>("Keycode"_ustr);
+  /* (Named "Keycode" until 2026-11-08; the identifier stays, so saved links stay.) */
+  b.add_output<decl::String>("Key Name"_ustr, "Keycode"_ustr)
+      .description("The pressed key's name (\"A\", \"SPACE\"...), not Key Code's number");
 }
 
 static void node_register()

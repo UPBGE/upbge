@@ -475,13 +475,14 @@ TEST(LN_NodeValues, VectorMathOperationsGiveTheirModelWithEdgeInputs)
   }
 }
 
-/* ---- Compare: Equal and Not Equal use a tolerance of 1e-6 (so Equal(inf, inf) is false: inf - inf
- * is NaN), the others are the plain comparisons. ---- */
+/* ---- Compare: Equal and Not Equal use a tolerance of 1e-6; Equal of two equal values is true
+ * also for infinities (inf - inf is NaN: Equal(inf, inf) was false until 2026-11-08; Not Equal
+ * gives false there, as before); the others are the plain comparisons. ---- */
 TEST(LN_NodeValues, CompareGivesItsSixOperationsWithAToleranceForEquality)
 {
   using Model = std::function<bool(float, float)>;
   const Model models[6] = {
-      [](float a, float b) { return std::fabs(a - b) <= 1.0e-6f; },
+      [](float a, float b) { return a == b || std::fabs(a - b) <= 1.0e-6f; },
       [](float a, float b) { return std::fabs(a - b) > 1.0e-6f; },
       [](float a, float b) { return a > b; },
       [](float a, float b) { return a < b; },
@@ -534,9 +535,10 @@ TEST(LN_NodeValues, MapRangeMapsWithAZeroRangeGivingTheStartAndAClampOption)
   (void)values;
 }
 
-TEST(LN_NodeValues, ClampAndLimitRangeAreOneRuleWithMinAndMaxSwappedWhenReversed)
+/* (Limit Range did the same until it was removed, 2026-11-08.) */
+TEST(LN_NodeValues, ClampSwapsMinAndMaxWhenReversed)
 {
-  for (const char *idname : {"LogicNativeClampValue", "LogicNativeLimitRange"}) {
+  for (const char *idname : {"LogicNativeClampValue"}) {
     SCOPED_TRACE(idname);
     CheckNode(idname,
               0,
@@ -576,7 +578,10 @@ TEST(LN_NodeValues, InvertNegatesAndValueSwitchSelects)
 }
 
 /* ---- Threshold (Greater / Less; Else 0 picks 0 or the threshold when the value fails), Ranged
- * Threshold (Inside / Outside, strict, 0 when it fails), Within Range (the same tests as a bool). */
+ * Threshold (Inside / Outside, 0 when it fails), Within Range (the same tests as a bool). Since
+ * 2026-11-08 Min and Max are sorted (lo = min(Min, Max), hi = max(Min, Max)) and both ends are
+ * inside; Outside is the rest (strict and unsorted before: an end was neither, Max < Min never
+ * inside). */
 TEST(LN_NodeValues, ThresholdRangedThresholdAndWithinRangeFollowTheirTests)
 {
   for (const int16_t op : {0, 1}) {
@@ -597,8 +602,9 @@ TEST(LN_NodeValues, ThresholdRangedThresholdAndWithinRangeFollowTheirTests)
   }
   for (const int16_t op : {0, 1}) {
     SCOPED_TRACE(op == 0 ? "Inside" : "Outside");
-    const auto inside_test = [&](float value, float lo, float hi) {
-      return op == 0 ? (lo < value && value < hi) : (value < lo || value > hi);
+    const auto inside_test = [&](float value, float min_value, float max_value) {
+      const float lo = std::min(min_value, max_value), hi = std::max(min_value, max_value);
+      return op == 0 ? (lo <= value && value <= hi) : (value < lo || value > hi);
     };
     CheckNode("LogicNativeRangedThreshold",
               op,
@@ -798,7 +804,8 @@ TEST(LN_NodeValues, FlipFlopAlternatesAndTogglePropertyFlips)
 
 /* Set Game Property Int makes an int property, writes into an existing float property as a float
  * (the property keeps its type); Get Game Property String gives a string property's text, "" for a
- * missing property and a number's text with six decimals. */
+ * missing property and a number's text as every value's text is made ("2.5": as it reads another
+ * object's; the owner's gave EXP's own "2.500000" until 2026-11-08). */
 TEST(LN_NodeValues, SetGamePropertyIntAndGetGamePropertyStringKeepTheirTypes)
 {
   TreeBuilder b;
@@ -839,7 +846,7 @@ TEST(LN_NodeValues, SetGamePropertyIntAndGetGamePropertyStringKeepTheirTypes)
   EXPECT_EQ(owner.GetProperty("existing_float")->GetValueType(), VALUE_FLOAT_TYPE);
   EXPECT_EQ(rig.Text(owner, "copy"), "hello");
   EXPECT_EQ(rig.Text(owner, "copy_missing"), "");
-  EXPECT_EQ(rig.Text(owner, "copy_number"), "2.500000");
+  EXPECT_EQ(rig.Text(owner, "copy_number"), "2.5");
 }
 
 /* ---------------------------------------------------------------------------------------------
@@ -932,23 +939,24 @@ TEST(LN_NodeValues, ApplyRotationLocalTurnsAboutTheObjectsAxesAndWorldAboutTheWo
   }
 }
 
-/* Random Float / Int / Vector: a number in the range for the tick, a new one every tick; the range
- * is the two ends in either order; Random Int includes both ends; Random Vector is zero on an axis
- * whose input is zero. */
+/* Random Value's Float / Integer / Vector (the Random Float / Int / Vector nodes until 2026-11-08):
+ * a number in the range for the tick, a new one every tick; the range is the two ends in either
+ * order; Integer includes both ends; Vector is zero on an axis whose Min and Max are zero. */
 TEST(LN_NodeValues, RandomNodesStayInTheirRangeAndChangeEveryTick)
 {
   TreeBuilder b;
   GenNode &event = b.Add("LogicNativeOnFixedUpdate");
-  GenNode &rf = b.Add("LogicNativeRandomFloat");
+  GenNode &rf = b.Add("LogicNativeRandomValue", 0, 0);
   b.Float(rf, "Min", 5.0f);
   b.Float(rf, "Max", -3.0f); /* reversed on purpose */
-  GenNode &ri = b.Add("LogicNativeRandomInt");
-  b.Int(ri, "Min", 2);
-  b.Int(ri, "Max", 4);
-  GenNode &rv = b.Add("LogicNativeRandomVector");
-  b.Vector(rv, "Axes", 1.0f, 0.0f, 1.0f);
+  GenNode &ri = b.Add("LogicNativeRandomValue", 1, 0);
+  b.Int(ri, "Min_Int", 2);
+  b.Int(ri, "Max_Int", 4);
+  GenNode &rv = b.Add("LogicNativeRandomValue", 2, 0);
+  b.Vector(rv, "Min_Vector", 0.0f, 0.0f, 0.0f);
+  b.Vector(rv, "Max_Vector", 1.0f, 0.0f, 1.0f);
   GenNode &split = b.Add("LogicNativeSeparateXYZ");
-  b.Link(rv, "Vector", split, "Vector");
+  b.Link(rv, "Value_Vector", split, "Vector");
   GenNode *flow = &event;
   const char *flow_pin = "Out";
   const auto store = [&](const char *kind, const char *name, GenNode &source, const char *pin) {
@@ -960,7 +968,7 @@ TEST(LN_NodeValues, RandomNodesStayInTheirRangeAndChangeEveryTick)
     flow_pin = "Done";
   };
   store("LogicNativeSetGamePropertyFloat", "rf", rf, "Value");
-  store("LogicNativeSetGamePropertyInt", "ri", ri, "Value");
+  store("LogicNativeSetGamePropertyInt", "ri", ri, "Value_Int");
   store("LogicNativeSetGamePropertyFloat", "rx", split, "X");
   store("LogicNativeSetGamePropertyFloat", "ry", split, "Y");
   store("LogicNativeSetGamePropertyFloat", "rz", split, "Z");
@@ -993,8 +1001,10 @@ TEST(LN_NodeValues, RandomNodesStayInTheirRangeAndChangeEveryTick)
 
 
 /* The defaults of a kind: a Get Game Property of a missing property gives the kind's default (0, 0,
- * FALSE); one holding text gives -1 as a float (the text's number); Math with unlinked inputs computes with the pin
- * defaults (0 and 0); Clamp's Max defaults to 1. */
+ * FALSE); one holding text gives the text's number when it is one ("5": 5 as a Float and an Int)
+ * and the default when not ("abc": 0), empty text is FALSE (2026-11-08, as a read of another
+ * object converts; the owner's read gave EXP's -1 for any text and TRUE for empty text); Math
+ * with unlinked inputs computes with the pin defaults (0 and 0); Clamp's Max defaults to 1. */
 TEST(LN_NodeValues, KindsGiveTheirDefaultsForMissingPropertiesAndUnlinkedInputs)
 {
   TreeBuilder b;
@@ -1015,6 +1025,10 @@ TEST(LN_NodeValues, KindsGiveTheirDefaultsForMissingPropertiesAndUnlinkedInputs)
   store("LogicNativeGetGamePropertyInt", "LogicNativeSetGamePropertyInt", "missing", "i_missing");
   store("LogicNativeGetGamePropertyBool", "LogicNativeSetGamePropertyBool", "missing", "b_missing");
   store("LogicNativeGetGamePropertyFloat", "LogicNativeSetGamePropertyFloat", "text", "f_of_text");
+  store("LogicNativeGetGamePropertyFloat", "LogicNativeSetGamePropertyFloat", "text5", "f_of_5");
+  store("LogicNativeGetGamePropertyInt", "LogicNativeSetGamePropertyInt", "text5", "i_of_5");
+  store("LogicNativeGetGamePropertyBool", "LogicNativeSetGamePropertyBool", "empty", "b_of_empty");
+  store("LogicNativeGetGamePropertyInt", "LogicNativeSetGamePropertyInt", "number", "i_of_number");
   GenNode &add = b.Add("LogicNativeMath", blender::NODE_MATH_ADD);
   GenNode &math_out = b.Add("LogicNativeSetGamePropertyFloat");
   b.String(math_out, "Property", "math_default");
@@ -1032,13 +1046,20 @@ TEST(LN_NodeValues, KindsGiveTheirDefaultsForMissingPropertiesAndUnlinkedInputs)
     SCOPED_TRACE(mode.name);
     SemRig rig(program, mode);
     rig.SetString(rig.Object(0), "text", "abc");
+    rig.SetString(rig.Object(0), "text5", "5");
+    rig.SetString(rig.Object(0), "empty", "");
+    rig.SetFloat(rig.Object(0), "number", 2.75f);
     rig.Step();
     KX_GameObject &owner = rig.Object(0);
     EXPECT_EQ(rig.Float(owner, "f_missing"), 0.0f);
     EXPECT_EQ(rig.Float(owner, "i_missing"), 0.0f);
     EXPECT_EQ(rig.Text(owner, "b_missing"), "FALSE");
-    /* A text property read as a float is -1 (EXP_Value's number of a text), not the kind's default. */
-    EXPECT_EQ(rig.Float(owner, "f_of_text"), -1.0f);
+    /* Text that is no number: the kind's default, as for another object. */
+    EXPECT_EQ(rig.Float(owner, "f_of_text"), 0.0f);
+    EXPECT_EQ(rig.Float(owner, "f_of_5"), 5.0f);
+    EXPECT_EQ(rig.Text(owner, "i_of_5"), "5");
+    EXPECT_EQ(rig.Text(owner, "b_of_empty"), "FALSE");
+    EXPECT_EQ(rig.Text(owner, "i_of_number"), "2"); /* (truncated) */
     EXPECT_EQ(rig.Float(owner, "math_default"), 0.0f);
     EXPECT_EQ(rig.Float(owner, "clamp_default"), 1.0f);
   }

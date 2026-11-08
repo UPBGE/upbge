@@ -110,6 +110,8 @@ Bool::PlayerJoinPulse:
 Bool::PlayerGamepadConnected: input0:I
 Bool::PlayerGamepadJoined: input0:I
 Bool::UISoundFired: input0:Q
+Bool::Random: input3:F int_expr_index:I
+Bool::ObjectGamePropertyExists: input0:A
 Int::Constant:
 Int::SnapshotGameProperty:
 Int::RuntimeTreeProperty:
@@ -125,7 +127,7 @@ Int::ListLength: input0:A
 Int::LoopIndex:
 Int::DictLength: input0:A
 Int::FromGenericValue: input0:A
-Int::Random: input0:I input1:I
+Int::Random: input0:I input1:I input2:I
 Int::MaterialSlotCount: input0:A
 Int::CollisionContactCount: input0:A input1:S input2:A
 Int::PhysicsQueryFaceIndex: input0:Q
@@ -152,6 +154,7 @@ Int::PlayerJoinUser:
 Int::PlayerJoinGamepad:
 Int::PlayerGamepad: input0:I
 Int::MenuPlayerUser:
+Int::GameRandomSeed:
 Float::Constant:
 Float::UnscaledDeltaTime:
 Float::SnapshotGameProperty:
@@ -182,7 +185,7 @@ Float::Threshold: input0:F input1:F input3:B
 Float::RangedThreshold: input0:F input1:F input2:F
 Float::VectorComponent: input0:V
 Float::ColorComponent: input0:C
-Float::Random: input0:F input1:F
+Float::Random: input0:F input1:F input2:I
 Float::Select: input0:F input1:F input3:B
 Float::StoreValue:
 Float::SnapshotTimeScale:
@@ -295,7 +298,7 @@ Vector::CollisionHitNormal: (self):V input0:A input1:S input2:A
 Vector::ConstraintBreakAnchorPosition: (self):V
 Vector::EvaluateCurveAtFactor: (self):V input0:A
 Vector::InstructionNextPoint: (self):V
-Vector::Random: (self):V input0:V
+Vector::Random: (self):V input0:V input1:V input2:I
 Vector::TweenVectorResult: (self):V ?4294967295:B ?4294967295:F input1:V input2:V
 Vector::TweenRotationResult: (self):R ?4294967295:B ?4294967295:F input1:R input2:R
 Vector::QueryVectorAverage: (self):V input0:Q

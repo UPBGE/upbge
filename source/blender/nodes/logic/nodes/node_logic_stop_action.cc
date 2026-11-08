@@ -15,7 +15,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::Int>("Animation Layer"_ustr, "Layer"_ustr).default_value(0).min(0).max(7);
+  b.add_input<decl::Int>("Layer"_ustr).default_value(0).min(0).max(7);
   b.add_output<decl::Execution>("Done"_ustr);
 }
 

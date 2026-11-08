@@ -193,6 +193,37 @@ TEST(LN_TransformApply, TheGuardLeavesTheSceneGraphExactlyAsTheUpdateListWayDoes
 
 /* The guard is one node's: while a node applies a change, its child (or any other node) that is
  * changed is scheduled as always, and nothing is left on afterwards. */
+/* Rotate To turns an object in the world (2026-11-08): for a child of a turned parent its world
+ * front axis ends on the target, as for a root. The parent tilted 90 degrees about X: the child's
+ * turning axis (local Z) is world -Y and its front (local Y) world +Z; facing +X, the front must
+ * end on +X (the turn was put on the local orientation before, so the child rolled about its own
+ * front and the front stayed on +Z). */
+TEST(LN_TransformApply, RotateToTurnsAChildOfATurnedParentInTheWorld)
+{
+  SceneGraphPair pair;
+  pair.root_node.SetLocalOrientation(
+      MT_Matrix3x3(MT_Quaternion(MT_Vector3(1.0f, 0.0f, 0.0f), MT_Scalar(M_PI_2))));
+  pair.root.NodeUpdateGS(0.0);
+  const MT_Vector3 target = pair.child.NodeGetWorldPosition() + MT_Vector3(1.0f, 0.0f, 0.0f);
+  LN_CommandBuffer buffer;
+  buffer.ApplyMotionNow(CommandType::RotateToward,
+                        &pair.child,
+                        target,
+                        MT_Vector3(0.0f, 0.0f, 0.0f),
+                        1.0f,
+                        2,
+                        1,
+                        false,
+                        false);
+  pair.root.NodeUpdateGS(0.0);
+  const MT_Vector3 front = pair.child.NodeGetWorldOrientation() * MT_Vector3(0.0f, 1.0f, 0.0f);
+  EXPECT_NEAR(front.x(), 1.0f, 1.0e-5f);
+  EXPECT_NEAR(front.y(), 0.0f, 1.0e-5f);
+  EXPECT_NEAR(front.z(), 0.0f, 1.0e-5f);
+  const MT_Vector3 axis = pair.child.NodeGetWorldOrientation() * MT_Vector3(0.0f, 0.0f, 1.0f);
+  EXPECT_NEAR(axis.y(), -1.0f, 1.0e-5f) << "it turned about its own turning axis";
+}
+
 TEST(LN_TransformApply, TheGuardBelongsToOneNodeAndIsGoneAfterwards)
 {
   ModeGuard restore;

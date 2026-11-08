@@ -12,6 +12,11 @@
 #include <thread>
 #include <vector>
 
+#include <cstring>
+
+#include "DNA_sound_types.h"
+#include "DNA_speaker_types.h"
+
 #include "LN_CommandBuffer.h"
 #include "LN_SoundGroups.h"
 
@@ -21,6 +26,43 @@
 #endif
 
 namespace {
+
+/* Play Sound 3D at a Blender Speaker object plays as Blender plays speakers (2026-11-08, the
+ * removed Start Speaker's job): its own sound when the node picks none, the node's volume and
+ * pitch times the speaker's, nothing while it is muted. Any other object: the node's own. */
+TEST(LN_SoundGroups, APlaySound3DAtASpeakerPlaysItsSoundWithItsSettings)
+{
+  using Play = LN_CommandBuffer::SpeakerPlay;
+  blender::bSound sound;
+  std::strcpy(sound.id.name, "SOStep");
+  blender::Speaker speaker;
+  speaker.sound = &sound;
+  speaker.volume = 0.5f;
+  speaker.pitch = 2.0f;
+
+  Play play = LN_CommandBuffer::SpeakerPlayOf(&speaker, "", 0.8f, 1.5f);
+  EXPECT_EQ(play.sound, "Step");
+  EXPECT_FLOAT_EQ(play.volume, 0.4f);
+  EXPECT_FLOAT_EQ(play.pitch, 3.0f);
+  EXPECT_FALSE(play.muted);
+
+  play = LN_CommandBuffer::SpeakerPlayOf(&speaker, "Bell", 1.0f, 1.0f);
+  EXPECT_EQ(play.sound, "Bell") << "a picked Sound wins over the speaker's own";
+  EXPECT_FLOAT_EQ(play.volume, 0.5f);
+
+  speaker.flag = blender::eSpeaker_Flag(speaker.flag | blender::SPK_MUTED);
+  EXPECT_TRUE(LN_CommandBuffer::SpeakerPlayOf(&speaker, "", 1.0f, 1.0f).muted);
+
+  speaker.sound = nullptr;
+  EXPECT_EQ(LN_CommandBuffer::SpeakerPlayOf(&speaker, "", 1.0f, 1.0f).sound, "")
+      << "no Sound and a speaker without one: nothing to play";
+
+  play = LN_CommandBuffer::SpeakerPlayOf(nullptr, "Bell", 0.7f, 1.25f);
+  EXPECT_EQ(play.sound, "Bell");
+  EXPECT_FLOAT_EQ(play.volume, 0.7f);
+  EXPECT_FLOAT_EQ(play.pitch, 1.25f);
+  EXPECT_FALSE(play.muted);
+}
 
 TEST(LN_SoundGroups, GroupsStartFullAndChangeAtOnceOrOverAFade)
 {
@@ -217,6 +259,60 @@ TEST(LN_SoundGroups, StopSoundStillFindsAGroupedSoundByName)
   EXPECT_GT(audio.Loudness(), 0.5f);
   FlushOne([](LN_CommandBuffer &buffer) { buffer.AppendStopSound("LN Test Wind", 10, 1); });
   EXPECT_LT(audio.Loudness(), 0.001f);
+}
+
+/* A sound plays once at a time per emitter (2026-11-08; per name before, so two enemies' footsteps
+ * cut each other off): the same sound from two objects plays twice, from one object twice it
+ * restarts (one copy), and Stop Sound stops every copy of the name. Two copies started in one
+ * flush are in phase: twice as loud as one. (Emitters are only compared: fake pointers.) */
+TEST(LN_SoundGroups, EachEmitterPlaysItsOwnCopyOfASound)
+{
+  ScopedReadDevice audio;
+  LN_CommandBuffer::CacheToneForTests("LN Test Step", 330.0f);
+  KX_GameObject *const enemy_a = reinterpret_cast<KX_GameObject *>(uintptr_t(0x1000));
+  KX_GameObject *const enemy_b = reinterpret_cast<KX_GameObject *>(uintptr_t(0x2000));
+  FlushOne([&](LN_CommandBuffer &buffer) {
+    buffer.AppendPlaySound("LN Test Step", 0.25f, 1.0f, true, 10, 1, 0, enemy_a);
+    buffer.AppendPlaySound("LN Test Step", 0.25f, 1.0f, true, 11, 1, 0, enemy_b);
+  });
+  EXPECT_NEAR(audio.Loudness(), 0.5f * kSineLoudness, 0.01f);
+  FlushOne([](LN_CommandBuffer &buffer) { buffer.AppendStopSound("LN Test Step", 10, 1); });
+  EXPECT_LT(audio.Loudness(), 0.001f);
+
+  /* One emitter twice in a flush: the second play restarts it, one copy. */
+  FlushOne([&](LN_CommandBuffer &buffer) {
+    buffer.AppendPlaySound("LN Test Step", 0.25f, 1.0f, true, 10, 1, 0, enemy_a);
+    buffer.AppendPlaySound("LN Test Step", 0.25f, 1.0f, true, 10, 2, 0, enemy_a);
+  });
+  EXPECT_NEAR(audio.Loudness(), 0.25f * kSineLoudness, 0.01f);
+}
+
+/* At the cap (256 playing sounds) the oldest sound that does not loop stops, not the looping
+ * music started first (a crowd's footsteps must not end the background music). */
+TEST(LN_SoundGroups, TheVoiceCapStopsTheOldestSoundThatDoesNotLoop)
+{
+  ScopedReadDevice audio;
+  LN_CommandBuffer::CacheToneForTests("LN Test Music", 440.0f);
+  LN_CommandBuffer::CacheToneForTests("LN Test Step", 330.0f);
+  FlushOne([](LN_CommandBuffer &buffer) {
+    buffer.AppendPlaySound(
+        "LN Test Music", 0.5f, 1.0f, true, 10, 1, int32_t(LN_SoundGroup::Music));
+  });
+  /* 300 silent steps that do not loop, each from its own object (the tone never ends). */
+  FlushOne([](LN_CommandBuffer &buffer) {
+    for (uintptr_t k = 0; k < 300; k++) {
+      buffer.AppendPlaySound("LN Test Step",
+                             0.0f,
+                             1.0f,
+                             false,
+                             10,
+                             1,
+                             0,
+                             reinterpret_cast<KX_GameObject *>(uintptr_t(0x1000) + k * 16));
+    }
+  });
+  FlushOne([](LN_CommandBuffer &buffer) { buffer.AppendStopSound("LN Test Step", 10, 1); });
+  EXPECT_NEAR(audio.Loudness(), 0.5f * kSineLoudness, 0.01f);
 }
 
 #endif /* WITH_AUDASPACE */

@@ -13,6 +13,7 @@
 #include "BLI_assert.h"
 
 #include "nodes/NOD_logic_descriptors.hh"
+#include "nodes/NOD_logic_merged.hh"
 
 namespace {
 
@@ -72,11 +73,9 @@ static constexpr NodeKindMapping node_kind_mappings[] = {
     {"LogicNativeSetText", LN_NodeKind::SetText},
     {"LogicNativeGetGameProperty", LN_NodeKind::GetGameProperty},
     {"LogicNativeSetGameProperty", LN_NodeKind::SetGameProperty},
-    {"LogicNativeLimitRange", LN_NodeKind::LimitRange},
     {"LogicNativeRandomValue", LN_NodeKind::RandomValue},
     {"LogicNativeValueSwitch", LN_NodeKind::ValueSwitch},
     {"LogicNativeStoreValue", LN_NodeKind::StoreValue},
-    {"LogicNativeHasProperty", LN_NodeKind::HasProperty},
     {"LogicNativeToggleProperty", LN_NodeKind::ToggleProperty},
     {"LogicNativeModifyProperty", LN_NodeKind::ModifyProperty},
     {"LogicNativeNone", LN_NodeKind::IsNone},
@@ -190,14 +189,12 @@ static constexpr NodeKindMapping node_kind_mappings[] = {
     {"LogicNativeStringOperation", LN_NodeKind::StringOperation},
     {"LogicNativeFormattedString", LN_NodeKind::FormattedString},
     {"LogicNativeValueColor", LN_NodeKind::ValueColor},
-    {"LogicNativeColorRGB", LN_NodeKind::ColorRGB},
     {"LogicNativeColorRGBA", LN_NodeKind::ColorRGBA},
     {"LogicNativeValueVector", LN_NodeKind::ValueVector},
     {"LogicNativeEuler", LN_NodeKind::Euler},
     {"LogicNativeSeparateEuler", LN_NodeKind::SeparateEuler},
     {"LogicNativeVectorToRotation", LN_NodeKind::VectorToRotation},
     {"LogicNativeBoneRotationToObjectRotation", LN_NodeKind::BoneRotationToObjectRotation},
-    {"LogicNativeCombineXY", LN_NodeKind::CombineXY},
     {"LogicNativeCombineXYZ", LN_NodeKind::CombineXYZ},
     {"LogicNativeCombineXYZW", LN_NodeKind::CombineXYZW},
     {"LogicNativeResizeVector", LN_NodeKind::ResizeVector},
@@ -209,21 +206,16 @@ static constexpr NodeKindMapping node_kind_mappings[] = {
     {"LogicNativeGetImage", LN_NodeKind::GetImage},
     {"LogicNativeGetObjectID", LN_NodeKind::GetObjectID},
     {"LogicNativeGetAxisVector", LN_NodeKind::GetAxisVector},
-    {"LogicNativeSeparateXY", LN_NodeKind::SeparateXY},
     {"LogicNativeSeparateXYZ", LN_NodeKind::SeparateXYZ},
     {"LogicNativeInvertValue", LN_NodeKind::InvertValue},
     {"LogicNativeClampValue", LN_NodeKind::ClampValue},
     {"LogicNativeMapRange", LN_NodeKind::MapRange},
     {"LogicNativeCompare", LN_NodeKind::Compare},
     {"LogicNativeTypecast", LN_NodeKind::Typecast},
-    {"LogicNativeValueValid", LN_NodeKind::ValueValid},
     {"LogicNativeThreshold", LN_NodeKind::Threshold},
     {"LogicNativeRangedThreshold", LN_NodeKind::RangedThreshold},
     {"LogicNativeWithinRange", LN_NodeKind::WithinRange},
     {"LogicNativeMath", LN_NodeKind::Math},
-    {"LogicNativeRandomFloat", LN_NodeKind::RandomFloat},
-    {"LogicNativeRandomInt", LN_NodeKind::RandomInt},
-    {"LogicNativeRandomVector", LN_NodeKind::RandomVector},
     {"LogicNativeMixValue", LN_NodeKind::MixValue},
     {"LogicNativeFloatCurve", LN_NodeKind::FloatCurve},
     {"LogicNativeVectorMath", LN_NodeKind::VectorMath},
@@ -252,7 +244,6 @@ static constexpr NodeKindMapping node_kind_mappings[] = {
     {"LogicNativeShapeCast", LN_NodeKind::ShapeCast},
     {"LogicNativeShapeCastAll", LN_NodeKind::ShapeCastAll},
     {"LogicNativeTime", LN_NodeKind::Time},
-    {"LogicNativeDeltaFactor", LN_NodeKind::DeltaFactor},
     {"LogicNativeStartLogicTree", LN_NodeKind::StartLogicTree},
     {"LogicNativeStopLogicTree", LN_NodeKind::StopLogicTree},
     {"LogicNativeRunLogicTree", LN_NodeKind::RunLogicTree},
@@ -265,22 +256,20 @@ static constexpr NodeKindMapping node_kind_mappings[] = {
     {"LogicNativeStopAction", LN_NodeKind::StopAction},
     {"LogicNativeSetActionFrame", LN_NodeKind::SetActionFrame},
     {"LogicNativeSetShapeKeyValue", LN_NodeKind::SetShapeKeyValue},
-    {"LogicNativeActionDone", LN_NodeKind::ActionDone},
     {"LogicNativeObjectsColliding", LN_NodeKind::ObjectsColliding},
     {"LogicNativeStopAllSounds", LN_NodeKind::StopAllSounds},
     {"LogicNativePlaySound", LN_NodeKind::PlaySound},
     {"LogicNativePlaySound3D", LN_NodeKind::PlaySound3D},
-    {"LogicNativeStartSpeaker", LN_NodeKind::StartSpeaker},
     {"LogicNativePauseSound", LN_NodeKind::PauseSound},
     {"LogicNativeResumeSound", LN_NodeKind::ResumeSound},
     {"LogicNativeStopSound", LN_NodeKind::StopSound},
     {"LogicNativeSetVolume", LN_NodeKind::SetVolume},
+    {"LogicNativeSetRandomSeed", LN_NodeKind::SetRandomSeed},
     {"LogicNativeGetBoneHeadWorld", LN_NodeKind::GetBoneHeadWorld},
     {"LogicNativeGetBoneAttribute", LN_NodeKind::GetBoneAttribute},
     {"LogicNativeLoadBlendFile", LN_NodeKind::LoadBlendFile},
     {"LogicNativeSendEvent", LN_NodeKind::SendEvent},
     {"LogicNativeReceiveEvent", LN_NodeKind::ReceiveEvent},
-    {"LogicNativeCollision", LN_NodeKind::Collision},
     {"LogicNativeOnCollision", LN_NodeKind::OnCollision},
     {"LogicNativeOnConstraintBreak", LN_NodeKind::OnConstraintBreak},
     {"LogicNativeAnimationStatus", LN_NodeKind::AnimationStatus},
@@ -314,7 +303,6 @@ static constexpr NodeKindMapping node_kind_mappings[] = {
     {"LogicNativeListLength", LN_NodeKind::ListLength},
     {"LogicNativeListGetItem", LN_NodeKind::ListGetItem},
     {"LogicNativeListRandomItem", LN_NodeKind::ListRandomItem},
-    {"LogicNativeMakeList", LN_NodeKind::MakeList},
     {"LogicNativeListExtend", LN_NodeKind::ListExtend},
     {"LogicNativeDictGetKey", LN_NodeKind::DictGetKey},
     {"LogicNativeMakeDict", LN_NodeKind::MakeDict},
@@ -326,7 +314,6 @@ static constexpr NodeKindMapping node_kind_mappings[] = {
     {"LogicNativeEmptyList", LN_NodeKind::EmptyList},
     {"LogicNativeEmptyDict", LN_NodeKind::EmptyDict},
     {"LogicNativeDictHasKey", LN_NodeKind::DictHasKey},
-    {"LogicNativeListDuplicate", LN_NodeKind::ListDuplicate},
     {"LogicNativeDictMerge", LN_NodeKind::DictMerge},
     {"LogicNativeListContains", LN_NodeKind::ListContains},
     {"LogicNativeListAppend", LN_NodeKind::ListAppend},
@@ -339,8 +326,6 @@ static constexpr NodeKindMapping node_kind_mappings[] = {
     {"LogicNativeGetBoneHeadPoseWorld", LN_NodeKind::GetBoneHeadPoseWorld},
     {"LogicNativeGetBoneTailPoseWorld", LN_NodeKind::GetBoneTailPoseWorld},
     {"LogicNativeGetBoneCenterPoseWorld", LN_NodeKind::GetBoneCenterPoseWorld},
-    {"LogicNativeGetBonePoseRotation", LN_NodeKind::GetBonePoseRotation},
-    {"LogicNativeGetBonePoseScale", LN_NodeKind::GetBonePoseScale},
     {"LogicNativeGetBonePoseTransform", LN_NodeKind::GetBonePoseTransform},
     {"LogicNativeSetBonePoseLocation", LN_NodeKind::SetBonePoseLocation},
     {"LogicNativeSetBonePoseRotation", LN_NodeKind::SetBonePoseRotation},
@@ -363,14 +348,8 @@ static constexpr NodeKindMapping node_kind_mappings[] = {
     {"LogicNativeSetNodeMute", LN_NodeKind::SetNodeMute},
     {"LogicNativeEnableDisableModifier", LN_NodeKind::EnableDisableModifier},
     {"LogicNativeAssignGeometryNodesModifier", LN_NodeKind::AssignGeometryNodesModifier},
-    {"LogicNativeGetNodeGroupSocketValue", LN_NodeKind::GetNodeGroupSocketValue},
-    {"LogicNativeSetNodeGroupSocketValue", LN_NodeKind::SetNodeGroupSocketValue},
     {"LogicNativePlayMaterialSequence", LN_NodeKind::PlayMaterialSequence},
-    {"LogicNativeDrawLine", LN_NodeKind::DrawLine},
-    {"LogicNativeDrawCube", LN_NodeKind::DrawCube},
-    {"LogicNativeDrawBox", LN_NodeKind::DrawBox},
     {"LogicNativeDraw", LN_NodeKind::Draw},
-    {"LogicNativeJoinPath", LN_NodeKind::JoinPath},
     {"LogicNativeGetMasterFolder", LN_NodeKind::GetMasterFolder},
     {"LogicNativeLoadFileContent", LN_NodeKind::LoadFileContent},
     {"LogicNativeMouseRay", LN_NodeKind::MouseRay},
@@ -560,6 +539,46 @@ LN_NodeRegistry::LN_NodeRegistry()
 
     m_definitions.push_back(std::move(definition));
   }
+
+  /* Merged nodes whose options add outputs (Get Game Property's Exists): the older node's
+   * definition with those outputs after its own. */
+  for (const blender::nodes::logic::MergedNode &merged : blender::nodes::logic::merged_nodes()) {
+    if (merged.extra_outputs.is_empty()) {
+      continue;
+    }
+    const std::vector<LN_PinDefinition> extra = pin_definitions_for_metadata(merged.extra_outputs);
+    for (const int option : merged.options.index_range()) {
+      const LN_NodeDefinition *older = FindNodeDefinition(merged.options[option].idname);
+      if (older == nullptr) {
+        BLI_assert_unreachable();
+        continue;
+      }
+      LN_NodeDefinition definition = *older;
+      definition.outputs.insert(definition.outputs.end(), extra.begin(), extra.end());
+      m_mergedDefinitions.emplace_back(std::string(merged.idname) + ":" + std::to_string(option),
+                                       std::move(definition));
+    }
+  }
+}
+
+const LN_NodeDefinition *LN_NodeRegistry::FindNodeDefinitionForNode(
+    const blender::bNode &node) const
+{
+  const blender::nodes::logic::MergedNode *merged = blender::nodes::logic::find_merged_node(
+      node.idname);
+  if (merged == nullptr) {
+    return FindNodeDefinition(node.idname);
+  }
+  const int option = blender::nodes::logic::merged_option_index(*merged, node);
+  if (!merged->extra_outputs.is_empty()) {
+    const std::string key = std::string(merged->idname) + ":" + std::to_string(option);
+    for (const auto &[merged_key, definition] : m_mergedDefinitions) {
+      if (merged_key == key) {
+        return &definition;
+      }
+    }
+  }
+  return FindNodeDefinition(merged->options[option].idname);
 }
 
 const LN_NodeRegistry &LN_NodeRegistry::GetBuiltin()

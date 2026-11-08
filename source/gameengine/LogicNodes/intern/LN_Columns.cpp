@@ -8,6 +8,7 @@
 #include "LN_Columns.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <cstdlib>
@@ -29,6 +30,7 @@
 #include "LN_KindCatalog.h"
 #include "LN_LeanProgram.h"
 #include "LN_Program.h"
+#include "LN_Random.h"
 #include "LN_RuntimeTree.h"
 #include "LN_Snapshot.h"
 #include "LN_StrictDump.h"
@@ -253,7 +255,8 @@ enum class NodeOp : uint8_t {
   FSelect,
   /** A value of the tick, the same for every NPC (`compare`: a Uniform). */
   FUniform,
-  /** Random Float: `a` min, `b` max, `property_ref` the expression (the hash's seed). */
+  /** Random Value (Float): `a` min, `b` max, `c` the Seed, `int_value` the node's identity
+   * (LN_Random.h: the bits the VM's kind makes, each lane with its tree's stream). */
   FRandom,
   /** A tree property's field (`property_ref`), as it is when the pass starts. */
   FTreeProp,
@@ -269,7 +272,10 @@ enum class NodeOp : uint8_t {
   /** Typecast's float to integer (`compare`: the mode). */
   IFromFloat,
   IFromBool,
+  /** Random Value (Integer): as FRandom. */
   IRandom,
+  /** Set Random Seed's Seed output: the game's seed (the same for every NPC). */
+  IGameSeed,
   ISelect,
   ITreeProp,
   BConst,
@@ -324,11 +330,18 @@ enum class NodeOp : uint8_t {
   FStepTime,
   /** The unscaled delta a block behind gate `property_ref` reads. */
   FGateUnscaled,
+  /** LN_StepFactor of `a` for the steps a run behind gate `property_ref` covers (Rotate To's and
+   * Align Axis To Vector's factor, as their handlers take it). */
+  FStepFactor,
   /** Vector Rotate (`compare`: mode 0 Z, 1 fixed axis `int_value`, 2 axis input): `position_a`
    * the point, `position_b` the pivot, `vec_c` the axis, `a` the angle. */
   VRotate,
-  /** Random Vector (`property_ref` the expression): `position_a` the axes. */
+  /** Random Value (Vector): `position_a` min, `position_b` max, `c` the Seed, `int_value` the
+   * node's identity; the axes take salts 1, 2, 3 as the VM's kind. */
   VRandom,
+  /** Random Value (Boolean): true with `a` (the probability), `c` the Seed, `int_value` the
+   * identity. */
+  BRandom,
   /** Has Property: the snapshot's game property `property_ref` exists. */
   BExists,
   /** Boolean Edge (`property_ref` its expression): `a` the condition, `d` where it is evaluated. */
@@ -927,12 +940,15 @@ constexpr KindInputRow kKindInputSupplement[] = {
     {"Bool::StoreValueDone", "input3:F"},
     {"Value::ObjectAttribute", "input1:S"},
     {"Value::ObjectGameProperty", "input1:S"},
+    {"Bool::ObjectGamePropertyExists", "input1:S"},
     /* Its index is read only after a parent was found (the rig has none). */
     {"Value::ObjectChild", "input1:I"},
     {"Value::CollectionObjects", "input3:B"},
     {"Value::MaterialNodeValue", "input1:I"},
     {"Value::RecipeInfo", "input1:A"},
     {"Value::ListElement", "input1:I"},
+    /* Its Seed is read only for a list with items (the rig has none, 2026-11-07). */
+    {"Value::ListRandomItem", "input1:I"},
     {"Value::ListSetIndex", "input2:A"},
     {"Vector::RotateAroundAxis", "input2:R input2:V"},
     {"Vector::EvaluateCurveAtFactor", "input4:F"},
@@ -1041,8 +1057,12 @@ bool BridgeableOp(const LN_ExecOpKind kind, const LN_OpCode opcode)
        * own rules for it (CompileBridgedOp). */
       return opcode == Op::RemoveObject || opcode == Op::RemoveParent || opcode == Op::AddObject;
     case LN_ExecOpKind::ObjectReferenceCommand:
-      /* Recorded commands, applied at the flush. */
-      return opcode == Op::SetParent || opcode == Op::ReplaceMesh || opcode == Op::CopyProperty;
+      /* Recorded commands, applied at the flush. A list or dictionary change of a game property
+       * (EditGameProperty) is a legacy command no write merges past (no key: it ends the
+       * flush's run of last-write-wins writes, as the VM's own) and names its object for the
+       * pre-apply (command_property_reach). */
+      return opcode == Op::SetParent || opcode == Op::ReplaceMesh ||
+             opcode == Op::CopyProperty || opcode == Op::EditGameProperty;
     case LN_ExecOpKind::SendEvent:
     case LN_ExecOpKind::BoneCommand:
     case LN_ExecOpKind::MaterialCommand:
@@ -1092,16 +1112,19 @@ class ColumnCompiler {
   /** A compiled value: its slot, whether it depends on where it is read in the pass (an op's mask,
    * a tree property, a flow state's output: then it is never shared between reads), and the
    * distances surely read whenever it is read (bits; an input read only on some lanes, as And's
-   * second, adds none). */
+   * second, adds none). `touched`: every distance it may read, surely or on some lanes (column
+   * soak seed 43704, 2026-11-08: each op notes them where its route runs, m_op_touched). */
   struct Slot {
     uint32_t slot = kNone;
     bool reads_ops = false;
     uint64_t queries = 0;
+    uint64_t touched = 0;
   };
   struct Vec {
     VecSlots slots;
     bool reads_ops = false;
     uint64_t queries = 0;
+    uint64_t touched = 0;
   };
   /** The bridge (plan C1-8): whether this program may run nodes without a kernel through the VM's
    * code (its queries are ones the run keeps exact), and whether it reads a ray or a distance
@@ -1392,12 +1415,14 @@ class ColumnCompiler {
   {
     result.reads_ops = result.reads_ops || a.reads_ops;
     result.queries |= a.queries;
+    result.touched |= a.touched;
     return result;
   }
   static Slot Merge(Slot result, const Vec &a)
   {
     result.reads_ops = result.reads_ops || a.reads_ops;
     result.queries |= a.queries;
+    result.touched |= a.touched;
     return result;
   }
   /** `a` is read only on some lanes (the VM reads it only then): its distances are not surely
@@ -1405,6 +1430,7 @@ class ColumnCompiler {
   static Slot MergeSometimes(Slot result, const Slot &a)
   {
     result.reads_ops = result.reads_ops || a.reads_ops;
+    result.touched |= a.touched;
     return result;
   }
   Slot Emit(Node node, Slot result)
@@ -1558,8 +1584,24 @@ class ColumnCompiler {
   std::unordered_map<uint32_t, uint32_t> m_float_constants;
   std::unordered_map<int32_t, uint32_t> m_int_constants;
   uint32_t m_true = kNone, m_false = kNone;
-  std::unordered_map<uint32_t, Slot> m_float_memo, m_int_memo, m_bool_memo;
-  std::unordered_map<uint32_t, Vec> m_vector_memo;
+  /* Compiled expressions by expression index AND the read's fallback (column soak seed 57572,
+   * 2026-11-08). A kind that returns its reader's fallback (Get Axis Vector of an object that is
+   * not there, a missing property, a bridged read...) gives each reader its own, as the VM does
+   * (the VM's memo keeps no such kind): Translate reads a vector with (0, 0, 0), Align Axis To
+   * Vector the same expression with (0, 0, 1), and keyed by index alone the second got the
+   * first's. A second compile only adds nodes: what is not memoized compiles at every read. */
+  static uint64_t MemoKey(const uint32_t index, const uint32_t fallback_bits)
+  {
+    return (uint64_t(index) << 32) | fallback_bits;
+  }
+  static uint32_t FloatBits(const float value)
+  {
+    uint32_t bits;
+    std::memcpy(&bits, &value, sizeof(bits));
+    return bits;
+  }
+  std::unordered_map<uint64_t, Slot> m_float_memo, m_int_memo, m_bool_memo;
+  std::map<std::array<uint32_t, 4>, Vec> m_vector_memo;
   struct QuerySlots {
     uint32_t distance = kNone, squared = kNone, valid = kNone;
     uint64_t bit = 0;
@@ -1591,6 +1633,15 @@ class ColumnCompiler {
   uint32_t m_gate = kNone;
   std::unordered_map<uint32_t, uint32_t> m_gate_slot;
   std::unordered_map<uint32_t, uint64_t> m_gate_reads;
+  /** Every distance an op may read (its guard and inputs, surely or on some lanes: the query's
+   * read and each memo hit add theirs), filed at the op's end by where its route runs: on a gate's
+   * steps (m_touched_gate) or on any step (m_touched_ungated). A distance of the owner or a named
+   * object read where neither m_always_read nor its gate's m_gate_reads covers it is read on a
+   * step whose start applied nothing for it (column soak seed 43704, 2026-11-08: surely read on an
+   * Every N Steps route, and on the ungated route after a Delay too). */
+  uint64_t m_op_touched = 0;
+  uint64_t m_touched_ungated = 0;
+  std::unordered_map<uint32_t, uint64_t> m_touched_gate;
   /** Distances some op reads whatever the route of the NPC (a guard is read at every op). */
   uint64_t m_always_read = 0;
   /** What reads apply pending moves (distances) and what reads poses live (attributes, axes):
@@ -1902,7 +1953,9 @@ ColumnCompiler::Slot ColumnCompiler::Float(const uint32_t index, const float fal
   if (index == kNone || index >= floats.size()) {
     return FloatConst(fallback);
   }
-  if (const auto found = m_float_memo.find(index); found != m_float_memo.end()) {
+  const uint64_t memo_key = MemoKey(index, FloatBits(fallback));
+  if (const auto found = m_float_memo.find(memo_key); found != m_float_memo.end()) {
+    m_op_touched |= found->second.touched; /* (read here too) */
     return found->second;
   }
   const LN_FloatExpression &e = floats[index];
@@ -2203,13 +2256,16 @@ ColumnCompiler::Slot ColumnCompiler::Float(const uint32_t index, const float fal
     }
     case LN_FloatExpressionKind::Random: {
       const Slot low = Float(e.input0, 0.0f), high = Float(e.input1, 1.0f);
+      const Slot seed = Int(e.input2, 0);
       node.op = NodeOp::FRandom;
       node.property_ref = index;
       node.a = low.slot;
       node.b = high.slot;
+      node.c = seed.slot;
+      node.int_value = e.int_value;
       node.out = NewFloat();
       result.slot = node.out;
-      result = Emit(node, Merge(Merge(result, low), high));
+      result = Emit(node, Merge(Merge(Merge(result, low), high), seed));
       break;
     }
     case LN_FloatExpressionKind::FromInt: {
@@ -2264,7 +2320,7 @@ ColumnCompiler::Slot ColumnCompiler::Float(const uint32_t index, const float fal
     return {};
   }
   if (!result.reads_ops) {
-    m_float_memo.emplace(index, result);
+    m_float_memo.emplace(memo_key, result);
   }
   return result;
 }
@@ -2275,7 +2331,9 @@ ColumnCompiler::Slot ColumnCompiler::Int(const uint32_t index, const int32_t fal
   if (index == kNone || index >= ints.size()) {
     return IntConst(fallback);
   }
-  if (const auto found = m_int_memo.find(index); found != m_int_memo.end()) {
+  const uint64_t memo_key = MemoKey(index, uint32_t(fallback));
+  if (const auto found = m_int_memo.find(memo_key); found != m_int_memo.end()) {
+    m_op_touched |= found->second.touched; /* (read here too) */
     return found->second;
   }
   const LN_IntExpression &e = ints[index];
@@ -2377,13 +2435,23 @@ ColumnCompiler::Slot ColumnCompiler::Int(const uint32_t index, const int32_t fal
     }
     case LN_IntExpressionKind::Random: {
       const Slot low = Int(e.input0, 0), high = Int(e.input1, 1);
+      const Slot seed = Int(e.input2, 0);
       node.op = NodeOp::IRandom;
       node.property_ref = index;
       node.a = low.slot;
       node.b = high.slot;
+      node.c = seed.slot;
+      node.int_value = e.int_value;
       node.out = NewInt();
       result.slot = node.out;
-      result = Emit(node, Merge(Merge(result, low), high));
+      result = Emit(node, Merge(Merge(Merge(result, low), high), seed));
+      break;
+    }
+    case LN_IntExpressionKind::GameRandomSeed: {
+      node.op = NodeOp::IGameSeed;
+      node.out = NewInt();
+      result.slot = node.out;
+      result = Emit(node, result);
       break;
     }
     default:
@@ -2397,7 +2465,7 @@ ColumnCompiler::Slot ColumnCompiler::Int(const uint32_t index, const int32_t fal
     return {};
   }
   if (!result.reads_ops) {
-    m_int_memo.emplace(index, result);
+    m_int_memo.emplace(memo_key, result);
   }
   return result;
 }
@@ -2408,7 +2476,9 @@ ColumnCompiler::Slot ColumnCompiler::Bool(const uint32_t index, const bool fallb
   if (index == kNone || index >= bools.size()) {
     return BoolConst(fallback);
   }
-  if (const auto found = m_bool_memo.find(index); found != m_bool_memo.end()) {
+  const uint64_t memo_key = MemoKey(index, fallback ? 1u : 0u);
+  if (const auto found = m_bool_memo.find(memo_key); found != m_bool_memo.end()) {
+    m_op_touched |= found->second.touched; /* (read here too) */
     return found->second;
   }
   const LN_BoolExpression &e = bools[index];
@@ -2439,6 +2509,20 @@ ColumnCompiler::Slot ColumnCompiler::Bool(const uint32_t index, const bool fallb
     case LN_BoolExpressionKind::Constant:
       result = BoolConst(e.bool_value);
       break;
+    case LN_BoolExpressionKind::Random: {
+      /* BoolKind's Random: Probability, then Seed (the kind's read order). */
+      const Slot probability = Float(e.float_expr_index, 0.5f);
+      const Slot seed = Int(e.int_expr_index, 0);
+      node.op = NodeOp::BRandom;
+      node.property_ref = index;
+      node.a = probability.slot;
+      node.c = seed.slot;
+      node.int_value = e.int_value;
+      node.out = NewBool();
+      result.slot = node.out;
+      result = Emit(node, Merge(Merge(result, probability), seed));
+      break;
+    }
     case LN_BoolExpressionKind::SnapshotGameProperty:
       if (e.property_ref_index >= m_program.GetGamePropertyRefs().size()) {
         Refuse("a game property read without its ref");
@@ -2811,7 +2895,7 @@ ColumnCompiler::Slot ColumnCompiler::Bool(const uint32_t index, const bool fallb
     return {};
   }
   if (!result.reads_ops) {
-    m_bool_memo.emplace(index, result);
+    m_bool_memo.emplace(memo_key, result);
   }
   return result;
 }
@@ -2833,6 +2917,7 @@ ColumnCompiler::Vec ColumnCompiler::Componentwise(const NodeOp op, const Vec &a,
   result.slots = {out[0], out[1], out[2]};
   result.reads_ops = a.reads_ops || b.reads_ops;
   result.queries = a.queries | b.queries;
+  result.touched = a.touched | b.touched;
   return result;
 }
 
@@ -2842,7 +2927,12 @@ ColumnCompiler::Vec ColumnCompiler::Vector(const uint32_t index, const MT_Vector
   if (index == kNone || index >= vectors.size()) {
     return VectorConst(fallback);
   }
-  if (const auto found = m_vector_memo.find(index); found != m_vector_memo.end()) {
+  const std::array<uint32_t, 4> memo_key = {index,
+                                            FloatBits(float(fallback.x())),
+                                            FloatBits(float(fallback.y())),
+                                            FloatBits(float(fallback.z()))};
+  if (const auto found = m_vector_memo.find(memo_key); found != m_vector_memo.end()) {
+    m_op_touched |= found->second.touched; /* (read here too) */
     return found->second;
   }
   const LN_VectorExpression &e = vectors[index];
@@ -2882,6 +2972,7 @@ ColumnCompiler::Vec ColumnCompiler::Vector(const uint32_t index, const MT_Vector
       result.slots = {node.out, node.out2, node.out3};
       result.reads_ops = up.reads_ops || forward.reads_ops;
       result.queries = up.queries | forward.queries;
+      result.touched = up.touched | forward.touched;
       break;
     }
     case LN_VectorExpressionKind::Combine: {
@@ -2892,6 +2983,7 @@ ColumnCompiler::Vec ColumnCompiler::Vector(const uint32_t index, const MT_Vector
       result.slots = {x.slot, y.slot, z.slot};
       result.reads_ops = x.reads_ops || y.reads_ops || z.reads_ops;
       result.queries = x.queries | y.queries | z.queries;
+      result.touched = x.touched | y.touched | z.touched;
       break;
     }
     case LN_VectorExpressionKind::Add: {
@@ -2936,6 +3028,7 @@ ColumnCompiler::Vec ColumnCompiler::Vector(const uint32_t index, const MT_Vector
       f.slots = {factor.slot, factor.slot, factor.slot};
       f.reads_ops = factor.reads_ops;
       f.queries = factor.queries;
+      f.touched = factor.touched;
       result = Componentwise(NodeOp::FMul, v, f);
       break;
     }
@@ -2956,6 +3049,7 @@ ColumnCompiler::Vec ColumnCompiler::Vector(const uint32_t index, const MT_Vector
       result.slots = {node.out, node.out2, node.out3};
       result.reads_ops = v.reads_ops;
       result.queries = v.queries;
+      result.touched = v.touched;
       break;
     }
     case LN_VectorExpressionKind::RotateAroundAxis: {
@@ -2990,24 +3084,32 @@ ColumnCompiler::Vec ColumnCompiler::Vector(const uint32_t index, const MT_Vector
       result.slots = {node.out, node.out2, node.out3};
       result.reads_ops = origin.reads_ops || pivot.reads_ops || axis.reads_ops || angle.reads_ops;
       result.queries = origin.queries | pivot.queries | axis.queries | angle.queries;
+      result.touched = origin.touched | pivot.touched | axis.touched | angle.touched;
       break;
     }
     case LN_VectorExpressionKind::Random: {
-      const Vec axes = Vector(e.input0, MT_Vector3(1.0f, 1.0f, 1.0f));
+      /* VectorKind's Random: Min (none: the old Random Vector node), Max, Seed. */
+      const Vec low = Vector(e.input0, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const Vec high = Vector(e.input1, MT_Vector3(1.0f, 1.0f, 1.0f));
+      const Slot seed = Int(e.input2, 0);
       if (!m_refusal.empty()) {
         return {};
       }
       Node node;
       node.op = NodeOp::VRandom;
       node.property_ref = index;
-      node.position_a = axes.slots;
+      node.position_a = low.slots;
+      node.position_b = high.slots;
+      node.c = seed.slot;
+      node.int_value = e.int_value;
       node.out = NewFloat();
       node.out2 = NewFloat();
       node.out3 = NewFloat();
       m_out.nodes.push_back(node);
       result.slots = {node.out, node.out2, node.out3};
-      result.reads_ops = axes.reads_ops;
-      result.queries = axes.queries;
+      result.reads_ops = low.reads_ops || high.reads_ops || seed.reads_ops;
+      result.queries = low.queries | high.queries | seed.queries;
+      result.touched = low.touched | high.touched | seed.touched;
       break;
     }
     case LN_VectorExpressionKind::SnapshotGravity: {
@@ -3038,6 +3140,7 @@ ColumnCompiler::Vec ColumnCompiler::Vector(const uint32_t index, const MT_Vector
       result.slots = {s.slot, s.slot, s.slot};
       result.reads_ops = s.reads_ops;
       result.queries = s.queries;
+      result.touched = s.touched;
       break;
     }
     case LN_VectorExpressionKind::BroadcastInt: {
@@ -3050,6 +3153,7 @@ ColumnCompiler::Vec ColumnCompiler::Vector(const uint32_t index, const MT_Vector
       result.slots = {node.out, node.out, node.out};
       result.reads_ops = i.reads_ops;
       result.queries = i.queries;
+      result.touched = i.touched;
       break;
     }
     case LN_VectorExpressionKind::RuntimeTreeProperty:
@@ -3227,7 +3331,7 @@ ColumnCompiler::Vec ColumnCompiler::Vector(const uint32_t index, const MT_Vector
     return {};
   }
   if (!result.reads_ops) {
-    m_vector_memo.emplace(index, result);
+    m_vector_memo.emplace(memo_key, result);
   }
   return result;
 }
@@ -3253,6 +3357,7 @@ bool ColumnCompiler::Endpoint(const LN_DistanceEndpointMode mode,
     r_position = position.slots;
     r_reads.reads_ops = r_reads.reads_ops || position.reads_ops;
     r_reads.queries |= position.queries;
+    r_reads.touched |= position.touched;
     return true;
   }
   if (mode != LN_DistanceEndpointMode::Object) {
@@ -3414,8 +3519,10 @@ bool ColumnCompiler::RuntimeSource(const uint32_t value_index,
              ints[value.input1].kind == LN_IntExpressionKind::Constant;
     }
     case LN_ValueExpressionKind::ObjectParent:
-      /* Plan C1-10: the parent of the owner (a lane has none: nothing), or of an object found
-       * as these are (parents change only at the flush). */
+      /* Plan C1-10: the parent of the owner (none for a root lane; since plan C2 P2 a lane may
+       * have one, found per lane like any found object: RunSetBegin gives the run back when it
+       * moves a lane's parent, `lane_ancestors`), or of an object found as these are (parents
+       * change only at the flush). */
       if (owner(value.input0)) {
         return true;
       }
@@ -3755,6 +3862,8 @@ ColumnCompiler::Slot ColumnCompiler::Distance(const uint32_t index, const bool s
   Slot result;
   result.slot = valid ? found->second.valid : (squared ? found->second.squared : found->second.distance);
   result.queries = found->second.bit;
+  result.touched = found->second.bit;
+  m_op_touched |= found->second.bit;
   const bool runtime_end = found->second.a == EndKind::Runtime ||
                            found->second.b == EndKind::Runtime;
   if (runtime_end && (found->second.a == EndKind::Owner || found->second.b == EndKind::Owner) &&
@@ -3936,6 +4045,7 @@ ColumnCompiler::Slot ColumnCompiler::Rotation(const uint32_t index, const LN_Rot
       node.position_b = up.slots;
       result.reads_ops = up.reads_ops || forward.reads_ops;
       result.queries = up.queries | forward.queries;
+      result.touched = up.touched | forward.touched;
       break;
     }
     case LN_VectorExpressionKind::FromGenericValue: {
@@ -4005,6 +4115,7 @@ ColumnCompiler::Slot ColumnCompiler::Rotation(const uint32_t index, const LN_Rot
       node.c = euler.slots.z;
       result.reads_ops = euler.reads_ops;
       result.queries = euler.queries;
+      result.touched = euler.touched;
       break;
     }
   }
@@ -4238,6 +4349,7 @@ bool ColumnCompiler::BridgeColor(const uint32_t index, const MT_Vector4 &fallbac
     r_rgba[c].slot = outs[c];
     r_rgba[c].reads_ops = true;
     r_rgba[c].queries = 0;
+    r_rgba[c].touched = 0;
   }
   return true;
 }
@@ -5379,7 +5491,12 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
   };
   m_out.route_ops = uint32_t(ir.ops.size());
   m_always_marks.assign(ir.ops.size(), 0);
+  const auto file_touched = [&]() {
+    (m_gate == kNone ? m_touched_ungated : m_touched_gate[m_gate]) |= m_op_touched;
+    m_op_touched = 0;
+  };
   for (m_op = 0; m_op < ir.ops.size(); m_op++) {
+    m_op_touched = 0;
     const LN_ExecOp &exec = ir.ops[m_op];
     const LN_LeanOp &lean_op = lean_event.ops[m_op];
     if (lean_op.guard_is_delay_done && !m_program.GetTreePropertyRefs().empty()) {
@@ -5403,6 +5520,7 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
       if (!CompileLoopBlock(ir, block_index, headers, lean_event)) {
         break;
       }
+      file_touched();
       m_op = ir.blocks[block_index].first_op + ir.blocks[block_index].op_count - 1;
       continue;
     }
@@ -5759,18 +5877,6 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
         write.last_write_wins = last_write_wins(write.command);
         write.local_last_write_wins = write.type_from_local ? last_write_wins(write.local_command) :
                                                               write.last_write_wins;
-        if (reads_local) {
-          const LN_VectorOperationMode mode = LN_VectorOperationMode(payload.operation_mode);
-          if (mode == LN_VectorOperationMode::LocalFromBool) {
-            const Slot local = Bool(payload.bool_expr_index, false);
-            read(local.queries);
-            write.local = local.slot;
-            write.out_bool = m_out.out_bool_columns++;
-          }
-          else {
-            write.local_constant = mode == LN_VectorOperationMode::Local;
-          }
-        }
         if (orientation != (lean_op.constant_index != kNone)) {
           Refuse("an orientation command the lowering did not give its constant");
           break;
@@ -5814,6 +5920,23 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
           write.vector = value.slots;
           write.out_float = m_out.out_float_columns;
           m_out.out_float_columns += 3;
+        }
+        /* Local after the value, as the VM reads them (LeanVectorBody reads the vector or the
+         * rotation, AppendVectorCommand then reads Local): a read of one may apply pending moves
+         * the other sees (soak seed 9387, 2026-11-08: Local from a distance of the owner, the
+         * vector its live pose; read the other way round, the pose read looked to follow the
+         * distance, and a parented owner's pending parent move was taken as applied). */
+        if (reads_local) {
+          const LN_VectorOperationMode mode = LN_VectorOperationMode(payload.operation_mode);
+          if (mode == LN_VectorOperationMode::LocalFromBool) {
+            const Slot local = Bool(payload.bool_expr_index, false);
+            read(local.queries);
+            write.local = local.slot;
+            write.out_bool = m_out.out_bool_columns++;
+          }
+          else {
+            write.local_constant = mode == LN_VectorOperationMode::Local;
+          }
         }
         write.mask = guard.slot;
         m_out.writes.push_back(write);
@@ -5983,6 +6106,18 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
               break;
             }
             read(vector.queries | int_a.queries | scalar.queries);
+          }
+          if (m_gate != kNone &&
+              (opcode == LN_OpCode::RotateToward || opcode == LN_OpCode::AlignAxisToVector))
+          {
+            /* Their handlers' factor for the steps the gate's run covers (LN_StepFactor). */
+            Node factor;
+            factor.op = NodeOp::FStepFactor;
+            factor.a = scalar.slot;
+            factor.property_ref = m_gate;
+            factor.out = NewFloat();
+            m_out.nodes.push_back(factor);
+            scalar.slot = factor.out;
           }
           write.vector = vector.slots;
           write.secondary = secondary.slots;
@@ -6311,6 +6446,7 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
       break;
     }
     m_always_marks[m_op] = op_marks ? 1 : 0;
+    file_touched();
     m_op_gate.push_back(m_gate);
     m_masks.push_back(mask);
     if (lean_op.state_index != kNone && !bridged_op) {
@@ -6339,9 +6475,23 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
           when.gates |= uint64_t(1) << gate.first;
         }
       }
-      if (!when.always && when.gates == 0) {
+      /* Read surely on some gates' routes only: every read of it must be on one of those gates
+       * (column soak seed 43704, 2026-11-08: a read on the ungated route after a Delay happens on
+       * steps the gate is not due, where the run's start applied nothing and the VM's read
+       * applies the owner's pending moves, before a pending Align Axis To Vector). */
+      bool covered = when.always || when.gates != 0;
+      if (covered && !when.always) {
+        covered = (m_touched_ungated & query.bit) == 0;
+        for (const auto &gate : m_touched_gate) {
+          if ((gate.second & query.bit) != 0 && (when.gates & (uint64_t(1) << gate.first)) == 0)
+          {
+            covered = false;
+          }
+        }
+      }
+      if (!covered) {
         /* Was refused ("an object measured on some routes only"): the run starts only with
-         * nothing pending for it, so no read applies anything (`when` stays never). */
+         * nothing pending for it, so no read applies anything. */
         NoteQuietReads("an object measured on some routes only");
       }
       LN_ColumnProgram::QueryRead read;
@@ -7571,6 +7721,11 @@ struct LN_ColumnRunner::Impl {
   /** The objects of this tick's lanes (made at the first run that finds objects while playing; a
    * flat set kept between ticks: no allocation per lane). */
   FlatPointerSet lane_owners;
+  /** The parents (any depth) of this tick's lane objects, made with lane_owners (plan C2 P2's
+   * parented lanes): an object a run moves that is one of them moves a lane with it, and the
+   * VM's read of that lane's chain (a distance from the owner, its pose) applies the move where
+   * the column run's start would not (soak seed 18125, 2026-11-08). */
+  FlatPointerSet lane_ancestors;
   bool lane_owners_made = false;
   /** RunSet's scratch: the objects found while playing, runtime_objects x lanes. */
   std::vector<KX_GameObject *> runtime_found;
@@ -8924,10 +9079,11 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
         for (size_t l = 0; l < n; l++) {
           switch (LN_RangeOperation(node.compare)) {
             case LN_RangeOperation::Inside:
-              out[l] = (lo[l] < value[l] && value[l] < hi[l]) ? value[l] : 0.0f;
-              break;
             case LN_RangeOperation::Outside:
-              out[l] = (value[l] < lo[l] || value[l] > hi[l]) ? value[l] : 0.0f;
+              /* (The VM's own rule: Min and Max sorted, both ends inside.) */
+              out[l] = LN_RangeHolds(LN_RangeOperation(node.compare), value[l], lo[l], hi[l]) ?
+                           value[l] :
+                           0.0f;
               break;
             default:
               out[l] = node.float_value;
@@ -8967,27 +9123,52 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
         std::fill_n(f(node.out), n, run.uniforms[node.compare]);
         break;
       case NodeOp::FRandom: {
-        /* FloatKind's Random: one hash of the expression and the tick for every NPC. */
-        const float unit = LN_RuntimeTree::ColumnHashToUnitFloat(
-            (uint64_t(node.property_ref) << 32) ^ context.tick_index);
+        /* FloatKind's Random (LN_Random.h): the node's part once, then each NPC with its seed
+         * and its tree's stream (none with Same for All). */
+        const uint32_t identity = uint32_t(node.int_value);
+        const uint64_t part = LN_RandomNodePart(
+            LN_GetRandomGameSeed(), identity, context.phase_tick_index);
+        const bool shared = (identity & LN_RANDOM_SAME_FOR_ALL) != 0;
         const float *lo = f(node.a), *hi = f(node.b);
+        const int32_t *seed = i(node.c);
         float *out = f(node.out);
         for (size_t l = 0; l < n; l++) {
-          const float lower = std::min(lo[l], hi[l]);
-          const float upper = std::max(lo[l], hi[l]);
-          out[l] = lower + (upper - lower) * unit;
+          const uint64_t bits = LN_RandomBits(
+              part, seed[l], shared ? 0 : trees[l]->GetRandomStream(), 0);
+          out[l] = LN_RandomFloatInRange(bits, lo[l], hi[l]);
         }
         break;
       }
       case NodeOp::IRandom: {
-        const float unit = LN_RuntimeTree::ColumnHashToUnitFloat(
-            (uint64_t(node.property_ref) << 32) ^ context.tick_index);
+        const uint32_t identity = uint32_t(node.int_value);
+        const uint64_t part = LN_RandomNodePart(
+            LN_GetRandomGameSeed(), identity, context.phase_tick_index);
+        const bool shared = (identity & LN_RANDOM_SAME_FOR_ALL) != 0;
         const int32_t *lo = i(node.a), *hi = i(node.b);
+        const int32_t *seed = i(node.c);
         int32_t *out = i(node.out);
         for (size_t l = 0; l < n; l++) {
-          const int32_t lower = std::min(lo[l], hi[l]);
-          const int32_t upper = std::max(lo[l], hi[l]);
-          out[l] = lower + int32_t(unit * float(upper - lower + 1));
+          const uint64_t bits = LN_RandomBits(
+              part, seed[l], shared ? 0 : trees[l]->GetRandomStream(), 0);
+          out[l] = LN_RandomIntInRange(bits, lo[l], hi[l]);
+        }
+        break;
+      }
+      case NodeOp::IGameSeed:
+        std::fill_n(i(node.out), n, int32_t(LN_GetRandomGameSeed()));
+        break;
+      case NodeOp::BRandom: {
+        const uint32_t identity = uint32_t(node.int_value);
+        const uint64_t part = LN_RandomNodePart(
+            LN_GetRandomGameSeed(), identity, context.phase_tick_index);
+        const bool shared = (identity & LN_RANDOM_SAME_FOR_ALL) != 0;
+        const float *probability = f(node.a);
+        const int32_t *seed = i(node.c);
+        uint8_t *out = b(node.out);
+        for (size_t l = 0; l < n; l++) {
+          const uint64_t bits = LN_RandomBits(
+              part, seed[l], shared ? 0 : trees[l]->GetRandomStream(), 0);
+          out[l] = LN_RandomChance(bits, probability[l]) ? 1 : 0;
         }
         break;
       }
@@ -9303,17 +9484,24 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
         break;
       }
       case NodeOp::VRandom: {
-        /* VectorKind's Random: one hash per axis for the expression and the tick. */
-        const uint64_t seed = (uint64_t(node.property_ref) << 32) ^ context.tick_index;
-        const float hx = LN_RuntimeTree::ColumnHashToUnitFloat(seed ^ 0x13579u);
-        const float hy = LN_RuntimeTree::ColumnHashToUnitFloat(seed ^ 0x24680u);
-        const float hz = LN_RuntimeTree::ColumnHashToUnitFloat(seed ^ 0xabcdefu);
+        /* VectorKind's Random: each axis between its Min and Max, salts 1, 2, 3. */
+        const uint32_t identity = uint32_t(node.int_value);
+        const uint64_t part = LN_RandomNodePart(
+            LN_GetRandomGameSeed(), identity, context.phase_tick_index);
+        const bool shared = (identity & LN_RANDOM_SAME_FOR_ALL) != 0;
+        const float *lx = f(node.position_a.x), *ly = f(node.position_a.y),
+                    *lz = f(node.position_a.z);
+        const float *hx = f(node.position_b.x), *hy = f(node.position_b.y),
+                    *hz = f(node.position_b.z);
+        const int32_t *seed = i(node.c);
         for (size_t l = 0; l < n; l++) {
+          const uint64_t stream = shared ? 0 : trees[l]->GetRandomStream();
           vector3(node,
                   l,
-                  MT_Vector3(f(node.position_a.x)[l] != 0.0f ? hx : 0.0f,
-                             f(node.position_a.y)[l] != 0.0f ? hy : 0.0f,
-                             f(node.position_a.z)[l] != 0.0f ? hz : 0.0f));
+                  MT_Vector3(
+                      LN_RandomFloatInRange(LN_RandomBits(part, seed[l], stream, 1), lx[l], hx[l]),
+                      LN_RandomFloatInRange(LN_RandomBits(part, seed[l], stream, 2), ly[l], hy[l]),
+                      LN_RandomFloatInRange(LN_RandomBits(part, seed[l], stream, 3), lz[l], hz[l])));
         }
         break;
       }
@@ -10029,6 +10217,14 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
         }
         break;
       }
+      case NodeOp::FStepFactor: {
+        const float *factor = f(node.a);
+        float *out = f(node.out);
+        for (size_t l = 0; l < n; l++) {
+          out[l] = LN_StepFactor(factor[l], trees[l]->StepGateStepsCovered(node.property_ref));
+        }
+        break;
+      }
       case NodeOp::SOnce: {
         /* OpTimeFlowControlInstruction's TryOnce. */
         const uint8_t *ran = b(node.a);
@@ -10252,7 +10448,7 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
         switch (LN_FloatCompareOperation(node.compare)) {
           case LN_FloatCompareOperation::Equal:
             for (size_t l = 0; l < n; l++) {
-              out[l] = std::fabs(x[l] - y[l]) <= 1.0e-6f;
+              out[l] = x[l] == y[l] || std::fabs(x[l] - y[l]) <= 1.0e-6f; /* (the VM's) */
             }
             break;
           case LN_FloatCompareOperation::NotEqual:
@@ -10601,7 +10797,16 @@ void LN_ColumnRunner::Impl::RunDirectLane(const size_t index,
 {
   /* The column pass (ExecuteReady: the pass's bookkeeping, the event's compiled route or the
    * column walk of its blocks). A planned tree of any program (plan C2 P6: a lane a run gives
-   * back runs this way too). */
+   * back runs this way too). A lane's snapshot holds only its properties (and its pose when its
+   * column program reads it): made whole first, as the tick's capture makes a pass's (column soak
+   * seed 59527, 2026-11-08: a given-back lane's Time read 0, its stale elapsed time). */
+  if (trees[index]->IsColumnLane()) {
+    const LN_ColumnProgram *program = index < lane_program.size() ? lane_program[index] : nullptr;
+    trees[index]->CompleteColumnLaneSnapshot(read,
+                                             float(context.delta_time),
+                                             context.tick_index,
+                                             program != nullptr && program->needs_owner_transform);
+  }
   trees[index]->ExecuteReady(buffer, context, nullptr);
   direct_ran++;
 }
@@ -10712,9 +10917,16 @@ size_t LN_ColumnRunner::Impl::RunSetBegin(std::vector<uint32_t> &lanes,
     }
     if (needs_lane_owners && !d.lane_owners_made) {
       d.lane_owners.Clear(d.lane_count);
+      d.lane_ancestors.Clear();
       for (size_t index = 0; index < d.trees.size(); index++) {
         if (index < d.lane.size() && d.lane[index] != 0) {
-          d.lane_owners.Insert(d.trees[index]->GetGameObject());
+          KX_GameObject *owner = d.trees[index]->GetGameObject();
+          d.lane_owners.Insert(owner);
+          for (KX_GameObject *at = owner->GetParent(); at != nullptr; at = at->GetParent()) {
+            if (!d.lane_ancestors.Insert(at)) {
+              break; /* (its own parents are in already) */
+            }
+          }
         }
       }
       d.lane_owners_made = true;
@@ -10762,6 +10974,7 @@ size_t LN_ColumnRunner::Impl::RunSetBegin(std::vector<uint32_t> &lanes,
            * the VM's. In a Frame Update the VM refuses Apply Movement / Rotation of a dynamic
            * body (a warning, no command, no stamp). */
           lane_object = lane_object || d.lane_owners.Contains(object) ||
+                        d.lane_ancestors.Contains(object) ||
                         (frame && program->runtime_relative[k] != 0 && object->IsDynamic());
         }
         any_unprotected = any_unprotected || program->runtime_pose_unprotected[k] != 0;

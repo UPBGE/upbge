@@ -245,7 +245,8 @@ JoltVehicle::JoltVehicle(JoltPhysicsController *chassisCtrl,
       m_rightInput(0.0f),
       m_brakeInput(0.0f),
       m_handBrakeInput(0.0f),
-      m_useDriverInput(false)
+      m_driverForwardSet(false),
+      m_driverRightSet(false)
 {
 }
 
@@ -890,7 +891,7 @@ void JoltVehicle::ApplyHandBraking(float braking, int wheelIndex)
 void JoltVehicle::SetForwardInput(float forward)
 {
   m_forwardInput = std::clamp(forward, -1.0f, 1.0f);
-  m_useDriverInput = true;
+  m_driverForwardSet = std::abs(m_forwardInput) > 1.0e-4f;
   if (m_chassisCtrl && std::abs(forward) > 1.0e-4f) {
     m_chassisCtrl->SetActive(true);
   }
@@ -899,7 +900,7 @@ void JoltVehicle::SetForwardInput(float forward)
 void JoltVehicle::SetRightInput(float right)
 {
   m_rightInput = std::clamp(right, -1.0f, 1.0f);
-  m_useDriverInput = true;
+  m_driverRightSet = std::abs(m_rightInput) > 1.0e-4f;
   if (m_chassisCtrl && std::abs(right) > 1.0e-4f) {
     m_chassisCtrl->SetActive(true);
   }
@@ -908,7 +909,6 @@ void JoltVehicle::SetRightInput(float right)
 void JoltVehicle::SetBrakeInput(float brake)
 {
   m_brakeInput = std::clamp(brake, 0.0f, 1.0f);
-  m_useDriverInput = true;
   if (m_chassisCtrl && brake > 1.0e-4f) {
     m_chassisCtrl->SetActive(true);
   }
@@ -917,7 +917,6 @@ void JoltVehicle::SetBrakeInput(float brake)
 void JoltVehicle::SetHandBrakeInput(float handBrake)
 {
   m_handBrakeInput = std::clamp(handBrake, 0.0f, 1.0f);
-  m_useDriverInput = true;
   if (m_chassisCtrl && handBrake > 1.0e-4f) {
     m_chassisCtrl->SetActive(true);
   }
@@ -1837,20 +1836,18 @@ void JoltVehicle::PreStep(float deltaTime)
       }
     }
 
-    /* Apply weighted average for forward and steering per-wheel inputs.
-     * If any normalized driver-input setter (SetForwardInput / SetRightInput /
-     * SetBrakeInput / SetHandBrakeInput) was called this frame, the normalized
-     * path owns forward + steering and the per-wheel fallback is ignored so
-     * the two input models cannot fight. Per-wheel brake / handbrake are
-     * still merged additively via max() below because they have
-     * independent per-wheel semantics. */
-    if (!m_useDriverInput) {
-      if (fwd_total_weight > input_epsilon) {
-        forward_input = std::clamp(fwd_weighted_sum / fwd_total_weight, -1.0f, 1.0f);
-      }
-      if (steer_total_weight > input_epsilon) {
-        right_input = std::clamp(steer_weighted_sum / steer_total_weight, -1.0f, 1.0f);
-      }
+    /* Apply weighted average for forward and steering per-wheel inputs, per channel: a
+     * non-zero normalized input (SetForwardInput / SetRightInput) owns its channel this frame and
+     * the per-wheel value of that channel is ignored, so the two input models cannot fight; a
+     * channel the normalized setters left at 0 takes the per-wheel average (a Vehicle Control
+     * with Throttle 0 no longer cancels an Accelerate or Steer node). Per-wheel brake /
+     * handbrake are merged via max() above because they have independent per-wheel
+     * semantics. */
+    if (!m_driverForwardSet && fwd_total_weight > input_epsilon) {
+      forward_input = std::clamp(fwd_weighted_sum / fwd_total_weight, -1.0f, 1.0f);
+    }
+    if (!m_driverRightSet && steer_total_weight > input_epsilon) {
+      right_input = std::clamp(steer_weighted_sum / steer_total_weight, -1.0f, 1.0f);
     }
 
     forward_input = std::clamp(forward_input, -1.0f, 1.0f);
@@ -1902,7 +1899,8 @@ void JoltVehicle::PreStep(float deltaTime)
     m_rightInput = 0.0f;
     m_brakeInput = 0.0f;
     m_handBrakeInput = 0.0f;
-    m_useDriverInput = false;
+    m_driverForwardSet = false;
+    m_driverRightSet = false;
   }
 
   ClearPerWheelForces();

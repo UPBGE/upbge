@@ -999,7 +999,6 @@ TEST(LN_NodeRegistry, MetadataContractValidationRejectsDuplicateIdnames)
 TEST(LN_NodeRegistry, MetadataContractHidesUnsupportedRuntimeHandlers)
 {
   static const char *unsupported_runtime_idnames[] = {
-      "LogicNativeSetNodeGroupSocketValue",
       "LogicNativePlayMaterialSequence",
       "LogicNativeLoadFileContent",
   };
@@ -1236,7 +1235,6 @@ TEST(LN_NodeRegistry, DataContainerNodesUseCustomCompileDispatch)
       "LogicNativeDictLength",
       "LogicNativeListLength",
       "LogicNativeListGetItem",
-      "LogicNativeListDuplicate",
       "LogicNativeDictMerge",
       "LogicNativeListExtend",
       "LogicNativeDictGetKey",
@@ -1244,7 +1242,6 @@ TEST(LN_NodeRegistry, DataContainerNodesUseCustomCompileDispatch)
       "LogicNativeEmptyDict",
       "LogicNativeDictGetKeys",
       "LogicNativeMakeDict",
-      "LogicNativeMakeList",
   };
 
   for (const char *idname : data_container_idnames) {
@@ -1282,7 +1279,7 @@ TEST(LN_NodeRegistry, Phase5ContentPipelineNodesAreRegisteredWithHandlers)
       "LogicNativePlaySound3D",
       "LogicNativePauseSound",
       "LogicNativeResumeSound",
-      "LogicNativeGetBonePoseRotation",
+      "LogicNativeGetBonePoseTransform",
       "LogicNativeBoneRotationToObjectRotation",
       "LogicNativeSetBonePoseRotation",
       "LogicNativeSetBonePoseTransform",

@@ -24,6 +24,49 @@ import json
 import os
 import sys
 
+# Merged Logic Nodes (2026-11-08): the former node types that became options of a merged node are
+# no node types any more. Tests keep naming them: new_logic_node makes such a name as its merged
+# node holding that option; logic_idname reads a node back as the type it works as.
+_LOGIC_OPTIONS = None
+
+
+def _logic_options():
+    """Former idname -> (merged idname, option identifier), from Blender's merged nodes."""
+    global _LOGIC_OPTIONS
+    import bpy
+    if _LOGIC_OPTIONS is None:
+        _LOGIC_OPTIONS = {}
+        tree = bpy.data.node_groups.new("__logic_options", "LogicNodeTree")
+        try:
+            for name in dir(bpy.types):
+                rna = getattr(getattr(bpy.types, name, None), "bl_rna", None)
+                if (not name.startswith("LogicNative") or rna is None or
+                        "variant_idname" not in rna.properties):
+                    continue
+                node = tree.nodes.new(name)
+                for item in rna.properties["variant"].enum_items:
+                    node.variant = item.identifier
+                    _LOGIC_OPTIONS[node.variant_idname] = (name, item.identifier)
+        finally:
+            bpy.data.node_groups.remove(tree)
+    return _LOGIC_OPTIONS
+
+
+def new_logic_node(nodes, idname):
+    """nodes.new(idname), a former node type made as its merged node."""
+    option = _logic_options().get(idname)
+    if option is None:
+        return nodes.new(idname)
+    node = nodes.new(option[0])
+    node.variant = option[1]
+    return node
+
+
+def logic_idname(node):
+    """The node type a node works as (a merged node's option counts as the former type)."""
+    return getattr(node, "variant_idname", "") or node.bl_idname
+
+
 RIG_FILE = os.path.abspath(__file__)
 CASES = {}
 
@@ -119,6 +162,7 @@ def profile_frame(start=4.0, end=8.0, quit_at=9.0):
 
 def data_counts():
     import bpy
+
     return {name: len(getattr(bpy.data, name)) for name in __DATA_KINDS__}
 
 
@@ -180,10 +224,10 @@ def emission_material(name, color=(1.0, 1.0, 1.0)):
     material.use_nodes = True
     nodes = material.node_tree.nodes
     nodes.clear()
-    emission = nodes.new("ShaderNodeEmission")
+    emission = new_logic_node(nodes, "ShaderNodeEmission")
     emission.inputs["Color"].default_value = (*color, 1.0)
     emission.inputs["Strength"].default_value = 1.0
-    output = nodes.new("ShaderNodeOutputMaterial")
+    output = new_logic_node(nodes, "ShaderNodeOutputMaterial")
     material.node_tree.links.new(emission.outputs["Emission"], output.inputs["Surface"])
     material.diffuse_color = (*color, 1.0)
     return material
@@ -384,10 +428,10 @@ class GpuShapeKeys:
                 add_game_property(ob, "dent", 'FLOAT', 0.0)
                 tree = bpy.data.node_groups.new(name + "Tree", "LogicNodeTree")
                 tree.use_fake_user = True
-                on_update = tree.nodes.new("LogicNativeOnUpdate")
-                get_value = tree.nodes.new("LogicNativeGetGamePropertyFloat")
+                on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+                get_value = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyFloat")
                 get_value.inputs["Property"].default_value = "dent"
-                setter = tree.nodes.new("LogicNativeSetShapeKeyValue")
+                setter = new_logic_node(tree.nodes, "LogicNativeSetShapeKeyValue")
                 setter.inputs["Object"].default_value = ob
                 setter.inputs["Shape Key"].default_value = "Dent"
                 tree.links.new(on_update.outputs["Out"], setter.inputs["Flow"])
@@ -715,8 +759,8 @@ class SceneMerge:
         # Extra: Rock.001 moves, picked in the node's socket (not the tree's object).
         mover = new_object("ExtraLogic", None, collection=extra.collection)
         tree = bpy.data.node_groups.new("MoveRock", "LogicNodeTree")
-        update = tree.nodes.new("LogicNativeOnUpdate")
-        move = tree.nodes.new("LogicNativeApplyMovement")
+        update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+        move = new_logic_node(tree.nodes, "LogicNativeApplyMovement")
         move.inputs["Object"].default_value = bpy.data.objects["Rock.001"]
         move.inputs["Vector"].default_value = (0.03, 0.0, 0.0)
         tree.links.new(update.outputs[0], move.inputs["Flow"])
@@ -725,17 +769,17 @@ class SceneMerge:
         driver = new_object("Driver", None)
         add_game_property(driver, "rock_count", 'INT', -1)
         tree = bpy.data.node_groups.new("MergeTree", "LogicNodeTree")
-        init = tree.nodes.new("LogicNativeOnInit")
-        load = tree.nodes.new("LogicNativeLoadScene")
+        init = new_logic_node(tree.nodes, "LogicNativeOnInit")
+        load = new_logic_node(tree.nodes, "LogicNativeLoadScene")
         load.inputs["Scene"].default_value = "Extra"
         tree.links.new(init.outputs[0], load.inputs["Flow"])
         bind(driver, tree)
         tree = bpy.data.node_groups.new("CountRocks", "LogicNodeTree")
-        update = tree.nodes.new("LogicNativeOnUpdate")
-        members = tree.nodes.new("LogicNativeGetCollectionObjects")
+        update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
+        members = new_logic_node(tree.nodes, "LogicNativeGetCollectionObjects")
         members.inputs["Collection"].default_value = rocks
-        length = tree.nodes.new("LogicNativeListLength")
-        store_count = tree.nodes.new("LogicNativeSetGamePropertyInt")
+        length = new_logic_node(tree.nodes, "LogicNativeListLength")
+        store_count = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyInt")
         store_count.inputs["Object"].default_value = driver
         store_count.inputs["Property"].default_value = "rock_count"
         tree.links.new(update.outputs[0], store_count.inputs["Flow"])
@@ -1107,9 +1151,9 @@ class CopyReuse:
         material.use_nodes = True
         nodes = material.node_tree.nodes
         nodes.clear()
-        info = nodes.new("ShaderNodeObjectInfo")
-        emission = nodes.new("ShaderNodeEmission")
-        output = nodes.new("ShaderNodeOutputMaterial")
+        info = new_logic_node(nodes, "ShaderNodeObjectInfo")
+        emission = new_logic_node(nodes, "ShaderNodeEmission")
+        output = new_logic_node(nodes, "ShaderNodeOutputMaterial")
         material.node_tree.links.new(info.outputs["Color"], emission.inputs["Color"])
         material.node_tree.links.new(emission.outputs["Emission"], output.inputs["Surface"])
         spark = new_object("Spark", box_mesh("SparkMesh"), (0.0, 0.0, -20.0), material)
@@ -1193,15 +1237,15 @@ class OwnMesh:
         camera = add_camera("Cam", (0.0, -20.0, 1.0), (90.0, 0.0, 0.0), ortho_scale=10.0)
         tree = bpy.data.node_groups.new("OwnMeshTree", "LogicNodeTree")
         tree.use_fake_user = True
-        on_init = tree.nodes.new("LogicNativeOnInit")
+        on_init = new_logic_node(tree.nodes, "LogicNativeOnInit")
         for spot, own in (("SpotA", True), ("SpotB", False)):
-            add = tree.nodes.new("LogicNativeAddObject")
+            add = new_logic_node(tree.nodes, "LogicNativeAddObject")
             add.inputs["Object to Add"].default_value = blob
             add.inputs["Copy Transform"].default_value = bpy.data.objects[spot]
             add.inputs["Own Mesh"].default_value = own
             tree.links.new(on_init.outputs["Out"], add.inputs["Flow"])
             if own:
-                setter = tree.nodes.new("LogicNativeSetShapeKeyValue")
+                setter = new_logic_node(tree.nodes, "LogicNativeSetShapeKeyValue")
                 setter.inputs["Shape Key"].default_value = "Dent"
                 setter.inputs["Value"].default_value = 1.0
                 tree.links.new(add.outputs[0], setter.inputs["Flow"])
@@ -1257,12 +1301,12 @@ def object_info_material(name):
     material.use_nodes = True
     nodes = material.node_tree.nodes
     nodes.clear()
-    info = nodes.new("ShaderNodeObjectInfo")
-    split = nodes.new("ShaderNodeSeparateColor")
-    combine = nodes.new("ShaderNodeCombineColor")
+    info = new_logic_node(nodes, "ShaderNodeObjectInfo")
+    split = new_logic_node(nodes, "ShaderNodeSeparateColor")
+    combine = new_logic_node(nodes, "ShaderNodeCombineColor")
     combine.inputs["Blue"].default_value = 0.3
-    emission = nodes.new("ShaderNodeEmission")
-    output = nodes.new("ShaderNodeOutputMaterial")
+    emission = new_logic_node(nodes, "ShaderNodeEmission")
+    output = new_logic_node(nodes, "ShaderNodeOutputMaterial")
     links = material.node_tree.links
     links.new(info.outputs["Color"], split.inputs["Color"])
     links.new(info.outputs["Random"], combine.inputs["Red"])
@@ -1387,16 +1431,16 @@ class AutoSaveLoad:
         add_game_property(camera, "loaded", 'BOOL', False)
         tree = bpy.data.node_groups.new("SaveLoadTree", "LogicNodeTree")
         tree.use_fake_user = True
-        on_update = tree.nodes.new("LogicNativeOnUpdate")
+        on_update = new_logic_node(tree.nodes, "LogicNativeOnUpdate")
         path = os.path.join(settings["OUT"], "auto_checkpoint")
         for prop, node_type in (("do_save", "LogicNativeSaveGame"),
                                 ("do_load", "LogicNativeLoadGame")):
-            get = tree.nodes.new("LogicNativeGetGamePropertyBool")
+            get = new_logic_node(tree.nodes, "LogicNativeGetGamePropertyBool")
             get.inputs["Property"].default_value = prop
-            branch = tree.nodes.new("LogicNativeBranch")
-            act = tree.nodes.new(node_type)
+            branch = new_logic_node(tree.nodes, "LogicNativeBranch")
+            act = new_logic_node(tree.nodes, node_type)
             act.inputs["Path"].default_value = path
-            clear = tree.nodes.new("LogicNativeSetGamePropertyBool")
+            clear = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
             clear.inputs["Property"].default_value = prop
             clear.inputs["Value"].default_value = False
             tree.links.new(on_update.outputs["Out"], branch.inputs["Flow"])
@@ -1404,7 +1448,7 @@ class AutoSaveLoad:
             tree.links.new(branch.outputs["True"], act.inputs["Flow"])
             tree.links.new(act.outputs["Done"], clear.inputs["Flow"])
             if prop == "do_load":
-                mark = tree.nodes.new("LogicNativeSetGamePropertyBool")
+                mark = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyBool")
                 mark.inputs["Property"].default_value = "loaded"
                 tree.links.new(act.outputs["Success"], mark.inputs["Value"])
                 tree.links.new(act.outputs["Done"], mark.inputs["Flow"])

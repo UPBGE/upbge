@@ -111,6 +111,8 @@ Bool::PlayerJoinPulse:
 Bool::PlayerGamepadConnected: I0
 Bool::PlayerGamepadJoined: I0
 Bool::UISoundFired: Q0
+Bool::Random: F3 I5
+Bool::ObjectGamePropertyExists: A0
 Int::Constant:
 Int::SnapshotGameProperty:
 Int::RuntimeTreeProperty:
@@ -126,7 +128,7 @@ Int::ListLength: A0
 Int::LoopIndex:
 Int::DictLength: A0
 Int::FromGenericValue: A0
-Int::Random: I0 I1
+Int::Random: I0 I1 I2
 Int::MaterialSlotCount: A0
 Int::CollisionContactCount: A0 S1 A2
 Int::PhysicsQueryFaceIndex: Q0
@@ -153,6 +155,7 @@ Int::PlayerJoinUser:
 Int::PlayerJoinGamepad:
 Int::PlayerGamepad: I0
 Int::MenuPlayerUser:
+Int::GameRandomSeed:
 Float::Constant:
 Float::UnscaledDeltaTime:
 Float::SnapshotGameProperty:
@@ -183,7 +186,7 @@ Float::Threshold: F0 F1 B3
 Float::RangedThreshold: F0 F1 F2
 Float::VectorComponent: V0
 Float::ColorComponent: C0
-Float::Random: F0 F1
+Float::Random: F0 F1 I2
 Float::Select: B3 F1
 Float::StoreValue:
 Float::SnapshotTimeScale:
@@ -296,7 +299,7 @@ Vector::CollisionHitNormal: A0 S1 A2
 Vector::ConstraintBreakAnchorPosition:
 Vector::EvaluateCurveAtFactor: A0
 Vector::InstructionNextPoint:
-Vector::Random: V0
+Vector::Random: V0 V1 I2
 Vector::TweenVectorResult: B- B- F- B- F- V1 V2
 Vector::TweenRotationResult: R16 B- B- F- B- F- R1 R2
 Vector::QueryVectorAverage: Q0
@@ -545,6 +548,8 @@ Bool::PlayerJoinPulse:
 Bool::PlayerGamepadConnected: I0
 Bool::PlayerGamepadJoined: I0
 Bool::UISoundFired: Q0
+Bool::Random: F3 I5
+Bool::ObjectGamePropertyExists: A0
 Int::Constant:
 Int::SnapshotGameProperty:
 Int::RuntimeTreeProperty:
@@ -560,7 +565,7 @@ Int::ListLength: A0
 Int::LoopIndex:
 Int::DictLength: A0
 Int::FromGenericValue: A0
-Int::Random: I0 I1
+Int::Random: I0 I1 I2
 Int::MaterialSlotCount: A0
 Int::CollisionContactCount: A0 S1 A2
 Int::PhysicsQueryFaceIndex: Q0
@@ -587,6 +592,7 @@ Int::PlayerJoinUser:
 Int::PlayerJoinGamepad:
 Int::PlayerGamepad: I0
 Int::MenuPlayerUser:
+Int::GameRandomSeed:
 Float::Constant:
 Float::UnscaledDeltaTime:
 Float::SnapshotGameProperty:
@@ -617,7 +623,7 @@ Float::Threshold: F0 F1 B3
 Float::RangedThreshold: F0 F1 F2
 Float::VectorComponent: V0
 Float::ColorComponent: C0
-Float::Random: F0 F1
+Float::Random: F0 F1 I2
 Float::Select: B3 F0
 Float::StoreValue:
 Float::SnapshotTimeScale:
@@ -730,7 +736,7 @@ Vector::CollisionHitNormal: A0 S1 A2
 Vector::ConstraintBreakAnchorPosition:
 Vector::EvaluateCurveAtFactor: A0
 Vector::InstructionNextPoint:
-Vector::Random: V0
+Vector::Random: V0 V1 I2
 Vector::TweenVectorResult: B- B- F- B- F- V1 V2
 Vector::TweenRotationResult: R16 B- B- F- B- F- R1 R2
 Vector::QueryVectorAverage: Q0
@@ -918,7 +924,7 @@ Vector::CollisionHitNormal: V16 A0 S1 A2
 Vector::ConstraintBreakAnchorPosition: V16
 Vector::EvaluateCurveAtFactor: V16 A0
 Vector::InstructionNextPoint: V16
-Vector::Random: V16 V0
+Vector::Random: V16 V0 V1 I2
 Vector::TweenVectorResult: V16 B- B- F- B- F- V1 V2
 Vector::TweenRotationResult: B- B- F- B- F- R1 R2
 Vector::QueryVectorAverage: V16 Q0
@@ -981,7 +987,7 @@ Vector::CollisionHitNormal: V16 A0 S1 A2
 Vector::ConstraintBreakAnchorPosition: V16
 Vector::EvaluateCurveAtFactor: V16 A0
 Vector::InstructionNextPoint: V16
-Vector::Random: V16 V0
+Vector::Random: V16 V0 V1 I2
 Vector::TweenVectorResult: V16 B- B- F- B- F- V1 V2
 Vector::TweenRotationResult: B- B- F- B- F- R1 R2
 Vector::QueryVectorAverage: V16 Q0

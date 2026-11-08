@@ -255,6 +255,8 @@ const char *LN_CommandTypeName(const LN_CommandBuffer::CommandType type)
       return "SetGameProperty";
     case LN_CommandBuffer::CommandType::ModifyGameProperty:
       return "ModifyGameProperty";
+    case LN_CommandBuffer::CommandType::EditGameProperty:
+      return "EditGameProperty";
     case LN_CommandBuffer::CommandType::AddObject:
       return "AddObject";
     case LN_CommandBuffer::CommandType::AddObjectFromRef:
