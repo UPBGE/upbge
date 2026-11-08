@@ -41,6 +41,7 @@
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
 #include "wm_window.hh"
+#include "../../blender/windowmanager/intern/wm_window_private.hh"
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -178,6 +179,13 @@ void GPG_Canvas::SwapBuffers()
   if (m_window) {
     blender::wmWindow *win = CTX_wm_window(m_context);
     if (!m_useViewportRender) {
+#ifdef WITH_GHOST_CSD
+  /* Rounded corners, run last so the corners are cut away no matter what covered them
+   * (the title bar at the top, editor areas & the status bar at the bottom). */
+  if (WM_window_is_csd(win)) {
+    WM_window_csd_draw_corner_mask(win);
+  }
+#endif
       /* See wm_draw_update for "chronology" */
       GPU_context_end_frame((GPUContext *)win->runtime->gpuctx);
       GPU_render_end();

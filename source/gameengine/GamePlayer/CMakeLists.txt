@@ -110,6 +110,10 @@ if(WITH_TBB)
   )
 endif()
 
+if(WITH_GHOST_CSD)
+  add_definitions(-DWITH_GHOST_CSD)
+endif()
+
 if(WITH_PYTHON)
   list(APPEND INC_SYS
     ${PYTHON_INCLUDE_DIRS}
