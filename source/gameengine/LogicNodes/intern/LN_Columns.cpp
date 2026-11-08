@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <bit>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -11121,7 +11122,8 @@ size_t LN_ColumnRunner::Impl::RunSetBegin(std::vector<uint32_t> &lanes,
         tree->PrepareStepGates(context.phase_tick_index, context.delta_time, context.unscaled_dt);
       }
       for (uint64_t rest = read_gates; rest != 0; rest &= rest - 1) {
-        const uint32_t gate = uint32_t(__builtin_ctzll(rest));
+        /* (std::countr_zero, not GCC's __builtin_ctzll: MSVC has no such builtin.) */
+        const uint32_t gate = uint32_t(std::countr_zero(rest));
         if (tree->StepGateRuns(gate)) {
           d.lane_due[lane] |= uint64_t(1) << gate;
         }

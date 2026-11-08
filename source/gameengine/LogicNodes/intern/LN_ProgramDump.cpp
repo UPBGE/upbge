@@ -5,7 +5,14 @@
 /** \file
  * Text dump of a compiled LN_Program (lean runtime plan, phase A2). Every struct is written field
  * by field, a field only when it differs from a default-constructed one; the static_asserts
- * below fail when a struct changes size, which means a field was added: add it to the dump. */
+ * below fail when a struct changes size, which means a field was added: add it to the dump.
+ *
+ * The sizes are the ones of GCC's standard library on 64-bit Linux, where the fork is built and
+ * its dump goldens are checked. A struct holding library types has other sizes elsewhere (MSVC's
+ * std::map is 16 bytes, not 48, so LN_Value and LN_ValueExpression are smaller there; MSVC Debug
+ * builds and macOS's libc++ size strings and vectors differently too), so the reminder is checked
+ * only there: one platform is enough to catch a new field. Until 2026-11-08 it was checked
+ * everywhere and failed every Windows build since it was added (2026-11-02). */
 
 #include <sstream>
 #include <string>
@@ -16,6 +23,7 @@
 #include "LN_StrictDump.h"
 #include "LN_Types.h"
 
+#if defined(__GLIBCXX__) && defined(__x86_64__)
 static_assert(sizeof(LN_Instruction) == 188, "LN_Instruction changed: update LN_ProgramDump.cpp");
 static_assert(sizeof(LN_BoolExpression) == 96, "LN_BoolExpression changed: update LN_ProgramDump.cpp");
 static_assert(sizeof(LN_IntExpression) == 32, "LN_IntExpression changed: update LN_ProgramDump.cpp");
@@ -29,6 +37,7 @@ static_assert(sizeof(LN_VectorCommandPayload) == 44, "LN_VectorCommandPayload ch
 static_assert(sizeof(LN_GamePropertyCommandPayload) == 48,
               "LN_GamePropertyCommandPayload changed: update LN_ProgramDump.cpp");
 static_assert(sizeof(LN_StepGate) == 8, "LN_StepGate changed: update LN_ProgramDump.cpp");
+#endif
 
 namespace {
 
