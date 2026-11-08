@@ -2327,8 +2327,54 @@ class WM_OT_blenderplayer_start(Operator):
         # finish the call with the path to the blend file
         args.append(filepath)
 
-        subprocess.call(args)
-        os.remove(filepath)
+        # Use Popen (non-blocking) + timer modal to launch the player.
+        #
+        # Why not subprocess.call (blocking)?
+        # Under Wayland (GNOME/Mutter), blocking the main thread prevents Blender
+        # from committing buffers via eglSwapBuffers. Mutter then considers the
+        # surface "inactive" and shows a "non responsive" popup after ~5s.
+        # With Popen, Blender continues its event loop + commits, staying
+        # "responsive" to the compositor throughout the player session.
+        #
+        # The timer polls the process every 0.1s; when it exits we clean up
+        # the temp file and report any error code.
+        #
+        # Known limitation: if Blender is closed while the player is running,
+        # the modal handler (and thus the cleanup) is lost, leaving the temp
+        # .blend~ file on disk. This is acceptable since it's a temporary file
+        # in the user's project directory.
+        self._process = subprocess.Popen(
+            args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self._filepath = filepath
+
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.1, window=context.window)
+        wm.modal_handler_add(self)
+
+        return {'RUNNING_MODAL'}
+
+    def modal(self, context, event):
+        import os
+        if event.type != 'TIMER':
+            return {'PASS_THROUGH'}
+
+        returncode = self._process.poll()
+        if returncode is None:
+            # Player is still running.
+            return {'RUNNING_MODAL'}
+
+        # Player exited — clean up.
+        try:
+            os.remove(self._filepath)
+        except OSError:
+            pass
+
+        wm = context.window_manager
+        wm.event_timer_remove(self._timer)
+
+        if returncode:
+            self.report({'WARNING'}, "blenderplayer exited with code %d" % returncode)
+
         return {'FINISHED'}
 
 class WM_OT_operator_cheat_sheet(Operator):

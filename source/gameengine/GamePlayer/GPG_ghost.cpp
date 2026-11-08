@@ -1646,6 +1646,7 @@ int main(int argc,
             else {
               win->windowstate = GHOST_kWindowStateNormal;
             }
+
             InitBlenderContextVariables(C);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
             WM_check(C);

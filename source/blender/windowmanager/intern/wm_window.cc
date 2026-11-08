@@ -3819,6 +3819,7 @@ void wm_window_ghostwindow_blenderplayer_ensure(wmWindowManager *wm,
   /* We avoid swap buffers when we aren't at first time
    * to avoid transition when reload or load a new blend */
   if (first_time_window) {
+    wm_window_raise(win);
     wm_window_swap_buffer_release(win);
   }
 }
