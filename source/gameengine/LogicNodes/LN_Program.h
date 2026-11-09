@@ -206,6 +206,12 @@ class LN_Program {
   {
     return m_stepGates;
   }
+  /** How many On Collision nodes have Events = Each Object (AcquireCollisionEventNode): a tree
+   * keeps one LN_RuntimeTree::CollisionEventNodeState for each. */
+  uint32_t GetCollisionEventNodeCount() const
+  {
+    return uint32_t(m_collisionEventNodes.size());
+  }
   /** Where the state of a tree running this program lives (LN_RuntimeTree builds it the first
    * time a tree takes the program, then every tree shares it). Main thread only. */
   const std::shared_ptr<const LN_TreeStateLayout> &CachedTreeStateLayout() const
@@ -282,6 +288,10 @@ class LN_Program {
   /** The gate of an Every N Steps setting: the existing one when another step node has the same
    * setting (they are due on the same steps). */
   uint32_t AddStepGate(const LN_StepGate &gate);
+  /** The index of an On Collision node with Events = Each Object (the same for all its outputs:
+   * LN_CollisionRepeatRoute, the outputs' event node fields). `node_key` (the bNode) is only
+   * compared, while the program is compiled. */
+  uint32_t AcquireCollisionEventNode(const void *node_key);
   void UpdateLoopFrame(uint32_t loop_frame_index, const LN_LoopFrame &loop_frame);
   uint32_t AddBoolExpression(const LN_BoolExpression &expression);
   uint32_t AddFloatExpression(const LN_FloatExpression &expression);
@@ -436,6 +446,8 @@ class LN_Program {
   std::vector<LN_LoopFrame> m_loopFrames;
   std::vector<LN_PauseProcessingRequest> m_pauseProcessingRequests;
   std::vector<LN_StepGate> m_stepGates;
+  /** AcquireCollisionEventNode's keys (never dereferenced). */
+  std::vector<const void *> m_collisionEventNodes;
   mutable std::shared_ptr<const LN_TreeStateLayout> m_treeStateLayout;
   mutable std::shared_ptr<const LN_LeanProgram> m_leanProgram;
   /** TreePropertyOnlySetBySetTreeProperty's answers (1: another op writes it), per ref. */

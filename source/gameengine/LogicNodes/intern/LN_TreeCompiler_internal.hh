@@ -227,6 +227,20 @@ MT_Vector4 ColorExpressionConstantFallback(const LN_Program &program, uint32_t e
 bool LogicPinTypesCompatible(LN_ValueType from_type, LN_ValueType to_type);
 bool LogicPinsCompatible(const LN_PinDefinition &from_pin, const LN_PinDefinition &to_pin);
 std::string AddObjectResultPropertyName(const blender::bNode &node);
+/** On Collision with Events = Each Object (custom1, LN_CollisionEvents): the node's index + 1, the
+ * value every output of the node carries in its event node field (Bool secondary_int_value, Int
+ * and Vector int_value, Value value.int_value), so that inside the node's event routes Collided
+ * Object, Point, Normal and Contact Count describe the run's object. 0: Any Object (or the
+ * program is out of node indexes), the outputs as before. */
+inline int32_t CollisionEventNodeField(LN_Program &program, const blender::bNode &node)
+{
+  if (node.custom1 != int16_t(LN_CollisionEvents::EachObject)) {
+    return 0;
+  }
+  const uint32_t index = program.AcquireCollisionEventNode(&node);
+  return index == LN_INVALID_INDEX ? 0 : int32_t(index) + 1;
+}
+
 /** Inventory node: the tree property that keeps what its last run did. */
 std::string InventoryResultPropertyName(const blender::bNode &node);
 std::string AssignGeometryNodesModifierResultPropertyName(const blender::bNode &node);

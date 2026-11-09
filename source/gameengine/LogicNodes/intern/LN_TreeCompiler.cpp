@@ -926,6 +926,28 @@ static FlowEventsResult BuildPollingRouteFlowEvents(LN_Program &program,
           program.GetQueryExpressions()[fired.input0].runtime_state_index;
     }
   }
+  /* On Collision with Events = Each Object runs an event's route once for every object of the
+   * event (entered, stayed or left), all in the same step: the first in the step's walk, the
+   * others as repeats (LN_RuntimeTree::ColumnWalkEvent). */
+  if (definition.kind == LN_NodeKind::OnCollision &&
+      *condition < program.GetBoolExpressions().size())
+  {
+    const LN_BoolExpression &fired = program.GetBoolExpressions()[*condition];
+    if (fired.secondary_int_value > 0 &&
+        ELEM(fired.kind,
+             LN_BoolExpressionKind::CollisionEnter,
+             LN_BoolExpressionKind::CollisionStay,
+             LN_BoolExpressionKind::CollisionExit))
+    {
+      const LN_CollisionEventKind kind = fired.kind == LN_BoolExpressionKind::CollisionEnter ?
+                                             LN_CollisionEventKind::Enter :
+                                         fired.kind == LN_BoolExpressionKind::CollisionStay ?
+                                             LN_CollisionEventKind::Stay :
+                                             LN_CollisionEventKind::Exit;
+      source_path.ui_event_state_index = LN_CollisionRepeatRoute(
+          uint32_t(fired.secondary_int_value - 1), kind);
+    }
+  }
   FlowEventsResult source_flow;
   source_flow.paths.push_back(source_path);
 

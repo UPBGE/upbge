@@ -148,6 +148,7 @@ blender_add_lib(ge_logic_nodes "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    tests/LN_CollisionEvents_test.cpp
     tests/LN_CommandBuffer_test.cpp
     tests/LN_DenseIds_test.cpp
     tests/LN_EventBus_test.cpp

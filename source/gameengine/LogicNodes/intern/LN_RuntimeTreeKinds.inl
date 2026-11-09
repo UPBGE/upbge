@@ -903,6 +903,30 @@ bool LN_RuntimeTree::BoolKind(In &in,
     case LN_BoolExpressionKind::CollisionEnter:
     case LN_BoolExpressionKind::CollisionStay:
     case LN_BoolExpressionKind::CollisionExit: {
+      if (expression.secondary_int_value > 0) {
+        /* Events = Each Object: true when some object entered (stayed, left) this step; the walk
+         * runs the route once for each of them (ColumnWalkEvent's repeats). */
+        const bool contacts = expression.int_value >=
+                                  static_cast<int>(CollisionResult::Detail::Contacts) ||
+                              expression.bool_value;
+        const CollisionEventNodeState *events = UpdateCollisionEvents(in,
+                                                                      expression.secondary_int_value,
+                                                                      expression.input0,
+                                                                      expression.input1,
+                                                                      expression.input2,
+                                                                      contacts);
+        if (events == nullptr) {
+          return false;
+        }
+        switch (expression.kind) {
+          case LN_BoolExpressionKind::CollisionEnter:
+            return !events->entered.empty();
+          case LN_BoolExpressionKind::CollisionStay:
+            return !events->stayed.empty();
+          default:
+            return !events->exited.empty();
+        }
+      }
       BoolExpressionRuntimeState &state = BoolExpressionState(expression_index);
       if (state.last_update_tick == context.tick_index) {
         return state.cached_result;
@@ -1233,9 +1257,22 @@ int32_t LN_RuntimeTree::IntKind(In &in,
       blender::Object *object = target_object ? target_object->GetBlenderObject() : nullptr;
       return object ? int32_t(object->totcol) : fallback;
     }
-    case LN_IntExpressionKind::CollisionContactCount:
+    case LN_IntExpressionKind::CollisionContactCount: {
+      /* Events = Each Object, inside a run of this node's event: that object's contacts (0 for an
+       * object that left). */
+      LN_CollisionEventKind event_kind = LN_CollisionEventKind::Enter;
+      uint32_t event_cursor = 0;
+      if (ActiveCollisionEventSlot(expression.int_value, event_kind, event_cursor)) {
+        const CollisionEventNodeState *events = UpdateCollisionEvents(
+            in, expression.int_value, expression.input0, expression.input1, expression.input2, true);
+        const int32_t index = events != nullptr ?
+                                  CollisionEventCurrentIndex(*events, event_kind, event_cursor) :
+                                  -1;
+        return index >= 0 && events->contacts ? events->contact_counts[index] : 0;
+      }
       return ResolveCollisionResult(in, expression.input0, expression.input1, expression.input2, CollisionResult::Detail::Contacts)
           .contact_count;
+    }
     case LN_IntExpressionKind::PhysicsQueryFaceIndex:
       return in.Query(expression.input0).physics_query.polygon_index;
     case LN_IntExpressionKind::PhysicsQueryHitCount: {
@@ -2477,19 +2514,30 @@ MT_Vector3 LN_RuntimeTree::VectorKind(In &in,
       return MT_Vector3(x, y, z);
     }
     case LN_VectorExpressionKind::CollisionHitPoint:
+    case LN_VectorExpressionKind::CollisionHitNormal: {
+      const bool normal = expression.kind == LN_VectorExpressionKind::CollisionHitNormal;
+      /* Events = Each Object, inside a run of this node's event: that object's first contact
+       * point / normal (the fallback for an object that left or one without a point). */
+      LN_CollisionEventKind event_kind = LN_CollisionEventKind::Enter;
+      uint32_t event_cursor = 0;
+      if (ActiveCollisionEventSlot(expression.int_value, event_kind, event_cursor)) {
+        const CollisionEventNodeState *events = UpdateCollisionEvents(
+            in, expression.int_value, expression.input0, expression.input1, expression.input2, true);
+        const int32_t index = events != nullptr ?
+                                  CollisionEventCurrentIndex(*events, event_kind, event_cursor) :
+                                  -1;
+        if (index >= 0 && events->contacts && events->has_point[index] != 0) {
+          return normal ? events->normals[index] : events->points[index];
+        }
+        return fallback;
+      }
       if (const CollisionResult &collision_result = ResolveCollisionResult(in, expression.input0, expression.input1, expression.input2, CollisionResult::Detail::Contacts);
           collision_result.hit)
       {
-        return collision_result.hit_point;
+        return normal ? collision_result.hit_normal : collision_result.hit_point;
       }
       return fallback;
-    case LN_VectorExpressionKind::CollisionHitNormal:
-      if (const CollisionResult &collision_result = ResolveCollisionResult(in, expression.input0, expression.input1, expression.input2, CollisionResult::Detail::Contacts);
-          collision_result.hit)
-      {
-        return collision_result.hit_normal;
-      }
-      return fallback;
+    }
     case LN_VectorExpressionKind::ConstraintBreakAnchorPosition:
       if (const LN_RigidBodyConstraintBreakEvent *event = ResolveRigidBodyConstraintBreakEvent(in, expression.input0, expression.input1, expression.input2, expression.rigid_body_constraint_match_mode))
       {
@@ -3647,6 +3695,18 @@ LN_Value LN_RuntimeTree::ValueKind(In &in,
       return MakeNoneValue();
     }
     case LN_ValueExpressionKind::CollisionHitObject: {
+      /* Events = Each Object, inside a run of this node's event: that run's object (none when a
+       * removed object left). Anywhere else the first contact, as before. */
+      LN_CollisionEventKind event_kind = LN_CollisionEventKind::Enter;
+      uint32_t event_cursor = 0;
+      if (ActiveCollisionEventSlot(expression.value.int_value, event_kind, event_cursor)) {
+        const CollisionEventNodeState *events = UpdateCollisionEvents(
+            in, expression.value.int_value, expression.input0, expression.input1, expression.input2, false);
+        KX_GameObject *object = events != nullptr ?
+                                    CollisionEventObject(*events, event_kind, event_cursor) :
+                                    nullptr;
+        return object != nullptr ? MakeObjectValue(this, object) : MakeNoneValue();
+      }
       const CollisionResult &collision_result = ResolveCollisionResult(in, expression.input0, expression.input1, expression.input2, CollisionResult::Detail::Objects);
       if (!collision_result.hit || collision_result.hit_object == nullptr) {
         return MakeNoneValue();
@@ -5644,8 +5704,16 @@ const LN_QueryResult &LN_RuntimeTree::QueryEntry(In &in, const uint32_t expressi
                                    expression.runtime_state_index :
                                    expression_index;
   QueryExpressionRuntimeState &state = QueryExpressionState(state_index);
-  const bool command_ordered_cache = QueryExpressionNeedsCommandOrderedEvaluation(
-                                         expression.kind) &&
+  /* Inside an On Collision Each Object route a Projectile Ray kept for the tick would give each
+   * object's run the answer of the first read (or of the warm-up, made before any run): there it
+   * is taken again for each instruction, as the command-ordered queries are. Its copy kept for
+   * the tick is not trusted then: `cached_command_ordered` differs, so a later read outside such
+   * a route takes it again. */
+  const bool per_collision_event = m_collisionEventRoute != LN_INVALID_INDEX &&
+                                   expression.kind == LN_QueryExpressionKind::ProjectileRay;
+  const bool command_ordered_cache = (QueryExpressionNeedsCommandOrderedEvaluation(
+                                          expression.kind) ||
+                                      per_collision_event) &&
                                      context.command_buffer != nullptr &&
                                      context.command_execution_key != UINT64_MAX;
   /* A Get Distance between fixed ends (the owner, a named object, a constant position) gives

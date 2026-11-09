@@ -929,6 +929,8 @@ case LN_NodeKind::GetGamePropertyBool:
                                                                               color_expression_cache,
                                                                               value_expression_cache);
       const int event_payload_detail = CollisionOutputPayloadDetail(node, input_links);
+      /* Events = Each Object: the node's index + 1 in every output (CollisionEventNodeField). */
+      const int32_t event_node = CollisionEventNodeField(program, node);
       if (NamesMatch(output_socket.name, output_socket.identifier, "Colliding") ||
           NamesMatch(output_socket.name, output_socket.identifier, "On Collision"))
       {
@@ -950,6 +952,7 @@ case LN_NodeKind::GetGamePropertyBool:
         expression.kind = LN_BoolExpressionKind::CollisionEnter;
         expression.int_value = event_payload_detail;
         expression.bool_value = event_payload_detail == 2;
+        expression.secondary_int_value = event_node;
         if (object_expr) {
           expression.input0 = *object_expr;
         }
@@ -966,6 +969,7 @@ case LN_NodeKind::GetGamePropertyBool:
         expression.kind = LN_BoolExpressionKind::CollisionStay;
         expression.int_value = event_payload_detail;
         expression.bool_value = event_payload_detail == 2;
+        expression.secondary_int_value = event_node;
         if (object_expr) {
           expression.input0 = *object_expr;
         }
@@ -982,6 +986,7 @@ case LN_NodeKind::GetGamePropertyBool:
         expression.kind = LN_BoolExpressionKind::CollisionExit;
         expression.int_value = event_payload_detail;
         expression.bool_value = event_payload_detail == 2;
+        expression.secondary_int_value = event_node;
         if (object_expr) {
           expression.input0 = *object_expr;
         }
@@ -996,6 +1001,7 @@ case LN_NodeKind::GetGamePropertyBool:
       else if (NamesMatch(output_socket.name, output_socket.identifier, "Collided Object")) {
         LN_ValueExpression expression;
         expression.kind = LN_ValueExpressionKind::CollisionHitObject;
+        expression.value.int_value = event_node;
         if (object_expr) {
           expression.input0 = *object_expr;
         }
@@ -1035,6 +1041,7 @@ case LN_NodeKind::GetGamePropertyBool:
       else if (NamesMatch(output_socket.name, output_socket.identifier, "Contact Count")) {
         LN_IntExpression expression;
         expression.kind = LN_IntExpressionKind::CollisionContactCount;
+        expression.int_value = event_node;
         if (object_expr) {
           expression.input0 = *object_expr;
         }
@@ -1049,6 +1056,7 @@ case LN_NodeKind::GetGamePropertyBool:
       else if (NamesMatch(output_socket.name, output_socket.identifier, "Point")) {
         LN_VectorExpression expression;
         expression.kind = LN_VectorExpressionKind::CollisionHitPoint;
+        expression.int_value = event_node;
         if (object_expr) {
           expression.input0 = *object_expr;
         }
@@ -1063,6 +1071,7 @@ case LN_NodeKind::GetGamePropertyBool:
       else if (NamesMatch(output_socket.name, output_socket.identifier, "Normal")) {
         LN_VectorExpression expression;
         expression.kind = LN_VectorExpressionKind::CollisionHitNormal;
+        expression.int_value = event_node;
         if (object_expr) {
           expression.input0 = *object_expr;
         }

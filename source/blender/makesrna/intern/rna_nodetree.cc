@@ -7163,6 +7163,37 @@ static void def_logic_distance_between(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
+static void def_logic_collision_events(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  /* LN_CollisionEvents (LN_Types.h). New nodes start on Each Object (the node's init); older
+   * nodes hold 0, Any Object. */
+  static const EnumPropertyItem collision_events_items[] = {
+      {1,
+       "EACH_OBJECT",
+       0,
+       "Each Object",
+       "On Enter, On Stay and On Exit run once for every object that arrives, stays or leaves, "
+       "all in the same step; inside each run Collided Object, Contact Count, Point and Normal "
+       "tell about that object (an object removed while touching leaves with no Collided "
+       "Object)"},
+      {0,
+       "ANY_OBJECT",
+       0,
+       "Any Object",
+       "On Enter runs once when the first object arrives, On Exit once when the last one leaves, "
+       "On Stay once a step while anything touches; Collided Object is the first contact"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  PropertyRNA *prop = RNA_def_property(srna, "events", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, collision_events_items);
+  RNA_def_property_ui_text(prop, "Events", "Which touches On Enter, On Stay and On Exit report");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+}
+
 static void def_logic_average_center_position(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem source_type_items[] = {
@@ -14349,7 +14380,7 @@ static void rna_def_nodes(BlenderRNA *brna)
          def_logic_rigid_body_constraint_match_mode);
   define("LogicNode", "LogicNativeSetRigidBodyAttribute", def_logic_set_rigid_body_attribute);
   define("LogicNode", "LogicNativeAnimationStatus");
-  define("LogicNode", "LogicNativeOnCollision");
+  define("LogicNode", "LogicNativeOnCollision", def_logic_collision_events);
   define("LogicNode", "LogicNativeCopyProperty");
   define("LogicNode", "LogicNativeObjectsColliding");
   define("LogicNode", "LogicNativeSetMaterialSlot", def_logic_material_datablock);

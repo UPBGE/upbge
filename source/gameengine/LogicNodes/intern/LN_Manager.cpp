@@ -966,6 +966,18 @@ void LN_Manager::AbsorbRuntimeTreesFrom(LN_Manager &other)
                             std::make_move_iterator(other.m_actionOperations.begin()),
                             std::make_move_iterator(other.m_actionOperations.end()));
   other.m_actionOperations.clear();
+  /* On Collision's Each Object states name objects by handles, renumbered below: they hold the
+   * objects themselves meanwhile (each tree with the manager that made its handles). */
+  for (std::unique_ptr<LN_RuntimeTree> &runtime_tree : m_runtimeTrees) {
+    if (runtime_tree != nullptr) {
+      runtime_tree->HoldCollisionIdentitiesAsObjects();
+    }
+  }
+  for (std::unique_ptr<LN_RuntimeTree> &runtime_tree : other.m_runtimeTrees) {
+    if (runtime_tree != nullptr) {
+      runtime_tree->HoldCollisionIdentitiesAsObjects();
+    }
+  }
   for (std::unique_ptr<LN_RuntimeTree> &runtime_tree : other.m_runtimeTrees) {
     bool runtime_active = false;
     const int scene_object_index = FindSceneObjectIndex(runtime_tree->GetGameObject(),
@@ -992,6 +1004,7 @@ void LN_Manager::AbsorbRuntimeTreesFrom(LN_Manager &other)
     if (runtime_tree != nullptr) {
       runtime_tree->BindDenseIds(m_denseIds);
       runtime_tree->SetLogicManager(this);
+      runtime_tree->RenewCollisionIdentities();
     }
   }
   RebuildRuntimeTreeIndexes();

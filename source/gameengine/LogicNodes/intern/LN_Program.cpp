@@ -3736,6 +3736,24 @@ uint32_t LN_Program::AddStepGate(const LN_StepGate &gate)
   return uint32_t(m_stepGates.size() - 1);
 }
 
+uint32_t LN_Program::AcquireCollisionEventNode(const void *node_key)
+{
+  for (uint32_t index = 0; index < m_collisionEventNodes.size(); index++) {
+    if (m_collisionEventNodes[index] == node_key) {
+      return index;
+    }
+  }
+  if (m_collisionEventNodes.size() >= LN_MAX_COLLISION_EVENT_NODES) {
+    return LN_INVALID_INDEX;
+  }
+  /* A program grown after a tree took it (tests): what was worked out from the old one goes. */
+  m_leanProgram.reset();
+  m_treeBatchProfile.reset();
+  LN_NoteProgramsChanged();
+  m_collisionEventNodes.push_back(node_key);
+  return uint32_t(m_collisionEventNodes.size() - 1);
+}
+
 uint32_t LN_Program::AddSourceRef(const LN_SourceRef &source_ref)
 {
   const uint32_t index = uint32_t(m_sourceRefs.size());
@@ -6372,10 +6390,18 @@ void LN_Program::ValidateInstructionPayloadCollection(
     check_index(payload.loop_frame_index, m_loopFrames.size(), index, "loop frame");
     check_index(
         payload.completed_loop_frame_index, m_loopFrames.size(), index, "completed loop frame");
-    check_index(payload.ui_event_state_index,
-                m_queryRuntimeStateCount,
-                index,
-                "On UI Event query state");
+    if (LN_IsCollisionRepeatRoute(payload.ui_event_state_index)) {
+      check_index(LN_CollisionRepeatRouteNode(payload.ui_event_state_index),
+                  m_collisionEventNodes.size(),
+                  index,
+                  "On Collision Each Object node");
+    }
+    else {
+      check_index(payload.ui_event_state_index,
+                  m_queryRuntimeStateCount,
+                  index,
+                  "On UI Event query state");
+    }
 
     if (OpcodeUsesVectorCommandPayload(payload.opcode)) {
       if (payload.command_payload_index >= m_vectorCommandPayloads.size()) {

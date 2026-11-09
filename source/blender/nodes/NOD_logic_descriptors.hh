@@ -5775,7 +5775,8 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeOnCollision",
    "Events",
    "On Collision",
-   "Pulse when a collision starts, continues, or ends against optional property and material filters",
+   "Runs On Enter, On Stay and On Exit when objects start, keep or stop touching (Events: once "
+   "for each object, or once for any), with optional property and material filters",
    pin_span(collision_inputs),
    pin_span(collision_event_outputs),
    false,

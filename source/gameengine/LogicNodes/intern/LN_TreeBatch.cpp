@@ -827,6 +827,12 @@ LN_TreeBatchProfile LN_AnalyzeTreeBatchSafety(const LN_Program &program)
   if (program.HasUIEventRoutes()) {
     return refuse("UI event routes");
   }
+  /* On Collision, Events = Each Object: its state compares objects by the manager's handles,
+   * made on the main thread (its kinds are not on the allow lists either: this holds if one
+   * is ever added). */
+  if (program.GetCollisionEventNodeCount() > 0) {
+    return refuse("On Collision Each Object events");
+  }
 
   const char *reason = first_refusal(program.GetBoolExpressions(), bool_kind_refusal);
   if (reason == nullptr) {

@@ -9,6 +9,8 @@
 #pragma once
 
 #include "BLI_function_ref.hh"
+#include "BLI_map.hh"
+#include "BLI_set.hh"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -44,12 +46,20 @@ class PHY_IPhysicsController;
 class PHY_IVehicle;
 struct PHY_RayQuerySettings;
 struct PHY_ShapeCastSettings;
+struct PHY_CachedCollisionContact;
 struct LN_RigidBodyConstraintBreakEvent;
 
 namespace blender {
 struct Collection;
 struct ID;
 }  // namespace blender
+
+/** Tests only (the unit tests have no physics): the contacts each owner touches, read by every
+ * collision node instead of the physics environment's cache (an owner not in the map touches
+ * nothing). nullptr (the default): the environment. Set before a tick, cleared after the test. */
+using LN_CollisionContactsForTests =
+    std::unordered_map<const KX_GameObject *, std::vector<const PHY_CachedCollisionContact *>>;
+void LN_SetCollisionContactsForTests(const LN_CollisionContactsForTests *contacts);
 
 /** Forget all Global Properties and which categories were read from disk. Called when a game
  * launch starts; the values persist across restarts and scene changes within one launch. */
@@ -515,6 +525,13 @@ class LN_RuntimeTree {
   void SetProgram(std::shared_ptr<const LN_Program> program);
   void SetLogicManager(LN_Manager *logic_manager);
   void BindDenseIds(LN_DenseIdRegistry &registry);
+  /** A scene merge (LN_Manager::AbsorbRuntimeTreesFrom) renumbers the manager's object handles,
+   * which On Collision's Each Object states use as identities: before it, while the tree still
+   * has its old manager, they become the objects themselves (a removed object none), and after
+   * it, with the new manager, handles again. So the objects touching across the merge stay, and
+   * no Exit and Enter fire for them. Main thread. */
+  void HoldCollisionIdentitiesAsObjects();
+  void RenewCollisionIdentities();
   LN_RuntimeRef MakeObjectRef(KX_GameObject *gameobj, const std::string &debug_name = "");
   KX_GameObject *ResolveObjectRef(const LN_RuntimeRef &runtime_ref) const;
   /** Convert references to tree-independent form before storing a value where other trees read
@@ -967,9 +984,17 @@ class LN_RuntimeTree {
     bool hit = false;
     KX_GameObject *owner = nullptr;
     KX_GameObject *hit_object = nullptr;
+    /** Each touching object once, in contact order (from Detail::Objects). */
     std::vector<KX_GameObject *> hit_objects;
     std::vector<MT_Vector3> hit_points;
     std::vector<MT_Vector3> hit_normals;
+    /** Detail::Contacts: for each entry of hit_objects, its summed contact count and its first
+     * contact point and normal (On Collision's Each Object events give them per object). Kept
+     * parallel to hit_objects by every change of it (InvalidateObjectRef's scrub). */
+    std::vector<int32_t> object_contact_counts;
+    std::vector<MT_Vector3> object_points;
+    std::vector<MT_Vector3> object_normals;
+    std::vector<uint8_t> object_has_point;
     std::string property_filter;
     std::string material_filter;
     int32_t contact_count = 0;
@@ -977,6 +1002,9 @@ class LN_RuntimeTree {
     MT_Vector3 hit_normal = MT_Vector3(0.0f, 0.0f, 0.0f);
     Detail detail = Detail::StateOnly;
     uint64_t cached_tick = UINT64_MAX;
+    /** Its hit was handed to the exit payload (StoreCollisionEventPayload), by the first read
+     * that keeps one (Any Object's; Each Object's reads keep none). */
+    bool payload_stored = false;
   };
 
   struct CollisionEventPayload {
@@ -988,6 +1016,37 @@ class LN_RuntimeTree {
     std::vector<LN_RuntimeRef> hit_object_refs;
     uint64_t last_hit_tick = UINT64_MAX;
     uint64_t exit_tick = UINT64_MAX;
+  };
+
+  /**
+   * An On Collision node with Events = Each Object (one per LN_Program::AcquireCollisionEventNode
+   * index), worked out once a tick by UpdateCollisionEvents: which objects touch now (in contact
+   * order, as Collided Objects), which of them started touching (entered) or touched at the last
+   * update too (stayed), and which objects of the last update touch no more (exited). Objects are
+   * compared by identity (CollisionObjectIdentity: the manager's dense handle, so a new object at
+   * a removed one's address is a new object), never by address alone. Main thread only (the
+   * handles): programs with these routes never join tree batches nor wide column runs.
+   */
+  struct CollisionEventNodeState {
+    uint64_t tick = UINT64_MAX;
+    /** Per-object contact info of `current` worked out this tick. */
+    bool contacts = false;
+    /** The identities of the objects touching at the last update. */
+    std::vector<uint64_t> previous;
+    std::vector<KX_GameObject *> current;
+    std::vector<uint64_t> current_ids;
+    /** Indices into `current`, in contact order. */
+    std::vector<uint32_t> entered;
+    std::vector<uint32_t> stayed;
+    /** Identities of `previous` no longer touching, in their old order (resolved per read: a
+     * removed object gives none). */
+    std::vector<uint64_t> exited;
+    /** With `contacts`: each current object's summed contact count and its first contact point
+     * and normal (as ResolveCollisionResult's Contact Count / Point / Normal of the object alone). */
+    std::vector<int32_t> contact_counts;
+    std::vector<MT_Vector3> points;
+    std::vector<MT_Vector3> normals;
+    std::vector<uint8_t> has_point;
   };
 
   template<class In>
@@ -1375,7 +1434,36 @@ class LN_RuntimeTree {
                   uint32_t property_expr_index,
                   uint32_t material_expr_index,
                   CollisionResult::Detail detail = CollisionResult::Detail::StateOnly,
-                  bool allow_exit_payload = true);
+                  bool allow_exit_payload = true,
+                  bool store_payload = true);
+  /** On Collision with Events = Each Object: the node's state for this tick (made at the first
+   * call of a tick: one compare with the last update). `node_field` is the outputs' event node
+   * field (index + 1); `contacts` asks for each object's contact info too. */
+  template<class In>
+  const CollisionEventNodeState *UpdateCollisionEvents(In &in,
+                                                       int32_t node_field,
+                                                       uint32_t object_expr_index,
+                                                       uint32_t property_expr_index,
+                                                       uint32_t material_expr_index,
+                                                       bool contacts);
+  /** The run of an Each Object event route being walked (ColumnWalkEvent): its object's index in
+   * `state`'s lists, or false when no run of this node's events is active. */
+  bool ActiveCollisionEventSlot(int32_t node_field, LN_CollisionEventKind &r_kind, uint32_t &r_cursor) const;
+  KX_GameObject *CollisionEventObject(const CollisionEventNodeState &state,
+                                      LN_CollisionEventKind kind,
+                                      uint32_t cursor) const;
+  /** The run's object's index in `state.current` (its contact info), -1 for an exit (no contact
+   * left) or a cursor past the event's objects. */
+  static int32_t CollisionEventCurrentIndex(const CollisionEventNodeState &state,
+                                            LN_CollisionEventKind kind,
+                                            uint32_t cursor);
+  /** The contacts the logic reads for `owner` this step (the physics environment's cache, or the
+   * tests' contacts: LN_SetCollisionContactsForTests). */
+  bool CachedCollisionContacts(KX_GameObject *owner,
+                               bool collect_contacts,
+                               const std::vector<const PHY_CachedCollisionContact *> *&r_contacts) const;
+  uint64_t CollisionObjectIdentity(KX_GameObject *object);
+  KX_GameObject *ResolveCollisionObjectIdentity(uint64_t identity) const;
   template<class In>
   bool ResolveRigidBodyConstraintBreakEventQuery(In &in,
                   uint32_t object_expr_index,
@@ -1618,7 +1706,30 @@ class LN_RuntimeTree {
   std::vector<CollisionResult> m_collisionResults;
   std::vector<CollisionEventPayload> m_collisionEventPayloads;
   CollisionResult m_collisionExitPayloadScratch;
+  /** ResolveCollisionResult's object -> hit_objects index, once a result lists more objects than
+   * a short scan pays for (kept between ticks: no allocation per tick). */
+  blender::Map<const KX_GameObject *, uint32_t> m_collisionIndexScratch;
+  /** UpdateCollisionEvents' identity lookup past a short scan, kept between ticks. */
+  blender::Set<uint64_t> m_collisionIdentityScratch;
+  /** Each Object On Collision nodes, by node index (resized on first use; reset with the
+   * program). */
+  std::vector<CollisionEventNodeState> m_collisionEventNodes;
+  /** The Each Object event route the walk runs now (its repeat key) and which object of the
+   * event (0 in the step's walk, 1... in the repeats); LN_INVALID_INDEX outside such routes. */
+  uint32_t m_collisionEventRoute = LN_INVALID_INDEX;
+  uint32_t m_collisionEventCursor = 0;
+  /** Between HoldCollisionIdentitiesAsObjects and RenewCollisionIdentities: the states'
+   * `previous` hold object addresses. */
+  bool m_collisionIdentitiesHeld = false;
   std::vector<ObjectRefSlot> m_objectRefs;
+  /** MakeObjectRef's object -> slot, kept once the tree holds more than kObjectRefShortScan
+   * slots (each object's ref was found by a scan of every slot: listing 4,000 touching objects
+   * as Collided Objects took 2.7 ms a step, 2026-11-09). */
+  blender::Map<const KX_GameObject *, uint32_t> m_objectRefIndex;
+  bool m_objectRefsIndexed = false;
+  /** The slots InvalidateObjectRef emptied, as a min-heap: a new object takes the lowest, as the
+   * scan for the first empty slot gave it. */
+  std::vector<uint32_t> m_freeObjectRefSlots;
   /** ResolveConstantObject's memory, one entry per Constant Object expression this tree read. */
   struct ConstantObjectEntry {
     uint32_t expression_index = LN_INVALID_INDEX;

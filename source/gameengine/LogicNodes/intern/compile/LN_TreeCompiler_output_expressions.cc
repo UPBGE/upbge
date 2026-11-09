@@ -1299,6 +1299,7 @@ std::optional<uint32_t> BuildOutputIntExpression(
                                                                               try_value_cache);
       LN_IntExpression expression;
       expression.kind = LN_IntExpressionKind::CollisionContactCount;
+      expression.int_value = CollisionEventNodeField(program, node);
       if (object_expr) {
         expression.input0 = *object_expr;
       }
@@ -2656,6 +2657,7 @@ std::optional<uint32_t> BuildOutputVectorExpression(
       LN_VectorExpression expression;
       expression.kind = point_output ? LN_VectorExpressionKind::CollisionHitPoint :
                                       LN_VectorExpressionKind::CollisionHitNormal;
+      expression.int_value = CollisionEventNodeField(program, node);
       if (object_expr) {
         expression.input0 = *object_expr;
       }
@@ -3601,6 +3603,7 @@ std::optional<uint32_t> BuildOutputValueExpression(
       LN_ValueExpression expression;
       if (collided_object_output) {
         expression.kind = LN_ValueExpressionKind::CollisionHitObject;
+        expression.value.int_value = CollisionEventNodeField(program, node);
       }
       else if (collided_objects_output) {
         expression.kind = LN_ValueExpressionKind::CollisionHitObjects;

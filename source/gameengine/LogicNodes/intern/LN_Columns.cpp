@@ -895,6 +895,14 @@ namespace {
 
 bool column_native_rays_on();
 
+/** Why a route that runs again for each further event of a tick (an op's repeat key) keeps its
+ * event out of columns: the walk's repeats (LN_RuntimeTree::ColumnWalkEvent) have no lanes. */
+std::string RepeatRouteRefusal(const uint32_t repeat_key)
+{
+  return LN_IsCollisionRepeatRoute(repeat_key) ? "an On Collision Each Object route" :
+                                                 "a UI event route";
+}
+
 /** The ops the bridge (plan C1-8) runs through the VM's handler: they read, keep their own tree's
  * state and record commands, and change nothing of the scene while trees record (no Add Object,
  * no parenting, no scene, file, window, camera or UI change, no Run Logic Tree queue). Moves have
@@ -4870,7 +4878,7 @@ bool ColumnCompiler::CompileLoopBlock(const LN_ExecBlockProgram &ir,
   for (uint32_t op = block.first_op; op < block.first_op + block.op_count; op++) {
     const LN_ExecOp &exec = ir.ops[op];
     if (exec.ui_event_state_index != kNone) {
-      return Refuse("a UI event route");
+      return Refuse(RepeatRouteRefusal(exec.ui_event_state_index));
     }
     if (exec.instruction_index >= headers.size()) {
       return Refuse("an op without its instruction");
@@ -5339,7 +5347,7 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
     return refuse("the event has no ops");
   }
   if (!ir.ui_event_states.empty()) {
-    return refuse("a UI event route");
+    return refuse(RepeatRouteRefusal(ir.ui_event_states.front()));
   }
   if (lean_event.ops.size() != ir.ops.size()) {
     return refuse("no lean ops");
@@ -5506,7 +5514,7 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
       break;
     }
     if (exec.ui_event_state_index != kNone) {
-      Refuse("a UI event route");
+      Refuse(RepeatRouteRefusal(exec.ui_event_state_index));
       break;
     }
     if (exec.instruction_index >= headers.size()) {
@@ -7940,6 +7948,11 @@ std::string LN_ColumnRefusalHint(const std::string &reason)
   }
   if (has("UI event route")) {
     return "UI event routes run alone: keep UI logic in a tree of its own.";
+  }
+  if (has("On Collision Each Object route")) {
+    return "On Collision with Events: Each Object runs its tree alone: on many objects, keep "
+           "that node in a small tree of its own, or use Any Object where one event a step is "
+           "enough.";
   }
   return std::string();
 }

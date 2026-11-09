@@ -4956,6 +4956,9 @@ void LN_RuntimeTree::SetProgram(std::shared_ptr<const LN_Program> program)
   m_program = std::move(program);
   RefreshOptimizedPathEligibility();
   m_initExecuted = false;
+  /* Each Object collision nodes are numbered per program: another program's touching objects
+   * mean nothing here (the same tree's new compile, above, numbers them alike and keeps them). */
+  m_collisionEventNodes.clear();
   m_snapshotTick = UINT64_MAX;
   m_queryCacheWarmTick = UINT64_MAX;
   m_executionScopeSerial = 0;
@@ -4966,57 +4969,78 @@ void LN_RuntimeTree::SetProgram(std::shared_ptr<const LN_Program> program)
   m_activeLoopBodyFrame = LN_INVALID_INDEX;
 }
 
+/* Object ref slots a tree scans for an object before it keeps an object -> slot map
+ * (MakeObjectRef). */
+static constexpr size_t kObjectRefShortScan = 16;
+
 LN_RuntimeRef LN_RuntimeTree::MakeObjectRef(KX_GameObject *gameobj, const std::string &debug_name)
 {
+  LN_RuntimeRef runtime_ref;
+  runtime_ref.kind = LN_RuntimeRefKind::Object;
   if (gameobj == nullptr) {
-    LN_RuntimeRef runtime_ref;
-    runtime_ref.kind = LN_RuntimeRefKind::Object;
     runtime_ref.debug_name = debug_name;
     return runtime_ref;
   }
 
-  for (uint32_t index = 0; index < m_objectRefs.size(); index++) {
-    ObjectRefSlot &slot = m_objectRefs[index];
-    if (slot.object == gameobj) {
-      LN_RuntimeRef runtime_ref;
-      runtime_ref.kind = LN_RuntimeRefKind::Object;
-      runtime_ref.slot = index;
-      runtime_ref.generation = slot.generation;
-      runtime_ref.debug_name = slot.debug_name;
-      return runtime_ref;
+  /* The object's slot: a scan of a few, the map past that. */
+  uint32_t found = LN_INVALID_INDEX;
+  if (m_objectRefsIndexed) {
+    if (const uint32_t *index = m_objectRefIndex.lookup_ptr(gameobj)) {
+      found = *index;
     }
   }
-
-  for (uint32_t index = 0; index < m_objectRefs.size(); index++) {
-    ObjectRefSlot &slot = m_objectRefs[index];
-    if (slot.object == nullptr) {
-      slot.object = gameobj;
-      slot.generation++;
-      slot.debug_name = debug_name;
-      if (m_logicManager != nullptr) {
-        m_logicManager->RegisterRuntimeObjectRef(this, gameobj);
+  else {
+    for (uint32_t index = 0; index < m_objectRefs.size(); index++) {
+      if (m_objectRefs[index].object == gameobj) {
+        found = index;
+        break;
       }
-
-      LN_RuntimeRef runtime_ref;
-      runtime_ref.kind = LN_RuntimeRefKind::Object;
-      runtime_ref.slot = index;
-      runtime_ref.generation = slot.generation;
-      runtime_ref.debug_name = slot.debug_name;
-      return runtime_ref;
     }
   }
+  if (found != LN_INVALID_INDEX) {
+    const ObjectRefSlot &slot = m_objectRefs[found];
+    runtime_ref.slot = found;
+    runtime_ref.generation = slot.generation;
+    runtime_ref.debug_name = slot.debug_name;
+    return runtime_ref;
+  }
 
-  ObjectRefSlot slot;
-  slot.object = gameobj;
-  slot.debug_name = debug_name;
-  m_objectRefs.push_back(slot);
+  /* A new object: the lowest slot an invalidation emptied, else a new slot. */
+  uint32_t index;
+  if (!m_freeObjectRefSlots.empty()) {
+    std::pop_heap(
+        m_freeObjectRefSlots.begin(), m_freeObjectRefSlots.end(), std::greater<uint32_t>());
+    index = m_freeObjectRefSlots.back();
+    m_freeObjectRefSlots.pop_back();
+    ObjectRefSlot &slot = m_objectRefs[index];
+    slot.object = gameobj;
+    slot.generation++;
+    slot.debug_name = debug_name;
+  }
+  else {
+    index = uint32_t(m_objectRefs.size());
+    ObjectRefSlot &slot = m_objectRefs.emplace_back();
+    slot.object = gameobj;
+    slot.debug_name = debug_name;
+  }
+  if (m_objectRefsIndexed) {
+    m_objectRefIndex.add_new(gameobj, index);
+  }
+  else if (m_objectRefs.size() > kObjectRefShortScan) {
+    m_objectRefIndex.clear();
+    for (uint32_t listed = 0; listed < m_objectRefs.size(); listed++) {
+      if (m_objectRefs[listed].object != nullptr) {
+        m_objectRefIndex.add_new(m_objectRefs[listed].object, listed);
+      }
+    }
+    m_objectRefsIndexed = true;
+  }
   if (m_logicManager != nullptr) {
     m_logicManager->RegisterRuntimeObjectRef(this, gameobj);
   }
 
-  LN_RuntimeRef runtime_ref;
-  runtime_ref.kind = LN_RuntimeRefKind::Object;
-  runtime_ref.slot = uint32_t(m_objectRefs.size() - 1);
+  const ObjectRefSlot &slot = m_objectRefs[index];
+  runtime_ref.slot = index;
   runtime_ref.generation = slot.generation;
   runtime_ref.debug_name = slot.debug_name;
   return runtime_ref;
@@ -5080,7 +5104,20 @@ void LN_RuntimeTree::InvalidateObjectRef(KX_GameObject *gameobj)
     if (result.hit_object == gameobj) {
       result.hit_object = nullptr;
     }
-    std::erase(result.hit_objects, gameobj);
+    /* Each object is listed once; its per-object contact info goes with it. */
+    for (size_t index = 0; index < result.hit_objects.size(); index++) {
+      if (result.hit_objects[index] != gameobj) {
+        continue;
+      }
+      result.hit_objects.erase(result.hit_objects.begin() + index);
+      if (index < result.object_contact_counts.size()) {
+        result.object_contact_counts.erase(result.object_contact_counts.begin() + index);
+        result.object_points.erase(result.object_points.begin() + index);
+        result.object_normals.erase(result.object_normals.begin() + index);
+        result.object_has_point.erase(result.object_has_point.begin() + index);
+      }
+      break;
+    }
     if (result.hit_object == nullptr && !result.hit_objects.empty()) {
       result.hit_object = result.hit_objects.front();
     }
@@ -5095,13 +5132,31 @@ void LN_RuntimeTree::InvalidateObjectRef(KX_GameObject *gameobj)
     scrubCollisionResult(result);
   }
   scrubCollisionResult(m_collisionExitPayloadScratch);
+  /* This tick's Each Object lists (their identities stay: the next update compares them). */
+  for (CollisionEventNodeState &state : m_collisionEventNodes) {
+    std::replace(state.current.begin(), state.current.end(), gameobj, (KX_GameObject *)nullptr);
+  }
 
   bool invalidated = false;
-  for (ObjectRefSlot &slot : m_objectRefs) {
-    if (slot.object == gameobj) {
-      slot.object = nullptr;
-      slot.generation++;
-      invalidated = true;
+  const auto empty_slot = [&](const uint32_t index) {
+    ObjectRefSlot &slot = m_objectRefs[index];
+    slot.object = nullptr;
+    slot.generation++;
+    m_freeObjectRefSlots.push_back(index);
+    std::push_heap(
+        m_freeObjectRefSlots.begin(), m_freeObjectRefSlots.end(), std::greater<uint32_t>());
+    invalidated = true;
+  };
+  if (m_objectRefsIndexed) {
+    if (const std::optional<uint32_t> index = m_objectRefIndex.pop_try(gameobj)) {
+      empty_slot(*index);
+    }
+  }
+  else {
+    for (uint32_t index = 0; index < m_objectRefs.size(); index++) {
+      if (m_objectRefs[index].object == gameobj) {
+        empty_slot(index);
+      }
     }
   }
   if (invalidated && m_logicManager != nullptr) {
@@ -8534,9 +8589,21 @@ void LN_RuntimeTree::ColumnWalkEvent(Frame &frame,
   LN_TickContext &context = frame.context;
   const std::vector<LN_StepGate> &gates = m_program->GetStepGates();
   std::vector<uint32_t> repeated_loop_frames;
-  /* The blocks once, in scope `serial`; with `ui_event_state`, only that On UI Event's route's ops
-   * (a repeat for a further event of this frame). */
-  const auto walk = [&](const uint64_t serial, const uint32_t ui_event_state) {
+  /* On Collision's Each Object routes (LN_IsCollisionRepeatRoute keys): each op tells the kinds
+   * whose run it belongs to (m_collisionEventRoute; the object is m_collisionEventCursor's), so
+   * Collided Object & co. read the run's object inside such a route and the first contact
+   * anywhere else. Events without them keep the plain runner (no work per op). */
+  const bool collision_runs = std::any_of(
+      ir.ui_event_states.begin(), ir.ui_event_states.end(), LN_IsCollisionRepeatRoute);
+  const auto run_tagged = [&](const uint32_t op_index) {
+    const uint32_t key = ir.ops[op_index].ui_event_state_index;
+    m_collisionEventRoute = LN_IsCollisionRepeatRoute(key) ? key : LN_INVALID_INDEX;
+    run_op(op_index);
+  };
+  /* The blocks once, in scope `serial`; with `ui_event_state`, only the ops of that repeat key's
+   * route (a repeat for a further event of this tick: On UI Event's, or an Each Object
+   * collision event's). */
+  const auto walk = [&](auto &&runner, const uint64_t serial, const uint32_t ui_event_state) {
     const auto selected = [&](const LN_ExecOp &op) {
       return ui_event_state == LN_INVALID_INDEX || op.ui_event_state_index == ui_event_state;
     };
@@ -8583,7 +8650,13 @@ void LN_RuntimeTree::ColumnWalkEvent(Frame &frame,
         }
       }
       if (block.loop_frame_index != LN_INVALID_INDEX) {
-        RunLoopBody(frame, ir, block, repeated_loop_frames, serial, ui_event_state, run_op);
+        if (collision_runs && block.op_count > 0) {
+          /* The Loop's own inputs (read when it starts, before its body's first op) belong to
+           * the route of its body (every op of a body block shares it). */
+          const uint32_t key = ir.ops[block.first_op].ui_event_state_index;
+          m_collisionEventRoute = LN_IsCollisionRepeatRoute(key) ? key : LN_INVALID_INDEX;
+        }
+        RunLoopBody(frame, ir, block, repeated_loop_frames, serial, ui_event_state, runner);
       }
       else {
         context.execution_scope_serial = serial;
@@ -8591,13 +8664,13 @@ void LN_RuntimeTree::ColumnWalkEvent(Frame &frame,
         const uint32_t end = block.first_op + block.op_count;
         if (ui_event_state == LN_INVALID_INDEX) {
           for (uint32_t op_index = block.first_op; op_index < end; op_index++) {
-            run_op(op_index);
+            runner(op_index);
           }
         }
         else {
           for (uint32_t op_index = block.first_op; op_index < end; op_index++) {
             if (selected(ir.ops[op_index])) {
-              run_op(op_index);
+              runner(op_index);
             }
           }
         }
@@ -8607,11 +8680,48 @@ void LN_RuntimeTree::ColumnWalkEvent(Frame &frame,
       context.phase_tick_stride = stride;
     }
   };
-  walk(scope_serial, LN_INVALID_INDEX);
+  m_collisionEventCursor = 0;
+  if (collision_runs) {
+    walk(run_tagged, scope_serial, LN_INVALID_INDEX);
+  }
+  else {
+    walk(run_op, scope_serial, LN_INVALID_INDEX);
+  }
   /* On UI Event: each further event that matches a node this frame runs the node's route again,
    * in a scope of its own, its outputs telling about that event. */
   constexpr uint32_t max_ui_event_repeats = uint32_t(LN_UIService::kMaxEventsPerNodeFrame);
   for (const uint32_t state_index : ir.ui_event_states) {
+    if (LN_IsCollisionRepeatRoute(state_index)) {
+      /* On Collision, Events = Each Object: the route ran for the event's first object in the
+       * walk above; it runs again for each further one, in order, in a scope of its own. */
+      const uint32_t node = LN_CollisionRepeatRouteNode(state_index);
+      if (node >= m_collisionEventNodes.size() ||
+          m_collisionEventNodes[node].tick != context.tick_index)
+      {
+        continue; /* No update this tick: the route's event did not fire. */
+      }
+      const LN_CollisionEventKind kind = LN_CollisionRepeatRouteKind(state_index);
+      for (uint32_t cursor = 1;; ++cursor) {
+        /* Read the count every time: the node's lists stay as made this tick (a route's own
+         * reads only add contact info), but the vector may be reallocated by a resize. */
+        const CollisionEventNodeState &events = m_collisionEventNodes[node];
+        const size_t count = kind == LN_CollisionEventKind::Enter ? events.entered.size() :
+                             kind == LN_CollisionEventKind::Stay  ? events.stayed.size() :
+                                                                   events.exited.size();
+        if (cursor >= count) {
+          break;
+        }
+        m_collisionEventCursor = cursor;
+        m_registerExpressionState.cached_tick = UINT64_MAX;
+        repeated_loop_frames.clear();
+        const uint64_t repeat_serial = NextExecutionScopeSerial();
+        context.execution_scope_serial = repeat_serial;
+        m_activeExecutionScopeSerial = repeat_serial;
+        walk(run_tagged, repeat_serial, state_index);
+      }
+      m_collisionEventCursor = 0;
+      continue;
+    }
     const QueryExpressionRuntimeState &first = QueryExpressionState(state_index);
     if (first.cached_tick != context.tick_index || first.cached_result.ui_event_count < 2) {
       continue;
@@ -8626,10 +8736,17 @@ void LN_RuntimeTree::ColumnWalkEvent(Frame &frame,
       const uint64_t repeat_serial = NextExecutionScopeSerial();
       context.execution_scope_serial = repeat_serial;
       m_activeExecutionScopeSerial = repeat_serial;
-      walk(repeat_serial, state_index);
+      if (collision_runs) {
+        walk(run_tagged, repeat_serial, state_index);
+      }
+      else {
+        walk(run_op, repeat_serial, state_index);
+      }
     }
     QueryExpressionState(state_index).ui_event_cursor = 0;
   }
+  m_collisionEventRoute = LN_INVALID_INDEX;
+  m_collisionEventCursor = 0;
   context.execution_scope_serial = scope_serial;
   m_activeExecutionScopeSerial = scope_serial;
 }
@@ -8986,9 +9103,17 @@ void LN_RuntimeTree::StoreCollisionEventPayload(const CollisionResult &result,
   }
 
   payload->last_result = result;
+  /* (A copy given back on the exit tick is not stored again.) */
+  payload->last_result.payload_stored = true;
   payload->last_result.owner = nullptr;
   payload->last_result.hit_object = nullptr;
   payload->last_result.hit_objects.clear();
+  /* Parallel to hit_objects, which the payload rebuilds from references (some may be gone):
+   * only the live result has them (Each Object events never read a payload). */
+  payload->last_result.object_contact_counts.clear();
+  payload->last_result.object_points.clear();
+  payload->last_result.object_normals.clear();
+  payload->last_result.object_has_point.clear();
   payload->last_hit_tick = tick_index;
 }
 
@@ -9033,13 +9158,280 @@ const LN_RuntimeTree::CollisionResult *LN_RuntimeTree::FindCollisionExitPayload(
   return &m_collisionExitPayloadScratch;
 }
 
+static const LN_CollisionContactsForTests *g_collision_contacts_for_tests = nullptr;
+
+void LN_SetCollisionContactsForTests(const LN_CollisionContactsForTests *contacts)
+{
+  g_collision_contacts_for_tests = contacts;
+}
+
+static bool LN_CollisionContactsTestsActive()
+{
+  return g_collision_contacts_for_tests != nullptr;
+}
+
+bool LN_RuntimeTree::CachedCollisionContacts(
+    KX_GameObject *owner,
+    const bool collect_contacts,
+    const std::vector<const PHY_CachedCollisionContact *> *&r_contacts) const
+{
+  r_contacts = nullptr;
+  if (owner == nullptr) {
+    return false;
+  }
+  if (const LN_CollisionContactsForTests *tests = g_collision_contacts_for_tests) {
+    const auto found = tests->find(owner);
+    if (found == tests->end()) {
+      return false;
+    }
+    r_contacts = &found->second;
+    return true;
+  }
+  KX_Scene *scene = owner->GetScene();
+  PHY_IPhysicsEnvironment *env = scene != nullptr ? scene->GetPhysicsEnvironment() : nullptr;
+  if (env == nullptr) {
+    return false;
+  }
+  PHY_IPhysicsController *controller = owner->GetPhysicsController();
+  return env->GetCachedCollisionContactRefsForObject(owner, r_contacts, collect_contacts) ||
+         (controller != nullptr &&
+          env->GetCachedCollisionContactRefs(controller, r_contacts, collect_contacts));
+}
+
+uint64_t LN_RuntimeTree::CollisionObjectIdentity(KX_GameObject *object)
+{
+  if (object == nullptr) {
+    return 0;
+  }
+  if (m_logicManager != nullptr) {
+    /* The manager's dense handle: removing an object bumps its generation, so an object made
+     * later at the same address is another object. Main thread only (it may add an entry). */
+    const LN_ObjectHandle handle = m_logicManager->MakeObjectHandle(object);
+    return (uint64_t(handle.index) << 32) | uint64_t(handle.generation);
+  }
+  /* A tree without a manager (unit tests, where no object is removed while touching): its
+   * address. */
+  return uint64_t(reinterpret_cast<uintptr_t>(object));
+}
+
+KX_GameObject *LN_RuntimeTree::ResolveCollisionObjectIdentity(const uint64_t identity) const
+{
+  if (identity == 0) {
+    return nullptr;
+  }
+  if (m_logicManager != nullptr) {
+    LN_ObjectHandle handle;
+    handle.index = uint32_t(identity >> 32);
+    handle.generation = uint32_t(identity & 0xffffffffu);
+    return m_logicManager->ResolveObjectHandle(handle);
+  }
+  return reinterpret_cast<KX_GameObject *>(uintptr_t(identity));
+}
+
+void LN_RuntimeTree::HoldCollisionIdentitiesAsObjects()
+{
+  if (m_collisionIdentitiesHeld) {
+    return;
+  }
+  m_collisionIdentitiesHeld = true;
+  for (CollisionEventNodeState &state : m_collisionEventNodes) {
+    for (uint64_t &identity : state.previous) {
+      identity = uint64_t(reinterpret_cast<uintptr_t>(ResolveCollisionObjectIdentity(identity)));
+    }
+    /* The rest is this tick's (and the next manager counts its own ticks): made anew. */
+    state.tick = UINT64_MAX;
+    state.contacts = false;
+    state.current.clear();
+    state.current_ids.clear();
+    state.entered.clear();
+    state.stayed.clear();
+    state.exited.clear();
+  }
+}
+
+void LN_RuntimeTree::RenewCollisionIdentities()
+{
+  if (!m_collisionIdentitiesHeld) {
+    return;
+  }
+  m_collisionIdentitiesHeld = false;
+  for (CollisionEventNodeState &state : m_collisionEventNodes) {
+    /* A removed object (0) stays 0: the next update reports it as left, as it would have. */
+    for (uint64_t &identity : state.previous) {
+      identity = CollisionObjectIdentity(
+          reinterpret_cast<KX_GameObject *>(uintptr_t(identity)));
+    }
+  }
+}
+
+bool LN_RuntimeTree::ActiveCollisionEventSlot(const int32_t node_field,
+                                              LN_CollisionEventKind &r_kind,
+                                              uint32_t &r_cursor) const
+{
+  if (node_field <= 0 || !LN_IsCollisionRepeatRoute(m_collisionEventRoute) ||
+      LN_CollisionRepeatRouteNode(m_collisionEventRoute) != uint32_t(node_field - 1))
+  {
+    return false;
+  }
+  r_kind = LN_CollisionRepeatRouteKind(m_collisionEventRoute);
+  r_cursor = m_collisionEventCursor;
+  return true;
+}
+
+int32_t LN_RuntimeTree::CollisionEventCurrentIndex(const CollisionEventNodeState &state,
+                                                   const LN_CollisionEventKind kind,
+                                                   const uint32_t cursor)
+{
+  const std::vector<uint32_t> *list = kind == LN_CollisionEventKind::Enter ? &state.entered :
+                                      kind == LN_CollisionEventKind::Stay  ? &state.stayed :
+                                                                             nullptr;
+  if (list == nullptr || cursor >= list->size()) {
+    return -1;
+  }
+  return int32_t((*list)[cursor]);
+}
+
+KX_GameObject *LN_RuntimeTree::CollisionEventObject(const CollisionEventNodeState &state,
+                                                    const LN_CollisionEventKind kind,
+                                                    const uint32_t cursor) const
+{
+  if (kind == LN_CollisionEventKind::Exit) {
+    return cursor < state.exited.size() ? ResolveCollisionObjectIdentity(state.exited[cursor]) :
+                                          nullptr;
+  }
+  const int32_t index = CollisionEventCurrentIndex(state, kind, cursor);
+  return index >= 0 && size_t(index) < state.current.size() ? state.current[index] : nullptr;
+}
+
+template<class In>
+const LN_RuntimeTree::CollisionEventNodeState *LN_RuntimeTree::UpdateCollisionEvents(
+    In &in,
+    const int32_t node_field,
+    const uint32_t object_expr_index,
+    const uint32_t property_expr_index,
+    const uint32_t material_expr_index,
+    const bool contacts)
+{
+  const uint64_t tick = in.context.tick_index;
+  if (node_field <= 0 || m_program == nullptr || tick == UINT64_MAX ||
+      uint32_t(node_field - 1) >= m_program->GetCollisionEventNodeCount())
+  {
+    return nullptr;
+  }
+  const uint32_t node = uint32_t(node_field - 1);
+  if (m_collisionEventNodes.size() < m_program->GetCollisionEventNodeCount()) {
+    m_collisionEventNodes.resize(m_program->GetCollisionEventNodeCount());
+  }
+  CollisionEventNodeState &state = m_collisionEventNodes[node];
+  const auto take_contacts = [&](const CollisionResult &result) {
+    state.contacts = result.object_contact_counts.size() == state.current.size() &&
+                     result.hit_objects.size() == state.current.size() &&
+                     std::equal(result.hit_objects.begin(),
+                                result.hit_objects.end(),
+                                state.current.begin());
+    if (state.contacts) {
+      state.contact_counts = result.object_contact_counts;
+      state.points = result.object_points;
+      state.normals = result.object_normals;
+      state.has_point = result.object_has_point;
+    }
+    else {
+      state.contact_counts.clear();
+      state.points.clear();
+      state.normals.clear();
+      state.has_point.clear();
+    }
+  };
+
+  if (state.tick == tick) {
+    /* Once a tick: a later read only adds what it needs (each object's contacts, from the same
+     * contacts: they do not change within a tick). */
+    if (contacts && !state.contacts) {
+      take_contacts(ResolveCollisionResult(in,
+                                           object_expr_index,
+                                           property_expr_index,
+                                           material_expr_index,
+                                           CollisionResult::Detail::Contacts,
+                                           false,
+                                           false));
+    }
+    return &state;
+  }
+
+  const CollisionResult &result = ResolveCollisionResult(
+      in,
+      object_expr_index,
+      property_expr_index,
+      material_expr_index,
+      contacts ? CollisionResult::Detail::Contacts : CollisionResult::Detail::Objects,
+      false,
+      false);
+  state.tick = tick;
+  state.current.assign(result.hit_objects.begin(), result.hit_objects.end());
+  if (contacts) {
+    take_contacts(result);
+  }
+  else {
+    take_contacts(CollisionResult{});
+  }
+  const size_t count = state.current.size();
+  state.current_ids.resize(count);
+  for (size_t index = 0; index < count; index++) {
+    state.current_ids[index] = CollisionObjectIdentity(state.current[index]);
+  }
+
+  /* The compare with the last update: a short scan for a few objects, a set past that. */
+  constexpr size_t kShortScan = 16;
+  state.entered.clear();
+  state.stayed.clear();
+  state.exited.clear();
+  if (count <= kShortScan && state.previous.size() <= kShortScan) {
+    for (size_t index = 0; index < count; index++) {
+      const bool was_touching = std::find(state.previous.begin(),
+                                          state.previous.end(),
+                                          state.current_ids[index]) != state.previous.end();
+      (was_touching ? state.stayed : state.entered).push_back(uint32_t(index));
+    }
+    for (const uint64_t identity : state.previous) {
+      if (std::find(state.current_ids.begin(), state.current_ids.end(), identity) ==
+          state.current_ids.end())
+      {
+        state.exited.push_back(identity);
+      }
+    }
+  }
+  else {
+    blender::Set<uint64_t> &ids = m_collisionIdentityScratch;
+    ids.clear_and_keep_capacity();
+    for (const uint64_t identity : state.previous) {
+      ids.add(identity);
+    }
+    for (size_t index = 0; index < count; index++) {
+      (ids.contains(state.current_ids[index]) ? state.stayed : state.entered)
+          .push_back(uint32_t(index));
+    }
+    ids.clear_and_keep_capacity();
+    for (const uint64_t identity : state.current_ids) {
+      ids.add(identity);
+    }
+    for (const uint64_t identity : state.previous) {
+      if (!ids.contains(identity)) {
+        state.exited.push_back(identity);
+      }
+    }
+  }
+  state.previous.assign(state.current_ids.begin(), state.current_ids.end());
+  return &state;
+}
+
 template<class In>
 const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(In &in,
     const uint32_t object_expr_index,
     const uint32_t property_expr_index,
     const uint32_t material_expr_index,
     const CollisionResult::Detail detail,
-    const bool allow_exit_payload)
+    const bool allow_exit_payload,
+    const bool store_payload)
 {
   const LN_TickContext &context = in.context;
   /* No Object input: the owner. A linked or picked object that is gone (or a link that gives no
@@ -9070,6 +9462,11 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(In
       continue;
     }
     if (uint8_t(cached_result.detail) >= uint8_t(detail)) {
+      if (store_payload && cached_result.hit && !cached_result.payload_stored) {
+        /* Made by a read that keeps no payload (Each Object's): the first that does keeps it. */
+        StoreCollisionEventPayload(cached_result, context.tick_index);
+        cached_result.payload_stored = true;
+      }
       if (allow_exit_payload && !cached_result.hit && detail != CollisionResult::Detail::StateOnly)
       {
         if (const CollisionResult *exit_payload = FindCollisionExitPayload(
@@ -9101,23 +9498,49 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(In
     return collision_result;
   }
 
-  KX_Scene *scene = owner->GetScene();
-  if (scene == nullptr) {
-    return collision_result;
-  }
-  PHY_IPhysicsEnvironment *env = scene->GetPhysicsEnvironment();
-  if (env == nullptr) {
-    return collision_result;
-  }
-  PHY_IPhysicsController *ctrl_a = owner->GetPhysicsController();
-
   const bool collect_contacts = detail == CollisionResult::Detail::Contacts;
+  /* Each touching object once, in contact order. A short scan finds an object among the first
+   * kShortScan listed ones; past that an object -> index map does (a floor touched by 4,000 objects
+   * scanned the whole list for every contact: 3.4 ms a step, 2026-11-09). With Contacts, each
+   * listed object also gets its own contact count and first point / normal (parallel arrays). */
+  constexpr size_t kShortScan = 16;
+  bool listed_in_map = false;
+  const auto list_object = [&](KX_GameObject *other) -> uint32_t {
+    std::vector<KX_GameObject *> &objects = collision_result.hit_objects;
+    const uint32_t next = uint32_t(objects.size());
+    uint32_t index = next;
+    if (!listed_in_map) {
+      const auto found = std::find(objects.begin(), objects.end(), other);
+      if (found != objects.end()) {
+        return uint32_t(found - objects.begin());
+      }
+      if (objects.size() >= kShortScan) {
+        m_collisionIndexScratch.clear_and_keep_capacity();
+        for (uint32_t listed = 0; listed < next; listed++) {
+          m_collisionIndexScratch.add_new(objects[listed], listed);
+        }
+        m_collisionIndexScratch.add_new(other, next);
+        listed_in_map = true;
+      }
+    }
+    else {
+      index = m_collisionIndexScratch.lookup_or_add(other, next);
+      if (index != next) {
+        return index;
+      }
+    }
+    objects.push_back(other);
+    if (collect_contacts) {
+      collision_result.object_contact_counts.push_back(0);
+      collision_result.object_points.push_back(MT_Vector3(0.0f, 0.0f, 0.0f));
+      collision_result.object_normals.push_back(MT_Vector3(0.0f, 0.0f, 0.0f));
+      collision_result.object_has_point.push_back(0);
+    }
+    return index;
+  };
+
   const std::vector<const PHY_CachedCollisionContact *> *cached_contacts = nullptr;
-  const bool has_cached_contacts =
-      env->GetCachedCollisionContactRefsForObject(owner, cached_contacts, collect_contacts) ||
-      (ctrl_a != nullptr &&
-       env->GetCachedCollisionContactRefs(ctrl_a, cached_contacts, collect_contacts));
-  if (has_cached_contacts) {
+  if (CachedCollisionContacts(owner, collect_contacts, cached_contacts)) {
     for (const PHY_CachedCollisionContact *contact_ptr : *cached_contacts) {
       if (contact_ptr == nullptr) {
         continue;
@@ -9149,15 +9572,18 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(In
       if (collision_result.hit_object == nullptr) {
         collision_result.hit_object = other;
       }
-      if (std::find(collision_result.hit_objects.begin(),
-                    collision_result.hit_objects.end(),
-                    other) == collision_result.hit_objects.end())
-      {
+      if (detail == CollisionResult::Detail::StateOnly) {
+        /* As before the per-object work: the first object listed, its count, done. */
         collision_result.hit_objects.push_back(other);
+        collision_result.contact_count += std::max(contact.contact_count, 1);
+        return collision_result;
       }
-      collision_result.contact_count += std::max(contact.contact_count, 1);
+      const uint32_t object_index = list_object(other);
+      const int32_t pair_contact_count = std::max(contact.contact_count, 1);
+      collision_result.contact_count += pair_contact_count;
 
       if (collect_contacts) {
+        collision_result.object_contact_counts[object_index] += pair_contact_count;
         const size_t contact_detail_count = std::min(contact.points.size(),
                                                      contact.normals.size());
         for (size_t contact_index = 0; contact_index < contact_detail_count; contact_index++) {
@@ -9170,18 +9596,20 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(In
           if (collision_result.hit_normals.empty()) {
             collision_result.hit_normal = normal;
           }
+          if (collision_result.object_has_point[object_index] == 0) {
+            collision_result.object_points[object_index] = point;
+            collision_result.object_normals[object_index] = normal;
+            collision_result.object_has_point[object_index] = 1;
+          }
           collision_result.hit_points.push_back(point);
           collision_result.hit_normals.push_back(normal);
         }
       }
-
-      if (detail == CollisionResult::Detail::StateOnly) {
-        return collision_result;
-      }
     }
 
-    if (collision_result.hit) {
+    if (collision_result.hit && store_payload) {
       StoreCollisionEventPayload(collision_result, context.tick_index);
+      collision_result.payload_stored = true;
     }
     else if (allow_exit_payload && detail != CollisionResult::Detail::StateOnly) {
       if (const CollisionResult *exit_payload = FindCollisionExitPayload(
@@ -9198,7 +9626,11 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(In
     return collision_result;
   }
 
-  if (ctrl_a == nullptr) {
+  /* No contact cache: ask the physics about every object of the scene (each object once). */
+  KX_Scene *scene = owner->GetScene();
+  PHY_IPhysicsEnvironment *env = scene != nullptr ? scene->GetPhysicsEnvironment() : nullptr;
+  PHY_IPhysicsController *ctrl_a = owner->GetPhysicsController();
+  if (env == nullptr || ctrl_a == nullptr || LN_CollisionContactsTestsActive()) {
     return collision_result;
   }
 
@@ -9223,6 +9655,13 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(In
         collision_result.hit_object = other;
       }
       collision_result.hit_objects.push_back(other);
+      const size_t object_index = collision_result.hit_objects.size() - 1;
+      if (collect_contacts) {
+        collision_result.object_contact_counts.push_back(0);
+        collision_result.object_points.push_back(MT_Vector3(0.0f, 0.0f, 0.0f));
+        collision_result.object_normals.push_back(MT_Vector3(0.0f, 0.0f, 0.0f));
+        collision_result.object_has_point.push_back(0);
+      }
 
       int32_t pair_contact_count = 0;
       if (hit.collData && hit.collData->GetNumContacts() > 0) {
@@ -9238,6 +9677,11 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(In
           if (collision_result.hit_normals.empty()) {
             collision_result.hit_normal = normal;
           }
+          if (collect_contacts && collision_result.object_has_point[object_index] == 0) {
+            collision_result.object_points[object_index] = point;
+            collision_result.object_normals[object_index] = normal;
+            collision_result.object_has_point[object_index] = 1;
+          }
           collision_result.hit_points.push_back(point);
           collision_result.hit_normals.push_back(normal);
         }
@@ -9245,6 +9689,9 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(In
       collision_result.contact_count += (detail == CollisionResult::Detail::Contacts) ?
                                             std::max(pair_contact_count, 1) :
                                             1;
+      if (collect_contacts) {
+        collision_result.object_contact_counts[object_index] = std::max(pair_contact_count, 1);
+      }
       delete hit.collData;
       if (detail == CollisionResult::Detail::StateOnly) {
         return collision_result;
@@ -9255,8 +9702,9 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(In
     }
   }
 
-  if (collision_result.hit) {
+  if (collision_result.hit && store_payload) {
     StoreCollisionEventPayload(collision_result, context.tick_index);
+    collision_result.payload_stored = true;
   }
   else if (allow_exit_payload && detail != CollisionResult::Detail::StateOnly) {
     if (const CollisionResult *exit_payload = FindCollisionExitPayload(

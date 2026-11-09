@@ -40,6 +40,52 @@ struct LN_Value;
 static constexpr uint32_t LN_PROGRAM_VERSION = 42;
 static constexpr uint32_t LN_PROGRAM_SCHEMA_VERSION = 26;
 static constexpr uint32_t LN_INVALID_INDEX = UINT32_MAX;
+
+/**
+ * On Collision's Events setting (bNode::custom1): Any Object (0, every node saved before
+ * 2026-11-09) fires On Enter when the owner goes from touching nothing to touching something and
+ * On Exit when the last object leaves; Each Object (1, new nodes) runs each event's route once for
+ * every object that started touching, still touches or stopped touching in that step.
+ */
+enum class LN_CollisionEvents : int16_t {
+  AnyObject = 0,
+  EachObject = 1,
+};
+/** Which event of an Each Object On Collision node a route belongs to (the repeat key's low bits). */
+enum class LN_CollisionEventKind : uint32_t {
+  Enter = 1,
+  Stay = 2,
+  Exit = 3,
+};
+/** A repeat key (LN_Instruction::ui_event_state_index) of an Each Object On Collision event:
+ * bit 31 set, the node's index in the program (LN_Program::AcquireCollisionEventNode) shifted by 2,
+ * the event kind in the low 2 bits. Never LN_INVALID_INDEX (the low bits are never 0). */
+inline constexpr uint32_t LN_COLLISION_REPEAT_ROUTE_BIT = 1u << 31;
+/* (1 << 29) - 1 would make the last node's Exit key LN_INVALID_INDEX. */
+inline constexpr uint32_t LN_MAX_COLLISION_EVENT_NODES = (1u << 29) - 2;
+inline constexpr uint32_t LN_CollisionRepeatRoute(const uint32_t node_index,
+                                                  const LN_CollisionEventKind kind)
+{
+  return LN_COLLISION_REPEAT_ROUTE_BIT | (node_index << 2) | uint32_t(kind);
+}
+inline constexpr bool LN_IsCollisionRepeatRoute(const uint32_t repeat_key)
+{
+  return repeat_key != LN_INVALID_INDEX && (repeat_key & LN_COLLISION_REPEAT_ROUTE_BIT) != 0;
+}
+inline constexpr uint32_t LN_CollisionRepeatRouteNode(const uint32_t repeat_key)
+{
+  return (repeat_key & ~LN_COLLISION_REPEAT_ROUTE_BIT) >> 2;
+}
+inline constexpr LN_CollisionEventKind LN_CollisionRepeatRouteKind(const uint32_t repeat_key)
+{
+  return LN_CollisionEventKind(repeat_key & 3u);
+}
+static_assert(LN_CollisionRepeatRoute(LN_MAX_COLLISION_EVENT_NODES, LN_CollisionEventKind::Exit) !=
+              LN_INVALID_INDEX);
+static_assert(LN_CollisionRepeatRouteNode(LN_CollisionRepeatRoute(
+                  LN_MAX_COLLISION_EVENT_NODES, LN_CollisionEventKind::Stay)) ==
+              LN_MAX_COLLISION_EVENT_NODES);
+
 /** Shared upper bound for compiler-validated dynamic Logic Node sockets. */
 inline constexpr uint32_t LN_MAX_DYNAMIC_SOCKET_COUNT = 64;
 
@@ -1934,8 +1980,12 @@ struct LN_Instruction {
    */
   uint32_t completed_loop_frame_index = LN_INVALID_INDEX;
   /**
-   * Started by an On UI Event: the runtime state of its query. When several events match the node
-   * in one frame, the instructions of its route run again for each further event.
+   * The route's repeat key: its instructions run again, inside the same tick, for each further
+   * event of the node that started it. Either an On UI Event's (or On UI Sound's) query runtime
+   * state, or, with LN_COLLISION_REPEAT_ROUTE_BIT set, an On Collision node's Each Object event
+   * (LN_CollisionRepeatRoute: one run per object that entered, stayed or left). Every user of
+   * repeat keys (the walk's repeats, Loop restarts, the refusals of compiled routes, wide runs and
+   * tree batches) treats both alike; only the walk's repeat count and cursor differ.
    */
   uint32_t ui_event_state_index = LN_INVALID_INDEX;
   /** Part of a route of On Logic + Physics Step's Every N Steps: the program's LN_StepGate it runs
