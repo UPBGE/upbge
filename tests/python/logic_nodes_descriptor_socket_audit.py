@@ -661,8 +661,9 @@ def audit_merged_nodes(tree) -> list[str]:
     Draw shows only its mode's inputs."""
     errors: list[str] = []
     merged_nodes = parse_merged_nodes()
-    if len(merged_nodes) != 32:
-        errors.append(f"merged node table: {len(merged_nodes)} entries parsed, expected 32")
+    # 32 on 2026-11-08; Key / Button, Apply Movement and Apply Force split back on 2026-11-09.
+    if len(merged_nodes) != 29:
+        errors.append(f"merged node table: {len(merged_nodes)} entries parsed, expected 29")
     recording = json.loads(MERGED_OPTIONS_RECORDING.read_text(encoding="utf-8"))
     extras = {"LogicNativeGetGamePropertyValue": ["Exists"]}
     for idname, olders in merged_nodes:

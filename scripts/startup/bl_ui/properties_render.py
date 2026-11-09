@@ -61,7 +61,10 @@ def _logic_opens_overlay_ui():
     for tree in bpy.data.node_groups:
         if tree.bl_idname != "LogicNodeTree" or tree.users == 0:
             continue
-        if any(node.bl_idname in _OVERLAY_UI_NODES and not node.mute for node in tree.nodes):
+        # A merged node works as the former node of its option (variant_idname): Set Overlay
+        # Collection is an option of Overlay Collection since 2026-11-08.
+        if any((getattr(node, "variant_idname", "") or node.bl_idname) in _OVERLAY_UI_NODES and
+               not node.mute for node in tree.nodes):
             return True
     return False
 

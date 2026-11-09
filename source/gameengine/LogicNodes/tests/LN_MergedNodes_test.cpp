@@ -198,7 +198,18 @@ TEST(LN_MergedNodes, TheTableNamesRegisteredNodesAndTheRegistryResolvesOptions)
       EXPECT_EQ(registry.FindNodeDefinitionForNode(node)->idname, merged.options[0].idname);
     }
   }
-  EXPECT_EQ(merged_idnames.size(), 32u);
+  /* 32 on 2026-11-08; split back on 2026-11-09: Key / Button (one node per device), Apply
+   * Movement and Apply Force. Their options are nodes of their own again. */
+  EXPECT_EQ(merged_idnames.size(), 29u);
+  for (const char *split : {"LogicNativeKeyboardKey", "LogicNativeMouseButton",
+                            "LogicNativeGamepadButton", "LogicNativeApplyMovement",
+                            "LogicNativeTranslate", "LogicNativeApplyRotation",
+                            "LogicNativeApplyForce", "LogicNativeApplyTorque",
+                            "LogicNativeApplyImpulse"})
+  {
+    EXPECT_EQ(blender::nodes::logic::find_merged_node_of_option(split), nullptr) << split;
+    EXPECT_NE(registry.FindNodeDefinition(split), nullptr) << split;
+  }
   /* An older node keeps its own definition. */
   blender::bNode older = {};
   SetCString(older.idname, "LogicNativeRaycastAll");
@@ -220,7 +231,8 @@ TEST(LN_MergedNodes, TheTableNamesRegisteredNodesAndTheRegistryResolvesOptions)
  * one shape, so no option is compared only as two failures. */
 TEST(LN_MergedNodes, EveryOptionCompilesExactlyAsItsOlderNode)
 {
-  /* custom2 15 is Gamepad Button's left trigger (its Strength output exists for triggers). */
+  /* custom2 15 was for Gamepad Button's left trigger while it was an option (until 2026-11-09);
+   * the other options take it as an ordinary setting. */
   const Shape shapes[] = {
       {false, 0, 0}, {true, 0, 0}, {true, 1, 0}, {true, 2, 1}, {false, 1, 2}, {true, 0, 15}};
   size_t compared = 0;
@@ -244,7 +256,7 @@ TEST(LN_MergedNodes, EveryOptionCompilesExactlyAsItsOlderNode)
       EXPECT_TRUE(compiled_somewhere) << older << " compiled in no shape:\n" << last_report;
     }
   }
-  EXPECT_EQ(compared, 87u * std::size(shapes));
+  EXPECT_EQ(compared, 78u * std::size(shapes));
 }
 
 /* Get Game Property's Exists says whether the object has the property (what the Has Property node

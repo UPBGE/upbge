@@ -123,7 +123,6 @@ static int merged_node_class(const StringRef idname)
 {
   if (ELEM(idname,
            "LogicNativeGetGamePropertyValue",
-           "LogicNativeKeyButton",
            "LogicNativeGetLightAttribute",
            "LogicNativeCursor",
            "LogicNativeGetDisplaySetting"))

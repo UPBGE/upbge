@@ -5990,7 +5990,7 @@ static void def_logic_use_ui_input(StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
-/** Mouse Button's button (custom2); also part of the merged Key / Button node. */
+/** Mouse Button's button (custom2). */
 static void def_logic_mouse_button_prop(StructRNA *srna)
 {
   static const EnumPropertyItem logic_mouse_button_items[] = {
@@ -6191,7 +6191,7 @@ static void def_logic_gamepad_look(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
-/** Gamepad Button's button (custom2); also part of the merged Key / Button node. */
+/** Gamepad Button's button (custom2). */
 static void def_logic_gamepad_button_prop(StructRNA *srna)
 {
   static const EnumPropertyItem logic_gamepad_button_items[] = {
@@ -6223,6 +6223,20 @@ static void def_logic_gamepad_button_prop(StructRNA *srna)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicNativeGamepadButton_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+/* Mouse Button and Gamepad Button: Keyboard Key's Input Type and Also When UI Uses It, plus their
+ * own button (split back out of the merged Key / Button node on 2026-11-09). */
+static void def_logic_mouse_button(BlenderRNA *brna, StructRNA *srna)
+{
+  def_logic_keyboard_key(brna, srna);
+  def_logic_mouse_button_prop(srna);
+}
+
+static void def_logic_gamepad_button(BlenderRNA *brna, StructRNA *srna)
+{
+  def_logic_keyboard_key(brna, srna);
+  def_logic_gamepad_button_prop(srna);
 }
 
 static void def_logic_gamepad_stick(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -14149,11 +14163,6 @@ static void def_logic_merged(BlenderRNA *brna, StructRNA *srna)
     RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
     RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   }
-  else if (idname == "LogicNativeKeyButton") {
-    def_logic_keyboard_key(brna, srna); /* Input Type, Also in Menus. */
-    def_logic_mouse_button_prop(srna);
-    def_logic_gamepad_button_prop(srna);
-  }
   else if (idname == "LogicNativeOnValueChange") {
     def_logic_value_changed(brna, srna);
   }
@@ -14215,6 +14224,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("NodeInternal", "NodeStoreBundleItem");
 
 #ifdef WITH_GAMEENGINE_LOGICNODES
+  define("LogicNode", "LogicNativeApplyForce");
   define("LogicNode", "LogicNativeApplyForceToTarget");
   define("LogicNode", "LogicNativeBarrier");
   define("LogicNode", "LogicNativeBooleanEdge");
@@ -14236,6 +14246,9 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeBoneRotationToObjectRotation");
   define("LogicNode", "LogicNativeEvaluateProperty", def_logic_evaluate_property);
   define("LogicNode", "LogicNativeGate", def_logic_gate);
+  define("LogicNode", "LogicNativeApplyMovement");
+  define("LogicNode", "LogicNativeApplyRotation");
+  define("LogicNode", "LogicNativeApplyTorque");
   define("LogicNode", "LogicNativeAddObject");
   define("LogicNode", "LogicNativeAddPhysicsConstraint", def_logic_physics_constraint);
   define("LogicNode", "LogicNativeFormula", def_logic_formula);
@@ -14258,6 +14271,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeSetGlobalProperty");
   define("LogicNode", "LogicNativeListGlobalProperties");
   define("LogicNode", "LogicNativeKeyboardActive");
+  define("LogicNode", "LogicNativeKeyboardKey", def_logic_keyboard_key);
   define("LogicNode", "LogicNativeKeyCode");
   define("LogicNode", "LogicNativeKeyLogger");
   define("LogicNode", "LogicNativeListGetItem");
@@ -14270,6 +14284,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeMoveToward");
   define("LogicNode", "LogicNativeNavigate");
   define("LogicNode", "LogicNativeFollowPath");
+  define("LogicNode", "LogicNativeTranslate");
   define("LogicNode", "LogicNativeMouseMoved", def_logic_mouse_moved);
   define("LogicNode", "LogicNativeMouseOver", def_logic_interaction_view);
   define("LogicNode", "LogicNativeObjectScrollView", def_logic_interaction_view);
@@ -14286,12 +14301,14 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeSetUIInteractable");
   define("LogicNode", "LogicNativeScrollObjectView", def_logic_scroll_object_view);
   define("LogicNode", "LogicNativeShowMessage");
+  define("LogicNode", "LogicNativeMouseButton", def_logic_mouse_button);
   define("LogicNode", "LogicNativeMouseLook", def_logic_mouse_look);
   define("LogicNode", "LogicNativeMouseWheel", def_logic_mouse_wheel);
   define("LogicNode", "LogicNativeMouseRay", def_logic_interaction_view);
   define("LogicNode", "LogicNativeSetCursorVisibility", def_logic_set_cursor_visibility);
   define("LogicNode", "LogicNativeSetCursorPosition");
   define("LogicNode", "LogicNativeGamepadActive");
+  define("LogicNode", "LogicNativeGamepadButton", def_logic_gamepad_button);
   define("LogicNode", "LogicNativeInputAction", def_logic_input_action);
   define("LogicNode", "LogicNativeGetInputBinding", def_logic_get_input_binding);
   define("LogicNode", "LogicNativeRebindInputAction", def_logic_rebind_input_action);
@@ -14455,6 +14472,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeMapRange", def_logic_map_range);
   define("LogicNode", "LogicNativeTweenValue", def_logic_tween_value);
   define("LogicNode", "LogicNativeProjectileRay");
+  define("LogicNode", "LogicNativeApplyImpulse");
   define("LogicNode", "LogicNativeVectorMath", def_logic_vector_math);
   define("LogicNode", "LogicNativeWithinRange", def_logic_within_range);
   define("LogicNode", "LogicNativePrint");

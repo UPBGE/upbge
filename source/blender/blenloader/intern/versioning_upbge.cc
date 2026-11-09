@@ -733,6 +733,65 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
   for (Scene &scene : bmain->scenes) {
     BKE_game_input_map_ensure_builtins(&scene.gm);
   }
+
+  /* Logic Nodes: merged nodes (2026-11-08) split back into their former nodes on 2026-11-09 (the
+   * user's call). A saved merged node's option (custom4, in the table's order; anything out of
+   * range is the first, as the merged node read it) becomes the node type: the sockets,
+   * custom1/custom2 and links are that node's already. Not tied to a file version: only files
+   * saved in between hold such nodes, and a converted file holds none, so the scan is all that
+   * runs. */
+  struct SplitMergedNode {
+    const char *merged;
+    const char *options[3];
+  };
+  static const SplitMergedNode split_merged_nodes[] = {
+      {"LogicNativeKeyButton",
+       {"LogicNativeKeyboardKey", "LogicNativeMouseButton", "LogicNativeGamepadButton"}},
+      {"LogicNativeApplyTransform",
+       {"LogicNativeApplyMovement", "LogicNativeTranslate", "LogicNativeApplyRotation"}},
+      {"LogicNativeApplyPhysicsForce",
+       {"LogicNativeApplyForce", "LogicNativeApplyTorque", "LogicNativeApplyImpulse"}},
+  };
+  for (bNodeTree &ntree : bmain->nodetrees) {
+    if (ntree.type != NTREE_LOGIC) {
+      continue;
+    }
+    for (bNode *node : ListBaseWrapper<bNode>(ntree.nodes)) {
+      const SplitMergedNode *split = nullptr;
+      for (const SplitMergedNode &candidate : split_merged_nodes) {
+        if (STREQ(node->idname, candidate.merged)) {
+          split = &candidate;
+          break;
+        }
+      }
+      if (split == nullptr) {
+        continue;
+      }
+      int option = int(node->custom4 + 0.5f);
+      if (option < 0 || option >= int(ARRAY_SIZE(split->options))) {
+        option = 0;
+      }
+      STRNCPY(node->idname, split->options[option]);
+      node->custom4 = 0.0f;
+      if (!STREQ(node->idname, "LogicNativeMouseButton")) {
+        continue;
+      }
+      /* The merged node never copied its Mouse Button choice (custom2) into the Button socket
+       * (the editor's sync checked for the Mouse Button type), so the socket may still say
+       * LEFTMOUSE. The game reads custom2 while Button is not linked; write it as Mouse Button's
+       * own sync does, so the file agrees with itself. */
+      for (bNodeSocket *socket : ListBaseWrapper<bNodeSocket>(node->inputs)) {
+        if (STREQ(socket->identifier, "Button") && socket->type == SOCK_STRING &&
+            socket->default_value != nullptr)
+        {
+          const char *button = node->custom2 == 1 ? "MIDDLEMOUSE" :
+                               node->custom2 == 2 ? "RIGHTMOUSE" :
+                                                    "LEFTMOUSE";
+          STRNCPY(static_cast<bNodeSocketValueString *>(socket->default_value)->value, button);
+        }
+      }
+    }
+  }
 }
 
 void do_versions_after_linking_upbge(FileData *fd, Main *bmain)

@@ -17,6 +17,12 @@
  * of their own (no RNA struct, not in Blender's registry: the files were converted): each lives
  * on as its merged node's option (node_logic_<merged>_options.cc, logic_option_register), and
  * the game keeps its definition under its former idname.
+ *
+ * Split back on 2026-11-09 (the user's call), their options node types again: Key / Button
+ * (Keyboard Key, Mouse Button, Gamepad Button: one node per device), Apply Movement (Apply
+ * Movement, Translate, Apply Rotation) and Apply Force (Apply Force, Apply Torque, Apply
+ * Impulse). The file loader turns a saved split node into the node of its option
+ * (versioning_upbge.cc).
  */
 
 #pragma once
@@ -113,11 +119,6 @@ inline constexpr MergedNodeOption value_changed_options[] = {
      "Fire when the value changes to Target, or a number crosses it (formerly On Value Changed To)",
      "LogicNativeValueChangedTo"},
 };
-inline constexpr MergedNodeOption key_button_options[] = {
-    {"KEYBOARD", "Keyboard", "A keyboard key (formerly Keyboard Key)", "LogicNativeKeyboardKey"},
-    {"MOUSE", "Mouse", "A mouse button (formerly Mouse Button)", "LogicNativeMouseButton"},
-    {"GAMEPAD", "Gamepad", "A gamepad button (formerly Gamepad Button)", "LogicNativeGamepadButton"},
-};
 inline constexpr MergedNodeOption raycast_options[] = {
     {"NEAREST", "Nearest", "The nearest hit (formerly Raycast)", "LogicNativeRaycast"},
     {"ALL", "All", "Every hit along the ray, as lists (formerly Raycast All)", "LogicNativeRaycastAll"},
@@ -125,19 +126,6 @@ inline constexpr MergedNodeOption raycast_options[] = {
 inline constexpr MergedNodeOption shape_cast_options[] = {
     {"NEAREST", "Nearest", "The nearest hit (formerly Shape Cast)", "LogicNativeShapeCast"},
     {"ALL", "All", "Every hit along the cast, as lists (formerly Shape Cast All)", "LogicNativeShapeCastAll"},
-};
-inline constexpr MergedNodeOption force_options[] = {
-    {"FORCE", "Force", "Push the body every step (formerly Apply Force)", "LogicNativeApplyForce"},
-    {"TORQUE", "Torque", "Turn the body every step (formerly Apply Torque)", "LogicNativeApplyTorque"},
-    {"IMPULSE", "Impulse", "One push at an attach point (formerly Apply Impulse)", "LogicNativeApplyImpulse"},
-};
-inline constexpr MergedNodeOption movement_options[] = {
-    {"MOVE", "Move", "Move by Vector (formerly Apply Movement)", "LogicNativeApplyMovement"},
-    {"MOVE_BY_SPEED",
-     "Move by Speed (Translate)",
-     "Move by Vector x Speed x the step's time (formerly Translate)",
-     "LogicNativeTranslate"},
-    {"ROTATE", "Rotate", "Turn by Rotation (formerly Apply Rotation)", "LogicNativeApplyRotation"},
 };
 inline constexpr MergedNodeOption vehicle_options[] = {
     {"ACCELERATE", "Accelerate", "Drive the wheels (formerly Accelerate)", "LogicNativeVehicleAccelerate"},
@@ -272,20 +260,11 @@ inline constexpr MergedNode all_merged_nodes[] = {
     {"LogicNativeOnValueChange", "On Value Changed",
      "Fire when a value changes, or when it changes to a target value", "Mode",
      merged_detail::options(merged_detail::value_changed_options), {}},
-    {"LogicNativeKeyButton", "Key / Button",
-     "A keyboard key, a mouse button or a gamepad button: pressed, held or released", "Device",
-     merged_detail::options(merged_detail::key_button_options), {}},
     {"LogicNativeCastRay", "Raycast", "Cast a ray and report the nearest hit or every hit",
      "Hits", merged_detail::options(merged_detail::raycast_options), {}},
     {"LogicNativeCastShape", "Shape Cast",
      "Sweep a shape and report the nearest hit or every hit", "Hits",
      merged_detail::options(merged_detail::shape_cast_options), {}},
-    {"LogicNativeApplyPhysicsForce", "Apply Force",
-     "Push or turn a physics body: a force, a torque or a one-time impulse", "Type",
-     merged_detail::options(merged_detail::force_options), {}},
-    {"LogicNativeApplyTransform", "Apply Movement",
-     "Move or turn an object by an amount, or move it by a speed", "Type",
-     merged_detail::options(merged_detail::movement_options), {}},
     {"LogicNativeDriveVehicle", "Drive Vehicle", "Accelerate, brake or steer a vehicle's wheels",
      "Action", merged_detail::options(merged_detail::vehicle_options), {}},
     {"LogicNativeSetCharacterAttribute", "Set Character Attribute",

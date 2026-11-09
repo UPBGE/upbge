@@ -49,7 +49,12 @@ set(SRC
   nodes/node_logic_repeat_limit.cc
   nodes/node_logic_break_loop.cc
   nodes/node_logic_gate.cc
+  nodes/node_logic_apply_impulse.cc
+  nodes/node_logic_apply_force.cc
   nodes/node_logic_apply_force_to_target.cc
+  nodes/node_logic_apply_movement.cc
+  nodes/node_logic_apply_rotation.cc
+  nodes/node_logic_apply_torque.cc
   nodes/node_logic_add_object.cc
   nodes/node_logic_align_axis_to_vector.cc
   nodes/node_logic_animation_status.cc
@@ -79,6 +84,7 @@ set(SRC
   nodes/node_logic_get_tree_property.cc
   nodes/node_logic_get_timescale.cc
   nodes/node_logic_keyboard_active.cc
+  nodes/node_logic_keyboard_key.cc
   nodes/node_logic_key_code.cc
   nodes/node_logic_key_logger.cc
   nodes/node_logic_quit_game.cc
@@ -120,8 +126,6 @@ set(SRC
   nodes/node_logic_mix_value.cc
   nodes/node_logic_math.cc
   nodes/node_logic_merged.cc
-  nodes/node_logic_apply_physics_force_options.cc
-  nodes/node_logic_apply_transform_options.cc
   nodes/node_logic_cast_ray_options.cc
   nodes/node_logic_cast_shape_options.cc
   nodes/node_logic_change_scene_options.cc
@@ -136,7 +140,6 @@ set(SRC
   nodes/node_logic_get_game_property_value_options.cc
   nodes/node_logic_get_light_attribute_options.cc
   nodes/node_logic_is_none_options.cc
-  nodes/node_logic_key_button_options.cc
   nodes/node_logic_modify_game_property_options.cc
   nodes/node_logic_on_value_change_options.cc
   nodes/node_logic_overlay_collection_options.cc
@@ -152,6 +155,7 @@ set(SRC
   nodes/node_logic_variable_remove_options.cc
   nodes/node_logic_variable_save_options.cc
   nodes/node_logic_move_toward.cc
+  nodes/node_logic_mouse_button.cc
   nodes/node_logic_mouse_moved.cc
   nodes/node_logic_mouse_over.cc
   nodes/node_logic_object_scroll_view.cc
@@ -244,6 +248,7 @@ set(SRC
   nodes/node_logic_set_timescale.cc
   nodes/node_logic_string_operation.cc
   nodes/node_logic_time.cc
+  nodes/node_logic_translate.cc
   nodes/node_logic_typecast.cc
   nodes/node_logic_toggle_tree_property.cc
   nodes/node_logic_tween_value.cc
@@ -263,6 +268,7 @@ set(SRC
   nodes/node_logic_vehicle_control.cc
   nodes/node_logic_vehicle_set_attributes.cc
   nodes/node_logic_gamepad_active.cc
+  nodes/node_logic_gamepad_button.cc
   nodes/node_logic_get_input_binding.cc
   nodes/node_logic_input_action.cc
   nodes/node_logic_input_map.cc
