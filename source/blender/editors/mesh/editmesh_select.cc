@@ -239,101 +239,6 @@ void EDBM_select_mirrored(
   *r_totfail = totfail;
 }
 
-static bool UNUSED_FUNCTION(EDBM_select_mirrored_extend_all)(Object *obedit, EditMesh *em)
-{
-  BMesh *bm = BKE_editmesh_bmesh_ensure(obedit);
-  int selectmode = em->selectmode;
-  bool changed = false;
-
-  if (bm->totfacesel == 0) {
-    selectmode &= ~SCE_SELECT_FACE;
-  }
-  if (bm->totedgesel == 0) {
-    selectmode &= ~SCE_SELECT_EDGE;
-  }
-  if (bm->totvertsel == 0) {
-    selectmode &= ~SCE_SELECT_VERTEX;
-  }
-
-  if (selectmode == 0) {
-    return changed;
-  }
-
-  char symmetry_htype = 0;
-  if (selectmode & SCE_SELECT_FACE) {
-    symmetry_htype |= BM_FACE;
-  }
-  if (selectmode & SCE_SELECT_EDGE) {
-    symmetry_htype |= BM_EDGE;
-  }
-  if (selectmode & SCE_SELECT_VERTEX) {
-    symmetry_htype |= BM_VERT;
-  }
-  if (std::optional<EditMeshSymmetryHelper> symmetry_helper =
-          EditMeshSymmetryHelper::create_if_needed(obedit, symmetry_htype))
-  {
-    const char hflag = BM_ELEM_SELECT;
-    BMIter iter;
-
-    if (selectmode & SCE_SELECT_FACE) {
-      Vector<BMFace *> source_faces;
-      source_faces.reserve(bm->totfacesel);
-      BMFace *f;
-      BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-        if (BM_elem_flag_test(f, hflag)) {
-          source_faces.append(f);
-        }
-      }
-      const int totfacesel_prev = bm->totfacesel;
-      for (BMFace *f_orig : source_faces) {
-        symmetry_helper->set_hflag_on_mirror_faces(f_orig, hflag, true);
-      }
-      if (bm->totfacesel != totfacesel_prev) {
-        changed = true;
-      }
-    }
-    if (selectmode & SCE_SELECT_EDGE) {
-      Vector<BMEdge *> source_edges;
-      source_edges.reserve(bm->totedgesel);
-      BMEdge *e;
-      BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
-        if (BM_elem_flag_test(e, hflag)) {
-          source_edges.append(e);
-        }
-      }
-      const int totedgesel_prev = bm->totedgesel;
-      for (BMEdge *e_orig : source_edges) {
-        symmetry_helper->set_hflag_on_mirror_edges(e_orig, hflag, true);
-      }
-      if (bm->totedgesel != totedgesel_prev) {
-        changed = true;
-      }
-    }
-    if (selectmode & SCE_SELECT_VERTEX) {
-      Vector<BMVert *> source_verts;
-      source_verts.reserve(bm->totvertsel);
-      BMVert *v;
-      BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-        if (BM_elem_flag_test(v, hflag)) {
-          source_verts.append(v);
-        }
-      }
-      const int totvertsel_prev = bm->totvertsel;
-      for (BMVert *v_orig : source_verts) {
-        symmetry_helper->set_hflag_on_mirror_verts(v_orig, hflag, true);
-      }
-      if (bm->totvertsel != totvertsel_prev) {
-        changed = true;
-      }
-    }
-    if (changed) {
-      EDBM_selectmode_flush(bm, selectmode);
-    }
-  }
-
-  return changed;
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2677,8 +2582,10 @@ static wmOperatorStatus edbm_select_all_exec(bContext *C, wmOperator *op)
   if (action == SEL_TOGGLE) {
     action = SEL_SELECT;
     for (Object *obedit : objects) {
-      BMesh *bm = BKE_editmesh_bmesh_ensure(obedit);
-      if (bm->totvertsel || bm->totedgesel || bm->totfacesel) {
+      const Mesh *mesh = id_cast<const Mesh *>(obedit->data);
+      int count[3];
+      BKE_mesh_count_selected_items(mesh, count);
+      if (count[0] || count[1] || count[2]) {
         action = SEL_DESELECT;
         break;
       }
@@ -2776,20 +2683,15 @@ void MESH_OT_select_interior_faces(wmOperatorType *ot)
  * Gets called via generic mouse select operator.
  * \{ */
 
-bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params)
+static bool edbm_select_pick_bmesh(bContext *C,
+                                   ViewContext &vc,
+                                   const Span<Base *> bases,
+                                   const SelectPick_Params &params)
 {
   int base_index_active = -1;
   BMVert *eve = nullptr;
   BMEdge *eed = nullptr;
   BMFace *efa = nullptr;
-
-  /* Setup view context for argument to callbacks. */
-  ViewContext vc = em_setup_viewcontext(C);
-  vc.mval[0] = mval[0];
-  vc.mval[1] = mval[1];
-
-  Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode(
-      *vc.bmain, vc.scene, vc.view_layer, vc.v3d);
 
   bool changed = false;
   bool found = unified_findnearest(&vc, bases, &base_index_active, &eve, &eed, &efa);
@@ -3015,6 +2917,19 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
   }
 
   return changed;
+}
+
+bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params)
+{
+  /* Setup view context for argument to callbacks. */
+  ViewContext vc = em_setup_viewcontext(C);
+  vc.mval[0] = mval[0];
+  vc.mval[1] = mval[1];
+
+  const Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode(
+      *vc.bmain, vc.scene, vc.view_layer, vc.v3d);
+
+  return edbm_select_pick_bmesh(C, vc, bases, params);
 }
 
 /** \} */

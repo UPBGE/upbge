@@ -158,10 +158,26 @@ void VKStorageBuffer::async_flush_to_host()
     return;
   }
   ensure_allocated();
+
+  /* Allocating huge buffers can fail, in that case we skip copying data. */
+  if (!buffer_.is_allocated()) {
+    return;
+  }
+
   VKContext &context = *VKContext::get();
 
   async_read_buffer_ = MEM_new<VKStagingBuffer>(
       __func__, buffer_, VKStagingBuffer::Direction::DeviceToHost);
+  if (!async_read_buffer_->host_buffer_get().is_mapped()) {
+    CLOG_ERROR(
+        &LOG,
+        "Unable to read data from storage buffer via a staging buffer as the staging buffer "
+        "could not be allocated.");
+    MEM_delete(async_read_buffer_);
+    async_read_buffer_ = nullptr;
+    return;
+  }
+
   async_read_buffer_->copy_from_device(context);
   async_read_buffer_->host_buffer_get().async_flush_to_host(context);
 }
@@ -176,6 +192,11 @@ void VKStorageBuffer::read(void *data)
   BLI_assert(!read_if_ready_in_use_.load());
   if (read_if_ready_in_use_.load()) {
     printf("Error: Trying to read Vulkan storage buffer while an async copy is in progress.\n");
+  }
+
+  /* Skip reading when the device or staging buffer could not be allocated. */
+  if (async_read_buffer_ == nullptr) {
+    return;
   }
 
   VKContext &context = *VKContext::get();
