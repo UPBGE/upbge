@@ -34,7 +34,10 @@
 
 #include "SCA_GameActuator.h"
 
+#include "BLI_path_utils.hh"
+
 #include "CM_Message.h"
+#include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h" /* for config load/saving */
 #include "RAS_ICanvas.h"
@@ -86,9 +89,21 @@ bool SCA_GameActuator::Update()
     case KX_GAME_LOAD:
     case KX_GAME_START: {
       if (m_ketsjiengine) {
+        /* Validate before requesting the switch: the launchers tear the running game down
+         * before loading and have nothing to fall back to, so a missing file used to crash.
+         * Turn it into a regular quit instead. */
+        std::string filepath;
+        if (!KX_ResolveGameFilePath(m_filename, filepath)) {
+          CM_LogicBrickError(this,
+                             "Start Game From File: file not found \"" << m_filename
+                                                                       << "\" (resolved to \""
+                                                                       << filepath << "\")");
+          m_ketsjiengine->RequestExit(KX_ExitRequest::QUIT_GAME);
+          break;
+        }
         std::string exitstring = "start other game";
         m_ketsjiengine->RequestExit(KX_ExitRequest::START_OTHER_GAME);
-        m_ketsjiengine->SetNameNextGame(m_filename);
+        m_ketsjiengine->SetNameNextGame(filepath);
         m_scene->AddDebugProperty((this)->GetParent(), exitstring);
       }
 
@@ -193,7 +208,7 @@ PyMethodDef SCA_GameActuator::Methods[] = {
 };
 
 PyAttributeDef SCA_GameActuator::Attributes[] = {
-    EXP_PYATTRIBUTE_STRING_RW("fileName", 0, 100, false, SCA_GameActuator, m_filename),
+    EXP_PYATTRIBUTE_STRING_RW("fileName", 0, FILE_MAX - 1, false, SCA_GameActuator, m_filename),
     EXP_PYATTRIBUTE_INT_RW(
         "mode", KX_GAME_NODEF + 1, KX_GAME_MAX - 1, true, SCA_GameActuator, m_mode),
     EXP_PYATTRIBUTE_NULL  // Sentinel

@@ -45,6 +45,10 @@ KX_Scene *KX_GetActiveScene();
 PHY_IPhysicsEnvironment *KX_GetPhysicsEnvironment();
 const std::string &KX_GetMainPath();
 const std::string &KX_GetOrigPath();
+/** Resolve a .blend path for a game switch the same way the launchers load it ("//" relative to
+ * the running file, then the legacy implicit-relative fallback). Returns false when no candidate
+ * is an existing file (r_path then holds the primary candidate, for error reporting). */
+bool KX_ResolveGameFilePath(const std::string &path, std::string &r_path);
 
 void KX_RasterizerDrawDebugLine(const MT_Vector3 &from,
                                 const MT_Vector3 &to,

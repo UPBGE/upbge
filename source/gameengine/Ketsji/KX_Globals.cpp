@@ -26,6 +26,7 @@
 
 #include "KX_Globals.h"
 
+#include "BLI_fileops.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.hh"
 
@@ -87,6 +88,41 @@ const std::string &KX_GetMainPath()
 const std::string &KX_GetOrigPath()
 {
   return g_origPath;
+}
+
+bool KX_ResolveGameFilePath(const std::string &path, std::string &r_path)
+{
+  if (path.empty()) {
+    return false;
+  }
+
+  /* "//" is resolved against the running file on every platform, absolute paths pass through.
+   * Only called when a game switch is requested, so a couple of stat() calls are free. */
+  char cpath[FILE_MAX];
+  BLI_strncpy(cpath, path.c_str(), sizeof(cpath));
+  BLI_path_abs(cpath, g_mainPath.c_str());
+  /* On failure r_path keeps this primary candidate so the caller can report where it looked. */
+  r_path = cpath;
+  if (BLI_is_file(cpath)) {
+    return true;
+  }
+
+  /* Legacy fallback of the launchers: a path without the "//" prefix is retried as relative to
+   * the running file. Built from the raw string, not from the result above, because on WIN32
+   * BLI_path_abs prefixes rootless paths with the drive root, which made the old fallback
+   * produce "<blend dir>/C:/..." instead of the intended file. */
+  if (BLI_path_is_rel(path.c_str())) {
+    return false;
+  }
+  cpath[0] = '/';
+  cpath[1] = '/';
+  BLI_strncpy(cpath + 2, path.c_str(), sizeof(cpath) - 2);
+  BLI_path_abs(cpath, g_mainPath.c_str());
+  if (BLI_is_file(cpath)) {
+    r_path = cpath;
+    return true;
+  }
+  return false;
 }
 
 void KX_RasterizerDrawDebugLine(const MT_Vector3 &from,

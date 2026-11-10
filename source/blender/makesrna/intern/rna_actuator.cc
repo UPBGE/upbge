@@ -1942,6 +1942,8 @@ static void rna_def_game_actuator(BlenderRNA *brna)
       "File",
       "The file to use, depending on the mode (e.g. the blend file to load or a destination "
       "for saving a screenshot) - use the \"//\" prefix for a relative path");
+  /* Both modes resolve "//" against the running file (KX_ResolveGameFilePath, MakeScreenShot). */
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
   /*XXX to do: an operator that calls file_browse with relative_path on and blender filtering
    * active */

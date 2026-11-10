@@ -229,8 +229,18 @@ static PyObject *gPyStartGame(PyObject *, PyObject *args)
   if (!PyArg_ParseTuple(args, "s:startGame", &blendfile))
     return nullptr;
 
+  /* Same check as the game actuator: a missing file crashed the launchers once the running
+   * game was torn down, turn it into a regular quit instead. */
+  std::string filepath;
+  if (!KX_ResolveGameFilePath(blendfile, filepath)) {
+    CM_Error("startGame: file not found \"" << blendfile << "\" (resolved to \"" << filepath
+                                            << "\")");
+    KX_GetActiveEngine()->RequestExit(KX_ExitRequest::QUIT_GAME);
+    Py_RETURN_NONE;
+  }
+
   KX_GetActiveEngine()->RequestExit(KX_ExitRequest::START_OTHER_GAME);
-  KX_GetActiveEngine()->SetNameNextGame(blendfile);
+  KX_GetActiveEngine()->SetNameNextGame(filepath);
 
   Py_RETURN_NONE;
 }

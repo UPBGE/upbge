@@ -202,7 +202,7 @@ typedef struct bMessageActuator {
 typedef struct bGameActuator {
   short flag, type;
   int sta, end;
-  char filename[64];
+  char filename[1024];
   char loadaniname[64];
 } bGameActuator;
 
