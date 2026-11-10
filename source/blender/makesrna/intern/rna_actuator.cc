@@ -579,6 +579,20 @@ static void rna_Actuator_Armature_update(Main */*bmain*/,
   constraint[0] = 0;
 }
 
+/* The file property is shared by modes: only game loading wants the browser limited to
+ * blend-files, the screenshot mode writes images. */
+static std::optional<std::string> rna_GameActuator_filename_filter(const bContext * /*C*/,
+                                                                   PointerRNA *ptr,
+                                                                   PropertyRNA * /*prop*/)
+{
+  const bActuator *act = (const bActuator *)ptr->data;
+  const bGameActuator *ga = (const bGameActuator *)act->data;
+  if (ELEM(ga->type, ACT_GAME_LOAD, ACT_GAME_START)) {
+    return "*.blend";
+  }
+  return std::nullopt;
+}
+
 static void rna_SteeringActuator_navmesh_set(PointerRNA *ptr,
                                              PointerRNA value,
                                              struct ReportList */*reports*/)
@@ -1944,9 +1958,8 @@ static void rna_def_game_actuator(BlenderRNA *brna)
       "for saving a screenshot) - use the \"//\" prefix for a relative path");
   /* Both modes resolve "//" against the running file (KX_ResolveGameFilePath, MakeScreenShot). */
   RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
+  RNA_def_property_string_filepath_filter_func(prop, "rna_GameActuator_filename_filter");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
-  /*XXX to do: an operator that calls file_browse with relative_path on and blender filtering
-   * active */
 }
 
 static void rna_def_vibration_actuator(BlenderRNA *brna)
