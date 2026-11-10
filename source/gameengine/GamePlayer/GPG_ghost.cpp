@@ -160,6 +160,10 @@ extern "C" int GHOST_HACK_getFirstFile(char buf[]);
 #  include "SpindleEncryption.h"
 #endif  // WITH_GAMEENGINE_BPPLAYER
 
+#ifdef WITH_GAMEENGINE_BINARYCRYPT
+#  include "BC_binarycrypt.hh"
+#endif
+
 using namespace blender;
 
 namespace blender {
@@ -863,6 +867,11 @@ int main(int argc,
   BKE_blender_globals_init(); /* blender.c */
   G.is_blenderplayer = true;
 
+#ifdef WITH_GAMEENGINE_BINARYCRYPT
+  /* Receive the key from the launcher before Python starts and before any file is read. */
+  BC_runtime_init_from_launcher();
+#endif
+
   MEM_CacheLimiter_set_disabled(true);
 
   BKE_cpp_types_init();
@@ -1331,6 +1340,14 @@ int main(int argc,
       i++;
     }
   }
+
+#ifdef WITH_GAMEENGINE_BINARYCRYPT
+  /* A protected game must not run external Python with access to its decrypted data. */
+  if (BC_runtime_has_key() && !pythonControllerFile.empty()) {
+    CM_Warning("-p is disabled for protected games, ignoring: " << pythonControllerFile);
+    pythonControllerFile.clear();
+  }
+#endif
 
   if ((windowWidth < kMinWindowWidth) || (windowHeight < kMinWindowHeight)) {
     error = true;

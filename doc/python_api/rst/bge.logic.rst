@@ -495,6 +495,30 @@ Utility functions
    :return: The converted string
    :rtype: string
 
+.. function:: decryptFile(path)
+
+   Reads a whole file, decrypted when UPBGE-BinaryCrypt encrypted it as a data file. A file that
+   is not encrypted is returned as it is, so the same script works in Blender and in the
+   protected game. Encrypted files can only be decrypted by the player started from the game
+   executable; encrypted ``.blend`` files and Python modules are refused (they are opened by
+   ``LibLoad`` and ``import``).
+
+   .. code-block:: python
+
+      import json
+      from bge import logic
+
+      level = json.loads(logic.decryptFile("//data/level1.json"))
+
+   :arg path: The file path; '//' at the start is the directory of the current .blend file.
+   :type path: string, bytes or path-like object
+   :return: The content of the file
+   :rtype: bytes
+   :raises OSError: when the file cannot be read, is of another kind, or was modified.
+
+   .. note::
+      Only available when UPBGE is built with ``WITH_GAMEENGINE_BINARYCRYPT`` (the default).
+
 .. function:: getAverageFrameRate()
 
    Gets the estimated/average framerate for all the active scenes, not only the current scene.

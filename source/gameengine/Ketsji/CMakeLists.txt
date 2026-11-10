@@ -259,4 +259,15 @@ if(WITH_XR_OPENXR)
   add_definitions(-DWITH_XR_OPENXR)
 endif()
 
+if(WITH_GAMEENGINE_BINARYCRYPT)
+  list(APPEND SRC
+    KX_BinaryCrypt.cpp
+    KX_BinaryCrypt.h
+  )
+  list(APPEND LIB
+    PRIVATE bf::intern::binarycrypt
+  )
+  add_definitions(-DWITH_GAMEENGINE_BINARYCRYPT)
+endif()
+
 blender_add_lib(ge_ketsji "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

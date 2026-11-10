@@ -102,6 +102,9 @@
 #include "BL_Converter.h"
 #include "BL_Shader.h"
 #include "CM_Message.h"
+#ifdef WITH_GAMEENGINE_BINARYCRYPT
+#  include "KX_BinaryCrypt.h"
+#endif
 #include "KX_Globals.h"
 #include "KX_LibLoadStatus.h"
 #include "KX_MeshProxy.h" /* for creating a new library of mesh objects */
@@ -218,6 +221,35 @@ static PyObject *gPyExpandPath(PyObject *, PyObject *args)
   BLI_path_abs(expanded, KX_GetMainPath().c_str());
   return PyC_UnicodeFromBytes(expanded);
 }
+
+#  ifdef WITH_GAMEENGINE_BINARYCRYPT
+PyDoc_STRVAR(gPyDecryptFile_doc,
+             "decryptFile(path)\n"
+             "Returns the content of a file as bytes, decrypted when UPBGE-BinaryCrypt encrypted "
+             "it as a data file. Files that are not encrypted are returned as they are, so the same "
+             "script works before and after the export.\n"
+             " path - the file path; '//' at the start is the directory of the current .blend.");
+static PyObject *gPyDecryptFile(PyObject *, PyObject *value)
+{
+  PyObject *path;
+  if (!PyUnicode_FSConverter(value, &path)) {
+    return nullptr;
+  }
+  char expanded[FILE_MAX];
+  const bool fits = size_t(PyBytes_GET_SIZE(path)) < sizeof(expanded);
+  if (fits) {
+    BLI_strncpy(expanded, PyBytes_AS_STRING(path), sizeof(expanded));
+  }
+  Py_DECREF(path);
+  if (!fits) {
+    /* Truncated, it could name another file. */
+    PyErr_SetString(PyExc_ValueError, "decryptFile: path too long");
+    return nullptr;
+  }
+  BLI_path_abs(expanded, KX_GetMainPath().c_str());
+  return KX_BinaryCrypt_ReadFile(expanded);
+}
+#  endif
 
 PyDoc_STRVAR(gPyStartGame_doc,
              "startGame(blend)\n"
@@ -787,6 +819,9 @@ static PyObject *gPyNextFrame(PyObject *)
 
 static struct PyMethodDef game_methods[] = {
     {"expandPath", (PyCFunction)gPyExpandPath, METH_VARARGS, (const char *)gPyExpandPath_doc},
+#  ifdef WITH_GAMEENGINE_BINARYCRYPT
+    {"decryptFile", (PyCFunction)gPyDecryptFile, METH_O, (const char *)gPyDecryptFile_doc},
+#  endif
     {"startGame", (PyCFunction)gPyStartGame, METH_VARARGS, (const char *)gPyStartGame_doc},
     {"endGame", (PyCFunction)gPyEndGame, METH_NOARGS, (const char *)gPyEndGame_doc},
     {"restartGame", (PyCFunction)gPyRestartGame, METH_NOARGS, (const char *)gPyRestartGame_doc},
@@ -1766,6 +1801,11 @@ static void initPySysObjects(blender::Main *maggie)
   }
 
   initPySysObjects__append(sys_path, KX_GetMainPath().c_str());
+
+#  ifdef WITH_GAMEENGINE_BINARYCRYPT
+  /* The restore above dropped it: encrypted modules of a protected game. */
+  KX_BinaryCrypt_InstallImporter(sys_meta_path);
+#  endif
 }
 
 static void restorePySysObjects(void)

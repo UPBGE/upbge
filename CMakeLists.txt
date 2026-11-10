@@ -323,6 +323,9 @@ endif()
 option(WITH_GAMEENGINE_BPPLAYER "Enable Blend encrypted (from BPPlayer application) reading capabilities" ON)
 mark_as_advanced(WITH_GAMEENGINE_BPPLAYER)
 
+option(WITH_GAMEENGINE_BINARYCRYPT "Enable reading of UPBGE-BinaryCrypt encrypted files (blend files, Python modules, data files) in the player" ON)
+mark_as_advanced(WITH_GAMEENGINE_BINARYCRYPT)
+
 option(WITH_PLAYER        "Build Player" ON)
 
 option(WITH_OPENIMAGEDENOISE "Enable OpenImageDenoise (Cycles denoiser and the compositor Denoise node)" ON)

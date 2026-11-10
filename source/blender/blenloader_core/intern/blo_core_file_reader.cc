@@ -16,6 +16,10 @@
 
 #include "BLO_core_file_reader.hh"
 
+#ifdef WITH_GAMEENGINE_BINARYCRYPT
+#  include "BC_binarycrypt.hh"
+#endif
+
 namespace blender {
 
 FileReader *BLO_file_reader_uncompressed_from_descriptor(int filedes)
@@ -50,6 +54,13 @@ FileReader *BLO_file_reader_uncompressed(FileReader *rawfile)
     /* The file is uncompressed. */
     return rawfile;
   }
+#ifdef WITH_GAMEENGINE_BINARYCRYPT
+  if (BC_file_magic_is_container(first_bytes)) {
+    /* UPBGE: encrypted container. The decrypting reader takes ownership of the rawfile. Recurse
+     * so that a gzip/zstd compressed blend inside the container is unwrapped as usual. */
+    return BLO_file_reader_uncompressed(BC_filereader_new(rawfile));
+  }
+#endif
   if (BLI_file_magic_is_gzip(first_bytes)) {
     /* The new reader takes ownership of the rawfile. */
     return BLI_filereader_new_gzip(rawfile);
