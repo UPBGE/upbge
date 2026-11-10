@@ -57,6 +57,7 @@ set(SRC
   intern/LN_Inventory.cpp
   intern/LN_PersistenceCapability.cpp
   intern/LN_Manager.cpp
+  intern/LN_MeshRays.cpp
   intern/LN_NodeMetadata.cpp
   intern/LN_NodeRegistry.cpp
   intern/LN_Performance.cpp
@@ -97,6 +98,7 @@ set(SRC
   LN_LeanProgram.h
   LN_LeanReader.h
   LN_Manager.h
+  LN_MeshRays.h
   LN_NodeMetadata.h
   LN_NodeRegistry.h
   LN_Performance.h
@@ -166,11 +168,13 @@ if(WITH_GTESTS)
     tests/LN_LeanDifferential_test.cpp
     tests/LN_ConstantObjects_test.cpp
     tests/LN_Manager_test.cpp
+    tests/LN_MeshRays_test.cpp
     tests/LN_NodeCoverage_test.cpp
     tests/LN_TransformApply_test.cpp
     tests/LN_NodeRegistry_test.cpp
     tests/LN_NodeValues_test.cpp
     tests/LN_ReadOrder_test.cpp
+    tests/LN_RemovedObjects_test.cpp
     tests/LN_Performance_test.cpp
     tests/LN_Program_test.cpp
     tests/LN_Rotation_test.cpp

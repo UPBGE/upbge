@@ -3038,7 +3038,10 @@ static void declare_get_image(NodeDeclarationBuilder &b)
 static void declare_get_object_id(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_output<decl::String>("ID"_ustr);
+  b.add_output<decl::String>("ID"_ustr).description(
+      "The name of the object's own Blender object, e.g. \"SpawnOBJ.001\" for a copy of "
+      "SpawnOBJ. Unique among the objects that exist now, but given again: a later copy can "
+      "have a removed copy's ID, and Dupli Base copies all have their source's");
 }
 
 static void declare_get_axis_vector(NodeDeclarationBuilder &b)

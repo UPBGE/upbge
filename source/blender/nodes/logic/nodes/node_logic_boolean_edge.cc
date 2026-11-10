@@ -16,7 +16,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Condition>("Condition"_ustr)
       .default_value(false)
       .description(
-          "Sampled once per fixed tick; the initial previous value is false");
+          "Sampled once per step (once per frame in a Frame Update route); the initial previous "
+          "value is false");
   b.add_output<decl::Execution>("Rising"_ustr)
       .is_default_link_socket()
       .description(

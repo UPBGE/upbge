@@ -75,6 +75,7 @@
 #include "BLI_string_utf8.h"
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
@@ -106,6 +107,7 @@
 #include "LN_InputMap.h"
 #include "LN_Inventory.h"
 #include "LN_Manager.h"
+#include "LN_MeshRays.h"
 #include "LN_Performance.h"
 #include "LN_Random.h"
 #include "LN_RuntimeSemantics.h"
@@ -467,11 +469,6 @@ static PHY_IPhysicsController *RaycastOwningPhysicsController(KX_GameObject *obj
   return nullptr;
 }
 
-struct LN_MeshRaySample {
-  MT_Vector3 position;
-  MT_Vector3 normal;
-};
-
 static bool NormalizeFinite(MT_Vector3 &vector)
 {
   const float length_squared = vector.length2();
@@ -484,173 +481,227 @@ static bool NormalizeFinite(MT_Vector3 &vector)
   return vector_is_finite(vector);
 }
 
-static bool MeshVertexRaySample(const RAS_MeshObject::SharedVertex &first,
-                                const std::vector<RAS_MeshObject::SharedVertex> &shared_vertices,
-                                LN_MeshRaySample &r_sample)
+/**
+ * A game mesh's vertex positions as the game started: the converter gave Blender vertex `vert`
+ * its copies in `m_sharedvertex_map[vert]` (every copy has the same position).
+ */
+static bool GameMeshStartPosition(const RAS_MeshObject &game_mesh,
+                                  const int vert,
+                                  blender::float3 &r_position)
 {
+  if (vert < 0 || size_t(vert) >= game_mesh.m_sharedvertex_map.size()) {
+    return false;
+  }
+  const std::vector<RAS_MeshObject::SharedVertex> &copies = game_mesh.m_sharedvertex_map[vert];
+  if (copies.empty()) {
+    return false;
+  }
+  const RAS_MeshObject::SharedVertex &first = copies.front();
   if (!first.m_darray || first.m_offset < 0 ||
       size_t(first.m_offset) >= first.m_darray->GetVertexCount())
   {
     return false;
   }
-  const RAS_IVertex *first_vertex = first.m_darray->GetVertex(uint32_t(first.m_offset));
-  if (!first_vertex) {
+  const RAS_IVertex *vertex = first.m_darray->GetVertex(uint32_t(first.m_offset));
+  if (!vertex) {
     return false;
   }
-  r_sample.position = first_vertex->xyz();
-  if (!vector_is_finite(r_sample.position)) {
-    return false;
-  }
-
-  r_sample.normal = MT_Vector3(0.0f, 0.0f, 0.0f);
-  for (const RAS_MeshObject::SharedVertex &shared : shared_vertices) {
-    if (!shared.m_darray || shared.m_offset < 0 ||
-        size_t(shared.m_offset) >= shared.m_darray->GetVertexCount())
-    {
-      continue;
-    }
-    const RAS_IVertex *vertex = shared.m_darray->GetVertex(uint32_t(shared.m_offset));
-    if (vertex) {
-      const MT_Vector3 normal(vertex->getNormal());
-      if (vector_is_finite(normal)) {
-        r_sample.normal += normal;
-      }
-    }
-  }
-  return NormalizeFinite(r_sample.normal);
+  const float *xyz = vertex->getXYZ();
+  r_position = blender::float3(xyz[0], xyz[1], xyz[2]);
+  return std::isfinite(r_position.x) && std::isfinite(r_position.y) &&
+         std::isfinite(r_position.z);
 }
 
-static bool MeshFaceRaySample(const RAS_Polygon &polygon, LN_MeshRaySample &r_sample)
-{
-  const int vertex_count = polygon.VertexCount();
-  if (vertex_count < 3) {
-    return false;
-  }
-  std::vector<MT_Vector3> positions;
-  positions.reserve(size_t(vertex_count));
-  r_sample.position = MT_Vector3(0.0f, 0.0f, 0.0f);
-  for (int index = 0; index < vertex_count; index++) {
-    const RAS_IVertex *vertex = polygon.GetVertex(index);
-    if (!vertex) {
+/** The positions a mesh ray block reads: the game mesh's start shape, or Blender's own. */
+struct LN_MeshRayPositions {
+  const RAS_MeshObject *game_mesh = nullptr;
+  blender::Span<blender::float3> blender_positions;
+  bool start_shape = false;
+
+  bool operator()(const int vert, blender::float3 &r_position) const
+  {
+    if (start_shape) {
+      return GameMeshStartPosition(*game_mesh, vert, r_position);
+    }
+    if (vert < 0 || vert >= blender_positions.size()) {
       return false;
     }
-    const MT_Vector3 position = vertex->xyz();
-    if (!vector_is_finite(position)) {
-      return false;
-    }
-    positions.push_back(position);
-    r_sample.position += position;
+    r_position = blender_positions[vert];
+    return true;
   }
-  r_sample.position /= float(vertex_count);
-
-  r_sample.normal = MT_Vector3(0.0f, 0.0f, 0.0f);
-  const MT_Vector3 &base = positions.front();
-  for (int index = 1; index + 1 < vertex_count; index++) {
-    r_sample.normal +=
-        (positions[size_t(index)] - base).cross(positions[size_t(index + 1)] - base);
-  }
-  return NormalizeFinite(r_sample.normal);
-}
-
-struct LN_MeshRayDomainBlock {
-  RAS_MeshObject *mesh = nullptr;
-  uint64_t begin = 0;
-  uint64_t end = 0;
 };
 
-static bool MeshRaySampleAt(const std::vector<LN_MeshRayDomainBlock> &blocks,
-                            const LN_MeshRayDomain domain,
-                            const uint64_t ordinal,
-                            LN_MeshRaySample &r_sample)
+/** The game scene's evaluated copy of `object` (the graph the engine draws), else `object`. */
+static blender::Object *EvaluatedBlenderObject(KX_Scene *scene, blender::Object *object)
 {
-  const auto block = std::upper_bound(
-      blocks.begin(), blocks.end(), ordinal, [](const uint64_t value, const auto &candidate) {
-        return value < candidate.end;
-      });
-  if (block == blocks.end() || ordinal < block->begin || !block->mesh) {
-    return false;
-  }
-  const uint64_t local_index = ordinal - block->begin;
-  if (domain == LN_MeshRayDomain::Vertices) {
-    if (local_index >= block->mesh->m_sharedvertex_map.size()) {
-      return false;
+  blender::Scene *blender_scene = scene ? scene->GetBlenderScene() : nullptr;
+  blender::ViewLayer *view_layer = blender_scene ?
+                                       blender::BKE_view_layer_default_view(blender_scene) :
+                                       nullptr;
+  blender::Depsgraph *depsgraph = view_layer ?
+                                      blender::BKE_scene_get_depsgraph(blender_scene, view_layer) :
+                                      nullptr;
+  if (depsgraph != nullptr) {
+    if (blender::Object *evaluated = blender::DEG_get_evaluated(depsgraph, object)) {
+      return evaluated;
     }
-    const std::vector<RAS_MeshObject::SharedVertex> &shared =
-        block->mesh->m_sharedvertex_map[size_t(local_index)];
-    return !shared.empty() && MeshVertexRaySample(shared.front(), shared, r_sample);
   }
-  if (local_index >= uint64_t(std::max(0, block->mesh->NumPolygons()))) {
-    return false;
-  }
-  RAS_Polygon *polygon = block->mesh->GetPolygon(int(local_index));
-  return polygon && MeshFaceRaySample(*polygon, r_sample);
+  return object;
 }
 
+/** Whether a game mesh was converted from a Blender mesh with this topology: the converter added
+ * one vertex slot per Blender vertex and every triangle of `corner_tris`. */
+static bool GameMeshMatchesBlenderMesh(RAS_MeshObject &game_mesh, const blender::Mesh &mesh)
+{
+  return mesh.verts_num == int64_t(game_mesh.m_sharedvertex_map.size()) &&
+         int64_t(mesh.corners_num) - 2 * int64_t(mesh.faces_num) ==
+             int64_t(game_mesh.NumPolygons());
+}
+
+/**
+ * The Blender mesh whose faces and vertices give a game mesh's rays: the evaluated mesh of the
+ * object the game mesh was converted from (as the converter and Jolt's collision shape read it),
+ * else the game mesh's own Blender mesh. While its topology is the game mesh's, `r_start_shape`
+ * is set: positions then come from the game mesh, the shape when the game started, so an armature
+ * or shape keys never move the rays and no normal of a bent mesh is computed. A mesh whose
+ * topology changed since (geometry nodes) gives its own current positions.
+ */
+/** Which Blender data a mesh ray block's topology came from: the session UID of the object (its
+ * evaluated mesh) or of the mesh itself. */
+struct LN_MeshRaySourceId {
+  uint32_t session_uid = 0;
+  bool is_object = false;
+};
+
+static const blender::Mesh *MeshRaySourceOf(KX_Scene *scene,
+                                            RAS_MeshObject &game_mesh,
+                                            bool &r_start_shape,
+                                            LN_MeshRaySourceId &r_source_id)
+{
+  const blender::Mesh *candidates[2] = {nullptr, game_mesh.GetOrigMesh()};
+  blender::Object *object = game_mesh.GetOriginalObject();
+  if (object != nullptr && object->type == blender::OB_MESH) {
+    const blender::Object *evaluated = EvaluatedBlenderObject(scene, object);
+    if (evaluated != nullptr && evaluated->type == blender::OB_MESH) {
+      candidates[0] = reinterpret_cast<const blender::Mesh *>(evaluated->data);
+    }
+  }
+  const auto source_id_of = [&](const int candidate) {
+    if (candidate == 0) {
+      return LN_MeshRaySourceId{object->id.session_uid, true};
+    }
+    return LN_MeshRaySourceId{candidates[1]->id.session_uid, false};
+  };
+  for (int candidate = 0; candidate < 2; candidate++) {
+    const blender::Mesh *mesh = candidates[candidate];
+    if (mesh != nullptr && GameMeshMatchesBlenderMesh(game_mesh, *mesh)) {
+      r_start_shape = true;
+      r_source_id = source_id_of(candidate);
+      return mesh;
+    }
+  }
+  r_start_shape = false;
+  const int candidate = candidates[0] != nullptr ? 0 : 1;
+  if (candidates[candidate] != nullptr) {
+    r_source_id = source_id_of(candidate);
+  }
+  return candidates[candidate];
+}
+
+/**
+ * Raycast from Mesh's samples in the source object's mesh space: Blender faces (centre, face
+ * normal) or vertices (vertex normal) of every game mesh of the object, in order, Max Rays at most
+ * (LN_MeshRays.h). Only the picked elements are read. A non-empty `vertex_group` keeps the members
+ * of that group only (found once per mesh in `groups`, every time without it).
+ */
 static std::vector<LN_MeshRaySample> SampleMeshRays(KX_GameObject &source_object,
                                                     const LN_MeshRayDomain domain,
-                                                    const size_t max_rays)
+                                                    const size_t max_rays,
+                                                    const std::string &vertex_group,
+                                                    LN_MeshRayGroupCache *groups)
 {
-  std::vector<LN_MeshRayDomainBlock> blocks;
+  struct Block {
+    LN_MeshRayPositions positions;
+    LN_MeshRayGeometry geometry;
+    /** The group's members (element indices); null: every element. */
+    std::shared_ptr<const std::vector<int>> members;
+    uint64_t begin = 0;
+    uint64_t end = 0;
+  };
+  const bool faces = domain == LN_MeshRayDomain::Faces;
+  /* Reserved once: each block's geometry refers to its own `positions`. */
+  std::vector<Block> blocks;
   blocks.reserve(source_object.GetMeshCount());
   uint64_t candidate_count = 0;
   for (unsigned int mesh_index = 0; mesh_index < source_object.GetMeshCount(); mesh_index++) {
-    RAS_MeshObject *mesh = source_object.GetMesh(mesh_index);
+    RAS_MeshObject *game_mesh = source_object.GetMesh(mesh_index);
+    if (!game_mesh) {
+      continue;
+    }
+    bool start_shape = false;
+    LN_MeshRaySourceId source_id;
+    const blender::Mesh *mesh = MeshRaySourceOf(
+        source_object.GetScene(), *game_mesh, start_shape, source_id);
     if (!mesh) {
       continue;
     }
-    const uint64_t count = domain == LN_MeshRayDomain::Vertices ?
-                               uint64_t(mesh->m_sharedvertex_map.size()) :
-                               uint64_t(std::max(0, mesh->NumPolygons()));
-    if (count == 0 || count > std::numeric_limits<uint64_t>::max() - candidate_count) {
+    std::shared_ptr<const std::vector<int>> members;
+    if (!vertex_group.empty()) {
+      if (groups != nullptr) {
+        members = groups->Members(source_id.session_uid,
+                                  source_id.is_object,
+                                  *mesh,
+                                  vertex_group,
+                                  faces,
+                                  source_object.GetName());
+      }
+      else {
+        LN_MeshRayGroupCache once;
+        members = once.Members(0, false, *mesh, vertex_group, faces, source_object.GetName());
+      }
+      if (!members) {
+        continue;
+      }
+    }
+    const int64_t count = members ? int64_t(members->size()) :
+                          faces   ? int64_t(mesh->faces_num) :
+                                    int64_t(mesh->verts_num);
+    if (count <= 0) {
       continue;
     }
-    blocks.push_back({mesh, candidate_count, candidate_count + count});
-    candidate_count += count;
+    Block &block = blocks.emplace_back();
+    block.members = std::move(members);
+    block.positions.game_mesh = game_mesh;
+    block.positions.start_shape = start_shape;
+    if (!start_shape) {
+      block.positions.blender_positions = mesh->vert_positions();
+    }
+    block.geometry.faces = mesh->faces();
+    block.geometry.corner_verts = mesh->corner_verts();
+    if (domain == LN_MeshRayDomain::Vertices) {
+      block.geometry.vert_to_face_map = mesh->vert_to_face_map();
+    }
+    block.geometry.position = block.positions;
+    block.begin = candidate_count;
+    block.end = candidate_count + uint64_t(count);
+    candidate_count = block.end;
   }
 
-  const size_t output_count = size_t(std::min<uint64_t>(candidate_count, max_rays));
-  std::vector<LN_MeshRaySample> samples;
-  samples.reserve(output_count);
-  if (output_count == 0) {
-    return samples;
-  }
-
-  /* One sample is selected from each even domain bin. Search outwards from its center only when
-   * that candidate is degenerate; regular meshes therefore read exactly Max Rays elements even
-   * when the source contains millions of vertices or triangles. Bins never overlap, so ordering
-   * and uniqueness remain deterministic. */
-  const uint64_t bin_stride = candidate_count / uint64_t(output_count);
-  const uint64_t bin_remainder = candidate_count % uint64_t(output_count);
-  const auto bin_boundary = [&](const size_t index) {
-    const uint64_t i = uint64_t(index);
-    return bin_stride * i + (bin_remainder * i) / uint64_t(output_count);
-  };
-  for (size_t output_index = 0; output_index < output_count; output_index++) {
-    const uint64_t bin_begin = bin_boundary(output_index);
-    const uint64_t bin_end = bin_boundary(output_index + 1);
-    const uint64_t center = bin_begin + (bin_end - bin_begin - 1u) / 2u;
-    LN_MeshRaySample sample;
-    if (MeshRaySampleAt(blocks, domain, center, sample)) {
-      samples.push_back(sample);
-      continue;
-    }
-    for (uint64_t offset = 1; offset < bin_end - bin_begin; offset++) {
-      const bool has_lower = offset <= center - bin_begin;
-      const bool has_upper = offset < bin_end - center;
-      if (has_lower && MeshRaySampleAt(blocks, domain, center - offset, sample)) {
-        samples.push_back(sample);
-        break;
-      }
-      if (has_upper && MeshRaySampleAt(blocks, domain, center + offset, sample)) {
-        samples.push_back(sample);
-        break;
-      }
-      if (!has_lower && !has_upper) {
-        break;
-      }
-    }
-  }
-  return samples;
+  return LN_PickMeshRaySamples(
+      candidate_count, max_rays, [&](const uint64_t ordinal, LN_MeshRaySample &r_sample) {
+        const auto block = std::upper_bound(
+            blocks.begin(), blocks.end(), ordinal, [](const uint64_t value, const Block &item) {
+              return value < item.end;
+            });
+        if (block == blocks.end() || ordinal < block->begin) {
+          return false;
+        }
+        const uint64_t local_index = ordinal - block->begin;
+        const int element = block->members ? (*block->members)[size_t(local_index)] :
+                                             int(local_index);
+        return faces ? LN_MeshFaceRaySample(block->geometry, element, r_sample) :
+                       LN_MeshVertexRaySample(block->geometry, element, r_sample);
+      });
 }
 
 static bool BuildMeshNormalMatrix(const MT_Matrix3x3 &basis, MT_Matrix3x3 &r_normal_matrix)
@@ -5076,6 +5127,49 @@ KX_GameObject *LN_RuntimeTree::ResolveObjectRef(const LN_RuntimeRef &runtime_ref
   return slot.object;
 }
 
+bool LN_RuntimeTree::IsRemovedObjectRef(const LN_RuntimeRef &runtime_ref) const
+{
+  if (runtime_ref.kind != LN_RuntimeRefKind::Object || !runtime_ref.IsValid()) {
+    return false;
+  }
+  if (runtime_ref.shared_domain != 0) {
+    return m_logicManager != nullptr && m_logicManager->OwnsSharedObjectRef(runtime_ref) &&
+           m_logicManager->ResolveSharedObjectRef(runtime_ref) == nullptr;
+  }
+  /* Only InvalidateObjectRef (the object's removal) moves a slot's generation on; a slot this
+   * tree never made is no judgement of this tree's. */
+  return runtime_ref.slot < m_objectRefs.size() &&
+         m_objectRefs[runtime_ref.slot].generation != runtime_ref.generation;
+}
+
+void LN_RuntimeTree::ForgetRemovedObjects(LN_Value &value) const
+{
+  switch (value.type) {
+    case LN_ValueType::ObjectRef:
+      if (IsRemovedObjectRef(value.runtime_ref)) {
+        value = MakeNoneValue();
+      }
+      break;
+    case LN_ValueType::List:
+      for (LN_Value &item : value.list_value) {
+        ForgetRemovedObjects(item);
+      }
+      break;
+    case LN_ValueType::Dict:
+      for (auto &item : value.dict_value) {
+        ForgetRemovedObjects(item.second);
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+bool LN_RuntimeTree::ValueAsBoolHere(const LN_Value &value) const
+{
+  return !IsRemovedObjectValue(value) && ValueAsBool(value);
+}
+
 KX_GameObject *LN_RuntimeTree::ResolveCollisionPayloadObjectRef(
     const LN_RuntimeRef &object_ref) const
 {
@@ -6242,8 +6336,9 @@ KX_GameObject *LN_RuntimeTree::ConstantObjectTarget(const uint32_t value_index,
     if (KX_GameObject *object = ResolveObjectRef(constant.runtime_ref)) {
       return object;
     }
-    return constant.reference_name.empty() ? nullptr :
-                                             FindSceneObjectByName(constant.reference_name);
+    return constant.reference_name.empty() || IsRemovedObjectRef(constant.runtime_ref) ?
+               nullptr :
+               FindSceneObjectByName(constant.reference_name);
   }
   KX_GameObject *object = ResolveConstantObject(value_index, constant);
   if (object == nullptr) {
@@ -6304,6 +6399,10 @@ KX_GameObject *LN_RuntimeTree::ResolveObjectValue(const LN_Value &value,
     if (KX_GameObject *game_object = ResolveObjectRef(value.runtime_ref)) {
       return game_object;
     }
+    /* Its object was removed: None, not another object of its name (IsRemovedObjectRef). */
+    if (IsRemovedObjectRef(value.runtime_ref)) {
+      return nullptr;
+    }
   }
 
   if (!value.reference_name.empty()) {
@@ -6317,6 +6416,11 @@ void LN_RuntimeTree::ShareValue(LN_Value &value)
   switch (value.type) {
     case LN_ValueType::ObjectRef:
       if (value.runtime_ref.shared_domain == 0 && m_logicManager != nullptr) {
+        if (IsRemovedObjectRef(value.runtime_ref)) {
+          /* Kept as a name, readers would find another object of that name. */
+          value = MakeNoneValue();
+          break;
+        }
         KX_GameObject *object = ResolveObjectValue(value);
         value.runtime_ref = object ? m_logicManager->MakeSharedObjectRef(object,
                                                                          value.reference_name) :
@@ -6350,6 +6454,11 @@ void LN_RuntimeTree::LocalizeValue(LN_Value &value)
     case LN_ValueType::ObjectRef:
       if (value.runtime_ref.shared_domain != 0) {
         KX_GameObject *object = ResolveObjectRef(value.runtime_ref);
+        if (object == nullptr && IsRemovedObjectRef(value.runtime_ref)) {
+          /* Removed since it was shared: None (not a name readers would find again). */
+          value = MakeNoneValue();
+          break;
+        }
         value.runtime_ref = object ? MakeObjectRef(object, value.reference_name) :
                                      LN_RuntimeRef();
       }

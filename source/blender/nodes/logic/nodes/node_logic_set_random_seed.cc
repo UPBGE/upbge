@@ -32,7 +32,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                    "challenge, a seed the player typed, a replay)");
   b.add_output<decl::Execution>("Done"_ustr);
   b.add_output<decl::Int>("Seed"_ustr)
-      .description("The game's random seed now (a new one shows from the next tick on)");
+      .description("The game's random seed now (a new one shows from the next step or frame on)");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)

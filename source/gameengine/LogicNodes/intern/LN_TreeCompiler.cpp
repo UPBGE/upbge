@@ -2830,6 +2830,76 @@ static std::optional<uint32_t> BuildSetObjectAttributeTeleport(CompilerContext &
   return context.BuildBool("Teleport");
 }
 
+/** Position, rotation and transform (world and local): a move after which the rigid body may
+ * stop. */
+static bool SetObjectAttributeUsesStop(const int attribute_type)
+{
+  return ELEM(attribute_type, 0, 1, 4, 6, 7, 10);
+}
+
+/**
+ * A Stop Linear / Angular Velocity input (2026-11-10). Nothing for an unlinked, unchecked one;
+ * `r_always` for a checked one (no condition: exactly a Set Object Attribute velocity of zero
+ * after the move); else the linked Boolean, read when the move runs.
+ */
+struct SetObjectAttributeStop {
+  bool always = false;
+  uint32_t condition = LN_INVALID_INDEX;
+};
+static std::optional<SetObjectAttributeStop> BuildSetObjectAttributeStop(CompilerContext &context,
+                                                                          const char *socket)
+{
+  if (!SetObjectAttributeUsesStop(context.node.custom1) ||
+      FindInputSocket(context.node, socket) == nullptr)
+  {
+    return std::nullopt;
+  }
+  if (!context.InputIsLinked(socket)) {
+    const std::optional<LN_Value> value = context.ReadValue(socket, LN_ValueType::Bool);
+    if (!value || value->type != LN_ValueType::Bool || !value->bool_value) {
+      return std::nullopt;
+    }
+    return SetObjectAttributeStop{true, LN_INVALID_INDEX};
+  }
+  const std::optional<uint32_t> condition = context.BuildBool(socket);
+  if (!condition) {
+    return std::nullopt;
+  }
+  return SetObjectAttributeStop{false, *condition};
+}
+
+static void AppendSetObjectAttributeVectorInstruction(CompilerContext &context,
+                                                      const FlowPath &path,
+                                                      const std::optional<uint32_t> &object_expr,
+                                                      LN_OpCode opcode,
+                                                      const char *socket_name,
+                                                      uint32_t vector_expr,
+                                                      const MT_Vector3 &fallback);
+FlowPath GuardFlowPath(LN_Program &program, const FlowPath &path, uint32_t guard_expr);
+
+/**
+ * After the move (and its Teleport): the object's own rigid body gets a world linear or angular
+ * velocity of zero, the same instruction (and command) a Set Object Attribute World Linear /
+ * Angular Velocity of (0, 0, 0) gives, so every way a tree runs already knows it. A linked input
+ * guards it as a Branch would.
+ */
+static void AppendSetObjectAttributeStop(CompilerContext &context,
+                                         const FlowPath &path,
+                                         const std::optional<uint32_t> &object_expr,
+                                         const SetObjectAttributeStop &stop,
+                                         const LN_OpCode opcode,
+                                         const char *socket)
+{
+  LN_VectorExpression zero;
+  zero.kind = LN_VectorExpressionKind::Constant;
+  zero.vector_value = MT_Vector3(0.0f, 0.0f, 0.0f);
+  const uint32_t zero_expr = context.program.AddVectorExpression(zero);
+  const FlowPath stop_path = stop.always ? path :
+                                           GuardFlowPath(context.program, path, stop.condition);
+  AppendSetObjectAttributeVectorInstruction(
+      context, stop_path, object_expr, opcode, socket, zero_expr, zero.vector_value);
+}
+
 /** After the write: the move is a jump Smooth Motion draws at once. */
 static void AppendSetObjectAttributeTeleport(CompilerContext &context,
                                              const FlowPath &path,
@@ -10845,6 +10915,31 @@ void CompileSetObjectAttributeNode(CompilerContext &context)
     return;
   }
   const std::optional<uint32_t> teleport_expr = BuildSetObjectAttributeTeleport(context);
+  const std::optional<SetObjectAttributeStop> stop_linear = BuildSetObjectAttributeStop(
+      context, "Stop Linear Velocity");
+  const std::optional<SetObjectAttributeStop> stop_angular = BuildSetObjectAttributeStop(
+      context, "Stop Angular Velocity");
+  const auto append_after_move = [&](const FlowPath &path) {
+    if (teleport_expr) {
+      AppendSetObjectAttributeTeleport(context, path, object_expr, *teleport_expr);
+    }
+    if (stop_linear) {
+      AppendSetObjectAttributeStop(context,
+                                   path,
+                                   object_expr,
+                                   *stop_linear,
+                                   LN_OpCode::SetLinearVelocity,
+                                   "Stop Linear Velocity");
+    }
+    if (stop_angular) {
+      AppendSetObjectAttributeStop(context,
+                                   path,
+                                   object_expr,
+                                   *stop_angular,
+                                   LN_OpCode::SetAngularVelocity,
+                                   "Stop Angular Velocity");
+    }
+  };
 
   if (SetObjectAttributeUsesTransformInput(context.node.custom1)) {
     const std::optional<uint32_t> position_expr = context.BuildVector("Position");
@@ -10885,9 +10980,7 @@ void CompileSetObjectAttributeNode(CompilerContext &context)
                                                 rotation_fallback);
       AppendSetObjectAttributeVectorInstruction(
           context, path, object_expr, scale_opcode, "Scale", *scale_expr, scale_fallback);
-      if (teleport_expr) {
-        AppendSetObjectAttributeTeleport(context, path, object_expr, *teleport_expr);
-      }
+      append_after_move(path);
     }
     return;
   }
@@ -10952,9 +11045,7 @@ void CompileSetObjectAttributeNode(CompilerContext &context)
   for (const FlowPath &path : flow_events->paths) {
     AppendSetObjectAttributeVectorInstruction(
         context, path, object_expr, *opcode, "Value", *vector_expr, fallback);
-    if (teleport_expr) {
-      AppendSetObjectAttributeTeleport(context, path, object_expr, *teleport_expr);
-    }
+    append_after_move(path);
   }
 }
 

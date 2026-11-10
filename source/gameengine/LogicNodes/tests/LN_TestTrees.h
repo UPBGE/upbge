@@ -337,9 +337,13 @@ struct SetObjectAttributeAuxSockets {
   blender::bNodeSocket visible = {};
   blender::bNodeSocket include_children = {};
   blender::bNodeSocket teleport = {};
+  blender::bNodeSocket stop_linear = {};
+  blender::bNodeSocket stop_angular = {};
   blender::bNodeSocket done = {};
   blender::bNodeSocketValueVector xyz_default = {};
   blender::bNodeSocketValueBoolean teleport_default = {};
+  blender::bNodeSocketValueBoolean stop_linear_default = {};
+  blender::bNodeSocketValueBoolean stop_angular_default = {};
 };
 
 inline void InitSetObjectAttributeVectorNode(blender::bNode &node,
@@ -372,6 +376,12 @@ inline void InitSetObjectAttributeVectorNode(blender::bNode &node,
   InitSocket(aux.visible, "Visible", blender::SOCK_BOOLEAN, nullptr);
   InitSocket(aux.include_children, "Include Children", blender::SOCK_BOOLEAN, nullptr);
   InitSocket(aux.teleport, "Teleport", blender::SOCK_BOOLEAN, &aux.teleport_default);
+  InitSocket(
+      aux.stop_linear, "Stop Linear Velocity", blender::SOCK_BOOLEAN, &aux.stop_linear_default);
+  InitSocket(aux.stop_angular,
+             "Stop Angular Velocity",
+             blender::SOCK_BOOLEAN,
+             &aux.stop_angular_default);
   InitSocket(aux.done, "Done", blender::SOCK_BOOLEAN, nullptr);
 
   Append(node.inputs, flow);
@@ -385,6 +395,8 @@ inline void InitSetObjectAttributeVectorNode(blender::bNode &node,
   Append(node.inputs, aux.visible);
   Append(node.inputs, aux.include_children);
   Append(node.inputs, aux.teleport);
+  Append(node.inputs, aux.stop_linear);
+  Append(node.inputs, aux.stop_angular);
   Append(node.outputs, aux.done);
 }
 

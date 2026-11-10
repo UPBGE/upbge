@@ -42,6 +42,7 @@ class KX_Camera;
 class KX_Scene;
 class BL_ActionPlayback;
 enum class KX_ObjectRemovalReason : uint8_t;
+class LN_MeshRayGroupCache;
 class LN_Program;
 class LN_RuntimeTree;
 class LN_UIService;
@@ -331,6 +332,23 @@ class LN_Manager {
   /** Tree-independent reference for values that other trees read (see LN_RuntimeRef). */
   LN_RuntimeRef MakeSharedObjectRef(KX_GameObject *gameobj, const std::string &debug_name);
   KX_GameObject *ResolveSharedObjectRef(const LN_RuntimeRef &runtime_ref) const;
+  /** A shared reference this manager made while its handles stay as they are (not one of
+   * another manager, nor one made before a scene merge renumbered the handles): when it resolves
+   * to nothing, its object was removed. */
+  bool OwnsSharedObjectRef(const LN_RuntimeRef &runtime_ref) const
+  {
+    return runtime_ref.shared_domain != 0 && runtime_ref.shared_domain == m_sharedRefDomain;
+  }
+  /** A scene merge's renumbering of every object handle (AbsorbRuntimeTreesFrom). Shared
+   * references made before it go to another domain: found by their names as before, never taken
+   * as removed. */
+  void RenumberSceneHandles();
+  /** Raycast from Mesh's Vertex Group members, found once per mesh and group while the scene
+   * plays (LN_MeshRays.h). */
+  LN_MeshRayGroupCache &MeshRayGroups()
+  {
+    return *m_meshRayGroups;
+  }
   const LN_RigidBodyConstraintBreakEvent *FindRigidBodyConstraintBreakEvent(
       KX_GameObject *owner,
       const std::string &constraint_name,
@@ -636,6 +654,7 @@ class LN_Manager {
   std::vector<KX_GameObject *> m_queuedRemovalObjects;
   LN_CommandBuffer m_commandBuffer;
   std::unique_ptr<LN_UIService> m_uiService;
+  std::unique_ptr<LN_MeshRayGroupCache> m_meshRayGroups;
   LN_GameStateService m_gameStateService;
   std::vector<ActionOperation> m_actionOperations;
   std::thread::id m_mainThreadId;

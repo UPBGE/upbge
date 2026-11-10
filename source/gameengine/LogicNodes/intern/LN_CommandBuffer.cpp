@@ -493,6 +493,10 @@ static KX_GameObject *resolve_property_object(const LN_Value &value,
     if (KX_GameObject *object = runtime_tree->ResolveObjectRef(value.runtime_ref)) {
       return object;
     }
+    /* Removed: None, not another object of its name (LN_RuntimeTree::IsRemovedObjectRef). */
+    if (runtime_tree->IsRemovedObjectRef(value.runtime_ref)) {
+      return nullptr;
+    }
   }
   KX_Scene *scene = owner ? owner->GetScene() : nullptr;
   /* Without a tree (the UI service writing a list it read): a shared reference is the very
@@ -501,6 +505,9 @@ static KX_GameObject *resolve_property_object(const LN_Value &value,
     if (LN_Manager *manager = scene->GetLogicNodeManager()) {
       if (KX_GameObject *object = manager->ResolveSharedObjectRef(value.runtime_ref)) {
         return object;
+      }
+      if (manager->OwnsSharedObjectRef(value.runtime_ref) && value.runtime_ref.IsValid()) {
+        return nullptr; /* (removed, as above) */
       }
     }
   }
@@ -860,6 +867,13 @@ static KX_GameObject *execute_tracked_logic_nodes_add(LN_Manager *manager,
     r_error = "runtime object replication failed";
     return nullptr;
   }
+  if (full_copy) {
+    /* A Full Copy is converted from its own new Blender object, named "SpawnOBJ.001" by Blender
+     * (and that number given again once it is gone): it takes its source's name, as an ordinary
+     * copy and a Dupli Base copy have, so a copy's name does not depend on the Add Object mode.
+     * Its Blender name stays its Get Object ID (and Get Object By Name still finds it by it). */
+    replica->SetName(source->GetName());
+  }
   if (!manager->RegisterAddedObjectPersistence(
           source, replica, members, life_seconds, full_copy, r_error))
   {
@@ -875,17 +889,6 @@ static KX_GameObject *execute_tracked_logic_nodes_add(LN_Manager *manager,
    * the adding logic runs in). */
   scene->AdoptOverlayReplica(replica, members, mapping, adder != nullptr ? adder : reference);
   return replica;
-}
-
-static std::string game_object_id_name(KX_GameObject *game_object)
-{
-  if (game_object == nullptr) {
-    return std::string();
-  }
-  if (blender::Object *blender_object = game_object->GetBlenderObject()) {
-    return blender_object->id.name + 2;
-  }
-  return game_object->GetName();
 }
 
 static void warn_add_object_source_not_inactive(const LN_CommandBuffer::Command &command,
@@ -1760,6 +1763,10 @@ KX_GameObject *ResolveObjectForCommand(LN_RuntimeTree *runtime_tree, const LN_Va
   if (value.runtime_ref.IsValid()) {
     if (KX_GameObject *game_object = runtime_tree->ResolveObjectRef(value.runtime_ref)) {
       return game_object;
+    }
+    /* Removed: None, not another object of its name (LN_RuntimeTree::IsRemovedObjectRef). */
+    if (runtime_tree->IsRemovedObjectRef(value.runtime_ref)) {
+      return nullptr;
     }
   }
 
@@ -5244,10 +5251,13 @@ KX_GameObject *LN_CommandBuffer::ExecuteAddObjectFromRefCommand(const Command &c
   }
 
   if (command.property_ref_index != LN_INVALID_INDEX) {
-    const std::string replica_id_name = game_object_id_name(replica);
+    /* Its game name, as every other node gives it (copies have their source's name; the name of
+     * the copy's own Blender object, "SpawnOBJ.001", is Get Object ID's: removed copies give
+     * theirs to later ones, Dupli Base copies share one). */
+    const std::string replica_name = replica->GetName();
     r_added_object.exists = true;
-    r_added_object.runtime_ref = command.runtime_tree->MakeObjectRef(replica, replica_id_name);
-    r_added_object.reference_name = replica_id_name;
+    r_added_object.runtime_ref = command.runtime_tree->MakeObjectRef(replica, replica_name);
+    r_added_object.reference_name = replica_name;
   }
   if (!command.bool_value) {
     replica->Release();

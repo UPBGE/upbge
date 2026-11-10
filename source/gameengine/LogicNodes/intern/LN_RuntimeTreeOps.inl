@@ -4398,8 +4398,10 @@ void LN_RuntimeTree::OpDirectGlobalCommand(Frame &ef,
             instruction.source_ref_index);
       }
       else {
-        const LN_Value value = ef.Value(
+        LN_Value value = ef.Value(
             instruction.value_expr_index, MakeNoneValue());
+        /* A removed object prints None, as it reads. */
+        ForgetRemovedObjects(value);
         const std::string message = ValueToPrintString(value);
         command_buffer.AppendPrint(message,
                                    ef.SortKey(),

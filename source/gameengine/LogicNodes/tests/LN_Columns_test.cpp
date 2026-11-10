@@ -8088,3 +8088,60 @@ TEST(LN_Columns, ADistanceReadOutsideItsGatesRoutesStartsTheRunQuietly)
     }
   }
 }
+
+/* Set Object Attribute's Stop Linear / Angular Velocity (2026-11-10): right after the move, a
+ * world velocity of zero, the commands a Set Object Attribute World Linear / Angular Velocity of
+ * (0, 0, 0) records; a linked Stop only for the objects whose Boolean is true. Wide runs end as
+ * the column passes (the flush's write counts included). The rig has no physics: the velocity
+ * itself is the game probe's (~/Desktop/CPP_LN_TESTS/stop_velocity). */
+TEST(LN_Columns, SetObjectAttributeStopsTheVelocityRightAfterItsMove)
+{
+  for (const int attribute_type : {4, 10, 0, 7}) {
+    SCOPED_TRACE(testing::Message() << "attribute " << attribute_type);
+    TreeBuilder b;
+    GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+    GenNode &place = b.Add("LogicNativeSetObjectAttribute", int16_t(attribute_type), 15);
+    b.Bool(place, "Stop Linear Velocity", true);
+    GenNode &flag = b.Add("LogicNativeGetGamePropertyBool");
+    b.String(flag, "Property", "pb0");
+    b.Link(flag, "Value", place, "Stop Angular Velocity");
+    b.Link(step, "Out", place, "Flow");
+    GenNode &after = b.Add("LogicNativeSetGamePropertyFloat");
+    b.String(after, "Property", "pf2");
+    b.Float(after, "Value", 4.0f);
+    b.Link(place, "Done", after, "Flow");
+    std::string report;
+    const std::shared_ptr<LN_Program> program = b.Compile(&report);
+    ASSERT_NE(program, nullptr) << report;
+    std::string refusal;
+    ASSERT_NE(LN_CompileColumnProgram(*program, LN_Event::OnFixedUpdate, &refusal), nullptr)
+        << refusal << "\n" << LN_DumpProgramText(*program);
+    EXPECT_GT(ExpectColumnsMatch(program, LN_Event::OnFixedUpdate, 40, 6, "stop velocity"), 0u);
+
+    /* What one step records: the move, then the stops, then the next node's write. Owner 0 has
+     * pb0 true (angular stopped too), owner 1 false (linear only). */
+    SemRig rig(program, kMemoOn, 2);
+    Spread(rig, 2);
+    rig.SetFlush(false);
+    rig.Tick(LN_Event::OnFixedUpdate);
+    const std::string recorded = rig.LastRecorded();
+    const auto count = [&](const std::string &text) {
+      size_t found = 0;
+      for (size_t at = recorded.find(text); at != std::string::npos;
+           at = recorded.find(text, at + 1))
+      {
+        found++;
+      }
+      return found;
+    };
+    EXPECT_EQ(count("type=SetLinearVelocity"), 2u) << recorded;
+    EXPECT_EQ(count("type=SetAngularVelocity"), 1u) << recorded;
+    const size_t move = recorded.find(attribute_type == 7 ? "type=SetLocalOrientation" :
+                                      attribute_type == 0 ? "type=SetWorldPosition" :
+                                      attribute_type == 4 ? "type=SetWorldScale" :
+                                                            "type=SetLocalScale");
+    const size_t stop = recorded.find("type=SetLinearVelocity");
+    ASSERT_NE(move, std::string::npos) << recorded;
+    EXPECT_LT(move, stop) << recorded;
+  }
+}

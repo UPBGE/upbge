@@ -341,7 +341,7 @@ inline constexpr PinMetadata cooldown_outputs[] = {
 inline constexpr PinMetadata loop_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", false},
   {"Count", "Count", PinType::Int, "1", false},
-  {"Ticks to Complete", "Ticks to Complete", PinType::Int, "1", false},
+  {"Ticks to Complete", "Max Steps", PinType::Int, "1", false},
 };
 inline constexpr PinMetadata loop_outputs[] = {
   {"Loop", "Loop", PinType::Execution, "false", false},
@@ -351,7 +351,7 @@ inline constexpr PinMetadata loop_outputs[] = {
 inline constexpr PinMetadata loop_from_list_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", false},
   {"List", "List", PinType::List, "0", false},
-  {"Ticks to Complete", "Ticks to Complete", PinType::Int, "1", false},
+  {"Ticks to Complete", "Max Steps", PinType::Int, "1", false},
 };
 inline constexpr PinMetadata loop_from_list_outputs[] = {
   {"Loop", "Loop", PinType::Execution, "false", false},
@@ -1468,6 +1468,7 @@ inline constexpr PinMetadata raycast_all_outputs[] = {
 inline constexpr PinMetadata raycast_from_mesh_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", false},
   {"Source Object", "Source Object", PinType::Object, "", false},
+  {"Vertex Group", "Vertex Group", PinType::String, "", false},
   {"Ignore Object", "Ignore Object", PinType::Object, "", false},
   {"Ignore Objects", "Ignore Objects", PinType::List, "", false},
   {"Start Offset", "Start Offset", PinType::Float, "0.01", false},
@@ -2511,6 +2512,8 @@ inline constexpr PinMetadata set_object_attribute_inputs[] = {
   {"Visible", "Visible", PinType::Bool, "true", false},
   {"Include Children", "Include Children", PinType::Bool, "false", false},
   {"Teleport", "Teleport", PinType::Bool, "false", false},
+  {"Stop Linear Velocity", "Stop Linear Velocity", PinType::Bool, "false", false},
+  {"Stop Angular Velocity", "Stop Angular Velocity", PinType::Bool, "false", false},
 };
 inline constexpr PinMetadata set_object_attribute_outputs[] = {
   {"Done", "Done", PinType::Execution, "false", false},
@@ -3294,7 +3297,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    "Values",
    "Random Value",
    "A random number, whole number, vector or true/false (Type); each object its own numbers or "
-   "the same for all (Variation); a new value every tick",
+   "the same for all (Variation); a new value every step (every frame in a Frame Update route)",
    pin_span(random_value_inputs),
    pin_span(random_value_outputs),
    false,
@@ -4000,7 +4003,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeGetGravity",
    "Physics",
    "Get Gravity",
-   "Reads scene gravity from the tick snapshot",
+   "Reads scene gravity as it was when this step (or frame) began",
    {},
    pin_span(get_gravity_outputs),
    false,
@@ -4033,7 +4036,8 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeRaycastFromMesh",
    "Physics",
    "Raycast from Mesh",
-   "Casts an index-aligned synchronous batch from sampled game-engine mesh vertices or faces",
+   "Casts one ray from the center of each face, or from each vertex, of an object's mesh (its "
+   "shape when the game started), along the normals",
    pin_span(raycast_from_mesh_inputs),
    pin_span(raycast_from_mesh_outputs),
    false,
@@ -4099,7 +4103,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeGetTimescale",
    "Scene",
    "Get Timescale",
-   "Reads the active engine timescale from the tick snapshot",
+   "Reads the active engine timescale as it was when this step (or frame) began",
    {},
    pin_span(get_timescale_outputs),
    false,
@@ -4154,7 +4158,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeStartLogicTree",
    "Logic/Trees",
    "Start Logic Tree",
-   "Enables a logic tree on the target object for subsequent ticks",
+   "Enables a logic tree on the target object from the next step (or frame) on",
    pin_span(logic_tree_flow_inputs),
    pin_span(done_output),
    true,
@@ -4944,7 +4948,9 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeGetObjectID",
    "Objects/Object Data",
    "Get Object ID",
-   "Get the internal object ID name",
+   "The name of the object's own Blender object (a copy's \"SpawnOBJ.001\"). Unique only among "
+   "the objects that exist now: a removed copy's ID goes to a later copy, and Dupli Base copies "
+   "share their source's. To remember one object, store the object itself",
    pin_span(get_object_id_inputs),
    pin_span(id_output),
    false,
@@ -5076,7 +5082,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeGetGamePropertyFloat",
    "Properties",
    "Get Game Property Float",
-   "Reads a floating point owner game property from the tick snapshot",
+   "Reads a floating point owner game property as it was when this step (or frame) began",
    pin_span(get_game_property_inputs),
    pin_span(get_game_property_float_outputs),
    false,
@@ -5087,7 +5093,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeGetGamePropertyBool",
    "Properties",
    "Get Game Property Bool",
-   "Reads a boolean owner game property from the tick snapshot",
+   "Reads a boolean owner game property as it was when this step (or frame) began",
    pin_span(get_game_property_inputs),
    pin_span(get_game_property_bool_outputs),
    false,
@@ -5098,7 +5104,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeGetGamePropertyInt",
    "Properties",
    "Get Game Property Int",
-   "Reads an integer owner game property from the tick snapshot",
+   "Reads an integer owner game property as it was when this step (or frame) began",
    pin_span(get_game_property_inputs),
    pin_span(get_game_property_int_outputs),
    false,
@@ -5109,7 +5115,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeGetGamePropertyString",
    "Properties",
    "Get Game Property String",
-   "Reads a string owner game property from the tick snapshot",
+   "Reads a string owner game property as it was when this step (or frame) began",
    pin_span(get_game_property_inputs),
    pin_span(get_game_property_string_outputs),
    false,
@@ -5142,7 +5148,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeGetLightColor",
    "Lights",
    "Get Light Color",
-   "Reads a light object's color from the tick snapshot",
+   "Reads a light object's color as it was when this step (or frame) began",
    pin_span(get_light_color_inputs),
    pin_span(get_light_color_outputs),
    false,
@@ -5153,7 +5159,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeGetLightPower",
    "Lights",
    "Get Light Power",
-   "Reads a light object's power from the tick snapshot",
+   "Reads a light object's power as it was when this step (or frame) began",
    pin_span(get_light_power_inputs),
    pin_span(get_light_power_outputs),
    false,
@@ -5329,7 +5335,8 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeObjectsColliding",
    "Physics",
    "Objects Colliding",
-   "True when two objects' physics controllers overlap this tick (pairwise check)",
+   "True when two objects' physics controllers overlap, as of the last physics step (pairwise "
+   "check)",
    pin_span(objects_colliding_inputs),
    pin_span(objects_colliding_outputs),
    false,
@@ -5407,8 +5414,8 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeSetRandomSeed",
    "Values",
    "Set Random Seed",
-   "Sets the game's random seed (from the next tick on): the same seed gives the same random "
-   "numbers again (a daily challenge, a seed the player typed, a new world)",
+   "Sets the game's random seed (from the next step or frame on): the same seed gives the same "
+   "random numbers again (a daily challenge, a seed the player typed, a new world)",
    pin_span(set_random_seed_inputs),
    pin_span(set_random_seed_outputs),
    true,
@@ -5752,7 +5759,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeSendEvent",
    "Events",
    "Send Event",
-   "Dispatch an event for receivers on the next logic tick",
+   "Dispatch an event for receivers on the next step (or frame)",
    pin_span(send_event_inputs),
    pin_span(done_output),
    true,
@@ -6162,8 +6169,8 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeLoop",
    "Logic/Loops",
    "Loop",
-   "Repeats Count times synchronously within the safety budget or distributes work across ticks "
-   "of the event that starts it",
+   "Repeats Count times: all at once, or spread over up to Max Steps steps (frames, when On "
+   "Frame Update starts it)",
    pin_span(loop_inputs),
    pin_span(loop_outputs),
    false,
@@ -6174,8 +6181,8 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeLoopFromList",
    "Data/List",
    "Loop From List",
-   "Loops over a list snapshot synchronously within the safety budget or distributes items across "
-   "ticks of the event that starts it",
+   "Loops over a snapshot of a list: all at once, or spread over up to Max Steps steps (frames, "
+   "when On Frame Update starts it)",
    pin_span(loop_from_list_inputs),
    pin_span(loop_from_list_outputs),
    false,

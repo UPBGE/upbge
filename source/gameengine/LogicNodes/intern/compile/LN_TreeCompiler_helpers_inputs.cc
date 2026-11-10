@@ -2125,6 +2125,14 @@ std::optional<uint32_t> BuildRaycastFromMeshQueryExpression(
   if (IsInputSocketLinked(node, "Source Object", input_links) && !source_expr) {
     return std::nullopt;
   }
+  const std::optional<uint32_t> vertex_group_expr = BuildInputStringExpression(
+      program,
+      node,
+      "Vertex Group",
+      node_definitions,
+      input_links,
+      value_cache,
+      string_expression_cache);
   const std::optional<uint32_t> ignore_expr = BuildInputValueExpression(program,
                                                                         node,
                                                                         "Ignore Object",
@@ -2224,9 +2232,10 @@ std::optional<uint32_t> BuildRaycastFromMeshQueryExpression(
                                                                           value_cache,
                                                                           float_expression_cache,
                                                                           bool_expression_cache);
-  if (!condition_expr || !ignore_expr || !ignore_objects_expr || !start_offset_expr ||
-      !max_distance_expr || !max_rays_expr || !property_expr || !xray_expr || !mask_expr ||
-      !include_sensors_expr || !hit_backfaces_expr || !visualize_expr)
+  if (!condition_expr || !vertex_group_expr || !ignore_expr || !ignore_objects_expr ||
+      !start_offset_expr || !max_distance_expr || !max_rays_expr || !property_expr ||
+      !xray_expr || !mask_expr || !include_sensors_expr || !hit_backfaces_expr ||
+      !visualize_expr)
   {
     return std::nullopt;
   }
@@ -2238,6 +2247,8 @@ std::optional<uint32_t> BuildRaycastFromMeshQueryExpression(
     expression.input0 = *source_expr;
   }
   expression.input1 = *ignore_expr;
+  /* A string expression: the vertex group (or attribute) the rays come from, empty for all. */
+  expression.input2 = *vertex_group_expr;
   expression.ignore_list_expr_index = *ignore_objects_expr;
   expression.float_expr_index = *start_offset_expr;
   expression.secondary_float_expr_index = *max_distance_expr;

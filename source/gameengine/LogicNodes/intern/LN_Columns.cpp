@@ -7677,7 +7677,7 @@ struct LN_ColumnRunner::Impl {
       reason_event = event;
       reason_text = Entry(*program).refusal[size_t(event)];
       if (reason_text.empty()) {
-        reason_text = "it reads the tick's timing or gravity, which this tick has not";
+        reason_text = "it reads the timing or gravity, which this step or frame has not";
       }
       if (!program->GetName().empty()) {
         reason_text = "'" + program->GetName() + "': " + reason_text;
@@ -9429,7 +9429,8 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
                         &last_write->value;
             if (value != nullptr) {
               float_ok = LN_RuntimeTree::ColumnValueAsFloat(*value, as_float);
-              as_bool = LN_RuntimeTree::ColumnValueAsBool(*value);
+              /* (A removed object is false: the lane's tree judges it, as the VM's kind.) */
+              as_bool = trees[l]->ValueAsBoolHere(*value);
             }
           }
           else {

@@ -6097,9 +6097,9 @@ static void def_logic_mouse_moved(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
   RNA_def_property_ui_text(
       prop,
-      "Each Logic Tick",
-      "When enabled, pulse on every fixed Logic + Physics step while mouse-axis input remains "
-      "active; when disabled, pulse only when a new movement sequence starts");
+      "Every Step",
+      "When enabled, pulse on every step while the mouse keeps moving (every frame in a Frame "
+      "Update route); when disabled, pulse only when a new movement starts");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -7253,8 +7253,17 @@ static void def_logic_raycast(BlenderRNA * /*brna*/, StructRNA *srna)
 static void def_logic_raycast_from_mesh(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem domain_items[] = {
-      {0, "VERTICES", 0, "Vertices", "Generate one ray from each sampled mesh vertex"},
-      {1, "FACES", 0, "Faces", "Generate one ray from each sampled evaluated mesh triangle center"},
+      {0,
+       "VERTICES",
+       0,
+       "Vertices",
+       "One ray from each vertex, along its vertex normal (the average direction of the faces "
+       "around it)"},
+      {1,
+       "FACES",
+       0,
+       "Faces",
+       "One ray from the center of each face (the dot Edit Mode shows), along the face normal"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   static const EnumPropertyItem direction_items[] = {

@@ -496,6 +496,137 @@ TEST(LN_TreeCompiler, SetObjectAttributeTeleportResetsSmoothingAfterTheWrite)
   }
 }
 
+/* Set Object Attribute's Stop Linear / Angular Velocity (2026-11-10): after the move, a world
+ * velocity of zero, the instruction a World Linear / Angular Velocity of (0, 0, 0) gives; a
+ * checked input adds it as is, a linked one behind its Boolean, an unchecked one adds nothing. */
+TEST(LN_TreeCompiler, SetObjectAttributeStopVelocityWritesZeroAfterTheMove)
+{
+  struct Case {
+    int attribute_type;
+    bool stop_linear;
+    bool stop_angular;
+    /** Link a Get Game Property Bool into Stop Linear Velocity. */
+    bool link_linear;
+    int linear_expected;
+    int angular_expected;
+  };
+  const Case cases[] = {
+      {4, false, false, false, 0, 0}, /* World Transform, unchecked: nothing. */
+      {4, true, true, false, 1, 1},
+      {10, true, false, false, 1, 0}, /* Local Transform. */
+      {0, false, true, false, 0, 1},  /* World Position. */
+      {1, true, false, false, 1, 0},  /* World Rotation. */
+      {6, true, true, false, 1, 1},   /* Local Position. */
+      {7, false, true, false, 0, 1},  /* Local Rotation. */
+      {5, true, true, false, 0, 0},   /* World Scale: no stop. */
+      {13, true, true, false, 0, 0},  /* Local Scale: no stop. */
+      {4, false, false, true, 1, 0},  /* Linked: behind its Boolean. */
+  };
+  for (const Case &test_case : cases) {
+    SCOPED_TRACE(testing::Message() << "attribute " << test_case.attribute_type << " linear "
+                                    << test_case.stop_linear << " angular "
+                                    << test_case.stop_angular << " linked "
+                                    << test_case.link_linear);
+    blender::bNodeTree tree = {};
+    InitTree(tree);
+
+    blender::bNode on_step = {};
+    blender::bNodeSocket on_step_pulse = {};
+    InitNode(on_step, "LogicNativeOnFixedUpdate", "On Fixed Update", 1);
+    InitSocket(on_step_pulse, "Out", blender::SOCK_BOOLEAN, nullptr);
+    Append(on_step.outputs, on_step_pulse);
+    Append(tree.nodes, on_step);
+
+    blender::bNodeSocketValueVector value_default = {};
+    blender::bNode set_attribute = {};
+    blender::bNodeSocket flow = {};
+    blender::bNodeSocket value = {};
+    SetObjectAttributeAuxSockets aux = {};
+    aux.stop_linear_default.value = test_case.stop_linear ? 1 : 0;
+    aux.stop_angular_default.value = test_case.stop_angular ? 1 : 0;
+    InitSetObjectAttributeVectorNode(set_attribute,
+                                     aux,
+                                     flow,
+                                     value,
+                                     "Set Object Attribute",
+                                     2,
+                                     test_case.attribute_type,
+                                     &value_default);
+    /* World / Local Transform read Position, Rotation and Scale. */
+    blender::bNodeSocketValueVector position_default = {};
+    blender::bNodeSocketValueRotation rotation_default = {};
+    blender::bNodeSocketValueVector scale_default = {};
+    scale_default.value[0] = scale_default.value[1] = scale_default.value[2] = 1.0f;
+    aux.position.default_value = &position_default;
+    aux.rotation.default_value = &rotation_default;
+    aux.scale.default_value = &scale_default;
+    Append(tree.nodes, set_attribute);
+
+    blender::bNodeLink event_to_set = {};
+    InitLink(event_to_set, on_step, on_step_pulse, set_attribute, flow);
+    Append(tree.links, event_to_set);
+
+    blender::bNode property = {};
+    blender::bNodeSocket property_object = {};
+    blender::bNodeSocket property_name = {};
+    blender::bNodeSocket property_value = {};
+    blender::bNodeSocketValueString property_name_default = {};
+    blender::bNodeLink property_to_stop = {};
+    if (test_case.link_linear) {
+      SetCString(property_name_default.value, "stop");
+      InitNode(property, "LogicNativeGetGamePropertyBool", "Get Game Property Bool", 3);
+      InitSocket(property_object, "Object", blender::SOCK_OBJECT, nullptr);
+      InitSocket(property_name, "Property", blender::SOCK_STRING, &property_name_default);
+      InitSocket(property_value, "Value", blender::SOCK_BOOLEAN, nullptr);
+      Append(property.inputs, property_object);
+      Append(property.inputs, property_name);
+      Append(property.outputs, property_value);
+      Append(tree.nodes, property);
+      InitLink(property_to_stop, property, property_value, set_attribute, aux.stop_linear);
+      Append(tree.links, property_to_stop);
+    }
+
+    const std::shared_ptr<LN_Program> program = LN_TreeCompiler().Compile(tree);
+    std::string issues;
+    for (const LN_CompileIssue &issue : program->GetCompileReport().GetIssues()) {
+      issues += issue.message + "\n";
+    }
+    ASSERT_FALSE(program->GetCompileReport().HasErrors()) << issues;
+    const std::vector<LN_Instruction> &instructions = program->GetInstructions(
+        LN_Event::OnFixedUpdate);
+    const LN_Instruction *move = FindInstruction(instructions, LN_OpCode::SetTransformVector);
+    ASSERT_NE(move, nullptr);
+    int linear = 0;
+    int angular = 0;
+    for (const LN_Instruction &instruction : instructions) {
+      if (instruction.opcode != LN_OpCode::SetVelocityVector) {
+        continue;
+      }
+      /* After the move, a world velocity of zero on every axis. */
+      EXPECT_GT(&instruction, move);
+      EXPECT_EQ(instruction.vector_operation_mode, uint8_t(LN_VectorOperationMode::World));
+      EXPECT_EQ(instruction.vector_operation_mask, LN_VECTOR_OPERATION_MASK_ALL);
+      EXPECT_EQ(instruction.vector_value, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const bool is_linear = instruction.vector_operation_channel ==
+                             uint8_t(LN_VectorOperationChannel::LinearVelocity);
+      const bool is_angular = instruction.vector_operation_channel ==
+                              uint8_t(LN_VectorOperationChannel::AngularVelocity);
+      EXPECT_TRUE(is_linear || is_angular);
+      linear += is_linear ? 1 : 0;
+      angular += is_angular ? 1 : 0;
+      /* A checked input runs with the move; a linked one behind its Boolean. */
+      if (test_case.link_linear && is_linear) {
+        EXPECT_NE(instruction.bool_guard_expr_index, move->bool_guard_expr_index);
+      }
+      else {
+        EXPECT_EQ(instruction.bool_guard_expr_index, move->bool_guard_expr_index);
+      }
+    }
+    EXPECT_EQ(linear, test_case.linear_expected);
+    EXPECT_EQ(angular, test_case.angular_expected);
+  }
+}
+
 TEST(LN_TreeCompiler, WarnsMissingRequiredFlowOnUnreachableCommand)
 {
   blender::bNodeTree tree = {};
@@ -7204,6 +7335,8 @@ TEST(LN_TreeCompiler, TweenRotationThroughSeparateEulerFeedsSetOrientation)
   blender::bNodeSocket visible = {};
   blender::bNodeSocket include_children = {};
   blender::bNodeSocket teleport = {};
+  blender::bNodeSocket stop_linear = {};
+  blender::bNodeSocket stop_angular = {};
   blender::bNodeSocket done = {};
   InitNode(set_orientation, "LogicNativeSetObjectAttribute", "Set Object Attribute", 5);
   set_orientation.custom1 = 1;
@@ -7219,6 +7352,8 @@ TEST(LN_TreeCompiler, TweenRotationThroughSeparateEulerFeedsSetOrientation)
   InitSocket(visible, "Visible", blender::SOCK_BOOLEAN, nullptr);
   InitSocket(include_children, "Include Children", blender::SOCK_BOOLEAN, nullptr);
   InitSocket(teleport, "Teleport", blender::SOCK_BOOLEAN, nullptr);
+  InitSocket(stop_linear, "Stop Linear Velocity", blender::SOCK_BOOLEAN, nullptr);
+  InitSocket(stop_angular, "Stop Angular Velocity", blender::SOCK_BOOLEAN, nullptr);
   InitSocket(done, "Done", blender::SOCK_BOOLEAN, nullptr);
   Append(set_orientation.inputs, flow);
   Append(set_orientation.inputs, xyz);
@@ -7231,6 +7366,8 @@ TEST(LN_TreeCompiler, TweenRotationThroughSeparateEulerFeedsSetOrientation)
   Append(set_orientation.inputs, visible);
   Append(set_orientation.inputs, include_children);
   Append(set_orientation.inputs, teleport);
+  Append(set_orientation.inputs, stop_linear);
+  Append(set_orientation.inputs, stop_angular);
   Append(set_orientation.outputs, done);
   Append(tree.nodes, set_orientation);
 
@@ -11771,6 +11908,8 @@ TEST(LN_TreeCompiler, RaycastFromMeshCompilesEveryInputAndOutputToOneDetailedQue
   max_rays_default.value = 123;
   blender::bNodeSocketValueString property_default = {};
   SetCString(property_default.value, "mesh_hit");
+  blender::bNodeSocketValueString vertex_group_default = {};
+  SetCString(vertex_group_default.value, "Wheels");
   blender::bNodeSocketValueBoolean xray_default = {};
   xray_default.value = true;
   blender::bNodeSocketValueInt mask_default = {};
@@ -11786,21 +11925,22 @@ TEST(LN_TreeCompiler, RaycastFromMeshCompilesEveryInputAndOutputToOneDetailedQue
   raycast.custom1 = 1;
   raycast.custom2 = 1;
   InitNode(raycast, "LogicNativeRaycastFromMesh", "Raycast from Mesh", 2);
-  std::array<blender::bNodeSocket, 13> inputs{};
+  std::array<blender::bNodeSocket, 14> inputs{};
   InitSocket(inputs[0], "Flow", blender::SOCK_BOOLEAN, nullptr, "NodeSocketLogicExecution");
   InitSocket(inputs[1], "Source Object", blender::SOCK_OBJECT, &source_default);
-  InitSocket(inputs[2], "Ignore Object", blender::SOCK_OBJECT, &ignore_default);
-  InitSocket(inputs[3], "Ignore Objects", blender::SOCK_CUSTOM, nullptr, "NodeSocketLogicList");
-  InitSocket(inputs[4], "Start Offset", blender::SOCK_FLOAT, &start_offset_default);
-  InitSocket(inputs[5], "Max Distance", blender::SOCK_FLOAT, &max_distance_default);
-  InitSocket(inputs[6], "Max Rays", blender::SOCK_INT, &max_rays_default);
-  InitSocket(inputs[7], "Property", blender::SOCK_STRING, &property_default);
-  InitSocket(inputs[8], "X-Ray", blender::SOCK_BOOLEAN, &xray_default);
+  InitSocket(inputs[2], "Vertex Group", blender::SOCK_STRING, &vertex_group_default);
+  InitSocket(inputs[3], "Ignore Object", blender::SOCK_OBJECT, &ignore_default);
+  InitSocket(inputs[4], "Ignore Objects", blender::SOCK_CUSTOM, nullptr, "NodeSocketLogicList");
+  InitSocket(inputs[5], "Start Offset", blender::SOCK_FLOAT, &start_offset_default);
+  InitSocket(inputs[6], "Max Distance", blender::SOCK_FLOAT, &max_distance_default);
+  InitSocket(inputs[7], "Max Rays", blender::SOCK_INT, &max_rays_default);
+  InitSocket(inputs[8], "Property", blender::SOCK_STRING, &property_default);
+  InitSocket(inputs[9], "X-Ray", blender::SOCK_BOOLEAN, &xray_default);
   InitSocket(
-      inputs[9], "Mask", blender::SOCK_INT, &mask_default, "NodeSocketLogicCollisionLayers");
-  InitSocket(inputs[10], "Include Sensors", blender::SOCK_BOOLEAN, &include_sensors_default);
-  InitSocket(inputs[11], "Hit Backfaces", blender::SOCK_BOOLEAN, &hit_backfaces_default);
-  InitSocket(inputs[12], "Visualize", blender::SOCK_BOOLEAN, &visualize_default);
+      inputs[10], "Mask", blender::SOCK_INT, &mask_default, "NodeSocketLogicCollisionLayers");
+  InitSocket(inputs[11], "Include Sensors", blender::SOCK_BOOLEAN, &include_sensors_default);
+  InitSocket(inputs[12], "Hit Backfaces", blender::SOCK_BOOLEAN, &hit_backfaces_default);
+  InitSocket(inputs[13], "Visualize", blender::SOCK_BOOLEAN, &visualize_default);
   for (blender::bNodeSocket &input : inputs) {
     Append(raycast.inputs, input);
   }
@@ -11896,6 +12036,13 @@ TEST(LN_TreeCompiler, RaycastFromMeshCompilesEveryInputAndOutputToOneDetailedQue
   EXPECT_NE(query.ignore_list_expr_index, LN_INVALID_INDEX);
   EXPECT_NE(query.condition_bool_expr_index, LN_INVALID_INDEX);
   EXPECT_NE(query.string_expr_index, LN_INVALID_INDEX);
+  /* Vertex Group: a string expression in input2, apart from Property's. */
+  ASSERT_LT(query.input2, program->GetStringExpressions().size());
+  EXPECT_NE(query.input2, query.string_expr_index);
+  EXPECT_EQ(program->GetString(program->GetStringExpressions()[query.input2].string_id),
+            "Wheels");
+  EXPECT_EQ(program->GetString(program->GetStringExpressions()[query.string_expr_index].string_id),
+            "mesh_hit");
   EXPECT_NE(query.secondary_bool_expr_index, LN_INVALID_INDEX);
   EXPECT_NE(query.tertiary_bool_expr_index, LN_INVALID_INDEX);
   EXPECT_NE(query.quaternary_bool_expr_index, LN_INVALID_INDEX);

@@ -1495,7 +1495,7 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
                     layout.separator()
                     box = layout.box()
                     box.label(text="Logic Nodes", icon='NODETREE')
-                    box.prop(gs, "show_logic_nodes_profile", text="Console Tick Profiling")
+                    box.prop(gs, "show_logic_nodes_profile", text="Console Profiling")
             else:
                 # For Variable mode: keep original layout
                 split = layout.split()

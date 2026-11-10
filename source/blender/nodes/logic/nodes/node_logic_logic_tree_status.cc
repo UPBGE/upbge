@@ -18,7 +18,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>("Tree Name"_ustr).default_value("").description(
       "Compiled logic tree ID name (matches the LogicNodeTree data-block name)");
   b.add_output<decl::Bool>("Running"_ustr).description(
-      "True when the tree is installed, enabled, and ticking on this object");
+      "True when the tree is installed, enabled, and running on this object");
   b.add_output<decl::Bool>("Stopped"_ustr).description(
       "Negation of Running for the same object and tree name");
 }

@@ -405,6 +405,22 @@ TEST(LN_LeanDifferential, EveryFamilySettingCompilesAlone)
   EXPECT_GT(checked, 100u);
 }
 
+/* Tool for reviewing a re-recorded differential_v0 (--gtest_also_run_disabled_tests,
+ * UPBGE_LN_DIFF_FAMILY=LogicNativeFoo): the seeds whose generated tree holds that node, one a
+ * line ("holds seed N"). A change to a node's pins changes exactly those seeds' lines. */
+TEST(LN_LeanDifferential, DISABLED_SeedsHoldingAFamily)
+{
+  const char *family = std::getenv("UPBGE_LN_DIFF_FAMILY");
+  ASSERT_NE(family, nullptr) << "set UPBGE_LN_DIFF_FAMILY to a node idname";
+  for (uint64_t seed = 1; seed <= NormalSeedCount(); seed++) {
+    TreeGen generator{seed};
+    const std::unique_ptr<GeneratedTree> tree = generator.Build();
+    if (tree->Describe().find(family) != std::string::npos) {
+      std::printf("holds seed %llu\n", (unsigned long long)seed);
+    }
+  }
+}
+
 /* Random trees almost always compile (the plan fails the generator below 70%). */
 TEST(LN_LeanDifferential, GeneratedTreesCompile)
 {

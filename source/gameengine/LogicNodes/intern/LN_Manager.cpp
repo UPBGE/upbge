@@ -33,6 +33,7 @@
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "LN_BindingSource.h"
+#include "LN_MeshRays.h"
 #include "LN_Performance.h"
 #include "LN_Program.h"
 #include "LN_Random.h"
@@ -164,13 +165,21 @@ static void logic_nodes_accumulate_command_stream_stats(
 }
 
 
+/** A new shared reference domain (a manager's, renewed by a scene merge): references of an older
+ * one are another domain's, found by their name, never taken as removed. */
+static uint32_t NextSharedRefDomain()
+{
+  static std::atomic<uint32_t> next_shared_ref_domain{1};
+  return next_shared_ref_domain.fetch_add(1, std::memory_order_relaxed);
+}
+
 LN_Manager::LN_Manager(KX_Scene &scene)
     : m_scene(scene),
       m_uiService(std::make_unique<LN_UIService>(*this, scene)),
+      m_meshRayGroups(std::make_unique<LN_MeshRayGroupCache>()),
       m_mainThreadId(std::this_thread::get_id())
 {
-  static std::atomic<uint32_t> next_shared_ref_domain{1};
-  m_sharedRefDomain = next_shared_ref_domain.fetch_add(1, std::memory_order_relaxed);
+  m_sharedRefDomain = NextSharedRefDomain();
   m_columnRunner.SetOverlayTest(
       [this](KX_GameObject *object) { return m_scene.IsOverlayRuntimeObject(object); },
       [this]() { return m_scene.HasOverlayRuntimeObjects(); });
@@ -999,7 +1008,7 @@ void LN_Manager::AbsorbRuntimeTreesFrom(LN_Manager &other)
     AssignRandomStream(*runtime_tree);
     m_runtimeTrees.push_back(std::move(runtime_tree));
   }
-  m_denseIds.ClearSceneLocalState();
+  RenumberSceneHandles();
   for (std::unique_ptr<LN_RuntimeTree> &runtime_tree : m_runtimeTrees) {
     if (runtime_tree != nullptr) {
       runtime_tree->BindDenseIds(m_denseIds);
@@ -3009,6 +3018,15 @@ LN_RuntimeRef LN_Manager::MakeSharedObjectRef(KX_GameObject *gameobj,
     runtime_ref.shared_domain = m_sharedRefDomain;
   }
   return runtime_ref;
+}
+
+void LN_Manager::RenumberSceneHandles()
+{
+  m_denseIds.ClearSceneLocalState();
+  /* Shared references made before (global values, events) resolve to nothing now though their
+   * objects live. A new domain makes them another domain's, found by their names as before, not
+   * taken as removed (LN_RuntimeTree::IsRemovedObjectRef). */
+  m_sharedRefDomain = NextSharedRefDomain();
 }
 
 KX_GameObject *LN_Manager::ResolveSharedObjectRef(const LN_RuntimeRef &runtime_ref) const

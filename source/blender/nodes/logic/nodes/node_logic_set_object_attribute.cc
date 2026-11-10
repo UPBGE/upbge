@@ -71,6 +71,12 @@ static bool uses_teleport_input(const int attribute_type)
   return ELEM(attribute_type, 0, 1, 4, 5, 6, 7, 10, 13);
 }
 
+/* Position, rotation and transform (world and local): the engine's SetObjectAttributeUsesStop. */
+static bool uses_stop_input(const int attribute_type)
+{
+  return ELEM(attribute_type, 0, 1, 4, 6, 7, 10);
+}
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
@@ -106,6 +112,18 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "The move is a jump: an object with Smooth Motion (and its children) is drawn there at "
           "once, not sliding across between two steps");
+  b.add_input<decl::Bool>("Stop Linear Velocity"_ustr)
+      .default_value(false)
+      .description(
+          "After the move, the object's rigid body stops moving (its linear velocity becomes 0), "
+          "so it does not keep the speed it had, e.g. falling. A child without a body of its own "
+          "has nothing to stop");
+  b.add_input<decl::Bool>("Stop Angular Velocity"_ustr)
+      .default_value(false)
+      .description(
+          "After the move, the object's rigid body stops turning (its angular velocity becomes "
+          "0), so it does not keep the spin it had. A child without a body of its own has "
+          "nothing to stop");
   b.add_output<decl::Execution>("Done"_ustr);
 }
 
@@ -192,6 +210,13 @@ static void node_update(bNodeTree *ntree, bNode *node)
   if (teleport_socket != nullptr) {
     bke::node_set_socket_availability(
         *ntree, *teleport_socket, uses_teleport_input(node->custom1));
+  }
+  for (bNodeSocket *socket : {node->input_by_identifier("Stop Linear Velocity"_ustr),
+                              node->input_by_identifier("Stop Angular Velocity"_ustr)})
+  {
+    if (socket != nullptr) {
+      bke::node_set_socket_availability(*ntree, *socket, uses_stop_input(node->custom1));
+    }
   }
 }
 

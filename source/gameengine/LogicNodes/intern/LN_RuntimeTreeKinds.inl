@@ -241,12 +241,13 @@ bool LN_RuntimeTree::BoolKind(In &in,
       return false;
     }
     case LN_BoolExpressionKind::ValueIsNone: {
+      /* An object that was removed is None (IsRemovedObjectRef). */
       const LN_Value value = in.Value(expression.input0, MakeNoneValue());
-      return !value.exists || value.type == LN_ValueType::None;
+      return !value.exists || value.type == LN_ValueType::None || IsRemovedObjectValue(value);
     }
     case LN_BoolExpressionKind::FromGenericValue: {
       const LN_Value value = in.Value(expression.input0, MakeNoneValue());
-      return ValueAsBool(value);
+      return ValueAsBoolHere(value);
     }
     case LN_BoolExpressionKind::FromInt:
       return in.Int(expression.input0, 0) != 0;
@@ -1810,14 +1811,18 @@ std::string LN_RuntimeTree::StringKind(In &in,
          * text of no value, empty). */
         KX_GameObject *target = TypedAttributeTarget(in, expression.value_expr_index);
         std::string name = target != nullptr ? target->GetName() : std::string();
-        if (fast_attributes_mode() == FastAttributesMode::Verify &&
-            ValueToText(in.Value(expression.value_expr_index, MakeNoneValue())) != name)
-        {
-          NoteFastAttributeDifference("a name read is not its value's");
+        if (fast_attributes_mode() == FastAttributesMode::Verify) {
+          LN_Value value = in.Value(expression.value_expr_index, MakeNoneValue());
+          ForgetRemovedObjects(value);
+          if (ValueToText(value) != name) {
+            NoteFastAttributeDifference("a name read is not its value's");
+          }
         }
         return name;
       }
-      const LN_Value value = in.Value(expression.value_expr_index, MakeNoneValue());
+      /* A removed object (also in a list) is no object: its text is a None's. */
+      LN_Value value = in.Value(expression.value_expr_index, MakeNoneValue());
+      ForgetRemovedObjects(value);
       return ValueToText(value);
     }
     case LN_StringExpressionKind::FromBool:
@@ -4777,8 +4782,13 @@ void LN_RuntimeTree::QueryKind(In &in,
         break;
       }
 
+      const std::string vertex_group = in.String(expression.input2, std::string());
       const std::vector<LN_MeshRaySample> samples = SampleMeshRays(
-          *source_object, expression.mesh_ray_domain, max_rays);
+          *source_object,
+          expression.mesh_ray_domain,
+          max_rays,
+          vertex_group,
+          m_logicManager != nullptr ? &m_logicManager->MeshRayGroups() : nullptr);
       if (samples.empty()) {
         state.cached_result.physics_query.diagnostic_status =
             LN_QueryDiagnosticStatus::InvalidTarget;

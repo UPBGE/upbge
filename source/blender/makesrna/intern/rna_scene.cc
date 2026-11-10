@@ -8270,8 +8270,9 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Logic Nodes Console Profiling",
-      "Print per-tick native Logic Nodes profiling metrics to the console while the game runs. "
-      "Environment variable UPBGE_LOGIC_NODES_PROFILE=1 also enables this when set");
+      "Print native Logic Nodes profiling metrics to the console for every step and frame update "
+      "while the game runs. Environment variable UPBGE_LOGIC_NODES_PROFILE=1 also enables this "
+      "when set");
 
   prop = RNA_def_property(srna, "use_activity_culling", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "mode", WO_ACTIVITY_CULLING);

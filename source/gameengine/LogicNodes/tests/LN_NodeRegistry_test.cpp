@@ -778,9 +778,10 @@ TEST(LN_NodeRegistry, RaycastFromMeshHasExactBatchQueryContract)
   EXPECT_TRUE(definition->requires_jolt);
   EXPECT_FALSE(definition->has_side_effects);
 
-  const std::array<std::pair<const char *, LN_ValueType>, 13> expected_inputs = {{
+  const std::array<std::pair<const char *, LN_ValueType>, 14> expected_inputs = {{
       {"Flow", LN_ValueType::None},
       {"Source Object", LN_ValueType::ObjectRef},
+      {"Vertex Group", LN_ValueType::String},
       {"Ignore Object", LN_ValueType::ObjectRef},
       {"Ignore Objects", LN_ValueType::List},
       {"Start Offset", LN_ValueType::Float},

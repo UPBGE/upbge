@@ -534,6 +534,24 @@ class LN_RuntimeTree {
   void RenewCollisionIdentities();
   LN_RuntimeRef MakeObjectRef(KX_GameObject *gameobj, const std::string &debug_name = "");
   KX_GameObject *ResolveObjectRef(const LN_RuntimeRef &runtime_ref) const;
+  /**
+   * A reference made for one object (this tree's, or a shared one of this tree's manager) whose
+   * object was removed. Such a value is None for good: it is never resolved by its name, which
+   * copies share (a stored copy that was removed found another copy, 2026-11-10). A value with
+   * only a name (picked or typed in the editor), or a reference this tree cannot judge (another
+   * manager's, one from before a scene merge), is still found by its name.
+   */
+  bool IsRemovedObjectRef(const LN_RuntimeRef &runtime_ref) const;
+  bool IsRemovedObjectValue(const LN_Value &value) const
+  {
+    return value.type == LN_ValueType::ObjectRef && IsRemovedObjectRef(value.runtime_ref);
+  }
+  /** `value` with every removed object in it (a list's or dictionary's too) made None: what text,
+   * Print and the conversions show of it. */
+  void ForgetRemovedObjects(LN_Value &value) const;
+  /** ValueAsBool as this tree reads it: a removed object is false (the VM's FromGenericValue and
+   * the columns' tree-property conversion, VTreeConvert, the same rule). */
+  bool ValueAsBoolHere(const LN_Value &value) const;
   /** Convert references to tree-independent form before storing a value where other trees read
    * it. May create object handles, so worker trees must not call it (event content is shared
    * when the command buffer flushes). */
