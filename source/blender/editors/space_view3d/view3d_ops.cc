@@ -257,6 +257,7 @@ void view3d_operatortypes()
   WM_operatortype_append(VIEW3D_OT_localview);
   WM_operatortype_append(VIEW3D_OT_localview_remove_from);
   WM_operatortype_append(VIEW3D_OT_game_start);
+  WM_operatortype_append(VIEW3D_OT_game_player_running);
   WM_operatortype_append(VIEW3D_OT_fly);
   WM_operatortype_append(VIEW3D_OT_walk);
   WM_operatortype_append(VIEW3D_OT_navigate);

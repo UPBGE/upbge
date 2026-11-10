@@ -52,6 +52,7 @@
 #include "CM_Message.h"
 #include "GHOST_ISystem.hh"
 #include "KX_Globals.h"
+#include "intern/GHOST_System.hh" /* For #GHOST_System::getEventManager. */
 #include "LA_BlenderLauncher.h"
 
 using namespace blender;
@@ -446,4 +447,60 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
 
   // Restore G_MAIN path.
   BLI_strncpy(G_MAIN->filepath, prevPathName, sizeof(G_MAIN->filepath));
+}
+
+extern "C" void BL_SetBlenderPlayerRunning(const bool running)
+{
+  GHOST_System *system = static_cast<GHOST_System *>(GHOST_ISystem::getSystem());
+
+  /* Blender's main thread blocks while the player runs, keep the compositor answered
+   * (only Wayland needs it). Normal Blender behavior is unaffected outside this window. */
+  system->setBlenderPlayerRunning(running);
+  if (running) {
+    return;
+  }
+
+  /* While the blenderplayer runs, Blender's main thread is blocked but its windows keep
+   * receiving input: pointer enter/leave, clicks on the frozen window, the release of the key
+   * that closed the player... Dispatched afterwards, that backlog acts on a UI state the user
+   * no longer sees. The embedded engine drops this input every frame, see
+   * #LA_BlenderLauncher::EngineNextFrame. Do the same here, but in GHOST's queue: pulling the
+   * events in without dispatching them runs no WM handler from inside the calling operator
+   * (on Windows/macOS dispatching a resize would run #wm_event_do_handlers re-entrantly).
+   *
+   * Window events (activate, size, close...) are kept and reach the WM on its next iteration
+   * as usual. Activation re-syncs modifier keys and cursor position (#ghost_event_proc), so
+   * dropping key and button releases leaves no stale state behind. */
+
+  /* One pass drains X11, Win32 and Cocoa. A Wayland pass either reads *or* dispatches, and
+   * its event thread may still hold a few events, the extra passes are no-ops elsewhere.
+   * Runs once per player session, cost is irrelevant. */
+  for (int pass = 0; pass < 4; pass++) {
+    system->processEvents(false);
+  }
+
+  static constexpr GHOST_TEventType input_types[] = {
+      GHOST_kEventCursorMove,
+      GHOST_kEventButtonDown,
+      GHOST_kEventButtonUp,
+      GHOST_kEventWheel,
+      GHOST_kEventTrackpad,
+#ifdef WITH_INPUT_NDOF
+      GHOST_kEventNDOFMotion,
+      GHOST_kEventNDOFButton,
+#endif
+      GHOST_kEventKeyDown,
+      GHOST_kEventKeyUp,
+      GHOST_kEventDraggingEntered,
+      GHOST_kEventDraggingUpdated,
+      GHOST_kEventDraggingExited,
+      GHOST_kEventDraggingDropDone,
+      GHOST_kEventImeCompositionStart,
+      GHOST_kEventImeComposition,
+      GHOST_kEventImeCompositionEnd,
+  };
+  GHOST_EventManager *event_manager = system->getEventManager();
+  for (const GHOST_TEventType type : input_types) {
+    event_manager->removeTypeEvents(type);
+  }
 }

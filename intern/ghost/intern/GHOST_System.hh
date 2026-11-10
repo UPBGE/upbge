@@ -293,6 +293,13 @@ class GHOST_System : public GHOST_ISystem {
    */
   virtual GHOST_TSuccess getButtons(GHOST_Buttons &buttons) const = 0;
 
+  /**
+   * UPBGE: Blender's main thread blocks (or stops blocking) while the blenderplayer runs.
+   * Platforms whose compositor checks responsiveness through the main thread's event loop
+   * keep answering it meanwhile (Wayland). No-op elsewhere.
+   */
+  virtual void setBlenderPlayerRunning(bool /*running*/) {}
+
   /***************************************************************************************
    * Debugging
    ***************************************************************************************/

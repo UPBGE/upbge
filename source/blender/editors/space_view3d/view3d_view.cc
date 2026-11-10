@@ -1743,6 +1743,38 @@ void VIEW3D_OT_game_start(wmOperatorType *ot)
   ot->poll = game_engine_poll;
 }
 
+/* UPBGE: called by `WM_OT_blenderplayer_start` around its blocking wait on the player. */
+static wmOperatorStatus game_player_running_exec(bContext * /*C*/, wmOperator *op)
+{
+#ifdef WITH_GAMEENGINE
+  BL_SetBlenderPlayerRunning(RNA_boolean_get(op->ptr, "running"));
+#else
+  UNUSED_VARS(op);
+#endif
+  return OPERATOR_FINISHED;
+}
+
+void VIEW3D_OT_game_player_running(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Blenderplayer Running";
+  ot->description =
+      "Prepare Blender to block while the blenderplayer runs, or recover once it exits";
+  ot->idname = "VIEW3D_OT_game_player_running";
+
+  /* api callbacks */
+  ot->exec = game_player_running_exec;
+
+  ot->flag = OPTYPE_INTERNAL;
+
+  RNA_def_boolean(ot->srna,
+                  "running",
+                  false,
+                  "Running",
+                  "True before blocking on the player, false once it exits (drops the input "
+                  "received meanwhile)");
+}
+
 /** \} */
 
 }  // namespace blender

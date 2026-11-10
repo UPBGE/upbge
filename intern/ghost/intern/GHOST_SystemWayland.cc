@@ -1724,6 +1724,12 @@ struct GWL_Display {
   std::vector<std::unique_ptr<const GHOST_IEvent>> events_pending;
   /** Guard against multiple threads accessing `events_pending` at once. */
   std::mutex events_pending_mutex;
+
+  /**
+   * UPBGE: set while Blender's main thread is blocked running the blenderplayer,
+   * see #GHOST_SystemWayland::setBlenderPlayerRunning. Accessed with `server_mutex` held.
+   */
+  std::atomic<bool> upbge_player_running = false;
 #endif /* USE_EVENT_BACKGROUND_THREAD */
 
   /**
@@ -2818,7 +2824,8 @@ static bool ghost_wl_surface_commit_and_wait_for_apply(GHOST_SystemWayland *syst
 static int ghost_wl_display_event_pump_from_thread(wl_display *wl_display,
                                                    const int fd,
                                                    const int fd_stop,
-                                                   std::mutex *server_mutex)
+                                                   std::mutex *server_mutex,
+                                                   const std::atomic<bool> &upbge_player_running)
 {
   GHOST_ASSERT(fd_stop != -1, "Expected to be set");
 
@@ -2846,6 +2853,16 @@ static int ghost_wl_display_event_pump_from_thread(wl_display *wl_display,
       file_descriptor_is_io_ready_ex(
           fd, fd_stop, GWL_IOR_READ | GWL_IOR_NO_RETRY, INT32_MAX, &stop);
     }
+  }
+  else if (upbge_player_running) {
+    /* UPBGE: the main thread is blocked running the blenderplayer, it won't dispatch nor flush.
+     * Do both now instead of waiting for more input (below): the compositor may send nothing
+     * else until it gets the #xdg_wm_base.pong for a pending ping, and without it reports
+     * Blender as not responding. The queue is empty afterwards, the next iteration waits on
+     * the file descriptor, so there is no busy loop. */
+    err = wl_display_dispatch_pending(wl_display);
+    wl_display_flush(wl_display);
+    server_mutex->unlock();
   }
   else {
     server_mutex->unlock();
@@ -9006,7 +9023,9 @@ static void *gwl_display_event_thread_fn(void *display_voidp)
 
   /* Wait for events, this thread is dedicated to event handling.
    * Ends via `fd_stop`, see #gwl_display_event_thread_destroy. */
-  while (ghost_wl_display_event_pump_from_thread(wl_display, fd, fd_stop, server_mutex) != -1) {
+  while (ghost_wl_display_event_pump_from_thread(
+             wl_display, fd, fd_stop, server_mutex, display->upbge_player_running) != -1)
+  {
     /* Pass. */
   }
 
@@ -9337,6 +9356,23 @@ bool GHOST_SystemWayland::processEvents(bool waitForEvent)
   }
 
   return any_processed;
+}
+
+void GHOST_SystemWayland::setBlenderPlayerRunning(const bool running)
+{
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*server_mutex};
+  display_->upbge_player_running = running;
+  if (running) {
+    /* The main thread is about to block: answer what it already read (dispatch) or queued
+     * (flush), e.g. the ping sent for the click that launched the player. From here on the
+     * event thread does both, see #ghost_wl_display_event_pump_from_thread. */
+    wl_display_dispatch_pending(display_->wl.display);
+    wl_display_flush(display_->wl.display);
+  }
+#else
+  (void)running;
+#endif
 }
 
 bool GHOST_SystemWayland::setConsoleWindowState(GHOST_TConsoleWindowState /*action*/)

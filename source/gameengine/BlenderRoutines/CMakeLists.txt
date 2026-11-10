@@ -73,5 +73,11 @@ if(WITH_BULLET)
   add_definitions(-DWITH_BULLET)
 endif()
 
+# GHOST_TEventType has NDOF entries in the middle of the enum, the define must match GHOST's
+# or the event types compared in BL_SetBlenderPlayerRunning would be off by two.
+if(WITH_INPUT_NDOF)
+  add_definitions(-DWITH_INPUT_NDOF)
+endif()
+
 
 blender_add_lib(ge_blender_routines "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

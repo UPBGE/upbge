@@ -63,6 +63,10 @@ extern void StartKetsjiShell(blender::bContext *C,
                              blender::rcti *cam_frame,
                              int always_use_expand_framing);
 
+/* Call with true before blocking on the blenderplayer and false once it exits
+ * (also drops the input received meanwhile). */
+extern void BL_SetBlenderPlayerRunning(bool running);
+
 #ifdef __cplusplus
 }
 #endif

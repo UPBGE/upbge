@@ -2327,7 +2327,13 @@ class WM_OT_blenderplayer_start(Operator):
         # finish the call with the path to the blend file
         args.append(filepath)
 
-        subprocess.call(args)
+        # Blender stays blocked while the player runs. Keep the compositor answered meanwhile
+        # (Wayland) and drop the input its windows received once the player exits.
+        bpy.ops.view3d.game_player_running(running=True)
+        try:
+            subprocess.call(args)
+        finally:
+            bpy.ops.view3d.game_player_running(running=False)
         os.remove(filepath)
         return {'FINISHED'}
 
