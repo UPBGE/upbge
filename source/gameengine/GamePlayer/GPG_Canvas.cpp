@@ -40,10 +40,10 @@
 #include "GHOST_ISystem.hh"
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
-#include "wm_window.hh"
-#include "../../blender/windowmanager/intern/wm_window_private.hh"
 #include "WM_api.hh"
 #include "WM_types.hh"
+#include "wm_window.hh"
+#include "../../blender/windowmanager/intern/wm_window_private.hh"
 
 #include "KX_Globals.h"
 
@@ -85,6 +85,9 @@ void GPG_Canvas::BeginDraw()
 
     /* See wm_draw_update for "chronology" */
     GPU_context_begin_frame((GPUContext *)win->runtime->gpuctx);
+#ifdef WITH_GHOST_CSD
+    WM_window_csd_clear_alpha(win);
+#endif
   }
 }
 
