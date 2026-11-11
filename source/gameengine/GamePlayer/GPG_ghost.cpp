@@ -524,7 +524,7 @@ static void usage(const std::string &program, bool isBlenderPlayer)
       CM_Message("usage:   " << program << " [--options] " << example_filename << std::endl);
   CM_Message("Available options are: [-w [w h l t]] [-f [fw fh fb ff]] "
              << consoleoption << "[-g gamengineoptions] "
-             << "[-s stereomode] [-m aasamples]");
+             << "[-s stereomode] [-m aasamples] [-t title]");
   CM_Message("Optional parameters must be passed in order.");
   CM_Message("Default values are set in the blend file." << std::endl);
   CM_Message("  -h: Prints this command summary" << std::endl);
@@ -562,6 +562,7 @@ static void usage(const std::string &program, bool isBlenderPlayer)
   CM_Message("  -m: maximum anti-aliasing (eg. 2,4,8,16)" << std::endl);
   CM_Message("  -n: maximum anisotropic filtering (eg. 2,4,8,16)" << std::endl);
   CM_Message("  -i: parent window's blender::ID" << std::endl);
+  CM_Message("  -t: window title (default: the editor's title for the file)" << std::endl);
 #ifdef _WIN32
   CM_Message("  -c: keep console window open" << std::endl);
 #endif
@@ -804,6 +805,8 @@ int main(int argc,
   int validArguments = 0;
   bool samplesParFound = false;
   std::string pythonControllerFile;
+  /* -t: the window keeps this title for the whole run, whichever file is loaded. */
+  std::string windowTitle;
   uint16_t aasamples = 0;
   int alphaBackground = 0;
 
@@ -1329,6 +1332,17 @@ int main(int argc,
           pythonControllerFile = argv[i++];
           break;
         }
+        case 't': {
+          ++i;
+          if ((i + 1) <= validArguments) {
+            windowTitle = argv[i++];
+          }
+          else {
+            error = true;
+            CM_Error("no argument supplied for -t");
+          }
+          break;
+        }
         default:  // not recognized
         {
           CM_Warning("unknown argument: " << argv[i++]);
@@ -1628,6 +1642,9 @@ int main(int argc,
                 else {
                   title = "blenderplayer";
                 }
+                if (!windowTitle.empty()) {
+                  title = windowTitle;
+                }
 #ifdef WIN32
                 if (scr_saver_mode == SCREEN_SAVER_MODE_PREVIEW) {
                   window = startScreenSaverPreview(system, scr_saver_hwnd, stereoWindow);
@@ -1666,6 +1683,11 @@ int main(int argc,
             InitBlenderContextVariables(C);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
             WM_check(C);
+            /* WM_check gives the window the editor's title ("* file [path] - UPBGE version"),
+             * again for every file loaded: put back the one asked for. */
+            if (!windowTitle.empty()) {
+              WM_window_title_set(win, windowTitle.c_str());
+            }
             InitBlenderContextVariables(C);
 
             /* Get rid of windows which are not the 3D view windows */
