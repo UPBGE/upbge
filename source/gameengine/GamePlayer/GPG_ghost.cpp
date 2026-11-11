@@ -1101,6 +1101,10 @@ int main(int argc,
   BKE_blender_userdef_data_set_and_free(userdef);
   userdef = nullptr;
 
+  blender::ui::init_userdef();
+  blender::ui::theme::init_default();
+  blender::ui::init();
+
   GPU_backend_type_selection_set(GPUBackendType(U.gpu_backend));
 
   /* Call again to set from userpreferences... */
@@ -1666,10 +1670,6 @@ int main(int argc,
               CTX_py_init_set(C, true);
 #  endif /*WITH_PYTHON*/
               WM_init_gpu_offscreen();
-              blender::ui::theme::init_default();
-              blender::ui::init();
-              /* To have blf_monofont_render available for generated textures checkerboard */
-              blender::ui::reinit_font();
               /* Set Viewport render mode and shading type for the whole runtime */
               useViewportRender = scene->gm.flag & GAME_USE_VIEWPORT_RENDER;
               shadingTypeRuntime = GetShadingTypeRuntime(C);
