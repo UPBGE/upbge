@@ -103,8 +103,7 @@ PyObject *bc_py_is_container(PyObject * /*self*/, PyObject *arg)
 
 /**
  * _exec_module(module, path): run the encrypted module at \a path in the namespace of \a module.
- * The plaintext exists in one buffer for the duration of the compile; Python's tokenizer copies
- * lines of it into its own buffers, freed without wiping, which only a debugger can reach.
+ * The plaintext exists in one buffer, wiped right after the compile.
  */
 PyObject *bc_py_exec_module(PyObject * /*self*/, PyObject *args)
 {
