@@ -111,7 +111,6 @@ struct BuildDefs {
   bool with_opengl_backend;
   bool with_renderdoc;
   bool with_input_ndof;
-  bool with_vulkan_backend;
   bool with_xr_openxr;
 };
 
@@ -153,9 +152,6 @@ static void build_defs_init(BuildDefs *build_defs, bool force_all)
 #  endif
 #  ifdef WITH_INPUT_NDOF
   build_defs->with_input_ndof = true;
-#  endif
-#  ifdef WITH_VULKAN_BACKEND
-  build_defs->with_vulkan_backend = true;
 #  endif
 #  ifdef WITH_XR_OPENXR
   build_defs->with_xr_openxr = true;
@@ -792,9 +788,6 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--debug-gpu-backend-no-fallback");
   if (defs.with_renderdoc) {
     BLI_args_print_arg_doc(ba, "--debug-gpu-renderdoc");
-  }
-  if (defs.with_vulkan_backend) {
-    BLI_args_print_arg_doc(ba, "--debug-gpu-vulkan-local-read");
   }
   BLI_args_print_arg_doc(ba, "--debug-gpu-no-hw-raytracing");
   BLI_args_print_arg_doc(ba, "--debug-wm");
@@ -1459,9 +1452,6 @@ static const char arg_handle_debug_mode_generic_set_doc_depsgraph_uid[] =
 static const char arg_handle_debug_mode_generic_set_doc_gpu_force_workarounds[] =
     "\n\t"
     "Enable workarounds for typical GPU issues and disable all GPU extensions.";
-static const char arg_handle_debug_mode_generic_set_doc_gpu_force_vulkan_local_read[] =
-    "\n\t"
-    "Force Vulkan dynamic rendering local read when supported by device.";
 static const char arg_handle_debug_mode_generic_set_doc_gpu_device_no_fallback[] =
     "\n\t"
     "Fail instead of falling back when '--gpu-device' does not match a usable Vulkan device.";
@@ -3452,13 +3442,6 @@ void main_args_setup(bContext *C, bArgs *ba, bool all, SYS_SystemHandle *syshand
                "--debug-gpu-force-workarounds",
                CB_EX(arg_handle_debug_mode_generic_set, gpu_force_workarounds),
                reinterpret_cast<void *>(G_DEBUG_GPU_FORCE_WORKAROUNDS));
-  if (defs.with_vulkan_backend) {
-    BLI_args_add(ba,
-                 nullptr,
-                 "--debug-gpu-vulkan-local-read",
-                 CB_EX(arg_handle_debug_mode_generic_set, gpu_force_vulkan_local_read),
-                 reinterpret_cast<void *>(G_DEBUG_GPU_FORCE_VULKAN_LOCAL_READ));
-  }
   BLI_args_add(ba,
                nullptr,
                "--debug-gpu-no-hw-raytracing",

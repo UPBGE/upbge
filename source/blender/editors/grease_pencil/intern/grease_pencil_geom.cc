@@ -192,9 +192,11 @@ int curve_merge_by_distance(const IndexRange points,
   });
   const KDTree<float> tree(selected_distances);
 
+  /* Visit points in curve order, so clusters start at their first point and span at most the merge
+   * distance, independent of the tree layout. */
   Array<int> selection_merge_indices(selection.size(), -1);
   const int duplicate_count = kdtree::calc_duplicates(
-      tree, merge_distance, selection_merge_indices);
+      tree, merge_distance, IndexMask(selection.size()), selection_merge_indices);
 
   array_utils::fill_index_range<int>(r_merge_indices);
 
@@ -396,12 +398,18 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
 
         float start_dist_sq;
         const int nearest_start = tree.find_nearest_filtered(
-            start_co, [&](const int other) { return other != start_index; }, &start_dist_sq);
+            start_co,
+            [&](const int other) { return other != start_index; },
+            std::numeric_limits<float>::max(),
+            &start_dist_sq);
         const bool is_start_ok = nearest_start != -1 && start_dist_sq <= merge_distance_squared;
 
         float end_dist_sq;
         const int nearest_end = tree.find_nearest_filtered(
-            end_co, [&](const int other) { return other != end_index; }, &end_dist_sq);
+            end_co,
+            [&](const int other) { return other != end_index; },
+            std::numeric_limits<float>::max(),
+            &end_dist_sq);
         const bool is_end_ok = nearest_end != -1 && end_dist_sq <= merge_distance_squared;
 
         if (is_start_ok) {
