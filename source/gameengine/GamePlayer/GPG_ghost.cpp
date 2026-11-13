@@ -160,6 +160,10 @@ extern "C" int GHOST_HACK_getFirstFile(char buf[]);
 #  include "SpindleEncryption.h"
 #endif  // WITH_GAMEENGINE_BPPLAYER
 
+#ifdef WITH_GAMEENGINE_BINARYCRYPT
+#  include "BC_binarycrypt.hh"
+#endif
+
 using namespace blender;
 
 namespace blender {
@@ -520,7 +524,7 @@ static void usage(const std::string &program, bool isBlenderPlayer)
       CM_Message("usage:   " << program << " [--options] " << example_filename << std::endl);
   CM_Message("Available options are: [-w [w h l t]] [-f [fw fh fb ff]] "
              << consoleoption << "[-g gamengineoptions] "
-             << "[-s stereomode] [-m aasamples]");
+             << "[-s stereomode] [-m aasamples] [-t title]");
   CM_Message("Optional parameters must be passed in order.");
   CM_Message("Default values are set in the blend file." << std::endl);
   CM_Message("  -h: Prints this command summary" << std::endl);
@@ -558,6 +562,7 @@ static void usage(const std::string &program, bool isBlenderPlayer)
   CM_Message("  -m: maximum anti-aliasing (eg. 2,4,8,16)" << std::endl);
   CM_Message("  -n: maximum anisotropic filtering (eg. 2,4,8,16)" << std::endl);
   CM_Message("  -i: parent window's blender::ID" << std::endl);
+  CM_Message("  -t: window title (default: the editor's title for the file)" << std::endl);
 #ifdef _WIN32
   CM_Message("  -c: keep console window open" << std::endl);
 #endif
@@ -572,6 +577,7 @@ static void usage(const std::string &program, bool isBlenderPlayer)
   CM_Message("       show_framerate                 0         Show the frame rate");
   CM_Message("       show_properties                0         Show debug properties");
   CM_Message("       show_profile                   0         Show profiling information");
+  CM_Message("       show_physics                   0         Show physics shapes");
   CM_Message("       show_bounding_box              0         Show debug bounding box volume");
   CM_Message("       show_armatures                 0         Show debug armatures");
   CM_Message("       show_camera_frustum            0         Show debug camera frustum volume");
@@ -800,6 +806,8 @@ int main(int argc,
   int validArguments = 0;
   bool samplesParFound = false;
   std::string pythonControllerFile;
+  /* -t: the window keeps this title for the whole run, whichever file is loaded. */
+  std::string windowTitle;
   uint16_t aasamples = 0;
   int alphaBackground = 0;
 
@@ -862,6 +870,11 @@ int main(int argc,
 
   BKE_blender_globals_init(); /* blender.c */
   G.is_blenderplayer = true;
+
+#ifdef WITH_GAMEENGINE_BINARYCRYPT
+  /* Receive the key from the launcher before Python starts and before any file is read. */
+  BC_runtime_init_from_launcher();
+#endif
 
   MEM_CacheLimiter_set_disabled(true);
 
@@ -1324,6 +1337,17 @@ int main(int argc,
           pythonControllerFile = argv[i++];
           break;
         }
+        case 't': {
+          ++i;
+          if ((i + 1) <= validArguments) {
+            windowTitle = argv[i++];
+          }
+          else {
+            error = true;
+            CM_Error("no argument supplied for -t");
+          }
+          break;
+        }
         default:  // not recognized
         {
           CM_Warning("unknown argument: " << argv[i++]);
@@ -1335,6 +1359,14 @@ int main(int argc,
       i++;
     }
   }
+
+#ifdef WITH_GAMEENGINE_BINARYCRYPT
+  /* A protected game must not run external Python with access to its decrypted data. */
+  if (BC_runtime_has_key() && !pythonControllerFile.empty()) {
+    CM_Warning("-p is disabled for protected games, ignoring: " << pythonControllerFile);
+    pythonControllerFile.clear();
+  }
+#endif
 
   if ((windowWidth < kMinWindowWidth) || (windowHeight < kMinWindowHeight)) {
     error = true;
@@ -1615,6 +1647,9 @@ int main(int argc,
                 else {
                   title = "blenderplayer";
                 }
+                if (!windowTitle.empty()) {
+                  title = windowTitle;
+                }
 #ifdef WIN32
                 if (scr_saver_mode == SCREEN_SAVER_MODE_PREVIEW) {
                   window = startScreenSaverPreview(system, scr_saver_hwnd, stereoWindow);
@@ -1653,6 +1688,11 @@ int main(int argc,
             InitBlenderContextVariables(C);
             wm_window_ghostwindow_blenderplayer_ensure(wm, win, window, first_time_window);
             WM_check(C);
+            /* WM_check gives the window the editor's title ("* file [path] - UPBGE version"),
+             * again for every file loaded: put back the one asked for. */
+            if (!windowTitle.empty()) {
+              WM_window_title_set(win, windowTitle.c_str());
+            }
             InitBlenderContextVariables(C);
 
             /* Get rid of windows which are not the 3D view windows */
