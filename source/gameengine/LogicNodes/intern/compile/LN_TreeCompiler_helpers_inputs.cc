@@ -1807,7 +1807,64 @@ std::optional<uint32_t> BuildMouseOverQueryExpression(
   return program.AddQueryExpression(expression);
 }
 
-static std::optional<uint32_t> BuildOptionalExecutionCondition(
+void AddVisualizeStyleInputs(LN_Program &program,
+                             const blender::bNode &node,
+                             const NodeDefinitionMap &node_definitions,
+                             const InputLinkMap &input_links,
+                             ValueCache &value_cache,
+                             LN_QueryExpression &expression,
+                             const char *hit_color_name,
+                             const char *miss_color_name)
+{
+  /* Read only where the cast may draw: a node that never draws compiles as before 2026-11-11. */
+  if (expression.tertiary_bool_expr_index == LN_INVALID_INDEX) {
+    return;
+  }
+  if (expression.tertiary_bool_expr_index < program.GetBoolExpressions().size()) {
+    const LN_BoolExpression &visualize =
+        program.GetBoolExpressions()[expression.tertiary_bool_expr_index];
+    if (visualize.kind == LN_BoolExpressionKind::Constant && !visualize.bool_value) {
+      return;
+    }
+  }
+  FloatExpressionCache float_cache;
+  ColorExpressionCache color_cache;
+  if (FindInputSocket(node, "Duration") != nullptr) {
+    if (const std::optional<uint32_t> duration = BuildInputFloatExpression(
+            program, node, "Duration", node_definitions, input_links, value_cache, float_cache))
+    {
+      expression.input7 = *duration;
+    }
+  }
+  if (FindInputSocket(node, hit_color_name) != nullptr) {
+    if (const std::optional<uint32_t> color = BuildInputColorExpression(program,
+                                                                        node,
+                                                                        hit_color_name,
+                                                                        node_definitions,
+                                                                        input_links,
+                                                                        value_cache,
+                                                                        float_cache,
+                                                                        color_cache))
+    {
+      expression.input8 = *color;
+    }
+  }
+  if (FindInputSocket(node, miss_color_name) != nullptr) {
+    if (const std::optional<uint32_t> color = BuildInputColorExpression(program,
+                                                                        node,
+                                                                        miss_color_name,
+                                                                        node_definitions,
+                                                                        input_links,
+                                                                        value_cache,
+                                                                        float_cache,
+                                                                        color_cache))
+    {
+      expression.input9 = *color;
+    }
+  }
+}
+
+std::optional<uint32_t> BuildOptionalExecutionCondition(
     LN_Program &program,
     const blender::bNode &node,
     const std::string &socket_name,
@@ -2044,6 +2101,7 @@ static std::optional<uint32_t> BuildRaycastQueryExpressionWithKind(
   expression.secondary_int_value = IntExpressionConstantFallback(program, *max_results_expr);
   expression.ray_input_mode = LN_RayInputMode(std::clamp<int>(node.custom1, 0, 1));
   expression.cache_key = node.identifier;
+  AddVisualizeStyleInputs(program, node, node_definitions, input_links, value_cache, expression);
   return program.AddQueryExpression(expression);
 }
 
@@ -2267,6 +2325,7 @@ std::optional<uint32_t> BuildRaycastFromMeshQueryExpression(
   expression.mesh_ray_domain = LN_MeshRayDomain(std::clamp<int>(node.custom1, 0, 1));
   expression.mesh_ray_direction = LN_MeshRayDirection(std::clamp<int>(node.custom2, 0, 1));
   expression.cache_key = node.identifier;
+  AddVisualizeStyleInputs(program, node, node_definitions, input_links, value_cache, expression);
   return program.AddQueryExpression(expression);
 }
 
@@ -2329,14 +2388,16 @@ static std::optional<uint32_t> BuildShapeCastQueryExpressionWithKind(
                                                         value_expr_cache);
   const auto origin = BuildInputVectorExpression(
       program, node, "Origin", node_definitions, input_links, value_cache, float_cache, vector_cache);
-  const auto destination = BuildInputVectorExpression(program,
-                                                      node,
-                                                      "Destination",
-                                                      node_definitions,
-                                                      input_links,
-                                                      value_cache,
-                                                      float_cache,
-                                                      vector_cache);
+  /* Overlap (custom2 1, 2026-11-11): the shape tested where it is, Destination = Origin. */
+  const auto destination = node.custom2 == 1 ? origin :
+                                               BuildInputVectorExpression(program,
+                                                                          node,
+                                                                          "Destination",
+                                                                          node_definitions,
+                                                                          input_links,
+                                                                          value_cache,
+                                                                          float_cache,
+                                                                          vector_cache);
   const auto rotation = BuildInputRotationVectorExpression(program,
                                                            node,
                                                            "Rotation",
@@ -2437,6 +2498,7 @@ static std::optional<uint32_t> BuildShapeCastQueryExpressionWithKind(
   expression.secondary_int_value = IntExpressionConstantFallback(program, *max_results);
   expression.shape_cast_type = LN_ShapeCastType(std::clamp<int>(node.custom1, 0, 2));
   expression.cache_key = node.identifier;
+  AddVisualizeStyleInputs(program, node, node_definitions, input_links, value_cache, expression);
   return program.AddQueryExpression(expression);
 }
 
@@ -2459,6 +2521,147 @@ std::optional<uint32_t> BuildShapeCastQueryExpression(
                                                LN_QueryExpressionKind::ShapeCast);
 }
 
+std::optional<uint32_t> BuildExplosionImpulseQueryExpression(
+    LN_Program &program,
+    const blender::bNode &node,
+    const NodeDefinitionMap &node_definitions,
+    const InputLinkMap &input_links,
+    ValueCache &value_cache,
+    FloatExpressionCache &float_cache,
+    BoolExpressionCache &bool_cache)
+{
+  IntExpressionCache int_cache;
+  StringExpressionCache string_cache;
+  VectorExpressionCache vector_cache;
+  ColorExpressionCache color_cache;
+  ValueExpressionCache value_expr_cache;
+
+  const auto condition = BuildOptionalExecutionCondition(
+      program, node, "Flow", node_definitions, input_links, value_cache, float_cache, bool_cache);
+  const auto ignore = BuildInputValueExpression(program,
+                                                node,
+                                                "Ignore Object",
+                                                node_definitions,
+                                                input_links,
+                                                value_cache,
+                                                bool_cache,
+                                                int_cache,
+                                                float_cache,
+                                                string_cache,
+                                                vector_cache,
+                                                color_cache,
+                                                value_expr_cache);
+  /* Center Object (custom2): the cast's Local mode around the object at (0, 0, 0) is its position
+   * after its pending moves, the owner when the input is empty, and leaves the object alone (the
+   * caster) - what the instruction does. */
+  const bool at_object = std::clamp<int>(node.custom2,
+                                         LN_EXPLOSION_CENTER_POSITION,
+                                         LN_EXPLOSION_CENTER_OBJECT) == LN_EXPLOSION_CENTER_OBJECT;
+  std::optional<uint32_t> caster;
+  if (at_object) {
+    caster = BuildOptionalObjectTargetExpression(program,
+                                                 node,
+                                                 "Object",
+                                                 node_definitions,
+                                                 input_links,
+                                                 value_cache,
+                                                 bool_cache,
+                                                 int_cache,
+                                                 float_cache,
+                                                 string_cache,
+                                                 vector_cache,
+                                                 color_cache,
+                                                 value_expr_cache);
+  }
+  std::optional<uint32_t> ignore_objects;
+  if (FindInputSocket(node, "Ignore Objects") != nullptr) {
+    ignore_objects = BuildInputValueExpression(program,
+                                               node,
+                                               "Ignore Objects",
+                                               node_definitions,
+                                               input_links,
+                                               value_cache,
+                                               bool_cache,
+                                               int_cache,
+                                               float_cache,
+                                               string_cache,
+                                               vector_cache,
+                                               color_cache,
+                                               value_expr_cache);
+    if (!ignore_objects) {
+      return std::nullopt;
+    }
+  }
+  const auto origin = at_object ? std::optional<uint32_t>(AddConstantVectorExpression(
+                                      program, MT_Vector3(0.0f, 0.0f, 0.0f))) :
+                                  BuildInputVectorExpression(program,
+                                                             node,
+                                                             "Origin",
+                                                             node_definitions,
+                                                             input_links,
+                                                             value_cache,
+                                                             float_cache,
+                                                             vector_cache);
+  const auto radius = BuildInputFloatExpression(
+      program, node, "Radius", node_definitions, input_links, value_cache, float_cache);
+  const auto property = BuildInputStringExpression(
+      program, node, "Property", node_definitions, input_links, value_cache, string_cache);
+  const auto mask = BuildInputIntExpression(
+      program, node, "Mask", node_definitions, input_links, value_cache, int_cache);
+  if (!condition || !ignore || !origin || !radius || !property || !mask) {
+    return std::nullopt;
+  }
+
+  LN_QueryExpression expression;
+  expression.kind = LN_QueryExpressionKind::ShapeCastAll;
+  expression.condition_bool_expr_index = *condition;
+  if (at_object) {
+    expression.input0 = caster.value_or(LN_INVALID_INDEX);
+    expression.bool_expr_index = AddConstantBoolExpression(program, true);
+    expression.bool_value = true;
+    if (caster) {
+      /* A named object that is gone blasts nothing (the instruction's rule), where the cast's
+       * Local mode would take the owner instead: the query runs only while it exists. */
+      LN_BoolExpression exists;
+      exists.kind = LN_BoolExpressionKind::FromGenericValue;
+      exists.input0 = *caster;
+      const uint32_t exists_expr = program.AddBoolExpression(exists);
+      if (expression.condition_bool_expr_index == LN_INVALID_INDEX) {
+        expression.condition_bool_expr_index = exists_expr;
+      }
+      else {
+        LN_BoolExpression both;
+        both.kind = LN_BoolExpressionKind::And;
+        both.input0 = expression.condition_bool_expr_index;
+        both.input1 = exists_expr;
+        expression.condition_bool_expr_index = program.AddBoolExpression(both);
+      }
+    }
+  }
+  expression.input1 = *origin;
+  expression.input2 = *origin;
+  expression.input3 = *ignore;
+  expression.ignore_list_expr_index = ignore_objects.value_or(LN_INVALID_INDEX);
+  expression.float_expr_index = *radius;
+  /* X-Ray: an object without the Property never blocks the blast. Local, Visualize, sensors and
+   * back faces stay off (none reads them: no expression). */
+  expression.secondary_bool_expr_index = AddConstantBoolExpression(program, true);
+  expression.int_expr_index = *mask;
+  expression.secondary_int_expr_index = AddConstantIntExpression(
+      program, int32_t(LN_EXPLOSION_MAX_OBJECTS));
+  expression.string_expr_index = *property;
+  expression.vector_value = VectorExpressionConstantFallback(program, *origin);
+  expression.secondary_vector_value = expression.vector_value;
+  expression.quaternary_vector_value = MT_Vector3(0.5f, 0.5f, 0.5f);
+  expression.float_value = FloatExpressionConstantFallback(program, *radius);
+  expression.secondary_float_value = 2.0f;
+  expression.int_value = IntExpressionConstantFallback(program, *mask);
+  expression.secondary_int_value = int32_t(LN_EXPLOSION_MAX_OBJECTS);
+  expression.shape_cast_type = LN_ShapeCastType::Sphere;
+  expression.cache_key = node.identifier;
+  return program.AddQueryExpression(expression);
+}
+
 std::optional<uint32_t> BuildShapeCastAllQueryExpression(
     LN_Program &program,
     const blender::bNode &node,
@@ -2476,6 +2679,77 @@ std::optional<uint32_t> BuildShapeCastAllQueryExpression(
                                                float_cache,
                                                bool_cache,
                                                LN_QueryExpressionKind::ShapeCastAll);
+}
+
+/* The view rays' pins of the Raycast family (2026-11-11): Ignore Object (input3), Ignore Objects,
+ * Include Sensors (quaternary bool), Hit Backfaces (quinary), Visualize (tertiary) and its panel. */
+static bool AddViewRayFamilyInputs(LN_Program &program,
+                                   const blender::bNode &node,
+                                   const NodeDefinitionMap &node_definitions,
+                                   const InputLinkMap &input_links,
+                                   ValueCache &value_cache,
+                                   FloatExpressionCache &float_expression_cache,
+                                   BoolExpressionCache &bool_expression_cache,
+                                   LN_QueryExpression &expression)
+{
+  IntExpressionCache int_cache;
+  StringExpressionCache string_cache;
+  VectorExpressionCache vector_cache;
+  ColorExpressionCache color_cache;
+  ValueExpressionCache value_expr_cache;
+  const auto value_input = [&](const char *name) {
+    return BuildInputValueExpression(program,
+                                     node,
+                                     name,
+                                     node_definitions,
+                                     input_links,
+                                     value_cache,
+                                     bool_expression_cache,
+                                     int_cache,
+                                     float_expression_cache,
+                                     string_cache,
+                                     vector_cache,
+                                     color_cache,
+                                     value_expr_cache);
+  };
+  const auto bool_input = [&](const char *name) -> std::optional<uint32_t> {
+    if (FindInputSocket(node, name) == nullptr) {
+      return AddConstantBoolExpression(program, false);
+    }
+    return BuildInputBoolExpression(program,
+                                    node,
+                                    name,
+                                    node_definitions,
+                                    input_links,
+                                    value_cache,
+                                    float_expression_cache,
+                                    bool_expression_cache);
+  };
+  const std::optional<uint32_t> ignore = FindInputSocket(node, "Ignore Object") != nullptr ?
+                                             value_input("Ignore Object") :
+                                             std::nullopt;
+  const std::optional<uint32_t> ignore_objects = FindInputSocket(node, "Ignore Objects") !=
+                                                         nullptr ?
+                                                     value_input("Ignore Objects") :
+                                                     std::nullopt;
+  if ((FindInputSocket(node, "Ignore Object") != nullptr && !ignore) ||
+      (FindInputSocket(node, "Ignore Objects") != nullptr && !ignore_objects))
+  {
+    return false;
+  }
+  const std::optional<uint32_t> sensors = bool_input("Include Sensors");
+  const std::optional<uint32_t> backfaces = bool_input("Hit Backfaces");
+  const std::optional<uint32_t> visualize = bool_input("Visualize");
+  if (!sensors || !backfaces || !visualize) {
+    return false;
+  }
+  expression.input3 = ignore.value_or(LN_INVALID_INDEX);
+  expression.ignore_list_expr_index = ignore_objects.value_or(LN_INVALID_INDEX);
+  expression.quaternary_bool_expr_index = *sensors;
+  expression.quinary_bool_expr_index = *backfaces;
+  expression.tertiary_bool_expr_index = *visualize;
+  AddVisualizeStyleInputs(program, node, node_definitions, input_links, value_cache, expression);
+  return true;
 }
 
 std::optional<uint32_t> BuildMouseRayQueryExpression(
@@ -2573,6 +2847,17 @@ std::optional<uint32_t> BuildMouseRayQueryExpression(
   expression.bool_value = BoolExpressionConstantFallback(program, *xray_expr);
   expression.int_value = IntExpressionConstantFallback(program, *mask_expr);
   expression.cache_key = node.identifier;
+  if (!AddViewRayFamilyInputs(program,
+                              node,
+                              node_definitions,
+                              input_links,
+                              value_cache,
+                              float_expression_cache,
+                              bool_expression_cache,
+                              expression))
+  {
+    return std::nullopt;
+  }
   return program.AddQueryExpression(expression);
 }
 
@@ -2678,6 +2963,17 @@ std::optional<uint32_t> BuildCameraRayQueryExpression(
   expression.bool_value = BoolExpressionConstantFallback(program, *xray_expr);
   expression.int_value = IntExpressionConstantFallback(program, *mask_expr);
   expression.cache_key = node.identifier;
+  if (!AddViewRayFamilyInputs(program,
+                              node,
+                              node_definitions,
+                              input_links,
+                              value_cache,
+                              float_expression_cache,
+                              bool_expression_cache,
+                              expression))
+  {
+    return std::nullopt;
+  }
   return program.AddQueryExpression(expression);
 }
 

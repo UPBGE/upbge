@@ -224,6 +224,9 @@ class FlatPointerSet {
 enum class NodeOp : uint8_t {
   FConst,
   FProp,
+  /** One axis (`compare`: 0..3) of a Vector or Color game property ref's kept numbers
+   * (LN_Snapshot::ReadGamePropertyVector), `float_value` past the capture's refs (2026-11-15). */
+  FPropAxis,
   FAdd,
   FSub,
   FMul,
@@ -248,6 +251,8 @@ enum class NodeOp : uint8_t {
   FCos,
   FRad,
   FDeg,
+  /** A vector's length: `a`, `b`, `c` its axes (VectorLength). */
+  FLength,
   /** Threshold: `a` value, `b` threshold, `c` Else Zero (bool), `compare` the operation. */
   FThreshold,
   /** Ranged Threshold: `a` value, `b` min, `c` max, `compare` the operation. */
@@ -268,6 +273,21 @@ enum class NodeOp : uint8_t {
    * `position_a` the hit position, `position_b` the hit normal (zero without a hit), as its
    * output kinds give them. */
   QRay,
+  /** Velocity at Point (query `property_ref`, 2026-11-14) of the owner (`end_a` Owner) or a named
+   * object (Object, `object_a`), measured by the VM's own code for every NPC: `out`, `out2`,
+   * `out3` the Velocity, `position_b` the Point. Position mode (`int_value` -1): at the Position
+   * `position_a`, on any thread (Jolt's body read lock, the scene graph: nothing writes them while
+   * a run records); Vertex Group modes: point_velocity_reads[`int_value`], measured when the run
+   * starts. */
+  QPointVel,
+  /** Line of Sight (2026-11-14): sights[`int_value`] (LN_ColumnProgram::Sight), cast for every
+   * NPC by the VM's own code (LN_RuntimeTree::ColumnLineOfSight). */
+  QSight,
+  /** Keep Distance's outputs (2026-11-14): what its last answer left in the NPC's tree (state
+   * `int_value`; the flush's end writes it, so it holds all tick): `out` Near, `out2` Nearest
+   * Distance, `position_a` Nearest Point, `position_b` Nearest Normal (both zero unless Near),
+   * `vec_c` Force. */
+  QKeep,
   IConst,
   IProp,
   /** Typecast's float to integer (`compare`: the mode). */
@@ -405,6 +425,13 @@ enum class NodeOp : uint8_t {
   BLoop,
   /** Plan C1-9: loop frame `property_ref` completed in this pass (its Completed route runs). */
   SLoopDone,
+  /** On Collision, Events = Each Object (2026-11-14): block `property_ref` (it holds ops of such
+   * routes) run by the VM's walk, each op told its route, for the NPCs of mask `a` (`compare`
+   * the gate + 1), its commands caught for write `int_value`. Main thread. */
+  BCollision,
+  /** Their repeats after the pass's ops (ColumnRunCollisionRepeats) for the NPCs of mask `a`,
+   * their commands caught for write `int_value`. Main thread. */
+  BCollisionRepeats,
   /** Repeat Limit's Remaining (`property_ref` its state, `a` the limit, `float_value` fallback). */
   IRepeatRemaining,
   /** Repeat Limit's Is Exhausted. */
@@ -705,6 +732,77 @@ struct LN_ColumnProgram {
     uint32_t object = kNone;
   };
   std::vector<VelocityRead> velocity_reads;
+  /** Velocity at Point in a Vertex Group mode (QPointVel, 2026-11-14): measured when the run
+   * starts on the main thread (the group's vertices read Blender's evaluated mesh) by the VM's own
+   * code (LN_RuntimeTree::ColumnPointVelocity), of the owner (per NPC) or a named object
+   * (`object`), the group's name a constant. Nothing a run's lanes record moves an object or
+   * changes a velocity before the flush, so it is what the VM measures where its route reads it. */
+  struct PointVelocityRead {
+    uint32_t query = kNone;
+    bool owner = true;
+    uint32_t object = kNone;
+    std::string vertex_group;
+  };
+  std::vector<PointVelocityRead> point_velocity_reads;
+  /** Line of Sight as a column node (QSight, 2026-11-14): its inputs' slots as the read site has
+   * them, its objects (the owner, a named object: `objects`, one found while playing: `runtime`),
+   * its outputs' slots. The VM's own steps after its reads (LN_RuntimeTree::ColumnLineOfSight)
+   * NPC by NPC where `eval` and `done` (kNone: everywhere) let it. */
+  struct Sight {
+    uint32_t query = kNone;
+    bool eye_is_object = false, target_is_object = false;
+    EndKind eye = EndKind::None, target = EndKind::None;
+    uint32_t eye_object = kNone, target_object = kNone;
+    VecSlots eye_input, forward, target_input;
+    uint32_t max_distance = kNone, view_angle = kNone, mask = kNone;
+    uint32_t include_sensors = kNone, hit_back_faces = kNone;
+    uint32_t eval = kNone, done = kNone;
+    uint32_t visible = kNone, blocked = kNone, distance = kNone, angle = kNone;
+    VecSlots point, normal;
+  };
+  std::vector<Sight> sights;
+  /** A Raycast as a column node (QRay; 2026-11-14 its inputs column slots, before only
+   * constants): its caster (none: the owner in Local space; the owner, a named object in
+   * `objects`, one found while playing in `runtime`), its inputs' slots, its Property (columns
+   * hold no text: a constant), its outputs' slots. The VM's own steps after its reads
+   * (LN_RuntimeTree::ColumnRaycast) NPC by NPC where `eval` and `done` let it. */
+  struct Ray {
+    uint32_t query = kNone;
+    /** Raycast, Raycast All, Shape Cast or Shape Cast All (2026-11-14: the casts' family). */
+    LN_QueryExpressionKind kind = LN_QueryExpressionKind::Raycast;
+    EndKind caster = EndKind::None;
+    uint32_t caster_object = kNone;
+    /** The objects it passes: Ignore Object, then Ignore Objects' items (the owner or a named
+     * object, `objects`; an empty item: EndKind::None). */
+    std::vector<std::pair<EndKind, uint32_t>> ignore;
+    VecSlots origin, destination, direction;
+    uint32_t distance = kNone, local = kNone, mask = kNone, xray = kNone;
+    uint32_t include_sensors = kNone, hit_back_faces = kNone;
+    /** The All kinds' Max Results (an int slot). */
+    uint32_t max_results = kNone;
+    /** Shape Cast's shape: its turn (a rotation slot), Half Extents, Radius, Height, Extra
+     * Radius. */
+    LN_ShapeCastType shape = LN_ShapeCastType::Sphere;
+    uint32_t rotation = kNone;
+    VecSlots half_extents;
+    uint32_t radius = kNone, height = kNone, extra_radius = kNone;
+    std::string property;
+    LN_RayInputMode mode = LN_RayInputMode::EndPoint;
+    uint8_t detail_flags = 0;
+    uint32_t eval = kNone, done = kNone;
+    /** Its outputs as the output kinds read the result: PhysicsQueryHit, Blocked,
+     * StartedOverlapping, Distance, Fraction, HitCount (the hits that hit), Point and Normal
+     * (zero without a hit), CastPosition, Direction, EndPoint. */
+    uint32_t hit = kNone, blocked = kNone, started = kNone, hit_distance = kNone;
+    uint32_t fraction = kNone, hit_count = kNone;
+    VecSlots point, normal, cast_position, ray_direction, end_point;
+  };
+  std::vector<Ray> rays;
+  /** Tree properties whose object a move acts on (2026-11-14: Add Object's copy) that only Add
+   * Object writes in the pass: the object is the property's value when the run starts, a copy the
+   * pass makes (never a lane nor a lane's parent) or none. The run starts only when no lane's
+   * start value is a lane's object or a parent of one (RunSetBegin). */
+  std::vector<uint32_t> moved_tree_properties;
   uint32_t route_ops = 0;
   /** Per op: its stamp index (LN_LeanOp::state_index) and the mask of the NPCs it ran for (the VM
    * stamps every op that runs). */
@@ -969,23 +1067,43 @@ constexpr KindInputRow kKindInputSupplement[] = {
     {"Query::Raycast",
      "input3:A ignore_list_expr_index:A int_expr_index:I string_expr_index:S "
      "secondary_bool_expr_index:B secondary_int_expr_index:I tertiary_bool_expr_index:B "
-     "quaternary_bool_expr_index:B quinary_bool_expr_index:B"},
+     "quaternary_bool_expr_index:B quinary_bool_expr_index:B input7:F input8:C input9:C"},
     {"Query::RaycastAll",
      "input3:A ignore_list_expr_index:A int_expr_index:I string_expr_index:S "
      "secondary_bool_expr_index:B secondary_int_expr_index:I tertiary_bool_expr_index:B "
-     "quaternary_bool_expr_index:B quinary_bool_expr_index:B"},
+     "quaternary_bool_expr_index:B quinary_bool_expr_index:B input7:F input8:C input9:C"},
     {"Query::ShapeCast",
      "input3:A ignore_list_expr_index:A input4:R input5:V secondary_float_expr_index:F "
      "tertiary_float_expr_index:F int_expr_index:I secondary_int_expr_index:I "
      "string_expr_index:S secondary_bool_expr_index:B tertiary_bool_expr_index:B "
-     "quaternary_bool_expr_index:B quinary_bool_expr_index:B"},
+     "quaternary_bool_expr_index:B quinary_bool_expr_index:B input7:F input8:C input9:C"},
     {"Query::ShapeCastAll",
      "input3:A ignore_list_expr_index:A input4:R input5:V secondary_float_expr_index:F "
      "tertiary_float_expr_index:F int_expr_index:I secondary_int_expr_index:I "
      "string_expr_index:S secondary_bool_expr_index:B tertiary_bool_expr_index:B "
-     "quaternary_bool_expr_index:B quinary_bool_expr_index:B"},
+     "quaternary_bool_expr_index:B quinary_bool_expr_index:B input7:F input8:C input9:C"},
     /* An end is a position (a vector) or an object, by its endpoint mode. */
     {"Query::DistanceBetween", "input0:V input1:A input1:V"},
+    /* Velocity at Point's Vertex Group (the rig records the Position mode, 2026-11-14). */
+    {"Query::PointVelocity", "string_expr_index:S"},
+    /* Projectile Ray's Resolution, Visualize, Include Sensors and Hit Backfaces (read in the
+     * kind after the scene's physics: the rig has none; 2026-11-14, the warm-up's walk). */
+    {"Query::ProjectileRay",
+     "tertiary_float_expr_index:F tertiary_bool_expr_index:B quaternary_bool_expr_index:B "
+     "quinary_bool_expr_index:B"},
+    /* The Visualize panel (Duration, Hit Color, Miss Color), read only where the cast draws
+     * (2026-11-11); Line of Sight and Sweep Object read the rest after their objects (the rig has
+     * none). */
+    {"Query::MouseRay", "input7:F input8:C input9:C"},
+    {"Query::CameraRay", "input7:F input8:C input9:C"},
+    {"Query::LineOfSight",
+     "float_expr_index:F secondary_float_expr_index:F int_expr_index:I ignore_list_expr_index:A "
+     "quaternary_bool_expr_index:B quinary_bool_expr_index:B tertiary_bool_expr_index:B "
+     "input7:F input8:C input9:C"},
+    {"Query::SweepObject",
+     "string_expr_index:S secondary_bool_expr_index:B int_expr_index:I ignore_list_expr_index:A "
+     "quaternary_bool_expr_index:B quinary_bool_expr_index:B tertiary_bool_expr_index:B "
+     "input7:F input8:C input9:C"},
 };
 
 struct KindInputs {
@@ -1057,6 +1175,10 @@ bool BridgeableOp(const LN_ExecOpKind kind, const LN_OpCode opcode)
         case Op::SetVehicleSuspensionDamping:
         case Op::SetVehicleWheelFriction:
         case Op::SlowFollow:
+        /* Keep Distance (2026-11-14): its handler records a request into the chunk's buffer; the
+         * run's end moves them to the step's (RunSetEnd), the flush's end answers them by sort
+         * key, as the VM's. */
+        case Op::KeepDistance:
           return true;
         default:
           return false;
@@ -1115,6 +1237,8 @@ class ColumnCompiler {
     }
     return text;
   }
+  /** LN_QueryWarmEvents: the walk over every event's ops. */
+  std::vector<uint8_t> QueryWarmEvents();
 
  private:
 
@@ -1173,6 +1297,10 @@ class ColumnCompiler {
     /** It reads the owner's logic collisions (the step's contact cache): on a helper thread
      * unless some lane's object queries them on demand (the run looks, LN_ColumnRunner). */
     bool collisions = false;
+    /** Some expression it reaches keeps state between ticks (LN_KIND_STATEFUL: a Tween, a
+     * Boolean Edge, Store Value ...): working it out changes that state (a query's own kind is
+     * not counted: a query only fills its result cache). */
+    bool stateful = false;
   };
   /** May a bridged node be compiled here: never inside a dividend or a stateful node's input (the
    * VM evaluates those only sometimes, and the VM's code may keep state), and after a move of the
@@ -1184,7 +1312,7 @@ class ColumnCompiler {
      * Boolean Edge of Colliding): the VM reads it at that node's first evaluation of the tick, the
      * run at each read site there, with the same result. Never in a dividend (the VM may never
      * read it in the tick). */
-    if (!(repeatable && m_in_dividend == 0) && !StatefulAllowed(what)) {
+    if (!(repeatable && m_in_dividend == 0 && m_in_found_target == 0) && !StatefulAllowed(what)) {
       return false;
     }
     if (m_reads_owner_queries && OwnerMovedHere()) {
@@ -1250,6 +1378,17 @@ class ColumnCompiler {
                         const LN_LeanEvent &lean_event);
   /** Loop frame `frame` completed in this pass (SLoopDone), one node a frame. */
   uint32_t LoopDoneSlot(uint32_t frame);
+  /** On Collision, Events = Each Object (2026-11-14): per op, the block starting there that
+   * holds ops of such a node's routes (kNone for none); whether the event has such routes. */
+  std::vector<uint32_t> m_collision_block_at;
+  bool m_collision_repeats = false;
+  /** A block holding ops of an On Collision Each Object route as one bridged node (BCollision:
+   * the VM's walk of the block, each op told its route), on the main thread; the bookkeeping of
+   * its ops (each op's Ran read from its stamp). */
+  bool CompileCollisionBlock(const LN_ExecBlockProgram &ir,
+                             uint32_t block_index,
+                             const std::vector<LN_InstructionHeader> &headers,
+                             const LN_LeanEvent &lean_event);
   /** Add Object's own rules (the bridge makes its copies at once, as the VM does). */
   bool AddObjectAllowedHere(const LN_Instruction &instruction);
   /** A bridged op: its ran slot (the stamp after it), or kNone when refused. */
@@ -1283,6 +1422,10 @@ class ColumnCompiler {
    * a stateful node's inputs another one is (the VM would evaluate it only sometimes). */
   uint32_t m_in_dividend = 0;
   uint32_t m_in_stateful = 0;
+  /** Inside an input the VM reads only where the op's object was found (a vector command's Local
+   * read after its target resolved: LeanVectorBody returns before it when the target is missing,
+   * column soak seeds 53309 / 53375, 2026-11-14): not a sure read, and no stateful node. */
+  uint32_t m_in_found_target = 0;
   struct EvalScope {
     ColumnCompiler &compiler;
     size_t size;
@@ -1332,6 +1475,9 @@ class ColumnCompiler {
     }
     if (m_in_stateful != 0) {
       return Refuse(std::string(what) + " inside another stateful node's input");
+    }
+    if (m_in_found_target != 0) {
+      return Refuse(std::string(what) + " read only where a move's object is found");
     }
     return true;
   }
@@ -1528,19 +1674,62 @@ class ColumnCompiler {
   struct RayOut {
     uint32_t hit = kNone, distance = kNone;
     VecSlots point, normal;
+    /** Line of Sight's Angle (float) and Blocked (bool) (QSight; kNone from a QRay node). */
+    uint32_t angle = kNone, blocked = kNone;
+    /** Keep Distance's Force (QKeep; kNone from the others). */
+    VecSlots force;
+    /** The casts' other outputs (QRay; kNone from the others): Fraction, Started Overlapping,
+     * Hit Count, Safe / Cast Position, Direction, End Point. */
+    uint32_t fraction = kNone, started = kNone, hit_count = kNone;
+    VecSlots cast_position, ray_direction, end_point;
     /** The condition (Done): a bool slot, kNone when it is constant true. */
     uint32_t done = kNone;
     /** The query whose settings the node casts with. */
     uint32_t query = kNone;
+    /** Its entry in LN_ColumnProgram::sights (QSight) or rays (QRay): its inputs' slots, equal
+     * entries share a node. */
+    uint32_t sight = kNone;
   };
   /** Keyed by (state, evaluation mask, condition slot): reads of one Raycast node (one query
    * expression a read, one state) share the node when their settings are the same. */
   std::map<std::tuple<uint32_t, uint32_t, uint32_t>, std::vector<RayOut>> m_rays;
+  /** Velocity at Point's outputs from its QPointVel node (one per query state, keyed so: the same
+   * wherever the pass reads it, 2026-11-14). */
+  struct PointVelocityOut {
+    VecSlots velocity, point;
+    uint64_t queries = 0, touched = 0;
+  };
+  std::unordered_map<uint32_t, PointVelocityOut> m_point_velocities;
+  /** Whether query `index` (Velocity at Point) runs as a QPointVel node (else the caller bridges
+   * or refuses its outputs). */
+  bool NativePointVelocity(uint32_t index, PointVelocityOut &r_out);
   /** -1 unknown, 0 / 1: the event has an Add Object (its copy is made while the tree records: a
    * later cast of the VM could hit it). */
   int m_event_adds_objects = -1;
   /** Whether query `index` runs as a QRay node here (else the caller bridges or refuses it). */
   bool NativeRay(uint32_t index, RayOut &r_out);
+  /** Whether query `index` (Line of Sight) runs as a QSight node here (else the caller bridges
+   * or refuses it); compiles nothing when it does not. */
+  bool NativeSight(uint32_t index, RayOut &r_out);
+  /** Whether query `index` (Keep Distance's outputs) runs as a QKeep node: always (one per query
+   * state, read anywhere: the state changes only at the flush's end). */
+  bool NativeKeep(uint32_t index, RayOut &r_out);
+  std::unordered_map<uint32_t, RayOut> m_keeps;
+  /** NativeRay, NativeSight or NativeKeep by the query's kind. */
+  bool NativeCast(uint32_t index, RayOut &r_out);
+  /** Keyed as m_rays: the QSight nodes. */
+  std::map<std::tuple<uint32_t, uint32_t, uint32_t>, std::vector<RayOut>> m_sights;
+  /** A cast's input that a column node may work out wherever the read site is, as the VM's read
+   * inside the cast would (2026-11-14): nothing the walk does not know, keeps state, reads a
+   * query, finds objects, reads collisions or must run on the main thread. */
+  bool CleanCastInput(char family, uint32_t index);
+  /** A cast's object (Line of Sight's eye or target): the owner (`r_kind` Owner: an empty input
+   * when `owner_when_empty`, or Get Owner), a named object or one found while playing; false for
+   * anything else. Registers nothing (CastObjectNote does). */
+  bool CastObjectKind(uint32_t value_index, bool owner_when_empty, EndKind &r_kind) const;
+  /** Registers a cast's object as a distance's end is (its pending moves are applied by the read:
+   * the run starts only when it has none), `r_object` its index (named or found). */
+  void CastObjectNote(uint32_t value_index, EndKind kind, uint32_t &r_object);
   /** Plan C1-9: a Get Average Center Position query whose source is the same for every NPC (a
    * constant, a list of constants): its index in average_reads; kNone when it is not (the caller
    * bridges it). */
@@ -1838,6 +2027,9 @@ class ColumnCompiler {
    * writes holds where the op runs (`r_column`, plan C1-11: an OTreeObj node is made here). */
   bool CommandTarget(uint32_t value_index, uint32_t &r_runtime, uint32_t &r_column);
   bool ProgramWritesTreeProperty(uint32_t ref) const;
+  /** Whether Add Object (its copy) is the only op of the pass setting tree property `ref`
+   * (2026-11-14: a move of the object it holds). */
+  bool OnlyAddObjectWritesTreeProperty(uint32_t ref) const;
   /** The bits of the distances compiled so far that measure runtime object `object`. */
   uint64_t RuntimeMeasureBits(const uint32_t object) const
   {
@@ -1968,11 +2160,19 @@ ColumnCompiler::Slot ColumnCompiler::Float(const uint32_t index, const float fal
     return found->second;
   }
   const LN_FloatExpression &e = floats[index];
-  if (e.kind == LN_FloatExpressionKind::PhysicsQueryDistance) {
+  if (e.kind == LN_FloatExpressionKind::PhysicsQueryDistance ||
+      e.kind == LN_FloatExpressionKind::PhysicsQueryAngle ||
+      e.kind == LN_FloatExpressionKind::PhysicsQueryFraction)
+  {
     RayOut ray;
-    if (NativeRay(e.input0, ray)) {
+    if (NativeCast(e.input0, ray) &&
+        (e.kind != LN_FloatExpressionKind::PhysicsQueryAngle || ray.angle != kNone) &&
+        (e.kind != LN_FloatExpressionKind::PhysicsQueryFraction || ray.fraction != kNone))
+    {
       Slot distance;
-      distance.slot = ray.distance;
+      distance.slot = e.kind == LN_FloatExpressionKind::PhysicsQueryAngle    ? ray.angle :
+                      e.kind == LN_FloatExpressionKind::PhysicsQueryFraction ? ray.fraction :
+                                                                               ray.distance;
       distance.reads_ops = true;
       return distance;
     }
@@ -2245,6 +2445,21 @@ ColumnCompiler::Slot ColumnCompiler::Float(const uint32_t index, const float fal
       result = Merge(result, vector);
       break;
     }
+    case LN_FloatExpressionKind::VectorLength: {
+      const Vec vector = Vector(e.input0, MT_Vector3(0.0f, 0.0f, 0.0f));
+      if (!m_refusal.empty()) {
+        return {};
+      }
+      Node node;
+      node.op = NodeOp::FLength;
+      node.a = vector.slots.x;
+      node.b = vector.slots.y;
+      node.c = vector.slots.z;
+      node.out = NewFloat();
+      result.slot = node.out;
+      result = Emit(node, Merge(result, vector));
+      break;
+    }
     case LN_FloatExpressionKind::Select: {
       const Slot condition = Bool(e.bool_expr_index, e.bool_value);
       Slot a, b;
@@ -2346,6 +2561,16 @@ ColumnCompiler::Slot ColumnCompiler::Int(const uint32_t index, const int32_t fal
     return found->second;
   }
   const LN_IntExpression &e = ints[index];
+  if (e.kind == LN_IntExpressionKind::PhysicsQueryHitCount) {
+    /* The casts' Hit Count (QRay, 2026-11-14). */
+    RayOut ray;
+    if (NativeCast(e.input0, ray) && ray.hit_count != kNone) {
+      Slot read;
+      read.slot = ray.hit_count;
+      read.reads_ops = true;
+      return read;
+    }
+  }
   Slot result;
   Node node;
   switch (e.kind) {
@@ -2492,15 +2717,22 @@ ColumnCompiler::Slot ColumnCompiler::Bool(const uint32_t index, const bool fallb
   }
   const LN_BoolExpression &e = bools[index];
   if (e.kind == LN_BoolExpressionKind::PhysicsQueryHit ||
-      e.kind == LN_BoolExpressionKind::PhysicsQueryDone)
+      e.kind == LN_BoolExpressionKind::PhysicsQueryDone ||
+      e.kind == LN_BoolExpressionKind::PhysicsQueryBlocked ||
+      e.kind == LN_BoolExpressionKind::PhysicsQueryStartedOverlapping)
   {
     RayOut ray;
-    if (NativeRay(e.input0, ray)) {
+    if (NativeCast(e.input0, ray) &&
+        (e.kind != LN_BoolExpressionKind::PhysicsQueryBlocked || ray.blocked != kNone) &&
+        (e.kind != LN_BoolExpressionKind::PhysicsQueryStartedOverlapping || ray.started != kNone))
+    {
       Slot read;
       /* Done: the query was not disabled, i.e. its condition (the VM casts to tell). */
-      read.slot = e.kind == LN_BoolExpressionKind::PhysicsQueryHit ? ray.hit :
-                  ray.done != kNone                                 ? ray.done :
-                                                                      BoolConst(true).slot;
+      read.slot = e.kind == LN_BoolExpressionKind::PhysicsQueryHit     ? ray.hit :
+                  e.kind == LN_BoolExpressionKind::PhysicsQueryBlocked ? ray.blocked :
+                  e.kind == LN_BoolExpressionKind::PhysicsQueryStartedOverlapping ? ray.started :
+                  ray.done != kNone                                    ? ray.done :
+                                                                         BoolConst(true).slot;
       read.reads_ops = true; /* (never kept for another read: each read site is checked) */
       return read;
     }
@@ -2949,11 +3181,54 @@ ColumnCompiler::Vec ColumnCompiler::Vector(const uint32_t index, const MT_Vector
       e.kind == LN_VectorExpressionKind::PhysicsQueryNormal)
   {
     RayOut ray;
-    if (NativeRay(e.input0, ray)) {
+    if (NativeCast(e.input0, ray)) {
       Vec vector;
       vector.slots = e.kind == LN_VectorExpressionKind::PhysicsQueryPoint ? ray.point : ray.normal;
       vector.reads_ops = true;
       return vector;
+    }
+  }
+  if (e.kind == LN_VectorExpressionKind::PhysicsQueryCastPosition ||
+      e.kind == LN_VectorExpressionKind::PhysicsQueryDirection ||
+      e.kind == LN_VectorExpressionKind::PhysicsQueryEndPoint)
+  {
+    /* The casts' Safe / Cast Position, Direction and End Point (QRay, 2026-11-14). */
+    RayOut ray;
+    if (NativeCast(e.input0, ray) && ray.cast_position.x != kNone) {
+      Vec vector;
+      vector.slots = e.kind == LN_VectorExpressionKind::PhysicsQueryCastPosition ? ray.cast_position :
+                     e.kind == LN_VectorExpressionKind::PhysicsQueryDirection    ? ray.ray_direction :
+                                                                                   ray.end_point;
+      vector.reads_ops = true;
+      return vector;
+    }
+  }
+  if (e.kind == LN_VectorExpressionKind::PhysicsQueryImpactVelocity) {
+    /* Keep Distance's Force (2026-11-14). */
+    RayOut keep;
+    if (NativeKeep(e.input0, keep)) {
+      Vec vector;
+      vector.slots = keep.force;
+      return vector;
+    }
+  }
+  if (e.kind == LN_VectorExpressionKind::PhysicsQueryImpactVelocity ||
+      e.kind == LN_VectorExpressionKind::PhysicsQueryPoint)
+  {
+    /* Velocity at Point's Velocity and Point (2026-11-14). */
+    PointVelocityOut point_velocity;
+    if (NativePointVelocity(e.input0, point_velocity)) {
+      Vec vector;
+      vector.slots = e.kind == LN_VectorExpressionKind::PhysicsQueryImpactVelocity ?
+                         point_velocity.velocity :
+                         point_velocity.point;
+      vector.queries = point_velocity.queries;
+      vector.touched = point_velocity.touched;
+      m_op_touched |= point_velocity.touched;
+      return vector;
+    }
+    if (!m_refusal.empty()) {
+      return {};
     }
   }
   const MT_Vector3 zero(0.0f, 0.0f, 0.0f);
@@ -3119,6 +3394,26 @@ ColumnCompiler::Vec ColumnCompiler::Vector(const uint32_t index, const MT_Vector
       result.reads_ops = low.reads_ops || high.reads_ops || seed.reads_ops;
       result.queries = low.queries | high.queries | seed.queries;
       result.touched = low.touched | high.touched | seed.touched;
+      break;
+    }
+    case LN_VectorExpressionKind::SnapshotGameProperty: {
+      /* Get Game Property Vector of the owner (2026-11-15): the VM's kind, one node per axis
+       * (FPropAxis), each lane's snapshot as the column pass reads it. */
+      if (e.property_ref_index >= m_program.GetGamePropertyRefs().size()) {
+        Refuse("a game property read without its ref");
+        return {};
+      }
+      uint32_t axes[3];
+      for (int axis = 0; axis < 3; axis++) {
+        Node node;
+        node.op = NodeOp::FPropAxis;
+        node.property_ref = e.property_ref_index;
+        node.compare = uint8_t(axis);
+        node.float_value = float(fallback[axis]);
+        node.out = axes[axis] = NewFloat();
+        m_out.nodes.push_back(node);
+      }
+      result.slots = {axes[0], axes[1], axes[2]};
       break;
     }
     case LN_VectorExpressionKind::SnapshotGravity: {
@@ -3515,17 +3810,31 @@ bool ColumnCompiler::RuntimeSource(const uint32_t value_index,
              !ProgramWritesTreeProperty(value.property_ref_index);
     case LN_ValueExpressionKind::ObjectChildByName:
     case LN_ValueExpressionKind::ObjectChild: {
-      /* A child of the owner (its turret, its weapon): by the name of a named object, or by a
-       * constant index. Children change only at the flush (Set / Remove Parent, Remove Object
-       * are commands) and Add Object is refused next to these (CompileEnd). */
+      /* A child of the owner (its turret, its weapon), or (2026-11-14) of an object found as
+       * these are (the turret's barrel, a named object's part): by the name of a named object,
+       * or by an index that is a constant or the owner's game property (the snapshot's, the same
+       * all the tick). Children change only at the flush (Set / Remove Parent, Remove Object are
+       * commands) and Add Object is refused next to these (CompileEnd). */
+      bool parent_invariant = false, parent_collision = false;
+      if (!owner(value.input0) &&
+          (!RuntimeSource(value.input0, depth + 1, parent_invariant, parent_collision) ||
+           parent_collision))
+      {
+        return false;
+      }
       if (value.kind == LN_ValueExpressionKind::ObjectChildByName) {
-        return owner(value.input0) && value.input1 < values.size() &&
+        return value.input1 < values.size() &&
                values[value.input1].kind == LN_ValueExpressionKind::Constant &&
                values[value.input1].value.type == LN_ValueType::ObjectRef;
       }
       const std::vector<LN_IntExpression> &ints = m_program.GetIntExpressions();
-      return owner(value.input0) && value.input1 < ints.size() &&
-             ints[value.input1].kind == LN_IntExpressionKind::Constant;
+      if (value.input1 >= ints.size()) {
+        return false;
+      }
+      const LN_IntExpression &index = ints[value.input1];
+      return index.kind == LN_IntExpressionKind::Constant ||
+             (index.kind == LN_IntExpressionKind::SnapshotGameProperty &&
+              index.property_ref_index < m_program.GetGamePropertyRefs().size());
     }
     case LN_ValueExpressionKind::ObjectParent:
       /* Plan C1-10: the parent of the owner (none for a root lane; since plan C2 P2 a lane may
@@ -3626,6 +3935,33 @@ bool ColumnCompiler::ProgramWritesTreeProperty(const uint32_t ref) const
   return false;
 }
 
+bool ColumnCompiler::OnlyAddObjectWritesTreeProperty(const uint32_t ref) const
+{
+  if (ref >= m_program.GetTreePropertyRefs().size()) {
+    return false;
+  }
+  /* ProgramWritesTreeProperty's writers: some Add Object, nothing else. (Add Object sets its
+   * copy, or none when it makes none: never an older object.) */
+  bool added = false;
+  const std::vector<LN_InstructionHeader> &headers = m_program.GetInstructionHeaders(m_event);
+  for (const LN_InstructionHeader &header : headers) {
+    const LN_Instruction &instruction = m_program.GetInstructionPayload(m_event, header);
+    if (instruction.property_ref_index != ref) {
+      continue;
+    }
+    if (instruction.opcode == LN_OpCode::AddObject) {
+      added = true;
+    }
+    else if (instruction.opcode == LN_OpCode::SetTreeProperty ||
+             instruction.opcode == LN_OpCode::InventoryEdit ||
+             instruction.opcode == LN_OpCode::AssignGeometryNodesModifier)
+    {
+      return false;
+    }
+  }
+  return added;
+}
+
 bool ColumnCompiler::NativeRay(const uint32_t index, RayOut &r_out)
 {
   if (!column_native_rays_on()) {
@@ -3636,72 +3972,119 @@ bool ColumnCompiler::NativeRay(const uint32_t index, RayOut &r_out)
     return false;
   }
   const LN_QueryExpression &q = queries[index];
-  /* A Raycast from the owner (Local) or between world points, its settings constants: the cast is
-   * QueryKind's own code, its inputs read as the VM reads them (constants: no state, no order).
-   * Not here (bridged): Raycast All, a caster or an ignore list, a condition, debug drawing (the
-   * main thread draws), inputs worked out per NPC. */
-  if (q.kind != LN_QueryExpressionKind::Raycast || q.input0 != kNone) {
+  /* A Raycast, Raycast All, Shape Cast or Shape Cast All (2026-11-14: its inputs column slots,
+   * its caster the owner, a named object or one found while playing, the objects it passes the
+   * owner or named ones; before, a Raycast's constants from the owner only) cast by the VM's own
+   * steps after its reads (RaycastEnds / RaycastCast, ShapeCastPlace / ShapeCastValid /
+   * ShapeCastRun). Not here (bridged): the All kinds' lists (their outputs read the bridge),
+   * debug drawing (the main thread draws), a Property worked out per NPC, Ignore Objects of
+   * other kinds, inputs the walk cannot clear (CleanCastInput). */
+  const bool shape = q.kind == LN_QueryExpressionKind::ShapeCast ||
+                     q.kind == LN_QueryExpressionKind::ShapeCastAll;
+  const bool all = q.kind == LN_QueryExpressionKind::RaycastAll ||
+                   q.kind == LN_QueryExpressionKind::ShapeCastAll;
+  if (q.kind != LN_QueryExpressionKind::Raycast && q.kind != LN_QueryExpressionKind::RaycastAll &&
+      !shape)
+  {
     return false;
   }
-  /* No object to ignore: none, an empty object (ResolveObjectValue gives none) and no list (an
-   * empty or missing one: ResolveIgnoreObjectRefs adds nothing). */
+  EndKind caster = EndKind::None;
+  if (q.input0 != kNone && !CastObjectKind(q.input0, false, caster)) {
+    return false;
+  }
+  /* The objects it passes (ResolveIgnoreObjectRefs: Ignore Object, then Ignore Objects' items):
+   * each the owner, a named object or nothing (an empty object or a constant that is no object:
+   * ResolveObjectValue gives none). A list: none, a constant that is no list or an empty one, or
+   * items listed one by one (List From Items). */
   const std::vector<LN_ValueExpression> &values = m_program.GetValueExpressions();
-  if (q.input3 != kNone) {
-    if (q.input3 >= values.size() || values[q.input3].kind != LN_ValueExpressionKind::Constant) {
+  std::vector<uint32_t> ignore_values; /* (value expressions; kNone: nothing) */
+  const auto ignore_item = [&](const uint32_t value) {
+    if (value == kNone) {
+      ignore_values.push_back(kNone);
+      return true;
+    }
+    if (value >= values.size()) {
       return false;
     }
-    const LN_Value &object = values[q.input3].value;
-    if (object.type == LN_ValueType::ObjectRef &&
-        (object.runtime_ref.IsValid() || !object.reference_name.empty()))
-    {
+    const LN_ValueExpression &item = values[value];
+    if (item.kind == LN_ValueExpressionKind::OwnerObject) {
+      ignore_values.push_back(value);
+      return true;
+    }
+    if (item.kind != LN_ValueExpressionKind::Constant) {
       return false;
     }
+    const bool object = item.value.type == LN_ValueType::ObjectRef &&
+                        (item.value.runtime_ref.IsValid() || !item.value.reference_name.empty());
+    ignore_values.push_back(object ? value : kNone);
+    return true;
+  };
+  if (q.input3 != kNone && !ignore_item(q.input3)) {
+    return false;
   }
   if (q.ignore_list_expr_index != kNone) {
-    if (q.ignore_list_expr_index >= values.size() ||
-        values[q.ignore_list_expr_index].kind != LN_ValueExpressionKind::Constant)
-    {
+    if (q.ignore_list_expr_index >= values.size()) {
       return false;
     }
-    const LN_Value &list = values[q.ignore_list_expr_index].value;
-    if (list.exists && list.type == LN_ValueType::List && !list.list_value.empty()) {
+    const LN_ValueExpression &list = values[q.ignore_list_expr_index];
+    if (list.kind == LN_ValueExpressionKind::Constant) {
+      if (list.value.exists && list.value.type == LN_ValueType::List &&
+          !list.value.list_value.empty())
+      {
+        return false;
+      }
+    }
+    else if (list.kind == LN_ValueExpressionKind::ListFromItems) {
+      for (const uint32_t item : list.input_indices) {
+        if (!ignore_item(item)) {
+          return false;
+        }
+      }
+    }
+    else {
       return false;
     }
   }
-  const auto vector_const = [&](const uint32_t i) {
-    const std::vector<LN_VectorExpression> &v = m_program.GetVectorExpressions();
-    return i == kNone || (i < v.size() && v[i].kind == LN_VectorExpressionKind::Constant);
-  };
-  const auto float_const = [&](const uint32_t i) {
-    const std::vector<LN_FloatExpression> &v = m_program.GetFloatExpressions();
-    return i == kNone || (i < v.size() && v[i].kind == LN_FloatExpressionKind::Constant);
-  };
-  const auto int_const = [&](const uint32_t i) {
-    const std::vector<LN_IntExpression> &v = m_program.GetIntExpressions();
-    return i == kNone || (i < v.size() && v[i].kind == LN_IntExpressionKind::Constant);
-  };
-  const auto string_const = [&](const uint32_t i) {
-    const std::vector<LN_StringExpression> &v = m_program.GetStringExpressions();
-    return i == kNone || (i < v.size() && v[i].kind == LN_StringExpressionKind::Constant);
-  };
+  if (ignore_values.size() > 16) {
+    return false;
+  }
   const std::vector<LN_BoolExpression> &bools = m_program.GetBoolExpressions();
   const auto bool_const = [&](const uint32_t i) {
     return i == kNone || (i < bools.size() && bools[i].kind == LN_BoolExpressionKind::Constant);
   };
-  if (!vector_const(q.input1) || !vector_const(q.input2) || !vector_const(q.input4) ||
-      !float_const(q.float_expr_index) || !bool_const(q.bool_expr_index) ||
-      !int_const(q.int_expr_index) || !string_const(q.string_expr_index) ||
-      !bool_const(q.secondary_bool_expr_index) || !bool_const(q.quaternary_bool_expr_index) ||
-      !bool_const(q.quinary_bool_expr_index))
-  {
-    return false;
+  /* Its Property: a constant (or none). */
+  std::string property;
+  if (q.string_expr_index != kNone) {
+    const std::vector<LN_StringExpression> &strings = m_program.GetStringExpressions();
+    if (q.string_expr_index >= strings.size() ||
+        strings[q.string_expr_index].kind != LN_StringExpressionKind::Constant)
+    {
+      return false;
+    }
+    property = strings[q.string_expr_index].string_value;
   }
   if (q.tertiary_bool_expr_index != kNone &&
       !(bool_const(q.tertiary_bool_expr_index) && !bools[q.tertiary_bool_expr_index].bool_value))
   {
     return false;
   }
-  /* The condition (the Raycast's Flow): constant true (an event's flow) or an op that ran. */
+  const bool clean_common = CleanCastInput('V', q.input1) && CleanCastInput('V', q.input2) &&
+                            CleanCastInput('B', q.bool_expr_index) &&
+                            CleanCastInput('I', q.int_expr_index) &&
+                            CleanCastInput('B', q.secondary_bool_expr_index) &&
+                            CleanCastInput('B', q.quaternary_bool_expr_index) &&
+                            CleanCastInput('B', q.quinary_bool_expr_index) &&
+                            (!all || CleanCastInput('I', q.secondary_int_expr_index));
+  const bool clean_kind = shape ? CleanCastInput('R', q.input4) && CleanCastInput('V', q.input5) &&
+                                      CleanCastInput('F', q.float_expr_index) &&
+                                      CleanCastInput('F', q.secondary_float_expr_index) &&
+                                      CleanCastInput('F', q.tertiary_float_expr_index) :
+                                  CleanCastInput('V', q.input4) &&
+                                      CleanCastInput('F', q.float_expr_index);
+  if (!clean_common || !clean_kind) {
+    return false;
+  }
+  /* The condition (its Flow): constant true (an event's flow) or an op that ran. */
   uint32_t done = kNone;
   if (q.condition_bool_expr_index != kNone) {
     if (q.condition_bool_expr_index >= bools.size()) {
@@ -3721,10 +4104,14 @@ bool ColumnCompiler::NativeRay(const uint32_t index, RayOut &r_out)
       return false;
     }
   }
-  const bool local = q.bool_expr_index == kNone ? q.bool_value :
-                                                  bools[q.bool_expr_index].bool_value;
-  /* After a move of the owner the VM's cast from it applies that move first. */
-  if (local && OwnerMovedHere()) {
+  /* The caster's pose is read in Local space (the VM applies its pending moves then): the owner
+   * when it is the caster, or when there is none and Local may be on. After a move of the owner
+   * the VM's cast from it applies that move first. */
+  const bool local_never = q.bool_expr_index == kNone ?
+                               !q.bool_value :
+                               bool_const(q.bool_expr_index) && !bools[q.bool_expr_index].bool_value;
+  const bool owner_read = caster == EndKind::Owner || (caster == EndKind::None && !local_never);
+  if (owner_read && OwnerMovedHere()) {
     return false;
   }
   if (m_event_adds_objects < 0) {
@@ -3736,52 +4123,517 @@ bool ColumnCompiler::NativeRay(const uint32_t index, RayOut &r_out)
     }
   }
   if (m_event_adds_objects != 0) {
+    return false; /* (a copy made while the trees record could be hit by a later cast) */
+  }
+  LN_ColumnProgram::Ray ray;
+  ray.query = index;
+  ray.kind = q.kind;
+  ray.caster = caster;
+  ray.property = property;
+  ray.mode = q.ray_input_mode;
+  ray.shape = q.shape_cast_type;
+  ray.detail_flags = q.ray_query_detail_flags;
+  ray.done = done;
+  /* The inputs in the VM's read order. RaycastKind: Origin, Destination, Direction, Max
+   * Distance, Local, then Mask, X-Ray, Max Results (All), Include Sensors, Hit Backfaces.
+   * ShapeCastKind: Origin, Destination, Rotation, Half Extents, Local, Radius, Height, Extra
+   * Radius, Mask, Max Results (All), Include Sensors, Hit Backfaces, X-Ray. */
+  if (shape) {
+    ray.origin = Vector(q.input1, q.vector_value).slots;
+    ray.destination = Vector(q.input2, q.secondary_vector_value).slots;
+    ray.rotation = Rotation(q.input4, LN_Rotation::FromEulerXYZ(q.tertiary_vector_value)).slot;
+    ray.half_extents = Vector(q.input5, q.quaternary_vector_value).slots;
+    ray.local = Bool(q.bool_expr_index, q.bool_value).slot;
+    ray.radius = Float(q.float_expr_index, q.float_value).slot;
+    ray.height = Float(q.secondary_float_expr_index, q.secondary_float_value).slot;
+    ray.extra_radius = Float(q.tertiary_float_expr_index, q.tertiary_float_value).slot;
+    ray.mask = Int(q.int_expr_index, q.int_value).slot;
+    if (all) {
+      ray.max_results = Int(q.secondary_int_expr_index, q.secondary_int_value).slot;
+    }
+    ray.include_sensors = Bool(q.quaternary_bool_expr_index, false).slot;
+    ray.hit_back_faces = Bool(q.quinary_bool_expr_index, false).slot;
+    ray.xray = Bool(q.secondary_bool_expr_index, false).slot;
+  }
+  else {
+    ray.origin = Vector(q.input1, q.vector_value).slots;
+    ray.destination = Vector(q.input2, q.secondary_vector_value).slots;
+    ray.direction = Vector(q.input4, q.tertiary_vector_value).slots;
+    ray.distance = Float(q.float_expr_index, q.float_value).slot;
+    ray.local = Bool(q.bool_expr_index, q.bool_value).slot;
+    ray.mask = Int(q.int_expr_index, q.int_value).slot;
+    ray.xray = Bool(q.secondary_bool_expr_index, false).slot;
+    if (all) {
+      ray.max_results = Int(q.secondary_int_expr_index, q.secondary_int_value).slot;
+    }
+    ray.include_sensors = Bool(q.quaternary_bool_expr_index, false).slot;
+    ray.hit_back_faces = Bool(q.quinary_bool_expr_index, false).slot;
+  }
+  if (!m_refusal.empty()) {
     return false;
   }
-  const auto same_settings = [&](const LN_QueryExpression &a, const LN_QueryExpression &b) {
-    return a.kind == b.kind && a.ray_input_mode == b.ray_input_mode &&
-           a.ray_query_detail_flags == b.ray_query_detail_flags && a.input1 == b.input1 &&
-           a.input2 == b.input2 && a.input4 == b.input4 &&
-           a.float_expr_index == b.float_expr_index && a.bool_expr_index == b.bool_expr_index &&
-           a.int_expr_index == b.int_expr_index && a.string_expr_index == b.string_expr_index &&
-           a.secondary_bool_expr_index == b.secondary_bool_expr_index &&
-           a.tertiary_bool_expr_index == b.tertiary_bool_expr_index &&
-           a.quaternary_bool_expr_index == b.quaternary_bool_expr_index &&
-           a.quinary_bool_expr_index == b.quinary_bool_expr_index &&
-           a.condition_bool_expr_index == b.condition_bool_expr_index &&
-           a.vector_value == b.vector_value && a.secondary_vector_value == b.secondary_vector_value &&
-           a.tertiary_vector_value == b.tertiary_vector_value && a.float_value == b.float_value &&
-           a.int_value == b.int_value && a.bool_value == b.bool_value;
+  ray.eval = EvalMask();
+  const auto same_inputs = [](const LN_ColumnProgram::Ray &a, const LN_ColumnProgram::Ray &b) {
+    const auto same3 = [](const VecSlots &x, const VecSlots &y) {
+      return x.x == y.x && x.y == y.y && x.z == y.z;
+    };
+    return a.query == b.query && same3(a.origin, b.origin) &&
+           same3(a.destination, b.destination) && same3(a.direction, b.direction) &&
+           same3(a.half_extents, b.half_extents) && a.rotation == b.rotation &&
+           a.radius == b.radius && a.height == b.height && a.extra_radius == b.extra_radius &&
+           a.distance == b.distance && a.local == b.local && a.mask == b.mask &&
+           a.xray == b.xray && a.max_results == b.max_results &&
+           a.include_sensors == b.include_sensors && a.hit_back_faces == b.hit_back_faces;
   };
   const uint32_t state = q.runtime_state_index != kNone ? q.runtime_state_index : index;
-  const std::tuple<uint32_t, uint32_t, uint32_t> key(state, EvalMask(), done);
+  const std::tuple<uint32_t, uint32_t, uint32_t> key(state, ray.eval, done);
   std::vector<RayOut> &shared = m_rays[key];
   for (const RayOut &existing : shared) {
-    if (same_settings(queries[existing.query], q)) {
+    if (same_inputs(m_out.rays[existing.sight], ray)) {
       r_out = existing;
       return true;
     }
   }
+  /* Its caster's pending moves are applied by its read in Local space: the run starts only when
+   * it has none (quiet), named and found ones as a distance's ends. The objects it passes are
+   * only named (their poses are not read). */
+  CastObjectNote(q.input0, caster, ray.caster_object);
+  if (owner_read) {
+    m_measures_owner = true;
+  }
+  for (const uint32_t value : ignore_values) {
+    if (value == kNone) {
+      ray.ignore.emplace_back(EndKind::None, kNone);
+    }
+    else if (values[value].kind == LN_ValueExpressionKind::OwnerObject) {
+      ray.ignore.emplace_back(EndKind::Owner, kNone);
+    }
+    else {
+      uint32_t object = kNone;
+      NamedObject(value, object);
+      ray.ignore.emplace_back(EndKind::Object, object);
+    }
+  }
+  ray.hit = NewBool();
+  ray.blocked = NewBool();
+  ray.started = NewBool();
+  ray.hit_distance = NewFloat();
+  ray.fraction = NewFloat();
+  ray.hit_count = NewInt();
+  ray.point = {NewFloat(), NewFloat(), NewFloat()};
+  ray.normal = {NewFloat(), NewFloat(), NewFloat()};
+  ray.cast_position = {NewFloat(), NewFloat(), NewFloat()};
+  ray.ray_direction = {NewFloat(), NewFloat(), NewFloat()};
+  ray.end_point = {NewFloat(), NewFloat(), NewFloat()};
   Node node;
   node.op = NodeOp::QRay;
   node.property_ref = index;
-  node.d = std::get<1>(key);
+  node.int_value = int32_t(m_out.rays.size());
+  node.d = ray.eval;
   node.a = done;
-  node.compare = uint8_t(m_gate == kNone ? 0 : m_gate + 1);
+  node.out = ray.hit;
+  m_out.rays.push_back(ray);
+  m_out.nodes.push_back(node);
+  m_out.native_rays = true;
+  const LN_ColumnProgram::Ray &added = m_out.rays.back();
+  RayOut out;
+  out.hit = added.hit;
+  out.blocked = added.blocked;
+  out.started = added.started;
+  out.distance = added.hit_distance;
+  out.fraction = added.fraction;
+  out.hit_count = added.hit_count;
+  out.point = added.point;
+  out.normal = added.normal;
+  out.cast_position = added.cast_position;
+  out.ray_direction = added.ray_direction;
+  out.end_point = added.end_point;
+  out.done = done;
+  out.query = index;
+  out.sight = uint32_t(m_out.rays.size() - 1); /* (its entry in rays) */
+  shared.push_back(out);
+  r_out = out;
+  return true;
+}
+
+bool ColumnCompiler::NativeCast(const uint32_t index, RayOut &r_out)
+{
+  const std::vector<LN_QueryExpression> &queries = m_program.GetQueryExpressions();
+  if (index < queries.size() && queries[index].kind == LN_QueryExpressionKind::LineOfSight) {
+    return NativeSight(index, r_out);
+  }
+  if (index < queries.size() && queries[index].kind == LN_QueryExpressionKind::KeepDistance) {
+    return NativeKeep(index, r_out);
+  }
+  return NativeRay(index, r_out);
+}
+
+bool ColumnCompiler::NativeKeep(const uint32_t index, RayOut &r_out)
+{
+  const std::vector<LN_QueryExpression> &queries = m_program.GetQueryExpressions();
+  if (index >= queries.size() || queries[index].kind != LN_QueryExpressionKind::KeepDistance ||
+      queries[index].int_value < 0)
+  {
+    return false;
+  }
+  const LN_QueryExpression &q = queries[index];
+  /* The VM reads its tree's state (its warm-up at the tick's start, or the first read: the same,
+   * the flush's end writes it): one node anywhere, no condition, nothing it reads changes. */
+  const uint32_t state = q.runtime_state_index != kNone ? q.runtime_state_index : index;
+  if (const auto found = m_keeps.find(state); found != m_keeps.end()) {
+    r_out = found->second;
+    return true;
+  }
+  Node node;
+  node.op = NodeOp::QKeep;
+  node.property_ref = index;
+  node.int_value = q.int_value;
   node.out = NewBool();
   node.out2 = NewFloat();
   node.position_a = {NewFloat(), NewFloat(), NewFloat()};
   node.position_b = {NewFloat(), NewFloat(), NewFloat()};
+  node.vec_c = {NewFloat(), NewFloat(), NewFloat()};
   m_out.nodes.push_back(node);
-  m_out.native_rays = true;
   RayOut out;
   out.hit = node.out;
   out.distance = node.out2;
   out.point = node.position_a;
   out.normal = node.position_b;
+  out.force = node.vec_c;
+  out.query = index;
+  m_keeps.emplace(state, out);
+  r_out = out;
+  return true;
+}
+
+bool ColumnCompiler::CleanCastInput(const char family, const uint32_t index)
+{
+  if (index == kNone) {
+    return true; /* (the read's fallback) */
+  }
+  const QueryReach &reach = ReachOf(family, index);
+  return !reach.unknown && !reach.stateful && !reach.main_thread && !reach.finds_objects &&
+         !reach.collisions && reach.queries.empty();
+}
+
+bool ColumnCompiler::CastObjectKind(const uint32_t value_index,
+                                    const bool owner_when_empty,
+                                    EndKind &r_kind) const
+{
+  r_kind = EndKind::None;
+  const std::vector<LN_ValueExpression> &values = m_program.GetValueExpressions();
+  if (value_index == kNone) {
+    if (!owner_when_empty) {
+      return false;
+    }
+    r_kind = EndKind::Owner;
+    return true;
+  }
+  if (value_index >= values.size()) {
+    return false;
+  }
+  const LN_ValueExpression &value = values[value_index];
+  if (value.kind == LN_ValueExpressionKind::OwnerObject) {
+    r_kind = EndKind::Owner;
+    return true;
+  }
+  if (value.kind == LN_ValueExpressionKind::Constant && value.value.type == LN_ValueType::ObjectRef)
+  {
+    r_kind = EndKind::Object;
+    return true;
+  }
+  bool invariant = false, collision = false;
+  if (RuntimeSource(value_index, 0, invariant, collision) && !collision) {
+    r_kind = EndKind::Runtime;
+    return true;
+  }
+  return false;
+}
+
+void ColumnCompiler::CastObjectNote(const uint32_t value_index,
+                                    const EndKind kind,
+                                    uint32_t &r_object)
+{
+  r_object = kNone;
+  switch (kind) {
+    case EndKind::Owner:
+      /* (Its read applies the owner's pending moves, as a distance from it.) */
+      m_measures_owner = true;
+      break;
+    case EndKind::Object:
+      NamedObject(value_index, r_object);
+      m_measured_objects.insert(r_object);
+      break;
+    case EndKind::Runtime:
+      RuntimeObject(value_index, r_object);
+      m_measured_runtime.insert(r_object);
+      break;
+    default:
+      break;
+  }
+}
+
+bool ColumnCompiler::NativeSight(const uint32_t index, RayOut &r_out)
+{
+  if (!column_native_rays_on()) {
+    return false;
+  }
+  const std::vector<LN_QueryExpression> &queries = m_program.GetQueryExpressions();
+  if (index >= queries.size() || queries[index].kind != LN_QueryExpressionKind::LineOfSight) {
+    return false;
+  }
+  const LN_QueryExpression &q = queries[index];
+  const std::vector<LN_BoolExpression> &bools = m_program.GetBoolExpressions();
+  const std::vector<LN_ValueExpression> &values = m_program.GetValueExpressions();
+  /* Nothing drawn (Visualize a constant false: the drawing is the main thread's) and no Ignore
+   * Objects (none, or a constant empty list: ResolveIgnoreObjectRefs adds nothing). Everything
+   * else the bridge takes. */
+  if (q.tertiary_bool_expr_index != kNone &&
+      !(q.tertiary_bool_expr_index < bools.size() &&
+        bools[q.tertiary_bool_expr_index].kind == LN_BoolExpressionKind::Constant &&
+        !bools[q.tertiary_bool_expr_index].bool_value))
+  {
+    return false;
+  }
+  if (q.ignore_list_expr_index != kNone) {
+    if (q.ignore_list_expr_index >= values.size() ||
+        values[q.ignore_list_expr_index].kind != LN_ValueExpressionKind::Constant)
+    {
+      return false;
+    }
+    const LN_Value &list = values[q.ignore_list_expr_index].value;
+    if (list.exists && list.type == LN_ValueType::List && !list.list_value.empty()) {
+      return false;
+    }
+  }
+  /* The ends: an object (the owner, named, or found while playing) or a position. */
+  const bool eye_is_object = q.distance_endpoint_a == LN_DistanceEndpointMode::Object;
+  const bool target_is_object = q.distance_endpoint_b == LN_DistanceEndpointMode::Object;
+  EndKind eye = EndKind::None, target = EndKind::None;
+  if (eye_is_object && !CastObjectKind(q.input0, true, eye)) {
+    return false;
+  }
+  if (target_is_object && q.input3 != kNone && !CastObjectKind(q.input3, false, target)) {
+    return false;
+  }
+  /* Its inputs: worked out by column nodes where the VM's read inside the cast would be. */
+  if (!CleanCastInput('V', q.input1) || !CleanCastInput('V', q.input2) ||
+      !CleanCastInput('V', q.input4) || !CleanCastInput('F', q.float_expr_index) ||
+      !CleanCastInput('F', q.secondary_float_expr_index) || !CleanCastInput('I', q.int_expr_index) ||
+      !CleanCastInput('B', q.quaternary_bool_expr_index) ||
+      !CleanCastInput('B', q.quinary_bool_expr_index))
+  {
+    return false;
+  }
+  /* The condition (its Flow): constant true (an event's flow) or an op that ran. */
+  uint32_t done = kNone;
+  if (q.condition_bool_expr_index != kNone) {
+    if (q.condition_bool_expr_index >= bools.size()) {
+      return false;
+    }
+    const LN_BoolExpression &condition = bools[q.condition_bool_expr_index];
+    if (condition.kind == LN_BoolExpressionKind::Constant) {
+      if (!condition.bool_value) {
+        return false;
+      }
+    }
+    else if (condition.kind == LN_BoolExpressionKind::InstructionExecuted) {
+      bool always = false;
+      done = RanSlot(condition.input0, always);
+    }
+    else {
+      return false;
+    }
+  }
+  /* After a move of the owner the VM's read applies that move first. */
+  if ((eye == EndKind::Owner || target == EndKind::Owner) && OwnerMovedHere()) {
+    return false;
+  }
+  if (m_event_adds_objects < 0) {
+    m_event_adds_objects = 0;
+    for (const LN_InstructionHeader &header : m_program.GetInstructionHeaders(m_event)) {
+      if (m_program.GetInstructionPayload(m_event, header).opcode == LN_OpCode::AddObject) {
+        m_event_adds_objects = 1;
+      }
+    }
+  }
+  if (m_event_adds_objects != 0) {
+    return false; /* (a copy made while the trees record could be hit by a later cast) */
+  }
+  /* The inputs in the VM's read order (LineOfSightKind): the eye's offset and Forward, the
+   * target's offset, then Max Distance, View Angle, Mask, Include Sensors, Hit Backfaces. */
+  const Vec eye_input = Vector(q.input1, q.vector_value);
+  const Vec forward = Vector(q.input2, q.secondary_vector_value);
+  const Vec target_input = Vector(q.input4, q.tertiary_vector_value);
+  const Slot max_distance = Float(q.float_expr_index, q.float_value);
+  const Slot view_angle = Float(q.secondary_float_expr_index, q.secondary_float_value);
+  const Slot mask = Int(q.int_expr_index, q.int_value);
+  const Slot include_sensors = Bool(q.quaternary_bool_expr_index, false);
+  const Slot hit_back_faces = Bool(q.quinary_bool_expr_index, false);
+  if (!m_refusal.empty()) {
+    return false;
+  }
+  LN_ColumnProgram::Sight sight;
+  sight.query = index;
+  sight.eye_is_object = eye_is_object;
+  sight.target_is_object = target_is_object;
+  sight.eye = eye;
+  sight.target = target;
+  sight.eye_input = eye_input.slots;
+  sight.forward = forward.slots;
+  sight.target_input = target_input.slots;
+  sight.max_distance = max_distance.slot;
+  sight.view_angle = view_angle.slot;
+  sight.mask = mask.slot;
+  sight.include_sensors = include_sensors.slot;
+  sight.hit_back_faces = hit_back_faces.slot;
+  sight.done = done;
+  sight.eval = EvalMask();
+  const auto same_inputs = [](const LN_ColumnProgram::Sight &a, const LN_ColumnProgram::Sight &b) {
+    const auto same3 = [](const VecSlots &x, const VecSlots &y) {
+      return x.x == y.x && x.y == y.y && x.z == y.z;
+    };
+    return a.query == b.query && same3(a.eye_input, b.eye_input) && same3(a.forward, b.forward) &&
+           same3(a.target_input, b.target_input) && a.max_distance == b.max_distance &&
+           a.view_angle == b.view_angle && a.mask == b.mask &&
+           a.include_sensors == b.include_sensors && a.hit_back_faces == b.hit_back_faces;
+  };
+  const uint32_t state = q.runtime_state_index != kNone ? q.runtime_state_index : index;
+  const std::tuple<uint32_t, uint32_t, uint32_t> key(state, sight.eval, done);
+  std::vector<RayOut> &shared = m_sights[key];
+  for (const RayOut &existing : shared) {
+    if (same_inputs(m_out.sights[existing.sight], sight)) {
+      r_out = existing;
+      return true;
+    }
+  }
+  /* Its objects' pending moves are applied by its read: the run starts only when they have none
+   * (quiet, as for QRay), named and found ones as a distance's ends. */
+  CastObjectNote(q.input0, eye, sight.eye_object);
+  CastObjectNote(q.input3, target, sight.target_object);
+  sight.visible = NewBool();
+  sight.blocked = NewBool();
+  sight.distance = NewFloat();
+  sight.angle = NewFloat();
+  sight.point = {NewFloat(), NewFloat(), NewFloat()};
+  sight.normal = {NewFloat(), NewFloat(), NewFloat()};
+  Node node;
+  node.op = NodeOp::QSight;
+  node.property_ref = index;
+  node.int_value = int32_t(m_out.sights.size());
+  node.d = sight.eval;
+  node.a = done;
+  node.out = sight.visible;
+  m_out.sights.push_back(sight);
+  m_out.nodes.push_back(node);
+  m_out.native_rays = true;
+  RayOut out;
+  out.hit = sight.visible;
+  out.distance = sight.distance;
+  out.angle = sight.angle;
+  out.blocked = sight.blocked;
+  out.point = sight.point;
+  out.normal = sight.normal;
   out.done = done;
   out.query = index;
+  out.sight = uint32_t(m_out.sights.size() - 1);
   shared.push_back(out);
+  r_out = out;
+  return true;
+}
+
+bool ColumnCompiler::NativePointVelocity(const uint32_t index, PointVelocityOut &r_out)
+{
+  const std::vector<LN_QueryExpression> &queries = m_program.GetQueryExpressions();
+  if (index >= queries.size() || queries[index].kind != LN_QueryExpressionKind::PointVelocity) {
+    return false;
+  }
+  const LN_QueryExpression &q = queries[index];
+  /* One node per query state: the node's outputs are separate query expressions sharing one state
+   * (runtime_state_index), and the VM's first read keeps the result there for all of them. */
+  const uint32_t state = q.runtime_state_index != kNone ? q.runtime_state_index : index;
+  if (const auto found = m_point_velocities.find(state); found != m_point_velocities.end()) {
+    r_out = found->second;
+    return true;
+  }
+  /* The VM measures it at its first read and keeps it for the tick (no warm-up); a run's lanes
+   * move no object and change no velocity before the flush, so one node anywhere in the pass
+   * measures what the VM's first read does, as long as its inputs are the same everywhere in the
+   * pass. The object: the owner or a named object, as the velocity reads (VVel). */
+  const std::vector<LN_ValueExpression> &values = m_program.GetValueExpressions();
+  bool owner = false;
+  uint32_t object = kNone;
+  if (q.input0 == kNone ||
+      (q.input0 < values.size() && values[q.input0].kind == LN_ValueExpressionKind::OwnerObject))
+  {
+    owner = true;
+  }
+  else if (!NamedObject(q.input0, object)) {
+    return false;
+  }
+  const bool from_group = LN_PointVelocitySource(q.int_value) == LN_PointVelocitySource::VertexGroup;
+  std::string vertex_group;
+  Vec position;
+  if (from_group) {
+    /* The group's name: a constant (columns hold no text). */
+    if (q.string_expr_index != kNone) {
+      const std::vector<LN_StringExpression> &strings = m_program.GetStringExpressions();
+      if (q.string_expr_index >= strings.size() ||
+          strings[q.string_expr_index].kind != LN_StringExpressionKind::Constant)
+      {
+        return false;
+      }
+      vertex_group = strings[q.string_expr_index].string_value;
+    }
+  }
+  else {
+    /* The Position, read as the VM reads it (its fallback the expression's own): a value the
+     * same wherever the pass reads it (not one an op of the pass sets). */
+    position = Vector(q.input1, q.vector_value);
+    if (!m_refusal.empty() || position.reads_ops) {
+      return false;
+    }
+  }
+  /* Reads of live poses and velocities: the owner's (a live pose read after every sure distance
+   * from it, its velocity never next to one: the quiet start) or a named object's. */
+  if (owner) {
+    if (!NoteOwnerLiveRead()) {
+      return false;
+    }
+    m_owner_velocity_read = true;
+  }
+  else {
+    m_live_pose_objects.insert(object);
+  }
+  Node node;
+  node.op = NodeOp::QPointVel;
+  node.property_ref = index;
+  node.end_a = owner ? EndKind::Owner : EndKind::Object;
+  node.object_a = object;
+  node.out = NewFloat();
+  node.out2 = NewFloat();
+  node.out3 = NewFloat();
+  node.position_b = {NewFloat(), NewFloat(), NewFloat()};
+  if (from_group) {
+    node.int_value = int32_t(m_out.point_velocity_reads.size());
+    LN_ColumnProgram::PointVelocityRead read;
+    read.query = index;
+    read.owner = owner;
+    read.object = object;
+    read.vertex_group = vertex_group;
+    m_out.point_velocity_reads.push_back(std::move(read));
+  }
+  else {
+    node.int_value = -1;
+    node.position_a = position.slots;
+  }
+  m_out.nodes.push_back(node);
+  PointVelocityOut out;
+  out.velocity = {node.out, node.out2, node.out3};
+  out.point = node.position_b;
+  out.queries = position.queries;
+  out.touched = position.touched;
+  m_point_velocities[state] = out;
   r_out = out;
   return true;
 }
@@ -4375,6 +5227,7 @@ void ColumnCompiler::MergeReach(QueryReach &into, const QueryReach &from)
     into.main_why = from.main_why;
   }
   into.collisions = into.collisions || from.collisions;
+  into.stateful = into.stateful || from.stateful;
   for (const uint32_t query : from.queries) {
     if (std::find(into.queries.begin(), into.queries.end(), query) == into.queries.end()) {
       into.queries.push_back(query);
@@ -4552,17 +5405,44 @@ const ColumnCompiler::QueryReach &ColumnCompiler::ReachOf(const char family, con
     default:
       break;
   }
+  /* Does working it out change state kept between ticks? (A query's own kind only fills its
+   * result cache; what it reads is walked below.) */
+  if (domain != LN_KindDomain::Count && domain != LN_KindDomain::Query) {
+    const LN_KindInfo *info = LN_FindKind(domain, kind);
+    if (info != nullptr && (info->classes & LN_KIND_STATEFUL) != 0) {
+      result.stateful = true;
+    }
+  }
   /* May this expression's own kind be worked out on a helper thread? */
   if (domain != LN_KindDomain::Count) {
     const char *refusal = LN_BatchExpressionRefusal(m_program, uint8_t(domain), index);
     if (refusal != nullptr && domain == LN_KindDomain::Query) {
       const LN_QueryExpressionKind query = LN_QueryExpressionKind(kind);
       /* Jolt's narrow phase under read locks, the filter reading objects (nothing writes the
-       * world while trees record); hits register their objects under the manager's mutex. */
-      if (query == LN_QueryExpressionKind::Raycast || query == LN_QueryExpressionKind::RaycastAll ||
-          query == LN_QueryExpressionKind::ShapeCast ||
-          query == LN_QueryExpressionKind::ShapeCastAll)
+       * world while trees record); hits register their objects under the manager's mutex. A cast
+       * that may draw (its Visualize not constant false) stays on the main thread: the debug
+       * drawing is not thread safe (2026-11-11). */
+      const LN_QueryExpression &q = m_program.GetQueryExpressions()[index];
+      const std::vector<LN_BoolExpression> &bools = m_program.GetBoolExpressions();
+      const bool may_draw = q.tertiary_bool_expr_index != LN_INVALID_INDEX &&
+                            !(q.tertiary_bool_expr_index < bools.size() &&
+                              bools[q.tertiary_bool_expr_index].kind ==
+                                  LN_BoolExpressionKind::Constant &&
+                              !bools[q.tertiary_bool_expr_index].bool_value);
+      /* (2026-11-14: Line of Sight, Sweep Object and Projectile Ray cast so too: their own
+       * shape's or a sphere's narrow phase, scene gravity read only.) */
+      if ((query == LN_QueryExpressionKind::Raycast || query == LN_QueryExpressionKind::RaycastAll ||
+           query == LN_QueryExpressionKind::ShapeCast ||
+           query == LN_QueryExpressionKind::ShapeCastAll ||
+           query == LN_QueryExpressionKind::LineOfSight ||
+           query == LN_QueryExpressionKind::SweepObject ||
+           query == LN_QueryExpressionKind::ProjectileRay) &&
+          !may_draw)
       {
+        refusal = nullptr;
+      }
+      /* Keep Distance's outputs read only their tree's state (2026-11-14). */
+      if (query == LN_QueryExpressionKind::KeepDistance) {
         refusal = nullptr;
       }
     }
@@ -4603,6 +5483,22 @@ const ColumnCompiler::QueryReach &ColumnCompiler::ReachOf(const char family, con
           refusal = nullptr;
           result.collisions = true;
           break;
+        }
+      }
+      /* On Collision's Each Object events (2026-11-14): their state (UpdateCollisionEvents)
+       * makes the touching objects' handles in the manager's table: the main thread's. (Its
+       * other kinds make them only inside the node's own routes, which run there.) */
+      if (domain == LN_KindDomain::Bool && family == 'B' &&
+          index < m_program.GetBoolExpressions().size())
+      {
+        const LN_BoolExpression &event = m_program.GetBoolExpressions()[index];
+        if ((event.kind == LN_BoolExpressionKind::CollisionEnter ||
+             event.kind == LN_BoolExpressionKind::CollisionStay ||
+             event.kind == LN_BoolExpressionKind::CollisionExit) &&
+            event.secondary_int_value > 0 && !result.main_thread)
+        {
+          result.main_thread = true;
+          result.main_why = "an On Collision Each Object event (its objects' handles)";
         }
       }
     }
@@ -4824,13 +5720,25 @@ std::string ColumnCompiler::ReachUnsafeHere(const QueryReach &reach)
       }
       continue;
     }
-    /* A ray or a shape cast (the bridge takes no other query): cast again at every op that reads
-     * it, after the caster's pending moves are applied. From a named object there are none (the
-     * run starts only without them, and the lanes move only their owners). */
-    const uint32_t caster = query.input0;
-    const bool from_owner = caster == kNone ||
-                            (caster < values.size() &&
-                             values[caster].kind == LN_ValueExpressionKind::OwnerObject);
+    if (query.kind == LN_QueryExpressionKind::ProjectileRay) {
+      continue; /* the caster's live pose: the owner's move is pending there in the VM too */
+    }
+    if (query.kind == LN_QueryExpressionKind::KeepDistance) {
+      continue; /* its tree's state: no object read */
+    }
+    /* A ray, a shape cast, a sweep or a line of sight: cast again at every op that reads it,
+     * after its objects' pending moves are applied. A named object has none (the run starts only
+     * without them, and the lanes move only their owners). */
+    const auto owner = [&](const uint32_t value) {
+      return value < values.size() && values[value].kind == LN_ValueExpressionKind::OwnerObject;
+    };
+    const bool from_owner =
+        query.kind == LN_QueryExpressionKind::LineOfSight ?
+            (query.distance_endpoint_a == LN_DistanceEndpointMode::Object &&
+             (query.input0 == kNone || owner(query.input0))) ||
+                (query.distance_endpoint_b == LN_DistanceEndpointMode::Object &&
+                 owner(query.input3)) :
+            query.input0 == kNone || owner(query.input0);
     if (from_owner) {
       return "it reads a ray or a shape cast from the owner";
     }
@@ -4959,6 +5867,107 @@ bool ColumnCompiler::CompileLoopBlock(const LN_ExecBlockProgram &ir,
     m_masks.push_back(never);
     m_out.op_state.push_back(lean_event.ops[op].state_index);
     m_out.op_mask.push_back(never);
+  }
+  return true;
+}
+
+bool ColumnCompiler::CompileCollisionBlock(const LN_ExecBlockProgram &ir,
+                                           const uint32_t block_index,
+                                           const std::vector<LN_InstructionHeader> &headers,
+                                           const LN_LeanEvent &lean_event)
+{
+  const LN_ExecBlock &block = ir.blocks[block_index];
+  if (!m_bridge_ok) {
+    return Refuse("an On Collision Each Object route (its program's queries keep the bridge off)");
+  }
+  /* What the VM's walk reads: every op of the block (its guard first, as OpLean reads it). The
+   * ops record commands (never a move: a caught one could not be applied early) or set the
+   * tree's own states, as a Loop body's. */
+  QueryReach reach;
+  std::vector<uint32_t> tree_writes;
+  for (uint32_t op = block.first_op; op < block.first_op + block.op_count; op++) {
+    const LN_ExecOp &exec = ir.ops[op];
+    if (exec.instruction_index >= headers.size()) {
+      return Refuse("an op without its instruction");
+    }
+    const LN_Instruction &instruction = m_program.GetInstructionPayload(
+        m_event, headers[exec.instruction_index]);
+    const LN_OpCode opcode = exec.opcode;
+    const bool allowed = exec.kind == LN_ExecOpKind::BranchRoute ||
+                         exec.kind == LN_ExecOpKind::Nop || opcode == LN_OpCode::SetTreeProperty ||
+                         (exec.kind == LN_ExecOpKind::GamePropertyCommand &&
+                          opcode == LN_OpCode::SetGameProperty) ||
+                         (BridgeableOp(exec.kind, opcode) && opcode != LN_OpCode::AddObject);
+    if (!allowed) {
+      return Refuse(std::string("an On Collision Each Object route with ") +
+                    LN_KindName(LN_KindDomain::Op, uint16_t(opcode)));
+    }
+    MergeReach(reach, ReachOf('B', exec.guard_bool_expr_index));
+    MergeReach(reach, OpReach(instruction));
+    if (opcode == LN_OpCode::SetTreeProperty && instruction.property_ref_index != kNone) {
+      tree_writes.push_back(instruction.property_ref_index);
+    }
+  }
+  if (!BridgeAllowedHere("an On Collision Each Object route", reach)) {
+    return false;
+  }
+  NoteMainThread("an On Collision Each Object route (its objects' handles)");
+  /* A tree property the block writes is read live afterwards (the VM's code wrote it there; its
+   * repeats write it again after the pass). */
+  for (const uint32_t ref : tree_writes) {
+    const auto found = m_tree.find(ref);
+    if (found != m_tree.end() && found->second.written) {
+      return Refuse("a tree property an On Collision Each Object route and a column node both "
+                    "write");
+    }
+    m_tree.erase(ref);
+  }
+  uint32_t mask = BoolConst(true).slot;
+  if (m_gate != kNone) {
+    auto gate = m_gate_slot.find(m_gate);
+    if (gate == m_gate_slot.end()) {
+      Node node;
+      node.op = NodeOp::SGate;
+      node.property_ref = m_gate;
+      node.out = NewBool();
+      m_out.nodes.push_back(node);
+      gate = m_gate_slot.emplace(m_gate, node.out).first;
+    }
+    mask = gate->second;
+  }
+  Write write;
+  write.kind = WriteKind::Captured;
+  write.mask = mask;
+  const uint32_t write_index = uint32_t(m_out.writes.size());
+  m_out.writes.push_back(write);
+  Node node;
+  node.op = NodeOp::BCollision;
+  node.a = mask;
+  node.property_ref = block_index;
+  node.compare = uint8_t(m_gate == kNone ? 0 : m_gate + 1);
+  node.int_value = int32_t(write_index);
+  node.main_thread = true;
+  node.collision_reads = true;
+  m_out.collision_reads = true;
+  m_out.nodes.push_back(node);
+  /* The block's ops ran in the pass's scope: each one's Ran is its stamp, as a bridged op's. */
+  const uint32_t never = BoolConst(false).slot;
+  for (uint32_t op = block.first_op; op < block.first_op + block.op_count; op++) {
+    m_op_instruction.push_back(ir.ops[op].instruction_index);
+    m_always_marks[op] = 0;
+    m_op_gate.push_back(m_gate);
+    uint32_t ran_slot = never;
+    if (lean_event.ops[op].state_index != kNone) {
+      Node ran;
+      ran.op = NodeOp::SRan;
+      ran.property_ref = lean_event.ops[op].state_index;
+      ran.out = NewBool();
+      m_out.nodes.push_back(ran);
+      ran_slot = ran.out;
+    }
+    m_masks.push_back(ran_slot);
+    m_out.op_state.push_back(lean_event.ops[op].state_index);
+    m_out.op_mask.push_back(ran_slot);
   }
   return true;
 }
@@ -5346,8 +6355,14 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
   if (!ir.valid || ir.ops.empty()) {
     return refuse("the event has no ops");
   }
-  if (!ir.ui_event_states.empty()) {
-    return refuse(RepeatRouteRefusal(ir.ui_event_states.front()));
+  /* On UI Event's repeats are the VM's; On Collision's Each Object routes (2026-11-14) run their
+   * blocks through the VM's walk on the main thread (BCollision) and their repeats after the
+   * pass's ops (BCollisionRepeats). */
+  for (const uint32_t key : ir.ui_event_states) {
+    if (!LN_IsCollisionRepeatRoute(key)) {
+      return refuse(RepeatRouteRefusal(key));
+    }
+    m_collision_repeats = true;
   }
   if (lean_event.ops.size() != ir.ops.size()) {
     return refuse("no lean ops");
@@ -5359,8 +6374,26 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
   const size_t gate_count = m_program.GetStepGates().size();
   m_loop_block_at.assign(ir.ops.size(), kNone);
   m_completed_frame.assign(ir.ops.size(), kNone);
+  m_collision_block_at.assign(ir.ops.size(), kNone);
   for (uint32_t block_index = 0; block_index < ir.blocks.size(); block_index++) {
     const LN_ExecBlock &block = ir.blocks[block_index];
+    /* A block holding ops of an On Collision Each Object route: one BCollision node (a plain
+     * block: the walk tags a Loop's inputs and a Completed route otherwise). */
+    bool collision_ops = false;
+    for (uint32_t op = block.first_op; op < block.first_op + block.op_count && op < ir.ops.size();
+         op++)
+    {
+      collision_ops = collision_ops || LN_IsCollisionRepeatRoute(ir.ops[op].ui_event_state_index);
+    }
+    if (collision_ops) {
+      if (block.loop_frame_index != kNone || block.completed_loop_frame_index != kNone) {
+        return refuse("a Loop in an On Collision Each Object route");
+      }
+      if (block.op_count == 0 || block.first_op >= ir.ops.size()) {
+        return refuse("an empty On Collision Each Object block");
+      }
+      m_collision_block_at[block.first_op] = block_index;
+    }
     if (block.loop_frame_index != kNone || block.completed_loop_frame_index != kNone) {
       /* Plan C1-9: a Loop's body runs through the VM's own block walk NPC by NPC (the bridge's
        * BLoop), its Completed route in columns behind the loop's completion. */
@@ -5466,6 +6499,47 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
            * objects or collection, no pending move applied; the same at every op of a run (no
            * lane applies another's moves while the run records, in the VM either). */
           break;
+        case LN_QueryExpressionKind::PointVelocity:
+          /* Velocity at Point (2026-11-14): the live pose and velocity of the owner or a named
+           * object (a bridged run starts only when neither has a pending move), no pending move
+           * applied; its Each Vertex lists run bridged (QPointVel takes Velocity and Point). */
+          if (!owner_or_named(query.input0)) {
+            m_bridge_ok = false;
+          }
+          break;
+        case LN_QueryExpressionKind::LineOfSight:
+          /* Line of Sight (2026-11-14): a ray between the eye and the target, each an object (the
+           * owner or a named one: the read applies its pending moves, as a ray's caster) or a
+           * position. QSight takes the plain ones, the bridge the rest. */
+          m_reads_owner_queries = true;
+          if ((query.distance_endpoint_a == LN_DistanceEndpointMode::Object &&
+               !owner_or_named(query.input0)) ||
+              (query.distance_endpoint_b == LN_DistanceEndpointMode::Object &&
+               !owner_or_named(query.input3)))
+          {
+            m_bridge_ok = false;
+          }
+          break;
+        case LN_QueryExpressionKind::SweepObject:
+          /* Sweep Object (2026-11-14): the object's own shape (the owner or a named object; its
+           * pending moves applied by the read, as a shape cast's caster). */
+          m_reads_owner_queries = true;
+          if (!owner_or_named(query.input0)) {
+            m_bridge_ok = false;
+          }
+          break;
+        case LN_QueryExpressionKind::ProjectileRay:
+          /* Projectile Ray (2026-11-14): the arc from the caster's live pose (the owner or a named
+           * object; no pending move applied), kept for the tick (warmed or at its first read). */
+          m_reads_owner_queries = true;
+          if (!owner_or_named(query.input0)) {
+            m_bridge_ok = false;
+          }
+          break;
+        case LN_QueryExpressionKind::KeepDistance:
+          /* Keep Distance's outputs (2026-11-14): its tree's own state, written at the flush's
+           * end (QKeep reads them; the bridge its Nearest Object). */
+          break;
         default:
           m_bridge_ok = false;
           break;
@@ -5512,6 +6586,19 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
       /* Its route reads the tree properties as they were when the Delay was armed. */
       Refuse("a Delay's Done in a tree with tree properties");
       break;
+    }
+    if (m_collision_block_at[m_op] != kNone) {
+      /* A block of an On Collision Each Object route: the VM's walk of it in one bridged node
+       * (2026-11-14). */
+      m_gate = op_gate[m_op];
+      m_here = kNone;
+      const uint32_t block_index = m_collision_block_at[m_op];
+      if (!CompileCollisionBlock(ir, block_index, headers, lean_event)) {
+        break;
+      }
+      file_touched();
+      m_op = ir.blocks[block_index].first_op + ir.blocks[block_index].op_count - 1;
+      continue;
     }
     if (exec.ui_event_state_index != kNone) {
       Refuse(RepeatRouteRefusal(exec.ui_event_state_index));
@@ -5749,20 +6836,40 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
         /* The object it moves: the owner, or (plan C1-9 E2) one each NPC finds while playing (its
          * turret, its weapon: a child, an Object property...), resolved when the run starts. */
         uint32_t runtime_target = kNone;
+        /* (2026-11-14) Or the object a tree property holds where the op runs, a property only
+         * Add Object writes in the pass (its copy: OTreeObj; the move rules in moved_tree_
+         * properties). */
+        uint32_t target_column = kNone;
+        uint32_t target_tree_property = kNone;
         if (payload.object_value_expr_index != kNone) {
           const std::vector<LN_ValueExpression> &target_values = m_program.GetValueExpressions();
           const bool owner_value = payload.object_value_expr_index < target_values.size() &&
                                    target_values[payload.object_value_expr_index].kind ==
                                        LN_ValueExpressionKind::OwnerObject;
           if (!owner_value && !RuntimeObject(payload.object_value_expr_index, runtime_target)) {
-            Refuse("a move of an object that is neither the owner nor found while playing");
-            break;
+            const uint32_t value = payload.object_value_expr_index;
+            const bool copy_property =
+                value < target_values.size() &&
+                target_values[value].kind == LN_ValueExpressionKind::RuntimeTreeProperty &&
+                OnlyAddObjectWritesTreeProperty(target_values[value].property_ref_index);
+            const bool relative_on_frames = instruction.opcode ==
+                                                LN_OpCode::ApplyTransformVector &&
+                                            m_event == LN_Event::OnUpdate;
+            uint32_t unused_runtime = kNone;
+            if (!copy_property || relative_on_frames ||
+                !CommandTarget(value, unused_runtime, target_column) || target_column == kNone)
+            {
+              Refuse("a move of an object that is neither the owner nor found while playing");
+              break;
+            }
+            target_tree_property = target_values[value].property_ref_index;
           }
         }
         m_native_write_instructions.insert(exec.instruction_index);
         Write write;
         write.kind = WriteKind::Transform;
         write.runtime_target = runtime_target;
+        write.target_column = target_column;
         const LN_VectorOperationChannel channel = LN_VectorOperationChannel(
             payload.operation_channel);
         bool reads_local = false;
@@ -5781,11 +6888,11 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
             }
             write.is_move = true;
             reads_local = true;
-            if (runtime_target == kNone) {
-              m_out.relative_moves = true;
-            }
-            else {
+            if (runtime_target != kNone) {
               m_relative_runtime.insert(runtime_target);
+            }
+            else if (target_column == kNone) {
+              m_out.relative_moves = true;
             }
             break;
           case LN_OpCode::SetWorldPosition:
@@ -5938,8 +7045,23 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
         if (reads_local) {
           const LN_VectorOperationMode mode = LN_VectorOperationMode(payload.operation_mode);
           if (mode == LN_VectorOperationMode::LocalFromBool) {
+            /* LeanVectorBody reads Local (in AppendVectorCommand) only once the target resolved:
+             * an object found while playing may be missing for an NPC, so its reads are no sure
+             * reads (column soak seeds 53309 / 53375, 2026-11-14: a distance from the owner read
+             * only there was taken as read before the owner's move, and the VM's later read,
+             * applying that move, measured from where the owner went). The owner always
+             * resolves. */
+            const bool found_target = runtime_target != kNone || target_column != kNone;
+            if (found_target) {
+              m_in_found_target++;
+            }
             const Slot local = Bool(payload.bool_expr_index, false);
-            read(local.queries);
+            if (found_target) {
+              m_in_found_target--;
+            }
+            else {
+              read(local.queries);
+            }
             write.local = local.slot;
             write.out_bool = m_out.out_bool_columns++;
           }
@@ -5952,6 +7074,16 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
         if (runtime_target != kNone) {
           /* Velocities and forces of it too: at the flush, as the VM's commands. */
           m_moved_runtime.insert(runtime_target);
+        }
+        else if (target_column != kNone) {
+          /* Add Object's copy (or the property's start value, checked when the run starts). */
+          if (write.is_move &&
+              std::find(m_out.moved_tree_properties.begin(),
+                        m_out.moved_tree_properties.end(),
+                        target_tree_property) == m_out.moved_tree_properties.end())
+          {
+            m_out.moved_tree_properties.push_back(target_tree_property);
+          }
         }
         else if (write.is_move) {
           NoteOwnerMove();
@@ -6343,6 +7475,22 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
               rgba[1] = Float(color.input1, color.color_value.y());
               rgba[0] = Float(color.input0, color.color_value.x());
             }
+            else if (colors[index].kind == LN_ColorExpressionKind::SnapshotGameProperty &&
+                     colors[index].property_ref_index < m_program.GetGamePropertyRefs().size())
+            {
+              /* Get Game Property Color of the owner (2026-11-15): the VM's kind, a node per
+               * channel (FPropAxis), the instruction's colour where the capture has no ref. */
+              for (int c = 0; c < 4; c++) {
+                Node channel;
+                channel.op = NodeOp::FPropAxis;
+                channel.property_ref = colors[index].property_ref_index;
+                channel.compare = uint8_t(c);
+                channel.float_value = float(instruction.color_value[c]);
+                channel.out = NewFloat();
+                m_out.nodes.push_back(channel);
+                rgba[c].slot = channel.out;
+              }
+            }
             else if (m_bridge_ok) {
               if (!BridgeColor(index, instruction.color_value, rgba)) {
                 break;
@@ -6468,6 +7616,41 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
     m_out.op_state.push_back(lean_op.state_index);
     m_out.op_mask.push_back(mask);
   }
+  if (m_refusal.empty() && m_collision_repeats) {
+    /* On Collision Each Object (2026-11-14): each further object of each such route runs the
+     * route again after the pass's ops, through the VM's walk (ColumnWalkEvent's repeats), on
+     * the main thread; what they read is read after every op of the pass. */
+    m_gate = kNone;
+    m_here = kNone;
+    m_eval.clear();
+    QueryReach reach;
+    for (uint32_t block_index = 0; block_index < ir.blocks.size(); block_index++) {
+      const LN_ExecBlock &block = ir.blocks[block_index];
+      if (block.first_op >= ir.ops.size() || m_collision_block_at[block.first_op] != block_index) {
+        continue;
+      }
+      for (uint32_t op = block.first_op; op < block.first_op + block.op_count; op++) {
+        MergeReach(reach, ReachOf('B', ir.ops[op].guard_bool_expr_index));
+        MergeReach(reach,
+                   OpReach(m_program.GetInstructionPayload(
+                       m_event, headers[ir.ops[op].instruction_index])));
+      }
+    }
+    if (BridgeAllowedHere("On Collision Each Object repeats", reach)) {
+      Write write;
+      write.kind = WriteKind::Captured;
+      write.mask = BoolConst(true).slot;
+      const uint32_t write_index = uint32_t(m_out.writes.size());
+      m_out.writes.push_back(write);
+      Node node;
+      node.op = NodeOp::BCollisionRepeats;
+      node.a = write.mask;
+      node.int_value = int32_t(write_index);
+      node.main_thread = true;
+      node.collision_reads = true;
+      m_out.nodes.push_back(node);
+    }
+  }
   if (m_refusal.empty()) {
     /* An object (the owner or a named one) measured on some routes only: its pending moves would
      * be applied at a time the VM does not apply them. Read whenever a gate's routes run is
@@ -6533,10 +7716,21 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
         case LN_QueryExpressionKind::RaycastAll:
         case LN_QueryExpressionKind::ShapeCast:
         case LN_QueryExpressionKind::ShapeCastAll:
+        case LN_QueryExpressionKind::SweepObject:
           reads_owner = reads_owner || owner(query.input0);
           break;
+        case LN_QueryExpressionKind::LineOfSight:
+          /* (An empty Target is no target.) */
+          reads_owner = reads_owner ||
+                        (query.distance_endpoint_a == LN_DistanceEndpointMode::Object &&
+                         owner(query.input0)) ||
+                        (query.distance_endpoint_b == LN_DistanceEndpointMode::Object &&
+                         query.input3 != kNone && owner(query.input3));
+          break;
         case LN_QueryExpressionKind::VectorAverage:
-          break; /* live positions: it applies no pending move */
+        case LN_QueryExpressionKind::ProjectileRay:
+        case LN_QueryExpressionKind::KeepDistance:
+          break; /* live positions (Keep Distance: its tree's state): it applies no pending move */
         default:
           reads_owner = true;
           break;
@@ -6562,6 +7756,11 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
         break;
       }
     }
+  }
+  if (m_refusal.empty() && !m_out.moved_tree_properties.empty() && !m_measured_runtime.empty()) {
+    /* (2026-11-14) A found object measured could be the copy's property's start value, which
+     * the run moves: its read in the VM would apply that move. */
+    Refuse("a move of Add Object's copy next to a distance to an object found while playing");
   }
   if (m_refusal.empty()) {
     const size_t count = m_out.runtime_objects.size();
@@ -6911,6 +8110,89 @@ std::string LN_ColumnQueryReachForTests(const LN_Program &program,
   return compiler.DescribeReachForTests(family, index);
 }
 
+std::vector<uint8_t> ColumnCompiler::QueryWarmEvents()
+{
+  const std::vector<LN_QueryExpression> &queries = m_program.GetQueryExpressions();
+  const std::vector<LN_BoolExpression> &bools = m_program.GetBoolExpressions();
+  std::vector<uint8_t> events(queries.size(), 0);
+  /* The events whose ops may read each query (every event's bit when a walk is incomplete). */
+  std::vector<uint8_t> reached_by_any(queries.size(), 0);
+  for (const LN_Event event : {LN_Event::OnInit, LN_Event::OnUpdate, LN_Event::OnFixedUpdate}) {
+    const uint8_t bit = uint8_t(1u << uint8_t(event));
+    std::vector<uint8_t> reached(queries.size(), 0);
+    bool complete = true;
+    for (const LN_InstructionHeader &header : m_program.GetInstructionHeaders(event)) {
+      const QueryReach reach = OpReach(m_program.GetInstructionPayload(event, header));
+      if (reach.unknown) {
+        complete = false;
+        break;
+      }
+      for (const uint32_t query : reach.queries) {
+        if (query < reached.size()) {
+          reached[query] = 1;
+        }
+      }
+    }
+    for (uint32_t query = 0; query < queries.size(); query++) {
+      if (!complete || reached[query] != 0) {
+        events[query] |= bit;
+        reached_by_any[query] = 1;
+      }
+    }
+  }
+  constexpr uint8_t kEveryEvent = uint8_t((1u << uint8_t(LN_Event::OnInit)) |
+                                          (1u << uint8_t(LN_Event::OnUpdate)) |
+                                          (1u << uint8_t(LN_Event::OnFixedUpdate)));
+  for (uint32_t query = 0; query < queries.size(); query++) {
+    const LN_QueryExpression &q = queries[query];
+    /* The UI's views and element queries are read by the UI service too (CollectUIViews, the
+     * element registrations): warmed on every event, as before (no Flow; the rig records none of
+     * their inputs, so the walk cannot judge them). A query no op reads: every event too. */
+    if (q.kind == LN_QueryExpressionKind::ObjectScrollView ||
+        q.kind == LN_QueryExpressionKind::ObjectGridView ||
+        q.kind == LN_QueryExpressionKind::UIElementEvent)
+    {
+      events[query] = kEveryEvent;
+      continue;
+    }
+    if (reached_by_any[query] == 0) {
+      events[query] = kEveryEvent;
+    }
+    /* Its Flow (a Projectile Ray's): a constant only. Anything else holds only where its route
+     * runs (a Delay's Done, an op that ran: false before the tick's ops ran, and the warm-up
+     * would keep the query switched off for the whole tick) or keeps state (a Tween's Done:
+     * working it out at the tick's start would move the Tween on ticks its route never runs). */
+    const uint32_t condition = q.condition_bool_expr_index;
+    const bool constant_condition = condition == kNone ||
+                                    (condition < bools.size() &&
+                                     bools[condition].kind == LN_BoolExpressionKind::Constant);
+    /* What it reads (its condition included) may keep no state, and the walk must know it all. */
+    const QueryReach &reach = ReachOf('Q', query);
+    if (!constant_condition || reach.unknown || reach.stateful) {
+      events[query] = 0;
+    }
+    /* (2026-11-14) And on a helper thread when the bridge would work it out there (its rule:
+     * `main_thread`; object lookups read the name table LN_WarmQueryCaches prepares first; no
+     * collision read, which a sensor queried on demand would write): the trees' warm-ups touch
+     * nothing shared but the world they read, which nothing writes then. */
+    if (events[query] != 0 && !reach.main_thread && !reach.collisions) {
+      events[query] |= LN_QUERY_WARM_ON_HELPERS;
+    }
+  }
+  return events;
+}
+
+std::vector<uint8_t> LN_QueryWarmEvents(const LN_Program &program)
+{
+  /* The walk reads no lean data (only the program and the kind tables). */
+  static const LN_LeanProgram no_lean;
+  program.EnsureLeanProgram();
+  const std::shared_ptr<const LN_LeanProgram> &lean = program.GetLeanProgram();
+  LN_ColumnProgram out;
+  ColumnCompiler compiler(program, lean != nullptr ? *lean : no_lean, LN_Event::OnFixedUpdate, out);
+  return compiler.QueryWarmEvents();
+}
+
 std::string LN_ColumnKindInputsText()
 {
   std::string text;
@@ -6943,9 +8225,22 @@ std::string LN_DescribeColumnProgram(const LN_ColumnProgram &program)
        << std::count(program.runtime_after_run.begin(), program.runtime_after_run.end(), 1)
        << " collision_finds=" << (program.collision_sources ? 1 : 0)
        << " native_rays=" << (program.native_rays ? 1 : 0)
+       << " point_velocity_nodes="
+       << std::count_if(program.nodes.begin(),
+                        program.nodes.end(),
+                        [](const Node &node) { return node.op == NodeOp::QPointVel; })
+       << " point_velocity_reads=" << program.point_velocity_reads.size()
+       << " ray_nodes=" << program.rays.size() << " sight_nodes=" << program.sights.size()
+       << " keep_nodes="
+       << std::count_if(program.nodes.begin(),
+                        program.nodes.end(),
+                        [](const Node &node) { return node.op == NodeOp::QKeep; })
        << " main_thread=" << (program.main_thread_why.empty() ? 0 : 1)
        << " quiet_reads=" << (program.quiet_reads.empty() ? 0 : 1)
        << " run_invariants=" << program.run_invariants.size() << "\n";
+  if (!program.main_thread_why.empty()) {
+    text << "main thread: " << program.main_thread_why << "\n";
+  }
   return text.str();
 }
 
@@ -7024,10 +8319,14 @@ LN_ColumnMemory LN_ColumnProgramMemory(const LN_ColumnProgram &program)
       bytes(program.property_names) + bytes(program.query_reads) +
       bytes(program.average_reads) + program.main_thread_why.capacity() +
       bytes(program.constant_objects) + bytes(program.applied_named) +
-      bytes(program.velocity_reads) + bytes(program.op_state) + bytes(program.op_mask) +
-      bytes(program.tree_properties) + bytes(program.tree_write_ops);
+      bytes(program.velocity_reads) + bytes(program.point_velocity_reads) +
+      bytes(program.sights) + bytes(program.rays) + bytes(program.op_state) + bytes(program.op_mask) + bytes(program.tree_properties) +
+      bytes(program.tree_write_ops);
   for (const std::string &name : program.property_names) {
     p += name.capacity() > 15 ? name.capacity() + 1 : 0;
+  }
+  for (const LN_ColumnProgram::PointVelocityRead &read : program.point_velocity_reads) {
+    p += read.vertex_group.capacity() > 15 ? read.vertex_group.capacity() + 1 : 0;
   }
   const size_t writes = program.writes.size();
   memory.lane_bytes = sizeof(LN_RuntimeTree *) + sizeof(uint32_t) + writes * 2 +
@@ -7038,7 +8337,8 @@ LN_ColumnMemory LN_ColumnProgramMemory(const LN_ColumnProgram &program)
                       program.runtime_objects.size() * sizeof(NamedObject) +
                       size_t(program.target_columns) * sizeof(KX_GameObject *) +
                       (program.bridged ? writes * 2 * sizeof(uint32_t) : 0) +
-                      program.velocity_reads.size() * (sizeof(MT_Vector3) + 1);
+                      program.velocity_reads.size() * (sizeof(MT_Vector3) + 1) +
+                      program.point_velocity_reads.size() * 2 * sizeof(MT_Vector3);
   memory.chunk_bytes = sizeof(ChunkScratch) +
                        (size_t(program.float_slots) * sizeof(float) +
                         size_t(program.int_slots) * sizeof(int32_t) +
@@ -7144,6 +8444,9 @@ struct LN_ColumnRunner::Impl {
      * whether there was one (else the read's fallback). */
     std::vector<MT_Vector3> velocities;
     std::vector<uint8_t> velocity_ok;
+    /** Velocity at Point's Vertex Group measures (point_velocity_reads x count), made when the run
+     * starts: the velocities and the points. */
+    std::vector<MT_Vector3> point_velocities, point_velocity_points;
     /** The averages worked out once (average_reads), when the run starts. */
     std::vector<LN_QueryResult> averages;
     /** The run invariants (LN_ColumnProgram::run_invariants), when the run starts. */
@@ -7372,9 +8675,9 @@ struct LN_ColumnRunner::Impl {
         order.push_back(uint32_t(index));
       }
     }
-    const auto by_key = [&](const uint32_t a, const uint32_t b) {
-      return info[a].sort_key < info[b].sort_key;
-    };
+    /* Equal keys in tree order (LaneBefore), as the flush orders equal keys by record order (the
+     * manager gives no two objects one key: ObjectOrderKeyFor). */
+    const auto by_key = [&](const uint32_t a, const uint32_t b) { return LaneBefore(a, b); };
     /* Usually already in order (trees are kept in scene order). */
     if (!std::is_sorted(order.begin(), order.end(), by_key)) {
       std::sort(order.begin(), order.end(), by_key);
@@ -8968,6 +10271,16 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
         }
         break;
       }
+      case NodeOp::FPropAxis: {
+        float *out = f(node.out);
+        for (size_t l = 0; l < n; l++) {
+          MT_Vector4 vector;
+          out[l] = trees[l]->GetSnapshot().ReadGamePropertyVector(node.property_ref, vector) ?
+                       float(vector[node.compare]) :
+                       node.float_value;
+        }
+        break;
+      }
       case NodeOp::IProp: {
         int32_t *out = i(node.out);
         for (size_t l = 0; l < n; l++) {
@@ -9056,6 +10369,15 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
         LN_COLUMNS_UNARY(v * (kPi / 180.0f))
       case NodeOp::FDeg:
         LN_COLUMNS_UNARY(v * (180.0f / kPi))
+      case NodeOp::FLength: {
+        const float *x = f(node.a), *y = f(node.b), *z = f(node.c);
+        float *out = f(node.out);
+        for (size_t l = 0; l < n; l++) {
+          /* FloatKind's VectorLength. */
+          out[l] = MT_Vector3(x[l], y[l], z[l]).length();
+        }
+        break;
+      }
       case NodeOp::FClamp: {
         const float *x = f(node.a), *lo = f(node.b), *hi = f(node.c);
         float *out = f(node.out);
@@ -9342,6 +10664,43 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
         const uint8_t *ok = run.velocity_ok.data() + at;
         for (size_t l = 0; l < n; l++) {
           vector3(node, l, ok[l] != 0 ? values[l] : fallback3(node));
+        }
+        break;
+      }
+      case NodeOp::QPointVel: {
+        /* Velocity at Point by the VM's own code (LN_RuntimeTree::ColumnPointVelocity). */
+        float *px = f(node.position_b.x), *py = f(node.position_b.y), *pz = f(node.position_b.z);
+        const auto point_out = [&](const size_t l, const MT_Vector3 &point) {
+          px[l] = point.x();
+          py[l] = point.y();
+          pz[l] = point.z();
+        };
+        if (node.int_value >= 0) {
+          /* A Vertex Group mode: measured when the run started. */
+          const size_t at = size_t(node.int_value) * run.count + first;
+          const MT_Vector3 *velocities = run.point_velocities.data() + at;
+          const MT_Vector3 *points = run.point_velocity_points.data() + at;
+          for (size_t l = 0; l < n; l++) {
+            vector3(node, l, velocities[l]);
+            point_out(l, points[l]);
+          }
+          break;
+        }
+        const float *ax = f(node.position_a.x), *ay = f(node.position_a.y),
+                    *az = f(node.position_a.z);
+        KX_GameObject *named = node.end_a == EndKind::Object ? objects[node.object_a].object :
+                                                               nullptr;
+        for (size_t l = 0; l < n; l++) {
+          KX_GameObject *object = node.end_a == EndKind::Owner ? trees[l]->GetGameObject() : named;
+          MT_Vector3 velocity, point;
+          trees[l]->ColumnPointVelocity(node.property_ref,
+                                        object,
+                                        MT_Vector3(ax[l], ay[l], az[l]),
+                                        std::string(),
+                                        velocity,
+                                        point);
+          vector3(node, l, velocity);
+          point_out(l, point);
         }
         break;
       }
@@ -10005,6 +11364,42 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
         }
         break;
       }
+      case NodeOp::BCollision:
+      case NodeOp::BCollisionRepeats: {
+        /* On Collision Each Object's routes through the VM's walk, NPC by NPC (main thread);
+         * what they record is kept for the flush, as a bridged op's. */
+        const uint8_t *runs = b(node.a);
+        LN_TickContext route = context;
+        const size_t write = size_t(node.int_value);
+        for (size_t l = 0; l < n; l++) {
+          if (runs[l] == 0) {
+            continue;
+          }
+          route_context(route, l, node.compare);
+          const LN_CommandBuffer::RecordMark mark = capture->buffer->Mark();
+          if (node.op == NodeOp::BCollision) {
+            trees[l]->ColumnRunCollisionBlock(
+                program.event, node.property_ref, *capture->buffer, route);
+          }
+          else {
+            trees[l]->ColumnRunCollisionRepeats(program.event, *capture->buffer, route);
+          }
+          const size_t before = capture->refs.size();
+          bool moves = false;
+          capture->buffer->CommandsSince(mark, capture->refs, moves);
+          const size_t cell = write * run.count + first + l;
+          run.captured_begin[cell] = uint32_t(before);
+          run.captured_count[cell] = uint32_t(capture->refs.size() - before);
+          if (moves) {
+            static std::atomic<bool> warned{false};
+            if (!warned.exchange(true)) {
+              CM_Warning("Logic Nodes: columns: an On Collision route recorded a move (it is "
+                         "applied at the flush, never early)");
+            }
+          }
+        }
+        break;
+      }
       case NodeOp::BLoop: {
         /* Plan C1-9: a Loop body through the VM's block walk, NPC by NPC; what it records is kept
          * for the flush, as a bridged op's. */
@@ -10328,41 +11723,238 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
         break;
       }
       case NodeOp::QRay: {
-        /* Plan C2 P3: the VM's QueryKind for the ray, lane by lane where the VM casts it; its
-         * outputs as PhysicsQueryHit / Distance / Point / Normal give them. No command buffer: the
-         * run started quietly (nothing pending its cast would apply). */
-        thread_local LN_RuntimeTree::QueryExpressionRuntimeState scratch;
-        const uint8_t *eval = node.d == kNone ? nullptr : b(node.d);
-        /* The condition: a disabled query gives the reset result (its outputs zero). */
-        const uint8_t *enabled = node.a == kNone ? nullptr : b(node.a);
-        uint8_t *hit = b(node.out);
-        float *distance = f(node.out2);
-        float *px = f(node.position_a.x), *py = f(node.position_a.y), *pz = f(node.position_a.z);
-        float *nx = f(node.position_b.x), *ny = f(node.position_b.y), *nz = f(node.position_b.z);
-        LN_TickContext route = context;
+        /* A Raycast, Raycast All, Shape Cast or Shape Cast All by the VM's own steps after its
+         * reads (LN_RuntimeTree::ColumnRaycast / ColumnShapeCast), lane by lane where the VM
+         * casts it; its outputs as the output kinds read the result (a disabled or unread cast:
+         * the reset result, zeros). No pending move to apply: the run started quietly. */
+        const LN_ColumnProgram::Ray &ray = program.rays[size_t(node.int_value)];
+        const bool shape = ray.kind == LN_QueryExpressionKind::ShapeCast ||
+                           ray.kind == LN_QueryExpressionKind::ShapeCastAll;
+        const bool all = ray.kind == LN_QueryExpressionKind::RaycastAll ||
+                         ray.kind == LN_QueryExpressionKind::ShapeCastAll;
+        const uint8_t *eval = ray.eval == kNone ? nullptr : b(ray.eval);
+        const uint8_t *enabled = ray.done == kNone ? nullptr : b(ray.done);
+        uint8_t *hit = b(ray.hit);
+        uint8_t *blocked = b(ray.blocked);
+        uint8_t *started = b(ray.started);
+        float *distance = f(ray.hit_distance);
+        float *fraction = f(ray.fraction);
+        int32_t *hit_count = i(ray.hit_count);
+        const auto out3 = [&](const VecSlots &slots, const size_t l, const MT_Vector3 &v) {
+          f(slots.x)[l] = v.x();
+          f(slots.y)[l] = v.y();
+          f(slots.z)[l] = v.z();
+        };
+        const auto in3 = [&](const VecSlots &slots, const size_t l) {
+          return MT_Vector3(f(slots.x)[l], f(slots.y)[l], f(slots.z)[l]);
+        };
+        const uint8_t *local = b(ray.local);
+        const int32_t *mask = i(ray.mask);
+        const uint8_t *xray = b(ray.xray);
+        const uint8_t *include_sensors = b(ray.include_sensors);
+        const uint8_t *hit_back_faces = b(ray.hit_back_faces);
+        const int32_t *max_results = all ? i(ray.max_results) : nullptr;
+        const auto object_of = [&](const EndKind kind, const uint32_t object, const size_t l) {
+          switch (kind) {
+            case EndKind::Owner:
+              return trees[l]->GetGameObject();
+            case EndKind::Object:
+              return objects[object].object;
+            case EndKind::Runtime:
+              return run.runtime[size_t(object) * run.count + first + l].object;
+            default:
+              return static_cast<KX_GameObject *>(nullptr);
+          }
+        };
+        thread_local LN_PhysicsQueryResult result;
+        thread_local std::vector<LN_PhysicsQueryResult> results;
+        thread_local std::vector<LN_RuntimeRef> ignore_refs;
+        thread_local std::vector<KX_GameObject *> ignore_objects;
+        const MT_Vector3 zero(0.0f, 0.0f, 0.0f);
         for (size_t l = 0; l < n; l++) {
           hit[l] = 0;
+          blocked[l] = 0;
+          started[l] = 0;
           distance[l] = 0.0f;
+          fraction[l] = 0.0f;
+          hit_count[l] = 0;
+          for (const VecSlots *slots :
+               {&ray.point, &ray.normal, &ray.cast_position, &ray.ray_direction, &ray.end_point})
+          {
+            out3(*slots, l, zero);
+          }
+          if ((eval != nullptr && eval[l] == 0) || (enabled != nullptr && enabled[l] == 0)) {
+            continue;
+          }
+          KX_GameObject *caster = object_of(ray.caster, ray.caster_object, l);
+          ignore_refs.clear();
+          if (!ray.ignore.empty()) {
+            ignore_objects.clear();
+            for (const std::pair<EndKind, uint32_t> &item : ray.ignore) {
+              ignore_objects.push_back(object_of(item.first, item.second, l));
+            }
+            trees[l]->ColumnIgnoreRefs(ignore_objects.data(), ignore_objects.size(), ignore_refs);
+          }
+          if (shape) {
+            trees[l]->ColumnShapeCast(caster,
+                                      ignore_refs,
+                                      ray.shape,
+                                      in3(ray.origin, l),
+                                      in3(ray.destination, l),
+                                      r(ray.rotation)[l],
+                                      in3(ray.half_extents, l),
+                                      local[l] != 0,
+                                      f(ray.radius)[l],
+                                      f(ray.height)[l],
+                                      f(ray.extra_radius)[l],
+                                      mask[l],
+                                      max_results != nullptr ? max_results[l] : 1,
+                                      all,
+                                      include_sensors[l] != 0,
+                                      hit_back_faces[l] != 0,
+                                      ray.property,
+                                      xray[l] != 0,
+                                      ray.detail_flags,
+                                      s.serial[l],
+                                      result,
+                                      results);
+          }
+          else {
+            trees[l]->ColumnRaycast(caster,
+                                    ignore_refs,
+                                    in3(ray.origin, l),
+                                    in3(ray.destination, l),
+                                    in3(ray.direction, l),
+                                    f(ray.distance)[l],
+                                    local[l] != 0,
+                                    ray.mode,
+                                    mask[l],
+                                    ray.property,
+                                    xray[l] != 0,
+                                    max_results != nullptr ? max_results[l] : 1,
+                                    all,
+                                    include_sensors[l] != 0,
+                                    hit_back_faces[l] != 0,
+                                    ray.detail_flags,
+                                    s.serial[l],
+                                    result,
+                                    results);
+          }
+          hit[l] = result.hit ? 1 : 0;
+          blocked[l] = result.blocked ? 1 : 0;
+          started[l] = result.started_overlapping ? 1 : 0;
+          distance[l] = result.hit_distance;
+          fraction[l] = result.hit_fraction;
+          hit_count[l] = int32_t(std::count_if(
+              results.begin(), results.end(), [](const LN_PhysicsQueryResult &h) { return h.hit; }));
+          if (result.hit) {
+            out3(ray.point, l, result.hit_position);
+            out3(ray.normal, l, result.hit_normal);
+          }
+          out3(ray.cast_position, l, result.cast_position);
+          out3(ray.ray_direction, l, result.ray_direction);
+          out3(ray.end_point, l, result.end_position);
+        }
+        break;
+      }
+      case NodeOp::QSight: {
+        /* Line of Sight by the VM's own steps (LN_RuntimeTree::ColumnLineOfSight), lane by lane
+         * where the VM casts it; its outputs as PhysicsQueryHit / Blocked / Distance / Angle /
+         * Point / Normal give them (a disabled or unread cast: the reset result, zeros). No
+         * pending move to apply: the run started quietly. */
+        const LN_ColumnProgram::Sight &sight = program.sights[size_t(node.int_value)];
+        const uint8_t *eval = sight.eval == kNone ? nullptr : b(sight.eval);
+        const uint8_t *enabled = sight.done == kNone ? nullptr : b(sight.done);
+        uint8_t *visible = b(sight.visible);
+        uint8_t *blocked = b(sight.blocked);
+        float *distance = f(sight.distance), *angle = f(sight.angle);
+        float *px = f(sight.point.x), *py = f(sight.point.y), *pz = f(sight.point.z);
+        float *nx = f(sight.normal.x), *ny = f(sight.normal.y), *nz = f(sight.normal.z);
+        const float *ex = f(sight.eye_input.x), *ey = f(sight.eye_input.y),
+                    *ez = f(sight.eye_input.z);
+        const float *fx = f(sight.forward.x), *fy = f(sight.forward.y), *fz = f(sight.forward.z);
+        const float *tx = f(sight.target_input.x), *ty = f(sight.target_input.y),
+                    *tz = f(sight.target_input.z);
+        const float *max_distance = f(sight.max_distance), *view_angle = f(sight.view_angle);
+        const int32_t *mask = i(sight.mask);
+        const uint8_t *include_sensors = b(sight.include_sensors);
+        const uint8_t *hit_back_faces = b(sight.hit_back_faces);
+        const auto object_of = [&](const EndKind kind, const uint32_t object, const size_t l) {
+          switch (kind) {
+            case EndKind::Owner:
+              return trees[l]->GetGameObject();
+            case EndKind::Object:
+              return objects[object].object;
+            case EndKind::Runtime:
+              return run.runtime[size_t(object) * run.count + first + l].object;
+            default:
+              return static_cast<KX_GameObject *>(nullptr);
+          }
+        };
+        thread_local LN_PhysicsQueryResult result;
+        for (size_t l = 0; l < n; l++) {
+          visible[l] = 0;
+          blocked[l] = 0;
+          distance[l] = 0.0f;
+          angle[l] = 0.0f;
           px[l] = py[l] = pz[l] = 0.0f;
           nx[l] = ny[l] = nz[l] = 0.0f;
           if ((eval != nullptr && eval[l] == 0) || (enabled != nullptr && enabled[l] == 0)) {
             continue;
           }
-          route_context(route, l, node.compare);
-          route.command_buffer = nullptr;
-          route.command_execution_key = UINT64_MAX;
-          const LN_PhysicsQueryResult &q =
-              trees[l]->ColumnCastQuery(node.property_ref, route, scratch).physics_query;
-          hit[l] = q.hit ? 1 : 0;
-          distance[l] = q.hit_distance;
-          if (q.hit) {
-            px[l] = q.hit_position.x();
-            py[l] = q.hit_position.y();
-            pz[l] = q.hit_position.z();
-            nx[l] = q.hit_normal.x();
-            ny[l] = q.hit_normal.y();
-            nz[l] = q.hit_normal.z();
+          trees[l]->ColumnLineOfSight(sight.eye_is_object,
+                                      object_of(sight.eye, sight.eye_object, l),
+                                      MT_Vector3(ex[l], ey[l], ez[l]),
+                                      MT_Vector3(fx[l], fy[l], fz[l]),
+                                      sight.target_is_object,
+                                      object_of(sight.target, sight.target_object, l),
+                                      MT_Vector3(tx[l], ty[l], tz[l]),
+                                      max_distance[l],
+                                      view_angle[l],
+                                      mask[l],
+                                      include_sensors[l] != 0,
+                                      hit_back_faces[l] != 0,
+                                      result);
+          visible[l] = result.hit ? 1 : 0;
+          blocked[l] = result.blocked ? 1 : 0;
+          distance[l] = result.hit_distance;
+          angle[l] = result.angle;
+          if (result.hit) {
+            px[l] = result.hit_position.x();
+            py[l] = result.hit_position.y();
+            pz[l] = result.hit_position.z();
+            nx[l] = result.hit_normal.x();
+            ny[l] = result.hit_normal.y();
+            nz[l] = result.hit_normal.z();
           }
+        }
+        break;
+      }
+      case NodeOp::QKeep: {
+        /* The Keep Distance query's kind: what the last answer left in each NPC's tree (nothing
+         * yet: not Near, Nearest Distance -1), as PhysicsQueryHit / Distance / Point / Normal /
+         * ImpactVelocity give it. */
+        const uint32_t slot = uint32_t(node.int_value);
+        uint8_t *near = b(node.out);
+        float *distance = f(node.out2);
+        for (size_t l = 0; l < n; l++) {
+          const LN_KeepDistanceState *keep = trees[l]->FindKeepDistanceState(slot);
+          const bool hit = keep != nullptr && keep->near;
+          near[l] = hit ? 1 : 0;
+          distance[l] = keep != nullptr ? keep->nearest_distance : -1.0f;
+          const MT_Vector3 zero(0.0f, 0.0f, 0.0f);
+          const MT_Vector3 &point = hit ? keep->nearest_point : zero;
+          const MT_Vector3 &normal = hit ? keep->nearest_normal : zero;
+          const MT_Vector3 &force = keep != nullptr ? keep->force : zero;
+          f(node.position_a.x)[l] = point.x();
+          f(node.position_a.y)[l] = point.y();
+          f(node.position_a.z)[l] = point.z();
+          f(node.position_b.x)[l] = normal.x();
+          f(node.position_b.y)[l] = normal.y();
+          f(node.position_b.z)[l] = normal.z();
+          f(node.vec_c.x)[l] = force.x();
+          f(node.vec_c.y)[l] = force.y();
+          f(node.vec_c.z)[l] = force.z();
         }
         break;
       }
@@ -11054,6 +12646,63 @@ size_t LN_ColumnRunner::Impl::RunSetBegin(std::vector<uint32_t> &lanes,
       return kNoRun;
     }
   }
+  if (!program->moved_tree_properties.empty()) {
+    /* (2026-11-14) A move of the object a tree property holds that only Add Object writes in
+     * the pass: the copy the pass makes (never a lane nor a lane's parent), none, or the value it
+     * holds now. That one, as a found object a run moves, must be no lane's object nor a parent
+     * of one (the VM's later reads would see the run's moves applied otherwise). */
+    if (!d.lane_owners_made) {
+      d.lane_owners.Clear(d.lane_count);
+      d.lane_ancestors.Clear();
+      for (size_t index = 0; index < d.trees.size(); index++) {
+        if (index < d.lane.size() && d.lane[index] != 0) {
+          KX_GameObject *owner = d.trees[index]->GetGameObject();
+          d.lane_owners.Insert(owner);
+          for (KX_GameObject *at = owner->GetParent(); at != nullptr; at = at->GetParent()) {
+            if (!d.lane_ancestors.Insert(at)) {
+              break;
+            }
+          }
+        }
+      }
+      d.lane_owners_made = true;
+    }
+    /* (And no object whose reads apply pending moves: the named ones the program measures, with
+     * their parents.) */
+    std::unordered_set<KX_GameObject *> &read_chains = d.runtime_read_chains;
+    read_chains.clear();
+    for (const uint32_t value : program->applied_named) {
+      for (KX_GameObject *at = d.trees[lanes[0]]->ResolveObjectValueExpressionForColumns(value,
+                                                                                         context);
+           at != nullptr && read_chains.insert(at).second;
+           at = at->GetParent())
+      {
+      }
+    }
+    bool lane_object = false;
+    for (size_t lane = 0; lane < lanes.size() && !lane_object; lane++) {
+      LN_RuntimeTree *tree = d.trees[lanes[lane]];
+      for (const uint32_t ref : program->moved_tree_properties) {
+        const LN_Value *value = tree->GetTreePropertyValue(ref);
+        KX_GameObject *object = value != nullptr ? tree->ColumnObjectOfValue(*value) : nullptr;
+        if (object != nullptr &&
+            (d.lane_owners.Contains(object) || d.lane_ancestors.Contains(object) ||
+             read_chains.count(object) != 0))
+        {
+          lane_object = true;
+          break;
+        }
+      }
+    }
+    if (lane_object) {
+      for (const uint32_t index : lanes) {
+        d.GiveBack(index, buffer, context);
+      }
+      g_column_runtime_fallbacks.fetch_add(lanes.size(), std::memory_order_relaxed);
+      d.given_back += lanes.size();
+      return kNoRun;
+    }
+  }
   if (d.run_count == d.runs.size()) {
     d.runs.emplace_back();
   }
@@ -11322,6 +12971,35 @@ size_t LN_ColumnRunner::Impl::RunSetBegin(std::vector<uint32_t> &lanes,
       std::fill_n(ok, count, found);
     }
   }
+  /* Velocity at Point's Vertex Group modes (2026-11-14): on this thread, by the VM's own code. */
+  run.point_velocities.resize(program->point_velocity_reads.size() * count);
+  run.point_velocity_points.resize(program->point_velocity_reads.size() * count);
+  for (size_t v = 0; v < program->point_velocity_reads.size(); v++) {
+    const LN_ColumnProgram::PointVelocityRead &read = program->point_velocity_reads[v];
+    MT_Vector3 *velocities = run.point_velocities.data() + v * count;
+    MT_Vector3 *points = run.point_velocity_points.data() + v * count;
+    const MT_Vector3 no_position(0.0f, 0.0f, 0.0f);
+    if (read.owner) {
+      for (size_t lane = 0; lane < count; lane++) {
+        run.lane_trees[lane]->ColumnPointVelocity(read.query,
+                                                  run.lane_trees[lane]->GetGameObject(),
+                                                  no_position,
+                                                  read.vertex_group,
+                                                  velocities[lane],
+                                                  points[lane]);
+      }
+    }
+    else if (count > 0) {
+      run.lane_trees[0]->ColumnPointVelocity(read.query,
+                                             run.objects[read.object].object,
+                                             no_position,
+                                             read.vertex_group,
+                                             velocities[0],
+                                             points[0]);
+      std::fill_n(velocities + 1, count - 1, velocities[0]);
+      std::fill_n(points + 1, count - 1, points[0]);
+    }
+  }
 
   return d.run_count - 1;
 }
@@ -11479,6 +13157,17 @@ void LN_ColumnRunner::Impl::RunSetEnd(const size_t run_index,
   Impl::Run &run = d.runs[run_index];
   const LN_ColumnProgram *program = run.program;
   const size_t count = run.count;
+  if (program->bridged) {
+    /* Keep Distance's requests its bridged op recorded into the chunks' buffers (2026-11-14):
+     * the step's, in lane order after what the trees before the run recorded (the flush's end
+     * answers them by sort key). */
+    const size_t chunks = (count + kChunkLanes - 1) / kChunkLanes;
+    for (size_t chunk = 0; chunk < chunks && chunk < run.captures.size(); chunk++) {
+      if (run.captures[chunk].buffer != nullptr) {
+        buffer.TakeKeepDistanceRequests(*run.captures[chunk].buffer);
+      }
+    }
+  }
   /* Each lane's writes now behave as its tree's recorded commands: the flush applies them at its
    * sort key, and a read may apply its moves early (the pending mark says there are some). */
   const size_t runtime_count = program->runtime_objects.size();

@@ -23,6 +23,36 @@ enum InputMode { EndPoint = 0, DirectionDistance };
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.add_output<decl::Execution>("Done"_ustr)
+      .description("Continues when the raycast node is triggered");
+  b.add_output<decl::Condition>("Has Result"_ustr).description("True when the ray hits an object");
+  b.add_output<decl::Condition>("Blocked"_ustr)
+      .description("True when a nonmatching object blocks a non-X-Ray property query");
+  b.add_output<decl::Object>("Hit Object"_ustr, "Picked Object"_ustr)
+      .description("Object hit by the ray");
+  b.add_output<decl::Object>("Hit Part"_ustr)
+      .description("The part of a compound object that was hit (its child with Compound, such "
+                   "as a wheel or a turret); the Hit Object itself for any other object");
+  b.add_output<decl::Vector>("Hit Point"_ustr, "Point"_ustr)
+      .description("World-space hit point; zero when Has Result is false");
+  b.add_output<decl::Vector>("Hit Normal"_ustr, "Normal"_ustr)
+      .description("World-space hit normal; zero when Has Result is false");
+  b.add_output<decl::String>("Hit Material"_ustr)
+      .description("Name of the material on the hit face (the Hit Part's material slot of that "
+                   "face); boxes, spheres, capsules and convex hulls give their first material. "
+                   "Empty without a hit or a material");
+  b.add_output<decl::Vector>("Direction"_ustr).description("Normalized ray direction");
+  b.add_output<decl::Vector>("End Point"_ustr)
+      .description("Furthest world-space point tested by the ray, whether or not it hits");
+  b.add_output<decl::Float>("Distance"_ustr)
+      .description("Distance to the hit or filtered blocker, or maximum distance on a clear miss");
+  b.add_output<decl::Float>("Fraction"_ustr)
+      .description("Distance divided by maximum distance; 1 for a clear miss");
+  b.add_output<decl::Int>("Face Index"_ustr).description("Hit mesh polygon index, or -1");
+  b.add_output<decl::Condition>("Has UV"_ustr).description("True when UV output is valid");
+  b.add_output<decl::Vector>("UV"_ustr).description("Hit UV as X/Y, with Z set to 0");
+  b.add_default_layout();
   b.add_input<decl::Execution>("Flow"_ustr)
       .description("Optional trigger; unconnected raycasts evaluate when an output is read");
   b.add_input<decl::Object>("Caster"_ustr)
@@ -50,43 +80,17 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(false)
       .description("Interpret positions and direction in caster local space; distance remains in world units");
   b.add_input<decl::String>("Property"_ustr)
-      .description("Only report hits on objects with this game property; empty accepts any object");
-  b.add_input<decl::Bool>("X-Ray"_ustr)
-      .default_value(false)
-      .description("Skip objects that do not match the property filter instead of blocking the ray");
+      .description(std::string("Only report hits on objects with this game property; empty "
+                               "accepts any object. ") +
+                   logic::game_property_filter_note)
+      .custom_draw(logic::game_property_filter_field());
   b.add_input<decl::CollisionLayers>("Mask"_ustr)
       .default_value(1023)
       .min(0)
       .max(1023)
       .description("Collision layers filter");
-  b.add_input<decl::Bool>("Include Sensors"_ustr)
-      .description("Allow Jolt sensor bodies to be returned");
-  b.add_input<decl::Bool>("Hit Backfaces"_ustr)
-      .description("Report back sides of one-sided triangle surfaces");
-  b.add_input<decl::Bool>("Visualize"_ustr)
-      .default_value(false)
-      .description("Draw the raycast as a transient game-engine debug line");
-  b.add_output<decl::Execution>("Done"_ustr)
-      .description("Continues when the raycast node is triggered");
-  b.add_output<decl::Condition>("Has Result"_ustr).description("True when the ray hits an object");
-  b.add_output<decl::Condition>("Blocked"_ustr)
-      .description("True when a nonmatching object blocks a non-X-Ray property query");
-  b.add_output<decl::Object>("Hit Object"_ustr, "Picked Object"_ustr)
-      .description("Object hit by the ray");
-  b.add_output<decl::Vector>("Hit Point"_ustr, "Point"_ustr)
-      .description("World-space hit point; zero when Has Result is false");
-  b.add_output<decl::Vector>("Hit Normal"_ustr, "Normal"_ustr)
-      .description("World-space hit normal; zero when Has Result is false");
-  b.add_output<decl::Vector>("Direction"_ustr).description("Normalized ray direction");
-  b.add_output<decl::Vector>("End Point"_ustr)
-      .description("Furthest world-space point tested by the ray, whether or not it hits");
-  b.add_output<decl::Float>("Distance"_ustr)
-      .description("Distance to the hit or filtered blocker, or maximum distance on a clear miss");
-  b.add_output<decl::Float>("Fraction"_ustr)
-      .description("Distance divided by maximum distance; 1 for a clear miss");
-  b.add_output<decl::Int>("Face Index"_ustr).description("Hit mesh polygon index, or -1");
-  b.add_output<decl::Condition>("Has UV"_ustr).description("True when UV output is valid");
-  b.add_output<decl::Vector>("UV"_ustr).description("Hit UV as X/Y, with Z set to 0");
+  logic::add_ray_filters_panel(b);
+  logic::add_visualize_panel(b);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -138,6 +142,31 @@ enum InputMode { EndPoint = 0, DirectionDistance };
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.add_output<decl::Execution>("Done"_ustr)
+      .description("Continues when the raycast node is triggered");
+  b.add_output<decl::Condition>("Has Result"_ustr).description("True when the ray hits any object");
+  b.add_output<decl::Condition>("Blocked"_ustr)
+      .description("True when a nonmatching object stops a non-X-Ray property query");
+  b.add_output<decl::Int>("Hit Count"_ustr).description("Number of hits returned");
+  b.add_output<decl::Vector>("Direction"_ustr).description("Normalized world-space ray direction");
+  b.add_output<decl::Vector>("End Point"_ustr).description("Furthest world-space point tested by the ray");
+  b.add_output<decl::List>("Hit Objects"_ustr).description("Objects hit by the ray, nearest first");
+  b.add_output<decl::List>("Hit Parts"_ustr)
+      .description("For each hit: the part of a compound object that was hit (its child with "
+                   "Compound), or the hit object itself");
+  b.add_output<decl::List>("Points"_ustr).description("World-space hit points, nearest first");
+  b.add_output<decl::List>("Normals"_ustr).description("World-space hit normals, nearest first");
+  b.add_output<decl::List>("Hit Materials"_ustr)
+      .description("For each hit: the name of the material on the hit face (empty without one)");
+  b.add_output<decl::List>("Distances"_ustr)
+      .description("Distances from ray origin to each hit point, nearest first");
+  b.add_output<decl::List>("Fractions"_ustr)
+      .description("Hit distances divided by maximum distance, nearest first");
+  b.add_output<decl::List>("Face Indices"_ustr).description("Hit mesh polygon indices, or -1");
+  b.add_output<decl::List>("Has UVs"_ustr).description("Validity flag for each UV entry");
+  b.add_output<decl::List>("UVs"_ustr).description("Hit UV values as X/Y vectors, Z set to 0");
+  b.add_default_layout();
   b.add_input<decl::Execution>("Flow"_ustr)
       .description("Optional trigger; unconnected raycasts evaluate when an output is read");
   b.add_input<decl::Object>("Caster"_ustr)
@@ -165,45 +194,22 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(false)
       .description("Interpret positions and direction in caster local space; distance remains in world units");
   b.add_input<decl::String>("Property"_ustr)
-      .description("Only report hits on objects with this game property; empty accepts any object");
-  b.add_input<decl::Bool>("X-Ray"_ustr)
-      .default_value(false)
-      .description("Skip objects that do not match the property filter instead of blocking the ray");
+      .description(std::string("Only report hits on objects with this game property; empty "
+                               "accepts any object. ") +
+                   logic::game_property_filter_note)
+      .custom_draw(logic::game_property_filter_field());
   b.add_input<decl::CollisionLayers>("Mask"_ustr)
       .default_value(1023)
       .min(0)
       .max(1023)
       .description("Collision layers filter");
-  b.add_input<decl::Bool>("Include Sensors"_ustr)
-      .description("Allow Jolt sensor bodies to be returned");
-  b.add_input<decl::Bool>("Hit Backfaces"_ustr)
-      .description("Report back sides of one-sided triangle surfaces");
   b.add_input<decl::Int>("Max Results"_ustr)
       .default_value(32)
       .min(1)
       .max(256)
       .description("Maximum unique bodies returned; bounds query memory and retained hits");
-  b.add_input<decl::Bool>("Visualize"_ustr)
-      .default_value(false)
-      .description("Draw the raycast as a transient game-engine debug line");
-  b.add_output<decl::Execution>("Done"_ustr)
-      .description("Continues when the raycast node is triggered");
-  b.add_output<decl::Condition>("Has Result"_ustr).description("True when the ray hits any object");
-  b.add_output<decl::Condition>("Blocked"_ustr)
-      .description("True when a nonmatching object stops a non-X-Ray property query");
-  b.add_output<decl::Int>("Hit Count"_ustr).description("Number of hits returned");
-  b.add_output<decl::Vector>("Direction"_ustr).description("Normalized world-space ray direction");
-  b.add_output<decl::Vector>("End Point"_ustr).description("Furthest world-space point tested by the ray");
-  b.add_output<decl::List>("Hit Objects"_ustr).description("Objects hit by the ray, nearest first");
-  b.add_output<decl::List>("Points"_ustr).description("World-space hit points, nearest first");
-  b.add_output<decl::List>("Normals"_ustr).description("World-space hit normals, nearest first");
-  b.add_output<decl::List>("Distances"_ustr)
-      .description("Distances from ray origin to each hit point, nearest first");
-  b.add_output<decl::List>("Fractions"_ustr)
-      .description("Hit distances divided by maximum distance, nearest first");
-  b.add_output<decl::List>("Face Indices"_ustr).description("Hit mesh polygon indices, or -1");
-  b.add_output<decl::List>("Has UVs"_ustr).description("Validity flag for each UV entry");
-  b.add_output<decl::List>("UVs"_ustr).description("Hit UV values as X/Y vectors, Z set to 0");
+  logic::add_ray_filters_panel(b);
+  logic::add_visualize_panel(b);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)

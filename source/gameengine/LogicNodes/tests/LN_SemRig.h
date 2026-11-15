@@ -342,10 +342,16 @@ class SemRig {
     if (columns) {
       m_columns.CaptureLanes(context.tick_index, column_pool);
     }
-    for (size_t index = 0; index < runnable.size(); index++) {
-      if (!(columns && m_columns.IsLane(index))) {
-        runnable[index]->WarmQueryCache(context);
+    /* As the manager: every tree but a native lane's (a bridged lane's tree is warmed), those
+     * whose warm-up may run on helpers on the pool (LN_WarmQueryCaches). */
+    {
+      std::vector<LN_RuntimeTree *> warmed;
+      for (size_t index = 0; index < runnable.size(); index++) {
+        if (!(columns && runnable[index]->IsColumnLane())) {
+          warmed.push_back(runnable[index]);
+        }
       }
+      LN_WarmQueryCaches(warmed.data(), warmed.size(), context, column_pool);
     }
     m_times.capture_ms += time_since(capture_start);
     const auto record_start = std::chrono::steady_clock::now();
@@ -406,9 +412,14 @@ class SemRig {
       if (m_capture_prints) {
         testing::internal::CaptureStdout();
       }
-      /* Forces and torques have no physics to act on here: the rig notes them (Forces). */
-      LN_SetForceObserverForTests(&SemRig::NoteForce, this);
+      /* Forces and torques have no physics to act on here: the rig notes them (Forces), unless a
+       * benchmark asks not to (SetObserveForces: the notes are text, a game makes none). */
+      LN_SetForceObserverForTests(m_observe_forces ? &SemRig::NoteForce : nullptr, this);
+      /* (And the sounds and bone writes: no audio or armature here to show them.) */
+      LN_SetAppliedCommandObserverForTests(m_observe_forces ? &SemRig::NoteApplied : nullptr,
+                                           this);
       m_buffer.Flush(); /* the column runs' writes too, at their sort keys */
+      LN_SetAppliedCommandObserverForTests(nullptr, nullptr);
       LN_SetForceObserverForTests(nullptr, nullptr);
       if (m_capture_prints) {
         m_printed += testing::internal::GetCapturedStdout();
@@ -477,6 +488,15 @@ class SemRig {
                     (torque ? " torque " : " force ") + LN_DumpFloatBits(vector.x()) + "," +
                     LN_DumpFloatBits(vector.y()) + "," + LN_DumpFloatBits(vector.z()) +
                     (local ? " local\n" : "\n");
+  }
+  /** Every sound and bone command the flushes applied, in order (2026-11-14). */
+  const std::string &Applied() const
+  {
+    return m_applied;
+  }
+  static void NoteApplied(void *user, const std::string &line)
+  {
+    static_cast<SemRig *>(user)->m_applied += line + "\n";
   }
 
   /** The scene seam the rig publishes (tests of the object lookups change its lists by hand;
@@ -594,6 +614,11 @@ class SemRig {
   {
     m_flush = flush;
   }
+  /** Off: forces and torques are applied but not noted (Forces stays empty): for benchmarks. */
+  void SetObserveForces(const bool observe)
+  {
+    m_observe_forces = observe;
+  }
 
   /** The commands the last tick recorded (strict dump), before they were applied. */
   const std::string &LastRecorded() const
@@ -648,9 +673,11 @@ class SemRig {
   LN_TickContext m_last_context;
   std::string m_printed;
   std::string m_forces;
+  std::string m_applied;
   std::string m_last_dump;
   bool m_published = false;
   bool m_flush = true;
+  bool m_observe_forces = true;
   LN_JobPool m_capture_pool;
   size_t m_parallel_captured = 0;
   uint32_t m_batch_chunks = 0;

@@ -14,10 +14,17 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::String>("Category"_ustr);
-  b.add_input<decl::Bool>("Print"_ustr).default_value(false);
+  b.add_input<decl::String>("Category"_ustr)
+      .description("The group of global properties to list. Pick one the file's global property "
+                   "nodes use, or type any name")
+      .custom_draw(logic::global_category_field());
+  b.add_input<decl::Bool>("Print"_ustr)
+      .default_value(false)
+      .description("Print the Category's properties and values to the console when Flow "
+                   "arrives");
   b.add_output<decl::Execution>("Done"_ustr);
-  b.add_output<decl::Dictionary>("Value"_ustr);
+  b.add_output<decl::Dictionary>("Value"_ustr)
+      .description("Every property of the Category with its value, as a Dictionary");
 }
 
 static void node_register()

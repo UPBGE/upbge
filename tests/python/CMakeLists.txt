@@ -1683,6 +1683,93 @@ if(WITH_GAMEENGINE_LOGICNODES)
     --blender
   )
 
+  # The viewport ray previews of the ray nodes (scripts/startup/logic_nodes_ray_preview.py): each
+  # node's geometry as the engine works it out, the followed inputs, the modes, the game guard.
+  add_blender_test_impl(
+    "logic_nodes_ray_preview"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/logic_nodes_ray_preview.py"
+  )
+
+  # Backspace over one logic node setting gives what a new node starts with (the RNA defaults equal
+  # the nodes' inits), for every logic node and merged option.
+  add_blender_test_impl(
+    "logic_nodes_reset_defaults"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/logic_nodes_reset_defaults.py"
+  )
+
+  # Set Material Parameter's cached Material keeps its user count right, an undo included (the
+  # node's update without a context runs while Blender reads the step, before it counts users).
+  add_blender_test_impl(
+    "logic_nodes_material_cache"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/logic_nodes_material_cache.py"
+  )
+
+  # Get Bone Attribute shows one output per attribute, of the attribute's type.
+  add_blender_test_impl(
+    "logic_nodes_bone_attribute_outputs"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/logic_nodes_bone_attribute_outputs.py"
+  )
+
+  # Every logic node's mode is found by the Add menu's search ("Node > Option").
+  add_blender_test_impl(
+    "logic_nodes_searchable_modes"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/logic_nodes_searchable_modes.py"
+  )
+
+  # A new rigid body in a Jolt scene shows the damping Reset to Default gives.
+  add_blender_test_impl(
+    "game_physics_damping_defaults"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/game_physics_damping_defaults.py"
+  )
+
+  # The Physics panel warns when a moving body's locks leave it no free axis (Jolt).
+  add_blender_test_impl(
+    "game_physics_no_free_axis_warning"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/game_physics_no_free_axis_warning.py"
+  )
+
   # The legacy Python Logic Nodes add-ons are enabled by default in UPBGE and can abort under
   # --debug-memory during shutdown. Keep Python exit-code checking, but avoid debug-memory here so
   # this native editor serialization probe is judged by the script result.

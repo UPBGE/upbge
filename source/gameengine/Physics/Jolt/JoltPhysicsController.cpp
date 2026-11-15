@@ -206,30 +206,7 @@ bool JoltGameStateRuntimeMotionTypeIsValid(const PHY_RuntimeMotionType type)
   return false;
 }
 
-JPH::EAllowedDOFs JoltGameStateAllowedDOFs(const bool rotationEnabled,
-                                           const std::array<bool, 6> &axisLocks)
-{
-  JPH::EAllowedDOFs dofs = JPH::EAllowedDOFs::All;
-  if (axisLocks[0]) {
-    dofs &= ~JPH::EAllowedDOFs::TranslationX;
-  }
-  if (axisLocks[1]) {
-    dofs &= ~JPH::EAllowedDOFs::TranslationZ; /* Blender Y -> Jolt Z. */
-  }
-  if (axisLocks[2]) {
-    dofs &= ~JPH::EAllowedDOFs::TranslationY; /* Blender Z -> Jolt Y. */
-  }
-  if (!rotationEnabled || axisLocks[3]) {
-    dofs &= ~JPH::EAllowedDOFs::RotationX;
-  }
-  if (!rotationEnabled || axisLocks[4]) {
-    dofs &= ~JPH::EAllowedDOFs::RotationZ; /* Blender Y -> Jolt Z. */
-  }
-  if (!rotationEnabled || axisLocks[5]) {
-    dofs &= ~JPH::EAllowedDOFs::RotationY; /* Blender Z -> Jolt Y. */
-  }
-  return dofs;
-}
+/* (JoltGameStateAllowedDOFs lives in JoltPhysicsController.h: the converter shares it.) */
 
 JPH::EMotionType JoltGameStateBaseMotionType(const PHY_GameStateRigidBodyState &state,
                                              const JPH::EMotionType originalMotionType)
@@ -278,9 +255,10 @@ bool JoltGameStateValueIsValid(const PHY_GameStateRigidBodyState &state)
       !std::isfinite(state.linear_velocity_min) || !std::isfinite(state.linear_velocity_max) ||
       !std::isfinite(state.angular_velocity_min) || !std::isfinite(state.angular_velocity_max) ||
       !std::isfinite(state.gravity_factor) || state.collision_group > JOLT_COLLISION_LAYER_MASK ||
+      /* The Physics panel's ranges: Elasticity has no top, damping goes to 100. */
       state.mass < 0.0f || state.friction < 0.0f || state.restitution < 0.0f ||
-      state.restitution > 1.0f || state.linear_damping < 0.0f || state.linear_damping > 1.0f ||
-      state.angular_damping < 0.0f || state.angular_damping > 1.0f ||
+      state.linear_damping < 0.0f || state.linear_damping > JOLT_DAMPING_MAX ||
+      state.angular_damping < 0.0f || state.angular_damping > JOLT_DAMPING_MAX ||
       state.linear_velocity_min < -1.0f || state.linear_velocity_max < -1.0f ||
       state.angular_velocity_min < -1.0f || state.angular_velocity_max < -1.0f)
   {
@@ -380,18 +358,21 @@ bool JoltRootRelativeTransform(const KX_GameObject &root,
                                JPH::Vec3 &relativePosition,
                                JPH::Quat &relativeRotation)
 {
-  MT_Vector3 inverseScale = root.NodeGetWorldScaling();
+  /* A root scaled to nothing has no shape to hold a child. */
+  const MT_Vector3 rootScale = root.NodeGetWorldScaling();
   for (int axis = 0; axis < 3; ++axis) {
-    if (std::abs(inverseScale[axis]) <= std::numeric_limits<MT_Scalar>::epsilon()) {
+    if (std::abs(rootScale[axis]) <= std::numeric_limits<MT_Scalar>::epsilon()) {
       return false;
     }
-    inverseScale[axis] = MT_Scalar(1.0f) / inverseScale[axis];
   }
 
+  /* In the root's turned, not scaled, space: the root's shape and the child's are both built at
+   * their world scale and nothing scales the compound afterwards (2026-11-11: the offset was
+   * divided by the root's scale, so a child of a scaled root sat out of place). The converter
+   * places a child the same way (JoltPhysicsEnvironment::ConvertObject). */
   const MT_Matrix3x3 inverseRootRotation = root.NodeGetWorldOrientation().transposed();
-  const MT_Vector3 localPosition = (inverseRootRotation *
-                                    (child.NodeGetWorldPosition() - root.NodeGetWorldPosition())) *
-                                   inverseScale;
+  const MT_Vector3 localPosition = inverseRootRotation *
+                                   (child.NodeGetWorldPosition() - root.NodeGetWorldPosition());
   const MT_Matrix3x3 localRotation = inverseRootRotation * child.NodeGetWorldOrientation();
   for (int row = 0; row < 3; ++row) {
     if (!std::isfinite(localPosition[row])) {
@@ -1616,7 +1597,17 @@ void JoltPhysicsController::PostProcessReplica(PHY_IMotionState *motionstate,
     /* GetBodyCreationSettings reflects the source's current runtime mode.
      * Normalize properties that define the replica's authored Dynamic type so
      * the Jolt body and controller cannot disagree after a type override. */
-    bcs.mAllowedDOFs = BuildAllowedDOFs();
+    JPH::EAllowedDOFs dofs = BuildAllowedDOFs();
+    if (dofs == JPH::EAllowedDOFs::None) {
+      /* The source's locks with the authored type leave no free axis (a Dynamic type whose
+       * rotation was turned on, then every translation axis locked): dropped, as at conversion
+       * (JoltGameStateAllowedDOFs). */
+      WarnNoFreeAxisOnce("a copy's axis locks were dropped: with its physics type they left no "
+                         "free axis");
+      SetRigidBodyAxisLockState(false, false, false, false, false, false);
+      dofs = BuildAllowedDOFs();
+    }
+    bcs.mAllowedDOFs = dofs;
     bcs.mMotionQuality = m_dynamicMotionQuality;
     if (resetReplicaVelocity) {
       bcs.mLinearVelocity = JPH::Vec3::sZero();
@@ -1888,15 +1879,47 @@ JPH::EAllowedDOFs JoltPhysicsController::BuildAllowedDOFs() const
                                    m_lockRotationZ});
 }
 
+bool JoltPhysicsController::DynamicStateDeferredByParenting() const
+{
+  return m_transformParentingKinematic && !m_parentingSavedIsKinematic;
+}
+
+bool JoltPhysicsController::DynamicRotationEnabled() const
+{
+  return DynamicStateDeferredByParenting() ? m_parentingSavedIsRigidBody : m_isRigidBody;
+}
+
+void JoltPhysicsController::WarnNoFreeAxisOnce(const char *what)
+{
+  if (m_warnedNoFreeAxis) {
+    return;
+  }
+  m_warnedNoFreeAxis = true;
+  const KX_ClientObjectInfo *info = static_cast<const KX_ClientObjectInfo *>(m_newClientInfo);
+  const std::string name = info && info->m_gameobject ? info->m_gameobject->GetName() :
+                                                        std::string("?");
+  printf("Warning: Jolt physics: '%s': %s (Jolt cannot move a body with no free axis; to stop a "
+         "body, use Suspend Physics or Set Physics State)\n",
+         name.c_str(),
+         what);
+  fflush(stdout);
+}
+
 void JoltPhysicsController::ApplyAllowedDOFs()
 {
   if (!m_physicsEnv || m_bodyID.IsInvalid() || m_isKinematic) {
     return;
   }
 
-  const JPH::EAllowedDOFs dofs = BuildAllowedDOFs();
+  JPH::EAllowedDOFs dofs = BuildAllowedDOFs();
   if (dofs == JPH::EAllowedDOFs::None) {
-    return;
+    /* A physics type change to Dynamic (no rotation) or a parenting's end with every
+     * translation axis locked: the locks leave no free axis, which Jolt cannot simulate (it
+     * divides by zero later). Drop the locks, as the converter does, so the stored locks stay
+     * what Jolt has (Get Rigid Body Attribute, saved games). */
+    WarnNoFreeAxisOnce("its axis locks were dropped: with its physics type they left no free axis");
+    SetRigidBodyAxisLockState(false, false, false, false, false, false);
+    dofs = BuildAllowedDOFs();
   }
 
   {
@@ -2309,6 +2332,79 @@ void JoltPhysicsController::ApplyImpulse(const MT_Vector3 &attach,
   bi.AddImpulse(m_bodyID, joltImpulse, joltPoint);
 }
 
+/** The inverse mass of a dynamic rigid body, else 0 (static, kinematic, soft or missing). */
+static float JoltDynamicInverseMass(JoltPhysicsEnvironment &env, const JPH::BodyID body_id)
+{
+  JPH::BodyLockRead lock(env.GetPhysicsSystem()->GetBodyLockInterface(), body_id);
+  if (!lock.Succeeded()) {
+    return 0.0f;
+  }
+  const JPH::Body &body = lock.GetBody();
+  if (!body.IsRigidBody() || !body.IsDynamic() || body.GetMotionPropertiesUnchecked() == nullptr)
+  {
+    return 0.0f;
+  }
+  const float inverse_mass = body.GetMotionPropertiesUnchecked()->GetInverseMassUnchecked();
+  return inverse_mass > 0.0f && std::isfinite(inverse_mass) ? inverse_mass : 0.0f;
+}
+
+void JoltPhysicsController::ApplyWorldImpulse(const MT_Vector3 &impulse,
+                                              const MT_Vector3 *point,
+                                              const bool velocity_change)
+{
+  if (!m_physicsEnv || m_bodyID.IsInvalid() || m_isKinematic || m_softBody) {
+    return;
+  }
+  JPH::Vec3 joltImpulse = JoltMath::ToJolt(impulse);
+  if (velocity_change) {
+    /* m * dv: the velocity changes by `impulse` whatever the mass (and at a point the spin, as
+     * the inertia grows with the mass too). */
+    const float inverse_mass = JoltDynamicInverseMass(*m_physicsEnv, m_bodyID);
+    if (inverse_mass <= 0.0f) {
+      return;
+    }
+    joltImpulse /= inverse_mass;
+  }
+  JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
+  if (point != nullptr) {
+    bi.AddImpulse(m_bodyID, joltImpulse, JoltMath::ToJoltR(*point));
+  }
+  else {
+    bi.AddImpulse(m_bodyID, joltImpulse);
+  }
+}
+
+void JoltPhysicsController::ApplyAngularImpulse(const MT_Vector3 &impulse,
+                                                const bool velocity_change)
+{
+  if (!m_physicsEnv || m_bodyID.IsInvalid() || m_isKinematic || m_softBody) {
+    return;
+  }
+  JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
+  const JPH::Vec3 joltImpulse = JoltMath::ToJolt(impulse);
+  if (velocity_change) {
+    if (JoltDynamicInverseMass(*m_physicsEnv, m_bodyID) <= 0.0f) {
+      return;
+    }
+    /* Jolt keeps locked rotation axes still (SetAngularVelocityClamped's LockAngular) and wakes
+     * the body. */
+    bi.AddLinearAndAngularVelocity(m_bodyID, JPH::Vec3::sZero(), joltImpulse);
+    return;
+  }
+  bi.AddAngularImpulse(m_bodyID, joltImpulse);
+}
+
+MT_Vector3 JoltPhysicsController::GetCenterOfMassPosition()
+{
+  if (!m_physicsEnv || m_bodyID.IsInvalid()) {
+    MT_Vector3 position;
+    GetPosition(position);
+    return position;
+  }
+  JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
+  return JoltMath::ToMT(JPH::Vec3(bi.GetCenterOfMassPosition(m_bodyID)));
+}
+
 void JoltPhysicsController::ApplyTorque(const MT_Vector3 &torque, bool local)
 {
   if (!m_physicsEnv || m_bodyID.IsInvalid() || m_isKinematic) {
@@ -2586,8 +2682,20 @@ float JoltPhysicsController::GetAngularDamping() const
 
 void JoltPhysicsController::SetDamping(float linear, float angular)
 {
-  SetLinearDamping(linear);
-  SetAngularDamping(angular);
+  if (!m_physicsEnv || m_bodyID.IsInvalid()) {
+    return;
+  }
+
+  JPH::BodyLockWrite lock(m_physicsEnv->GetPhysicsSystem()->GetBodyLockInterface(), m_bodyID);
+  if (!lock.Succeeded()) {
+    return;
+  }
+  JPH::MotionProperties *motion = lock.GetBody().GetMotionPropertiesUnchecked();
+  if (motion) {
+    const auto [linear_rate, angular_rate] = JoltDampingRates(linear, angular);
+    motion->SetLinearDamping(linear_rate);
+    motion->SetAngularDamping(angular_rate);
+  }
 }
 
 void JoltPhysicsController::SetLinearDamping(float damping)
@@ -2603,7 +2711,7 @@ void JoltPhysicsController::SetLinearDamping(float damping)
   JPH::Body &body = lock.GetBody();
   JPH::MotionProperties *motion = body.GetMotionPropertiesUnchecked();
   if (motion) {
-    motion->SetLinearDamping(std::clamp(damping, 0.0f, 1.0f));
+    motion->SetLinearDamping(JoltDampingRate(damping));
   }
 }
 
@@ -2620,7 +2728,7 @@ void JoltPhysicsController::SetAngularDamping(float damping)
   JPH::Body &body = lock.GetBody();
   JPH::MotionProperties *motion = body.GetMotionPropertiesUnchecked();
   if (motion) {
-    motion->SetAngularDamping(std::clamp(damping, 0.0f, 1.0f));
+    motion->SetAngularDamping(JoltDampingRate(damping));
   }
 }
 
@@ -3543,17 +3651,32 @@ void JoltPhysicsController::SetCollisionMask(unsigned short mask)
 
 void JoltPhysicsController::SetRigidBody(bool rigid)
 {
-  if (m_transformParentingKinematic && !m_parentingSavedIsKinematic) {
+  const bool deferred = DynamicStateDeferredByParenting();
+  /* Kinematic orientation is authored by the game transform. Enabling or
+   * disabling "physics rotation" cannot change that ownership and must not
+   * leave misleading state for API queries or game-state persistence. */
+  if (m_isKinematic && !deferred) {
+    return;
+  }
+  /* No physics rotation with every translation axis locked leaves no free axis: refused (the
+   * body keeps its physics rotation), as a lock change that would do it (2026-11-15). */
+  if (!rigid && JoltGameStateAllowedDOFs(false,
+                                         {m_lockTranslationX,
+                                          m_lockTranslationY,
+                                          m_lockTranslationZ,
+                                          m_lockRotationX,
+                                          m_lockRotationY,
+                                          m_lockRotationZ}) == JPH::EAllowedDOFs::None)
+  {
+    WarnNoFreeAxisOnce(
+        "turning off its physics rotation was refused: every translation axis is locked");
+    return;
+  }
+  if (deferred) {
     /* A Dynamic body temporarily follows the parent as Kinematic. Preserve a
      * gameplay request for its eventual Dynamic state without changing the
      * temporary transform-ownership contract. */
     m_parentingSavedIsRigidBody = rigid;
-    return;
-  }
-  /* Kinematic orientation is authored by the game transform. Enabling or
-   * disabling "physics rotation" cannot change that ownership and must not
-   * leave misleading state for API queries or game-state persistence. */
-  if (m_isKinematic) {
     return;
   }
   m_isRigidBody = rigid;
@@ -3601,26 +3724,58 @@ void JoltPhysicsController::SetRigidBodyAxisLockState(const bool lockTranslation
   m_lockRotationZ = lockRotationZ;
 }
 
-void JoltPhysicsController::SetRigidBodyAxisLocks(const bool lockTranslationX,
+bool JoltPhysicsController::SetRigidBodyAxisLocks(const bool lockTranslationX,
                                                   const bool lockTranslationY,
                                                   const bool lockTranslationZ,
                                                   const bool lockRotationX,
                                                   const bool lockRotationY,
                                                   const bool lockRotationZ)
 {
+  const bool deferred = DynamicStateDeferredByParenting();
   /* Axis locks constrain solver-produced Dynamic motion. A Kinematic body is
    * transform-driven, so accepting these values would imply restrictions that
-   * MoveKinematic deliberately does not apply. */
-  if (m_isKinematic) {
-    return;
+   * MoveKinematic deliberately does not apply. A Dynamic body that follows a
+   * parent as Kinematic for now keeps them for when the parenting ends (as
+   * SetRigidBody), which applies them. */
+  if (m_isKinematic && !deferred) {
+    return true;
   }
+  const std::array<bool, 6> locks = {
+      lockTranslationX, lockTranslationY, lockTranslationZ, lockRotationX, lockRotationY, lockRotationZ};
+  /* No free axis: refused, the locks stay as they were (Jolt would divide by zero; the caller
+   * says why: Set Rigid Body Attribute warns once). */
+  if (JoltGameStateAllowedDOFs(DynamicRotationEnabled(), locks) == JPH::EAllowedDOFs::None) {
+    return false;
+  }
+  const std::array<bool, 6> current = {m_lockTranslationX,
+                                       m_lockTranslationY,
+                                       m_lockTranslationZ,
+                                       m_lockRotationX,
+                                       m_lockRotationY,
+                                       m_lockRotationZ};
   SetRigidBodyAxisLockState(lockTranslationX,
                             lockTranslationY,
                             lockTranslationZ,
                             lockRotationX,
                             lockRotationY,
                             lockRotationZ);
+  if (deferred) {
+    return true;
+  }
+  /* The same locks again (a node run every step): Jolt keeps its mass properties, no recompute,
+   * as long as Jolt has them (it always does: every writer of the locks goes through here, the
+   * converter or ApplyAllowedDOFs). */
+  if (locks == current && m_physicsEnv && !m_bodyID.IsInvalid()) {
+    JPH::BodyLockRead lock(m_physicsEnv->GetPhysicsSystem()->GetBodyLockInterface(), m_bodyID);
+    if (lock.Succeeded()) {
+      const JPH::MotionProperties *motion = lock.GetBody().GetMotionPropertiesUnchecked();
+      if (motion == nullptr || motion->GetAllowedDOFs() == BuildAllowedDOFs()) {
+        return true;
+      }
+    }
+  }
   ApplyAllowedDOFs();
+  return true;
 }
 
 void JoltPhysicsController::GetRigidBodyAxisLocks(bool &lockTranslationX,
@@ -3630,7 +3785,7 @@ void JoltPhysicsController::GetRigidBodyAxisLocks(bool &lockTranslationX,
                                                   bool &lockRotationY,
                                                   bool &lockRotationZ) const
 {
-  if (m_isKinematic) {
+  if (m_isKinematic && !DynamicStateDeferredByParenting()) {
     lockTranslationX = false;
     lockTranslationY = false;
     lockTranslationZ = false;
@@ -3649,6 +3804,9 @@ void JoltPhysicsController::GetRigidBodyAxisLocks(bool &lockTranslationX,
 
 bool JoltPhysicsController::GetRigidBodyRotationEnabled() const
 {
+  if (DynamicStateDeferredByParenting()) {
+    return m_parentingSavedIsRigidBody;
+  }
   return !m_isKinematic && m_isRigidBody;
 }
 

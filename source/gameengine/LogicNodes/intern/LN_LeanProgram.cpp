@@ -327,6 +327,9 @@ void BuildLeanMemo(const LN_Program &program, LN_LeanProgram &lean)
       case 2:
         return program.GetFloatExpressions()[index].kind ==
                LN_FloatExpressionKind::SnapshotGameProperty;
+      case 3:
+        return program.GetVectorExpressions()[index].kind ==
+               LN_VectorExpressionKind::SnapshotGameProperty;
       default:
         return false;
     }

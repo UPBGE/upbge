@@ -23,6 +23,7 @@
 #include <set>
 #include <map>
 
+#include "LN_AimMath.h"
 #include "LN_SemRig.h"
 
 using namespace ln_test;
@@ -1097,3 +1098,165 @@ TEST(LN_NodeValues, ValueChangedToPulsesWhenTheValueBecomesTheTarget)
 }
 
 }  // namespace
+
+/* -------------------------------------------------------------------- */
+/** \name Aim for Arc and Ray to Plane (2026-11-11): the nodes give LN_AimMath.h's answers in every
+ * mode and folded (LN_AimMath_test checks the math itself by flying the throws).
+ * \{ */
+
+namespace {
+
+MT_Vector3 V(const Value &value)
+{
+  return MT_Vector3(value.f[0], value.f[1], value.f[2]);
+}
+
+Value FromVector(const MT_Vector3 &vector)
+{
+  return Value{{vector.x(), vector.y(), vector.z()}};
+}
+
+Value Scalar(const float value)
+{
+  return Value{{value, 0.0f, 0.0f}};
+}
+
+}  // namespace
+
+TEST(LN_NodeValues, AimForArcGivesItsSolutionBySpeedAndByArcHeight)
+{
+  const std::vector<PinSpec> outputs = {
+      {"Launch Velocity", Kind::Vector}, {"Can Reach", Kind::Bool}, {"Flight Time", Kind::Float}};
+  const std::vector<Value> starts = {
+      Value{{0, 0, 0}}, Value{{1, 2, 3}}, Value{{0, 0, 10}}, Value{{kNaN, 0, 0}}};
+  const std::vector<Value> targets = {
+      Value{{20, 0, 0}}, Value{{-5, 4, 9}}, Value{{0, 0, 3}}, Value{{900, 0, 0}}, Value{{1, 2, 3}}};
+  const std::vector<Value> gravities = {
+      Value{{0, 0, -9.81f}}, Value{{3, 0, -4}}, Value{{0, 0, 0}}, Value{{0, 0, kInf}}};
+  /* By speed, custom gravity (c2 1). */
+  std::vector<std::vector<Value>> rows;
+  for (const Value &start : starts) {
+    for (const Value &target : targets) {
+      for (const Value &gravity : gravities) {
+        for (const float speed : {0.0f, 15.0f, -1.0f}) {
+          for (const float high : {0.0f, 1.0f}) {
+            rows.push_back({start, target, Scalar(speed), Scalar(high), gravity});
+          }
+        }
+      }
+    }
+  }
+  CheckNode("LogicNativeAimForArc",
+            0,
+            1,
+            {{"Start", Kind::Vector},
+             {"Target", Kind::Vector},
+             {"Speed", Kind::Float},
+             {"High Arc", Kind::Bool},
+             {"Gravity", Kind::Vector}},
+            outputs,
+            rows,
+            [](const std::vector<Value> &in) {
+              const LN_ArcSolution s = LN_SolveArc(V(in[0]),
+                                                   V(in[1]),
+                                                   V(in[4]),
+                                                   LN_ArcSolveMode::Speed,
+                                                   in[2].f[0],
+                                                   in[3].f[0] != 0.0f);
+              return std::vector<Value>{
+                  FromVector(s.velocity), Scalar(s.can_reach ? 1.0f : 0.0f), Scalar(s.flight_time)};
+            });
+  /* By arc height (c1 1), custom gravity. */
+  rows.clear();
+  for (const Value &start : starts) {
+    for (const Value &target : targets) {
+      for (const Value &gravity : gravities) {
+        for (const float height : {0.0f, 2.5f, -1.0f, kNaN}) {
+          rows.push_back({start, target, Scalar(height), gravity});
+        }
+      }
+    }
+  }
+  CheckNode("LogicNativeAimForArc",
+            1,
+            1,
+            {{"Start", Kind::Vector},
+             {"Target", Kind::Vector},
+             {"Arc Height", Kind::Float},
+             {"Gravity", Kind::Vector}},
+            outputs,
+            rows,
+            [](const std::vector<Value> &in) {
+              const LN_ArcSolution s = LN_SolveArc(
+                  V(in[0]), V(in[1]), V(in[3]), LN_ArcSolveMode::ArcHeight, in[2].f[0], false);
+              return std::vector<Value>{
+                  FromVector(s.velocity), Scalar(s.can_reach ? 1.0f : 0.0f), Scalar(s.flight_time)};
+            });
+  /* The scene's gravity (c2 0): the step's snapshot, (0, 0, -9.8) in the rig. */
+  rows.clear();
+  for (const Value &target : targets) {
+    rows.push_back({Value{{0, 0, 0}}, target, Scalar(15.0f), Scalar(0.0f)});
+  }
+  CheckNode("LogicNativeAimForArc",
+            0,
+            0,
+            {{"Start", Kind::Vector},
+             {"Target", Kind::Vector},
+             {"Speed", Kind::Float},
+             {"High Arc", Kind::Bool}},
+            outputs,
+            rows,
+            [](const std::vector<Value> &in) {
+              const LN_ArcSolution s = LN_SolveArc(V(in[0]),
+                                                   V(in[1]),
+                                                   MT_Vector3(0.0f, 0.0f, -9.8f),
+                                                   LN_ArcSolveMode::Speed,
+                                                   in[2].f[0],
+                                                   in[3].f[0] != 0.0f);
+              return std::vector<Value>{
+                  FromVector(s.velocity), Scalar(s.can_reach ? 1.0f : 0.0f), Scalar(s.flight_time)};
+            });
+}
+
+TEST(LN_NodeValues, RayToPlaneGivesWhereTheRayMeetsThePlane)
+{
+  const std::vector<Value> origins = {
+      Value{{0, 0, 10}}, Value{{3, -2, -5}}, Value{{1, 1, 1}}, Value{{kNaN, 0, 0}}};
+  const std::vector<Value> directions = {
+      Value{{1, 0, -1}}, Value{{0, 0, 3}}, Value{{1, 0, 0}}, Value{{0, 0, 0}}, Value{{0.2f, 0.5f, -2}}};
+  const std::vector<Value> points = {Value{{0, 0, 0}}, Value{{2, 3, 4}}};
+  const std::vector<Value> normals = {
+      Value{{0, 0, 1}}, Value{{0, 0, -7}}, Value{{1, 1, 0}}, Value{{0, 0, 0}}};
+  std::vector<std::vector<Value>> rows;
+  for (const Value &origin : origins) {
+    for (const Value &direction : directions) {
+      for (const Value &point : points) {
+        for (const Value &normal : normals) {
+          rows.push_back({origin, direction, point, normal});
+        }
+      }
+    }
+  }
+  CheckNode("LogicNativeRayToPlane",
+            0,
+            0,
+            {{"Ray Origin", Kind::Vector},
+             {"Ray Direction", Kind::Vector},
+             {"Plane Point", Kind::Vector},
+             {"Plane Normal", Kind::Vector}},
+            {{"Has Result", Kind::Bool},
+             {"Point", Kind::Vector},
+             {"Normal", Kind::Vector},
+             {"Distance", Kind::Float}},
+            rows,
+            [](const std::vector<Value> &in) {
+              const MT_Vector3 origin = V(in[0]);
+              const float t = LN_RayPlaneDistance(origin - V(in[2]), V(in[1]), V(in[3]));
+              return std::vector<Value>{Scalar(t >= 0.0f ? 1.0f : 0.0f),
+                                        FromVector(LN_RayPlanePoint(origin, V(in[1]), t)),
+                                        FromVector(LN_RayPlaneNormal(V(in[1]), V(in[3]), t)),
+                                        Scalar(std::max(t, 0.0f))};
+            });
+}
+
+/** \} */

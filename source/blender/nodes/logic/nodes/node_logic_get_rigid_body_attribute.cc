@@ -50,9 +50,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr).description("Object to read, or the owner when empty");
   b.add_output<decl::Bool>("Valid"_ustr);
-  b.add_output<decl::Float>("Value"_ustr);
-  b.add_output<decl::Float>("Linear Damping"_ustr);
-  b.add_output<decl::Float>("Angular Damping"_ustr);
+  b.add_output<decl::Float>("Value"_ustr)
+      .description("The value, as the Physics panel's (Angular Velocity Min / Max in radians per "
+                   "second: the panel shows degrees)");
+  b.add_output<decl::Float>("Linear Damping"_ustr)
+      .description("As the Physics panel's Translation Damping: Jolt's rate per second");
+  b.add_output<decl::Float>("Angular Damping"_ustr)
+      .description("As the Physics panel's Rotation Damping: Jolt's rate per second");
   b.add_output<decl::Bool>("Enabled"_ustr);
   b.add_output<decl::Bool>("Allow Sleeping"_ustr);
   b.add_output<decl::Vector>("Lock Translation"_ustr);

@@ -113,6 +113,7 @@ Bool::PlayerGamepadJoined: I0
 Bool::UISoundFired: Q0
 Bool::Random: F3 I5
 Bool::ObjectGamePropertyExists: A0
+Bool::ArcCanReach: V0 V1 V2 F3
 Int::Constant:
 Int::SnapshotGameProperty:
 Int::RuntimeTreeProperty:
@@ -222,6 +223,11 @@ Float::FromString: S4
 Float::InputActionValue: I0 S4
 Float::PlayerViewArea: I0
 Float::StepTimePassed:
+Float::PhysicsQueryFlightTime: Q0
+Float::PhysicsQueryAngle: Q0
+Float::RayPlaneDistance: V0 V1 V2
+Float::ArcFlightTime: V0 V1 V2 F12 B3
+Float::VectorLength: V0
 String::Constant:
 String::SnapshotGameProperty:
 String::RuntimeTreeProperty:
@@ -250,6 +256,7 @@ String::UIElementEventTargetAction: Q0
 String::UIElementEventOutcome: Q0
 String::InputBindingText: I2 I1 S0
 String::UIElementEventMenu: Q0
+String::PhysicsQueryMaterial: Q0
 Vector::Constant:
 Vector::SnapshotGravity:
 Vector::WindowResolution:
@@ -312,12 +319,19 @@ Vector::BroadcastFloat: F4
 Vector::BroadcastInt: I0
 Vector::FromColor: C0
 Vector::InputActionVector: I0 S1
+Vector::PhysicsQueryRayOrigin: Q0
+Vector::PhysicsQueryImpactVelocity: Q0
+Vector::RayPlanePoint: V0 V1 F4
+Vector::RayPlaneNormal: V0 V1 F4
+Vector::ArcLaunchVelocity: V0 V1 V2 F4 B3
+Vector::SnapshotGameProperty:
 Color::Constant:
 Color::SnapshotObjectColor: A0
 Color::SnapshotLightColor: A0
 Color::RuntimeTreeProperty:
 Color::Combine: F3 F2 F1 F0
 Color::FromGenericValue: A0
+Color::SnapshotGameProperty:
 Value::Constant:
 Value::RuntimeTreeProperty:
 Value::Mix: F2 A1 A0
@@ -423,6 +437,11 @@ Value::RecipeFind: A0 A1 A2
 Value::PlayerViewCamera:
 Value::MenuPlayerOwner:
 Value::InventoryChanged: A0 A- A15 A14 A- A13 A12
+Value::PhysicsQueryPart: Q0
+Value::PhysicsQueryParts: Q0
+Value::PhysicsQueryMaterials: Q0
+Value::PhysicsQueryBlocker: Q0
+Value::PhysicsQueryImpactVelocities: Q0
 Query::Raycast: A0 A3 A11 V1 V2 V4 F10 B10
 Query::RaycastAll: A0 A3 A11 V1 V2 V4 F10 B10
 Query::RaycastFromMesh: A0
@@ -431,12 +450,16 @@ Query::ShapeCastAll: A0 A3 A11 V1 V2 R4 V5 B10 F10 F11 F12
 Query::MouseOver: A0
 Query::ObjectScrollView:
 Query::ObjectGridView:
-Query::MouseRay: F10 S10 B10 I10
-Query::CameraRay: A0 V1 F10
+Query::MouseRay: F10 S10 B10 I10 A3 A11 B13 B14 B12
+Query::CameraRay: A0 V1 F10 S10 B10 I10 A3 A11 B13 B14 B12
 Query::ProjectileRay: A0 V1 V2 B10
 Query::VectorAverage: A0
 Query::DistanceBetween: A0
 Query::UIElementEvent:
+Query::LineOfSight: A0 V1 V2 A3 V4
+Query::SweepObject: A0 V1 R2 B10
+Query::KeepDistance:
+Query::PointVelocity: A0 V1
 == every input reads true / 3 / 2.5 / ab
 Bool::Constant:
 Bool::GamePaused:
@@ -550,6 +573,7 @@ Bool::PlayerGamepadJoined: I0
 Bool::UISoundFired: Q0
 Bool::Random: F3 I5
 Bool::ObjectGamePropertyExists: A0
+Bool::ArcCanReach: V0 V1 V2 F3
 Int::Constant:
 Int::SnapshotGameProperty:
 Int::RuntimeTreeProperty:
@@ -659,6 +683,11 @@ Float::FromString: S4
 Float::InputActionValue: I0 S4
 Float::PlayerViewArea: I0
 Float::StepTimePassed:
+Float::PhysicsQueryFlightTime: Q0
+Float::PhysicsQueryAngle: Q0
+Float::RayPlaneDistance: V0 V1 V2
+Float::ArcFlightTime: V0 V1 V2 F12 B3
+Float::VectorLength: V0
 String::Constant:
 String::SnapshotGameProperty:
 String::RuntimeTreeProperty:
@@ -687,6 +716,7 @@ String::UIElementEventTargetAction: Q0
 String::UIElementEventOutcome: Q0
 String::InputBindingText: I2 I1 S0
 String::UIElementEventMenu: Q0
+String::PhysicsQueryMaterial: Q0
 Vector::Constant:
 Vector::SnapshotGravity:
 Vector::WindowResolution:
@@ -749,12 +779,19 @@ Vector::BroadcastFloat: F4
 Vector::BroadcastInt: I0
 Vector::FromColor: C0
 Vector::InputActionVector: I0 S1
+Vector::PhysicsQueryRayOrigin: Q0
+Vector::PhysicsQueryImpactVelocity: Q0
+Vector::RayPlanePoint: V0 V1 F4
+Vector::RayPlaneNormal: V0 V1 F4
+Vector::ArcLaunchVelocity: V0 V1 V2 F4 B3
+Vector::SnapshotGameProperty:
 Color::Constant:
 Color::SnapshotObjectColor: A0
 Color::SnapshotLightColor: A0
 Color::RuntimeTreeProperty:
 Color::Combine: F3 F2 F1 F0
 Color::FromGenericValue: A0
+Color::SnapshotGameProperty:
 Value::Constant:
 Value::RuntimeTreeProperty:
 Value::Mix: F2 A1 A0
@@ -860,6 +897,11 @@ Value::RecipeFind: A0 A1 A2
 Value::PlayerViewCamera:
 Value::MenuPlayerOwner:
 Value::InventoryChanged: A0 A- A15 A14 A- A13 A12
+Value::PhysicsQueryPart: Q0
+Value::PhysicsQueryParts: Q0
+Value::PhysicsQueryMaterials: Q0
+Value::PhysicsQueryBlocker: Q0
+Value::PhysicsQueryImpactVelocities: Q0
 Query::Raycast: A0 A3 A11 V1 V2 V4 F10 B10
 Query::RaycastAll: A0 A3 A11 V1 V2 V4 F10 B10
 Query::RaycastFromMesh: A0
@@ -868,12 +910,16 @@ Query::ShapeCastAll: A0 A3 A11 V1 V2 R4 V5 B10 F10 F11 F12 I10 I11
 Query::MouseOver: A0
 Query::ObjectScrollView:
 Query::ObjectGridView:
-Query::MouseRay: F10 S10 B10 I10
-Query::CameraRay: A0 V1 F10
-Query::ProjectileRay: A0 V1 V2 B10 F10 S10 B11 I10 B12 F11 F12
+Query::MouseRay: F10 S10 B10 I10 A3 A11 B13 B14 B12
+Query::CameraRay: A0 V1 F10 S10 B10 I10 A3 A11 B13 B14 B12
+Query::ProjectileRay: A0 V1 V2 B10 F10 V6 S10 B11 I10 B12 F11 F12 A3 A11 F4 F5 B13 B14 F7 C8 C9
 Query::VectorAverage: A0
 Query::DistanceBetween: A0
 Query::UIElementEvent:
+Query::LineOfSight: A0 V1 V2 A3 V4
+Query::SweepObject: A0 V1 R2 B10
+Query::KeepDistance:
+Query::PointVelocity: A0 V1
 == vector kinds read as rotations, zero
 Vector::Constant:
 Vector::SnapshotGravity: V16
@@ -937,6 +983,12 @@ Vector::BroadcastFloat: V16 F4
 Vector::BroadcastInt: V16 I0
 Vector::FromColor: V16 C0
 Vector::InputActionVector: V16 I0 S1
+Vector::PhysicsQueryRayOrigin: V16 Q0
+Vector::PhysicsQueryImpactVelocity: V16 Q0
+Vector::RayPlanePoint: V16 V0 V1 F4
+Vector::RayPlaneNormal: V16 V0 V1 F4
+Vector::ArcLaunchVelocity: V16 V0 V1 V2 F4 B3
+Vector::SnapshotGameProperty: V16
 == vector kinds read as rotations, nonzero
 Vector::Constant:
 Vector::SnapshotGravity: V16
@@ -1000,3 +1052,9 @@ Vector::BroadcastFloat: V16 F4
 Vector::BroadcastInt: V16 I0
 Vector::FromColor: V16 C0
 Vector::InputActionVector: V16 I0 S1
+Vector::PhysicsQueryRayOrigin: V16 Q0
+Vector::PhysicsQueryImpactVelocity: V16 Q0
+Vector::RayPlanePoint: V16 V0 V1 F4
+Vector::RayPlaneNormal: V16 V0 V1 F4
+Vector::ArcLaunchVelocity: V16 V0 V1 V2 F4 B3
+Vector::SnapshotGameProperty: V16

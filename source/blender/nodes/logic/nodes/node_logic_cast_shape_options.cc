@@ -20,66 +20,27 @@ namespace blender::nodes::node_logic_shape_cast_cc {
 namespace decl = blender::nodes::logic::decl;
 
 enum ShapeType { Sphere = 0, Box, Capsule };
+/** custom2 (2026-11-11): every older node holds Sweep. */
+enum CastMode { Sweep = 0, Overlap };
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Execution>("Flow"_ustr)
-      .description("Optional trigger; unconnected casts evaluate when an output is read");
-  b.add_input<decl::Object>("Caster"_ustr)
-      .description("Object used for local-space conversion and self filtering; local mode uses the owner when empty");
-  b.add_input<decl::Object>("Ignore Object"_ustr)
-      .description("Additional object to exclude from the cast");
-  b.add_input<decl::List>("Ignore Objects"_ustr)
-      .description("Additional objects to exclude; invalid entries and duplicates are ignored");
-  b.add_input<decl::Vector>("Origin"_ustr).description("Shape center at the start of the cast");
-  b.add_input<decl::Vector>("Destination"_ustr)
-      .default_value(float3(0.0f, 0.0f, 1.0f))
-      .description("Shape center at the end of the cast; may equal Origin for an overlap query");
-  b.add_input<decl::Rotation>("Rotation"_ustr)
-      .description("Fixed shape orientation for the complete cast");
-  b.add_input<decl::Float>("Radius"_ustr)
-      .default_value(0.5f)
-      .min(0.001f)
-      .description("Sphere or capsule radius in world units");
-  b.add_input<decl::Vector>("Half Extents"_ustr)
-      .default_value(float3(0.5f, 0.5f, 0.5f))
-      .min(0.001f)
-      .description("Box half-size in world units");
-  b.add_input<decl::Float>("Height"_ustr)
-      .default_value(2.0f)
-      .min(0.002f)
-      .description("Capsule total end-to-end height; values below twice the radius produce a sphere");
-  b.add_input<decl::Float>("Extra Radius"_ustr)
-      .default_value(0.0f)
-      .min(0.0f)
-      .description("Additional Jolt convex sweep radius added in every direction");
-  b.add_input<decl::Bool>("Local"_ustr)
-      .description("Interpret origin, destination, and rotation in caster local space; dimensions stay in world units");
-  b.add_input<decl::String>("Property"_ustr)
-      .description("Only report objects with this game property; empty accepts any object");
-  b.add_input<decl::Bool>("X-Ray"_ustr)
-      .description("With a non-empty Property, pass through nonmatching objects instead of reporting Blocked");
-  b.add_input<decl::CollisionLayers>("Mask"_ustr)
-      .default_value(1023)
-      .min(0)
-      .max(1023)
-      .description("Collision layers filter; zero accepts all layers for compatibility");
-  b.add_input<decl::Bool>("Include Sensors"_ustr)
-      .description("Allow Jolt sensor bodies to be returned");
-  b.add_input<decl::Bool>("Hit Backfaces"_ustr)
-      .description("Report back sides of one-sided triangle surfaces");
-  b.add_input<decl::Bool>("Visualize"_ustr)
-      .description("Draw the swept shape, center path, contact point, and hit normal");
-
+  b.use_custom_socket_order();
   b.add_output<decl::Execution>("Done"_ustr);
   b.add_output<decl::Condition>("Has Result"_ustr).description("True when the shape hits an object");
   b.add_output<decl::Condition>("Blocked"_ustr)
       .description("True when a nonmatching object stops a non-X-Ray property query");
   b.add_output<decl::Object>("Hit Object"_ustr).description("Object hit by the shape");
+  b.add_output<decl::Object>("Hit Part"_ustr)
+      .description("The part of a compound object that was hit (its child with Compound); the "
+                   "Hit Object itself for any other object");
   b.add_output<decl::Vector>("Hit Point"_ustr, "Point"_ustr)
       .description("World-space contact point; zero when Has Result is false");
   b.add_output<decl::Vector>("Hit Normal"_ustr, "Normal"_ustr)
       .description("World-space surface normal; zero when Has Result is false");
+  b.add_output<decl::String>("Hit Material"_ustr)
+      .description("Name of the material on the touched face (boxes, spheres, capsules and "
+                   "convex hulls: their first material); empty without a hit or a material");
   b.add_output<decl::Vector>("Cast Position"_ustr)
       .description(
           "World-space shape center at a matching hit or filtered blocker; Destination on a "
@@ -102,16 +63,83 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("True when UV contains valid coordinates from the active UV map");
   b.add_output<decl::Vector>("UV"_ustr)
       .description("Interpolated active UV-map coordinate; Z is always zero");
+  b.add_default_layout();
+  b.add_input<decl::Execution>("Flow"_ustr)
+      .description("Optional trigger; unconnected casts evaluate when an output is read");
+  b.add_input<decl::Object>("Caster"_ustr)
+      .description("Object used for local-space conversion and self filtering; local mode uses the owner when empty");
+  b.add_input<decl::Object>("Ignore Object"_ustr)
+      .description("Additional object to exclude from the cast");
+  b.add_input<decl::List>("Ignore Objects"_ustr)
+      .description("Additional objects to exclude; invalid entries and duplicates are ignored");
+  b.add_input<decl::Vector>("Origin"_ustr)
+      .description("Shape center at the start of the cast (Overlap: where the shape is)");
+  b.add_input<decl::Vector>("Destination"_ustr)
+      .default_value(float3(0.0f, 0.0f, 1.0f))
+      .description("Shape center at the end of the cast");
+  b.add_input<decl::Rotation>("Rotation"_ustr)
+      .description("Fixed shape orientation for the complete cast");
+  b.add_input<decl::Float>("Radius"_ustr)
+      .default_value(0.5f)
+      .min(0.001f)
+      .description("Sphere or capsule radius in world units");
+  b.add_input<decl::Vector>("Half Extents"_ustr)
+      .default_value(float3(0.5f, 0.5f, 0.5f))
+      .min(0.001f)
+      .description("Box half-size in world units");
+  b.add_input<decl::Float>("Height"_ustr)
+      .default_value(2.0f)
+      .min(0.002f)
+      .description("Capsule total end-to-end height; values below twice the radius produce a sphere");
+  b.add_input<decl::Float>("Extra Radius"_ustr)
+      .default_value(0.0f)
+      .min(0.0f)
+      .description("Additional Jolt convex sweep radius added in every direction");
+  b.add_input<decl::Bool>("Local"_ustr)
+      .description("Interpret origin, destination, and rotation in caster local space; dimensions stay in world units");
+  b.add_input<decl::String>("Property"_ustr)
+      .description(std::string("Only report objects with this game property; empty accepts any "
+                               "object. ") +
+                   logic::game_property_filter_note)
+      .custom_draw(logic::game_property_filter_field());
+  b.add_input<decl::CollisionLayers>("Mask"_ustr)
+      .default_value(1023)
+      .min(0)
+      .max(1023)
+      .description("Collision layers filter; zero accepts all layers for compatibility");
+  logic::add_ray_filters_panel(b);
+  logic::add_visualize_panel(b);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
+  layout.prop(ptr, "cast_mode", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   layout.prop(ptr, "shape_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = Sphere;
+  node->custom2 = Sweep;
+}
+
+/** Overlap: Destination and the outputs about the path are hidden (the shape does not move). */
+static void update_cast_mode(bNodeTree *tree, bNode *node)
+{
+  if (node->custom2 != Sweep && node->custom2 != Overlap) {
+    node->custom2 = Sweep;
+  }
+  const bool sweep = node->custom2 == Sweep;
+  if (bNodeSocket *socket = node->input_by_identifier("Destination"_ustr)) {
+    bke::node_set_socket_availability(*tree, *socket, sweep);
+  }
+  for (const UString identifier :
+       {"Cast Position"_ustr, "Direction"_ustr, "Distance"_ustr, "Fraction"_ustr})
+  {
+    if (bNodeSocket *socket = node->output_by_identifier(identifier)) {
+      bke::node_set_socket_availability(*tree, *socket, sweep);
+    }
+  }
 }
 
 static void node_update(bNodeTree *tree, bNode *node)
@@ -128,6 +156,7 @@ static void node_update(bNodeTree *tree, bNode *node)
   available("Radius"_ustr, node->custom1 != Box);
   available("Half Extents"_ustr, node->custom1 == Box);
   available("Height"_ustr, node->custom1 == Capsule);
+  update_cast_mode(tree, node);
 }
 
 static void node_register()
@@ -149,9 +178,37 @@ namespace blender::nodes::node_logic_shape_cast_all_cc {
 namespace decl = blender::nodes::logic::decl;
 
 enum ShapeType { Sphere = 0, Box, Capsule };
+enum CastMode { Sweep = 0, Overlap };
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.add_output<decl::Execution>("Done"_ustr);
+  b.add_output<decl::Condition>("Has Result"_ustr).description("True when at least one object is returned");
+  b.add_output<decl::Condition>("Blocked"_ustr)
+      .description("True when a nonmatching object stops a non-X-Ray property query");
+  b.add_output<decl::Int>("Hit Count"_ustr).description("Number of unique bodies returned");
+  b.add_output<decl::List>("Hit Objects"_ustr).description("Hit objects, nearest first");
+  b.add_output<decl::List>("Hit Parts"_ustr)
+      .description("For each hit: the part of a compound object that was hit (its child with "
+                   "Compound), or the hit object itself");
+  b.add_output<decl::List>("Points"_ustr).description("Contact points on hit objects, nearest first");
+  b.add_output<decl::List>("Normals"_ustr).description("World-space hit normals, nearest first");
+  b.add_output<decl::List>("Hit Materials"_ustr)
+      .description("For each hit: the name of the material on the touched face (empty without "
+                   "one)");
+  b.add_output<decl::List>("Cast Positions"_ustr).description("Shape center positions at each hit");
+  b.add_output<decl::List>("Distances"_ustr).description("Travel distances, nearest first");
+  b.add_output<decl::List>("Fractions"_ustr).description("Hit fractions from 0 to 1, nearest first");
+  b.add_output<decl::List>("Started Overlapping"_ustr).description("Initial-overlap flag for each hit");
+  b.add_output<decl::List>("Penetration Depths"_ustr).description("Initial penetration depth for each hit");
+  b.add_output<decl::List>("Face Indices"_ustr)
+      .description("Evaluated mesh polygon index per hit; unavailable entries are -1");
+  b.add_output<decl::List>("Has UVs"_ustr)
+      .description("Whether each UV entry is valid for the corresponding hit");
+  b.add_output<decl::List>("UVs"_ustr)
+      .description("Interpolated active UV-map coordinates aligned with the hit lists");
+  b.add_default_layout();
   b.add_input<decl::Execution>("Flow"_ustr)
       .description("Optional trigger; unconnected casts evaluate when an output is read");
   b.add_input<decl::Object>("Caster"_ustr)
@@ -160,13 +217,17 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Additional object to exclude from the cast");
   b.add_input<decl::List>("Ignore Objects"_ustr)
       .description("Additional objects to exclude; invalid entries and duplicates are ignored");
-  b.add_input<decl::Vector>("Origin"_ustr).description("Shape center at the start of the cast");
+  b.add_input<decl::Vector>("Origin"_ustr)
+      .description("Shape center at the start of the cast (Overlap: where the shape is)");
   b.add_input<decl::Vector>("Destination"_ustr)
       .default_value(float3(0.0f, 0.0f, 1.0f))
-      .description("Shape center at the end of the cast; may equal Origin for an overlap query");
+      .description("Shape center at the end of the cast");
   b.add_input<decl::Rotation>("Rotation"_ustr)
       .description("Fixed shape orientation for the complete cast");
-  b.add_input<decl::Float>("Radius"_ustr).default_value(0.5f).min(0.001f);
+  b.add_input<decl::Float>("Radius"_ustr)
+      .default_value(0.5f)
+      .min(0.001f)
+      .description("Sphere or capsule radius in world units");
   b.add_input<decl::Vector>("Half Extents"_ustr)
       .default_value(float3(0.5f, 0.5f, 0.5f))
       .min(0.001f)
@@ -180,54 +241,51 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Additional Jolt convex sweep radius added in every direction");
   b.add_input<decl::Bool>("Local"_ustr)
       .description("Interpret origin, destination, and rotation in caster local space; dimensions stay in world units");
-  b.add_input<decl::String>("Property"_ustr);
-  b.add_input<decl::Bool>("X-Ray"_ustr)
-      .description("With a non-empty Property, pass through nonmatching objects instead of reporting Blocked");
+  b.add_input<decl::String>("Property"_ustr)
+      .description(std::string("Only report objects with this game property; empty accepts any "
+                               "object. ") +
+                   logic::game_property_filter_note)
+      .custom_draw(logic::game_property_filter_field());
   b.add_input<decl::CollisionLayers>("Mask"_ustr)
       .default_value(1023)
       .min(0)
       .max(1023)
       .description("Collision layers filter; zero accepts all layers for compatibility");
-  b.add_input<decl::Bool>("Include Sensors"_ustr);
-  b.add_input<decl::Bool>("Hit Backfaces"_ustr)
-      .description("Report back sides of one-sided triangle surfaces");
   b.add_input<decl::Int>("Max Results"_ustr)
       .default_value(32)
       .min(1)
       .max(256)
       .description("Maximum unique bodies returned; also bounds query memory and narrow-phase work");
-  b.add_input<decl::Bool>("Visualize"_ustr)
-      .description("Draw the swept shape, center path, and every returned contact");
-
-  b.add_output<decl::Execution>("Done"_ustr);
-  b.add_output<decl::Condition>("Has Result"_ustr).description("True when at least one object is returned");
-  b.add_output<decl::Condition>("Blocked"_ustr)
-      .description("True when a nonmatching object stops a non-X-Ray property query");
-  b.add_output<decl::Int>("Hit Count"_ustr).description("Number of unique bodies returned");
-  b.add_output<decl::List>("Hit Objects"_ustr).description("Hit objects, nearest first");
-  b.add_output<decl::List>("Points"_ustr).description("Contact points on hit objects, nearest first");
-  b.add_output<decl::List>("Normals"_ustr).description("World-space hit normals, nearest first");
-  b.add_output<decl::List>("Cast Positions"_ustr).description("Shape center positions at each hit");
-  b.add_output<decl::List>("Distances"_ustr).description("Travel distances, nearest first");
-  b.add_output<decl::List>("Fractions"_ustr).description("Hit fractions from 0 to 1, nearest first");
-  b.add_output<decl::List>("Started Overlapping"_ustr).description("Initial-overlap flag for each hit");
-  b.add_output<decl::List>("Penetration Depths"_ustr).description("Initial penetration depth for each hit");
-  b.add_output<decl::List>("Face Indices"_ustr)
-      .description("Evaluated mesh polygon index per hit; unavailable entries are -1");
-  b.add_output<decl::List>("Has UVs"_ustr)
-      .description("Whether each UV entry is valid for the corresponding hit");
-  b.add_output<decl::List>("UVs"_ustr)
-      .description("Interpolated active UV-map coordinates aligned with the hit lists");
+  logic::add_ray_filters_panel(b);
+  logic::add_visualize_panel(b);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
+  layout.prop(ptr, "cast_mode", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   layout.prop(ptr, "shape_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = Sphere;
+  node->custom2 = Sweep;
+}
+
+static void update_cast_mode(bNodeTree *tree, bNode *node)
+{
+  if (node->custom2 != Sweep && node->custom2 != Overlap) {
+    node->custom2 = Sweep;
+  }
+  const bool sweep = node->custom2 == Sweep;
+  if (bNodeSocket *socket = node->input_by_identifier("Destination"_ustr)) {
+    bke::node_set_socket_availability(*tree, *socket, sweep);
+  }
+  for (const UString identifier : {"Cast Positions"_ustr, "Distances"_ustr, "Fractions"_ustr}) {
+    if (bNodeSocket *socket = node->output_by_identifier(identifier)) {
+      bke::node_set_socket_availability(*tree, *socket, sweep);
+    }
+  }
 }
 
 static void node_update(bNodeTree *tree, bNode *node)
@@ -244,6 +302,7 @@ static void node_update(bNodeTree *tree, bNode *node)
   available("Radius"_ustr, node->custom1 != Box);
   available("Half Extents"_ustr, node->custom1 == Box);
   available("Height"_ustr, node->custom1 == Capsule);
+  update_cast_mode(tree, node);
 }
 
 static void node_register()

@@ -139,6 +139,8 @@ const char *bool_kind_refusal(const LN_BoolExpression &expression)
     case LN_BoolExpressionKind::Not:
     case LN_BoolExpressionKind::And:
     case LN_BoolExpressionKind::Or:
+    /* Aim for Arc's Can Reach: math of its inputs (LN_AimMath.h). */
+    case LN_BoolExpressionKind::ArcCanReach:
     case LN_BoolExpressionKind::FloatCompare:
     case LN_BoolExpressionKind::StringContains:
     case LN_BoolExpressionKind::StringStartsWith:
@@ -190,6 +192,13 @@ const char *bool_kind_refusal(const LN_BoolExpression &expression)
     case LN_BoolExpressionKind::QueryValid:
     /* Another object's visibility: a field read of an object the batch does not change. */
     case LN_BoolExpressionKind::SnapshotVisibility:
+    /* (2026-11-14) Play Action's outputs: the tree's own queue of results, filled on the main
+     * thread outside the recording (PollActionOperations, the flush). */
+    case LN_BoolExpressionKind::ActionLifecycleEvent:
+    case LN_BoolExpressionKind::ActionStarted:
+    case LN_BoolExpressionKind::ActionCompleted:
+    case LN_BoolExpressionKind::ActionInterrupted:
+    case LN_BoolExpressionKind::ActionFailed:
       return nullptr;
     case LN_BoolExpressionKind::SnapshotCharacterOnGround:
       return expression.input0 == LN_INVALID_INDEX ? nullptr :
@@ -289,6 +298,12 @@ const char *float_kind_refusal(const LN_FloatExpression &expression)
     case LN_FloatExpressionKind::FromString:
     /* Two objects' positions read as they are (no pending move applied): the batch moves none. */
     case LN_FloatExpressionKind::ObjectDistance:
+    /* Ray to Plane and Aim for Arc: math of their inputs (LN_AimMath.h); a vector's length. */
+    case LN_FloatExpressionKind::RayPlaneDistance:
+    case LN_FloatExpressionKind::ArcFlightTime:
+    case LN_FloatExpressionKind::VectorLength:
+    /* (2026-11-14) A rest bone's length: the armature's own data, never changed while playing. */
+    case LN_FloatExpressionKind::BoneLength:
       return nullptr;
     case LN_FloatExpressionKind::SnapshotLightPower:
       return expression.input0 == LN_INVALID_INDEX ? nullptr : "another object's light";
@@ -327,11 +342,17 @@ const char *vector_kind_refusal(const LN_VectorExpression &expression)
 {
   switch (expression.kind) {
     case LN_VectorExpressionKind::Constant:
+    /* The owner's Vector game property, from its snapshot (as Float's). */
+    case LN_VectorExpressionKind::SnapshotGameProperty:
     /* Transforms of the owner (its snapshot) or of another object, read as they are. */
     case LN_VectorExpressionKind::SnapshotGravity:
     case LN_VectorExpressionKind::WindowResolution:
     case LN_VectorExpressionKind::Add:
     case LN_VectorExpressionKind::Subtract:
+    /* Ray to Plane and Aim for Arc: math of their inputs (LN_AimMath.h). */
+    case LN_VectorExpressionKind::RayPlanePoint:
+    case LN_VectorExpressionKind::RayPlaneNormal:
+    case LN_VectorExpressionKind::ArcLaunchVelocity:
     case LN_VectorExpressionKind::Multiply:
     case LN_VectorExpressionKind::Divide:
     case LN_VectorExpressionKind::Absolute:
@@ -360,6 +381,11 @@ const char *vector_kind_refusal(const LN_VectorExpression &expression)
     case LN_VectorExpressionKind::BroadcastFloat:
     case LN_VectorExpressionKind::BroadcastInt:
     case LN_VectorExpressionKind::FromColor:
+    /* (2026-11-14) Rest bones in the world: the armature's rest data and its transform read as
+     * it is (no pending move applied), as Get Distance between two objects. */
+    case LN_VectorExpressionKind::BoneHeadWorld:
+    case LN_VectorExpressionKind::BoneTailWorld:
+    case LN_VectorExpressionKind::BoneCenterWorld:
       return nullptr;
     /* Velocities of another object go through its physics body. */
     case LN_VectorExpressionKind::SnapshotCharacterGravity:
@@ -377,6 +403,8 @@ const char *color_kind_refusal(const LN_ColorExpression &expression)
   switch (expression.kind) {
     case LN_ColorExpressionKind::Constant:
     case LN_ColorExpressionKind::SnapshotObjectColor:
+    /* The owner's Color game property, from its snapshot (as Float's). */
+    case LN_ColorExpressionKind::SnapshotGameProperty:
     case LN_ColorExpressionKind::RuntimeTreeProperty:
     case LN_ColorExpressionKind::Combine:
     case LN_ColorExpressionKind::FromGenericValue:
@@ -635,6 +663,25 @@ const char *op_refusal(const LN_Program &program, const LN_Instruction &instruct
     /* A list or dictionary change of a game property: recorded, made at the flush (its value's
      * objects through the tree's own references, as Set Object Property's). */
     case LN_OpCode::EditGameProperty:
+    /* (2026-11-14) Sounds: recorded by name, played at the flush (no shared name table written
+     * any more); Play Sound 3D's speaker resolved as a command target is. */
+    case LN_OpCode::PlaySound:
+    case LN_OpCode::PlaySound3D:
+    case LN_OpCode::StopSound:
+    case LN_OpCode::PauseSound:
+    case LN_OpCode::ResumeSound:
+    case LN_OpCode::StopAllSounds:
+    case LN_OpCode::SetSoundVolume:
+    /* (2026-11-14) Bone and bone constraint writes: recorded into the armature stream, made at
+     * the flush (a value's objects through the tree's own references). */
+    case LN_OpCode::SetBonePoseLocation:
+    case LN_OpCode::SetBonePoseRotation:
+    case LN_OpCode::SetBonePoseScale:
+    case LN_OpCode::SetBonePoseTransform:
+    case LN_OpCode::SetBoneAttribute:
+    case LN_OpCode::SetBoneConstraintInfluence:
+    case LN_OpCode::SetBoneConstraintTarget:
+    case LN_OpCode::SetBoneConstraintAttribute:
       return nullptr;
     case LN_OpCode::SampleMotion:
       /* Predict Motion of an object applies its pending moves; of a position it does not. */

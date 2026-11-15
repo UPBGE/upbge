@@ -17,7 +17,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Object>("Object"_ustr)
       .description(logic::collection_store_object_description());
   b.add_input<decl::String>("Property"_ustr)
-      .description(logic::collection_store_property_description("list"));
+      .description(logic::collection_store_property_description("list"))
+      .custom_draw(logic::game_property_field("Object"));
   b.add_input<decl::List>("List"_ustr);
   b.add_input<decl::Int>("Index"_ustr).default_value(0);
   b.add_output<decl::Execution>("Done"_ustr);

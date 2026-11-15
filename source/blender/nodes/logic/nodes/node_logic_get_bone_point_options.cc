@@ -23,7 +23,10 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
+  b.add_input<decl::String>("Bone Name"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Object"));
   b.add_output<decl::Vector>("Position"_ustr)
       .description("Bone pose head vector in the selected space after pose evaluation");
 }
@@ -63,7 +66,10 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
+  b.add_input<decl::String>("Bone Name"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Object"));
   b.add_output<decl::Vector>("Position"_ustr)
       .description("Bone pose tail vector in the selected space after pose evaluation");
 }
@@ -103,7 +109,10 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
+  b.add_input<decl::String>("Bone Name"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Object"));
   b.add_output<decl::Vector>("Position"_ustr)
       .description("Bone pose center vector in the selected space after pose evaluation");
 }
@@ -143,7 +152,10 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
+  b.add_input<decl::String>("Bone Name"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Object"));
   b.add_output<decl::Vector>("Position"_ustr)
       .description("World position of the bone rest head (armature space, not posed)");
 }
@@ -170,7 +182,10 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
+  b.add_input<decl::String>("Bone Name"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Object"));
   b.add_output<decl::Vector>("Position"_ustr)
       .description("World position of the bone rest tail (armature space, not posed)");
 }
@@ -197,7 +212,10 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
+  b.add_input<decl::String>("Bone Name"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Object"));
   b.add_output<decl::Vector>("Position"_ustr)
       .description("World position of the bone rest center (midpoint of head and tail)");
 }
@@ -224,7 +242,10 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
+  b.add_input<decl::String>("Bone Name"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Object"));
   b.add_output<decl::Float>("Length"_ustr)
       .description("Rest-pose length of the bone in armature space");
 }

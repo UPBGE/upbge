@@ -543,6 +543,9 @@ TEST(LN_NodeRegistry, SimulationMutationsRequireFixedLogicPhysicsFlow)
                              "LogicNativeVehicleSteer",
                              "LogicNativeVehicleSetAttributes",
                              "LogicNativeApplyImpulse",
+                             "LogicNativeApplyAngularImpulse",
+                             "LogicNativeExplosionImpulse",
+                             "LogicNativeKeepDistance",
                              "LogicNativeApplyForce",
                              "LogicNativeApplyForceToTarget",
                              "LogicNativeApplyTorque",
@@ -588,10 +591,13 @@ TEST(LN_NodeRegistry, AllNativeNodePhasesMatchAuditedExecutionModel)
       "LogicNativeAlignAxisToVector",
       "LogicNativeApplyForce",
       "LogicNativeApplyForceToTarget",
+      "LogicNativeApplyAngularImpulse",
       "LogicNativeApplyImpulse",
       "LogicNativeApplyTorque",
       "LogicNativeCharacterJump",
+      "LogicNativeExplosionImpulse",
       "LogicNativeFollowPath",
+      "LogicNativeKeepDistance",
       "LogicNativeGamepadLook",
       "LogicNativeMouseLook",
       "LogicNativeMoveToward",
@@ -778,7 +784,7 @@ TEST(LN_NodeRegistry, RaycastFromMeshHasExactBatchQueryContract)
   EXPECT_TRUE(definition->requires_jolt);
   EXPECT_FALSE(definition->has_side_effects);
 
-  const std::array<std::pair<const char *, LN_ValueType>, 14> expected_inputs = {{
+  const std::array<std::pair<const char *, LN_ValueType>, 17> expected_inputs = {{
       {"Flow", LN_ValueType::None},
       {"Source Object", LN_ValueType::ObjectRef},
       {"Vertex Group", LN_ValueType::String},
@@ -793,8 +799,11 @@ TEST(LN_NodeRegistry, RaycastFromMeshHasExactBatchQueryContract)
       {"Include Sensors", LN_ValueType::Bool},
       {"Hit Backfaces", LN_ValueType::Bool},
       {"Visualize", LN_ValueType::Bool},
+      {"Duration", LN_ValueType::Float},
+      {"Hit Color", LN_ValueType::Color},
+      {"Miss Color", LN_ValueType::Color},
   }};
-  const std::array<std::pair<const char *, LN_ValueType>, 18> expected_outputs = {{
+  const std::array<std::pair<const char *, LN_ValueType>, 20> expected_outputs = {{
       {"Done", LN_ValueType::None},
       {"Any Hit", LN_ValueType::Bool},
       {"All Hit", LN_ValueType::Bool},
@@ -803,6 +812,8 @@ TEST(LN_NodeRegistry, RaycastFromMeshHasExactBatchQueryContract)
       {"Hits", LN_ValueType::List},
       {"Blocked", LN_ValueType::List},
       {"Hit Objects", LN_ValueType::List},
+      {"Hit Parts", LN_ValueType::List},
+      {"Hit Materials", LN_ValueType::List},
       {"Points", LN_ValueType::List},
       {"Normals", LN_ValueType::List},
       {"Distances", LN_ValueType::List},

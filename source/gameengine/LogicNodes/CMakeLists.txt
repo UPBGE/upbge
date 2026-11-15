@@ -52,6 +52,7 @@ set(SRC
   intern/LN_GameStateStorage.cpp
   intern/LN_InputMap.cpp
   intern/LN_JobPool.cpp
+  intern/LN_KeepDistance.cpp
   intern/LN_KindCatalog.cpp
   intern/LN_LeanProgram.cpp
   intern/LN_Inventory.cpp
@@ -76,6 +77,7 @@ set(SRC
   intern/compile/LN_TreeCompiler_helpers_inputs.cc
   intern/compile/LN_TreeCompiler_reachability.cc
   intern/compile/LN_TreeCompiler_expression_outputs_by_kind.cc
+  intern/compile/LN_TreeCompiler_ray_outputs.cc
   intern/compile/LN_TreeCompiler_output_expressions.cc
   # Archive this implementation after its users so static linking can resolve its symbols.
   intern/LN_Program.cpp
@@ -91,6 +93,7 @@ set(SRC
   LN_GameState.h
   LN_InputMap.h
   LN_JobPool.h
+  LN_KeepDistance.h
   LN_Inventory.h
   LN_PersistenceCapability.h
   LN_ExecBlockIR.h
@@ -98,6 +101,8 @@ set(SRC
   LN_LeanProgram.h
   LN_LeanReader.h
   LN_Manager.h
+  LN_AimMath.h
+  LN_DebugLines.h
   LN_MeshRays.h
   LN_NodeMetadata.h
   LN_NodeRegistry.h
@@ -150,14 +155,18 @@ blender_add_lib(ge_logic_nodes "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    tests/LN_AimMath_test.cpp
     tests/LN_CollisionEvents_test.cpp
     tests/LN_CommandBuffer_test.cpp
     tests/LN_DenseIds_test.cpp
     tests/LN_EventBus_test.cpp
     tests/LN_GameState_test.cpp
+    tests/LN_GenericOutputs_test.cpp
+    tests/LN_Impulse_test.cpp
     tests/LN_InputMap_test.cpp
     tests/LN_Inventory_test.cpp
     tests/LN_JobPool_test.cpp
+    tests/LN_KeepDistance_test.cpp
     tests/LN_LeanProgram_test.cpp
     tests/LN_LeanNative_test.cpp
     tests/LN_TreeBlock_test.cpp
@@ -181,6 +190,7 @@ if(WITH_GTESTS)
     tests/LN_RuntimeTree_test.cpp
     tests/LN_Random_test.cpp
     tests/LN_MergedNodes_test.cpp
+    tests/LN_TypedGameProperty_test.cpp
     tests/LN_Semantics_test.cpp
     tests/LN_Snapshot_test.cpp
     tests/LN_StrictDump_test.cpp

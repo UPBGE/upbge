@@ -13,10 +13,20 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("Category"_ustr);
-  b.add_input<decl::String>("Property"_ustr);
-  b.add_input<decl::Generic>("Default Value"_ustr);
-  b.add_output<decl::Generic>("Value"_ustr);
+  b.add_input<decl::String>("Category"_ustr)
+      .description("The group of the global property, such as \"Options\". Pick one the file's "
+                   "global property nodes use, or type any name")
+      .custom_draw(logic::global_category_field());
+  b.add_input<decl::String>("Property"_ustr)
+      .description("The global property's name in its Category. Pick one the file's global "
+                   "property nodes use, or type any name (never red: another .blend of the "
+                   "game, or an earlier play with Persistent, may have set it)")
+      .custom_draw(logic::global_property_field("Category"));
+  b.add_input<decl::Generic>("Default Value"_ustr)
+      .description("Given while nothing has set the property in this play, and no earlier play "
+                   "saved it with Persistent");
+  b.add_output<decl::Generic>("Value"_ustr)
+      .description("The value last set (any type), else Default Value");
 }
 
 static void node_register()

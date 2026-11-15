@@ -102,6 +102,66 @@ void add_input_button_status_outputs(NodeDeclarationBuilder &b)
       "True once when released; frame and fixed flow consume independent accumulated edges");
 }
 
+void add_use_ui_input_layout(NodeDeclarationBuilder &b)
+{
+  b.add_layout([](ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr) {
+    layout.prop(ptr, "use_ui_input", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  });
+}
+
+void add_ray_filters_panel(NodeDeclarationBuilder &b)
+{
+  namespace decl = blender::nodes::logic::decl;
+  PanelDeclarationBuilder &filters = b.add_panel("Filters"_ustr).default_closed(true);
+  filters.add_input<decl::Bool>("X-Ray"_ustr)
+      .default_value(false)
+      .description("With a Property: pass through objects without it instead of stopping there "
+                   "(Blocked)");
+  filters.add_input<decl::Bool>("Include Sensors"_ustr)
+      .default_value(false)
+      .description("Also hit sensor objects (Jolt sensor bodies), which are passed by default");
+  filters.add_input<decl::Bool>("Hit Backfaces"_ustr)
+      .default_value(false)
+      .description("Also hit the back side of one-sided triangle surfaces (planes, open meshes)");
+}
+
+void add_ray_filters_panel_without_xray(NodeDeclarationBuilder &b)
+{
+  namespace decl = blender::nodes::logic::decl;
+  PanelDeclarationBuilder &filters = b.add_panel("Filters"_ustr).default_closed(true);
+  filters.add_input<decl::Bool>("Include Sensors"_ustr)
+      .default_value(false)
+      .description("Sensor objects (Jolt sensor bodies) block too; they are passed by default");
+  filters.add_input<decl::Bool>("Hit Backfaces"_ustr)
+      .default_value(false)
+      .description("The back side of one-sided triangle surfaces (planes, open meshes) blocks "
+                   "too");
+}
+
+void add_visualize_panel(NodeDeclarationBuilder &b)
+{
+  namespace decl = blender::nodes::logic::decl;
+  PanelDeclarationBuilder &visualize = b.add_panel("Visualize"_ustr).default_closed(true);
+  visualize.add_input<decl::Bool>("Visualize"_ustr)
+      .default_value(false)
+      .panel_toggle()
+      .description("Draw the cast as debug lines while the game runs (no render cost when off), "
+                   "and in the 3D viewport before it (Logic Node Editor > Dashboard > Ray "
+                   "Previews)");
+  visualize.add_input<decl::Float>("Duration"_ustr)
+      .default_value(0.0f)
+      .min(0.0f)
+      .subtype(PROP_TIME_ABSOLUTE)
+      .description("How long each cast stays drawn, in seconds of game time; 0: only the step "
+                   "(or frame) it was cast in. Helps with casts made once (a click, a shot)");
+  visualize.add_input<decl::Color>("Hit Color"_ustr)
+      .default_value({1.0f, 0.05f, 0.02f, 1.0f})
+      .description("Colour of a cast that hit something (or was blocked)");
+  visualize.add_input<decl::Color>("Miss Color"_ustr)
+      .default_value({1.0f, 0.92f, 0.05f, 1.0f})
+      .description("Colour of a cast that hit nothing");
+}
+
 void draw_input_action_socket(CustomSocketDrawParams &params)
 {
   Scene *scene = CTX_data_scene(&params.C);
@@ -132,7 +192,7 @@ std::string collection_store_property_description(const char *collection)
 {
   return std::string("The game property holding the ") + collection +
          ": changed at the end of the step, after this step's earlier writes of it (a missing "
-         "one starts empty)";
+         "one starts empty). " + game_property_pick_note;
 }
 
 void collection_store_init(bNodeTree *tree, bNode *node)

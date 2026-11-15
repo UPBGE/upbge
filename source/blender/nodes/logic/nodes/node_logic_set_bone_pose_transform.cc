@@ -19,7 +19,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Object"_ustr).description(
       "Armature object; defaults to the owner when unset");
-  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
+  b.add_input<decl::String>("Bone Name"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Object"));
   b.add_input<decl::Vector>("Location"_ustr).description(
       "Offset or target position interpreted by the selected pose transform space");
   b.add_input<decl::Rotation>("Rotation"_ustr).description(

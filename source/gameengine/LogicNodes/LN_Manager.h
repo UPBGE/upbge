@@ -32,6 +32,7 @@
 #include "LN_InputMap.h"
 #include "LN_Inventory.h"
 #include "LN_Columns.h"
+#include "LN_DebugLines.h"
 #include "LN_JobPool.h"
 #include "LN_Snapshot.h"
 #include "LN_TreeBatch.h"
@@ -171,9 +172,9 @@ class LN_Manager {
    * the scene has no trees, the temp folder is unknown or UPBGE_LN_GAME_REPORT=0. Returns the
    * file written (empty: none). `r_json`: the text (tests). */
   std::string WriteGameReport(std::string *r_json = nullptr);
-  void ReplicateRuntimeTrees(KX_GameObject *source_gameobj,
-                             KX_GameObject *replica_gameobj,
-                             uint32_t scene_object_index);
+  /** Gives a copy the trees of its source. Its trees take a new order key (ObjectOrderKeyFor):
+   * callers register the copies of one Add Object in their object list order. */
+  void ReplicateRuntimeTrees(KX_GameObject *source_gameobj, KX_GameObject *replica_gameobj);
   bool CaptureRuntimeTreeRecipes(KX_GameObject *gameobj,
                                  std::vector<LN_RuntimeTreeRecipe> &r_recipes,
                                  std::string &r_error) const;
@@ -323,7 +324,6 @@ class LN_Manager {
   const LN_EventBus &GetEventBus() const;
   LN_EventSubjectId InternEventSubject(const std::string &subject);
   LN_GamePropertyId InternGamePropertyName(const std::string &name);
-  LN_SoundId InternSoundName(const std::string &name);
   LN_ObjectHandle MakeObjectHandle(KX_GameObject *gameobj, const std::string &debug_name = "");
   /** Resolve a generation-checked scene-local object handle. */
   KX_GameObject *ResolveObjectHandle(const LN_ObjectHandle &handle) const;
@@ -348,6 +348,11 @@ class LN_Manager {
   LN_MeshRayGroupCache &MeshRayGroups()
   {
     return *m_meshRayGroups;
+  }
+  /** Visualize lines with a Duration (LN_DebugLines.h), drawn again at each step's start. */
+  LN_TimedDebugLines &TimedDebugLines()
+  {
+    return m_timedDebugLines;
   }
   const LN_RigidBodyConstraintBreakEvent *FindRigidBodyConstraintBreakEvent(
       KX_GameObject *owner,
@@ -543,6 +548,21 @@ class LN_Manager {
   LN_RuntimeTree *FindRuntimeTreeBySourceName(KX_GameObject *gameobj,
                                               const std::string &tree_name) const;
   uint32_t AllocateNextAppliedTreeIndex(KX_GameObject *gameobj) const;
+  /** A tree's order key is the high half of its sort key (LN_RuntimeTree::CommandSortKey): the
+   * flush applies the trees' commands in this order. At the scene's start each object takes its
+   * place in the object lists. An object that gets trees later (a copy, a merged scene's object,
+   * a tree installed or restored while playing) takes ObjectOrderKeyFor: the key its trees
+   * already have, else one past every key given so far. So two objects never share a key, and
+   * the later object's commands apply after the earlier one's, the order its trees run in.
+   * (A copy once took its place in the object list: after removals shrank the list, two copies'
+   * trees shared one key, and the flush's order between them was the record order in a column
+   * pass but any order in a wide run, 2026-11-14.) Callers note the key they give
+   * (NoteObjectOrderKey; RegisterCompiledProgram does). */
+  uint32_t ObjectOrderKeyFor(KX_GameObject *object);
+  void NoteObjectOrderKey(uint32_t key);
+  /** When the keys run out (UINT32_MAX): every tree's key becomes its rank among the keys, in
+   * the same order. */
+  void CompactObjectOrderKeys();
   void Tick(double current_time,
             double delta_time,
             double unscaled_delta_time,
@@ -644,6 +664,8 @@ class LN_Manager {
   std::unordered_map<RuntimeTreeLookupKey, LN_RuntimeTree *, RuntimeTreeLookupKeyHash>
       m_runtimeTreeByObjectAndAppliedIndex;
   std::unordered_map<KX_GameObject *, std::vector<LN_RuntimeTree *>> m_runtimeTreesByObject;
+  /** One past the largest order key given (ObjectOrderKeyFor). */
+  uint32_t m_nextObjectOrderKey = 0;
   /** A set a referenced object: 10,000 trees referencing the Player made each registration and
    * removal a scan of 10,000 (2026-10-31). Unordered: its readers sort or only invalidate. */
   std::unordered_map<KX_GameObject *, blender::VectorSet<LN_RuntimeTree *>>
@@ -655,6 +677,7 @@ class LN_Manager {
   LN_CommandBuffer m_commandBuffer;
   std::unique_ptr<LN_UIService> m_uiService;
   std::unique_ptr<LN_MeshRayGroupCache> m_meshRayGroups;
+  LN_TimedDebugLines m_timedDebugLines;
   LN_GameStateService m_gameStateService;
   std::vector<ActionOperation> m_actionOperations;
   std::thread::id m_mainThreadId;

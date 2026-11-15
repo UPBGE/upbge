@@ -212,6 +212,12 @@ class LN_Program {
   {
     return uint32_t(m_collisionEventNodes.size());
   }
+  /** How many Keep Distance nodes (AcquireKeepDistanceNode): a tree keeps one
+   * LN_KeepDistanceState for each. */
+  uint32_t GetKeepDistanceNodeCount() const
+  {
+    return uint32_t(m_keepDistanceNodes.size());
+  }
   /** Where the state of a tree running this program lives (LN_RuntimeTree builds it the first
    * time a tree takes the program, then every tree shares it). Main thread only. */
   const std::shared_ptr<const LN_TreeStateLayout> &CachedTreeStateLayout() const
@@ -233,6 +239,10 @@ class LN_Program {
   /** Whether trees running this program may be recorded in a tree batch (LN_TreeBatch.h),
    * worked out at the first ask and kept until the program grows. Main thread only. */
   const LN_TreeBatchProfile &GetTreeBatchProfile() const;
+  /** Per query, the events whose start-of-tick warm-up may work it out (LN_QueryWarmEvents: bits
+   * `1 << LN_Event`), worked out at the first ask and kept until the program grows. Main thread
+   * only. */
+  const std::vector<uint8_t> &GetQueryWarmEvents() const;
   /** The game property refs' starting values, shared by the snapshots (LN_GamePropertyLayout);
    * made at the first ask, made again after a ref was added. Main thread only. */
   const std::shared_ptr<const LN_GamePropertyLayout> &GetGamePropertyLayout() const;
@@ -292,6 +302,9 @@ class LN_Program {
    * LN_CollisionRepeatRoute, the outputs' event node fields). `node_key` (the bNode) is only
    * compared, while the program is compiled. */
   uint32_t AcquireCollisionEventNode(const void *node_key);
+  /** The state slot of a Keep Distance node (its instruction's and its outputs' query's
+   * int_value). `node_key` (the bNode) is only compared, while the program is compiled. */
+  uint32_t AcquireKeepDistanceNode(const void *node_key);
   void UpdateLoopFrame(uint32_t loop_frame_index, const LN_LoopFrame &loop_frame);
   uint32_t AddBoolExpression(const LN_BoolExpression &expression);
   uint32_t AddFloatExpression(const LN_FloatExpression &expression);
@@ -448,11 +461,14 @@ class LN_Program {
   std::vector<LN_StepGate> m_stepGates;
   /** AcquireCollisionEventNode's keys (never dereferenced). */
   std::vector<const void *> m_collisionEventNodes;
+  /** AcquireKeepDistanceNode's keys (never dereferenced). */
+  std::vector<const void *> m_keepDistanceNodes;
   mutable std::shared_ptr<const LN_TreeStateLayout> m_treeStateLayout;
   mutable std::shared_ptr<const LN_LeanProgram> m_leanProgram;
   /** TreePropertyOnlySetBySetTreeProperty's answers (1: another op writes it), per ref. */
   mutable std::vector<uint8_t> m_treePropertyOtherWriters;
   mutable std::shared_ptr<const LN_TreeBatchProfile> m_treeBatchProfile;
+  mutable std::shared_ptr<const std::vector<uint8_t>> m_queryWarmEvents;
   mutable std::shared_ptr<const LN_GamePropertyLayout> m_gamePropertyLayout;
   bool m_hasUIEventRoutes = false;
   std::vector<LN_BoolExpression> m_boolExpressions;

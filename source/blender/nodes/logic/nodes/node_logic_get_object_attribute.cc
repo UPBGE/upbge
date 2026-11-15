@@ -44,6 +44,11 @@ static bool uses_color_output(const int attribute_type)
   return attribute_type == 6;
 }
 
+static bool uses_speed_output(const int attribute_type)
+{
+  return attribute_type == 15;
+}
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr);
@@ -54,6 +59,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Rotation>("Rotation"_ustr, "Orientation"_ustr);
   b.add_output<decl::Vector>("Scale"_ustr);
   b.add_output<decl::Color>("Color"_ustr);
+  b.add_output<decl::Float>("Speed"_ustr)
+      .description("How fast the object moves, in meters per second (0 without physics)");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -99,6 +106,9 @@ static void node_update(bNodeTree *ntree, bNode *node)
   }
   if (color_socket != nullptr) {
     bke::node_set_socket_availability(*ntree, *color_socket, uses_color_output(node->custom1));
+  }
+  if (bNodeSocket *speed_socket = node->output_by_identifier("Speed"_ustr)) {
+    bke::node_set_socket_availability(*ntree, *speed_socket, uses_speed_output(node->custom1));
   }
 }
 

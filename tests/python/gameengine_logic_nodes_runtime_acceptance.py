@@ -333,6 +333,51 @@ UNCOVERED_NODES_CHECK = r'''
         return not result["failed"], result
 '''
 
+# The check of the ray_family probe (2026-11-11, the raycast recommendations), spliced into both
+# runners after UNCOVERED_NODES_CHECK. The builder writes what every recorded property must hold
+# into "__ln_acceptance_rf_expect" (JSON: name -> [value, tolerance]; tolerance None = exact), and
+# starts each property at a value no node gives, so a missing write shows.
+RAY_FAMILY_CHECK = r'''
+    if mode in ("ray_family", "ray_preview_parity"):
+        expect = json.loads(owner.get("__ln_acceptance_rf_expect", "{}"))
+        failed = []
+        for name, (expected, tolerance) in sorted(expect.items()):
+            value = owner.get(name)
+            if isinstance(expected, (bool, str)) or tolerance is None:
+                ok = value == expected
+            else:
+                ok = value is not None and abs(float(value) - float(expected)) <= tolerance
+            if not ok:
+                failed.append(f"{name}: {value!r}, expected {expected!r}")
+        checked = len(expect)
+        if mode == "ray_family":
+            # Mouse Ray (Automatic) from the active camera through the middle of the view.
+            camera = owner.scene.active_camera
+            origin = [owner.get("mra_origin_" + axis, 1000.0) for axis in "xyz"]
+            direction = [owner.get("mra_dir_" + axis, 1000.0) for axis in "xyz"]
+            forward = camera.getAxisVect((0.0, 0.0, -1.0)) if camera is not None else None
+            if camera is None or any(abs(float(a) - float(b)) > 1.0e-3
+                                     for a, b in zip(origin, camera.worldPosition)):
+                failed.append(f"mra_origin: {origin}, expected the active camera's position "
+                              f"{list(camera.worldPosition) if camera else None}")
+            elif any(abs(float(a) - float(b)) > 0.02
+                     for a, b in zip(direction, forward.normalized())):
+                failed.append(f"mra_dir: {direction}, expected the active camera's forward "
+                              f"{list(forward.normalized())}")
+            checked += 2
+        else:
+            # The viewport ray previews do no work while a game plays (embedded: the handler is
+            # out between game_pre and game_post; blenderplayer: nothing is registered).
+            import bpy
+            names = [getattr(handler, "__name__", "")
+                     for handler in bpy.app.handlers.depsgraph_update_post]
+            if "_on_depsgraph_update" in names:
+                failed.append("the ray preview's update handler runs during the game")
+            checked += 1
+        result = {"mode": mode, "failed": failed, "checked": checked}
+        return bool(expect) and not failed, result
+'''
+
 
 GAME_CONTROLLER_SCRIPT = r'''
 import json
@@ -4386,7 +4431,8 @@ if mode == "smooth_motion":
     check_now = drive_smooth_motion(owner)
 if mode == "frame_pacing":
     check_now = drive_frame_pacing(owner)
-if mode in ("run_logic_tree_once", "every_n_steps", "brain_crowd", "uncovered_nodes"):
+if mode in ("run_logic_tree_once", "every_n_steps", "brain_crowd", "uncovered_nodes",
+            "ray_family", "ray_preview_parity"):
     # Real time, so enough Logic + Physics steps ran whatever the frame rate.
     start_key = "__ln_acceptance_run_once_start_" + owner.get("__ln_acceptance_run", "unknown")
     start_time = float(bge.logic.globalDict.get(start_key, 0.0))
@@ -8537,7 +8583,8 @@ while not bge.logic.NextFrame():
         check_now = drive_smooth_motion(owner)
     if mode == "frame_pacing":
         check_now = drive_frame_pacing(owner)
-    if mode in ("run_logic_tree_once", "every_n_steps", "brain_crowd", "uncovered_nodes"):
+    if mode in ("run_logic_tree_once", "every_n_steps", "brain_crowd", "uncovered_nodes",
+                "ray_family", "ray_preview_parity"):
         # Real time, so enough Logic + Physics steps ran whatever the frame rate.
         start_key = "__ln_acceptance_run_once_start_" + owner.get(
             "__ln_acceptance_run", "unknown")
@@ -8604,13 +8651,14 @@ os._exit(0)
 '''
 
 
-# The brain_crowd and uncovered_nodes checks go into both runners' scripts (see BRAIN_CROWD_CHECK).
+# The brain_crowd, uncovered_nodes and ray_family checks go into both runners' scripts (see
+# BRAIN_CROWD_CHECK).
 GAME_CONTROLLER_SCRIPT = GAME_CONTROLLER_SCRIPT.replace(
     "    # __BRAIN_CROWD_CHECK__\n", BRAIN_CROWD_CHECK).replace(
-    "    # __UNCOVERED_NODES_CHECK__\n", UNCOVERED_NODES_CHECK)
+    "    # __UNCOVERED_NODES_CHECK__\n", UNCOVERED_NODES_CHECK + RAY_FAMILY_CHECK)
 PLAYER_MAINLOOP_SCRIPT = PLAYER_MAINLOOP_SCRIPT.replace(
     "    # __BRAIN_CROWD_CHECK__\n", BRAIN_CROWD_CHECK).replace(
-    "    # __UNCOVERED_NODES_CHECK__\n", UNCOVERED_NODES_CHECK)
+    "    # __UNCOVERED_NODES_CHECK__\n", UNCOVERED_NODES_CHECK + RAY_FAMILY_CHECK)
 
 
 def parse_args():
@@ -9627,7 +9675,13 @@ def build_bone_pose_tree(name, armature_obj):
     get_transform.space = "WORLD"
     store_components("transform_location", get_transform.outputs["Location"])
     store_components("transform_rotation", get_transform.outputs["Rotation"], rotation=True)
-    store_components("transform_scale", get_transform.outputs["Scale"])
+    # Set Bone Pose Transform writes no scale: the channel's scale stays (1, 1, 1). Read in the Pose
+    # Channel space (since 2026-11-14 Get Pose Bone Transform's Scale follows its Space: in World it
+    # is the armature's and the scaled parents' scale, as Blender's matrix gives it).
+    get_transform_scale = configure_bone_node(
+        new_logic_node(tree.nodes, "LogicNativeGetBonePoseTransform"), "TransformBone")
+    get_transform_scale.space = "POSE_CHANNEL"
+    store_components("transform_scale", get_transform_scale.outputs["Scale"])
 
     # Bone Local Offset must use evaluated native bone axes. An input on +Y therefore follows the
     # authored bone direction, including the armature object's world rotation.
@@ -12402,10 +12456,11 @@ def build_uncovered_nodes_tree(tree, refs):
     put_bool("cr_found", ray.outputs["Has Result"])
     picked = new_logic_node(tree.nodes, "LogicNativeGetObjectAttribute")
     picked.attribute_type = "NAME"
-    tree.links.new(ray.outputs["Picked Object"], picked.inputs["Object"])
+    # (2026-11-11: shown as Hit Object / Hit Point; the identifiers are still Picked *.)
+    tree.links.new(ray.outputs["Hit Object"], picked.inputs["Object"])
     put_string("cr_name", picked.outputs["Name"])
     split = new_logic_node(tree.nodes, "LogicNativeSeparateXYZ")
-    tree.links.new(ray.outputs["Picked Point"], split.inputs["Vector"])
+    tree.links.new(ray.outputs["Hit Point"], split.inputs["Vector"])
     put_float("cr_x", split.outputs["X"])
     put_float("cr_y", split.outputs["Y"])
 
@@ -12532,6 +12587,872 @@ def run_uncovered_nodes_acceptance(status_path):
     for index, member in enumerate(members):
         set_game_property(owner, f"__ln_acceptance_coll{index}", "STRING", member.name)
     run_game_once(owner, "uncovered_nodes_0", status_path)
+
+
+def run_ray_family_acceptance(status_path):
+    """The ray family of the raycast recommendations (2026-11-11) in a real game, with the scene's
+    own converted bodies (what the unit tests build by hand): Camera Ray and Mouse Ray through a
+    camera nobody draws (every filter, Hit Part of a compound, Hit Material, Ray Origin and Ray
+    Direction, Max Distance, Mask), Raycast's Hit Material by the hit triangle's slot (the
+    conversion keeps the slots only because the output is linked) and Face Index, Raycast from
+    Mesh's Hit Parts / Hit Materials, Projectile Ray with the scene's gravity, a custom one and Max
+    Time, Line of Sight, Sweep Object and Shape Cast's Overlap, and a falling compound whose root is
+    scaled resting on its child (the child's place in a compound). Several queries draw (Visualize),
+    which must change no result. Mouse Ray reads the real cursor, which the tree keeps at the
+    middle of the view (Set Cursor Position): a moving mouse can fail its rows."""
+    reset_scene()
+    configure_game_settings(True)
+    scene = bpy.context.scene
+    scene.game_settings.physics_gravity = 10.0
+
+    owner = create_cube(f"{PREFIX}_RFOwner")
+    owner.game.physics_type = "NO_COLLISION"
+
+    def material(key):
+        return bpy.data.materials.new(f"{PREFIX}_RF{key}")
+
+    def body(key, location, scale, physics="STATIC", bounds="BOX", materials=()):
+        obj = create_cube(f"{PREFIX}_RF{key}")
+        obj.location = location
+        obj.scale = scale
+        obj.game.physics_type = physics
+        obj.game.use_collision_bounds = True
+        obj.game.collision_bounds_type = bounds
+        for slot in materials:
+            obj.data.materials.append(slot)
+        return obj
+
+    def mesh_object(key, location, vertices, faces, physics, bounds=None, materials=(),
+                    face_materials=()):
+        mesh = bpy.data.meshes.new(f"{PREFIX}_RF{key}Mesh")
+        mesh.from_pydata(vertices, [], faces)
+        for slot in materials:
+            mesh.materials.append(slot)
+        for polygon, index in zip(mesh.polygons, face_materials):
+            polygon.material_index = index
+        mesh.update()
+        obj = bpy.data.objects.new(f"{PREFIX}_RF{key}", mesh)
+        scene.collection.objects.link(obj)
+        obj.location = location
+        obj.game.physics_type = physics
+        if bounds is not None:
+            obj.game.use_collision_bounds = True
+            obj.game.collision_bounds_type = bounds
+        return obj
+
+    def collection(key, objects):
+        group = bpy.data.collections.new(f"{PREFIX}_RF{key}")
+        scene.collection.children.link(group)
+        for obj in objects:
+            group.objects.link(obj)
+        return group
+
+    # The camera's line (x 0, z 0, looking along +Y from y -10), nearest first: a sensor, a plane
+    # facing away (only its back is seen), a wall on collision layer 2 only, a wall, and a compound
+    # tank (property "target") whose turret (its child) is in front of its hull.
+    camera_data = bpy.data.cameras.new(f"{PREFIX}_RFCameraData")
+    camera = bpy.data.objects.new(f"{PREFIX}_RFCamera", camera_data)
+    scene.collection.objects.link(camera)
+    camera.location = (0.0, -10.0, 0.0)
+    camera.rotation_euler = (math.radians(90.0), 0.0, 0.0)
+    sensor = body("Sensor", (0.0, -8.0, 0.0), (4.0, 0.1, 4.0), physics="SENSOR")
+    back = mesh_object("Back", (0.0, -7.0, 0.0),
+                       [(-4.0, 0.0, -4.0), (4.0, 0.0, -4.0), (4.0, 0.0, 4.0), (-4.0, 0.0, 4.0)],
+                       [(0, 3, 2, 1)],  # normal +Y: away from the camera
+                       "STATIC", "TRIANGLE_MESH")
+    ignored = body("Ignored", (0.0, -6.0, 0.0), (4.0, 0.1, 4.0))
+    ignored.game.collision_group = [index == 1 for index in range(16)]
+    glass = body("Glass", (0.0, -4.0, 0.0), (4.0, 0.1, 4.0))
+    hull_material = material("HullMat")
+    turret_material = material("TurretMat")
+    tank = body("Tank", (0.0, 0.0, 0.0), (2.0, 0.5, 2.0), materials=(hull_material,))
+    tank.game.use_collision_compound = True
+    set_game_property(tank, "target", "BOOL", True)
+    turret = body("Turret", (0.0, 0.0, 0.0), (1.0, 1.0, 1.0), materials=(turret_material,))
+    turret.game.use_collision_compound = True
+    turret.parent = tank
+    turret.matrix_parent_inverse = tank.matrix_basis.inverted()  # (matrix_world is stale)
+    turret.location = (0.0, -1.0, 0.0)
+    turret.scale = (1.0, 0.2, 1.0)
+    ignore_set = collection("IgnoreSet", (ignored, glass))
+
+    # A triangle mesh of two squares side by side, facing -Y: the left one material slot 0, the
+    # right one slot 1; a box whose faces all use its second slot (a box gives its first); a
+    # triangle facing the panel's right square (Raycast from Mesh's source).
+    panel_left = material("PanelLeft")
+    panel_right = material("PanelRight")
+    panel = mesh_object(
+        "Panel", (20.0, 0.0, 0.0),
+        [(-1.0, 0.0, -1.0), (0.0, 0.0, -1.0), (0.0, 0.0, 1.0), (-1.0, 0.0, 1.0),
+         (1.0, 0.0, -1.0), (1.0, 0.0, 1.0)],
+        [(0, 1, 2, 3), (1, 4, 5, 2)], "STATIC", "TRIANGLE_MESH",
+        materials=(panel_left, panel_right), face_materials=(0, 1))
+    box_first = material("BoxFirst")
+    box_second = material("BoxSecond")
+    box = body("BoxMat", (30.0, 0.0, 0.0), (1.0, 1.0, 1.0), materials=(box_first, box_second))
+    for polygon in box.data.polygons:
+        polygon.material_index = 1
+    emitter = mesh_object("Emitter", (20.5, -3.0, 0.3),
+                          [(-0.2, 0.0, -0.2), (0.0, 0.0, 0.2), (0.2, 0.0, -0.2)],
+                          [(0, 1, 2)], "NO_COLLISION")
+
+    ground = body("Ground", (45.0, 5.0, 0.0), (5.0, 10.0, 0.1))
+    eye = bpy.data.objects.new(f"{PREFIX}_RFEye", None)
+    scene.collection.objects.link(eye)
+    eye.location = (60.0, 0.0, 0.0)
+    seen = body("Seen", (60.0, 5.0, 0.0), (0.5, 0.5, 0.5))
+    hidden = body("Hidden", (62.0, 10.0, 0.0), (0.5, 0.5, 0.5))
+    los_wall = body("LoSWall", (61.0, 7.5, 0.0), (1.0, 0.1, 1.0))
+    behind = body("Behind", (60.0, -5.0, 0.0), (0.5, 0.5, 0.5))
+    los_ignore = collection("LoSIgnore", (los_wall,))
+    crate = body("Crate", (80.0, 0.0, 0.0), (0.5, 0.5, 0.5))
+    sweep_wall = body("SweepWall", (80.0, 5.0, 0.0), (2.0, 0.1, 2.0))
+    sweep_ignore = collection("SweepIgnore", (sweep_wall,))
+    over_a = body("OverA", (100.8, 0.0, 0.0), (0.25, 0.25, 0.25))
+    over_b = body("OverB", (100.0, 1.2, 0.0), (0.25, 0.25, 0.25))
+    # A falling compound whose root is scaled (half height 0.5) with a skid (its child, half
+    # height 0.2) 1.5 below: it comes to rest on the skid, the root 1.7 above the ground's top
+    # (z 1.8). (The skid's offset divided by the root's scale, as before 2026-11-11: z 3.3.)
+    cart = body("Cart", (45.0, 12.0, 4.0), (1.0, 1.0, 0.5), physics="RIGID_BODY")
+    cart.game.use_collision_compound = True
+    cart.game.mass = 2.0
+    skid = body("Skid", (0.0, 0.0, 0.0), (1.0, 1.0, 1.0))
+    skid.game.use_collision_compound = True
+    skid.parent = cart
+    skid.matrix_parent_inverse = cart.matrix_basis.inverted()
+    skid.location = (45.0, 12.0, 2.5)
+    skid.scale = (1.0, 1.0, 0.2)
+
+    tree = new_logic_tree(f"{PREFIX}_RayFamilyTree")
+    nodes = tree.nodes
+    expect = {}
+    start = {}
+    previous = [new_logic_node(nodes, "LogicNativeOnFixedUpdate").outputs["Out"]]
+
+    def inp(node, identifier, value):
+        socket_by_identifier(node.inputs, identifier).default_value = value
+
+    def out(node, identifier):
+        return socket_by_identifier(node.outputs, identifier)
+
+    def chain(node):
+        tree.links.new(previous[0], socket_by_identifier(node.inputs, "Flow"))
+        previous[0] = out(node, "Done")
+
+    def put(kind, name, source, initial):
+        setter = new_logic_node(nodes, kind)
+        setter.inputs["Property"].default_value = name
+        tree.links.new(source, setter.inputs["Value"])
+        chain(setter)
+        start[name] = initial
+
+    def want(name, value, tolerance=None):
+        expect[name] = [value, tolerance]
+
+    def put_bool(name, source, value):
+        put("LogicNativeSetGamePropertyBool", name, source, ("BOOL", not value))
+        want(name, value)
+
+    def put_float(name, source, value, tolerance):
+        put("LogicNativeSetGamePropertyFloat", name, source, ("FLOAT", value + 1000.0))
+        want(name, value, tolerance)
+
+    def put_int(name, source, value):
+        put("LogicNativeSetGamePropertyInt", name, source, ("INT", value + 1000))
+        want(name, value)
+
+    def put_string(name, source, value):
+        put("LogicNativeSetGamePropertyString", name, source, ("STRING", "unset"))
+        want(name, value)
+
+    def put_name(name, source, obj):
+        attribute = new_logic_node(nodes, "LogicNativeGetObjectAttribute")
+        attribute.attribute_type = "NAME"
+        tree.links.new(source, attribute.inputs["Object"])
+        put_string(name, attribute.outputs["Name"], obj.name if obj is not None else "")
+
+    def put_vector(name, source, value, tolerance):
+        split = new_logic_node(nodes, "LogicNativeSeparateXYZ")
+        tree.links.new(source, split.inputs["Vector"])
+        for axis, component in zip("xyz", value):
+            put_float(name + axis, split.outputs[axis.upper()], component, tolerance)
+
+    def objects_of(group):
+        node = new_logic_node(nodes, "LogicNativeGetCollectionObjects")
+        node.inputs["Collection"].default_value = group
+        return node.outputs["Objects"]
+
+    def first_item(source):
+        item = new_logic_node(nodes, "LogicNativeListGetItem")
+        tree.links.new(source, item.inputs["List"])
+        item.inputs["Index"].default_value = 0
+        return item.outputs["Value"]
+
+    def visualize(node, duration=2.0):
+        inp(node, "Visualize", True)
+        inp(node, "Duration", duration)
+
+    def record_cast(node, prefix, hit_object, has, blocked=False, part=None, slot="",
+                    distance=None, tolerance=1.0e-3, has_pin="Has Result",
+                    object_pin="Picked Object"):
+        put_bool(prefix + "has", out(node, has_pin), has)
+        put_bool(prefix + "blocked", out(node, "Blocked"), blocked)
+        put_name(prefix + "obj", out(node, object_pin), hit_object)
+        put_name(prefix + "part", out(node, "Hit Part"), part if part is not None else hit_object)
+        put_string(prefix + "mat", out(node, "Hit Material"), slot)
+        if distance is not None:
+            put_float(prefix + "dist", out(node, "Distance"), distance, tolerance)
+
+    chain(new_logic_node(nodes, "LogicNativeSetCursorPosition"))  # the middle (Mouse Ray)
+
+    # Camera Ray through the camera, aimed at the middle. A miss gives the whole distance.
+    def camera_ray(prefix, **settings):
+        ray = new_logic_node(nodes, "LogicNativeCameraRay")
+        inp(ray, "Camera", camera)
+        inp(ray, "Aim", (0.5, 0.5, 0.0))
+        inp(ray, "Distance", 50.0)
+        for identifier, value in settings.items():
+            inp(ray, identifier.replace("_", " "), value)
+        chain(ray)
+        return ray
+
+    def mouse_ray(prefix, **settings):
+        ray = new_logic_node(nodes, "LogicNativeMouseRay")
+        ray.interaction_view = "CUSTOM_CAMERA"
+        inp(ray, "Camera", camera)
+        inp(ray, "Distance", 50.0)
+        for identifier, value in settings.items():
+            inp(ray, identifier.replace("_", " "), value)
+        chain(ray)
+        return ray
+
+    for make, prefix, tolerance in ((camera_ray, "cr_", 1.0e-3), (mouse_ray, "mr_", 0.05)):
+        plain = make(prefix + "plain_")
+        record_cast(plain, prefix + "plain_", ignored, True, distance=3.9, tolerance=tolerance)
+        put_float(prefix + "plain_frac", out(plain, "Fraction"), 3.9 / 50.0, tolerance / 50.0)
+        put_vector(prefix + "plain_origin_", out(plain, "Ray Origin"), (0.0, -10.0, 0.0), 1.0e-3)
+        put_vector(prefix + "plain_dir_", out(plain, "Ray Direction"), (0.0, 1.0, 0.0),
+                   tolerance / 5.0)
+        put_vector(prefix + "plain_point_", out(plain, "Picked Point"), (0.0, -6.1, 0.0),
+                   tolerance)
+        put_vector(prefix + "plain_normal_", out(plain, "Picked Normal"), (0.0, -1.0, 0.0), 1.0e-3)
+        record_cast(make(prefix + "sensor_", **{"Include_Sensors": True}), prefix + "sensor_",
+                    sensor, True, distance=1.9, tolerance=tolerance)
+        record_cast(make(prefix + "back_", **{"Hit_Backfaces": True}), prefix + "back_", back,
+                    True, distance=3.0, tolerance=tolerance)
+        both = make(prefix + "both_", **{"Include_Sensors": True, "Hit_Backfaces": True})
+        record_cast(both, prefix + "both_", sensor, True, distance=1.9, tolerance=tolerance)
+        record_cast(make(prefix + "ignore_", **{"Ignore_Object": ignored}), prefix + "ignore_",
+                    glass, True, distance=5.9, tolerance=tolerance)
+        listed = make(prefix + "list_")
+        tree.links.new(objects_of(ignore_set), socket_by_identifier(listed.inputs,
+                                                                    "Ignore Objects"))
+        record_cast(listed, prefix + "list_", tank, True, part=turret, slot=turret_material.name,
+                    distance=8.8, tolerance=tolerance)
+        record_cast(make(prefix + "blocked_", Property="target"), prefix + "blocked_", None,
+                    False, blocked=True)
+        record_cast(make(prefix + "xray_", Property="target", **{"X-Ray": True}),
+                    prefix + "xray_", tank, True, part=turret, slot=turret_material.name,
+                    distance=8.8, tolerance=tolerance)
+        short = make(prefix + "short_", Distance=2.0)
+        record_cast(short, prefix + "short_", None, False, distance=2.0, tolerance=tolerance)
+        put_float(prefix + "short_frac", out(short, "Fraction"), 1.0, 1.0e-4)
+        record_cast(make(prefix + "mask_", Mask=1), prefix + "mask_", glass, True, distance=5.9,
+                    tolerance=tolerance)
+        drawn = make(prefix + "vis_")
+        visualize(drawn)
+        record_cast(drawn, prefix + "vis_", ignored, True, distance=3.9, tolerance=tolerance)
+
+    # Mouse Ray in its default Interaction View (Automatic): it casts from the view the game is
+    # drawn through (the runner's), so the check compares its ray with the active camera there.
+    automatic = new_logic_node(nodes, "LogicNativeMouseRay")
+    inp(automatic, "Distance", 50.0)
+    chain(automatic)
+    for name, pin in (("mra_origin_", "Ray Origin"), ("mra_dir_", "Ray Direction")):
+        split = new_logic_node(nodes, "LogicNativeSeparateXYZ")
+        tree.links.new(out(automatic, pin), split.inputs["Vector"])
+        for axis in "xyz":
+            put("LogicNativeSetGamePropertyFloat", name + axis, split.outputs[axis.upper()],
+                ("FLOAT", 1000.0))
+
+    # Raycast: Hit Material by the hit triangle's slot, Face Index the Blender face, Hit Part of
+    # the compound (the hull: the tank itself).
+    def raycast(prefix, origin, destination):
+        ray = new_logic_node(nodes, "LogicNativeRaycast")
+        ray.input_mode = "END_POINT"
+        inp(ray, "Origin", origin)
+        inp(ray, "Destination", destination)
+        chain(ray)
+        return ray
+
+    left = raycast("rc_left_", (19.5, -5.0, 0.3), (19.5, 5.0, 0.3))
+    visualize(left)
+    record_cast(left, "rc_left_", panel, True, slot=panel_left.name, distance=5.0)
+    put_int("rc_left_face", out(left, "Face Index"), 0)
+    right = raycast("rc_right_", (20.5, -5.0, 0.3), (20.5, 5.0, 0.3))
+    record_cast(right, "rc_right_", panel, True, slot=panel_right.name, distance=5.0)
+    put_int("rc_right_face", out(right, "Face Index"), 1)
+    record_cast(raycast("rc_box_", (30.0, -5.0, 0.3), (30.0, 5.0, 0.3)), "rc_box_", box, True,
+                slot=box_first.name, distance=4.0)
+    record_cast(raycast("rc_hull_", (1.5, -3.0, 0.3), (1.5, 3.0, 0.3)), "rc_hull_", tank, True,
+                slot=hull_material.name, distance=2.5)
+    record_cast(raycast("rc_turret_", (0.0, -3.0, 0.3), (0.0, 3.0, 0.3)), "rc_turret_", tank,
+                True, part=turret, slot=turret_material.name, distance=1.8)
+
+    # Raycast from Mesh: the triangle's one face ray meets the panel's right square.
+    from_mesh = new_logic_node(nodes, "LogicNativeRaycastFromMesh")
+    from_mesh.mesh_domain = "FACES"
+    from_mesh.ray_direction = "NORMALS"
+    inp(from_mesh, "Source Object", emitter)
+    inp(from_mesh, "Start Offset", 0.05)
+    inp(from_mesh, "Max Distance", 10.0)
+    inp(from_mesh, "Max Rays", 8)
+    chain(from_mesh)
+    put_int("rm_count", out(from_mesh, "Hit Count"), 1)
+    put_name("rm_part", first_item(out(from_mesh, "Hit Parts")), panel)
+    put_string("rm_mat", first_item(out(from_mesh, "Hit Materials")), panel_right.name)
+
+    # Projectile Ray from 4.9 above the ground's top, thrown level at 5 m/s: scene gravity (10,
+    # the game setting), a custom one (20), and a Max Time that ends before it lands.
+    def projectile(prefix, **settings):
+        throw = new_logic_node(nodes, "LogicNativeProjectileRay")
+        inp(throw, "Origin", (45.0, 0.0, 5.0))
+        inp(throw, "Aim", (45.0, 1.0, 5.0))
+        inp(throw, "Power", 5.0)
+        inp(throw, "Distance", 30.0)
+        for identifier, value in settings.items():
+            inp(throw, identifier.replace("_", " "), value)
+        chain(throw)
+        return throw
+
+    for prefix, gravity, custom in (("pr_scene_", 10.0, False), ("pr_custom_", 20.0, True)):
+        throw = projectile(prefix)
+        if custom:
+            throw.gravity_source = "CUSTOM"
+            inp(throw, "Gravity", (0.0, 0.0, -gravity))
+        else:
+            visualize(throw)
+        time_down = math.sqrt(2.0 * 4.9 / gravity)
+        put_bool(prefix + "has", out(throw, "RESULT"), True)
+        put_name(prefix + "obj", out(throw, "PICKED_OBJECT"), ground)
+        put_float(prefix + "time", out(throw, "Flight Time"), time_down, 0.02)
+        put_vector(prefix + "point_", out(throw, "POINT"), (45.0, 5.0 * time_down, 0.1), 0.1)
+        put_vector(prefix + "velocity_", out(throw, "Impact Velocity"),
+                   (0.0, 5.0, -gravity * time_down), 0.3)
+    short_throw = projectile("pr_short_", Max_Time=0.5)
+    put_bool("pr_short_has", out(short_throw, "RESULT"), False)
+
+    # Line of Sight from an empty looking along +Y with a 90 degree view.
+    def line_of_sight(prefix, target):
+        look = new_logic_node(nodes, "LogicNativeLineOfSight")
+        inp(look, "Eye", eye)
+        inp(look, "Target", target)
+        chain(look)
+        return look
+
+    look = line_of_sight("los_seen_", seen)
+    visualize(look)
+    put_bool("los_seen_visible", out(look, "Visible"), True)
+    put_name("los_seen_blocker", out(look, "Blocker"), None)
+    put_float("los_seen_dist", out(look, "Distance"), 5.0, 1.0e-3)
+    put_float("los_seen_angle", out(look, "Angle"), 0.0, 1.0e-2)
+    look = line_of_sight("los_hidden_", hidden)
+    put_bool("los_hidden_visible", out(look, "Visible"), False)
+    put_name("los_hidden_blocker", out(look, "Blocker"), los_wall)
+    put_float("los_hidden_angle", out(look, "Angle"), math.degrees(math.atan2(2.0, 10.0)), 1.0e-2)
+    look = line_of_sight("los_glass_", hidden)
+    tree.links.new(objects_of(los_ignore), socket_by_identifier(look.inputs, "Ignore Objects"))
+    put_bool("los_glass_visible", out(look, "Visible"), True)
+    look = line_of_sight("los_behind_", behind)
+    put_bool("los_behind_visible", out(look, "Visible"), False)
+    put_float("los_behind_angle", out(look, "Angle"), 180.0, 1.0e-2)
+
+    # Sweep Object: the crate's own box (half 0.5) toward the wall (face at y 4.9).
+    def sweep(prefix):
+        move = new_logic_node(nodes, "LogicNativeSweepObject")
+        inp(move, "Object", crate)
+        inp(move, "Destination", (80.0, 10.0, 0.0))
+        chain(move)
+        return move
+
+    move = sweep("sw_")
+    visualize(move)
+    record_cast(move, "sw_", sweep_wall, True, distance=4.399, tolerance=2.0e-3,
+                object_pin="Hit Object")
+    put_vector("sw_safe_", out(move, "Safe Position"), (80.0, 4.399, 0.0), 2.0e-3)
+    put_float("sw_frac", out(move, "Safe Fraction"), 0.4399, 2.0e-4)
+    put_vector("sw_normal_", out(move, "Hit Normal"), (0.0, -1.0, 0.0), 1.0e-3)
+    put_bool("sw_inside", out(move, "Started Overlapping"), False)
+    move = sweep("sw_free_")
+    tree.links.new(objects_of(sweep_ignore), socket_by_identifier(move.inputs, "Ignore Objects"))
+    put_bool("sw_free_has", out(move, "Has Result"), False)
+    put_vector("sw_free_safe_", out(move, "Safe Position"), (80.0, 10.0, 0.0), 1.0e-4)
+
+    # Shape Cast's Overlap: what a sphere touches where it is.
+    def overlap(prefix, idname, origin, radius):
+        shape = new_logic_node(nodes, idname)
+        shape.cast_mode = "OVERLAP"
+        shape.shape_type = "SPHERE"
+        inp(shape, "Origin", origin)
+        inp(shape, "Radius", radius)
+        chain(shape)
+        return shape
+
+    shape = overlap("so_near_", "LogicNativeShapeCast", (100.0, 0.0, 0.0), 1.0)
+    put_bool("so_near_has", out(shape, "Has Result"), True)
+    put_name("so_near_obj", out(shape, "Hit Object"), over_a)
+    shape = overlap("so_none_", "LogicNativeShapeCast", (100.0, -5.0, 0.0), 1.0)
+    put_bool("so_none_has", out(shape, "Has Result"), False)
+    shape = overlap("so_all_", "LogicNativeShapeCastAll", (100.0, 0.0, 0.0), 1.5)
+    put_int("so_all_count", out(shape, "Hit Count"), 2)
+
+    # The cart at rest on its skid (read at the end: it has fallen and settled by then).
+    where = new_logic_node(nodes, "LogicNativeGetObjectAttribute")
+    where.attribute_type = "WORLD_POSITION"
+    where.inputs["Object"].default_value = cart
+    put_vector("cart_", where.outputs["Vector"], (45.0, 12.0, 1.8), 0.03)
+
+    for name, (kind, value) in start.items():
+        set_game_property(owner, name, kind, value)
+    bind_tree(owner, tree.name, True)
+    add_status_controller(owner, status_path, "ray_family", required_frame=2,
+                          required_seconds=2.5)
+    set_game_property(owner, "__ln_acceptance_rf_expect", "STRING", json.dumps(expect))
+    run_game_once(owner, "ray_family_0", status_path)
+
+
+def run_ray_preview_parity_acceptance(status_path):
+    """The viewport ray previews (scripts/startup/logic_nodes_ray_preview.py, 2026-11-12) against
+    the engine: the preview module works out each node's geometry in this Blender before the game
+    starts (Raycast in both modes, local, with a Caster found by name; Shape Cast local; Raycast
+    from Mesh by faces and by vertices with a vertex group on a turned, unevenly scaled mesh;
+    Camera Ray through the middle and off it; Mouse Ray through the middle; Projectile Ray in the
+    world and local; Line of Sight; Sweep Object; Aim for Arc both ways; Ray to Plane; the
+    explosion's sphere; Keep Distance's cushion), with inputs linked through Math, Vector Math,
+    Combine / Separate XYZ, Value, Get Owner's axis, Object By Name and Get Object Attribute; the
+    game records what the engine
+    gives. Nothing has a body but the swept crate and the two boxes of the explosion test, so every
+    other query misses and gives its whole path. The owner is turned and scaled, so Local counts.
+    Mouse Ray reads the real cursor, kept in the middle (Set Cursor Position)."""
+    import logic_nodes_ray_preview as rp
+
+    reset_scene()
+    configure_game_settings(True)
+    scene = bpy.context.scene
+    scene.game_settings.physics_gravity = 10.0
+    # The player's window (320 x 200) has the camera frame's shape.
+    scene.render.resolution_x = 320
+    scene.render.resolution_y = 200
+    # (prepare_run puts the owner at the origin: it stays there, turned and scaled.)
+    owner = create_cube(f"{PREFIX}_PPOwner")
+    owner.game.physics_type = "NO_COLLISION"
+    owner.rotation_euler = (0.0, 0.0, math.radians(90.0))
+    owner.scale = (2.0, 2.0, 2.0)
+
+    def empty(key, location, rotation=(0.0, 0.0, 0.0), scale=(1.0, 1.0, 1.0)):
+        obj = bpy.data.objects.new(f"{PREFIX}_PP{key}", None)
+        scene.collection.objects.link(obj)
+        obj.location = location
+        obj.rotation_euler = rotation
+        obj.scale = scale
+        return obj
+
+    def mesh_object(key, vertices, faces, location, rotation, scale, physics="NO_COLLISION"):
+        mesh = bpy.data.meshes.new(f"{PREFIX}_PP{key}Mesh")
+        mesh.from_pydata(vertices, [], faces)
+        mesh.update()
+        obj = bpy.data.objects.new(f"{PREFIX}_PP{key}", mesh)
+        scene.collection.objects.link(obj)
+        obj.location = location
+        obj.rotation_euler = rotation
+        obj.scale = scale
+        obj.game.physics_type = physics
+        return obj
+
+    caster = empty("Caster", (0.0, 5.0, 0.0), (0.0, 0.0, math.radians(45.0)), (1.0, 1.0, 3.0))
+    marker = empty("Marker", (3.0, -4.0, 2.0))
+    target = empty("Target", (4.0, 6.0, 1.0))
+    grid = mesh_object("Grid", [(x, y, 0.0) for y in (0, 1, 2) for x in (0, 1, 2)],
+                       [(0, 1, 4, 3), (1, 2, 5, 4), (3, 4, 7, 6), (4, 5, 8, 7)],
+                       (20.0, 0.0, 0.0), (0.3, 0.0, 0.5), (2.0, 1.0, 0.5))
+    rim = grid.vertex_groups.new(name="Rim")
+    rim.add([0, 1, 2, 3, 5, 6, 7, 8], 1.0, 'REPLACE')
+    cube_verts = [(x, y, z) for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)] + [(4, 4, 4)]
+    cube_faces = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4),
+                  (1, 5, 7, 3)]
+    verts = mesh_object("Verts", cube_verts, cube_faces, (30.0, 0.0, 0.0), (0.2, 0.4, 0.1),
+                        (1.0, 1.5, 0.5))
+    camera_data = bpy.data.cameras.new(f"{PREFIX}_PPCamData")
+    camera = bpy.data.objects.new(f"{PREFIX}_PPCam", camera_data)
+    scene.collection.objects.link(camera)
+    camera.location = (0.0, -20.0, 3.0)
+    camera.rotation_euler = (math.radians(85.0), 0.0, math.radians(10.0))
+    crate = create_cube(f"{PREFIX}_PPCrate")
+    crate.location = (50.0, 0.0, 0.0)
+    crate.rotation_euler = (0.0, 0.0, math.radians(30.0))
+    crate.scale = (1.0, 0.5, 0.5)
+    crate.game.physics_type = "STATIC"
+    crate.game.use_collision_bounds = True
+    crate.game.collision_bounds_type = "BOX"
+    blast_boxes = []
+    for key, x in (("BlastIn", 202.0), ("BlastOut", 205.0)):
+        box = create_cube(f"{PREFIX}_PP{key}")
+        box.location = (x, 0.0, 0.0)
+        box.scale = (0.5, 0.5, 0.5)
+        box.game.physics_type = "STATIC"
+        box.game.use_collision_bounds = True
+        box.game.collision_bounds_type = "BOX"
+        blast_boxes.append(box)
+
+    tree = new_logic_tree(f"{PREFIX}_RayPreviewParityTree")
+    nodes = tree.nodes
+    expect = {}
+    start = {}
+    previous = [new_logic_node(nodes, "LogicNativeOnFixedUpdate").outputs["Out"]]
+
+    def inp(node, identifier, value):
+        socket_by_identifier(node.inputs, identifier).default_value = value
+
+    def out(node, identifier):
+        return socket_by_identifier(node.outputs, identifier)
+
+    def link(source, node, identifier):
+        tree.links.new(source, socket_by_identifier(node.inputs, identifier))
+
+    def chain(node):
+        tree.links.new(previous[0], socket_by_identifier(node.inputs, "Flow"))
+        previous[0] = out(node, "Done")
+
+    # What to record and compare, filled once every node is made (the previews need the tree).
+    records = []
+
+    def put(kind, name, source, initial):
+        setter = new_logic_node(nodes, kind)
+        setter.inputs["Property"].default_value = name
+        tree.links.new(source, setter.inputs["Value"])
+        chain(setter)
+        start[name] = initial
+
+    def record_float(name, source, expected, tolerance):
+        put("LogicNativeSetGamePropertyFloat", name, source, ("FLOAT", -1000.0))
+        records.append((name, expected, tolerance))
+
+    def record_int(name, source, expected):
+        put("LogicNativeSetGamePropertyInt", name, source, ("INT", -1000))
+        records.append((name, expected, None))
+
+    def record_bool(name, source, expected):
+        put("LogicNativeSetGamePropertyBool", name, source, ("BOOL", None))
+        records.append((name, expected, None))
+
+    def record_vector(name, source, expected, tolerance):
+        split = new_logic_node(nodes, "LogicNativeSeparateXYZ")
+        tree.links.new(source, split.inputs["Vector"])
+        for index, axis in enumerate("xyz"):
+            record_float(name + axis, split.outputs[axis.upper()],
+                         (lambda e=expected, i=index: e()[i]), tolerance)
+
+    def item(list_socket, index):
+        get = new_logic_node(nodes, "LogicNativeListGetItem")
+        tree.links.new(list_socket, get.inputs["List"])
+        get.inputs["Index"].default_value = index
+        return get.outputs["Value"]
+
+    def length_of(list_socket):
+        count = new_logic_node(nodes, "LogicNativeListLength")
+        tree.links.new(list_socket, count.inputs["List"])
+        return count.outputs[0]
+
+    previews = {}
+
+    def data(key):
+        return previews[key].data
+
+    chain(new_logic_node(nodes, "LogicNativeSetCursorPosition"))  # the middle (Mouse Ray)
+
+    # Raycast, Direction mode, every input followed: Origin = (2 x 3, Y of (1, 2, 3), 1 / 0),
+    # Direction = the owner's -Y, Max Distance a Value node.
+    ray = new_logic_node(nodes, "LogicNativeRaycast")
+    ray.input_mode = "DIRECTION_DISTANCE"
+    combine = new_logic_node(nodes, "LogicNativeCombineXYZ")
+    times = new_logic_node(nodes, "LogicNativeMath")
+    times.operation = "MULTIPLY"
+    inp(times, "A", 2.0)
+    inp(times, "B", 3.0)
+    link(out(times, "Result"), combine, "X")
+    vector_value = new_logic_node(nodes, "LogicNativeValueVector")
+    out(vector_value, "Vector").default_value = (1.0, 2.0, 3.0)
+    separate = new_logic_node(nodes, "LogicNativeSeparateXYZ")
+    link(out(vector_value, "Vector"), separate, "Vector")
+    link(out(separate, "Y"), combine, "Y")
+    divide = new_logic_node(nodes, "LogicNativeMath")
+    divide.operation = "DIVIDE"
+    inp(divide, "A", 1.0)
+    inp(divide, "B", 0.0)
+    link(out(divide, "Result"), combine, "Z")
+    link(out(combine, "Vector"), ray, "Origin")
+    axis = new_logic_node(nodes, "LogicNativeGetAxisVector")
+    axis.axis = "LOCAL_NEGATIVE_Y"
+    link(out(axis, "Vector"), ray, "Direction")
+    float_value = new_logic_node(nodes, "LogicNativeValueFloat")
+    out(float_value, "Float").default_value = 4.0
+    link(out(float_value, "Float"), ray, "Max Distance")
+    chain(ray)
+    record_vector("ray_end_", out(ray, "End Point"), lambda: data("ray")["destination"], 1.0e-3)
+    record_vector("ray_dir_", out(ray, "Direction"), lambda: data("ray")["direction"], 1.0e-4)
+
+    # Raycast, End Point, Local (the owner's whole transform).
+    ray_local = new_logic_node(nodes, "LogicNativeRaycast")
+    ray_local.input_mode = "END_POINT"
+    inp(ray_local, "Local", True)
+    inp(ray_local, "Origin", (1.0, 0.5, 0.0))
+    inp(ray_local, "Destination", (0.0, 1.0, 2.0))
+    chain(ray_local)
+    record_vector("rayl_end_", out(ray_local, "End Point"),
+                  lambda: data("ray_local")["destination"], 1.0e-3)
+    record_vector("rayl_dir_", out(ray_local, "Direction"),
+                  lambda: data("ray_local")["direction"], 1.0e-4)
+
+    # Raycast, Direction, Local with a Caster found by name (turned 45 degrees, scaled 3 high).
+    ray_caster = new_logic_node(nodes, "LogicNativeRaycast")
+    ray_caster.input_mode = "DIRECTION_DISTANCE"
+    by_name = new_logic_node(nodes, "LogicNativeObjectByName")
+    inp(by_name, "Name", caster.name)
+    link(out(by_name, "Object"), ray_caster, "Caster")
+    inp(ray_caster, "Local", True)
+    inp(ray_caster, "Origin", (1.0, 0.0, 1.0))
+    inp(ray_caster, "Direction", (0.0, 1.0, 1.0))
+    inp(ray_caster, "Max Distance", 3.0)
+    chain(ray_caster)
+    record_vector("rayc_end_", out(ray_caster, "End Point"),
+                  lambda: data("ray_caster")["destination"], 1.0e-3)
+
+    # Shape Cast, box, Local; Origin from the marker's position (Object By Name, Get Object
+    # Attribute) plus (0, 0, 1) (Vector Math).
+    shape = new_logic_node(nodes, "LogicNativeShapeCast")
+    shape.shape_type = "BOX"
+    marker_by_name = new_logic_node(nodes, "LogicNativeObjectByName")
+    inp(marker_by_name, "Name", marker.name)
+    where = new_logic_node(nodes, "LogicNativeGetObjectAttribute")
+    where.attribute_type = "WORLD_POSITION"
+    link(out(marker_by_name, "Object"), where, "Object")
+    add = new_logic_node(nodes, "LogicNativeVectorMath")
+    add.operation = "ADD"
+    link(out(where, "Vector"), add, "A")
+    inp(add, "B", (0.0, 0.0, 1.0))
+    link(out(add, "Result"), shape, "Origin")
+    inp(shape, "Destination", (1.0, 2.0, 3.0))
+    inp(shape, "Half Extents", (0.2, 0.2, 0.2))
+    inp(shape, "Local", True)
+    chain(shape)
+    record_vector("shape_end_", out(shape, "Cast Position"),
+                  lambda: data("shape")["destination"], 1.0e-3)
+    record_vector("shape_dir_", out(shape, "Direction"),
+                  lambda: (data("shape")["destination"] - data("shape")["origin"]).normalized(),
+                  1.0e-4)
+
+    # Raycast from Mesh: the grid's faces (3 of 4 rays), the grid's vertices in "Rim", and the
+    # cube's vertices (its loose vertex casts nothing).
+    mesh_rays = []
+    for key, source, domain, group, max_rays, picks in (
+            ("rm_faces", grid, "FACES", "", 3, (0, 1, 2)),
+            ("rm_rim", grid, "VERTICES", "Rim", 5, (0, 2, 4)),
+            ("rm_cube", verts, "VERTICES", "", 256, (0, 3, 7))):
+        from_mesh = new_logic_node(nodes, "LogicNativeRaycastFromMesh")
+        from_mesh.mesh_domain = domain
+        inp(from_mesh, "Source Object", source)
+        inp(from_mesh, "Vertex Group", group)
+        inp(from_mesh, "Start Offset", 0.25)
+        inp(from_mesh, "Max Distance", 1.5)
+        inp(from_mesh, "Max Rays", max_rays)
+        chain(from_mesh)
+        mesh_rays.append((key, from_mesh))
+        record_int(key + "_count", out(from_mesh, "Ray Count"),
+                   lambda k=key: len(data(k)["rays"]))
+        for index in picks:
+            record_vector(f"{key}{index}_o_", item(out(from_mesh, "Ray Origins"), index),
+                          lambda k=key, i=index: data(k)["rays"][i][0], 1.0e-3)
+            record_vector(f"{key}{index}_e_", item(out(from_mesh, "End Points"), index),
+                          lambda k=key, i=index: data(k)["rays"][i][1], 1.0e-3)
+
+    # Camera Ray through the middle and off it; Mouse Ray through the middle (Custom Camera).
+    camera_rays = []
+    for key, aim in (("cr_mid", (0.5, 0.5, 0.0)), ("cr_off", (0.25, 0.8, 0.0))):
+        node = new_logic_node(nodes, "LogicNativeCameraRay")
+        inp(node, "Camera", camera)
+        inp(node, "Aim", aim)
+        inp(node, "Distance", 30.0)
+        chain(node)
+        camera_rays.append((key, node))
+        record_vector(key + "_o_", out(node, "Ray Origin"), lambda k=key: data(k)["origin"],
+                      1.0e-3)
+        # Off the middle, the ray follows the window's shape: the preview takes the scene's
+        # resolution (the player's window here, camera view's frame); embedded play draws in the
+        # editor's area, whose shape is its own. Checked exactly in the player.
+        if key == "cr_mid" or RUNNER == "player":
+            record_vector(key + "_d_", out(node, "Ray Direction"),
+                          lambda k=key: data(k)["direction"], 1.0e-4)
+    mouse = new_logic_node(nodes, "LogicNativeMouseRay")
+    mouse.interaction_view = "CUSTOM_CAMERA"
+    inp(mouse, "Camera", camera)
+    inp(mouse, "Distance", 30.0)
+    chain(mouse)
+    record_vector("mr_o_", out(mouse, "Ray Origin"), lambda: data("mouse")["origin"], 1.0e-3)
+    record_vector("mr_d_", out(mouse, "Ray Direction"), lambda: data("mouse")["direction"], 0.02)
+
+    # Projectile Ray: in the world (Max Time cuts it), and Local from the owner.
+    throws = []
+    for key, local in (("pr_world", False), ("pr_local", True)):
+        throw = new_logic_node(nodes, "LogicNativeProjectileRay")
+        inp(throw, "Local", local)
+        inp(throw, "Origin", (0.0, 0.0, 5.0) if not local else (1.0, 0.0, 0.5))
+        inp(throw, "Aim", (2.0, 1.0, 6.0) if not local else (1.0, 0.0, 1.0))
+        inp(throw, "Power", 6.0)
+        inp(throw, "Distance", 40.0)
+        inp(throw, "Resolution", 0.8)
+        inp(throw, "Max Time", 0.85 if not local else 0.0)
+        chain(throw)
+        throws.append((key, throw))
+        parabola = out(throw, "PARABOLA")
+        record_int(key + "_count", length_of(parabola), lambda k=key: len(data(k)["points"]))
+        for index in (1, 3, 5):
+            record_vector(f"{key}{index}_", item(parabola, index),
+                          lambda k=key, i=index: data(k)["points"][i], 2.0e-3)
+        record_float(key + "_time", out(throw, "Flight Time"),
+                     lambda k=key: data(k)["flight_time"], 1.0e-3)
+
+    # Line of Sight from the owner (offset and forward in its space) to the target (offset).
+    look = new_logic_node(nodes, "LogicNativeLineOfSight")
+    inp(look, "Eye Offset", (0.0, 0.0, 0.5))
+    inp(look, "Forward", (1.0, 0.0, 0.0))
+    inp(look, "Target", target)
+    inp(look, "Target Offset", (0.0, 0.0, 0.2))
+    inp(look, "Max Distance", 20.0)
+    inp(look, "View Angle", math.radians(120.0))
+    chain(look)
+    record_float("los_dist", out(look, "Distance"), lambda: data("look")["distance"], 1.0e-3)
+    record_float("los_angle", out(look, "Angle"), lambda: data("look")["angle"], 0.02)
+    record_bool("los_visible", out(look, "Visible"),
+                lambda: bool(data("look")["in_range"] and data("look")["in_view"]))
+
+    # Sweep Object: the crate, Local Destination (free: the whole way).
+    sweep = new_logic_node(nodes, "LogicNativeSweepObject")
+    inp(sweep, "Object", crate)
+    inp(sweep, "Destination", (3.0, 1.0, 0.0))
+    inp(sweep, "Local", True)
+    chain(sweep)
+    record_vector("sw_end_", out(sweep, "Safe Position"), lambda: data("sweep")["destination"],
+                  1.0e-3)
+
+    # Aim for Arc by speed (high arc) and by height, scene gravity.
+    arcs = []
+    for key, by_speed in (("arc_speed", True), ("arc_height", False)):
+        arc = new_logic_node(nodes, "LogicNativeAimForArc")
+        arc.solve_by = "SPEED" if by_speed else "ARC_HEIGHT"
+        inp(arc, "Start", (1.0, 2.0, 0.5))
+        inp(arc, "Target", (9.0, -3.0, 2.0))
+        inp(arc, "Speed", 14.0)
+        inp(arc, "High Arc", True)
+        inp(arc, "Arc Height", 2.5)
+        arcs.append((key, arc))
+        record_vector(key + "_v_", out(arc, "Launch Velocity"), lambda k=key: data(k)["velocity"],
+                      1.0e-3)
+        record_float(key + "_t", out(arc, "Flight Time"), lambda k=key: data(k)["flight_time"],
+                     1.0e-4)
+        record_bool(key + "_reach", out(arc, "Can Reach"), lambda k=key: data(k)["can_reach"])
+
+    # Ray to Plane.
+    plane = new_logic_node(nodes, "LogicNativeRayToPlane")
+    inp(plane, "Ray Origin", (1.0, 2.0, 6.0))
+    inp(plane, "Ray Direction", (0.5, 0.0, -2.0))
+    inp(plane, "Plane Point", (0.0, 0.0, 1.0))
+    inp(plane, "Plane Normal", (0.2, 0.0, 3.0))
+    record_vector("rp_point_", out(plane, "Point"), lambda: data("plane")["point"], 1.0e-4)
+    record_float("rp_dist", out(plane, "Distance"), lambda: data("plane")["distance"], 1.0e-4)
+    record_bool("rp_has", out(plane, "Has Result"), lambda: data("plane")["distance"] >= 0.0)
+
+    # The explosion's sphere: which of the two boxes it reaches.
+    blast = new_logic_node(nodes, "LogicNativeExplosionImpulse")
+    blast.center = "POSITION"
+    inp(blast, "Origin", (200.0, 0.0, 0.0))
+    inp(blast, "Radius", 3.0)
+    chain(blast)  # (its Flow must be linked; it pushes nothing: both boxes are static)
+
+    def reached():
+        center, radius = data("blast")["center"], data("blast")["radius"]
+        count = 0
+        for box in blast_boxes:
+            low = box.location - mathutils.Vector(box.scale)
+            high = box.location + mathutils.Vector(box.scale)
+            nearest = mathutils.Vector([min(max(center[i], low[i]), high[i]) for i in range(3)])
+            count += (nearest - center).length <= radius
+        return count
+
+    record_int("blast_count", length_of(out(blast, "Objects")), reached)
+
+    # Keep Distance from empties beside the BlastIn box (its face at x = 201.5), the Radius
+    # sphere every time (Measure From Sphere, and Object's Shape of an object without a body):
+    # Push 0.1 m inside its cushion and 0.4 m outside it, Pull 0.1 m inside its Distance, Hold
+    # outside its Distance but within its Reach (the outputs tell of everything within Reach).
+    # (Their outputs give the step before; the box stands still.)
+    keeps = []
+    for key, x, measure, mode, distance in (("keep_in", 199.5, "SPHERE", "PUSH", 1.6),
+                                            ("keep_out", 199.0, "OBJECT_SHAPE", "PUSH", 1.6),
+                                            ("keep_pull", 199.5, "SPHERE", "PULL", 1.6),
+                                            ("keep_hold", 199.5, "SPHERE", "HOLD", 1.0)):
+        holder = empty(key.replace("_", "").title(), (x, 0.0, 0.0))
+        keep = new_logic_node(nodes, "LogicNativeKeepDistance")
+        keep.measure_from = measure
+        # (The Mode is an input since 2026-11-15: 0 Push, 1 Pull, 2 Hold.)
+        inp(keep, "Mode", {"PUSH": 0, "PULL": 1, "HOLD": 2}[mode])
+        inp(keep, "Object", holder)
+        inp(keep, "Distance", distance)
+        inp(keep, "Reach", 2.0)
+        inp(keep, "Radius", 0.5)
+        chain(keep)
+        keeps.append((key, keep))
+
+        def gap(k=key):
+            center, radius = data(k)["center"], data(k)["radius"]
+            box = blast_boxes[0]
+            low = box.location - mathutils.Vector(box.scale)
+            high = box.location + mathutils.Vector(box.scale)
+            nearest = mathutils.Vector([min(max(center[i], low[i]), high[i]) for i in range(3)])
+            return (nearest - center).length - radius
+
+        def within(k=key, g=gap):
+            return g() <= data(k)["range"]
+
+        record_bool(key + "_near", out(keep, "Near"), within)
+        record_float(key + "_gap", out(keep, "Nearest Distance"),
+                     lambda w=within, g=gap: g() if w() else -1.0, 2.0e-3)
+
+    # The previews, worked out here as the editor would draw them.
+    bpy.context.view_layer.update()
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    for key, node in ([("ray", ray), ("ray_local", ray_local), ("ray_caster", ray_caster),
+                       ("shape", shape), ("mouse", mouse), ("look", look), ("sweep", sweep),
+                       ("plane", plane), ("blast", blast)] + mesh_rays + camera_rays + throws +
+                      arcs + keeps):
+        preview = rp.preview_node(scene, depsgraph, tree, node, owner)
+        require(not preview.dynamic and not preview.problem,
+                f"preview of {key}: dynamic {preview.dynamic}, problem {preview.problem!r}")
+        previews[key] = preview
+    for name, expected, tolerance in records:
+        value = expected()
+        if isinstance(value, bool) or tolerance is None:
+            expect[name] = [value if isinstance(value, bool) else int(value), None]
+        else:
+            expect[name] = [float(value), tolerance]
+    for name, (kind, value) in start.items():
+        if kind == "BOOL":
+            value = not expect[name][0]
+        set_game_property(owner, name, kind, value)
+    bind_tree(owner, tree.name, True)
+    add_status_controller(owner, status_path, "ray_preview_parity", required_frame=2,
+                          required_seconds=1.0)
+    set_game_property(owner, "__ln_acceptance_rf_expect", "STRING", json.dumps(expect))
+    run_game_once(owner, "ray_preview_parity_0", status_path)
 
 
 def run_property_advanced_acceptance(status_path):
@@ -19495,6 +20416,8 @@ def main():
         ("every_n_steps", lambda: run_every_n_steps_acceptance(status_path)),
         ("brain_crowd", lambda: run_brain_crowd_acceptance(status_path)),
         ("uncovered_nodes", lambda: run_uncovered_nodes_acceptance(status_path)),
+        ("ray_family", lambda: run_ray_family_acceptance(status_path)),
+        ("ray_preview_parity", lambda: run_ray_preview_parity_acceptance(status_path)),
         ("property_advanced", lambda: run_property_advanced_acceptance(status_path)),
         ("tree_properties", lambda: run_tree_property_acceptance(status_path)),
         ("data_containers", lambda: run_data_containers_acceptance(status_path)),

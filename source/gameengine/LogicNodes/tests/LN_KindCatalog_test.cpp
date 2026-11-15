@@ -106,8 +106,14 @@ TEST(LN_KindCatalog, EveryKindOfTheEnumsIsListedOnce)
   /* 619 before plan phase A12 deleted the 13 dead kinds; 609 since Random Value's Boolean, Set
    * Random Seed and its Seed output (2026-11-07); 610 since Bool::ObjectGamePropertyExists
    * (2026-11-08); 611 since Op::EditGameProperty (the list and dictionary nodes' Game Property
-   * mode, 2026-11-08). */
-  EXPECT_EQ(count, 611u);
+   * mode, 2026-11-08); 612 since Op::ExplosionImpulse (2026-11-11); 629 since the raycast
+   * recommendations' 17 kinds (Hit Part / Material, Projectile Ray's flight, Line of Sight, Sweep
+   * Object, Aim for Arc, Ray to Plane; 2026-11-11); 631 since Keep Distance's Op and Query
+   * (2026-11-12); 634 since Float::VectorLength (Speed), Query::PointVelocity and
+   * Value::PhysicsQueryImpactVelocities (Velocity at Point, 2026-11-14); 636 since
+   * Vector::SnapshotGameProperty and Color::SnapshotGameProperty (Get Game Property's Vector and
+   * Color, 2026-11-15). */
+  EXPECT_EQ(count, 636u);
   /* Each (domain, value) pair appears once. */
   std::set<std::pair<int, int>> seen;
   std::set<std::string> names_seen;

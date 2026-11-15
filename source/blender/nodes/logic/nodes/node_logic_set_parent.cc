@@ -33,7 +33,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Object>("Parent Object"_ustr)
       .description("Parent object, or armature object when Parent Type is Bone");
   b.add_input<decl::String>("Bone Name"_ustr)
-      .description("Pose bone name on the parent armature; evaluated at execution time");
+      .description("The bone of the parent armature: pick one of its bones, or type any name. "
+                   "Red when the armature has no bone of that name")
+      .custom_draw(logic::bone_name_field("Parent Object", false));
   b.add_input<decl::Bool>("Compound"_ustr)
       .default_value(false)
       .description("Merge the child collision shape into the top compound parent's Jolt body");

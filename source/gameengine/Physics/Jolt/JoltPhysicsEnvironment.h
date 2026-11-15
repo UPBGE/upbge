@@ -586,6 +586,16 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   virtual bool ShapeCast(const PHY_ShapeCastSettings &settings,
                          PHY_IShapeCastFilterCallback &filterCallback,
                          std::vector<PHY_ShapeCastResult> &results) override;
+  virtual PHY_BodySweepStatus SweepBody(const PHY_BodySweepSettings &settings,
+                                        PHY_IShapeCastFilterCallback &filterCallback,
+                                        std::vector<PHY_ShapeCastResult> &results) override;
+  virtual bool OverlapSphereBodies(const MT_Vector3 &center,
+                                   float radius,
+                                   PHY_IShapeCastFilterCallback &filterCallback,
+                                   uint32_t max_results,
+                                   std::vector<PHY_IPhysicsController *> &controllers) override;
+  virtual bool ProximityBatch(const std::vector<PHY_ProximityQuery> &queries,
+                              std::vector<std::vector<PHY_ProximityPatch>> &results) override;
 
   virtual bool CullingTest(PHY_CullingCallback callback,
                            void *userData,
@@ -766,6 +776,13 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   const std::vector<JoltPhysicsController *> &GetFhControllersForIteration();
   void InvalidateBuoyancyVolumesCache();
   const std::vector<JoltPhysicsController *> &GetBuoyancyVolumesForIteration();
+  /** The controllers whose bodies are sensors, for queries that include sensors (rays, shape and
+   * body casts): a Sensor-type object's body is outside Jolt's broadphase unless a collision brick
+   * adds it, so Jolt's queries never meet it and such a query tests these one by one where their
+   * objects are (2026-11-11). Rebuilt when controllers or their sensor settings change (with the
+   * buoyancy volumes), under a lock: rays run on helper threads, while controllers change only on
+   * the main thread between logic runs. */
+  const std::vector<JoltPhysicsController *> &GetQuerySensors() const;
 
   /** Queue one compound child sub-shape to be assembled into the parent in one pass. */
   void QueuePendingCompoundChildShape(JoltPhysicsController *parentCtrl,
@@ -921,6 +938,11 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   /** True when m_buoyancyVolumesIterationCache must be rebuilt from m_controllers. */
   bool m_buoyancyVolumesIterationCacheDirty = true;
+
+  /** GetQuerySensors' list, its lock and whether it must be rebuilt from m_controllers. */
+  mutable std::vector<JoltPhysicsController *> m_querySensors;
+  mutable std::mutex m_querySensorsMutex;
+  mutable std::atomic<bool> m_querySensorsDirty{true};
 
   /** Number of soft bodies added one-by-one since the last broadphase optimize. */
   int m_pendingSoftBodyAddsForOptimize = 0;

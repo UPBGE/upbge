@@ -322,6 +322,25 @@ static constexpr LN_RuntimeInstructionSemantics semantics_catalog[] = {
     LN_WORKER_COMMAND(ReplaceMesh, WRITE_COMMAND_RENDER, Ordering::ObservablePerTarget),
     LN_WORKER_COMMAND(CopyProperty, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
     LN_WORKER_COMMAND(EditGameProperty, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
+    /* Explosion Impulse (2026-11-11): its sphere query reads the physics world; it pushes the
+     * objects it finds through ApplyImpulse commands. */
+    LN_SEM(ExplosionImpulse,
+           READ_COMMAND_INPUTS | LN_RUNTIME_SEMANTIC_READ_SCENE,
+           WRITE_COMMAND_OBJECT,
+           Timing::DeferredCommandFlush,
+           Threading::MainThreadRecord,
+           Ordering::ObservableGlobal,
+           Coalescing::Forbidden),
+    /* Keep Distance (2026-11-12): a request answered at the end of the flush (its proximity
+     * query reads the physics world there); it pushes its object with a force and leaves what it
+     * found in the tree for its outputs. */
+    LN_SEM(KeepDistance,
+           READ_COMMAND_INPUTS | LN_RUNTIME_SEMANTIC_READ_SCENE,
+           WRITE_COMMAND_OBJECT | LN_RUNTIME_SEMANTIC_WRITE_RUNTIME_TREE_STATE,
+           Timing::DeferredCommandFlush,
+           Threading::MainThreadRecord,
+           Ordering::ObservableGlobal,
+           Coalescing::Forbidden),
     LN_WORKER_COMMAND(SetBonePoseLocation, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
     LN_WORKER_COMMAND(SetBonePoseRotation, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
     LN_WORKER_COMMAND(SetBonePoseScale, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
@@ -619,6 +638,8 @@ LN_RuntimeCommandFamily LN_GetRuntimeCommandFamily(const LN_OpCode opcode)
     case LN_OpCode::SetAngularVelocity:
     case LN_OpCode::SetLocalAngularVelocity:
     case LN_OpCode::ApplyImpulse:
+    case LN_OpCode::ExplosionImpulse:
+    case LN_OpCode::KeepDistance:
     case LN_OpCode::ApplyForce:
     case LN_OpCode::ApplyForceToTarget:
     case LN_OpCode::ApplyTorque:
@@ -1052,6 +1073,8 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_BoolExpr
                   Threading::MainThreadRecord,
                   LN_RUNTIME_FALLBACK_MAIN_THREAD_LIVE_READ |
                       LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP);
+    case LN_BoolExpressionKind::ArcCanReach:
+      LN_EXPR(Bool, ArcCanReach, READ_EXPRESSION_INPUTS);
     case LN_BoolExpressionKind::Count:
       break;
   }
@@ -1159,6 +1182,13 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_FloatExp
                             LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION);
     case LN_FloatExpressionKind::PlayerViewArea:
       LN_EXPR_MAIN(Float, PlayerViewArea, READ_SCENE_EXPRESSION);
+    case LN_FloatExpressionKind::PhysicsQueryFlightTime:
+    case LN_FloatExpressionKind::PhysicsQueryAngle:
+      LN_EXPR(Float, PhysicsQueryDistance, READ_QUERY_EXPRESSION);
+    case LN_FloatExpressionKind::RayPlaneDistance:
+    case LN_FloatExpressionKind::ArcFlightTime:
+    case LN_FloatExpressionKind::VectorLength:
+      LN_EXPR(Float, RayPlaneDistance, READ_EXPRESSION_INPUTS);
     case LN_FloatExpressionKind::Count:
       break;
   }
@@ -1331,6 +1361,8 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_StringEx
                             FromGenericValue,
                             READ_EXPRESSION_INPUTS,
                             LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION);
+    case LN_StringExpressionKind::PhysicsQueryMaterial:
+      LN_EXPR(String, PhysicsQueryMaterial, READ_QUERY_EXPRESSION);
     case LN_StringExpressionKind::Count:
       break;
   }
@@ -1340,6 +1372,9 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_StringEx
 LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_VectorExpressionKind kind)
 {
   switch (kind) {
+    /* Get Game Property Vector of the owner: the snapshot's kept vector, as Float's. */
+    case LN_VectorExpressionKind::SnapshotGameProperty:
+      LN_EXPR(Vector, SnapshotGameProperty, READ_SNAPSHOT_EXPRESSION);
     case LN_VectorExpressionKind::SnapshotGravity:
     case LN_VectorExpressionKind::WorldToScreen:
     case LN_VectorExpressionKind::ScreenToWorld:
@@ -1430,6 +1465,13 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_VectorEx
                             FromGenericValue,
                             READ_EXPRESSION_INPUTS,
                             LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION);
+    case LN_VectorExpressionKind::PhysicsQueryRayOrigin:
+    case LN_VectorExpressionKind::PhysicsQueryImpactVelocity:
+      LN_EXPR(Vector, PhysicsQueryPoint, READ_QUERY_EXPRESSION);
+    case LN_VectorExpressionKind::RayPlanePoint:
+    case LN_VectorExpressionKind::RayPlaneNormal:
+    case LN_VectorExpressionKind::ArcLaunchVelocity:
+      LN_EXPR(Vector, RayPlanePoint, READ_EXPRESSION_INPUTS);
     case LN_VectorExpressionKind::Count:
       break;
   }
@@ -1442,6 +1484,9 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_ColorExp
     case LN_ColorExpressionKind::SnapshotObjectColor:
     case LN_ColorExpressionKind::SnapshotLightColor:
       LN_EXPR(Color, SnapshotObjectColor, READ_SNAPSHOT_EXPRESSION);
+    /* Get Game Property Color of the owner: the snapshot's kept color, as Float's. */
+    case LN_ColorExpressionKind::SnapshotGameProperty:
+      LN_EXPR(Color, SnapshotGameProperty, READ_SNAPSHOT_EXPRESSION);
     case LN_ColorExpressionKind::RuntimeTreeProperty:
       LN_EXPR_RUNTIME_READ(Color, RuntimeTreeProperty);
     case LN_ColorExpressionKind::Constant:
@@ -1526,6 +1571,7 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_ValueExp
     case LN_ValueExpressionKind::PhysicsQueryObject:
     case LN_ValueExpressionKind::PhysicsQueryObjects:
     case LN_ValueExpressionKind::PhysicsQueryPoints:
+    case LN_ValueExpressionKind::PhysicsQueryImpactVelocities:
     case LN_ValueExpressionKind::PhysicsQueryNormals:
     case LN_ValueExpressionKind::PhysicsQueryDistances:
     case LN_ValueExpressionKind::PhysicsQueryCastPositions:
@@ -1658,6 +1704,11 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_ValueExp
       LN_EXPR_MAIN(Value, PlayerViewCamera, READ_SCENE_EXPRESSION);
     case LN_ValueExpressionKind::MenuPlayerOwner:
       LN_EXPR_MAIN(Value, MenuPlayerOwner, READ_SCENE_EXPRESSION);
+    case LN_ValueExpressionKind::PhysicsQueryPart:
+    case LN_ValueExpressionKind::PhysicsQueryParts:
+    case LN_ValueExpressionKind::PhysicsQueryMaterials:
+    case LN_ValueExpressionKind::PhysicsQueryBlocker:
+      LN_EXPR(Value, PhysicsQueryObject, READ_QUERY_EXPRESSION);
     case LN_ValueExpressionKind::Count:
       break;
   }
@@ -1685,6 +1736,13 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_QueryExp
       LN_EXPR(Query, VectorAverage, READ_QUERY_EXPRESSION);
     case LN_QueryExpressionKind::RaycastFromMesh:
       LN_EXPR_MAIN(Query, RaycastFromMesh, READ_QUERY_EXPRESSION);
+    case LN_QueryExpressionKind::LineOfSight:
+    case LN_QueryExpressionKind::SweepObject:
+      LN_EXPR_MAIN(Query, Raycast, READ_QUERY_EXPRESSION);
+    case LN_QueryExpressionKind::KeepDistance:
+      LN_EXPR_MAIN(Query, KeepDistance, READ_QUERY_EXPRESSION);
+    case LN_QueryExpressionKind::PointVelocity:
+      LN_EXPR_MAIN(Query, PointVelocity, READ_QUERY_EXPRESSION);
     case LN_QueryExpressionKind::Count:
       break;
   }

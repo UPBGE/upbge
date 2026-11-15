@@ -117,6 +117,7 @@
 #include "LN_Manager.h"
 #include "LN_RuntimeTree.h"
 #include "LN_SoundGroups.h"
+#include "LN_StrictDump.h"
 #include "LN_UIService.h"
 #include "MT_Matrix3x3.h"
 #include "MT_Transform.h"
@@ -155,38 +156,56 @@ static bool rigid_body_lock_enabled(const float value)
   return value != 0.0f;
 }
 
-static void apply_rigid_body_attribute(PHY_IPhysicsController &physics_controller,
-                                       const LN_RigidBodyAttribute attribute,
-                                       const MT_Vector3 &value,
-                                       const MT_Vector3 &secondary_value,
-                                       const float scalar_value,
-                                       const bool bool_value,
-                                       const bool secondary_bool_value)
+/** Below 0 (and NaN) is 0. */
+static float rigid_body_non_negative(const float value)
+{
+  return value > 0.0f ? value : 0.0f;
+}
+
+/** Set Rigid Body Attribute's write; null, or why it was refused (warned once by the caller). */
+static const char *apply_rigid_body_attribute(PHY_IPhysicsController &physics_controller,
+                                              const LN_RigidBodyAttribute attribute,
+                                              const MT_Vector3 &value,
+                                              const MT_Vector3 &secondary_value,
+                                              const float scalar_value,
+                                              const bool bool_value,
+                                              const bool secondary_bool_value)
 {
   switch (attribute) {
     case LN_RigidBodyAttribute::Mass:
       physics_controller.SetMass(scalar_value);
       break;
+    /* Friction and Elasticity below 0 are 0, as the Physics panel's (Jolt mixes two frictions
+     * by their square root: a negative one gave NaN contacts). */
     case LN_RigidBodyAttribute::Friction:
-      physics_controller.SetFriction(scalar_value);
+      physics_controller.SetFriction(rigid_body_non_negative(scalar_value));
       break;
     case LN_RigidBodyAttribute::Restitution:
-      physics_controller.SetRestitution(scalar_value);
+      physics_controller.SetRestitution(rigid_body_non_negative(scalar_value));
       break;
     case LN_RigidBodyAttribute::Damping:
-      physics_controller.SetDamping(std::max(value.x(), 0.0f), std::max(value.y(), 0.0f));
+      /* The panel's number (Jolt: its rate, held to the panel's range by the controller). */
+      physics_controller.SetDamping(rigid_body_non_negative(value.x()),
+                                    rigid_body_non_negative(value.y()));
+      break;
+    /* One damping, the other left as it is (the controller's own setter for it). */
+    case LN_RigidBodyAttribute::LinearDamping:
+      physics_controller.SetLinearDamping(rigid_body_non_negative(scalar_value));
+      break;
+    case LN_RigidBodyAttribute::AngularDamping:
+      physics_controller.SetAngularDamping(rigid_body_non_negative(scalar_value));
       break;
     case LN_RigidBodyAttribute::MinLinearVelocity:
-      physics_controller.SetLinVelocityMin(std::max(scalar_value, 0.0f));
+      physics_controller.SetLinVelocityMin(rigid_body_non_negative(scalar_value));
       break;
     case LN_RigidBodyAttribute::MaxLinearVelocity:
-      physics_controller.SetLinVelocityMax(std::max(scalar_value, 0.0f));
+      physics_controller.SetLinVelocityMax(rigid_body_non_negative(scalar_value));
       break;
     case LN_RigidBodyAttribute::MinAngularVelocity:
-      physics_controller.SetAngularVelocityMin(std::max(scalar_value, 0.0f));
+      physics_controller.SetAngularVelocityMin(rigid_body_non_negative(scalar_value));
       break;
     case LN_RigidBodyAttribute::MaxAngularVelocity:
-      physics_controller.SetAngularVelocityMax(std::max(scalar_value, 0.0f));
+      physics_controller.SetAngularVelocityMax(rigid_body_non_negative(scalar_value));
       break;
     case LN_RigidBodyAttribute::GravityFactor:
       physics_controller.SetGravityFactor(scalar_value);
@@ -200,18 +219,42 @@ static void apply_rigid_body_attribute(PHY_IPhysicsController &physics_controlle
         physics_controller.SetActive(true);
       }
       break;
-    case LN_RigidBodyAttribute::AxisLocks:
-      physics_controller.SetRigidBodyAxisLocks(rigid_body_lock_enabled(value.x()),
-                                               rigid_body_lock_enabled(value.y()),
-                                               rigid_body_lock_enabled(value.z()),
-                                               rigid_body_lock_enabled(secondary_value.x()),
-                                               rigid_body_lock_enabled(secondary_value.y()),
-                                               rigid_body_lock_enabled(secondary_value.z()));
+    case LN_RigidBodyAttribute::AxisLocks: {
+      /* Each axis on its own (2026-11-15): the chosen axes (`value` translation, `secondary_value`
+       * rotation: each not 0) are locked or freed as `bool_value` says, the others keep their
+       * lock, read from the body now: two nodes of one step combine, in order (this command is
+       * never merged away). */
+      bool locks[6];
+      physics_controller.GetRigidBodyAxisLocks(
+          locks[0], locks[1], locks[2], locks[3], locks[4], locks[5]);
+      bool changed = false;
+      for (int axis = 0; axis < 3; axis++) {
+        if (rigid_body_lock_enabled(value[axis])) {
+          changed |= locks[axis] != bool_value;
+          locks[axis] = bool_value;
+        }
+        if (rigid_body_lock_enabled(secondary_value[axis])) {
+          changed |= locks[3 + axis] != bool_value;
+          locks[3 + axis] = bool_value;
+        }
+      }
+      if (changed &&
+          !physics_controller.SetRigidBodyAxisLocks(
+              locks[0], locks[1], locks[2], locks[3], locks[4], locks[5]))
+      {
+        return "locking these axes would leave the body no free axis (Jolt cannot move such a "
+               "body): its locks stay as they were; to stop a body, use Suspend Physics or Set "
+               "Physics State";
+      }
       break;
+    }
     case LN_RigidBodyAttribute::AllowPhysicsRotation:
+      /* (Refused by the body itself, with its own warning, when every translation axis is
+       * locked: no free axis would be left.) */
       physics_controller.SetRigidBody(bool_value);
       break;
   }
+  return nullptr;
 }
 
 struct SelectedVehicleWheel {
@@ -4439,12 +4482,265 @@ void apply_force_or_torque(KX_GameObject *object,
   }
 }
 
+/** Keep Distance's push (LN_ProcessKeepDistanceRequests): a world force, as Apply Force's. */
+void keep_distance_apply_force(KX_GameObject *object, const MT_Vector3 &force)
+{
+  apply_force_or_torque(object, force, false, false);
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Impulses (Apply Impulse, Apply Angular Impulse, Explosion Impulse; 2026-11-11)
+ * \{ */
+
+/** An ApplyImpulse command's secondary_int_value bits. */
+constexpr int32_t kImpulseVisualize = 1 << 0;
+constexpr int32_t kImpulseLinearFalloff = 1 << 1;
+constexpr int32_t kImpulseImplode = 1 << 2;
+
+/** The tests' observer of impulses (LN_SetImpulseObserverForTests); the game has none. */
+LN_ImpulseObserver g_impulse_observer = nullptr;
+void *g_impulse_observer_user = nullptr;
+
+bool impulse_vector_is_finite(const MT_Vector3 &v)
+{
+  return std::isfinite(v.x()) && std::isfinite(v.y()) && std::isfinite(v.z());
+}
+
+/** Visualize: drawn in the step the push happens (debug lines last one drawn frame). */
+void draw_impulse_cross(const MT_Vector3 &at, const float size, const MT_Vector4 &color)
+{
+  KX_RasterizerDrawDebugLine(at - MT_Vector3(size, 0.0f, 0.0f), at + MT_Vector3(size, 0.0f, 0.0f), color);
+  KX_RasterizerDrawDebugLine(at - MT_Vector3(0.0f, size, 0.0f), at + MT_Vector3(0.0f, size, 0.0f), color);
+  KX_RasterizerDrawDebugLine(at - MT_Vector3(0.0f, 0.0f, size), at + MT_Vector3(0.0f, 0.0f, size), color);
+}
+
+void draw_impulse_arrow(const MT_Vector3 &from, const MT_Vector3 &vector, const MT_Vector4 &color)
+{
+  const float length = vector.length();
+  if (!(length > 1e-4f) || !std::isfinite(length)) {
+    return;
+  }
+  const MT_Vector3 to = from + vector;
+  KX_RasterizerDrawDebugLine(from, to, color);
+  const MT_Vector3 direction = vector / length;
+  const MT_Vector3 seed = std::fabs(direction.z()) < 0.9f ? MT_Vector3(0.0f, 0.0f, 1.0f) :
+                                                           MT_Vector3(1.0f, 0.0f, 0.0f);
+  const MT_Vector3 side = seed.cross(direction).safe_normalized();
+  const float head = std::min(0.25f, length * 0.3f);
+  KX_RasterizerDrawDebugLine(to, to - direction * head + side * (head * 0.5f), color);
+  KX_RasterizerDrawDebugLine(to, to - direction * head - side * (head * 0.5f), color);
+}
+
+/**
+ * Draws one push as the physics body took it: `velocity_change` is the velocity (or, `angular`,
+ * the spin) the body gained, measured around the push, 1 m per m/s (radian per second). A linear
+ * push: a red arrow from where it landed; an angular one: a blue arrow along the spin axis and a
+ * circle around it. A green cross marks the center of mass; a push that moved nothing (a static
+ * body) still shows where it landed.
+ */
+void draw_impulse(const MT_Vector3 &point,
+                  const bool at_point,
+                  const bool angular,
+                  const MT_Vector3 &center_of_mass,
+                  const MT_Vector3 &velocity_change)
+{
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  if (engine == nullptr || engine->GetRasterizer() == nullptr) {
+    return;
+  }
+  const MT_Vector4 red(1.0f, 0.12f, 0.08f, 1.0f);
+  const MT_Vector4 blue(0.2f, 0.55f, 1.0f, 1.0f);
+  const MT_Vector4 green(0.2f, 0.9f, 0.3f, 1.0f);
+  draw_impulse_cross(center_of_mass, 0.12f, green);
+  if (angular) {
+    draw_impulse_arrow(center_of_mass, velocity_change, blue);
+    const float spin = velocity_change.length();
+    if (spin > 1e-4f && std::isfinite(spin)) {
+      /* A circle around the axis, of lines (the renderer draws no debug circles). */
+      const MT_Vector3 axis = velocity_change / spin;
+      const MT_Vector3 seed = std::fabs(axis.z()) < 0.9f ? MT_Vector3(0.0f, 0.0f, 1.0f) :
+                                                          MT_Vector3(1.0f, 0.0f, 0.0f);
+      const MT_Vector3 u = seed.cross(axis).safe_normalized() * 0.8f;
+      const MT_Vector3 v = axis.cross(u);
+      constexpr int segments = 24;
+      MT_Vector3 previous = center_of_mass + u;
+      for (int k = 1; k <= segments; k++) {
+        const float angle = float(k) * (2.0f * float(M_PI) / float(segments));
+        const MT_Vector3 point = center_of_mass + u * std::cos(angle) + v * std::sin(angle);
+        KX_RasterizerDrawDebugLine(previous, point, blue);
+        previous = point;
+      }
+    }
+    return;
+  }
+  const MT_Vector3 from = at_point ? point : center_of_mass;
+  if (at_point) {
+    draw_impulse_cross(from, 0.08f, red);
+  }
+  draw_impulse_arrow(from, velocity_change, red);
+}
+
+/**
+ * Applies one ApplyImpulse command (both flush paths). The old Apply Impulse (WorldOffset, world
+ * axes, mass counted) calls the body's ApplyImpulse as it always did; every other push is worked
+ * out here in world terms from the body's pose now (an earlier command of the flush may have
+ * moved it) and handed over as ApplyWorldImpulse / ApplyAngularImpulse.
+ */
+void apply_impulse_command(KX_GameObject *object,
+                           const MT_Vector3 &vector,
+                           const MT_Vector3 &secondary,
+                           const float scalar,
+                           const int32_t mode_value,
+                           const int32_t flags,
+                           const bool local,
+                           const bool ignore_mass)
+{
+  PHY_IPhysicsController *controller = object->GetPhysicsController();
+  const LN_ImpulseMode mode = mode_value >= 0 && mode_value <= LN_IMPULSE_MODE_LAST ?
+                                  LN_ImpulseMode(mode_value) :
+                                  LN_ImpulseMode::WorldOffset;
+  const bool visualize = (flags & kImpulseVisualize) != 0;
+  const bool old_impulse = mode == LN_ImpulseMode::WorldOffset && !local && !ignore_mass;
+  if (old_impulse && !visualize && g_impulse_observer == nullptr) {
+    if (controller != nullptr) {
+      controller->ApplyImpulse(secondary, vector, false);
+    }
+    return;
+  }
+  if (controller == nullptr && g_impulse_observer == nullptr) {
+    return;
+  }
+
+  MT_Vector3 position(0.0f, 0.0f, 0.0f);
+  MT_Matrix3x3 orientation = MT_Matrix3x3::Identity();
+  if (mode == LN_ImpulseMode::Explosion) {
+    /* (The blast reads the center of mass only: two body reads less a pushed body.) */
+    if (controller == nullptr) {
+      position = object->NodeGetWorldPosition();
+    }
+  }
+  else if (controller != nullptr) {
+    controller->GetPosition(position);
+    orientation = controller->GetOrientation();
+  }
+  else {
+    position = object->NodeGetWorldPosition();
+    orientation = object->NodeGetWorldOrientation();
+  }
+
+  MT_Vector3 world_vector = local ? orientation * vector : vector;
+  MT_Vector3 world_point = position;
+  bool at_point = true;
+  bool angular = false;
+  switch (mode) {
+    case LN_ImpulseMode::WorldOffset:
+      world_point = position + secondary;
+      break;
+    case LN_ImpulseMode::WorldPoint:
+      world_point = secondary;
+      break;
+    case LN_ImpulseMode::LocalPoint:
+      world_point = position + orientation * secondary;
+      break;
+    case LN_ImpulseMode::Angular:
+      at_point = false;
+      angular = true;
+      break;
+    case LN_ImpulseMode::Explosion: {
+      /* `vector` the origin, `secondary` (radius, upward lift, -), `scalar` the strength. */
+      at_point = false;
+      const MT_Vector3 center = controller != nullptr ? controller->GetCenterOfMassPosition() :
+                                                        position;
+      const float radius = secondary.x();
+      const float distance = (center - vector).length();
+      float factor = 1.0f;
+      if ((flags & kImpulseLinearFalloff) != 0) {
+        factor = radius > 0.0f ? std::clamp(1.0f - distance / radius, 0.0f, 1.0f) : 0.0f;
+      }
+      MT_Vector3 direction;
+      if ((flags & kImpulseImplode) != 0) {
+        /* Implode: toward the center, Upward Lift above it (so it still lifts); an object at
+         * the very center is not pulled anywhere. */
+        const MT_Vector3 toward = vector + MT_Vector3(0.0f, 0.0f, secondary.y()) - center;
+        const float toward_length = toward.length();
+        direction = toward_length > 1e-6f ? toward / toward_length : MT_Vector3(0.0f, 0.0f, 0.0f);
+      }
+      else {
+        /* Explode: away from the center, Upward Lift below it; at the very center: up. */
+        const MT_Vector3 from = vector - MT_Vector3(0.0f, 0.0f, secondary.y());
+        const MT_Vector3 away = center - from;
+        const float away_length = away.length();
+        direction = away_length > 1e-6f ? away / away_length : MT_Vector3(0.0f, 0.0f, 1.0f);
+      }
+      world_vector = direction * (scalar * factor);
+      world_point = center;
+      break;
+    }
+  }
+  if (!impulse_vector_is_finite(world_vector) || !impulse_vector_is_finite(world_point)) {
+    return;
+  }
+  if (g_impulse_observer != nullptr) {
+    g_impulse_observer(
+        g_impulse_observer_user, object, world_vector, world_point, at_point, angular, ignore_mass);
+  }
+  if (controller == nullptr) {
+    return;
+  }
+
+  const MT_Vector3 velocity_before = !visualize ? MT_Vector3(0.0f, 0.0f, 0.0f) :
+                                     angular    ? controller->GetAngularVelocity() :
+                                                  controller->GetLinearVelocity();
+  if (old_impulse) {
+    controller->ApplyImpulse(secondary, vector, false);
+  }
+  else if (world_vector.length2() > 0.0f) {
+    if (angular) {
+      controller->ApplyAngularImpulse(world_vector, ignore_mass);
+    }
+    else {
+      controller->ApplyWorldImpulse(world_vector, at_point ? &world_point : nullptr, ignore_mass);
+    }
+  }
+  if (visualize) {
+    const MT_Vector3 velocity_after = angular ? controller->GetAngularVelocity() :
+                                                controller->GetLinearVelocity();
+    draw_impulse(world_point,
+                 at_point,
+                 angular,
+                 controller->GetCenterOfMassPosition(),
+                 velocity_after - velocity_before);
+  }
+}
+
+/** \} */
+
 }  // namespace
 
 void LN_SetForceObserverForTests(const LN_ForceObserver observer, void *user)
 {
   g_force_observer = observer;
   g_force_observer_user = user;
+}
+
+static LN_AppliedCommandObserver g_applied_command_observer = nullptr;
+static void *g_applied_command_observer_user = nullptr;
+
+void LN_SetAppliedCommandObserverForTests(const LN_AppliedCommandObserver observer, void *user)
+{
+  g_applied_command_observer = observer;
+  g_applied_command_observer_user = user;
+}
+
+static std::string ObservedObjectName(KX_GameObject *object)
+{
+  return object != nullptr ? object->GetName() : std::string("-");
+}
+
+void LN_SetImpulseObserverForTests(const LN_ImpulseObserver observer, void *user)
+{
+  g_impulse_observer = observer;
+  g_impulse_observer_user = user;
 }
 
 void LN_CommandBuffer::ApplyTransformNow(const CommandType type,
@@ -6898,11 +7194,6 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
     /* (The sound's emitter: no removal check reads this field for sound commands.) */
     command.event_target_object = typed_command.emitter;
     command.property_name = typed_command.sound_name;
-    if (command.property_name.empty() && typed_command.sound_id.IsValid() &&
-        m_logicManager != nullptr)
-    {
-      command.property_name = m_logicManager->DebugName(typed_command.sound_id);
-    }
     /* Set Volume: (volume, fade), as AppendSetSoundVolume records it without typed streams. */
     command.vector_value = MT_Vector3(typed_command.volume,
                                       typed_command.type == CommandType::SetSoundVolume ?
@@ -7539,6 +7830,7 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
 
 void LN_CommandBuffer::ClearTypedStreams()
 {
+  m_keepDistanceRequests.clear();
   m_transformCommands.clear();
   m_velocityCommands.clear();
   m_relativeVectorCommands.clear();
@@ -7689,6 +7981,14 @@ void LN_CommandBuffer::AppendRecordedChunk(LN_CommandBuffer &chunk)
                       std::make_move_iterator(chunk.m_commands.begin()),
                       std::make_move_iterator(chunk.m_commands.end()));
     chunk.m_commands.clear();
+  }
+  /* Keep Distance requests (a tree batch never holds one: its op is on no batch list) keep their
+   * order; the flush sorts them by tree. */
+  if (!chunk.m_keepDistanceRequests.empty()) {
+    m_keepDistanceRequests.insert(m_keepDistanceRequests.end(),
+                                  std::make_move_iterator(chunk.m_keepDistanceRequests.begin()),
+                                  std::make_move_iterator(chunk.m_keepDistanceRequests.end()));
+    chunk.m_keepDistanceRequests.clear();
   }
   /* What the chunk's appends counted, for all its streams: the order within each stream, the
    * last-write-wins writes, a move in the legacy stream. */
@@ -9240,6 +9540,65 @@ void LN_CommandBuffer::AppendApplyImpulse(KX_GameObject *gameobj,
                             0,
                             false,
                             false,
+                            sort_key,
+                            source_ref_index);
+}
+
+void LN_CommandBuffer::AppendApplyImpulse(KX_GameObject *gameobj,
+                                          const MT_Vector3 &point,
+                                          const MT_Vector3 &impulse,
+                                          const LN_ImpulseMode mode,
+                                          const bool local,
+                                          const bool ignore_mass,
+                                          const bool visualize,
+                                          const uint64_t sort_key,
+                                          const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  BLI_assert(mode != LN_ImpulseMode::Explosion);
+
+  AppendTypedPhysicsCommand(CommandType::ApplyImpulse,
+                            gameobj,
+                            impulse,
+                            point,
+                            0.0f,
+                            int32_t(mode),
+                            visualize ? kImpulseVisualize : 0,
+                            local,
+                            ignore_mass,
+                            sort_key,
+                            source_ref_index);
+}
+
+void LN_CommandBuffer::AppendExplosionImpulse(KX_GameObject *gameobj,
+                                              const MT_Vector3 &origin,
+                                              const float radius,
+                                              const float strength,
+                                              const float upward_lift,
+                                              const bool linear_falloff,
+                                              const bool implode,
+                                              const bool ignore_mass,
+                                              const bool visualize,
+                                              const uint64_t sort_key,
+                                              const uint32_t source_ref_index)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+
+  AppendTypedPhysicsCommand(CommandType::ApplyImpulse,
+                            gameobj,
+                            origin,
+                            MT_Vector3(radius, upward_lift, 0.0f),
+                            strength,
+                            int32_t(LN_ImpulseMode::Explosion),
+                            (visualize ? kImpulseVisualize : 0) |
+                                (linear_falloff ? kImpulseLinearFalloff : 0) |
+                                (implode ? kImpulseImplode : 0),
+                            false,
+                            ignore_mass,
                             sort_key,
                             source_ref_index);
 }
@@ -10811,7 +11170,6 @@ void LN_CommandBuffer::AppendPlaySound(const std::string &sound_name,
   command.header = MakeCommandHeader(CommandType::PlaySound, sort_key, source_ref_index);
   command.type = CommandType::PlaySound;
   command.emitter = emitter;
-  command.sound_id = m_logicManager ? m_logicManager->InternSoundName(sound_name) : LN_SoundId{};
   command.sound_name = sound_name;
   command.volume = volume;
   command.pitch = pitch;
@@ -10856,7 +11214,6 @@ void LN_CommandBuffer::AppendStopSound(const std::string &sound_name,
   TypedAudioCommand command;
   command.header = MakeCommandHeader(CommandType::StopSound, sort_key, source_ref_index);
   command.type = CommandType::StopSound;
-  command.sound_id = m_logicManager ? m_logicManager->InternSoundName(sound_name) : LN_SoundId{};
   command.sound_name = sound_name;
   AppendTypedCommand(m_audioCommands, std::move(command));
 }
@@ -10887,9 +11244,6 @@ void LN_CommandBuffer::AppendPlaySound3D(KX_GameObject *speaker_object,
   command.type = CommandType::PlaySound3D;
   command.speaker = speaker_object;
   command.emitter = speaker_object;
-  command.sound_id = m_logicManager && !sound_name.empty() ?
-                         m_logicManager->InternSoundName(sound_name) :
-                         LN_SoundId{};
   command.sound_name = sound_name;
   command.volume = volume;
   command.pitch = pitch;
@@ -10915,7 +11269,6 @@ void LN_CommandBuffer::AppendPauseSound(const std::string &sound_name,
   TypedAudioCommand command;
   command.header = MakeCommandHeader(CommandType::PauseSound, sort_key, source_ref_index);
   command.type = CommandType::PauseSound;
-  command.sound_id = m_logicManager ? m_logicManager->InternSoundName(sound_name) : LN_SoundId{};
   command.sound_name = sound_name;
   AppendTypedCommand(m_audioCommands, std::move(command));
 }
@@ -10935,7 +11288,6 @@ void LN_CommandBuffer::AppendResumeSound(const std::string &sound_name,
   TypedAudioCommand command;
   command.header = MakeCommandHeader(CommandType::ResumeSound, sort_key, source_ref_index);
   command.type = CommandType::ResumeSound;
-  command.sound_id = m_logicManager ? m_logicManager->InternSoundName(sound_name) : LN_SoundId{};
   command.sound_name = sound_name;
   AppendTypedCommand(m_audioCommands, std::move(command));
 }
@@ -13637,10 +13989,14 @@ void LN_CommandBuffer::Flush()
         command.object->setAngularVelocity(command.vector_value, true);
         break;
       case CommandType::ApplyImpulse:
-        if (PHY_IPhysicsController *physics_controller = command.object->GetPhysicsController()) {
-          physics_controller->ApplyImpulse(
-              command.secondary_vector_value, command.vector_value, false);
-        }
+        apply_impulse_command(command.object,
+                              command.vector_value,
+                              command.secondary_vector_value,
+                              command.scalar_value,
+                              command.int_value,
+                              command.secondary_int_value,
+                              command.bool_value,
+                              command.secondary_bool_value);
         break;
       case CommandType::SetVisibility:
         command.object->SetVisible(command.bool_value, command.secondary_bool_value);
@@ -14016,13 +14372,17 @@ void LN_CommandBuffer::Flush()
         break;
       case CommandType::SetRigidBodyAttribute:
         if (PHY_IPhysicsController *physics_controller = command.object->GetPhysicsController()) {
-          apply_rigid_body_attribute(*physics_controller,
-                                     static_cast<LN_RigidBodyAttribute>(command.int_value),
-                                     command.vector_value,
-                                     command.secondary_vector_value,
-                                     command.scalar_value,
-                                     command.bool_value,
-                                     command.secondary_bool_value);
+          if (const char *reason = apply_rigid_body_attribute(
+                  *physics_controller,
+                  static_cast<LN_RigidBodyAttribute>(command.int_value),
+                  command.vector_value,
+                  command.secondary_vector_value,
+                  command.scalar_value,
+                  command.bool_value,
+                  command.secondary_bool_value))
+          {
+            warn_command_failure_once(command, reason);
+          }
         }
         break;
       case CommandType::CharacterJump:
@@ -15584,9 +15944,20 @@ void LN_CommandBuffer::Flush()
   };
 
   auto flush_typed_audio_command = [&](const TypedAudioCommand &typed_command) {
-    std::string sound_name = typed_command.sound_name;
-    if (sound_name.empty() && typed_command.sound_id.IsValid() && m_logicManager != nullptr) {
-      sound_name = m_logicManager->DebugName(typed_command.sound_id);
+    [[maybe_unused]] const std::string &sound_name = typed_command.sound_name;
+    if (g_applied_command_observer != nullptr) {
+      g_applied_command_observer(
+          g_applied_command_observer_user,
+          "sound " + std::to_string(int(typed_command.type)) + " " + LN_DumpQuoted(sound_name) +
+              " emitter=" + ObservedObjectName(typed_command.emitter) +
+              " speaker=" + ObservedObjectName(typed_command.speaker) +
+              " volume=" + LN_DumpFloatBits(typed_command.volume) +
+              " pitch=" + LN_DumpFloatBits(typed_command.pitch) +
+              " fade=" + LN_DumpFloatBits(typed_command.fade) +
+              " loop=" + std::to_string(typed_command.loop ? 1 : 0) +
+              " group=" + std::to_string(typed_command.group) +
+              " listener=" + std::to_string(typed_command.listener) + "/" +
+              std::to_string(typed_command.listener_user));
     }
 
     switch (typed_command.type) {
@@ -15953,6 +16324,22 @@ void LN_CommandBuffer::Flush()
     if (object_removed_during_flush(object)) {
       return;
     }
+    if (g_applied_command_observer != nullptr) {
+      LN_DumpNames names;
+      g_applied_command_observer(
+          g_applied_command_observer_user,
+          "bone " + std::to_string(int(typed_command.type)) + " " + ObservedObjectName(object) +
+              " " + LN_DumpQuoted(typed_command.bone_name) + " " +
+              LN_DumpQuoted(typed_command.constraint_name) + " " +
+              LN_DumpQuoted(typed_command.attribute_name) + " " +
+              LN_DumpVector3(typed_command.vector_value) + " " +
+              LN_DumpVector3(typed_command.secondary_vector_value) + " " +
+              LN_DumpRotation(typed_command.rotation_value) + " " +
+              LN_DumpFloatBits(typed_command.scalar_value) + " " +
+              std::to_string(typed_command.int_value) + " " +
+              std::to_string(typed_command.secondary_int_value) + " " +
+              LN_DumpValue(typed_command.value, names, typed_command.runtime_tree));
+    }
     flush_command(MakeArmatureCommand(typed_command));
   };
 
@@ -15993,10 +16380,14 @@ void LN_CommandBuffer::Flush()
 
     switch (typed_command.type) {
       case CommandType::ApplyImpulse:
-        if (PHY_IPhysicsController *physics_controller = object->GetPhysicsController()) {
-          physics_controller->ApplyImpulse(
-              typed_command.secondary_vector_value, typed_command.vector_value, false);
-        }
+        apply_impulse_command(object,
+                              typed_command.vector_value,
+                              typed_command.secondary_vector_value,
+                              typed_command.scalar_value,
+                              typed_command.int_value,
+                              typed_command.secondary_int_value,
+                              typed_command.bool_value,
+                              typed_command.secondary_bool_value);
         break;
       case CommandType::SetCollisionGroup:
         object->SetCollisionGroup(static_cast<unsigned short>(typed_command.int_value));
@@ -16034,13 +16425,17 @@ void LN_CommandBuffer::Flush()
         break;
       case CommandType::SetRigidBodyAttribute:
         if (PHY_IPhysicsController *physics_controller = object->GetPhysicsController()) {
-          apply_rigid_body_attribute(*physics_controller,
-                                     static_cast<LN_RigidBodyAttribute>(typed_command.int_value),
-                                     typed_command.vector_value,
-                                     typed_command.secondary_vector_value,
-                                     typed_command.scalar_value,
-                                     typed_command.bool_value,
-                                     typed_command.secondary_bool_value);
+          if (const char *reason = apply_rigid_body_attribute(
+                  *physics_controller,
+                  static_cast<LN_RigidBodyAttribute>(typed_command.int_value),
+                  typed_command.vector_value,
+                  typed_command.secondary_vector_value,
+                  typed_command.scalar_value,
+                  typed_command.bool_value,
+                  typed_command.secondary_bool_value))
+          {
+            warn_command_failure_once(make_physics_command(typed_command), reason);
+          }
         }
         break;
       case CommandType::CharacterJump:
@@ -16584,10 +16979,39 @@ void LN_CommandBuffer::Flush()
 
   flush_material_parameter_object_updates();
 
+  /* Keep Distance: every request of the step, now that the step's writes are applied (each
+   * object is where the physics starts from), the queries at once on the physics threads. */
+  if (!m_keepDistanceRequests.empty()) {
+    LN_ProcessKeepDistanceRequests(
+        m_keepDistanceRequests, m_removedObjectsDuringFlush, keep_distance_apply_force);
+  }
+
   m_isFlushing = false;
   m_removedObjectsDuringFlush.clear();
   m_commands.clear();
   ClearTypedStreams();
+}
+
+void LN_CommandBuffer::AppendKeepDistance(LN_KeepDistanceRequest &&request)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  m_keepDistanceRequests.push_back(std::move(request));
+}
+
+void LN_CommandBuffer::TakeKeepDistanceRequests(LN_CommandBuffer &chunk)
+{
+  AssertMainThread();
+  BLI_assert(m_isRecording);
+  BLI_assert(!m_isFlushing);
+  if (chunk.m_keepDistanceRequests.empty()) {
+    return;
+  }
+  m_keepDistanceRequests.insert(m_keepDistanceRequests.end(),
+                                std::make_move_iterator(chunk.m_keepDistanceRequests.begin()),
+                                std::make_move_iterator(chunk.m_keepDistanceRequests.end()));
+  chunk.m_keepDistanceRequests.clear();
 }
 
 void LN_CommandBuffer::Clear()

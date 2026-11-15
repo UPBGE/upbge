@@ -495,6 +495,7 @@ namespace blender {
 
 static constexpr float game_damping_bullet_linear_default = 0.04f;
 static constexpr float game_damping_bullet_angular_default = 0.1f;
+/* Jolt's own default rates (the panel shows Jolt's rate itself). */
 static constexpr float game_damping_jolt_linear_default = 0.05f;
 static constexpr float game_damping_jolt_angular_default = 0.05f;
 
@@ -1989,6 +1990,19 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
         ob->bsoft->collisionflags |= OB_BSB_COL_CL_RS;
       }
       break;
+  }
+
+  /* A body Jolt moves (the types the Damping rows show for) that still holds Bullet's default
+   * pair, as every new object does, takes Jolt's default numbers: the panel then shows what
+   * Jolt does (both pairs play as Jolt's rate 0.05) and what Reset to Default gives
+   * (`rna_GameObjectSettings_damping_default`). */
+  if (ELEM(ob->body_type, OB_BODY_TYPE_DYNAMIC, OB_BODY_TYPE_RIGID, OB_BODY_TYPE_VEHICLE) &&
+      ob->damping == game_damping_bullet_linear_default &&
+      ob->rdamping == game_damping_bullet_angular_default &&
+      rna_GameObjectSettings_default_scene_uses_jolt(ptr))
+  {
+    ob->damping = game_damping_jolt_linear_default;
+    ob->rdamping = game_damping_jolt_angular_default;
   }
 
   if ((gameflag_prev & OB_NAVMESH) != (ob->gameflag & OB_NAVMESH)) {
@@ -4821,16 +4835,26 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   prop = RNA_def_property(srna, "damping", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "damping");
   RNA_def_property_float_default_func(prop, "rna_GameObjectSettings_damping_default");
-  RNA_def_property_range(prop, 0.0, 5.0);
-  RNA_def_property_ui_range(prop, 0.0, 5.0, 1, 3);
-  RNA_def_property_ui_text(prop, "Damping", "General movement damping");
+  /* Jolt takes it as its own rate per second (`JoltDampingRate`, up to 100); the slider covers
+   * the usual 0..1, stronger brakes are typed. Bullet takes 0..1 (1 stops at once). */
+  RNA_def_property_range(prop, 0.0, 100.0);
+  RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 3);
+  RNA_def_property_ui_text(prop,
+                           "Damping",
+                           "How fast the object loses its speed, a rate per second. Jolt: 0 never, "
+                           "0.05 (the default) about 5% a second, 1 about 63%, type 5 for about 99% "
+                           "(up to 100). Bullet: the share lost each second, 1 stops it at once");
 
   prop = RNA_def_property(srna, "rotation_damping", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "rdamping");
   RNA_def_property_float_default_func(prop, "rna_GameObjectSettings_rotation_damping_default");
-  RNA_def_property_range(prop, 0.0, 5.0);
-  RNA_def_property_ui_range(prop, 0.0, 5.0, 1, 3);
-  RNA_def_property_ui_text(prop, "Rotation Damping", "General rotation damping");
+  RNA_def_property_range(prop, 0.0, 100.0);
+  RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 3);
+  RNA_def_property_ui_text(prop,
+                           "Rotation Damping",
+                           "How fast the object loses its spin, a rate per second. Jolt: 0 never, "
+                           "0.05 (the default) about 5% a second, 1 about 63%, type 5 for about 99% "
+                           "(up to 100). Bullet: the share lost each second, 1 stops it at once");
 
   prop = RNA_def_property(srna, "velocity_min", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_float_sdna(prop, nullptr, "min_vel");

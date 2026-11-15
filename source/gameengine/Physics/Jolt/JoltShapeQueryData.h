@@ -29,8 +29,11 @@ struct JoltTriangleUV {
 };
 
 struct JoltMeshQueryData {
+  /** Per Jolt triangle (its user data): the Blender face (PHY_RAY_QUERY_DETAIL_FACE_INDEX). */
   std::vector<int32_t> polygonIndices;
   std::vector<JoltTriangleUV> triangleUVs;
+  /** Per Jolt triangle: its face's material slot (PHY_RAY_QUERY_DETAIL_MATERIAL), 0-based. */
+  std::vector<uint16_t> triangleMaterials;
 };
 
 class JoltShapeQueryData {

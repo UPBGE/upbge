@@ -2753,14 +2753,199 @@ void LN_RuntimeTree::OpDirectPhysicsCommand(Frame &ef,
           payload.vector_expr_index, payload.vector_value);
       const MT_Vector3 attach = ef.Vector(
           payload.secondary_vector_expr_index, payload.secondary_vector_value);
+      /* 2026-11-11 (none in nodes made before: their old command). */
+      const bool local = ef.Bool(instruction.bool_expr_index, false);
+      const bool ignore_mass = ef.Bool(instruction.secondary_bool_expr_index, false);
+      const bool visualize = ef.Bool(instruction.tertiary_bool_expr_index, false);
+      const LN_ImpulseMode mode = instruction.int_value >= 0 &&
+                                          instruction.int_value <= int32_t(LN_ImpulseMode::Angular) ?
+                                      LN_ImpulseMode(instruction.int_value) :
+                                      LN_ImpulseMode::WorldOffset;
       if (KX_GameObject *target = ef.ResolveObjectExpression(payload.object_value_expr_index)) {
-        command_buffer.AppendApplyImpulse(target,
-                                          attach,
-                                          impulse,
-                                          ef.SortKey(),
-                                          instruction.source_ref_index);
+        if (mode == LN_ImpulseMode::WorldOffset && !local && !ignore_mass && !visualize) {
+          command_buffer.AppendApplyImpulse(
+              target, attach, impulse, ef.SortKey(), instruction.source_ref_index);
+        }
+        else {
+          command_buffer.AppendApplyImpulse(target,
+                                            attach,
+                                            impulse,
+                                            mode,
+                                            local,
+                                            ignore_mass,
+                                            visualize,
+                                            ef.SortKey(),
+                                            instruction.source_ref_index);
+        }
       }
       mark_done();
+      break;
+    }
+    case LN_OpCode::ExplosionImpulse: {
+      /* The center: the Object (none: the owner) where it is now, its pending moves applied
+       * first and the object itself left alone; or the Origin position. */
+      const bool at_object = instruction.secondary_int_value == LN_EXPLOSION_CENTER_OBJECT;
+      KX_GameObject *center = nullptr;
+      MT_Vector3 origin = instruction.vector_value;
+      if (at_object) {
+        center = ef.ResolveObjectExpression(instruction.tertiary_value_expr_index);
+        if (center != nullptr) {
+          FlushPendingRaycastTransforms(center, context);
+          origin = center->NodeGetWorldPosition();
+        }
+      }
+      else {
+        origin = ef.Vector(instruction.vector_expr_index, instruction.vector_value);
+      }
+      const float radius = ef.Float(instruction.float_expr_index, 5.0f);
+      const float strength = ef.Float(instruction.secondary_float_expr_index, 10.0f);
+      const float upward_lift = ef.Float(instruction.tertiary_float_expr_index, 0.0f);
+      const bool ignore_mass = ef.Bool(instruction.bool_expr_index, false);
+      const bool visualize = ef.Bool(instruction.secondary_bool_expr_index, false);
+      const std::vector<LN_RuntimeRef> ignore_refs = ResolveIgnoreObjectRefs(
+          ef.reader,
+          instruction.secondary_value_expr_index,
+          instruction.quaternary_value_expr_index);
+      const std::string property_name = ef.String(instruction.string_expr_index, std::string());
+      const int32_t mask = ef.Int(instruction.int_expr_index, LN_RAYCAST_MAX_COLLISION_MASK);
+      mark_done();
+      if ((at_object && center == nullptr) || !vector_is_finite(origin) ||
+          !std::isfinite(radius) || !(radius > 0.0f) ||
+          !std::isfinite(strength) || !std::isfinite(upward_lift) || mask < 0 ||
+          mask > LN_RAYCAST_MAX_COLLISION_MASK)
+      {
+        break;
+      }
+      PHY_ShapeCastSettings settings;
+      settings.type = PHY_ShapeCastType::Sphere;
+      settings.origin = origin;
+      settings.destination = origin;
+      settings.radius = radius;
+      settings.max_results = LN_EXPLOSION_MAX_OBJECTS;
+      /* The bodies the sphere overlaps (the physics' own overlap query, 2026-11-12: no contact
+       * point a body, which the push does not use: it is worked out at the flush from the body's
+       * center of mass); else (Bullet) a zero-length Shape Cast All, the same bodies. */
+      thread_local std::vector<KX_GameObject *> pushed;
+      if (!OverlapSphereObjects(origin,
+                                radius,
+                                center,
+                                uint32_t(mask),
+                                property_name,
+                                ignore_refs,
+                                LN_EXPLOSION_MAX_OBJECTS,
+                                pushed))
+      {
+        bool blocked = false;
+        bool supported = false;
+        LN_PhysicsQueryResult blocker;
+        std::vector<LN_PhysicsQueryResult> hits;
+        ShapeCast(settings,
+                  center != nullptr ? MakeObjectRef(center, center->GetName()) : LN_RuntimeRef(),
+                  uint32_t(mask),
+                  property_name,
+                  true,
+                  ignore_refs,
+                  blocked,
+                  blocker,
+                  supported,
+                  hits);
+        if (hits.size() > LN_EXPLOSION_MAX_OBJECTS) {
+          hits.resize(LN_EXPLOSION_MAX_OBJECTS);
+        }
+        pushed.clear();
+        for (const LN_PhysicsQueryResult &hit : hits) {
+          if (KX_GameObject *object = ResolveObjectRef(hit.object_ref)) {
+            pushed.push_back(object);
+          }
+        }
+      }
+      if (visualize) {
+        /* The sphere only: each push draws its own arrow at the flush (Shape Cast's hit frames
+         * would add a blue axis that reads as a spin). */
+        DrawDebugShapeCast(settings, {}, nullptr, true);
+      }
+      const bool linear = (instruction.int_value & LN_EXPLOSION_FALLOFF_LINEAR) != 0;
+      const bool implode = (instruction.int_value & LN_EXPLOSION_IMPLODE) != 0;
+      for (KX_GameObject *object : pushed) {
+        command_buffer.AppendExplosionImpulse(object,
+                                              origin,
+                                              radius,
+                                              strength,
+                                              std::max(upward_lift, 0.0f),
+                                              linear,
+                                              implode,
+                                              ignore_mass,
+                                              visualize,
+                                              ef.SortKey(),
+                                              instruction.source_ref_index);
+      }
+      break;
+    }
+    case LN_OpCode::KeepDistance: {
+      /* Read in the order LN_Types.h gives; the push is worked out at the end of the flush with
+       * every other request of the step (LN_KeepDistance.h). */
+      KX_GameObject *target = ef.ResolveObjectExpression(instruction.tertiary_value_expr_index);
+      LN_KeepDistanceRequest request;
+      LN_KeepDistanceSettings &settings = request.settings;
+      /* The Mode input (2026-11-15): below 0 Push, above 2 Hold. */
+      const int32_t mode = std::clamp(ef.Int(instruction.tertiary_int_expr_index,
+                                             LN_KEEP_DISTANCE_MODE_PUSH),
+                                      LN_KEEP_DISTANCE_MODE_PUSH,
+                                      LN_KEEP_DISTANCE_MODE_HOLD);
+      settings.mode = mode == LN_KEEP_DISTANCE_MODE_HOLD ? LN_KeepDistanceMode::Hold :
+                      mode == LN_KEEP_DISTANCE_MODE_PULL ? LN_KeepDistanceMode::Pull :
+                                                           LN_KeepDistanceMode::Push;
+      settings.distance = ef.Float(instruction.float_expr_index, 1.0f);
+      if (settings.mode == LN_KeepDistanceMode::Hold) {
+        /* A generic value (every float field is taken): a number, else the socket's default. */
+        float reach = 2.0f;
+        if (!ValueAsFloat(ef.Value(instruction.value_expr_index, MakeNoneValue()), reach)) {
+          reach = 2.0f;
+        }
+        settings.reach = reach;
+      }
+      settings.strength = ef.Float(instruction.secondary_float_expr_index, 20.0f);
+      settings.damping = ef.Float(instruction.tertiary_float_expr_index, 1.0f);
+      settings.radius = ef.Float(instruction.quaternary_float_expr_index, 0.5f);
+      settings.check_every = ef.Int(instruction.int_expr_index, 1);
+      settings.ignore_mass = ef.Bool(instruction.bool_expr_index, true);
+      settings.apply = ef.Bool(instruction.secondary_bool_expr_index, true);
+      settings.visualize = ef.Bool(instruction.tertiary_bool_expr_index, false);
+      settings.property = ef.String(instruction.string_expr_index, std::string());
+      const int32_t mask = ef.Int(instruction.secondary_int_expr_index,
+                                  LN_RAYCAST_MAX_COLLISION_MASK);
+      const std::vector<LN_RuntimeRef> ignore_refs = ResolveIgnoreObjectRefs(
+          ef.reader,
+          instruction.secondary_value_expr_index,
+          instruction.quaternary_value_expr_index);
+      settings.include_sensors = ef.Bool(instruction.quaternary_bool_expr_index, false);
+      settings.smooth = (instruction.secondary_int_value & LN_KEEP_DISTANCE_BIT_SMOOTH) != 0;
+      settings.sphere = (instruction.secondary_int_value & LN_KEEP_DISTANCE_BIT_SPHERE) != 0;
+      mark_done();
+      if (target == nullptr || !std::isfinite(settings.distance) || settings.distance < 0.0f ||
+          !std::isfinite(settings.reach) || !std::isfinite(settings.strength) ||
+          settings.strength < 0.0f ||
+          !std::isfinite(settings.damping) || settings.damping < 0.0f ||
+          !std::isfinite(settings.radius) || mask < 0 || mask > LN_RAYCAST_MAX_COLLISION_MASK)
+      {
+        break;
+      }
+      settings.radius = std::max(settings.radius, 0.001f);
+      settings.check_every = std::clamp(settings.check_every, 1, 60);
+      settings.mask = uint32_t(mask);
+      for (const LN_RuntimeRef &ref : ignore_refs) {
+        if (KX_GameObject *ignored = ResolveObjectRef(ref)) {
+          settings.ignore.push_back(ignored);
+        }
+      }
+      request.tree = this;
+      request.slot = uint32_t(instruction.int_value);
+      request.object = target;
+      request.sort_key = ef.SortKey();
+      request.step = int64_t(context.phase_tick_index);
+      request.dt = context.delta_time > 0.0 ? float(context.delta_time) : 1.0f / 60.0f;
+      request.spread = m_stepSpread + request.slot;
+      command_buffer.AppendKeepDistance(std::move(request));
       break;
     }
     case LN_OpCode::ApplyForceToTarget: {
@@ -2906,6 +3091,8 @@ void LN_RuntimeTree::OpDirectPhysicsCommand(Frame &ef,
         case LN_RigidBodyAttribute::MinAngularVelocity:
         case LN_RigidBodyAttribute::MaxAngularVelocity:
         case LN_RigidBodyAttribute::GravityFactor:
+        case LN_RigidBodyAttribute::LinearDamping:
+        case LN_RigidBodyAttribute::AngularDamping:
           scalar_value = ef.Float(
               instruction.float_expr_index, instruction.vector_value.x());
           break;
@@ -2929,10 +3116,12 @@ void LN_RuntimeTree::OpDirectPhysicsCommand(Frame &ef,
                                                        instruction.secondary_int_value != 0);
           break;
         case LN_RigidBodyAttribute::AxisLocks:
+          /* The chosen axes, then whether to lock them (read in this order). */
           value = ef.Vector(
               instruction.vector_expr_index, instruction.vector_value);
           secondary_value = ef.Vector(instruction.secondary_vector_expr_index,
                                                     instruction.secondary_vector_value);
+          bool_value = ef.Bool(instruction.bool_expr_index, instruction.bool_value);
           break;
       }
 

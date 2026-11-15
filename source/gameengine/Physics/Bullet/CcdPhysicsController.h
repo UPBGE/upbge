@@ -741,6 +741,11 @@ class CcdPhysicsController : public PHY_IPhysicsController {
 
   // physics methods
   virtual void ApplyImpulse(const MT_Vector3 &attach, const MT_Vector3 &impulsein, bool local);
+  virtual void ApplyWorldImpulse(const MT_Vector3 &impulse,
+                                 const MT_Vector3 *point,
+                                 bool velocity_change);
+  virtual void ApplyAngularImpulse(const MT_Vector3 &impulse, bool velocity_change);
+  virtual MT_Vector3 GetCenterOfMassPosition();
   virtual void ApplyTorque(const MT_Vector3 &torque, bool local);
   virtual void ApplyForce(const MT_Vector3 &force, bool local);
   virtual void SetAngularVelocity(const MT_Vector3 &ang_vel, bool local);

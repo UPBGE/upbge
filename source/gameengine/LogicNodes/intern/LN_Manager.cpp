@@ -269,6 +269,7 @@ LN_RuntimeTree *LN_Manager::RegisterCompiledProgram(KX_GameObject *gameobj,
     runtime_tree->SetProgram(std::move(program));
     runtime_tree->SetLogicManager(this);
     runtime_tree->SetSceneObjectIndex(scene_object_index);
+    NoteObjectOrderKey(scene_object_index);
     runtime_tree->SetEnabled(enabled);
     runtime_tree->SetRuntimeActive(runtime_active);
     runtime_tree->BindDenseIds(m_denseIds);
@@ -281,6 +282,7 @@ LN_RuntimeTree *LN_Manager::RegisterCompiledProgram(KX_GameObject *gameobj,
     return runtime_tree;
   }
 
+  NoteObjectOrderKey(scene_object_index);
   m_runtimeTrees.push_back(std::make_unique<LN_RuntimeTree>(
       std::move(program), gameobj, scene_object_index, applied_tree_index));
   LN_RuntimeTree *runtime_tree = m_runtimeTrees.back().get();
@@ -831,8 +833,7 @@ std::string LN_Manager::WriteGameReport(std::string *r_json)
 }
 
 void LN_Manager::ReplicateRuntimeTrees(KX_GameObject *source_gameobj,
-                                       KX_GameObject *replica_gameobj,
-                                       uint32_t scene_object_index)
+                                       KX_GameObject *replica_gameobj)
 {
   AssertMainThread();
 
@@ -879,10 +880,12 @@ void LN_Manager::ReplicateRuntimeTrees(KX_GameObject *source_gameobj,
   /* No reserve of exactly one more here: it reallocated the whole tree list at every spawn (all
    * the lists grow geometrically on their own). */
 
+  /* One key for all the copy's trees, after every other object's. */
+  const uint32_t order_key = ObjectOrderKeyFor(replica_gameobj);
   auto replicate_source_tree = [&](LN_RuntimeTree *source_tree) {
     RegisterCompiledProgram(replica_gameobj,
                             source_tree->GetProgram(),
-                            scene_object_index,
+                            order_key,
                             source_tree->GetAppliedTreeIndex(),
                             source_tree->IsEnabled(),
                             true);
@@ -987,6 +990,9 @@ void LN_Manager::AbsorbRuntimeTreesFrom(LN_Manager &other)
       runtime_tree->HoldCollisionIdentitiesAsObjects();
     }
   }
+  /* The merged objects' order keys: after this scene's, in the order their trees run (one key an
+   * object; their places in the merged list could repeat keys this scene's copies hold). */
+  std::unordered_map<KX_GameObject *, uint32_t> absorbed_keys;
   for (std::unique_ptr<LN_RuntimeTree> &runtime_tree : other.m_runtimeTrees) {
     bool runtime_active = false;
     const int scene_object_index = FindSceneObjectIndex(runtime_tree->GetGameObject(),
@@ -996,7 +1002,12 @@ void LN_Manager::AbsorbRuntimeTreesFrom(LN_Manager &other)
       continue;
     }
 
-    runtime_tree->SetSceneObjectIndex(static_cast<uint32_t>(scene_object_index));
+    auto [key, added] = absorbed_keys.try_emplace(runtime_tree->GetGameObject(), 0u);
+    if (added) {
+      key->second = ObjectOrderKeyFor(runtime_tree->GetGameObject());
+      NoteObjectOrderKey(key->second);
+    }
+    runtime_tree->SetSceneObjectIndex(key->second);
     runtime_tree->SetRuntimeActive(runtime_active);
     /* Every N Steps: the other scene numbered its trees and counted its steps on its own; here
      * they take turns with this scene's trees of the same source tree. */
@@ -1919,6 +1930,12 @@ void LN_Manager::Tick(const double current_time,
     return;
   }
 
+  /* Visualize lines with a Duration: each Logic + Physics step's picture holds them again until
+   * their time is up (the step's own casts draw theirs as they run). */
+  if (event == LN_Event::OnFixedUpdate) {
+    m_timedDebugLines.Draw(current_time);
+  }
+
   /* On Game Loaded runs in the update phase: keep the pulse pending through the init and fixed
    * ticks that can come first (e.g. right after a cross-scene load). */
   if (event == LN_Event::OnUpdate) {
@@ -2345,6 +2362,9 @@ void LN_Manager::Tick(const double current_time,
   if (report_tick_timings) {
     warm_start = std::chrono::steady_clock::now();
   }
+  /* (2026-11-14: the trees whose warm-up may run on a helper, a crowd's Projectile Rays, on the
+   * job pool: LN_WarmQueryCaches.) */
+  m_captureTreesScratch.clear();
   for (size_t index = 0; index < m_runtimeTrees.size(); index++) {
     LN_RuntimeTree *runtime_tree = m_runtimeTrees[index].get();
     const bool force_snapshot = !pending_forced_trees.empty() &&
@@ -2355,7 +2375,15 @@ void LN_Manager::Tick(const double current_time,
     {
       continue;
     }
-    const size_t query_count = runtime_tree->WarmQueryCache(context);
+    m_captureTreesScratch.push_back(runtime_tree);
+  }
+  {
+    const size_t query_count = LN_WarmQueryCaches(m_captureTreesScratch.data(),
+                                                  m_captureTreesScratch.size(),
+                                                  context,
+                                                  m_jobPool.GetHelperCount() > 0 ? &m_jobPool :
+                                                                                   nullptr);
+    m_captureTreesScratch.clear();
     if (report_tick_timings) {
       profile->query_count += uint32_t(query_count);
     }
@@ -2984,10 +3012,6 @@ LN_GamePropertyId LN_Manager::InternGamePropertyName(const std::string &name)
   return m_denseIds.InternGameProperty(name);
 }
 
-LN_SoundId LN_Manager::InternSoundName(const std::string &name)
-{
-  return m_denseIds.InternSound(name);
-}
 
 LN_ObjectHandle LN_Manager::MakeObjectHandle(KX_GameObject *gameobj,
                                              const std::string &debug_name)
@@ -4087,6 +4111,51 @@ uint32_t LN_Manager::AllocateNextAppliedTreeIndex(KX_GameObject *gameobj) const
   return any ? (max_index + 1) : 0;
 }
 
+uint32_t LN_Manager::ObjectOrderKeyFor(KX_GameObject *object)
+{
+  if (const auto item = m_runtimeTreesByObject.find(object); item != m_runtimeTreesByObject.end()) {
+    for (LN_RuntimeTree *runtime_tree : item->second) {
+      if (runtime_tree != nullptr && runtime_tree->IsAttached() &&
+          runtime_tree->OwnsGameObject(object))
+      {
+        return runtime_tree->GetSceneObjectIndex();
+      }
+    }
+  }
+  if (m_nextObjectOrderKey == UINT32_MAX) {
+    CompactObjectOrderKeys();
+  }
+  return m_nextObjectOrderKey;
+}
+
+void LN_Manager::NoteObjectOrderKey(const uint32_t key)
+{
+  if (key >= m_nextObjectOrderKey) {
+    m_nextObjectOrderKey = key == UINT32_MAX ? UINT32_MAX : key + 1;
+  }
+}
+
+void LN_Manager::CompactObjectOrderKeys()
+{
+  std::vector<uint32_t> keys;
+  keys.reserve(m_runtimeTrees.size());
+  for (const std::unique_ptr<LN_RuntimeTree> &runtime_tree : m_runtimeTrees) {
+    if (runtime_tree != nullptr) {
+      keys.push_back(runtime_tree->GetSceneObjectIndex());
+    }
+  }
+  std::sort(keys.begin(), keys.end());
+  keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
+  for (const std::unique_ptr<LN_RuntimeTree> &runtime_tree : m_runtimeTrees) {
+    if (runtime_tree != nullptr) {
+      runtime_tree->SetSceneObjectIndex(uint32_t(
+          std::lower_bound(keys.begin(), keys.end(), runtime_tree->GetSceneObjectIndex()) -
+          keys.begin()));
+    }
+  }
+  m_nextObjectOrderKey = uint32_t(keys.size());
+}
+
 bool LN_Manager::IsLogicTreeRunning(KX_GameObject *gameobj, const std::string &tree_name) const
 {
   LN_RuntimeTree *runtime_tree = FindRuntimeTreeBySourceName(gameobj, tree_name);
@@ -4203,14 +4272,13 @@ void LN_Manager::FlushInstallLogicTree(KX_GameObject *target_object,
   }
 
   bool runtime_active = false;
-  const int scene_object_index = FindSceneObjectIndex(target_object, &runtime_active);
-  if (scene_object_index < 0) {
+  if (FindSceneObjectIndex(target_object, &runtime_active) < 0) {
     return;
   }
 
   RegisterCompiledProgram(target_object,
                           program,
-                          uint32_t(scene_object_index),
+                          ObjectOrderKeyFor(target_object),
                           AllocateNextAppliedTreeIndex(target_object),
                           initial_enabled,
                           runtime_active);

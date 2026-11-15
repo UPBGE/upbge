@@ -324,6 +324,61 @@ static bool JoltIsObjectSensor(JoltPhysicsController *controller)
                            static_cast<KX_ClientObjectInfo *>(controller->GetNewClientInfo()));
 }
 
+/** A queried body's shape where it is: a body in the broadphase where Jolt has it; a Sensor-type
+ * object's body outside it (Jolt does not move it) where its object is, as On Collision tests it
+ * (JoltLogicQueryTransform). Hits, normals and hit details of one query all read this. */
+static JPH::TransformedShape JoltQueryTransformedShape(const JPH::Body &body)
+{
+  if (body.IsInBroadPhase()) {
+    return body.GetTransformedShape();
+  }
+  const JoltPhysicsController *controller = static_cast<const JoltPhysicsController *>(
+      JoltGetPhysicsController(JoltGetClientInfo(body)));
+  if (!controller || !body.GetShape()) {
+    return body.GetTransformedShape();
+  }
+  const JPH::RMat44 transform = JoltLogicQueryTransform(
+      *controller, *body.GetShape(), body.GetCenterOfMassTransform());
+  return JPH::TransformedShape(
+      transform.GetTranslation(), transform.GetQuaternion(), body.GetShape(), body.GetID());
+}
+
+/** A query that includes sensors also tests the Sensor-type objects outside Jolt's broadphase
+ * (only a collision brick adds one: JoltPhysicsEnvironment::GetQuerySensors), each where its object
+ * is, as Jolt's narrow phase tests a body: the body filter, then `cast(shape)` between the
+ * collector's OnBody and OnBodyEnd. The ones On Collision would test: active layers, not
+ * suspended, no compound child (IsLogicObjectSensorActive). */
+template<typename BodyFilter, typename Collector, typename Cast>
+static void JoltQueryOffWorldSensors(const JPH::PhysicsSystem &physicsSystem,
+                                     const std::vector<JoltPhysicsController *> &sensors,
+                                     const BodyFilter &bodyFilter,
+                                     Collector &collector,
+                                     const Cast &cast)
+{
+  const JPH::BodyLockInterface &lockInterface = physicsSystem.GetBodyLockInterface();
+  for (JoltPhysicsController *sensor : sensors) {
+    if (collector.ShouldEarlyOut()) {
+      return;
+    }
+    if (!sensor->IsLogicObjectSensorActive() || sensor->GetBodyID().IsInvalid()) {
+      continue;
+    }
+    JPH::BodyLockRead lock(lockInterface, sensor->GetBodyID());
+    if (!lock.Succeeded()) {
+      continue;
+    }
+    const JPH::Body &body = lock.GetBody();
+    if (body.IsInBroadPhase() || !bodyFilter.ShouldCollideLocked(body)) {
+      continue;
+    }
+    const JPH::TransformedShape shape = JoltQueryTransformedShape(body);
+    collector.OnBody(body);
+    lock.ReleaseLock();
+    cast(shape);
+    collector.OnBodyEnd();
+  }
+}
+
 static MT_Vector3 JoltLogicContactNormal(const JPH::Vec3 &penetrationAxis)
 {
   return penetrationAxis.LengthSq() > FLT_EPSILON ?
@@ -567,8 +622,11 @@ class JoltBoundedRayCastCollector final : public JPH::CastRayCollector {
 class JoltShapeCastBodyFilter : public JPH::BodyFilter {
  public:
   JoltShapeCastBodyFilter(PHY_IShapeCastFilterCallback &filterCallback,
-                          const bool includeSensors)
-      : m_filterCallback(filterCallback), m_includeSensors(includeSensors)
+                          const bool includeSensors,
+                          const PHY_IPhysicsController *sweptController = nullptr)
+      : m_filterCallback(filterCallback),
+        m_includeSensors(includeSensors),
+        m_sweptController(sweptController)
   {
   }
 
@@ -584,7 +642,7 @@ class JoltShapeCastBodyFilter : public JPH::BodyFilter {
 
     PHY_IPhysicsController *controller = JoltGetPhysicsController(clientInfo);
     if (!controller || controller == m_filterCallback.m_ignoreController ||
-        controller == m_filterCallback.m_extraIgnoreController)
+        controller == m_filterCallback.m_extraIgnoreController || controller == m_sweptController)
     {
       return false;
     }
@@ -594,6 +652,8 @@ class JoltShapeCastBodyFilter : public JPH::BodyFilter {
  private:
   PHY_IShapeCastFilterCallback &m_filterCallback;
   bool m_includeSensors;
+  /** SweepBody: the body whose shape moves. */
+  const PHY_IPhysicsController *m_sweptController;
 };
 
 class JoltBoundedShapeCastCollector final : public JPH::CastShapeCollector {
@@ -668,7 +728,7 @@ class JoltBoundedShapeCastCollector final : public JPH::CastShapeCollector {
   bool m_currentHadHit = false;
 };
 
-static void JoltPopulateMeshQueryDetails(const JPH::Body &body,
+static void JoltPopulateMeshQueryDetails(const JPH::TransformedShape &bodyShape,
                                          JoltPhysicsController &controller,
                                          const JPH::SubShapeID &subShapeID,
                                          const JPH::RVec3 &hitPoint,
@@ -676,16 +736,19 @@ static void JoltPopulateMeshQueryDetails(const JPH::Body &body,
                                          const unsigned char detailFlags,
                                          int32_t &r_polygonIndex,
                                          bool &r_hasUV,
-                                         MT_Vector2 &r_hitUV)
+                                         MT_Vector2 &r_hitUV,
+                                         int32_t &r_materialIndex)
 {
-  if ((detailFlags & (PHY_RAY_QUERY_DETAIL_FACE_INDEX | PHY_RAY_QUERY_DETAIL_UV)) == 0) {
+  if ((detailFlags & (PHY_RAY_QUERY_DETAIL_FACE_INDEX | PHY_RAY_QUERY_DETAIL_UV |
+                      PHY_RAY_QUERY_DETAIL_MATERIAL)) == 0)
+  {
     return;
   }
 
   const JoltShapeQueryDataPtr &shapeQueryData = controller.GetShapeQueryData();
   JPH::SubShapeID triangleSubShape;
   const JPH::Shape *leafShape = shapeQueryData ?
-                                          body.GetShape()->GetLeafShape(subShapeID,
+                                          bodyShape.mShape->GetLeafShape(subShapeID,
                                                                         triangleSubShape) :
                                           nullptr;
   if (!leafShape || leafShape->GetType() != JPH::EShapeType::Mesh) {
@@ -698,6 +761,14 @@ static void JoltPopulateMeshQueryDetails(const JPH::Body &body,
   }
   const JPH::uint32 triangleIndex =
       static_cast<const JPH::MeshShape *>(leafShape)->GetTriangleUserData(triangleSubShape);
+  if ((detailFlags & PHY_RAY_QUERY_DETAIL_MATERIAL) != 0 &&
+      triangleIndex < meshData->triangleMaterials.size())
+  {
+    r_materialIndex = int32_t(meshData->triangleMaterials[triangleIndex]);
+  }
+  if ((detailFlags & (PHY_RAY_QUERY_DETAIL_FACE_INDEX | PHY_RAY_QUERY_DETAIL_UV)) == 0) {
+    return;
+  }
   if (triangleIndex < meshData->polygonIndices.size()) {
     r_polygonIndex = meshData->polygonIndices[triangleIndex];
   }
@@ -707,7 +778,7 @@ static void JoltPopulateMeshQueryDetails(const JPH::Body &body,
     return;
   }
 
-  JPH::TransformedShape transformedLeaf = body.GetTransformedShape();
+  JPH::TransformedShape transformedLeaf = bodyShape;
   JPH::SubShapeID remainingSubShape = subShapeID;
   for (int depth = 0;
        depth < 64 && transformedLeaf.mShape.GetPtr() != leafShape;
@@ -1052,12 +1123,13 @@ void JoltContactListener::StoreContact(const JPH::Body &inBody1,
   if (collectForCallbacks) {
     JPH::CollisionEstimationResult collisionEstimate;
     const JPH::PhysicsSettings &physicsSettings = m_env->m_physicsSystem->GetPhysicsSettings();
+    /* Jolt 5.7.0 takes the contact's settings (friction, restitution, mass scales and surface
+     * velocities), so the estimate sees what the solver will. */
     JPH::EstimateCollisionResponse(inBody1,
                                    inBody2,
                                    inManifold,
                                    collisionEstimate,
-                                   ioSettings.mCombinedFriction,
-                                   ioSettings.mCombinedRestitution,
+                                   ioSettings,
                                    physicsSettings.mMinVelocityForRestitution,
                                    std::max<JPH::uint>(1, physicsSettings.mNumVelocitySteps));
     if (collisionEstimate.mContactImpulse.size() > 0) {
@@ -4335,11 +4407,14 @@ PHY_IPhysicsController *JoltPhysicsEnvironment::RayTest(
   return ctrl;
 }
 
+/** `querySensors`: the sensors outside the broadphase, tested when the query includes sensors
+ * (JoltQueryOffWorldSensors); null when it does not. */
 template<typename BodyFilter>
 static void JoltExecuteBoundedRayCast(const JPH::PhysicsSystem &physicsSystem,
                                       const PHY_RayQuerySettings &settings,
                                       const BodyFilter &bodyFilter,
-                                      std::vector<PHY_RayCastResult> &results)
+                                      std::vector<PHY_RayCastResult> &results,
+                                      const std::vector<JoltPhysicsController *> *querySensors)
 {
   results.clear();
   const MT_Vector3 displacement = settings.destination - settings.origin;
@@ -4359,6 +4434,14 @@ static void JoltExecuteBoundedRayCast(const JPH::PhysicsSystem &physicsSystem,
 
   JoltBoundedRayCastCollector collector(maxResults);
   physicsSystem.GetNarrowPhaseQuery().CastRay(ray, raySettings, collector, {}, {}, bodyFilter);
+  if (settings.include_sensors && querySensors != nullptr) {
+    JoltQueryOffWorldSensors(
+        physicsSystem,
+        *querySensors,
+        bodyFilter,
+        collector,
+        [&](const JPH::TransformedShape &shape) { shape.CastRay(ray, raySettings, collector); });
+  }
   collector.Sort();
 
   results.reserve(collector.GetHitCount());
@@ -4375,26 +4458,38 @@ static void JoltExecuteBoundedRayCast(const JPH::PhysicsSystem &physicsSystem,
       continue;
     }
 
+    const JPH::TransformedShape bodyShape = JoltQueryTransformedShape(body);
     const float fraction = std::clamp(hit.mFraction, 0.0f, 1.0f);
     const JPH::RVec3 hitPoint = ray.GetPointOnRay(fraction);
     PHY_RayCastResult result;
     result.m_controller = controller;
     result.m_hitPoint = settings.origin + JoltMath::ToMT(hitPoint - origin);
     result.m_hitNormal = JoltMath::ToMT(
-        body.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, hitPoint));
+        bodyShape.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, hitPoint));
     result.m_fraction = fraction;
 
     bool hasUV = false;
-    JoltPopulateMeshQueryDetails(body,
-                                 *static_cast<JoltPhysicsController *>(controller),
+    int32_t polygonIndex = -1;
+    int32_t materialIndex = -1;
+    JoltPhysicsController &joltController = *static_cast<JoltPhysicsController *>(controller);
+    JoltPopulateMeshQueryDetails(bodyShape,
+                                 joltController,
                                  hit.mSubShapeID2,
                                  hitPoint,
                                  -ray.mDirection,
                                  settings.detail_flags,
-                                 result.m_polygon,
+                                 polygonIndex,
                                  hasUV,
-                                 result.m_hitUV);
+                                 result.m_hitUV,
+                                 materialIndex);
+    result.m_polygon = polygonIndex;
+    result.m_materialIndex = materialIndex;
     result.m_hitUVOK = hasUV ? 1 : 0;
+    if ((settings.detail_flags & PHY_RAY_QUERY_DETAIL_PART) != 0) {
+      /* Read only: the bindings and the scene graph below the body's object (nothing writes them
+       * while logic records). */
+      result.m_partObject = joltController.ResolveCompoundChildObject(hit.mSubShapeID2);
+    }
     results.push_back(result);
   }
 }
@@ -4404,7 +4499,11 @@ bool JoltPhysicsEnvironment::RayCast(const PHY_RayQuerySettings &settings,
                                      std::vector<PHY_RayCastResult> &results)
 {
   JoltRayCastBodyFilter bodyFilter(filterCallback, settings.include_sensors);
-  JoltExecuteBoundedRayCast(*m_physicsSystem, settings, bodyFilter, results);
+  JoltExecuteBoundedRayCast(*m_physicsSystem,
+                            settings,
+                            bodyFilter,
+                            results,
+                            settings.include_sensors ? &GetQuerySensors() : nullptr);
   return true;
 }
 
@@ -4419,11 +4518,20 @@ bool JoltPhysicsEnvironment::RayCastBatch(
   if (settings.empty()) {
     return true;
   }
+  /* (Taken here, before any job: the jobs only read it.) */
+  const std::vector<JoltPhysicsController *> *querySensors = nullptr;
+  for (const PHY_RayQuerySettings &ray : settings) {
+    if (ray.include_sensors) {
+      querySensors = &GetQuerySensors();
+      break;
+    }
+  }
 
   const auto executeSequentialRange = [&](const size_t begin, const size_t end) {
     for (size_t index = begin; index < end; index++) {
       JoltRayCastBodyFilter bodyFilter(filterCallback, settings[index].include_sensors);
-      JoltExecuteBoundedRayCast(*m_physicsSystem, settings[index], bodyFilter, results[index]);
+      JoltExecuteBoundedRayCast(
+          *m_physicsSystem, settings[index], bodyFilter, results[index], querySensors);
     }
   };
 
@@ -4465,7 +4573,8 @@ bool JoltPhysicsEnvironment::RayCastBatch(
     for (size_t index = begin; index < end; index++) {
       JoltRayCastSnapshotBodyFilter bodyFilter(allowedControllers,
                                                settings[index].include_sensors);
-      JoltExecuteBoundedRayCast(*m_physicsSystem, settings[index], bodyFilter, results[index]);
+      JoltExecuteBoundedRayCast(
+          *m_physicsSystem, settings[index], bodyFilter, results[index], querySensors);
     }
   };
 
@@ -4490,13 +4599,74 @@ bool JoltPhysicsEnvironment::RayCastBatch(
 
 void JoltPhysicsEnvironment::AddRayQueryDetailRequirements(const unsigned char detailFlags)
 {
+  /* (PART keeps no data: it is asked per query.) */
   unsigned char normalizedFlags = detailFlags &
                                   (PHY_RAY_QUERY_DETAIL_FACE_INDEX |
-                                   PHY_RAY_QUERY_DETAIL_UV);
+                                   PHY_RAY_QUERY_DETAIL_UV | PHY_RAY_QUERY_DETAIL_MATERIAL);
   if ((normalizedFlags & PHY_RAY_QUERY_DETAIL_UV) != 0) {
     normalizedFlags |= PHY_RAY_QUERY_DETAIL_FACE_INDEX;
   }
   m_rayQueryDetailRequirements |= normalizedFlags;
+}
+
+/** A shape cast's hits, nearest first, as PHY results (ShapeCast, SweepBody): `origin` is where
+ * the cast's shape started (the point `baseOffset` stands for), `displacement` its whole move. */
+static void JoltCollectShapeCastResults(const JPH::PhysicsSystem &physicsSystem,
+                                        JoltBoundedShapeCastCollector &collector,
+                                        const JPH::RVec3 &baseOffset,
+                                        const MT_Vector3 &origin,
+                                        const MT_Vector3 &displacement,
+                                        const unsigned char detailFlags,
+                                        std::vector<PHY_ShapeCastResult> &results)
+{
+  collector.Sort();
+  results.reserve(collector.m_hits.size());
+  const JPH::BodyLockInterface &lockInterface = physicsSystem.GetBodyLockInterface();
+  for (const JPH::ShapeCastResult &hit : collector.m_hits) {
+    JPH::BodyLockRead lock(lockInterface, hit.mBodyID2);
+    if (!lock.Succeeded()) {
+      continue;
+    }
+    const JPH::Body &body = lock.GetBody();
+    PHY_IPhysicsController *controller = JoltGetPhysicsController(JoltGetClientInfo(body));
+    if (!controller) {
+      continue;
+    }
+    const JPH::TransformedShape bodyShape = JoltQueryTransformedShape(body);
+
+    PHY_ShapeCastResult result;
+    result.controller = controller;
+    const JPH::RVec3 hitPoint = baseOffset + JPH::RVec3(hit.mContactPointOn2);
+    result.point = origin + JoltMath::ToMT(hit.mContactPointOn2);
+    result.fraction = std::clamp(hit.mFraction, 0.0f, 1.0f);
+    result.cast_position = origin + displacement * result.fraction;
+    result.penetration_depth = std::max(hit.mPenetrationDepth, 0.0f);
+    result.started_overlapping = hit.mFraction <= 0.0f && hit.mPenetrationDepth > 0.0f;
+
+    JPH::Vec3 normal = -hit.mPenetrationAxis;
+    if (normal.LengthSq() <= FLT_EPSILON) {
+      normal = bodyShape.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, hitPoint);
+    }
+    else {
+      normal = normal.Normalized();
+    }
+    result.normal = JoltMath::ToMT(normal);
+    JoltPhysicsController &joltController = *static_cast<JoltPhysicsController *>(controller);
+    JoltPopulateMeshQueryDetails(bodyShape,
+                                 joltController,
+                                 hit.mSubShapeID2,
+                                 hitPoint,
+                                 normal,
+                                 detailFlags,
+                                 result.polygon_index,
+                                 result.has_uv,
+                                 result.hit_uv,
+                                 result.material_index);
+    if ((detailFlags & PHY_RAY_QUERY_DETAIL_PART) != 0) {
+      result.part_object = joltController.ResolveCompoundChildObject(hit.mSubShapeID2);
+    }
+    results.push_back(result);
+  }
 }
 
 bool JoltPhysicsEnvironment::ShapeCast(const PHY_ShapeCastSettings &settings,
@@ -4527,6 +4697,15 @@ bool JoltPhysicsEnvironment::ShapeCast(const PHY_ShapeCastSettings &settings,
     const JPH::RShapeCast shapeCast = JPH::RShapeCast::sFromWorldTransform(
         &shape, JPH::Vec3::sOne(), transform, direction);
     query.CastShape(shapeCast, castSettings, baseOffset, collector, {}, {}, bodyFilter);
+    if (settings.include_sensors) {
+      JoltQueryOffWorldSensors(*m_physicsSystem,
+                               GetQuerySensors(),
+                               bodyFilter,
+                               collector,
+                               [&](const JPH::TransformedShape &target) {
+                                 target.CastShape(shapeCast, castSettings, baseOffset, collector);
+                               });
+    }
   };
 
   switch (settings.type) {
@@ -4557,50 +4736,475 @@ bool JoltPhysicsEnvironment::ShapeCast(const PHY_ShapeCastSettings &settings,
     }
   }
 
-  collector.Sort();
-  results.reserve(collector.m_hits.size());
+  JoltCollectShapeCastResults(*m_physicsSystem,
+                              collector,
+                              baseOffset,
+                              settings.origin,
+                              displacement,
+                              settings.detail_flags,
+                              results);
+  return true;
+}
+
+PHY_BodySweepStatus JoltPhysicsEnvironment::SweepBody(const PHY_BodySweepSettings &settings,
+                                                      PHY_IShapeCastFilterCallback &filterCallback,
+                                                      std::vector<PHY_ShapeCastResult> &results)
+{
+  results.clear();
+  JoltPhysicsController *controller = static_cast<JoltPhysicsController *>(settings.controller);
+  const JPH::RefConst<JPH::Shape> shape = controller ? controller->GetShape() :
+                                                       JPH::RefConst<JPH::Shape>();
+  if (!shape || shape->GetType() == JPH::EShapeType::Empty ||
+      shape->GetType() == JPH::EShapeType::SoftBody)
+  {
+    return PHY_BodySweepStatus::NoShape;
+  }
+  /* A triangle mesh (or a compound holding one) cannot be the moving shape of a Jolt cast. */
+  if (shape->MustBeStatic()) {
+    return PHY_BodySweepStatus::MeshShape;
+  }
+
+  const uint32_t maxResults = std::clamp(settings.max_results, 1u, 257u);
+  const MT_Vector3 displacement = settings.destination - settings.position;
+  const JPH::RVec3 baseOffset = JoltMath::ToJoltR(settings.position);
+  const JPH::RMat44 transform = JPH::RMat44::sRotationTranslation(
+      JoltMath::ToJolt(settings.orientation.getRotation()), baseOffset);
+  const JPH::Vec3 direction = JoltMath::ToJolt(displacement);
+
+  JPH::ShapeCastSettings castSettings;
+  castSettings.mReturnDeepestPoint = true;
+  castSettings.mBackFaceModeConvex = JPH::EBackFaceMode::CollideWithBackFaces;
+  if (settings.hit_back_faces) {
+    castSettings.mBackFaceModeTriangles = JPH::EBackFaceMode::CollideWithBackFaces;
+  }
+
+  /* The swept body itself is never hit, whatever the filter says. */
+  JoltShapeCastBodyFilter bodyFilter(filterCallback, settings.include_sensors, controller);
+  JoltBoundedShapeCastCollector collector(maxResults);
+  /* The shape's own scale is in the shape (a ScaledShape): cast it at scale one, from the body's
+   * origin (sFromWorldTransform adds the shape's center of mass). */
+  const JPH::RShapeCast shapeCast = JPH::RShapeCast::sFromWorldTransform(
+      shape.GetPtr(), JPH::Vec3::sOne(), transform, direction);
+  m_physicsSystem->GetNarrowPhaseQuery().CastShape(
+      shapeCast, castSettings, baseOffset, collector, {}, {}, bodyFilter);
+  if (settings.include_sensors) {
+    JoltQueryOffWorldSensors(*m_physicsSystem,
+                             GetQuerySensors(),
+                             bodyFilter,
+                             collector,
+                             [&](const JPH::TransformedShape &target) {
+                               target.CastShape(shapeCast, castSettings, baseOffset, collector);
+                             });
+  }
+  JoltCollectShapeCastResults(*m_physicsSystem,
+                              collector,
+                              baseOffset,
+                              settings.position,
+                              displacement,
+                              settings.detail_flags,
+                              results);
+  return PHY_BodySweepStatus::Ok;
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Explode or Implode Impulse's overlap, Keep Distance's proximity (2026-11-12)
+ * \{ */
+
+/** One body's best hit of a cast, as JoltBoundedShapeCastCollector keeps a body's hit. */
+class JoltBestShapeCastHitCollector final : public JPH::CastShapeCollector {
+ public:
+  void AddHit(const JPH::ShapeCastResult &result) override
+  {
+    if (!m_hadHit || result.GetEarlyOutFraction() < m_hit.GetEarlyOutFraction()) {
+      m_hit = result;
+      m_hadHit = true;
+      UpdateEarlyOutFraction(result.GetEarlyOutFraction());
+    }
+  }
+
+  JPH::ShapeCastResult m_hit;
+  bool m_hadHit = false;
+};
+
+bool JoltPhysicsEnvironment::OverlapSphereBodies(const MT_Vector3 &center,
+                                                 const float radius,
+                                                 PHY_IShapeCastFilterCallback &filterCallback,
+                                                 const uint32_t max_results,
+                                                 std::vector<PHY_IPhysicsController *> &controllers)
+{
+  controllers.clear();
+  if (!(radius > 0.0f) || !std::isfinite(radius) || max_results == 0) {
+    return true;
+  }
+  /* The bodies whose bounds meet the sphere (a superset of the ones it overlaps). */
+  const JPH::RVec3 baseOffset = JoltMath::ToJoltR(center);
+  JPH::AllHitCollisionCollector<JPH::CollideShapeBodyCollector> candidates;
+  m_physicsSystem->GetBroadPhaseQuery().CollideSphere(
+      JoltMath::ToJolt(center), radius, candidates);
+
+  /* Each candidate as ShapeCast tests it: a zero-length cast of the sphere (no sensors, back
+   * faces of triangles passed), its best hit ranking it. A body that cannot be a triangle mesh
+   * and whose bounds lie inside the sphere is inside it: overlapped without the test (most of a
+   * blast's bodies), ranked only when more than `max_results` must be chosen from. */
+  const JPH::SphereShape sphere(radius);
+  const JPH::RShapeCast shapeCast = JPH::RShapeCast::sFromWorldTransform(
+      &sphere, JPH::Vec3::sOne(), JPH::RMat44::sTranslation(baseOffset), JPH::Vec3::sZero());
+  JPH::ShapeCastSettings castSettings;
+  castSettings.mReturnDeepestPoint = true;
+  castSettings.mBackFaceModeConvex = JPH::EBackFaceMode::CollideWithBackFaces;
+  JoltShapeCastBodyFilter bodyFilter(filterCallback, false);
   const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
-  for (const JPH::ShapeCastResult &hit : collector.m_hits) {
-    JPH::BodyLockRead lock(lockInterface, hit.mBodyID2);
+  const JPH::Vec3 sphereCenter = JoltMath::ToJolt(center);
+  const float radiusSq = radius * radius;
+
+  struct Member {
+    JPH::BodyID id;
+    PHY_IPhysicsController *controller;
+    /* The cast's early-out fraction (-penetration: deepest first) once tested. */
+    float key;
+    bool tested;
+  };
+  thread_local std::vector<Member> members;
+  members.clear();
+  const auto test = [&](const JPH::Body &body, JPH::BodyLockRead &lock) -> std::optional<float> {
+    const JPH::TransformedShape shape = JoltQueryTransformedShape(body);
+    lock.ReleaseLock();
+    JoltBestShapeCastHitCollector best;
+    shape.CastShape(shapeCast, castSettings, baseOffset, best);
+    return best.m_hadHit ? std::optional<float>(best.m_hit.GetEarlyOutFraction()) : std::nullopt;
+  };
+  for (const JPH::BodyID &id : candidates.mHits) {
+    JPH::BodyLockRead lock(lockInterface, id);
     if (!lock.Succeeded()) {
       continue;
     }
     const JPH::Body &body = lock.GetBody();
+    if (!bodyFilter.ShouldCollideLocked(body)) {
+      continue;
+    }
     PHY_IPhysicsController *controller = JoltGetPhysicsController(JoltGetClientInfo(body));
     if (!controller) {
       continue;
     }
-
-    PHY_ShapeCastResult result;
-    result.controller = controller;
-    const JPH::RVec3 hitPoint = baseOffset + JPH::RVec3(hit.mContactPointOn2);
-    result.point = settings.origin + JoltMath::ToMT(hit.mContactPointOn2);
-    result.fraction = std::clamp(hit.mFraction, 0.0f, 1.0f);
-    result.cast_position = settings.origin + displacement * result.fraction;
-    result.penetration_depth = std::max(hit.mPenetrationDepth, 0.0f);
-    result.started_overlapping = hit.mFraction <= 0.0f && hit.mPenetrationDepth > 0.0f;
-
-    JPH::Vec3 normal = -hit.mPenetrationAxis;
-    if (normal.LengthSq() <= FLT_EPSILON) {
-      normal = body.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, hitPoint);
+    const JPH::Shape *shape = body.GetShape();
+    if (body.IsRigidBody() && shape != nullptr && !shape->MustBeStatic() &&
+        shape->GetSubType() != JPH::EShapeSubType::Empty)
+    {
+      const JPH::AABox bounds = body.GetWorldSpaceBounds();
+      const JPH::Vec3 farthest = JPH::Vec3::sMax((bounds.mMin - sphereCenter).Abs(),
+                                                 (bounds.mMax - sphereCenter).Abs());
+      if (farthest.LengthSq() <= radiusSq) {
+        members.push_back({id, controller, 0.0f, false});
+        continue;
+      }
     }
-    else {
-      normal = normal.Normalized();
+    if (const std::optional<float> key = test(body, lock)) {
+      members.push_back({id, controller, *key, true});
     }
-    result.normal = JoltMath::ToMT(normal);
-    JoltPopulateMeshQueryDetails(body,
-                                 *static_cast<JoltPhysicsController *>(controller),
-                                 hit.mSubShapeID2,
-                                 hitPoint,
-                                 normal,
-                                 settings.detail_flags,
-                                 result.polygon_index,
-                                 result.has_uv,
-                                 result.hit_uv);
-    results.push_back(result);
+  }
+
+  const auto by_body = [](const Member &a, const Member &b) {
+    return a.id.GetIndexAndSequenceNumber() < b.id.GetIndexAndSequenceNumber();
+  };
+  if (members.size() > max_results) {
+    /* Too many: the deepest ones, as the cast's bounded collector keeps them. */
+    for (Member &member : members) {
+      if (!member.tested) {
+        JPH::BodyLockRead lock(lockInterface, member.id);
+        const std::optional<float> key = lock.Succeeded() ? test(lock.GetBody(), lock) :
+                                                            std::nullopt;
+        member.key = key.value_or(FLT_MAX);
+        member.tested = true;
+      }
+    }
+    const auto deeper = [&](const Member &a, const Member &b) {
+      return a.key != b.key ? a.key < b.key : by_body(a, b);
+    };
+    std::partial_sort(members.begin(), members.begin() + max_results, members.end(), deeper);
+    members.resize(max_results);
+  }
+  else {
+    std::sort(members.begin(), members.end(), by_body);
+  }
+  controllers.reserve(members.size());
+  for (const Member &member : members) {
+    controllers.push_back(member.controller);
   }
   return true;
 }
+
+namespace {
+
+/** Keep Distance: the bodies a proximity query may find, from its own fields only (no game
+ * callback: the queries may run on helpers). */
+class JoltProximityBodyFilter final : public JPH::BodyFilter {
+ public:
+  JoltProximityBodyFilter(const PHY_ProximityQuery &query, const JPH::BodyID self)
+      : m_query(query), m_self(self)
+  {
+  }
+
+  bool ShouldCollide(const JPH::BodyID &id) const override
+  {
+    return id != m_self;
+  }
+
+  bool ShouldCollideLocked(const JPH::Body &body) const override
+  {
+    if (body.GetID() == m_self || (!m_query.include_sensors && body.IsSensor())) {
+      return false;
+    }
+    KX_ClientObjectInfo *clientInfo = JoltGetClientInfo(body);
+    if (!clientInfo || !clientInfo->m_gameobject ||
+        (!m_query.include_sensors && clientInfo->isSensor()))
+    {
+      return false;
+    }
+    PHY_IPhysicsController *controller = JoltGetPhysicsController(clientInfo);
+    if (!controller || controller == m_query.controller ||
+        std::find(m_query.ignore.begin(), m_query.ignore.end(), controller) !=
+            m_query.ignore.end())
+    {
+      return false;
+    }
+    return m_query.collision_mask == 0 ||
+           (clientInfo->m_gameobject->GetCollisionGroup() & m_query.collision_mask) != 0;
+  }
+
+ private:
+  const PHY_ProximityQuery &m_query;
+  JPH::BodyID m_self;
+};
+
+/** Keep Distance's patches of one query: each body's hits (a mesh gives one per triangle within
+ * reach) merged per direction, an 8 x 8 octahedral grid of the push-away direction, keeping the
+ * nearest of each: a dense mesh pushes as hard as a coarse one. */
+class JoltProximityCollector final : public JPH::CollideShapeCollector {
+ public:
+  JoltProximityCollector(const JPH::RVec3 &baseOffset,
+                         const JPH::Vec3 &queryCenter,
+                         std::vector<PHY_ProximityPatch> &patches)
+      : m_baseOffset(baseOffset), m_queryCenter(queryCenter), m_patches(patches)
+  {
+    m_keys.clear();
+  }
+
+  void OnBody(const JPH::Body &body) override
+  {
+    m_body = body.GetID();
+    m_controller = JoltGetPhysicsController(JoltGetClientInfo(body));
+  }
+
+  void AddHit(const JPH::CollideShapeResult &hit) override
+  {
+    if (m_controller == nullptr) {
+      return;
+    }
+    JPH::Vec3 away = -hit.mPenetrationAxis;
+    if (away.LengthSq() <= 1.0e-12f) {
+      away = m_queryCenter - hit.mContactPointOn2;
+    }
+    away = away.NormalizedOr(JPH::Vec3::sAxisZ());
+    const float gap = std::max(0.0f, -hit.mPenetrationDepth);
+    const uint64_t key = (uint64_t(hit.mBodyID2.GetIndexAndSequenceNumber()) << 8) |
+                         DirectionBin(away);
+    for (size_t index = 0; index < m_keys.size(); index++) {
+      if (m_keys[index] == key) {
+        PHY_ProximityPatch &patch = m_patches[index];
+        if (gap < patch.gap) {
+          patch.point = JoltMath::ToMT(m_baseOffset + hit.mContactPointOn2);
+          patch.away = JoltMath::ToMT(away);
+          patch.gap = gap;
+        }
+        return;
+      }
+    }
+    m_keys.push_back(key);
+    PHY_ProximityPatch patch;
+    patch.controller = m_controller;
+    patch.point = JoltMath::ToMT(m_baseOffset + hit.mContactPointOn2);
+    patch.away = JoltMath::ToMT(away);
+    patch.gap = gap;
+    m_patches.push_back(patch);
+  }
+
+  /** Nearest first (ties by body, then direction), at most `maxPatches`. (Scratch per thread
+   * and `m_patches` keeps its room: no allocation a query once warm.) */
+  void Finish(const uint32_t maxPatches)
+  {
+    thread_local std::vector<uint32_t> order;
+    thread_local std::vector<PHY_ProximityPatch> sorted;
+    order.resize(m_patches.size());
+    for (size_t index = 0; index < order.size(); index++) {
+      order[index] = uint32_t(index);
+    }
+    std::sort(order.begin(), order.end(), [&](const uint32_t a, const uint32_t b) {
+      return m_patches[a].gap != m_patches[b].gap ? m_patches[a].gap < m_patches[b].gap :
+                                                    m_keys[a] < m_keys[b];
+    });
+    sorted.clear();
+    for (size_t index = 0; index < order.size() && sorted.size() < maxPatches; index++) {
+      sorted.push_back(m_patches[order[index]]);
+    }
+    m_patches.assign(sorted.begin(), sorted.end());
+  }
+
+ private:
+  static uint32_t DirectionBin(const JPH::Vec3 &direction)
+  {
+    const float sum = std::abs(direction.GetX()) + std::abs(direction.GetY()) +
+                      std::abs(direction.GetZ());
+    float u = direction.GetX() / sum;
+    float v = direction.GetY() / sum;
+    if (direction.GetZ() < 0.0f) {
+      const float folded_u = (1.0f - std::abs(v)) * (u >= 0.0f ? 1.0f : -1.0f);
+      v = (1.0f - std::abs(u)) * (v >= 0.0f ? 1.0f : -1.0f);
+      u = folded_u;
+    }
+    const uint32_t x = uint32_t(std::clamp(int((u + 1.0f) * 4.0f), 0, 7));
+    const uint32_t y = uint32_t(std::clamp(int((v + 1.0f) * 4.0f), 0, 7));
+    return y * 8 + x;
+  }
+
+  JPH::RVec3 m_baseOffset;
+  JPH::Vec3 m_queryCenter;
+  std::vector<PHY_ProximityPatch> &m_patches;
+  /* (Per thread: a query's keys, parallel to m_patches.) */
+  static thread_local std::vector<uint64_t> m_keys;
+  JPH::BodyID m_body;
+  PHY_IPhysicsController *m_controller = nullptr;
+};
+
+thread_local std::vector<uint64_t> JoltProximityCollector::m_keys;
+
+}  // namespace
+
+bool JoltPhysicsEnvironment::ProximityBatch(const std::vector<PHY_ProximityQuery> &queries,
+                                            std::vector<std::vector<PHY_ProximityPatch>> &results)
+{
+  results.resize(queries.size());
+  if (queries.empty()) {
+    return true;
+  }
+  /* (Taken here, before any job: the jobs only read it.) */
+  const std::vector<JoltPhysicsController *> *querySensors = nullptr;
+  for (const PHY_ProximityQuery &query : queries) {
+    if (query.include_sensors) {
+      querySensors = &GetQuerySensors();
+      break;
+    }
+  }
+  const JPH::PhysicsSystem &physicsSystem = *m_physicsSystem;
+  /* No body changes while the batch runs: the physics does not step during logic and the caller
+   * waits for the jobs. So the queries take Jolt's no-lock interfaces: with many threads, the
+   * locks' shared counters were most of the cost. */
+  const JPH::NarrowPhaseQuery &narrowPhase = physicsSystem.GetNarrowPhaseQueryNoLock();
+  const JPH::BodyLockInterface &bodyLocks = physicsSystem.GetBodyLockInterfaceNoLock();
+  const auto run = [&physicsSystem, &narrowPhase, &bodyLocks, querySensors](
+                       const PHY_ProximityQuery &query,
+                       std::vector<PHY_ProximityPatch> &patches) {
+    patches.clear();
+    if (!(query.reach >= 0.0f) || !std::isfinite(query.reach)) {
+      return;
+    }
+    const JoltPhysicsController *controller = static_cast<const JoltPhysicsController *>(
+        query.controller);
+    const JPH::BodyID self = controller != nullptr ? controller->GetBodyID() : JPH::BodyID();
+    /* The shape measured from: the body's own (a convex or compound shape, where it is) or the
+     * sphere (on the stack: no allocation a query). */
+    JPH::RefConst<JPH::Shape> bodyShapeRef;
+    const JPH::Shape *shape = nullptr;
+    JPH::RMat44 transform = JPH::RMat44::sTranslation(JoltMath::ToJoltR(query.center));
+    if (query.use_body_shape && !self.IsInvalid()) {
+      JPH::BodyLockRead lock(bodyLocks, self);
+      if (lock.Succeeded()) {
+        const JPH::Body &body = lock.GetBody();
+        const JPH::Shape *bodyShape = body.GetShape();
+        if (body.IsRigidBody() && bodyShape != nullptr && !bodyShape->MustBeStatic() &&
+            bodyShape->GetSubType() != JPH::EShapeSubType::Empty)
+        {
+          bodyShapeRef = bodyShape;
+          shape = bodyShape;
+          transform = body.GetCenterOfMassTransform();
+        }
+      }
+    }
+    const float sphereRadius = std::isfinite(query.radius) ? std::max(query.radius, 1.0e-4f) :
+                                                             1.0e-4f;
+    JPH::SphereShape sphere(sphereRadius);
+    sphere.SetEmbedded();
+    if (shape == nullptr) {
+      shape = &sphere;
+    }
+    JPH::CollideShapeSettings settings;
+    settings.mMaxSeparationDistance = query.reach;
+    settings.mBackFaceMode = JPH::EBackFaceMode::CollideWithBackFaces;
+    const JPH::RVec3 baseOffset = transform.GetTranslation();
+    JoltProximityBodyFilter bodyFilter(query, self);
+    JoltProximityCollector collector(baseOffset, JPH::Vec3(transform.GetTranslation()), patches);
+    narrowPhase.CollideShape(
+        shape, JPH::Vec3::sOne(), transform, settings, baseOffset, collector, {}, {}, bodyFilter);
+    if (querySensors != nullptr && query.include_sensors) {
+      JoltQueryOffWorldSensors(physicsSystem,
+                               *querySensors,
+                               bodyFilter,
+                               collector,
+                               [&](const JPH::TransformedShape &target) {
+                                 target.CollideShape(shape,
+                                                     JPH::Vec3::sOne(),
+                                                     transform,
+                                                     settings,
+                                                     baseOffset,
+                                                     collector);
+                               });
+    }
+    collector.Finish(std::max<uint32_t>(query.max_patches, 1));
+  };
+
+  /* One job a thread, each taking the next few queries until none are left: the threads that
+   * wake first (and the caller, which runs jobs while it waits) do the work, the late ones what
+   * remains (fixed shares waited for the slowest thread to wake). Each query writes only its own
+   * result: the same on any thread count. */
+  constexpr size_t queriesATake = 8;
+  const size_t concurrency = m_jobSystem ?
+                                 size_t(std::max(1, m_jobSystem->GetMaxConcurrency())) :
+                                 1;
+  const size_t jobCount = std::min(concurrency,
+                                   (queries.size() + queriesATake - 1) / queriesATake);
+  JPH::JobSystem::Barrier *barrier = (jobCount > 1 && !m_isPhysicsUpdating) ?
+                                         m_jobSystem->CreateBarrier() :
+                                         nullptr;
+  if (barrier == nullptr) {
+    for (size_t index = 0; index < queries.size(); index++) {
+      run(queries[index], results[index]);
+    }
+    return true;
+  }
+  std::atomic<size_t> next{0};
+  const auto take = [&]() {
+    for (size_t begin = next.fetch_add(queriesATake, std::memory_order_relaxed);
+         begin < queries.size();
+         begin = next.fetch_add(queriesATake, std::memory_order_relaxed))
+    {
+      const size_t end = std::min(begin + queriesATake, queries.size());
+      for (size_t index = begin; index < end; index++) {
+        run(queries[index], results[index]);
+      }
+    }
+  };
+  std::vector<JPH::JobSystem::JobHandle> jobs;
+  jobs.reserve(jobCount);
+  for (size_t jobIndex = 0; jobIndex < jobCount; jobIndex++) {
+    jobs.push_back(m_jobSystem->CreateJob("Keep Distance", JPH::Color::sGreen, take, 1));
+  }
+  barrier->AddJobs(jobs.data(), JPH::uint(jobs.size()));
+  JPH::JobSystem::JobHandle::sRemoveDependencies(jobs.data(), JPH::uint(jobs.size()));
+  m_jobSystem->WaitForJobs(barrier);
+  m_jobSystem->DestroyBarrier(barrier);
+  return true;
+}
+
+/** \} */
 
 bool JoltPhysicsEnvironment::CullingTest(PHY_CullingCallback callback,
                                           void *userData,
@@ -5838,19 +6442,17 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
       }
     }
 
-    /* Compute relative transform (position + rotation) of the child
-     * in the parent's local space, matching Bullet's compound child logic. */
+    /* The child's place in the parent's turned (not scaled) space: both shapes are built at
+     * their world scale and nothing scales the compound afterwards, so the offset stays in world
+     * units (2026-11-11: it was divided by the parent's scale as Bullet does, whose compound
+     * scales its children back; a child of a parent scaled 0.5 sat twice as far out). Kept equal
+     * to JoltRootRelativeTransform's, which finds a replica's children by it. */
     SG_Node *childNode = gameobj->GetSGNode();
     SG_Node *parentNode = compoundParent->GetSGNode();
 
-    MT_Vector3 parentScale = parentNode->GetWorldScaling();
-    parentScale[0] = MT_Scalar(1.0f) / parentScale[0];
-    parentScale[1] = MT_Scalar(1.0f) / parentScale[1];
-    parentScale[2] = MT_Scalar(1.0f) / parentScale[2];
-
     MT_Matrix3x3 parentInvRot = parentNode->GetWorldOrientation().transposed();
     MT_Vector3 relativePos = parentInvRot *
-        ((childNode->GetWorldPosition() - parentNode->GetWorldPosition()) * parentScale);
+                             (childNode->GetWorldPosition() - parentNode->GetWorldPosition());
     MT_Matrix3x3 relativeRot = parentInvRot * childNode->GetWorldOrientation();
     MT_Quaternion relQuat = relativeRot.getRotation();
 
@@ -5955,14 +6557,12 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   /* Friction, restitution, damping. */
   bodySettings.mFriction = blenderobject->friction;
   bodySettings.mRestitution = blenderobject->reflect;
-  if (blenderobject->damping == 0.04f && blenderobject->rdamping == 0.1f) {
-    bodySettings.mLinearDamping = 0.05f;
-    bodySettings.mAngularDamping = 0.05f;
-  }
-  else {
-    bodySettings.mLinearDamping = blenderobject->damping;
-    bodySettings.mAngularDamping = blenderobject->rdamping;
-  }
+  /* The panel's damping is Jolt's rate (`JoltDampingRates`, as every setter: held to the panel's
+   * range, Bullet's default pair as Jolt's default). */
+  const auto [linear_damping_rate, angular_damping_rate] = JoltDampingRates(
+      blenderobject->damping, blenderobject->rdamping);
+  bodySettings.mLinearDamping = linear_damping_rate;
+  bodySettings.mAngularDamping = angular_damping_rate;
   bodySettings.mMaxLinearVelocity = JoltLinearVelocityMaxOrDefault(blenderobject->max_vel);
   bodySettings.mMaxAngularVelocity = JoltAngularVelocityMaxOrDefault(blenderobject->max_angvel);
 
@@ -6013,31 +6613,32 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     bodySettings.mEnhancedInternalEdgeRemoval = true;
   }
 
-  /* Axis locking via Jolt AllowedDOFs (matching Bullet linear/angular factor).
-   * Coordinate mapping: Blender (X,Y,Z) → Jolt (X,Z,-Y), so:
-   *   Blender X → Jolt X
-   *   Blender Y → Jolt Z
-   *   Blender Z → Jolt Y  */
+  /* Axis locking via Jolt AllowedDOFs (matching Bullet linear/angular factor): the Physics
+   * panel's Lock Translation / Rotation, kept by the controller (also for a Static body that may
+   * become Dynamic while playing). Blender Y and Z are Jolt Z and Y (JoltGameStateAllowedDOFs);
+   * a Dynamic type (not a Rigid Body) has no rotation. */
+  const bool keepsAxisLocks = isDyna || authoredStaticRuntimeBody;
+  std::array<bool, 6> axisLocks = {
+      keepsAxisLocks && (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_AXIS) != 0,
+      keepsAxisLocks && (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_AXIS) != 0,
+      keepsAxisLocks && (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_AXIS) != 0,
+      keepsAxisLocks && (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_ROT_AXIS) != 0,
+      keepsAxisLocks && (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_ROT_AXIS) != 0,
+      keepsAxisLocks && (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_ROT_AXIS) != 0};
   if (isDyna) {
-    JPH::EAllowedDOFs dofs = JPH::EAllowedDOFs::All;
-    if (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_AXIS)
-      dofs &= ~JPH::EAllowedDOFs::TranslationX;
-    if (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_AXIS)
-      dofs &= ~JPH::EAllowedDOFs::TranslationZ; /* Blender Y → Jolt Z */
-    if (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_AXIS)
-      dofs &= ~JPH::EAllowedDOFs::TranslationY; /* Blender Z → Jolt Y */
-    if (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_ROT_AXIS)
-      dofs &= ~JPH::EAllowedDOFs::RotationX;
-    if (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_ROT_AXIS)
-      dofs &= ~JPH::EAllowedDOFs::RotationZ; /* Blender Y → Jolt Z */
-    if (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_ROT_AXIS)
-      dofs &= ~JPH::EAllowedDOFs::RotationY; /* Blender Z → Jolt Y */
-    /* Non-rigid dynamic bodies lock all rotation. */
-    if (!isRigidBody) {
-      dofs &= ~(JPH::EAllowedDOFs::RotationX | JPH::EAllowedDOFs::RotationY |
-                JPH::EAllowedDOFs::RotationZ);
+    /* Every axis locked (or every translation axis of a Dynamic type): Jolt cannot move a body
+     * with no free axis, it divides by zero later (bodies vanish). The locks are dropped, with a
+     * warning (2026-11-15). */
+    if (JoltGameStateAllowedDOFs(isRigidBody, axisLocks) == JPH::EAllowedDOFs::None) {
+      printf("Warning: Jolt physics: '%s': its axis locks were dropped: they lock every axis "
+             "%s(Jolt cannot move a body with no free axis; to keep an object still, make it "
+             "Static or use Suspend Physics)\n",
+             blenderobject->id.name + 2,
+             isRigidBody ? "" : "a Dynamic type can move along ");
+      fflush(stdout);
+      axisLocks.fill(false);
     }
-    bodySettings.mAllowedDOFs = dofs;
+    bodySettings.mAllowedDOFs = JoltGameStateAllowedDOFs(isRigidBody, axisLocks);
   }
 
   /* Create the body. */
@@ -6075,18 +6676,7 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   ctrl->SetMargin(margin);
   ctrl->SetRadius(blenderobject->inertia);
   ctrl->SetRigidBodyAxisLockState(
-      (isDyna || authoredStaticRuntimeBody) &&
-          (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_AXIS) != 0,
-      (isDyna || authoredStaticRuntimeBody) &&
-          (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_AXIS) != 0,
-      (isDyna || authoredStaticRuntimeBody) &&
-          (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_AXIS) != 0,
-      (isDyna || authoredStaticRuntimeBody) &&
-          (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_X_ROT_AXIS) != 0,
-      (isDyna || authoredStaticRuntimeBody) &&
-          (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Y_ROT_AXIS) != 0,
-      (isDyna || authoredStaticRuntimeBody) &&
-          (blenderobject->gameflag2 & OB_LOCK_RIGID_BODY_Z_ROT_AXIS) != 0);
+      axisLocks[0], axisLocks[1], axisLocks[2], axisLocks[3], axisLocks[4], axisLocks[5]);
   ctrl->SetFhEnabled((blenderobject->gameflag & OB_DO_FH) != 0);
   ctrl->SetFhRotEnabled((blenderobject->gameflag & OB_ROT_FH) != 0);
   ctrl->SetFhSpring(blenderobject->fh);
@@ -6763,6 +7353,7 @@ void JoltPhysicsEnvironment::AddController(JoltPhysicsController *ctrl)
     m_controllersIterationCacheDirty = true;
     m_fhControllersIterationCacheDirty = true;
     m_buoyancyVolumesIterationCacheDirty = true;
+    m_querySensorsDirty.store(true, std::memory_order_release);
   }
 }
 
@@ -6780,6 +7371,7 @@ bool JoltPhysicsEnvironment::RemoveController(JoltPhysicsController *ctrl)
   m_controllersIterationCacheDirty = true;
   m_fhControllersIterationCacheDirty = true;
   m_buoyancyVolumesIterationCacheDirty = true;
+  m_querySensorsDirty.store(true, std::memory_order_release);
   m_pendingCompoundSubShapesByController.erase(ctrl);
   RemoveLogicActiveContactsForController(ctrl);
 
@@ -6887,6 +7479,26 @@ const std::vector<JoltPhysicsController *> &JoltPhysicsEnvironment::GetFhControl
 void JoltPhysicsEnvironment::InvalidateBuoyancyVolumesCache()
 {
   m_buoyancyVolumesIterationCacheDirty = true;
+  /* (Called whenever a controller's sensor settings change.) */
+  m_querySensorsDirty.store(true, std::memory_order_release);
+}
+
+const std::vector<JoltPhysicsController *> &JoltPhysicsEnvironment::GetQuerySensors() const
+{
+  if (m_querySensorsDirty.load(std::memory_order_acquire)) {
+    std::lock_guard<std::mutex> lock(m_querySensorsMutex);
+    if (m_querySensorsDirty.load(std::memory_order_relaxed)) {
+      m_querySensors.clear();
+      /* Sensor-type objects only: a Ghost body is in the broadphase anyway. */
+      for (JoltPhysicsController *ctrl : m_controllers) {
+        if (ctrl && ctrl->IsSensorPhysicsType()) {
+          m_querySensors.push_back(ctrl);
+        }
+      }
+      m_querySensorsDirty.store(false, std::memory_order_release);
+    }
+  }
+  return m_querySensors;
 }
 
 const std::vector<JoltPhysicsController *> &

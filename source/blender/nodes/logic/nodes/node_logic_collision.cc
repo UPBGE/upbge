@@ -19,7 +19,12 @@ constexpr int16_t collision_events_each_object = 1;
 static void collision_event_node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::String>("Property"_ustr).default_value("");
+  b.add_input<decl::String>("Property"_ustr)
+      .default_value("")
+      .description(std::string("Only collisions with objects that have this game property; "
+                               "empty: any object. ") +
+                   logic::game_property_filter_note)
+      .custom_draw(logic::game_property_filter_field());
   b.add_input<decl::Material>("Material"_ustr);
   b.add_output<decl::Execution>("On Enter"_ustr)
       .description(

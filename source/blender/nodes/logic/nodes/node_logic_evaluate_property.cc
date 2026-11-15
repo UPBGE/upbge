@@ -17,7 +17,19 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::String>("Property"_ustr).default_value("prop");
+  b.add_input<decl::String>("Property"_ustr)
+      .default_value("prop")
+      .description(std::string("Game Property mode: the game property compared. ") +
+                   logic::game_property_pick_note +
+                   ". Attribute mode: the object's attribute, such as \"worldPosition\"")
+      .custom_draw([field = logic::game_property_field("Object")](CustomSocketDrawParams &params) {
+        /* Attribute mode (custom2 1) names an attribute: a plain text field. */
+        if (params.node.custom2 != 0) {
+          params.draw_standard(params.layout);
+          return;
+        }
+        field(params);
+      });
   b.add_input<decl::Generic>("Value"_ustr);
   b.add_output<decl::Condition>("If True"_ustr);
   b.add_output<decl::Generic>("Value"_ustr);

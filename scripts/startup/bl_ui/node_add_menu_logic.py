@@ -2,8 +2,10 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import bpy
 from bpy.app.translations import (
     contexts as i18n_contexts,
+    pgettext_iface as iface_,
 )
 from bpy.types import Menu
 
@@ -50,6 +52,136 @@ def _separator():
     return {
         "kind": "separator",
     }
+
+
+# Every node's mode is found by the Add menu's search (2026-11-14): typing an option's name lists
+# "Node ▸ Option", which adds the node with that option set. A menu item's `searchable_enum` names
+# the dropdown; without one, a node whose only dropdown is its mode uses it, and a node with
+# several names its mode here. Nodes in LOGIC_NODES_WITHOUT_MODE have no dropdown that says what
+# the node does (each end's Object / Position, or lists the node fills from its material).
+# ctest `logic_nodes_searchable_modes` checks every node is covered.
+LOGIC_NODE_SEARCHABLE_MODES = {
+    "LogicNativeGetInputBinding": "input_device",
+    "LogicNativeRebindInputAction": "rebind_device",
+    "LogicNativeMouseButton": "mouse_button",
+    "LogicNativeGamepadButton": "gamepad_button",
+    "LogicNativeRandomValue": "data_type",
+    "LogicNativeTypecast": "to_type",
+    "LogicNativeMatrixToXYZ": "output",
+    "LogicNativeVectorRotate": "mode",
+    "LogicNativeEvaluateProperty": "operation",
+    "LogicNativePlayAction": "play_mode",
+    "LogicNativeGetBoneAttribute": "attribute",
+    "LogicNativeSetBoneAttribute": "attribute",
+    "LogicNativeGetEditorNodeValue": "node_editor_type",
+    "LogicNativeSetEditorNodeValue": "node_editor_type",
+    "LogicNativeSetMaterialParameter": "value_type",
+    "LogicNativeEnableDisableModifier": "target_mode",
+    "LogicNativeAssignGeometryNodesModifier": "operation",
+    "LogicNativeExplosionImpulse": "direction",
+    "LogicNativeSetSplitScreen": "split_two_players",
+    "LogicNativePlaySound3D": "sound_group",
+    "LogicNativeRaycastFromMesh": "mesh_domain",
+    "LogicNativeAimForArc": "solve_by",
+    "LogicNativeVelocityAtPoint": "point_from",
+    "LogicNativeOpenObjectMenu": "menu_open_mode",
+    "LogicNativeScreenAnchor": "screen_anchor",
+    "LogicNativeObjectGridView": "interaction_view",
+}
+
+# Nodes whose mode is an input, a number a game property can change while the game runs
+# (2026-11-15): the search's "Node ▸ Option" entries set that input (the add operator follows the
+# data path). Input identifier, then each option's name and value.
+LOGIC_NODE_SEARCHABLE_INPUT_MODES = {
+    "LogicNativeKeepDistance": ("Mode", (("Push", 0), ("Pull", 1), ("Hold", 2))),
+}
+
+
+def searchable_input_mode_path(identifier):
+    """The add operator's setting name for an input's value."""
+    return 'inputs["{:s}"].default_value'.format(identifier)
+
+
+LOGIC_NODES_WITHOUT_MODE = {
+    "LogicNativeGetDistance",
+    "LogicNativeLineOfSight",
+    "LogicNativeGetMaterialParameter",
+}
+
+_searchable_mode_cache = {}
+
+
+def _own_mode_dropdowns(node_type):
+    """The node's own dropdowns with options known before a node exists."""
+    base = {prop.identifier for prop in bpy.types.Node.bl_rna.properties}
+    return [
+        prop for prop in node_type.bl_rna.properties
+        if prop.type == 'ENUM' and not prop.is_readonly and not prop.is_enum_flag and
+        prop.identifier not in base and len(prop.enum_items_static) > 1
+    ]
+
+
+def searchable_mode_of(item):
+    """The dropdown whose options the Add menu's search lists for a node item, or None."""
+    if item.get("searchable_enum"):
+        return item["searchable_enum"]
+    idname = item["idname"]
+    if idname in LOGIC_NODE_SEARCHABLE_INPUT_MODES:
+        return searchable_input_mode_path(LOGIC_NODE_SEARCHABLE_INPUT_MODES[idname][0])
+    if idname in LOGIC_NODE_SEARCHABLE_MODES:
+        return LOGIC_NODE_SEARCHABLE_MODES[idname]
+    if idname in LOGIC_NODES_WITHOUT_MODE or not idname.startswith("LogicNative"):
+        return None
+    if idname not in _searchable_mode_cache:
+        node_type = getattr(bpy.types, idname, None)
+        dropdowns = _own_mode_dropdowns(node_type) if node_type is not None else []
+        _searchable_mode_cache[idname] = dropdowns[0].identifier if len(dropdowns) == 1 else None
+    return _searchable_mode_cache[idname]
+
+
+def _node_operator_with_modes(menu, context, item, property_name):
+    """As Blender's `node_operator_with_searchable_enum`, keeping the menu's own label for the node
+    and for its "Node ▸ Option" search entries."""
+    layout = menu.layout
+    idname = item["idname"]
+    label = item.get("label")
+    weight = item.get("search_weight", 0.0)
+    operators = [menu.node_operator(layout, idname, label=label, search_weight=weight)]
+    if getattr(context, "is_menu_search", False) and idname in LOGIC_NODE_SEARCHABLE_INPUT_MODES:
+        node_type = getattr(bpy.types, idname)
+        node_name = iface_(label) if label else iface_(node_type.bl_rna.name)
+        for option_name, value in LOGIC_NODE_SEARCHABLE_INPUT_MODES[idname][1]:
+            props = menu.node_operator(
+                layout,
+                idname,
+                label="{:s} ▸ {:s}".format(node_name, iface_(option_name)),
+                translate=False,
+                search_weight=weight,
+            )
+            setting = props.settings.add()
+            setting.name = property_name
+            setting.value = repr(value)
+            operators.append(props)
+    elif getattr(context, "is_menu_search", False):
+        node_type = getattr(bpy.types, idname)
+        prop = node_type.bl_rna.properties[property_name]
+        node_name = iface_(label) if label else iface_(node_type.bl_rna.name)
+        for enum_item in prop.enum_items_static:
+            props = menu.node_operator(
+                layout,
+                idname,
+                label="{:s} ▸ {:s}".format(
+                    node_name, iface_(enum_item.name, prop.translation_context)),
+                translate=False,
+                search_weight=weight,
+            )
+            setting = props.settings.add()
+            setting.name = property_name
+            setting.value = repr(enum_item.identifier)
+            operators.append(props)
+    for props in operators:
+        if hasattr(props, "use_transform"):
+            props.use_transform = menu.use_transform
 
 
 def _is_visible_node_item(item):
@@ -331,6 +463,9 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativeApplyForceToTarget", "Apply Force To Target"),
         _node_item("LogicNativeApplyTorque", "Apply Torque"),
         _node_item("LogicNativeApplyImpulse", "Apply Impulse"),
+        _node_item("LogicNativeApplyAngularImpulse", "Apply Angular Impulse"),
+        _node_item("LogicNativeExplosionImpulse", "Explode or Implode Impulse"),
+        _node_item("LogicNativeKeepDistance", "Keep Distance"),
         _separator(),
         _node_item("LogicNativeMoveToward", "Move To"),
         _node_item("LogicNativeNavigate", "Navigate"),
@@ -437,6 +572,7 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativeMath", searchable_enum="operation"),
         _node_item("LogicNativeFormula", "Formula"),
         _node_item("LogicNativeVectorMath", searchable_enum="operation"),
+        _node_item("LogicNativeRayToPlane", "Ray to Plane"),
         _separator(),
         _node_item("LogicNativeClampValue", "Clamp"),
         _node_item("LogicNativeCompare", searchable_enum="operation"),
@@ -456,6 +592,9 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativeRaycastFromMesh", "Raycast from Mesh"),
         _node_item("LogicNativeCastShape", "Shape Cast", searchable_enum="variant"),
         _node_item("LogicNativeProjectileRay", "Projectile Ray"),
+        _node_item("LogicNativeLineOfSight", "Line of Sight"),
+        _node_item("LogicNativeSweepObject", "Sweep Object"),
+        _node_item("LogicNativeAimForArc", "Aim for Arc"),
         _node_item("LogicNativeAddPhysicsConstraint", "Add Rigid Body Constraints"),
         _node_item("LogicNativeGetRigidBodyConstraints", "Get Rigid Body Constraints"),
         _node_item("LogicNativeRemovePhysicsConstraint", "Remove Rigid Body Constraints"),
@@ -464,6 +603,7 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativeSetDynamics", "Set Physics State"),
         _node_item("LogicNativeRebuildCollisionShape", "Rebuild Collision Shape"),
         _node_item("LogicNativeGetRigidBodyAttribute", "Get Rigid Body Attribute"),
+        _node_item("LogicNativeVelocityAtPoint", "Velocity at Point"),
         _node_item("LogicNativeSetRigidBodyAttribute", "Set Rigid Body Attribute"),
         _separator(),
         _menu_item("Physics/Vehicle"),
@@ -639,15 +779,9 @@ def _draw_menu_items(menu, context, items):
         elif kind == "node":
             if not _is_visible_node_item(item):
                 continue
-            searchable_enum = item.get("searchable_enum")
+            searchable_enum = searchable_mode_of(item)
             if searchable_enum:
-                menu.node_operator_with_searchable_enum(
-                    context,
-                    menu.layout,
-                    item["idname"],
-                    searchable_enum,
-                    item.get("search_weight", 0.0),
-                )
+                _node_operator_with_modes(menu, context, item, searchable_enum)
             else:
                 menu.node_operator(
                     menu.layout,

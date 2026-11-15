@@ -132,6 +132,18 @@ std::string LN_ColumnKindInputsText();
 /** Tests: what the column compiler's walk says expression `index` of table `family` (B I F S V R
  * C A Q) of `program` may read: "unknown: <why>", or the query indices it reaches ("q0 q2"). */
 std::string LN_ColumnQueryReachForTests(const LN_Program &program, char family, uint32_t index);
+/** Which events' start-of-tick warm-up (LN_RuntimeTree::WarmQueryCache) may work out each query of
+ * `program` (2026-11-14), as bits `1 << LN_Event`: the events whose ops may read it (the column
+ * compiler's walk; the UI's view and element queries and queries no op reads: every event), and
+ * none when the warm-up would change what the tick's ops see: a Flow that is not a constant (a
+ * Delay's Done, an op that ran: not yet true when the tick starts, and the query would stay
+ * switched off for the whole tick), an input that keeps state (a Tween moved on ticks its route
+ * never runs), or inputs the walk does not know. Use LN_Program::GetQueryWarmEvents (kept).
+ * A warmed query also gets LN_QUERY_WARM_ON_HELPERS when it and what it reads may be worked out
+ * on a helper thread (the column walk's rule: nothing that draws, no main-thread kind, no object
+ * finder, no collision read): LN_WarmQueryCaches warms such trees on the job pool. */
+std::vector<uint8_t> LN_QueryWarmEvents(const LN_Program &program);
+inline constexpr uint8_t LN_QUERY_WARM_ON_HELPERS = 0x80;
 
 /** A program's event lowered to columns. */
 struct LN_ColumnProgram;

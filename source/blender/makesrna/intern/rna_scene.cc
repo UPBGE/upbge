@@ -815,6 +815,7 @@ using nodes::FileOutputItemsAccessor;
 
 static constexpr float game_damping_bullet_linear_default = 0.04f;
 static constexpr float game_damping_bullet_angular_default = 0.1f;
+/* Jolt's own default rates (the panel shows Jolt's rate itself, rna_object.cc). */
 static constexpr float game_damping_jolt_linear_default = 0.05f;
 static constexpr float game_damping_jolt_angular_default = 0.05f;
 static constexpr bool game_fixed_timestep_bullet_default = false;

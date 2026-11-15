@@ -45,10 +45,12 @@ static void node_declare(NodeDeclarationBuilder &b)
                    "this tree's object is in (Open Object Menu's Owner, the player), else this "
                    "tree's object");
   b.add_input<decl::String>("Property"_ustr)
-      .description("The game property with the list (a List or Table), such as \"inventory\": "
-                   "the grid shows it and, with Moving Items on, changes it itself by the list's "
-                   "Inventory Rules (and its Item Library gives the icons). Empty: Items gives "
-                   "the list");
+      .description(std::string("The game property with the list (a List or Table), such as "
+                               "\"inventory\": the grid shows it and, with Moving Items on, "
+                               "changes it itself by the list's Inventory Rules (and its Item "
+                               "Library gives the icons). Empty: Items gives the list. ") +
+                   logic::game_property_pick_note)
+      .custom_draw(logic::game_property_field("Object", nullptr, false));
   b.add_input<decl::Generic>("Items"_ustr)
       .description("The list to show while Property is empty; each visible slot receives one "
                    "stable item binding. Its icons come from the scene's Item Library");

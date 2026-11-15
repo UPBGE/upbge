@@ -531,6 +531,62 @@ def audit_socket_names(pin_arrays: dict[str, list[Pin]]) -> list[str]:
     return errors
 
 
+PIN_SOCKET_IDNAME_FN_RE = re.compile(
+    r"inline const char \*pin_type_socket_idname\(const PinType type\)\s*\{(.*?)^\}",
+    re.DOTALL | re.MULTILINE,
+)
+PIN_SOCKET_IDNAME_CASE_RE = re.compile(r'case PinType::(\w+):\s*return\s+(?:"([^"]*)"|nullptr);')
+
+
+def parse_pin_socket_idnames(hh_text: str) -> dict[str, str]:
+    """PinType -> the socket idname the compiler requires (pin_type_socket_idname); "" = any."""
+    match = PIN_SOCKET_IDNAME_FN_RE.search(hh_text)
+    if match is None:
+        return {}
+    return {case.group(1): case.group(2) or "" for case in
+            PIN_SOCKET_IDNAME_CASE_RE.finditer(match.group(1))}
+
+
+def socket_idnames_compatible(actual: str, expected: str) -> bool:
+    """The compiler's SocketIdnamesCompatible (LN_TreeCompiler_helpers_inputs.cc)."""
+    if not expected or not actual or actual == expected:
+        return True
+    layers = ("NodeSocketLogicCollisionLayers", "NodeSocketLogicCollisionCollections")
+    return ((expected == "NodeSocketLogicInt" and actual in layers) or
+            (expected == "NodeSocketLogicCollisionLayers" and
+             actual in ("NodeSocketLogicInt", "NodeSocketLogicCollisionCollections")))
+
+
+def audit_socket_types(label: str, pins: list[Pin], sockets, socket_idnames: dict[str, str],
+                       direction: str) -> list[str]:
+    """Each socket Blender made has the type the compiler requires of its pin: a mismatch makes the
+    compiler refuse the node ("Socket 'X' has type ... but native definition requires ...") and
+    disables the whole tree in a game, while trees built from the descriptors (the unit tests)
+    never see it (Line of Sight's View Angle, 2026-11-11)."""
+    errors: list[str] = []
+    # One identifier may have a pin per type (Random Value's Min: Float, Int, Vector): the
+    # compiler takes the first pin of the socket's identifier whose type fits (FindPinDefinition).
+    pins_by_identifier: dict[str, list[Pin]] = {}
+    for pin in pins:
+        if not pin.is_variadic:
+            for key in {pin.identifier, pin.ui_name}:
+                pins_by_identifier.setdefault(key, []).append(pin)
+    for socket in sockets:
+        candidates = pins_by_identifier.get(socket.identifier)
+        if not candidates:
+            continue
+        unknown = [pin.pin_type for pin in candidates if pin.pin_type not in socket_idnames]
+        if unknown:
+            errors.append(f"{label}: no socket idname known for PinType::{unknown[0]}")
+            continue
+        if not any(socket_idnames_compatible(socket.bl_idname, socket_idnames[pin.pin_type])
+                   for pin in candidates):
+            needs = " or ".join(sorted({socket_idnames[pin.pin_type] for pin in candidates}))
+            errors.append(f"{label}: {direction} {socket.identifier!r} is a {socket.bl_idname} "
+                          f"but its descriptor pin needs {needs}")
+    return errors
+
+
 def audit_blender_runtime() -> list[str]:
     import bpy
 
@@ -540,9 +596,12 @@ def audit_blender_runtime() -> list[str]:
     hh_text = DESCRIPTORS_HH.read_text(encoding="utf-8")
     pin_arrays = parse_pin_arrays(hh_text)
     descriptor_pins = parse_node_metadata_pins(hh_text, pin_arrays)
+    socket_idnames = parse_pin_socket_idnames(hh_text)
 
     tree = bpy.data.node_groups.new("_DescriptorAudit", "LogicNodeTree")
     errors: list[str] = []
+    if len(socket_idnames) < 20:
+        errors.append(f"pin_type_socket_idname: {len(socket_idnames)} pin types parsed")
     try:
         for entry in LOGIC_NODE_PARITY_CATALOG.values():
             idname = entry["idname"]
@@ -559,6 +618,9 @@ def audit_blender_runtime() -> list[str]:
             for socket in [*node.inputs, *node.outputs]:
                 if not socket.name:
                     errors.append(f"{idname}: socket {socket.identifier!r} has no name")
+            errors.extend(audit_socket_types(idname, desc_in, node.inputs, socket_idnames, "input"))
+            errors.extend(
+                audit_socket_types(idname, desc_out, node.outputs, socket_idnames, "output"))
             if not runtime_socket_lists_match(desc_in, actual_in):
                 errors.append(
                     f"{idname}: runtime input != descriptor\n"
@@ -584,7 +646,7 @@ def audit_blender_runtime() -> list[str]:
                         f"  Blender:    {socket.is_multi_input}"
                     )
             tree.nodes.remove(node)
-        errors.extend(audit_merged_nodes(tree))
+        errors.extend(audit_merged_nodes(tree, descriptor_pins, socket_idnames))
         errors.extend(audit_former_types_unregistered())
     finally:
         bpy.data.node_groups.remove(tree)
@@ -600,7 +662,9 @@ MERGED_NODE_RE = re.compile(
 def parse_merged_nodes() -> list[tuple[str, list[str]]]:
     """(merged idname, the older idname of each option) from NOD_logic_merged.hh."""
     text = MERGED_HH.read_text(encoding="utf-8")
-    arrays = {match.group(1): re.findall(r'"(LogicNative\w+)"\}', match.group(2))
+    # An option may end with its listed_last flag ("..., true}").
+    arrays = {match.group(1): re.findall(r'"(LogicNative\w+)"(?:,\s*(?:true|false))?\s*\}',
+                                         match.group(2))
               for match in MERGED_OPTIONS_RE.finditer(text)}
     return [(match.group(1), arrays[match.group(3)]) for match in MERGED_NODE_RE.finditer(text)]
 
@@ -642,6 +706,14 @@ def plain(value):
 
 
 MERGED_OPTIONS_RECORDING = Path(__file__).with_name("logic_nodes_merged_options_v0.json")
+# Merged nodes whose menu lists an option out of index order (NOD_logic_merged.hh's listed_last),
+# as the menu shows them; every other merged node lists its options in index order.
+_GAME_PROPERTY_MENU = ["FLOAT", "INT", "BOOLEAN", "STRING", "VECTOR", "COLOR", "OBJECT", "LIST",
+                       "ANY"]
+LISTED_OUT_OF_ORDER = {
+    "LogicNativeGetGamePropertyValue": _GAME_PROPERTY_MENU,
+    "LogicNativeSetGamePropertyValue": _GAME_PROPERTY_MENU,
+}
 # The 20 nodes another node does exactly, removed 2026-11-08 (the converted files use their
 # replacements).
 REMOVED_DUPLICATES = [
@@ -652,7 +724,7 @@ REMOVED_DUPLICATES = [
         "RandomInt", "RandomVector")]
 
 
-def audit_merged_nodes(tree) -> list[str]:
+def audit_merged_nodes(tree, descriptor_pins, socket_idnames) -> list[str]:
     """Merged nodes (NOD_logic_merged.hh): a merged node switched to an option has exactly the
     sockets (identifiers, names, types, defaults, visibility, multi-input) and starting settings
     the former node had, as recorded from Blender on 2026-11-08 before the former node types were
@@ -672,7 +744,15 @@ def audit_merged_nodes(tree) -> list[str]:
         except RuntimeError as exc:
             errors.append(f"{idname}: failed to spawn in Blender: {exc}")
             continue
-        items = [item.identifier for item in node.bl_rna.properties["variant"].enum_items]
+        # By the option's index (the enum value): the menu may list an option elsewhere (Get /
+        # Set Game Property's Any last, NOD_logic_merged.hh's listed_last).
+        items = [item.identifier for item in sorted(
+            node.bl_rna.properties["variant"].enum_items, key=lambda item: item.value)]
+        if [item.value for item in node.bl_rna.properties["variant"].enum_items] != \
+                sorted(item.value for item in node.bl_rna.properties["variant"].enum_items):
+            listed = [item.identifier for item in node.bl_rna.properties["variant"].enum_items]
+            if idname not in LISTED_OUT_OF_ORDER or listed != LISTED_OUT_OF_ORDER[idname]:
+                errors.append(f"{idname}: the menu lists {listed}")
         if len(items) != len(olders):
             errors.append(f"{idname}: {len(items)} options in RNA, {len(olders)} in the table")
         for index, older_idname in enumerate(olders):
@@ -682,6 +762,13 @@ def audit_merged_nodes(tree) -> list[str]:
             if node.variant_idname != older_idname:
                 errors.append(f"{idname} {items[index]}: works as {node.variant_idname!r}, "
                               f"expected {older_idname!r}")
+            if older_idname in descriptor_pins:
+                option_in, option_out = descriptor_pins[older_idname]
+                label = f"{idname} {items[index]} ({older_idname})"
+                errors.extend(
+                    audit_socket_types(label, option_in, node.inputs, socket_idnames, "input"))
+                errors.extend(
+                    audit_socket_types(label, option_out, node.outputs, socket_idnames, "output"))
             older = recording.get(older_idname)
             if older is None:
                 errors.append(f"{idname} {items[index]}: {older_idname} is not in the recording")
@@ -767,6 +854,23 @@ def audit_merged_nodes(tree) -> list[str]:
     return errors
 
 
+def audit_default_layouts() -> list[str]:
+    """A node whose declaration has add_default_layout() needs draw_buttons: Blender's default
+    layout calls it unchecked (only a debug assert), so drawing the node in the editor crashed
+    Blender (Camera Ray, 2026-11-11 to 11-12). Counted per file: each layout needs its own
+    draw_buttons."""
+    errors: list[str] = []
+    for path in sorted(NODES_DIR.glob("*.cc")):
+        text = path.read_text(encoding="utf-8")
+        text = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.S)
+        layouts = text.count("add_default_layout()")
+        draws = len(re.findall(r"\bdraw_buttons\s*=", text))
+        if layouts > draws:
+            errors.append(f"{path.name}: {layouts} add_default_layout() but {draws} draw_buttons "
+                          f"(drawing the node crashes Blender)")
+    return errors
+
+
 def audit_former_nodes_gone() -> list[str]:
     """The merged nodes are in the catalog and the Add menu; their options' former nodes and the
     removed duplicates are in neither (they are no node types any more, 2026-11-08)."""
@@ -804,6 +908,7 @@ def audit_former_types_unregistered() -> list[str]:
 def main() -> int:
     errors = audit_descriptors_vs_cc()
     errors.extend(audit_former_nodes_gone())
+    errors.extend(audit_default_layouts())
     print(f"Static descriptor vs .cc audit: {len(errors)} issue(s)")
     for err in errors:
         print(err)

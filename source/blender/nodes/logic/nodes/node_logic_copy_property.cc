@@ -12,7 +12,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Source"_ustr);
   b.add_input<decl::Object>("Target"_ustr);
-  b.add_input<decl::String>("Property"_ustr).default_value("");
+  b.add_input<decl::String>("Property"_ustr)
+      .default_value("")
+      .description(std::string("The game property copied from Source to Target (Source empty: "
+                               "this tree's object). ") +
+                   logic::game_property_pick_note)
+      .custom_draw(logic::game_property_field("Source"));
   b.add_output<decl::Execution>("Done"_ustr);
 }
 

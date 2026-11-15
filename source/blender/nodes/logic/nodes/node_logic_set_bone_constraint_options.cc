@@ -22,8 +22,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Object"_ustr).description(
       "Armature object; defaults to the owner when unset");
-  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
-  b.add_input<decl::String>("Constraint Name"_ustr).default_value("Constraint");
+  b.add_input<decl::String>("Bone Name"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Object"));
+  b.add_input<decl::String>("Constraint Name"_ustr)
+      .default_value("Constraint")
+      .description(logic::bone_constraint_description)
+      .custom_draw(logic::bone_constraint_field("Object", "Bone Name"));
   b.add_input<decl::Float>("Influence"_ustr).default_value(1.0f).min(0.0f).max(1.0f);
   b.add_output<decl::Execution>("Done"_ustr);
 }

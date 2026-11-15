@@ -55,6 +55,11 @@ static const char *GetObjectAttributeName(const int attribute_type)
   }
 }
 
+/** Get Object Attribute's Speed (2026-11-14): the length of World Linear Velocity, built as
+ * Float::VectorLength of that attribute's vector, so it reads as the velocity does everywhere
+ * (typed fast path, the columns' velocity read). */
+static constexpr int kGetObjectAttributeSpeed = 15;
+
 static bool GetObjectAttributeUsesVectorOutput(const int attribute_type)
 {
   return attribute_type == 0 || attribute_type == 1 || attribute_type == 4 ||
@@ -1415,38 +1420,6 @@ case LN_NodeKind::GetGamePropertyBool:
         result = program.AddBoolExpression(expression);
       }
       break;
-    }case LN_NodeKind::MouseRay:
-    case LN_NodeKind::CameraRay:
-      r_handled = true;
-      {
-      r_handled = true;
-      if (!NamesMatch(output_socket.name, output_socket.identifier, "Has Result")) {
-        break;
-      }
-
-      const std::optional<uint32_t> query_expr =
-          definition.kind == LN_NodeKind::MouseRay ?
-              BuildMouseRayQueryExpression(program,
-                                           node,
-                                           node_definitions,
-                                           input_links,
-                                           value_cache,
-                                           float_expression_cache,
-                                           bool_expression_cache) :
-              BuildCameraRayQueryExpression(program,
-                                            node,
-                                            node_definitions,
-                                            input_links,
-                                            value_cache,
-                                            float_expression_cache,
-                                            bool_expression_cache);
-      if (query_expr) {
-        LN_BoolExpression expression;
-        expression.kind = LN_BoolExpressionKind::PhysicsQueryHit;
-        expression.input0 = *query_expr;
-        result = program.AddBoolExpression(expression);
-      }
-      break;
     }case LN_NodeKind::Compare:
       r_handled = true;
       {
@@ -2530,6 +2503,46 @@ case LN_NodeKind::ValueSwitch:
       result = program.AddFloatExpression(expression);
       break;
     }
+    case LN_NodeKind::GetObjectAttribute: {
+      r_handled = true;
+      if (node.custom1 != kGetObjectAttributeSpeed ||
+          !NamesMatch(output_socket.name, output_socket.identifier, "Speed"))
+      {
+        break;
+      }
+      BoolExpressionCache bool_expression_cache_local;
+      IntExpressionCache int_expression_cache_local;
+      StringExpressionCache string_expression_cache_local;
+      ColorExpressionCache color_expression_cache_local;
+      ValueExpressionCache value_expression_cache_local;
+      const std::optional<uint32_t> object_expr = BuildGetObjectAttributeObjectExpression(
+          program,
+          node,
+          node_definitions,
+          input_links,
+          value_cache,
+          bool_expression_cache ? *bool_expression_cache : bool_expression_cache_local,
+          int_expression_cache_local,
+          float_expression_cache,
+          string_expression_cache_local,
+          vector_cache,
+          color_expression_cache_local,
+          value_expression_cache_local);
+      LN_ValueExpression velocity_value;
+      velocity_value.kind = LN_ValueExpressionKind::ObjectAttribute;
+      if (object_expr) {
+        velocity_value.input0 = *object_expr;
+      }
+      velocity_value.input1 = AddConstantStringExpression(program, "worldLinearVelocity");
+      LN_VectorExpression velocity;
+      velocity.kind = LN_VectorExpressionKind::FromGenericValue;
+      velocity.input0 = program.AddValueExpression(velocity_value);
+      LN_FloatExpression speed;
+      speed.kind = LN_FloatExpressionKind::VectorLength;
+      speed.input0 = program.AddVectorExpression(velocity);
+      result = program.AddFloatExpression(speed);
+      break;
+    }
     case LN_NodeKind::GetDistance: {
       r_handled = true;
       const bool distance = NamesMatch(output_socket.name, output_socket.identifier, "Distance");
@@ -3105,16 +3118,14 @@ case LN_NodeKind::OnConstraintBreak:
       }
 
       LN_VectorExpression expression;
-      if (NamesMatch(output_socket.name, output_socket.identifier, "Scale")) {
-        expression.kind = LN_VectorExpressionKind::BonePoseScale;
-      }
-      else {
-        expression.kind = LN_VectorExpressionKind::BonePoseLocation;
-        expression.property_ref_index = uint32_t(std::clamp(
-            int(node.custom1),
-            int(LN_BonePoseRotationSpace::PoseChannel),
-            int(LN_BonePoseRotationSpace::World)));
-      }
+      expression.kind = NamesMatch(output_socket.name, output_socket.identifier, "Scale") ?
+                            LN_VectorExpressionKind::BonePoseScale :
+                            LN_VectorExpressionKind::BonePoseLocation;
+      /* Location and Scale both follow the node's Space (Scale ignored it until 2026-11-13). */
+      expression.property_ref_index = uint32_t(
+          std::clamp(int(node.custom1),
+                     int(LN_BonePoseRotationSpace::PoseChannel),
+                     int(LN_BonePoseRotationSpace::World)));
       if (object_expr) {
         expression.input0 = *object_expr;
       }
@@ -3696,42 +3707,6 @@ case LN_NodeKind::OnConstraintBreak:
         break;
       }
       result = program.AddVectorExpression(expression);
-      break;
-    }
-    case LN_NodeKind::MouseRay:
-    case LN_NodeKind::CameraRay: {
-      r_handled = true;
-      BoolExpressionCache bool_expression_cache_local;
-      const std::optional<uint32_t> query_expr =
-          definition.kind == LN_NodeKind::MouseRay ?
-              BuildMouseRayQueryExpression(program,
-                                           node,
-                                           node_definitions,
-                                           input_links,
-                                           value_cache,
-                                           float_expression_cache,
-                                           bool_expression_cache_local) :
-              BuildCameraRayQueryExpression(program,
-                                            node,
-                                            node_definitions,
-                                            input_links,
-                                            value_cache,
-                                            float_expression_cache,
-                                            bool_expression_cache_local);
-      if (!query_expr) {
-        break;
-      }
-
-      LN_VectorExpression expression;
-      expression.input0 = *query_expr;
-      if (NamesMatch(output_socket.name, output_socket.identifier, "Picked Point")) {
-        expression.kind = LN_VectorExpressionKind::PhysicsQueryPoint;
-        result = program.AddVectorExpression(expression);
-      }
-      else if (NamesMatch(output_socket.name, output_socket.identifier, "Picked Normal")) {
-        expression.kind = LN_VectorExpressionKind::PhysicsQueryNormal;
-        result = program.AddVectorExpression(expression);
-      }
       break;
     }
     case LN_NodeKind::VectorMath:
@@ -4513,6 +4488,30 @@ static std::optional<uint32_t> TryCompileExpressionValueOutput(
       }
       break;
     }
+    case LN_NodeKind::ExplosionImpulse:
+      r_handled = true;
+      {
+      /* Objects: the objects inside the blast's sphere, found when read (2026-11-11). */
+      if (!NamesMatch(output_socket.name, output_socket.identifier, "Objects")) {
+        break;
+      }
+      BoolExpressionCache bool_cache;
+      const std::optional<uint32_t> query_expr = BuildExplosionImpulseQueryExpression(
+          program,
+          node,
+          node_definitions,
+          input_links,
+          value_cache,
+          float_expression_cache,
+          bool_cache);
+      if (query_expr) {
+        LN_ValueExpression expression;
+        expression.kind = LN_ValueExpressionKind::PhysicsQueryObjects;
+        expression.input0 = *query_expr;
+        result = program.AddValueExpression(expression);
+      }
+      break;
+    }
     case LN_NodeKind::ShapeCastAll:
       r_handled = true;
       {
@@ -4579,38 +4578,6 @@ static std::optional<uint32_t> TryCompileExpressionValueOutput(
         break;
       }
       result = program.AddValueExpression(expression);
-      break;
-    }case LN_NodeKind::MouseRay:
-    case LN_NodeKind::CameraRay:
-      r_handled = true;
-      {
-      r_handled = true;
-      if (!NamesMatch(output_socket.name, output_socket.identifier, "Picked Object")) {
-        break;
-      }
-
-      const std::optional<uint32_t> query_expr =
-          definition.kind == LN_NodeKind::MouseRay ?
-              BuildMouseRayQueryExpression(program,
-                                           node,
-                                           node_definitions,
-                                           input_links,
-                                           value_cache,
-                                           float_expression_cache,
-                                           bool_expression_cache) :
-              BuildCameraRayQueryExpression(program,
-                                            node,
-                                            node_definitions,
-                                            input_links,
-                                            value_cache,
-                                            float_expression_cache,
-                                            bool_expression_cache);
-      if (query_expr) {
-        LN_ValueExpression expression;
-        expression.kind = LN_ValueExpressionKind::PhysicsQueryObject;
-        expression.input0 = *query_expr;
-        result = program.AddValueExpression(expression);
-      }
       break;
     }case LN_NodeKind::ValueChanged:
       r_handled = true;
@@ -4687,6 +4654,25 @@ bool TryCompileExpressionOutputByKind(LN_Program &program,
                                       ValueExpressionCache &value_expression_cache,
                                       std::optional<uint32_t> &r_result)
 {
+  /* The raycast recommendations' outputs (2026-11-11): LN_TreeCompiler_ray_outputs.cc. */
+  if (TryCompileRayFamilyOutput(program,
+                                node,
+                                output_socket,
+                                definition,
+                                node_definitions,
+                                input_links,
+                                value_cache,
+                                float_expression_cache,
+                                bool_expression_cache,
+                                int_expression_cache,
+                                string_expression_cache,
+                                vector_expression_cache,
+                                color_expression_cache,
+                                value_expression_cache,
+                                r_result))
+  {
+    return true;
+  }
   bool handled = false;
   switch (output_socket.type) {
     case blender::SOCK_BOOLEAN:

@@ -40,6 +40,69 @@ void logic_option_register(bke::bNodeType &ntype);
 namespace nodes::logic {
 
 void add_input_button_status_outputs(NodeDeclarationBuilder &b);
+/** The input nodes' "Also When UI Uses It" checkbox (RNA `use_ui_input`) as the node's last row,
+ * below its inputs (Keyboard Key, Mouse Button, Gamepad Button, Input Action; 2026-11-13): the
+ * node uses a custom socket order and declares it last. */
+void add_use_ui_input_layout(NodeDeclarationBuilder &b);
+/** The bone nodes' name fields (node_logic_bone_search.cc, 2026-11-13): a Bone Name input drawn
+ * as Blender's bone fields, its dropdown listing the bones of the armature the input
+ * `armature_socket` names (empty: with `empty_is_owner` the armatures this tree is applied to;
+ * linked: the scene's), any typed name kept; red when that armature surely has no such bone. */
+CustomSocketDrawFn bone_name_field(StringRefNull armature_socket, bool empty_is_owner = true);
+/** A Constraint Name input: the constraints of the bone the input `bone_socket` names, on those
+ * armatures; red when that bone surely has no such constraint. */
+CustomSocketDrawFn bone_constraint_field(StringRefNull armature_socket,
+                                         StringRefNull bone_socket);
+/** A Vertex Group input drawn as Blender's modifier field (node_logic_vertex_group_search.cc):
+ * its dropdown lists the vertex groups and number attributes of the mesh of the object the input
+ * `object_socket` names (a string literal; empty: the objects this tree is applied to), any typed
+ * name kept; red only when no such object has the name. */
+CustomSocketDrawFn vertex_group_field(StringRefNull object_socket);
+/** The property name fields (node_logic_property_search.cc, 2026-11-15): Blender's search field,
+ * its dropdown listing the names there are with each one's type or use beside it, any typed name
+ * kept (properties can be made while the game runs); red only when the name is surely a mistake.
+ * The socket names are string literals of the node's declaration.
+ *
+ * A game property of the object the input `object_socket` names: that object's properties; empty:
+ * the object `fallback_socket` names (when given), else the objects this tree is applied to;
+ * linked: the file's. Red when those objects are known and none has it, or not known and no
+ * object has it, and nothing else in the file names it (another node's property field, live
+ * text). `empty_is_owner` false: an empty input may mean another object (Object Grid View's
+ * menu player), never sure. */
+CustomSocketDrawFn game_property_field(const char *object_socket,
+                                       const char *fallback_socket = nullptr,
+                                       bool empty_is_owner = true);
+/** A Property filter (only objects with it count): every object's game properties; red when no
+ * object has it and nothing else names it. */
+CustomSocketDrawFn game_property_filter_field();
+/** A tree property: the names this tree's Get / Set / Toggle Tree Property nodes use. `reads`
+ * (Get Tree Property): red when no Set or Toggle Tree Property of the tree writes it. */
+CustomSocketDrawFn tree_property_field(bool reads);
+/** A global property: the names the file's global property nodes use, of the Category the input
+ * `category_socket` names when typed in; a Category: the categories. Never red. */
+CustomSocketDrawFn global_property_field(const char *category_socket);
+CustomSocketDrawFn global_category_field();
+/** What a game property field's red means, ending its description. */
+inline constexpr const char *game_property_pick_note =
+    "Pick one of the object's game properties, or type any name. Red when the object surely has "
+    "none of that name: it lacks it, and no other node or live text in the file uses the name";
+inline constexpr const char *game_property_filter_note =
+    "Pick one of the game properties objects have, or type any name. Red when no object has it "
+    "and no node or live text in the file uses the name";
+/** The descriptions those inputs share. */
+inline constexpr const char *bone_name_description =
+    "The bone: pick one of the armature's bones, or type any name. Red when the armature has no "
+    "bone of that name";
+inline constexpr const char *bone_constraint_description =
+    "The constraint on that bone: pick one of its constraints, or type any name. Red when the "
+    "bone has no constraint of that name";
+/** The ray family's folded panels (2026-11-11; Raycast, Shape Cast, Mouse Ray, Camera Ray,
+ * Projectile Ray, Raycast from Mesh, Sweep Object): "Filters" with X-Ray, Include Sensors and Hit
+ * Backfaces (Line of Sight: without X-Ray), "Visualize" whose header checkbox is the Visualize
+ * input, with Duration, Hit Color and Miss Color. Declared after the plain inputs. */
+void add_ray_filters_panel(NodeDeclarationBuilder &b);
+void add_ray_filters_panel_without_xray(NodeDeclarationBuilder &b);
+void add_visualize_panel(NodeDeclarationBuilder &b);
 /** An Input Map action name: a search in the scene's Game Input Map that also takes other
  * names. */
 void draw_input_action_socket(CustomSocketDrawParams &params);

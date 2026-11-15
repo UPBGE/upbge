@@ -498,6 +498,7 @@ struct TestNode {
   std::deque<blender::bNodeSocketValueString> strings;
   std::deque<blender::bNodeSocketValueObject> objects;
   std::deque<blender::bNodeSocketValueVector> vectors;
+  std::deque<blender::bNodeSocketValueRGBA> colors;
 
   TestNode(blender::bNodeTree &tree, const char *idname, const char *name, const int32_t id)
   {
@@ -544,6 +545,21 @@ struct TestNode {
   blender::bNodeSocket &in_object(const char *name)
   {
     return add(true, name, blender::SOCK_OBJECT, &objects.emplace_back());
+  }
+  blender::bNodeSocket &in_color(const char *name, const MT_Vector4 &value)
+  {
+    blender::bNodeSocketValueRGBA &color = colors.emplace_back();
+    for (int index = 0; index < 4; index++) {
+      color.value[index] = value[index];
+    }
+    return add(true, name, blender::SOCK_RGBA, &color);
+  }
+  /** The Visualize panel's Duration, Hit Color and Miss Color (the ray family, 2026-11-11). */
+  void in_visualize_panel()
+  {
+    in_float("Duration", 0.0f);
+    in_color("Hit Color", MT_Vector4(1.0f, 0.05f, 0.02f, 1.0f));
+    in_color("Miss Color", MT_Vector4(1.0f, 0.92f, 0.05f, 1.0f));
   }
   blender::bNodeSocket &in_vector(const char *name, const MT_Vector3 &value)
   {

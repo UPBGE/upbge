@@ -409,16 +409,22 @@ class LN_Snapshot {
     float float_value = 0.0f;
   };
   /** The kept values of a game property ref, as small typed cells (plan A10). What a reader of
-   * a Bool, Int, Float or String expression needs; `string_value` is never null. */
+   * a Bool, Int, Float, String, Vector or Color expression needs; `string_value` is never null;
+   * `vector_value` is a Vector ref's vector (w 0) or a Color ref's color (2026-11-15), the
+   * default's for a ref of another type. */
   struct GamePropertyView {
     bool exists = false;
     bool bool_value = false;
     int32_t int_value = 0;
     float float_value = 0.0f;
     const std::string *string_value = nullptr;
+    MT_Vector4 vector_value = MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
   };
   /** False past the last capture's count of refs (the reader's fallback). */
   bool ReadGameProperty(uint32_t property_ref_index, GamePropertyView &r_view) const;
+  /** A Vector or Color ref's kept numbers alone (GamePropertyView::vector_value), for the
+   * readers of a vector or color: the column kernel reads them for every lane. */
+  bool ReadGamePropertyVector(uint32_t property_ref_index, MT_Vector4 &r_vector) const;
   /** The whole value of the ref (a Value expression, the state dump): the ref's default with
    * `exists` and the value of the ref's type taken from the live property, exactly what the
    * snapshot kept as an LN_Value before the cells. False past the last capture's count. */
@@ -532,6 +538,8 @@ class LN_Snapshot {
   std::vector<LN_Value> m_gameProperties;
   std::vector<GamePropertyCell> m_gameCells;
   std::vector<std::string> m_gameStrings;
+  /** A Vector or Color ref's numbers (LN_GamePropertyLayout::vector_slot; a Vector's w is 0). */
+  std::vector<MT_Vector4> m_gameVectors;
   std::shared_ptr<const LN_GamePropertyLayout> m_gameLayout;
   int8_t m_gameStorageMode = -1;
   uint32_t m_gamePropertyCount = 0;

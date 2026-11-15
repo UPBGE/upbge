@@ -60,8 +60,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Object with the inventory game property; empty uses this tree's object");
   b.add_input<decl::String>("Property"_ustr)
       .default_value("inventory")
-      .description("The inventory game property (a Table or List of {item, count} slots): the "
-                   "node changes it and writes it back at once");
+      .description(std::string("The inventory game property (a Table or List of {item, count} "
+                               "slots): the node changes it and writes it back at once. ") +
+                   logic::game_property_pick_note)
+      .custom_draw(logic::game_property_field("Object"));
   b.add_input<decl::String>("Item"_ustr)
       .description("Item name, an inventory slot, or an object: a pickup's item and count "
                    "properties");
@@ -105,9 +107,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Move To Slot into another inventory (a chest, an equipment slot): the object "
                    "with it; empty uses Object");
   b.add_input<decl::String>("To Property"_ustr)
-      .description("Move To Slot into another inventory: its game property; empty moves inside "
-                   "this inventory. To Slot past its end (an empty place) puts the stack there; "
-                   "recipes combine only inside one inventory");
+      .description(std::string("Move To Slot into another inventory: its game property; empty "
+                               "moves inside this inventory. To Slot past its end (an empty "
+                               "place) puts the stack there; recipes combine only inside one "
+                               "inventory. ") +
+                   logic::game_property_pick_note)
+      .custom_draw(logic::game_property_field("To Object", "Object"));
 
   /* The list's own Inventory Rules (its game property) decide these, unless this call
    * overrides them. */

@@ -17,13 +17,18 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
+  b.add_input<decl::String>("Bone Name"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Object"));
   b.add_output<decl::Vector>("Location"_ustr).description(
       "Pose bone location in the selected space");
   b.add_output<decl::Rotation>("Rotation"_ustr).description(
       "Native Blender pose bone rotation in the selected space");
   b.add_output<decl::Vector>("Scale"_ustr).description(
-      "Native Blender pose-channel scale in the bone's local axes");
+      "Pose Channel: the bone's Scale channel. Armature / World Space: the bone's evaluated size "
+      "along its own axes (parents, Inherit Scale and constraints included; World Space also "
+      "the armature object's scale)");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)

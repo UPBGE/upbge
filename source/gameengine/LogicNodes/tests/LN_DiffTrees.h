@@ -271,6 +271,9 @@ inline bool ObjectAttributeOutputOk(const int16_t custom1,
   if (output == "Position" || output == "Scale") {
     return transform;
   }
+  if (output == "Speed") {
+    return custom1 == 15;
+  }
   return output == "Name" && custom1 == 3;
 }
 
@@ -330,6 +333,49 @@ inline std::optional<Family> AutoFamily(const char *idname, const int weight)
   }
   else if (std::string(meta->idname) == "LogicNativeListRandomItem") {
     family.custom2 = {0, 1};
+  }
+  else if (std::string(meta->idname) == "LogicNativeApplyImpulse") {
+    /* Point Mode (2026-11-11): World Offset, World Point, Local Point. */
+    family.custom1 = {0, 1, 2};
+  }
+  else if (std::string(meta->idname) == "LogicNativeExplosionImpulse") {
+    /* Falloff and Implode (bits of custom1), and the Center: Position or Object (2026-11-11). */
+    family.custom1 = {0, 1, 2, 3};
+    family.custom2 = {0, 1};
+  }
+  /* The raycast recommendations (2026-11-11). */
+  else if (std::string(meta->idname) == "LogicNativeShapeCast" ||
+           std::string(meta->idname) == "LogicNativeShapeCastAll")
+  {
+    /* Sweep or Overlap. */
+    family.custom2 = {0, 1};
+  }
+  else if (std::string(meta->idname) == "LogicNativeLineOfSight" ||
+           std::string(meta->idname) == "LogicNativeAimForArc")
+  {
+    /* Eye and Target: Object or Position; Solve By and Gravity. */
+    family.custom1 = {0, 1};
+    family.custom2 = {0, 1};
+  }
+  else if (std::string(meta->idname) == "LogicNativeSweepObject" ||
+           std::string(meta->idname) == "LogicNativeProjectileRay")
+  {
+    /* Rotation: Current or Custom; Gravity: Scene or Custom. */
+    family.custom1 = {0, 1};
+  }
+  else if (std::string(meta->idname) == "LogicNativeKeepDistance") {
+    /* custom1 the Falloff (bit 0: Linear or Smooth); Measure From: the Object's Shape or a Sphere
+     * (2026-11-12). The Mode is an input since 2026-11-15 (the tree's pin values and links pick
+     * it); custom1 2-5 (the old Mode bits) stay in the list, so the generator draws as before:
+     * the compiler reads bit 0 only. */
+    family.custom1 = {0, 1, 2, 3, 4, 5};
+    family.custom2 = {0, 1};
+  }
+  else if (std::string(meta->idname) == "LogicNativeVelocityAtPoint") {
+    /* Point From: Position or Vertex Group; Vertices: Center, Fastest, Each Vertex
+     * (2026-11-14). */
+    family.custom1 = {0, 1};
+    family.custom2 = {0, 1, 2};
   }
   return family;
 }
@@ -526,10 +572,52 @@ inline const std::vector<std::pair<std::string, int>> &AutoFamilyNames()
         "LogicNativeWhilePaused",
         "LogicNativeWorldToScreen",
         "LogicNativeXYZToMatrix",
+        /* c2_p0/family_probe.py --only, 2026-11-11: accepted (Explosion Impulse finds nothing
+         * without a physics world: its reads, records and runs are what is compared). */
+        "LogicNativeApplyAngularImpulse",
+        "LogicNativeExplosionImpulse",
+        /* c2_p0/family_probe.py --only, 2026-11-11 (the raycast recommendations): accepted (the
+         * rays hit nothing without a physics world: their settings, reads and runs are what is
+         * compared; JoltLogicNodes.* casts them in a Jolt world). */
+        "LogicNativeAimForArc",
+        "LogicNativeCameraRay",
+        "LogicNativeLineOfSight",
+        "LogicNativeMouseRay",
+        "LogicNativeProjectileRay",
+        "LogicNativeRayToPlane",
+        "LogicNativeSweepObject",
+        /* c2_p0/family_probe.py --only, 2026-11-12: accepted (Keep Distance only records a
+         * request; without a physics world the flush answers nothing: its reads, requests and
+         * runs are what is compared; JoltLogicNodes.KeepDistance* push in a Jolt world). */
+        "LogicNativeKeepDistance",
+        /* c2_p0/family_probe.py --only, 2026-11-14: accepted (Velocity at Point finds no body
+         * nor mesh without a physics world: its reads and runs are what is compared;
+         * JoltLogicNodes.VelocityAtPoint* measure real bodies). */
+        "LogicNativeVelocityAtPoint",
+        /* c2_p0/family_probe.py --only, 2026-11-15: Get / Set Game Property's Vector and Color,
+         * Set's Object and List (the rig's objects have no such properties: reads give the
+         * defaults, writes make them). Get's Object and List are never reached (the generator
+         * has no Object or List input to feed; they compile as Get Any). */
+        "LogicNativeGetGamePropertyColor",
+        "LogicNativeGetGamePropertyVector",
+        "LogicNativeSetGamePropertyColor",
+        "LogicNativeSetGamePropertyList",
+        "LogicNativeSetGamePropertyObject",
+        "LogicNativeSetGamePropertyVector",
     };
     std::vector<std::pair<std::string, int>> out;
     for (const char *idname : accepted) {
-      out.emplace_back(idname, 1);
+      /* On Constraint Break's kinds run only in trees where the rig breaks a constraint: twice
+       * the weight keeps them at least a probe tree's runs (EveryKindTheTreesReachRanOften) since
+       * the raycast recommendations' seven families joined (2026-11-11). */
+      /* Bone Rotation to Object Rotation's kind fell to 8 runs when Get Object Attribute gained
+       * Speed (2026-11-14): twice the weight too. */
+      out.emplace_back(idname,
+                       std::strcmp(idname, "LogicNativeOnConstraintBreak") == 0 ||
+                               std::strcmp(idname, "LogicNativeBoneRotationToObjectRotation") ==
+                                   0 ?
+                           2 :
+                           1);
     }
     for (const auto &entry : ProbedFamilyNames()) {
       out.push_back(entry);
@@ -621,9 +709,9 @@ inline const std::vector<Family> &FamilyTable()
     t.push_back({"LogicNativeGetObjectAttribute",
                  Role::Data,
                  3,
-                 {0, 1, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14},
+                 {0, 1, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15},
                  {},
-                 {"Vector", "Orientation", "Position", "Scale", "Name"},
+                 {"Vector", "Orientation", "Position", "Scale", "Name", "Speed"},
                  ObjectAttributeOutputOk});
     t.push_back({"LogicNativeGetDistance", Role::Data, 3, {0, 1}, {0, 1}, {"Distance", "Squared Distance", "Valid"}, nullptr, {}, true});
     /* Added in plan C1-7 (nodes the columns gained). */
@@ -2055,6 +2143,14 @@ class TreeBuilder {
     rotation.value_euler[1] = y;
     rotation.value_euler[2] = z;
   }
+  void Color(GenNode &node, const char *pin, const float r, const float g, const float b, const float a)
+  {
+    float *value = static_cast<blender::bNodeSocketValueRGBA *>(Default(node, pin))->value;
+    value[0] = r;
+    value[1] = g;
+    value[2] = b;
+    value[3] = a;
+  }
   /** A constant object (the Blender object's name, without the ID code, is the game object's). */
   void ObjectNamed(GenNode &node, const char *pin, blender::Object *object)
   {
@@ -2578,10 +2674,16 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
     if (columns) {
       column_runner.CaptureLanes(context.tick_index, nullptr);
     }
-    for (size_t index = 0; index < runnable.size(); index++) {
-      if (!(columns && column_runner.IsLane(index))) {
-        runnable[index]->WarmQueryCache(context);
+    /* As the manager: every tree but a native lane's (a bridged lane's tree is warmed); no pool
+     * here, so every warm-up on this thread (LN_WarmQueryCaches). */
+    {
+      std::vector<LN_RuntimeTree *> warmed;
+      for (size_t index = 0; index < runnable.size(); index++) {
+        if (!(columns && runnable[index]->IsColumnLane())) {
+          warmed.push_back(runnable[index]);
+        }
       }
+      LN_WarmQueryCaches(warmed.data(), warmed.size(), context, nullptr);
     }
 
     buffer.Clear();
@@ -2667,13 +2769,25 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
       LN_ApplyPendingRandomGameSeed();
     };
     if (options.world_only) {
+      /* (2026-11-14) The sounds and bone writes the flush applies: the world here keeps no trace
+       * of them (no audio, no armatures), and a column run's caught ones must apply as the VM's. */
+      std::string applied;
+      LN_SetAppliedCommandObserverForTests(
+          [](void *user, const std::string &line) {
+            *static_cast<std::string *>(user) += line + "\n";
+          },
+          &applied);
       flush_noting_forces();
+      LN_SetAppliedCommandObserverForTests(nullptr, nullptr);
       if (columns) {
         column_runner.EndTick();
       }
       result.text += DumpWorld(world_objects);
       if (!forces.empty()) {
         result.text += "forces:\n" + forces;
+      }
+      if (!applied.empty()) {
+        result.text += "applied:\n" + applied;
       }
       time += step;
       return;

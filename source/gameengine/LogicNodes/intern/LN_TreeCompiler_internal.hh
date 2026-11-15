@@ -663,6 +663,17 @@ std::optional<uint32_t> BuildShapeCastAllQueryExpression(
     ValueCache &value_cache,
     FloatExpressionCache &float_expression_cache,
     BoolExpressionCache &bool_expression_cache);
+/** Explosion Impulse's Objects (2026-11-11): a Shape Cast All of its sphere (Origin, Radius,
+ * Ignore Object, Property with X-Ray, Mask; at most LN_EXPLOSION_MAX_OBJECTS), drawn by the node's
+ * instruction, never by the query. */
+std::optional<uint32_t> BuildExplosionImpulseQueryExpression(
+    LN_Program &program,
+    const blender::bNode &node,
+    const NodeDefinitionMap &node_definitions,
+    const InputLinkMap &input_links,
+    ValueCache &value_cache,
+    FloatExpressionCache &float_expression_cache,
+    BoolExpressionCache &bool_expression_cache);
 
 std::optional<uint32_t> BuildMouseRayQueryExpression(LN_Program &program,
                                                      const blender::bNode &node,
@@ -679,5 +690,71 @@ std::optional<uint32_t> BuildCameraRayQueryExpression(LN_Program &program,
                                                       ValueCache &value_cache,
                                                       FloatExpressionCache &float_expression_cache,
                                                       BoolExpressionCache &bool_expression_cache);
+
+/** An optional Flow input as a query's condition: constant true unlinked. */
+std::optional<uint32_t> BuildOptionalExecutionCondition(
+    LN_Program &program,
+    const blender::bNode &node,
+    const std::string &socket_name,
+    const NodeDefinitionMap &node_definitions,
+    const InputLinkMap &input_links,
+    ValueCache &value_cache,
+    FloatExpressionCache &float_expression_cache,
+    BoolExpressionCache &bool_expression_cache);
+
+/** The Visualize panel's Duration (input7), Hit Color (input8) and Miss Color (input9) of a ray,
+ * a shape cast or a sweep (left unset when the node has no such socket). */
+void AddVisualizeStyleInputs(LN_Program &program,
+                             const blender::bNode &node,
+                             const NodeDefinitionMap &node_definitions,
+                             const InputLinkMap &input_links,
+                             ValueCache &value_cache,
+                             LN_QueryExpression &expression,
+                             const char *hit_color_name = "Hit Color",
+                             const char *miss_color_name = "Miss Color");
+
+/* The raycast recommendations (2026-11-11; LN_TreeCompiler_ray_outputs.cc). */
+std::optional<uint32_t> BuildProjectileRayQueryExpression(
+    LN_Program &program,
+    const blender::bNode &node,
+    const NodeDefinitionMap &node_definitions,
+    const InputLinkMap &input_links,
+    ValueCache &value_cache,
+    FloatExpressionCache &float_expression_cache,
+    BoolExpressionCache &bool_expression_cache);
+std::optional<uint32_t> BuildLineOfSightQueryExpression(
+    LN_Program &program,
+    const blender::bNode &node,
+    const NodeDefinitionMap &node_definitions,
+    const InputLinkMap &input_links,
+    ValueCache &value_cache,
+    FloatExpressionCache &float_expression_cache,
+    BoolExpressionCache &bool_expression_cache);
+std::optional<uint32_t> BuildSweepObjectQueryExpression(
+    LN_Program &program,
+    const blender::bNode &node,
+    const NodeDefinitionMap &node_definitions,
+    const InputLinkMap &input_links,
+    ValueCache &value_cache,
+    FloatExpressionCache &float_expression_cache,
+    BoolExpressionCache &bool_expression_cache);
+/** The outputs of Mouse Ray, Camera Ray, Projectile Ray, Line of Sight, Sweep Object, Aim for
+ * Arc and Ray to Plane, and the Hit Part / Hit Material outputs of Raycast, Shape Cast and
+ * Raycast from Mesh (the dispatcher asks it first). Returns whether it handled the output. */
+bool TryCompileRayFamilyOutput(LN_Program &program,
+                               const blender::bNode &node,
+                               const blender::bNodeSocket &output_socket,
+                               const LN_NodeDefinition &definition,
+                               const NodeDefinitionMap &node_definitions,
+                               const InputLinkMap &input_links,
+                               ValueCache &value_cache,
+                               FloatExpressionCache &float_expression_cache,
+                               BoolExpressionCache &bool_expression_cache,
+                               IntExpressionCache &int_expression_cache,
+                               StringExpressionCache &string_expression_cache,
+                               VectorExpressionCache &vector_expression_cache,
+                               ColorExpressionCache &color_expression_cache,
+                               ValueExpressionCache &value_expression_cache,
+                               std::optional<uint32_t> &r_result);
 
 }  // namespace ln_compiler

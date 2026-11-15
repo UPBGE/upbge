@@ -879,6 +879,23 @@ TEST(LN_LeanDifferential, ColumnsEndAsTheLeanVM)
       "LogicNativeApplyRotation",
       "LogicNativeEuler",
       "LogicNativeColorRGBA",
+      /* QPointVel (2026-11-14; the rig has no physics or meshes: its zeros and plumbing). */
+      "LogicNativeVelocityAtPoint",
+      /* QSight and the bridge's casts (2026-11-14; no physics here: the rays hit nothing, the
+       * ranges, cones, ends, Flows and runs are what is compared; JoltLogicNodes.*RunsWide* cast
+       * in a Jolt world). NB: these and Velocity at Point are accepted families, not rows of the
+       * base table: this list leaves them in no restricted seed; they come through the third of
+       * the seeds from every family (accepted rows included) and AcceptedFamiliesEndAlike. */
+      "LogicNativeLineOfSight",
+      "LogicNativeProjectileRay",
+      "LogicNativeSweepObject",
+      /* Keep Distance's bridged op and QKeep (2026-11-14; no physics: its requests and outputs'
+       * plumbing). */
+      "LogicNativeKeepDistance",
+      /* QRay with column inputs and casters (2026-11-14; no physics: its ends, Flows, read
+       * rules and runs), and Raycast All through the bridge. */
+      "LogicNativeRaycast",
+      "LogicNativeRaycastAll",
   };
   /* A family probed by UPBGE_LN_DIFF_EXTRA_FAMILIES (plan C2 P0) joins the column families. */
   std::set<std::string> probed;

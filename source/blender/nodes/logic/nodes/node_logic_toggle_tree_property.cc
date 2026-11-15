@@ -14,7 +14,12 @@ namespace decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::String>("Property"_ustr).default_value("prop");
+  b.add_input<decl::String>("Property"_ustr)
+      .default_value("prop")
+      .description("The tree property to switch between True and False (False before it is "
+                   "first set), one for each object running this tree. Pick a name this tree "
+                   "uses, or type a new one")
+      .custom_draw(logic::tree_property_field(false));
   b.add_output<decl::Execution>("Done"_ustr);
 }
 

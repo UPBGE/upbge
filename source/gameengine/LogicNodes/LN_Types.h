@@ -146,6 +146,11 @@ enum class LN_OpCode : uint8_t {
   SetLocalLinearVelocity,
   SetAngularVelocity,
   SetLocalAngularVelocity,
+  /** Apply Impulse and Apply Angular Impulse (2026-11-11): value_expr_index Object (none: the
+   * owner), vector_expr_index Impulse / Angular Impulse, secondary_vector_expr_index Point (the
+   * socket "Attach"), int_value the LN_ImpulseMode, bool_expr_index Local,
+   * secondary_bool_expr_index Ignore Mass, tertiary_bool_expr_index Visualize. Read in that order:
+   * Impulse, Point, Local, Ignore Mass, Visualize. */
   ApplyImpulse,
   SetVisibility,
   SetObjectColor,
@@ -348,8 +353,88 @@ enum class LN_OpCode : uint8_t {
    * int_expr_index Index, secondary_string_expr_index Key, secondary_value_expr_index Value,
    * tertiary_value_expr_index Amount. */
   EditGameProperty,
+  /** Explode or Implode Impulse (2026-11-11; idname LogicNativeExplosionImpulse):
+   * secondary_int_value the center (LN_EXPLOSION_CENTER_*):
+   * Object reads tertiary_value_expr_index (none: the owner; its pending moves applied first,
+   * the object itself left alone), Position reads vector_expr_index Origin; then
+   * float_expr_index Radius, secondary_float_expr_index Strength, tertiary_float_expr_index
+   * Upward Lift, bool_expr_index Ignore Mass, secondary_bool_expr_index Visualize,
+   * secondary_value_expr_index Ignore Object (none: nothing more ignored),
+   * quaternary_value_expr_index Ignore Objects (a list; none in a node without it),
+   * string_expr_index Property, int_expr_index Mask, int_value the falloff and Implode
+   * bits (LN_EXPLOSION_FALLOFF_LINEAR, LN_EXPLOSION_IMPLODE); read in that
+   * order. It reads the scene in the instruction (its center and its overlap): never on the batch
+   * lists or the bridge for that. Finds the bodies touching the sphere
+   * (LN_RuntimeTree::ShapeCast, as Shape Cast All with X-Ray: at most 256, nearest first) and
+   * records one ApplyImpulse command (LN_ImpulseMode::Explosion) for each; each push is worked
+   * out at the flush from the body's center of mass then. The node's Objects output is a Shape
+   * Cast All query of the same sphere. Main thread only (it reads the physics world). */
+  ExplosionImpulse,
+  /** Keep Distance (2026-11-12, Pull and Hold the same day; idname LogicNativeKeepDistance):
+   * int_value the node's state slot
+   * (LN_Program::AcquireKeepDistanceNode), secondary_int_value bit 0 the Smooth Falloff, bit 1
+   * Measure From Sphere (LN_KEEP_DISTANCE_BIT_*); tertiary_value_expr_index Object (none: the
+   * owner), tertiary_int_expr_index Mode (2026-11-15, an input: LN_KEEP_DISTANCE_MODE_*, below 0
+   * Push, above 2 Hold), float_expr_index Distance, value_expr_index Reach (read in Hold only: a
+   * generic value, every float field being taken; read after Distance),
+   * secondary_float_expr_index Strength, tertiary_float_expr_index Damping,
+   * quaternary_float_expr_index Radius, int_expr_index Check
+   * Every, bool_expr_index Ignore Mass, secondary_bool_expr_index Apply,
+   * tertiary_bool_expr_index Visualize, string_expr_index Property, secondary_int_expr_index
+   * Mask, secondary_value_expr_index Ignore Object, quaternary_value_expr_index Ignore Objects,
+   * quaternary_bool_expr_index Include Sensors; read in that order. It records a request
+   * (LN_CommandBuffer::AppendKeepDistance); the flush answers every request of the step at its
+   * end, the physics queries on the physics threads, and pushes (LN_KeepDistance.h). Main thread
+   * only (its requests are the scene buffer's). */
+  KeepDistance,
   Count,
 };
+
+/** How an ApplyImpulse instruction and command push (2026-11-11; the instruction's int_value, the
+ * command's int_value). Nodes made before 2026-11-11 hold WorldOffset (custom1 0). */
+enum class LN_ImpulseMode : int32_t {
+  /** Point is an offset from the body's position along the world axes (the old Apply Impulse:
+   * it does not turn with the object). */
+  WorldOffset = 0,
+  /** Point is a world position (a Raycast's Hit Point). */
+  WorldPoint = 1,
+  /** Point is in the object's own axes from its origin: it turns with the object. */
+  LocalPoint = 2,
+  /** Apply Angular Impulse: the vector is an angular impulse; no point. */
+  Angular = 3,
+  /** Explosion Impulse's push of one reached object (commands only): through the center of
+   * mass, away from the blast. */
+  Explosion = 4,
+};
+inline constexpr int32_t LN_IMPULSE_MODE_LAST = int32_t(LN_ImpulseMode::Explosion);
+
+/** Explode or Implode Impulse's options (the node's custom1 bits, the instruction's int_value):
+ * bit 0 the Falloff (Linear), bit 1 Implode (pull toward the center instead of pushing away). */
+inline constexpr int32_t LN_EXPLOSION_FALLOFF_CONSTANT = 0;
+inline constexpr int32_t LN_EXPLOSION_FALLOFF_LINEAR = 1;
+inline constexpr int32_t LN_EXPLOSION_IMPLODE = 2;
+/** Explosion Impulse's Center (the node's custom2, the instruction's secondary_int_value); nodes
+ * made before the dropdown hold Position. */
+inline constexpr int32_t LN_EXPLOSION_CENTER_POSITION = 0;
+inline constexpr int32_t LN_EXPLOSION_CENTER_OBJECT = 1;
+/** The most objects one Explosion Impulse reaches (the nearest ones; Shape Cast All's limit). */
+inline constexpr uint32_t LN_EXPLOSION_MAX_OBJECTS = 256;
+
+/** Keep Distance's node settings: custom1 bit 0 the Falloff (Smooth); custom2 Measure From. Its
+ * Mode is an input (2026-11-15; the node's Mode dropdown before, custom1 bits 1-2, moved into
+ * the input when a file is read): 0 Push, 1 Pull, 2 Hold. */
+inline constexpr int32_t LN_KEEP_DISTANCE_FALLOFF_LINEAR = 0;
+inline constexpr int32_t LN_KEEP_DISTANCE_FALLOFF_SMOOTH = 1;
+inline constexpr int32_t LN_KEEP_DISTANCE_MODE_PUSH = 0;
+inline constexpr int32_t LN_KEEP_DISTANCE_MODE_PULL = 1;
+inline constexpr int32_t LN_KEEP_DISTANCE_MODE_HOLD = 2;
+inline constexpr int32_t LN_KEEP_DISTANCE_MEASURE_OBJECT_SHAPE = 0;
+inline constexpr int32_t LN_KEEP_DISTANCE_MEASURE_SPHERE = 1;
+/** The bits of its instruction's secondary_int_value. */
+inline constexpr int32_t LN_KEEP_DISTANCE_BIT_SMOOTH = 1 << 0;
+inline constexpr int32_t LN_KEEP_DISTANCE_BIT_SPHERE = 1 << 1;
+/** The most surfaces (patches) one check keeps, the nearest ones. */
+inline constexpr uint32_t LN_KEEP_DISTANCE_MAX_PATCHES = 32;
 
 /** Play Sound 3D's Listener (the node's custom1, LN_Instruction::int_value): whose camera hears
  * the sound. */
@@ -408,10 +493,13 @@ enum class LN_InputMapOperation : uint8_t {
   Rebind,
 };
 
+/** Get / Set Rigid Body Attribute's Attribute (custom1). */
 enum class LN_RigidBodyAttribute : uint8_t {
   Mass = 0,
   Friction,
   Restitution,
+  /** Both dampings: Get's Damping (two outputs); Set nodes saved with it are Linear Damping since
+   * 2026-11-15 (the editor's node_update), the engine still sets both for one. */
   Damping,
   MinLinearVelocity,
   MaxLinearVelocity,
@@ -422,6 +510,9 @@ enum class LN_RigidBodyAttribute : uint8_t {
   Sleeping,
   AxisLocks,
   AllowPhysicsRotation,
+  /** Set only (2026-11-15, the user's call): one damping, the other left as it is. */
+  LinearDamping,
+  AngularDamping,
 };
 
 enum class LN_RigidBodyConstraintMatchMode : uint8_t {
@@ -483,6 +574,8 @@ enum class LN_BonePoseRotationSpace : uint8_t {
 
 static constexpr uint32_t LN_BONE_ATTRIBUTE_INDEX_MASK = 0xFFFFu;
 static constexpr uint32_t LN_BONE_ATTRIBUTE_WORLD_SPACE_FLAG = 1u << 16;
+/** Get Bone Attribute's Location: its Space (an `LN_BonePoseRotationSpace`, 2 bits) from here. */
+static constexpr uint32_t LN_BONE_ATTRIBUTE_LOCATION_SPACE_SHIFT = 17;
 
 enum class LN_VectorOperationChannel : uint8_t {
   Position = 0,
@@ -828,6 +921,9 @@ enum class LN_BoolExpressionKind : uint8_t {
    * name (a string). An Object property holding nothing counts (2026-11-08: Not(ValueIsNone)
    * of the value called it missing, while the owner's typed Exists, the snapshot's, did not). */
   ObjectGamePropertyExists,
+  /** Aim for Arc's Can Reach (LN_Ballistics.h): input0 Start, input1 Target, input2 Gravity
+   * (vectors), float_expr_index Speed or Arc Height, int_value the mode (LN_ArcSolveMode). */
+  ArcCanReach,
   Count,
 };
 
@@ -971,6 +1067,19 @@ enum class LN_FloatExpressionKind : uint8_t {
   /** On Logic + Physics Step's Time Passed: the game time since its route last ran. int_value =
    * the node's step gate (LN_StepGate), -1 for a node that runs every step. */
   StepTimePassed,
+  /** Projectile Ray's Flight Time: the throw's time to the hit, or to where the path ended. */
+  PhysicsQueryFlightTime,
+  /** Line of Sight's Angle (degrees) between Forward and the direction to the target. */
+  PhysicsQueryAngle,
+  /** Ray to Plane: the distance along the ray to the plane, -1 when it never meets it. input0 the
+   * ray's origin minus a point of the plane, input1 the direction, input2 the plane's normal
+   * (vectors; neither needs to be unit length). */
+  RayPlaneDistance,
+  /** Aim for Arc's Flight Time: as Bool::ArcCanReach, input_indices[0] Speed or Arc Height,
+   * bool_expr_index High Arc. */
+  ArcFlightTime,
+  /** The length of vector input0 (Get Object Attribute's Speed, Velocity at Point's Speed). */
+  VectorLength,
   Count,
 };
 
@@ -1090,6 +1199,9 @@ enum class LN_StringExpressionKind : uint8_t {
   /** On UI Sound: the name of the menu (its collection) the sound came from, empty outside
    * menus. input0 = the node's query. */
   UIElementEventMenu,
+  /** Hit Material: the name of the material on the hit face (the slot on the Hit Part's object;
+   * slot 0 for shapes without triangles), empty without a hit or a material. input0 = query. */
+  PhysicsQueryMaterial,
   Count,
 };
 
@@ -1169,6 +1281,24 @@ enum class LN_VectorExpressionKind : uint8_t {
   /** Input Action's Vector: input0 user, input1 action name, bool_value also what the UI
    * used. */
   InputActionVector,
+  /** Mouse Ray / Camera Ray's Ray Origin: where the cast started (input0 = query). */
+  PhysicsQueryRayOrigin,
+  /** Projectile Ray's Impact Velocity: the throw's velocity at the hit, or where the path ended. */
+  PhysicsQueryImpactVelocity,
+  /** Ray to Plane's Point: input0 the ray's origin, input1 its direction, float_expr_index the
+   * distance (Float::RayPlaneDistance); zero without a hit. */
+  RayPlanePoint,
+  /** Ray to Plane's Normal: input0 the ray's direction, input1 the plane's normal,
+   * float_expr_index the distance; the unit normal facing the ray's start, zero without a hit. */
+  RayPlaneNormal,
+  /** Aim for Arc's Launch Velocity: as Bool::ArcCanReach, bool_expr_index High Arc. */
+  ArcLaunchVelocity,
+  /** Get Game Property Vector of the owner (2026-11-15): the snapshot's kept vector of the
+   * game property ref `property_ref_index` (LN_Snapshot::ReadGameProperty), as a read of another
+   * object converts it (LN_GamePropertyAsVector: a Color's red, green and blue, a number in all
+   * three); the ref's default (zero) when the object has no such property or it gives no
+   * vector. */
+  SnapshotGameProperty,
   Count,
 };
 
@@ -1179,6 +1309,11 @@ enum class LN_ColorExpressionKind : uint8_t {
   RuntimeTreeProperty,
   Combine,
   FromGenericValue,
+  /** Get Game Property Color of the owner (2026-11-15): the snapshot's kept color of the game
+   * property ref `property_ref_index`, as a read of another object converts it
+   * (LN_GamePropertyAsColor: a Vector with alpha 1); the ref's default when the object has no
+   * such property or it gives no color. */
+  SnapshotGameProperty,
   Count,
 };
 
@@ -1308,6 +1443,17 @@ enum class LN_ValueExpressionKind : uint8_t {
   /** Inventory node's Removed output (as InventoryAmount): how many it removed or crafted, or,
    * Add Item, how many went in (its label Added). */
   InventoryChanged,
+  /** Hit Part: the compound child whose shape was hit, else the Hit Object (input0 = query). */
+  PhysicsQueryPart,
+  /** Hit Parts: as PhysicsQueryPart for every hit of a list query. */
+  PhysicsQueryParts,
+  /** Hit Materials: as String::PhysicsQueryMaterial for every hit of a list query. */
+  PhysicsQueryMaterials,
+  /** Line of Sight's Blocker: the object a query's `blocked` result names (none otherwise). */
+  PhysicsQueryBlocker,
+  /** Velocity at Point's Velocities: the `impact_velocity` of every result of a list query (as
+   * PhysicsQueryPoints lists their `hit_position`). */
+  PhysicsQueryImpactVelocities,
   Count,
 };
 
@@ -1393,7 +1539,31 @@ enum class LN_QueryExpressionKind : uint8_t {
   DistanceBetween,
   /** On UI Event: one UI Element event selected by type and optional Action name. */
   UIElementEvent,
+  /** Line of Sight: whether an eye sees a target (LN_RuntimeTree::LineOfSightKind). */
+  LineOfSight,
+  /** Sweep Object: the object's own collision shape moved to a destination (SweepObjectKind). */
+  SweepObject,
+  /** Keep Distance's outputs: what its last check found (int_value the node's state slot), read
+   * from the tree; no physics query of its own. */
+  KeepDistance,
+  /** Velocity at Point (2026-11-14, LN_RuntimeTree::PointVelocityKind): input0 the object (owner
+   * when unset), int_value the LN_PointVelocitySource, Position: input1 the world point; Vertex
+   * Group: string_expr_index the group, secondary_int_value the LN_PointVelocityPick. Result:
+   * physics_query.hit_position the point, impact_velocity its velocity (hit: a body moves it);
+   * Each Vertex: one result per vertex in physics_query_results. */
+  PointVelocity,
   Count,
+};
+
+enum class LN_PointVelocitySource : uint8_t {
+  Position = 0,
+  VertexGroup,
+};
+
+enum class LN_PointVelocityPick : uint8_t {
+  Center = 0,
+  Fastest,
+  EachVertex,
 };
 
 enum class LN_MeshRayDomain : uint8_t {
@@ -1416,6 +1586,11 @@ enum LN_RayQueryDetail : uint8_t {
   LN_RAY_QUERY_DETAIL_NONE = 0,
   LN_RAY_QUERY_DETAIL_FACE_INDEX = 1 << 0,
   LN_RAY_QUERY_DETAIL_UV = 1 << 1,
+  /** Hit Part: the compound child hit (PHY_RAY_QUERY_DETAIL_PART; no data kept). */
+  LN_RAY_QUERY_DETAIL_PART = 1 << 2,
+  /** Hit Material: the hit triangle's slot (PHY_RAY_QUERY_DETAIL_MATERIAL; triangle meshes keep
+   * their slots when some program asks). */
+  LN_RAY_QUERY_DETAIL_MATERIAL = 1 << 3,
 };
 
 enum class LN_RayInputMode : uint8_t {
@@ -1813,6 +1988,17 @@ struct LN_PhysicsQueryResult {
   float hit_distance = 0.0f;
   float penetration_depth = 0.0f;
   int32_t polygon_index = -1;
+  /** Hit Part: the compound child hit (LN_RAY_QUERY_DETAIL_PART), invalid when the hit object
+   * itself is the part (PhysicsQueryPart then gives object_ref). */
+  LN_RuntimeRef part_ref;
+  /** Projectile Ray: the throw's velocity and time at the hit (or where its path ended). */
+  MT_Vector3 impact_velocity = MT_Vector3(0.0f, 0.0f, 0.0f);
+  float flight_time = 0.0f;
+  /** Line of Sight: the angle (degrees) between the eye's forward and the target. */
+  float angle = 0.0f;
+  /** Hit Material: the hit triangle's slot on the part's mesh (LN_RAY_QUERY_DETAIL_MATERIAL),
+   * -1 for shapes without triangles (slot 0 then). */
+  int16_t material_slot = -1;
   bool has_uv = false;
   bool blocked = false;
   bool started_overlapping = false;
@@ -2500,6 +2686,10 @@ struct LN_GamePropertyLayout {
   std::vector<LN_Value> defaults;
   std::vector<uint32_t> string_slot;
   uint32_t string_slots = 0;
+  /** A Vector or Color ref's place in the snapshot's kept vectors (2026-11-15), else
+   * LN_INVALID_INDEX: the cells stay small for every other ref. */
+  std::vector<uint32_t> vector_slot;
+  uint32_t vector_slots = 0;
 };
 
 struct LN_TreePropertyRef {

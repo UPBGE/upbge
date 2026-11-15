@@ -305,6 +305,11 @@ void LN_Manager::CommitGameStateRuntimeTreeRestore(
     const auto active = prepared.runtime_active.find(runtime_tree->GetGameObject());
     BLI_assert(active != prepared.runtime_active.end());
     runtime_tree->SetRuntimeActive(active->second);
+    /* Its object's order key: the one its kept trees have, else a new one (ObjectOrderKeyFor:
+     * its place in the object list may be another object's key). Before IndexRuntimeTree, so
+     * the object's next restored tree takes this one. */
+    runtime_tree->SetSceneObjectIndex(ObjectOrderKeyFor(runtime_tree->GetGameObject()));
+    NoteObjectOrderKey(runtime_tree->GetSceneObjectIndex());
     IndexRuntimeTree(runtime_tree.get());
     /* As every registration does: without it every restored tree ran its Spread Out gates on
      * the same steps (fixed 2026-10-31). */

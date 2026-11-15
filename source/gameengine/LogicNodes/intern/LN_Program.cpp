@@ -18,6 +18,7 @@
 
 #include "KX_Parenting.h"
 #include "LN_BonePoseRotation.h"
+#include "LN_Columns.h"
 #include "LN_KindCatalog.h"
 #include "LN_RuntimeSemantics.h"
 #include "LN_TreeBatch.h"
@@ -651,6 +652,8 @@ void AddFloatExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_FloatExpressionKind::PhysicsQueryDistance:
     case LN_FloatExpressionKind::PhysicsQueryFraction:
     case LN_FloatExpressionKind::PhysicsQueryPenetrationDepth:
+    case LN_FloatExpressionKind::PhysicsQueryFlightTime:
+    case LN_FloatExpressionKind::PhysicsQueryAngle:
       AddQueryDependency(summary, LN_DEP_QUERY_RESULT_FIELDS);
       break;
     case LN_FloatExpressionKind::QueryDistance:
@@ -799,6 +802,10 @@ void AddStringExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       AddRuntimeStateDependency(summary, LN_DEP_STATE_QUERY_CACHE);
       AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
+    case LN_StringExpressionKind::PhysicsQueryMaterial:
+      AddQueryDependency(summary, LN_DEP_QUERY_RESULT_FIELDS);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF | LN_DEP_DYNAMIC_DATABLOCK_REF);
+      break;
     default:
       break;
   }
@@ -818,6 +825,9 @@ void AddVectorExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       break;
     case LN_VectorExpressionKind::SnapshotGravity:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_GRAVITY);
+      break;
+    case LN_VectorExpressionKind::SnapshotGameProperty:
+      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_GAME_PROPERTY);
       break;
     case LN_VectorExpressionKind::WindowResolution:
       AddInputDependency(summary, LN_DEP_INPUT_WINDOW);
@@ -863,6 +873,8 @@ void AddVectorExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_VectorExpressionKind::PhysicsQueryDirection:
     case LN_VectorExpressionKind::PhysicsQueryEndPoint:
     case LN_VectorExpressionKind::PhysicsQueryUV:
+    case LN_VectorExpressionKind::PhysicsQueryRayOrigin:
+    case LN_VectorExpressionKind::PhysicsQueryImpactVelocity:
     case LN_VectorExpressionKind::UIScrollOffset:
     case LN_VectorExpressionKind::UIScrollNormalized:
       AddQueryDependency(summary, LN_DEP_QUERY_RESULT_FIELDS);
@@ -932,14 +944,32 @@ void AddQueryExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       AddQueryDependency(summary, LN_DEP_QUERY_RAY | LN_DEP_QUERY_RESULT_FIELDS);
       break;
     case LN_QueryExpressionKind::MouseRay:
+      summary.ray_query_detail_requirements |= expression.ray_query_detail_flags;
       AddInputDependency(summary, LN_DEP_INPUT_MOUSE);
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
       AddQueryDependency(summary, LN_DEP_QUERY_RAY | LN_DEP_QUERY_RESULT_FIELDS);
       AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_QueryExpressionKind::CameraRay:
+    case LN_QueryExpressionKind::LineOfSight:
+    case LN_QueryExpressionKind::SweepObject:
+      summary.ray_query_detail_requirements |= expression.ray_query_detail_flags;
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
       AddQueryDependency(summary, LN_DEP_QUERY_RAY | LN_DEP_QUERY_RESULT_FIELDS);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_QueryExpressionKind::KeepDistance:
+      /* What the node's last answer left in the tree (written by the flush, read in the run). */
+      AddQueryDependency(summary, LN_DEP_QUERY_RESULT_FIELDS);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_QueryExpressionKind::PointVelocity:
+      /* Velocity at Point: a body's velocity (physics) at points of the object's pose and mesh. */
+      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
+      AddQueryDependency(summary, LN_DEP_QUERY_RESULT_FIELDS);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
       AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_QueryExpressionKind::MouseOver:
@@ -967,6 +997,7 @@ void AddQueryExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_QueryExpressionKind::ProjectileRay:
+      summary.ray_query_detail_requirements |= expression.ray_query_detail_flags;
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_TRANSFORM);
       AddQueryDependency(summary, LN_DEP_QUERY_PROJECTILE | LN_DEP_QUERY_RESULT_FIELDS);
       break;
@@ -1003,6 +1034,9 @@ void AddColorExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       break;
     case LN_ColorExpressionKind::SnapshotLightColor:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_LIGHT);
+      break;
+    case LN_ColorExpressionKind::SnapshotGameProperty:
+      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_GAME_PROPERTY);
       break;
     case LN_ColorExpressionKind::RuntimeTreeProperty:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_TREE_PROPERTY);
@@ -1118,8 +1152,13 @@ void AddValueExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
                                   0u));
       break;
     case LN_ValueExpressionKind::PhysicsQueryObject:
+    case LN_ValueExpressionKind::PhysicsQueryPart:
+    case LN_ValueExpressionKind::PhysicsQueryParts:
+    case LN_ValueExpressionKind::PhysicsQueryMaterials:
+    case LN_ValueExpressionKind::PhysicsQueryBlocker:
     case LN_ValueExpressionKind::PhysicsQueryObjects:
     case LN_ValueExpressionKind::PhysicsQueryPoints:
+    case LN_ValueExpressionKind::PhysicsQueryImpactVelocities:
     case LN_ValueExpressionKind::PhysicsQueryNormals:
     case LN_ValueExpressionKind::PhysicsQueryDistances:
     case LN_ValueExpressionKind::PhysicsQueryCastPositions:
@@ -1602,6 +1641,7 @@ bool FloatExpressionCanCSE(const LN_FloatExpressionKind kind)
     case LN_FloatExpressionKind::Threshold:
     case LN_FloatExpressionKind::RangedThreshold:
     case LN_FloatExpressionKind::VectorComponent:
+    case LN_FloatExpressionKind::VectorLength:
     case LN_FloatExpressionKind::ColorComponent:
     case LN_FloatExpressionKind::Select:
     case LN_FloatExpressionKind::FloatCurve:
@@ -2154,6 +2194,9 @@ LN_MainThreadOnlyReason MainThreadOnlyReasonForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SetGlobalProperty:
     case LN_OpCode::SetRandomSeed:
       return LN_MainThreadOnlyReason::GlobalPropertyPersistence;
+    case LN_OpCode::ExplosionImpulse:
+    case LN_OpCode::KeepDistance:
+      return LN_MainThreadOnlyReason::CollisionOrPhysicsQuery;
     case LN_OpCode::SaveVariable:
     case LN_OpCode::SaveVariableDict:
     case LN_OpCode::ClearVariables:
@@ -2226,6 +2269,8 @@ LN_InstructionPayloadKind PayloadKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SetVelocityVector:
       return LN_InstructionPayloadKind::Velocity;
     case LN_OpCode::ApplyImpulse:
+    case LN_OpCode::ExplosionImpulse:
+    case LN_OpCode::KeepDistance:
     case LN_OpCode::ApplyForce:
     case LN_OpCode::ApplyForceToTarget:
     case LN_OpCode::ApplyTorque:
@@ -2488,6 +2533,8 @@ uint32_t CommandResourceAccessForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SetAngularVelocity:
     case LN_OpCode::SetLocalAngularVelocity:
     case LN_OpCode::ApplyImpulse:
+    case LN_OpCode::ExplosionImpulse:
+    case LN_OpCode::KeepDistance:
     case LN_OpCode::ApplyForce:
     case LN_OpCode::ApplyTorque:
     case LN_OpCode::SetCollisionGroup:
@@ -2882,6 +2929,8 @@ LN_ExecOpKind ExecOpKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::ApplyForceToTarget:
     case LN_OpCode::ApplyTorque:
     case LN_OpCode::ApplyImpulse:
+    case LN_OpCode::ExplosionImpulse:
+    case LN_OpCode::KeepDistance:
     case LN_OpCode::Translate:
     case LN_OpCode::MoveToward:
     case LN_OpCode::SlowFollow:
@@ -3087,6 +3136,8 @@ bool OpcodeHasDirectExecOp(const LN_Instruction &instruction)
     case LN_OpCode::ApplyForceToTarget:
     case LN_OpCode::ApplyTorque:
     case LN_OpCode::ApplyImpulse:
+    case LN_OpCode::ExplosionImpulse:
+    case LN_OpCode::KeepDistance:
     case LN_OpCode::Translate:
     case LN_OpCode::MoveToward:
     case LN_OpCode::SlowFollow:
@@ -3331,12 +3382,17 @@ const std::shared_ptr<const LN_GamePropertyLayout> &LN_Program::GetGamePropertyL
     auto layout = std::make_shared<LN_GamePropertyLayout>();
     layout->defaults.reserve(m_gamePropertyRefs.size());
     layout->string_slot.reserve(m_gamePropertyRefs.size());
+    layout->vector_slot.reserve(m_gamePropertyRefs.size());
     for (const LN_GamePropertyRef &property_ref : m_gamePropertyRefs) {
       LN_Value &value = layout->defaults.emplace_back(property_ref.default_value);
       value.type = property_ref.value_type;
       layout->string_slot.push_back(property_ref.value_type == LN_ValueType::String ?
                                         layout->string_slots++ :
                                         LN_INVALID_INDEX);
+      layout->vector_slot.push_back(
+          ELEM(property_ref.value_type, LN_ValueType::Vector, LN_ValueType::Color) ?
+              layout->vector_slots++ :
+              LN_INVALID_INDEX);
     }
     m_gamePropertyLayout = std::move(layout);
   }
@@ -3352,6 +3408,14 @@ const LN_TreeBatchProfile &LN_Program::GetTreeBatchProfile() const
   return *m_treeBatchProfile;
 }
 
+const std::vector<uint8_t> &LN_Program::GetQueryWarmEvents() const
+{
+  if (m_queryWarmEvents == nullptr) {
+    m_queryWarmEvents = std::make_shared<const std::vector<uint8_t>>(LN_QueryWarmEvents(*this));
+  }
+  return *m_queryWarmEvents;
+}
+
 uint32_t LN_Program::AddTimeFlowState()
 {
   m_treeStateLayout.reset();
@@ -3359,6 +3423,7 @@ uint32_t LN_Program::AddTimeFlowState()
   m_treePropertyOtherWriters.clear();
   LN_NoteProgramsChanged();
   m_treeBatchProfile.reset();
+  m_queryWarmEvents.reset();
   return m_timeFlowStateCount++;
 }
 
@@ -3369,6 +3434,7 @@ uint32_t LN_Program::AddFlowControlState()
   m_treePropertyOtherWriters.clear();
   LN_NoteProgramsChanged();
   m_treeBatchProfile.reset();
+  m_queryWarmEvents.reset();
   return m_flowControlStateCount++;
 }
 
@@ -3495,7 +3561,12 @@ void LN_Program::AddRayQueryDetailRequirement(const int32_t cacheKey, const uint
          expression.kind == LN_QueryExpressionKind::RaycastAll ||
          expression.kind == LN_QueryExpressionKind::RaycastFromMesh ||
          expression.kind == LN_QueryExpressionKind::ShapeCast ||
-         expression.kind == LN_QueryExpressionKind::ShapeCastAll))
+         expression.kind == LN_QueryExpressionKind::ShapeCastAll ||
+         expression.kind == LN_QueryExpressionKind::MouseRay ||
+         expression.kind == LN_QueryExpressionKind::CameraRay ||
+         expression.kind == LN_QueryExpressionKind::ProjectileRay ||
+         expression.kind == LN_QueryExpressionKind::LineOfSight ||
+         expression.kind == LN_QueryExpressionKind::SweepObject))
     {
       expression.ray_query_detail_flags |= detailFlags;
     }
@@ -3732,6 +3803,7 @@ uint32_t LN_Program::AddStepGate(const LN_StepGate &gate)
   m_treePropertyOtherWriters.clear();
   LN_NoteProgramsChanged();
   m_treeBatchProfile.reset();
+  m_queryWarmEvents.reset();
   m_stepGates.push_back(gate);
   return uint32_t(m_stepGates.size() - 1);
 }
@@ -3749,9 +3821,21 @@ uint32_t LN_Program::AcquireCollisionEventNode(const void *node_key)
   /* A program grown after a tree took it (tests): what was worked out from the old one goes. */
   m_leanProgram.reset();
   m_treeBatchProfile.reset();
+  m_queryWarmEvents.reset();
   LN_NoteProgramsChanged();
   m_collisionEventNodes.push_back(node_key);
   return uint32_t(m_collisionEventNodes.size() - 1);
+}
+
+uint32_t LN_Program::AcquireKeepDistanceNode(const void *node_key)
+{
+  for (uint32_t index = 0; index < m_keepDistanceNodes.size(); index++) {
+    if (m_keepDistanceNodes[index] == node_key) {
+      return index;
+    }
+  }
+  m_keepDistanceNodes.push_back(node_key);
+  return uint32_t(m_keepDistanceNodes.size() - 1);
 }
 
 uint32_t LN_Program::AddSourceRef(const LN_SourceRef &source_ref)
@@ -4013,6 +4097,7 @@ void LN_Program::RebuildExecBlockIR(const LN_Event event)
   m_treePropertyOtherWriters.clear();
   LN_NoteProgramsChanged();
   m_treeBatchProfile.reset();
+  m_queryWarmEvents.reset();
   LN_ExecBlockProgram &ir = m_execBlockPrograms[size_t(event)];
   const std::vector<LN_InstructionHeader> &headers = GetInstructionHeaders(event);
 
@@ -4200,6 +4285,7 @@ void LN_Program::RebuildRegisterExpressionIR()
   m_treePropertyOtherWriters.clear();
   LN_NoteProgramsChanged();
   m_treeBatchProfile.reset();
+  m_queryWarmEvents.reset();
   LN_RegisterExpressionProgram ir;
   ir.program_version = m_programVersion;
   ir.schema_version = m_schemaVersion;
@@ -4900,6 +4986,10 @@ void LN_Program::RebuildRegisterExpressionIR()
         case LN_VectorExpressionKind::SnapshotGravity:
           op.kind = LN_RegisterExpressionOpKind::VectorSnapshotRead;
           break;
+        case LN_VectorExpressionKind::SnapshotGameProperty:
+          supported = expression.property_ref_index != LN_INVALID_INDEX;
+          op.kind = LN_RegisterExpressionOpKind::VectorSnapshotRead;
+          break;
         case LN_VectorExpressionKind::CursorPosition:
         case LN_VectorExpressionKind::CursorMovement:
         case LN_VectorExpressionKind::WindowResolution:
@@ -5077,6 +5167,10 @@ void LN_Program::RebuildRegisterExpressionIR()
         case LN_ColorExpressionKind::SnapshotObjectColor:
         case LN_ColorExpressionKind::SnapshotLightColor:
           supported = expression.input0 == LN_INVALID_INDEX;
+          op.kind = LN_RegisterExpressionOpKind::ColorSnapshotRead;
+          break;
+        case LN_ColorExpressionKind::SnapshotGameProperty:
+          supported = expression.property_ref_index != LN_INVALID_INDEX;
           op.kind = LN_RegisterExpressionOpKind::ColorSnapshotRead;
           break;
         case LN_ColorExpressionKind::Combine:
@@ -7864,6 +7958,8 @@ void LN_Program::UpdateSchedulerSummaryForFloatExpression(const LN_FloatExpressi
     case LN_FloatExpressionKind::PhysicsQueryDistance:
     case LN_FloatExpressionKind::PhysicsQueryFraction:
     case LN_FloatExpressionKind::PhysicsQueryPenetrationDepth:
+    case LN_FloatExpressionKind::PhysicsQueryFlightTime:
+    case LN_FloatExpressionKind::PhysicsQueryAngle:
     case LN_FloatExpressionKind::QueryDistance:
     case LN_FloatExpressionKind::QuerySquaredDistance:
       MarkSnapshotQueryCacheRead(m_schedulerSummary);
@@ -7979,6 +8075,9 @@ void LN_Program::UpdateSchedulerSummaryForStringExpression(const LN_StringExpres
       m_schedulerSummary.reads_snapshot_only = false;
       MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
       break;
+    case LN_StringExpressionKind::PhysicsQueryMaterial:
+      MarkSnapshotQueryCacheRead(m_schedulerSummary);
+      break;
     default:
       break;
   }
@@ -7988,6 +8087,7 @@ void LN_Program::UpdateSchedulerSummaryForVectorExpression(const LN_VectorExpres
 {
   switch (expression.kind) {
     case LN_VectorExpressionKind::SnapshotGravity:
+    case LN_VectorExpressionKind::SnapshotGameProperty:
     case LN_VectorExpressionKind::WorldToScreen:
     case LN_VectorExpressionKind::ScreenToWorld:
       MarkSnapshotRead(m_schedulerSummary);
@@ -8027,6 +8127,8 @@ void LN_Program::UpdateSchedulerSummaryForVectorExpression(const LN_VectorExpres
     case LN_VectorExpressionKind::PhysicsQueryDirection:
     case LN_VectorExpressionKind::PhysicsQueryEndPoint:
     case LN_VectorExpressionKind::PhysicsQueryUV:
+    case LN_VectorExpressionKind::PhysicsQueryRayOrigin:
+    case LN_VectorExpressionKind::PhysicsQueryImpactVelocity:
     case LN_VectorExpressionKind::UIScrollOffset:
     case LN_VectorExpressionKind::UIScrollNormalized:
     case LN_VectorExpressionKind::QueryVectorAverage:
@@ -8084,6 +8186,10 @@ void LN_Program::UpdateSchedulerSummaryForQueryExpression(const LN_QueryExpressi
       MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_QueryExpressionKind::CameraRay:
+    case LN_QueryExpressionKind::LineOfSight:
+    case LN_QueryExpressionKind::SweepObject:
+    case LN_QueryExpressionKind::KeepDistance:
+    case LN_QueryExpressionKind::PointVelocity:
       MarkQueryCacheRead(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_QueryExpressionKind::UIElementEvent:
@@ -8121,6 +8227,7 @@ void LN_Program::UpdateSchedulerSummaryForColorExpression(const LN_ColorExpressi
   switch (expression.kind) {
     case LN_ColorExpressionKind::SnapshotObjectColor:
     case LN_ColorExpressionKind::SnapshotLightColor:
+    case LN_ColorExpressionKind::SnapshotGameProperty:
       MarkSnapshotRead(m_schedulerSummary);
       break;
     case LN_ColorExpressionKind::RuntimeTreeProperty:
@@ -8215,8 +8322,13 @@ void LN_Program::UpdateSchedulerSummaryForValueExpression(const LN_ValueExpressi
       MarkEventBusRead(m_schedulerSummary);
       break;
     case LN_ValueExpressionKind::PhysicsQueryObject:
+    case LN_ValueExpressionKind::PhysicsQueryPart:
+    case LN_ValueExpressionKind::PhysicsQueryParts:
+    case LN_ValueExpressionKind::PhysicsQueryMaterials:
+    case LN_ValueExpressionKind::PhysicsQueryBlocker:
     case LN_ValueExpressionKind::PhysicsQueryObjects:
     case LN_ValueExpressionKind::PhysicsQueryPoints:
+    case LN_ValueExpressionKind::PhysicsQueryImpactVelocities:
     case LN_ValueExpressionKind::PhysicsQueryNormals:
     case LN_ValueExpressionKind::PhysicsQueryDistances:
     case LN_ValueExpressionKind::PhysicsQueryCastPositions:

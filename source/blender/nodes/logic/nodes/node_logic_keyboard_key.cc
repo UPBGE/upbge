@@ -20,6 +20,10 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  /* Outputs, the Input Type, the Key, then Also When UI Uses It last. */
+  b.use_custom_socket_order();
+  logic::add_input_button_status_outputs(b);
+  b.add_default_layout();
   b.add_input<decl::String>("Key"_ustr)
       .default_value("A")
       .custom_draw([](CustomSocketDrawParams &params) {
@@ -40,13 +44,12 @@ static void node_declare(NodeDeclarationBuilder &b)
         RNA_int_set(&op_ptr, "node_identifier", params.node.identifier);
         RNA_string_set(&op_ptr, "socket_identifier", params.socket.identifier);
       });
-  logic::add_input_button_status_outputs(b);
+  logic::add_use_ui_input_layout(b);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout.prop(ptr, "input_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout.prop(ptr, "use_ui_input", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

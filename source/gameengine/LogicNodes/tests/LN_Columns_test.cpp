@@ -10,6 +10,9 @@
 
 #include "testing/testing.h"
 
+#include <algorithm>
+#include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -21,6 +24,12 @@
 #include <string>
 #include <vector>
 
+#include "EXP_FloatValue.h"
+#include "EXP_IntValue.h"
+#include "EXP_StringValue.h"
+#include "EXP_Vector2Value.h"
+#include "EXP_Vector3Value.h"
+#include "EXP_Vector4Value.h"
 #include "LN_Columns.h"
 #include "LN_LeanProgram.h"
 #include "LN_SemRig.h"
@@ -89,6 +98,8 @@ std::string WorldOf(SemRig &rig)
   world += "printed:" + rig.Printed() + "\n";
   /* Forces and torques (plan C2 P5: the rig has no physics to show them). */
   world += "forces:" + rig.Forces() + "\n";
+  /* Sounds and bone writes (2026-11-14: no audio or armatures to show them). */
+  world += "applied:" + rig.Applied() + "\n";
   /* What Set Visible, Set Object Color and a Teleport change (the reset is taken: both rigs). */
   for (KX_GameObject *object : objects) {
     const MT_Vector4 &color = object->GetObjectColor();
@@ -1352,6 +1363,138 @@ TEST(LN_Columns, VisibilityColorAndTeleportEndAsOnTheLeanVM)
   EXPECT_GT(ExpectColumnsMatch(program, LN_Event::OnFixedUpdate, 600, 6, "state helpers", 3), 0u);
 }
 
+/* Get Game Property's Vector and Color of the owner (2026-11-15) in a crowd: the Vector's axes
+ * are column nodes (FPropAxis: the snapshot's vector cell), split into numbers and written; the
+ * Color paints the object (Set Object Attribute's color, four FPropAxis nodes). Every kind of
+ * property is read (vector, color, 2D vector, numbers, text, none); two more swap every step
+ * through a bridged Set Game Property Vector (changed in place, a number taking the length, a
+ * missing one made). (No refused write: its warning is printed once a process, by the first rig
+ * only.) The wide run ends bit for bit as the column passes. */
+TEST(LN_Columns, TypedVectorAndColorPropertiesEndAsOnTheLeanVM)
+{
+  TreeBuilder b;
+  GenNode &event = b.Add("LogicNativeOnFixedUpdate");
+  GenNode *flow = &event;
+  const char *out = "Out";
+  const auto then = [&](GenNode &node) {
+    b.Link(*flow, out, node, "Flow");
+    flow = &node;
+    out = "Done";
+  };
+  const auto get_vector = [&](const char *name) -> GenNode & {
+    GenNode &read = b.Add("LogicNativeGetGamePropertyVector");
+    b.String(read, "Property", name);
+    return read;
+  };
+  GenNode &pm = get_vector("pm");
+  GenNode &pn = get_vector("pn");
+  for (GenNode *read : {&get_vector("pv"), &pm}) {
+    GenNode &split = b.Add("LogicNativeSeparateXYZ");
+    b.Link(*read, "Value", split, "Vector");
+    for (const char *axis : {"X", "Y", "Z"}) {
+      GenNode &write = b.Add("LogicNativeSetGamePropertyFloat");
+      b.String(write,
+               "Property",
+               (std::string(read == &pm ? "m" : "v") + axis).c_str());
+      b.Link(split, axis, write, "Value");
+      then(write);
+    }
+  }
+  GenNode &pc = b.Add("LogicNativeGetGamePropertyColor");
+  b.String(pc, "Property", "pc");
+  GenNode &paint = b.Add("LogicNativeSetObjectAttribute", 11, 15);
+  b.Link(pc, "Value", paint, "Color");
+  then(paint);
+  GenNode &swap_m = b.Add("LogicNativeSetGamePropertyVector");
+  b.String(swap_m, "Property", "pm");
+  b.Link(pn, "Value", swap_m, "Value");
+  then(swap_m);
+  GenNode &swap_n = b.Add("LogicNativeSetGamePropertyVector");
+  b.String(swap_n, "Property", "pn");
+  b.Link(pm, "Value", swap_n, "Value");
+  then(swap_n);
+  std::string report;
+  const std::shared_ptr<LN_Program> program = b.Compile(&report);
+  ASSERT_NE(program, nullptr) << report;
+  std::string refusal;
+  ASSERT_NE(LN_CompileColumnProgram(*program, LN_Event::OnFixedUpdate, &refusal), nullptr)
+      << refusal << "\n" << LN_DumpProgramText(*program);
+
+  const auto properties = [](SemRig &rig) {
+    const auto own = [](KX_GameObject &object, const char *name, EXP_Value *value) {
+      object.SetProperty(name, value);
+      value->Release();
+    };
+    for (size_t index = 0; index < rig.ObjectCount(); index++) {
+      KX_GameObject &object = rig.Object(index);
+      const float a = float(index % 17) * 0.375f - 2.0f;
+      switch (index % 7) {
+        case 0:
+          own(object, "pv", new EXP_Vector3Value(a, -a * 0.5f, 1.25f));
+          break;
+        case 1:
+          own(object, "pv", new EXP_Vector4Value(a, 0.5f, -a, 0.25f));
+          break;
+        case 2:
+          own(object, "pv", new EXP_Vector2Value(a, 3.0f));
+          break;
+        case 3:
+          own(object, "pv", new EXP_FloatValue(a));
+          break;
+        case 4:
+          own(object, "pv", new EXP_IntValue(int(index % 5) - 2));
+          break;
+        case 5:
+          own(object, "pv", new EXP_StringValue("1.5", ""));
+          break;
+        default:
+          object.RemoveProperty("pv");
+          break;
+      }
+      /* The swapped pair: vectors, a number (it takes the length), none (made). */
+      switch (index % 5) {
+        case 0:
+          own(object, "pm", new EXP_FloatValue(a));
+          own(object, "pn", new EXP_Vector3Value(a, 1.0f, -2.0f));
+          break;
+        case 1:
+          object.RemoveProperty("pm");
+          own(object, "pn", new EXP_Vector3Value(-a, 2.0f, a * a));
+          break;
+        default:
+          own(object, "pm", new EXP_Vector3Value(0.5f, a, -a));
+          own(object, "pn", new EXP_Vector3Value(-a, 2.0f, a * a));
+          break;
+      }
+      switch (index % 4) {
+        case 0:
+          own(object, "pc", new EXP_Vector4Value(0.25f, a, 0.75f, 0.5f));
+          break;
+        case 1:
+          own(object, "pc", new EXP_Vector3Value(a, 0.125f, 1.0f));
+          break;
+        case 2:
+          own(object, "pc", new EXP_FloatValue(a));
+          break;
+        default:
+          object.RemoveProperty("pc");
+          break;
+      }
+    }
+  };
+  for (const int storage : {1, 0, 2}) {
+    SCOPED_TRACE("typed snapshot mode " + std::to_string(storage));
+    LN_Snapshot::SetTypedSnapshotModeForTests(storage);
+    const uint64_t lanes = ExpectColumnsMatch(
+        program, LN_Event::OnFixedUpdate, 300, 8, "typed vector", 0, nullptr, properties);
+    const uint64_t helped = ExpectColumnsMatch(
+        program, LN_Event::OnFixedUpdate, 300, 8, "typed vector helpers", 4, nullptr, properties);
+    EXPECT_GT(lanes, 0u);
+    EXPECT_GT(helped, 0u);
+  }
+  LN_Snapshot::SetTypedSnapshotModeForTests(-1);
+}
+
 /* A Stored Value read behind a Value Switch whose condition changes per NPC: its first read
  * stores the input (Initialize) only where the VM reads it, so NPCs store different values at
  * different steps. */
@@ -1404,6 +1547,84 @@ TEST(LN_Columns, AStoredValueReadBehindAConditionStoresWhereTheVMReadsIt)
  * owner's distance first; route B (every 3 steps, spread out) moves the owner and then reads the
  * distance. On a step where only B runs, its read is the pass's first and the VM applies B's move
  * before it: B's read must not reuse A's. Moving after its read, B lowers and ends as the VM. */
+/* Column soak seeds 53309 / 53375 (2026-11-14): an Apply Movement reads its Local only once its
+ * object resolved (LeanVectorBody). With an object found by a name nobody has, a distance from the
+ * owner read only in that Local is no sure read: a later read after the owner's own move, which
+ * the VM's read applies first, must not be taken as the pass's first one (the run measured from
+ * where the owner was). With the owner as the object, Local is surely read: the program lowers. */
+TEST(LN_Columns, ALocalReadOnlyWhereAMovesFoundObjectIsIsNoSureRead)
+{
+  for (const bool found_target : {true, false}) {
+    SCOPED_TRACE(found_target ? "an object found by name" : "the owner");
+    TreeBuilder b;
+    GenNode &event = b.Add("LogicNativeOnFixedUpdate");
+    GenNode &distance = b.Add("LogicNativeGetDistance", 0, 0);
+    b.ObjectNamed(distance, "Object B", &diff::TargetBlenderObject());
+    GenNode &compare = b.Add("LogicNativeCompare");
+    b.Link(distance, "Distance", compare, "A");
+    b.Float(compare, "B", 2.0f);
+    GenNode &first = b.Add("LogicNativeApplyMovement");
+    b.Vector(first, "Vector", 0.25f, 0.0f, 0.0f);
+    b.Link(compare, "Result", first, "Local");
+    if (found_target) {
+      GenNode &find = b.Add("LogicNativeObjectByName");
+      b.String(find, "Name", "Nobody");
+      b.Link(find, "Object", first, "Object");
+    }
+    else {
+      GenNode &owner = b.Add("LogicNativeGetOwner");
+      b.Link(owner, "Owner Object", first, "Object");
+    }
+    b.Link(event, "Out", first, "Flow");
+    GenNode &move = b.Add("LogicNativeApplyMovement");
+    b.Vector(move, "Vector", 0.75f, -0.5f, 0.0f);
+    b.Link(first, "Done", move, "Flow");
+    GenNode &keep = b.Add("LogicNativeSetGamePropertyFloat");
+    b.String(keep, "Property", "pf0");
+    b.Link(distance, "Distance", keep, "Value");
+    b.Link(move, "Done", keep, "Flow");
+    std::string report;
+    const std::shared_ptr<LN_Program> program = b.Compile(&report);
+    ASSERT_NE(program, nullptr) << report;
+    std::string refusal;
+    const bool lowers = LN_CompileColumnProgram(*program, LN_Event::OnFixedUpdate, &refusal) !=
+                        nullptr;
+    if (found_target) {
+      EXPECT_FALSE(lowers) << LN_DumpProgramText(*program);
+      EXPECT_EQ(refusal, "a distance from the owner first read after a move of it");
+    }
+    else {
+      EXPECT_TRUE(lowers) << refusal << "\n" << LN_DumpProgramText(*program);
+    }
+    /* Either way the worlds end alike (refused: every tree its column pass). */
+    ExpectColumnsMatch(program, LN_Event::OnFixedUpdate, 40, 20, "found target");
+  }
+  {
+    /* A Local keeping state (a Flow Gate's Is Open) on such a move: the VM changes it only
+     * where the object was found, the run would for every NPC. */
+    TreeBuilder b;
+    GenNode &event = b.Add("LogicNativeOnFixedUpdate");
+    GenNode &gate = b.Add("LogicNativeFlowGate");
+    b.Bool(gate, "Start Open", true);
+    b.Link(event, "Out", gate, "Enter");
+    GenNode &first = b.Add("LogicNativeApplyMovement");
+    b.Vector(first, "Vector", 0.25f, 0.0f, 0.0f);
+    b.Link(gate, "Is Open", first, "Local");
+    GenNode &find = b.Add("LogicNativeObjectByName");
+    b.String(find, "Name", "Nobody");
+    b.Link(find, "Object", first, "Object");
+    b.Link(event, "Out", first, "Flow");
+    std::string report;
+    const std::shared_ptr<LN_Program> program = b.Compile(&report);
+    ASSERT_NE(program, nullptr) << report;
+    std::string refusal;
+    EXPECT_EQ(LN_CompileColumnProgram(*program, LN_Event::OnFixedUpdate, &refusal), nullptr);
+    EXPECT_NE(refusal.find("read only where a move's object is found"), std::string::npos)
+        << refusal;
+    ExpectColumnsMatch(program, LN_Event::OnFixedUpdate, 40, 20, "stateful Local");
+  }
+}
+
 TEST(LN_Columns, AGatedDistanceReadAfterAMoveIsNotTakenFromAnotherRoute)
 {
   for (const bool move_first : {true, false}) {
@@ -1862,6 +2083,342 @@ TEST(LN_Columns, TheNodesThatChangeObjectsLowerUnderTheirRules)
         << idname << ": " << refusal << "\n"
         << LN_DumpProgramText(*program);
   }
+}
+
+/* 2026-11-14: a move of Add Object's copy (its Added Object: the result tree property only Add
+ * Object writes in the pass) lowers: placed, given a velocity, pushed (on steps), before or after
+ * the copy is made. Refused: a relative move of it on frames (the VM refuses it for a dynamic
+ * body), next to a distance to an object found while playing. Compared with the lean VM (the rig
+ * makes no copies: the plumbing; a game check moves real copies). */
+TEST(LN_Columns, MovesOfAddObjectsCopyLowerAndEndAsOnTheLeanVM)
+{
+  BridgeOn bridge;
+  enum class Move { Place, Velocity, Push, PlaceFirst, PushOnFrames, NextToAFoundDistance };
+  for (const Move move :
+       {Move::Place, Move::Velocity, Move::Push, Move::PlaceFirst, Move::PushOnFrames,
+        Move::NextToAFoundDistance})
+  {
+    SCOPED_TRACE(int(move));
+    const bool frames = move == Move::PushOnFrames;
+    TreeBuilder b;
+    GenNode &event = b.Add(frames ? "LogicNativeOnUpdate" : "LogicNativeOnFixedUpdate");
+    GenNode &spawn = b.Add("LogicNativeAddObject");
+    b.ObjectNamed(spawn, "Object to Add", &SparkBlenderObject());
+    GenNode *moved = nullptr;
+    if (move == Move::Place || move == Move::PlaceFirst) {
+      moved = &b.Add("LogicNativeSetObjectAttribute", 0, 15);
+      b.Vector(*moved, "Value", 1.0f, 2.0f, 0.5f);
+    }
+    else if (move == Move::Velocity) {
+      moved = &b.Add("LogicNativeSetObjectAttribute", 2, 15);
+      b.Vector(*moved, "Value", 0.0f, 5.0f, 1.0f);
+    }
+    else {
+      moved = &b.Add("LogicNativeApplyMovement");
+      b.Vector(*moved, "Vector", 0.25f, 0.0f, 0.0f);
+    }
+    b.Link(spawn, "Object", *moved, "Object");
+    if (move == Move::PlaceFirst) {
+      /* Placed every step, a copy made only where pb0 holds: elsewhere the move acts on the copy
+       * of an earlier step (the property's start value). */
+      GenNode &ready = b.Add("LogicNativeGetGamePropertyBool");
+      b.String(ready, "Property", "pb0");
+      GenNode &branch = b.Add("LogicNativeBranch");
+      b.Link(ready, "Value", branch, "Condition");
+      b.Link(event, "Out", branch, "Flow");
+      b.Link(branch, "True", spawn, "Flow");
+      b.Link(event, "Out", *moved, "Flow");
+    }
+    else {
+      b.Link(event, "Out", spawn, "Flow");
+      b.Link(spawn, "Out", *moved, "Flow");
+    }
+    if (move == Move::NextToAFoundDistance) {
+      GenNode &name = b.Add("LogicNativeGetGamePropertyString");
+      b.String(name, "Property", "ps0");
+      GenNode &find = b.Add("LogicNativeObjectByName");
+      b.Link(name, "Value", find, "Name");
+      GenNode &distance = b.Add("LogicNativeGetDistance", 0, 0);
+      b.Link(find, "Object", distance, "Object B");
+      GenNode &keep = b.Add("LogicNativeSetGamePropertyFloat");
+      b.String(keep, "Property", "pf1");
+      b.Link(distance, "Distance", keep, "Value");
+      b.Link(*moved, "Done", keep, "Flow");
+    }
+    std::string report;
+    const std::shared_ptr<LN_Program> program = b.Compile(&report);
+    if (frames) {
+      /* Add Object runs on Logic + Physics Steps only: no copy to push on frames (the compiler's
+       * refusal of it stays a safeguard). */
+      EXPECT_EQ(program, nullptr);
+      continue;
+    }
+    ASSERT_NE(program, nullptr) << report;
+    const LN_Event lowered_event = frames ? LN_Event::OnUpdate : LN_Event::OnFixedUpdate;
+    std::string refusal;
+    const bool lowers = LN_CompileColumnProgram(*program, lowered_event, &refusal) != nullptr;
+    if (move == Move::PushOnFrames || move == Move::NextToAFoundDistance) {
+      EXPECT_FALSE(lowers);
+      EXPECT_FALSE(refusal.empty());
+      continue;
+    }
+    ASSERT_TRUE(lowers) << refusal << "\n" << LN_DumpProgramText(*program);
+    EXPECT_GT(ExpectColumnsMatch(program, lowered_event, 40, 6, "copy move"), 0u);
+    EXPECT_GT(ExpectColumnsMatch(program, lowered_event, 40, 6, "copy move (3 helpers)", 3), 0u);
+  }
+}
+
+/* (2026-11-14) An NPC brain's sounds, bone writes, Play Action's outputs and a rest bone read run
+ * on the helpers: each NPC plays a sound where pb0 holds and a 3D sound from itself, turns the
+ * bone its "bone" property names, counts its action's Failed results into pf1 and Started ones
+ * into pf2, and keeps its rest bone's head in pf3. (The rig has no scene to play an action in: the
+ * Play Action waits on a property no NPC has, and each NPC's results are queued as the flush and
+ * PollActionOperations queue them, one a step, a different order per NPC.) Wide runs (0 and 3
+ * helpers) apply what the column passes apply: every sound and bone line in order, the counts and
+ * the world. */
+static std::shared_ptr<LN_Program> MediaBrain(std::string *r_report)
+{
+  static blender::ID sound_id, action_id;
+  SetCString(sound_id.name, "SOStep");
+  SetCString(action_id.name, "ACWalk");
+  TreeBuilder b;
+  GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+  GenNode &loud = b.Add("LogicNativeGetGamePropertyBool");
+  b.String(loud, "Property", "pb0");
+  GenNode &branch = b.Add("LogicNativeBranch");
+  b.Link(loud, "Value", branch, "Condition");
+  b.Link(step, "Out", branch, "Flow");
+  GenNode &volume = b.Add("LogicNativeGetGamePropertyFloat");
+  b.String(volume, "Property", "pf0");
+  GenNode &sound = b.Add("LogicNativePlaySound");
+  sound.node.id = &sound_id;
+  b.Link(branch, "True", sound, "Flow");
+  b.Link(volume, "Value", sound, "Volume");
+  GenNode &sound3d = b.Add("LogicNativePlaySound3D");
+  sound3d.node.id = &sound_id;
+  b.Link(step, "Out", sound3d, "Flow");
+  b.Link(volume, "Value", sound3d, "Pitch");
+  GenNode &bone = b.Add("LogicNativeGetGamePropertyString");
+  b.String(bone, "Property", "bone");
+  GenNode &turn = b.Add("LogicNativeSetBonePoseRotation");
+  b.Link(bone, "Value", turn, "Bone Name");
+  b.Rotation(turn, "Rotation", 0.1f, 0.2f, 0.3f);
+  b.Link(sound3d, "Done", turn, "Flow");
+  GenNode &never = b.Add("LogicNativeGetGamePropertyBool");
+  b.String(never, "Property", "never_played");
+  GenNode &when = b.Add("LogicNativeBranch");
+  b.Link(never, "Value", when, "Condition");
+  b.Link(turn, "Done", when, "Flow");
+  GenNode &play = b.Add("LogicNativePlayAction");
+  play.node.id = &action_id;
+  b.Link(when, "True", play, "Flow");
+  GenNode &failed = b.Add("LogicNativeModifyProperty");
+  b.String(failed, "Property", "pf1");
+  b.Float(failed, "Value", 1.0f);
+  b.Link(play, "Failed", failed, "Flow");
+  GenNode &started = b.Add("LogicNativeModifyProperty");
+  b.String(started, "Property", "pf2");
+  b.Float(started, "Value", 1.0f);
+  b.Link(play, "Started", started, "Flow");
+  GenNode &rest = b.Add("LogicNativeGetBoneHeadWorld");
+  b.Link(bone, "Value", rest, "Bone Name");
+  GenNode &split = b.Add("LogicNativeSeparateXYZ");
+  b.Link(rest, "Position", split, "Vector");
+  GenNode &keep = b.Add("LogicNativeSetGamePropertyFloat");
+  b.String(keep, "Property", "pf3");
+  b.Link(split, "X", keep, "Value");
+  b.Link(step, "Out", keep, "Flow");
+  return b.Compile(r_report);
+}
+
+/** MediaBrain's setup: each NPC's bone name (one in five none) and `results` queued action
+ * results per NPC (a different order each). */
+static void MediaSetup(SemRig &rig, const LN_Program &program, const size_t results)
+{
+  uint32_t lifecycle = LN_INVALID_INDEX;
+  for (uint32_t index = 0; index < program.GetBoolExpressions().size(); index++) {
+    if (program.GetBoolExpressions()[index].kind == LN_BoolExpressionKind::ActionLifecycleEvent) {
+      lifecycle = index;
+    }
+  }
+  ASSERT_NE(lifecycle, LN_INVALID_INDEX);
+  const LN_ActionResult kinds[] = {LN_ActionResult::Started,
+                                   LN_ActionResult::Failed,
+                                   LN_ActionResult::Completed,
+                                   LN_ActionResult::Interrupted};
+  const char *const bones[] = {"Spine", "Head", "Arm.L"};
+  for (size_t index = 0; index < rig.TreeCount(); index++) {
+    for (size_t result = 0; result < results; result++) {
+      rig.Tree(index).CompleteActionOperation(lifecycle, kinds[(index + result * 3) % 4]);
+    }
+    /* (One NPC in five names no bone: it records no bone write.) */
+    if (index % 5 != 4) {
+      rig.SetString(rig.Object(index), "bone", bones[index % 3]);
+    }
+  }
+}
+
+TEST(LN_Columns, SoundsBonesAndActionsOfACrowdRunOnTheHelpers)
+{
+  BridgeOn bridge;
+  std::string report;
+  const std::shared_ptr<LN_Program> program = MediaBrain(&report);
+  ASSERT_NE(program, nullptr) << report;
+  std::string refusal;
+  const std::shared_ptr<const LN_ColumnProgram> columns = LN_CompileColumnProgram(
+      *program, LN_Event::OnFixedUpdate, &refusal);
+  ASSERT_NE(columns, nullptr) << refusal << "\n" << LN_DumpProgramText(*program);
+  const std::string described = LN_DescribeColumnProgram(*columns);
+  EXPECT_NE(described.find("main_thread=0"), std::string::npos) << described;
+  const auto results = [&program](SemRig &rig) { MediaSetup(rig, *program, 6); };
+  EXPECT_GT(ExpectColumnsMatch(
+                program, LN_Event::OnFixedUpdate, 60, 6, "npc media", 0, nullptr, results),
+            0u);
+  EXPECT_GT(ExpectColumnsMatch(program,
+                               LN_Event::OnFixedUpdate,
+                               300,
+                               6,
+                               "npc media (3 helpers)",
+                               3,
+                               nullptr,
+                               results),
+            0u);
+  /* The comparison saw them: sounds, bone writes and the action's outputs. */
+  SemRig rig(program, kMemoOn, 20);
+  Spread(rig, 20);
+  results(rig);
+  rig.SetColumns(true, 3, 1);
+  for (int tick = 0; tick < 4; tick++) {
+    rig.Step();
+  }
+  EXPECT_NE(rig.Applied().find("sound "), std::string::npos) << rig.Applied();
+  EXPECT_NE(rig.Applied().find("bone "), std::string::npos) << rig.Applied();
+  double counted = 0.0;
+  for (uint32_t index = 0; index < 20; index++) {
+    for (const char *name : {"pf1", "pf2"}) {
+      if (EXP_Value *value = rig.Object(index).GetProperty(name)) {
+        counted += value->GetNumber();
+      }
+    }
+  }
+  EXPECT_NE(counted, 0.0) << "Play Action's outputs ran";
+}
+
+/* Add Object's stored copy is the value its tree property kept when the pass makes none: when that
+ * is another lane's object (or a lane's parent, or an object the program measures), the run gives
+ * its lanes back at its start, as a lane reading its own distance must see the move an earlier
+ * tree made of it (the column pass applies it first). Here each NPC's stored copy is the next
+ * NPC; the rig makes no copies, so a spawn stores none. */
+TEST(LN_Columns, AMoveOfAStoredCopyThatIsALaneGivesTheRunBack)
+{
+  BridgeOn bridge;
+  TreeBuilder b;
+  GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+  GenNode &spawn = b.Add("LogicNativeAddObject");
+  b.ObjectNamed(spawn, "Object to Add", &SparkBlenderObject());
+  GenNode &ready = b.Add("LogicNativeGetGamePropertyBool");
+  b.String(ready, "Property", "pb0");
+  GenNode &branch = b.Add("LogicNativeBranch");
+  b.Link(ready, "Value", branch, "Condition");
+  b.Link(step, "Out", branch, "Flow");
+  b.Link(branch, "True", spawn, "Flow");
+  GenNode &place = b.Add("LogicNativeSetObjectAttribute", 0, 15);
+  b.Vector(place, "Value", 1.0f, 2.0f, 0.5f);
+  b.Link(spawn, "Object", place, "Object");
+  b.Link(step, "Out", place, "Flow");
+  GenNode &distance = b.Add("LogicNativeGetDistance", 0, 0);
+  b.ObjectNamed(distance, "Object B", &diff::TargetBlenderObject());
+  GenNode &keep = b.Add("LogicNativeSetGamePropertyFloat");
+  b.String(keep, "Property", "pf1");
+  b.Link(distance, "Distance", keep, "Value");
+  b.Link(place, "Done", keep, "Flow");
+  std::string report;
+  const std::shared_ptr<LN_Program> program = b.Compile(&report);
+  ASSERT_NE(program, nullptr) << report;
+  std::string refusal;
+  ASSERT_NE(LN_CompileColumnProgram(*program, LN_Event::OnFixedUpdate, &refusal), nullptr)
+      << refusal << "\n"
+      << LN_DumpProgramText(*program);
+  uint32_t copy_ref = LN_INVALID_INDEX;
+  for (const LN_InstructionHeader &header :
+       program->GetInstructionHeaders(LN_Event::OnFixedUpdate)) {
+    const LN_Instruction &instruction = program->GetInstructionPayload(LN_Event::OnFixedUpdate,
+                                                                       header);
+    if (instruction.opcode == LN_OpCode::AddObject) {
+      copy_ref = instruction.property_ref_index;
+    }
+  }
+  ASSERT_NE(copy_ref, LN_INVALID_INDEX);
+  const auto next_npc_stored = [copy_ref](SemRig &rig) {
+    for (size_t index = 0; index < rig.TreeCount(); index++) {
+      LN_RuntimeTree &tree = rig.Tree(index);
+      KX_GameObject &stored = rig.Object((index + 1) % rig.TreeCount());
+      LN_Value value;
+      value.type = LN_ValueType::ObjectRef;
+      value.exists = true;
+      value.reference_name = stored.GetName();
+      value.runtime_ref = tree.MakeObjectRef(&stored, stored.GetName());
+      ASSERT_TRUE(tree.SetTreePropertyValue(copy_ref, value));
+    }
+  };
+  const uint64_t given_back = LN_ColumnRuntimeFallbackCount();
+  ExpectColumnsMatch(program, LN_Event::OnFixedUpdate, 40, 6, "stored lane", 0, nullptr,
+                     next_npc_stored);
+  ExpectColumnsMatch(program, LN_Event::OnFixedUpdate, 40, 6, "stored lane (3 helpers)", 3,
+                     nullptr, next_npc_stored);
+  if (!DirectForced()) {
+    EXPECT_GT(LN_ColumnRuntimeFallbackCount(), given_back) << "the runs gave their lanes back";
+  }
+
+  /* Anything else writing that property in the pass (a Set Tree Property given its name): the
+   * start value says nothing of the move's object, so the move is refused. */
+  GenNode &overwrite = b.Add("LogicNativeSetTreeProperty");
+  const std::string copy_property = "__native_add_object_result_" +
+                                    std::to_string(spawn.node.identifier);
+  b.String(overwrite, "Property", copy_property.c_str());
+  GenNode &me = b.Add("LogicNativeGetOwner");
+  b.Link(me, "Owner Object", overwrite, "Value");
+  b.Link(step, "Out", overwrite, "Flow");
+  const std::shared_ptr<LN_Program> overwritten = b.Compile(&report);
+  ASSERT_NE(overwritten, nullptr) << report;
+  EXPECT_EQ(LN_CompileColumnProgram(*overwritten, LN_Event::OnFixedUpdate, &refusal), nullptr)
+      << LN_DumpProgramText(*overwritten);
+}
+
+/* Trees sharing a sort key (none do in a game since 2026-11-14: LN_Manager::ObjectOrderKeyFor)
+ * apply in tree order in a wide run, as the flush of their column passes applies them (record
+ * order): the lanes are sorted by key when the keys are out of order, and an unstable sort put
+ * one tree of a pair before the other (bullet copies printed in another order in a game). */
+TEST(LN_Columns, LanesSharingASortKeyApplyInTreeOrder)
+{
+  BridgeOn bridge;
+  TreeBuilder b;
+  GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+  GenNode &owner = b.Add("LogicNativeGetOwner");
+  GenNode &say = b.Add("LogicNativePrint");
+  b.Link(step, "Out", say, "Flow");
+  b.Link(owner, "Owner Object", say, "Message");
+  std::string report;
+  const std::shared_ptr<LN_Program> program = b.Compile(&report);
+  ASSERT_NE(program, nullptr) << report;
+  /* Pairs of trees share a key, the pairs in falling key order (the lanes need sorting). */
+  const auto paired_keys = [](SemRig &rig) {
+    for (size_t index = 0; index < rig.TreeCount(); index++) {
+      rig.Tree(index).SetSceneObjectIndex(uint32_t(100000 - index / 2));
+    }
+  };
+  EXPECT_GT(ExpectColumnsMatch(
+                program, LN_Event::OnFixedUpdate, 300, 3, "shared keys", 0, nullptr, paired_keys),
+            0u);
+  EXPECT_GT(ExpectColumnsMatch(program,
+                               LN_Event::OnFixedUpdate,
+                               300,
+                               3,
+                               "shared keys (3 helpers)",
+                               3,
+                               nullptr,
+                               paired_keys),
+            0u);
 }
 
 /* Copy Property in columns copies, at the flush, what the VM's copy would copy: the Target's pf2 into
@@ -3003,6 +3560,13 @@ TEST(LN_Columns, DISABLED_ColumnCoverageScan)
         if (native_columns == nullptr) {
           const std::string text = LN_DescribeColumnProgram(*bridged_columns);
           r_detail = text.find("main_thread=1") != std::string::npos ? "main thread" : "helpers";
+          /* (Why, after the counts: "main thread: ...".) */
+          const size_t why = text.find("\nmain thread: ");
+          if (why != std::string::npos) {
+            const size_t end = text.find('\n', why + 1);
+            r_detail += ": " + text.substr(why + 14, end == std::string::npos ? std::string::npos :
+                                                                              end - why - 14);
+          }
           return "bridged";
         }
       }
@@ -3497,7 +4061,9 @@ blender::Object &TurretBlenderObject()
   return object;
 }
 
-enum class TurretFind { ChildByName, ChildIndex, ByName };
+/* (2026-11-14: ChildPropertyIndex, its index the NPC's game property; ChildOfChild, the turret's
+ * own child, its Barrel.) */
+enum class TurretFind { ChildByName, ChildIndex, ByName, ChildPropertyIndex, ChildOfChild };
 enum class TurretOrder { TurretFirst, OwnerFirst, PlacedPair, MeasuredToo, NamedMeasured };
 
 /* On Logic + Physics Step: the owner's distance to the Target kept in pf1, then its turret (its
@@ -3535,6 +4101,25 @@ std::shared_ptr<LN_Program> TurretTree(const TurretFind find,
       turret = &b.Add("LogicNativeObjectByName");
       b.String(*turret, "Name", "Turret");
       break;
+    case TurretFind::ChildPropertyIndex: {
+      turret = &b.Add("LogicNativeGetChild");
+      b.Link(owner, "Owner Object", *turret, "Parent Object");
+      GenNode &slot = b.Add("LogicNativeGetGamePropertyInt");
+      b.String(slot, "Property", "turret_slot");
+      b.Link(slot, "Value", *turret, "Index");
+      out = "Child Object";
+      break;
+    }
+    case TurretFind::ChildOfChild: {
+      GenNode &first = b.Add("LogicNativeGetChild");
+      b.Link(owner, "Owner Object", first, "Parent Object");
+      b.Int(first, "Index", 0);
+      turret = &b.Add("LogicNativeGetChild");
+      b.Link(first, "Child Object", *turret, "Parent Object");
+      b.Int(*turret, "Index", 0);
+      out = "Child Object";
+      break;
+    }
   }
   GenNode &distance = b.Add("LogicNativeGetDistance", 0, 0);
   b.ObjectNamed(distance,
@@ -3627,9 +4212,15 @@ void AddTurrets(SemRig &rig,
     }
     rig.AddObject(only_first_named && index > 0 ? "Turret" + std::to_string(index) : "Turret",
                   MT_Vector3(0.5f, 0.0f, 1.0f));
+    const size_t turret = rig.ObjectCount() - 1;
     if (index > 0 || !first_on_its_own) {
-      rig.Parent(rig.ObjectCount() - 1, index);
+      rig.Parent(turret, index);
     }
+    /* (2026-11-14) Its own child, a Barrel (TurretFind::ChildOfChild), and the slot an NPC finds
+     * its turret at (ChildPropertyIndex: 1 finds nothing). */
+    rig.AddObject("Barrel", MT_Vector3(0.5f, 0.5f, 1.0f));
+    rig.Parent(rig.ObjectCount() - 1, turret);
+    rig.SetInt(rig.Object(index), "turret_slot", index % 3 == 2 ? 1 : 0);
   }
   struct Placement {
     std::shared_ptr<LN_Program> program;
@@ -3668,8 +4259,11 @@ TEST(LN_Columns, MovesOfObjectsFoundWhilePlayingEndAsOnTheLeanVM)
   constexpr uint32_t kOwners = 40;
   for (const bool bridged : {false, true}) {
     BridgeOn bridge;
-    for (const TurretFind find :
-         {TurretFind::ChildByName, TurretFind::ChildIndex, TurretFind::ByName})
+    for (const TurretFind find : {TurretFind::ChildByName,
+                                  TurretFind::ChildIndex,
+                                  TurretFind::ByName,
+                                  TurretFind::ChildPropertyIndex,
+                                  TurretFind::ChildOfChild})
     {
       for (const TurretOrder order :
            {TurretOrder::TurretFirst, TurretOrder::OwnerFirst, TurretOrder::PlacedPair})
@@ -3717,6 +4311,33 @@ TEST(LN_Columns, MovesOfObjectsFoundWhilePlayingEndAsOnTheLeanVM)
   EXPECT_EQ(LN_CompileColumnProgram(*measured, LN_Event::OnFixedUpdate, &refusal), nullptr);
   EXPECT_NE(refusal.find("a distance to an object the program moves"), std::string::npos)
       << refusal;
+  /* A child at an index the pass writes (a tree property set in it) is not the same all the pass:
+   * not found at the run's start, so its move is refused (only a constant or the snapshot's game
+   * property is taken). */
+  {
+    TreeBuilder c;
+    GenNode &tick = c.Add("LogicNativeOnFixedUpdate");
+    GenNode &slot = c.Add("LogicNativeGetGamePropertyInt");
+    c.String(slot, "Property", "turret_slot");
+    GenNode &write = c.Add("LogicNativeSetTreeProperty");
+    c.String(write, "Property", "slot");
+    c.Link(slot, "Value", write, "Value");
+    c.Link(tick, "Out", write, "Flow");
+    GenNode &read = c.Add("LogicNativeGetTreeProperty");
+    c.String(read, "Property", "slot");
+    GenNode &me = c.Add("LogicNativeGetOwner");
+    GenNode &child = c.Add("LogicNativeGetChild");
+    c.Link(me, "Owner Object", child, "Parent Object");
+    c.Link(read, "Value", child, "Index");
+    GenNode &aim = c.Add("LogicNativeApplyRotation");
+    c.Link(child, "Child Object", aim, "Object");
+    c.Rotation(aim, "Rotation", 0.0f, 0.0f, 0.07f);
+    c.Link(tick, "Out", aim, "Flow"); /* (Set Tree Property has no Done) */
+    const std::shared_ptr<LN_Program> written = c.Compile(&report);
+    ASSERT_NE(written, nullptr) << report;
+    EXPECT_EQ(LN_CompileColumnProgram(*written, LN_Event::OnFixedUpdate, &refusal), nullptr)
+        << LN_DumpProgramText(*written);
+  }
   /* Every NPC moves the object named Turret and measures it by its name: back to the VM (an NPC's
    * read applies the earlier NPCs' moves of it there). The bridge off: the turret's live pose read
    * native, so the run's own rule decides (with the bridge, the pushed Turret's pending moves give
@@ -8143,5 +8764,185 @@ TEST(LN_Columns, SetObjectAttributeStopsTheVelocityRightAfterItsMove)
     const size_t stop = recorded.find("type=SetLinearVelocity");
     ASSERT_NE(move, std::string::npos) << recorded;
     EXPECT_LT(move, stop) << recorded;
+  }
+}
+
+/* A tool, not a check (--gtest_also_run_disabled_tests): the cost of a step of
+ * UPBGE_LN_BENCH_OWNERS (1,000) NPCs running one brain of the 2026-11-14 evening work, tree by tree
+ * and in wide runs (1 and 8 threads); the median of UPBGE_LN_BENCH_ROUNDS (5) rounds of
+ * UPBGE_LN_BENCH_STEPS (50) steps (record and flush):
+ *   - a spawner (build_spawn.py's SpawnBrain): Add Object where its "fire" holds (every other step),
+ *     the copy launched, the last copy pushed every step, "fire" toggled (the rig makes no copies:
+ *     the logic's cost alone); before 2026-11-14 tree by tree;
+ *   - a turret brain (TurretTree: the distance to the Target, the turret turned, placed and read
+ *     back) finding its turret as the child at its "turret_slot", or the turret's own child (the
+ *     barrel); before tree by tree;
+ *   - MediaBrain (sounds, a bone write, Play Action's outputs, a rest bone read): before, wide with
+ *     those nodes on the main thread (run this on a build with the old allow lists for that row).
+ * UPBGE_LN_BENCH_ONLY=spawner|turret|barrel|media runs one. */
+TEST(LN_Columns, DISABLED_SpawnersTurretsAndMediaCost)
+{
+  BridgeOn bridge;
+  const char *owners_text = std::getenv("UPBGE_LN_BENCH_OWNERS");
+  const uint32_t owners = owners_text ? uint32_t(std::max(1, std::atoi(owners_text))) : 1000;
+  const char *steps_text = std::getenv("UPBGE_LN_BENCH_STEPS");
+  const int steps = steps_text ? std::max(1, std::atoi(steps_text)) : 50;
+  const char *rounds_text = std::getenv("UPBGE_LN_BENCH_ROUNDS");
+  const int rounds = rounds_text ? std::max(1, std::atoi(rounds_text)) : 5;
+  const char *only = std::getenv("UPBGE_LN_BENCH_ONLY");
+  const auto spawner = []() {
+    TreeBuilder b;
+    GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+    GenNode &fire = b.Add("LogicNativeGetGamePropertyBool");
+    b.String(fire, "Property", "fire");
+    GenNode &branch = b.Add("LogicNativeBranch");
+    b.Link(fire, "Value", branch, "Condition");
+    b.Link(step, "Out", branch, "Flow");
+    GenNode &add = b.Add("LogicNativeAddObject");
+    b.ObjectNamed(add, "Object to Add", &SparkBlenderObject());
+    b.Float(add, "Life", 0.6f);
+    b.Link(branch, "True", add, "Flow");
+    GenNode &launch = b.Add("LogicNativeSetObjectAttribute", 2, 15);
+    b.Vector(launch, "Value", 0.0f, 6.0f, 2.0f);
+    b.Link(add, "Object", launch, "Object");
+    b.Link(add, "Out", launch, "Flow");
+    GenNode &push = b.Add("LogicNativeApplyMovement");
+    b.Vector(push, "Vector", 0.1f, 0.0f, 0.05f);
+    b.Link(add, "Object", push, "Object");
+    b.Link(step, "Out", push, "Flow");
+    GenNode &toggle = b.Add("LogicNativeToggleProperty");
+    b.String(toggle, "Property", "fire");
+    b.Link(push, "Done", toggle, "Flow");
+    std::string report;
+    std::shared_ptr<LN_Program> program = b.Compile(&report);
+    EXPECT_NE(program, nullptr) << report;
+    return program;
+  };
+  struct Case {
+    const char *name;
+    const char *label;
+    std::function<std::shared_ptr<LN_Program>()> build;
+  };
+  const Case cases[] = {
+      {"spawner", "Spawner (Add Object, copy moved)", spawner},
+      {"turret",
+       "Turret (child at a property index)",
+       []() {
+         std::string report;
+         return TurretTree(TurretFind::ChildPropertyIndex, TurretOrder::TurretFirst, false, &report);
+       }},
+      {"barrel",
+       "Turret (the turret's own child)",
+       []() {
+         std::string report;
+         return TurretTree(TurretFind::ChildOfChild, TurretOrder::TurretFirst, false, &report);
+       }},
+      {"media",
+       "Sounds, bone write, action outputs",
+       []() {
+         std::string report;
+         return MediaBrain(&report);
+       }},
+  };
+  for (const Case &bench : cases) {
+    if (only != nullptr && std::strcmp(only, bench.name) != 0) {
+      continue;
+    }
+    double tree_by_tree = 0.0;
+    for (const int columns : {0, 1, 8}) {
+      std::vector<double> times;
+      /* Per round: the step, then its capture (planning included), record and flush. */
+      std::vector<std::array<double, 4>> splits;
+      std::string main_thread;
+      for (int round = 0; round < rounds; round++) {
+        const std::shared_ptr<LN_Program> program = bench.build();
+        ASSERT_NE(program, nullptr);
+        if (round == 0 && columns != 0) {
+          std::string refusal;
+          const std::shared_ptr<const LN_ColumnProgram> lowered = LN_CompileColumnProgram(
+              *program, LN_Event::OnFixedUpdate, &refusal);
+          ASSERT_NE(lowered, nullptr) << bench.label << ": " << refusal;
+          const std::string text = LN_DescribeColumnProgram(*lowered);
+          const size_t why = text.find("\nmain thread: ");
+          main_thread = why == std::string::npos ? "helpers" :
+                                                   "main thread: " + text.substr(why + 14, 60);
+          while (!main_thread.empty() && main_thread.back() == '\n') {
+            main_thread.pop_back();
+          }
+        }
+        SemRig rig(program, kProduction, owners);
+        rig.SetDump(false);
+        rig.SetObserveForces(false);
+        rig.SetCapturePrints(false);
+        if (columns != 0) {
+          rig.SetColumns(true, uint32_t(columns - 1));
+        }
+        Spread(rig, owners);
+        rig.AddObject("Target", MT_Vector3(3.0f, 1.0f, 0.5f));
+        for (uint32_t index = 0; index < owners; index++) {
+          KX_GameObject &owner = rig.Object(index);
+          rig.SetBool(owner, "fire", index % 2 == 0);
+          rig.SetInt(owner, "turret_slot", index % 3 == 2 ? 1 : 0);
+        }
+        if (std::strcmp(bench.name, "turret") == 0 || std::strcmp(bench.name, "barrel") == 0) {
+          for (uint32_t index = 0; index < owners; index++) {
+            rig.AddObject("Turret", MT_Vector3(0.5f, 0.0f, 1.0f));
+            const size_t turret = rig.ObjectCount() - 1;
+            rig.Parent(turret, index);
+            rig.AddObject("Barrel", MT_Vector3(0.5f, 0.5f, 1.0f));
+            rig.Parent(rig.ObjectCount() - 1, turret);
+          }
+        }
+        if (std::strcmp(bench.name, "media") == 0) {
+          MediaSetup(rig, *program, 64);
+        }
+        if (std::strcmp(bench.name, "spawner") == 0) {
+          /* The template in the inactive list, where a game keeps it (Add Object looks there
+           * first; missing, every Add Object scanned every object's name). The rig has no scene
+           * to copy it into: Add Object stops there and its copy is None. */
+          rig.AddObject("Spark", MT_Vector3(0.0f, 0.0f, -10.0f));
+          rig.Access().inactive.push_back(&rig.Object(rig.ObjectCount() - 1));
+        }
+        for (int warm = 0; warm < 5; warm++) {
+          rig.Step();
+        }
+        rig.ResetTimes();
+        const auto start = std::chrono::steady_clock::now();
+        for (int step = 0; step < steps; step++) {
+          rig.Step();
+        }
+        const SemRig::PhaseTimes &phases = rig.Times();
+        times.push_back(
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start)
+                .count() /
+            steps);
+        splits.push_back({times.back(),
+                          phases.capture_ms / steps,
+                          phases.record_ms / steps,
+                          phases.flush_ms / steps});
+      }
+      std::sort(times.begin(), times.end());
+      std::sort(splits.begin(), splits.end());
+      const double ms = times[times.size() / 2];
+      const std::array<double, 4> &split = splits[splits.size() / 2];
+      if (columns == 0) {
+        tree_by_tree = ms;
+      }
+      std::printf(
+          "%-36s %u NPCs, %-17s %7.3f ms a step (%.2f x tree by tree; capture %.3f, record "
+          "%.3f, flush %.3f)%s%s\n",
+          bench.label,
+          owners,
+          columns == 0 ? "tree by tree:" :
+          columns == 1 ? "wide, 1 thread:" :
+                         "wide, 8 threads:",
+          ms,
+          tree_by_tree / std::max(ms, 1.0e-9),
+          split[1],
+          split[2],
+          split[3],
+          columns != 0 ? "  bridged nodes on the " : "",
+          columns != 0 ? main_thread.c_str() : "");
+    }
   }
 }

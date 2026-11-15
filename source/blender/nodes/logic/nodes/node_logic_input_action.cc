@@ -18,6 +18,14 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  /* Outputs, the Input Type, the Action and User, then Also When UI Uses It last. */
+  b.use_custom_socket_order();
+  logic::add_input_button_status_outputs(b);
+  b.add_output<decl::Float>("Value"_ustr)
+      .description("How far the action is pressed, from 0 to 1 (a vector action: its length)");
+  b.add_output<decl::Vector>("Vector"_ustr)
+      .description("A vector action's direction: X right, Y up, at most 1 long");
+  b.add_default_layout();
   b.add_input<decl::String>("Action"_ustr)
       .default_value("")
       .description("An action of the start scene's Game Input Map (Scene > Game Input Map)")
@@ -27,17 +35,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0)
       .description("Player: 0 has the keyboard and mouse. Gamepads: Scene > Game Input Map (by "
                    "default player N has gamepad N)");
-  logic::add_input_button_status_outputs(b);
-  b.add_output<decl::Float>("Value"_ustr)
-      .description("How far the action is pressed, from 0 to 1 (a vector action: its length)");
-  b.add_output<decl::Vector>("Vector"_ustr)
-      .description("A vector action's direction: X right, Y up, at most 1 long");
+  logic::add_use_ui_input_layout(b);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout.prop(ptr, "input_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout.prop(ptr, "use_ui_input", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

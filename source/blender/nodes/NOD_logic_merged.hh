@@ -50,6 +50,9 @@ struct MergedNodeOption {
   const char *description;
   /** The older node this option is. */
   const char *idname;
+  /** Shown after the other options in the dropdown (Get / Set Game Property's Any, 2026-11-15:
+   * options added after it keep the stored numbers of saved nodes, `bNode::custom4` = index). */
+  bool listed_last = false;
 };
 
 struct MergedNode {
@@ -72,28 +75,39 @@ constexpr Span<MergedNodeOption> options(const MergedNodeOption (&items)[Size])
 }
 
 inline constexpr MergedNodeOption get_property_options[] = {
-    {"FLOAT", "Float", "A number (formerly Get Game Property Float)", "LogicNativeGetGamePropertyFloat"},
+    {"FLOAT", "Float", "A number, also a Timer's seconds (formerly Get Game Property Float)", "LogicNativeGetGamePropertyFloat"},
     {"INT", "Integer", "A whole number (formerly Get Game Property Int)", "LogicNativeGetGamePropertyInt"},
     {"BOOLEAN", "Boolean", "True or false (formerly Get Game Property Bool)", "LogicNativeGetGamePropertyBool"},
-    {"STRING", "String", "Text (formerly Get Game Property String)", "LogicNativeGetGamePropertyString"},
+    {"STRING", "String", "Text, also a Choice property's selected option (formerly Get Game Property String)", "LogicNativeGetGamePropertyString"},
     {"ANY",
      "Any",
-     "Any value: lists, tables, objects, vectors; the name may be linked (formerly Get Object "
-     "Property)",
-     "LogicNativeGetGameProperty"},
+     "Any value as it is; the name may be linked (formerly Get Object Property)",
+     "LogicNativeGetGameProperty",
+     true},
+    /* (2026-11-15: after Any, which keeps its number; the dropdown lists Any last.) */
+    {"VECTOR", "Vector", "Three numbers (X, Y, Z)", "LogicNativeGetGamePropertyVector"},
+    {"COLOR", "Color", "A color (red, green, blue, alpha)", "LogicNativeGetGamePropertyColor"},
+    {"OBJECT", "Object", "An object", "LogicNativeGetGamePropertyObject"},
+    {"LIST", "List", "A List, or a Table (a list of rows)", "LogicNativeGetGamePropertyList"},
 };
 inline constexpr PinMetadata get_property_extra_outputs[] = {
     {"Exists", "Exists", PinType::Condition, "false", false},
 };
 inline constexpr MergedNodeOption set_property_options[] = {
-    {"FLOAT", "Float", "Write a number (formerly Set Game Property Float)", "LogicNativeSetGamePropertyFloat"},
+    {"FLOAT", "Float", "Write a number, also a Timer's seconds: it counts on from there (formerly Set Game Property Float)", "LogicNativeSetGamePropertyFloat"},
     {"INT", "Integer", "Write a whole number (formerly Set Game Property Int)", "LogicNativeSetGamePropertyInt"},
     {"BOOLEAN", "Boolean", "Write true or false (formerly Set Game Property Bool)", "LogicNativeSetGamePropertyBool"},
-    {"STRING", "String", "Write text (formerly Set Game Property String)", "LogicNativeSetGamePropertyString"},
+    {"STRING", "String", "Write text, also a Choice property's option (formerly Set Game Property String)", "LogicNativeSetGamePropertyString"},
     {"ANY",
      "Any",
-     "Write any value: lists, tables, objects, vectors (formerly Set Object Property)",
-     "LogicNativeSetGameProperty"},
+     "Write any value as it is (formerly Set Object Property)",
+     "LogicNativeSetGameProperty",
+     true},
+    /* (2026-11-15: after Any, which keeps its number; the dropdown lists Any last.) */
+    {"VECTOR", "Vector", "Write three numbers (X, Y, Z)", "LogicNativeSetGamePropertyVector"},
+    {"COLOR", "Color", "Write a color (red, green, blue, alpha)", "LogicNativeSetGamePropertyColor"},
+    {"OBJECT", "Object", "Write an object (empty: no object)", "LogicNativeSetGamePropertyObject"},
+    {"LIST", "List", "Write a List, or a Table (a list of rows)", "LogicNativeSetGamePropertyList"},
 };
 inline constexpr MergedNodeOption modify_property_options[] = {
     {"MODIFY", "Modify", "Change a number by Value (formerly Modify Property)", "LogicNativeModifyProperty"},

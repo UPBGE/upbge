@@ -2676,6 +2676,11 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
     {
       physics_query_details |= PHY_RAY_QUERY_DETAIL_UV;
     }
+    if ((prepared_logic_node_bindings->ray_query_detail_requirements &
+         LN_RAY_QUERY_DETAIL_MATERIAL) != 0)
+    {
+      physics_query_details |= PHY_RAY_QUERY_DETAIL_MATERIAL;
+    }
     kxscene->GetPhysicsEnvironment()->AddRayQueryDetailRequirements(physics_query_details);
   }
 #endif

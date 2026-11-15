@@ -50,7 +50,10 @@ static void layout_bone_attribute(ui::Layout &layout, bContext * /*C*/, PointerR
 {
   layout.prop(ptr, "attribute", UI_ITEM_NONE, "", ICON_NONE);
   const int attribute = RNA_enum_get(ptr, "attribute");
-  if (attribute >= 4 && attribute <= 12) {
+  if (attribute == 1) {
+    layout.prop(ptr, "location_space", UI_ITEM_NONE, "", ICON_NONE);
+  }
+  else if (attribute >= 4 && attribute <= 12) {
     layout.prop(ptr, "world_space", UI_ITEM_NONE, "Use World Space", ICON_NONE);
   }
 }
@@ -260,7 +263,15 @@ static void set_socket_set_unlinked_material_input_value(bNode &node, Material *
   {
     return;
   }
-  static_cast<bNodeSocketValueMaterial *>(material_socket->default_value)->value = material;
+  Material *&value = static_cast<bNodeSocketValueMaterial *>(material_socket->default_value)->value;
+  if (value == material) {
+    return;
+  }
+  /* The socket holds a user of its Material (node.cc's socket_id_user_*): deleting the node takes
+   * one, so a write that adds none broke the Material's user count (2026-11-12). */
+  id_us_min(id_cast<ID *>(value));
+  value = material;
+  id_us_plus(id_cast<ID *>(material));
 }
 
 static Material *set_socket_selected_slot_material(const bNode &node, const bContext *C)
@@ -538,12 +549,34 @@ static void init_set_material_parameter(bNodeTree *ntree, bNode *node)
   set_socket_availability(ntree, node);
 }
 
+/** Per Object Only with an empty, unlinked Object: the slot is the active object's, which only
+ * a context knows. */
+static bool set_socket_object_needs_context(const bNode &node)
+{
+  if (!set_socket_per_object_only(node)) {
+    return false;
+  }
+  const bNodeSocket *object_socket = set_socket_find_input(node, "Object");
+  return object_socket != nullptr && object_socket->link == nullptr &&
+         (object_socket->default_value == nullptr || object_socket->type != SOCK_OBJECT ||
+          static_cast<const bNodeSocketValueObject *>(object_socket->default_value)->value ==
+              nullptr);
+}
+
 static void update_set_node_socket_for_context(bNodeTree *ntree, bNode *node, const bContext *C)
 {
   if (node != nullptr) {
     set_socket_update_slot_bounds(*node, C);
-    set_socket_sync_material_cache(*node, C);
-    set_socket_sync_material_selection(*node, C);
+    /* Without a context (the node's update, which Blender also runs while it reads a file or an
+     * undo step, before it counts users) the active object an empty Object stands for is
+     * unknown: the cached Material and the picked node and socket wait for the next draw. Writing
+     * "no material" there took the cached Material's user each time, and at an undo (also the
+     * one that ends an embedded game) from a Material whose users were not counted yet: "ID user
+     * decrement error ... 0 <= 0" once per node (2026-11-13). */
+    if (C != nullptr || !set_socket_object_needs_context(*node)) {
+      set_socket_sync_material_cache(*node, C);
+      set_socket_sync_material_selection(*node, C);
+    }
   }
   set_socket_availability(ntree, node);
 }
@@ -678,17 +711,57 @@ static void draw_get_material_socket(CustomSocketDrawParams &params)
 static void declare_get_bone_attribute(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
-  b.add_output<decl::String>("Value"_ustr);
-  b.add_output<decl::Vector>("Vector"_ustr);
-  b.add_output<decl::Bool>("Bool"_ustr);
+  b.add_input<decl::String>("Bone Name"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Object"));
+  /* One output per attribute, shown by `update_get_bone_attribute`; the identifiers are the old
+   * ones ("Value" was a text socket carrying every type), so links stay. */
+  b.add_output<decl::String>("Text"_ustr, "Value"_ustr)
+      .description("The bone's name, or its Inherit Scale mode (Full, Fix Shear, Average, None, "
+                   "None (Legacy), Aligned)");
+  b.add_output<decl::Vector>("Vector"_ustr)
+      .description("The Location in its Space, or the head, center or tail asked for");
+  b.add_output<decl::Bool>("Bool"_ustr).description("Whether the bone has the setting asked for");
+}
+
+enum class BoneAttributeOutput { Text, Vector, Bool };
+
+/** The output that carries an attribute (RNA `attribute` of Get Bone Attribute, custom1). */
+static BoneAttributeOutput bone_attribute_output(const int attribute)
+{
+  if (ELEM(attribute, 0, 2)) {
+    return BoneAttributeOutput::Text;
+  }
+  if (attribute == 1 || (attribute >= 4 && attribute <= 12)) {
+    return BoneAttributeOutput::Vector;
+  }
+  return BoneAttributeOutput::Bool;
+}
+
+static void update_get_bone_attribute(bNodeTree *ntree, bNode *node)
+{
+  const BoneAttributeOutput shown = bone_attribute_output(node->custom1);
+  const std::pair<UString, BoneAttributeOutput> outputs[] = {
+      {"Value"_ustr, BoneAttributeOutput::Text},
+      {"Vector"_ustr, BoneAttributeOutput::Vector},
+      {"Bool"_ustr, BoneAttributeOutput::Bool},
+  };
+  for (const auto &[identifier, output] : outputs) {
+    if (bNodeSocket *socket = node->output_by_identifier(identifier)) {
+      bke::node_set_socket_availability(*ntree, *socket, output == shown);
+    }
+  }
 }
 
 static void declare_set_bone_attribute(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::String>("Bone Name"_ustr).default_value("Bone");
+  b.add_input<decl::String>("Bone Name"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Object"));
   b.add_input<decl::Bool>("Bool"_ustr);
   b.add_output<decl::Execution>("Done"_ustr);
 }
@@ -712,8 +785,14 @@ static void declare_set_constraint_target(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Armature"_ustr);
-  b.add_input<decl::String>("Bone"_ustr).default_value("Bone");
-  b.add_input<decl::String>("Constraint"_ustr).default_value("Constraint");
+  b.add_input<decl::String>("Bone"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Armature"));
+  b.add_input<decl::String>("Constraint"_ustr)
+      .default_value("Constraint")
+      .description(logic::bone_constraint_description)
+      .custom_draw(logic::bone_constraint_field("Armature", "Bone"));
   b.add_input<decl::Object>("Target"_ustr);
   b.add_output<decl::Execution>("Done"_ustr);
 }
@@ -722,8 +801,14 @@ static void declare_set_constraint_attribute(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Armature"_ustr);
-  b.add_input<decl::String>("Bone"_ustr).default_value("Bone");
-  b.add_input<decl::String>("Constraint"_ustr).default_value("Constraint");
+  b.add_input<decl::String>("Bone"_ustr)
+      .default_value("Bone")
+      .description(logic::bone_name_description)
+      .custom_draw(logic::bone_name_field("Armature"));
+  b.add_input<decl::String>("Constraint"_ustr)
+      .default_value("Constraint")
+      .description(logic::bone_constraint_description)
+      .custom_draw(logic::bone_constraint_field("Armature", "Bone"));
   b.add_input<decl::String>("Attribute"_ustr).default_value("influence");
   b.add_input<decl::Generic>("Value"_ustr);
   b.add_output<decl::Execution>("Done"_ustr);
@@ -3124,11 +3209,18 @@ static void setup_node_type(bke::bNodeType &ntype,
     bke::node_register_type(ntype); \
   }
 
-REGISTER_C_TIER_WIDE_NODE(register_get_bone_attribute,
-                          "LogicNativeGetBoneAttribute",
-                          NODE_CLASS_OP_VECTOR,
-                          declare_get_bone_attribute,
-                          layout_bone_attribute)
+static void register_get_bone_attribute()
+{
+  static bke::bNodeType ntype;
+  setup_node_type(ntype,
+                  "LogicNativeGetBoneAttribute",
+                  NODE_CLASS_OP_VECTOR,
+                  declare_get_bone_attribute,
+                  layout_bone_attribute);
+  bke::node_type_size(ntype, 190, 140, NODE_DEFAULT_MAX_WIDTH);
+  ntype.updatefunc = update_get_bone_attribute;
+  bke::node_register_type(ntype);
+}
 
 static void register_set_bone_attribute()
 {

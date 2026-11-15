@@ -21,6 +21,7 @@
 #include "BLI_vector.hh"
 
 #include "LN_DenseIds.h"
+#include "LN_KeepDistance.h"
 #include "LN_Performance.h"
 #include "LN_StrictDump.h"
 #include "LN_Types.h"
@@ -51,6 +52,25 @@ using LN_ForceObserver = void (*)(void *user,
                                   bool local,
                                   bool torque);
 void LN_SetForceObserverForTests(LN_ForceObserver observer, void *user);
+
+/** Tests only (2026-11-11): every impulse the flush applies, in world terms, as handed to the
+ * physics body: a linear impulse at `point` (`at_point`) or through the center of mass, or an
+ * angular one (`angular`); `velocity_change` for Ignore Mass. Without a physics body the pose is
+ * the object's (center of mass = its position) and the observer still sees it. Main thread. */
+using LN_ImpulseObserver = void (*)(void *user,
+                                    const KX_GameObject *object,
+                                    const MT_Vector3 &vector,
+                                    const MT_Vector3 &point,
+                                    bool at_point,
+                                    bool angular,
+                                    bool velocity_change);
+void LN_SetImpulseObserverForTests(LN_ImpulseObserver observer, void *user);
+
+/** Tests only (2026-11-14): one line for every sound and bone command the flush applies (a
+ * column run's caught ones included), in the order applied: what a rig without audio or
+ * armatures cannot see in its world. Main thread. */
+using LN_AppliedCommandObserver = void (*)(void *user, const std::string &line);
+void LN_SetAppliedCommandObserverForTests(LN_AppliedCommandObserver observer, void *user);
 
 class LN_CommandBuffer;
 struct LN_FlushWriteKey;
@@ -677,6 +697,44 @@ class LN_CommandBuffer {
                           const MT_Vector3 &impulse,
                           uint64_t sort_key,
                           uint32_t source_ref_index);
+  /** Apply Impulse / Apply Angular Impulse (2026-11-11): `impulse` as the node gave it (in the
+   * object's axes when `local`), `point` read by `mode` (not for Angular). Worked out into world
+   * vectors at the flush, from the body's pose then. */
+  void AppendApplyImpulse(KX_GameObject *gameobj,
+                          const MT_Vector3 &point,
+                          const MT_Vector3 &impulse,
+                          LN_ImpulseMode mode,
+                          bool local,
+                          bool ignore_mass,
+                          bool visualize,
+                          uint64_t sort_key,
+                          uint32_t source_ref_index);
+  /** One object Explode or Implode Impulse reached (2026-11-11): pushed at the flush through its
+   * center of mass, away from `origin` - `upward_lift` up (`implode`: toward `origin` +
+   * `upward_lift` up), by `strength` times the falloff of the distance from `origin` to its
+   * center of mass (`linear_falloff`: 1 at the origin, 0 at `radius`). */
+  /** Keep Distance: a run of the node, answered at the end of the flush with every other one
+   * (LN_ProcessKeepDistanceRequests; its force applied as Apply Force's). */
+  void AppendKeepDistance(LN_KeepDistanceRequest &&request);
+  size_t KeepDistanceRequestCount() const
+  {
+    return m_keepDistanceRequests.size();
+  }
+  /** Moves `chunk`'s Keep Distance requests after this buffer's (a column run's bridged Keep
+   * Distance recorded them into its chunk buffer, 2026-11-14; the flush's end answers them by
+   * sort key, as if the trees had recorded here). */
+  void TakeKeepDistanceRequests(LN_CommandBuffer &chunk);
+  void AppendExplosionImpulse(KX_GameObject *gameobj,
+                              const MT_Vector3 &origin,
+                              float radius,
+                              float strength,
+                              float upward_lift,
+                              bool linear_falloff,
+                              bool implode,
+                              bool ignore_mass,
+                              bool visualize,
+                              uint64_t sort_key,
+                              uint32_t source_ref_index);
   void AppendSetVisibility(KX_GameObject *gameobj,
                            bool visible,
                            bool recursive,
@@ -1582,7 +1640,8 @@ class LN_CommandBuffer {
      * sound from the same emitter restarts, from another one it plays beside it. Only compared,
      * never read, and apart from `speaker`, which a removed object's commands are dropped by. */
     KX_GameObject *emitter = nullptr;
-    LN_SoundId sound_id;
+    /** (No interned id: the name is all the flush reads, and interning wrote the manager's name
+     * table, which kept sound nodes off the helper threads; 2026-11-14.) */
     std::string sound_name;
     float volume = 1.0f;
     float pitch = 1.0f;
@@ -1883,6 +1942,8 @@ class LN_CommandBuffer {
   mutable std::vector<Command> m_testPlannedCommands;
   CommandStreamStats m_lastCommandStreamStats;
   std::unordered_set<KX_GameObject *> m_removedObjectsDuringFlush;
+  /** Keep Distance's requests of the step (AppendKeepDistance), answered at the flush's end. */
+  std::vector<LN_KeepDistanceRequest> m_keepDistanceRequests;
   std::unordered_map<AddObjectSourceStateKey, bool, AddObjectSourceStateKeyHash>
       m_addObjectSourceInactiveCache;
   std::unordered_set<MaterialParameterDefaultStateKey, MaterialParameterDefaultStateKeyHash>

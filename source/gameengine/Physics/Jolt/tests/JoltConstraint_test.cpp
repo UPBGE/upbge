@@ -36,6 +36,7 @@ JPH_SUPPRESS_WARNINGS
 #include <bit>
 #include <cmath>
 #include <cstdio>
+#include <limits>
 #include <memory>
 #include <string>
 #include <thread>
@@ -1020,6 +1021,49 @@ TEST(JoltPhysicsController, CompoundParentingOwnsChildShapeAndRestoresDynamicBod
   EXPECT_TRUE(body_interface.IsAdded(child.body_id));
   EXPECT_EQ(body_interface.GetMotionType(child.body_id), JPH::EMotionType::Dynamic);
   EXPECT_NEAR(body_interface.GetPosition(child.body_id).GetX(), 2.0f, 1.0e-5f);
+}
+
+/* A compound child of a scaled root stays where it is: both shapes are built at their world scale
+ * and nothing scales the compound, so the offset is not divided by the root's scale (2026-11-11:
+ * a child 3 to the side of a root scaled 0.5 along X was placed 6 out). */
+TEST(JoltPhysicsController, CompoundChildOfAScaledRootStaysWhereItIs)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  LogicContactTarget root(environment, JPH::EMotionType::Static, JPH::RVec3::sZero());
+  LogicContactTarget child(environment, JPH::EMotionType::Dynamic, JPH::RVec3(3.0f, 0.0f, 0.0f));
+  TestObjectHierarchy hierarchy(root.object, child.object);
+  hierarchy.parent_node.SetWorldPosition(MT_Vector3(0.0f, 0.0f, 0.0f));
+  hierarchy.parent_node.SetWorldOrientation(MT_Matrix3x3::Identity());
+  hierarchy.parent_node.SetWorldScale(MT_Vector3(0.5f, 1.0f, 2.0f));
+  hierarchy.child_node.SetWorldPosition(MT_Vector3(3.0f, 0.0f, 0.0f));
+  hierarchy.child_node.SetWorldOrientation(MT_Matrix3x3::Identity());
+  hierarchy.child_node.SetWorldScale(MT_Vector3(1.0f, 1.0f, 1.0f));
+  SetControllerQueryMotionState(child.controller, MT_Vector3(3.0f, 0.0f, 0.0f));
+  root.controller.SetCompoundFlag(true);
+  ASSERT_TRUE(child.controller.BeginCompoundParenting());
+  ASSERT_TRUE(root.controller.TryAddCompoundChild(&child.controller));
+
+  /* Down onto the child's top (z 0.5) at x 3: the root's compound is hit there, as the child. */
+  AcceptAllRayCastFilter filter;
+  PHY_RayQuerySettings settings;
+  settings.origin = MT_Vector3(3.0f, 0.0f, 5.0f);
+  settings.destination = MT_Vector3(3.0f, 0.0f, -5.0f);
+  settings.detail_flags = PHY_RAY_QUERY_DETAIL_PART;
+  std::vector<PHY_RayCastResult> results;
+  ASSERT_TRUE(environment.RayCast(settings, filter, results));
+  ASSERT_EQ(results.size(), 1u);
+  EXPECT_EQ(results[0].m_controller, &root.controller);
+  EXPECT_EQ(results[0].m_partObject, &child.object);
+  EXPECT_NEAR(results[0].m_hitPoint.z(), 0.5f, 1.0e-4f);
+  /* Nothing at 6, where the divided offset put it. */
+  settings.origin = MT_Vector3(6.0f, 0.0f, 5.0f);
+  settings.destination = MT_Vector3(6.0f, 0.0f, -5.0f);
+  ASSERT_TRUE(environment.RayCast(settings, filter, results));
+  EXPECT_TRUE(results.empty());
+
+  root.controller.RemoveCompoundChild(&child.controller);
+  child.controller.EndTransformParenting();
 }
 
 TEST(JoltPhysicsController, CompoundParentingRejectsNonCompoundRootWithoutMutation)
@@ -2271,16 +2315,79 @@ TEST(JoltPhysicsController, PreparedRigidBodyGameStateRejectsOutOfRangeValues)
   EXPECT_FALSE(target.controller.PrepareGameStateRigidBody(invalid));
 
   invalid = valid;
-  invalid.restitution = 1.01f;
+  invalid.restitution = -0.01f;
   EXPECT_FALSE(target.controller.PrepareGameStateRigidBody(invalid));
 
   invalid = valid;
-  invalid.linear_damping = 1.01f;
+  invalid.linear_damping = -0.01f;
   EXPECT_FALSE(target.controller.PrepareGameStateRigidBody(invalid));
+
+  invalid = valid;
+  invalid.angular_damping = 100.5f;
+  EXPECT_FALSE(target.controller.PrepareGameStateRigidBody(invalid));
+
+  /* What the Physics panel allows restores (2026-11-13: an Elasticity or a damping rate past 1
+   * made a saved game unloadable). */
+  PHY_GameStateRigidBodyState allowed = valid;
+  allowed.restitution = 1.5f;
+  allowed.linear_damping = 25.0f;
+  allowed.angular_damping = 100.0f;
+  EXPECT_TRUE(target.controller.PrepareGameStateRigidBody(allowed));
 
   invalid = valid;
   invalid.angular_velocity_min = -1.01f;
   EXPECT_FALSE(target.controller.PrepareGameStateRigidBody(invalid));
+}
+
+/** Damping (2026-11-14): the Physics panel's, the nodes' and the controller's number is Jolt's own
+ * rate (it was clamped at 1 by the setters while the panel went to 5), the converter's and the
+ * setters' alike, held to the panel's 0..100; Bullet's default pair plays as Jolt's default
+ * rates. */
+TEST(JoltPhysicsController, DampingIsJoltsRateAsInThePanel)
+{
+  EXPECT_FLOAT_EQ(JoltDampingRate(0.05f), 0.05f);
+  EXPECT_FLOAT_EQ(JoltDampingRate(5.0f), 5.0f);
+  EXPECT_FLOAT_EQ(JoltDampingRate(-1.0f), 0.0f);
+  EXPECT_FLOAT_EQ(JoltDampingRate(std::nanf("")), 0.0f);
+  /* Held to the panel's top, as a saved game's check (1e8 was the setters' 1 before). */
+  EXPECT_FLOAT_EQ(JoltDampingRate(1.0e8f), 100.0f);
+  EXPECT_FLOAT_EQ(JoltDampingRate(std::numeric_limits<float>::infinity()), 100.0f);
+  EXPECT_FLOAT_EQ(JoltDampingRates(0.04f, 0.1f).first, JOLT_DEFAULT_DAMPING_RATE);
+  EXPECT_FLOAT_EQ(JoltDampingRates(0.04f, 0.1f).second, JOLT_DEFAULT_DAMPING_RATE);
+  EXPECT_FLOAT_EQ(JoltDampingRates(0.04f, 0.2f).first, 0.04f);
+  EXPECT_FLOAT_EQ(JoltDampingRates(0.04f, 0.2f).second, 0.2f);
+
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  environment.GetPhysicsSystem()->SetGravity(JPH::Vec3::sZero());
+  LogicContactTarget target(environment, JPH::EMotionType::Dynamic, JPH::RVec3::sZero());
+  target.controller.SetAllowSleeping(false);
+  JPH::BodyInterface &body_interface = environment.GetBodyInterface();
+
+  /* Past the old clamp of 1: 5 and 10 reach Jolt as they are. */
+  target.controller.SetDamping(5.0f, 10.0f);
+  EXPECT_FLOAT_EQ(target.controller.GetLinearDamping(), 5.0f);
+  EXPECT_FLOAT_EQ(target.controller.GetAngularDamping(), 10.0f);
+  body_interface.SetLinearVelocity(target.body_id, JPH::Vec3(10.0f, 0.0f, 0.0f));
+  body_interface.SetAngularVelocity(target.body_id, JPH::Vec3(0.0f, 0.0f, 1.0f));
+  constexpr float time_step = 1.0f / 60.0f;
+  ASSERT_TRUE(environment.ProceedDeltaTime(0.0, time_step, time_step));
+  /* Jolt keeps 1 - rate x step time of the speed each step. */
+  EXPECT_NEAR(body_interface.GetLinearVelocity(target.body_id).GetX(),
+              10.0f * (1.0f - 5.0f * time_step),
+              1.0e-4f);
+  EXPECT_NEAR(body_interface.GetAngularVelocity(target.body_id).GetZ(),
+              1.0f - 10.0f * time_step,
+              1.0e-4f);
+
+  /* One value at a time, and Bullet's default pair. */
+  target.controller.SetLinearDamping(0.5f);
+  target.controller.SetAngularDamping(3.0f);
+  EXPECT_FLOAT_EQ(target.controller.GetLinearDamping(), 0.5f);
+  EXPECT_FLOAT_EQ(target.controller.GetAngularDamping(), 3.0f);
+  target.controller.SetDamping(0.04f, 0.1f);
+  EXPECT_FLOAT_EQ(target.controller.GetLinearDamping(), 0.05f);
+  EXPECT_FLOAT_EQ(target.controller.GetAngularDamping(), 0.05f);
 }
 
 TEST(JoltSoftBody, RigidTransformMovesBodyAndPreservesDeformation)
@@ -3748,6 +3855,99 @@ TEST(JoltPhysicsEnvironment, RayCastSensorsAreOptIn)
   EXPECT_EQ(results[1].m_controller, &solid.controller);
 }
 
+/* A Sensor-type object's body is outside Jolt's broadphase (only a collision brick adds it), so a
+ * query that includes sensors tests it itself, where its object is now (2026-11-11: rays with
+ * Include Sensors passed through every Sensor object). */
+TEST(JoltPhysicsEnvironment, QueriesIncludingSensorsMeetSensorObjectsOutsideTheWorld)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  environment.GetPhysicsSystem()->SetGravity(JPH::Vec3::sZero());
+  /* Made at the origin, its object moved to x 3 since: Jolt does not move such a body. */
+  LogicObjectSensorTarget sensor(environment, JPH::RVec3::sZero());
+  SetControllerQueryMotionState(sensor.controller, MT_Vector3(3.0f, 0.0f, 0.0f));
+  ASSERT_FALSE(environment.GetBodyInterface().IsAdded(sensor.body_id));
+  LogicContactTarget wall(environment, JPH::EMotionType::Static, JPH::RVec3(6.0f, 0.0f, 0.0f));
+
+  AcceptAllRayCastFilter ray_filter;
+  PHY_RayQuerySettings ray;
+  ray.origin = MT_Vector3(-5.0f, 0.0f, 0.0f);
+  ray.destination = MT_Vector3(10.0f, 0.0f, 0.0f);
+  ray.max_results = 4;
+  std::vector<PHY_RayCastResult> hits;
+  ASSERT_TRUE(environment.RayCast(ray, ray_filter, hits));
+  ASSERT_EQ(hits.size(), 1u);
+  EXPECT_EQ(hits[0].m_controller, &wall.controller);
+
+  ray.include_sensors = true;
+  ASSERT_TRUE(environment.RayCast(ray, ray_filter, hits));
+  ASSERT_EQ(hits.size(), 2u);
+  EXPECT_EQ(hits[0].m_controller, &sensor.controller);
+  EXPECT_NEAR(hits[0].m_hitPoint.x(), 2.5f, 1.0e-4f);
+  EXPECT_NEAR(hits[0].m_hitNormal.x(), -1.0f, 1.0e-4f);
+  EXPECT_EQ(hits[1].m_controller, &wall.controller);
+  /* The nearest hit alone: the sensor. */
+  ray.max_results = 1;
+  ASSERT_TRUE(environment.RayCast(ray, ray_filter, hits));
+  ASSERT_EQ(hits.size(), 1u);
+  EXPECT_EQ(hits[0].m_controller, &sensor.controller);
+  /* A batch (Raycast from Mesh) both ways. */
+  for (const PHY_RayBatchExecution execution :
+       {PHY_RayBatchExecution::Sequential, PHY_RayBatchExecution::Adaptive})
+  {
+    std::vector<std::vector<PHY_RayCastResult>> batch;
+    ASSERT_TRUE(environment.RayCastBatch(
+        std::vector<PHY_RayQuerySettings>(16, ray), ray_filter, execution, batch));
+    ASSERT_EQ(batch.size(), 16u);
+    for (const std::vector<PHY_RayCastResult> &one : batch) {
+      ASSERT_EQ(one.size(), 1u);
+      EXPECT_EQ(one[0].m_controller, &sensor.controller);
+    }
+  }
+
+  /* A shape cast (a sphere of 0.25 touches it with its center at 2.25), an overlap where it is,
+   * and a body swept through it (a box of half 0.5 stops at 2). */
+  AcceptAllShapeCastFilter shape_filter;
+  PHY_ShapeCastSettings shape;
+  shape.radius = 0.25f;
+  shape.origin = MT_Vector3(-5.0f, 0.0f, 0.0f);
+  shape.destination = MT_Vector3(10.0f, 0.0f, 0.0f);
+  shape.include_sensors = true;
+  std::vector<PHY_ShapeCastResult> shape_hits;
+  ASSERT_TRUE(environment.ShapeCast(shape, shape_filter, shape_hits));
+  ASSERT_EQ(shape_hits.size(), 1u);
+  EXPECT_EQ(shape_hits[0].controller, &sensor.controller);
+  EXPECT_NEAR(shape_hits[0].cast_position.x(), 2.25f, 1.0e-3f);
+  shape.origin = shape.destination = MT_Vector3(3.0f, 0.0f, 0.0f);
+  ASSERT_TRUE(environment.ShapeCast(shape, shape_filter, shape_hits));
+  ASSERT_EQ(shape_hits.size(), 1u);
+  EXPECT_EQ(shape_hits[0].controller, &sensor.controller);
+  EXPECT_TRUE(shape_hits[0].started_overlapping);
+  shape.include_sensors = false;
+  ASSERT_TRUE(environment.ShapeCast(shape, shape_filter, shape_hits));
+  EXPECT_TRUE(shape_hits.empty());
+
+  LogicContactTarget mover(environment, JPH::EMotionType::Dynamic, JPH::RVec3(-5.0f, 0.0f, 0.0f));
+  PHY_BodySweepSettings sweep;
+  sweep.controller = &mover.controller;
+  sweep.position = MT_Vector3(-5.0f, 0.0f, 0.0f);
+  sweep.destination = MT_Vector3(10.0f, 0.0f, 0.0f);
+  sweep.include_sensors = true;
+  ASSERT_EQ(environment.SweepBody(sweep, shape_filter, shape_hits), PHY_BodySweepStatus::Ok);
+  ASSERT_EQ(shape_hits.size(), 1u);
+  EXPECT_EQ(shape_hits[0].controller, &sensor.controller);
+  EXPECT_NEAR(shape_hits[0].cast_position.x(), 2.0f, 1.0e-3f);
+
+  /* A sensor On Collision would not test (a hidden layer, suspended) is not met either. (From
+   * beside the mover, which the ray would start inside.) */
+  sensor.controller.SetLogicObjectSensorActive(false);
+  ray.origin = MT_Vector3(-3.0f, 0.0f, 0.0f);
+  ray.max_results = 4;
+  ASSERT_TRUE(environment.RayCast(ray, ray_filter, hits));
+  ASSERT_EQ(hits.size(), 1u);
+  EXPECT_EQ(hits[0].m_controller, &wall.controller);
+}
+
 TEST(JoltPhysicsEnvironment, ShapeCastSupportsAllPrimitiveModesAndInitialOverlap)
 {
   blender::Scene scene{};
@@ -3980,5 +4180,336 @@ TEST(JoltPhysicsEnvironment, StaticBodySkipsUnmovedStepsButFollowsEveryMove)
   const JPH::Quat rotation = bodyInterface.GetRotation(level.body_id);
   EXPECT_GT(std::abs(rotation.GetY()) + std::abs(rotation.GetZ()), 0.2f);
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Hit Part, Hit Material and Sweep Object (2026-11-11)
+ * \{ */
+
+/** A compound parent at the origin: a small root box at Blender (-3, 0, 0) (no child: user data 0)
+ * and a child box (half 0.5) at the origin, bound to `child`. */
+struct CompoundPartRig {
+  explicit CompoundPartRig(TestJoltPhysicsEnvironment &environment)
+      : parent(environment, JPH::EMotionType::Dynamic, JPH::RVec3::sZero()),
+        hierarchy(parent.object, child)
+  {
+    const JPH::RefConst<JPH::Shape> rootShape = new JPH::BoxShape(JPH::Vec3::sReplicate(0.1f));
+    const JPH::RefConst<JPH::Shape> childShape = new JPH::BoxShape(JPH::Vec3::sReplicate(0.5f));
+    child_user_data = parent.controller.RegisterCompoundChildBinding(
+        &child, JPH::Vec3::sZero(), JPH::Quat::sIdentity());
+    JPH::StaticCompoundShapeSettings compoundSettings;
+    compoundSettings.AddShape(JPH::Vec3(-3.0f, 0.0f, 0.0f), JPH::Quat::sIdentity(), rootShape, 0);
+    compoundSettings.AddShape(
+        JPH::Vec3::sZero(), JPH::Quat::sIdentity(), childShape, child_user_data);
+    JPH::Shape::ShapeResult compoundResult = compoundSettings.Create();
+    valid = !compoundResult.HasError() && child_user_data != 0;
+    if (valid) {
+      parent.controller.SetShapePreservingMassPropertiesAndCenterOfMass(compoundResult.Get(),
+                                                                       nullptr);
+    }
+  }
+
+  LogicContactTarget parent;
+  KX_GameObject child;
+  TestObjectHierarchy hierarchy;
+  JPH::uint32 child_user_data = 0;
+  bool valid = false;
+};
+
+TEST(JoltPhysicsEnvironment, RaysAndShapeCastsGiveTheCompoundChildHitAsPart)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  environment.GetPhysicsSystem()->SetGravity(JPH::Vec3::sZero());
+  CompoundPartRig rig(environment);
+  ASSERT_TRUE(rig.valid);
+  ShapeCastTarget plain(environment, JPH::RVec3(0.0f, 0.0f, 10.0f));
+
+  AcceptAllRayCastFilter filter;
+  std::vector<PHY_RayCastResult> results;
+  PHY_RayQuerySettings settings;
+  settings.origin = MT_Vector3(5.0f, 0.0f, 0.0f);
+  settings.destination = MT_Vector3(-5.0f, 0.0f, 0.0f);
+  settings.max_results = 4;
+
+  /* Not asked: no part. */
+  ASSERT_TRUE(environment.RayCast(settings, filter, results));
+  ASSERT_FALSE(results.empty());
+  EXPECT_EQ(results[0].m_controller, &rig.parent.controller);
+  EXPECT_EQ(results[0].m_partObject, nullptr);
+
+  /* Asked: the child whose box the ray met first. */
+  settings.detail_flags = PHY_RAY_QUERY_DETAIL_PART;
+  ASSERT_TRUE(environment.RayCast(settings, filter, results));
+  ASSERT_FALSE(results.empty());
+  EXPECT_EQ(results[0].m_controller, &rig.parent.controller);
+  EXPECT_EQ(results[0].m_partObject, &rig.child);
+  EXPECT_NEAR(results[0].m_hitPoint.x(), 0.5f, 1.0e-3f);
+
+  /* The root's own box (user data 0) is no child: no part. A vertical ray through it. */
+  settings.origin = MT_Vector3(-3.0f, 0.0f, 5.0f);
+  settings.destination = MT_Vector3(-3.0f, 0.0f, -5.0f);
+  ASSERT_TRUE(environment.RayCast(settings, filter, results));
+  ASSERT_FALSE(results.empty());
+  EXPECT_EQ(results[0].m_controller, &rig.parent.controller);
+  EXPECT_EQ(results[0].m_partObject, nullptr);
+
+  /* A plain body is no compound: no part (the hit object is the part). Jolt (0, 0, 10) is
+   * Blender (0, -10, 0). */
+  settings.origin = MT_Vector3(0.0f, -10.0f, 5.0f);
+  settings.destination = MT_Vector3(0.0f, -10.0f, -5.0f);
+  ASSERT_TRUE(environment.RayCast(settings, filter, results));
+  ASSERT_FALSE(results.empty());
+  EXPECT_EQ(results[0].m_controller, &plain.controller);
+  EXPECT_EQ(results[0].m_partObject, nullptr);
+
+  /* Shape casts the same way. */
+  AcceptAllShapeCastFilter shapeFilter;
+  std::vector<PHY_ShapeCastResult> shapeResults;
+  PHY_ShapeCastSettings shapeSettings;
+  shapeSettings.origin = MT_Vector3(5.0f, 0.0f, 0.0f);
+  shapeSettings.destination = MT_Vector3(-5.0f, 0.0f, 0.0f);
+  shapeSettings.radius = 0.1f;
+  ASSERT_TRUE(environment.ShapeCast(shapeSettings, shapeFilter, shapeResults));
+  ASSERT_FALSE(shapeResults.empty());
+  EXPECT_EQ(shapeResults[0].part_object, nullptr);
+  shapeSettings.detail_flags = PHY_RAY_QUERY_DETAIL_PART;
+  ASSERT_TRUE(environment.ShapeCast(shapeSettings, shapeFilter, shapeResults));
+  ASSERT_FALSE(shapeResults.empty());
+  EXPECT_EQ(shapeResults[0].controller, &rig.parent.controller);
+  EXPECT_EQ(shapeResults[0].part_object, &rig.child);
+}
+
+TEST(JoltPhysicsEnvironment, RaysAndShapeCastsGiveTheHitTrianglesMaterialSlot)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+
+  /* A unit quad in Jolt's XZ plane (Blender's XY plane, Blender y = -Jolt z), two triangles:
+   * user data 0 below the diagonal x + z = 1, user data 1 above it. */
+  JPH::VertexList vertices = {
+      JPH::Float3(0.0f, 0.0f, 0.0f),
+      JPH::Float3(0.0f, 0.0f, 1.0f),
+      JPH::Float3(1.0f, 0.0f, 0.0f),
+      JPH::Float3(1.0f, 0.0f, 1.0f),
+  };
+  JPH::IndexedTriangleList triangles = {JPH::IndexedTriangle(0, 1, 2, 0, 0),
+                                        JPH::IndexedTriangle(2, 1, 3, 0, 1)};
+  JPH::MeshShapeSettings meshSettings(std::move(vertices), std::move(triangles));
+  meshSettings.mPerTriangleUserData = true;
+  const JPH::Shape::ShapeResult meshResult = meshSettings.Create();
+  ASSERT_FALSE(meshResult.HasError());
+  const JPH::RefConst<JPH::Shape> meshShape = meshResult.Get();
+
+  std::shared_ptr<JoltMeshQueryData> meshData = std::make_shared<JoltMeshQueryData>();
+  meshData->triangleMaterials = {3, 7};
+  std::shared_ptr<JoltShapeQueryData> shapeQueryData = std::make_shared<JoltShapeQueryData>();
+  shapeQueryData->Add(meshShape.GetPtr(), meshData);
+
+  const JPH::BodyID bodyID = environment.GetBodyInterface().CreateAndAddBody(
+      JPH::BodyCreationSettings(meshShape,
+                                JPH::RVec3::sZero(),
+                                JPH::Quat::sIdentity(),
+                                JPH::EMotionType::Static,
+                                JoltMakeObjectLayer(1, 1, JOLT_BP_STATIC)),
+      JPH::EActivation::DontActivate);
+  ASSERT_FALSE(bodyID.IsInvalid());
+  KX_GameObject object;
+  KX_ClientObjectInfo clientInfo(&object, KX_ClientObjectInfo::STATIC);
+  JoltPhysicsController controller;
+  controller.SetEnvironment(&environment);
+  controller.SetBodyID(bodyID);
+  controller.SetNewClientInfo(&clientInfo);
+  controller.SetShape(meshShape, shapeQueryData);
+  object.SetPhysicsController(&controller);
+  environment.GetBodyInterface().SetUserData(bodyID, reinterpret_cast<JPH::uint64>(&clientInfo));
+  ShapeCastTarget box(environment, JPH::RVec3(5.0f, 0.0f, 0.0f));
+
+  AcceptAllRayCastFilter filter;
+  std::vector<PHY_RayCastResult> results;
+  PHY_RayQuerySettings settings;
+  settings.hit_back_faces = true;
+  const auto cast_down = [&](const float x, const float y, const unsigned char flags) {
+    settings.origin = MT_Vector3(x, y, 1.0f);
+    settings.destination = MT_Vector3(x, y, -1.0f);
+    settings.detail_flags = flags;
+    results.clear();
+    return environment.RayCast(settings, filter, results) && results.size() == 1;
+  };
+
+  ASSERT_TRUE(cast_down(0.25f, -0.25f, PHY_RAY_QUERY_DETAIL_MATERIAL));
+  EXPECT_EQ(results[0].m_materialIndex, 3);
+  /* Material alone gives no face (that data is not kept here). */
+  EXPECT_EQ(results[0].m_polygon, -1);
+  ASSERT_TRUE(cast_down(0.75f, -0.75f, PHY_RAY_QUERY_DETAIL_MATERIAL));
+  EXPECT_EQ(results[0].m_materialIndex, 7);
+  ASSERT_TRUE(cast_down(0.75f, -0.75f, PHY_RAY_QUERY_DETAIL_NONE));
+  EXPECT_EQ(results[0].m_materialIndex, -1);
+  ASSERT_TRUE(cast_down(0.75f, -0.75f, PHY_RAY_QUERY_DETAIL_FACE_INDEX));
+  EXPECT_EQ(results[0].m_materialIndex, -1);
+  /* A box has no triangles: no slot. */
+  ASSERT_TRUE(cast_down(5.0f, 0.0f, PHY_RAY_QUERY_DETAIL_MATERIAL));
+  EXPECT_EQ(results[0].m_controller, &box.controller);
+  EXPECT_EQ(results[0].m_materialIndex, -1);
+
+  /* A shape cast reads the slot of the triangle it touched. */
+  AcceptAllShapeCastFilter shapeFilter;
+  std::vector<PHY_ShapeCastResult> shapeResults;
+  PHY_ShapeCastSettings shapeSettings;
+  shapeSettings.origin = MT_Vector3(0.8f, -0.8f, 1.0f);
+  shapeSettings.destination = MT_Vector3(0.8f, -0.8f, -1.0f);
+  shapeSettings.radius = 0.05f;
+  shapeSettings.hit_back_faces = true;
+  shapeSettings.detail_flags = PHY_RAY_QUERY_DETAIL_MATERIAL;
+  ASSERT_TRUE(environment.ShapeCast(shapeSettings, shapeFilter, shapeResults));
+  ASSERT_EQ(shapeResults.size(), 1u);
+  EXPECT_EQ(shapeResults[0].material_index, 7);
+  shapeSettings.detail_flags = PHY_RAY_QUERY_DETAIL_NONE;
+  ASSERT_TRUE(environment.ShapeCast(shapeSettings, shapeFilter, shapeResults));
+  ASSERT_EQ(shapeResults.size(), 1u);
+  EXPECT_EQ(shapeResults[0].material_index, -1);
+
+  object.SetPhysicsController(nullptr);
+  controller.SetNewClientInfo(nullptr);
+}
+
+TEST(JoltPhysicsEnvironment, SweepBodyMovesTheBodysOwnShapeAndNeverHitsItself)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  environment.GetPhysicsSystem()->SetGravity(JPH::Vec3::sZero());
+  /* The mover: a dynamic box (half 0.5) at the origin. Targets: static boxes (half 0.5). */
+  LogicContactTarget mover(environment, JPH::EMotionType::Dynamic, JPH::RVec3::sZero());
+  ShapeCastTarget near_target(environment, JPH::RVec3(3.0f, 0.0f, 0.0f));
+  ShapeCastTarget far_target(environment, JPH::RVec3(5.0f, 0.0f, 0.0f));
+  ShapeCastTarget sensor(environment, JPH::RVec3(1.5f, 0.0f, 0.0f), true);
+
+  AcceptAllShapeCastFilter filter;
+  std::vector<PHY_ShapeCastResult> results;
+  PHY_BodySweepSettings settings;
+  settings.controller = &mover.controller;
+  settings.position = MT_Vector3(0.0f, 0.0f, 0.0f);
+  settings.destination = MT_Vector3(6.0f, 0.0f, 0.0f);
+
+  /* The nearest hit: the boxes touch with the mover's center at x = 2. The mover overlaps its own
+   * body all along and is never reported; the sensor is passed. */
+  ASSERT_EQ(environment.SweepBody(settings, filter, results), PHY_BodySweepStatus::Ok);
+  ASSERT_EQ(results.size(), 1u);
+  EXPECT_EQ(results[0].controller, &near_target.controller);
+  EXPECT_NEAR(results[0].fraction, 2.0f / 6.0f, 1.0e-3f);
+  EXPECT_NEAR(results[0].cast_position.x(), 2.0f, 1.0e-3f);
+  EXPECT_NEAR(results[0].point.x(), 2.5f, 1.0e-3f);
+  EXPECT_NEAR(results[0].normal.x(), -1.0f, 1.0e-3f);
+  EXPECT_FALSE(results[0].started_overlapping);
+
+  /* More results, nearest first; with sensors the sensor comes first. */
+  settings.max_results = 8;
+  settings.include_sensors = true;
+  ASSERT_EQ(environment.SweepBody(settings, filter, results), PHY_BodySweepStatus::Ok);
+  ASSERT_EQ(results.size(), 3u);
+  EXPECT_EQ(results[0].controller, &sensor.controller);
+  EXPECT_EQ(results[1].controller, &near_target.controller);
+  EXPECT_EQ(results[2].controller, &far_target.controller);
+  settings.include_sensors = false;
+  settings.max_results = 1;
+
+  /* The orientation is held through the sweep: a long box turned a quarter about Z reaches only
+   * 0.25 along X. */
+  LogicContactTarget long_mover(environment,
+                                JPH::EMotionType::Dynamic,
+                                JPH::RVec3(0.0f, 20.0f, 0.0f),
+                                1,
+                                new JPH::BoxShape(JPH::Vec3(2.0f, 0.25f, 0.25f)));
+  settings.controller = &long_mover.controller;
+  /* (The first mover's body sits at the origin: passed as a filter would.) */
+  PHY_IShapeCastFilterCallback pass_mover(&mover.controller);
+  ASSERT_EQ(environment.SweepBody(settings, pass_mover, results), PHY_BodySweepStatus::Ok);
+  ASSERT_EQ(results.size(), 1u);
+  EXPECT_NEAR(results[0].cast_position.x(), 0.5f, 1.0e-3f);
+  settings.orientation = MT_Matrix3x3(MT_Vector3(0.0f, 0.0f, float(M_PI_2)));
+  ASSERT_EQ(environment.SweepBody(settings, pass_mover, results), PHY_BodySweepStatus::Ok);
+  ASSERT_EQ(results.size(), 1u);
+  EXPECT_NEAR(results[0].cast_position.x(), 2.25f, 1.0e-3f);
+  settings.orientation = MT_Matrix3x3::Identity();
+
+  /* Starting inside a target: a hit at once. */
+  settings.controller = &mover.controller;
+  settings.position = MT_Vector3(2.8f, 0.0f, 0.0f);
+  ASSERT_EQ(environment.SweepBody(settings, filter, results), PHY_BodySweepStatus::Ok);
+  ASSERT_EQ(results.size(), 1u);
+  EXPECT_EQ(results[0].controller, &near_target.controller);
+  EXPECT_TRUE(results[0].started_overlapping);
+  EXPECT_FLOAT_EQ(results[0].fraction, 0.0f);
+  EXPECT_GT(results[0].penetration_depth, 0.0f);
+
+  /* A clear path: nothing. */
+  settings.position = MT_Vector3(0.0f, 10.0f, 0.0f);
+  settings.destination = MT_Vector3(6.0f, 10.0f, 0.0f);
+  ASSERT_EQ(environment.SweepBody(settings, filter, results), PHY_BodySweepStatus::Ok);
+  EXPECT_TRUE(results.empty());
+
+  /* No controller, a body without a shape, a triangle mesh: refused. */
+  settings.controller = nullptr;
+  EXPECT_EQ(environment.SweepBody(settings, filter, results), PHY_BodySweepStatus::NoShape);
+  JPH::VertexList vertices = {JPH::Float3(0.0f, 0.0f, 0.0f),
+                              JPH::Float3(0.0f, 0.0f, 1.0f),
+                              JPH::Float3(1.0f, 0.0f, 0.0f)};
+  JPH::IndexedTriangleList triangles = {JPH::IndexedTriangle(0, 1, 2, 0, 0)};
+  JPH::MeshShapeSettings meshSettings(std::move(vertices), std::move(triangles));
+  const JPH::Shape::ShapeResult meshResult = meshSettings.Create();
+  ASSERT_FALSE(meshResult.HasError());
+  LogicContactTarget mesh_body(environment,
+                               JPH::EMotionType::Static,
+                               JPH::RVec3(0.0f, -20.0f, 0.0f),
+                               1,
+                               meshResult.Get());
+  settings.controller = &mesh_body.controller;
+  EXPECT_EQ(environment.SweepBody(settings, filter, results), PHY_BodySweepStatus::MeshShape);
+  EXPECT_TRUE(results.empty());
+
+  /* The base class (Bullet) has none. */
+  EXPECT_EQ(environment.PHY_IPhysicsEnvironment::SweepBody(settings, filter, results),
+            PHY_BodySweepStatus::Unsupported);
+}
+
+TEST(JoltPhysicsEnvironment, SweepBodyOfACompoundMovesEveryChildShapeAndGivesTheHitPart)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  environment.GetPhysicsSystem()->SetGravity(JPH::Vec3::sZero());
+  /* The compound target: its child box (half 0.5) at the origin. */
+  CompoundPartRig target(environment);
+  ASSERT_TRUE(target.valid);
+
+  /* A compound mover: a small box at its origin and a child box (half 0.5) 2 to its right. */
+  LogicContactTarget mover(environment, JPH::EMotionType::Dynamic, JPH::RVec3(-10.0f, 0.0f, 0.0f));
+  JPH::StaticCompoundShapeSettings compoundSettings;
+  compoundSettings.AddShape(
+      JPH::Vec3::sZero(), JPH::Quat::sIdentity(), new JPH::BoxShape(JPH::Vec3::sReplicate(0.1f)));
+  compoundSettings.AddShape(JPH::Vec3(2.0f, 0.0f, 0.0f),
+                            JPH::Quat::sIdentity(),
+                            new JPH::BoxShape(JPH::Vec3::sReplicate(0.5f)));
+  JPH::Shape::ShapeResult compoundResult = compoundSettings.Create();
+  ASSERT_FALSE(compoundResult.HasError());
+  mover.controller.SetShapePreservingMassPropertiesAndCenterOfMass(compoundResult.Get(), nullptr);
+
+  AcceptAllShapeCastFilter filter;
+  std::vector<PHY_ShapeCastResult> results;
+  PHY_BodySweepSettings settings;
+  settings.controller = &mover.controller;
+  /* 0.7 up: the target's small root box (z within 0.1) is passed, its child (z within 0.5) and
+   * the mover's child (z 0.2 .. 1.2) meet. */
+  settings.position = MT_Vector3(-10.0f, 0.0f, 0.7f);
+  settings.destination = MT_Vector3(0.0f, 0.0f, 0.7f);
+  settings.detail_flags = PHY_RAY_QUERY_DETAIL_PART;
+  /* The child box leads: it touches the target's child (x = -0.5) with the mover's origin at
+   * x = -3. */
+  ASSERT_EQ(environment.SweepBody(settings, filter, results), PHY_BodySweepStatus::Ok);
+  ASSERT_EQ(results.size(), 1u);
+  EXPECT_EQ(results[0].controller, &target.parent.controller);
+  EXPECT_EQ(results[0].part_object, &target.child);
+  EXPECT_NEAR(results[0].cast_position.x(), -3.0f, 1.0e-3f);
+}
+
+/** \} */
 
 }  // namespace

@@ -596,6 +596,46 @@
   ],
   "settings": {}
  },
+ "LogicNativeGetGamePropertyColor": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ]
+  ],
+  "merged": "LogicNativeGetGamePropertyValue",
+  "outputs": [
+   [
+    "Value",
+    "Property Value",
+    "NodeSocketLogicColor",
+    true,
+    false,
+    false,
+    [
+     0.8,
+     0.8,
+     0.8,
+     1.0
+    ]
+   ]
+  ],
+  "settings": {}
+ },
  "LogicNativeGetGamePropertyFloat": {
   "inputs": [
    [
@@ -666,6 +706,76 @@
   ],
   "settings": {}
  },
+ "LogicNativeGetGamePropertyList": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ]
+  ],
+  "merged": "LogicNativeGetGamePropertyValue",
+  "outputs": [
+   [
+    "Value",
+    "Property Value",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetGamePropertyObject": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ]
+  ],
+  "merged": "LogicNativeGetGamePropertyValue",
+  "outputs": [
+   [
+    "Value",
+    "Property Value",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
  "LogicNativeGetGamePropertyString": {
   "inputs": [
    [
@@ -697,6 +807,45 @@
     false,
     false,
     ""
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeGetGamePropertyVector": {
+  "inputs": [
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ]
+  ],
+  "merged": "LogicNativeGetGamePropertyValue",
+  "outputs": [
+   [
+    "Value",
+    "Property Value",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
    ]
   ],
   "settings": {}
@@ -1293,15 +1442,6 @@
     ""
    ],
    [
-    "X-Ray",
-    "X-Ray",
-    "NodeSocketLogicBool",
-    true,
-    false,
-    false,
-    false
-   ],
-   [
     "Mask",
     "Mask",
     "NodeSocketLogicCollisionLayers",
@@ -1311,6 +1451,15 @@
     1023
    ],
    [
+    "X-Ray",
+    "X-Ray",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
     "Include Sensors",
     "Include Sensors",
     "NodeSocketLogicBool",
@@ -1336,6 +1485,43 @@
     false,
     false,
     false
+   ],
+   [
+    "Duration",
+    "Duration",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Hit Color",
+    "Hit Color",
+    "NodeSocketLogicColor",
+    true,
+    false,
+    false,
+    [
+     1.0,
+     0.05,
+     0.02,
+     1.0
+    ]
+   ],
+   [
+    "Miss Color",
+    "Miss Color",
+    "NodeSocketLogicColor",
+    true,
+    false,
+    false,
+    [
+     1.0,
+     0.92,
+     0.05,
+     1.0
+    ]
    ]
   ],
   "merged": "LogicNativeCastRay",
@@ -1377,6 +1563,15 @@
     null
    ],
    [
+    "Hit Part",
+    "Hit Part",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
     "Point",
     "Hit Point",
     "NodeSocketLogicVector",
@@ -1401,6 +1596,15 @@
      0.0,
      0.0
     ]
+   ],
+   [
+    "Hit Material",
+    "Hit Material",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
    ],
    [
     "Direction",
@@ -1587,15 +1791,6 @@
     ""
    ],
    [
-    "X-Ray",
-    "X-Ray",
-    "NodeSocketLogicBool",
-    true,
-    false,
-    false,
-    false
-   ],
-   [
     "Mask",
     "Mask",
     "NodeSocketLogicCollisionLayers",
@@ -1603,24 +1798,6 @@
     false,
     false,
     1023
-   ],
-   [
-    "Include Sensors",
-    "Include Sensors",
-    "NodeSocketLogicBool",
-    true,
-    false,
-    false,
-    false
-   ],
-   [
-    "Hit Backfaces",
-    "Hit Backfaces",
-    "NodeSocketLogicBool",
-    true,
-    false,
-    false,
-    false
    ],
    [
     "Max Results",
@@ -1632,6 +1809,33 @@
     32
    ],
    [
+    "X-Ray",
+    "X-Ray",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Include Sensors",
+    "Include Sensors",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Hit Backfaces",
+    "Hit Backfaces",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
     "Visualize",
     "Visualize",
     "NodeSocketLogicBool",
@@ -1639,6 +1843,43 @@
     false,
     false,
     false
+   ],
+   [
+    "Duration",
+    "Duration",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Hit Color",
+    "Hit Color",
+    "NodeSocketLogicColor",
+    true,
+    false,
+    false,
+    [
+     1.0,
+     0.05,
+     0.02,
+     1.0
+    ]
+   ],
+   [
+    "Miss Color",
+    "Miss Color",
+    "NodeSocketLogicColor",
+    true,
+    false,
+    false,
+    [
+     1.0,
+     0.92,
+     0.05,
+     1.0
+    ]
    ]
   ],
   "merged": "LogicNativeCastRay",
@@ -1715,6 +1956,15 @@
     null
    ],
    [
+    "Hit Parts",
+    "Hit Parts",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
     "Points",
     "Points",
     "NodeSocketLogicList",
@@ -1726,6 +1976,15 @@
    [
     "Normals",
     "Normals",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Hit Materials",
+    "Hit Materials",
     "NodeSocketLogicList",
     true,
     false,
@@ -2680,6 +2939,64 @@
   ],
   "settings": {}
  },
+ "LogicNativeSetGamePropertyColor": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicColor",
+    true,
+    false,
+    false,
+    [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ]
+   ]
+  ],
+  "merged": "LogicNativeSetGamePropertyValue",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
  "LogicNativeSetGamePropertyFloat": {
   "inputs": [
    [
@@ -2786,6 +3103,112 @@
   ],
   "settings": {}
  },
+ "LogicNativeSetGamePropertyList": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeSetGamePropertyValue",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetGamePropertyObject": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ]
+  ],
+  "merged": "LogicNativeSetGamePropertyValue",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
  "LogicNativeSetGamePropertyString": {
   "inputs": [
    [
@@ -2823,6 +3246,63 @@
     false,
     false,
     ""
+   ]
+  ],
+  "merged": "LogicNativeSetGamePropertyValue",
+  "outputs": [
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetGamePropertyVector": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Property",
+    "Property",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    "property"
+   ],
+   [
+    "Value",
+    "Value",
+    "NodeSocketLogicVector",
+    true,
+    false,
+    false,
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
    ]
   ],
   "merged": "LogicNativeSetGamePropertyValue",
@@ -3271,15 +3751,6 @@
     ""
    ],
    [
-    "X-Ray",
-    "X-Ray",
-    "NodeSocketLogicBool",
-    true,
-    false,
-    false,
-    false
-   ],
-   [
     "Mask",
     "Mask",
     "NodeSocketLogicCollisionLayers",
@@ -3289,6 +3760,15 @@
     1023
    ],
    [
+    "X-Ray",
+    "X-Ray",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
     "Include Sensors",
     "Include Sensors",
     "NodeSocketLogicBool",
@@ -3314,6 +3794,43 @@
     false,
     false,
     false
+   ],
+   [
+    "Duration",
+    "Duration",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Hit Color",
+    "Hit Color",
+    "NodeSocketLogicColor",
+    true,
+    false,
+    false,
+    [
+     1.0,
+     0.05,
+     0.02,
+     1.0
+    ]
+   ],
+   [
+    "Miss Color",
+    "Miss Color",
+    "NodeSocketLogicColor",
+    true,
+    false,
+    false,
+    [
+     1.0,
+     0.92,
+     0.05,
+     1.0
+    ]
    ]
   ],
   "merged": "LogicNativeCastShape",
@@ -3355,6 +3872,15 @@
     null
    ],
    [
+    "Hit Part",
+    "Hit Part",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
     "Point",
     "Hit Point",
     "NodeSocketLogicVector",
@@ -3379,6 +3905,15 @@
      0.0,
      0.0
     ]
+   ],
+   [
+    "Hit Material",
+    "Hit Material",
+    "NodeSocketLogicString",
+    true,
+    false,
+    false,
+    ""
    ],
    [
     "Cast Position",
@@ -3614,15 +4149,6 @@
     ""
    ],
    [
-    "X-Ray",
-    "X-Ray",
-    "NodeSocketLogicBool",
-    true,
-    false,
-    false,
-    false
-   ],
-   [
     "Mask",
     "Mask",
     "NodeSocketLogicCollisionLayers",
@@ -3630,24 +4156,6 @@
     false,
     false,
     1023
-   ],
-   [
-    "Include Sensors",
-    "Include Sensors",
-    "NodeSocketLogicBool",
-    true,
-    false,
-    false,
-    false
-   ],
-   [
-    "Hit Backfaces",
-    "Hit Backfaces",
-    "NodeSocketLogicBool",
-    true,
-    false,
-    false,
-    false
    ],
    [
     "Max Results",
@@ -3659,6 +4167,33 @@
     32
    ],
    [
+    "X-Ray",
+    "X-Ray",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Include Sensors",
+    "Include Sensors",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
+    "Hit Backfaces",
+    "Hit Backfaces",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
+   ],
+   [
     "Visualize",
     "Visualize",
     "NodeSocketLogicBool",
@@ -3666,6 +4201,43 @@
     false,
     false,
     false
+   ],
+   [
+    "Duration",
+    "Duration",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Hit Color",
+    "Hit Color",
+    "NodeSocketLogicColor",
+    true,
+    false,
+    false,
+    [
+     1.0,
+     0.05,
+     0.02,
+     1.0
+    ]
+   ],
+   [
+    "Miss Color",
+    "Miss Color",
+    "NodeSocketLogicColor",
+    true,
+    false,
+    false,
+    [
+     1.0,
+     0.92,
+     0.05,
+     1.0
+    ]
    ]
   ],
   "merged": "LogicNativeCastShape",
@@ -3716,6 +4288,15 @@
     null
    ],
    [
+    "Hit Parts",
+    "Hit Parts",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
     "Points",
     "Points",
     "NodeSocketLogicList",
@@ -3727,6 +4308,15 @@
    [
     "Normals",
     "Normals",
+    "NodeSocketLogicList",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Hit Materials",
+    "Hit Materials",
     "NodeSocketLogicList",
     true,
     false,

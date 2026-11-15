@@ -20,9 +20,11 @@
 #include <unordered_map>
 #include <vector>
 
+#include "LN_DebugLines.h"
 #include "LN_DenseIds.h"
 #include "LN_EventBus.h"
 #include "LN_Inventory.h"
+#include "LN_KeepDistance.h"
 #include "LN_Performance.h"
 #include "LN_Program.h"
 #include "LN_Snapshot.h"
@@ -46,6 +48,8 @@ class PHY_IPhysicsController;
 class PHY_IVehicle;
 struct PHY_RayQuerySettings;
 struct PHY_ShapeCastSettings;
+struct PHY_BodySweepSettings;
+enum class PHY_BodySweepStatus : uint8_t;
 struct PHY_CachedCollisionContact;
 struct LN_RigidBodyConstraintBreakEvent;
 
@@ -60,6 +64,37 @@ struct ID;
 using LN_CollisionContactsForTests =
     std::unordered_map<const KX_GameObject *, std::vector<const PHY_CachedCollisionContact *>>;
 void LN_SetCollisionContactsForTests(const LN_CollisionContactsForTests *contacts);
+
+class PHY_IPhysicsEnvironment;
+/** Tests only: the physics world every ray, shape cast and sweep of the Logic Nodes asks (a Jolt
+ * environment built by the test, so rays hit without a KX_Scene). nullptr (the default): the
+ * owner's scene's. */
+void LN_SetPhysicsEnvironmentForTests(PHY_IPhysicsEnvironment *environment);
+/** The physics world the queries of an object's trees ask: the test one when set, else the
+ * object's scene's (null without either). */
+PHY_IPhysicsEnvironment *LN_QueryPhysicsEnvironment(const KX_GameObject *object);
+
+/** Tests only: every Visualize line goes to this list as well (with its duration, seconds; 0 =
+ * this step only) instead of (or besides) the rasterizer. nullptr (the default): none. */
+using LN_DebugLinesForTests = std::vector<std::pair<LN_DebugLine, float>>;
+void LN_SetDebugLinesForTests(LN_DebugLinesForTests *lines);
+/** Tests: the timed lines of trees without a manager (the rigs') go to this list; null (the
+ * default): they are drawn for their step only. */
+void LN_SetTimedDebugLinesForTests(LN_TimedDebugLines *lines);
+
+class LN_RuntimeTree;
+class LN_JobPool;
+/** The start-of-tick warm-up of `count` trees (2026-11-14): those whose warm-up must stay on this
+ * thread first, in order, then those whose warm-up may run on a helper (WarmsOnHelpers: a crowd's
+ * Projectile Rays) on `pool` in chunks when it has helpers and there are enough of them. A tree's
+ * warm-up writes only its own query states and reads a world nothing writes before the trees
+ * record, so neither the order nor the thread changes a result. UPBGE_LN_WARM_PARALLEL=0 keeps
+ * every warm-up on this thread, =force takes the pool for any number. Returns the queries
+ * warmed. */
+size_t LN_WarmQueryCaches(LN_RuntimeTree *const *trees,
+                          size_t count,
+                          const LN_TickContext &context,
+                          LN_JobPool *pool);
 
 /** Forget all Global Properties and which categories were read from disk. Called when a game
  * launch starts; the values persist across restarts and scene changes within one launch. */
@@ -78,6 +113,12 @@ LN_Value LN_GamePropertyValue(EXP_Value *property, LN_Manager *manager);
  * any thread (the parallel capture). */
 bool LN_GamePropertyAsBool(EXP_Value *property);
 std::string LN_GamePropertyAsText(EXP_Value *property);
+/** The same for Get Game Property Vector and Color of the owner (2026-11-15): ValueAsVector /
+ * ValueAsColor of its value (a Color's red, green and blue as a vector, a Vector with alpha 1 as a
+ * color, a number in all three of a vector, a list of numbers); false when it gives none. Any
+ * thread. */
+bool LN_GamePropertyAsVector(EXP_Value *property, MT_Vector3 &r_vector);
+bool LN_GamePropertyAsColor(EXP_Value *property, MT_Vector4 &r_color);
 
 /** The list and dictionary nodes' change \a op on \a collection (a List for the list changes, a
  * Dict for the others), by the very rules of their Output Only results (the ListAppend ...
@@ -188,6 +229,9 @@ class LN_RuntimeTree {
   size_t WarmQueryCache(const LN_TickContext &context);
   template<class Reader>
   size_t WarmQueryCacheWith(const LN_TickContext &context);
+  /** Whether this tick's warm-up has something to work out and all of it may be worked out on a
+   * helper thread (LN_QUERY_WARM_ON_HELPERS on each query it warms; 2026-11-14). */
+  bool WarmsOnHelpers(const LN_TickContext &context) const;
   /** Register object scroll/grid layout before dependent interactable bounds are collected. */
   void CollectUIViews(const LN_TickContext &context);
   template<class Reader>
@@ -232,6 +276,19 @@ class LN_RuntimeTree {
   uint32_t GetStepSpread() const
   {
     return m_stepSpread;
+  }
+  /** The state of Keep Distance node `slot` (LN_Program::AcquireKeepDistanceNode): made when
+   * first asked; its address holds while the tree lives (the flush keeps it across requests). */
+  LN_KeepDistanceState &KeepDistanceState(const uint32_t slot)
+  {
+    if (slot >= m_keepDistanceStates.size()) {
+      m_keepDistanceStates.resize(size_t(slot) + 1);
+    }
+    return m_keepDistanceStates[slot];
+  }
+  const LN_KeepDistanceState *FindKeepDistanceState(const uint32_t slot) const
+  {
+    return slot < m_keepDistanceStates.size() ? &m_keepDistanceStates[slot] : nullptr;
   }
   bool HasStepSpread() const
   {
@@ -395,6 +452,19 @@ class LN_RuntimeTree {
                           uint32_t block_index,
                           LN_CommandBuffer &buffer,
                           LN_TickContext &context);
+  /** On Collision, Events = Each Object (2026-11-14): block `block_index` of `event` (it holds
+   * ops of such a node's routes) run by the VM's own walk for this tree in the pass scope of
+   * `context`, each op told the route it belongs to (ColumnWalkEvent's run_tagged: the kinds read
+   * the event's first object there), recording into `buffer`. Main thread (the collision events'
+   * object handles). */
+  void ColumnRunCollisionBlock(LN_Event event,
+                               uint32_t block_index,
+                               LN_CommandBuffer &buffer,
+                               LN_TickContext &context);
+  /** Their repeats: each further object of each such route this tick runs the route again in a
+   * scope of its own, after the pass's ops, as ColumnWalkEvent's repeats; recording into
+   * `buffer`. Main thread. */
+  void ColumnRunCollisionRepeats(LN_Event event, LN_CommandBuffer &buffer, LN_TickContext &context);
   /** Plan C2 P5 / P6, a direct program's lane: the pass of `event` in scope `scope_serial` (its
    * prelude made by BeginColumnPass), as ExecuteEvent runs one but with the column system's own
    * walk: the event's compiled route when it has one and nothing asks for what a route leaves
@@ -584,6 +654,13 @@ class LN_RuntimeTree {
       const std::string &property_name = std::string(),
       bool xray = false,
       const std::vector<LN_RuntimeRef> &extra_ignore_object_refs = {});
+  /** The pointer's rules for a view ray (Mouse Ray, Camera Ray): what the camera does not draw,
+   * invisible objects and the other world (overlay or main) are passed. */
+  struct ViewRayRules {
+    LN_InteractionDomain domain = LN_InteractionDomain::Any;
+    bool respect_runtime_visibility = false;
+    const KX_Camera *view_camera = nullptr;
+  };
   /** The hits into `r_results` (cleared first; plan C2 P3: a query's cached results are refilled
    * in place, not a new vector each cast). */
   void RayCast(
@@ -596,6 +673,32 @@ class LN_RuntimeTree {
       bool &r_blocked,
       LN_PhysicsQueryResult &r_blocker,
       bool &r_supported,
+      std::vector<LN_PhysicsQueryResult> &r_results,
+      const ViewRayRules *view_rules = nullptr);
+  /** Hit Material: the name of the material on the hit face's slot of the Hit Part's object
+   * (slot 0 for shapes without triangles); empty without a hit or a material there. */
+  std::string PhysicsQueryMaterialName(const LN_PhysicsQueryResult &hit) const;
+  /** A shape cast's (or sweep's) physics hits as results, by the Property / X-Ray rules (a
+   * nonmatching hit without X-Ray blocks: `r_blocker`). */
+  void ShapeCastResults(const MT_Vector3 &origin,
+                        const MT_Vector3 &destination,
+                        const std::vector<struct PHY_ShapeCastResult> &physics_results,
+                        const std::string &property_name,
+                        bool xray,
+                        bool &r_blocked,
+                        LN_PhysicsQueryResult &r_blocker,
+                        std::vector<LN_PhysicsQueryResult> &r_results);
+  /** Sweep Object: `object`'s own shape from its pose to `destination` (PHY_BodySweepSettings;
+   * the object's children with bodies of their own are passed too). */
+  PHY_BodySweepStatus SweepBody(
+      const PHY_BodySweepSettings &settings,
+      KX_GameObject *object,
+      uint32_t collision_mask,
+      const std::string &property_name,
+      bool xray,
+      const std::vector<LN_RuntimeRef> &extra_ignore_object_refs,
+      bool &r_blocked,
+      LN_PhysicsQueryResult &r_blocker,
       std::vector<LN_PhysicsQueryResult> &r_results);
   void ShapeCast(
       const PHY_ShapeCastSettings &settings,
@@ -608,6 +711,17 @@ class LN_RuntimeTree {
       LN_PhysicsQueryResult &r_blocker,
       bool &r_supported,
       std::vector<LN_PhysicsQueryResult> &r_results);
+  /** Explode or Implode Impulse: the objects whose bodies a sphere overlaps, chosen as
+   * ShapeCast (X-Ray) with a zero-length sphere chooses them (PHY OverlapSphereBodies), at most
+   * `max_results`. False: the physics has no such query (ShapeCast then). */
+  bool OverlapSphereObjects(const MT_Vector3 &center,
+                            float radius,
+                            KX_GameObject *ignore_object,
+                            uint32_t collision_mask,
+                            const std::string &property_name,
+                            const std::vector<LN_RuntimeRef> &extra_ignore_object_refs,
+                            uint32_t max_results,
+                            std::vector<KX_GameObject *> &r_objects);
 
   const LN_Value *GetTreePropertyValue(uint32_t property_ref_index) const;
   bool SetTreePropertyValue(uint32_t property_ref_index, const LN_Value &value);
@@ -964,12 +1078,201 @@ class LN_RuntimeTree {
     /** On UI Event: which of this frame's matching events the query reports (0: the first). */
     uint32_t ui_event_cursor = 0;
   };
-  /** Plan C2 P3: query `index` (a Raycast, LN_Columns' QRay node) worked out by QueryKind into
-   * `scratch` (the run's per-thread result, not the tree's query cache), its inputs read as the
-   * VM reads them. */
-  const LN_QueryResult &ColumnCastQuery(uint32_t index,
-                                        LN_TickContext &context,
-                                        QueryExpressionRuntimeState &scratch);
+  /** Velocity at Point (query `index`, LN_Columns' QPointVel node, 2026-11-14): measured by the
+   * VM's own code (MeasurePointVelocity) for `object` with the read site's `position` (Position
+   * mode) or `vertex_group` (Vertex Group modes: main thread), into `r_velocity` and `r_point` as
+   * the output kinds PhysicsQueryImpactVelocity and PhysicsQueryPoint give them. Not the tree's
+   * query cache. */
+  void ColumnPointVelocity(uint32_t index,
+                           KX_GameObject *object,
+                           const MT_Vector3 &position,
+                           const std::string &vertex_group,
+                           MT_Vector3 &r_velocity,
+                           MT_Vector3 &r_point);
+  /** Line of Sight (LN_Columns' QSight node, 2026-11-14) with its inputs as the read site has
+   * them: the VM's own steps after its reads (LineOfSightKind: the objects' check, the ends, the
+   * Mask's check, LineOfSightTest), no Ignore Objects, no pending move applied (a column run
+   * starts only when the eye and the target have none), nothing drawn. `r_result` as the VM's
+   * query result's physics fields. Not the tree's query cache. */
+  void ColumnLineOfSight(bool eye_is_object,
+                         KX_GameObject *eye_object,
+                         const MT_Vector3 &eye_input,
+                         const MT_Vector3 &forward_input,
+                         bool target_is_object,
+                         KX_GameObject *target_object,
+                         const MT_Vector3 &target_input,
+                         float max_distance,
+                         float view_angle,
+                         int32_t mask_value,
+                         bool include_sensors,
+                         bool hit_back_faces,
+                         LN_PhysicsQueryResult &r_result);
+  /** Raycast's ends once its inputs are read (the VM's kind and LN_Columns' QRay node run this one
+   * code, 2026-11-14): Local through the caster's pose (End Point: Origin and Destination;
+   * Direction: Origin and Direction), the Direction mode's destination, the finite and length
+   * checks. False: an invalid target. `r_direction` the unit direction, `r_cast_distance` the
+   * ray's length. No pending move applied here (the VM applies the caster's before). */
+  static bool RaycastEnds(KX_GameObject *caster_object,
+                          bool local_space,
+                          LN_RayInputMode mode,
+                          float requested_distance,
+                          MT_Vector3 &r_origin,
+                          MT_Vector3 &r_destination,
+                          MT_Vector3 &r_direction,
+                          float &r_cast_distance);
+  /** Raycast's cast once its filters are read (the VM's kind and QRay): the fallback result in
+   * place (the destination, the whole length), the physics' rays, then the first hit or the
+   * blocker, `blocked`; `r_results` the hits (at most `max_results`). False: this physics has no
+   * ray query (the caller gives UnsupportedPhysicsBackend). */
+  bool RaycastCast(const LN_RuntimeRef &caster_ref,
+                   const std::vector<LN_RuntimeRef> &ignore_refs,
+                   const MT_Vector3 &origin,
+                   const MT_Vector3 &destination,
+                   const MT_Vector3 &direction,
+                   float cast_distance,
+                   uint32_t mask,
+                   const std::string &property_name,
+                   bool xray,
+                   int32_t max_results,
+                   bool collect_all,
+                   bool include_sensors,
+                   bool hit_back_faces,
+                   uint8_t detail_flags,
+                   LN_PhysicsQueryResult &r_result,
+                   std::vector<LN_PhysicsQueryResult> &r_results,
+                   bool &r_blocked,
+                   LN_PhysicsQueryResult &r_blocker);
+  /** Shape Cast's place once its inputs are read (the VM's kind and QRay share it): in Local
+   * space through the caster's pose (Origin, Destination, the shape's turn). */
+  static void ShapeCastPlace(KX_GameObject *caster_object,
+                             bool local_space,
+                             MT_Vector3 &r_origin,
+                             MT_Vector3 &r_destination,
+                             MT_Matrix3x3 &r_orientation);
+  /** Shape Cast's shape and path checks (finite, a shape of positive size, a finite length):
+   * false is an invalid target; `r_cast_distance` the path's length. */
+  static bool ShapeCastValid(LN_ShapeCastType type,
+                             const MT_Vector3 &origin,
+                             const MT_Vector3 &destination,
+                             const MT_Vector3 &half_extents,
+                             float radius,
+                             float height,
+                             float extra_radius,
+                             float &r_cast_distance);
+  /** Shape Cast's cast once its filters are read (the VM's kind and QRay): the fallback result,
+   * the physics' sweep, the first hit or the blocker, `blocked`; `r_results` the hits (at most
+   * `max_results`), `r_settings` what was swept (the drawing's). False: no shape cast in this
+   * physics. */
+  bool ShapeCastRun(const LN_RuntimeRef &caster_ref,
+                    const std::vector<LN_RuntimeRef> &ignore_refs,
+                    LN_ShapeCastType type,
+                    const MT_Vector3 &origin,
+                    const MT_Vector3 &destination,
+                    const MT_Matrix3x3 &orientation,
+                    const MT_Vector3 &half_extents,
+                    float radius,
+                    float height,
+                    float extra_radius,
+                    float cast_distance,
+                    uint32_t mask,
+                    int32_t max_results,
+                    bool collect_all,
+                    bool include_sensors,
+                    bool hit_back_faces,
+                    const std::string &property_name,
+                    bool xray,
+                    uint8_t detail_flags,
+                    LN_PhysicsQueryResult &r_result,
+                    std::vector<LN_PhysicsQueryResult> &r_results,
+                    bool &r_blocked,
+                    LN_PhysicsQueryResult &r_blocker,
+                    PHY_ShapeCastSettings &r_settings);
+  /** The objects a cast passes (Ignore Object, then Ignore Objects' items, each once, none
+   * skipped as ResolveIgnoreObjectRefs does) as refs of this tree, into `r_refs`. */
+  void ColumnIgnoreRefs(KX_GameObject *const *objects,
+                        size_t count,
+                        std::vector<LN_RuntimeRef> &r_refs);
+  /** Shape Cast / Shape Cast All (LN_Columns' QRay node, 2026-11-14) with its inputs as the read
+   * site has them: the VM's own steps after its reads (ShapeCastPlace, the caster's ref,
+   * ShapeCastValid, the Mask's check, the physics world, ShapeCastRun); nothing drawn, no pending
+   * move applied. `r_results` its hits. */
+  void ColumnShapeCast(KX_GameObject *caster_object,
+                       const std::vector<LN_RuntimeRef> &ignore_refs,
+                       LN_ShapeCastType type,
+                       const MT_Vector3 &origin_input,
+                       const MT_Vector3 &destination_input,
+                       const LN_Rotation &rotation,
+                       const MT_Vector3 &half_extents,
+                       bool local_space,
+                       float radius,
+                       float height,
+                       float extra_radius,
+                       int32_t mask_value,
+                       int32_t max_results_input,
+                       bool collect_all,
+                       bool include_sensors,
+                       bool hit_back_faces,
+                       const std::string &property_name,
+                       bool xray,
+                       uint8_t detail_flags,
+                       uint64_t execution_scope_serial,
+                       LN_PhysicsQueryResult &r_result,
+                       std::vector<LN_PhysicsQueryResult> &r_results);
+  /** Raycast (LN_Columns' QRay node, 2026-11-14) with its inputs as the read site has them: the
+   * VM's own steps after its reads (the caster: the owner in Local space when none; RaycastEnds,
+   * the caster's ref, the physics world, the Mask's check, RaycastCast), no Ignore Objects, no
+   * pending move applied (a column run starts only when the caster has none), nothing drawn.
+   * `r_result` as the VM's query result's physics fields. Not the tree's query cache. */
+  void ColumnRaycast(KX_GameObject *caster_object,
+                     const std::vector<LN_RuntimeRef> &ignore_refs,
+                     const MT_Vector3 &origin_input,
+                     const MT_Vector3 &destination_input,
+                     const MT_Vector3 &direction_input,
+                     float requested_distance,
+                     bool local_space,
+                     LN_RayInputMode mode,
+                     int32_t mask_value,
+                     const std::string &property_name,
+                     bool xray,
+                     int32_t max_results_input,
+                     bool collect_all,
+                     bool include_sensors,
+                     bool hit_back_faces,
+                     uint8_t detail_flags,
+                     uint64_t execution_scope_serial,
+                     LN_PhysicsQueryResult &r_result,
+                     std::vector<LN_PhysicsQueryResult> &r_results);
+  /** Line of Sight's ends: the eye in the world (an object's offset in its space) and its forward
+   * turned with the eye object; the target likewise. */
+  static void LineOfSightEye(KX_GameObject *eye_object,
+                             const MT_Vector3 &eye_input,
+                             const MT_Vector3 &forward_input,
+                             MT_Vector3 &r_eye,
+                             MT_Vector3 &r_forward);
+  static MT_Vector3 LineOfSightTarget(KX_GameObject *target_object,
+                                      const MT_Vector3 &target_input);
+  /** What Line of Sight's drawing needs of its test (LineOfSightTest). */
+  struct LineOfSightShape {
+    bool valid = false;
+    float distance = 0.0f;
+    float forward_length = 0.0f;
+  };
+  /** Line of Sight's test once its inputs are read and its ends placed (the VM's kind and QSight
+   * run this one code): the angle and distance, in range and in view, the ray against the Mask
+   * (the eye's and the target's bodies and `ignore_refs` passed; the target is added to it).
+   * `r_result` gets every field the kind sets but a diagnostic of an invalid end or filter. */
+  LineOfSightShape LineOfSightTest(KX_GameObject *eye_object,
+                                   const MT_Vector3 &eye,
+                                   const MT_Vector3 &forward,
+                                   KX_GameObject *target_object,
+                                   const MT_Vector3 &target,
+                                   float max_distance,
+                                   float view_angle,
+                                   uint32_t mask,
+                                   std::vector<LN_RuntimeRef> &ignore_refs,
+                                   bool include_sensors,
+                                   bool hit_back_faces,
+                                   LN_PhysicsQueryResult &r_result);
 
   /** The register file: values in the state block, valid while their generation is the active
    * one (a new tick starts a new generation). */
@@ -1318,7 +1621,8 @@ class LN_RuntimeTree {
   void ColumnWalkEvent(Frame &frame,
                        const LN_ExecBlockProgram &ir,
                        uint64_t scope_serial,
-                       RunOp &&run_op);
+                       RunOp &&run_op,
+                       bool repeats_only = false);
   /** The lean program this tree runs on in this call, or null (mode Off, no lean program made
    * yet or an invalid one). Makes the program's lean form on the main thread. */
   const LN_LeanProgram *LeanProgramForRun() const;
@@ -1668,6 +1972,8 @@ class LN_RuntimeTree {
   double m_eventDeltaTime = 0.0;
   uint32_t m_stepSpread = 0;
   bool m_hasStepSpread = false;
+  /** Keep Distance nodes' states (KeepDistanceState: a deque keeps their addresses). */
+  std::deque<LN_KeepDistanceState> m_keepDistanceStates;
   uint64_t m_randomStream = 0;
   /** On Init runs now (RandomTick). */
   bool m_randomInInit = false;

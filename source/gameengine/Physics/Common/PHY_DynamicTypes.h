@@ -108,4 +108,9 @@ enum PHY_RayQueryDetail : unsigned char {
   PHY_RAY_QUERY_DETAIL_NONE = 0,
   PHY_RAY_QUERY_DETAIL_FACE_INDEX = 1 << 0,
   PHY_RAY_QUERY_DETAIL_UV = 1 << 1,
+  /** The compound child whose shape was hit (Hit Part): asked per query, no data kept. */
+  PHY_RAY_QUERY_DETAIL_PART = 1 << 2,
+  /** The hit triangle's material slot (Hit Material): triangle meshes keep one slot per triangle
+   * when a game asks for it (AddRayQueryDetailRequirements at conversion). */
+  PHY_RAY_QUERY_DETAIL_MATERIAL = 1 << 3,
 };

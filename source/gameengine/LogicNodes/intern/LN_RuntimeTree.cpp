@@ -25,6 +25,7 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -106,7 +107,9 @@
 #include "DEV_Joystick.h"
 #include "LN_InputMap.h"
 #include "LN_Inventory.h"
+#include "LN_JobPool.h"
 #include "LN_Manager.h"
+#include "LN_AimMath.h"
 #include "LN_MeshRays.h"
 #include "LN_Performance.h"
 #include "LN_Random.h"
@@ -237,6 +240,10 @@ static float ReadRigidBodyFloatAttribute(PHY_IPhysicsController &controller,
       return float(controller.GetRestitution());
     case LN_RigidBodyAttribute::Damping:
       return component == 1 ? controller.GetAngularDamping() : controller.GetLinearDamping();
+    case LN_RigidBodyAttribute::LinearDamping:
+      return controller.GetLinearDamping();
+    case LN_RigidBodyAttribute::AngularDamping:
+      return controller.GetAngularDamping();
     case LN_RigidBodyAttribute::MinLinearVelocity:
       return controller.GetLinVelocityMin();
     case LN_RigidBodyAttribute::MaxLinearVelocity:
@@ -280,6 +287,8 @@ static bool ReadRigidBodyBoolAttribute(PHY_IPhysicsController &controller,
     case LN_RigidBodyAttribute::MaxAngularVelocity:
     case LN_RigidBodyAttribute::GravityFactor:
     case LN_RigidBodyAttribute::AxisLocks:
+    case LN_RigidBodyAttribute::LinearDamping:
+    case LN_RigidBodyAttribute::AngularDamping:
       break;
   }
   return false;
@@ -396,12 +405,16 @@ static bool QueryExpressionNeedsCommandOrderedEvaluation(const LN_QueryExpressio
          kind == LN_QueryExpressionKind::MouseOver || kind == LN_QueryExpressionKind::MouseRay ||
          kind == LN_QueryExpressionKind::CameraRay ||
          kind == LN_QueryExpressionKind::VectorAverage ||
-         kind == LN_QueryExpressionKind::DistanceBetween;
+         kind == LN_QueryExpressionKind::DistanceBetween ||
+         kind == LN_QueryExpressionKind::LineOfSight || kind == LN_QueryExpressionKind::SweepObject;
 }
 
 static bool QueryExpressionCanWarmCache(const LN_QueryExpression &expression)
 {
-  return !QueryExpressionNeedsCommandOrderedEvaluation(expression.kind);
+  /* Velocity at Point is measured where its route first reads it (kept for the tick), so a column
+   * run measures it in the same place (NodeOp::QPointVel, 2026-11-14). */
+  return !QueryExpressionNeedsCommandOrderedEvaluation(expression.kind) &&
+         expression.kind != LN_QueryExpressionKind::PointVelocity;
 }
 
 static void FlushPendingRaycastTransforms(KX_GameObject *game_object,
@@ -702,6 +715,162 @@ static std::vector<LN_MeshRaySample> SampleMeshRays(KX_GameObject &source_object
         return faces ? LN_MeshFaceRaySample(block->geometry, element, r_sample) :
                        LN_MeshVertexRaySample(block->geometry, element, r_sample);
       });
+}
+
+/**
+ * Velocity at Point's vertices (2026-11-14): the world positions of the members of `vertex_group`
+ * in every game mesh of `object`, in order, read as the mesh rays read them (the shape when the
+ * game started, moved with the object; the group found once per mesh in `groups`).
+ */
+static std::vector<MT_Vector3> VertexGroupWorldPoints(KX_GameObject &object,
+                                                      const std::string &vertex_group,
+                                                      LN_MeshRayGroupCache *groups)
+{
+  std::vector<MT_Vector3> points;
+  if (vertex_group.empty()) {
+    return points;
+  }
+  const MT_Transform world = object.NodeGetWorldTransform();
+  for (unsigned int mesh_index = 0; mesh_index < object.GetMeshCount(); mesh_index++) {
+    RAS_MeshObject *game_mesh = object.GetMesh(mesh_index);
+    if (!game_mesh) {
+      continue;
+    }
+    bool start_shape = false;
+    LN_MeshRaySourceId source_id;
+    const blender::Mesh *mesh = MeshRaySourceOf(
+        object.GetScene(), *game_mesh, start_shape, source_id);
+    if (!mesh) {
+      continue;
+    }
+    std::shared_ptr<const std::vector<int>> members;
+    if (groups != nullptr) {
+      members = groups->Members(source_id.session_uid,
+                                source_id.is_object,
+                                *mesh,
+                                vertex_group,
+                                false,
+                                object.GetName());
+    }
+    else {
+      LN_MeshRayGroupCache once;
+      members = once.Members(0, false, *mesh, vertex_group, false, object.GetName());
+    }
+    if (!members) {
+      continue;
+    }
+    LN_MeshRayPositions positions;
+    positions.game_mesh = game_mesh;
+    positions.start_shape = start_shape;
+    if (!start_shape) {
+      positions.blender_positions = mesh->vert_positions();
+    }
+    points.reserve(points.size() + members->size());
+    for (const int vert : *members) {
+      blender::float3 position;
+      if (positions(vert, position)) {
+        points.push_back(world * MT_Vector3(position.x, position.y, position.z));
+      }
+    }
+  }
+  return points;
+}
+
+/** The object whose physics body carries `object`: itself, else its nearest parent with a body
+ * (an Empty parented at a sword's tip moves with the sword). */
+static KX_GameObject *PointVelocityCarrier(KX_GameObject *object)
+{
+  for (KX_GameObject *current = object; current != nullptr; current = current->GetParent()) {
+    if (current->GetPhysicsController() != nullptr) {
+      return current;
+    }
+  }
+  return nullptr;
+}
+
+/** How fast world point `point` of `carrier`'s body moves: Jolt's point velocity (the body's
+ * movement plus its spin around its centre of mass); zero without a body. The controller takes
+ * the point as an offset from the object's origin. */
+static MT_Vector3 PointVelocityOf(KX_GameObject *carrier, const MT_Vector3 &point)
+{
+  if (carrier == nullptr) {
+    return MT_Vector3(0.0f, 0.0f, 0.0f);
+  }
+  return carrier->GetVelocity(point - carrier->NodeGetWorldPosition());
+}
+
+/**
+ * Velocity at Point measured (2026-11-14): QueryKind's PointVelocity case and the column kernel
+ * QPointVel (LN_RuntimeTree::ColumnPointVelocity) run this one code, so a wide run gives the
+ * column pass's numbers bit for bit (the point velocity is Jolt's own SIMD code). `object` the
+ * measured object (none: InvalidTarget), `position` the Position (Position mode), `vertex_group`
+ * the group (Vertex Group mode; read by the caller only then). Writes hit_position = the point,
+ * impact_velocity = its velocity, hit = measured (the list outputs keep hits only); Each Vertex
+ * fills one result per vertex into `r_result.physics_query_results`. Reads Jolt under its body
+ * read lock and the scene graph (any thread while nothing writes them); the Vertex Group modes
+ * read Blender's evaluated mesh (main thread).
+ */
+static void MeasurePointVelocity(KX_GameObject *object,
+                                 const LN_QueryExpression &expression,
+                                 const MT_Vector3 &position,
+                                 const std::string &vertex_group,
+                                 LN_MeshRayGroupCache *groups,
+                                 LN_QueryResult &r_result)
+{
+  LN_PhysicsQueryResult &result = r_result.physics_query;
+  if (object == nullptr) {
+    result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidTarget;
+    return;
+  }
+  KX_GameObject *carrier = PointVelocityCarrier(object);
+  const auto measure = [&](LN_PhysicsQueryResult &r_point, const MT_Vector3 &point) {
+    r_point.hit_position = point;
+    r_point.impact_velocity = PointVelocityOf(carrier, point);
+    r_point.hit = true;
+    r_point.diagnostic_status = LN_QueryDiagnosticStatus::Hit;
+  };
+  if (LN_PointVelocitySource(expression.int_value) != LN_PointVelocitySource::VertexGroup) {
+    measure(result, position);
+    return;
+  }
+  const std::vector<MT_Vector3> points = VertexGroupWorldPoints(*object, vertex_group, groups);
+  if (points.empty()) {
+    result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidTarget;
+    return;
+  }
+  switch (LN_PointVelocityPick(expression.secondary_int_value)) {
+    case LN_PointVelocityPick::Fastest: {
+      /* The fastest vertex, the first of equals. */
+      float fastest = -1.0f;
+      for (const MT_Vector3 &point : points) {
+        LN_PhysicsQueryResult candidate;
+        measure(candidate, point);
+        const float speed = candidate.impact_velocity.length2();
+        if (speed > fastest) {
+          fastest = speed;
+          result = candidate;
+        }
+      }
+      break;
+    }
+    case LN_PointVelocityPick::EachVertex:
+      r_result.physics_query_results.resize(points.size());
+      for (size_t index = 0; index < points.size(); index++) {
+        measure(r_result.physics_query_results[index], points[index]);
+      }
+      result.hit = true;
+      result.diagnostic_status = LN_QueryDiagnosticStatus::Hit;
+      break;
+    case LN_PointVelocityPick::Center:
+    default: {
+      MT_Vector3 center(0.0f, 0.0f, 0.0f);
+      for (const MT_Vector3 &point : points) {
+        center += point;
+      }
+      measure(result, center / float(points.size()));
+      break;
+    }
+  }
 }
 
 static bool BuildMeshNormalMatrix(const MT_Matrix3x3 &basis, MT_Matrix3x3 &r_normal_matrix)
@@ -1924,6 +2093,78 @@ static bool RasterizerReady()
   return engine != nullptr && engine->GetRasterizer() != nullptr;
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Visualize: the lines of the queries' Visualize inputs
+ *
+ * Every line a query's Visualize draws goes through VisualizeLine: to the rasterizer (this step,
+ * as before 2026-11-11), to the tests' list, and, with a Duration, to the manager, which draws it
+ * again at each Logic + Physics step until its time is up (LN_Manager::DrawTimedDebugLines). The
+ * scope says how long and for which manager; lines drawn outside one (Draw nodes) last a step.
+ * \{ */
+
+static LN_DebugLinesForTests *g_debug_lines_for_tests = nullptr;
+
+namespace {
+
+struct VisualizeContext {
+  LN_TimedDebugLines *timed = nullptr;
+  double expires_at = 0.0;
+  float duration = 0.0f;
+};
+
+LN_TimedDebugLines *g_timed_debug_lines_for_tests = nullptr;
+
+thread_local const VisualizeContext *t_visualize_context = nullptr;
+
+/** While it lives, Visualize lines last `duration` seconds of game time from `now`. */
+class VisualizeScope {
+ public:
+  VisualizeScope(LN_Manager *manager, const double now, const float duration)
+      : m_previous(t_visualize_context)
+  {
+    m_context.timed = manager != nullptr ? &manager->TimedDebugLines() :
+                                           g_timed_debug_lines_for_tests;
+    m_context.duration = std::isfinite(duration) ? std::max(duration, 0.0f) : 0.0f;
+    m_context.expires_at = now + double(m_context.duration);
+    t_visualize_context = &m_context;
+  }
+  ~VisualizeScope()
+  {
+    t_visualize_context = m_previous;
+  }
+  VisualizeScope(const VisualizeScope &) = delete;
+  VisualizeScope &operator=(const VisualizeScope &) = delete;
+
+ private:
+  VisualizeContext m_context;
+  const VisualizeContext *m_previous;
+};
+
+}  // namespace
+
+static void VisualizeLine(const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
+{
+  const VisualizeContext *context = t_visualize_context;
+  const float duration = context != nullptr ? context->duration : 0.0f;
+  if (g_debug_lines_for_tests != nullptr) {
+    g_debug_lines_for_tests->push_back({LN_DebugLine{from, to, color}, duration});
+  }
+  if (RasterizerReady()) {
+    KX_RasterizerDrawDebugLine(from, to, color);
+  }
+  if (context != nullptr && context->timed != nullptr && duration > 0.0f) {
+    context->timed->Add(LN_DebugLine{from, to, color}, context->expires_at);
+  }
+}
+
+/** A query's Visualize colours (Hit Color, Miss Color), today's red and yellow by default. */
+struct LN_VisualizeStyle {
+  MT_Vector4 hit_color = MT_Vector4(1.0f, 0.05f, 0.02f, 1.0f);
+  MT_Vector4 miss_color = MT_Vector4(1.0f, 0.92f, 0.05f, 1.0f);
+};
+
+/** \} */
+
 static void DrawDebugRaycastHitFrame(const MT_Vector3 &point,
                                      const MT_Vector3 &normal,
                                      const float destination_length)
@@ -1943,11 +2184,11 @@ static void DrawDebugRaycastHitFrame(const MT_Vector3 &point,
 
   const float z_length = std::max(destination_length, MT_EPSILON);
   const float tangent_length = 0.3f;
-  KX_RasterizerDrawDebugLine(
+  VisualizeLine(
       point, point + x_axis * tangent_length, MT_Vector4(1.0f, 0.12f, 0.04f, 1.0f));
-  KX_RasterizerDrawDebugLine(
+  VisualizeLine(
       point, point + y_axis * tangent_length, MT_Vector4(0.2f, 1.0f, 0.2f, 1.0f));
-  KX_RasterizerDrawDebugLine(
+  VisualizeLine(
       point, point + z_axis * z_length, MT_Vector4(0.2f, 0.55f, 1.0f, 1.0f));
 }
 
@@ -1955,20 +2196,16 @@ static void DrawDebugRaycast(const MT_Vector3 &from,
                              const MT_Vector3 &to,
                              const bool hit,
                              const MT_Vector3 *hit_normal,
-                             const float destination_length)
+                             const float destination_length,
+                             const LN_VisualizeStyle &style = LN_VisualizeStyle())
 {
-  if (!RasterizerReady()) {
-    return;
+  /* The hit frame first, its normal at most 1 m, then the ray: a head-on hit's normal runs back
+   * along the ray, and it was drawn last and as long as the whole cast, so the ray showed the
+   * normal's blue, never its Hit Color, with a blue tail behind its start (2026-11-11). */
+  if (hit && hit_normal != nullptr) {
+    DrawDebugRaycastHitFrame(to, *hit_normal, std::min(destination_length, 1.0f));
   }
-
-  const MT_Vector4 color = hit ? MT_Vector4(1.0f, 0.05f, 0.02f, 1.0f) :
-                                 MT_Vector4(1.0f, 0.92f, 0.05f, 1.0f);
-  KX_RasterizerDrawDebugLine(from, to, color);
-  if (hit) {
-    if (hit_normal != nullptr) {
-      DrawDebugRaycastHitFrame(to, *hit_normal, destination_length);
-    }
-  }
+  VisualizeLine(from, to, hit ? style.hit_color : style.miss_color);
 }
 
 static void DrawDebugBox(const MT_Vector3 &origin,
@@ -2002,7 +2239,7 @@ static void DrawDebugBox(const MT_Vector3 &origin,
       {3, 7},
   };
   for (const int (&edge)[2] : edges) {
-    KX_RasterizerDrawDebugLine(vertices[edge[0]], vertices[edge[1]], color);
+    VisualizeLine(vertices[edge[0]], vertices[edge[1]], color);
   }
 }
 
@@ -2046,7 +2283,7 @@ static void DrawDebugOrientedBox(const MT_Vector3 &center,
       {3, 7},
   };
   for (const int (&edge)[2] : edges) {
-    KX_RasterizerDrawDebugLine(vertices[edge[0]], vertices[edge[1]], color);
+    VisualizeLine(vertices[edge[0]], vertices[edge[1]], color);
   }
 }
 
@@ -2068,7 +2305,7 @@ static void DrawDebugSphere(const MT_Vector3 &center,
       const float angle = (2.0f * LN_PI * float(segment)) / float(circle_segments);
       const MT_Vector3 point = center + axes[circle[0]] * (radius * std::cos(angle)) +
                                axes[circle[1]] * (radius * std::sin(angle));
-      KX_RasterizerDrawDebugLine(previous, point, color);
+      VisualizeLine(previous, point, color);
       previous = point;
     }
   }
@@ -2107,12 +2344,12 @@ static void DrawDebugRoundedBox(const MT_Vector3 &center,
           const MT_Vector3 world_low = DebugShapePoint(center, orientation, low);
           const MT_Vector3 world_high = DebugShapePoint(center, orientation, high);
           if (segment == 0 || segment == arc_segments / 2 || segment == arc_segments) {
-            KX_RasterizerDrawDebugLine(world_low, world_high, color);
+            VisualizeLine(world_low, world_high, color);
           }
           if (segment > 0) {
-            KX_RasterizerDrawDebugLine(
+            VisualizeLine(
                 DebugShapePoint(center, orientation, previous_low), world_low, color);
-            KX_RasterizerDrawDebugLine(
+            VisualizeLine(
                 DebugShapePoint(center, orientation, previous_high), world_high, color);
           }
           previous_low = low;
@@ -2146,7 +2383,7 @@ static void DrawDebugCapsule(const MT_Vector3 &center,
       const float angle = (2.0f * LN_PI * float(segment)) / float(circle_segments);
       const MT_Vector3 point = circle_center + axis_x * (radius * std::cos(angle)) +
                                axis_y * (radius * std::sin(angle));
-      KX_RasterizerDrawDebugLine(previous, point, color);
+      VisualizeLine(previous, point, color);
       previous = point;
     }
   }
@@ -2161,17 +2398,17 @@ static void DrawDebugCapsule(const MT_Vector3 &center,
       const float angle = (0.5f * LN_PI * float(segment)) / float(hemisphere_segments);
       const MT_Vector3 point = bottom_center + radial * (radius * std::cos(angle)) -
                                axis_z * (radius * std::sin(angle));
-      KX_RasterizerDrawDebugLine(previous, point, color);
+      VisualizeLine(previous, point, color);
       previous = point;
     }
     const MT_Vector3 top_equator = top_center + radial * radius;
-    KX_RasterizerDrawDebugLine(previous, top_equator, color);
+    VisualizeLine(previous, top_equator, color);
     previous = top_equator;
     for (int segment = 1; segment <= hemisphere_segments; ++segment) {
       const float angle = (0.5f * LN_PI * float(segment)) / float(hemisphere_segments);
       const MT_Vector3 point = top_center + radial * (radius * std::cos(angle)) +
                                axis_z * (radius * std::sin(angle));
-      KX_RasterizerDrawDebugLine(previous, point, color);
+      VisualizeLine(previous, point, color);
       previous = point;
     }
   }
@@ -2219,16 +2456,15 @@ static float DebugShapeMarkerLength(const PHY_ShapeCastSettings &settings)
 static void DrawDebugShapeCast(const PHY_ShapeCastSettings &settings,
                                const std::vector<LN_PhysicsQueryResult> &hits,
                                const LN_PhysicsQueryResult *blocker,
-                               const bool collect_all)
+                               const bool collect_all,
+                               const LN_VisualizeStyle &style = LN_VisualizeStyle())
 {
-  if (!RasterizerReady()) {
-    return;
-  }
-
   static const MT_Vector4 start_color(0.1f, 0.55f, 1.0f, 1.0f);
-  static const MT_Vector4 miss_color(1.0f, 0.92f, 0.05f, 1.0f);
-  static const MT_Vector4 hit_color(1.0f, 0.05f, 0.02f, 1.0f);
-  static const MT_Vector4 blocked_color(1.0f, 0.3f, 0.0f, 1.0f);
+  const MT_Vector4 &miss_color = style.miss_color;
+  const MT_Vector4 &hit_color = style.hit_color;
+  /* A blocker stops the shape as a hit does (Raycast's rule): the Hit Color, darker. */
+  const MT_Vector4 blocked_color(
+      hit_color.x() * 0.75f, hit_color.y() * 0.75f, hit_color.z() * 0.75f, hit_color.w());
   const bool has_hits = !hits.empty();
   const MT_Vector3 terminal = blocker                  ? blocker->cast_position :
                               collect_all || !has_hits ? settings.destination :
@@ -2240,25 +2476,25 @@ static void DrawDebugShapeCast(const PHY_ShapeCastSettings &settings,
   const bool moved = (terminal - settings.origin).length2() > MT_EPSILON * MT_EPSILON;
   if (moved) {
     DrawDebugShape(settings, settings.origin, start_color);
-    KX_RasterizerDrawDebugLine(settings.origin, terminal, path_color);
+    VisualizeLine(settings.origin, terminal, path_color);
   }
   DrawDebugShape(settings, terminal, terminal_color);
 
   const float marker_length = std::max(0.25f, DebugShapeMarkerLength(settings));
   const size_t hit_count = collect_all ? hits.size() : std::min<size_t>(hits.size(), 1);
   for (size_t index = 0; index < hit_count; ++index) {
-    KX_RasterizerDrawDebugLine(hits[index].cast_position, hits[index].hit_position, hit_color);
+    VisualizeLine(hits[index].cast_position, hits[index].hit_position, hit_color);
     DrawDebugRaycastHitFrame(hits[index].hit_position, hits[index].hit_normal, marker_length);
   }
   if (blocker) {
-    KX_RasterizerDrawDebugLine(blocker->cast_position, blocker->hit_position, blocked_color);
+    VisualizeLine(blocker->cast_position, blocker->hit_position, blocked_color);
     DrawDebugRaycastHitFrame(blocker->hit_position, blocker->hit_normal, marker_length);
   }
 }
 
 static void DrawDebugArrow(const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
 {
-  KX_RasterizerDrawDebugLine(from, to, color);
+  VisualizeLine(from, to, color);
   const MT_Vector3 delta = to - from;
   const float length = std::sqrt(delta.length2());
   if (length <= 1.0e-6f) {
@@ -2272,10 +2508,10 @@ static void DrawDebugArrow(const MT_Vector3 &from, const MT_Vector3 &to, const M
   const float head_length = std::max(0.05f, length * 0.2f);
   const float head_width = head_length * 0.45f;
   const MT_Vector3 base = to - direction * head_length;
-  KX_RasterizerDrawDebugLine(to, base + side * head_width, color);
-  KX_RasterizerDrawDebugLine(to, base - side * head_width, color);
-  KX_RasterizerDrawDebugLine(to, base + up * head_width, color);
-  KX_RasterizerDrawDebugLine(to, base - up * head_width, color);
+  VisualizeLine(to, base + side * head_width, color);
+  VisualizeLine(to, base - side * head_width, color);
+  VisualizeLine(to, base + up * head_width, color);
+  VisualizeLine(to, base - up * head_width, color);
 }
 
 static bool ValueAsMatrix(const LN_Value &value, MT_Matrix3x3 &r_matrix)
@@ -2713,8 +2949,13 @@ static bool ResolveBonePoseLocation(KX_GameObject *armature_object,
   return true;
 }
 
+/** Pose Channel: the channel's Scale (signed, as typed in Pose mode). Armature: the evaluated
+ * bone's scale in armature space (parents' scales, Inherit Scale and constraints included: the
+ * lengths of the pose matrix's axes, as Blender's `mat4_to_size`). World: the same with the
+ * armature object's world rotation and scale. */
 static bool ResolveBonePoseScale(KX_GameObject *armature_object,
                                  const std::string &bone_name,
+                                 const LN_BonePoseRotationSpace space,
                                  MT_Vector3 &r_scale)
 {
   if (armature_object == nullptr) {
@@ -2731,7 +2972,30 @@ static bool ResolveBonePoseScale(KX_GameObject *armature_object,
   if (pchan == nullptr) {
     return false;
   }
-  r_scale = MT_Vector3(pchan->scale[0], pchan->scale[1], pchan->scale[2]);
+  if (space == LN_BonePoseRotationSpace::PoseChannel) {
+    r_scale = MT_Vector3(pchan->scale[0], pchan->scale[1], pchan->scale[2]);
+    return true;
+  }
+
+  armature->ApplyPose();
+  /* Blender's matrices are column-major: pose_mat[i] is the bone's i-th axis. */
+  MT_Matrix3x3 pose(pchan->pose_mat[0][0],
+                    pchan->pose_mat[1][0],
+                    pchan->pose_mat[2][0],
+                    pchan->pose_mat[0][1],
+                    pchan->pose_mat[1][1],
+                    pchan->pose_mat[2][1],
+                    pchan->pose_mat[0][2],
+                    pchan->pose_mat[1][2],
+                    pchan->pose_mat[2][2]);
+  if (space == LN_BonePoseRotationSpace::World) {
+    const MT_Vector3 &object_scale = armature_object->NodeGetWorldScaling();
+    pose = armature_object->NodeGetWorldOrientation().scaled(
+               object_scale.x(), object_scale.y(), object_scale.z()) *
+           pose;
+  }
+  r_scale = MT_Vector3(
+      pose.getColumn(0).length(), pose.getColumn(1).length(), pose.getColumn(2).length());
   return true;
 }
 
@@ -3243,12 +3507,16 @@ class LN_RayQueryFilterCallback final : public PHY_IRayCastFilterCallback {
                             const LN_PhysicsControllerIgnoreSet &extra_ignore_controllers,
                             const uint32_t collision_mask,
                             const std::string &property_name,
-                            const bool xray)
+                            const bool xray,
+                            KX_Scene *view_scene = nullptr,
+                            const LN_RuntimeTree::ViewRayRules *view_rules = nullptr)
       : PHY_IRayCastFilterCallback(ignore_controller),
         m_extraIgnoreControllers(extra_ignore_controllers),
         m_collisionMask(collision_mask),
         m_propertyName(property_name),
-        m_xray(xray)
+        m_xray(xray),
+        m_viewScene(view_scene),
+        m_viewRules(view_rules)
   {
   }
 
@@ -3261,6 +3529,15 @@ class LN_RayQueryFilterCallback final : public PHY_IRayCastFilterCallback {
     }
     KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo *>(controller->GetNewClientInfo());
     if (!info || !info->m_gameobject) {
+      return false;
+    }
+    /* A view ray passes what its camera does not draw, invisible objects and the other world. */
+    if (m_viewRules != nullptr && !InteractionQueryAllowsObject(m_viewScene,
+                                                                info->m_gameobject,
+                                                                m_viewRules->domain,
+                                                                m_viewRules->respect_runtime_visibility,
+                                                                m_viewRules->view_camera))
+    {
       return false;
     }
     if (m_collisionMask != 0 && (info->m_gameobject->GetCollisionGroup() & m_collisionMask) == 0) {
@@ -3276,7 +3553,25 @@ class LN_RayQueryFilterCallback final : public PHY_IRayCastFilterCallback {
   uint32_t m_collisionMask;
   const std::string &m_propertyName;
   bool m_xray;
+  KX_Scene *m_viewScene;
+  const LN_RuntimeTree::ViewRayRules *m_viewRules;
 };
+
+/** Hit Part and Hit Material of a hit, from the physics' answer. The part is kept only when it is
+ * another object than the hit one (PhysicsQueryPart gives the hit object then). */
+static void SetHitPartAndMaterial(LN_RuntimeTree &runtime_tree,
+                                  LN_PhysicsQueryResult &result,
+                                  const KX_GameObject *hit_object,
+                                  KX_GameObject *part_object,
+                                  const int material_index)
+{
+  if (part_object != nullptr && part_object != hit_object) {
+    result.part_ref = runtime_tree.MakeObjectRef(part_object, part_object->GetName());
+  }
+  result.material_slot = material_index >= 0 ?
+                             int16_t(std::min(material_index, int(INT16_MAX))) :
+                             int16_t(-1);
+}
 
 class LN_ShapeCastFilterCallback final : public PHY_IShapeCastFilterCallback {
  public:
@@ -4455,9 +4750,19 @@ size_t LN_RuntimeTree::WarmQueryCacheWith(const LN_TickContext &context)
   Reader in(*this, context);
 
   const std::vector<LN_QueryExpression> &queries = m_program->GetQueryExpressions();
+  /* Only the queries this tick's ops may read (and On Init's while the tree has not run it: its
+   * first tick does), and never one whose warm-up would change what those ops see (2026-11-14:
+   * a Flow that is not a constant, an input keeping state; LN_QueryWarmEvents). */
+  const std::vector<uint8_t> &warm_events = m_program->GetQueryWarmEvents();
+  uint8_t events = uint8_t(1u << uint8_t(context.event));
+  if (!IsInitExecuted()) {
+    events |= uint8_t(1u << uint8_t(LN_Event::OnInit));
+  }
   size_t warmed_count = 0;
   for (uint32_t query_index = 0; query_index < queries.size(); query_index++) {
-    if (!QueryExpressionCanWarmCache(queries[query_index])) {
+    if (!QueryExpressionCanWarmCache(queries[query_index]) ||
+        query_index >= warm_events.size() || (warm_events[query_index] & events) == 0)
+    {
       continue;
     }
     in.Query(query_index);
@@ -4465,6 +4770,85 @@ size_t LN_RuntimeTree::WarmQueryCacheWith(const LN_TickContext &context)
   }
   m_queryCacheWarmTick = context.tick_index;
   return warmed_count;
+}
+
+bool LN_RuntimeTree::WarmsOnHelpers(const LN_TickContext &context) const
+{
+  /* WarmQueryCacheWith's choice of queries, each of them marked for helpers. */
+  if (!m_runtimeActive || !m_enabled || m_program == nullptr ||
+      m_queryCacheWarmTick == context.tick_index || !m_hasQueryExpressions)
+  {
+    return false;
+  }
+  const std::vector<LN_QueryExpression> &queries = m_program->GetQueryExpressions();
+  const std::vector<uint8_t> &warm_events = m_program->GetQueryWarmEvents();
+  uint8_t events = uint8_t(1u << uint8_t(context.event));
+  if (!IsInitExecuted()) {
+    events |= uint8_t(1u << uint8_t(LN_Event::OnInit));
+  }
+  bool any = false;
+  for (uint32_t query_index = 0; query_index < queries.size(); query_index++) {
+    if (!QueryExpressionCanWarmCache(queries[query_index]) ||
+        query_index >= warm_events.size() || (warm_events[query_index] & events) == 0)
+    {
+      continue;
+    }
+    if ((warm_events[query_index] & LN_QUERY_WARM_ON_HELPERS) == 0) {
+      return false;
+    }
+    any = true;
+  }
+  return any;
+}
+
+size_t LN_WarmQueryCaches(LN_RuntimeTree *const *trees,
+                          const size_t count,
+                          const LN_TickContext &context,
+                          LN_JobPool *pool)
+{
+  static const int mode = [] {
+    const char *text = std::getenv("UPBGE_LN_WARM_PARALLEL");
+    if (text != nullptr && (std::strcmp(text, "0") == 0 || std::strcmp(text, "off") == 0)) {
+      return 0;
+    }
+    return text != nullptr && std::strcmp(text, "force") == 0 ? 2 : 1;
+  }();
+  /* Below this many the pool's start costs more than it saves (a cast is ~1-3 us). */
+  constexpr size_t kMinTrees = 32;
+  const bool parallel = mode != 0 && pool != nullptr && pool->GetHelperCount() > 0;
+  /* (A local: the helpers read the caller's list.) */
+  std::vector<LN_RuntimeTree *> helpers_trees;
+  size_t warmed = 0;
+  for (size_t index = 0; index < count; index++) {
+    if (parallel && trees[index]->WarmsOnHelpers(context)) {
+      helpers_trees.push_back(trees[index]);
+      continue;
+    }
+    warmed += trees[index]->WarmQueryCache(context);
+  }
+  if (helpers_trees.empty()) {
+    return warmed;
+  }
+  if (mode != 2 && helpers_trees.size() < kMinTrees) {
+    for (LN_RuntimeTree *tree : helpers_trees) {
+      warmed += tree->WarmQueryCache(context);
+    }
+    return warmed;
+  }
+  /* The name table a constant object's lookup reads is built here, not on a helper. */
+  helpers_trees.front()->PrepareObjectNameLookup();
+  const size_t total = helpers_trees.size();
+  const size_t chunks = std::clamp<size_t>(
+      (size_t(pool->GetHelperCount()) + 1) * 4, 1, std::max<size_t>(1, total / 8));
+  std::atomic<size_t> chunk_warmed{0};
+  pool->Run(chunks, [&](const size_t chunk, uint32_t /*thread*/) {
+    size_t sum = 0;
+    for (size_t index = total * chunk / chunks; index < total * (chunk + 1) / chunks; index++) {
+      sum += helpers_trees[index]->WarmQueryCache(context);
+    }
+    chunk_warmed.fetch_add(sum, std::memory_order_relaxed);
+  });
+  return warmed + chunk_warmed.load(std::memory_order_relaxed);
 }
 
 bool LN_RuntimeTree::ShouldCaptureSnapshot() const
@@ -4594,6 +4978,69 @@ bool LN_GamePropertyAsBool(EXP_Value *property)
 std::string LN_GamePropertyAsText(EXP_Value *property)
 {
   return ValueToText(MakeValueFromEXPValue(property, nullptr, nullptr));
+}
+
+/* (The vectors and numbers straight from the property, as MakeValueFromEXPValue + ValueAsVector /
+ * ValueAsColor give them: a crowd's snapshot takes them every step. Anything else by those very
+ * functions.) */
+bool LN_GamePropertyAsVector(EXP_Value *property, MT_Vector3 &r_vector)
+{
+  switch (property->GetValueType()) {
+    case VALUE_VECTOR3_TYPE:
+      r_vector = static_cast<const EXP_Vector3Value *>(property)->GetVector3();
+      return true;
+    case VALUE_VECTOR4_TYPE: {
+      const MT_Vector4 &vector = static_cast<const EXP_Vector4Value *>(property)->GetVector4();
+      r_vector = MT_Vector3(vector.x(), vector.y(), vector.z());
+      return true;
+    }
+    case VALUE_VECTOR2_TYPE: {
+      const MT_Vector2 &vector = static_cast<const EXP_Vector2Value *>(property)->GetVector2();
+      r_vector = MT_Vector3(vector.x(), vector.y(), 0.0f);
+      return true;
+    }
+    case VALUE_INT_TYPE: {
+      const float scalar = float(int32_t(property->GetNumber()));
+      r_vector = MT_Vector3(scalar, scalar, scalar);
+      return true;
+    }
+    case VALUE_FLOAT_TYPE: {
+      const float scalar = float(property->GetNumber());
+      r_vector = MT_Vector3(scalar, scalar, scalar);
+      return true;
+    }
+    case VALUE_BOOL_TYPE:
+    case VALUE_STRING_TYPE:
+      return false;
+    default:
+      return ValueAsVector(MakeValueFromEXPValue(property, nullptr, nullptr), r_vector);
+  }
+}
+
+bool LN_GamePropertyAsColor(EXP_Value *property, MT_Vector4 &r_color)
+{
+  switch (property->GetValueType()) {
+    case VALUE_VECTOR4_TYPE:
+      r_color = static_cast<const EXP_Vector4Value *>(property)->GetVector4();
+      return true;
+    case VALUE_VECTOR3_TYPE: {
+      const MT_Vector3 &vector = static_cast<const EXP_Vector3Value *>(property)->GetVector3();
+      r_color = MT_Vector4(vector.x(), vector.y(), vector.z(), 1.0f);
+      return true;
+    }
+    case VALUE_VECTOR2_TYPE: {
+      const MT_Vector2 &vector = static_cast<const EXP_Vector2Value *>(property)->GetVector2();
+      r_color = MT_Vector4(vector.x(), vector.y(), 0.0f, 1.0f);
+      return true;
+    }
+    case VALUE_BOOL_TYPE:
+    case VALUE_INT_TYPE:
+    case VALUE_FLOAT_TYPE:
+    case VALUE_STRING_TYPE:
+      return false;
+    default:
+      return ValueAsColor(MakeValueFromEXPValue(property, nullptr, nullptr), r_color);
+  }
 }
 
 bool LN_ApplyPropertyEdit(LN_Value &collection,
@@ -5515,7 +5962,7 @@ LN_PhysicsQueryResult LN_RuntimeTree::Raycast(
   result.end_position = to;
 
   KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
-  PHY_IPhysicsEnvironment *environment = scene ? scene->GetPhysicsEnvironment() : nullptr;
+  PHY_IPhysicsEnvironment *environment = LN_QueryPhysicsEnvironment(m_gameObject);
   if (environment == nullptr) {
     result.diagnostic_status = LN_QueryDiagnosticStatus::MissingPhysicsWorld;
     return result;
@@ -5663,8 +6110,7 @@ std::vector<LN_PhysicsQueryResult> LN_RuntimeTree::RaycastAll(
     return {};
   }
 
-  KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
-  PHY_IPhysicsEnvironment *environment = scene ? scene->GetPhysicsEnvironment() : nullptr;
+  PHY_IPhysicsEnvironment *environment = LN_QueryPhysicsEnvironment(m_gameObject);
   if (environment == nullptr) {
     return {};
   }
@@ -5695,14 +6141,14 @@ void LN_RuntimeTree::RayCast(
     bool &r_blocked,
     LN_PhysicsQueryResult &r_blocker,
     bool &r_supported,
-    std::vector<LN_PhysicsQueryResult> &r_results)
+    std::vector<LN_PhysicsQueryResult> &r_results,
+    const ViewRayRules *view_rules)
 {
   r_results.clear();
   r_blocked = false;
   r_blocker = LN_PhysicsQueryResult();
   r_supported = false;
-  KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
-  PHY_IPhysicsEnvironment *environment = scene ? scene->GetPhysicsEnvironment() : nullptr;
+  PHY_IPhysicsEnvironment *environment = LN_QueryPhysicsEnvironment(m_gameObject);
   if (!environment) {
     return;
   }
@@ -5713,7 +6159,9 @@ void LN_RuntimeTree::RayCast(
                                    extra_ignore_controllers,
                                    collision_mask,
                                    property_name,
-                                   xray);
+                                   xray,
+                                   m_gameObject != nullptr ? m_gameObject->GetScene() : nullptr,
+                                   view_rules);
   /* (Kept per thread: rays run on helpers in a column run's segments.) */
   thread_local std::vector<PHY_RayCastResult> physics_results;
   physics_results.clear();
@@ -5779,8 +6227,51 @@ void LN_RuntimeTree::RayCast(
       }
       continue;
     }
+    SetHitPartAndMaterial(*this,
+                          result,
+                          hit_object,
+                          physics_result.m_partObject,
+                          physics_result.m_materialIndex);
     results.push_back(std::move(result));
   }
+}
+
+bool LN_RuntimeTree::OverlapSphereObjects(
+    const MT_Vector3 &center,
+    const float radius,
+    KX_GameObject *ignore_object,
+    const uint32_t collision_mask,
+    const std::string &property_name,
+    const std::vector<LN_RuntimeRef> &extra_ignore_object_refs,
+    const uint32_t max_results,
+    std::vector<KX_GameObject *> &r_objects)
+{
+  r_objects.clear();
+  PHY_IPhysicsEnvironment *environment = LN_QueryPhysicsEnvironment(m_gameObject);
+  if (!environment) {
+    return false;
+  }
+  /* The filter ShapeCast gives the same query (X-Ray: objects without the Property are
+   * passed, not blockers). */
+  const LN_PhysicsControllerIgnoreSet extra_ignore_controllers(*this, extra_ignore_object_refs);
+  LN_ShapeCastFilterCallback filter(RaycastOwningPhysicsController(ignore_object),
+                                    extra_ignore_controllers,
+                                    collision_mask,
+                                    property_name,
+                                    true);
+  thread_local std::vector<PHY_IPhysicsController *> controllers;
+  if (!environment->OverlapSphereBodies(center, radius, filter, max_results, controllers)) {
+    return false;
+  }
+  r_objects.reserve(controllers.size());
+  for (PHY_IPhysicsController *controller : controllers) {
+    KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo *>(
+        controller->GetNewClientInfo());
+    if (info != nullptr && info->m_gameobject != nullptr) {
+      r_objects.push_back(info->m_gameobject);
+    }
+  }
+  return true;
 }
 
 void LN_RuntimeTree::ShapeCast(
@@ -5799,8 +6290,7 @@ void LN_RuntimeTree::ShapeCast(
   r_blocked = false;
   r_blocker = LN_PhysicsQueryResult();
   r_supported = false;
-  KX_Scene *scene = m_gameObject ? m_gameObject->GetScene() : nullptr;
-  PHY_IPhysicsEnvironment *environment = scene ? scene->GetPhysicsEnvironment() : nullptr;
+  PHY_IPhysicsEnvironment *environment = LN_QueryPhysicsEnvironment(m_gameObject);
   if (!environment) {
     return;
   }
@@ -5819,8 +6309,85 @@ void LN_RuntimeTree::ShapeCast(
   if (!r_supported) {
     return;
   }
+  ShapeCastResults(settings.origin,
+                   settings.destination,
+                   physics_results,
+                   property_name,
+                   xray,
+                   r_blocked,
+                   r_blocker,
+                   r_results);
+}
 
-  const MT_Vector3 displacement = settings.destination - settings.origin;
+PHY_BodySweepStatus LN_RuntimeTree::SweepBody(
+    const PHY_BodySweepSettings &settings,
+    KX_GameObject *object,
+    const uint32_t collision_mask,
+    const std::string &property_name,
+    const bool xray,
+    const std::vector<LN_RuntimeRef> &extra_ignore_object_refs,
+    bool &r_blocked,
+    LN_PhysicsQueryResult &r_blocker,
+    std::vector<LN_PhysicsQueryResult> &r_results)
+{
+  r_results.clear();
+  r_blocked = false;
+  r_blocker = LN_PhysicsQueryResult();
+  PHY_IPhysicsEnvironment *environment = LN_QueryPhysicsEnvironment(m_gameObject);
+  if (environment == nullptr) {
+    return PHY_BodySweepStatus::Unsupported;
+  }
+  /* The object's children that have bodies of their own move with it: passed, as its own body. */
+  std::vector<LN_RuntimeRef> ignore_refs = extra_ignore_object_refs;
+  if (object != nullptr && object->GetSGNode() != nullptr) {
+    std::vector<const SG_Node *> stack(object->GetSGNode()->GetSGChildren().begin(),
+                                       object->GetSGNode()->GetSGChildren().end());
+    for (size_t depth_guard = 0; !stack.empty() && depth_guard < 4096; depth_guard++) {
+      const SG_Node *node = stack.back();
+      stack.pop_back();
+      if (node == nullptr) {
+        continue;
+      }
+      KX_GameObject *child = static_cast<KX_GameObject *>(node->GetSGClientObject());
+      if (child != nullptr && child->GetPhysicsController() != nullptr) {
+        ignore_refs.push_back(MakeObjectRef(child, child->GetName()));
+      }
+      stack.insert(stack.end(), node->GetSGChildren().begin(), node->GetSGChildren().end());
+    }
+  }
+  const LN_PhysicsControllerIgnoreSet extra_ignore_controllers(*this, ignore_refs);
+  LN_ShapeCastFilterCallback filter(settings.controller,
+                                    extra_ignore_controllers,
+                                    collision_mask,
+                                    property_name,
+                                    xray);
+  thread_local std::vector<PHY_ShapeCastResult> physics_results;
+  physics_results.clear();
+  const PHY_BodySweepStatus status = environment->SweepBody(settings, filter, physics_results);
+  if (status != PHY_BodySweepStatus::Ok) {
+    return status;
+  }
+  ShapeCastResults(settings.position,
+                   settings.destination,
+                   physics_results,
+                   property_name,
+                   xray,
+                   r_blocked,
+                   r_blocker,
+                   r_results);
+  return status;
+}
+
+void LN_RuntimeTree::ShapeCastResults(const MT_Vector3 &origin,
+                                      const MT_Vector3 &destination,
+                                      const std::vector<PHY_ShapeCastResult> &physics_results,
+                                      const std::string &property_name,
+                                      const bool xray,
+                                      bool &r_blocked,
+                                      LN_PhysicsQueryResult &r_blocker,
+                                      std::vector<LN_PhysicsQueryResult> &r_results)
+{
+  const MT_Vector3 displacement = destination - origin;
   const float cast_length = displacement.length();
   if (!std::isfinite(cast_length)) {
     return;
@@ -5880,6 +6447,11 @@ void LN_RuntimeTree::ShapeCast(
       }
       continue;
     }
+    SetHitPartAndMaterial(*this,
+                          result,
+                          hit_object,
+                          physics_result.part_object,
+                          physics_result.material_index);
     results.push_back(std::move(result));
   }
 }
@@ -8592,24 +9164,202 @@ MT_Vector4 LN_RuntimeTree::ColumnEvalColor(const uint32_t index,
   return LeanColor(bridge.reader, index, fallback);
 }
 
-const LN_QueryResult &LN_RuntimeTree::ColumnCastQuery(const uint32_t index,
-                                                     LN_TickContext &context,
-                                                     QueryExpressionRuntimeState &scratch)
+void LN_RuntimeTree::LineOfSightEye(KX_GameObject *eye_object,
+                                    const MT_Vector3 &eye_input,
+                                    const MT_Vector3 &forward_input,
+                                    MT_Vector3 &r_eye,
+                                    MT_Vector3 &r_forward)
 {
-  /* QueryEntry without its cache: the result reset as it resets a ray's (only the physics
-   * fields once the scratch holds a ray's result), then the kind. */
-  m_activeExecutionScopeSerial = context.execution_scope_serial;
-  if (scratch.cached_result_physics_only) {
-    scratch.cached_result.physics_query = LN_PhysicsQueryResult();
-    scratch.cached_result.physics_query_results.clear();
+  r_eye = eye_input;
+  r_forward = forward_input;
+  if (eye_object != nullptr) {
+    r_eye = eye_object->NodeGetWorldTransform() * eye_input;
+    r_forward = eye_object->NodeGetWorldOrientation() * forward_input;
   }
-  else {
-    scratch.cached_result = LN_QueryResult();
+}
+
+MT_Vector3 LN_RuntimeTree::LineOfSightTarget(KX_GameObject *target_object,
+                                             const MT_Vector3 &target_input)
+{
+  return target_object != nullptr ? target_object->NodeGetWorldTransform() * target_input :
+                                    target_input;
+}
+
+LN_RuntimeTree::LineOfSightShape LN_RuntimeTree::LineOfSightTest(
+    KX_GameObject *eye_object,
+    const MT_Vector3 &eye,
+    const MT_Vector3 &forward,
+    KX_GameObject *target_object,
+    const MT_Vector3 &target,
+    const float max_distance,
+    const float view_angle,
+    const uint32_t mask,
+    std::vector<LN_RuntimeRef> &ignore_refs,
+    const bool include_sensors,
+    const bool hit_back_faces,
+    LN_PhysicsQueryResult &result)
+{
+  LineOfSightShape shape;
+  if (!vector_is_finite(eye) || !vector_is_finite(target) || !vector_is_finite(forward) ||
+      std::isnan(max_distance) || std::isnan(view_angle))
+  {
+    return shape;
   }
-  scratch.cached_result_physics_only = true; /* (a Raycast sets its physics fields only) */
-  ColumnBridgeReader bridge(*this, context, LeanProgramForRun());
-  QueryKind(bridge.reader, index, m_program->GetQueryExpressions()[index], scratch);
-  return scratch.cached_result;
+  shape.valid = true;
+  const MT_Vector3 delta = target - eye;
+  const float distance = delta.length();
+  const float forward_length = forward.length();
+  shape.distance = distance;
+  shape.forward_length = forward_length;
+  float angle = 0.0f;
+  if (distance > MT_EPSILON && forward_length > MT_EPSILON) {
+    const float cosine = std::clamp(
+        float(delta.dot(forward) / (distance * forward_length)), -1.0f, 1.0f);
+    angle = float(std::acos(cosine) * (180.0 / M_PI));
+  }
+  result.ray_origin = eye;
+  result.end_position = target;
+  result.ray_direction = distance > MT_EPSILON ? delta / distance : MT_Vector3(0.0f, 0.0f, 0.0f);
+  result.hit_distance = distance;
+  result.angle = angle;
+  result.hit_position = target;
+
+  const bool in_range = max_distance <= 0.0f || distance <= max_distance;
+  /* A zero Forward has no facing: all around, as a View Angle of 360 degrees or more. */
+  const float half_angle = float(double(view_angle) * 0.5 * 180.0 / M_PI);
+  const bool in_view = forward_length <= MT_EPSILON || view_angle >= float(2.0 * M_PI) ||
+                       angle <= half_angle + 1.0e-4f;
+  bool visible = false;
+  bool blocked = false;
+  if (in_range && in_view) {
+    if (distance <= MT_EPSILON) {
+      visible = true;
+    }
+    else {
+      if (target_object != nullptr) {
+        ignore_refs.push_back(MakeObjectRef(target_object, target_object->GetName()));
+      }
+      const LN_RuntimeRef eye_ref = eye_object != nullptr ?
+                                        MakeObjectRef(eye_object, eye_object->GetName()) :
+                                        LN_RuntimeRef();
+      PHY_RayQuerySettings settings;
+      settings.origin = eye;
+      settings.destination = target;
+      settings.max_results = 1;
+      settings.include_sensors = include_sensors;
+      settings.hit_back_faces = hit_back_faces;
+      bool unused_blocked = false;
+      bool supported = false;
+      LN_PhysicsQueryResult unused_blocker;
+      thread_local std::vector<LN_PhysicsQueryResult> hits;
+      RayCast(settings,
+              eye_ref,
+              mask,
+              std::string(),
+              false,
+              ignore_refs,
+              unused_blocked,
+              unused_blocker,
+              supported,
+              hits);
+      LN_PhysicsQueryResult stop;
+      if (!supported) {
+        stop = Raycast(eye, target, eye_ref, mask, std::string(), false, ignore_refs);
+      }
+      else if (!hits.empty()) {
+        stop = hits.front();
+      }
+      if (stop.hit) {
+        blocked = true;
+        result.object_ref = stop.object_ref;
+        result.part_ref = stop.part_ref;
+        result.hit_position = stop.hit_position;
+        result.hit_normal = stop.hit_normal;
+        result.hit_fraction = stop.hit_fraction;
+      }
+      else {
+        visible = true;
+      }
+    }
+  }
+  result.hit = visible;
+  result.blocked = blocked;
+  result.diagnostic_status = visible ? LN_QueryDiagnosticStatus::Hit :
+                                       LN_QueryDiagnosticStatus::NoHit;
+  return shape;
+}
+
+void LN_RuntimeTree::ColumnLineOfSight(const bool eye_is_object,
+                                       KX_GameObject *eye_object,
+                                       const MT_Vector3 &eye_input,
+                                       const MT_Vector3 &forward_input,
+                                       const bool target_is_object,
+                                       KX_GameObject *target_object,
+                                       const MT_Vector3 &target_input,
+                                       const float max_distance,
+                                       const float view_angle,
+                                       const int32_t mask_value,
+                                       const bool include_sensors,
+                                       const bool hit_back_faces,
+                                       LN_PhysicsQueryResult &r_result)
+{
+  /* LineOfSightKind after its reads, on QueryEntry's fresh result. */
+  r_result = LN_PhysicsQueryResult();
+  if ((eye_is_object && eye_object == nullptr) || (target_is_object && target_object == nullptr)) {
+    r_result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidTarget;
+    return;
+  }
+  MT_Vector3 eye, forward;
+  LineOfSightEye(eye_object, eye_input, forward_input, eye, forward);
+  const MT_Vector3 target = LineOfSightTarget(target_object, target_input);
+  if (mask_value < 0 || mask_value > LN_RAYCAST_MAX_COLLISION_MASK) {
+    r_result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidFilter;
+    return;
+  }
+  thread_local std::vector<LN_RuntimeRef> ignore_refs;
+  ignore_refs.clear(); /* (no Ignore Objects: QSight takes none) */
+  const LineOfSightShape shape = LineOfSightTest(eye_object,
+                                                 eye,
+                                                 forward,
+                                                 target_object,
+                                                 target,
+                                                 max_distance,
+                                                 view_angle,
+                                                 uint32_t(mask_value),
+                                                 ignore_refs,
+                                                 include_sensors,
+                                                 hit_back_faces,
+                                                 r_result);
+  if (!shape.valid) {
+    r_result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidTarget;
+  }
+}
+
+void LN_RuntimeTree::ColumnPointVelocity(const uint32_t index,
+                                         KX_GameObject *object,
+                                         const MT_Vector3 &position,
+                                         const std::string &vertex_group,
+                                         MT_Vector3 &r_velocity,
+                                         MT_Vector3 &r_point)
+{
+  /* QueryEntry's fresh result, then the kind's code; the outputs as the output kinds read them:
+   * Velocity is impact_velocity, Point the hit position when measured (else zero). */
+  thread_local LN_QueryResult result;
+  result.physics_query = LN_PhysicsQueryResult();
+  result.physics_query_results.clear(); /* (MeasurePointVelocity writes nothing else) */
+  const LN_QueryExpression &expression = m_program->GetQueryExpressions()[index];
+  const bool from_group = LN_PointVelocitySource(expression.int_value) ==
+                          LN_PointVelocitySource::VertexGroup;
+  MeasurePointVelocity(object,
+                       expression,
+                       position,
+                       from_group ? vertex_group : std::string(),
+                       from_group && m_logicManager != nullptr ? &m_logicManager->MeshRayGroups() :
+                                                                 nullptr,
+                       result);
+  r_velocity = result.physics_query.impact_velocity;
+  r_point = result.physics_query.hit ? result.physics_query.hit_position :
+                                       MT_Vector3(0.0f, 0.0f, 0.0f);
 }
 
 void LN_RuntimeTree::ColumnRunOp(const LN_Event event,
@@ -8686,11 +9436,82 @@ void LN_RuntimeTree::ColumnRunLoopBlock(const LN_Event event,
   context.command_buffer = previous_buffer;
 }
 
+void LN_RuntimeTree::ColumnRunCollisionBlock(const LN_Event event,
+                                             const uint32_t block_index,
+                                             LN_CommandBuffer &buffer,
+                                             LN_TickContext &context)
+{
+  /* ColumnWalkEvent's walk of one plain block (no Loop, no gate here: the run masks it), each op
+   * through run_tagged. */
+  const LN_LeanProgram *lean = LeanProgramForRun();
+  const LN_ExecBlockProgram &ir = m_program->GetExecBlockProgram(event);
+  if (block_index >= ir.blocks.size()) {
+    return;
+  }
+  const LN_ExecBlock &block = ir.blocks[block_index];
+  LN_CommandBuffer *const previous_buffer = context.command_buffer;
+  context.event = event;
+  context.command_buffer = &buffer;
+  m_activeExecutionScopeSerial = context.execution_scope_serial;
+  LN_LeanFrame frame(*this, event, m_program->GetInstructionHeaders(event), buffer, context);
+  if (lean != nullptr) {
+    frame.lean = lean;
+    frame.reader.lean = lean;
+  }
+  for (uint32_t op_index = block.first_op; op_index < block.first_op + block.op_count; op_index++)
+  {
+    const uint32_t key = ir.ops[op_index].ui_event_state_index;
+    m_collisionEventRoute = LN_IsCollisionRepeatRoute(key) ? key : LN_INVALID_INDEX;
+    if (lean != nullptr) {
+      OpLean(frame, ir.ops[op_index], lean->events[size_t(event)].ops[op_index]);
+    }
+    else {
+      OpDirect(frame, ir.ops[op_index]);
+    }
+  }
+  m_collisionEventRoute = LN_INVALID_INDEX;
+  context.command_buffer = previous_buffer;
+}
+
+void LN_RuntimeTree::ColumnRunCollisionRepeats(const LN_Event event,
+                                               LN_CommandBuffer &buffer,
+                                               LN_TickContext &context)
+{
+  const LN_LeanProgram *lean = LeanProgramForRun();
+  const LN_ExecBlockProgram &ir = m_program->GetExecBlockProgram(event);
+  LN_CommandBuffer *const previous_buffer = context.command_buffer;
+  context.event = event;
+  context.command_buffer = &buffer;
+  m_activeExecutionScopeSerial = context.execution_scope_serial;
+  LN_LeanFrame frame(*this, event, m_program->GetInstructionHeaders(event), buffer, context);
+  if (lean != nullptr) {
+    frame.lean = lean;
+    frame.reader.lean = lean;
+    const LN_LeanEvent &lean_event = lean->events[size_t(event)];
+    ColumnWalkEvent(
+        frame,
+        ir,
+        context.execution_scope_serial,
+        [&](const uint32_t op_index) { OpLean(frame, ir.ops[op_index], lean_event.ops[op_index]); },
+        true);
+  }
+  else {
+    ColumnWalkEvent(
+        frame,
+        ir,
+        context.execution_scope_serial,
+        [&](const uint32_t op_index) { OpDirect(frame, ir.ops[op_index]); },
+        true);
+  }
+  context.command_buffer = previous_buffer;
+}
+
 template<class Frame, class RunOp>
 void LN_RuntimeTree::ColumnWalkEvent(Frame &frame,
                                      const LN_ExecBlockProgram &ir,
                                      const uint64_t scope_serial,
-                                     RunOp &&run_op)
+                                     RunOp &&run_op,
+                                     const bool repeats_only)
 {
   /* The column system's walk of an event's blocks (plan C2 P5-P7; the old system's walk, whose
    * rules it took, was removed with the old system, P10). `run_op` is chosen once per event: a
@@ -8790,7 +9611,10 @@ void LN_RuntimeTree::ColumnWalkEvent(Frame &frame,
     }
   };
   m_collisionEventCursor = 0;
-  if (collision_runs) {
+  /* (`repeats_only`: a column run made the pass's ops; ColumnRunCollisionRepeats.) */
+  if (repeats_only) {
+  }
+  else if (collision_runs) {
     walk(run_tagged, scope_serial, LN_INVALID_INDEX);
   }
   else {
@@ -9268,6 +10092,93 @@ const LN_RuntimeTree::CollisionResult *LN_RuntimeTree::FindCollisionExitPayload(
 }
 
 static const LN_CollisionContactsForTests *g_collision_contacts_for_tests = nullptr;
+static PHY_IPhysicsEnvironment *g_physics_environment_for_tests = nullptr;
+
+void LN_SetDebugLinesForTests(LN_DebugLinesForTests *lines)
+{
+  g_debug_lines_for_tests = lines;
+}
+
+void LN_SetTimedDebugLinesForTests(LN_TimedDebugLines *lines)
+{
+  g_timed_debug_lines_for_tests = lines;
+}
+
+void LN_TimedDebugLines::Add(const LN_DebugLine &line, const double expires_at)
+{
+  std::lock_guard<std::mutex> lock(m_mutex);
+  /* A cast read by several instructions of a step is made again for each (the command-ordered
+   * queries) and draws the same lines: kept once (the step's last lines are looked at). */
+  const size_t look_back = std::min<size_t>(m_lines.size(), 64);
+  for (size_t index = m_lines.size() - look_back; index < m_lines.size(); index++) {
+    const Timed &kept = m_lines[index];
+    if (kept.expires_at == expires_at && kept.line.from == line.from &&
+        kept.line.to == line.to && kept.line.color == line.color)
+    {
+      return;
+    }
+  }
+  if (m_lines.size() >= kMaxLines) {
+    m_lines.pop_front();
+    if (!m_capWarned) {
+      m_capWarned = true;
+      CM_Warning("Logic Nodes: more than " << kMaxLines
+                                           << " Visualize lines with a Duration at once; the "
+                                              "oldest disappear early (use a shorter Duration)");
+    }
+  }
+  m_lines.push_back({line, expires_at});
+}
+
+void LN_TimedDebugLines::Draw(const double now)
+{
+  std::lock_guard<std::mutex> lock(m_mutex);
+  size_t kept = 0;
+  for (size_t index = 0; index < m_lines.size(); index++) {
+    if (!(m_lines[index].expires_at > now)) {
+      continue;
+    }
+    LN_RedrawDebugLine(m_lines[index].line);
+    m_lines[kept++] = m_lines[index];
+  }
+  m_lines.resize(kept);
+}
+
+size_t LN_TimedDebugLines::Count() const
+{
+  std::lock_guard<std::mutex> lock(m_mutex);
+  return m_lines.size();
+}
+
+void LN_TimedDebugLines::Clear()
+{
+  std::lock_guard<std::mutex> lock(m_mutex);
+  m_lines.clear();
+}
+
+void LN_RedrawDebugLine(const LN_DebugLine &line)
+{
+  if (g_debug_lines_for_tests != nullptr) {
+    g_debug_lines_for_tests->push_back({line, -1.0f});
+  }
+  if (RasterizerReady()) {
+    KX_RasterizerDrawDebugLine(line.from, line.to, line.color);
+  }
+}
+
+void LN_SetPhysicsEnvironmentForTests(PHY_IPhysicsEnvironment *environment)
+{
+  g_physics_environment_for_tests = environment;
+}
+
+PHY_IPhysicsEnvironment *LN_QueryPhysicsEnvironment(const KX_GameObject *object)
+{
+  if (g_physics_environment_for_tests != nullptr) {
+    return g_physics_environment_for_tests;
+  }
+  KX_Scene *scene = object != nullptr ? const_cast<KX_GameObject *>(object)->GetScene() : nullptr;
+  return scene != nullptr ? scene->GetPhysicsEnvironment() : nullptr;
+}
 
 void LN_SetCollisionContactsForTests(const LN_CollisionContactsForTests *contacts)
 {
@@ -10106,6 +11017,475 @@ uint64_t LN_RuntimeTree::CommandSortKey(uint32_t /*instruction_index*/,
 }
 
 /* The expression kinds (plan phases A13 and A14); last, so every helper above is visible. */
+std::string LN_RuntimeTree::PhysicsQueryMaterialName(const LN_PhysicsQueryResult &hit) const
+{
+  if (!hit.hit) {
+    return std::string();
+  }
+  KX_GameObject *part = ResolveObjectRef(hit.part_ref.IsValid() ? hit.part_ref : hit.object_ref);
+  blender::Material *material = ObjectMaterialAtSlot(part, std::max<int32_t>(hit.material_slot, 0));
+  return material != nullptr ? std::string(material->id.name + 2) : std::string();
+}
+
+/** A query's LN_RAY_QUERY_DETAIL_* as the physics' PHY_RAY_QUERY_DETAIL_*. */
+static unsigned char PhysicsQueryDetailFlags(const uint8_t detail_flags)
+{
+  unsigned char flags = PHY_RAY_QUERY_DETAIL_NONE;
+  if ((detail_flags & LN_RAY_QUERY_DETAIL_FACE_INDEX) != 0) {
+    flags |= PHY_RAY_QUERY_DETAIL_FACE_INDEX;
+  }
+  if ((detail_flags & LN_RAY_QUERY_DETAIL_UV) != 0) {
+    flags |= PHY_RAY_QUERY_DETAIL_UV;
+  }
+  if ((detail_flags & LN_RAY_QUERY_DETAIL_PART) != 0) {
+    flags |= PHY_RAY_QUERY_DETAIL_PART;
+  }
+  if ((detail_flags & LN_RAY_QUERY_DETAIL_MATERIAL) != 0) {
+    flags |= PHY_RAY_QUERY_DETAIL_MATERIAL;
+  }
+  return flags;
+}
+
+/** The Visualize panel of a ray, a shape cast or a sweep (read where it draws): input7 Duration
+ * (seconds), input8 Hit Color, input9 Miss Color; unset fields keep today's look. */
+template<class In>
+static LN_VisualizeStyle ReadVisualizeStyle(In &in,
+                                            const LN_QueryExpression &expression,
+                                            float &r_duration,
+                                            LN_VisualizeStyle style = LN_VisualizeStyle())
+{
+  r_duration = expression.input7 != LN_INVALID_INDEX ? in.Float(expression.input7, 0.0f) : 0.0f;
+  if (expression.input8 != LN_INVALID_INDEX) {
+    style.hit_color = in.Color(expression.input8, style.hit_color);
+  }
+  if (expression.input9 != LN_INVALID_INDEX) {
+    style.miss_color = in.Color(expression.input9, style.miss_color);
+  }
+  return style;
+}
+
+bool LN_RuntimeTree::RaycastEnds(KX_GameObject *caster_object,
+                                 const bool local_space,
+                                 const LN_RayInputMode mode,
+                                 const float requested_distance,
+                                 MT_Vector3 &origin,
+                                 MT_Vector3 &destination,
+                                 MT_Vector3 &direction,
+                                 float &r_cast_distance)
+{
+  if (local_space && caster_object) {
+    if (mode == LN_RayInputMode::EndPoint) {
+      const MT_Transform transform = caster_object->NodeGetWorldTransform();
+      origin = transform * origin;
+      destination = transform * destination;
+    }
+    else {
+      origin = caster_object->NodeGetWorldTransform() * origin;
+      direction = caster_object->NodeGetWorldOrientation() * direction;
+    }
+  }
+  const bool direction_mode = mode == LN_RayInputMode::DirectionDistance;
+  const bool finite_inputs = vector_is_finite(origin) &&
+                             (direction_mode ? vector_is_finite(direction) &&
+                                                   std::isfinite(requested_distance) :
+                                               vector_is_finite(destination));
+  if (!finite_inputs) {
+    return false;
+  }
+  if (direction_mode) {
+    const float direction_length = direction.length();
+    if (requested_distance <= 0.0f || !std::isfinite(direction_length) ||
+        direction_length <= MT_EPSILON)
+    {
+      return false;
+    }
+    direction /= direction_length;
+    destination = origin + direction * requested_distance;
+    if (!vector_is_finite(destination)) {
+      return false;
+    }
+  }
+  const float cast_distance = (destination - origin).length();
+  if (!std::isfinite(cast_distance) || cast_distance <= MT_EPSILON) {
+    return false;
+  }
+  if (!direction_mode) {
+    direction = (destination - origin) / cast_distance;
+  }
+  r_cast_distance = cast_distance;
+  return true;
+}
+
+bool LN_RuntimeTree::RaycastCast(const LN_RuntimeRef &caster_ref,
+                                 const std::vector<LN_RuntimeRef> &ignore_refs,
+                                 const MT_Vector3 &origin,
+                                 const MT_Vector3 &destination,
+                                 const MT_Vector3 &direction,
+                                 const float cast_distance,
+                                 const uint32_t mask,
+                                 const std::string &property_name,
+                                 const bool xray,
+                                 const int32_t max_results,
+                                 const bool collect_all,
+                                 const bool include_sensors,
+                                 const bool hit_back_faces,
+                                 const uint8_t detail_flags,
+                                 LN_PhysicsQueryResult &result,
+                                 std::vector<LN_PhysicsQueryResult> &results,
+                                 bool &blocked,
+                                 LN_PhysicsQueryResult &blocker)
+{
+  PHY_RayQuerySettings settings;
+  settings.origin = origin;
+  settings.destination = destination;
+  settings.max_results = uint32_t(max_results +
+                                  (collect_all && !xray && !property_name.empty() ? 1 : 0));
+  settings.detail_flags = PhysicsQueryDetailFlags(detail_flags);
+  settings.include_sensors = include_sensors;
+  settings.hit_back_faces = hit_back_faces;
+
+  /* The fallback result, written in place (QueryEntry left the fields at their defaults). */
+  result.hit_position = destination;
+  result.hit_normal = MT_Vector3(0.0f, 0.0f, 0.0f);
+  result.ray_direction = direction;
+  result.end_position = destination;
+  result.hit_fraction = 1.0f;
+  result.hit_distance = cast_distance;
+
+  blocked = false;
+  bool supported = false;
+  RayCast(settings,
+          caster_ref,
+          mask,
+          property_name,
+          xray,
+          ignore_refs,
+          blocked,
+          blocker,
+          supported,
+          results);
+  if (!supported) {
+    return false;
+  }
+  if (!results.empty()) {
+    result = results.front();
+  }
+  else if (blocked) {
+    result = blocker;
+  }
+  result.blocked = blocked;
+  if (results.size() > size_t(max_results)) {
+    results.resize(size_t(max_results));
+  }
+  return true;
+}
+
+void LN_RuntimeTree::ShapeCastPlace(KX_GameObject *caster_object,
+                                    const bool local_space,
+                                    MT_Vector3 &origin,
+                                    MT_Vector3 &destination,
+                                    MT_Matrix3x3 &orientation)
+{
+  if (local_space && caster_object) {
+    const MT_Transform transform = caster_object->NodeGetWorldTransform();
+    origin = transform * origin;
+    destination = transform * destination;
+    orientation = caster_object->NodeGetWorldOrientation() * orientation;
+  }
+}
+
+bool LN_RuntimeTree::ShapeCastValid(const LN_ShapeCastType type,
+                                    const MT_Vector3 &origin,
+                                    const MT_Vector3 &destination,
+                                    const MT_Vector3 &half_extents,
+                                    const float radius,
+                                    const float height,
+                                    const float extra_radius,
+                                    float &r_cast_distance)
+{
+  const bool finite_inputs = vector_is_finite(origin) && vector_is_finite(destination) &&
+                             vector_is_finite(half_extents) && std::isfinite(radius) &&
+                             std::isfinite(height) && std::isfinite(extra_radius);
+  const bool valid_shape = type == LN_ShapeCastType::Box ?
+                               half_extents.x() > 0.0f && half_extents.y() > 0.0f &&
+                                   half_extents.z() > 0.0f :
+                           type == LN_ShapeCastType::Capsule ? radius > 0.0f && height > 0.0f :
+                                                               radius > 0.0f;
+  if (!finite_inputs || !valid_shape || extra_radius < 0.0f) {
+    return false;
+  }
+  const float cast_distance = (destination - origin).length();
+  if (!std::isfinite(cast_distance)) {
+    return false;
+  }
+  r_cast_distance = cast_distance;
+  return true;
+}
+
+bool LN_RuntimeTree::ShapeCastRun(const LN_RuntimeRef &caster_ref,
+                                  const std::vector<LN_RuntimeRef> &ignore_refs,
+                                  const LN_ShapeCastType type,
+                                  const MT_Vector3 &origin,
+                                  const MT_Vector3 &destination,
+                                  const MT_Matrix3x3 &orientation,
+                                  const MT_Vector3 &half_extents,
+                                  const float radius,
+                                  const float height,
+                                  const float extra_radius,
+                                  const float cast_distance,
+                                  const uint32_t mask,
+                                  const int32_t max_results,
+                                  const bool collect_all,
+                                  const bool include_sensors,
+                                  const bool hit_back_faces,
+                                  const std::string &property_name,
+                                  const bool xray,
+                                  const uint8_t detail_flags,
+                                  LN_PhysicsQueryResult &result,
+                                  std::vector<LN_PhysicsQueryResult> &results,
+                                  bool &blocked,
+                                  LN_PhysicsQueryResult &blocker,
+                                  PHY_ShapeCastSettings &settings)
+{
+  settings.type = static_cast<PHY_ShapeCastType>(type);
+  settings.origin = origin;
+  settings.destination = destination;
+  settings.orientation = orientation;
+  settings.half_extents = half_extents;
+  settings.radius = radius;
+  settings.height = height;
+  settings.extra_radius = extra_radius;
+  settings.detail_flags = PhysicsQueryDetailFlags(detail_flags);
+  settings.include_sensors = include_sensors;
+  settings.hit_back_faces = hit_back_faces;
+  settings.max_results = uint32_t(max_results +
+                                  (collect_all && !xray && !property_name.empty() ? 1 : 0));
+  const MT_Vector3 cast_displacement = destination - origin;
+  LN_PhysicsQueryResult fallback;
+  fallback.cast_position = destination;
+  fallback.ray_direction = cast_distance > MT_EPSILON ? cast_displacement / cast_distance :
+                                                        MT_Vector3(0.0f, 0.0f, 0.0f);
+  fallback.hit_fraction = 1.0f;
+  fallback.hit_distance = cast_distance;
+  result = fallback;
+
+  blocked = false;
+  bool supported = false;
+  ShapeCast(settings,
+            caster_ref,
+            mask,
+            property_name,
+            xray,
+            ignore_refs,
+            blocked,
+            blocker,
+            supported,
+            results);
+  if (!supported) {
+    return false;
+  }
+  if (!results.empty()) {
+    result = results.front();
+  }
+  else if (blocked) {
+    result = blocker;
+  }
+  result.blocked = blocked;
+  if (results.size() > size_t(max_results)) {
+    results.resize(size_t(max_results));
+  }
+  return true;
+}
+
+void LN_RuntimeTree::ColumnIgnoreRefs(KX_GameObject *const *objects,
+                                      const size_t count,
+                                      std::vector<LN_RuntimeRef> &r_refs)
+{
+  /* ResolveIgnoreObjectRefs' append: once each, none skipped. */
+  r_refs.clear();
+  for (size_t index = 0; index < count; index++) {
+    KX_GameObject *object = objects[index];
+    if (object == nullptr) {
+      continue;
+    }
+    bool seen = false;
+    for (size_t before = 0; before < index && !seen; before++) {
+      seen = objects[before] == object;
+    }
+    if (!seen) {
+      r_refs.push_back(MakeObjectRef(object, object->GetName()));
+    }
+  }
+}
+
+void LN_RuntimeTree::ColumnShapeCast(KX_GameObject *caster_object,
+                                     const std::vector<LN_RuntimeRef> &ignore_refs,
+                                     const LN_ShapeCastType type,
+                                     const MT_Vector3 &origin_input,
+                                     const MT_Vector3 &destination_input,
+                                     const LN_Rotation &rotation,
+                                     const MT_Vector3 &half_extents,
+                                     const bool local_space,
+                                     const float radius,
+                                     const float height,
+                                     const float extra_radius,
+                                     const int32_t mask_value,
+                                     const int32_t max_results_input,
+                                     const bool collect_all,
+                                     const bool include_sensors,
+                                     const bool hit_back_faces,
+                                     const std::string &property_name,
+                                     const bool xray,
+                                     const uint8_t detail_flags,
+                                     const uint64_t execution_scope_serial,
+                                     LN_PhysicsQueryResult &r_result,
+                                     std::vector<LN_PhysicsQueryResult> &r_results)
+{
+  /* ShapeCastKind after its reads, on QueryEntry's fresh result, in the NPC's pass's scope. */
+  m_activeExecutionScopeSerial = execution_scope_serial;
+  r_result = LN_PhysicsQueryResult();
+  r_results.clear();
+  MT_Vector3 origin = origin_input, destination = destination_input;
+  MT_Matrix3x3 orientation = rotation.ToMatrix();
+  if (local_space && !caster_object) {
+    caster_object = m_gameObject;
+  }
+  ShapeCastPlace(caster_object, local_space, origin, destination, orientation);
+  LN_RuntimeRef caster_ref;
+  if (caster_object) {
+    caster_ref = MakeObjectRef(caster_object, caster_object->GetName());
+  }
+  float cast_distance = 0.0f;
+  if (!ShapeCastValid(type, origin, destination, half_extents, radius, height, extra_radius,
+                      cast_distance))
+  {
+    r_result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidTarget;
+    return;
+  }
+  if (mask_value < 0 || mask_value > LN_RAYCAST_MAX_COLLISION_MASK) {
+    r_result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidFilter;
+    return;
+  }
+  const int32_t max_results = collect_all ? std::clamp(max_results_input, 1, 256) : 1;
+  if (LN_QueryPhysicsEnvironment(m_gameObject) == nullptr) {
+    r_result.diagnostic_status = LN_QueryDiagnosticStatus::MissingPhysicsWorld;
+    return;
+  }
+  bool blocked = false;
+  LN_PhysicsQueryResult blocker;
+  PHY_ShapeCastSettings settings;
+  if (!ShapeCastRun(caster_ref,
+                    ignore_refs,
+                    type,
+                    origin,
+                    destination,
+                    orientation,
+                    half_extents,
+                    radius,
+                    height,
+                    extra_radius,
+                    cast_distance,
+                    uint32_t(mask_value),
+                    max_results,
+                    collect_all,
+                    include_sensors,
+                    hit_back_faces,
+                    property_name,
+                    xray,
+                    detail_flags,
+                    r_result,
+                    r_results,
+                    blocked,
+                    blocker,
+                    settings))
+  {
+    r_result = LN_PhysicsQueryResult();
+    r_result.diagnostic_status = LN_QueryDiagnosticStatus::UnsupportedPhysicsBackend;
+  }
+}
+
+void LN_RuntimeTree::ColumnRaycast(KX_GameObject *caster_object,
+                                   const std::vector<LN_RuntimeRef> &ignore_refs,
+                                   const MT_Vector3 &origin_input,
+                                   const MT_Vector3 &destination_input,
+                                   const MT_Vector3 &direction_input,
+                                   const float requested_distance,
+                                   const bool local_space,
+                                   const LN_RayInputMode mode,
+                                   const int32_t mask_value,
+                                   const std::string &property_name,
+                                   const bool xray,
+                                   const int32_t max_results_input,
+                                   const bool collect_all,
+                                   const bool include_sensors,
+                                   const bool hit_back_faces,
+                                   const uint8_t detail_flags,
+                                   const uint64_t execution_scope_serial,
+                                   LN_PhysicsQueryResult &r_result,
+                                   std::vector<LN_PhysicsQueryResult> &r_results)
+{
+  /* RaycastKind after its reads, on QueryEntry's fresh result, in the NPC's pass's scope (as the
+   * VM's read leaves the tree's active scope). */
+  m_activeExecutionScopeSerial = execution_scope_serial;
+  r_result = LN_PhysicsQueryResult();
+  r_results.clear();
+  if (local_space && !caster_object) {
+    caster_object = m_gameObject;
+  }
+  MT_Vector3 origin = origin_input, destination = destination_input, direction = direction_input;
+  float cast_distance = 0.0f;
+  if (!RaycastEnds(caster_object,
+                   local_space,
+                   mode,
+                   requested_distance,
+                   origin,
+                   destination,
+                   direction,
+                   cast_distance))
+  {
+    r_result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidTarget;
+    return;
+  }
+  LN_RuntimeRef caster_ref;
+  if (caster_object) {
+    caster_ref = MakeObjectRef(caster_object, caster_object->GetName());
+  }
+  if (LN_QueryPhysicsEnvironment(m_gameObject) == nullptr) {
+    r_result.diagnostic_status = LN_QueryDiagnosticStatus::MissingPhysicsWorld;
+    return;
+  }
+  if (mask_value < 0 || mask_value > LN_RAYCAST_MAX_COLLISION_MASK) {
+    r_result.diagnostic_status = LN_QueryDiagnosticStatus::InvalidFilter;
+    return;
+  }
+  const int32_t max_results = collect_all ? std::clamp(max_results_input, 1, 256) : 1;
+  bool blocked = false;
+  LN_PhysicsQueryResult blocker;
+  if (!RaycastCast(caster_ref,
+                   ignore_refs,
+                   origin,
+                   destination,
+                   direction,
+                   cast_distance,
+                   uint32_t(mask_value),
+                   property_name,
+                   xray,
+                   max_results,
+                   collect_all,
+                   include_sensors,
+                   hit_back_faces,
+                   detail_flags,
+                   r_result,
+                   r_results,
+                   blocked,
+                   blocker))
+  {
+    r_result = LN_PhysicsQueryResult();
+    r_result.diagnostic_status = LN_QueryDiagnosticStatus::UnsupportedPhysicsBackend;
+    r_results.clear();
+  }
+}
+
 #include "LN_RuntimeTreeKinds.inl"
 
 /* Plan C1-9: after LN_RuntimeTreeKinds.inl, which defines VectorAverageKind. */

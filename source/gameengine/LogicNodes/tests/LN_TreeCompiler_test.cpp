@@ -10382,9 +10382,20 @@ TEST(LN_TreeCompiler, EmitsApplyImpulseFromFixedUpdate)
   InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
   InitSocket(attach, "Attach", blender::SOCK_VECTOR, &attach_default);
   InitSocket(impulse, "Impulse", blender::SOCK_VECTOR, &impulse_default);
+  /* Local, Ignore Mass, Visualize (2026-11-11), unchecked: the old instruction. */
+  blender::bNodeSocketValueBoolean unchecked = {};
+  blender::bNodeSocket local = {};
+  blender::bNodeSocket ignore_mass = {};
+  blender::bNodeSocket visualize = {};
+  InitSocket(local, "Local", blender::SOCK_BOOLEAN, &unchecked);
+  InitSocket(ignore_mass, "Ignore Mass", blender::SOCK_BOOLEAN, &unchecked);
+  InitSocket(visualize, "Visualize", blender::SOCK_BOOLEAN, &unchecked);
   Append(apply_impulse.inputs, flow);
   Append(apply_impulse.inputs, attach);
   Append(apply_impulse.inputs, impulse);
+  Append(apply_impulse.inputs, local);
+  Append(apply_impulse.inputs, ignore_mass);
+  Append(apply_impulse.inputs, visualize);
   Append(tree.nodes, apply_impulse);
 
   blender::bNodeLink flow_link = {};
@@ -10423,9 +10434,20 @@ TEST(LN_TreeCompiler, WarnsAndSkipsApplyImpulseFromValueBoolFlow)
   InitSocket(flow, "Flow", blender::SOCK_BOOLEAN, nullptr);
   InitSocket(attach, "Attach", blender::SOCK_VECTOR, &attach_default);
   InitSocket(impulse, "Impulse", blender::SOCK_VECTOR, &impulse_default);
+  /* Local, Ignore Mass, Visualize (2026-11-11), unchecked: the old instruction. */
+  blender::bNodeSocketValueBoolean unchecked = {};
+  blender::bNodeSocket local = {};
+  blender::bNodeSocket ignore_mass = {};
+  blender::bNodeSocket visualize = {};
+  InitSocket(local, "Local", blender::SOCK_BOOLEAN, &unchecked);
+  InitSocket(ignore_mass, "Ignore Mass", blender::SOCK_BOOLEAN, &unchecked);
+  InitSocket(visualize, "Visualize", blender::SOCK_BOOLEAN, &unchecked);
   Append(apply_impulse.inputs, flow);
   Append(apply_impulse.inputs, attach);
   Append(apply_impulse.inputs, impulse);
+  Append(apply_impulse.inputs, local);
+  Append(apply_impulse.inputs, ignore_mass);
+  Append(apply_impulse.inputs, visualize);
   Append(tree.nodes, apply_impulse);
 
   blender::bNodeLink value_to_flow = {};
@@ -11813,6 +11835,16 @@ TEST(LN_TreeCompiler, RaycastCollisionLayerMaskDoesNotInvalidateParallelMouseLoo
       ray_include_sensors, "Include Sensors", blender::SOCK_BOOLEAN, &include_sensors_default);
   InitSocket(ray_hit_back_faces, "Hit Backfaces", blender::SOCK_BOOLEAN, &hit_back_faces_default);
   InitSocket(ray_visualize, "Visualize", blender::SOCK_BOOLEAN, &visualize_default);
+  /* The Visualize panel (2026-11-11). */
+  blender::bNodeSocketValueFloat ray_duration_default = {};
+  blender::bNodeSocketValueRGBA ray_hit_color_default = {};
+  blender::bNodeSocketValueRGBA ray_miss_color_default = {};
+  blender::bNodeSocket ray_duration = {};
+  blender::bNodeSocket ray_hit_color = {};
+  blender::bNodeSocket ray_miss_color = {};
+  InitSocket(ray_duration, "Duration", blender::SOCK_FLOAT, &ray_duration_default);
+  InitSocket(ray_hit_color, "Hit Color", blender::SOCK_RGBA, &ray_hit_color_default);
+  InitSocket(ray_miss_color, "Miss Color", blender::SOCK_RGBA, &ray_miss_color_default);
   InitSocket(ray_done, "Done", blender::SOCK_BOOLEAN, nullptr);
   InitSocketWithIdentifier(
       ray_hit_object, "Picked Object", "Hit Object", blender::SOCK_OBJECT, nullptr);
@@ -11831,6 +11863,9 @@ TEST(LN_TreeCompiler, RaycastCollisionLayerMaskDoesNotInvalidateParallelMouseLoo
   Append(raycast.inputs, ray_include_sensors);
   Append(raycast.inputs, ray_hit_back_faces);
   Append(raycast.inputs, ray_visualize);
+  Append(raycast.inputs, ray_duration);
+  Append(raycast.inputs, ray_hit_color);
+  Append(raycast.inputs, ray_miss_color);
   Append(raycast.outputs, ray_done);
   Append(raycast.outputs, ray_hit_object);
   Append(tree.nodes, raycast);
@@ -11925,7 +11960,10 @@ TEST(LN_TreeCompiler, RaycastFromMeshCompilesEveryInputAndOutputToOneDetailedQue
   raycast.custom1 = 1;
   raycast.custom2 = 1;
   InitNode(raycast, "LogicNativeRaycastFromMesh", "Raycast from Mesh", 2);
-  std::array<blender::bNodeSocket, 14> inputs{};
+  std::array<blender::bNodeSocket, 17> inputs{};
+  blender::bNodeSocketValueFloat duration_default = {};
+  blender::bNodeSocketValueRGBA hit_color_default = {};
+  blender::bNodeSocketValueRGBA miss_color_default = {};
   InitSocket(inputs[0], "Flow", blender::SOCK_BOOLEAN, nullptr, "NodeSocketLogicExecution");
   InitSocket(inputs[1], "Source Object", blender::SOCK_OBJECT, &source_default);
   InitSocket(inputs[2], "Vertex Group", blender::SOCK_STRING, &vertex_group_default);
@@ -11941,6 +11979,9 @@ TEST(LN_TreeCompiler, RaycastFromMeshCompilesEveryInputAndOutputToOneDetailedQue
   InitSocket(inputs[11], "Include Sensors", blender::SOCK_BOOLEAN, &include_sensors_default);
   InitSocket(inputs[12], "Hit Backfaces", blender::SOCK_BOOLEAN, &hit_backfaces_default);
   InitSocket(inputs[13], "Visualize", blender::SOCK_BOOLEAN, &visualize_default);
+  InitSocket(inputs[14], "Duration", blender::SOCK_FLOAT, &duration_default);
+  InitSocket(inputs[15], "Hit Color", blender::SOCK_RGBA, &hit_color_default);
+  InitSocket(inputs[16], "Miss Color", blender::SOCK_RGBA, &miss_color_default);
   for (blender::bNodeSocket &input : inputs) {
     Append(raycast.inputs, input);
   }
@@ -19106,6 +19147,15 @@ TEST(LN_TreeCompiler, AnEmptyObjectInputIsTheOwnObjectForTheNodesThatSaySo)
     mask.value = 1023;
     ray.add(true, "Mask", blender::SOCK_INT, &mask, "NodeSocketLogicCollisionLayers");
     ray.in_bool("Visualize", false);
+    /* 2026-11-11: the Raycast family's inputs. */
+    ray.in_object("Ignore Object");
+    ray.add(true, "Ignore Objects", blender::SOCK_CUSTOM, nullptr, "NodeSocketLogicList");
+    ray.in_float("Radius", 0.0f);
+    ray.in_float("Max Time", 0.0f);
+    ray.in_vector("Gravity", MT_Vector3(0.0f, 0.0f, -9.81f));
+    ray.in_bool("Include Sensors", false);
+    ray.in_bool("Hit Backfaces", false);
+    ray.in_visualize_panel();
     blender::bNodeSocket &has_result = ray.sockets.emplace_back();
     InitSocketWithIdentifier(has_result,
                              "RESULT",

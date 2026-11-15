@@ -44,12 +44,79 @@ JPH_SUPPRESS_WARNINGS
 #include "JoltPhysicsEnvironment.h"
 #include "PHY_IPhysicsController.h"
 
+#include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstdint>
 #include <utility>
 #include <vector>
 
 class JoltSoftBody;
 class PHY_IMotionState;
+
+/**
+ * Damping (2026-11-14): the number of the Physics panel (Translation / Rotation Damping), of Set
+ * and Get Rigid Body Attribute and of `PHY_IPhysicsController`'s damping calls is Jolt's own rate
+ * per second: each step keeps 1 - rate x step time of the speed (0.05, Jolt's default, loses
+ * about 5% a second, 1 about 63%, 5 about 99%). One number everywhere: the converter and every
+ * setter go through these, held to the panel's range (NaN = 0); the node once stopped at 1 while
+ * the panel went to 5. Bullet's default pair (0.04, 0.1), which objects made for Bullet hold (the
+ * protected demo files too), plays as Jolt's default rates.
+ */
+inline constexpr float JOLT_DEFAULT_DAMPING_RATE = 0.05f;
+/** The panel's top (RNA `damping`'s range): rate 100 takes all the speed in any step up to 100
+ * steps a second. Nodes and Python are held to it as the panel (a saved game checks it). */
+inline constexpr float JOLT_DAMPING_MAX = 100.0f;
+
+inline float JoltDampingRate(const float setting)
+{
+  return std::isnan(setting) ? 0.0f : std::clamp(setting, 0.0f, JOLT_DAMPING_MAX);
+}
+
+/** Linear and angular rates of a damping pair: Bullet's defaults give Jolt's. */
+inline std::pair<float, float> JoltDampingRates(const float linear, const float angular)
+{
+  if (linear == 0.04f && angular == 0.1f) {
+    return {JOLT_DEFAULT_DAMPING_RATE, JOLT_DEFAULT_DAMPING_RATE};
+  }
+  return {JoltDampingRate(linear), JoltDampingRate(angular)};
+}
+
+/**
+ * Jolt's degrees of freedom of a Dynamic body: every axis but the six locks (Blender translation
+ * X/Y/Z, then rotation X/Y/Z; Blender Y and Z are Jolt Z and Y), and no rotation when
+ * `rotationEnabled` is false (a Dynamic type, not a Rigid Body). Jolt locks around world axes.
+ *
+ * EAllowedDOFs::None (no free axis) is never given to Jolt: it "will crash with a division by zero
+ * later" (Jolt's MotionProperties::SetMassProperties). A lock change that would give it is refused
+ * (SetRigidBodyAxisLocks, and Set Rigid Body Attribute's Allow Physics Rotation); the Physics
+ * panel, a physics type change or a copy that would give it drop the body's axis locks with a
+ * warning (2026-11-15).
+ */
+inline JPH::EAllowedDOFs JoltGameStateAllowedDOFs(const bool rotationEnabled,
+                                                  const std::array<bool, 6> &axisLocks)
+{
+  JPH::EAllowedDOFs dofs = JPH::EAllowedDOFs::All;
+  if (axisLocks[0]) {
+    dofs &= ~JPH::EAllowedDOFs::TranslationX;
+  }
+  if (axisLocks[1]) {
+    dofs &= ~JPH::EAllowedDOFs::TranslationZ; /* Blender Y -> Jolt Z. */
+  }
+  if (axisLocks[2]) {
+    dofs &= ~JPH::EAllowedDOFs::TranslationY; /* Blender Z -> Jolt Y. */
+  }
+  if (!rotationEnabled || axisLocks[3]) {
+    dofs &= ~JPH::EAllowedDOFs::RotationX;
+  }
+  if (!rotationEnabled || axisLocks[4]) {
+    dofs &= ~JPH::EAllowedDOFs::RotationZ; /* Blender Y -> Jolt Z. */
+  }
+  if (!rotationEnabled || axisLocks[5]) {
+    dofs &= ~JPH::EAllowedDOFs::RotationY; /* Blender Z -> Jolt Y. */
+  }
+  return dofs;
+}
 
 /**
  * JoltPhysicsController wraps a Jolt Body and implements the PHY_IPhysicsController interface.
@@ -124,6 +191,11 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   virtual void ApplyImpulse(const MT_Vector3 &attach,
                             const MT_Vector3 &impulse,
                             bool local) override;
+  virtual void ApplyWorldImpulse(const MT_Vector3 &impulse,
+                                 const MT_Vector3 *point,
+                                 bool velocity_change) override;
+  virtual void ApplyAngularImpulse(const MT_Vector3 &impulse, bool velocity_change) override;
+  virtual MT_Vector3 GetCenterOfMassPosition() override;
   virtual void ApplyTorque(const MT_Vector3 &torque, bool local) override;
   virtual void ApplyForce(const MT_Vector3 &force, bool local) override;
   virtual void SetAngularVelocity(const MT_Vector3 &ang_vel, bool local) override;
@@ -170,7 +242,7 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   virtual void SetRigidBody(bool rigid) override;
   virtual bool GetAllowSleeping() const override;
   virtual void SetAllowSleeping(bool allow) override;
-  virtual void SetRigidBodyAxisLocks(bool lockTranslationX,
+  virtual bool SetRigidBodyAxisLocks(bool lockTranslationX,
                                      bool lockTranslationY,
                                      bool lockTranslationZ,
                                      bool lockRotationX,
@@ -535,6 +607,13 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   JPH::MassProperties MassPropertiesForMass(float mass) const;
   JPH::EAllowedDOFs BuildAllowedDOFs() const;
   void ApplyAllowedDOFs();
+  /** A Dynamic body temporarily Kinematic while transform-parented: its own Dynamic state (axis
+   * locks, physics rotation) is kept and applied when the parenting ends. */
+  bool DynamicStateDeferredByParenting() const;
+  /** Whether physics rotation is on for the body's Dynamic state (parenting deferred). */
+  bool DynamicRotationEnabled() const;
+  /** Prints `what` (a change refused or axis locks dropped: no free axis left), once per body. */
+  void WarnNoFreeAxisOnce(const char *what);
   void ActivateBodyIfAdded();
   void NotifyFhSettingsChanged();
   void NotifyBuoyancySettingsChanged();
@@ -640,6 +719,8 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   bool m_lockRotationX = false;
   bool m_lockRotationY = false;
   bool m_lockRotationZ = false;
+  /** WarnNoFreeAxisOnce printed for this body. */
+  bool m_warnedNoFreeAxis = false;
   JoltBroadPhaseLayer m_bpCategory = JOLT_BP_STATIC;
   bool m_dynamicsSuspended = false;
   bool m_physicsSuspended = false;

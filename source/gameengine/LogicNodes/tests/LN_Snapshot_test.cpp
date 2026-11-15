@@ -13,6 +13,7 @@
 #include "EXP_IntValue.h"
 #include "EXP_StringValue.h"
 #include "EXP_Vector3Value.h"
+#include "EXP_Vector4Value.h"
 #include "KX_GameObject.h"
 #include "LN_CommandBuffer.h"
 #include "LN_Program.h"
@@ -56,6 +57,7 @@ LN_GamePropertyRef MakeGamePropertyRef(const std::string &name, const LN_ValueTy
   property_ref.default_value.float_value = 7.5f;
   property_ref.default_value.string_value = "default";
   property_ref.default_value.vector_value = MT_Vector3(1.0f, 2.0f, 3.0f);
+  property_ref.default_value.color_value = MT_Vector4(0.25f, 0.5f, 0.75f, 1.0f);
   return property_ref;
 }
 
@@ -129,6 +131,33 @@ LN_Value ReferenceGamePropertyValue(KX_GameObject &object, const LN_GameProperty
       value.string_value = type == VALUE_STRING_TYPE ? property->GetText() :
                                                        LN_GamePropertyAsText(property);
       break;
+    case LN_ValueType::Vector:
+      /* Get Game Property's Vector (2026-11-15) reads as any value read into a vector: a
+       * vector's X, Y, Z (a four-number vector's first three), a number on all three; truth and
+       * text are no vector. */
+      if (type == VALUE_VECTOR3_TYPE) {
+        value.vector_value = static_cast<EXP_Vector3Value *>(property)->GetVector3();
+      }
+      else if (type == VALUE_VECTOR4_TYPE) {
+        const MT_Vector4 &vector = static_cast<EXP_Vector4Value *>(property)->GetVector4();
+        value.vector_value = MT_Vector3(vector.x(), vector.y(), vector.z());
+      }
+      else if (type == VALUE_INT_TYPE || type == VALUE_FLOAT_TYPE) {
+        const float scalar = object.GetPropertyNumber(property_ref.name, 0.0f);
+        value.vector_value = MT_Vector3(scalar, scalar, scalar);
+      }
+      break;
+    case LN_ValueType::Color:
+      /* Its Color: a four-number vector as it is, a three-number one with alpha 1; numbers,
+       * truth and text are no color. */
+      if (type == VALUE_VECTOR4_TYPE) {
+        value.color_value = static_cast<EXP_Vector4Value *>(property)->GetVector4();
+      }
+      else if (type == VALUE_VECTOR3_TYPE) {
+        const MT_Vector3 &vector = static_cast<EXP_Vector3Value *>(property)->GetVector3();
+        value.color_value = MT_Vector4(vector.x(), vector.y(), vector.z(), 1.0f);
+      }
+      break;
     default:
       break;
   }
@@ -147,6 +176,7 @@ void ExpectSameGamePropertyValue(const LN_Value *actual,
   EXPECT_EQ(actual->float_value, expected.float_value) << where;
   EXPECT_EQ(actual->string_value, expected.string_value) << where;
   EXPECT_EQ(actual->vector_value, expected.vector_value) << where;
+  EXPECT_EQ(actual->color_value, expected.color_value) << where;
 }
 
 /** The snapshot's value of a ref, built from its cells (null past the last capture's refs), and the
@@ -170,6 +200,24 @@ const LN_Value *BuiltGamePropertyValue(const LN_Snapshot &snapshot,
     EXPECT_EQ(view.int_value, reference->int_value) << where;
     EXPECT_EQ(view.float_value, reference->float_value) << where;
     EXPECT_EQ(*view.string_value, reference->string_value) << where;
+    /* The view's four numbers: a color's, or a vector's with w 0. */
+    if (reference->type == LN_ValueType::Color) {
+      EXPECT_EQ(view.vector_value, reference->color_value) << where;
+    }
+    else if (reference->type == LN_ValueType::Vector) {
+      EXPECT_EQ(view.vector_value,
+                MT_Vector4(reference->vector_value.x(),
+                           reference->vector_value.y(),
+                           reference->vector_value.z(),
+                           0.0f))
+          << where;
+    }
+    /* The vector read the column kernel takes (FPropAxis). */
+    if (reference->type == LN_ValueType::Vector || reference->type == LN_ValueType::Color) {
+      MT_Vector4 vector;
+      EXPECT_TRUE(snapshot.ReadGamePropertyVector(index, vector)) << where;
+      EXPECT_EQ(vector, view.vector_value) << where;
+    }
   }
   return &storage;
 }
@@ -237,7 +285,8 @@ void RunKeptGamePropertiesAgainstTheReference(const int mode)
                                            LN_ValueType::Int,
                                            LN_ValueType::Float,
                                            LN_ValueType::String,
-                                           LN_ValueType::Vector};
+                                           LN_ValueType::Vector,
+                                           LN_ValueType::Color};
   std::vector<LN_GamePropertyRef> refs;
   for (const std::string &name : names) {
     for (const LN_ValueType type : types) {
@@ -283,7 +332,12 @@ void RunKeptGamePropertiesAgainstTheReference(const int mode)
         SetOwnedProperty(changed, name, new EXP_StringValue(next(2) == 0 ? "12.5" : "text", name));
         break;
       case 4:
-        SetOwnedProperty(changed, name, new EXP_Vector3Value(number, 1.0f, 2.0f));
+        if (next(2) == 0) {
+          SetOwnedProperty(changed, name, new EXP_Vector3Value(number, 1.0f, 2.0f));
+        }
+        else {
+          SetOwnedProperty(changed, name, new EXP_Vector4Value(number, 0.5f, 0.25f, 0.75f));
+        }
         break;
       case 5:
         changed.RemoveProperty(name);

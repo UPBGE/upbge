@@ -105,6 +105,12 @@ struct PHY_RayCastResult {
   int m_hitUVOK;       // !=0 if UV coordinate in m_hitUV is valid
   MT_Vector2 m_hitUV;  // UV coordinates of hit point
   float m_fraction;
+  /** PHY_RAY_QUERY_DETAIL_PART: the compound child whose shape was hit; null for a body that is
+   * not a compound of child objects (the hit object is the part then). */
+  KX_GameObject *m_partObject;
+  /** PHY_RAY_QUERY_DETAIL_MATERIAL: the hit triangle's material slot (0-based) on the part's
+   * mesh; -1 for shapes without triangles (boxes, spheres, convex hulls ...). */
+  int m_materialIndex;
 
   PHY_RayCastResult()
       :m_controller(nullptr),
@@ -114,7 +120,9 @@ struct PHY_RayCastResult {
         m_polygon(-1),
         m_hitUVOK(0),
         m_hitUV(0.0f, 0.0f),
-        m_fraction(0.0f)
+        m_fraction(0.0f),
+        m_partObject(nullptr),
+        m_materialIndex(-1)
   {
   }
 };
@@ -163,8 +171,70 @@ struct PHY_ShapeCastResult {
   float fraction = 0.0f;
   float penetration_depth = 0.0f;
   int32_t polygon_index = -1;
+  /** As PHY_RayCastResult::m_partObject and m_materialIndex. */
+  KX_GameObject *part_object = nullptr;
+  int32_t material_index = -1;
   bool has_uv = false;
   bool started_overlapping = false;
+};
+
+/**
+ * Sweeps a body's own collision shape (Sweep Object): the controller's shape, at `position` /
+ * `orientation` (the object's origin; the shape's scale is its own), moved in a straight line to
+ * `destination` with the orientation held. The controller's body is never hit.
+ */
+struct PHY_BodySweepSettings {
+  PHY_IPhysicsController *controller = nullptr;
+  MT_Vector3 position = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Matrix3x3 orientation = MT_Matrix3x3::Identity();
+  MT_Vector3 destination = MT_Vector3(0.0f, 0.0f, 0.0f);
+  uint32_t max_results = 1;
+  unsigned char detail_flags = PHY_RAY_QUERY_DETAIL_NONE;
+  bool include_sensors = false;
+  bool hit_back_faces = false;
+};
+
+/**
+ * Keep Distance (2026-11-12): what lies within `reach` of an object, measured from its own
+ * collision shape (`use_body_shape`, the body of `controller`) or from a sphere of `radius` at
+ * `center`. Both sides of triangles count (a pipe's inside too); the object's own body and
+ * `ignore` are never found.
+ */
+struct PHY_ProximityQuery {
+  PHY_IPhysicsController *controller = nullptr;
+  bool use_body_shape = true;
+  MT_Vector3 center = MT_Vector3(0.0f, 0.0f, 0.0f);
+  float radius = 0.5f;
+  float reach = 1.0f;
+  /** Collision layers of the objects found (their game object's collision group); 0: all. */
+  uint32_t collision_mask = 0;
+  bool include_sensors = false;
+  std::vector<PHY_IPhysicsController *> ignore;
+  /** The most patches kept (the nearest ones). */
+  uint32_t max_patches = 32;
+};
+
+/** One surface near a PHY_ProximityQuery's shape: per body, the nearest point of each direction
+ * (a mesh gives one patch per side it shows, not one per triangle). */
+struct PHY_ProximityPatch {
+  PHY_IPhysicsController *controller = nullptr;
+  /** The nearest point on that surface. */
+  MT_Vector3 point = MT_Vector3(0.0f, 0.0f, 0.0f);
+  /** Unit direction pushing the query's shape away from the surface. */
+  MT_Vector3 away = MT_Vector3(0.0f, 0.0f, 1.0f);
+  /** The gap between the shapes (0: touching or overlapping). */
+  float gap = 0.0f;
+};
+
+/** Why PHY_IPhysicsEnvironment::SweepBody did not sweep (Ok: it did). */
+enum class PHY_BodySweepStatus : uint8_t {
+  Ok = 0,
+  /** The backend has no body sweeps (Bullet). */
+  Unsupported,
+  /** No body or no shape (an object without physics, a soft body ...). */
+  NoShape,
+  /** The shape holds a triangle mesh: Jolt cannot move one. */
+  MeshShape,
 };
 
 class PHY_IShapeCastFilterCallback {
@@ -431,6 +501,44 @@ class PHY_IPhysicsEnvironment {
                          PHY_IShapeCastFilterCallback &filterCallback,
                          std::vector<PHY_ShapeCastResult> &results)
   {
+    return false;
+  }
+
+  /** Sweeps a body's own shape (PHY_BodySweepSettings). Jolt implements this. */
+  virtual PHY_BodySweepStatus SweepBody(const PHY_BodySweepSettings & /*settings*/,
+                                        PHY_IShapeCastFilterCallback & /*filterCallback*/,
+                                        std::vector<PHY_ShapeCastResult> &results)
+  {
+    results.clear();
+    return PHY_BodySweepStatus::Unsupported;
+  }
+
+  /**
+   * Explode or Implode Impulse: the bodies a sphere overlaps, the same ones a zero-length sphere
+   * ShapeCast (no sensors, back faces of triangles passed) lists: with more than `max_results`,
+   * the deepest ones (ties by body). Their order is otherwise unspecified (each gets one push).
+   * False: not supported (Bullet: ShapeCast then).
+   */
+  virtual bool OverlapSphereBodies(const MT_Vector3 & /*center*/,
+                                   float /*radius*/,
+                                   PHY_IShapeCastFilterCallback & /*filterCallback*/,
+                                   uint32_t /*max_results*/,
+                                   std::vector<PHY_IPhysicsController *> &controllers)
+  {
+    controllers.clear();
+    return false;
+  }
+
+  /**
+   * Keep Distance: one PHY_ProximityQuery each, `results[i]` for `queries[i]`, nearest first.
+   * Jolt runs them on its job system when there are enough (the results are the same). Only the
+   * queries' own fields are read (no game callback), so the backend may run them on helpers.
+   * False: not supported (Bullet).
+   */
+  virtual bool ProximityBatch(const std::vector<PHY_ProximityQuery> & /*queries*/,
+                              std::vector<std::vector<PHY_ProximityPatch>> &results)
+  {
+    results.clear();
     return false;
   }
 

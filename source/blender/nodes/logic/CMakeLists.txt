@@ -50,6 +50,8 @@ set(SRC
   nodes/node_logic_break_loop.cc
   nodes/node_logic_gate.cc
   nodes/node_logic_apply_impulse.cc
+  nodes/node_logic_apply_angular_impulse.cc
+  nodes/node_logic_explosion_impulse.cc
   nodes/node_logic_apply_force.cc
   nodes/node_logic_apply_force_to_target.cc
   nodes/node_logic_apply_movement.cc
@@ -83,6 +85,7 @@ set(SRC
   nodes/node_logic_get_rigid_body_attribute.cc
   nodes/node_logic_get_tree_property.cc
   nodes/node_logic_get_timescale.cc
+  nodes/node_logic_keep_distance.cc
   nodes/node_logic_keyboard_active.cc
   nodes/node_logic_keyboard_key.cc
   nodes/node_logic_key_code.cc
@@ -200,6 +203,11 @@ set(SRC
   nodes/node_logic_remove_parent.cc
   nodes/node_logic_raycast_from_mesh.cc
   nodes/node_logic_projectile_ray.cc
+  nodes/node_logic_line_of_sight.cc
+  nodes/node_logic_aim_for_arc.cc
+  nodes/node_logic_sweep_object.cc
+  nodes/node_logic_velocity_at_point.cc
+  nodes/node_logic_ray_to_plane.cc
   nodes/node_logic_rebuild_collision_shape.cc
   nodes/node_logic_receive_event.cc
   nodes/node_logic_replace_mesh.cc
@@ -279,9 +287,12 @@ set(SRC
   nodes/node_logic_within_range.cc
   nodes/node_logic_world_to_screen.cc
 
+  node_logic_bone_search.cc
+  node_logic_property_search.cc
   node_logic_socket_declarations.cc
   node_logic_tree.cc
   node_logic_util.cc
+  node_logic_vertex_group_search.cc
 
   node_logic_socket_declarations.hh
   node_logic_util.hh

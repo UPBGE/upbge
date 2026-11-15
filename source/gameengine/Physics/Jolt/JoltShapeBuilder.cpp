@@ -166,12 +166,27 @@ bool JoltShapeBuilder::SetMesh(KX_Scene *kxscene, RAS_MeshObject *meshobj, bool 
     const bool needFaceIndex =
         (m_rayQueryDetailRequirements & PHY_RAY_QUERY_DETAIL_FACE_INDEX) != 0;
     const bool needUV = (m_rayQueryDetailRequirements & PHY_RAY_QUERY_DETAIL_UV) != 0;
+    const bool needMaterial = (m_rayQueryDetailRequirements & PHY_RAY_QUERY_DETAIL_MATERIAL) !=
+                              0;
     blender::Span<int> triFaces;
     blender::VArraySpan<blender::float2> uvs;
-    if (needFaceIndex || needUV) {
+    /* Hit Material: each triangle's face slot ("material_index", 0 when the mesh has none). */
+    blender::VArraySpan<int> faceMaterials;
+    if (needFaceIndex || needUV || needMaterial) {
       triFaces = me->corner_tri_faces();
       m_meshQueryData = std::make_shared<JoltMeshQueryData>();
+    }
+    if (needFaceIndex || needUV) {
       m_meshQueryData->polygonIndices.reserve(tris.size());
+    }
+    if (needMaterial) {
+      const blender::bke::AttributeAccessor attributes = me->attributes();
+      if (const auto materialAttribute = attributes.lookup<int>(
+              "material_index", blender::bke::AttrDomain::Face))
+      {
+        faceMaterials = *materialAttribute;
+      }
+      m_meshQueryData->triangleMaterials.reserve(tris.size());
     }
     if (needUV) {
       const blender::StringRefNull uvName = me->active_uv_map_name();
@@ -217,7 +232,14 @@ bool JoltShapeBuilder::SetMesh(KX_Scene *kxscene, RAS_MeshObject *meshobj, bool 
       m_triFaceArray.push_back(tri_indices[2]);
 
       if (m_meshQueryData) {
-        m_meshQueryData->polygonIndices.push_back(triFaces[t]);
+        if (needFaceIndex || needUV) {
+          m_meshQueryData->polygonIndices.push_back(triFaces[t]);
+        }
+        if (needMaterial) {
+          const int slot = faceMaterials.is_empty() ? 0 : faceMaterials[triFaces[t]];
+          m_meshQueryData->triangleMaterials.push_back(
+              uint16_t(std::clamp(slot, 0, int(std::numeric_limits<uint16_t>::max()))));
+        }
         if (!uvs.is_empty()) {
           JoltTriangleUV triangleUV;
           for (int j = 0; j < 3; ++j) {

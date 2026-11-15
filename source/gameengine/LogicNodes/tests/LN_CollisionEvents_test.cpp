@@ -15,10 +15,16 @@
 
 #include "testing/testing.h"
 
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
 #include <deque>
 #include <string>
 #include <vector>
 
+#include "LN_Columns.h"
 #include "LN_Manager.h"
 #include "LN_SemRig.h"
 #include "PHY_IPhysicsEnvironment.h"
@@ -522,18 +528,24 @@ TEST(LN_CollisionEvents, ObjectRefsPastTheShortScanKeepTheirSlots)
   }
 }
 
-/* Each Object events run on the main thread, one tree at a time: the columns and the tree batches
- * refuse them, by name. An Any Object node is refused by neither for being one. */
-TEST(LN_CollisionEvents, ColumnsAndBatchesLeaveEachObjectEventsToTheColumnPass)
+/* Each Object events run on the main thread (their state makes object handles): since 2026-11-14
+ * the columns take them (their routes' blocks and repeats bridged on the main thread, the rest of
+ * the tree wide); the tree batches still refuse them, by name. An Any Object node is refused by
+ * neither for being one. */
+TEST(LN_CollisionEvents, ColumnsTakeEachObjectEventsBatchesLeaveThemToTheColumnPass)
 {
   std::string report;
   const std::shared_ptr<LN_Program> each = CountingTree(kEachObject, &report);
   ASSERT_NE(each, nullptr) << report;
   std::string refusal;
-  EXPECT_EQ(LN_CompileColumnProgram(*each, LN_Event::OnFixedUpdate, &refusal), nullptr);
-  EXPECT_EQ(refusal, "an On Collision Each Object route");
+  const std::shared_ptr<const LN_ColumnProgram> columns = LN_CompileColumnProgram(
+      *each, LN_Event::OnFixedUpdate, &refusal);
+  ASSERT_NE(columns, nullptr) << refusal;
+  const std::string text = LN_DescribeColumnProgram(*columns);
+  EXPECT_NE(text.find(" bridged=1 "), std::string::npos) << text;
+  EXPECT_NE(text.find(" main_thread=1 "), std::string::npos) << text;
   EXPECT_FALSE(LN_AnalyzeTreeBatchSafety(*each).eligible);
-  EXPECT_FALSE(LN_ColumnRefusalHint(refusal).empty());
+  EXPECT_FALSE(LN_ColumnRefusalHint("an On Collision Each Object route").empty());
 
   const std::shared_ptr<LN_Program> any = CountingTree(kAnyObject, &report);
   ASSERT_NE(any, nullptr) << report;
@@ -541,6 +553,73 @@ TEST(LN_CollisionEvents, ColumnsAndBatchesLeaveEachObjectEventsToTheColumnPass)
   LN_CompileColumnProgram(*any, LN_Event::OnFixedUpdate, &refusal);
   EXPECT_EQ(refusal.find("Each Object"), std::string::npos) << refusal;
   EXPECT_EQ(LN_AnalyzeTreeBatchSafety(*any).reason.find("Each Object"), std::string::npos);
+}
+
+/* A crowd of owners with Each Object events (2026-11-14): wide runs (the routes' blocks and their
+ * repeats through the VM's walk on the main thread, NPC by NPC) end every step as every tree's
+ * column pass does, on one thread and with helpers: owners' and touched objects' counts, the run's
+ * Contact Count, Point and Normal, objects entering, staying and leaving over six steps (the
+ * counting tree of the page; many owners write one touched object's counts). */
+TEST(LN_CollisionEvents, EachObjectEventsRunWideAsTheirColumnPasses)
+{
+  std::string report;
+  const std::shared_ptr<LN_Program> program = CountingTree(kEachObject, &report);
+  ASSERT_NE(program, nullptr) << report;
+  constexpr uint32_t kOwners = 300;
+  constexpr int kOthers = 12;
+  std::string reference;
+  for (const int columns : {0, 1, 4}) {
+    SCOPED_TRACE("columns " + std::to_string(columns));
+    SemRig rig(program, kProduction, kOwners);
+    if (columns != 0) {
+      rig.SetColumns(true, uint32_t(columns - 1));
+    }
+    std::vector<KX_GameObject *> others;
+    for (int index = 0; index < kOthers; index++) {
+      others.push_back(&rig.AddObject("Other" + std::to_string(index),
+                                      MT_Vector3(float(index), 0.0f, 0.0f)));
+    }
+    for (uint32_t index = 0; index < kOwners; index++) {
+      ZeroCounts(rig, rig.Object(index), others);
+    }
+    Contacts contacts;
+    const uint64_t ran_before = LN_ColumnLaneCount();
+    std::string text;
+    for (int step = 0; step < 6; step++) {
+      /* Each owner touches a window of the others that slides with the step (some enter, some
+       * stay, some leave), its own number of contacts and points. */
+      for (uint32_t index = 0; index < kOwners; index++) {
+        std::vector<Touch> touching;
+        const int first = int((index * 7 + uint32_t(step) * 2) % kOthers);
+        const int count = int(index % 4);
+        for (int k = 0; k < count; k++) {
+          Touch touch;
+          touch.other = others[size_t((first + k) % kOthers)];
+          touch.count = 1 + int((index + uint32_t(k)) % 3);
+          touch.point = MT_Vector3(float(index % 5), float(k), float(step));
+          touch.normal = MT_Vector3(0.0f, 0.0f, k % 2 == 0 ? 1.0f : -1.0f);
+          touch.owner_second = (index + uint32_t(k)) % 2 == 1;
+          touching.push_back(touch);
+        }
+        contacts.Set(rig.Object(index), touching);
+      }
+      rig.Step();
+      for (uint32_t index = 0; index < kOwners; index++) {
+        text += Counts(rig, rig.Object(index), {}) + "\n";
+      }
+      text += Counts(rig, rig.Object(0), others) + "\n";
+    }
+    if (columns == 0) {
+      reference = text;
+      EXPECT_NE(text.find("| Other3: "), std::string::npos);
+    }
+    else {
+      EXPECT_TRUE(text == reference) << "a wide run's counts differ from the column passes'";
+      if (LN_GetColumnDirectMode() != LN_ColumnDirectMode::Force) {
+        EXPECT_GE(LN_ColumnLaneCount() - ran_before, uint64_t(kOwners)) << rig.LastColumnRefusal();
+      }
+    }
+  }
 }
 
 /* With the manager, objects are compared by its handles: an object removed while touching leaves
@@ -585,4 +664,164 @@ TEST(LN_CollisionEvents, ObjectsAreComparedByTheManagersHandles)
   EXPECT_EQ(Counts(rig, owner, others),
             "3 3 1 | A: 2 1 0 2 0 2 | B: 1 2 0 1 0 1 | C: 0 0 0 0 0 0 ");
   rig.Tree(0).SetLogicManager(nullptr);
+}
+
+namespace {
+
+/** An NPC's brain with a small On Collision part: every step its distance to the Target kept in
+ * pf1, a step ahead or a turn (by its pb0), pf0 grown; On Collision's On Enter counts "hits". */
+std::shared_ptr<LN_Program> BrainWithCollisions(const int16_t events, std::string *report)
+{
+  TreeBuilder b;
+  GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+  GenNode &distance = b.Add("LogicNativeGetDistance", 0, 0);
+  b.ObjectNamed(distance, "Object B", &diff::TargetBlenderObject());
+  GenNode &keep = b.Add("LogicNativeSetGamePropertyFloat");
+  b.String(keep, "Property", "pf1");
+  b.Link(distance, "Distance", keep, "Value");
+  b.Link(step, "Out", keep, "Flow");
+  GenNode &walking = b.Add("LogicNativeGetGamePropertyBool");
+  b.String(walking, "Property", "pb0");
+  GenNode &branch = b.Add("LogicNativeBranch");
+  b.Link(walking, "Value", branch, "Condition");
+  b.Link(keep, "Done", branch, "Flow");
+  GenNode &walk = b.Add("LogicNativeApplyMovement");
+  b.Vector(walk, "Vector", 0.0f, 0.01f, 0.0f);
+  b.Link(branch, "True", walk, "Flow");
+  GenNode &turn = b.Add("LogicNativeApplyRotation");
+  b.Rotation(turn, "Rotation", 0.0f, 0.0f, 0.02f);
+  b.Link(branch, "False", turn, "Flow");
+  GenNode &grow = b.Add("LogicNativeModifyProperty");
+  b.String(grow, "Property", "pf0");
+  b.Float(grow, "Value", 0.1f);
+  b.Link(step, "Out", grow, "Flow");
+  GenNode &touch = b.Add("LogicNativeOnCollision", events);
+  AddOne(b, touch, "On Enter", "hits", false);
+  return b.Compile(report);
+}
+
+}  // namespace
+
+/* A tool, not a check (--gtest_also_run_disabled_tests): the cost of a step of UPBGE_LN_BENCH_OWNERS
+ * (1,000) balls, each touching 0 to 3 of 12 objects in a window that slides every step (some
+ * enter, some stay, some leave), each running CountingTree (nothing but collision routes) or
+ * BrainWithCollisions (an NPC brain with a small On Collision part), in Any Object and Each Object
+ * mode, tree by tree (Each Object's only way before 2026-11-14) and in wide runs (1 and 8
+ * threads). The median of UPBGE_LN_BENCH_ROUNDS (5) rounds of UPBGE_LN_BENCH_STEPS (50) timed
+ * steps, with the median round's capture / record / flush; setting the contacts is not timed. */
+TEST(LN_CollisionEvents, DISABLED_EachObjectEventsCost)
+{
+  const char *owners_text = std::getenv("UPBGE_LN_BENCH_OWNERS");
+  const uint32_t owners = owners_text ? uint32_t(std::max(1, std::atoi(owners_text))) : 1000;
+  const char *steps_text = std::getenv("UPBGE_LN_BENCH_STEPS");
+  const int steps = steps_text ? std::max(1, std::atoi(steps_text)) : 50;
+  const char *rounds_text = std::getenv("UPBGE_LN_BENCH_ROUNDS");
+  const int rounds = rounds_text ? std::max(1, std::atoi(rounds_text)) : 5;
+  constexpr int kOthers = 12;
+  constexpr int kWarm = 5;
+  for (const bool brain : {false, true}) {
+  for (const int16_t events : {kAnyObject, kEachObject}) {
+    double tree_by_tree = 0.0;
+    for (const int columns : {0, 1, 8}) {
+      std::vector<std::array<double, 4>> times;
+      std::string lanes_text;
+      for (int round = 0; round < rounds; round++) {
+        std::string report;
+        const std::shared_ptr<LN_Program> program = brain ? BrainWithCollisions(events, &report) :
+                                                            CountingTree(events, &report);
+        ASSERT_NE(program, nullptr) << report;
+        SemRig rig(program, kProduction, owners);
+        rig.SetDump(false);
+        rig.SetObserveForces(false);
+        if (columns != 0) {
+          rig.SetColumns(true, uint32_t(columns - 1));
+        }
+        std::vector<KX_GameObject *> others;
+        for (int index = 0; index < kOthers; index++) {
+          others.push_back(&rig.AddObject("Other" + std::to_string(index),
+                                          MT_Vector3(float(index), 0.0f, 0.0f)));
+        }
+        rig.AddObject("Target", MT_Vector3(3.0f, 1.0f, 0.5f));
+        for (uint32_t index = 0; index < owners; index++) {
+          KX_GameObject &owner = rig.Object(index);
+          ZeroCounts(rig, owner, others);
+          rig.SetFloat(owner, "hits", 0.0f);
+          rig.SetFloat(owner, "pf0", 0.0f);
+          rig.SetFloat(owner, "pf1", 0.0f);
+          rig.SetBool(owner, "pb0", index % 2 == 0);
+          owner.NodeSetWorldPosition(
+              MT_Vector3(float(index % 40) * 2.0f, float(index / 40) * 2.0f, 0.0f));
+          owner.NodeUpdateGS(0.0);
+        }
+        Contacts contacts;
+        double total = 0.0;
+        const uint64_t lanes_before = LN_ColumnLaneCount();
+        for (int step = 0; step < kWarm + steps; step++) {
+          for (uint32_t index = 0; index < owners; index++) {
+            std::vector<Touch> touching;
+            const int first = int((index * 7 + uint32_t(step) * 2) % kOthers);
+            const int count = int(index % 4);
+            for (int k = 0; k < count; k++) {
+              Touch touch;
+              touch.other = others[size_t((first + k) % kOthers)];
+              touch.count = 1 + int((index + uint32_t(k)) % 3);
+              touch.point = MT_Vector3(float(index % 5), float(k), float(step));
+              touching.push_back(touch);
+            }
+            contacts.Set(rig.Object(index), touching);
+          }
+          if (step == kWarm) {
+            rig.ResetTimes();
+          }
+          const auto start = std::chrono::steady_clock::now();
+          rig.Step();
+          if (step >= kWarm) {
+            total += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() -
+                                                               start)
+                         .count();
+          }
+        }
+        const SemRig::PhaseTimes &phases = rig.Times();
+        times.push_back({total / steps,
+                         phases.capture_ms / steps,
+                         phases.record_ms / steps,
+                         phases.flush_ms / steps});
+        if (round == 0 && columns != 0) {
+          lanes_text = std::to_string(int((LN_ColumnLaneCount() - lanes_before) /
+                                          uint64_t(kWarm + steps))) +
+                       " lanes a step";
+          std::string refusal;
+          if (LN_CompileColumnProgram(*program, LN_Event::OnFixedUpdate, &refusal) == nullptr) {
+            lanes_text += " (refused: " + refusal + ")";
+            /* UPBGE_LN_BENCH_DUMP=1: the refused program's text (its blocks and routes). */
+            if (std::getenv("UPBGE_LN_BENCH_DUMP") != nullptr) {
+              std::printf("%s\n", LN_DumpProgramText(*program).c_str());
+            }
+          }
+        }
+      }
+      std::sort(times.begin(), times.end());
+      const std::array<double, 4> &median = times[times.size() / 2];
+      if (columns == 0) {
+        tree_by_tree = median[0];
+      }
+      std::printf(
+          "%-14s %-11s %u balls, %-21s %7.3f ms a step (%.2f x tree by tree; capture %.3f, "
+          "record %.3f, flush %.3f)%s%s\n",
+          brain ? "NPC brain," : "Counting tree,",
+          events == kEachObject ? "Each Object" : "Any Object",
+          owners,
+          columns == 0 ? "tree by tree:" :
+          columns == 1 ? "wide, 1 thread:" :
+                         "wide, 8 threads:",
+          median[0],
+          tree_by_tree / std::max(median[0], 1.0e-9),
+          median[1],
+          median[2],
+          median[3],
+          lanes_text.empty() ? "" : "; ",
+          lanes_text.c_str());
+    }
+  }
+  }
 }

@@ -222,13 +222,17 @@ class PHY_IPhysicsController : public PHY_IController {
     return true;
   }
   virtual void SetAllowSleeping(bool /*allow*/) {}
-  virtual void SetRigidBodyAxisLocks(bool /*lockTranslationX*/,
+  /** Sets all six locks (Blender translation X/Y/Z, then rotation X/Y/Z). False when refused:
+   * the locks would leave the body no free axis (Jolt cannot move such a body); the locks then
+   * stay as they were. */
+  virtual bool SetRigidBodyAxisLocks(bool /*lockTranslationX*/,
                                      bool /*lockTranslationY*/,
                                      bool /*lockTranslationZ*/,
                                      bool /*lockRotationX*/,
                                      bool /*lockRotationY*/,
                                      bool /*lockRotationZ*/)
   {
+    return true;
   }
   virtual void GetRigidBodyAxisLocks(bool &lockTranslationX,
                                      bool &lockTranslationY,
@@ -255,6 +259,18 @@ class PHY_IPhysicsController : public PHY_IController {
 
   // physics methods
   virtual void ApplyImpulse(const MT_Vector3 &attach, const MT_Vector3 &impulse, bool local) = 0;
+  /** A linear impulse along the world axes at a world point, or through the center of mass when
+   * `point` is null. `velocity_change`: the vector is a velocity change (the body's mass is
+   * ignored; at a point the spin it gives does not depend on the mass either). Only dynamic
+   * bodies take it. (Logic Nodes' Apply Impulse modes and Explosion Impulse.) */
+  virtual void ApplyWorldImpulse(const MT_Vector3 &impulse,
+                                 const MT_Vector3 *point,
+                                 bool velocity_change) = 0;
+  /** An angular impulse along the world axes; `velocity_change`: an angular velocity change in
+   * radians per second (mass and inertia ignored). Only dynamic bodies take it. */
+  virtual void ApplyAngularImpulse(const MT_Vector3 &impulse, bool velocity_change) = 0;
+  /** The world position of the body's center of mass (the object's position without a body). */
+  virtual MT_Vector3 GetCenterOfMassPosition() = 0;
   virtual void ApplyTorque(const MT_Vector3 &torque, bool local) = 0;
   virtual void ApplyForce(const MT_Vector3 &force, bool local) = 0;
   virtual void SetAngularVelocity(const MT_Vector3 &ang_vel, bool local) = 0;

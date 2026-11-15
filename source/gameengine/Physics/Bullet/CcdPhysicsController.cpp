@@ -1683,6 +1683,52 @@ void CcdPhysicsController::ApplyImpulse(const MT_Vector3 &attach,
   }
 }
 
+void CcdPhysicsController::ApplyWorldImpulse(const MT_Vector3 &impulsein,
+                                             const MT_Vector3 *point,
+                                             bool velocity_change)
+{
+  btRigidBody *body = GetRigidBody();
+  if (!body || body->isStaticOrKinematicObject() || body->getInvMass() <= btScalar(0)) {
+    return;
+  }
+  btVector3 impulse = ToBullet(impulsein);
+  if (velocity_change) {
+    impulse /= body->getInvMass();
+  }
+  body->activate();
+  if (point) {
+    body->applyImpulse(impulse, ToBullet(*point) - body->getCenterOfMassPosition());
+  }
+  else {
+    body->applyCentralImpulse(impulse);
+  }
+}
+
+void CcdPhysicsController::ApplyAngularImpulse(const MT_Vector3 &impulsein, bool velocity_change)
+{
+  btRigidBody *body = GetRigidBody();
+  if (!body || body->isStaticOrKinematicObject() || body->getInvMass() <= btScalar(0)) {
+    return;
+  }
+  body->activate();
+  if (velocity_change) {
+    body->setAngularVelocity(body->getAngularVelocity() +
+                             ToBullet(impulsein) * body->getAngularFactor());
+  }
+  else {
+    body->applyTorqueImpulse(ToBullet(impulsein));
+  }
+}
+
+MT_Vector3 CcdPhysicsController::GetCenterOfMassPosition()
+{
+  if (btRigidBody *body = GetRigidBody()) {
+    return ToMoto(body->getCenterOfMassPosition());
+  }
+  return m_object ? ToMoto(m_object->getWorldTransform().getOrigin()) :
+                    MT_Vector3(0.0f, 0.0f, 0.0f);
+}
+
 void CcdPhysicsController::Jump()
 {
   if (m_object && m_characterController)

@@ -162,6 +162,8 @@ bool logic_nodes_phase10_opcode_has_direct_exec_path(const LN_OpCode opcode)
     case LN_OpCode::ApplyForceToTarget:
     case LN_OpCode::ApplyTorque:
     case LN_OpCode::ApplyImpulse:
+    case LN_OpCode::ExplosionImpulse:
+    case LN_OpCode::KeepDistance:
     case LN_OpCode::Translate:
     case LN_OpCode::MoveToward:
     case LN_OpCode::SlowFollow:

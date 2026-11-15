@@ -93,6 +93,7 @@
 #include "wm_event_system.hh"
 #include "xr/wm_xr.hh"
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstring>
@@ -7281,6 +7282,15 @@ void KX_Scene::ReplicateLogicNodeRuntimeTreesForReplicaMap()
     return -1;
   };
 
+  /* The copies register in their object list order (the map's order is the objects' addresses,
+   * another one each play): their trees run, and their commands apply, in that order. */
+  struct ReplicaToRegister {
+    int scene_object_index;
+    KX_GameObject *source_gameobj;
+    KX_GameObject *replica_gameobj;
+  };
+  std::vector<ReplicaToRegister> replicas;
+  replicas.reserve(m_map_gameobject_to_replica.size());
   for (const std::pair<SCA_IObject *const, SCA_IObject *> &replica_pair :
        m_map_gameobject_to_replica)
   {
@@ -7299,9 +7309,16 @@ void KX_Scene::ReplicateLogicNodeRuntimeTreesForReplicaMap()
     }
 
     if (scene_object_index >= 0) {
-      m_logicNodeManager->ReplicateRuntimeTrees(
-          source_gameobj, replica_gameobj, static_cast<uint32_t>(scene_object_index));
+      replicas.push_back({scene_object_index, source_gameobj, replica_gameobj});
     }
+  }
+  std::sort(replicas.begin(),
+            replicas.end(),
+            [](const ReplicaToRegister &a, const ReplicaToRegister &b) {
+              return a.scene_object_index < b.scene_object_index;
+            });
+  for (const ReplicaToRegister &replica : replicas) {
+    m_logicNodeManager->ReplicateRuntimeTrees(replica.source_gameobj, replica.replica_gameobj);
   }
 }
 #endif

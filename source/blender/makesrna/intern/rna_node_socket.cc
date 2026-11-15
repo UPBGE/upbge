@@ -629,6 +629,22 @@ bool rna_NodeSocketStandard_boolean_default(PointerRNA *ptr, PropertyRNA * /*pro
   return decl->default_value;
 }
 
+/** A logic Collision Layers button (collision_layer_N): its bit of the socket's declared mask
+ * (1023, every layer, without a declaration), so resetting one layer gives what a new node starts
+ * with, as resetting the whole mask does. */
+static bool rna_NodeSocketLogicCollisionLayers_layer_default(PointerRNA *ptr, PropertyRNA *prop)
+{
+  const bNodeSocket *sock = static_cast<const bNodeSocket *>(ptr->data);
+  int mask = 1023;
+  if (sock != nullptr && sock->runtime->declaration) {
+    mask = static_cast<const nodes::decl::Int *>(sock->runtime->declaration)->default_value;
+  }
+  /* The bit lives only in the generated getter: the layer is the identifier's number. */
+  const char *number = strrchr(RNA_property_identifier(prop), '_');
+  const int layer = number != nullptr ? atoi(number + 1) : 0;
+  return layer < 1 || layer > 31 || (mask & (1 << (layer - 1))) != 0;
+}
+
 void rna_NodeSocketStandard_vector_default(PointerRNA *ptr,
                                            PropertyRNA * /*prop*/,
                                            float *r_values)
@@ -1310,6 +1326,8 @@ static void rna_def_node_socket_logic_collision_layer_bit(StructRNA *srna,
 {
   PropertyRNA *prop = RNA_def_property(srna, identifier, PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "value", 1 << bit);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_boolean_default_func(prop, "rna_NodeSocketLogicCollisionLayers_layer_default");
   RNA_def_property_ui_text(prop, ui_name, "Jolt collision layer bit");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);

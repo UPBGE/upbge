@@ -39,6 +39,27 @@ def split_pascal_case(text):
     return re.sub(PascalCasePattern, ReplacementPattern, text)
 
 
+def draw_no_free_axis_warning(layout, game, rotation_enabled):
+    """Jolt (2026-11-15): a moving body whose locks leave it no free axis (all six, or every
+    movement axis of a Dynamic type, which never rotates) is something Jolt cannot simulate (it
+    divides by zero later): the game ignores its axis locks and says so in the console
+    (JoltPhysicsEnvironment's converter, rule JoltGameStateAllowedDOFs). Said here first."""
+    if not (game.lock_location_x and game.lock_location_y and game.lock_location_z):
+        return
+    if rotation_enabled and not (game.lock_rotation_x and game.lock_rotation_y and
+                                 game.lock_rotation_z):
+        return
+    col = layout.column(align=True)
+    if rotation_enabled:
+        col.label(text="Every axis is locked, so the game will ignore these locks.", icon='ERROR')
+    else:
+        col.label(text="Every movement axis is locked (Dynamic never rotates),", icon='ERROR')
+        col.label(text="so the game will ignore these locks.", icon='BLANK1')
+    col.label(text="Why: a known Jolt limitation. Jolt can't simulate a moving body", icon='BLANK1')
+    col.label(text="with no free axis (its math breaks and the body can vanish).", icon='BLANK1')
+    col.label(text="To keep the object still, use the Static physics type.", icon='BLANK1')
+
+
 class GameButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -686,6 +707,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         row.prop(game, "lock_rotation_x", text="X")
         row.prop(game, "lock_rotation_y", text="Y")
         row.prop(game, "lock_rotation_z", text="Z")
+        if is_jolt:
+            draw_no_free_axis_warning(col, game, True)
 
     def draw_motorcycle_chassis(self, layout, game, vehicle, is_jolt):
         """Draw motorcycle chassis settings (Jolt MotorcycleController)."""
@@ -776,6 +799,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
         row.prop(game, "lock_rotation_x", text="X")
         row.prop(game, "lock_rotation_y", text="Y")
         row.prop(game, "lock_rotation_z", text="Z")
+        draw_no_free_axis_warning(col, game, True)
 
     def draw_vehicle_wheel(self, layout, vehicle, is_jolt):
         """Draw wheel-specific settings."""
@@ -1020,6 +1044,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             row.prop(game, "lock_location_x", text="X")
             row.prop(game, "lock_location_y", text="Y")
             row.prop(game, "lock_location_z", text="Z")
+            if physics_type == 'DYNAMIC' and is_jolt:
+                draw_no_free_axis_warning(col, game, False)
 
         elif physics_type == 'VEHICLE':
             vehicle = game.vehicle
@@ -1043,6 +1069,8 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             row.prop(game, "lock_rotation_x", text="X")
             row.prop(game, "lock_rotation_y", text="Y")
             row.prop(game, "lock_rotation_z", text="Z")
+            if is_jolt:
+                draw_no_free_axis_warning(col, game, True)
 
         elif physics_type == 'SOFT_BODY':
             col = layout.column()

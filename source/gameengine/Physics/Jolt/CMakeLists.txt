@@ -97,17 +97,36 @@ blender_add_lib(ge_physics_jolt "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 if(WITH_GTESTS)
   set(TEST_SRC
     tests/JoltConstraint_test.cpp
+    tests/JoltLogicNodesQueries_test.cpp
     tests/JoltProcessorCheck_test.cpp
+  )
+  # JoltLogicNodesQueries_test runs Logic Nodes trees (their test rigs) against a real Jolt world.
+  set(TEST_INC
+    ${INC}
+    ../../LogicNodes
+    ../../LogicNodes/intern
+    ../../LogicNodes/tests
+    ../../Device
+    ../../Ketsji/KXNetworkMessage
+    ../../../blender
+    ../../../blender/blenlib
+    ../../../blender/makesdna
+    ../../../blender/nodes
+    ../../../blender/windowmanager
   )
   set(TEST_LIB
     ${LIB}
     ge_physics_jolt
+    ge_logic_nodes
   )
   blender_add_test_suite_lib(
     gameengine_physics_jolt
     "${TEST_SRC}"
-    "${INC}"
+    "${TEST_INC}"
     "${INC_SYS}"
     "${TEST_LIB}"
+  )
+  target_compile_definitions(gameengine_physics_jolt_tests
+    PRIVATE LOGIC_NODES_TEST_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
   )
 endif()

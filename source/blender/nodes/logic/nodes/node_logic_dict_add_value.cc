@@ -17,7 +17,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Object>("Object"_ustr)
       .description(logic::collection_store_object_description());
   b.add_input<decl::String>("Property"_ustr)
-      .description(logic::collection_store_property_description("dictionary"));
+      .description(logic::collection_store_property_description("dictionary"))
+      .custom_draw(logic::game_property_field("Object"));
   b.add_input<decl::Dictionary>("Dictionary"_ustr);
   b.add_input<decl::String>("Key"_ustr).default_value("key");
   b.add_input<decl::Float>("Amount"_ustr).default_value(1.0f).description(

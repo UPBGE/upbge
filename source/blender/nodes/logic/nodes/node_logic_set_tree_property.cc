@@ -13,9 +13,16 @@ namespace decl = blender::nodes::logic::decl;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Execution>("Flow"_ustr);
-  b.add_input<decl::String>("Property"_ustr).default_value("property");
-  b.add_input<decl::Generic>("Value"_ustr);
+  b.add_input<decl::Execution>("Flow"_ustr)
+      .description("Writes the value at once: the nodes after it in this step read the new one");
+  b.add_input<decl::String>("Property"_ustr)
+      .default_value("property")
+      .description("The tree property to write: a value only this tree reads, one for each "
+                   "object running it, kept until the game ends (Save Game does not keep it). "
+                   "Pick a name this tree uses, or type a new one")
+      .custom_draw(logic::tree_property_field(false));
+  b.add_input<decl::Generic>("Value"_ustr)
+      .description("Any value, such as a number, text, vector, object or list");
 }
 
 static void node_register()

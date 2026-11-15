@@ -2063,6 +2063,13 @@ struct CompilerContext {
     }
   }
 
+  void CacheColorOutputPin(const char *pin_name, uint32_t expr_index)
+  {
+    if (const blender::bNodeSocket *socket = FindOutputSocket(node, pin_name)) {
+      color_expression_cache[socket] = expr_index;
+    }
+  }
+
   std::optional<uint32_t> BuildOptionalObject(const char *socket_name)
   {
     return BuildOptionalObjectTargetExpression(program,
@@ -3797,6 +3804,9 @@ void CompileInventoryNode(CompilerContext &context);
 void CompileDropItemNode(CompilerContext &context);
 void CompileSetParentNode(CompilerContext &context);
 void CompileApplyImpulseNode(CompilerContext &context);
+void CompileApplyAngularImpulseNode(CompilerContext &context);
+void CompileExplosionImpulseNode(CompilerContext &context);
+void CompileKeepDistanceNode(CompilerContext &context);
 void CompileApplyForceToTargetNode(CompilerContext &context);
 void CompileSetGamePropertyIntNode(CompilerContext &context);
 void CompileSetGamePropertyFloatNode(CompilerContext &context);
@@ -3932,7 +3942,6 @@ void CompileTweenValueNode(CompilerContext &context);
 void CompileAddPhysicsConstraintNode(CompilerContext &context);
 void CompileGetRigidBodyConstraintsNode(CompilerContext &context);
 void CompileRemovePhysicsConstraintNode(CompilerContext &context);
-void CompileProjectileRayNode(CompilerContext &context);
 FlowPath GuardFlowPath(LN_Program &program, const FlowPath &path, uint32_t guard_expr);
 
 static LN_CurveTable IdentityCurveTable()
@@ -4926,9 +4935,17 @@ void CompileGamePropertyReadNode(CompilerContext &context)
       case LN_NodeKind::GetGamePropertyString:
         property_type = LN_ValueType::String;
         break;
+      case LN_NodeKind::GetGamePropertyVector:
+        property_type = LN_ValueType::Vector;
+        break;
+      case LN_NodeKind::GetGamePropertyColor:
+        property_type = LN_ValueType::Color;
+        break;
       default:
         break;
     }
+    /* (A missing Color reads (0, 0, 0, 1), the color every color read falls back to: another
+     * object's read into Set Game Property gives the same.) */
     const uint32_t property_ref_index = AddGamePropertyRef(
         context.program, *property_name, property_type, MakeDefaultValue(property_type));
     /* The merged Get Game Property's Exists (NOD_logic_merged.hh): the exists flag the snapshot
@@ -4967,6 +4984,20 @@ void CompileGamePropertyReadNode(CompilerContext &context)
         expression.kind = LN_StringExpressionKind::SnapshotGameProperty;
         expression.property_ref_index = property_ref_index;
         context.CacheStringOutputPin("Value", context.program.AddStringExpression(expression));
+        return;
+      }
+      case LN_NodeKind::GetGamePropertyVector: {
+        LN_VectorExpression expression;
+        expression.kind = LN_VectorExpressionKind::SnapshotGameProperty;
+        expression.property_ref_index = property_ref_index;
+        context.CacheVectorOutputPin("Value", context.program.AddVectorExpression(expression));
+        return;
+      }
+      case LN_NodeKind::GetGamePropertyColor: {
+        LN_ColorExpression expression;
+        expression.kind = LN_ColorExpressionKind::SnapshotGameProperty;
+        expression.property_ref_index = property_ref_index;
+        context.CacheColorOutputPin("Value", context.program.AddColorExpression(expression));
         return;
       }
       default:
@@ -5013,6 +5044,20 @@ void CompileGamePropertyReadNode(CompilerContext &context)
       context.CacheStringOutputPin("Value", context.program.AddStringExpression(expression));
       return;
     }
+    case LN_NodeKind::GetGamePropertyVector: {
+      LN_VectorExpression expression;
+      expression.kind = LN_VectorExpressionKind::FromGenericValue;
+      expression.input0 = property_expr;
+      context.CacheVectorOutputPin("Value", context.program.AddVectorExpression(expression));
+      return;
+    }
+    case LN_NodeKind::GetGamePropertyColor: {
+      LN_ColorExpression expression;
+      expression.kind = LN_ColorExpressionKind::FromGenericValue;
+      expression.input0 = property_expr;
+      context.CacheColorOutputPin("Value", context.program.AddColorExpression(expression));
+      return;
+    }
     default:
       return;
   }
@@ -5040,7 +5085,39 @@ void CompileGetGamePropertyNode(CompilerContext &context)
   }
 }
 
-/** Set Object Property: any value; the target goes in `value_expr_index`, the value next. */
+/** The value Set Game Property writes: Any's as it comes, Object's and List's from their sockets,
+ * Vector's and Color's made a vector and a color whatever is linked in (a Vector into Color:
+ * alpha 1, a Color into Vector: its red, green and blue), so the property gets its own type. */
+static std::optional<uint32_t> BuildSetGamePropertyValue(CompilerContext &context)
+{
+  switch (context.definition.kind) {
+    case LN_NodeKind::SetGamePropertyVector: {
+      const std::optional<uint32_t> vector_expr = context.BuildVector("Value");
+      if (!vector_expr) {
+        return std::nullopt;
+      }
+      LN_ValueExpression value;
+      value.kind = LN_ValueExpressionKind::FromVector;
+      value.input0 = *vector_expr;
+      return context.program.AddValueExpression(value);
+    }
+    case LN_NodeKind::SetGamePropertyColor: {
+      const std::optional<uint32_t> color_expr = context.BuildColor("Value");
+      if (!color_expr) {
+        return std::nullopt;
+      }
+      LN_ValueExpression value;
+      value.kind = LN_ValueExpressionKind::FromColor;
+      value.input0 = *color_expr;
+      return context.program.AddValueExpression(value);
+    }
+    default:
+      return context.BuildValueExpression("Value");
+  }
+}
+
+/** Set Object Property (Set Game Property's Any) and the typed options of 2026-11-15 (Vector,
+ * Color, Object, List): the target goes in `value_expr_index`, the value next. */
 void CompileSetGamePropertyNode(CompilerContext &context)
 {
   const std::optional<std::string> name = ReadRequiredConstantStringWithFallback(
@@ -5048,7 +5125,7 @@ void CompileSetGamePropertyNode(CompilerContext &context)
   if (!name) {
     return;
   }
-  const std::optional<uint32_t> value_expr = context.BuildValueExpression("Value");
+  const std::optional<uint32_t> value_expr = BuildSetGamePropertyValue(context);
   if (!value_expr) {
     context.AddError("Value", "Set Object Property requires a value input");
     return;
@@ -6985,72 +7062,6 @@ void CompileGetRigidBodyConstraintsNode(CompilerContext &context)
     context.CacheValueOutputPin("Constraints",
                                 context.program.AddValueExpression(constraints_expression));
   }
-}
-
-void CompileProjectileRayNode(CompilerContext &context)
-{
-  /* Flow optional, as the Raycast family's (2026-11-08: unlinked, it never cast). */
-  const std::optional<uint32_t> condition_expr =
-      IsInputSocketLinked(context.node, "Flow", context.input_links) ?
-          context.BuildPrimaryExecution() :
-          std::optional<uint32_t>(AddConstantBoolExpression(context.program, true));
-  /* Caster is optional, as for Raycast (empty: no object ignored; in Local space the owner). An
-   * empty Caster made the whole node compile to nothing, its outputs reading their defaults, until
-   * 2026-11-01. */
-  const std::optional<uint32_t> caster_expr = context.BuildOptionalObject("Caster");
-  const std::optional<uint32_t> origin_expr = context.BuildVector("Origin");
-  const std::optional<uint32_t> aim_expr = context.BuildVector("Aim");
-  if (!condition_expr || !origin_expr || !aim_expr) {
-    return;
-  }
-  if (!caster_expr && IsInputSocketLinked(context.node, "Caster", context.input_links)) {
-    context.AddError("Caster", "Caster input link did not compile");
-    return;
-  }
-
-  LN_QueryExpression query;
-  query.kind = LN_QueryExpressionKind::ProjectileRay;
-  query.condition_bool_expr_index = *condition_expr;
-  query.input0 = caster_expr.value_or(LN_INVALID_INDEX);
-  query.input1 = *origin_expr;
-  query.input2 = *aim_expr;
-  query.bool_expr_index = context.BuildBool("Local").value_or(LN_INVALID_INDEX);
-  query.float_expr_index = context.BuildFloat("Power").value_or(LN_INVALID_INDEX);
-  query.secondary_float_expr_index = context.BuildFloat("Distance").value_or(LN_INVALID_INDEX);
-  query.tertiary_float_expr_index = context.BuildFloat("Resolution").value_or(LN_INVALID_INDEX);
-  query.int_expr_index = context.BuildInt("Mask").value_or(LN_INVALID_INDEX);
-  query.string_expr_index = context.BuildString("Property").value_or(LN_INVALID_INDEX);
-  query.secondary_bool_expr_index = context.BuildBool("X-Ray").value_or(LN_INVALID_INDEX);
-  query.tertiary_bool_expr_index = context.BuildBool("Visualize").value_or(LN_INVALID_INDEX);
-  query.float_value = 0.0f;
-  query.int_value = 0;
-  query.cache_key = context.node.identifier;
-  const uint32_t query_index = context.program.AddQueryExpression(query);
-
-  LN_BoolExpression hit_expr;
-  hit_expr.kind = LN_BoolExpressionKind::PhysicsQueryHit;
-  hit_expr.input0 = query_index;
-  context.CacheBoolOutputPin("Has Result", context.program.AddBoolExpression(hit_expr));
-
-  LN_ValueExpression object_expr;
-  object_expr.kind = LN_ValueExpressionKind::PhysicsQueryObject;
-  object_expr.input0 = query_index;
-  context.CacheValueOutputPin("Picked Object", context.program.AddValueExpression(object_expr));
-
-  LN_VectorExpression point_expr;
-  point_expr.kind = LN_VectorExpressionKind::PhysicsQueryPoint;
-  point_expr.input0 = query_index;
-  context.CacheVectorOutputPin("Picked Point", context.program.AddVectorExpression(point_expr));
-
-  LN_VectorExpression normal_expr;
-  normal_expr.kind = LN_VectorExpressionKind::PhysicsQueryNormal;
-  normal_expr.input0 = query_index;
-  context.CacheVectorOutputPin("Picked Normal", context.program.AddVectorExpression(normal_expr));
-
-  LN_ValueExpression parabola_expr;
-  parabola_expr.kind = LN_ValueExpressionKind::ProjectileParabola;
-  parabola_expr.input0 = query_index;
-  context.CacheValueOutputPin("Parabola", context.program.AddValueExpression(parabola_expr));
 }
 
 void CompileSnapshotTransformNode(CompilerContext &context)
@@ -11074,10 +11085,24 @@ void CompileSetRigidBodyAttributeNode(CompilerContext &context)
     case LN_RigidBodyAttribute::MaxLinearVelocity:
     case LN_RigidBodyAttribute::MinAngularVelocity:
     case LN_RigidBodyAttribute::MaxAngularVelocity:
-    case LN_RigidBodyAttribute::GravityFactor: {
-      const std::optional<uint32_t> value_expr = context.BuildFloat("Value");
+    case LN_RigidBodyAttribute::GravityFactor:
+    case LN_RigidBodyAttribute::LinearDamping:
+    case LN_RigidBodyAttribute::AngularDamping: {
+      /* The angular modes read their angle input (radians; the editor shows degrees, as the
+       * Physics panel's Angular Velocity Min / Max), the damping modes their own input, every
+       * other mode Value. */
+      const LN_RigidBodyAttribute attribute = static_cast<LN_RigidBodyAttribute>(
+          context.node.custom1);
+      const char *input = ELEM(attribute,
+                               LN_RigidBodyAttribute::MinAngularVelocity,
+                               LN_RigidBodyAttribute::MaxAngularVelocity) ?
+                              "Angular Velocity" :
+                          attribute == LN_RigidBodyAttribute::LinearDamping  ? "Linear Damping" :
+                          attribute == LN_RigidBodyAttribute::AngularDamping ? "Angular Damping" :
+                                                                               "Value";
+      const std::optional<uint32_t> value_expr = context.BuildFloat(input);
       if (!value_expr) {
-        context.AddError("Value", "Set Rigid Body Attribute requires a float value input");
+        context.AddError(input, "Set Rigid Body Attribute requires a float value input");
         return;
       }
       instruction.float_expr_index = *value_expr;
@@ -11130,12 +11155,15 @@ void CompileSetRigidBodyAttributeNode(CompilerContext &context)
       break;
     }
     case LN_RigidBodyAttribute::AxisLocks: {
+      /* (2026-11-15) The chosen axes (each axis of the two vectors not 0) are locked or freed
+       * as Lock says; the others keep their lock (merged at the flush, in order). */
       const std::optional<uint32_t> translation_expr = context.BuildVector("Lock Translation");
       const std::optional<uint32_t> rotation_expr = context.BuildVector("Lock Rotation");
-      if (!translation_expr || !rotation_expr) {
+      const std::optional<uint32_t> lock_expr = context.BuildBool("Lock");
+      if (!translation_expr || !rotation_expr || !lock_expr) {
         context.AddError(
             "Lock Translation",
-            "Set Rigid Body Attribute axis locks require translation and rotation locks");
+            "Set Rigid Body Attribute axis locks require the axes and whether to lock them");
         return;
       }
       instruction.vector_expr_index = *translation_expr;
@@ -11144,6 +11172,8 @@ void CompileSetRigidBodyAttributeNode(CompilerContext &context)
                                                                   *translation_expr);
       instruction.secondary_vector_value = VectorExpressionConstantFallback(context.program,
                                                                             *rotation_expr);
+      instruction.bool_expr_index = *lock_expr;
+      instruction.bool_value = BoolExpressionConstantFallback(context.program, *lock_expr);
       break;
     }
   }
@@ -12121,42 +12151,255 @@ void CompileSetParentNode(CompilerContext &context)
   }
 }
 
-void CompileApplyImpulseNode(CompilerContext &context)
+/**
+ * A Boolean input a node made before it existed lacks (2026-11-11): none when the socket is
+ * missing, or unlinked and unchecked (the instruction then is the old one); else its expression.
+ */
+static uint32_t BuildOptionalCheckedBool(CompilerContext &context, const char *socket)
 {
-  const std::optional<uint32_t> attach_expr = context.BuildVector("Attach");
-  if (!attach_expr) {
-    context.AddError("Attach", "Apply Impulse requires a vector attach input");
-    return;
+  if (FindInputSocket(context.node, socket) == nullptr) {
+    return LN_INVALID_INDEX;
+  }
+  if (!context.InputIsLinked(socket)) {
+    const std::optional<LN_Value> value = context.ReadValue(socket, LN_ValueType::Bool);
+    if (!value || value->type != LN_ValueType::Bool || !value->bool_value) {
+      return LN_INVALID_INDEX;
+    }
+  }
+  return context.BuildBool(socket).value_or(LN_INVALID_INDEX);
+}
+
+/**
+ * Apply Impulse and Apply Angular Impulse: one ApplyImpulse instruction (LN_Types.h). Apply
+ * Impulse's Point Mode is the node's custom1 (LN_ImpulseMode 0..2; nodes made before 2026-11-11
+ * hold 0, World Offset); its Point is the socket "Attach".
+ */
+static void CompileImpulseNode(CompilerContext &context,
+                               const char *vector_socket,
+                               const bool has_point,
+                               const LN_ImpulseMode mode,
+                               const char *node_name)
+{
+  std::optional<uint32_t> attach_expr;
+  if (has_point) {
+    attach_expr = context.BuildVector("Attach");
+    if (!attach_expr) {
+      context.AddError("Attach", std::string(node_name) + " requires a vector point input");
+      return;
+    }
   }
 
-  const std::optional<uint32_t> impulse_expr = context.BuildVector("Impulse");
+  const std::optional<uint32_t> impulse_expr = context.BuildVector(vector_socket);
   if (!impulse_expr) {
-    context.AddError("Impulse", "Apply Impulse requires a vector impulse input");
+    context.AddError(vector_socket,
+                     std::string(node_name) + " requires a vector " + vector_socket + " input");
     return;
   }
 
   const std::optional<uint32_t> object_expr = context.BuildOptionalObject("Object");
+  const uint32_t local_expr = BuildOptionalCheckedBool(context, "Local");
+  const uint32_t ignore_mass_expr = BuildOptionalCheckedBool(context, "Ignore Mass");
+  const uint32_t visualize_expr = BuildOptionalCheckedBool(context, "Visualize");
   const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
-      "Apply Impulse flow must be driven by an event or branch");
+      (std::string(node_name) + " flow must be driven by an event or branch").c_str());
   if (!flow_events) {
     return;
   }
 
   const MT_Vector3 impulse_fallback = VectorExpressionConstantFallback(context.program,
                                                                        *impulse_expr);
-  const MT_Vector3 attach_fallback = VectorExpressionConstantFallback(context.program,
-                                                                      *attach_expr);
+  const MT_Vector3 attach_fallback = attach_expr ?
+                                         VectorExpressionConstantFallback(context.program,
+                                                                          *attach_expr) :
+                                         MT_Vector3(0.0f, 0.0f, 0.0f);
   for (const FlowPath &path : flow_events->paths) {
     LN_Instruction instruction;
     instruction.opcode = LN_OpCode::ApplyImpulse;
-    instruction.source_ref_index = context.MakeSourceRef("Impulse");
+    instruction.source_ref_index = context.MakeSourceRef(vector_socket);
     if (object_expr) {
       instruction.value_expr_index = *object_expr;
     }
     instruction.vector_expr_index = *impulse_expr;
-    instruction.secondary_vector_expr_index = *attach_expr;
     instruction.vector_value = impulse_fallback;
-    instruction.secondary_vector_value = attach_fallback;
+    if (attach_expr) {
+      instruction.secondary_vector_expr_index = *attach_expr;
+      instruction.secondary_vector_value = attach_fallback;
+    }
+    instruction.int_value = int32_t(mode);
+    instruction.bool_expr_index = local_expr;
+    instruction.secondary_bool_expr_index = ignore_mass_expr;
+    instruction.tertiary_bool_expr_index = visualize_expr;
+    AppendFlowInstruction(context.program, path, instruction);
+  }
+}
+
+void CompileApplyImpulseNode(CompilerContext &context)
+{
+  const LN_ImpulseMode mode = LN_ImpulseMode(
+      std::clamp<int>(context.node.custom1, 0, int(LN_ImpulseMode::LocalPoint)));
+  CompileImpulseNode(context, "Impulse", true, mode, "Apply Impulse");
+}
+
+void CompileApplyAngularImpulseNode(CompilerContext &context)
+{
+  CompileImpulseNode(
+      context, "Angular Impulse", false, LN_ImpulseMode::Angular, "Apply Angular Impulse");
+}
+
+void CompileExplosionImpulseNode(CompilerContext &context)
+{
+  /* Center (custom2): at the Object (none: the owner) or at the Origin position. */
+  const int32_t center = std::clamp<int>(
+      context.node.custom2, LN_EXPLOSION_CENTER_POSITION, LN_EXPLOSION_CENTER_OBJECT);
+  const bool at_object = center == LN_EXPLOSION_CENTER_OBJECT;
+  const std::optional<uint32_t> center_object_expr = at_object ?
+                                                         context.BuildOptionalObject("Object") :
+                                                         std::nullopt;
+  const std::optional<uint32_t> origin_expr = at_object ?
+                                                  std::optional<uint32_t>(LN_INVALID_INDEX) :
+                                                  context.BuildVector("Origin");
+  const std::optional<uint32_t> radius_expr = context.BuildFloat("Radius");
+  const std::optional<uint32_t> strength_expr = context.BuildFloat("Strength");
+  const std::optional<uint32_t> lift_expr = context.BuildFloat("Upward Lift");
+  const std::optional<uint32_t> ignore_mass_expr = context.BuildBool("Ignore Mass");
+  const std::optional<uint32_t> visualize_expr = context.BuildBool("Visualize");
+  const std::optional<uint32_t> ignore_object_expr = context.BuildValueExpression("Ignore Object");
+  /* Ignore Objects (2026-11-11, the Filter panel): none in a node without the socket. */
+  const std::optional<uint32_t> ignore_objects_expr =
+      FindInputSocket(context.node, "Ignore Objects") != nullptr ?
+          context.BuildValueExpression("Ignore Objects") :
+          std::optional<uint32_t>(LN_INVALID_INDEX);
+  const std::optional<uint32_t> property_expr = context.BuildString("Property");
+  const std::optional<uint32_t> mask_expr = context.BuildInt("Mask");
+  const std::pair<const char *, bool> inputs[] = {{"Origin", bool(origin_expr)},
+                                                  {"Radius", bool(radius_expr)},
+                                                  {"Strength", bool(strength_expr)},
+                                                  {"Upward Lift", bool(lift_expr)},
+                                                  {"Ignore Mass", bool(ignore_mass_expr)},
+                                                  {"Visualize", bool(visualize_expr)},
+                                                  {"Ignore Object", bool(ignore_object_expr)},
+                                                  {"Ignore Objects", bool(ignore_objects_expr)},
+                                                  {"Property", bool(property_expr)},
+                                                  {"Mask", bool(mask_expr)}};
+  for (const auto &[socket, built] : inputs) {
+    if (!built) {
+      context.AddError(socket, std::string("Explode or Implode Impulse cannot read its ") + socket +
+                                   " input");
+      return;
+    }
+  }
+  const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
+      "Explode or Implode Impulse flow must be driven by an event or branch");
+  if (!flow_events) {
+    return;
+  }
+  const MT_Vector3 origin_fallback = at_object ? MT_Vector3(0.0f, 0.0f, 0.0f) :
+                                                 VectorExpressionConstantFallback(context.program,
+                                                                                  *origin_expr);
+  for (const FlowPath &path : flow_events->paths) {
+    LN_Instruction instruction;
+    instruction.opcode = LN_OpCode::ExplosionImpulse;
+    instruction.source_ref_index = context.MakeSourceRef("Strength");
+    instruction.secondary_int_value = center;
+    if (center_object_expr) {
+      instruction.tertiary_value_expr_index = *center_object_expr;
+    }
+    instruction.vector_expr_index = *origin_expr;
+    instruction.vector_value = origin_fallback;
+    instruction.float_expr_index = *radius_expr;
+    instruction.secondary_float_expr_index = *strength_expr;
+    instruction.tertiary_float_expr_index = *lift_expr;
+    instruction.bool_expr_index = *ignore_mass_expr;
+    instruction.secondary_bool_expr_index = *visualize_expr;
+    instruction.secondary_value_expr_index = *ignore_object_expr;
+    instruction.quaternary_value_expr_index = *ignore_objects_expr;
+    instruction.string_expr_index = *property_expr;
+    instruction.int_expr_index = *mask_expr;
+    instruction.int_value = context.node.custom1 &
+                            (LN_EXPLOSION_FALLOFF_LINEAR | LN_EXPLOSION_IMPLODE);
+    AppendFlowInstruction(context.program, path, instruction);
+  }
+}
+
+void CompileKeepDistanceNode(CompilerContext &context)
+{
+  /* The fields and their read order: LN_OpCode::KeepDistance (LN_Types.h). An empty Object is
+   * none: the owner (BuildOptionalObjectTargetExpression). */
+  /* custom1: bit 0 the Falloff. The Mode is an input (2026-11-15). */
+  const uint32_t object_expr = context.BuildOptionalObject("Object").value_or(LN_INVALID_INDEX);
+  const std::optional<uint32_t> mode_expr = context.BuildInt("Mode");
+  const std::optional<uint32_t> distance_expr = context.BuildFloat("Distance");
+  /* Reach as a generic value (every float field of the instruction is taken); the run reads it in
+   * Hold only. */
+  const std::optional<uint32_t> reach_expr = context.BuildValueExpression("Reach");
+  const std::optional<uint32_t> strength_expr = context.BuildFloat("Strength");
+  const std::optional<uint32_t> damping_expr = context.BuildFloat("Damping");
+  const std::optional<uint32_t> radius_expr = context.BuildFloat("Radius");
+  const std::optional<uint32_t> every_expr = context.BuildInt("Check Every");
+  const std::optional<uint32_t> ignore_mass_expr = context.BuildBool("Ignore Mass");
+  const std::optional<uint32_t> apply_expr = context.BuildBool("Apply");
+  const std::optional<uint32_t> visualize_expr = context.BuildBool("Visualize");
+  const std::optional<uint32_t> property_expr = context.BuildString("Property");
+  const std::optional<uint32_t> mask_expr = context.BuildInt("Mask");
+  const std::optional<uint32_t> ignore_object_expr = context.BuildValueExpression("Ignore Object");
+  const std::optional<uint32_t> ignore_objects_expr = context.BuildValueExpression(
+      "Ignore Objects");
+  const std::optional<uint32_t> sensors_expr = context.BuildBool("Include Sensors");
+  const std::pair<const char *, bool> inputs[] = {{"Mode", bool(mode_expr)},
+                                                  {"Distance", bool(distance_expr)},
+                                                  {"Reach", bool(reach_expr)},
+                                                  {"Strength", bool(strength_expr)},
+                                                  {"Damping", bool(damping_expr)},
+                                                  {"Radius", bool(radius_expr)},
+                                                  {"Check Every", bool(every_expr)},
+                                                  {"Ignore Mass", bool(ignore_mass_expr)},
+                                                  {"Apply", bool(apply_expr)},
+                                                  {"Visualize", bool(visualize_expr)},
+                                                  {"Property", bool(property_expr)},
+                                                  {"Mask", bool(mask_expr)},
+                                                  {"Ignore Object", bool(ignore_object_expr)},
+                                                  {"Ignore Objects", bool(ignore_objects_expr)},
+                                                  {"Include Sensors", bool(sensors_expr)}};
+  for (const auto &[socket, built] : inputs) {
+    if (!built) {
+      context.AddError(socket, std::string("Keep Distance cannot read its ") + socket + " input");
+      return;
+    }
+  }
+  const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
+      "Keep Distance flow must be driven by an event or branch");
+  if (!flow_events) {
+    return;
+  }
+  const uint32_t slot = context.program.AcquireKeepDistanceNode(&context.node);
+  const int32_t bits = ((context.node.custom1 & LN_KEEP_DISTANCE_FALLOFF_SMOOTH) != 0 ?
+                            LN_KEEP_DISTANCE_BIT_SMOOTH :
+                            0) |
+                       (context.node.custom2 == LN_KEEP_DISTANCE_MEASURE_SPHERE ?
+                            LN_KEEP_DISTANCE_BIT_SPHERE :
+                            0);
+  for (const FlowPath &path : flow_events->paths) {
+    LN_Instruction instruction;
+    instruction.opcode = LN_OpCode::KeepDistance;
+    instruction.source_ref_index = context.MakeSourceRef("Distance");
+    instruction.int_value = int32_t(slot);
+    instruction.secondary_int_value = bits;
+    instruction.tertiary_value_expr_index = object_expr;
+    instruction.tertiary_int_expr_index = *mode_expr;
+    instruction.float_expr_index = *distance_expr;
+    instruction.value_expr_index = *reach_expr;
+    instruction.secondary_float_expr_index = *strength_expr;
+    instruction.tertiary_float_expr_index = *damping_expr;
+    instruction.quaternary_float_expr_index = *radius_expr;
+    instruction.int_expr_index = *every_expr;
+    instruction.bool_expr_index = *ignore_mass_expr;
+    instruction.secondary_bool_expr_index = *apply_expr;
+    instruction.tertiary_bool_expr_index = *visualize_expr;
+    instruction.string_expr_index = *property_expr;
+    instruction.secondary_int_expr_index = *mask_expr;
+    instruction.secondary_value_expr_index = *ignore_object_expr;
+    instruction.quaternary_value_expr_index = *ignore_objects_expr;
+    instruction.quaternary_bool_expr_index = *sensors_expr;
     AppendFlowInstruction(context.program, path, instruction);
   }
 }
@@ -13521,6 +13764,24 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
                         "property.get_any",
                         FlowResolverKind::Invalid,
                         CompileGetGamePropertyNode),
+    /* Get Game Property's typed options of 2026-11-15: Vector and Color as the numbers (the
+     * owner's from the snapshot), Object and List as Any, typed. */
+    CUSTOM_EXPR_HANDLER(GetGamePropertyVector,
+                        "property.get_vector",
+                        FlowResolverKind::Invalid,
+                        CompileGamePropertyReadNode),
+    CUSTOM_EXPR_HANDLER(GetGamePropertyColor,
+                        "property.get_color",
+                        FlowResolverKind::Invalid,
+                        CompileGamePropertyReadNode),
+    CUSTOM_EXPR_HANDLER(GetGamePropertyObject,
+                        "property.get_object",
+                        FlowResolverKind::Invalid,
+                        CompileGetGamePropertyNode),
+    CUSTOM_EXPR_HANDLER(GetGamePropertyList,
+                        "property.get_list",
+                        FlowResolverKind::Invalid,
+                        CompileGetGamePropertyNode),
     EXPRESSION_HANDLER(
         GetBoneHeadWorld, Expression, "animation.bone_head_world", FlowResolverKind::Invalid),
     EXPRESSION_HANDLER(GetBoneHeadPoseWorld,
@@ -13622,6 +13883,12 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     COMMAND_HANDLER(GamepadLook, "input.gamepad_look", CompileGamepadLookNode),
     COMMAND_HANDLER(MouseLook, "input.mouse_look", CompileMouseLookNode),
     COMMAND_HANDLER(ApplyImpulse, "physics.apply_impulse", CompileApplyImpulseNode),
+    COMMAND_HANDLER(ApplyAngularImpulse,
+                    "physics.apply_angular_impulse",
+                    CompileApplyAngularImpulseNode),
+    COMMAND_HANDLER(
+        ExplosionImpulse, "physics.explosion_impulse", CompileExplosionImpulseNode),
+    COMMAND_HANDLER(KeepDistance, "physics.keep_distance", CompileKeepDistanceNode),
     COMMAND_HANDLER(MakeLightUnique, "light.make_unique", CompileMakeLightUniqueNode),
     COMMAND_HANDLER(SetLightColor, "light.set_color", CompileSetLightColorNode),
     COMMAND_HANDLER(SetLightPower, "light.set_power", CompileSetLightPowerNode),
@@ -13638,6 +13905,10 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     COMMAND_HANDLER(
         SetGamePropertyString, "property.set_string", CompileSetGamePropertyStringNode),
     COMMAND_HANDLER(SetGameProperty, "property.set_any", CompileSetGamePropertyNode),
+    COMMAND_HANDLER(SetGamePropertyVector, "property.set_vector", CompileSetGamePropertyNode),
+    COMMAND_HANDLER(SetGamePropertyColor, "property.set_color", CompileSetGamePropertyNode),
+    COMMAND_HANDLER(SetGamePropertyObject, "property.set_object", CompileSetGamePropertyNode),
+    COMMAND_HANDLER(SetGamePropertyList, "property.set_list", CompileSetGamePropertyNode),
     COMMAND_HANDLER(Print, "debug.print", CompilePrintNode),
     COMMAND_HANDLER(QuitGame, "game.quit", CompileQuitGameNode),
     COMMAND_HANDLER(RestartGame, "game.restart", CompileRestartGameNode),
@@ -13786,8 +14057,15 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
                         "physics.shape_cast_all",
                         FlowResolverKind::FlowConditionRoute,
                         CompileRaycastNode),
-    EXPRESSION_HANDLER(MouseRay, Expression, "physics.mouse_ray", FlowResolverKind::Invalid),
-    EXPRESSION_HANDLER(CameraRay, Expression, "physics.camera_ray", FlowResolverKind::Invalid),
+    /* 2026-11-11: Done and Visualize, as Raycast's. */
+    CUSTOM_EXPR_HANDLER(MouseRay,
+                        "physics.mouse_ray",
+                        FlowResolverKind::FlowConditionRoute,
+                        CompileRaycastNode),
+    CUSTOM_EXPR_HANDLER(CameraRay,
+                        "physics.camera_ray",
+                        FlowResolverKind::FlowConditionRoute,
+                        CompileRaycastNode),
     EXPRESSION_HANDLER(EvaluateCurve, Expression, "curve.evaluate", FlowResolverKind::Invalid),
     CUSTOM_EXPR_HANDLER(Formula, "math.formula", FlowResolverKind::Invalid, CompileFormulaNode),
     CUSTOM_EXPR_HANDLER(TweenValue,
@@ -13804,8 +14082,22 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
         RemovePhysicsConstraint, "physics.remove_constraint", CompileRemovePhysicsConstraintNode),
     CUSTOM_EXPR_HANDLER(ProjectileRay,
                         "physics.projectile_ray",
-                        FlowResolverKind::Invalid,
-                        CompileProjectileRayNode),
+                        FlowResolverKind::FlowConditionRoute,
+                        CompileRaycastNode),
+    CUSTOM_EXPR_HANDLER(LineOfSight,
+                        "physics.line_of_sight",
+                        FlowResolverKind::FlowConditionRoute,
+                        CompileRaycastNode),
+    CUSTOM_EXPR_HANDLER(SweepObject,
+                        "physics.sweep_object",
+                        FlowResolverKind::FlowConditionRoute,
+                        CompileRaycastNode),
+    EXPRESSION_HANDLER(AimForArc, Expression, "physics.aim_for_arc", FlowResolverKind::Invalid),
+    EXPRESSION_HANDLER(VelocityAtPoint,
+                       Expression,
+                       "physics.velocity_at_point",
+                       FlowResolverKind::Invalid),
+    EXPRESSION_HANDLER(RayToPlane, Expression, "math.ray_to_plane", FlowResolverKind::Invalid),
 };
 
 #undef EVENT_HANDLER

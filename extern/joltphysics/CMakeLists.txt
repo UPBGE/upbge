@@ -8,7 +8,7 @@
 include(FetchContent)
 
 # Pin to a specific stable release for reproducible builds.
-set(JOLT_PHYSICS_VERSION "v5.6.0")
+set(JOLT_PHYSICS_VERSION "v5.7.0")
 
 FetchContent_Declare(
   JoltPhysics

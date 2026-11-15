@@ -5,8 +5,11 @@
 #include "testing/testing.h"
 
 #include <cstdint>
+#include <map>
 #include <memory>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "KX_GameObject.h"
@@ -101,6 +104,21 @@ class LN_ManagerTestAccess {
   static void RebuildRuntimeTreeIndexes(LN_Manager &manager)
   {
     manager.RebuildRuntimeTreeIndexes();
+  }
+
+  /** Each tree's object and order key, in the order the trees run. */
+  static std::vector<std::pair<KX_GameObject *, uint32_t>> OrderKeys(const LN_Manager &manager)
+  {
+    std::vector<std::pair<KX_GameObject *, uint32_t>> keys;
+    for (const std::unique_ptr<LN_RuntimeTree> &tree : manager.m_runtimeTrees) {
+      keys.emplace_back(tree->GetGameObject(), tree->GetSceneObjectIndex());
+    }
+    return keys;
+  }
+
+  static void SetNextObjectOrderKey(LN_Manager &manager, const uint32_t key)
+  {
+    manager.m_nextObjectOrderKey = key;
   }
 };
 
@@ -258,6 +276,88 @@ TEST(LN_Manager, BulkQueuedRemovalDetachesRuntimeTreesBeforeFinalUnregister)
     manager.UnregisterGameObject(object);
   }
   EXPECT_FALSE(manager.HasRuntimeTrees());
+}
+
+/* A tree's order key (the high half of its commands' sort key) is never another object's: a copy
+ * takes one after every key given, all its trees the same one, so the flush applies the newest
+ * object's commands last, the order its trees run in. A copy once took its place in the object
+ * list, which removed copies had made a living copy's key: the column pass applied the two trees'
+ * commands in record order, a wide run in either order (bullets printed in another order,
+ * 2026-11-14). When the keys run out they are numbered again from 0, in the same order. */
+TEST(LN_Manager, ObjectsThatGetTreesWhilePlayingTakeNewOrderKeys)
+{
+  KX_Scene *unused_scene = reinterpret_cast<KX_Scene *>(uintptr_t(1));
+  LN_Manager manager(*unused_scene);
+  std::shared_ptr<LN_Program> program = LN_Program::CreateDebugSetWorldPosition(
+      MT_Vector3(1.0f, 2.0f, 3.0f));
+  std::vector<std::unique_ptr<KX_GameObject>> objects;
+  const auto make = [&](const std::string &name) {
+    objects.push_back(std::make_unique<KX_GameObject>());
+    objects.back()->SetName(name);
+    return objects.back().get();
+  };
+  /* The scene's start: three objects at their places, a template (two trees) in the inactive
+   * list after them (place 7: the place the first copies take in the object list). */
+  KX_GameObject *start[3] = {make("Start0"), make("Start1"), make("Start2")};
+  for (uint32_t index = 0; index < 3; index++) {
+    ASSERT_NE(manager.RegisterCompiledProgram(start[index], program, index, 0, true), nullptr);
+  }
+  KX_GameObject *spark = make("Spark");
+  ASSERT_NE(manager.RegisterCompiledProgram(spark, program, 7, 0, true, false), nullptr);
+  ASSERT_NE(manager.RegisterCompiledProgram(spark, program, 7, 1, true, false), nullptr);
+
+  const auto key_of = [&](KX_GameObject *object) {
+    std::set<uint32_t> keys;
+    for (const auto &[tree_object, key] : LN_ManagerTestAccess::OrderKeys(manager)) {
+      if (tree_object == object) {
+        keys.insert(key);
+      }
+    }
+    EXPECT_EQ(keys.size(), 1u) << "all of an object's trees share its key";
+    return keys.empty() ? UINT32_MAX : *keys.begin();
+  };
+  const auto expect_keys_unique_and_in_run_order = [&]() {
+    std::map<uint32_t, KX_GameObject *> owner_of;
+    uint32_t last = 0;
+    bool first = true;
+    for (const auto &[object, key] : LN_ManagerTestAccess::OrderKeys(manager)) {
+      const auto [owner, added] = owner_of.try_emplace(key, object);
+      EXPECT_EQ(owner->second, object) << "key " << key << " held by two objects";
+      if (!first && object->GetName().rfind("Copy", 0) == 0) {
+        EXPECT_GE(key, last) << object->GetName() << " runs after a tree with a later key";
+      }
+      last = key;
+      first = false;
+    }
+  };
+
+  KX_GameObject *copy0 = make("Copy0");
+  KX_GameObject *copy1 = make("Copy1");
+  manager.ReplicateRuntimeTrees(spark, copy0);
+  manager.ReplicateRuntimeTrees(spark, copy1);
+  EXPECT_EQ(key_of(copy0), 8u);
+  EXPECT_EQ(key_of(copy1), 9u);
+  /* Copy0 removed: the list shrank, the next copy's place is copy1's old one. */
+  manager.NotifyGameObjectsQueuedForBulkRemoval({copy0});
+  manager.UnregisterGameObject(copy0);
+  KX_GameObject *copy2 = make("Copy2");
+  manager.ReplicateRuntimeTrees(spark, copy2);
+  EXPECT_EQ(key_of(copy2), 10u);
+  EXPECT_EQ(key_of(copy1), 9u);
+  expect_keys_unique_and_in_run_order();
+
+  /* The keys run out: numbered again (Start 0-2, the template 3, Copy1 4, Copy2 5), the new copy
+   * last. */
+  LN_ManagerTestAccess::SetNextObjectOrderKey(manager, UINT32_MAX);
+  KX_GameObject *copy3 = make("Copy3");
+  manager.ReplicateRuntimeTrees(spark, copy3);
+  EXPECT_EQ(key_of(start[0]), 0u);
+  EXPECT_EQ(key_of(start[2]), 2u);
+  EXPECT_EQ(key_of(spark), 3u);
+  EXPECT_EQ(key_of(copy1), 4u);
+  EXPECT_EQ(key_of(copy2), 5u);
+  EXPECT_EQ(key_of(copy3), 6u);
+  expect_keys_unique_and_in_run_order();
 }
 
 TEST(LN_Manager, ConstraintBreakSnapshotsBridgeFixedBatchesToOneUpdate)
@@ -424,6 +524,9 @@ TEST(LN_Manager, AMergedScenesTreesTakeTurnsAndStartTheirStepsOver)
   EXPECT_EQ(LN_ManagerTestAccess::TreeCount(other), 0u);
   EXPECT_EQ(other_trees[0]->GetStepSpread(), 3u); /* after the target's 0, 1, 2 */
   EXPECT_EQ(other_trees[1]->GetStepSpread(), 4u);
+  /* Their order keys after the target's (ObjectOrderKeyFor), in the order they run. */
+  EXPECT_EQ(other_trees[0]->GetSceneObjectIndex(), 3u);
+  EXPECT_EQ(other_trees[1]->GetSceneObjectIndex(), 4u);
   for (LN_RuntimeTree *tree : other_trees) {
     EXPECT_TRUE(tree->HasStepSpread());
     EXPECT_NE(tree->DumpStateForTests(0).bookkeeping.find("step_gates_step=-"), std::string::npos)

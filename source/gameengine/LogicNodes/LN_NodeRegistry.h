@@ -356,6 +356,33 @@ enum class LN_NodeKind : uint16_t {
   OnUISound,
   SetVolume,
   SetRandomSeed,
+  /* 2026-11-11: Apply Angular Impulse compiles to LN_OpCode::ApplyImpulse (LN_ImpulseMode::Angular);
+   * Explosion Impulse to LN_OpCode::ExplosionImpulse. */
+  ApplyAngularImpulse,
+  ExplosionImpulse,
+  /* 2026-11-11 (the raycast recommendations): Line of Sight and Sweep Object are queries
+   * (LN_QueryExpressionKind::LineOfSight / SweepObject); Aim for Arc and Ray to Plane PURE math
+   * (LN_AimMath.h). */
+  LineOfSight,
+  AimForArc,
+  SweepObject,
+  RayToPlane,
+  /* 2026-11-12: Keep Distance (LN_OpCode::KeepDistance; its outputs read the last check:
+   * LN_QueryExpressionKind::KeepDistance). */
+  KeepDistance,
+  /* 2026-11-14: Velocity at Point (LN_QueryExpressionKind::PointVelocity). */
+  VelocityAtPoint,
+  /* 2026-11-15: Get / Set Game Property's typed options for Vector, Color, Object and List
+   * properties (the owner's Vector and Color from the snapshot: Vector::SnapshotGameProperty,
+   * Color::SnapshotGameProperty; the rest as Get / Set Object Property, typed). */
+  GetGamePropertyVector,
+  GetGamePropertyColor,
+  GetGamePropertyObject,
+  GetGamePropertyList,
+  SetGamePropertyVector,
+  SetGamePropertyColor,
+  SetGamePropertyObject,
+  SetGamePropertyList,
 };
 
 enum class LN_RequiredPhase : uint8_t {

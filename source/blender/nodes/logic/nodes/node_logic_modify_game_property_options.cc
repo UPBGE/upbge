@@ -39,7 +39,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Object"_ustr).description(
       "Target object; defaults to the owner when unset");
-  b.add_input<decl::String>("Property"_ustr).default_value("property");
+  b.add_input<decl::String>("Property"_ustr)
+      .default_value("property")
+      .description(std::string("The number game property to change (a missing one starts from "
+                               "0). ") +
+                   logic::game_property_pick_note)
+      .custom_draw(logic::game_property_field("Object"));
   b.add_input<decl::Float>("Value"_ustr).default_value(0.0f);
   b.add_input<decl::Float>("Min"_ustr).default_value(0.0f);
   b.add_input<decl::Float>("Max"_ustr).default_value(1.0f);
@@ -83,7 +88,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Execution>("Flow"_ustr);
   b.add_input<decl::Object>("Object"_ustr);
-  b.add_input<decl::String>("Property"_ustr).default_value("property");
+  b.add_input<decl::String>("Property"_ustr)
+      .default_value("property")
+      .description(std::string("The Boolean game property to switch. ") +
+                   logic::game_property_pick_note)
+      .custom_draw(logic::game_property_field("Object"));
   b.add_output<decl::Execution>("Done"_ustr);
 }
 

@@ -1141,9 +1141,18 @@ static void update_game_property_value(LN_Value &value,
       }
       break;
     case LN_ValueType::Vector:
+      /* Get Game Property Vector (2026-11-15): as a read of another object converts it. */
+      if (property == nullptr || !LN_GamePropertyAsVector(property, value.vector_value)) {
+        value.vector_value = default_value.vector_value;
+      }
+      break;
+    case LN_ValueType::Color:
+      if (property == nullptr || !LN_GamePropertyAsColor(property, value.color_value)) {
+        value.color_value = default_value.color_value;
+      }
+      break;
     case LN_ValueType::Vector4:
     case LN_ValueType::Matrix:
-    case LN_ValueType::Color:
     case LN_ValueType::Rotation:
     case LN_ValueType::ObjectRef:
     case LN_ValueType::SceneRef:
@@ -1201,6 +1210,7 @@ uint32_t LN_Snapshot::TypedSnapshotVerifyDifferencesForTests()
  * cell holds what the old kept LN_Value held. */
 static void update_game_property_cell(LN_Snapshot::GamePropertyCell &cell,
                                       std::string *live_text,
+                                      MT_Vector4 *live_vector,
                                       const LN_GamePropertyRef &property_ref,
                                       EXP_Value *property)
 {
@@ -1235,9 +1245,35 @@ static void update_game_property_cell(LN_Snapshot::GamePropertyCell &cell,
         }
       }
       break;
+    case LN_ValueType::Vector:
+      if (live_vector != nullptr) {
+        MT_Vector3 vector;
+        if (property == nullptr || !LN_GamePropertyAsVector(property, vector)) {
+          vector = default_value.vector_value;
+        }
+        *live_vector = MT_Vector4(vector.x(), vector.y(), vector.z(), 0.0f);
+      }
+      break;
+    case LN_ValueType::Color:
+      if (live_vector != nullptr &&
+          (property == nullptr || !LN_GamePropertyAsColor(property, *live_vector)))
+      {
+        *live_vector = default_value.color_value;
+      }
+      break;
     default:
       break;
   }
+}
+
+/** A Vector or Color ref's kept numbers as its default gives them (w 0 for a Vector). */
+static MT_Vector4 default_vector_cell(const LN_Value &default_value)
+{
+  if (default_value.type == LN_ValueType::Color) {
+    return default_value.color_value;
+  }
+  return MT_Vector4(
+      default_value.vector_value.x(), default_value.vector_value.y(), default_value.vector_value.z(), 0.0f);
 }
 
 void LN_Snapshot::CaptureGameProperties(KX_GameObject *gameobj, const LN_Program &program)
@@ -1256,6 +1292,7 @@ void LN_Snapshot::CaptureGameProperties(KX_GameObject *gameobj, const LN_Program
     m_gameProperties.clear();
     m_gameCells.clear();
     m_gameStrings.clear();
+    m_gameVectors.clear();
     if (keep_values) {
       m_gameProperties = m_gameLayout->defaults;
     }
@@ -1273,6 +1310,13 @@ void LN_Snapshot::CaptureGameProperties(KX_GameObject *gameobj, const LN_Program
       for (size_t index = 0; index < count; index++) {
         if (m_gameLayout->string_slot[index] != LN_INVALID_INDEX) {
           m_gameStrings[m_gameLayout->string_slot[index]] = m_gameLayout->defaults[index].string_value;
+        }
+      }
+      m_gameVectors.resize(m_gameLayout->vector_slots);
+      for (size_t index = 0; index < count; index++) {
+        if (m_gameLayout->vector_slot[index] != LN_INVALID_INDEX) {
+          m_gameVectors[m_gameLayout->vector_slot[index]] = default_vector_cell(
+              m_gameLayout->defaults[index]);
         }
       }
     }
@@ -1300,8 +1344,11 @@ void LN_Snapshot::CaptureGameProperties(KX_GameObject *gameobj, const LN_Program
     }
     if (keep_cells) {
       const uint32_t slot = m_gameLayout->string_slot[index];
+      const uint32_t vector_slot = m_gameLayout->vector_slot[index];
       update_game_property_cell(m_gameCells[index],
                                 slot != LN_INVALID_INDEX ? &m_gameStrings[slot] : nullptr,
+                                vector_slot != LN_INVALID_INDEX ? &m_gameVectors[vector_slot] :
+                                                                  nullptr,
                                 property_refs[index],
                                 m_gamePropertyHandles[index]);
     }
@@ -1322,6 +1369,21 @@ void LN_Snapshot::CaptureGameProperties(KX_GameObject *gameobj, const LN_Program
              view.bool_value == kept.bool_value && view.int_value == kept.int_value &&
              std::memcmp(&view.float_value, &kept.float_value, sizeof(float)) == 0 &&
              *view.string_value == kept.string_value;
+      /* (Vector and Color refs, 2026-11-15: bit for bit too.) */
+      const auto same_bits = [](const float a, const float b) {
+        return std::memcmp(&a, &b, sizeof(float)) == 0;
+      };
+      for (int axis = 0; axis < 4 && same; axis++) {
+        same = same_bits(built.color_value[axis], kept.color_value[axis]) &&
+               (axis == 3 || same_bits(built.vector_value[axis], kept.vector_value[axis]));
+        if (kept.type == LN_ValueType::Vector) {
+          same = same && same_bits(view.vector_value[axis],
+                                   axis == 3 ? 0.0f : kept.vector_value[axis]);
+        }
+        else if (kept.type == LN_ValueType::Color) {
+          same = same && same_bits(view.vector_value[axis], kept.color_value[axis]);
+        }
+      }
       if (!same) {
         g_typed_snapshot_differences++;
         CM_Warning("Logic Nodes: lean typed snapshot differs: game property ref "
@@ -1413,6 +1475,12 @@ bool LN_Snapshot::ReadGameProperty(const uint32_t property_ref_index, GameProper
     r_view.int_value = value.int_value;
     r_view.float_value = value.float_value;
     r_view.string_value = &value.string_value;
+    r_view.vector_value = value.type == LN_ValueType::Color ?
+                              value.color_value :
+                              MT_Vector4(value.vector_value.x(),
+                                         value.vector_value.y(),
+                                         value.vector_value.z(),
+                                         0.0f);
     return true;
   }
   const GamePropertyCell &cell = m_gameCells[property_ref_index];
@@ -1423,6 +1491,34 @@ bool LN_Snapshot::ReadGameProperty(const uint32_t property_ref_index, GameProper
   const uint32_t slot = m_gameLayout->string_slot[property_ref_index];
   r_view.string_value = slot != LN_INVALID_INDEX ? &m_gameStrings[slot] :
                                                     &m_gameLayout->defaults[property_ref_index].string_value;
+  const uint32_t vector_slot = m_gameLayout->vector_slot[property_ref_index];
+  if (vector_slot != LN_INVALID_INDEX) {
+    r_view.vector_value = m_gameVectors[vector_slot];
+  }
+  return true;
+}
+
+bool LN_Snapshot::ReadGamePropertyVector(const uint32_t property_ref_index,
+                                         MT_Vector4 &r_vector) const
+{
+  RequireCapturedChannel(LN_SNAPSHOT_CHANNEL_GAME_PROPERTY, "game property");
+  if (property_ref_index >= m_gamePropertyCount) {
+    return false;
+  }
+  if (m_gameStorageMode == 0) {
+    const LN_Value &value = m_gameProperties[property_ref_index];
+    r_vector = value.type == LN_ValueType::Color ?
+                   value.color_value :
+                   MT_Vector4(value.vector_value.x(),
+                              value.vector_value.y(),
+                              value.vector_value.z(),
+                              0.0f);
+    return true;
+  }
+  const uint32_t vector_slot = m_gameLayout->vector_slot[property_ref_index];
+  r_vector = vector_slot != LN_INVALID_INDEX ?
+                 m_gameVectors[vector_slot] :
+                 default_vector_cell(m_gameLayout->defaults[property_ref_index]);
   return true;
 }
 
@@ -1451,6 +1547,14 @@ bool LN_Snapshot::BuildGamePropertyValue(const uint32_t property_ref_index, LN_V
       break;
     case LN_ValueType::String:
       r_value.string_value = m_gameStrings[m_gameLayout->string_slot[property_ref_index]];
+      break;
+    case LN_ValueType::Vector: {
+      const MT_Vector4 &vector = m_gameVectors[m_gameLayout->vector_slot[property_ref_index]];
+      r_value.vector_value = MT_Vector3(vector.x(), vector.y(), vector.z());
+      break;
+    }
+    case LN_ValueType::Color:
+      r_value.color_value = m_gameVectors[m_gameLayout->vector_slot[property_ref_index]];
       break;
     default:
       break;
