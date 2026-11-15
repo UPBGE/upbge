@@ -365,9 +365,6 @@ endif()
 option(WITH_GAMEENGINE_BPPLAYER "Enable Blend encrypted (from BPPlayer application) reading capabilities" ON)
 mark_as_advanced(WITH_GAMEENGINE_BPPLAYER)
 
-option(WITH_GAMEENGINE_FSR "FSR 3.1 upscaler (requires WITH_VULKAN_BACKEND)" ON)
-mark_as_advanced(WITH_GAMEENGINE_FSR)
-
 option(WITH_PLAYER        "Build Player" ON)
 option(WITH_OPENIMAGEDENOISE "Enable the OpenImageDenoise compositing node" ON)
 
@@ -1373,15 +1370,6 @@ set_and_warn_dependency(WITH_AUDASPACE WITH_WASAPI OFF)
 
 if(NOT WITH_GAMEENGINE AND WITH_PLAYER)
 	message(FATAL_ERROR "WITH_PLAYER requires WITH_GAMEENGINE")
-endif()
-
-if(NOT WITH_GAMEENGINE AND WITH_GAMEENGINE_FSR)
-  message(FATAL_ERROR "WITH_GAMEENGINE_FSR requires WITH_GAMEENGINE")
-endif()
-
-if(WITH_GAMEENGINE_FSR AND NOT WITH_VULKAN_BACKEND)
-  message(WARNING "WITH_GAMEENGINE_FSR requires WITH_VULKAN_BACKEND")
-  set(WITH_GAMEENGINE_FSR OFF CACHE BOOL "" FORCE)
 endif()
 
 if(NOT WITH_AUDASPACE)

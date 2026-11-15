@@ -64,9 +64,6 @@ endif()
 
 if(WITH_GAMEENGINE)
   add_subdirectory(recastnavigation)
-  if(WITH_GAMEENGINE_FSR)
-    add_subdirectory(fidelityfx)
-  endif()
 endif()
 
 if(WITH_CYCLES OR WITH_OPENSUBDIV)
