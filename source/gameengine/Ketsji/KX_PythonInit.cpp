@@ -2030,6 +2030,12 @@ void updatePythonJoysticks(short (&addrem)[JOYINDEX_MAX])
     PyObject *item = Py_None;
 
     if (addrem[i] == 1) {
+      /* A slot freed and taken again within one tick ends with addrem 1. The previous object
+       * still points to the released DEV_Joystick: release it before creating the new one. */
+      if (gp_PythonJoysticks[i]) {
+        delete gp_PythonJoysticks[i];
+        gp_PythonJoysticks[i] = nullptr;
+      }
       DEV_Joystick *joy = DEV_Joystick::GetInstance(i);
       if (joy && joy->Connected()) {
         gp_PythonJoysticks[i] = new SCA_PythonJoystick(joy, i);
