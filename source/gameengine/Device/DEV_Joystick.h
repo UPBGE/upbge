@@ -207,4 +207,15 @@ class DEV_Joystick
    * Name of the joytsick
    */
   const std::string GetName();
+
+  /**
+   * Controller identity. The type is cached at open; the rest are
+   * single SDL queries, made only when a script asks.
+   */
+  const char *GetTypeName() const;              /* "xbox360", "ps5", "switchpro", ... */
+  const char *GetButtonLabel(int button) const; /* "A", "CROSS", ... or "UNKNOWN" */
+  std::string GetGUID() const;                  /* For gamecontrollerdb.txt mappings. */
+  const char *GetConnectionName() const;        /* "wired", "wireless" or "unknown" */
+  int GetPlayerIndex() const;
+  bool SetPlayerIndex(int index);
 };

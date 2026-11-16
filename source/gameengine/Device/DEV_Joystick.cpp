@@ -353,6 +353,13 @@ bool DEV_Joystick::CreateJoystickDevice(void)
                                        << " has not force feedback (vibration) available");
       }
     }
+
+    /* Identity, resolved once. The player index lights the player LED (PS5, Switch) or ring
+     * quadrant (Xbox 360) that matches this slot: slot 0 is player 1. */
+    if (!joy_error) {
+      m_private->m_type = SDL_GetGamepadType(m_private->m_gamecontroller);
+      SDL_SetGamepadPlayerIndex(m_private->m_gamecontroller, m_bge_joystick_slot);
+    }
   }
 #endif /* WITH_SDL */
 

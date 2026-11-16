@@ -40,6 +40,7 @@ set(SRC
   DEV_InputDevice.cpp
   DEV_Joystick.cpp
   DEV_JoystickEvents.cpp
+  DEV_JoystickFeatures.cpp
   DEV_JoystickVibration.cpp
 
   DEV_EventConsumer.h

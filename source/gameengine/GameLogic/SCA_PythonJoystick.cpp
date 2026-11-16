@@ -134,6 +134,12 @@ PyAttributeDef SCA_PythonJoystick::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("leftStick", SCA_PythonJoystick, pyattr_get_left_stick),
     EXP_PYATTRIBUTE_RO_FUNCTION("rightStick", SCA_PythonJoystick, pyattr_get_right_stick),
     EXP_PYATTRIBUTE_RO_FUNCTION("triggers", SCA_PythonJoystick, pyattr_get_triggers),
+    EXP_PYATTRIBUTE_RO_FUNCTION("type", SCA_PythonJoystick, pyattr_get_type),
+    EXP_PYATTRIBUTE_RO_FUNCTION("buttonLabels", SCA_PythonJoystick, pyattr_get_button_labels),
+    EXP_PYATTRIBUTE_RO_FUNCTION("guid", SCA_PythonJoystick, pyattr_get_guid),
+    EXP_PYATTRIBUTE_RO_FUNCTION("connection", SCA_PythonJoystick, pyattr_get_connection),
+    EXP_PYATTRIBUTE_RW_FUNCTION(
+        "playerIndex", SCA_PythonJoystick, pyattr_get_player_index, pyattr_set_player_index),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
@@ -336,6 +342,68 @@ int SCA_PythonJoystick::CheckResponse(EXP_PyObjectPlus *self_v,
                   "joystick response requires 0 <= stickDeadzone < stickOuter <= 1, "
                   "stickExponent > 0 and 0 <= triggerDeadzone < 1");
   return 1;
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_type(EXP_PyObjectPlus *self_v,
+                                              const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return PyUnicode_FromString(self->m_joystick->GetTypeName());
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_button_labels(EXP_PyObjectPlus *self_v,
+                                                       const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  /* Buttons 0 to 3 (south, east, west, north): the indices activeButtons reports. */
+  PyObject *tuple = PyTuple_New(4);
+  for (int i = 0; i < 4; i++) {
+    PyTuple_SET_ITEM(tuple, i, PyUnicode_FromString(self->m_joystick->GetButtonLabel(i)));
+  }
+  return tuple;
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_guid(EXP_PyObjectPlus *self_v,
+                                              const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return PyUnicode_FromStdString(self->m_joystick->GetGUID());
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_connection(EXP_PyObjectPlus *self_v,
+                                                    const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return PyUnicode_FromString(self->m_joystick->GetConnectionName());
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_player_index(EXP_PyObjectPlus *self_v,
+                                                      const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return PyLong_FromLong(self->m_joystick->GetPlayerIndex());
+}
+
+int SCA_PythonJoystick::pyattr_set_player_index(EXP_PyObjectPlus *self_v,
+                                                const EXP_PYATTRIBUTE_DEF * /*attrdef*/,
+                                                PyObject *value)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  const long index = PyLong_AsLong(value);
+  if (index == -1 && PyErr_Occurred()) {
+    PyErr_SetString(PyExc_TypeError, "joystick.playerIndex = int: expected an integer");
+    return PY_SET_ATTR_FAIL;
+  }
+  if (index < -1 || index > INT_MAX) {
+    PyErr_SetString(PyExc_ValueError,
+                    "joystick.playerIndex = int: expected -1 (no player) or a positive index");
+    return PY_SET_ATTR_FAIL;
+  }
+  if (!self->m_joystick->SetPlayerIndex(int(index))) {
+    PyErr_SetString(PyExc_RuntimeError, "joystick.playerIndex: the controller rejected the index");
+    return PY_SET_ATTR_FAIL;
+  }
+  return PY_SET_ATTR_SUCCESS;
 }
 
 #endif  // WITH_PYTHON
