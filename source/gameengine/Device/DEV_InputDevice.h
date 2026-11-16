@@ -26,16 +26,21 @@
 
 #pragma once
 
-#include <map>
+#include <cstdint>
 
 #include "SCA_IInputDevice.h"
 
 class DEV_InputDevice : public SCA_IInputDevice {
  protected:
-  /// These maps converts GHOST input number to SCA input enum.
-  std::map<int, SCA_EnumInputs> m_reverseKeyTranslateTable;
-  std::map<int, SCA_EnumInputs> m_reverseButtonTranslateTable;
-  std::map<int, SCA_EnumInputs> m_reverseWindowTranslateTable;
+  /** GHOST input number -> SCA input enum. GHOST codes are small and dense (keys stay below
+   * 0x200: ASCII block plus the 0x100 specials), so flat byte tables replace std::map: one
+   * indexed load instead of a tree walk, and no insertion on unknown codes. Zero = NOKEY. */
+  static constexpr int KEY_TABLE_SIZE = 0x200;
+  static constexpr int BUTTON_TABLE_SIZE = 8;
+  static constexpr int WINDOW_TABLE_SIZE = 32;
+  uint8_t m_reverseKeyTranslateTable[KEY_TABLE_SIZE] = {};
+  uint8_t m_reverseButtonTranslateTable[BUTTON_TABLE_SIZE] = {};
+  uint8_t m_reverseWindowTranslateTable[WINDOW_TABLE_SIZE] = {};
 
  public:
   DEV_InputDevice();

@@ -30,6 +30,11 @@
 
 using namespace blender;
 
+static_assert(SCA_IInputDevice::MAX_KEYS <= 256, "translation tables store codes in a byte");
+static_assert(GHOST_kKeyMediaLast < 0x200, "grow KEY_TABLE_SIZE");
+static_assert(GHOST_kButtonNum <= 8, "grow BUTTON_TABLE_SIZE");
+static_assert(GHOST_kNumEventTypes <= 32, "grow WINDOW_TABLE_SIZE");
+
 DEV_InputDevice::DEV_InputDevice()
 {
   m_reverseKeyTranslateTable[GHOST_kKeyA] = AKEY;
@@ -174,17 +179,29 @@ DEV_InputDevice::~DEV_InputDevice()
 
 void DEV_InputDevice::ConvertKeyEvent(int incode, int val, unsigned int unicode)
 {
-  ConvertEvent(m_reverseKeyTranslateTable[incode], val, unicode);
+  /* The unsigned compare also rejects GHOST_kKeyUnknown (-1). Unknown and unmapped keys still go
+   * to NOKEY, as with std::map before: that entry carries the text of keys UPBGE has no code for
+   * into m_text, so it must not be dropped here. */
+  const SCA_EnumInputs type = ((unsigned int)incode < KEY_TABLE_SIZE) ?
+                                  SCA_EnumInputs(m_reverseKeyTranslateTable[incode]) :
+                                  NOKEY;
+  ConvertEvent(type, val, unicode);
 }
 
 void DEV_InputDevice::ConvertButtonEvent(int incode, int val)
 {
-  ConvertEvent(m_reverseButtonTranslateTable[incode], val, 0);
+  const SCA_EnumInputs type = ((unsigned int)incode < BUTTON_TABLE_SIZE) ?
+                                  SCA_EnumInputs(m_reverseButtonTranslateTable[incode]) :
+                                  NOKEY;
+  ConvertEvent(type, val, 0);
 }
 
 void DEV_InputDevice::ConvertWindowEvent(int incode)
 {
-  ConvertEvent(m_reverseWindowTranslateTable[incode], 1, 0);
+  const SCA_EnumInputs type = ((unsigned int)incode < WINDOW_TABLE_SIZE) ?
+                                  SCA_EnumInputs(m_reverseWindowTranslateTable[incode]) :
+                                  NOKEY;
+  ConvertEvent(type, 1, 0);
 }
 
 void DEV_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type,
