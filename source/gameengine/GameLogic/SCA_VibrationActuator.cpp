@@ -79,8 +79,15 @@ bool SCA_VibrationActuator::Update()
         instance->RumblePlay(m_strengthLeft, m_strengthRight, m_duration);
         break;
       }
+      case KX_ACT_VIBRATION_TRIGGERS: {
+        instance->RumbleTriggers(m_strengthLeft, m_strengthRight, m_duration);
+        break;
+      }
       case KX_ACT_VIBRATION_STOP: {
         instance->RumbleStop();
+        if (instance->HasTriggerRumble()) {
+          instance->RumbleTriggers(0.0f, 0.0f, 0);
+        }
         break;
       }
     }

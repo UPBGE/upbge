@@ -45,6 +45,7 @@ class SCA_VibrationActuator : public SCA_IActuator {
     KX_ACT_VIBRATION_NONE = 0,
     KX_ACT_VIBRATION_PLAY,
     KX_ACT_VIBRATION_STOP,
+    KX_ACT_VIBRATION_TRIGGERS,
     KX_ACT_VIBRATION_MAX
   };
 

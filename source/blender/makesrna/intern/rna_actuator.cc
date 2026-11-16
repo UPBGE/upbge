@@ -1952,9 +1952,15 @@ static void rna_def_vibration_actuator(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static EnumPropertyItem prop_mode_items[] = {{ACT_VIBRATION_PLAY, "PLAY", 0, "Play", ""},
-                                               {ACT_VIBRATION_STOP, "STOP", 0, "Stop", ""},
-                                               {0, nullptr, 0, nullptr, nullptr}};
+  static EnumPropertyItem prop_mode_items[] = {
+      {ACT_VIBRATION_PLAY, "PLAY", 0, "Play", ""},
+      {ACT_VIBRATION_TRIGGERS,
+       "TRIGGERS",
+       0,
+       "Trigger Vibration",
+       "Vibrate the trigger motors (Xbox One and Series controllers)"},
+      {ACT_VIBRATION_STOP, "STOP", 0, "Stop", "Stop the main and the trigger motors"},
+      {0, nullptr, 0, nullptr, nullptr}};
 
   srna = RNA_def_struct(brna, "VibrationActuator", "Actuator");
   RNA_def_struct_ui_text(srna, "Vibration Actuator", "Actuator to set vibration of a joystick");

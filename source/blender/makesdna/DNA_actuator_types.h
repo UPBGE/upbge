@@ -632,5 +632,7 @@ typedef struct bActuator {
 /* vibrationactuator->mode */
 #define ACT_VIBRATION_PLAY 0
 #define ACT_VIBRATION_STOP 1
+/* Trigger motors (Xbox One and Series): strength is the left trigger, strength_right the right. */
+#define ACT_VIBRATION_TRIGGERS 2
 
 }  // namespace blender

@@ -815,6 +815,10 @@ void BL_ConvertActuators(const char *maggiename,
             mode = SCA_VibrationActuator::KX_ACT_VIBRATION_STOP;
             break;
           }
+          case ACT_VIBRATION_TRIGGERS: {
+            mode = SCA_VibrationActuator::KX_ACT_VIBRATION_TRIGGERS;
+            break;
+          }
         }
 
         int joyindex = vib_act->joyindex;

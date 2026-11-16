@@ -1341,6 +1341,15 @@ static void draw_actuator_vibration(blender::ui::Layout *layout, PointerRNA *ptr
       row->prop(ptr, "joy_duration", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     }
+    case ACT_VIBRATION_TRIGGERS: {
+      row->prop(ptr, "joy_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row = &layout->row(false);
+      row->prop(ptr, "joy_strength_left", UI_ITEM_NONE, IFACE_("Left Trigger"), ICON_NONE);
+      row->prop(ptr, "joy_strength_right", UI_ITEM_NONE, IFACE_("Right Trigger"), ICON_NONE);
+      row = &layout->row(false);
+      row->prop(ptr, "joy_duration", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      break;
+    }
     case ACT_VIBRATION_STOP: {
       row->prop(ptr, "joy_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
