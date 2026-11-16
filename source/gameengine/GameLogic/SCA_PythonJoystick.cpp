@@ -27,6 +27,7 @@
 #include "SCA_PythonJoystick.h"
 
 #include "DEV_Joystick.h"
+#include "DEV_JoystickResponse.h"
 
 using namespace blender;
 
@@ -41,7 +42,11 @@ SCA_PythonJoystick::SCA_PythonJoystick(DEV_Joystick *joystick, int joyindex)
       m_joyindex(joyindex),
       m_strengthLeft(0.0f),
       m_strengthRight(0.0f),
-      m_duration(0)
+      m_duration(0),
+      m_stickDeadzone(DEV_STICK_DEADZONE_DEFAULT),
+      m_stickOuter(DEV_STICK_OUTER_DEFAULT),
+      m_stickExponent(DEV_STICK_EXPONENT_DEFAULT),
+      m_triggerDeadzone(DEV_TRIGGER_DEADZONE_DEFAULT)
 {
 }
 
@@ -118,6 +123,17 @@ PyAttributeDef SCA_PythonJoystick::Attributes[] = {
     EXP_PYATTRIBUTE_FLOAT_RW("strengthRight", 0.0, 1.0, SCA_PythonJoystick, m_strengthRight),
     EXP_PYATTRIBUTE_RO_FUNCTION("isVibrating", SCA_PythonJoystick, pyattr_get_isVibrating),
     EXP_PYATTRIBUTE_RO_FUNCTION("hasVibration", SCA_PythonJoystick, pyattr_get_hasVibration),
+    EXP_PYATTRIBUTE_FLOAT_RW_CHECK(
+        "stickDeadzone", 0.0f, 1.0f, SCA_PythonJoystick, m_stickDeadzone, CheckResponse),
+    EXP_PYATTRIBUTE_FLOAT_RW_CHECK(
+        "stickOuter", 0.0f, 1.0f, SCA_PythonJoystick, m_stickOuter, CheckResponse),
+    EXP_PYATTRIBUTE_FLOAT_RW_CHECK(
+        "stickExponent", 0.0f, 10.0f, SCA_PythonJoystick, m_stickExponent, CheckResponse),
+    EXP_PYATTRIBUTE_FLOAT_RW_CHECK(
+        "triggerDeadzone", 0.0f, 1.0f, SCA_PythonJoystick, m_triggerDeadzone, CheckResponse),
+    EXP_PYATTRIBUTE_RO_FUNCTION("leftStick", SCA_PythonJoystick, pyattr_get_left_stick),
+    EXP_PYATTRIBUTE_RO_FUNCTION("rightStick", SCA_PythonJoystick, pyattr_get_right_stick),
+    EXP_PYATTRIBUTE_RO_FUNCTION("triggers", SCA_PythonJoystick, pyattr_get_triggers),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
@@ -250,6 +266,76 @@ PyObject *SCA_PythonJoystick::pyattr_get_hasVibration(EXP_PyObjectPlus *self_v,
   }
 
   return PyBool_FromLong(self->m_joystick->GetRumbleSupport());
+}
+
+/* Axis indices follow SDL_GamepadAxis: LEFTX, LEFTY, RIGHTX, RIGHTY, LEFT_TRIGGER, RIGHT_TRIGGER.
+ * The response is computed on read: nothing is spent per logic tick, and scripts that never read
+ * these attributes pay nothing. */
+static PyObject *stick_to_python(
+    DEV_Joystick *joystick, int axis_x, float inner, float outer, float exponent)
+{
+  float v[2];
+  DEV_RadialDeadzone(joystick->GetAxisPosition(axis_x),
+                     joystick->GetAxisPosition(axis_x + 1),
+                     inner,
+                     outer,
+                     exponent,
+                     v);
+  /* A tuple rather than a mathutils.Vector: no wrapper allocation per read. */
+  PyObject *tuple = PyTuple_New(2);
+  PyTuple_SET_ITEM(tuple, 0, PyFloat_FromDouble(v[0]));
+  PyTuple_SET_ITEM(tuple, 1, PyFloat_FromDouble(v[1]));
+  return tuple;
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_left_stick(EXP_PyObjectPlus *self_v,
+                                                    const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return stick_to_python(
+      self->m_joystick, 0, self->m_stickDeadzone, self->m_stickOuter, self->m_stickExponent);
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_right_stick(EXP_PyObjectPlus *self_v,
+                                                     const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return stick_to_python(
+      self->m_joystick, 2, self->m_stickDeadzone, self->m_stickOuter, self->m_stickExponent);
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_triggers(EXP_PyObjectPlus *self_v,
+                                                  const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  PyObject *tuple = PyTuple_New(2);
+  PyTuple_SET_ITEM(tuple,
+                   0,
+                   PyFloat_FromDouble(DEV_TriggerResponse(self->m_joystick->GetAxisPosition(4),
+                                                          self->m_triggerDeadzone)));
+  PyTuple_SET_ITEM(tuple,
+                   1,
+                   PyFloat_FromDouble(DEV_TriggerResponse(self->m_joystick->GetAxisPosition(5),
+                                                          self->m_triggerDeadzone)));
+  return tuple;
+}
+
+int SCA_PythonJoystick::CheckResponse(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  const SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  /* The setter has already clamped the value to the declared range, but NaN passes clamping.
+   * Every test below is a positive comparison, so NaN fails it and the old value is restored. */
+  if (self->m_stickDeadzone >= 0.0f && self->m_stickDeadzone < self->m_stickOuter &&
+      self->m_stickOuter <= 1.0f && self->m_stickExponent > 0.0f &&
+      self->m_triggerDeadzone >= 0.0f && self->m_triggerDeadzone < 1.0f)
+  {
+    return 0;
+  }
+  PyErr_SetString(PyExc_ValueError,
+                  "joystick response requires 0 <= stickDeadzone < stickOuter <= 1, "
+                  "stickExponent > 0 and 0 <= triggerDeadzone < 1");
+  return 1;
 }
 
 #endif  // WITH_PYTHON

@@ -47,6 +47,7 @@ set(SRC
   DEV_Joystick.h
   DEV_JoystickDefines.h
   DEV_JoystickPrivate.h
+  DEV_JoystickResponse.h
 )
 
 set(LIB

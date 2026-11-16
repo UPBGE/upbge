@@ -34,6 +34,11 @@ class SCA_PythonJoystick : public EXP_Value {
   float m_strengthLeft;
   float m_strengthRight;
   int m_duration;
+  /** Response applied by leftStick, rightStick and triggers (see DEV_JoystickResponse.h). */
+  float m_stickDeadzone;
+  float m_stickOuter;
+  float m_stickExponent;
+  float m_triggerDeadzone;
 
  public:
   SCA_PythonJoystick(class DEV_Joystick *joystick, int joyindex);
@@ -58,5 +63,13 @@ class SCA_PythonJoystick : public EXP_Value {
                                           const struct EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_hasVibration(EXP_PyObjectPlus *self_v,
                                            const struct EXP_PYATTRIBUTE_DEF *attrdef);
+
+  static PyObject *pyattr_get_left_stick(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_right_stick(EXP_PyObjectPlus *self_v,
+                                          const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_triggers(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
+  static int CheckResponse(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
