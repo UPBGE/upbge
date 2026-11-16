@@ -412,6 +412,19 @@ typedef struct bMovementSensor {
 
 #define SENS_JOY_HAT_MAX 4
 
+/* Both modes: positive while a controller is connected at the sensor's index. */
+#define SENS_JOY_CONNECTION 7 /* axis type */
+
+/* Gamepad mode: gyroscope rate around one axis, or shake (axis_single). The threshold (precision)
+ * is in degrees per second, or in thousandths of g for shake. */
+#define SENS_JOY_MOTION 8 /* axis type */
+#define SENS_JOY_MOTION_PITCH 1
+#define SENS_JOY_MOTION_YAW 2
+#define SENS_JOY_MOTION_ROLL 3
+#define SENS_JOY_MOTION_SHAKE 4
+#define SENS_JOY_MOTION_RATE_MAX 2000
+#define SENS_JOY_MOTION_SHAKE_MAX 8000
+
 #define SENS_DELAY_REPEAT 1
 // should match JOYINDEX_MAX in SCA_JoystickDefines.h */
 #define SENS_JOY_MAXINDEX 8

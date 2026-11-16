@@ -75,6 +75,16 @@ static const EnumPropertyItem joystick_event_type_items[] = {
     {SENS_JOY_RAW_BUTTON, "JOYSTICK_BUTTON", 0, "Joystick Button", "A button by its index"},
     {SENS_JOY_RAW_AXIS, "JOYSTICK_AXIS", 0, "Joystick Axis", "An axis by its number"},
     {SENS_JOY_HAT, "HAT", 0, "Hat", "A hat, or the D-pad of a gamepad as hat 1"},
+    {SENS_JOY_MOTION,
+     "MOTION",
+     0,
+     "Motion",
+     "Rotation speed or shake, on controllers with motion sensors"},
+    {SENS_JOY_CONNECTION,
+     "CONNECTION",
+     0,
+     "Connection",
+     "Positive while a controller is connected at this index"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 }  // namespace blender
@@ -248,6 +258,13 @@ static void rna_JoystickSensor_sanitize(bJoystickSensor *js)
         js->axisf = SENS_JOY_AXIS_POSITIVE;
       }
       break;
+    case SENS_JOY_MOTION:
+      js->axis_single = std::clamp(int(js->axis_single), 1, int(SENS_JOY_MOTION_SHAKE));
+      /* An axis threshold (5000 by default) would be 5000 degrees per second. */
+      if (js->precision > SENS_JOY_MOTION_RATE_MAX) {
+        js->precision = 300;
+      }
+      break;
     default:
       break;
   }
@@ -258,7 +275,7 @@ static void rna_JoystickSensor_mode_set(PointerRNA *ptr, int value)
   bJoystickSensor *js = (bJoystickSensor *)(((bSensor *)ptr->data)->data);
   if (value == SENS_JOY_JOYSTICK_MODE) {
     js->flag |= SENS_JOY_JOYSTICK_MODE;
-    if (!rna_joystick_type_is_joystick_only(js->type)) {
+    if (!rna_joystick_type_is_joystick_only(js->type) && js->type != SENS_JOY_CONNECTION) {
       js->type = SENS_JOY_RAW_BUTTON;
     }
   }
@@ -299,10 +316,25 @@ static const EnumPropertyItem *rna_JoystickSensor_event_type_itemf(bContext * /*
     RNA_enum_items_add_value(&item, &totitem, items, SENS_JOY_AXIS_SINGLE);
     RNA_enum_items_add_value(&item, &totitem, items, SENS_JOY_SHOULDER_TRIGGER);
     RNA_enum_items_add_value(&item, &totitem, items, SENS_JOY_BUTTON);
+    RNA_enum_items_add_value(&item, &totitem, items, SENS_JOY_MOTION);
   }
+  RNA_enum_items_add_value(&item, &totitem, items, SENS_JOY_CONNECTION);
   RNA_enum_item_end(&item, &totitem);
   *r_free = true;
   return item;
+}
+
+/* Shake threshold: stored in thousandths of g, edited in g. */
+static float rna_JoystickSensor_motion_shake_threshold_get(PointerRNA *ptr)
+{
+  const bJoystickSensor *js = (bJoystickSensor *)(((bSensor *)ptr->data)->data);
+  return float(js->precision) * 1e-3f;
+}
+
+static void rna_JoystickSensor_motion_shake_threshold_set(PointerRNA *ptr, float value)
+{
+  bJoystickSensor *js = (bJoystickSensor *)(((bSensor *)ptr->data)->data);
+  js->precision = int(value * 1000.0f + 0.5f);
 }
 
 static void rna_Sensor_keyboard_key_set(struct PointerRNA *ptr, int value)
@@ -1080,6 +1112,13 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
       {SENS_JOY_AXIS_BOTH, "BOTH", 0, "Both", ""},
       {0, nullptr, 0, nullptr, nullptr}};
 
+  static const EnumPropertyItem motion_axis_items[] = {
+      {SENS_JOY_MOTION_PITCH, "PITCH", 0, "Pitch", "Rotation around the controller's x axis"},
+      {SENS_JOY_MOTION_YAW, "YAW", 0, "Yaw", "Rotation around the controller's y axis"},
+      {SENS_JOY_MOTION_ROLL, "ROLL", 0, "Roll", "Rotation around the controller's z axis"},
+      {SENS_JOY_MOTION_SHAKE, "SHAKE", 0, "Shake", "Acceleration away from gravity"},
+      {0, nullptr, 0, nullptr, nullptr}};
+
   /* Identifiers as in BGE 2.7x. */
   static const EnumPropertyItem hat_direction_items[] = {
       {SENS_JOY_HAT_UP, "UP", 0, "Up", ""},
@@ -1264,6 +1303,30 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, hat_direction_items);
   RNA_def_property_ui_text(
       prop, "Hat Direction", "Direction of the hat; diagonals do not trigger straight directions");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  /* Motion */
+  prop = RNA_def_property(srna, "motion_axis", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "axis_single");
+  RNA_def_property_enum_items(prop, motion_axis_items);
+  RNA_def_property_ui_text(prop, "Motion", "Which motion triggers the sensor");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "motion_rate_threshold", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "precision");
+  RNA_def_property_range(prop, 0, SENS_JOY_MOTION_RATE_MAX);
+  RNA_def_property_ui_text(
+      prop, "Rate", "Rotation speed that triggers the sensor, in degrees per second");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "motion_shake_threshold", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(prop,
+                               "rna_JoystickSensor_motion_shake_threshold_get",
+                               "rna_JoystickSensor_motion_shake_threshold_set",
+                               nullptr);
+  RNA_def_property_range(prop, 0.0f, SENS_JOY_MOTION_SHAKE_MAX * 1e-3f);
+  RNA_def_property_ui_text(
+      prop, "Shake", "How far the acceleration departs from 1 g to trigger the sensor, in g");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   /* Common */

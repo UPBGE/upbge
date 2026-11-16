@@ -1308,6 +1308,19 @@ static void draw_sensor_joystick(blender::ui::Layout *layout, PointerRNA *ptr)
       col->active_set(RNA_boolean_get(ptr, "use_all_events") == false);
       col->prop(ptr, "hat_direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
+    case SENS_JOY_MOTION:
+      col = &layout->column(false);
+      col->prop(ptr, "motion_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(ptr,
+                (RNA_enum_get(ptr, "motion_axis") == SENS_JOY_MOTION_SHAKE) ?
+                    "motion_shake_threshold" :
+                    "motion_rate_threshold",
+                UI_ITEM_NONE,
+                std::nullopt,
+                ICON_NONE);
+      break;
+    case SENS_JOY_CONNECTION:
+      break;
   }
 }
 

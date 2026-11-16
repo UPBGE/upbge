@@ -74,6 +74,10 @@ class SCA_JoystickSensor : public SCA_ISensor {
    */
   bool m_istrig_prev;
   /**
+   * Connection mode: SDL instance id seen at the previous evaluation, 0 when the slot was empty
+   */
+  uint32_t m_connectionId;
+  /**
    * The mode to determine axis,button or hat
    */
   short int m_joymode;
@@ -97,7 +101,18 @@ class SCA_JoystickSensor : public SCA_ISensor {
     KX_JOYSENSORMODE_SHOULDER_TRIGGER,
     KX_JOYSENSORMODE_RAW_BUTTON,
     KX_JOYSENSORMODE_RAW_AXIS,
+    KX_JOYSENSORMODE_CONNECTION,
+    KX_JOYSENSORMODE_MOTION,
     KX_JOYSENSORMODE_MAX
+  };
+
+  /** Motion: what triggers the sensor (m_axis). Rates in degrees per second, shake in 1/1000 g
+   * (m_precision). */
+  enum KX_JOYSENS_MOTION {
+    KX_JOYSENS_MOTION_PITCH = 1,
+    KX_JOYSENS_MOTION_YAW,
+    KX_JOYSENS_MOTION_ROLL,
+    KX_JOYSENS_MOTION_SHAKE,
   };
 
   /** Joystick Axis: which side of the axis triggers (m_axisf). */

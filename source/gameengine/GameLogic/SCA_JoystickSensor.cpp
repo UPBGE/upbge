@@ -67,6 +67,7 @@ void SCA_JoystickSensor::Init()
 {
   m_istrig = (m_invert) ? 1 : 0;
   m_istrig_prev = 0;
+  m_connectionId = 0;
   m_reset = true;
 }
 
@@ -98,6 +99,20 @@ bool SCA_JoystickSensor::Evaluate()
   bool result = false;
   bool reset = m_reset && m_level;
   int axis_single_index = m_axis;
+
+  if (m_joymode == KX_JOYSENSORMODE_CONNECTION) {
+    /* Evaluated with an empty slot too. A new SDL instance id is a new connection, also when a
+     * controller replaced the previous one within one tick: that gives a positive pulse even
+     * though the state stays positive. */
+    const uint32_t id = js ? js->GetConnectionId() : 0;
+    const bool connected = (id != 0);
+    result = (connected != bool(m_istrig)) || (connected && id != m_connectionId) || reset;
+    m_istrig = connected;
+    m_istrig_prev = m_istrig;
+    m_connectionId = id;
+    m_reset = false;
+    return result;
+  }
 
   if (js == nullptr) { /* no joystick - don't do anything */
     return false;
@@ -243,6 +258,36 @@ bool SCA_JoystickSensor::Evaluate()
       /* Exact match as in BGE 2.7x: "up" does not fire on up-left or up-right. */
       const int value = js->GetSensorHat(m_hat - 1);
       update(value != 0 && (m_bAllEvents || value == m_hatf));
+      break;
+    }
+    case KX_JOYSENSORMODE_MOTION: {
+      const bool shake = (m_axis == KX_JOYSENS_MOTION_SHAKE);
+      /* Turn on the sensor this brick needs, never off: Python owns that. The state is cached on
+       * the device, so this costs an SDL call once per connection (each starts with sensors
+       * off), not per tick. */
+      if (shake ? (js->HasAccel() && !js->IsAccelEnabled()) :
+                  (js->HasGyro() && !js->IsGyroEnabled()))
+      {
+        js->EnableSensors(js->IsGyroEnabled() || !shake, js->IsAccelEnabled() || shake);
+      }
+      if (!js->IsTrigMotion() && !reset) { /* No samples from SDL? - don't bother */
+        return false;
+      }
+      if (shake) {
+        /* |a| outside [g - t, g + t], compared squared: no sqrt. The extremes cover every sample
+         * since the previous tick; min > max when none came. */
+        constexpr float gravity = 9.80665f;
+        const float t = float(m_precision) * 1e-3f * gravity;
+        const float hi = gravity + t, lo = gravity - t;
+        float min2, max2;
+        js->GetAccelRange2(&min2, &max2);
+        update(max2 > hi * hi || (lo > 0.0f && min2 <= max2 && min2 < lo * lo));
+      }
+      else if (m_axis >= KX_JOYSENS_MOTION_PITCH && m_axis <= KX_JOYSENS_MOTION_ROLL) {
+        /* Peak rate since the previous tick, so a flick shorter than a tick still triggers. */
+        constexpr float deg_to_rad = 3.14159265f / 180.0f;
+        update(js->GetGyroPeak()[m_axis - 1] > float(m_precision) * deg_to_rad);
+      }
       break;
     }
     /* test for ball anyone ?*/

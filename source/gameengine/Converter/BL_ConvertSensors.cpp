@@ -553,6 +553,16 @@ void BL_ConvertSensors(blender::Object *blenderobject,
                 joysticktype = SCA_JoystickSensor::KX_JOYSENSORMODE_RAW_AXIS;
                 break;
               }
+              case SENS_JOY_CONNECTION: {
+                joysticktype = SCA_JoystickSensor::KX_JOYSENSORMODE_CONNECTION;
+                break;
+              }
+              case SENS_JOY_MOTION: {
+                axis = bjoy->axis_single;
+                prec = bjoy->precision;
+                joysticktype = SCA_JoystickSensor::KX_JOYSENSORMODE_MOTION;
+                break;
+              }
               case SENS_JOY_HAT: {
                 /* Also Hat sensors saved by BGE 2.7x, whose hat field may be 0. */
                 hat = (bjoy->hat > 1) ? bjoy->hat : 1;
