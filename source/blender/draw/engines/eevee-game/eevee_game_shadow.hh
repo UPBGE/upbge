@@ -14,6 +14,8 @@
 
 namespace blender::eevee_game {
 
+struct LightEntry;
+
 /* -----------------------------------------------------------------------
  * Atlas layout
  *
@@ -85,11 +87,17 @@ struct ShadowCascade {
   float    split_depth;
 };
 
-/* One punctual light slot (static or dynamic atlas) */
+/* One punctual light slot (static or dynamic atlas). A spot light renders one
+ * face over the whole tile, a point light six 90 degree faces packed 3x2 in
+ * the tile. */
 struct ShadowPunctual {
-  float4x4 view;
+  float4x4 face_view[6];
   float4x4 proj;
-  float4x4 view_proj;
+  float3   position;
+  float    radius;        /* Influence radius: caster search and far plane */
+  uint64_t uid;
+  int      light_index;   /* Entry in LightModule::entries_ */
+  int      face_count;    /* 1 spot, 6 point */
   uint32_t atlas_index;   /* Flat tile index within its own atlas */
   bool     active;
   bool     is_dynamic;    /* True → lives in the dynamic atlas */
@@ -113,12 +121,10 @@ class ShadowModule {
   void end_sync();
 
   /* Register an object as a shadow caster.
-   * Called once per mesh from SyncModule::sync_mesh().
-   *
-   * TODO (dirty tracking): intersect ob's world AABB against each static
-   * light's influence radius; set needs_update = true on matching slots.
-   * Until then, all static slots refresh every frame (conservative). */
-  void sync_object(Object *ob, ResourceHandleRange res_handle);
+   * Called once per mesh from SyncModule::sync_mesh(). uid is the stable
+   * ObjectKey hash. Feeds the cascade near plane and the caster signatures
+   * that decide which static tiles are re-rendered. */
+  void sync_object(Object *ob, uint64_t uid);
 
   /* Render both shadow atlases, then dispatch the PCF compute pass that
    * writes shadow_mask_tx for the deferred lighting pass. */
@@ -133,7 +139,7 @@ class ShadowModule {
    * for shadow_index encoding during end_sync(). */
   int dynamic_slot_count() const { return int(uint32_t(dynamic_slots_)); }
 
-  /* Bind both atlas textures to a render pass (used by forward shading). */
+  /* Bind the shadow face buffer and both atlases (punctual shadow lookup). */
   void bind_resources(PassSimple &ps);
 
  private:
@@ -149,6 +155,21 @@ class ShadowModule {
 
   /* Draw the shadow casters into one atlas tile from one light's viewpoint. */
   void render_tile(Framebuffer &fb, View &view, int2 tile_origin, int tile_size);
+  /* Render every face of a punctual slot into its tile. */
+  void render_punctual(Framebuffer &fb,
+                       std::vector<std::unique_ptr<View>> &views,
+                       const ShadowPunctual &slot,
+                       int2 tile_origin,
+                       int tile_size);
+  /* Build the faces of a slot and write them to tile_buf_. */
+  void punctual_faces_build(ShadowPunctual &slot, const LightEntry &light, int tile_size);
+  void punctual_tiles_write(const ShadowPunctual &slot,
+                            int2 tile_origin,
+                            int tile_size,
+                            int atlas_res,
+                            int atlas);
+  /* Order independent hash of the casters touching a sphere. */
+  uint64_t caster_signature(float3 center, float radius) const;
 
   /* Dispatch the PCF 3x3 compute shader.
    * Reads G-Buffer depth + normals, writes shadow_mask_tx. */
@@ -187,6 +208,41 @@ class ShadowModule {
   /* World AABB of the shadow casters synced this frame (empty: min > max). */
   float3 caster_min_ = float3(FLT_MAX);
   float3 caster_max_ = float3(-FLT_MAX);
+
+  /* Casters of this frame: world box and a key that changes when the object
+   * moves, deforms or is a different object. */
+  struct CasterRecord {
+    float3   center;
+    float3   half_size;
+    uint64_t key;
+  };
+  std::vector<CasterRecord> casters_;
+  uint64_t casters_signature_ = 0;
+
+  /* What each static tile holds, to skip the tiles that would be redrawn
+   * identical: same light, same matrices, same casters. */
+  struct StaticTileCache {
+    uint64_t light_uid;
+    float4x4 face_view0;
+    float4x4 proj;
+    uint64_t signature;
+    bool     valid;
+    bool     used;        /* Claimed by a light this frame */
+  };
+  StaticTileCache static_cache_[STATIC_PUNCTUAL_SLOTS] = {};
+
+  struct CascadeCache {
+    float4x4 view_proj[MAX_SHADOW_CASCADES];
+    int      count;
+    uint64_t signature;
+    bool     valid;
+  };
+  CascadeCache cascade_cache_ = {};
+  bool cascades_need_update_ = true;
+
+  /* Faces of every shadowed punctual light, indexed by LightData::shadow_index. */
+  StorageArrayBuffer<ShadowTileData, MAX_SHADOW_TILES> tile_buf_ = {"shadow_tile_buf"};
+  int tile_count_ = 0;
 };
 
 } // namespace blender::eevee_game

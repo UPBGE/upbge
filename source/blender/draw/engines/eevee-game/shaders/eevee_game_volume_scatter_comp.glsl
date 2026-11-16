@@ -106,9 +106,10 @@ float shadow_directional(vec3 world_pos)
   /* Cascade 0 is the first 1024 px tile of the 4096 px static atlas: the
    * bottom-left quarter in each axis. */
   vec2 atlas_uv = shadow_uv3.xy * 0.25;
-  /* The atlas stores reversed depth (1 = near the light) and the sampler
-   * compares `ref <= stored`, so the reference is reversed as well. */
-  return texture(shadow_atlas, vec3(atlas_uv, 1.0 - shadow_uv3.z));
+  /* The atlas stores reversed depth (1 = near the light), so the reference
+   * is reversed too. The compare is `ref <= stored` (LEQUAL): true when a
+   * surface at least as near to the light is there, the occluded case. */
+  return 1.0 - texture(shadow_atlas, vec3(atlas_uv, 1.0 - shadow_uv3.z));
 }
 
 /* ================================================================== */

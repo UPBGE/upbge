@@ -327,6 +327,8 @@ void PipelineModule::sync()
   /* Pre-filtered sun shadow: one [0,1] float per pixel from the PCF compute. */
   light_ps.bind_texture("shadow_mask_tx", &rbufs.shadow_mask_tx);
   inst_->lights.bind_resources(light_ps);
+  /* Punctual shadows are looked up per light in the lighting shader. */
+  inst_->shadows.bind_resources(light_ps);
   light_ps.push_constant("light_count", &inst_->lights.active_light_count);
   light_ps.push_constant("use_ao", &use_ao_);
   light_ps.push_constant("use_ssgi", &use_ssgi_);

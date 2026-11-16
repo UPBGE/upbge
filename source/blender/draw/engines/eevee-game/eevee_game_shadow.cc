@@ -12,6 +12,7 @@
 #include "DNA_object_types.h"
 
 #include <cfloat>
+#include <cstring> /* memcpy */
 #include <cmath> /* sqrtf */
 
 namespace blender::eevee_game {
@@ -36,8 +37,15 @@ void ShadowModule::init(DynamicShadowSlots dynamic_slots)
     }
   };
   views_ensure(cascade_views_, MAX_SHADOW_CASCADES, "Shadow.Cascade");
-  views_ensure(static_views_, STATIC_PUNCTUAL_SLOTS, "Shadow.StaticPunctual");
-  views_ensure(dynamic_views_, int(dynamic_slots_), "Shadow.DynamicPunctual");
+  /* Punctual face views are created on first use (up to 6 per slot). */
+  static_views_.clear();
+  dynamic_views_.clear();
+
+  /* Fresh atlases hold nothing worth keeping. */
+  for (StaticTileCache &cache : static_cache_) {
+    cache.valid = false;
+  }
+  cascade_cache_.valid = false;
 }
 
 void ShadowModule::allocate_static_atlas()
@@ -94,6 +102,8 @@ void ShadowModule::begin_sync()
   dynamic_punctual_.clear();
   caster_min_ = float3(FLT_MAX);
   caster_max_ = float3(-FLT_MAX);
+  casters_.clear();
+  casters_signature_ = 0;
 }
 
 void ShadowModule::update_cascades(Camera &camera, LightEntry &light)
@@ -182,23 +192,170 @@ void ShadowModule::update_cascades(Camera &camera, LightEntry &light)
   }
 }
 
+/* Mixes 64 bits so that sums of keys behave like a set hash (splitmix64). */
+static uint64_t mix64(uint64_t x)
+{
+  x += 0x9E3779B97F4A7C15ull;
+  x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ull;
+  x = (x ^ (x >> 27)) * 0x94D049BB133111EBull;
+  return x ^ (x >> 31);
+}
+
+static uint64_t float_bits(float f)
+{
+  uint32_t u;
+  memcpy(&u, &f, sizeof(u));
+  return u;
+}
+
+/* Rigid view of a light: its axes without the object scale, which would
+ * otherwise scale the light space the projection is built in. */
+static float4x4 light_view_get(const float4x4 &object_to_world)
+{
+  const float4x4 world_from_light(float4(math::normalize(object_to_world.x_axis()), 0.0f),
+                                  float4(math::normalize(object_to_world.y_axis()), 0.0f),
+                                  float4(math::normalize(object_to_world.z_axis()), 0.0f),
+                                  float4(object_to_world.location(), 1.0f));
+  return math::invert(world_from_light);
+}
+
+/* Cube face f of a point light at pos, ordered +X -X +Y -Y +Z -Z. The view
+ * looks down -Z, so -Z of the face is the face direction. */
+static float4x4 cube_face_view_get(float3 pos, int face)
+{
+  static const float3 dirs[6] = {
+      {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+  const float3 f = dirs[face];
+  const float3 up = (fabsf(f.z) > 0.5f) ? float3(0, 1, 0) : float3(0, 0, 1);
+  const float3 z = -f;
+  const float3 x = math::normalize(math::cross(up, z));
+  const float3 y = math::cross(z, x);
+  const float4x4 world_from_face(
+      float4(x, 0.0f), float4(y, 0.0f), float4(z, 0.0f), float4(pos, 1.0f));
+  return math::invert(world_from_face);
+}
+
+/* Texels of guard band around a face: the 3x3 PCF footprint plus the normal
+ * offset must find rendered depth past the face border, or samples near a
+ * cube seam would read the neighbor face. */
+static constexpr float SHADOW_FACE_GUARD_TEXELS = 4.0f;
+
+static int face_size_get(int tile_size, int face_count)
+{
+  return (face_count == 6) ? tile_size / 3 : tile_size;
+}
+
+/* Origin of face f inside its tile: a point light packs 3x2 faces. */
+static int2 face_origin_get(int2 tile_origin, int face_size, int face_count, int face)
+{
+  if (face_count != 6) {
+    return tile_origin;
+  }
+  return tile_origin + int2(face % 3, face / 3) * face_size;
+}
+
+static int2 static_tile_origin(uint32_t atlas_index)
+{
+  /* Rows 1..3 below the cascade row, 4 columns. */
+  return int2(int(atlas_index) % 4, 1 + int(atlas_index) / 4) * STATIC_TILE_SIZE;
+}
+
+void ShadowModule::punctual_faces_build(ShadowPunctual &slot,
+                                        const LightEntry &light,
+                                        int tile_size)
+{
+  const bool is_point = light.data.type == uint32_t(LightType::PUNCTUAL_POINT);
+  slot.face_count = is_point ? 6 : 1;
+  slot.position = light.object_to_world.location();
+  slot.radius = math::max(light.data.attenuation, 0.02f);
+
+  const float face_res = float(face_size_get(tile_size, slot.face_count));
+  const float guard = 2.0f * SHADOW_FACE_GUARD_TEXELS / face_res;
+  /* Point: 90 degree faces widened by the guard band. Spot: its cone. */
+  const float base_tan = is_point ? 1.0f :
+                                    tanf(math::min(light.data.spot_angle, DEG2RADF(170.0f)) *
+                                         0.5f);
+  const float half_angle = atanf(base_tan * (1.0f + guard));
+  slot.proj = math::projection::perspective_fov(
+      -half_angle, half_angle, -half_angle, half_angle, 0.01f, slot.radius);
+
+  if (is_point) {
+    for (int f = 0; f < 6; f++) {
+      slot.face_view[f] = cube_face_view_get(slot.position, f);
+    }
+  }
+  else {
+    slot.face_view[0] = light_view_get(light.object_to_world);
+  }
+}
+
+void ShadowModule::punctual_tiles_write(
+    const ShadowPunctual &slot, int2 tile_origin, int tile_size, int atlas_res, int atlas)
+{
+  const int face_size = face_size_get(tile_size, slot.face_count);
+  /* tan(half fov) is the (0,0) entry inverse of the projection. */
+  const float texel_scale = 2.0f / (slot.proj[0][0] * float(face_size));
+  for (int f = 0; f < slot.face_count; f++) {
+    if (tile_count_ >= MAX_SHADOW_TILES) {
+      return;
+    }
+    const int2 origin = face_origin_get(tile_origin, face_size, slot.face_count, f);
+    ShadowTileData &tile = tile_buf_[tile_count_++];
+    tile.view_proj = slot.proj * slot.face_view[f];
+    tile.atlas_rect = float4(float2(origin) / float(atlas_res),
+                             float2(float(face_size) / float(atlas_res)));
+    tile.atlas = atlas;
+    tile.texel_scale = texel_scale;
+    tile._pad0 = 0.0f;
+    tile._pad1 = 0.0f;
+  }
+}
+
+uint64_t ShadowModule::caster_signature(float3 center, float radius) const
+{
+  /* Sum of the keys of every caster box touching the sphere: changes when
+   * one of them moves, deforms, appears or disappears. */
+  uint64_t sum = 0;
+  const float r2 = radius * radius;
+  for (const CasterRecord &c : casters_) {
+    const float3 d = math::max(math::abs(center - c.center) - c.half_size, float3(0.0f));
+    if (math::dot(d, d) <= r2) {
+      sum += c.key;
+    }
+  }
+  return sum;
+}
+
 void ShadowModule::end_sync()
 {
-  /* Route each shadow-casting light to the correct atlas.
+  /* Route each shadow-casting light to an atlas and write the faces it reads
+   * into tile_buf_. LightData::shadow_index becomes the index of the first
+   * face (punctual), 0 for the shadowed sun, -1 for no shadow.
    * Priority: LIGHT_FLAG_SHADOW_DYNAMIC -> dynamic (if not full).
    * Fallback: static (if not full). If both full: no shadow. */
   const size_t dynamic_cap = size_t(dynamic_slots_);
   bool has_sun = false;
+  tile_count_ = 0;
 
-  for (LightEntry &light : inst_->lights.entries_) {
+  for (StaticTileCache &cache : static_cache_) {
+    cache.used = false;
+  }
+  /* Static lights that did not find their tile of last frame. */
+  Vector<int, STATIC_PUNCTUAL_SLOTS> unplaced;
+
+  Vector<LightEntry> &entries = inst_->lights.entries_;
+  for (int l = 0; l < int(entries.size()); l++) {
+    LightEntry &light = entries[l];
     if (light.data.shadow_index < 0) {
       continue; /* Shadow casting disabled on this light. */
     }
+    light.data.shadow_index = -1;
 
     if (light.data.type == uint32_t(LightType::SUN)) {
       /* One set of cascades: the first sun wins, the others stay unshadowed. */
       if (!has_sun) {
         update_cascades(inst_->camera, light);
+        light.data.shadow_index = 0;
         has_sun = true;
       }
       continue;
@@ -210,40 +367,119 @@ void ShadowModule::end_sync()
       continue; /* Area lights: shadow not yet supported */
     }
 
-    /* Light-space view and projection. A point light gets a single 90 degree
-     * frustum down its -Z axis for now, not a full cube. */
-    const float spot_angle = (light.data.spot_angle > 0.0f) ? light.data.spot_angle :
-                                                              DEG2RADF(90.0f);
-    const float half_angle = spot_angle * 0.5f;
-    const float far_dist = math::max(light.data.attenuation, 0.02f);
-
-    ShadowPunctual slot;
-    slot.view = math::invert(light.object_to_world);
-    slot.proj = math::projection::perspective_fov(
-        -half_angle, half_angle, -half_angle, half_angle, 0.01f, far_dist);
-    slot.view_proj = slot.proj * slot.view;
+    ShadowPunctual slot = {};
+    slot.uid = light.uid;
+    slot.light_index = l;
     slot.active = true;
-    slot.needs_update = true; /* TODO: dirty tracking, false when static and clean. */
+    slot.needs_update = true;
 
     const bool want_dynamic = (light.data.flags & LIGHT_FLAG_SHADOW_DYNAMIC) != 0;
-
     if (want_dynamic && dynamic_punctual_.size() < dynamic_cap) {
       slot.is_dynamic = true;
       slot.atlas_index = uint32_t(dynamic_punctual_.size());
+      punctual_faces_build(slot, light, DYNAMIC_TILE_SIZE);
       dynamic_punctual_.push_back(slot);
+      continue;
     }
-    else if (static_punctual_.size() < STATIC_PUNCTUAL_SLOTS) {
-      slot.is_dynamic = false;
-      slot.atlas_index = uint32_t(static_punctual_.size());
-      static_punctual_.push_back(slot);
+    if (static_punctual_.size() >= STATIC_PUNCTUAL_SLOTS) {
+      continue; /* Both atlases full, the light casts no shadow this frame. */
     }
-    /* else: both atlases full, the light casts no shadow this frame. */
+    slot.is_dynamic = false;
+    punctual_faces_build(slot, light, STATIC_TILE_SIZE);
+    /* Keep the tile this light had: its content may still be valid. */
+    int tile = -1;
+    for (int t = 0; t < STATIC_PUNCTUAL_SLOTS; t++) {
+      if (static_cache_[t].valid && !static_cache_[t].used &&
+          static_cache_[t].light_uid == slot.uid)
+      {
+        tile = t;
+        break;
+      }
+    }
+    if (tile < 0) {
+      unplaced.append(int(static_punctual_.size()));
+    }
+    else {
+      static_cache_[tile].used = true;
+      slot.atlas_index = uint32_t(tile);
+    }
+    static_punctual_.push_back(slot);
+  }
+
+  /* New static lights take the free tiles, invalid ones first. */
+  for (int idx : unplaced) {
+    int tile = -1;
+    for (int pass = 0; pass < 2 && tile < 0; pass++) {
+      for (int t = 0; t < STATIC_PUNCTUAL_SLOTS; t++) {
+        if (!static_cache_[t].used && (pass == 1 || !static_cache_[t].valid)) {
+          tile = t;
+          break;
+        }
+      }
+    }
+    static_cache_[tile].used = true;
+    static_cache_[tile].valid = false;
+    static_punctual_[idx].atlas_index = uint32_t(tile);
+  }
+
+  /* Static tiles are redrawn only when what they hold would change. */
+  for (ShadowPunctual &slot : static_punctual_) {
+    StaticTileCache &cache = static_cache_[slot.atlas_index];
+    const uint64_t signature = caster_signature(slot.position, slot.radius);
+    slot.needs_update = !cache.valid || cache.light_uid != slot.uid ||
+                        cache.signature != signature || cache.proj != slot.proj ||
+                        cache.face_view0 != slot.face_view[0];
+    cache.light_uid = slot.uid;
+    cache.face_view0 = slot.face_view[0];
+    cache.proj = slot.proj;
+    cache.signature = signature;
+    cache.valid = true;
+
+    entries[slot.light_index].data.shadow_index = tile_count_;
+    punctual_tiles_write(slot,
+                         static_tile_origin(slot.atlas_index),
+                         STATIC_TILE_SIZE,
+                         STATIC_ATLAS_RES,
+                         0);
+  }
+  /* Tiles nobody claimed this frame keep their depth but no longer match a
+   * light: drop them so a new light never trusts them. */
+  for (StaticTileCache &cache : static_cache_) {
+    if (!cache.used) {
+      cache.valid = false;
+    }
+  }
+
+  const int tiles_per_side = int(sqrtf(float(int(dynamic_slots_))));
+  for (ShadowPunctual &slot : dynamic_punctual_) {
+    entries[slot.light_index].data.shadow_index = tile_count_;
+    const int2 origin = int2(int(slot.atlas_index) % tiles_per_side,
+                             int(slot.atlas_index) / tiles_per_side) *
+                        DYNAMIC_TILE_SIZE;
+    punctual_tiles_write(
+        slot, origin, DYNAMIC_TILE_SIZE, tiles_per_side * DYNAMIC_TILE_SIZE, 1);
+  }
+  tile_buf_.push_update();
+
+  /* Cascades follow the camera: redrawn when their matrices move or any
+   * caster changed. */
+  CascadeCache &cc = cascade_cache_;
+  bool cascades_same = cc.valid && cc.count == int(cascades_.size()) &&
+                       cc.signature == casters_signature_;
+  for (int i = 0; i < int(cascades_.size()) && cascades_same; i++) {
+    cascades_same = cc.view_proj[i] == cascades_[i].view_proj;
+  }
+  cascades_need_update_ = !cascades_same && !cascades_.empty();
+  cc.count = int(cascades_.size());
+  cc.signature = casters_signature_;
+  cc.valid = true;
+  for (int i = 0; i < int(cascades_.size()); i++) {
+    cc.view_proj[i] = cascades_[i].view_proj;
   }
 }
 
-void ShadowModule::sync_object(Object *ob, ResourceHandleRange res_handle)
+void ShadowModule::sync_object(Object *ob, uint64_t uid)
 {
-  (void)res_handle;
   if (ob->visibility_flag & OB_HIDE_SHADOW) {
     return;
   }
@@ -261,11 +497,16 @@ void ShadowModule::sync_object(Object *ob, ResourceHandleRange res_handle)
                     math::abs(m.z_axis()) * le.z;
   caster_min_ = math::min(caster_min_, wc - we);
   caster_max_ = math::max(caster_max_, wc + we);
-  /* TODO (dirty tracking): intersect ob's world AABB against each static
-   * light's influence sphere. If they overlap, set needs_update = true on
-   * that ShadowPunctual slot so render_static_atlas() re-renders it.
-   * Until then, conservative path: all static slots refresh every frame
-   * (needs_update is initialised to true in end_sync()). */
+
+  /* The key changes with the identity, the world box and the geometry
+   * evaluation stamp (deformation inside an unchanged box, GPU skinning). */
+  uint64_t key = mix64(uid);
+  for (int k = 0; k < 3; k++) {
+    key = mix64(key ^ float_bits(wc[k]) ^ (float_bits(we[k]) << 32));
+  }
+  key = mix64(key ^ ob->runtime->last_update_geometry);
+  casters_.push_back({wc, we, key});
+  casters_signature_ += key;
 }
 
 /* =========================================================================
@@ -296,45 +537,81 @@ void ShadowModule::render_tile(Framebuffer &fb, View &view, int2 tile_origin, in
   inst_->manager->submit(inst_->pipelines.prepass_opaque_get(), view);
 }
 
+static View &view_ensure(std::vector<std::unique_ptr<View>> &views, int index, const char *name)
+{
+  /* Views own GPU buffers: created on first use, then kept. */
+  if (int(views.size()) <= index) {
+    views.resize(index + 1);
+  }
+  if (!views[index]) {
+    views[index] = std::make_unique<View>(name);
+  }
+  return *views[index];
+}
+
+void ShadowModule::render_punctual(Framebuffer &fb,
+                                   std::vector<std::unique_ptr<View>> &views,
+                                   const ShadowPunctual &slot,
+                                   int2 tile_origin,
+                                   int tile_size)
+{
+  const int face_size = face_size_get(tile_size, slot.face_count);
+  for (int f = 0; f < slot.face_count; f++) {
+    View &view = view_ensure(views, int(slot.atlas_index) * 6 + f, "Shadow.Punctual");
+    view.sync(slot.face_view[f], slot.proj);
+    render_tile(fb,
+                view,
+                face_origin_get(tile_origin, face_size, slot.face_count, f),
+                face_size);
+  }
+}
+
+/* Depth clear of one rectangle: a clear ignores the viewport but honors the
+ * scissor. Reversed depth: 0 is the far plane. */
+static void clear_rect(Framebuffer &fb, int2 origin, int2 size)
+{
+  GPU_scissor_test(true);
+  GPU_scissor(origin.x, origin.y, size.x, size.y);
+  GPU_framebuffer_clear_depth(fb, 0.0f);
+  GPU_scissor_test(false);
+}
+
 /* =========================================================================
  * render_static_atlas()
  * ========================================================================= */
 
 void ShadowModule::render_static_atlas()
 {
-  if (cascades_.empty() && static_punctual_.empty()) {
+  bool any_punctual = false;
+  for (const ShadowPunctual &p : static_punctual_) {
+    any_punctual |= p.active && p.needs_update;
+  }
+  if (!cascades_need_update_ && !any_punctual) {
+    /* Nothing changed: the atlas still holds this frame's shadows. */
     return;
   }
 
   GPU_debug_group_begin("Shadow.Static");
-
-  /* A depth clear ignores the viewport, so it cannot be done per tile: it
-   * would wipe the tiles already rendered. Clear the whole atlas once. This
-   * is also why every static slot is re-rendered below; skipping clean slots
-   * needs a scissored clear first. */
   static_fb_.bind();
-  GPU_framebuffer_clear_depth(static_fb_, 0.0f);
 
-  /* CSM cascades: row 0. Re-rendered every frame, they follow the camera. */
-  for (int i = 0; i < int(cascades_.size()); ++i) {
-    View &view = *cascade_views_[i];
-    view.sync(cascades_[i].view, cascades_[i].proj);
-    render_tile(static_fb_, view, int2(i * STATIC_TILE_SIZE, 0), STATIC_TILE_SIZE);
+  /* CSM cascades: row 0. */
+  if (cascades_need_update_) {
+    clear_rect(static_fb_, int2(0), int2(STATIC_ATLAS_RES, STATIC_TILE_SIZE));
+    for (int i = 0; i < int(cascades_.size()); ++i) {
+      View &view = *cascade_views_[i];
+      view.sync(cascades_[i].view, cascades_[i].proj);
+      render_tile(static_fb_, view, int2(i * STATIC_TILE_SIZE, 0), STATIC_TILE_SIZE);
+    }
   }
 
-  /* Static punctual lights: rows 1..3, 4 columns.
-   * atlas_index is flat [0..11]; col = idx % 4, row = 1 + idx / 4. */
+  /* Static punctual lights: rows 1..3, only the tiles whose content changed. */
   for (ShadowPunctual &p : static_punctual_) {
-    if (!p.active) {
+    if (!p.active || !p.needs_update) {
       continue;
     }
-    const int col = int(p.atlas_index) % 4;
-    const int row = 1 + int(p.atlas_index) / 4;
-
-    View &view = *static_views_[p.atlas_index];
-    view.sync(p.view, p.proj);
-    render_tile(static_fb_, view, int2(col, row) * STATIC_TILE_SIZE, STATIC_TILE_SIZE);
-
+    const int2 origin = static_tile_origin(p.atlas_index);
+    clear_rect(static_fb_, origin, int2(STATIC_TILE_SIZE));
+    render_punctual(static_fb_, static_views_, p, origin, STATIC_TILE_SIZE);
     p.needs_update = false;
   }
 
@@ -365,12 +642,10 @@ void ShadowModule::render_dynamic_atlas()
     if (!p.active) {
       continue;
     }
-    const int col = int(p.atlas_index) % tiles_per_side;
-    const int row = int(p.atlas_index) / tiles_per_side;
-
-    View &view = *dynamic_views_[p.atlas_index];
-    view.sync(p.view, p.proj);
-    render_tile(dynamic_fb_, view, int2(col, row) * DYNAMIC_TILE_SIZE, DYNAMIC_TILE_SIZE);
+    const int2 origin = int2(int(p.atlas_index) % tiles_per_side,
+                             int(p.atlas_index) / tiles_per_side) *
+                        DYNAMIC_TILE_SIZE;
+    render_punctual(dynamic_fb_, dynamic_views_, p, origin, DYNAMIC_TILE_SIZE);
   }
 
   GPU_framebuffer_viewport_reset(dynamic_fb_);
@@ -429,17 +704,18 @@ void ShadowModule::dispatch_pcf(int2 extent)
 }
 
 /* =========================================================================
- * bind_resources(): forward shading
+ * bind_resources(): punctual shadow lookup (deferred lighting)
  * ========================================================================= */
 
 void ShadowModule::bind_resources(PassSimple &ps)
 {
-  /* Both atlases are bound so the forward pass can resolve static and
-   * dynamic punctual shadows directly without going through shadow_mask_tx. */
-  ps.bind_texture("shadow_static_atlas_tx", static_atlas_tx_);
-  if (dynamic_atlas_tx_.is_valid()) {
-    ps.bind_texture("shadow_dynamic_atlas_tx", dynamic_atlas_tx_);
-  }
+  ps.bind_ssbo("shadow_tile_buf", &tile_buf_);
+  ps.bind_texture("shadow_static_atlas", static_atlas_tx_);
+  /* No face points into the dynamic atlas when it is off: any depth texture
+   * satisfies the binding. */
+  gpu::Texture *dynamic_atlas = dynamic_atlas_tx_.is_valid() ? (gpu::Texture *)dynamic_atlas_tx_ :
+                                                               (gpu::Texture *)static_atlas_tx_;
+  ps.bind_texture("shadow_dynamic_atlas", dynamic_atlas);
 }
 
 }  // namespace blender::eevee_game

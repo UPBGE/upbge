@@ -50,6 +50,22 @@ struct [[host_shared]] LightData {
   uint flags;
 };
 
+/* One rendered shadow face: a spot light, or one cube face of a point light
+ * (six consecutive entries ordered +X -X +Y -Y +Z -Z). A punctual light's
+ * LightData::shadow_index is the index of its first face. */
+struct [[host_shared]] ShadowTileData {
+  float4x4 view_proj;
+  /** Atlas UV rectangle of the face: min in xy, size in zw. */
+  float4 atlas_rect;
+  /** 0: static atlas, 1: dynamic atlas. */
+  int atlas;
+  /** World size of one texel at unit distance from the light:
+   * 2 tan(half fov) / face resolution. */
+  float texel_scale;
+  float _pad0;
+  float _pad1;
+};
+
 #ifndef GPU_SHADER
 }  // namespace blender::eevee_game
 #endif

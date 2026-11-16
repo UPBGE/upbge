@@ -206,7 +206,7 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &handle, const ObjectRef &ob
   }
 
   /* Shadow caster registration */
-  inst_.shadows.sync_object(ob, res_handle);
+  inst_.shadows.sync_object(ob, handle.object_key.hash());
 
   /* Per-draw attributes (e.g. UV maps, vertex colors used by materials) */
   inst_.manager->extract_object_attributes(res_handle, ob_ref, mat_array.gpu_materials);
@@ -218,13 +218,14 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &handle, const ObjectRef &ob
 /** \name Light sync
  * \{ */
 
-void SyncModule::sync_light(Object *ob, ObjectHandle & /*handle*/)
+void SyncModule::sync_light(Object *ob, ObjectHandle &handle)
 {
   const blender::Light *la = &DRW_object_get_data_for_drawing<const blender::Light>(*ob);
 
   /* Build a LightEntry from the Blender light DNA and the evaluated object matrix. */
   LightEntry entry;
   entry.object_to_world = ob->object_to_world();
+  entry.uid = handle.object_key.hash();
 
   /* Map Blender light type to our LightType enum. */
   switch (la->type) {

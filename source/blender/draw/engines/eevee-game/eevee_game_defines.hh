@@ -31,6 +31,8 @@ inline int2 texture_extent(gpu::Texture *tx)
 
 #define MAX_LIGHTS           512    /* Maximum lights for Tiled Deferred evaluation */
 #define MAX_SHADOW_CASCADES  4      /* Standard CSM cascades */
+/* Shadow faces: 12 static + 64 dynamic slots, six faces for a point light. */
+#define MAX_SHADOW_TILES     512
 #define SHADOW_ATLAS_RES     4096   /* Resolution of the fixed shadow atlas */
 #define VOLUME_FROXEL_Z      64     /* Depth slices for volumetric fog */
 #define RAY_STEPS_MAX        128    /* Maximum steps for SSR/SSGI tracing */

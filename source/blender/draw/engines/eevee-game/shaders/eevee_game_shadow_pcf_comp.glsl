@@ -136,7 +136,12 @@ float pcf_3x3(sampler2DShadow atlas, vec3 shadow_coord, vec2 tile_min, vec2 tile
       vec2 tap_uv  = shadow_coord.xy + vec2(float(x), float(y)) * offset;
       /* Taps must not leak into the neighbouring cascade tile. */
       tap_uv = clamp(tap_uv, tile_min, tile_max);
-      sum += texture(atlas, vec3(tap_uv, shadow_coord.z));
+      /* The compare is `ref <= stored` (LEQUAL, fixed by the GPU module).
+       * With reversed depth the stored value is the nearest surface to the
+       * light, so the compare is true when something at least as near as the
+       * receiver is there: that is the occluded case. The normal bias moves
+       * the receiver toward the light, past its own stored depth. */
+      sum += 1.0 - texture(atlas, vec3(tap_uv, shadow_coord.z));
     }
   }
   return sum / 9.0;
@@ -222,8 +227,8 @@ void main()
   vec2 half_texel = vec2(0.5) / vec2(shadow_map_res);
   vec3 atlas_coord;
   atlas_coord.xy = tile_min + shadow_coord.xy * 0.25;
-  /* The atlas stores reversed depth (1 = near the light) and the sampler
-   * compares `ref <= stored`, so the reference is reversed as well. */
+  /* The atlas stores reversed depth (1 = near the light): reverse the
+   * reference to compare in the same space. */
   atlas_coord.z = 1.0 - shadow_coord.z;
 
   /* Fixed filter radius driven by pcf_offset_scale (1.0 = 2 texels). */

@@ -97,6 +97,9 @@ struct LightEntry {
   LightType type;
   float4x4  object_to_world;
   LightData data;
+  /* Stable identity across frames (ObjectKey hash): keeps a static shadow
+   * slot and its cached atlas tile bound to the same light. */
+  uint64_t  uid = 0;
 };
 
 /* ---- LightModule ---- */

@@ -97,6 +97,68 @@ float3 light_incoming(LightData light, float3 P, out float3 L)
   return light.color * (intensity * falloff);
 }
 
+/* Shadow of a punctual light: 3x3 PCF in the atlas face that sees P (one
+ * face for a spot, the cube face of the dominant axis for a point light).
+ * Returns the lit fraction. */
+float punctual_shadow(LightData light, float3 P, float3 N)
+{
+  float3 to_p = P - light.position;
+  int tile_index = light.shadow_index;
+  if (light.type == LIGHT_TYPE_POINT) {
+    /* Faces are ordered +X -X +Y -Y +Z -Z. */
+    float3 a = abs(to_p);
+    int face;
+    if (a.x >= a.y && a.x >= a.z) {
+      face = (to_p.x > 0.0f) ? 0 : 1;
+    }
+    else if (a.y >= a.z) {
+      face = (to_p.y > 0.0f) ? 2 : 3;
+    }
+    else {
+      face = (to_p.z > 0.0f) ? 4 : 5;
+    }
+    tile_index += face;
+  }
+  ShadowTileData tile = shadow_tile_buf[tile_index];
+
+  /* Normal offset of 1.5 texels measured at the receiver: a texel of a
+   * perspective face grows linearly with the distance to the light. It
+   * removes acne without a depth bias that would detach contact shadows. */
+  float texel_world = tile.texel_scale * length(to_p);
+  float4 clip = tile.view_proj * float4(P + N * (1.5f * texel_world), 1.0f);
+  if (clip.w <= 0.0f) {
+    return 1.0f;
+  }
+  float3 ndc = clip.xyz / clip.w;
+  if (any(greaterThan(abs(ndc.xy), float2(1.0f)))) {
+    /* Outside the spot cone: the cone falloff already darkened it. */
+    return 1.0f;
+  }
+
+  float2 atlas_size = (tile.atlas == 0) ? float2(textureSize(shadow_static_atlas, 0)) :
+                                          float2(textureSize(shadow_dynamic_atlas, 0));
+  float2 texel = 1.0f / atlas_size;
+  float2 uv = tile.atlas_rect.xy + (ndc.xy * 0.5f + 0.5f) * tile.atlas_rect.zw;
+  /* Taps stay inside the face, the guard band covers the footprint. */
+  float2 lo = tile.atlas_rect.xy + 0.5f * texel;
+  float2 hi = tile.atlas_rect.xy + tile.atlas_rect.zw - 0.5f * texel;
+  /* The atlas holds reversed depth (1 = near the light). */
+  float ref = 0.5f - 0.5f * ndc.z;
+
+  /* `ref <= stored` (LEQUAL) holds where something at least as near as the
+   * receiver was drawn: the occluded case. Explicit LOD: the atlas choice
+   * makes the control flow non uniform. */
+  float occluded = 0.0f;
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      float3 tap = float3(clamp(uv + float2(x, y) * texel, lo, hi), ref);
+      occluded += (tile.atlas == 0) ? textureLod(shadow_static_atlas, tap, 0.0f) :
+                                      textureLod(shadow_dynamic_atlas, tap, 0.0f);
+    }
+  }
+  return 1.0f - occluded * (1.0f / 9.0f);
+}
+
 void main()
 {
   int2 texel = int2(gl_FragCoord.xy);
@@ -122,51 +184,63 @@ void main()
    * until there are probes. */
   float3 indirect = (bounce + world_ambient) * ao;
 
-  uchar closure_count = gbuf.header.closure_len();
+  int closure_count = min(int(gbuf.header.closure_len()), GBUFFER_LAYER_MAX);
+  ClosureUndetermined cl[GBUFFER_LAYER_MAX];
+  float3 light_sum[GBUFFER_LAYER_MAX];
+  for (int i = 0; i < closure_count; i++) {
+    cl[i] = gbuf.layer_get(uchar(i));
+    light_sum[i] = float3(0.0f);
+  }
 
-  float3 radiance = float3(0.0f);
-  for (uchar i = 0; i < GBUFFER_LAYER_MAX && i < closure_count; i++) {
-    ClosureUndetermined cl = gbuf.layer_get(i);
+  /* Lights outside, shadows inside: the shadow lookup is the expensive
+   * part and is shared by every closure of the pixel. */
+  for (int l = 0; l < light_count; l++) {
+    LightData light = light_buf[l];
 
-    float3 light_sum = float3(0.0f);
-    for (int l = 0; l < light_count; l++) {
-      LightData light = light_buf[l];
+    float3 L;
+    float3 incoming = light_incoming(light, P, L);
+    if (all(equal(incoming, float3(0.0f)))) {
+      /* Out of range or outside the cone. */
+      continue;
+    }
 
-      float3 L;
-      float3 incoming = light_incoming(light, P, L);
+    if (light.shadow_index >= 0) {
+      /* The sun shadow comes filtered from the PCF compute, the punctual
+       * ones are looked up here, offset along the first closure normal. */
+      incoming *= (light.type == LIGHT_TYPE_SUN) ? sun_shadow :
+                                                   punctual_shadow(light, P, cl[0].N);
+    }
 
-      /* The mask is the filtered shadow of the sun cascades only. */
-      if (light.type == LIGHT_TYPE_SUN && light.shadow_index >= 0) {
-        incoming *= sun_shadow;
-      }
-
+    for (int i = 0; i < closure_count; i++) {
       float lobe = 0.0f;
-      switch (cl.type) {
+      switch (cl[i].type) {
         case CLOSURE_BSSRDF_BURLEY_ID:
         case CLOSURE_BSDF_DIFFUSE_ID:
           /* Lambert: a constant 1 / pi in every direction. */
-          lobe = saturate(dot(cl.N, L)) * M_1_PI;
+          lobe = saturate(dot(cl[i].N, L)) * M_1_PI;
           break;
         case CLOSURE_BSDF_TRANSLUCENT_ID:
           /* Lit from behind. */
-          lobe = saturate(-dot(cl.N, L)) * M_1_PI;
+          lobe = saturate(-dot(cl[i].N, L)) * M_1_PI;
           break;
         case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
-          lobe = ggx_lobe(cl.N, L, V, to_closure_reflection(cl).roughness);
+          lobe = ggx_lobe(cl[i].N, L, V, to_closure_reflection(cl[i]).roughness);
           break;
         default:
           /* Refraction needs what is behind the surface; no direct term. */
           break;
       }
-      light_sum += incoming * lobe;
+      light_sum[i] += incoming * lobe;
     }
+  }
 
+  float3 radiance = float3(0.0f);
+  for (int i = 0; i < closure_count; i++) {
     /* Refraction gets no ambient either: it would turn glass opaque. */
-    if (cl.type != CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID) {
-      light_sum += indirect;
+    if (cl[i].type != CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID) {
+      light_sum[i] += indirect;
     }
-
-    radiance += light_sum * cl.color;
+    radiance += light_sum[i] * cl[i].color;
   }
 
   /* Alpha is transmittance and the blend is additive: adding zero keeps what
