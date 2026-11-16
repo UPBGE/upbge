@@ -146,6 +146,8 @@ PyAttributeDef SCA_PythonJoystick::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("gyro", SCA_PythonJoystick, pyattr_get_gyro),
     EXP_PYATTRIBUTE_RO_FUNCTION("gyroDelta", SCA_PythonJoystick, pyattr_get_gyro_delta),
     EXP_PYATTRIBUTE_RO_FUNCTION("accel", SCA_PythonJoystick, pyattr_get_accel),
+    EXP_PYATTRIBUTE_RO_FUNCTION("touchpads", SCA_PythonJoystick, pyattr_get_touchpads),
+    EXP_PYATTRIBUTE_RO_FUNCTION("battery", SCA_PythonJoystick, pyattr_get_battery),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
@@ -472,6 +474,43 @@ PyObject *SCA_PythonJoystick::pyattr_get_accel(EXP_PyObjectPlus *self_v,
 {
   SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
   return vec3_to_python(self->m_joystick->GetAccel());
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_touchpads(EXP_PyObjectPlus *self_v,
+                                                   const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  /* One list per touchpad (the Steam Deck has two), each holding its fingers as
+   * (down, x, y, pressure) tuples. */
+  const int num_touchpads = self->m_joystick->GetNumTouchpads();
+  PyObject *touchpads = PyList_New(num_touchpads);
+  for (int t = 0; t < num_touchpads; t++) {
+    float fingers[8][4];
+    const int num_fingers = self->m_joystick->GetTouchpadFingers(t, fingers, 8);
+    PyObject *list = PyList_New(num_fingers);
+    for (int f = 0; f < num_fingers; f++) {
+      PyObject *finger = PyTuple_New(4);
+      PyTuple_SET_ITEM(finger, 0, PyBool_FromLong(fingers[f][0] != 0.0f));
+      PyTuple_SET_ITEM(finger, 1, PyFloat_FromDouble(fingers[f][1]));
+      PyTuple_SET_ITEM(finger, 2, PyFloat_FromDouble(fingers[f][2]));
+      PyTuple_SET_ITEM(finger, 3, PyFloat_FromDouble(fingers[f][3]));
+      PyList_SET_ITEM(list, f, finger);
+    }
+    PyList_SET_ITEM(touchpads, t, list);
+  }
+  return touchpads;
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_battery(EXP_PyObjectPlus *self_v,
+                                                 const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  int percent;
+  const char *state = self->m_joystick->GetBatteryState(&percent);
+  PyObject *tuple = PyTuple_New(2);
+  PyTuple_SET_ITEM(tuple, 0, PyUnicode_FromString(state));
+  PyTuple_SET_ITEM(tuple, 1, PyLong_FromLong(percent));
+  return tuple;
 }
 
 #endif  // WITH_PYTHON

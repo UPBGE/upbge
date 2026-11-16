@@ -92,5 +92,9 @@ class SCA_PythonJoystick : public EXP_Value {
   static PyObject *pyattr_get_gyro_delta(EXP_PyObjectPlus *self_v,
                                          const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_accel(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_touchpads(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_battery(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };

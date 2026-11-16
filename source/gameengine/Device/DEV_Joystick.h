@@ -259,4 +259,17 @@ class DEV_Joystick
   {
     return m_accel;
   }
+
+  /**
+   * Touchpads (DEV_JoystickFeatures.cpp). Fingers are written as {down, x, y, pressure}, with x
+   * and y in [0, 1] from the top-left corner; returns the number of fingers written.
+   */
+  int GetNumTouchpads() const;
+  int GetTouchpadFingers(int touchpad, float (*r_fingers)[4], int max_fingers) const;
+
+  /**
+   * Battery: SDL power state ("on_battery", "no_battery", "charging", "charged", "unknown" or
+   * "error"); r_percent receives the charge level, or -1 when unknown.
+   */
+  const char *GetBatteryState(int *r_percent) const;
 };

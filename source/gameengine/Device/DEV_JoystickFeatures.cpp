@@ -23,9 +23,9 @@
 /** \file gameengine/Device/DEV_JoystickFeatures.cpp
  *  \ingroup device
  *
- * Optional controller features exposed by SDL 3: identity, player index, motion sensors. Nothing
- * here runs per logic tick; every function is called only when a script asks. Sensor samples
- * are handled in DEV_JoystickEvents.cpp.
+ * Optional controller features exposed by SDL 3. Nothing here runs per logic tick: every
+ * function is called only when a script asks. Sensor samples are handled in
+ * DEV_JoystickEvents.cpp.
  */
 
 #include "DEV_Joystick.h"
@@ -160,4 +160,65 @@ bool DEV_Joystick::EnableSensors(bool gyro, bool accel)
 #else
   return false;
 #endif
+}
+
+int DEV_Joystick::GetNumTouchpads() const
+{
+#ifdef WITH_SDL
+  if (m_private->m_gamecontroller) {
+    return SDL_GetNumGamepadTouchpads(m_private->m_gamecontroller);
+  }
+#endif
+  return 0;
+}
+
+int DEV_Joystick::GetTouchpadFingers(int touchpad, float (*r_fingers)[4], int max_fingers) const
+{
+#ifdef WITH_SDL
+  SDL_Gamepad *gamepad = m_private->m_gamecontroller;
+  if (!gamepad) {
+    return 0;
+  }
+  int count = SDL_GetNumGamepadTouchpadFingers(gamepad, touchpad);
+  count = (count < max_fingers) ? count : max_fingers;
+  for (int f = 0; f < count; f++) {
+    bool down = false;
+    float x = 0.0f, y = 0.0f, pressure = 0.0f;
+    if (!SDL_GetGamepadTouchpadFinger(gamepad, touchpad, f, &down, &x, &y, &pressure)) {
+      down = false;
+      x = y = pressure = 0.0f;
+    }
+    r_fingers[f][0] = down ? 1.0f : 0.0f;
+    r_fingers[f][1] = x;
+    r_fingers[f][2] = y;
+    r_fingers[f][3] = pressure;
+  }
+  return (count > 0) ? count : 0;
+#else
+  return 0;
+#endif
+}
+
+const char *DEV_Joystick::GetBatteryState(int *r_percent) const
+{
+  *r_percent = -1;
+#ifdef WITH_SDL
+  if (m_private->m_gamecontroller) {
+    switch (SDL_GetGamepadPowerInfo(m_private->m_gamecontroller, r_percent)) {
+      case SDL_POWERSTATE_ON_BATTERY:
+        return "on_battery";
+      case SDL_POWERSTATE_NO_BATTERY:
+        return "no_battery";
+      case SDL_POWERSTATE_CHARGING:
+        return "charging";
+      case SDL_POWERSTATE_CHARGED:
+        return "charged";
+      case SDL_POWERSTATE_ERROR:
+        return "error";
+      default:
+        break;
+    }
+  }
+#endif
+  return "unknown";
 }
