@@ -57,6 +57,7 @@ static const EnumPropertyItem actuator_type_items[] = {
     {ACT_EDIT_OBJECT, "EDIT_OBJECT", 0, "Edit Object", ""},
     {ACT_2DFILTER, "FILTER_2D", 0, "Filter 2D", ""},
     {ACT_GAME, "GAME", 0, "Game", ""},
+    {ACT_LED, "LED", 0, "LED", ""},
     {ACT_MESSAGE, "MESSAGE", 0, "Message", ""},
     {ACT_OBJECT, "MOTION", 0, "Motion", ""},
     {ACT_MOUSE, "MOUSE", 0, "Mouse", ""},
@@ -110,6 +111,8 @@ static StructRNA *rna_Actuator_refine(struct PointerRNA *ptr)
       return RNA_GameActuator;
     case ACT_VIBRATION:
       return RNA_VibrationActuator;
+    case ACT_LED:
+      return RNA_LedActuator;
     case ACT_VISIBILITY:
       return RNA_VisibilityActuator;
     case ACT_2DFILTER:
@@ -524,6 +527,7 @@ const EnumPropertyItem *rna_Actuator_type_itemf(bContext *C,
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_EDIT_OBJECT);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_2DFILTER);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_GAME);
+  RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_LED);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_MESSAGE);
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_OBJECT);  // MOTION
   RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_MOUSE);
@@ -1999,6 +2003,33 @@ static void rna_def_vibration_actuator(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 }
 
+static void rna_def_led_actuator(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "LedActuator", "Actuator");
+  RNA_def_struct_ui_text(
+      srna, "LED Actuator", "Actuator to set the light bar or LED color of a joystick");
+  RNA_def_struct_sdna_from(srna, "bLedActuator", "data");
+
+  prop = RNA_def_property(srna, "joy_index", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "joyindex");
+  RNA_def_property_range(prop, 0, 7);
+  RNA_def_property_ui_text(prop, "Joystick Index", "Joystick index");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "color");
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop,
+                           "Color",
+                           "Color of the light bar or LED. On single-color LEDs the brightest "
+                           "channel sets the brightness");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+}
+
 static void rna_def_visibility_actuator(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -2499,6 +2530,7 @@ void RNA_def_actuator(BlenderRNA *brna)
   rna_def_message_actuator(brna);
   rna_def_game_actuator(brna);
   rna_def_vibration_actuator(brna);
+  rna_def_led_actuator(brna);
   rna_def_visibility_actuator(brna);
   rna_def_twodfilter_actuator(brna);
   rna_def_parent_actuator(brna);

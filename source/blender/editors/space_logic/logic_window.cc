@@ -468,6 +468,8 @@ static const char *actuator_name(int type)
       return N_("State");
     case ACT_VIBRATION:
       return N_("Vibration");
+    case ACT_LED:
+      return N_("LED");
     case ACT_ARMATURE:
       return N_("Armature");
     case ACT_STEERING:
@@ -1322,6 +1324,12 @@ static void draw_sensor_joystick(blender::ui::Layout *layout, PointerRNA *ptr)
     case SENS_JOY_CONNECTION:
       break;
   }
+}
+
+static void draw_actuator_led(blender::ui::Layout *layout, PointerRNA *ptr)
+{
+  layout->prop(ptr, "joy_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void draw_actuator_vibration(blender::ui::Layout *layout, PointerRNA *ptr)
@@ -2628,6 +2636,9 @@ static void draw_brick_actuator(blender::ui::Layout *layout, PointerRNA *ptr, bC
       break;
     case ACT_VIBRATION:
       draw_actuator_vibration(box, ptr);
+      break;
+    case ACT_LED:
+      draw_actuator_led(box, ptr);
       break;
     case ACT_VISIBILITY:
       draw_actuator_visibility(box, ptr);

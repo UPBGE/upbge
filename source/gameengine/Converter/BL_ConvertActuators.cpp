@@ -66,6 +66,7 @@
 #include "SCA_DynamicActuator.h"
 #include "SCA_EndObjectActuator.h"
 #include "SCA_GameActuator.h"
+#include "SCA_LedActuator.h"
 #include "SCA_MouseActuator.h"
 #include "SCA_NetworkMessageActuator.h"
 #include "SCA_ObjectActuator.h"
@@ -830,6 +831,11 @@ void BL_ConvertActuators(const char *maggiename,
             gameobj, mode, joyindex, strengthLeft, strengthRight, duration);
 
         baseact = tmp_vib_act;
+        break;
+      }
+      case ACT_LED: {
+        const bLedActuator *led_act = (bLedActuator *)bact->data;
+        baseact = new SCA_LedActuator(gameobj, led_act->joyindex, led_act->color);
         break;
       }
       case ACT_VISIBILITY: {

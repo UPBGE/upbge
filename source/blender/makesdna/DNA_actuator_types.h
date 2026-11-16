@@ -214,6 +214,12 @@ typedef struct bVibrationActuator {
   int duration;
 } bVibrationActuator;
 
+/* Sets the light bar or LED of a controller. */
+typedef struct bLedActuator {
+  int joyindex;
+  float color[3]; /* 0 to 1 */
+} bLedActuator;
+
 typedef struct bVisibilityActuator {
   /** bit 0: Is this object visible?
    ** bit 1: Apply recursively
@@ -360,6 +366,7 @@ typedef struct bActuator {
 #define ACT_MOUSE 25
 #define ACT_VIBRATION 26
 #define ACT_COLLECTION 27
+#define ACT_LED 28
 
 /* actuator flag */
 #define ACT_SHOW 1

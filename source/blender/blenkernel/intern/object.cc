@@ -889,6 +889,9 @@ static void write_actuators(BlendWriter *writer, ListBaseT<bActuator> *lb)
       case ACT_VIBRATION:
         writer->write_struct_cast<bVibrationActuator>(act->data);
         break;
+      case ACT_LED:
+        writer->write_struct_cast<bLedActuator>(act->data);
+        break;
       case ACT_VISIBILITY:
         writer->write_struct_cast<bVisibilityActuator>(act->data);
         break;

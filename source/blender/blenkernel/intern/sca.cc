@@ -500,6 +500,12 @@ void BKE_sca_init_actuator(bActuator *act)
       via->duration = 500;  // milliseconds
       via->strength = 0.4;
       break;
+    case ACT_LED: {
+      act->data = MEM_new_zeroed(sizeof(bLedActuator), "led act");
+      bLedActuator *led = (bLedActuator *)act->data;
+      led->color[0] = led->color[1] = led->color[2] = 1.0f;
+      break;
+    }
     case ACT_VISIBILITY:
       act->data = MEM_new_zeroed(sizeof(bVisibilityActuator), "visibility act");
       break;
@@ -1231,6 +1237,7 @@ void BKE_sca_actuators_id_loop(ListBaseT<bActuator> *actlist, SCAActuatorIDFunc 
       case ACT_RANDOM:
       case ACT_GAME:
       case ACT_VIBRATION:
+      case ACT_LED:
       case ACT_VISIBILITY:
       case ACT_SHAPEACTION:
       case ACT_STATE:

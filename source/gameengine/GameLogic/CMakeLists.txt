@@ -80,6 +80,7 @@ set(SRC
   SCA_JoystickSensor.cpp
   SCA_KeyboardManager.cpp
   SCA_KeyboardSensor.cpp
+  SCA_LedActuator.cpp
   SCA_LogicManager.cpp
   SCA_MouseActuator.cpp
   SCA_MouseFocusSensor.cpp
@@ -148,6 +149,7 @@ set(SRC
   SCA_JoystickSensor.h
   SCA_KeyboardManager.h
   SCA_KeyboardSensor.h
+  SCA_LedActuator.h
   SCA_LogicManager.h
   SCA_MouseActuator.h
   SCA_MouseFocusSensor.h

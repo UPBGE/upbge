@@ -80,6 +80,7 @@
 #  include "SCA_InputEvent.h"
 #  include "SCA_JoystickSensor.h"
 #  include "SCA_KeyboardSensor.h"
+#  include "SCA_LedActuator.h"
 #  include "SCA_MouseActuator.h"
 #  include "SCA_MouseFocusSensor.h"
 #  include "SCA_MouseSensor.h"
@@ -292,6 +293,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
     PyType_Ready_Attr(dict, SCA_RandomActuator, init_getset);
     PyType_Ready_Attr(dict, SCA_RandomSensor, init_getset);
     PyType_Ready_Attr(dict, SCA_VibrationActuator, init_getset);
+    PyType_Ready_Attr(dict, SCA_LedActuator, init_getset);
     PyType_Ready_Attr(dict, SCA_XNORController, init_getset);
     PyType_Ready_Attr(dict, SCA_XORController, init_getset);
     PyType_Ready_Attr(dict, SCA_IController, init_getset);
