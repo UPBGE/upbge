@@ -1274,17 +1274,17 @@ static void draw_sensor_joystick(blender::ui::Layout *layout, PointerRNA *ptr)
       col->prop(ptr, "axis_number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       col->active_set(RNA_boolean_get(ptr, "use_all_events") == false);
       col->prop(ptr, "axis_direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "axis_threshold_percentage", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SENS_JOY_AXIS_SINGLE:
       col = &layout->column(false);
       col->prop(ptr, "single_axis_number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "axis_threshold_percentage", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SENS_JOY_SHOULDER_TRIGGER:
       col = &layout->column(false);
       col->prop(ptr, "axis_trigger_number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "axis_threshold_percentage", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SENS_JOY_RAW_BUTTON:
       split->prop(ptr, "use_all_events", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1297,7 +1297,7 @@ static void draw_sensor_joystick(blender::ui::Layout *layout, PointerRNA *ptr)
       col = &layout->column(false);
       col->prop(ptr, "axis_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       col->prop(ptr, "axis_sign", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "axis_threshold_percentage", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case SENS_JOY_HAT:
       split->prop(ptr, "use_all_events", UI_ITEM_NONE, std::nullopt, ICON_NONE);

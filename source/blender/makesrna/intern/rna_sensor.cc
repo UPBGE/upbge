@@ -324,6 +324,19 @@ static const EnumPropertyItem *rna_JoystickSensor_event_type_itemf(bContext * /*
   return item;
 }
 
+/* Axis threshold: stored in SDL units (0 to 32767), edited as a percentage of full travel. */
+static float rna_JoystickSensor_axis_threshold_percentage_get(PointerRNA *ptr)
+{
+  const bJoystickSensor *js = (bJoystickSensor *)(((bSensor *)ptr->data)->data);
+  return float(js->precision) * (100.0f / 32767.0f);
+}
+
+static void rna_JoystickSensor_axis_threshold_percentage_set(PointerRNA *ptr, float value)
+{
+  bJoystickSensor *js = (bJoystickSensor *)(((bSensor *)ptr->data)->data);
+  js->precision = int(value * (32767.0f / 100.0f) + 0.5f);
+}
+
 /* Shake threshold: stored in thousandths of g, edited in g. */
 static float rna_JoystickSensor_motion_shake_threshold_get(PointerRNA *ptr)
 {
@@ -1334,6 +1347,19 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "precision");
   RNA_def_property_ui_text(prop, "Threshold", "Threshold minimum to detect the stick/trigger");
   RNA_def_property_range(prop, 0, 32768);
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "axis_threshold_percentage", PROP_FLOAT, PROP_PERCENTAGE);
+  RNA_def_property_float_funcs(prop,
+                               "rna_JoystickSensor_axis_threshold_percentage_get",
+                               "rna_JoystickSensor_axis_threshold_percentage_set",
+                               nullptr);
+  RNA_def_property_range(prop, 0.0f, 100.0f);
+  RNA_def_property_ui_text(
+      prop,
+      "Threshold",
+      "Travel of the stick, trigger or axis below which the sensor does not trigger "
+      "(same setting as Threshold, in percent of full travel)");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 }
 
