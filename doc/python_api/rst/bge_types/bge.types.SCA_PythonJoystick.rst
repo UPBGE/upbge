@@ -16,10 +16,10 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
    buttons and hats of the device by index. A mapping for the device's :attr:`guid` in
    ``gamecontrollerdb.txt`` makes it a gamepad instead.
 
-   On a raw joystick, joystick sensors (logic bricks) see axes 0 to 5 and buttons 0 to 25 as if
-   they were the gamepad layout, and so do :attr:`leftStick`, :attr:`rightStick` and
-   :attr:`triggers`, whatever the device uses those axes for. The other axes, buttons and hats
-   are available from Python only.
+   On a raw joystick, :attr:`leftStick`, :attr:`rightStick` and :attr:`triggers` read axes 0 to 5
+   as if they were the gamepad layout, whatever the device uses those axes for. Joystick sensors
+   (logic bricks) in Joystick mode read any device, gamepads included, as it reports itself,
+   bypassing the mapping (see :class:`~bge.types.SCA_JoystickSensor`).
 
    Each connection of a controller gets its own object, and the settings a script applies last as
    long as that connection: :attr:`strengthLeft`, :attr:`strengthRight`, :attr:`duration`,

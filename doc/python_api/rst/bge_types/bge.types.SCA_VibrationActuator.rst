@@ -9,6 +9,17 @@ base class --- :class:`~bge.types.SCA_IActuator`
 
    Vibration Actuator.
 
+   In the editor, the actuator has three modes:
+
+   * **Play**: vibrates the main motors with :attr:`strengthLeft` and :attr:`strengthRight`.
+   * **Trigger Vibration**: vibrates the trigger motors of Xbox One and Series controllers, with
+     :attr:`strengthLeft` for the left trigger and :attr:`strengthRight` for the right one.
+     Controllers without trigger motors ignore it.
+   * **Stop**: stops the main and the trigger motors.
+
+   Play and Trigger Vibration end by themselves after :attr:`duration`.
+   :meth:`startVibration` and :meth:`stopVibration` drive the main motors.
+
    .. attribute:: joyindex
 
       Joystick index.
