@@ -13,7 +13,34 @@
 #include "../eevee/eevee_shader.hh"
 #include "../eevee/eevee_material.hh"
 
+#include "gpu_shader_create_info.hh"
+
 namespace blender::eevee_game {
+
+/* Tags the forward materials of eevee_game. EEVEE packs its material type in
+ * bits 0..10 of the uuid and decodes them with masks, so bit 16 is ignored by
+ * its codegen. It has to stay below bit 32: the GPU pass cache hashes the
+ * uuid as a 32 bit seed, and the game pass must never be mistaken for the
+ * EEVEE pass of the same node tree (they differ only by the create info). */
+static constexpr uint64_t GAME_FORWARD_UUID_BIT = uint64_t(1) << 16;
+
+/* Runs EEVEE's codegen, then swaps EEVEE's forward surface interface for the
+ * game one: same node tree code, same closure setup, lit by the game lights
+ * instead of EEVEE's light culling, virtual shadow maps and probes. Can run
+ * on a compilation thread: touches nothing but the create info. */
+static void game_forward_codegen(void *thunk, GPUMaterial *mat, GPUCodegenOutput *codegen)
+{
+  static_cast<eevee::ShaderModule *>(thunk)->material_create_info_amend(mat, codegen);
+
+  gpu::shader::ShaderCreateInfo &info = *reinterpret_cast<gpu::shader::ShaderCreateInfo *>(
+      codegen->create_info);
+  for (gpu::shader::ShaderCreateInfo::AdditionalInfo &additional : info.additional_infos_) {
+    if (additional.name == "eevee_surf_forward") {
+      additional.name = "eevee_game_surf_forward";
+    }
+  }
+  info.name_ += "_game";
+}
 
 ShaderModule::ShaderModule()
 {
@@ -193,8 +220,33 @@ GPUMaterial *ShaderModule::material_shader_get(blender::Material *material,
                                                 bool deferred,
                                                 blender::Material *default_mat)
 {
-  return eevee::ShaderModule::module_get()->material_shader_get(
-      material, ntree, pipeline_type, geometry_type, deferred, default_mat);
+  eevee::ShaderModule *eevee_shaders = eevee::ShaderModule::module_get();
+  if (pipeline_type != eevee::MAT_PIPE_FORWARD) {
+    /* Depth, deferred and volume shaders are EEVEE's, unchanged. */
+    return eevee_shaders->material_shader_get(
+        material, ntree, pipeline_type, geometry_type, deferred, default_mat);
+  }
+
+  const uint64_t shader_uuid = eevee::shader_uuid_from_material_type(
+                                   pipeline_type,
+                                   geometry_type,
+                                   eevee::to_displacement_type(material->displacement_method),
+                                   eevee::to_thickness_type(material->thickness_mode),
+                                   material->blend_flag) |
+                               GAME_FORWARD_UUID_BIT;
+  /* No pass replacement: EEVEE's replacement callback decodes the uuid and
+   * would hand back its own default forward pass. */
+  GPUMaterialFromNodeTreeResult result = GPU_material_from_nodetree(material,
+                                                                    ntree,
+                                                                    &material->gpumaterial,
+                                                                    material->id.name,
+                                                                    GPU_MAT_EEVEE,
+                                                                    shader_uuid,
+                                                                    deferred,
+                                                                    game_forward_codegen,
+                                                                    eevee_shaders,
+                                                                    nullptr);
+  return result.material;
 }
 
 } // namespace blender::eevee_game

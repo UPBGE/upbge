@@ -191,8 +191,46 @@ void PipelineModule::begin_sync()
     pass.bind_texture(HIZ_TEX_SLOT, &inst_->hiz_buffer.front.ref_tx_);
   }
 
-  forward_layer_.prepass_ps.init();
-  forward_layer_.shading_ps.init();
+  {
+    /* Forward surfaces. */
+    if (!dummy_object_id_tx_.is_valid()) {
+      const uint zero_u = 0u;
+      const float zero_f[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+      dummy_object_id_tx_.ensure_2d(
+          gpu::TextureFormat::UINT_32, int2(1), GPU_TEXTURE_USAGE_SHADER_READ);
+      GPU_texture_clear(dummy_object_id_tx_, GPU_DATA_UINT, &zero_u);
+      dummy_normal_tx_.ensure_2d(
+          gpu::TextureFormat::SFLOAT_16_16, int2(1), GPU_TEXTURE_USAGE_SHADER_READ);
+      GPU_texture_clear(dummy_normal_tx_, GPU_DATA_FLOAT, zero_f);
+    }
+    forward_layer_.opaque_ps.init();
+    forward_resources_bind(forward_layer_.opaque_ps);
+
+    forward_layer_.transparent_ps.init();
+    /* A PassSortable binds through a sub-pass sorted before all the others. */
+    PassMain::Sub &bind_sub = forward_layer_.transparent_ps.sub("ResourceBind", -FLT_MAX);
+    forward_resources_bind(bind_sub);
+  }
+}
+
+template<typename PassT> void PipelineModule::forward_resources_bind(PassT &pass)
+{
+  /* `eevee_game_surf_forward` + the depth shaders of the overlap masks. Bound
+   * by slot: the generated shaders are only known per sub-pass. */
+  pass.bind_texture(RBUFS_UTILITY_TEX_SLOT, eevee_utility_tx_);
+  pass.bind_ubo(UNIFORM_BUF_SLOT, &eevee_uniform_buf_);
+  pass.bind_ssbo(SAMPLING_BUF_SLOT, &eevee_sampling_buf_);
+  pass.bind_texture(HIZ_TEX_SLOT, &inst_->hiz_buffer.front.ref_tx_);
+  pass.bind_ssbo(LIGHT_BUF_SLOT, &inst_->lights.light_buf_);
+  pass.bind_ubo(SPHERE_PROBE_BUF_SLOT, &forward_data_buf_);
+  inst_->shadows.bind_resources_by_slot(pass);
+  /* Shader To RGB materials declare the previous layer inputs of EEVEE's
+   * layered transparency; this shader never reads them. Not combined_tx: it
+   * is the color attachment being drawn to. */
+  pass.bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_->hiz_buffer.front.ref_tx_);
+  pass.bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_->hiz_buffer.front.ref_tx_);
+  pass.bind_texture(OBJECT_ID_TEX_SLOT, dummy_object_id_tx_);
+  pass.bind_texture(PREPASS_NORMAL_TEX_SLOT, dummy_normal_tx_);
 }
 
 void PipelineModule::eevee_resources_update(int normal_layer_count)
@@ -335,6 +373,11 @@ void PipelineModule::sync()
   light_ps.push_constant("world_ambient", &world_ambient_);
   light_ps.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
+  /* Forward surfaces: same ambient and lights as the deferred pass. */
+  forward_data_buf_.world_ambient = world_ambient_;
+  forward_data_buf_.light_count = inst_->lights.active_light_count;
+  forward_data_buf_.push_update();
+
   /* Intermediate AA targets follow the render resolution. */
   aa.sync_framebuffers(extent);
 }
@@ -391,39 +434,31 @@ void PipelineModule::render(View &view, Framebuffer &combined_fb)
   GPU_debug_group_end();
 
   /* ================================================================
-   * Pass 7: Transparent Forward + FSR Reactive Mask
+   * Pass 7: Forward surfaces + FSR Reactive Mask
    *
-   * Not drawn yet. EEVEE's forward surface shader evaluates lighting itself
-   * and reads EEVEE's own light culling buffers, virtual shadow maps and
-   * light probes. None of that exists here, so submitting these passes would
-   * run shaders against unbound buffers. They need either a forward variant
-   * of the game light loop injected through the material create info, or the
-   * game light list exposed in the layout `eevee_light_data` expects.
-   *
-   * The reactive mask logic below is what the pass needs once it draws: FSR
-   * has to know which pixels were changed by transparency so its temporal
-   * accumulation does not ghost them. */
-  if (use_forward_pass) {
-    GPU_debug_group_begin("Forward.Transparent");
+   * Opaque forward surfaces first (EQUAL test against their prepass depth),
+   * then the transparent ones back to front. FSR has to know which pixels
+   * transparency changed so its temporal accumulation does not ghost them. */
+  GPU_debug_group_begin("Forward");
+  combined_fb.bind();
+  inst_->manager->submit(forward_layer_.opaque_ps, view);
 
-    const bool use_fsr = inst_->upscale.is_initialized();
-    if (use_fsr) {
-      opaque_copy_tx_.acquire(extent, gpu::TextureFormat::SFLOAT_16_16_16_16);
-      /* GPU_texture_copy(dst, src) */
-      GPU_texture_copy(opaque_copy_tx_, rbufs.combined_tx);
-    }
-
+  const bool use_fsr = inst_->upscale.is_initialized();
+  if (use_fsr) {
+    opaque_copy_tx_.acquire(extent, gpu::TextureFormat::SFLOAT_16_16_16_16);
+    /* GPU_texture_copy(dst, src) */
+    GPU_texture_copy(opaque_copy_tx_, rbufs.combined_tx);
     combined_fb.bind();
-    inst_->manager->submit(forward_layer_.shading_ps, view);
-
-    if (use_fsr) {
-      inst_->upscale.generate_masks(
-          opaque_copy_tx_, rbufs.combined_tx, rbufs.reactive_mask_tx, rbufs.transp_mask_tx);
-      opaque_copy_tx_.release();
-    }
-
-    GPU_debug_group_end();
   }
+
+  inst_->manager->submit(forward_layer_.transparent_ps, view);
+
+  if (use_fsr) {
+    inst_->upscale.generate_masks(
+        opaque_copy_tx_, rbufs.combined_tx, rbufs.reactive_mask_tx, rbufs.transp_mask_tx);
+    opaque_copy_tx_.release();
+  }
+  GPU_debug_group_end();
 }
 
 /* ================================================================
@@ -448,10 +483,10 @@ PassMain::Sub *PipelineModule::material_add(Object * /*ob*/,
                                   DRW_STATE_CULL_BACK :
                                   DRW_STATE_NO_DRAW;
 
-  /* Shader To RGB and ray casting materials compile to the "hybrid" deferred
-   * shader, which lights itself from EEVEE's light, shadow and probe buffers.
-   * Those do not exist here; such materials are skipped, depth included, so
-   * they do not leave unlit silhouettes. */
+  /* Shader To RGB and ray casting materials compile to EEVEE's "hybrid"
+   * deferred shader, which lights itself from EEVEE's light, shadow and probe
+   * buffers. MaterialModule moves them to the forward pipeline; never draw
+   * them as deferred. */
   const bool deferred_unsupported = GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA) ||
                                     GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
 
@@ -483,10 +518,11 @@ PassMain::Sub *PipelineModule::material_add(Object * /*ob*/,
       sub.shader_set(GPU_material_get_shader(gpumat));
       return &sub;
     }
-    /* Depth prepass for forward opaque / cutout. */
+    /* Depth prepass of forward opaque surfaces: with the deferred ones, so
+     * they enter the Hi-Z, the AO and the shadow maps. */
     case MAT_PIPE_PREPASS_FORWARD:
     case MAT_PIPE_PREPASS_FORWARD_VELOCITY: {
-      PassMain::Sub &sub = forward_layer_.prepass_ps.sub(GPU_material_get_name(gpumat));
+      PassMain::Sub &sub = opaque_layer_.prepass_ps.sub(GPU_material_get_name(gpumat));
       sub.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_GREATER_EQUAL |
                     DRW_STATE_CLIP_CONTROL_UNIT_RANGE | cull_state);
       sub.shader_set(GPU_material_get_shader(gpumat));
@@ -498,8 +534,9 @@ PassMain::Sub *PipelineModule::material_add(Object * /*ob*/,
         /* Transparent forward: per-object sub-passes via material_transparent_add(). */
         return nullptr;
       }
-      PassMain::Sub &sub = forward_layer_.shading_ps.sub(GPU_material_get_name(gpumat));
-      sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL);
+      PassMain::Sub &sub = forward_layer_.opaque_ps.sub(GPU_material_get_name(gpumat));
+      sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL |
+                    DRW_STATE_CLIP_CONTROL_UNIT_RANGE | cull_state);
       sub.shader_set(GPU_material_get_shader(gpumat));
       return &sub;
     }
@@ -521,31 +558,49 @@ PassMain::Sub *PipelineModule::material_add(Object * /*ob*/,
  * Transparent forward: per-object sub-passes for back-to-front sorting
  * ================================================================ */
 
+/* Back to front: the camera +Z axis points toward the viewer, so the
+ * farthest object has the smallest value and PassSortable draws ascending. */
+static float transparent_sorting_value(const Object *ob, const float4x4 &viewinv)
+{
+  return math::dot(float3(ob->object_to_world().location()), float3(viewinv[2]));
+}
+
 PassMain::Sub *PipelineModule::prepass_transparent_add(Object *ob,
-                                                       blender::Material * /*blender_mat*/,
+                                                       blender::Material *blender_mat,
                                                        GPUMaterial *gpumat)
 {
-  /* Each transparent object gets its own sub so the draw list can reorder them.
-   * Name by object pointer for uniqueness within this frame. */
-  char name[32];
-  SNPRINTF(name, "TranspPrepass_%p", static_cast<void *>(ob));
-  PassMain::Sub &sub = forward_layer_.prepass_ps.sub(name);
-  sub.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_GREATER_EQUAL);
-  sub.shader_set(GPU_material_get_shader(gpumat));
+  /* Depth-only mask so the object only shows its nearest layer. Same sorting
+   * value as its shading sub-pass, added first: the sort keeps the order of
+   * equal values. */
+  if ((blender_mat->blend_flag & MA_BL_HIDE_BACKFACE) == 0) {
+    return nullptr;
+  }
+  DRWState state = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_GREATER_EQUAL |
+                   DRW_STATE_CLIP_CONTROL_UNIT_RANGE;
+  if (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) {
+    state |= DRW_STATE_CULL_BACK;
+  }
+  PassMain::Sub &sub = forward_layer_.transparent_ps.sub(
+      GPU_material_get_name(gpumat), transparent_sorting_value(ob, inst_->uniform_data.viewinv));
+  sub.state_set(state);
   sub.material_set(*inst_->manager, gpumat, true, inst_->anisotropic_filtering);
   return &sub;
 }
 
 PassMain::Sub *PipelineModule::material_transparent_add(Object *ob,
-                                                        blender::Material * /*blender_mat*/,
+                                                        blender::Material *blender_mat,
                                                         GPUMaterial *gpumat)
 {
-  char name[32];
-  SNPRINTF(name, "Transp_%p", static_cast<void *>(ob));
-  PassMain::Sub &sub = forward_layer_.shading_ps.sub(name);
-  /* Alpha blend, depth test without write. */
-  sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_GREATER_EQUAL | DRW_STATE_BLEND_ALPHA);
-  sub.shader_set(GPU_material_get_shader(gpumat));
+  /* Premultiplied: dst = radiance + dst * transmittance. Depth tested, not
+   * written: what is behind stays visible through the next layers. */
+  DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_GREATER_EQUAL |
+                   DRW_STATE_BLEND_ALPHA_PREMUL | DRW_STATE_CLIP_CONTROL_UNIT_RANGE;
+  if (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) {
+    state |= DRW_STATE_CULL_BACK;
+  }
+  PassMain::Sub &sub = forward_layer_.transparent_ps.sub(
+      GPU_material_get_name(gpumat), transparent_sorting_value(ob, inst_->uniform_data.viewinv));
+  sub.state_set(state);
   sub.material_set(*inst_->manager, gpumat, true, inst_->anisotropic_filtering);
   return &sub;
 }

@@ -107,15 +107,6 @@ class PipelineModule {
   {
     return opaque_layer_.prepass_ps;
   }
-  PassMain &prepass_transparent_get()
-  {
-    return forward_layer_.prepass_ps;
-  }
-
-  /* Forward (blended / Shader To RGB) surfaces are not drawn yet, see the
-   * note in PipelineModule::render(). One switch so the transparent depth
-   * prepass and the shading pass cannot get out of step. */
-  static constexpr bool use_forward_pass = false;
 
   AAModule   aa;
   AASettings aa_settings;
@@ -139,11 +130,27 @@ class PipelineModule {
   int use_ao_ = 0;
   int use_ssgi_ = 0;
 
-  /* Forward transparent: sorted back-to-front after deferred lighting. */
-  struct ForwardTransparentLayer {
-    PassMain prepass_ps{"Forward.Transparent.Prepass"};
-    PassMain shading_ps{"Forward.Transparent.Shading"};
+  /* Forward surfaces, shaded by `eevee_game_surf_forward` after the
+   * deferred lighting. Opaque ones get their depth from the opaque prepass
+   * (they cast shadows and enter the Hi-Z like the deferred ones) and shade
+   * with an EQUAL test. Transparent ones are one sub-pass per object, sorted
+   * back to front, each preceded by its depth-only overlap mask when the
+   * material hides its back faces. */
+  struct ForwardLayer {
+    PassMain opaque_ps{"Forward.Opaque"};
+    PassSortable transparent_ps{"Forward.Transparent"};
   } forward_layer_;
+
+  /* Binds the fixed part of the forward surface interface on a pass. */
+  template<typename PassT> void forward_resources_bind(PassT &pass);
+
+  /* `game_forward_buf`: ambient and light count of the forward shaders. */
+  UniformBuffer<GameForwardData> forward_data_buf_ = {"game_forward_buf"};
+  /* Ray cast materials declare the object id and prepass normal textures
+   * EEVEE's tracing reads. Nothing traces here: 1x1 stand-ins satisfy the
+   * bindings. */
+  Texture dummy_object_id_tx_ = {"dummy_object_id"};
+  Texture dummy_normal_tx_ = {"dummy_prepass_normal"};
 
   /* Opaque-only color snapshot for the FSR reactive mask. */
   TextureFromPool opaque_copy_tx_ = {"opaque_copy"};

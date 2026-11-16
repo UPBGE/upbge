@@ -24,6 +24,8 @@
 
 #  include "draw_view_infos.hh"
 #  include "eevee_common_infos.hh" /* eevee_gbuffer_data */
+#  include "eevee_sampling_infos.hh"
+#  include "eevee_uniform_infos.hh"
 #  include "gpu_shader_fullscreen_infos.hh"
 
 #  include "eevee_game_shader_shared.hh"
@@ -68,6 +70,49 @@ GPU_SHADER_CREATE_END()
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Lights
+ * \{ */
+
+/* Game light list and shadow faces, read by `eevee_game_light_lib.glsl`.
+ * The slots are those EEVEE's `eevee_light_data` and `eevee_shadow_data`
+ * reserve: the forward surface shaders get their material resources
+ * allocated around EEVEE's forward interface, these slots are free there. */
+GPU_SHADER_CREATE_INFO(eevee_game_light_data)
+TYPEDEF_SOURCE("eevee_game_shader_shared.hh")
+STORAGE_BUF(LIGHT_BUF_SLOT, read, LightData, light_buf[])
+STORAGE_BUF(LIGHT_TILE_BUF_SLOT, read, ShadowTileData, shadow_tile_buf[])
+SAMPLER(SHADOW_TILEMAPS_TEX_SLOT, sampler2DShadow, shadow_static_atlas)
+SAMPLER(SHADOW_ATLAS_TEX_SLOT, sampler2DShadow, shadow_dynamic_atlas)
+GPU_SHADER_CREATE_END()
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Forward surfaces
+ * \{ */
+
+/* Replaces `eevee_surf_forward` in the forward materials (blended render
+ * method): EEVEE's generated node tree, lit by the game light loop. The
+ * swap is done by ShaderModule::material_shader_get() after EEVEE's codegen
+ * amended the create info. One output, premultiplied: radiance and
+ * 1 - average transmittance. */
+GPU_SHADER_CREATE_INFO(eevee_game_surf_forward)
+DEFINE("MAT_FORWARD")
+EARLY_FRAGMENT_TEST(true)
+FRAGMENT_OUT(0, float4, out_radiance)
+UNIFORM_BUF(SPHERE_PROBE_BUF_SLOT, GameForwardData, game_forward_buf)
+FRAGMENT_SOURCE("eevee_game_surf_forward_frag.glsl")
+ADDITIONAL_INFO(eevee_game_light_data)
+ADDITIONAL_INFO(eevee_global_ubo)
+ADDITIONAL_INFO(eevee_utility_texture)
+ADDITIONAL_INFO(eevee_sampling_data)
+ADDITIONAL_INFO(eevee_hiz_data)
+ADDITIONAL_INFO(draw_view_culling)
+GPU_SHADER_CREATE_END()
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Deferred lighting
  * \{ */
 
@@ -80,17 +125,13 @@ SAMPLER(0, sampler2D, hiz_tx)
 SAMPLER(1, sampler2D, ao_tx)
 SAMPLER(2, sampler2D, ssgi_tx)
 SAMPLER(3, sampler2D, shadow_mask_tx)
-/* Punctual shadow atlases. Slots 4 and 5 are free next to the G-Buffer ones. */
-SAMPLER(4, sampler2DShadow, shadow_static_atlas)
-SAMPLER(5, sampler2DShadow, shadow_dynamic_atlas)
-STORAGE_BUF(0, read, LightData, light_buf[])
-STORAGE_BUF(1, read, ShadowTileData, shadow_tile_buf[])
 PUSH_CONSTANT(int, light_count)
 PUSH_CONSTANT(int, use_ao)
 PUSH_CONSTANT(int, use_ssgi)
 PUSH_CONSTANT(float3, world_ambient)
 FRAGMENT_OUT(0, float4, out_radiance)
 FRAGMENT_SOURCE("eevee_game_deferred_light_frag.glsl")
+ADDITIONAL_INFO(eevee_game_light_data)
 ADDITIONAL_INFO(eevee_gbuffer_data)
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(gpu_fullscreen)

@@ -306,8 +306,8 @@ void ShadowModule::punctual_tiles_write(
                              float2(float(face_size) / float(atlas_res)));
     tile.atlas = atlas;
     tile.texel_scale = texel_scale;
+    tile.split_depth = 0.0f;
     tile._pad0 = 0.0f;
-    tile._pad1 = 0.0f;
   }
 }
 
@@ -355,8 +355,20 @@ void ShadowModule::end_sync()
       /* One set of cascades: the first sun wins, the others stay unshadowed. */
       if (!has_sun) {
         update_cascades(inst_->camera, light);
-        light.data.shadow_index = 0;
         has_sun = true;
+        /* The cascades go first in tile_buf_: the forward shaders look them
+         * up there, the deferred pass reads the filtered sun mask instead. */
+        light.data.shadow_index = tile_count_;
+        for (int i = 0; i < int(cascades_.size()) && tile_count_ < MAX_SHADOW_TILES; i++) {
+          ShadowTileData &tile = tile_buf_[tile_count_++];
+          tile.view_proj = cascades_[i].view_proj;
+          tile.atlas_rect = float4(float(i) * 0.25f, 0.0f, 0.25f, 0.25f);
+          tile.atlas = 0;
+          /* Orthographic: one texel is the cascade width over the tile. */
+          tile.texel_scale = 2.0f / (cascades_[i].proj[0][0] * float(STATIC_TILE_SIZE));
+          tile.split_depth = cascades_[i].split_depth;
+          tile._pad0 = 0.0f;
+        }
       }
       continue;
     }

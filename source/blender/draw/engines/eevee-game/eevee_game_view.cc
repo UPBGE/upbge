@@ -45,7 +45,8 @@ void ShadingView::update_view()
  *
  * Two sub-passes share the same framebuffer:
  *   - opaque_layer_.prepass_ps  : writes depth and optional velocity
- *   - forward_layer_.prepass_ps : transparent depth pre-write (for DoF CoC)
+ *   Forward opaque surfaces write their depth here too; transparent ones
+ *   never do (their overlap masks are drawn in the sorted forward pass).
  *
  * The prepass framebuffer attaches depth_tx (write) and vector_tx
  * (write, for FSR3 motion vectors). combined_tx is not attached here —
@@ -79,15 +80,6 @@ void ShadingView::render_prepass()
   inst_.hiz_buffer.persmat = render_view_.persmat();
   inst_.hiz_buffer.valid = true;
   GPU_debug_group_end();
-
-  /* Transparent prepass: writes depth so DoF CoC is correct at glass edges.
-   * Blended geometry depth is intentionally written here to prevent
-   * CoC discontinuities at transparent-opaque boundaries. */
-  if (PipelineModule::use_forward_pass) {
-    GPU_debug_group_begin("Prepass.Transparent");
-    inst_.manager->submit(inst_.pipelines.prepass_transparent_get(), render_view_);
-    GPU_debug_group_end();
-  }
 }
 
 /* ================================================================

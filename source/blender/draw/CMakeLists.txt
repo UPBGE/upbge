@@ -660,11 +660,13 @@ set(GLSL_SRC
   engines/eevee-game/shaders/eevee_game_fxaa_frag.glsl
   engines/eevee-game/shaders/eevee_game_gtao_main_comp.glsl
   engines/eevee-game/shaders/eevee_game_gtao_upsample_comp.glsl
+  engines/eevee-game/shaders/eevee_game_light_lib.glsl
   engines/eevee-game/shaders/eevee_game_shadow_pcf_comp.glsl
   engines/eevee-game/shaders/eevee_game_smaa_frag.glsl
   engines/eevee-game/shaders/eevee_game_smaa_vert.glsl
   engines/eevee-game/shaders/eevee_game_ssgi_blur_comp.glsl
   engines/eevee-game/shaders/eevee_game_ssgi_main_comp.glsl
+  engines/eevee-game/shaders/eevee_game_surf_forward_frag.glsl
   engines/eevee-game/shaders/eevee_game_volume_integrate_comp.glsl
   engines/eevee-game/shaders/eevee_game_volume_resolve_comp.glsl
   engines/eevee-game/shaders/eevee_game_volume_scatter_comp.glsl

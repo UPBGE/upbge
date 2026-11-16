@@ -342,29 +342,36 @@ Material &MaterialModule::material_sync(Object *ob,
   }
 
   /* Surface objects */
-  const bool use_forward = (blender_mat->surface_render_method == MA_SURFACE_METHOD_FORWARD);
+  const bool use_forward_method = (blender_mat->surface_render_method ==
+                                   MA_SURFACE_METHOD_FORWARD);
+  const eMaterialPipeline key_pipe = use_forward_method ? MAT_PIPE_FORWARD : MAT_PIPE_DEFERRED;
 
-  eMaterialPipeline surface_pipe, prepass_pipe;
-  if (use_forward) {
-    surface_pipe = MAT_PIPE_FORWARD;
-    prepass_pipe = has_motion ? MAT_PIPE_PREPASS_FORWARD_VELOCITY : MAT_PIPE_PREPASS_FORWARD;
-  }
-  else {
-    surface_pipe = MAT_PIPE_DEFERRED;
-    prepass_pipe = has_motion ? MAT_PIPE_PREPASS_DEFERRED_VELOCITY : MAT_PIPE_PREPASS_DEFERRED;
-  }
-
-  MaterialKey mat_key(blender_mat, geometry_type, surface_pipe, ob->visibility_flag);
+  MaterialKey mat_key(blender_mat, geometry_type, key_pipe, ob->visibility_flag);
 
   Material &mat = material_map_.lookup_or_add_cb(mat_key.hash(), [&]() {
     Material m = {};
 
+    /* Main surface shading. Shader To RGB and ray casting materials light
+     * themselves in EEVEE's deferred pipeline, from buffers that do not exist
+     * here: they are shaded forward instead. The flags are only known once
+     * the deferred variant is generated. */
+    bool use_forward = use_forward_method;
+    if (!use_forward) {
+      m.shading = material_pass_get(ob, blender_mat, MAT_PIPE_DEFERRED, geometry_type);
+      use_forward = GPU_material_flag_get(m.shading.gpumat, GPU_MATFLAG_SHADER_TO_RGBA) ||
+                    GPU_material_flag_get(m.shading.gpumat, GPU_MATFLAG_RAYCAST);
+    }
+    if (use_forward) {
+      m.shading = material_pass_get(ob, blender_mat, MAT_PIPE_FORWARD, geometry_type);
+    }
+
     /* Depth/velocity prepass */
+    const eMaterialPipeline prepass_pipe =
+        use_forward ? (has_motion ? MAT_PIPE_PREPASS_FORWARD_VELOCITY : MAT_PIPE_PREPASS_FORWARD) :
+                      (has_motion ? MAT_PIPE_PREPASS_DEFERRED_VELOCITY :
+                                    MAT_PIPE_PREPASS_DEFERRED);
     m.prepass = hide_on_camera ? MaterialPass() :
                                  material_pass_get(ob, blender_mat, prepass_pipe, geometry_type);
-
-    /* Main surface shading */
-    m.shading = material_pass_get(ob, blender_mat, surface_pipe, geometry_type);
     if (hide_on_camera) {
       /* Keep gpumat for GPU_material API queries, but suppress drawing */
       m.shading.sub_pass = nullptr;
@@ -393,14 +400,21 @@ Material &MaterialModule::material_sync(Object *ob,
     m.is_alpha_blend_transparent = use_forward && is_transparent;
     m.has_transparent_shadows    = (blender_mat->blend_flag & MA_BL_TRANSPARENT_SHADOW) &&
                                    is_transparent;
+    /* Depth-only shader of the overlap mask (nearest layer only). */
+    if (m.is_alpha_blend_transparent && (blender_mat->blend_flag & MA_BL_HIDE_BACKFACE)) {
+      m.overlap_masking = material_pass_get(
+          ob, blender_mat, MAT_PIPE_PREPASS_OVERLAP, geometry_type);
+    }
     return m;
   });
 
   /* Transparent objects need per-object sub-passes so the draw list can sort them
    * back-to-front. This must be done outside the lookup_or_add_cb (run every sync). */
   if (mat.is_alpha_blend_transparent && !hide_on_camera) {
-    mat.overlap_masking.sub_pass = inst_.pipelines.prepass_transparent_add(
-        ob, blender_mat, mat.shading.gpumat);
+    mat.overlap_masking.sub_pass = (mat.overlap_masking.gpumat != nullptr) ?
+                                       inst_.pipelines.prepass_transparent_add(
+                                           ob, blender_mat, mat.overlap_masking.gpumat) :
+                                       nullptr;
     mat.shading.sub_pass = inst_.pipelines.material_transparent_add(
         ob, blender_mat, mat.shading.gpumat);
   }

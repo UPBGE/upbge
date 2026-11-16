@@ -8,6 +8,7 @@
 #include "GPU_framebuffer.hh"
 #include "draw_handle.hh"   /* ResourceHandleRange */
 #include "DRW_render.hh"    /* Object */
+#include "../eevee/eevee_defines.hh" /* Resource slots of the forward interface */
 
 #include <memory>
 #include <vector>
@@ -141,6 +142,16 @@ class ShadowModule {
 
   /* Bind the shadow face buffer and both atlases (punctual shadow lookup). */
   void bind_resources(PassSimple &ps);
+  /* Same, by the slots of `eevee_game_light_data`: for passes whose shaders
+   * are only known per sub-pass (forward materials). */
+  template<typename PassT> void bind_resources_by_slot(PassT &pass)
+  {
+    pass.bind_ssbo(LIGHT_TILE_BUF_SLOT, &tile_buf_);
+    pass.bind_texture(SHADOW_TILEMAPS_TEX_SLOT, static_atlas_tx_);
+    pass.bind_texture(SHADOW_ATLAS_TEX_SLOT,
+                      dynamic_atlas_tx_.is_valid() ? (gpu::Texture *)dynamic_atlas_tx_ :
+                                                     (gpu::Texture *)static_atlas_tx_);
+  }
 
  private:
   void update_cascades(class Camera &camera, struct LightEntry &light);

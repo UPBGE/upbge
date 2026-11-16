@@ -50,20 +50,27 @@ struct [[host_shared]] LightData {
   uint flags;
 };
 
-/* One rendered shadow face: a spot light, or one cube face of a point light
- * (six consecutive entries ordered +X -X +Y -Y +Z -Z). A punctual light's
- * LightData::shadow_index is the index of its first face. */
+/* One rendered shadow face: a sun cascade (four consecutive entries), a spot
+ * light, or one cube face of a point light (six consecutive entries ordered
+ * +X -X +Y -Y +Z -Z). LightData::shadow_index is the index of the first. */
 struct [[host_shared]] ShadowTileData {
   float4x4 view_proj;
   /** Atlas UV rectangle of the face: min in xy, size in zw. */
   float4 atlas_rect;
   /** 0: static atlas, 1: dynamic atlas. */
   int atlas;
-  /** World size of one texel at unit distance from the light:
-   * 2 tan(half fov) / face resolution. */
+  /** World size of one texel: at unit distance from the light for a
+   * perspective face (2 tan(half fov) / resolution), absolute for a cascade. */
   float texel_scale;
+  /** Cascades: view depth up to which this cascade is used. */
+  float split_depth;
   float _pad0;
-  float _pad1;
+};
+
+/* Per frame constants of the forward surface shaders. */
+struct [[host_shared]] GameForwardData {
+  packed_float3 world_ambient;
+  int light_count;
 };
 
 #ifndef GPU_SHADER
