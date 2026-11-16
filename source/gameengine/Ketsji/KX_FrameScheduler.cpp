@@ -87,11 +87,11 @@ double KX_RefreshEstimator::Period() const
     return 0.0;
   }
   /* Wake-up noise is milliseconds whatever the refresh rate: at 144 Hz it is a fifth of a frame. */
-  const double near = std::max(0.12 * median, 0.002);
+  const double tolerance = std::max(0.12 * median, 0.002);
   int single = 0;
   double refreshes = 0.0;
   for (const double interval : intervals) {
-    if (std::abs(interval - median) < near) {
+    if (std::abs(interval - median) < tolerance) {
       single++;
     }
     const double count = std::round(interval / median);

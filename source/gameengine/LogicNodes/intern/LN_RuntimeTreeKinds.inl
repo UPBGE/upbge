@@ -6107,13 +6107,13 @@ void LN_RuntimeTree::QueryKind(In &in,
       result.hit_distance = -1.0f;
       if (const LN_KeepDistanceState *keep = FindKeepDistanceState(uint32_t(expression.int_value)))
       {
-        result.hit = keep->near;
-        result.diagnostic_status = keep->near ? LN_QueryDiagnosticStatus::Hit :
-                                                LN_QueryDiagnosticStatus::NoHit;
+        result.hit = keep->is_near;
+        result.diagnostic_status = keep->is_near ? LN_QueryDiagnosticStatus::Hit :
+                                                   LN_QueryDiagnosticStatus::NoHit;
         result.hit_distance = keep->nearest_distance;
         result.hit_position = keep->nearest_point;
         result.hit_normal = keep->nearest_normal;
-        if (keep->near) {
+        if (keep->is_near) {
           result.object_ref = keep->nearest_object;
         }
         result.impact_velocity = keep->force;

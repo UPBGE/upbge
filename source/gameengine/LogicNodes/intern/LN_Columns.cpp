@@ -11935,12 +11935,12 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
          * yet: not Near, Nearest Distance -1), as PhysicsQueryHit / Distance / Point / Normal /
          * ImpactVelocity give it. */
         const uint32_t slot = uint32_t(node.int_value);
-        uint8_t *near = b(node.out);
+        uint8_t *is_near = b(node.out);
         float *distance = f(node.out2);
         for (size_t l = 0; l < n; l++) {
           const LN_KeepDistanceState *keep = trees[l]->FindKeepDistanceState(slot);
-          const bool hit = keep != nullptr && keep->near;
-          near[l] = hit ? 1 : 0;
+          const bool hit = keep != nullptr && keep->is_near;
+          is_near[l] = hit ? 1 : 0;
           distance[l] = keep != nullptr ? keep->nearest_distance : -1.0f;
           const MT_Vector3 zero(0.0f, 0.0f, 0.0f);
           const MT_Vector3 &point = hit ? keep->nearest_point : zero;

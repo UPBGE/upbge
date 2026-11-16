@@ -81,8 +81,9 @@ struct LN_KeepDistanceState {
   float mass = 1.0f;
   bool dynamic = false;
   /** The outputs: what the last answer gave, of the surfaces within the node's range
-   * (LN_KeepDistanceRange; Nearest Object: the last check's nearest). */
-  bool near = false;
+   * (LN_KeepDistanceRange; Nearest Object: the last check's nearest). Never name a member
+   * `near` or `far`: Windows' <minwindef.h> defines both as empty macros (MSVC failed here). */
+  bool is_near = false;
   float nearest_distance = -1.0f;
   MT_Vector3 nearest_point = MT_Vector3(0.0f, 0.0f, 0.0f);
   MT_Vector3 nearest_normal = MT_Vector3(0.0f, 0.0f, 0.0f);

@@ -442,13 +442,13 @@ void LN_ProcessKeepDistanceRequests(std::vector<LN_KeepDistanceRequest> &request
     if (nearest >= 0 && nearest_gap < LN_KeepDistanceRange(settings)) {
       const LN_KeepDistancePatch &patch = state.patches[size_t(nearest)];
       state.nearest_distance = nearest_gap;
-      state.near = true;
+      state.is_near = true;
       state.nearest_point = patch.point;
       state.nearest_normal = patch.away;
     }
     else {
       state.nearest_distance = -1.0f;
-      state.near = false;
+      state.is_near = false;
       state.nearest_point = MT_Vector3(0.0f, 0.0f, 0.0f);
       state.nearest_normal = MT_Vector3(0.0f, 0.0f, 0.0f);
     }
