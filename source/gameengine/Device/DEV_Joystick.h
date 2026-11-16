@@ -76,11 +76,6 @@ class DEV_Joystick
   int m_axis_array[JOYAXIS_MAX];
 
   /**
-   * Precision or range of the axes
-   */
-  int m_prec;
-
-  /**
    * max # of buttons avail
    */
 
@@ -106,8 +101,8 @@ class DEV_Joystick
    * Raw joystick state: devices SDL does not recognize as gamepads (flight sticks, throttles,
    * wheels, pedals, force-feedback joysticks), updated from SDL_EVENT_JOYSTICK_* events. Axes 0
    * to 5 and buttons 0 to 25 (the gamepad layout) are mirrored into m_axis_array and
-   * m_buttons/m_pressed, so logic-brick joystick sensors work unchanged. m_axismax and
-   * m_buttonmax hold the counts.
+   * m_buttons/m_pressed, so logic-brick joystick sensors work unchanged; every raw axis and
+   * button raises the trigger flags. m_axismax and m_buttonmax hold the counts.
    */
   int16_t m_rawAxes[DEV_RAW_AXES_MAX] = {};
   uint64_t m_rawButtons[DEV_RAW_BUTTONS_MAX / 64] = {};
@@ -161,16 +156,6 @@ class DEV_Joystick
    */
   void DestroyJoystickDevice(void);
 
-  /**
-   * returns m_axis_array
-   */
-
-  int pAxisTest(int axisnum);
-  /**
-   * returns m_axis_array
-   */
-  int pGetAxis(int axisnum, int udlr);
-
   DEV_Joystick(short bge_joystick_slot);
 
   ~DEV_Joystick();
@@ -191,22 +176,18 @@ class DEV_Joystick
   static void Init();
   static void Close();
 
-  /*
+  /**
+   * Axis tests for SCA_JoystickSensor. `axis` counts pairs (0 = axes 0 and 1); `axis_single` is
+   * an axis index. Indices the device does not have read 0, so they are never positive: files
+   * saved by older versions can hold indices beyond today's gamepad layout.
    */
-  bool aAxisPairIsPositive(int axis);
-  bool aAxisPairDirectionIsPositive(int axis,
-                                    int dir); /* function assumes joysticks are in axis pairs */
-  bool aAxisIsPositive(int axis_single);      /* check a single axis only */
+  bool aAxisPairIsPositive(int axis, int threshold) const;
+  bool aAxisPairDirectionIsPositive(int axis, int dir, int threshold) const;
+  bool aAxisIsPositive(int axis_single, int threshold) const;
 
   bool aAnyButtonPressIsPositive(void);
   bool aButtonPressIsPositive(int button);
   bool aButtonReleaseIsPositive(int button);
-
-  /**
-   * precision is default '3200' which is overridden by input
-   */
-
-  void cSetPrecision(int val);
 
   int GetAxisPosition(int index)
   {

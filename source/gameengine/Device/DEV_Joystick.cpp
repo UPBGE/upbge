@@ -54,7 +54,6 @@ static_assert(JOYBUT_MAX <= 32, "button state is a single 32-bit mask");
 
 DEV_Joystick::DEV_Joystick(short bge_joystick_slot)
     : m_bge_joystick_slot(bge_joystick_slot),
-      m_prec(3200),
       m_axismax(-1),
       m_buttonmax(-1),
       m_isinit(0),
@@ -198,35 +197,27 @@ void DEV_Joystick::ReleaseInstance(short bge_joystick_slot)
 #endif /* WITH_SDL */
 }
 
-void DEV_Joystick::cSetPrecision(int val)
+/* Thresholds are per sensor, passed in rather than stored on the shared device. Values are ints,
+ * so negating -32768 cannot overflow. */
+bool DEV_Joystick::aAxisPairIsPositive(int axis, int threshold) const
 {
-  m_prec = val;
+  /* Either axis of the pair beyond the threshold: a square deadzone. */
+  const int x = std::abs(GetAxisValue(axis * 2));
+  const int y = std::abs(GetAxisValue(axis * 2 + 1));
+  return std::max(x, y) > threshold;
 }
 
-bool DEV_Joystick::aAxisPairIsPositive(int axis)
+bool DEV_Joystick::aAxisPairDirectionIsPositive(int axis, int dir, int threshold) const
 {
-  return (pAxisTest(axis) > m_prec) ? true : false;
+  const bool vertical = (dir == JOYAXIS_UP || dir == JOYAXIS_DOWN);
+  const int value = GetAxisValue(axis * 2 + (vertical ? 1 : 0));
+  return (dir == JOYAXIS_DOWN || dir == JOYAXIS_RIGHT) ? (value > threshold) :
+                                                         (value < -threshold);
 }
 
-bool DEV_Joystick::aAxisPairDirectionIsPositive(int axis, int dir)
+bool DEV_Joystick::aAxisIsPositive(int axis_single, int threshold) const
 {
-
-  int res;
-
-  if (dir == JOYAXIS_UP || dir == JOYAXIS_DOWN)
-    res = pGetAxis(axis, 1);
-  else /* JOYAXIS_LEFT || JOYAXIS_RIGHT */
-    res = pGetAxis(axis, 0);
-
-  if (dir == JOYAXIS_DOWN || dir == JOYAXIS_RIGHT)
-    return (res > m_prec) ? true : false;
-  else /* JOYAXIS_UP || JOYAXIS_LEFT */
-    return (res < -m_prec) ? true : false;
-}
-
-bool DEV_Joystick::aAxisIsPositive(int axis_single)
-{
-  return std::abs(m_axis_array[axis_single]) > m_prec ? true : false;
+  return std::abs(GetAxisValue(axis_single)) > threshold;
 }
 
 /* Button queries read the event-maintained mask: one load and a bit test instead of
@@ -512,39 +503,6 @@ int DEV_Joystick::Connected(void)
   }
 #endif
   return 0;
-}
-
-int DEV_Joystick::pGetAxis(int axisnum, int udlr)
-{
-#ifdef WITH_SDL
-  return m_axis_array[(axisnum * 2) + udlr];
-#endif
-  return 0;
-}
-
-int DEV_Joystick::pAxisTest(int axisnum)
-{
-#ifdef WITH_SDL
-  /* Use ints instead of shorts here to avoid problems when we get -32768.
-   * When we take the negative of that later, we should get 32768, which is greater
-   * than what a short can hold. In other words, abs(MIN_SHORT) > MAX_SHRT. */
-  int i1 = m_axis_array[(axisnum * 2)];
-  int i2 = m_axis_array[(axisnum * 2) + 1];
-
-  /* long winded way to do:
-   * return max_ff(absf(i1), absf(i2))
-   * ...avoid abs from math.h */
-  if (i1 < 0)
-    i1 = -i1;
-  if (i2 < 0)
-    i2 = -i2;
-  if (i1 < i2)
-    return i2;
-  else
-    return i1;
-#else  /* WITH_SDL */
-  return 0;
-#endif /* WITH_SDL */
 }
 
 const std::string DEV_Joystick::GetName()

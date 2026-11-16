@@ -95,7 +95,9 @@ void DEV_Joystick::OnSensorEvent(SDL_Event *sdl_event)
 
 void DEV_Joystick::OnRawEvent(SDL_Event *sdl_event)
 {
-  /* The trigger flags wake logic-brick sensors, which only see the mirrored axes and buttons. */
+  /* The trigger flags wake logic-brick sensors. They are raised for every axis and button, not
+   * only the mirrored ones: sensors can address any index of a raw joystick (files saved by
+   * older versions do). */
   switch (sdl_event->type) {
     case SDL_EVENT_JOYSTICK_AXIS_MOTION: {
       const int axis = sdl_event->jaxis.axis;
@@ -103,8 +105,8 @@ void DEV_Joystick::OnRawEvent(SDL_Event *sdl_event)
         m_rawAxes[axis] = sdl_event->jaxis.value;
         if (axis < JOYAXIS_MAX) {
           m_axis_array[axis] = sdl_event->jaxis.value;
-          m_istrig_axis = 1;
         }
+        m_istrig_axis = 1;
       }
       break;
     }
@@ -129,8 +131,8 @@ void DEV_Joystick::OnRawEvent(SDL_Event *sdl_event)
           else {
             m_buttons &= ~(1u << button);
           }
-          m_istrig_button = 1;
         }
+        m_istrig_button = 1;
       }
       break;
     }

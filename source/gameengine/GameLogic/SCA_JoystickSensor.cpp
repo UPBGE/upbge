@@ -118,9 +118,8 @@ bool SCA_JoystickSensor::Evaluate()
         return false;
       }
 
-      js->cSetPrecision(m_precision);
       if (m_bAllEvents) {
-        if (js->aAxisPairIsPositive(m_axis - 1)) { /* use zero based axis index internally */
+        if (js->aAxisPairIsPositive(m_axis - 1, m_precision)) { /* zero-based pair index */
           m_istrig = 1;
           result = true;
         }
@@ -132,8 +131,7 @@ bool SCA_JoystickSensor::Evaluate()
         }
       }
       else {
-        if (js->aAxisPairDirectionIsPositive(m_axis - 1,
-                                             m_axisf)) { /* use zero based axis index internally */
+        if (js->aAxisPairDirectionIsPositive(m_axis - 1, m_axisf, m_precision)) {
           m_istrig = 1;
           result = true;
         }
@@ -157,8 +155,7 @@ bool SCA_JoystickSensor::Evaluate()
       }
 
       /* No need for 'm_bAllEvents' check here since were only checking 1 axis */
-      js->cSetPrecision(m_precision);
-      if (js->aAxisIsPositive(axis_single_index - 1)) { /* use zero based axis index internally */
+      if (js->aAxisIsPositive(axis_single_index - 1, m_precision)) { /* zero-based index */
         m_istrig = 1;
         result = true;
       }
@@ -276,8 +273,7 @@ PyMethodDef SCA_JoystickSensor::Methods[] = {
 PyAttributeDef SCA_JoystickSensor::Attributes[] = {
     EXP_PYATTRIBUTE_SHORT_RW("index", 0, JOYINDEX_MAX - 1, true, SCA_JoystickSensor, m_joyindex),
     EXP_PYATTRIBUTE_INT_RW("threshold", 0, 32768, true, SCA_JoystickSensor, m_precision),
-    EXP_PYATTRIBUTE_INT_RW(
-        "button", 0, KX_JOYSENS_BUTTON_MAX - 1, false, SCA_JoystickSensor, m_button),
+    EXP_PYATTRIBUTE_INT_RW("button", 0, JOYBUT_MAX - 1, false, SCA_JoystickSensor, m_button),
     EXP_PYATTRIBUTE_INT_LIST_RW_CHECK(
         "axis", 0, 3, true, SCA_JoystickSensor, m_axis, 2, CheckAxis),
     EXP_PYATTRIBUTE_RO_FUNCTION("hat", SCA_JoystickSensor, pyattr_check_hat),
@@ -363,28 +359,28 @@ PyObject *SCA_JoystickSensor::pyattr_get_axis_single(EXP_PyObjectPlus *self_v,
     return nullptr;
   }
 
-  return PyLong_FromLong(joy ? joy->GetAxisPosition(self->m_axis - 1) : 0);
+  return PyLong_FromLong(joy ? joy->GetAxisValue(self->m_axis - 1) : 0);
 }
 
 PyObject *SCA_JoystickSensor::pyattr_check_hat(EXP_PyObjectPlus *self_v,
                                                const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   EXP_ShowDeprecationWarning("SCA_JoystickSensor.hat", "SCA_JoystickSensor.button");
-  return nullptr;
+  Py_RETURN_NONE;
 }
 
 PyObject *SCA_JoystickSensor::pyattr_get_hat_values(EXP_PyObjectPlus *self_v,
                                                     const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   EXP_ShowDeprecationWarning("SCA_JoystickSensor.hat", "SCA_JoystickSensor.button");
-  return nullptr;
+  Py_RETURN_NONE;
 }
 
 PyObject *SCA_JoystickSensor::pyattr_get_hat_single(EXP_PyObjectPlus *self_v,
                                                     const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   EXP_ShowDeprecationWarning("SCA_JoystickSensor.hatSingle", "SCA_JoystickSensor.button");
-  return nullptr;
+  Py_RETURN_NONE;
 }
 
 PyObject *SCA_JoystickSensor::pyattr_get_num_axis(EXP_PyObjectPlus *self_v,
@@ -409,7 +405,7 @@ PyObject *SCA_JoystickSensor::pyattr_get_num_hats(EXP_PyObjectPlus *self_v,
                                                   const EXP_PYATTRIBUTE_DEF *attrdef)
 {
   EXP_ShowDeprecationWarning("SCA_JoystickSensor.numHats", "SCA_JoystickSensor.numButtons");
-  return nullptr;
+  Py_RETURN_NONE;
 }
 
 PyObject *SCA_JoystickSensor::pyattr_get_connected(EXP_PyObjectPlus *self_v,
