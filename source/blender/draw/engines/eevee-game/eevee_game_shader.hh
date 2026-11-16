@@ -69,6 +69,8 @@ enum eShaderType {
   /* --- Infrastructure --- */
   SH_HIZ_UPDATE,
   SH_FILM_PRESENT,
+  /* Camera motion of the pixels without object motion (read by FSR). */
+  SH_VELOCITY_RESOLVE,
 
   MAX_SHADER_TYPE,
 };

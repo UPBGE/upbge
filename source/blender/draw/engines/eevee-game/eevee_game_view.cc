@@ -33,8 +33,17 @@ void ShadingView::init(const char *name)
 
 void ShadingView::update_view()
 {
-  render_view_.sync(inst_.uniform_data.viewmat,
-                    inst_.uniform_data.projectionmat);
+  /* FSR sub-pixel jitter, rasterization only: the camera matrices of the
+   * motion vectors stay unjittered, as FSR expects. Pre-multiplying by a clip
+   * space translation moves NDC by `jitter` for any projection, since the
+   * shift is scaled by w. Zero without FSR. */
+  float4x4 winmat = inst_.uniform_data.projectionmat;
+  const float2 jitter = inst_.uniform_data.jitter;
+  for (int c = 0; c < 4; c++) {
+    winmat[c][0] += jitter.x * winmat[c][3];
+    winmat[c][1] += jitter.y * winmat[c][3];
+  }
+  render_view_.sync(inst_.uniform_data.viewmat, winmat);
 }
 
 /* ================================================================
@@ -60,10 +69,11 @@ void ShadingView::render_prepass()
    * vertex stage): 1 = near, 0 = far. Clear to far. */
   GPU_framebuffer_clear_depth(prepass_fb_, 0.0f);
   /* Only moving objects use the velocity variant of the depth shader; the
-   * others leave the motion buffer untouched, so it starts at zero.
-   * TODO: camera motion for static pixels still has to be resolved from
-   * depth (EEVEE does it in the film pass) before FSR can rely on it. */
-  GPU_framebuffer_clear_color(prepass_fb_, double4(0.0));
+   * others leave the motion buffer untouched. With a still camera their
+   * motion is zero, the clear value. Otherwise they are marked invalid and
+   * get the camera motion after the prepass. */
+  const double clear_velocity = inst_.pipelines.use_velocity_resolve() ? VELOCITY_INVALID : 0.0;
+  GPU_framebuffer_clear_color(prepass_fb_, double4(clear_velocity));
 
   /* Opaque depth + velocity — all materials submit here in sync_mesh().
    * DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_GREATER_EQUAL set per sub-pass
@@ -80,6 +90,8 @@ void ShadingView::render_prepass()
   inst_.hiz_buffer.persmat = render_view_.persmat();
   inst_.hiz_buffer.valid = true;
   GPU_debug_group_end();
+
+  inst_.pipelines.render_velocity_resolve(render_view_);
 }
 
 /* ================================================================

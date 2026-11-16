@@ -174,6 +174,14 @@ void PipelineModule::begin_sync()
     pass.bind_ubo(VELOCITY_CAMERA_NEXT_BUF, &camera_curr_buf_);
   }
   {
+    /* `eevee_surf_depth` of the blended surfaces, from the lights only. */
+    PassMain &pass = shadow_casters_ps_;
+    pass.init();
+    pass.bind_texture(RBUFS_UTILITY_TEX_SLOT, eevee_utility_tx_);
+    pass.bind_ubo(UNIFORM_BUF_SLOT, &eevee_uniform_buf_);
+    pass.bind_ssbo(SAMPLING_BUF_SLOT, &eevee_sampling_buf_);
+  }
+  {
     /* `eevee_surf_deferred` + render pass and cryptomatte outputs. */
     PassMain &pass = opaque_layer_.gbuffer_ps;
     pass.init();
@@ -265,6 +273,10 @@ void PipelineModule::eevee_resources_update(int normal_layer_count)
   camera_curr_buf_ = camera;
   camera_prev_buf_.push_update();
   camera_curr_buf_.push_update();
+  /* FSR is the only reader of the motion buffer. A still camera gives the
+   * static pixels exactly zero motion, which is what the clear writes. */
+  use_velocity_resolve_ = inst_->upscale.is_initialized() &&
+                          (camera_prev.persmat != camera.persmat);
 
   eevee::UniformData data = {};
   data.camera = camera;
@@ -341,6 +353,20 @@ void PipelineModule::sync()
 
   eevee_resources_update(math::max(normal_layers, int(GBUF_NORMAL_FB_LAYER_COUNT)));
 
+  /* ---- Camera motion of the static pixels ---- */
+  if (use_velocity_resolve_) {
+    PassSimple &pass = velocity_resolve_ps_;
+    pass.init();
+    pass.shader_set(shaders_->static_shader_get(SH_VELOCITY_RESOLVE));
+    pass.bind_texture("depth_tx", &rbufs.depth_tx);
+    pass.bind_image("vector_img", &rbufs.vector_tx);
+    pass.bind_ubo(VELOCITY_CAMERA_PREV_BUF, &camera_prev_buf_);
+    pass.bind_ubo(VELOCITY_CAMERA_CURR_BUF, &camera_curr_buf_);
+    pass.bind_ubo(VELOCITY_CAMERA_NEXT_BUF, &camera_curr_buf_);
+    pass.dispatch(int3((extent.x + 7) / 8, (extent.y + 7) / 8, 1));
+    pass.barrier(GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_IMAGE_ACCESS);
+  }
+
   /* ---- Lighting constants and tiled light culling ---- */
   {
     const int light_count = inst_->lights.active_light_count;
@@ -410,6 +436,16 @@ void PipelineModule::sync()
 
   /* Intermediate AA targets follow the render resolution. */
   aa.sync_framebuffers(extent);
+}
+
+void PipelineModule::render_velocity_resolve(View &view)
+{
+  if (!use_velocity_resolve_) {
+    return;
+  }
+  GPU_debug_group_begin("Velocity.Resolve");
+  inst_->manager->submit(velocity_resolve_ps_, view);
+  GPU_debug_group_end();
 }
 
 void PipelineModule::render(View &view, Framebuffer &combined_fb)
@@ -600,6 +636,21 @@ PassMain::Sub *PipelineModule::material_add(Object * /*ob*/,
 static float transparent_sorting_value(const Object *ob, const float4x4 &viewinv)
 {
   return math::dot(float3(ob->object_to_world().location()), float3(viewinv[2]));
+}
+
+PassMain::Sub *PipelineModule::shadow_caster_add(blender::Material *blender_mat,
+                                                 GPUMaterial *gpumat)
+{
+  /* Same depth state as the opaque prepass the atlases are drawn with. */
+  DRWState state = DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_GREATER_EQUAL |
+                   DRW_STATE_CLIP_CONTROL_UNIT_RANGE;
+  if (blender_mat->blend_flag & MA_BL_CULL_BACKFACE_SHADOW) {
+    state |= DRW_STATE_CULL_BACK;
+  }
+  PassMain::Sub &sub = shadow_casters_ps_.sub(GPU_material_get_name(gpumat));
+  sub.state_set(state);
+  sub.shader_set(GPU_material_get_shader(gpumat));
+  return &sub;
 }
 
 PassMain::Sub *PipelineModule::prepass_transparent_add(Object *ob,

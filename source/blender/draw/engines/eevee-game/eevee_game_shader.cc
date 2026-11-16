@@ -149,6 +149,8 @@ const char *ShaderModule::static_shader_name_get(eShaderType type)
       return "eevee_hiz_update";
     case SH_LIGHT_CULL:
       return "eevee_game_light_cull";
+    case SH_VELOCITY_RESOLVE:
+      return "eevee_game_velocity_resolve";
     case SH_FILM_PRESENT:
       return "eevee_game_film_present";
 
@@ -188,6 +190,7 @@ void ShaderModule::static_shaders_load(ShaderGroups groups)
       {SH_VOLUME_INTEGRATE, SG_POST_FX},
       {SH_VOLUME_RESOLVE, SG_POST_FX},
       {SH_FILM_PRESENT, SG_POST_FX},
+      {SH_VELOCITY_RESOLVE, SG_POST_FX},
 
       /* AA */
       {SH_FXAA, SG_AA},

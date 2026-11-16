@@ -70,9 +70,9 @@ class UpscaleModule {
   void notify_camera_cut() { camera_cut_pending_ = true; }
 
   /**
-   * Advance the SDK jitter counter and return the UV-space offsets for the
-   * NEXT frame's projection matrix.  Called from GameInstance::begin_sync()
-   * so the prepass and G-Buffer are rendered with the correct sub-pixel shift.
+   * Advance the SDK jitter counter and return the NDC offset of this
+   * frame's projection. Called from GameInstance::begin_sync(), applied to
+   * the render view in ShadingView::update_view().
    *
    * AMD FSR3 integration guide §4.2: jitter must be applied to the projection
    * matrix BEFORE the scene is rendered, not after (which is what apply_fsr3()

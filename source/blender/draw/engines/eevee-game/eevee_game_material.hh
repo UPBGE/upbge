@@ -133,7 +133,8 @@ class MaterialModule {
   MaterialPass material_pass_get(Object *ob,
                                  blender::Material *blender_mat,
                                  eevee::eMaterialPipeline pipeline_type,
-                                 eevee::eMaterialGeometry geometry_type);
+                                 eevee::eMaterialGeometry geometry_type,
+                                 bool shadow_caster = false);
 
   /** Create/update a Material entry in material_map_ for this object+material combination. */
   Material &material_sync(Object *ob,
@@ -152,6 +153,8 @@ class MaterialModule {
   /* Per-frame material and shader caches. Cleared in begin_sync(). */
   Map<uint64_t, Material>           material_map_;
   Map<uint64_t, PassMain::Sub *>    shader_map_;
+  /* Same, for the shadow-only casters (PipelineModule::shadow_caster_add). */
+  Map<uint64_t, PassMain::Sub *>    shadow_shader_map_;
 
   MaterialArray material_array_;
 

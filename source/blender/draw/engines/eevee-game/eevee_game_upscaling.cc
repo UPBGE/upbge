@@ -183,7 +183,9 @@ void UpscaleModule::init(int2 render_res, int2 display_res)
                            FFX_FRAMEINTERPOLATION_CONTEXT_COUNT);
   BLI_assert_msg(err == FFX_OK, "FSR3: failed to init frame interpolation backend");
 
+  /* depth_tx is reversed (1 = near, see RenderBuffers). */
   context_desc_.flags = FFX_FSR3_ENABLE_HIGH_DYNAMIC_RANGE |
+                        FFX_FSR3_ENABLE_DEPTH_INVERTED |
                         FFX_FSR3_ENABLE_UPSCALING_ONLY;
 
   context_desc_.maxRenderSize  = {uint32_t(render_res.x),  uint32_t(render_res.y)};
@@ -229,11 +231,13 @@ float2 UpscaleModule::advance_jitter()
   float jitter_x = 0.0f, jitter_y = 0.0f;
   ffxFsr3GetJitterOffset(&jitter_x, &jitter_y, jitter_frame_index_, jitter_phase_count_);
   jitter_frame_index_ = (jitter_frame_index_ + 1) % jitter_phase_count_;
-  /* Convert from pixel-space SDK offsets to NDC UV fraction expected by
-   * the projection matrix offset (see begin_sync usage below). */
+  /* Pixel offset to NDC offset of the projection. FSR shifts the image by
+   * +jitter texels, rows counted in memory order. Here row 0 is NDC y = -1
+   * (no viewport flip, GL and Vulkan alike), so y keeps its sign; AMD's
+   * samples negate it because their row 0 is NDC y = +1. */
   const int2 render_res = inst_->film.render_extent_get();
   return float2(2.0f * jitter_x / float(render_res.x),
-               -2.0f * jitter_y / float(render_res.y));
+                2.0f * jitter_y / float(render_res.y));
 #else
   return float2(0.0f);
 #endif
@@ -250,7 +254,7 @@ void UpscaleModule::apply_fsr3(gpu::Texture *src, gpu::Texture *dst, gpu::Textur
    * inst_->uniform_data.jitter is already set; read it back for the SDK. */
   const int2 render_res = inst_->film.render_extent_get();
   const float jitter_x = inst_->uniform_data.jitter.x * float(render_res.x) / 2.0f;
-  const float jitter_y = -inst_->uniform_data.jitter.y * float(render_res.y) / 2.0f;
+  const float jitter_y = inst_->uniform_data.jitter.y * float(render_res.y) / 2.0f;
 
   FfxFsr3DispatchUpscaleDescription dispatch = {};
   dispatch.commandList = get_command_list();
@@ -270,7 +274,9 @@ void UpscaleModule::apply_fsr3(gpu::Texture *src, gpu::Texture *dst, gpu::Textur
       L"FSR3_Output",       FFX_RESOURCE_STATE_UNORDERED_ACCESS);
 
   dispatch.jitterOffset      = {jitter_x, jitter_y};
-  dispatch.motionVectorScale = {float(render_res.x), float(render_res.y)};
+  /* The prepass writes EEVEE's packed velocity: UV motion times 0.01
+   * (velocity_pack), previous minus current. */
+  dispatch.motionVectorScale = {100.0f * float(render_res.x), 100.0f * float(render_res.y)};
   dispatch.renderSize        = {uint32_t(render_res.x),   uint32_t(render_res.y)};
   dispatch.upscaleSize       = {uint32_t(display_res_.x),  uint32_t(display_res_.y)};
   dispatch.frameTimeDelta    = inst_->delta_time_ms;

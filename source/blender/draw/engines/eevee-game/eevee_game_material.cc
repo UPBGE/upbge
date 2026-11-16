@@ -127,6 +127,7 @@ void MaterialModule::begin_sync()
   texture_loading_queue_.clear();
   material_map_.clear();
   shader_map_.clear();
+  shadow_shader_map_.clear();
 }
 
 void MaterialModule::end_sync()
@@ -211,7 +212,8 @@ void MaterialModule::queue_texture_loading(GPUMaterial *gpumat)
 MaterialPass MaterialModule::material_pass_get(Object *ob,
                                                blender::Material *blender_mat,
                                                eMaterialPipeline pipeline_type,
-                                               eMaterialGeometry geometry_type)
+                                               eMaterialGeometry geometry_type,
+                                               bool shadow_caster)
 {
   bNodeTree *ntree = blender_mat->nodetree ? blender_mat->nodetree :
                                              default_surface->nodetree;
@@ -280,9 +282,14 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
   ShaderKey shader_key(matpass.gpumat, blender_mat, MAT_PROBE_NONE);
   const uint64_t key_hash = shader_key.hash();
 
-  PassMain::Sub *shader_sub = shader_map_.lookup_or_add_cb(key_hash, [&]() {
+  /* Shadow casters get their own buckets: the same depth shader may also be
+   * bucketed in the camera prepass. */
+  Map<uint64_t, PassMain::Sub *> &bucket_map = shadow_caster ? shadow_shader_map_ : shader_map_;
+  PassMain::Sub *shader_sub = bucket_map.lookup_or_add_cb(key_hash, [&]() {
     /* First object using this shader: create the sub-pass bucket in the pipeline */
-    return inst_.pipelines.material_add(ob, blender_mat, matpass.gpumat, pipeline_type);
+    return shadow_caster ?
+               inst_.pipelines.shadow_caster_add(blender_mat, matpass.gpumat) :
+               inst_.pipelines.material_add(ob, blender_mat, matpass.gpumat, pipeline_type);
   });
 
   if (shader_sub != nullptr) {
@@ -377,12 +384,14 @@ Material &MaterialModule::material_sync(Object *ob,
       m.shading.sub_pass = nullptr;
     }
 
-    /* No dedicated shadow pass: ShadowModule draws the opaque depth prepass
-     * from each light (see ShadowModule::render_tile). MAT_PIPE_SHADOW would
-     * compile EEVEE's virtual shadow map shader, which writes through page
-     * tables this engine does not have.
-     * Limitation: per-object shadow visibility (OB_HIDE_SHADOW, or shadow
-     * only objects hidden from the camera) is not honoured yet. */
+    /* No dedicated shadow pass for surfaces with a depth prepass:
+     * ShadowModule draws that prepass from each light (see
+     * ShadowModule::render_tile). MAT_PIPE_SHADOW would compile EEVEE's
+     * virtual shadow map shader, which writes through page tables this engine
+     * does not have. Blended surfaces get theirs below.
+     * Limitation: for prepass casters, per-object shadow visibility
+     * (OB_HIDE_SHADOW, or shadow only objects hidden from the camera) is not
+     * honoured yet. */
     m.shadow = MaterialPass();
 
     m.has_surface = GPU_material_has_surface_output(m.shading.gpumat);
@@ -400,6 +409,18 @@ Material &MaterialModule::material_sync(Object *ob,
     m.is_alpha_blend_transparent = use_forward && is_transparent;
     m.has_transparent_shadows    = (blender_mat->blend_flag & MA_BL_TRANSPARENT_SHADOW) &&
                                    is_transparent;
+    /* Blended surfaces have no opaque prepass, so no caster either: they get
+     * one drawn from the lights only. With transparent shadows, the material's
+     * own depth shader, whose alpha hash discards in proportion to the
+     * transparency. Without, the surface stops all light, as in EEVEE: the
+     * default material's depth shader does it and evaluates no node tree. */
+    if (m.is_alpha_blend_transparent && !(ob->visibility_flag & OB_HIDE_SHADOW)) {
+      m.shadow = material_pass_get(ob,
+                                   m.has_transparent_shadows ? blender_mat : default_surface,
+                                   MAT_PIPE_PREPASS_DEFERRED,
+                                   geometry_type,
+                                   true);
+    }
     /* Depth-only shader of the overlap mask (nearest layer only). */
     if (m.is_alpha_blend_transparent && (blender_mat->blend_flag & MA_BL_HIDE_BACKFACE)) {
       m.overlap_masking = material_pass_get(

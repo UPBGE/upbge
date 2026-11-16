@@ -668,6 +668,7 @@ set(GLSL_SRC
   engines/eevee-game/shaders/eevee_game_ssgi_blur_comp.glsl
   engines/eevee-game/shaders/eevee_game_ssgi_main_comp.glsl
   engines/eevee-game/shaders/eevee_game_surf_forward_frag.glsl
+  engines/eevee-game/shaders/eevee_game_velocity_resolve_comp.glsl
   engines/eevee-game/shaders/eevee_game_volume_integrate_comp.glsl
   engines/eevee-game/shaders/eevee_game_volume_resolve_comp.glsl
   engines/eevee-game/shaders/eevee_game_volume_scatter_comp.glsl

@@ -107,6 +107,22 @@ class PipelineModule {
   {
     return opaque_layer_.prepass_ps;
   }
+  /* Casters drawn from the lights only, after the opaque prepass. */
+  PassMain &shadow_casters_get()
+  {
+    return shadow_casters_ps_;
+  }
+  /* Depth-only bucket of the shadow casters without a camera prepass. */
+  PassMain::Sub *shadow_caster_add(blender::Material *blender_mat, GPUMaterial *gpumat);
+
+  /* True when the motion buffer must be cleared to VELOCITY_INVALID and the
+   * static pixels resolved after the prepass: FSR is on and the camera moved. */
+  bool use_velocity_resolve() const
+  {
+    return use_velocity_resolve_;
+  }
+  /* Camera motion of the pixels the velocity prepass did not write. */
+  void render_velocity_resolve(View &view);
 
   AAModule   aa;
   AASettings aa_settings;
@@ -123,6 +139,9 @@ class PipelineModule {
     PassMain  gbuffer_ps{"Deferred.GBuffer"};
     PassSimple lighting_ps_{"Deferred.Lighting"};
   } opaque_layer_;
+
+  /* Blended surfaces have no opaque prepass to cast shadows with. */
+  PassMain shadow_casters_ps_{"Shadow.Casters"};
 
   /* World ambient color, the stand-in for image based lighting. */
   float3 world_ambient_ = float3(0.0f);
@@ -182,6 +201,10 @@ class PipelineModule {
    * projects each vertex with these to get its screen-space motion. */
   UniformBuffer<eevee::CameraData> camera_prev_buf_ = {"camera_prev"};
   UniformBuffer<eevee::CameraData> camera_curr_buf_ = {"camera_curr"};
+  /* Only FSR reads the motion buffer, and only a moving camera gives the
+   * static pixels any motion: otherwise their zero clear is already exact. */
+  PassSimple velocity_resolve_ps_ = {"Velocity.Resolve"};
+  bool use_velocity_resolve_ = false;
   /* `cryptomatte_object_buf`: never read (see RenderBuffers::cryptomatte_tx). */
   StorageArrayBuffer<float2, 16> cryptomatte_dummy_buf_ = {"cryptomatte_dummy"};
 

@@ -26,6 +26,7 @@
 #  include "eevee_common_infos.hh" /* eevee_gbuffer_data */
 #  include "eevee_sampling_infos.hh"
 #  include "eevee_uniform_infos.hh"
+#  include "eevee_velocity_infos.hh" /* eevee_velocity_camera */
 #  include "gpu_shader_fullscreen_infos.hh"
 
 #  include "eevee_game_shader_shared.hh"
@@ -462,6 +463,24 @@ SAMPLER(0, sampler2D, color_tx)
 SAMPLER(1, sampler2D, blend_tx)
 FRAGMENT_OUT(0, float4, out_color)
 ADDITIONAL_INFO(eevee_game_smaa_common)
+GPU_SHADER_CREATE_END()
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Camera motion
+ * \{ */
+
+/* Motion of the pixels the velocity prepass did not write (static geometry
+ * and background), from depth and the previous / current cameras. */
+GPU_SHADER_CREATE_INFO(eevee_game_velocity_resolve)
+DO_STATIC_COMPILATION()
+LOCAL_GROUP_SIZE(8, 8)
+SAMPLER(0, sampler2DDepth, depth_tx)
+IMAGE(0, SFLOAT_16_16, read_write, image2D, vector_img)
+COMPUTE_SOURCE("eevee_game_velocity_resolve_comp.glsl")
+ADDITIONAL_INFO(eevee_velocity_camera)
+ADDITIONAL_INFO(draw_view)
 GPU_SHADER_CREATE_END()
 
 /** \} */
