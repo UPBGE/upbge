@@ -31,6 +31,10 @@
 
 #include "DEV_Joystick.h"
 
+#include <algorithm>
+#include <cstring>
+#include <vector>
+
 #ifdef WITH_SDL
 #  include <SDL3/SDL.h>
 #endif
@@ -73,12 +77,21 @@ DEV_Joystick::~DEV_Joystick()
 
 DEV_Joystick *DEV_Joystick::m_instance[JOYINDEX_MAX];
 
+/** Names of the hints set through SetHint(), reset by Close(). */
+static std::vector<std::string> g_hints_set;
+
 void DEV_Joystick::Init()
 {
 #ifdef WITH_SDL
 
   /* To have xbox gamepads vibrations working on windows in recent SDL versions. To be tested with other gamepads/OS */
   SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT, "0");
+
+  /* SDL 3 defaults to "1": PlayStation and Switch pads connected over Bluetooth are switched to
+   * enhanced reports as soon as they are opened, and PlayStation pads stay that way until power
+   * cycled, which breaks DirectInput for other applications. "auto" still advertises rumble,
+   * LED and sensors, but SDL switches the report mode only when the game uses one of them. */
+  SDL_SetHint(SDL_HINT_JOYSTICK_ENHANCED_REPORTS, "auto");
 
   /* Initializing Game Controller related subsystems */
   bool success = SDL_InitSubSystem(SDL_INIT_GAMEPAD | SDL_INIT_HAPTIC);
@@ -118,6 +131,34 @@ void DEV_Joystick::Close()
 
   /* Closing SDL Game controller system */
   SDL_QuitSubSystem(SDL_INIT_GAMEPAD | SDL_INIT_HAPTIC);
+
+  for (const std::string &name : g_hints_set) {
+    SDL_ResetHint(name.c_str());
+  }
+  g_hints_set.clear();
+#endif
+}
+
+bool DEV_Joystick::IsJoystickHint(const char *name)
+{
+  return std::strncmp(name, "SDL_JOYSTICK_", 13) == 0 ||
+         std::strncmp(name, "SDL_GAMECONTROLLER", 18) == 0 ||
+         std::strncmp(name, "SDL_HIDAPI_", 11) == 0;
+}
+
+bool DEV_Joystick::SetHint(const char *name, const char *value)
+{
+#ifdef WITH_SDL
+  if (!IsJoystickHint(name)) {
+    return false;
+  }
+  if (std::find(g_hints_set.begin(), g_hints_set.end(), name) == g_hints_set.end()) {
+    g_hints_set.emplace_back(name);
+  }
+  /* False when a higher-priority value (an environment variable) already sets the hint. */
+  return SDL_SetHint(name, value);
+#else
+  return false;
 #endif
 }
 

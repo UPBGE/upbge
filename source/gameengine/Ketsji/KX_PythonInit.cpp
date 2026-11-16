@@ -388,6 +388,26 @@ static PyObject *gPyGetMaxLogicFrame(PyObject *)
   return PyLong_FromLong(KX_GetActiveEngine()->GetMaxLogicFrame());
 }
 
+PyDoc_STRVAR(gPySetJoystickHint_doc,
+             "setJoystickHint(name, value)\n"
+             "Set an SDL joystick hint (SDL_JOYSTICK_*, SDL_GAMECONTROLLER*, SDL_HIDAPI_*).\n"
+             "Returns False if a higher-priority value (environment variable) is already set.");
+static PyObject *gPySetJoystickHint(PyObject *, PyObject *args)
+{
+  const char *name, *value;
+  if (!PyArg_ParseTuple(args, "ss:setJoystickHint", &name, &value)) {
+    return nullptr;
+  }
+  if (!DEV_Joystick::IsJoystickHint(name)) {
+    PyErr_Format(PyExc_ValueError,
+                 "setJoystickHint(name, value): \"%s\" is not a joystick hint "
+                 "(SDL_JOYSTICK_*, SDL_GAMECONTROLLER*, SDL_HIDAPI_*)",
+                 name);
+    return nullptr;
+  }
+  return PyBool_FromLong(DEV_Joystick::SetHint(name, value));
+}
+
 static PyObject *gPySetMaxPhysicsFrame(PyObject *, PyObject *args)
 {
   int frame;
@@ -932,6 +952,10 @@ static struct PyMethodDef game_methods[] = {
     {"LibNew", (PyCFunction)gLibNew, METH_VARARGS, (const char *)""},
     {"LibFree", (PyCFunction)gLibFree, METH_VARARGS, (const char *)""},
     {"LibList", (PyCFunction)gLibList, METH_VARARGS, (const char *)""},
+    {"setJoystickHint",
+     (PyCFunction)gPySetJoystickHint,
+     METH_VARARGS,
+     (const char *)gPySetJoystickHint_doc},
 
     {nullptr, (PyCFunction) nullptr, 0, nullptr}};
 

@@ -139,6 +139,15 @@ class DEV_Joystick
  public:
   static DEV_Joystick *GetInstance(short bge_joystick_slot);
   static bool HandleEvents(short (&addrem)[JOYINDEX_MAX]);
+
+  /**
+   * SDL joystick hints: names starting with SDL_JOYSTICK_, SDL_GAMECONTROLLER or SDL_HIDAPI_.
+   * Hints set through SetHint() are reset by Close(), so one game's choices do not leak into the
+   * next run in the same Blender session. Hints SDL reads when a device opens only affect
+   * controllers connected afterwards.
+   */
+  static bool IsJoystickHint(const char *name);
+  static bool SetHint(const char *name, const char *value);
   void ReleaseInstance(short bge_joystick_slot);
   static void Init();
   static void Close();
