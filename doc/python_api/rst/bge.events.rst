@@ -168,6 +168,8 @@ Modifiers Keys
 .. data:: RIGHTCTRLKEY
 .. data:: RIGHTSHIFTKEY
 .. data:: LEFTSHIFTKEY
+.. data:: OSKEY
+.. data:: HYPERKEY
 
 ----------
 Arrow Keys
@@ -222,12 +224,18 @@ Function Keys
 .. data:: F17KEY
 .. data:: F18KEY
 .. data:: F19KEY
+.. data:: F20KEY
+.. data:: F21KEY
+.. data:: F22KEY
+.. data:: F23KEY
+.. data:: F24KEY
 
 ----------
 Other Keys
 ----------
 
 .. data:: ACCENTGRAVEKEY
+.. data:: APPKEY
 .. data:: BACKSLASHKEY
 .. data:: BACKSPACEKEY
 .. data:: COMMAKEY
@@ -235,15 +243,23 @@ Other Keys
 .. data:: ENDKEY
 .. data:: EQUALKEY
 .. data:: ESCKEY
+.. data:: GRLESSKEY
 .. data:: HOMEKEY
 .. data:: INSERTKEY
 .. data:: LEFTBRACKETKEY
 .. data:: LINEFEEDKEY
+.. data:: MEDIAFIRSTKEY
+.. data:: MEDIALASTKEY
+.. data:: MEDIAPLAYKEY
+.. data:: MEDIASTOPKEY
 .. data:: MINUSKEY
+.. data:: NUMLOCKKEY
 .. data:: PAGEDOWNKEY
 .. data:: PAGEUPKEY
 .. data:: PAUSEKEY
 .. data:: PERIODKEY
+.. data:: PLUSKEY
+.. data:: PRINTSCREENKEY
 .. data:: QUOTEKEY
 .. data:: RIGHTBRACKETKEY
 .. data:: RETKEY
@@ -252,6 +268,7 @@ Other Keys
 
       Use :data:`~bge.events.ENTERKEY`.
 .. data:: ENTERKEY
+.. data:: SCROLLLOCKKEY
 .. data:: SEMICOLONKEY
 .. data:: SLASHKEY
 .. data:: SPACEKEY
