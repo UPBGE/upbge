@@ -205,6 +205,11 @@ class SCA_JoystickSensor : public SCA_ISensor {
     return m_joyindex;
   }
 
+  /** Joystick-mode event types read the device's raw input, bypassing any gamepad mapping. */
+  bool IsRawMode() const;
+  /** The device at the sensor's index, with raw input started for Joystick-mode sensors. */
+  class DEV_Joystick *GetDevice();
+
 #ifdef WITH_PYTHON
 
   /* --------------------------------------------------------------------- */
@@ -219,7 +224,6 @@ class SCA_JoystickSensor : public SCA_ISensor {
                                           const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_axis_single(EXP_PyObjectPlus *self_v,
                                           const EXP_PYATTRIBUTE_DEF *attrdef);
-  static PyObject *pyattr_check_hat(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_hat_values(EXP_PyObjectPlus *self_v,
                                          const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_hat_single(EXP_PyObjectPlus *self_v,
@@ -233,15 +237,52 @@ class SCA_JoystickSensor : public SCA_ISensor {
   static PyObject *pyattr_get_connected(EXP_PyObjectPlus *self_v,
                                         const EXP_PYATTRIBUTE_DEF *attrdef);
 
-  /* attribute check */
+  /* attribute checks: ranges follow the event type */
   static int CheckAxis(EXP_PyObjectPlus *self, const PyAttributeDef *)
   {
     SCA_JoystickSensor *sensor = reinterpret_cast<SCA_JoystickSensor *>(self);
-    if (sensor->m_axis < 1)
-      sensor->m_axis = 1;
-    else if (sensor->m_axis > JOYAXIS_MAX)
-      sensor->m_axis = JOYAXIS_MAX;
+    int axis_max = DEV_RAW_AXES_MAX, dir_max = 3;
+    switch (sensor->m_joymode) {
+      case KX_JOYSENSORMODE_AXIS:
+        axis_max = DEV_RAW_AXES_MAX / 2; /* pairs */
+        break;
+      case KX_JOYSENSORMODE_SHOULDER_TRIGGER:
+        axis_max = 2;
+        break;
+      case KX_JOYSENSORMODE_RAW_AXIS:
+        dir_max = KX_JOYSENS_AXIS_SIGN_BOTH;
+        break;
+      case KX_JOYSENSORMODE_MOTION:
+        axis_max = KX_JOYSENS_MOTION_SHAKE;
+        break;
+      default:
+        break;
+    }
+    sensor->m_axis = (sensor->m_axis < 1) ?
+                         1 :
+                         (sensor->m_axis > axis_max ? axis_max : sensor->m_axis);
+    sensor->m_axisf = (sensor->m_axisf > dir_max) ? dir_max : sensor->m_axisf;
     return 0;
+  }
+  static int CheckHat(EXP_PyObjectPlus *self, const PyAttributeDef *)
+  {
+    SCA_JoystickSensor *sensor = reinterpret_cast<SCA_JoystickSensor *>(self);
+    sensor->m_hat = (sensor->m_hat < 1) ?
+                        1 :
+                        (sensor->m_hat > DEV_RAW_HATS_MAX ? DEV_RAW_HATS_MAX : sensor->m_hat);
+    return 0;
+  }
+  static int CheckButton(EXP_PyObjectPlus *self, const PyAttributeDef *)
+  {
+    SCA_JoystickSensor *sensor = reinterpret_cast<SCA_JoystickSensor *>(self);
+    if (sensor->m_joymode == KX_JOYSENSORMODE_RAW_BUTTON || sensor->m_button < JOYBUT_MAX) {
+      return 0;
+    }
+    PyErr_Format(PyExc_ValueError,
+                 "sensor.button = int: Joystick Sensor, expected an int between 0 and %d for "
+                 "this event type",
+                 JOYBUT_MAX - 1);
+    return 1;
   }
 
 #endif /* WITH_PYTHON */
