@@ -23,8 +23,9 @@
 /** \file gameengine/Device/DEV_JoystickFeatures.cpp
  *  \ingroup device
  *
- * Optional controller features exposed by SDL 3: identity, player index. Nothing here runs per
- * logic tick; every function is called only when a script asks.
+ * Optional controller features exposed by SDL 3: identity, player index, motion sensors. Nothing
+ * here runs per logic tick; every function is called only when a script asks. Sensor samples
+ * are handled in DEV_JoystickEvents.cpp.
  */
 
 #include "DEV_Joystick.h"
@@ -120,4 +121,43 @@ bool DEV_Joystick::SetPlayerIndex(int index)
   }
 #endif
   return false;
+}
+
+bool DEV_Joystick::EnableSensors(bool gyro, bool accel)
+{
+#ifdef WITH_SDL
+  SDL_Gamepad *gamepad = m_private->m_gamecontroller;
+  if (!gamepad) {
+    return false;
+  }
+  bool ok = true;
+  if (m_hasGyro) {
+    ok &= SDL_SetGamepadSensorEnabled(gamepad, SDL_SENSOR_GYRO, gyro);
+    const float rate = SDL_GetGamepadSensorDataRate(gamepad, SDL_SENSOR_GYRO);
+    m_gyroNominalDt = (rate > 0.0f) ? 1.0f / rate : 1.0f / 200.0f;
+  }
+  else {
+    ok &= !gyro;
+  }
+  if (m_hasAccel) {
+    ok &= SDL_SetGamepadSensorEnabled(gamepad, SDL_SENSOR_ACCEL, accel);
+  }
+  else {
+    ok &= !accel;
+  }
+  /* The next gyro sample has no predecessor to measure its interval from. A disabled sensor
+   * keeps no stale reading. */
+  m_gyroLastNs = 0;
+  for (int i = 0; i < 3; i++) {
+    if (!gyro) {
+      m_gyro[i] = m_gyroDelta[i] = 0.0f;
+    }
+    if (!accel) {
+      m_accel[i] = 0.0f;
+    }
+  }
+  return ok;
+#else
+  return false;
+#endif
 }

@@ -359,6 +359,8 @@ bool DEV_Joystick::CreateJoystickDevice(void)
     if (!joy_error) {
       m_private->m_type = SDL_GetGamepadType(m_private->m_gamecontroller);
       SDL_SetGamepadPlayerIndex(m_private->m_gamecontroller, m_bge_joystick_slot);
+      m_hasGyro = SDL_GamepadHasSensor(m_private->m_gamecontroller, SDL_SENSOR_GYRO);
+      m_hasAccel = SDL_GamepadHasSensor(m_private->m_gamecontroller, SDL_SENSOR_ACCEL);
     }
   }
 #endif /* WITH_SDL */

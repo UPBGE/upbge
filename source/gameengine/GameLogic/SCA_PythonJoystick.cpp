@@ -107,6 +107,7 @@ PyTypeObject SCA_PythonJoystick::Type = {PyVarObject_HEAD_INIT(nullptr, 0) "SCA_
 PyMethodDef SCA_PythonJoystick::Methods[] = {
     EXP_PYMETHODTABLE_NOARGS(SCA_PythonJoystick, startVibration),
     EXP_PYMETHODTABLE_NOARGS(SCA_PythonJoystick, stopVibration),
+    EXP_PYMETHODTABLE_KEYWORDS(SCA_PythonJoystick, enableSensors),
     {nullptr, nullptr}  // Sentinel
 };
 
@@ -140,6 +141,11 @@ PyAttributeDef SCA_PythonJoystick::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("connection", SCA_PythonJoystick, pyattr_get_connection),
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "playerIndex", SCA_PythonJoystick, pyattr_get_player_index, pyattr_set_player_index),
+    EXP_PYATTRIBUTE_RO_FUNCTION("hasGyro", SCA_PythonJoystick, pyattr_get_has_gyro),
+    EXP_PYATTRIBUTE_RO_FUNCTION("hasAccel", SCA_PythonJoystick, pyattr_get_has_accel),
+    EXP_PYATTRIBUTE_RO_FUNCTION("gyro", SCA_PythonJoystick, pyattr_get_gyro),
+    EXP_PYATTRIBUTE_RO_FUNCTION("gyroDelta", SCA_PythonJoystick, pyattr_get_gyro_delta),
+    EXP_PYATTRIBUTE_RO_FUNCTION("accel", SCA_PythonJoystick, pyattr_get_accel),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
@@ -404,6 +410,68 @@ int SCA_PythonJoystick::pyattr_set_player_index(EXP_PyObjectPlus *self_v,
     return PY_SET_ATTR_FAIL;
   }
   return PY_SET_ATTR_SUCCESS;
+}
+
+EXP_PYMETHODDEF_DOC(
+    SCA_PythonJoystick,
+    enableSensors,
+    "enableSensors(gyro=True, accel=False)\n"
+    "\tTurns the motion sensors on or off. Returns False if a requested sensor is\n"
+    "\tmissing or could not be switched.\n")
+{
+  static const char *kwlist[] = {"gyro", "accel", nullptr};
+  int gyro = 1, accel = 0;
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwds, "|pp:enableSensors", const_cast<char **>(kwlist), &gyro, &accel))
+  {
+    return nullptr;
+  }
+  return PyBool_FromLong(m_joystick->EnableSensors(gyro != 0, accel != 0));
+}
+
+/* Tuples rather than mathutils.Vector: no wrapper allocation per read. */
+static PyObject *vec3_to_python(const float v[3])
+{
+  PyObject *tuple = PyTuple_New(3);
+  for (int i = 0; i < 3; i++) {
+    PyTuple_SET_ITEM(tuple, i, PyFloat_FromDouble(v[i]));
+  }
+  return tuple;
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_has_gyro(EXP_PyObjectPlus *self_v,
+                                                  const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return PyBool_FromLong(self->m_joystick->HasGyro());
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_has_accel(EXP_PyObjectPlus *self_v,
+                                                   const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return PyBool_FromLong(self->m_joystick->HasAccel());
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_gyro(EXP_PyObjectPlus *self_v,
+                                              const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return vec3_to_python(self->m_joystick->GetGyro());
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_gyro_delta(EXP_PyObjectPlus *self_v,
+                                                    const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return vec3_to_python(self->m_joystick->GetGyroDelta());
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_accel(EXP_PyObjectPlus *self_v,
+                                               const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return vec3_to_python(self->m_joystick->GetAccel());
 }
 
 #endif  // WITH_PYTHON

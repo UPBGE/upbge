@@ -58,6 +58,7 @@ class SCA_PythonJoystick : public EXP_Value {
 
   EXP_PYMETHOD_DOC_NOARGS(SCA_PythonJoystick, startVibration);
   EXP_PYMETHOD_DOC_NOARGS(SCA_PythonJoystick, stopVibration);
+  EXP_PYMETHOD_DOC(SCA_PythonJoystick, enableSensors);
 
   static PyObject *pyattr_get_isVibrating(EXP_PyObjectPlus *self_v,
                                           const struct EXP_PYATTRIBUTE_DEF *attrdef);
@@ -83,5 +84,13 @@ class SCA_PythonJoystick : public EXP_Value {
   static int pyattr_set_player_index(EXP_PyObjectPlus *self_v,
                                      const EXP_PYATTRIBUTE_DEF *attrdef,
                                      PyObject *value);
+  static PyObject *pyattr_get_has_gyro(EXP_PyObjectPlus *self_v,
+                                       const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_has_accel(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_gyro(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_gyro_delta(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_accel(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };

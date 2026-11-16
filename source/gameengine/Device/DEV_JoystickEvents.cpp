@@ -66,6 +66,33 @@ void DEV_Joystick::OnButtonEvent(SDL_Event *sdl_event)
   m_istrig_button = 1;
 }
 
+void DEV_Joystick::OnSensorEvent(SDL_Event *sdl_event)
+{
+  const SDL_GamepadSensorEvent &event = sdl_event->gsensor;
+  if (event.sensor == SDL_SENSOR_GYRO) {
+    /* Each sample's rate is held over the interval since the previous sample (rectangle rule):
+     * at 200 to 1000 Hz the difference to the trapezoid rule is below the sensor noise, and no
+     * previous rate needs storing. The interval comes from the hardware timestamp when there is
+     * one, and is clamped to 4 nominal periods so a stall (debugger, window drag) cannot
+     * integrate seconds of stale rotation into one tick. */
+    float dt = m_gyroNominalDt;
+    if (m_gyroLastNs != 0 && event.sensor_timestamp > m_gyroLastNs) {
+      const float measured = float(event.sensor_timestamp - m_gyroLastNs) * 1e-9f;
+      dt = (measured < 4.0f * m_gyroNominalDt) ? measured : 4.0f * m_gyroNominalDt;
+    }
+    m_gyroLastNs = event.sensor_timestamp;
+    for (int i = 0; i < 3; i++) {
+      m_gyro[i] = event.data[i];
+      m_gyroDelta[i] += event.data[i] * dt;
+    }
+  }
+  else if (event.sensor == SDL_SENSOR_ACCEL) {
+    m_accel[0] = event.data[0];
+    m_accel[1] = event.data[1];
+    m_accel[2] = event.data[2];
+  }
+}
+
 void DEV_Joystick::OnNothing(SDL_Event *sdl_event)
 {
   /* A tap that began and ended inside the previous tick was reported as pressed for that tick
@@ -75,6 +102,8 @@ void DEV_Joystick::OnNothing(SDL_Event *sdl_event)
   m_istrig_axis = 0;
   m_istrig_button = (tapped != 0);
   m_pressed = 0;
+  /* gyroDelta is the rotation since the previous tick: restart the sum. */
+  m_gyroDelta[0] = m_gyroDelta[1] = m_gyroDelta[2] = 0.0f;
 }
 
 bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
@@ -153,6 +182,17 @@ bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
             if (sdl_event.gaxis.which ==
                 DEV_Joystick::m_instance[i]->m_private->m_sdl_joystick_id) {
               DEV_Joystick::m_instance[i]->OnAxisEvent(&sdl_event);
+              break;
+            }
+          }
+        }
+        break;
+      case SDL_EVENT_GAMEPAD_SENSOR_UPDATE:
+        for (int i = 0; i < JOYINDEX_MAX; i++) {
+          if (DEV_Joystick::m_instance[i]) {
+            if (sdl_event.gsensor.which ==
+                DEV_Joystick::m_instance[i]->m_private->m_sdl_joystick_id) {
+              DEV_Joystick::m_instance[i]->OnSensorEvent(&sdl_event);
               break;
             }
           }

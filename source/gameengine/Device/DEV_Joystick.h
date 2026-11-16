@@ -102,6 +102,19 @@ class DEV_Joystick
   uint32_t m_buttons;
   uint32_t m_pressed;
 
+  /**
+   * Motion sensors, updated from SDL_EVENT_GAMEPAD_SENSOR_UPDATE once EnableSensors() is called.
+   * m_gyroDelta accumulates every gyro sample since the previous logic tick, so the rotation a
+   * script reads does not depend on how many samples (200 to 1000 Hz) fall inside one tick.
+   */
+  bool m_hasGyro = false;
+  bool m_hasAccel = false;
+  float m_gyro[3] = {};      /* rad/s */
+  float m_gyroDelta[3] = {}; /* rad since the previous logic tick */
+  float m_accel[3] = {};     /* m/s^2, gravity included */
+  uint64_t m_gyroLastNs = 0;
+  float m_gyroNominalDt = 1.0f / 200.0f;
+
 #ifdef WITH_SDL
   /**
    * event callbacks
@@ -109,6 +122,7 @@ class DEV_Joystick
   void SetInstanceId(SDL_JoystickID sdl_joystick_id);
   void OnAxisEvent(SDL_Event *sdl_event);
   void OnButtonEvent(SDL_Event *sdl_event);
+  void OnSensorEvent(SDL_Event *sdl_event);
   void OnNothing(SDL_Event *sdl_event);
 
 #endif /* WITH_SDL */
@@ -218,4 +232,31 @@ class DEV_Joystick
   const char *GetConnectionName() const;        /* "wired", "wireless" or "unknown" */
   int GetPlayerIndex() const;
   bool SetPlayerIndex(int index);
+
+  /**
+   * Motion sensors (DEV_JoystickFeatures.cpp), off until EnableSensors() is called: while off
+   * SDL reports no samples and they cost nothing. Axes follow SDL: x = pitch, y = yaw,
+   * z = roll, counter-clockwise positive.
+   */
+  bool HasGyro() const
+  {
+    return m_hasGyro;
+  }
+  bool HasAccel() const
+  {
+    return m_hasAccel;
+  }
+  bool EnableSensors(bool gyro, bool accel);
+  const float *GetGyro() const
+  {
+    return m_gyro;
+  }
+  const float *GetGyroDelta() const
+  {
+    return m_gyroDelta;
+  }
+  const float *GetAccel() const
+  {
+    return m_accel;
+  }
 };
