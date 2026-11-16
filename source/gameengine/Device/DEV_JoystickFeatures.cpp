@@ -75,11 +75,9 @@ const char *DEV_Joystick::GetButtonLabel(int button) const
 std::string DEV_Joystick::GetGUID() const
 {
 #ifdef WITH_SDL
-  if (m_private->m_gamecontroller) {
+  if (m_private->m_joystick) {
     char guid[33]; /* 32 hex digits + terminator. */
-    SDL_GUIDToString(SDL_GetJoystickGUID(SDL_GetGamepadJoystick(m_private->m_gamecontroller)),
-                     guid,
-                     sizeof(guid));
+    SDL_GUIDToString(SDL_GetJoystickGUID(m_private->m_joystick), guid, sizeof(guid));
     return guid;
   }
 #endif
@@ -89,8 +87,8 @@ std::string DEV_Joystick::GetGUID() const
 const char *DEV_Joystick::GetConnectionName() const
 {
 #ifdef WITH_SDL
-  if (m_private->m_gamecontroller) {
-    switch (SDL_GetGamepadConnectionState(m_private->m_gamecontroller)) {
+  if (m_private->m_joystick) {
+    switch (SDL_GetJoystickConnectionState(m_private->m_joystick)) {
       case SDL_JOYSTICK_CONNECTION_WIRED:
         return "wired";
       case SDL_JOYSTICK_CONNECTION_WIRELESS:
@@ -106,8 +104,8 @@ const char *DEV_Joystick::GetConnectionName() const
 int DEV_Joystick::GetPlayerIndex() const
 {
 #ifdef WITH_SDL
-  if (m_private->m_gamecontroller) {
-    return SDL_GetGamepadPlayerIndex(m_private->m_gamecontroller);
+  if (m_private->m_joystick) {
+    return SDL_GetJoystickPlayerIndex(m_private->m_joystick);
   }
 #endif
   return -1;
@@ -116,8 +114,8 @@ int DEV_Joystick::GetPlayerIndex() const
 bool DEV_Joystick::SetPlayerIndex(int index)
 {
 #ifdef WITH_SDL
-  if (m_private->m_gamecontroller) {
-    return SDL_SetGamepadPlayerIndex(m_private->m_gamecontroller, index);
+  if (m_private->m_joystick) {
+    return SDL_SetJoystickPlayerIndex(m_private->m_joystick, index);
   }
 #endif
   return false;
@@ -203,8 +201,8 @@ const char *DEV_Joystick::GetBatteryState(int *r_percent) const
 {
   *r_percent = -1;
 #ifdef WITH_SDL
-  if (m_private->m_gamecontroller) {
-    switch (SDL_GetGamepadPowerInfo(m_private->m_gamecontroller, r_percent)) {
+  if (m_private->m_joystick) {
+    switch (SDL_GetJoystickPowerInfo(m_private->m_joystick, r_percent)) {
       case SDL_POWERSTATE_ON_BATTERY:
         return "on_battery";
       case SDL_POWERSTATE_NO_BATTERY:
@@ -235,7 +233,7 @@ bool DEV_Joystick::HasLED() const
 bool DEV_Joystick::SetLED(unsigned char red, unsigned char green, unsigned char blue)
 {
 #ifdef WITH_SDL
-  return m_private->m_hasLED && SDL_SetGamepadLED(m_private->m_gamecontroller, red, green, blue);
+  return m_private->m_hasLED && SDL_SetJoystickLED(m_private->m_joystick, red, green, blue);
 #else
   return false;
 #endif

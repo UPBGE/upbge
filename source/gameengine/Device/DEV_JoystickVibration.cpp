@@ -48,7 +48,7 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
   if (m_private->m_hasRumble) {
     /* SDL owns the expiration timer and the periodic re-send some drivers need; repeating
      * identical strengths only moves the expiration, without device I/O. */
-    if (SDL_RumbleGamepad(m_private->m_gamecontroller,
+    if (SDL_RumbleJoystick(m_private->m_joystick,
                           Uint16(strengthLeft * 0xFFFF),
                           Uint16(strengthRight * 0xFFFF),
                           duration)) {
@@ -198,7 +198,7 @@ bool DEV_Joystick::RumbleStop()
   bool stopped = false;
 
   if (m_private->m_hasRumble) {
-    stopped = SDL_RumbleGamepad(m_private->m_gamecontroller, 0, 0, 0);
+    stopped = SDL_RumbleJoystick(m_private->m_joystick, 0, 0, 0);
   }
 
   if (m_private->m_haptic == nullptr) {
@@ -220,7 +220,7 @@ bool DEV_Joystick::GetRumbleStatus()
 {
 #ifdef WITH_SDL
   if (m_private->m_hasRumble) {
-    /* SDL_RumbleGamepad() never touches m_hapticEffectStatus, so derive the status from the end
+    /* SDL_RumbleJoystick() never touches m_hapticEffectStatus, so derive the status from the end
      * time recorded in RumblePlay(). The zero test skips the clock read while idle. */
     const double end_ms = m_private->m_hapticEndTime;
     return end_ms != 0.0 && end_ms > blender::BLI_time_now_seconds() * 1000.0;
@@ -243,7 +243,7 @@ bool DEV_Joystick::GetRumbleSupport()
 void DEV_Joystick::ProcessRumbleStatus()
 {
 #ifdef WITH_SDL
-  /* SDL expires SDL_RumbleGamepad() effects by itself; only SDL_Haptic needs our timer. */
+  /* SDL expires SDL_RumbleJoystick() effects by itself; only SDL_Haptic needs our timer. */
   if (m_private->m_haptic == nullptr) {
     return;
   }
@@ -275,8 +275,8 @@ bool DEV_Joystick::RumbleTriggers(float left, float right, unsigned int duration
   left = (left > 0.0f) ? ((left < 1.0f) ? left : 1.0f) : 0.0f;
   right = (right > 0.0f) ? ((right < 1.0f) ? right : 1.0f) : 0.0f;
   /* SDL expires the effect after `duration` ms by itself. */
-  return SDL_RumbleGamepadTriggers(
-      m_private->m_gamecontroller, Uint16(left * 65535.0f), Uint16(right * 65535.0f), duration);
+  return SDL_RumbleJoystickTriggers(
+      m_private->m_joystick, Uint16(left * 65535.0f), Uint16(right * 65535.0f), duration);
 #else
   return false;
 #endif
@@ -285,8 +285,8 @@ bool DEV_Joystick::RumbleTriggers(float left, float right, unsigned int duration
 bool DEV_Joystick::SendEffect(const void *data, int size)
 {
 #ifdef WITH_SDL
-  return m_private->m_gamecontroller && size > 0 &&
-         SDL_SendGamepadEffect(m_private->m_gamecontroller, data, size);
+  return m_private->m_joystick && size > 0 &&
+         SDL_SendJoystickEffect(m_private->m_joystick, data, size);
 #else
   return false;
 #endif

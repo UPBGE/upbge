@@ -125,6 +125,8 @@ class DEV_Joystick
   void OnSensorEvent(SDL_Event *sdl_event);
   void OnNothing(SDL_Event *sdl_event);
 
+  /** Output capabilities and the player index, resolved when a device opens. */
+  void InitOutputs();
 #endif /* WITH_SDL */
   /**
    * Open the joystick

@@ -333,40 +333,13 @@ bool DEV_Joystick::CreateJoystickDevice(void)
       }
     }
 
-    /* Haptic configuration */
+    /* Gamepad identity and sensors, resolved once; then what every device shares. */
     if (!joy_error) {
-      bool has_gamepad_rumble = false;
-      const SDL_PropertiesID gamepad_properties = SDL_GetGamepadProperties(
-          m_private->m_gamecontroller);
-      m_private->m_hasRumble = SDL_GetBooleanProperty(
-          gamepad_properties, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false);
-
-      /* SDL_Haptic is only the fallback for devices without simple rumble. Use
-       * SDL_OpenHapticFromJoystick to correctly associate haptic with the
-       * game controller's underlying joystick. */
-      if (!m_private->m_hasRumble) {
-        m_private->m_haptic = SDL_OpenHapticFromJoystick(joy);
-      }
-
-      if (!m_private->m_haptic && !m_private->m_hasRumble) {
-        CM_Warning("Game Controller (" << GetName() << ") with index " << m_bge_joystick_slot
-                                       << " has not force feedback (vibration) available");
-      }
-    }
-
-    /* Identity and capabilities, resolved once. The player index lights the player LED (PS5,
-     * Switch) or ring quadrant (Xbox 360) that matches this slot: slot 0 is player 1. */
-    if (!joy_error) {
-      const SDL_PropertiesID properties = SDL_GetGamepadProperties(m_private->m_gamecontroller);
-      m_private->m_hasLED =
-          SDL_GetBooleanProperty(properties, SDL_PROP_GAMEPAD_CAP_RGB_LED_BOOLEAN, false) ||
-          SDL_GetBooleanProperty(properties, SDL_PROP_GAMEPAD_CAP_MONO_LED_BOOLEAN, false);
-      m_private->m_hasTriggerRumble = SDL_GetBooleanProperty(
-          properties, SDL_PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN, false);
+      m_private->m_joystick = joy;
       m_private->m_type = SDL_GetGamepadType(m_private->m_gamecontroller);
-      SDL_SetGamepadPlayerIndex(m_private->m_gamecontroller, m_bge_joystick_slot);
       m_hasGyro = SDL_GamepadHasSensor(m_private->m_gamecontroller, SDL_SENSOR_GYRO);
       m_hasAccel = SDL_GamepadHasSensor(m_private->m_gamecontroller, SDL_SENSOR_ACCEL);
+      InitOutputs();
     }
   }
 #endif /* WITH_SDL */
@@ -380,6 +353,38 @@ bool DEV_Joystick::CreateJoystickDevice(void)
     return true;
   }
 }
+
+#ifdef WITH_SDL
+void DEV_Joystick::InitOutputs()
+{
+  SDL_Joystick *joy = m_private->m_joystick;
+
+  /* Resolved once: a property query is a lock plus a string-keyed lookup, too costly to repeat
+   * per pad per logic tick (it was, via the rumble bookkeeping loop). */
+  const SDL_PropertiesID properties = SDL_GetJoystickProperties(joy);
+  m_private->m_hasRumble = SDL_GetBooleanProperty(
+      properties, SDL_PROP_JOYSTICK_CAP_RUMBLE_BOOLEAN, false);
+  m_private->m_hasTriggerRumble = SDL_GetBooleanProperty(
+      properties, SDL_PROP_JOYSTICK_CAP_TRIGGER_RUMBLE_BOOLEAN, false);
+  m_private->m_hasLED =
+      SDL_GetBooleanProperty(properties, SDL_PROP_JOYSTICK_CAP_RGB_LED_BOOLEAN, false) ||
+      SDL_GetBooleanProperty(properties, SDL_PROP_JOYSTICK_CAP_MONO_LED_BOOLEAN, false);
+
+  /* SDL_Haptic is only the fallback for devices without simple rumble. Use
+   * SDL_OpenHapticFromJoystick to correctly associate haptic with the joystick. */
+  if (!m_private->m_hasRumble) {
+    m_private->m_haptic = SDL_OpenHapticFromJoystick(joy);
+  }
+  if (!m_private->m_haptic && !m_private->m_hasRumble) {
+    CM_Warning("Game Controller (" << GetName() << ") with index " << m_bge_joystick_slot
+                                   << " has not force feedback (vibration) available");
+  }
+
+  /* The player index lights the player LED (PS5, Switch) or ring quadrant (Xbox 360) that
+   * matches this slot: slot 0 is player 1. */
+  SDL_SetJoystickPlayerIndex(joy, m_bge_joystick_slot);
+}
+#endif /* WITH_SDL */
 
 void DEV_Joystick::DestroyJoystickDevice(void)
 {
@@ -397,6 +402,7 @@ void DEV_Joystick::DestroyJoystickDevice(void)
       SDL_CloseGamepad(m_private->m_gamecontroller);
       m_private->m_gamecontroller = nullptr;
     }
+    m_private->m_joystick = nullptr;
 
     m_isinit = false;
   }
@@ -406,7 +412,7 @@ void DEV_Joystick::DestroyJoystickDevice(void)
 int DEV_Joystick::Connected(void)
 {
 #ifdef WITH_SDL
-  if (m_isinit && SDL_GamepadConnected(m_private->m_gamecontroller)) {
+  if (m_isinit && m_private->m_joystick && SDL_JoystickConnected(m_private->m_joystick)) {
     return 1;
   }
 #endif
@@ -449,7 +455,12 @@ int DEV_Joystick::pAxisTest(int axisnum)
 const std::string DEV_Joystick::GetName()
 {
 #ifdef WITH_SDL
-  return SDL_GetGamepadName(m_private->m_gamecontroller);
+  /* The gamepad name comes from its mapping. Either may be null, which std::string rejects. */
+  const char *name = m_private->m_gamecontroller ?
+                         SDL_GetGamepadName(m_private->m_gamecontroller) :
+                         (m_private->m_joystick ? SDL_GetJoystickName(m_private->m_joystick) :
+                                                  nullptr);
+  return name ? name : "";
 #else  /* WITH_SDL */
   return "";
 #endif /* WITH_SDL */
