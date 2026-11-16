@@ -77,6 +77,8 @@ class SCA_PythonJoystick : public EXP_Value {
                                        const EXP_PYATTRIBUTE_DEF *attrdef);
   static int CheckResponse(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
 
+  static PyObject *pyattr_get_is_gamepad(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_type(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_button_labels(EXP_PyObjectPlus *self_v,
                                             const EXP_PYATTRIBUTE_DEF *attrdef);

@@ -139,6 +139,7 @@ PyAttributeDef SCA_PythonJoystick::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("leftStick", SCA_PythonJoystick, pyattr_get_left_stick),
     EXP_PYATTRIBUTE_RO_FUNCTION("rightStick", SCA_PythonJoystick, pyattr_get_right_stick),
     EXP_PYATTRIBUTE_RO_FUNCTION("triggers", SCA_PythonJoystick, pyattr_get_triggers),
+    EXP_PYATTRIBUTE_RO_FUNCTION("isGamepad", SCA_PythonJoystick, pyattr_get_is_gamepad),
     EXP_PYATTRIBUTE_RO_FUNCTION("type", SCA_PythonJoystick, pyattr_get_type),
     EXP_PYATTRIBUTE_RO_FUNCTION("buttonLabels", SCA_PythonJoystick, pyattr_get_button_labels),
     EXP_PYATTRIBUTE_RO_FUNCTION("guid", SCA_PythonJoystick, pyattr_get_guid),
@@ -162,15 +163,20 @@ PyAttributeDef SCA_PythonJoystick::Attributes[] = {
 PyObject *SCA_PythonJoystick::pyattr_get_num_x(EXP_PyObjectPlus *self_v,
                                                const EXP_PYATTRIBUTE_DEF *attrdef)
 {
+  /* Gamepads: the fixed gamepad layout. Raw joysticks: the device's own counts. */
+  DEV_Joystick *joystick = static_cast<SCA_PythonJoystick *>(self_v)->m_joystick;
   if (attrdef->m_name == "numButtons") {
-    return PyLong_FromLong(JOYBUT_MAX);
+    return PyLong_FromLong(joystick->GetNumButtons());
   }
   else if (attrdef->m_name == "numAxis") {
-    return PyLong_FromLong(JOYAXIS_MAX);
+    return PyLong_FromLong(joystick->GetNumAxes());
   }
   else if (attrdef->m_name == "numHats") {
-    EXP_ShowDeprecationWarning("SCA_PythonJoystick.numHats", "SCA_PythonJoystick.numButtons");
-    return PyLong_FromLong(0);
+    /* Gamepads report the d-pad as buttons: only raw joysticks have hats. */
+    if (joystick->IsGamepad()) {
+      EXP_ShowDeprecationWarning("SCA_PythonJoystick.numHats", "SCA_PythonJoystick.numButtons");
+    }
+    return PyLong_FromLong(joystick->GetNumHats());
   }
 
   // If we got here, we have a problem...
@@ -183,13 +189,13 @@ PyObject *SCA_PythonJoystick::pyattr_get_active_buttons(EXP_PyObjectPlus *self_v
 {
   SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
 
-  const int button_number = JOYBUT_MAX;
+  const int button_number = self->m_joystick->GetNumButtons();
 
   PyObject *list = PyList_New(0);
   PyObject *value;
 
   for (int i = 0; i < button_number; i++) {
-    if (self->m_joystick->aButtonPressIsPositive(i)) {
+    if (self->m_joystick->IsButtonDown(i)) {
       value = PyLong_FromLong(i);
       PyList_Append(list, value);
       Py_DECREF(value);
@@ -203,8 +209,18 @@ PyObject *SCA_PythonJoystick::pyattr_get_active_buttons(EXP_PyObjectPlus *self_v
 PyObject *SCA_PythonJoystick::pyattr_get_hat_values(EXP_PyObjectPlus *self_v,
                                                     const EXP_PYATTRIBUTE_DEF *attrdef)
 {
-  EXP_ShowDeprecationWarning("SCA_PythonJoystick.hatValues", "SCA_PythonJoystick.activeButtons");
-  return PyList_New(0);
+  DEV_Joystick *joystick = static_cast<SCA_PythonJoystick *>(self_v)->m_joystick;
+  /* Gamepads report the d-pad as buttons: only raw joysticks have hats. */
+  if (joystick->IsGamepad()) {
+    EXP_ShowDeprecationWarning("SCA_PythonJoystick.hatValues", "SCA_PythonJoystick.activeButtons");
+    return PyList_New(0);
+  }
+  const int hat_number = joystick->GetNumHats();
+  PyObject *list = PyList_New(hat_number);
+  for (int i = 0; i < hat_number; i++) {
+    PyList_SET_ITEM(list, i, PyLong_FromLong(joystick->GetHat(i)));
+  }
+  return list;
 }
 
 PyObject *SCA_PythonJoystick::pyattr_get_axis_values(EXP_PyObjectPlus *self_v,
@@ -212,12 +228,12 @@ PyObject *SCA_PythonJoystick::pyattr_get_axis_values(EXP_PyObjectPlus *self_v,
 {
   SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
 
-  int axis_index = JOYAXIS_MAX;
+  int axis_index = self->m_joystick->GetNumAxes();
   PyObject *list = PyList_New(axis_index);
   int position;
 
   while (axis_index--) {
-    position = self->m_joystick->GetAxisPosition(axis_index);
+    position = self->m_joystick->GetAxisValue(axis_index);
 
     // We get back a range from -32768 to 32767, so we use an if here to
     // get a perfect -1.0 to 1.0 mapping. Some oddball system might have an
@@ -357,6 +373,13 @@ int SCA_PythonJoystick::CheckResponse(EXP_PyObjectPlus *self_v,
                   "joystick response requires 0 <= stickDeadzone < stickOuter <= 1, "
                   "stickExponent > 0 and 0 <= triggerDeadzone < 1");
   return 1;
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_is_gamepad(EXP_PyObjectPlus *self_v,
+                                                    const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return PyBool_FromLong(self->m_joystick->IsGamepad());
 }
 
 PyObject *SCA_PythonJoystick::pyattr_get_type(EXP_PyObjectPlus *self_v,
