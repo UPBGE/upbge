@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <map>
 
 #include "SCA_InputEvent.h"
@@ -207,6 +208,17 @@ class SCA_IInputDevice {
  protected:
   /// Table of all possible input.
   SCA_InputEvent m_inputsTable[SCA_IInputDevice::MAX_KEYS];
+  /** One bit per m_inputsTable entry written since the last ClearInputs(). An entry nobody wrote
+   * is already in its cleared form, so ClearInputs() only visits marked entries instead of
+   * sweeping the whole table (and its scattered heap blocks) every logic tick.
+   * Any code that writes m_inputsTable must call MarkDirty(). */
+  static constexpr int DIRTY_WORDS = (MAX_KEYS + 63) / 64;
+  uint64_t m_dirty[DIRTY_WORDS] = {};
+
+  void MarkDirty(SCA_EnumInputs input)
+  {
+    m_dirty[input >> 6] |= uint64_t(1) << (input & 63);
+  }
   /// Typed text in unicode during a frame.
   std::wstring m_text;
 

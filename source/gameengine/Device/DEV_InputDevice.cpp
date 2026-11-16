@@ -194,6 +194,7 @@ void DEV_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type,
   SCA_InputEvent &event = m_inputsTable[type];
 
   if (event.m_values[event.m_values.size() - 1] != val) {
+    MarkDirty(type);
     // The key event value changed, we considerate it as the real event.
     event.m_status.push_back((val > 0) ? SCA_InputEvent::ACTIVE : SCA_InputEvent::NONE);
     event.m_queue.push_back((val > 0) ? SCA_InputEvent::JUSTACTIVATED :
@@ -210,6 +211,8 @@ void DEV_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type,
 
 void DEV_InputDevice::ConvertMoveEvent(int x, int y)
 {
+  MarkDirty(MOUSEX);
+  MarkDirty(MOUSEY);
   SCA_InputEvent &xevent = m_inputsTable[MOUSEX];
   xevent.m_values.push_back(x);
   if (xevent.m_status[xevent.m_status.size() - 1] != SCA_InputEvent::ACTIVE) {
@@ -227,7 +230,9 @@ void DEV_InputDevice::ConvertMoveEvent(int x, int y)
 
 void DEV_InputDevice::ConvertWheelEvent(int z)
 {
-  SCA_InputEvent &event = m_inputsTable[(z > 0) ? WHEELUPMOUSE : WHEELDOWNMOUSE];
+  const SCA_EnumInputs type = (z > 0) ? WHEELUPMOUSE : WHEELDOWNMOUSE;
+  MarkDirty(type);
+  SCA_InputEvent &event = m_inputsTable[type];
   event.m_values.push_back(z);
   if (event.m_status[event.m_status.size() - 1] != SCA_InputEvent::ACTIVE) {
     event.m_status.push_back(SCA_InputEvent::ACTIVE);

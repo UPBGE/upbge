@@ -31,6 +31,8 @@
 
 #include "SCA_IInputDevice.h"
 
+#include <bit>
+
 using namespace blender;
 
 /** Initialize conversion table key to char (shifted too), this function is a long function but
@@ -139,8 +141,13 @@ bool SCA_IInputDevice::GetHookExitKey() const
 
 void SCA_IInputDevice::ClearInputs()
 {
-  for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
-    m_inputsTable[i].Clear();
+  for (int w = 0; w < DIRTY_WORDS; ++w) {
+    uint64_t bits = m_dirty[w];
+    while (bits) {
+      m_inputsTable[w * 64 + std::countr_zero(bits)].Clear();
+      bits &= bits - 1; /* Drop the lowest set bit. */
+    }
+    m_dirty[w] = 0;
   }
   m_text.clear();
 }
@@ -162,6 +169,7 @@ void SCA_IInputDevice::ReleaseMoveEvent()
       event.m_status.pop_back();
       event.m_status.push_back(SCA_InputEvent::NONE);
       event.m_queue.push_back(SCA_InputEvent::JUSTRELEASED);
+      MarkDirty(eventTypes[i]);
     }
   }
 }
