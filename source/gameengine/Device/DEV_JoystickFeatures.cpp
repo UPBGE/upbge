@@ -146,6 +146,10 @@ bool DEV_Joystick::EnableSensors(bool gyro, bool accel)
   else {
     ok &= !accel;
   }
+  /* Recorded as requested even if SDL refused: a Motion sensor tests these every tick and must
+   * not retry an SDL call per tick. */
+  m_gyroOn = gyro && m_hasGyro;
+  m_accelOn = accel && m_hasAccel;
   /* The next gyro sample has no predecessor to measure its interval from. A disabled sensor
    * keeps no stale reading. */
   m_gyroLastNs = 0;

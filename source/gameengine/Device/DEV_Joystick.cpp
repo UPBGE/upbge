@@ -349,40 +349,56 @@ bool DEV_Joystick::CreateRawJoystickDevice()
     return false;
   }
   m_private->m_joystick = joy;
-  m_axismax = std::clamp(SDL_GetNumJoystickAxes(joy), 0, DEV_RAW_AXES_MAX);
-  m_buttonmax = std::clamp(SDL_GetNumJoystickButtons(joy), 0, DEV_RAW_BUTTONS_MAX);
-  m_numHats = std::clamp(SDL_GetNumJoystickHats(joy), 0, DEV_RAW_HATS_MAX);
+  m_isRawDevice = true;
+  StartRawInput();
 
-  /* Seed once from the live state; from here on only SDL events modify it. */
-  for (int i = 0; i < m_axismax; i++) {
-    m_rawAxes[i] = SDL_GetJoystickAxis(joy, i);
-    if (i < JOYAXIS_MAX) {
-      m_axis_array[i] = m_rawAxes[i];
-    }
+  /* Without a mapping, the gamepad layout falls back to the raw one. */
+  m_axismax = m_rawNumAxes;
+  m_buttonmax = m_rawNumButtons;
+  for (int i = 0; i < m_rawNumAxes && i < JOYAXIS_MAX; i++) {
+    m_axis_array[i] = m_rawAxes[i];
   }
-  m_buttons = m_pressed = 0;
-  for (int i = 0; i < m_buttonmax; i++) {
-    if (SDL_GetJoystickButton(joy, i)) {
-      m_rawButtons[i >> 6] |= uint64_t(1) << (i & 63);
-      if (i < JOYBUT_MAX) {
-        m_buttons |= 1u << i;
-      }
-    }
-  }
-  for (int i = 0; i < m_numHats; i++) {
-    m_hats[i] = SDL_GetJoystickHat(joy, i);
-  }
+  m_buttons = uint32_t(m_rawButtons[0]) & ((1u << JOYBUT_MAX) - 1u);
+  m_pressed = 0;
 
   m_isinit = true;
-  m_numRawJoysticks++;
-  m_rawJoystickIds[m_bge_joystick_slot] = m_private->m_sdl_joystick_id;
   CM_Message("Joystick (" << GetName() << ") with index " << m_bge_joystick_slot
                           << " is not a gamepad: opened as a raw joystick (axes " << m_axismax
-                          << ", buttons " << m_buttonmax << ", hats " << m_numHats
+                          << ", buttons " << m_buttonmax << ", hats " << m_rawNumHats
                           << "). A mapping for GUID " << GetGUID()
                           << " in gamecontrollerdb.txt makes it a gamepad.");
   InitOutputs();
   return true;
+}
+
+void DEV_Joystick::StartRawInput()
+{
+  SDL_Joystick *joy = m_private->m_joystick;
+  if (!joy) {
+    return;
+  }
+  m_rawNumAxes = std::clamp(SDL_GetNumJoystickAxes(joy), 0, DEV_RAW_AXES_MAX);
+  m_rawNumButtons = std::clamp(SDL_GetNumJoystickButtons(joy), 0, DEV_RAW_BUTTONS_MAX);
+  m_rawNumHats = std::clamp(SDL_GetNumJoystickHats(joy), 0, DEV_RAW_HATS_MAX);
+
+  /* Seed once from the live state; from here on only SDL events modify it. */
+  for (int i = 0; i < m_rawNumAxes; i++) {
+    m_rawAxes[i] = SDL_GetJoystickAxis(joy, i);
+  }
+  m_rawButtons[0] = m_rawButtons[1] = 0;
+  m_rawPressed[0] = m_rawPressed[1] = 0;
+  for (int i = 0; i < m_rawNumButtons; i++) {
+    if (SDL_GetJoystickButton(joy, i)) {
+      m_rawButtons[i >> 6] |= uint64_t(1) << (i & 63);
+    }
+  }
+  for (int i = 0; i < m_rawNumHats; i++) {
+    m_hats[i] = SDL_GetJoystickHat(joy, i);
+  }
+
+  m_rawOn = true;
+  m_numRawJoysticks++;
+  m_rawJoystickIds[m_bge_joystick_slot] = m_private->m_sdl_joystick_id;
 }
 
 void DEV_Joystick::InitOutputs()
@@ -437,8 +453,11 @@ void DEV_Joystick::DestroyJoystickDevice(void)
     else if (m_private->m_joystick) {
       CM_Debug("Joystick (" << GetName() << ") with index " << m_bge_joystick_slot << " closed");
       SDL_CloseJoystick(m_private->m_joystick);
+    }
+    if (m_rawOn) {
       m_numRawJoysticks--;
       m_rawJoystickIds[m_bge_joystick_slot] = 0;
+      m_rawOn = false;
     }
     m_private->m_joystick = nullptr;
 
@@ -468,7 +487,8 @@ int DEV_Joystick::GetNumButtons() const
 
 int DEV_Joystick::GetNumHats() const
 {
-  return m_numHats;
+  /* A gamepad reports its D-pad as buttons. */
+  return m_isRawDevice ? m_rawNumHats : 0;
 }
 
 int DEV_Joystick::GetAxisValue(int axis) const
@@ -492,7 +512,57 @@ bool DEV_Joystick::IsButtonDown(int button) const
 
 int DEV_Joystick::GetHat(int hat) const
 {
-  return ((unsigned int)hat < (unsigned int)m_numHats) ? m_hats[hat] : 0;
+  return ((unsigned int)hat < (unsigned int)GetNumHats()) ? m_hats[hat] : 0;
+}
+
+int DEV_Joystick::GetRawAxis(int axis) const
+{
+  return ((unsigned int)axis < (unsigned int)m_rawNumAxes) ? m_rawAxes[axis] : 0;
+}
+
+bool DEV_Joystick::IsRawButtonDown(int button) const
+{
+  if ((unsigned int)button >= (unsigned int)m_rawNumButtons) {
+    return false;
+  }
+  return ((m_rawButtons[button >> 6] | m_rawPressed[button >> 6]) >> (button & 63)) & 1u;
+}
+
+bool DEV_Joystick::IsAnyRawButtonDown() const
+{
+  return (m_rawButtons[0] | m_rawPressed[0] | m_rawButtons[1] | m_rawPressed[1]) != 0;
+}
+
+int DEV_Joystick::GetNumSensorHats() const
+{
+  /* A gamepad always has hat 0: its own, or the one built from the D-pad. */
+  return (m_rawNumHats > 0 || m_isRawDevice) ? m_rawNumHats : 1;
+}
+
+int DEV_Joystick::GetSensorHat(int hat) const
+{
+  if ((unsigned int)hat < (unsigned int)m_rawNumHats) {
+    return m_hats[hat];
+  }
+#ifdef WITH_SDL
+  if (hat == 0 && !m_isRawDevice) {
+    const uint32_t b = m_buttons | m_pressed;
+    return (((b >> SDL_GAMEPAD_BUTTON_DPAD_UP) & 1u) ? SDL_HAT_UP : 0) |
+           (((b >> SDL_GAMEPAD_BUTTON_DPAD_RIGHT) & 1u) ? SDL_HAT_RIGHT : 0) |
+           (((b >> SDL_GAMEPAD_BUTTON_DPAD_DOWN) & 1u) ? SDL_HAT_DOWN : 0) |
+           (((b >> SDL_GAMEPAD_BUTTON_DPAD_LEFT) & 1u) ? SDL_HAT_LEFT : 0);
+  }
+#endif
+  return 0;
+}
+
+uint32_t DEV_Joystick::GetConnectionId() const
+{
+#ifdef WITH_SDL
+  return m_private->m_sdl_joystick_id;
+#else
+  return 0;
+#endif
 }
 
 int DEV_Joystick::Connected(void)

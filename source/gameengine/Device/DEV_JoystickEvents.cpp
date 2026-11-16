@@ -29,6 +29,9 @@
  *  \ingroup device
  */
 
+#include <algorithm>
+#include <cmath>
+
 #include "CM_Message.h"
 #include "DEV_Joystick.h"
 #include "DEV_JoystickPrivate.h"
@@ -84,13 +87,19 @@ void DEV_Joystick::OnSensorEvent(SDL_Event *sdl_event)
     for (int i = 0; i < 3; i++) {
       m_gyro[i] = event.data[i];
       m_gyroDelta[i] += event.data[i] * dt;
+      m_gyroPeak[i] = std::max(m_gyroPeak[i], std::fabs(event.data[i]));
     }
   }
   else if (event.sensor == SDL_SENSOR_ACCEL) {
     m_accel[0] = event.data[0];
     m_accel[1] = event.data[1];
     m_accel[2] = event.data[2];
+    const float a2 = event.data[0] * event.data[0] + event.data[1] * event.data[1] +
+                     event.data[2] * event.data[2];
+    m_accelMax2 = std::max(m_accelMax2, a2);
+    m_accelMin2 = std::min(m_accelMin2, a2);
   }
+  m_istrig_motion = true;
 }
 
 void DEV_Joystick::OnRawEvent(SDL_Event *sdl_event)
@@ -103,7 +112,7 @@ void DEV_Joystick::OnRawEvent(SDL_Event *sdl_event)
       const int axis = sdl_event->jaxis.axis;
       if (axis < DEV_RAW_AXES_MAX) {
         m_rawAxes[axis] = sdl_event->jaxis.value;
-        if (axis < JOYAXIS_MAX) {
+        if (m_isRawDevice && axis < JOYAXIS_MAX) {
           m_axis_array[axis] = sdl_event->jaxis.value;
         }
         m_istrig_axis = 1;
@@ -122,8 +131,8 @@ void DEV_Joystick::OnRawEvent(SDL_Event *sdl_event)
         else {
           m_rawButtons[button >> 6] &= ~bit;
         }
-        /* Buttons of the gamepad layout also drive the mask that logic-brick sensors read. */
-        if (button < JOYBUT_MAX) {
+        /* On a raw joystick, buttons of the gamepad layout also drive the gamepad mask. */
+        if (m_isRawDevice && button < JOYBUT_MAX) {
           if (sdl_event->jbutton.down) {
             m_buttons |= 1u << button;
             m_pressed |= 1u << button;
@@ -139,6 +148,7 @@ void DEV_Joystick::OnRawEvent(SDL_Event *sdl_event)
     case SDL_EVENT_JOYSTICK_HAT_MOTION:
       if (sdl_event->jhat.hat < DEV_RAW_HATS_MAX) {
         m_hats[sdl_event->jhat.hat] = sdl_event->jhat.value;
+        m_istrig_hat = true;
       }
       break;
     default:
@@ -165,12 +175,19 @@ void DEV_Joystick::OnNothing(SDL_Event *sdl_event)
    * only. SCA_JoystickSensor re-evaluates only on ticks flagged by IsTrigButton(), so flag this
    * tick too; otherwise the sensor would keep its positive state until an unrelated event. */
   const uint32_t tapped = m_pressed & ~m_buttons;
+  const uint64_t raw_tapped = (m_rawPressed[0] & ~m_rawButtons[0]) |
+                              (m_rawPressed[1] & ~m_rawButtons[1]);
   m_istrig_axis = 0;
-  m_istrig_button = (tapped != 0);
+  m_istrig_button = (tapped != 0) || (raw_tapped != 0);
+  m_istrig_hat = false;
+  m_istrig_motion = false;
   m_pressed = 0;
   m_rawPressed[0] = m_rawPressed[1] = 0;
-  /* gyroDelta is the rotation since the previous tick: restart the sum. */
+  /* gyroDelta and the peaks cover the time since the previous tick: restart them. */
   m_gyroDelta[0] = m_gyroDelta[1] = m_gyroDelta[2] = 0.0f;
+  m_gyroPeak[0] = m_gyroPeak[1] = m_gyroPeak[2] = 0.0f;
+  m_accelMax2 = 0.0f;
+  m_accelMin2 = 3.4e38f;
 }
 
 bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
@@ -275,8 +292,9 @@ bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
       case SDL_EVENT_JOYSTICK_BUTTON_UP:
       case SDL_EVENT_JOYSTICK_HAT_MOTION: {
         /* SDL also emits these for every gamepad: its gamepad layer is built on them, so they
-         * cannot be disabled. Only raw joysticks consume them; with none open, this test is
-         * all they cost. */
+         * cannot be disabled. Only joysticks whose raw state is maintained consume them (raw
+         * joysticks, and gamepads a Joystick-mode sensor reads); with none, this test is all
+         * they cost. */
         if (m_numRawJoysticks == 0) {
           break;
         }

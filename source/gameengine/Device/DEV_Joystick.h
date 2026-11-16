@@ -88,6 +88,8 @@ class DEV_Joystick
   /** is triggered for each event type */
   bool m_istrig_axis;
   bool m_istrig_button;
+  bool m_istrig_hat = false;    /* raw hats; a gamepad D-pad raises m_istrig_button */
+  bool m_istrig_motion = false; /* gyroscope or accelerometer samples */
 
   /**
    * Button state maintained from SDL events, bit i = SDL_GamepadButton i.
@@ -98,22 +100,34 @@ class DEV_Joystick
   uint32_t m_pressed;
 
   /**
-   * Raw joystick state: devices SDL does not recognize as gamepads (flight sticks, throttles,
-   * wheels, pedals, force-feedback joysticks), updated from SDL_EVENT_JOYSTICK_* events. Axes 0
-   * to 5 and buttons 0 to 25 (the gamepad layout) are mirrored into m_axis_array and
-   * m_buttons/m_pressed, so logic-brick joystick sensors work unchanged; every raw axis and
-   * button raises the trigger flags. m_axismax and m_buttonmax hold the counts.
+   * Raw state: the device's own axes, buttons and hats as its SDL_Joystick reports them, with no
+   * gamepad mapping (gamecontrollerdb.txt) applied, updated from SDL_EVENT_JOYSTICK_* events.
+   *
+   * Always maintained for raw joysticks (devices SDL does not recognize as gamepads: flight
+   * sticks, throttles, wheels, pedals, force-feedback joysticks). Their axes 0 to 5 and buttons 0
+   * to 25 are also mirrored into m_axis_array and m_buttons/m_pressed: without a mapping, the
+   * gamepad layout falls back to the raw one. m_axismax and m_buttonmax hold their counts.
+   *
+   * Maintained for a gamepad only once EnableRawInput() is called, until it disconnects; until
+   * then its joystick-level events are rejected by one table scan.
+   *
+   * Every raw axis and button raises the trigger flags; hats raise m_istrig_hat.
    */
   int16_t m_rawAxes[DEV_RAW_AXES_MAX] = {};
   uint64_t m_rawButtons[DEV_RAW_BUTTONS_MAX / 64] = {};
   uint64_t m_rawPressed[DEV_RAW_BUTTONS_MAX / 64] = {}; /* down edges since the last tick */
   uint8_t m_hats[DEV_RAW_HATS_MAX] = {};
-  int m_numHats = 0;
-  /** Open raw joysticks: with none, joystick-level input events cost one test each. */
+  int m_rawNumAxes = 0;
+  int m_rawNumButtons = 0;
+  int m_rawNumHats = 0;
+  bool m_rawOn = false;       /* raw state maintained */
+  bool m_isRawDevice = false; /* opened as a raw joystick: raw state mirrored, see above */
+  /** Joysticks whose raw state is maintained: with none, joystick-level input events cost one
+   * test each. */
   static int m_numRawJoysticks;
-  /** SDL instance id of the raw joystick in each slot, 0 elsewhere (SDL never assigns 0). The
-   * events SDL emits for gamepads are rejected by scanning these 32 bytes, without touching any
-   * instance. */
+  /** SDL instance id of the joystick in each slot whose raw state is maintained, 0 elsewhere
+   * (SDL never assigns 0). Other joystick-level events are rejected by scanning these 32 bytes,
+   * without touching any instance. */
   static uint32_t m_rawJoystickIds[JOYINDEX_MAX];
 
   /**
@@ -128,6 +142,17 @@ class DEV_Joystick
   float m_accel[3] = {};     /* m/s^2, gravity included */
   uint64_t m_gyroLastNs = 0;
   float m_gyroNominalDt = 1.0f / 200.0f;
+  /* What EnableSensors() last turned on, so a Motion sensor can test it every tick without an SDL
+   * query. */
+  bool m_gyroOn = false;
+  bool m_accelOn = false;
+  /**
+   * Extremes since the previous logic tick, for logic bricks: a flick shorter than a tick still
+   * shows. Peak |rate| per gyro axis; range of |a|^2, compared squared so no sqrt is needed.
+   */
+  float m_gyroPeak[3] = {};
+  float m_accelMax2 = 0.0f;
+  float m_accelMin2 = 3.4e38f; /* FLT_MAX: no sample yet */
 
 #ifdef WITH_SDL
   /**
@@ -142,6 +167,8 @@ class DEV_Joystick
 
   /** Open a device SDL does not recognize as a gamepad. */
   bool CreateRawJoystickDevice();
+  /** Read the raw counts and current values from SDL, once, and start maintaining them. */
+  void StartRawInput();
 
   /** Output capabilities and the player index, resolved when a device opens. */
   void InitOutputs();
@@ -204,6 +231,16 @@ class DEV_Joystick
     return m_istrig_button;
   }
 
+  bool IsTrigHat() const
+  {
+    return m_istrig_hat;
+  }
+
+  bool IsTrigMotion() const
+  {
+    return m_istrig_motion;
+  }
+
   /**
    * Force Feedback - Vibration
    * We could add many optional arguments to these functions to take into account different sort of
@@ -246,6 +283,44 @@ class DEV_Joystick
   int GetHat(int hat) const;           /* SDL_HAT_* bit mask */
 
   /**
+   * Raw input for logic bricks in Joystick mode: the device's own axes, buttons and hats,
+   * bypassing any gamepad mapping (see m_rawAxes). Maintained for raw joysticks from the start;
+   * EnableRawInput() starts it for a gamepad, once per connection (a few SDL queries), and is a
+   * single test afterwards. Indices outside the device read 0 / false.
+   */
+  void EnableRawInput()
+  {
+#ifdef WITH_SDL
+    if (!m_rawOn) {
+      StartRawInput();
+    }
+#endif
+  }
+  int GetRawNumAxes() const
+  {
+    return m_rawNumAxes;
+  }
+  int GetRawNumButtons() const
+  {
+    return m_rawNumButtons;
+  }
+  int GetRawAxis(int axis) const;
+  bool IsRawButtonDown(int button) const; /* includes presses released within the tick */
+  bool IsAnyRawButtonDown() const;
+
+  /**
+   * Hats as logic bricks see them: the device's own hats while raw input is maintained. A gamepad
+   * whose driver reports no hat, or whose raw input is not maintained, gets hat 0 built from its
+   * D-pad buttons (presses within the tick included), so Hat sensors from files written for
+   * older versions keep working.
+   */
+  int GetNumSensorHats() const;
+  int GetSensorHat(int hat) const;
+
+  /** SDL instance id of this connection: never reused while the engine runs, 0 without SDL. */
+  uint32_t GetConnectionId() const;
+
+  /**
    * Controller identity. The type is cached at open; the rest are
    * single SDL queries, made only when a script asks.
    */
@@ -270,6 +345,25 @@ class DEV_Joystick
     return m_hasAccel;
   }
   bool EnableSensors(bool gyro, bool accel);
+  bool IsGyroEnabled() const
+  {
+    return m_gyroOn;
+  }
+  bool IsAccelEnabled() const
+  {
+    return m_accelOn;
+  }
+  /** Peak |rate| per axis since the previous logic tick, rad/s. */
+  const float *GetGyroPeak() const
+  {
+    return m_gyroPeak;
+  }
+  /** Smallest and largest |a|^2 since the previous logic tick; min > max when no sample came. */
+  void GetAccelRange2(float *r_min2, float *r_max2) const
+  {
+    *r_min2 = m_accelMin2;
+    *r_max2 = m_accelMax2;
+  }
   const float *GetGyro() const
   {
     return m_gyro;
