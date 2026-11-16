@@ -37,7 +37,11 @@ using namespace blender;
 /* ------------------------------------------------------------------------- */
 
 SCA_PythonJoystick::SCA_PythonJoystick(DEV_Joystick *joystick, int joyindex)
-    : m_joystick(joystick), m_joyindex(joyindex)
+    : m_joystick(joystick),
+      m_joyindex(joyindex),
+      m_strengthLeft(0.0f),
+      m_strengthRight(0.0f),
+      m_duration(0)
 {
 }
 
