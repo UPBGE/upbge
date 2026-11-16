@@ -15,16 +15,11 @@ struct Engine : public DrawEngine::Pointer {
   /* Factory: allocates and returns a new GameInstance (owned by the Draw Manager) */
   DrawEngine *create_instance() final;
 
-  /* Initialize static/shared resources. Called once at engine registration time.
-   * Acquires a reference to eevee::ShaderModule so material compilation works
-   * correctly even when EEVEE is not open (e.g. standalone game player). */
-  static void init_static();
-
   /* Free static/shared resources (compiled shaders) when Blender closes */
   static void free_static();
 };
 
-/* The global engine type descriptor; registered with Blender's render engine system */
+/* Engine type descriptor. Currently not registered, see eevee_game_engine.cc. */
 extern RenderEngineType DRW_engine_viewport_eevee_game_type;
 
 } // namespace blender::eevee_game

@@ -78,12 +78,17 @@ struct ShadowData {
 
 /* One CSM cascade in the static atlas */
 struct ShadowCascade {
+  /* Kept separate: draw::View wants view and window matrices apart. */
+  float4x4 view;
+  float4x4 proj;
   float4x4 view_proj;
   float    split_depth;
 };
 
 /* One punctual light slot (static or dynamic atlas) */
 struct ShadowPunctual {
+  float4x4 view;
+  float4x4 proj;
   float4x4 view_proj;
   uint32_t atlas_index;   /* Flat tile index within its own atlas */
   bool     active;
@@ -120,9 +125,9 @@ class ShadowModule {
   void set_view(View &view, int2 extent);
 
   const ShadowData &get_data()         const { return data_; }
-  gpu::Texture     *get_static_atlas()       { return static_atlas_tx_.get(); }
+  gpu::Texture     *get_static_atlas()       { return static_atlas_tx_; }
   /* May be null when dynamic_slots_ == OFF. */
-  gpu::Texture     *get_dynamic_atlas()      { return dynamic_atlas_tx_.get(); }
+  gpu::Texture     *get_dynamic_atlas()      { return dynamic_atlas_tx_; }
 
   /* Returns the configured slot count (0 when OFF). Used by instance.cc
    * for shadow_index encoding during end_sync(). */
@@ -132,15 +137,18 @@ class ShadowModule {
   void bind_resources(PassSimple &ps);
 
  private:
-  void update_cascades(class Camera &camera, class LightEntry &light);
+  void update_cascades(class Camera &camera, struct LightEntry &light);
   void allocate_static_atlas();
   void allocate_dynamic_atlas();
 
-  /* Re-render static slots that have needs_update == true. */
-  void render_static_atlas(View &view);
+  /* Re-render the CSM cascades and the static punctual slots. */
+  void render_static_atlas();
 
   /* Re-render all dynamic slots (runs every frame). */
-  void render_dynamic_atlas(View &view);
+  void render_dynamic_atlas();
+
+  /* Draw the shadow casters into one atlas tile from one light's viewpoint. */
+  void render_tile(Framebuffer &fb, View &view, int2 tile_origin, int tile_size);
 
   /* Dispatch the PCF 3x3 compute shader.
    * Reads G-Buffer depth + normals, writes shadow_mask_tx. */
@@ -151,15 +159,20 @@ class ShadowModule {
   DynamicShadowSlots  dynamic_slots_ = DynamicShadowSlots::S16;
 
   /* Static atlas: persistent, re-rendered on dirty only */
-  std::unique_ptr<gpu::Texture> static_atlas_tx_;
-  Framebuffer                   static_fb_;
+  Texture static_atlas_tx_ = {"shadow_static_atlas"};
+  Framebuffer static_fb_ = {"shadow_static_fb"};
 
   /* Dynamic atlas: re-rendered every frame; null when OFF */
-  std::unique_ptr<gpu::Texture> dynamic_atlas_tx_;
-  Framebuffer                   dynamic_fb_;
+  Texture dynamic_atlas_tx_ = {"shadow_dynamic_atlas"};
+  Framebuffer dynamic_fb_ = {"shadow_dynamic_fb"};
 
-  /* Depth-only geometry pass — reused for both atlases */
-  PassSimple shadow_pass_ps_{"Shadow.Pass"};
+  /* One persistent draw::View per atlas tile. A View owns GPU buffers
+   * (matrices, culling data, visibility bits), so building one per tile per
+   * frame would allocate and free dozens of buffers every frame. Created
+   * once in init(); only sync() is called per frame. */
+  std::vector<std::unique_ptr<View>> cascade_views_;
+  std::vector<std::unique_ptr<View>> static_views_;
+  std::vector<std::unique_ptr<View>> dynamic_views_;
 
   /* PCF 3x3 compute pass → shadow_mask_tx */
   PassSimple pcf_ps_{"Shadow.PCF"};

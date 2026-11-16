@@ -108,7 +108,7 @@ void SyncModule::object_sync(const ObjectRef &ob_ref)
 void SyncModule::sync_mesh(Object *ob, ObjectHandle &handle, const ObjectRef &ob_ref)
 {
   /* Assign a stable GPU resource handle. This index is shared by:
-   *   - The per-instance SSBO in CullingModule
+   *   - The Manager bounds buffer read by GameView for culling
    *   - The velocity indirection buffer in VelocityModule
    *   - The per-draw resource index used by DRW for object UBO binding */
   ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
@@ -204,9 +204,6 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &handle, const ObjectRef &ob
     inst_.volume.object_sync(handle);
   }
 
-  /* Per-instance SSBO for GPU-Driven Culling (world matrix + AABB) */
-  inst_.culling.add_instance(ob, res_handle.index());
-
   /* Shadow caster registration */
   inst_.shadows.sync_object(ob, res_handle);
 
@@ -222,7 +219,7 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &handle, const ObjectRef &ob
 
 void SyncModule::sync_light(Object *ob, ObjectHandle & /*handle*/)
 {
-  const ::Light *la = static_cast<const ::Light *>(ob->data);
+  const blender::Light *la = &DRW_object_get_data_for_drawing<const blender::Light>(*ob);
 
   /* Build a LightEntry from the Blender light DNA and the evaluated object matrix. */
   LightEntry entry;
@@ -232,7 +229,6 @@ void SyncModule::sync_light(Object *ob, ObjectHandle & /*handle*/)
   switch (la->type) {
     case LA_SUN:
       entry.data.type = uint32_t(LightType::SUN);
-      entry.data.direction = float3(-entry.object_to_world[2]); /* -Z in world space */
       break;
     case LA_LOCAL:
       entry.data.type = uint32_t(LightType::PUNCTUAL_POINT);
@@ -251,43 +247,20 @@ void SyncModule::sync_light(Object *ob, ObjectHandle & /*handle*/)
 
   /* Position from world matrix translation column. */
   entry.data.position  = float3(entry.object_to_world[3]);
+  /* Lights shine down their local -Z axis. Normalized here so the shaders
+   * do not have to, and so object scale cannot leak into the lighting. */
+  entry.data.direction = -math::normalize(float3(entry.object_to_world[2]));
   entry.data.color     = float3(la->r, la->g, la->b);
   entry.data.energy    = la->energy;
-  entry.data.radius    = la->area_size;
-  entry.data.attenuation = la->att1; /* Falloff distance */
+  /* Emitter size: soft-shadow radius for punctual lights, panel size for area lights. */
+  entry.data.radius = (la->type == LA_AREA) ? la->area_size : la->radius;
+  /* Custom distance: influence is cut beyond it, which also bounds the light for culling. */
+  entry.data.attenuation = la->att_dist;
 
   /* Shadow: -1 means no shadow; ShadowModule::end_sync() will assign atlas slots. */
   entry.data.shadow_index = (la->mode & LA_SHADOW) ? 0 : -1;
 
-  /* Use a hash of the object pointer as a stable integer key. */
-  const int id = int(BLI_hash_ptr(ob));
-  inst_.lights.add(id, entry);
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Full scene sync (called from GameInstance::begin_sync)
- * \{ */
-
-/**
- * Iterate all objects in the Depsgraph and sync each one.
- * This replaces the manual DEG_OBJECT_ITER pattern and matches
- * how EEVEE calls SyncModule from Instance::object_sync_end().
- */
-void GameInstance::sync_scene()
-{
-  sync.begin_sync();
-
-  /* DRW_render_object_iter provides the full evaluated object list from the Depsgraph.
-   * For viewport this is equivalent to DEG_OBJECT_ITER over linked objects. */
-  DRW_render_object_iter(
-      render_engine_, depsgraph,
-      [&](draw::ObjectRef &ob_ref, RenderEngine *, Depsgraph *) {
-        sync.object_sync(ob_ref);
-      });
-
-  sync.end_sync();
+  inst_.lights.add(entry);
 }
 
 /** \} */

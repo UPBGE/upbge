@@ -8,12 +8,15 @@
 
 namespace blender::eevee_game {
 
+class GameInstance;
+
 struct SSRSettings {
     float max_roughness = 0.5f;     // Only reflect surfaces smoother than this
     int max_steps = 64;             // Max iterations for the ray march
     float thickness = 0.1f;         // Thickness of objects to prevent "leaking"
     float edge_fade = 0.1f;         // Fade reflections at screen edges
-    bool enabled = true;
+    /* Off until a game SSR trace shader exists (see RayTraceModule::sync). */
+    bool enabled = false;
 };
 
 class RayTraceModule {

@@ -18,6 +18,7 @@
 #include "draw_context_private.hh"
 
 #include "engines/compositor/compositor_engine.h"
+#include "engines/eevee-game/eevee_game_engine.h" /* UPBGE */
 #include "engines/eevee/eevee_engine.h"
 #include "engines/external/external_engine.h"
 #include "engines/gpencil/gpencil_engine.hh"
@@ -71,6 +72,7 @@ struct DRWViewData {
 
   /** Engines running for this viewport. nullptr if not enabled. */
   eevee::Engine eevee;
+  eevee_game::Engine eevee_game; /* UPBGE */
   workbench::Engine workbench;
   draw::external::Engine external;
   image_engine::Engine image;
@@ -107,6 +109,7 @@ struct DRWViewData {
     /* Render engines. Output to the render result frame-buffer. Mutually exclusive. */
 
     callback(eevee);
+    callback(eevee_game); /* UPBGE */
     callback(workbench);
     callback(external);
     callback(image);

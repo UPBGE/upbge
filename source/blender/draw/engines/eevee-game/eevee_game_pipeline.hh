@@ -8,10 +8,13 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_material.hh"
 #include "draw_pass.hh"
-#include "draw_texture_pool.hh"
+#include "DRW_gpu_wrapper.hh" /* TextureFromPool */
 #include "DNA_object_types.h"
 #include "DNA_material_types.h"
-#include "../eevee/eevee_material_shared.hh"   /* eMaterialPipeline */
+#include "../eevee/eevee_material.hh"        /* eMaterialPipeline, eClosureBits */
+#include "../eevee/eevee_pipeline.hh"        /* UtilityTexture */
+#include "../eevee/eevee_sampling_shared.hh" /* SamplingData */
+#include "../eevee/eevee_uniform_shared.hh"  /* UniformData, CameraData */
 
 namespace blender::eevee_game {
 
@@ -32,8 +35,10 @@ class AAModule {
   /* Rebuild SMAA framebuffer attachments after a resolution change */
   void sync_framebuffers(int2 extent);
 
-  /* Dispatch the configured AA mode. src and dst must be different textures. */
-  void apply_aa(gpu::Texture *src, gpu::Texture *dst, const AASettings &settings);
+  /* Run the configured AA mode. src and dst must be different textures.
+   * Returns the texture holding the result: dst, or src when AA is off and
+   * nothing was written. */
+  gpu::Texture *apply_aa(gpu::Texture *src, gpu::Texture *dst, const AASettings &settings);
 
  private:
   void apply_fxaa(gpu::Texture *src, gpu::Texture *dst);
@@ -46,20 +51,20 @@ class AAModule {
   PassSimple smaa_weight_ps_{"AA.SMAA.Weight"};
   PassSimple smaa_blend_ps_{"AA.SMAA.Blend"};
 
-  /* SMAA Area LUT (256x256 RG8) - constant, loaded once in init() */
-  std::unique_ptr<gpu::Texture> smaa_area_lut_tx_;
+  /* SMAA lookup tables (BLI_smaa_textures.h): area RG8, search R8.
+   * Constant, uploaded once in init(). */
+  Texture smaa_area_lut_tx_ = {"smaa_area_lut"};
+  Texture smaa_search_lut_tx_ = {"smaa_search_lut"};
 
-  /* SMAA Search LUT (64x16 RGBA8) - constant, loaded once in init() */
-  std::unique_ptr<gpu::Texture> smaa_search_lut_tx_;
+  /* Intermediate SMAA targets at render resolution. Persistent: they are
+   * needed every frame while SMAA is on, and their framebuffers stay valid. */
+  Texture smaa_edge_tx_ = {"smaa_edge"};     /* RG8 */
+  Texture smaa_weight_tx_ = {"smaa_weight"}; /* RGBA8 */
 
-  /* Pooled intermediate SMAA targets; acquired/released each apply_smaa() call */
-  TextureFromPool smaa_edge_tx_;
-  TextureFromPool smaa_weight_tx_;
-
-  /* Framebuffers bound during SMAA passes */
-  Framebuffer smaa_edge_fb_;
-  Framebuffer smaa_weight_fb_;
-  Framebuffer smaa_blend_fb_;
+  Framebuffer smaa_edge_fb_ = {"smaa_edge_fb"};
+  Framebuffer smaa_weight_fb_ = {"smaa_weight_fb"};
+  /* Output framebuffer shared by FXAA and the SMAA blend stage. */
+  Framebuffer output_fb_ = {"aa_output_fb"};
 };
 
 /* PipelineModule coordinates the G-Buffer, GTAO, SSGI, Deferred Lighting,
@@ -69,6 +74,7 @@ class PipelineModule {
   PipelineModule(class ShaderModule *shaders, class GameInstance *inst);
   ~PipelineModule() = default;
 
+  /* Called from GameInstance::end_sync(). */
   void sync();
 
   /* Execute the full opaque + transparent pipeline for one view. */
@@ -92,6 +98,25 @@ class PipelineModule {
                                           blender::Material *blender_mat,
                                           GPUMaterial *gpumat);
 
+  /* Called from GameInstance::begin_sync(), before any object is synced:
+   * materials add their sub-passes to these passes during object sync. */
+  void begin_sync();
+
+  /* Geometry passes other modules submit with their own views. */
+  PassMain &prepass_opaque_get()
+  {
+    return opaque_layer_.prepass_ps;
+  }
+  PassMain &prepass_transparent_get()
+  {
+    return forward_layer_.prepass_ps;
+  }
+
+  /* Forward (blended / Shader To RGB) surfaces are not drawn yet, see the
+   * note in PipelineModule::render(). One switch so the transparent depth
+   * prepass and the shading pass cannot get out of step. */
+  static constexpr bool use_forward_pass = false;
+
   AAModule   aa;
   AASettings aa_settings;
 
@@ -99,13 +124,20 @@ class PipelineModule {
   GameInstance  *inst_;
   ShaderModule  *shaders_;
 
-  /* Opaque deferred: prepass fills depth+velocity, gbuffer_ps fills closure data,
-   * lighting_ps reads gbuffer and writes HDR color. */
+  /* Opaque deferred: prepass fills depth + velocity, gbuffer_ps fills EEVEE's
+   * G-Buffer and writes emission, lighting_ps decodes the G-Buffer and adds
+   * the lit radiance. */
   struct DeferredLayer {
     PassMain  prepass_ps{"Deferred.Prepass"};
     PassMain  gbuffer_ps{"Deferred.GBuffer"};
     PassSimple lighting_ps_{"Deferred.Lighting"};
   } opaque_layer_;
+
+  /* World ambient color, the stand-in for image based lighting. */
+  float3 world_ambient_ = float3(0.0f);
+  /* Pass constants referenced by address from the lighting pass. */
+  int use_ao_ = 0;
+  int use_ssgi_ = 0;
 
   /* Forward transparent: sorted back-to-front after deferred lighting. */
   struct ForwardTransparentLayer {
@@ -113,11 +145,37 @@ class PipelineModule {
     PassMain shading_ps{"Forward.Transparent.Shading"};
   } forward_layer_;
 
-  /* Shadow atlas rendering pass. */
-  PassMain shadow_ps_{"Shadow"};
+  /* Opaque-only color snapshot for the FSR reactive mask. */
+  TextureFromPool opaque_copy_tx_ = {"opaque_copy"};
+  Framebuffer gbuffer_fb_ = {"gbuffer_fb"};
 
-  TextureFromPool opaque_copy_tx_;
-  Framebuffer gbuffer_fb_;
+  /* ---- What EEVEE's material shaders expect to find bound ----
+   *
+   * Surface shaders are generated by EEVEE's codegen, so their resource
+   * interface is EEVEE's, not ours. These are the game-side stand-ins for
+   * the pieces of eevee::Instance those shaders read. */
+
+  /* Fill eevee_uniform_buf_ and the camera buffers for this frame. */
+  void eevee_resources_update(int normal_layer_count);
+
+  /* `uniform_buf`: camera, film extent, render pass indices, pipeline flags. */
+  UniformBuffer<eevee::UniformData> eevee_uniform_buf_ = {"eevee_uniform_buf"};
+  /* `sampling_buf`: per-sample random numbers. With no accumulation there is
+   * a single sample, so it stays zero: alpha hash and jittered effects get a
+   * fixed, temporally stable pattern. */
+  StorageBuffer<eevee::SamplingData> eevee_sampling_buf_ = {"eevee_sampling_buf"};
+  /* `utility_tx`: blue noise and BSDF lookup tables. */
+  eevee::UtilityTexture eevee_utility_tx_;
+  /* `camera_prev` / `camera_curr` / `camera_next`: the velocity prepass
+   * projects each vertex with these to get its screen-space motion. */
+  UniformBuffer<eevee::CameraData> camera_prev_buf_ = {"camera_prev"};
+  UniformBuffer<eevee::CameraData> camera_curr_buf_ = {"camera_curr"};
+  /* `cryptomatte_object_buf`: never read (see RenderBuffers::cryptomatte_tx). */
+  StorageArrayBuffer<float2, 16> cryptomatte_dummy_buf_ = {"cryptomatte_dummy"};
+
+  /* Union of the closures used by the deferred materials synced this frame.
+   * Decides how many G-Buffer layers are allocated. */
+  eevee::eClosureBits closure_bits_ = eevee::CLOSURE_NONE;
 };
 
 } // namespace blender::eevee_game

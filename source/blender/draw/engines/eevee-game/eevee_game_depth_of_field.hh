@@ -35,13 +35,17 @@ class DepthOfField {
    */
   void render_fast(gpu::Texture *input_color_tx, gpu::Texture *output_color_tx);
 
+  /* When false render_fast() writes nothing and the caller must keep using
+   * its input texture. */
+  bool enabled() const { return settings_.enabled; }
+
  private:
   GameInstance *inst_;
   DOFSettings settings_;
 
   // Half-resolution textures for performance
-  std::unique_ptr<gpu::Texture> coc_tx_;        // Circle of Confusion buffer
-  std::unique_ptr<gpu::Texture> bokeh_half_tx_; // Blurred color buffer
+  Texture coc_tx_ = {"coc_tx_"};        // Circle of Confusion buffer
+  Texture bokeh_half_tx_ = {"bokeh_half_tx_"}; // Blurred color buffer
 
   // Pass objects
   PassSimple coc_setup_ps_{"DOF.CoCSetup"};

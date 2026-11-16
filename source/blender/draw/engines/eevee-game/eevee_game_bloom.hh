@@ -44,7 +44,7 @@ class BloomModule {
 
   /* Return the base of the pyramid (render_res / 2, RGBA16F).
    * Exposed for debugging / RenderDoc inspection. */
-  gpu::Texture *get_result() { return &bloom_pyramid_[0]; }
+  gpu::Texture *get_result() { return bloom_pyramid_[0]; }
 
  private:
   GameInstance *inst_;
@@ -57,7 +57,7 @@ class BloomModule {
    * is unchanged — which is every frame at steady state. The previous
    * make_unique<> pattern destroyed and recreated all six RGBA16F textures
    * on every sync() call, producing VRAM thrash and frame-time spikes. */
-  gpu::Texture bloom_pyramid_[PYRAMID_LEVELS];
+  Texture bloom_pyramid_[PYRAMID_LEVELS];
 
   PassSimple bloom_downsample_ps_{"Bloom.Downsample"};
   PassSimple bloom_upsample_ps_{"Bloom.Upsample"};

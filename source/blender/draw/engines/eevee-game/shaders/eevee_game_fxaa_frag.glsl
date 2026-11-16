@@ -30,13 +30,9 @@
  *   fxaa_quality_edge_threshold_min — Dark area threshold.  0.0312 default.
  */
 
-uniform sampler2D color_tx;
+#include "infos/eevee_game_infos.hh"
 
-uniform float fxaa_quality_subpix              = 0.75;
-uniform float fxaa_quality_edge_threshold      = 0.166;
-uniform float fxaa_quality_edge_threshold_min  = 0.0312;
-
-out vec4 out_color;
+FRAGMENT_SHADER_CREATE_INFO(eevee_game_fxaa)
 
 /* ------------------------------------------------------------------ */
 /* Luma helper

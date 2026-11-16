@@ -18,40 +18,33 @@ void RayTraceModule::init() {
     settings_.edge_fade = 0.1f;
 }
 
-void RayTraceModule::sync() {
-    ssr_ps_.init();
-    ssr_ps_.shader_set(inst_->shaders.static_shader_get(SH_SSR_TRACE));
-    
-    // Bind the G-Buffer for roughness and normals
-    ssr_ps_.bind_resources(inst_->gbuffer);
-    
-    // Bind the HIZ buffer for accelerated ray-marching
-    ssr_ps_.bind_texture("hiz_tx", &inst_->hiz_buffer.front.ref_tx_);
-    
-    // Bind global uniforms (ViewProj matrices, etc.)
-    ssr_ps_.bind_resources(inst_->uniform_data);
-    ssr_ps_.bind_resources(inst_->sampling);
-    
-    // Push SSR settings as constants for fast shader access
-    ssr_ps_.push_constant("ssr_settings", &settings_);
+void RayTraceModule::sync()
+{
+  /* Nothing to build yet. SH_SSR_TRACE used to alias EEVEE's
+   * `eevee_ray_trace_screen`, whose interface (ray data buffers, tile lists,
+   * closure bins, sampling UBO) has nothing in common with the two textures
+   * bound here, so the pass could never have linked. The module stays wired
+   * into the instance so a dedicated trace shader can be dropped in. */
 }
 
-void RayTraceModule::render(gpu::Texture *radiance_tx, gpu::Texture *out_radiance) {
-    if (!settings_.enabled) return;
+void RayTraceModule::render(gpu::Texture *radiance_tx, gpu::Texture *out_radiance)
+{
+  if (!settings_.enabled) {
+    return;
+  }
 
-    // The SSR pass is a full-screen compute/fragment dispatch
-    // It takes the current radiance (color) and the depth (HIZ)
-    // and outputs the reflected color to the out_radiance buffer.
-    
-    ssr_ps_.bind_texture("in_radiance_tx", radiance_tx);
-    ssr_ps_.bind_image("out_radiance_img", out_radiance);
-    
-    // Dispatch the trace
-    int2 extent = inst_->film.render_extent_get();
-    ssr_ps_.dispatch(math::divide_ceil(extent, int2(RAYTRACE_GROUP_SIZE)));
-    
-    // Ensure the reflections are written before the final combine pass
-    ssr_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
+  ssr_ps_.init();
+  ssr_ps_.shader_set(inst_->shaders.static_shader_get(SH_SSR_TRACE));
+  ssr_ps_.bind_texture("hiz_tx", &inst_->hiz_buffer.front.ref_tx_);
+  ssr_ps_.bind_texture("in_radiance_tx", radiance_tx);
+  ssr_ps_.bind_image("out_radiance_img", out_radiance);
+  ssr_ps_.push_constant("hiz_uv_scale", inst_->hiz_buffer.uv_scale);
+  ssr_ps_.dispatch(
+      math::divide_ceil(inst_->film.render_extent_get(), int2(RAYTRACE_GROUP_SIZE)));
+  /* Reflections must be visible to the combine pass that samples them. */
+  ssr_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
+
+  inst_->manager->submit(ssr_ps_);
 }
 
 } // namespace blender::eevee_game

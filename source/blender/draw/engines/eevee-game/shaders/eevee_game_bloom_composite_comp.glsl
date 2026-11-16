@@ -23,19 +23,18 @@
  * wavefront, maximising occupancy with minimal shared-memory pressure.
  */
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#include "infos/eevee_game_infos.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_game_bloom_composite)
 
 /* bloom_tx: the base of the bloom pyramid (render_res / 2, RGBA16F).
  * Sampled with bilinear interpolation to produce full-resolution contribution. */
-uniform sampler2D bloom_tx;
 
 /* combined_img: the HDR scene color buffer (render_res, RGBA16F).
  * READ_WRITE: we read the existing value and add bloom to it in-place. */
-layout(rgba16f) uniform image2D combined_img;
 
 /* Bloom blend weight in [0, 1].  Applied uniformly to all pixels that survive
  * the threshold in the downsample pass.  Typical AAA values: 0.03 – 0.08. */
-uniform float bloom_intensity;
 
 void main()
 {

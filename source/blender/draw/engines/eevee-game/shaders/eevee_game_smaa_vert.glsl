@@ -16,17 +16,12 @@
  * and SMAANeighborhoodBlending respectively.
  */
 
-#define SMAA_GLSL_4
-#define SMAA_PRESET_HIGH
+#include "infos/eevee_game_infos.hh"
 
-uniform vec4 smaa_rt_metrics;  /* vec4(1/W, 1/H, W, H) */
-#define SMAA_RT_METRICS smaa_rt_metrics
+/* Adjust according to SMAA_STAGE for C++ compilation. */
+VERTEX_SHADER_CREATE_INFO(eevee_game_smaa_weight)
 
 #include "gpu_shader_smaa_lib.glsl"
-
-out vec2 uvs;
-out vec2 pixcoord;
-out vec4 offset[3];
 
 void main()
 {
@@ -44,6 +39,7 @@ void main()
   /* UV [0,1] derived from NDC [−1,1]. */
   uvs = (gl_Position.xy + 1.0) * 0.5;
 
+  vec4 offset[3];
 #if SMAA_STAGE == 0
   SMAAEdgeDetectionVS(uvs, offset);
 #elif SMAA_STAGE == 1
@@ -51,4 +47,8 @@ void main()
 #elif SMAA_STAGE == 2
   SMAANeighborhoodBlendingVS(uvs, offset[0]);
 #endif
+  /* Varyings cannot be arrays. */
+  offset0 = offset[0];
+  offset1 = offset[1];
+  offset2 = offset[2];
 }

@@ -29,24 +29,12 @@
  * Local group 8×8 = 64 threads.
  */
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#include "infos/eevee_game_infos.hh"
 
-uniform sampler2D depth_tx;    /* Full-res R32F hardware depth */
-uniform sampler2D normal_tx;   /* G-Buffer normal (RG16F oct-packed or RGB16F) */
-uniform sampler2D hiz_tx;      /* Hi-Z pyramid for accelerated ray march */
+COMPUTE_SHADER_CREATE_INFO(eevee_game_gtao_main)
 
-layout(r8) uniform writeonly image2D out_ao_img;  /* R8 half-res output */
-
-/* GTAO settings (match GTAOSettings C++ struct) */
-uniform float gtao_radius;        /* World-space sampling radius */
-uniform float gtao_falloff;       /* Exponent on distance attenuation */
-uniform float gtao_intensity;     /* Multiplicative boost */
-uniform int   gtao_quality_steps; /* Steps per direction */
-
-/* Camera matrices for position reconstruction */
-uniform mat4 viewprojinv;   /* Inverse view-projection for world pos rebuild */
-uniform vec2 z_planes;      /* x = z_near, y = z_far */
-uniform vec2 screen_res;    /* Full-res pixel dimensions */
+#include "eevee_reverse_z_lib.glsl"
+#include "eevee_gbuffer_read_lib.glsl"
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -108,7 +96,8 @@ float horizon_search(vec3 world_pos, vec3 world_normal, vec2 base_uv, vec2 ray_u
     /* Sample Hi-Z mip corresponding to step distance (coarser mip = cheaper = same quality
      * because near steps are oversampled relative to the solid angle they subtend). */
     float mip        = log2(float(i)) * 0.5;
-    float ndc_depth  = textureLod(depth, sample_uv, mip).r;
+    /* The pyramid is padded to a multiple of 64 px: screen UV -> pyramid UV. */
+    float ndc_depth  = textureLod(depth, sample_uv * hiz_uv_scale, mip).r;
 
     if (ndc_depth >= 0.9999) {
       continue;  /* Sky — no occlusion. */
@@ -152,7 +141,7 @@ void main()
   /* Sample the full-res depth at the centre of the 2×2 block this pixel covers. */
   const vec2 uv = (vec2(out_px) * 2.0 + 1.0) / screen_res;
 
-  float ndc_depth = texture(depth_tx, uv).r;
+  float ndc_depth = reverse_z::read(texture(depth_tx, uv).r);
 
   /* Sky: no occlusion, write 1.0 (fully lit) immediately. */
   if (ndc_depth >= 0.9999) {
@@ -164,7 +153,16 @@ void main()
   const float z_far  = z_planes.y;
 
   vec3 world_pos    = reconstruct_world_pos(uv, ndc_depth);
-  vec3 world_normal = normalize(texture(normal_tx, uv).rgb * 2.0 - 1.0);
+  /* Shading normal of the first closure, decoded from EEVEE's G-Buffer.
+   * A pixel can have depth and still no closure (emission only surface): its
+   * normal layer was never written, and decoding garbage would spread NaNs
+   * through the filters downstream. */
+  ivec2 gbuf_texel = ivec2(uv * screen_res);
+  if (gbuffer::read_header(gbuf_texel).is_empty()) {
+    imageStore(out_ao_img, out_px, vec4(1.0));
+    return;
+  }
+  vec3 world_normal = gbuffer::read_normal(gbuf_texel);
 
   /* Step size in UV: covers gtao_radius in screen space.
    * We limit to 1/8 of the screen to avoid over-large steps that miss geometry. */

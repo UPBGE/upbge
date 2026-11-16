@@ -27,15 +27,11 @@
  * Local group 8×8.
  */
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#include "infos/eevee_game_infos.hh"
 
-uniform sampler2D ao_lowres_tx; /* R8, half-resolution GTAO result */
-uniform sampler2D depth_tx;     /* R32F full-resolution NDC depth */
+COMPUTE_SHADER_CREATE_INFO(eevee_game_gtao_upsample)
 
-layout(r8) uniform writeonly image2D out_ao_final_img; /* R8, full resolution */
-
-uniform vec2 z_planes;    /* x = z_near, y = z_far */
-uniform vec2 screen_res;  /* Full-resolution dimensions */
+#include "eevee_reverse_z_lib.glsl"
 
 /* Bilateral depth similarity threshold.
  * Neighbour contributions are suppressed when their linear depth differs
@@ -69,7 +65,7 @@ void main()
   const vec2 full_uv = (vec2(out_px) + 0.5) / screen_res;
 
   /* Current pixel's linear depth (reference for bilateral weighting). */
-  float ref_ndc   = texture(depth_tx, full_uv).r;
+  float ref_ndc   = reverse_z::read(texture(depth_tx, full_uv).r);
   float ref_lin   = linear_depth(ref_ndc, z_near, z_far);
 
   /* Sky: no AO needed. */
@@ -103,7 +99,7 @@ void main()
 
     /* Depth of this half-res sample (sample at the corresponding full-res position). */
     vec2  full_sample_uv  = half_uv + offsets[i];  /* Same UV domain — half tex bilinear */
-    float sample_ndc      = texture(depth_tx, full_sample_uv).r;
+    float sample_ndc      = reverse_z::read(texture(depth_tx, full_sample_uv).r);
     float sample_lin      = linear_depth(sample_ndc, z_near, z_far);
 
     /* Bilateral weight: Gaussian in depth space.

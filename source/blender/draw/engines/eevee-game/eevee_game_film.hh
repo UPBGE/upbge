@@ -10,21 +10,29 @@ namespace blender::eevee_game {
 
 class Film {
 public:
+  Film(class GameInstance &inst) : inst_(inst) {}
+
   void init(const int2 &display_extent);
   void sync();
-  
-  // High-speed blit to final window
+
+  /* Draw the finished frame into the viewport color buffer. */
   void present(gpu::Texture *final_color_tx);
 
   // Getters for internal logic
   int2 render_extent_get() const { return render_extent_; }
   int2 display_extent_get() const { return display_extent_; }
   float2 get_pixel_jitter() const { return jitter_; }
-  
+
 private:
-  int2 display_extent_;
-  int2 render_extent_;
-  float2 jitter_;
+  class GameInstance &inst_;
+
+  int2 display_extent_ = int2(1);
+  int2 render_extent_ = int2(1);
+  float2 jitter_ = float2(0.0f);
+
+  /* Bound by reference: the source changes with the upscale / AA mode. */
+  gpu::Texture *present_tx_ = nullptr;
+  PassSimple present_ps_{"Film.Present"};
 };
 
 } // namespace blender::eevee_game

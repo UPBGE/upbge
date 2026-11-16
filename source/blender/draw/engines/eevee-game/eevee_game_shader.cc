@@ -43,14 +43,16 @@ void ShaderModule::module_free()
 gpu::Shader *ShaderModule::static_shader_get(eShaderType type)
 {
   BLI_assert(type >= 0 && type < MAX_SHADER_TYPE);
+  if (shaders_[type].name == nullptr) {
+    return nullptr;
+  }
   if (shaders_[type].shader == nullptr) {
-    /* Synchronous fallback compile — only hit if static_shaders_load() was not
-     * called at init time.  This stalls the render thread for the duration of
-     * shader compilation, which can be 50–200ms per shader on cold start.
-     * Call static_shaders_load(SG_ALL) from GameInstance::init() to avoid this. */
+    /* Synchronous fallback compile, only hit if static_shaders_load() was not
+     * called at init time. It stalls the render thread for the whole
+     * compilation. */
     shaders_[type].shader = GPU_shader_create_from_info_name(shaders_[type].name);
     BLI_assert_msg(shaders_[type].shader != nullptr,
-                   "eevee_game: shader compilation failed — check ShaderCreateInfo name");
+                   "eevee_game: shader compilation failed, check the create info name");
   }
   return shaders_[type].shader;
 }
@@ -59,150 +61,128 @@ gpu::Shader *ShaderModule::static_shader_get(eShaderType type)
 const char *ShaderModule::static_shader_name_get(eShaderType type)
 {
   switch (type) {
-    /* --- Deferred Pipeline --- */
-    case SH_DEFERRED_LIGHT:          return "eevee_game_deferred_light";
-    case SH_DEFERRED_COMBINE:        return "eevee_game_deferred_combine";
-    case SH_DEFERRED_TILE_CLASSIFY:  return "eevee_game_tile_classify";
-    case SH_GBUFFER:                 return "eevee_game_gbuffer";
+    case SH_DEFERRED_LIGHT:
+      return "eevee_game_deferred_light";
 
-    /* --- Shadows --- */
-    case SH_SHADOW_DIRECTIONAL_CSM:  return "eevee_game_shadow_csm";
-    case SH_SHADOW_PUNCTUAL_ATLAS:   return "eevee_game_shadow_atlas";
-    case SH_SHADOW_DEPTH_WRITE:      return "eevee_game_shadow_depth_write";
-    /* PCF compute: reads G-Buffer depth+normal, writes shadow_mask_tx.
-     * This is the game-mode default filtering path — deterministic, no noise. */
-    case SH_SHADOW_PCF_FILTER:       return "eevee_game_shadow_pcf_compute";
+    /* No create info and no GLSL yet. The old table aliased it to EEVEE's
+     * `eevee_ray_trace_screen`, whose resource interface (ray tile lists,
+     * closure bins, sampling data) cannot be satisfied by what this engine
+     * binds. */
+    case SH_SSR_TRACE:
+      return nullptr;
 
-    /* --- SSR --- */
-    case SH_SSR_TRACE:               return "eevee_game_ssr_hiz_trace";
+    case SH_SHADOW_PCF_FILTER:
+      return "eevee_game_shadow_pcf_compute";
 
-    /* --- GTAO --- */
-    case SH_GTAO_MAIN:               return "eevee_game_gtao_main";
-    case SH_GTAO_UPSAMPLE:           return "eevee_game_gtao_upsample";
+    case SH_GTAO_MAIN:
+      return "eevee_game_gtao_main";
+    case SH_GTAO_UPSAMPLE:
+      return "eevee_game_gtao_upsample";
 
-    /* --- SSGI --- */
-    case SH_SSGI_MAIN:               return "eevee_game_ssgi_main";
-    case SH_SSGI_BLUR:               return "eevee_game_ssgi_blur";
+    case SH_SSGI_MAIN:
+      return "eevee_game_ssgi_main";
+    case SH_SSGI_BLUR:
+      return "eevee_game_ssgi_blur";
 
-    /* --- Bloom ---
-     * FIX: SH_BLOOM_COMPOSITE was missing from this switch; it would hit the
-     * default: branch and call BLI_assert_unreachable(), crashing on first sync(). */
-    case SH_BLOOM_DOWNSAMPLE:        return "eevee_game_bloom_downsample";
-    case SH_BLOOM_UPSAMPLE:          return "eevee_game_bloom_upsample";
-    case SH_BLOOM_COMPOSITE:         return "eevee_game_bloom_composite";
+    case SH_BLOOM_DOWNSAMPLE:
+      return "eevee_game_bloom_downsample";
+    case SH_BLOOM_UPSAMPLE:
+      return "eevee_game_bloom_upsample";
+    case SH_BLOOM_COMPOSITE:
+      return "eevee_game_bloom_composite";
 
-    /* --- Volumetrics ---
-     * FIX: SH_VOLUME_RESOLVE was missing. VolumeModule::resolve() calls
-     * static_shader_get(SH_VOLUME_RESOLVE) but the original switch had no case for it,
-     * causing the resolve pass to use the integration shader — wrong semantics. */
-    case SH_VOLUME_SCATTER:          return "eevee_game_volume_scatter";
-    case SH_VOLUME_INTEGRATE:        return "eevee_game_volume_integrate";
-    case SH_VOLUME_RESOLVE:          return "eevee_game_volume_resolve";
+    case SH_VOLUME_SCATTER:
+      return "eevee_game_volume_scatter";
+    case SH_VOLUME_INTEGRATE:
+      return "eevee_game_volume_integrate";
+    case SH_VOLUME_RESOLVE:
+      return "eevee_game_volume_resolve";
 
-    /* --- Culling --- */
-    case SH_CULLING_COMPUTE:         return "eevee_game_culling_compute";
+    case SH_CULLING_COMPUTE:
+      return "eevee_game_culling_compute";
 
-    /* --- Forward --- */
-    case SH_FORWARD:                 return "eevee_game_forward";
+    case SH_FXAA:
+      return "eevee_game_fxaa";
+    case SH_SMAA_EDGE:
+      return "eevee_game_smaa_edge";
+    case SH_SMAA_WEIGHT:
+      return "eevee_game_smaa_weight";
+    case SH_SMAA_BLEND:
+      return "eevee_game_smaa_blend";
 
-    /* --- Anti-Aliasing --- */
-    case SH_FXAA:                    return "eevee_game_fxaa";
-    case SH_SMAA_EDGE:               return "eevee_game_smaa_edge";
-    case SH_SMAA_WEIGHT:             return "eevee_game_smaa_weight";
-    case SH_SMAA_BLEND:              return "eevee_game_smaa_blend";
+    case SH_DOF_COC_SETUP:
+      return "eevee_game_dof_coc_setup";
+    case SH_DOF_BOKEH_BLUR:
+      return "eevee_game_dof_bokeh_blur";
+    case SH_DOF_RESOLVE:
+      return "eevee_game_dof_resolve";
 
-    /* --- DoF --- */
-    case SH_DOF_COC_SETUP:           return "eevee_game_dof_coc_setup";
-    case SH_DOF_BOKEH_BLUR:          return "eevee_game_dof_bokeh_blur";
-    case SH_DOF_RESOLVE:             return "eevee_game_dof_resolve";
-    case SH_MOTION_BLUR_FAST:        return "eevee_game_motion_blur_fast";
-
-    /* --- Infrastructure --- */
-    case SH_HIZ_UPDATE:              return "eevee_game_hiz_update";
-    case SH_FILM_PRESENT:            return "eevee_game_film_present";
+    /* EEVEE's own info, used as is: the Hi-Z pyramid follows its layout. */
+    case SH_HIZ_UPDATE:
+      return "eevee_hiz_update";
+    case SH_FILM_PRESENT:
+      return "eevee_game_film_present";
 
     default:
       BLI_assert_unreachable();
-      return "";
+      return nullptr;
   }
 }
 
 void ShaderModule::static_shaders_load(ShaderGroups groups)
 {
-  /* Compile all shaders in the requested groups synchronously.
-   *
-   * This is called from GameInstance::init() to front-load all compilation
-   * cost before the first rendered frame, eliminating mid-game stutter caused
-   * by on-demand synchronous compile in static_shader_get().
-   *
-   * When Blender exposes a public async shader batch API (e.g. a future
-   * GPU_shader_batch_precompile()), replace this loop with non-blocking calls
-   * and a completion poll in begin_sync(). For now, synchronous is correct and
-   * the only safe option without that API.
-   *
-   * Group membership is defined here; add new shaders to the appropriate group
-   * when they are added to eShaderType. */
-
-  /* Map each shader enum to its group bit. */
+  /* Compile all shaders in the requested groups synchronously, so the cost
+   * is paid at startup and not on first use in the middle of a frame.
+   * Group membership is defined here; add new shaders to the appropriate
+   * group when they are added to eShaderType. */
   struct ShaderGroupEntry {
     eShaderType type;
     ShaderGroups group;
   };
 
   static const ShaderGroupEntry entries[] = {
-    /* Lighting */
-    { SH_DEFERRED_LIGHT,         SG_LIGHTING },
-    { SH_DEFERRED_COMBINE,       SG_LIGHTING },
-    { SH_DEFERRED_TILE_CLASSIFY, SG_LIGHTING },
-    { SH_GBUFFER,                SG_LIGHTING },
-    { SH_FORWARD,                SG_LIGHTING },
+      /* Lighting */
+      {SH_DEFERRED_LIGHT, SG_LIGHTING},
 
-    /* Shadow — atlas rasterisation + PCF compute filter */
-    { SH_SHADOW_DIRECTIONAL_CSM, SG_SHADOW },
-    { SH_SHADOW_PUNCTUAL_ATLAS,  SG_SHADOW },
-    { SH_SHADOW_DEPTH_WRITE,     SG_SHADOW },
-    { SH_SHADOW_PCF_FILTER,      SG_SHADOW },
+      /* Shadow: PCF compute filter */
+      {SH_SHADOW_PCF_FILTER, SG_SHADOW},
 
-    /* Post FX */
-    { SH_BLOOM_DOWNSAMPLE,       SG_POST_FX },
-    { SH_BLOOM_UPSAMPLE,         SG_POST_FX },
-    { SH_BLOOM_COMPOSITE,        SG_POST_FX },
-    { SH_DOF_COC_SETUP,          SG_POST_FX },
-    { SH_DOF_BOKEH_BLUR,         SG_POST_FX },
-    { SH_DOF_RESOLVE,            SG_POST_FX },
-    { SH_MOTION_BLUR_FAST,       SG_POST_FX },
-    { SH_VOLUME_SCATTER,         SG_POST_FX },
-    { SH_VOLUME_INTEGRATE,       SG_POST_FX },
-    { SH_VOLUME_RESOLVE,         SG_POST_FX },
-    { SH_FILM_PRESENT,           SG_POST_FX },
+      /* Post FX */
+      {SH_BLOOM_DOWNSAMPLE, SG_POST_FX},
+      {SH_BLOOM_UPSAMPLE, SG_POST_FX},
+      {SH_BLOOM_COMPOSITE, SG_POST_FX},
+      {SH_DOF_COC_SETUP, SG_POST_FX},
+      {SH_DOF_BOKEH_BLUR, SG_POST_FX},
+      {SH_DOF_RESOLVE, SG_POST_FX},
+      {SH_VOLUME_SCATTER, SG_POST_FX},
+      {SH_VOLUME_INTEGRATE, SG_POST_FX},
+      {SH_VOLUME_RESOLVE, SG_POST_FX},
+      {SH_FILM_PRESENT, SG_POST_FX},
 
-    /* AA */
-    { SH_FXAA,                   SG_AA },
-    { SH_SMAA_EDGE,              SG_AA },
-    { SH_SMAA_WEIGHT,            SG_AA },
-    { SH_SMAA_BLEND,             SG_AA },
+      /* AA */
+      {SH_FXAA, SG_AA},
+      {SH_SMAA_EDGE, SG_AA},
+      {SH_SMAA_WEIGHT, SG_AA},
+      {SH_SMAA_BLEND, SG_AA},
 
-    /* Reflections */
-    { SH_SSR_TRACE,              SG_REFLECT },
-    { SH_GTAO_MAIN,              SG_REFLECT },
-    { SH_GTAO_UPSAMPLE,          SG_REFLECT },
-    { SH_SSGI_MAIN,              SG_REFLECT },
-    { SH_SSGI_BLUR,              SG_REFLECT },
+      /* Screen space effects */
+      {SH_SSR_TRACE, SG_REFLECT},
+      {SH_GTAO_MAIN, SG_REFLECT},
+      {SH_GTAO_UPSAMPLE, SG_REFLECT},
+      {SH_SSGI_MAIN, SG_REFLECT},
+      {SH_SSGI_BLUR, SG_REFLECT},
 
-    /* Infrastructure (always compile) */
-    { SH_HIZ_UPDATE,             SG_LIGHTING },
-    { SH_CULLING_COMPUTE,        SG_LIGHTING },
+      /* Infrastructure (always compile) */
+      {SH_HIZ_UPDATE, SG_LIGHTING},
+      {SH_CULLING_COMPUTE, SG_LIGHTING},
   };
 
   for (const ShaderGroupEntry &e : entries) {
-    if (!(groups & e.group)) {
+    if ((groups & e.group) == 0) {
       continue;
     }
-    if (shaders_[e.type].shader == nullptr) {
-      shaders_[e.type].shader = GPU_shader_create_from_info_name(shaders_[e.type].name);
-      BLI_assert_msg(shaders_[e.type].shader != nullptr,
-                     "eevee_game: static_shaders_load failed for a shader");
-    }
+    /* Null for types without a create info; nothing to compile. */
+    static_shader_get(e.type);
   }
 }
 

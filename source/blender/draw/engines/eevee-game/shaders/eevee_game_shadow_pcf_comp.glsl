@@ -35,7 +35,7 @@
  *
  * Layout (must match eevee_game_shadow_pcf_compute ShaderCreateInfo):
  *   sampler 0 : depth_tx       — scene depth, R32F or D32F
- *   sampler 1 : normal_tx      — world-space normals, RGBA16F (layer 0 of rp_color_tx)
+ *   gbuffer   : world-space normals, decoded with eevee_gbuffer_read_lib.glsl
  *   sampler 2 : shadow_atlas   — fixed 4096x4096 depth atlas, D32F
  *   image   0 : shadow_mask    — output RGBA16F (R = shadow factor, GBA unused)
  *   UBO/SSBO  : shadow_data    — ShadowUniformData (cascade matrices, splits, bias)
@@ -44,27 +44,16 @@
  * Local group 8x8 = 64 threads: fills one NVIDIA warp-pair or one AMD wavefront.
  */
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#include "infos/eevee_game_infos.hh"
+
+COMPUTE_SHADER_CREATE_INFO(eevee_game_shadow_pcf_compute)
+
+#include "eevee_reverse_z_lib.glsl"
+#include "eevee_gbuffer_read_lib.glsl"
 
 /* ------------------------------------------------------------------ */
 /* Inputs                                                               */
 /* ------------------------------------------------------------------ */
-
-uniform sampler2D   depth_tx;
-uniform sampler2D   normal_tx;
-uniform sampler2DShadow shadow_atlas;  /* Hardware PCF comparison built-in. */
-
-layout(r16f) uniform writeonly image2D shadow_mask_img;
-
-/* Per-frame matrices — matches UniformData in eevee_game_defines.hh */
-uniform mat4 viewprojinv;    /* Inverse view-projection for depth reconstruction. */
-
-/* Shadow parameters — matches ShadowUniformData in eevee_game_defines.hh */
-uniform mat4  cascade_viewproj[4]; /* Up to MAX_SHADOW_CASCADES = 4 */
-uniform vec4  cascade_splits;      /* Camera-space split depths for 4 cascades */
-uniform float shadow_bias;         /* Base depth bias (world units) */
-uniform float pcf_offset_scale;    /* Multiplier on the contact-hardening radius */
-uniform int   shadow_map_res;      /* Atlas resolution (4096) */
 
 /* ------------------------------------------------------------------ */
 /* Constants                                                            */
@@ -80,12 +69,6 @@ uniform int   shadow_map_res;      /* Atlas resolution (4096) */
  *
  * Standard technique: unproject the NDC position using the inverse VP matrix.
  * All deferred effects (GTAO, SSR, SSGI) use the same reconstruction path. */
-vec3 reconstruct_world_pos(vec2 uv, float depth)
-{
-  vec4 ndc = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-  vec4 world = viewprojinv * ndc;
-  return world.xyz / world.w;
-}
 
 /* ------------------------------------------------------------------ */
 /* Cascade selection
@@ -139,7 +122,8 @@ vec3 apply_normal_bias(vec3 world_pos, vec3 world_normal, vec3 light_dir)
  *
  *   penumbra ≈ light_size * (d_receiver - d_blocker) / d_blocker
  *   We use a fixed light_size of 1.0 (normalised) and scale by pcf_offset_scale. */
-float pcf_3x3(sampler2DShadow atlas, vec3 shadow_coord, float pcf_radius)
+float pcf_3x3(sampler2DShadow atlas, vec3 shadow_coord, vec2 tile_min, vec2 tile_max,
+              float pcf_radius)
 {
   vec2 texel_size = 1.0 / vec2(shadow_map_res);
   vec2 offset     = texel_size * pcf_radius;
@@ -150,6 +134,8 @@ float pcf_3x3(sampler2DShadow atlas, vec3 shadow_coord, float pcf_radius)
       /* Offset only XY; Z (depth) is the same for all taps — the comparison
        * value does not change with filter position, only the occluder sample. */
       vec2 tap_uv  = shadow_coord.xy + vec2(float(x), float(y)) * offset;
+      /* Taps must not leak into the neighbouring cascade tile. */
+      tap_uv = clamp(tap_uv, tile_min, tile_max);
       sum += texture(atlas, vec3(tap_uv, shadow_coord.z));
     }
   }
@@ -173,30 +159,45 @@ void main()
 
   /* Early-out: sky pixels carry depth = 1.0 (far plane).
    * They receive no shadow; write 1.0 (fully lit) and exit. */
-  float depth = texture(depth_tx, uv).r;
+  float depth = reverse_z::read(texture(depth_tx, uv).r);
   if (depth >= 0.9999) {
     imageStore(shadow_mask_img, px, vec4(1.0));
     return;
   }
 
-  /* Reconstruct world-space position and normal. */
-  vec3 world_pos    = reconstruct_world_pos(uv, depth);
-  vec3 world_normal = normalize(texture(normal_tx, uv).rgb * 2.0 - 1.0);
+  /* Reconstruct world-space position. Unprojecting an NDC point gives
+   * (world, 1) / clip.w, so the homogeneous w is the reciprocal of clip.w,
+   * and for a perspective camera clip.w is the view-space depth. The split
+   * distances are view-space depths too, so cascade selection costs nothing
+   * beyond the unprojection that is needed anyway. */
+  vec4 world_h = viewprojinv * vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+  vec3 world_pos = world_h.xyz / world_h.w;
+  float view_depth = 1.0 / world_h.w;
 
-  /* View-space depth for cascade selection.
-   * We approximate it as the NDC Z after reprojection — sufficient for split selection. */
-  vec4 view_pos   = inverse(viewprojinv) * vec4(world_pos, 1.0);
-  float view_depth = view_pos.z / view_pos.w;
+  /* Shading normal of the first closure, decoded from EEVEE's G-Buffer.
+   * A pixel can have depth and still no closure (emission only surface): its
+   * normal layer was never written, and decoding garbage would spread NaNs
+   * through the filters downstream. */
+  ivec2 gbuf_texel = px;
+  if (gbuffer::read_header(gbuf_texel).is_empty()) {
+    imageStore(shadow_mask_img, px, vec4(1.0));
+    return;
+  }
+  vec3 world_normal = gbuffer::read_normal(gbuf_texel);
 
-  int cascade_idx = select_cascade(-view_depth); /* View depth is negative in OpenGL. */
+  int cascade_idx = select_cascade(view_depth);
   if (cascade_idx < 0) {
     imageStore(shadow_mask_img, px, vec4(1.0)); /* Beyond shadow range. */
     return;
   }
 
-  /* Light direction for this cascade: the -Z column of the light-view matrix
-   * (column 2, negated) gives the light-to-scene direction in world space. */
-  mat4 lvp      = cascade_viewproj[cascade_idx];
+  mat4 lvp = (cascade_idx == 0) ? cascade_viewproj_0 :
+             (cascade_idx == 1) ? cascade_viewproj_1 :
+             (cascade_idx == 2) ? cascade_viewproj_2 : cascade_viewproj_3;
+
+  /* Direction toward the light, for N.L: the light's +Z axis in world space.
+   * It is the third row of the cascade matrix up to the orthographic depth
+   * scale, which is negative, hence the sign flip. */
   vec3 light_dir = normalize(vec3(-lvp[0][2], -lvp[1][2], -lvp[2][2]));
 
   /* Apply normal bias to the world position before projecting to light space. */
@@ -215,21 +216,24 @@ void main()
     return;
   }
 
-  /* Contact-hardening radius.
-   * Blocker depth is read with a single centre tap — cheap because we already
-   * have the shadow_coord and sampler2DShadow supports regular texture() reads
-   * when .z is omitted (use textureProj or a separate non-shadow sampler).
-   * We approximate by reading the raw depth from the hardware comparison result
-   * at zero offset: if comparison returns 1.0 (fully lit), the blocker is behind
-   * the receiver and the penumbra collapses. A proper two-pass PCSS would need a
-   * separate non-comparison sampler for the blocker search; for a 3x3 PCF the
-   * fixed pcf_offset_scale is sufficient.
-   *
-   * radius = pcf_offset_scale * screen_space_footprint_heuristic
-   * We use a fixed radius driven by pcf_offset_scale (default 1.0 = 2 texels). */
+  /* Tile-local [0,1] to atlas UV: the cascades are the bottom row of the
+   * 4x4 tile grid, cascade i in column i. */
+  vec2 tile_min = vec2(float(cascade_idx), 0.0) * 0.25;
+  vec2 half_texel = vec2(0.5) / vec2(shadow_map_res);
+  vec3 atlas_coord;
+  atlas_coord.xy = tile_min + shadow_coord.xy * 0.25;
+  /* The atlas stores reversed depth (1 = near the light) and the sampler
+   * compares `ref <= stored`, so the reference is reversed as well. */
+  atlas_coord.z = 1.0 - shadow_coord.z;
+
+  /* Fixed filter radius driven by pcf_offset_scale (1.0 = 2 texels). */
   float pcf_radius = clamp(pcf_offset_scale * 2.0, 1.0, MAX_PCF_RADIUS);
 
-  float shadow_factor = pcf_3x3(shadow_atlas, shadow_coord, pcf_radius);
+  float shadow_factor = pcf_3x3(shadow_atlas,
+                                atlas_coord,
+                                tile_min + half_texel,
+                                tile_min + vec2(0.25) - half_texel,
+                                pcf_radius);
 
   imageStore(shadow_mask_img, px, vec4(shadow_factor));
 }

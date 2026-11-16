@@ -5,16 +5,19 @@
 
 #include "eevee_game_defines.hh"
 #include "GPU_texture.hh"
-#include "draw_handle.hh"  /* draw::ObjectHandle */
 
 namespace blender::eevee_game {
+
+struct ObjectHandle; /* eevee_game_sync.hh */
 
 struct VolumeSettings {
   int   tile_size  = 16;    /* Screen-space pixels per froxel XY cell */
   int   samples_z  = 64;    /* Depth slices in the frustum-aligned voxel grid */
   float density    = 0.1f;  /* Homogeneous medium extinction coefficient */
   float anisotropy = 0.7f;  /* Henyey-Greenstein phase function g parameter */
-  bool  enabled    = true;
+  /* Off by default: a scene without fog should not pay for 3 compute passes
+   * nor get an unrequested haze. To be driven by scene settings. */
+  bool  enabled    = false;
 };
 
 /* Frustum-aligned voxel (froxel) volumetric fog.
@@ -40,7 +43,7 @@ class VolumeModule {
    * tracks it for froxel voxelisation. Called from SyncModule::sync_mesh()
    * when mat.has_volume == true. Mirrors eevee::VolumeModule::object_sync().
    */
-  void object_sync(const draw::ObjectHandle &ob_handle);
+  void object_sync(const ObjectHandle &ob_handle);
 
   /* Execute both passes; writes to the integrated froxel texture. */
   void render(View &view);
@@ -48,21 +51,20 @@ class VolumeModule {
   /* Composite the integrated volume onto the 2D scene color buffer. */
   void resolve(gpu::Texture *target_color_tx, gpu::Texture *depth_tx);
 
-  gpu::Texture *get_volume_texture() { return volume_integrated_tx_.get(); }
+  gpu::Texture *get_volume_texture() { return volume_integrated_tx_; }
 
  private:
   GameInstance *inst_;
   VolumeSettings settings_;
 
   /* 3D RGBA16F: scattering (RGB) + extinction (A) per froxel */
-  std::unique_ptr<gpu::Texture> volume_grid_tx_;
+  Texture volume_grid_tx_ = {"volume_grid_tx_"};
   /* 3D RGBA16F: integrated transmittance + in-scattered light after Z accumulation */
-  std::unique_ptr<gpu::Texture> volume_integrated_tx_;
+  Texture volume_integrated_tx_ = {"volume_integrated_tx_"};
 
   PassSimple volume_scatter_ps_{"Volume.Scatter"};
   PassSimple volume_integration_ps_{"Volume.Integration"};
   PassSimple volume_resolve_ps_{"Volume.Resolve"};
-  bool       resolve_synced_ = false; /* True after resolve pass shader is set in sync() */
 };
 
 } // namespace blender::eevee_game

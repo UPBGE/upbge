@@ -17,89 +17,79 @@ void VolumeModule::init()
 
 void VolumeModule::sync()
 {
+  if (!settings_.enabled) {
+    return;
+  }
+
   const int2 render_res = inst_->film.render_extent_get();
 
   /* Froxel grid dimensions derived from render resolution and tile size.
    * XY: screen tiles of tile_size pixels each.
    * Z: exponentially-spaced depth slices (more near, fewer far). */
-  const int3 grid_res = int3(
-      math::divide_ceil(render_res.x, settings_.tile_size),
-      math::divide_ceil(render_res.y, settings_.tile_size),
-      settings_.samples_z);
+  const int3 grid_res = int3(math::divide_ceil(render_res, int2(settings_.tile_size)),
+                             settings_.samples_z);
 
-  /* RGBA16F stores: R=scattering R, G=scattering G, B=scattering B, A=extinction.
+  /* RGBA16F stores: RGB = scattering, A = extinction.
    * 16F is sufficient for fog density; avoids the 2x bandwidth cost of RGBA32F. */
-  if (!volume_grid_tx_) {
-    volume_grid_tx_ = std::make_unique<gpu::Texture>("volume_grid");
-  }
-  volume_grid_tx_->ensure_3d(
-      gpu::TextureFormat::RGBA16F,
-      grid_res,
-      GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
-
-  if (!volume_integrated_tx_) {
-    volume_integrated_tx_ = std::make_unique<gpu::Texture>("volume_integrated");
-  }
-  volume_integrated_tx_->ensure_3d(
-      gpu::TextureFormat::RGBA16F,
-      grid_res,
-      GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
-
-  volume_scatter_ps_.init();
-  volume_scatter_ps_.shader_set(inst_->shaders.static_shader_get(SH_VOLUME_SCATTER));
-
-  volume_integration_ps_.init();
-  volume_integration_ps_.shader_set(inst_->shaders.static_shader_get(SH_VOLUME_INTEGRATE));
-
-  /* Force the resolve pass to be rebuilt since resolution may have changed. */
-  resolve_synced_ = false;
+  const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ;
+  volume_grid_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16_16_16_16, grid_res, usage);
+  volume_integrated_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16_16_16_16, grid_res, usage);
 }
 
-void VolumeModule::render(View &view)
+void VolumeModule::render(View & /*view*/)
 {
   if (!settings_.enabled) {
     return;
   }
 
-  GPU_debug_group_begin("Volumetrics");
+  const UniformData &ud = inst_->uniform_data;
+  const int3 grid_size = volume_grid_tx_.size();
 
   /* Pass 1: Light Injection (Scatter)
-   * Each froxel samples the Fixed Shadow Atlas to determine how much directional
-   * light reaches that point. The Henyey-Greenstein phase function biases
-   * scattering toward the light direction (forward-scattering fog). */
-  volume_scatter_ps_.bind_texture("shadow_atlas_tx", inst_->shadows.get_atlas());
-  volume_scatter_ps_.bind_resources(inst_->lights);
-  volume_scatter_ps_.bind_resources(inst_->uniform_data);
-  volume_scatter_ps_.bind_image("out_grid_img", volume_grid_tx_.get());
-  volume_scatter_ps_.push_constant("vol_density",    settings_.density);
-  /* Clamp g to [−0.99, 0.99]: the Henyey-Greenstein denominator is
-   *   (1 + g² − 2g·cosθ)^(3/2)
-   * At g = ±1.0 the denominator goes to zero for θ = 0 (or π),
-   * producing Inf phase which propagates into the froxel grid and
-   * poisons the Beer-Lambert integration for the entire volume.
-   * 0.99 preserves extreme anisotropy without the singularity. */
-  volume_scatter_ps_.push_constant("vol_anisotropy",
-                                    math::clamp(settings_.anisotropy, -0.99f, 0.99f));
-
-  const int3 grid_size = volume_grid_tx_->size();
-  volume_scatter_ps_.dispatch(math::divide_ceil(grid_size, int3(8, 8, 1)));
-  volume_scatter_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS);
+   * Each froxel samples the static shadow atlas (sun cascades) to determine
+   * how much directional light reaches that point. The Henyey-Greenstein
+   * phase function biases scattering toward the light direction. */
+  PassSimple &scatter = volume_scatter_ps_;
+  scatter.init();
+  scatter.shader_set(inst_->shaders.static_shader_get(SH_VOLUME_SCATTER));
+  scatter.bind_texture("shadow_atlas", inst_->shadows.get_static_atlas());
+  inst_->lights.bind_resources(scatter);
+  scatter.bind_image("out_grid_img", volume_grid_tx_);
+  scatter.push_constant("tile_size", settings_.tile_size);
+  scatter.push_constant("samples_z", settings_.samples_z);
+  scatter.push_constant("vol_density", settings_.density);
+  /* Clamp g to [-0.99, 0.99]: the Henyey-Greenstein denominator
+   *   (1 + g^2 - 2g cos(theta))^(3/2)
+   * reaches zero at g = +-1 for theta = 0 (or pi). The resulting Inf would
+   * spread through the Beer-Lambert integration of the whole column. */
+  scatter.push_constant("vol_anisotropy", math::clamp(settings_.anisotropy, -0.99f, 0.99f));
+  scatter.push_constant("light_count", inst_->lights.active_light_count);
+  scatter.push_constant("viewmat", ud.viewmat);
+  scatter.push_constant("viewprojinv", math::invert(ud.viewprojmat));
+  scatter.push_constant("camera_pos", ud.camera_pos);
+  scatter.push_constant("z_near", ud.z_near);
+  scatter.push_constant("z_far", ud.z_far);
+  scatter.push_constant("screen_res", ud.screen_res);
+  scatter.push_constant("cascade_viewproj", inst_->shadows.get_data().cascade_viewproj[0]);
+  scatter.dispatch(math::divide_ceil(grid_size, int3(8, 8, 1)));
+  scatter.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
+  inst_->manager->submit(scatter);
 
   /* Pass 2: Ray Integration along Z
-   * Each thread processes one XY froxel column and accumulates scattering from
-   * front to back (near to far). Dispatch only XY: the shader iterates Z internally
-   * to preserve cache locality (sequential Z reads from a single thread). */
-  volume_integration_ps_.bind_texture("in_grid_tx",       volume_grid_tx_.get());
-  volume_integration_ps_.bind_image("out_integrated_img", volume_integrated_tx_.get());
-
-  volume_integration_ps_.dispatch(
-      int3(math::divide_ceil(grid_size.x, 8),
-           math::divide_ceil(grid_size.y, 8),
-           1));
-  volume_integration_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS |
-                                  GPU_BARRIER_TEXTURE_FETCH);
-
-  GPU_debug_group_end();
+   * One thread per XY froxel column, accumulating front to back. Only XY is
+   * dispatched: the shader walks Z itself so each thread reads its column
+   * sequentially. */
+  PassSimple &integrate = volume_integration_ps_;
+  integrate.init();
+  integrate.shader_set(inst_->shaders.static_shader_get(SH_VOLUME_INTEGRATE));
+  integrate.bind_texture("in_grid_tx", volume_grid_tx_);
+  integrate.bind_image("out_integrated_img", volume_integrated_tx_);
+  integrate.push_constant("z_near", ud.z_near);
+  integrate.push_constant("z_far", ud.z_far);
+  integrate.push_constant("samples_z", settings_.samples_z);
+  integrate.dispatch(int3(math::divide_ceil(grid_size.xy(), int2(8)), 1));
+  integrate.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
+  inst_->manager->submit(integrate);
 }
 
 void VolumeModule::resolve(gpu::Texture *target_color_tx, gpu::Texture *depth_tx)
@@ -108,60 +98,35 @@ void VolumeModule::resolve(gpu::Texture *target_color_tx, gpu::Texture *depth_tx
     return;
   }
 
-  GPU_debug_group_begin("Volumetrics.Resolve");
-
-  /* FIX: was using SH_VOLUME_INTEGRATE for the resolve pass — that is the 3D grid
-   * integration shader (froxel Z accumulation), not the 2D screen composite shader.
-   * Using the wrong shader means the resolve pass reads/writes with the wrong I/O layout
-   * and produces garbage or undefined output.
-   *
-   * SH_VOLUME_RESOLVE maps to "eevee_game_volume_resolve" which is a dedicated
-   * full-screen compute shader that:
-   *   1. Reads depth_tx to compute view-space ray length per pixel.
-   *   2. Converts pixel+depth to froxel UVW in [0,1]^3.
-   *   3. Samples volume_integrated_tx (RGBA16F):
-   *        RGB = in-scattered radiance.
-   *        A   = transmittance (Beer-Lambert: exp(-extinction * length)).
-   *   4. Composites: out_color = in_color * transmittance + in_scatter.
-   *
-   * resolve_synced_ guards against rebuilding the pass on every resolve() call.
-   * It is reset to false in sync() when the resolution or froxel grid changes. */
-  if (!resolve_synced_) {
-    volume_resolve_ps_.init();
-    volume_resolve_ps_.shader_set(
-        inst_->shaders.static_shader_get(SH_VOLUME_RESOLVE)); /* FIX: was SH_VOLUME_INTEGRATE */
-    volume_resolve_ps_.bind_resources(inst_->uniform_data);
-    resolve_synced_ = true;
-  }
-
-  volume_resolve_ps_.bind_texture("volume_integrated_tx", volume_integrated_tx_.get());
-  volume_resolve_ps_.bind_texture("depth_tx",             depth_tx);
-  volume_resolve_ps_.bind_image("out_color_img",          target_color_tx);
-
-  /* Push froxel grid dimensions so the shader can reconstruct UVW from screen UV + depth. */
+  /* Full-screen composite of the integrated froxel grid:
+   *   1. Depth gives the view-space ray length per pixel.
+   *   2. Pixel + depth map to froxel UVW in [0,1]^3.
+   *   3. Sample: RGB = in-scattered radiance, A = transmittance.
+   *   4. out_color = in_color * transmittance + in_scatter. */
+  const UniformData &ud = inst_->uniform_data;
   const int2 render_res = inst_->film.render_extent_get();
-  volume_resolve_ps_.push_constant("tile_size",  settings_.tile_size);
-  volume_resolve_ps_.push_constant("samples_z",  settings_.samples_z);
-  volume_resolve_ps_.push_constant("screen_res", float2(render_res));
-  volume_resolve_ps_.push_constant("z_near", inst_->uniform_data.z_near);
-  volume_resolve_ps_.push_constant("z_far",  inst_->uniform_data.z_far);
 
-  /* One thread per screen pixel. */
-  volume_resolve_ps_.dispatch(
-      math::divide_ceil(int3(render_res.x, render_res.y, 1), int3(8, 8, 1)));
-  volume_resolve_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
-
-  GPU_debug_group_end();
+  PassSimple &pass = volume_resolve_ps_;
+  pass.init();
+  pass.shader_set(inst_->shaders.static_shader_get(SH_VOLUME_RESOLVE));
+  pass.bind_texture("volume_integrated_tx", volume_integrated_tx_);
+  pass.bind_texture("depth_tx", depth_tx);
+  pass.bind_image("out_color_img", target_color_tx);
+  pass.push_constant("z_near", ud.z_near);
+  pass.push_constant("z_far", ud.z_far);
+  pass.push_constant("tile_size", settings_.tile_size);
+  pass.push_constant("samples_z", settings_.samples_z);
+  pass.push_constant("screen_res", float2(render_res));
+  pass.dispatch(math::divide_ceil(render_res, int2(8)));
+  pass.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
+  inst_->manager->submit(pass);
 }
 
-void VolumeModule::object_sync(const draw::ObjectHandle & /*ob_handle*/)
+void VolumeModule::object_sync(const ObjectHandle & /*ob_handle*/)
 {
-  /* eevee_game volumes are frustum-wide: the froxel grid covers the full camera
-   * frustum unconditionally. Per-object registration is not needed for correctness —
-   * the scatter pass samples all volume material sub-passes via the draw manager.
-   *
-   * When selective volume-object culling is added (e.g. skip objects outside the froxel
-   * far plane), store ob_handle.object_key here and filter the voxelisation draw calls. */
+  /* The froxel grid covers the whole camera frustum with a homogeneous
+   * medium, so there is nothing to register per object yet. Kept as the hook
+   * for per-object voxelisation of volume materials. */
 }
 
 } // namespace blender::eevee_game

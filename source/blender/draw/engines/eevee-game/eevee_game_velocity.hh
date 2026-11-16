@@ -49,9 +49,17 @@ class VelocityModule {
 
   /* Per-geometry tracking data for deforming objects. */
   struct VelocityGeometryData {
-    gpu::VertBuf *pos_buf = nullptr;
+    /* The batch is requested during sync but only extracted at the end of
+     * it, so the position buffer must not be dereferenced before then. */
+    gpu::Batch *batch = nullptr;
     int ofs = 0;
     int len = 0;
+
+    gpu::VertBuf *pos_buf_get() const
+    {
+      /* Surface batches keep positions in the second vertex buffer slot. */
+      return (batch != nullptr) ? batch->verts_(1) : nullptr;
+    }
   };
 
   /** Persistent map: ObjectKey -> velocity indices for previous/current step. */

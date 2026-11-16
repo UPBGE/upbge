@@ -6,27 +6,9 @@
 #include "eevee_game_defines.hh"
 #include "GPU_texture.hh"
 
+#include "../eevee/eevee_gbuffer.hh"
+
 namespace blender::eevee_game {
-
-/**
- * Metadata about the G-Buffer layout.
- * Sent to the GPU to identify which layer contains which data.
- */
-struct RenderBuffersInfoData {
-  int color_len;
-  int value_len;
-
-  int normal_id;
-  int diffuse_light_id;
-  int specular_light_id;
-  int ambient_occlusion_id;
-  
-  // AOV and Custom Pass info
-  struct {
-    int color_len;
-    int value_len;
-  } aovs;
-};
 
 /**
  * GameRenderBuffers handles the allocation and lifetime of all 
@@ -34,43 +16,58 @@ struct RenderBuffersInfoData {
  */
 class RenderBuffers {
  public:
-  void init();
-  
-  // Allocate textures based on the current render resolution
-  void acquire(int2 extent);
-  
-  // Release pooled textures to save memory
-  void release();
+  RenderBuffers(class GameInstance &inst) : inst_(inst) {}
 
-  // Core Render Targets
-  gpu::Texture depth_tx;      // SFLOAT_32 for precision
-  gpu::Texture combined_tx;   // SFLOAT_16_16_16_16 (HDR Color)
-  gpu::Texture vector_tx;     // SFLOAT_16_16 (Motion Vectors)
+  /* (Re)allocate every target for the given render resolution. Cheap when
+   * nothing changed: Texture::ensure_*() only compares size and format.
+   *
+   * All targets are persistent, not pooled. They are needed every frame for
+   * the whole frame, combined_tx must survive into the next frame (SSGI reads
+   * it as last frame's radiance), and framebuffers that reference them stay
+   * valid without being rebuilt. */
+  /* Returns true when the targets were reallocated: their previous content,
+   * including last frame's radiance, is gone. */
+  bool acquire(int2 extent);
 
-  // G-Buffer (Closures and Render Passes)
-  // These are texture arrays where each slice is a Closure data layer
-  gpu::Texture rp_color_tx;   // Array of SFLOAT_16_16_16_16
-  gpu::Texture rp_value_tx;   // Array of SFLOAT_16 (Single Channel)
+  /* Core render targets. */
+  Texture depth_tx = {"depth_tx"}; /* D32F + S8, reversed (1 = near) */
+  /* HDR color, RGBA16F. Alpha follows EEVEE's convention because EEVEE's
+   * material shaders write it: transmittance, 1 = nothing drawn, 0 = opaque. */
+  Texture combined_tx = {"combined_tx"};
+  /* Last frame's combined_tx, the radiance source of SSGI. The two are
+   * swapped at the start of each frame: the G-Buffer pass writes emission
+   * into combined_tx before SSGI runs, so the previous frame cannot be read
+   * from the same texture, and swapping costs nothing where a copy would
+   * move a full RGBA16F target every frame. */
+  Texture combined_prev_tx = {"combined_prev_tx"};
+  Texture vector_tx = {"vector_tx"}; /* RG16F motion vectors, UV units, previous - current */
+
+  /* G-Buffer, in the layout EEVEE's material shaders write and
+   * `eevee_gbuffer_read_lib.glsl` decodes: header (closure types), packed
+   * closures, octahedral normals. Layer counts depend on which closures the
+   * synced materials use, so it is allocated in PipelineModule::sync(). */
+  eevee::GBuffer gbuffer;
 
   /* Shadow mask: one float per pixel, written by the PCF 3x3 compute shader
-   * and read by the deferred lighting pass as a plain sampler2D.
-   * R16F: 16-bit float is sufficient for a [0,1] shadow factor — halves VRAM
-   * cost vs R32F (~4 MB vs ~8 MB at 1440p) with no visible precision loss. */
-  gpu::Texture shadow_mask_tx; // R16F, render resolution
+   * and read by the deferred lighting pass.
+   * R16F is enough for a [0,1] factor and halves the cost of R32F. */
+  Texture shadow_mask_tx = {"shadow_mask_tx"};
 
-  // FSR 3.0 Specific Buffers
-  gpu::Texture reactive_mask_tx; // R8 (Protects smoke/alpha)
-  gpu::Texture transp_mask_tx;   // R8 (Protects glass/composition)
-  gpu::Texture ui_color_tx;      // RGBA8 (HUD buffer at full resolution)
+  /* FSR 3 inputs. */
+  Texture reactive_mask_tx = {"reactive_mask_tx"}; /* R8, protects smoke / alpha */
+  Texture transp_mask_tx = {"transp_mask_tx"};     /* R8, protects glass / composition */
+  Texture ui_color_tx = {"ui_color_tx"};           /* RGBA8 HUD at display resolution */
 
-  RenderBuffersInfoData data;
+  /* Render pass and cryptomatte outputs of EEVEE's deferred surface shader.
+   * A game has none, but the shader declares the images, so something valid
+   * must be bound. 1x1: every pass index in the uniform data is -1, and the
+   * shader skips cryptomatte when the image is one pixel wide. */
+  Texture rp_color_tx = {"rp_color_dummy"};
+  Texture rp_value_tx = {"rp_value_dummy"};
+  Texture cryptomatte_tx = {"cryptomatte_dummy"};
 
  private:
-  int2 extent_;
   class GameInstance &inst_;
-
-  friend class GameInstance;
-  RenderBuffers(class GameInstance &inst) : inst_(inst) {}
 };
 
 } // namespace blender::eevee_game

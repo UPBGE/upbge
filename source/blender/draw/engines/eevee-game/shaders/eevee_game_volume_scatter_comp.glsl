@@ -36,48 +36,16 @@
  * Local group 8×8×1.
  */
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#include "infos/eevee_game_infos.hh"
 
-/* Froxel scatter/extinction grid.  One entry per froxel.
- * RGB = σ_s × L_in  (light contribution weighted by scattering coefficient)
- * A   = σ_t         (total extinction = scattering + absorption) */
-layout(rgba16f) uniform writeonly image3D out_grid_img;
+COMPUTE_SHADER_CREATE_INFO(eevee_game_volume_scatter)
 
-/* Shadow atlas for CSM directional shadow lookup (binding 0). */
-uniform sampler2DShadow shadow_atlas;
-
-/* Light SSBO — packed LightData structs (match C++ LightData). */
-struct LightData {
-  vec3  position;
-  uint  type;      /* 0=point, 1=spot, 2=sun */
-  vec3  color;
-  float energy;
-  vec3  direction;
-  float radius;
-  float attenuation;
-  float spot_angle;
-  int   shadow_index;
-  float _pad0;
-};
-layout(std430, binding = 0) readonly buffer LightBuf { LightData light_buf[]; };
-
-/* Froxel grid parameters (must match VolumeSettings in C++). */
-uniform int   tile_size;    /* Screen-space pixels per froxel XY cell */
-uniform int   samples_z;    /* Depth slices in the frustum-aligned grid */
-uniform float vol_density;  /* Homogeneous medium extinction σ_t */
-uniform float vol_anisotropy; /* Henyey-Greenstein g parameter */
-uniform int   light_count;
-
-/* Camera / view data. */
-uniform mat4  viewmat;
-uniform mat4  viewprojinv;
-uniform vec3  camera_pos;
-uniform float z_near;
-uniform float z_far;
-uniform vec2  screen_res;
-
-/* CSM shadow atlas cascade 0 view-projection matrix (directional only). */
-uniform mat4  cascade_viewproj;
+/* out_grid_img, one entry per froxel:
+ *   RGB = sigma_s * L_in  (light contribution weighted by scattering coefficient)
+ *   A   = sigma_t         (total extinction = scattering + absorption)
+ *
+ * light_buf[] is LightData from eevee_game_shader_shared.hh.
+ * cascade_viewproj is cascade 0 of the sun, the only shadow sampled here. */
 
 /* ------------------------------------------------------------------ */
 /* Henyey-Greenstein phase function
@@ -135,7 +103,12 @@ float shadow_directional(vec3 world_pos)
     return 1.0; /* Outside cascade: assume lit */
   }
 
-  return texture(shadow_atlas, shadow_uv3);
+  /* Cascade 0 is the first 1024 px tile of the 4096 px static atlas: the
+   * bottom-left quarter in each axis. */
+  vec2 atlas_uv = shadow_uv3.xy * 0.25;
+  /* The atlas stores reversed depth (1 = near the light) and the sampler
+   * compares `ref <= stored`, so the reference is reversed as well. */
+  return texture(shadow_atlas, vec3(atlas_uv, 1.0 - shadow_uv3.z));
 }
 
 /* ================================================================== */
@@ -177,7 +150,7 @@ void main()
     for (int i = 0; i < light_count; i++) {
       LightData light = light_buf[i];
 
-      if (light.type == 2u) {
+      if (light.type == LIGHT_TYPE_SUN) {
         /* Sun / directional light. */
         vec3  L         = normalize(-light.direction);
         float cos_theta = dot(L, view_dir);

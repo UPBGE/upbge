@@ -29,18 +29,15 @@
  * Local group 8×8: one NVIDIA warp-pair / one AMD wavefront.
  */
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#include "infos/eevee_game_infos.hh"
 
-/* Source: the coarser pyramid level (half the output resolution). */
-uniform sampler2D in_blur_tx;
+COMPUTE_SHADER_CREATE_INFO(eevee_game_bloom_upsample)
 
 /* Destination: the next-finer pyramid level.  READ_WRITE because we add
  * the upsampled coarser level to the existing content from the downsample pass. */
-layout(rgba16f) uniform image2D out_color_img;
 
 /* Tent filter radius in UV space (fraction of output texture size).
  * Converted to absolute texels per sample offset below. */
-uniform float radius;
 
 /* ------------------------------------------------------------------ */
 /* 3×3 tent upsample (9-tap, bilinear hardware)

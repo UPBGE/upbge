@@ -3,6 +3,11 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_object.hh"
+
+#include "DRW_engine.hh" /* DRW_submission_start() */
+#include "GPU_capabilities.hh"
+
+#include "../eevee/eevee_shader.hh" /* VERTEX_COPY */
 #include "BLI_map.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_modifier_types.h"
@@ -64,12 +69,12 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
     auto add_cb = [&]() {
       VelocityGeometryData data;
       if (ob->type == OB_MESH) {
-        data.pos_buf = DRW_cache_mesh_surface_get(ob);
+        data.batch = DRW_cache_mesh_surface_get(ob);
       }
       return data;
     };
     const VelocityGeometryData &geom = geometry_map.lookup_or_add_cb(vel.id, add_cb);
-    if (!geom.pos_buf) {
+    if (!geom.batch) {
       has_deform = false;
     }
   }
@@ -89,32 +94,56 @@ void VelocityModule::geometry_steps_fill()
   /* Compute flat offsets into the geometry step buffer for each deforming object. */
   int dst_ofs = 0;
   for (VelocityGeometryData &geom : geometry_map.values()) {
-    if (!geom.pos_buf) {
+    gpu::VertBuf *pos_buf = geom.pos_buf_get();
+    if (!pos_buf) {
       continue;
     }
-    geom.len = int(GPU_vertbuf_get_vertex_len(geom.pos_buf));
+    geom.len = int(GPU_vertbuf_get_vertex_len(pos_buf));
     geom.ofs = dst_ofs;
     dst_ofs += geom.len;
   }
 
   geometry_steps[eevee::STEP_CURRENT]->resize(max_ii(16, dst_ofs));
 
-  /* Upload vertex positions. Stride 16 allows direct memcpy; other strides need the copy shader. */
+  /* Positions packed as float4 can be copied buffer to buffer. Everything
+   * else (mesh positions are float3, stride 12) goes through EEVEE's vertex
+   * copy compute shader, which repacks to float4 on the GPU. */
+  DRW_submission_start();
+
+  PassSimple copy_ps("Velocity Copy Pass");
+  copy_ps.init();
+  copy_ps.state_set(DRW_STATE_NO_DRAW);
+  copy_ps.shader_set(eevee::ShaderModule::module_get()->static_shader_get(eevee::VERTEX_COPY));
+  copy_ps.bind_ssbo("out_buf", *geometry_steps[eevee::STEP_CURRENT]);
+
   for (VelocityGeometryData &geom : geometry_map.values()) {
-    if (!geom.pos_buf || geom.len == 0) {
+    gpu::VertBuf *pos_buf = geom.pos_buf_get();
+    if (!pos_buf || geom.len == 0) {
       continue;
     }
-    const GPUVertFormat *fmt = GPU_vertbuf_get_format(geom.pos_buf);
+    const GPUVertFormat *fmt = GPU_vertbuf_get_format(pos_buf);
     if (fmt->stride == 16) {
-      GPU_storagebuf_copy_sub_from_vertbuf(
-          *geometry_steps[eevee::STEP_CURRENT],
-          geom.pos_buf,
-          geom.ofs * sizeof(float4),
-          0,
-          geom.len * sizeof(float4));
+      GPU_storagebuf_copy_sub_from_vertbuf(*geometry_steps[eevee::STEP_CURRENT],
+                                           pos_buf,
+                                           geom.ofs * sizeof(float4),
+                                           0,
+                                           geom.len * sizeof(float4));
     }
-    /* Note: the VERTEX_COPY shader path from EEVEE can be added here for non-16-byte strides. */
+    else {
+      BLI_assert(fmt->stride % 4 == 0);
+      copy_ps.bind_ssbo("in_buf", pos_buf);
+      copy_ps.push_constant("start_offset", geom.ofs);
+      copy_ps.push_constant("vertex_stride", int(fmt->stride / 4));
+      copy_ps.push_constant("vertex_count", geom.len);
+      const uint group_len_x = divide_ceil_u(uint(geom.len), VERTEX_COPY_GROUP_SIZE);
+      const uint verts_per_thread = divide_ceil_u(group_len_x, GPU_max_work_group_count(0));
+      copy_ps.dispatch(int3(group_len_x / verts_per_thread, 1, 1));
+    }
   }
+  copy_ps.barrier(GPU_BARRIER_SHADER_STORAGE);
+  inst_.manager->submit(copy_ps);
+
+  DRW_submission_end();
 
   /* Write per-object geometry offsets back into the velocity map. */
   for (VelocityObjectData &vel : velocity_map.values()) {

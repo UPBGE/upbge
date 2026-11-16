@@ -2946,7 +2946,13 @@ void DRW_game_render_loop(bContext *C,
 
   DRWViewData &view_data = *draw_ctx.view_data_active;
 
-  view_data.eevee.set_used(true);
+  /* Bring-up switch for the eevee_game renderer: debug value 5000. */
+  if (G.debug_value == 5000) {
+    view_data.eevee_game.set_used(true);
+  }
+  else {
+    view_data.eevee.set_used(true);
+  }
 
   if (gpencil_engine_needed) {
     view_data.grease_pencil.set_used(true);

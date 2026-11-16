@@ -37,7 +37,12 @@
  * Local group 8×8 = 64 threads: one warp-pair / wavefront.
  */
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#include "infos/eevee_game_infos.hh"
+
+/* Adjust according to DOF_STAGE for C++ compilation. */
+COMPUTE_SHADER_CREATE_INFO(eevee_game_dof_coc_setup)
+
+#include "eevee_reverse_z_lib.glsl"
 
 /* ------------------------------------------------------------------ */
 /* Focus parameters
@@ -58,34 +63,9 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
  *
  * We bake K into focus_params.z as the maximum bokeh radius so the shader
  * only needs a lerp from 0 (in-focus) to max_bokeh_radius (fully blurred). */
-uniform vec4 focus_params;
 
-/* ------------------------------------------------------------------ */
-/* Per-stage texture bindings                                          */
-/* ------------------------------------------------------------------ */
-
-#if DOF_STAGE == 0
-  uniform sampler2D depth_tx;
-  layout(r16f) uniform writeonly image2D out_coc_img;
-
-  /* Camera clip planes for linear depth reconstruction.
-   *   linear_z = (z_near * z_far) / (z_far - depth * (z_far - z_near))
-   *
-   * z_near, z_far encoded in z_planes.xy so we avoid a UBO dependency. */
-  uniform vec2 z_planes;  /* x = z_near, y = z_far */
-
-#elif DOF_STAGE == 1
-  uniform sampler2D in_color_tx;
-  uniform sampler2D coc_tx;
-  layout(rgba16f) uniform writeonly image2D out_bokeh_img;
-
-#elif DOF_STAGE == 2
-  uniform sampler2D in_sharp_tx;
-  uniform sampler2D in_bokeh_tx;
-  uniform sampler2D coc_tx;
-  layout(rgba16f) uniform writeonly image2D out_final_img;
-
-#endif /* DOF_STAGE */
+/* z_planes = (z_near, z_far), for linear depth reconstruction:
+ *   linear_z = (z_near * z_far) / (z_far - depth * (z_far - z_near)) */
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -138,7 +118,7 @@ void main()
 
   const vec2 uv = (vec2(px) + 0.5) / vec2(res);
 
-  float ndc_depth = texture(depth_tx, uv).r;
+  float ndc_depth = reverse_z::read(texture(depth_tx, uv).r);
 
   /* Sky pixels (depth == 1.0 far plane) have zero blur — they are infinitely far. */
   if (ndc_depth >= 0.9999) {

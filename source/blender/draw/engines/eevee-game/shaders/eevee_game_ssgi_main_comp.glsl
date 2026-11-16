@@ -29,26 +29,12 @@
  * Local group 8×8.
  */
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#include "infos/eevee_game_infos.hh"
 
-uniform sampler2D scene_color_tx; /* HDR radiance from the previous deferred light pass */
-uniform sampler2D depth_tx;       /* Full-res R32F NDC depth                             */
-uniform sampler2D normal_tx;      /* Full-res G-Buffer normal (RGB16F)                   */
-uniform sampler2D hiz_tx;         /* Hi-Z pyramid mip chain                              */
+COMPUTE_SHADER_CREATE_INFO(eevee_game_ssgi_main)
 
-layout(rgba16f) uniform writeonly image2D out_ssgi_img; /* Half-res output */
-
-/* SSGI settings (match SSGISettings C++ struct) */
-uniform float ssgi_intensity;      /* Indirect radiance multiplier */
-uniform float ssgi_radius;         /* Max screen-space ray length (fraction of screen width) */
-uniform float ssgi_color_saturation; /* Boosts/reduces color bleed */
-uniform int   ssgi_quality_steps;  /* Hi-Z march iterations */
-
-uniform mat4  viewprojinv;   /* Inverse VP for world-space reconstruction */
-uniform mat4  viewproj;      /* VP for projecting hit points back to screen */
-uniform vec2  z_planes;
-uniform vec2  screen_res;
-uniform uint  frame_count;   /* Used for jitter pattern cycling */
+#include "eevee_reverse_z_lib.glsl"
+#include "eevee_gbuffer_read_lib.glsl"
 
 /* ------------------------------------------------------------------ */
 /* Utilities                                                           */
@@ -146,7 +132,8 @@ vec4 hiz_ray_march(vec3 origin_uv3, vec3 dir_ws, vec3 origin_ws,
       return vec4(0.0);
     }
 
-    float scene_ndc = textureLod(depth, screen.xy, float(i) * 0.25).r;
+    /* The pyramid is padded to a multiple of 64 px: screen UV -> pyramid UV. */
+    float scene_ndc = textureLod(depth, screen.xy * hiz_uv_scale, float(i) * 0.25).r;
 
     /* Behind the scene surface = intersection. */
     float ray_lin  = linear_depth(screen.z, z_near, z_far);
@@ -183,7 +170,7 @@ void main()
   /* Full-res UV corresponding to this half-res pixel. */
   const vec2 uv = (vec2(out_px) * 2.0 + 1.0) / screen_res;
 
-  float ndc_depth = texture(depth_tx, uv).r;
+  float ndc_depth = reverse_z::read(texture(depth_tx, uv).r);
 
   if (ndc_depth >= 0.9999) {
     imageStore(out_ssgi_img, out_px, vec4(0.0)); /* Sky: no indirect */
@@ -194,7 +181,16 @@ void main()
   const float z_far  = z_planes.y;
 
   vec3 world_pos    = reconstruct_world_pos(uv, ndc_depth);
-  vec3 world_normal = normalize(texture(normal_tx, uv).rgb * 2.0 - 1.0);
+  /* Shading normal of the first closure, decoded from EEVEE's G-Buffer.
+   * A pixel can have depth and still no closure (emission only surface): its
+   * normal layer was never written, and decoding garbage would spread NaNs
+   * through the filters downstream. */
+  ivec2 gbuf_texel = ivec2(uv * screen_res);
+  if (gbuffer::read_header(gbuf_texel).is_empty()) {
+    imageStore(out_ssgi_img, out_px, vec4(0.0));
+    return;
+  }
+  vec3 world_normal = gbuffer::read_normal(gbuf_texel);
 
   /* Max step size in world units, capped at ssgi_radius. */
   float step_ws = ssgi_radius / float(ssgi_quality_steps);

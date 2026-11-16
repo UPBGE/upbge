@@ -38,18 +38,9 @@
  * Local group 8×8×1.
  */
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#include "infos/eevee_game_infos.hh"
 
-/* Input from scatter pass: RGB = in-scatter × σ_s, A = σ_t. */
-uniform sampler3D in_grid_tx;
-
-/* Output: integrated transmittance + accumulated radiance. */
-layout(rgba16f) uniform writeonly image3D out_integrated_img;
-
-/* Froxel geometry for computing slice depth extents. */
-uniform float z_near;
-uniform float z_far;
-uniform int   samples_z;
+COMPUTE_SHADER_CREATE_INFO(eevee_game_volume_integrate)
 
 /* ------------------------------------------------------------------ */
 /* Slice thickness in view depth for slice index i.

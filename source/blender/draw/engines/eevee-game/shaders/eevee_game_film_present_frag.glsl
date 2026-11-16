@@ -30,12 +30,9 @@
  *   do_gamma_encode — 1 = apply sRGB gamma (when hw_srgb == false).
  */
 
-uniform sampler2D color_tx;
-uniform float     exposure;
-uniform int       do_tonemapping;   /* bool packed as int for GLSL ES compat */
-uniform int       do_gamma_encode;
+#include "infos/eevee_game_infos.hh"
 
-out vec4 out_color;
+FRAGMENT_SHADER_CREATE_INFO(eevee_game_film_present)
 
 /* ------------------------------------------------------------------ */
 /* AgX tone mapping (Blender's implementation)
@@ -124,8 +121,8 @@ void main()
    * produces a sub-pixel offset when the viewport origin != (0,0) — this
    * happens during split-viewport in the Blender editor and during window
    * resize transitions where the viewport rect lags the texture allocation.
-   * The varying is set up by eevee_fullscreen_vert.glsl as interp.texcoord. */
-  vec2 uv = interp.texcoord;
+   * The varying comes from the `gpu_fullscreen` vertex stage. */
+  vec2 uv = screen_uv;
 
   vec4 color = texture(color_tx, uv);
 
@@ -146,6 +143,11 @@ void main()
   if (do_gamma_encode != 0) {
     color.rgb = linear_to_srgb(color.rgb);
   }
+
+  /* The pipeline carries EEVEE's alpha, transmittance (1 = nothing drawn).
+   * The viewport expects coverage, so that the editor background shows
+   * through where the scene left the pixel empty. */
+  color.a = 1.0 - color.a;
 
   out_color = color;
 }

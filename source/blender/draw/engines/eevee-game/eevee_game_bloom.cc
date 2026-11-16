@@ -23,21 +23,10 @@ void BloomModule::sync()
    * only touches GPU memory on the first frame or after a resolution change. */
   for (int i = 0; i < PYRAMID_LEVELS; ++i) {
     res = math::max(int2(1), res / 2);
-    bloom_pyramid_[i].ensure_2d(gpu::TextureFormat::RGBA16F, res,
+    bloom_pyramid_[i].ensure_2d(gpu::TextureFormat::SFLOAT_16_16_16_16, res,
                                 GPU_TEXTURE_USAGE_SHADER_WRITE |
                                 GPU_TEXTURE_USAGE_SHADER_READ);
   }
-
-  bloom_downsample_ps_.init();
-  bloom_downsample_ps_.shader_set(inst_->shaders.static_shader_get(SH_BLOOM_DOWNSAMPLE));
-
-  bloom_upsample_ps_.init();
-  bloom_upsample_ps_.shader_set(inst_->shaders.static_shader_get(SH_BLOOM_UPSAMPLE));
-
-  /* Composite pass: reads bloom_pyramid_[0] and adds it onto combined_tx in-place.
-   * Using READ_WRITE image access so the shader can: out = in_combined + bloom * intensity. */
-  bloom_composite_ps_.init();
-  bloom_composite_ps_.shader_set(inst_->shaders.static_shader_get(SH_BLOOM_COMPOSITE));
 }
 
 void BloomModule::render(gpu::Texture *input_color_tx)
@@ -46,7 +35,11 @@ void BloomModule::render(gpu::Texture *input_color_tx)
     return;
   }
 
-  GPU_debug_group_begin("Bloom");
+  /* A pass is only a command list: bind / dispatch calls are recorded here
+   * and nothing reaches the GPU until Manager::submit(). All levels are
+   * recorded into one list and submitted once. */
+  bloom_downsample_ps_.init();
+  bloom_downsample_ps_.shader_set(inst_->shaders.static_shader_get(SH_BLOOM_DOWNSAMPLE));
 
   /* --- Phase 1: Downsampling (building the Mip Pyramid) ---
    *
@@ -56,7 +49,7 @@ void BloomModule::render(gpu::Texture *input_color_tx)
   gpu::Texture *current_src = input_color_tx;
   for (int i = 0; i < PYRAMID_LEVELS; ++i) {
     bloom_downsample_ps_.bind_texture("in_color_tx", current_src);
-    bloom_downsample_ps_.bind_image("out_color_img", &bloom_pyramid_[i]);
+    bloom_downsample_ps_.bind_image("out_color_img", bloom_pyramid_[i]);
 
     /* Level 0: encode threshold + knee into params.xy; higher levels: params = -1 (bypass). */
     float4 params = (i == 0) ?
@@ -65,12 +58,16 @@ void BloomModule::render(gpu::Texture *input_color_tx)
     bloom_downsample_ps_.push_constant("params", params);
 
     bloom_downsample_ps_.dispatch(
-        math::divide_ceil(bloom_pyramid_[i]->size().xy(), int2(8)));
+        math::divide_ceil(bloom_pyramid_[i].size().xy(), int2(8)));
     bloom_downsample_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS |
                                   GPU_BARRIER_TEXTURE_FETCH);
 
-    current_src = &bloom_pyramid_[i];
+    current_src = bloom_pyramid_[i];
   }
+  inst_->manager->submit(bloom_downsample_ps_);
+
+  bloom_upsample_ps_.init();
+  bloom_upsample_ps_.shader_set(inst_->shaders.static_shader_get(SH_BLOOM_UPSAMPLE));
 
   /* --- Phase 2: Upsampling (Blur + Accumulation) ---
    *
@@ -78,17 +75,16 @@ void BloomModule::render(gpu::Texture *input_color_tx)
    * each level into the one above it.  The tent-filter upsample provides
    * smooth spatial falloff without ringing. */
   for (int i = PYRAMID_LEVELS - 1; i > 0; --i) {
-    bloom_upsample_ps_.bind_texture("in_blur_tx",  &bloom_pyramid_[i]);
-    bloom_upsample_ps_.bind_image("out_color_img", &bloom_pyramid_[i - 1]);
+    bloom_upsample_ps_.bind_texture("in_blur_tx", bloom_pyramid_[i]);
+    bloom_upsample_ps_.bind_image("out_color_img", bloom_pyramid_[i - 1]);
     bloom_upsample_ps_.push_constant("radius", settings_.radius);
 
     bloom_upsample_ps_.dispatch(
-        math::divide_ceil(bloom_pyramid_[i - 1]->size().xy(), int2(8)));
+        math::divide_ceil(bloom_pyramid_[i - 1].size().xy(), int2(8)));
     bloom_upsample_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS |
                                 GPU_BARRIER_TEXTURE_FETCH);
   }
-
-  GPU_debug_group_end();
+  inst_->manager->submit(bloom_upsample_ps_);
 }
 
 void BloomModule::composite(gpu::Texture *combined_tx)
@@ -107,20 +103,19 @@ void BloomModule::composite(gpu::Texture *combined_tx)
     return;
   }
 
-  GPU_debug_group_begin("Bloom.Composite");
-
+  bloom_composite_ps_.init();
+  bloom_composite_ps_.shader_set(inst_->shaders.static_shader_get(SH_BLOOM_COMPOSITE));
   /* bloom_pyramid_[0] is at render resolution / 2.  The composite shader samples
    * it with bilinear filtering to produce the full-resolution contribution. */
-  bloom_composite_ps_.bind_texture("bloom_tx",    &bloom_pyramid_[0]);
+  bloom_composite_ps_.bind_texture("bloom_tx", bloom_pyramid_[0]);
   bloom_composite_ps_.bind_image("combined_img",  combined_tx);
   bloom_composite_ps_.push_constant("bloom_intensity", settings_.intensity);
 
-  const int2 full_res = combined_tx->size().xy();
+  const int2 full_res = texture_extent(combined_tx);
   bloom_composite_ps_.dispatch(math::divide_ceil(full_res, int2(8)));
   bloom_composite_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS |
                                GPU_BARRIER_TEXTURE_FETCH);
-
-  GPU_debug_group_end();
+  inst_->manager->submit(bloom_composite_ps_);
 }
 
 } // namespace blender::eevee_game

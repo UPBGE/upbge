@@ -4,6 +4,10 @@
 #include "eevee_game_engine.h"
 #include "eevee_game_instance.hh"
 
+#include "BLT_translation.hh"
+
+#include "DNA_node_types.h"
+
 #include "RE_pipeline.h"
 #include "DRW_render.hh"
 
@@ -16,59 +20,37 @@ DrawEngine *Engine::create_instance()
   return new GameInstance();
 }
 
-void Engine::init_static()
-{
-  /* Acquire a reference to EEVEE's ShaderModule singleton.
-   * eevee_game::ShaderModule::material_shader_get() delegates to eevee::ShaderModule for
-   * codegen and pass callbacks — both require the singleton to be alive. */
-  eevee::ShaderModule::module_get();
-}
-
 void Engine::free_static()
 {
+  /* Static shaders are owned by each GameInstance's ShaderModule and die with
+   * it. Material shaders belong to EEVEE's shader module, which
+   * eevee::Engine::free_static() releases; releasing it here as well would be
+   * a second owner for something this engine only borrows. */
   ShaderModule::module_free();
-  eevee::ShaderModule::module_free();
 }
 
-/* ---- Static render callback (F12 / Render Image) ----
+/* ---- Render callback (F12 / Render Image) ----
  *
- * FIX: was using engine->type->type_data to pass the GameInstance pointer to the callback.
- * engine->type is a global shared across all engine instances and all viewports/renders.
- * Writing to engine->type->type_data from a per-render callback is a data race when
- * multiple renders or viewports are active simultaneously (e.g. background renders,
- * split viewports with different engine types).
- *
- * The correct pattern is engine->customdata (or engine->re_render.render_data), which is
- * per-engine-instance and not shared.  DRW_render_to_image's trampoline receives the
- * engine pointer, so we recover the GameInstance from engine->customdata. */
-
-static void eevee_game_render_to_image(RenderEngine *engine,
-                                       RenderLayer  *layer,
-                                       const rcti    *rect)
-{
-  /* Recover the per-instance GameInstance from customdata (set by eevee_game_render below). */
-  auto *instance = static_cast<GameInstance *>(engine->customdata);
-  if (!instance) {
-    return;
-  }
-
-  const int2 size = int2(engine->resolution_x, engine->resolution_y);
-  instance->init(size, rect);
-  instance->render_frame(engine, layer);
-}
+ * Same shape as eevee_render(): the instance is created inside the trampoline
+ * because it needs an active DRWContext, and it is captured by the lambda so
+ * nothing has to be stored on the shared RenderEngineType. */
 
 static void eevee_game_render(RenderEngine *engine, Depsgraph *depsgraph)
 {
-  /* Allocate a GameInstance that lives for the duration of this render job.
-   * Store it in engine->customdata so the trampoline can reach it without
-   * touching the shared engine->type->type_data pointer. */
-  auto *instance = new GameInstance();
-  engine->customdata = instance;
+  GameInstance *instance = nullptr;
 
-  DRW_render_to_image(engine, depsgraph, eevee_game_render_to_image, nullptr);
+  auto render_to_image = [&](RenderEngine *engine, RenderLayer *layer, const rcti rect) {
+    /* One call per view in multiview renders. */
+    delete instance;
+    instance = new GameInstance();
 
-  /* Clean up after the render is complete. */
-  engine->customdata = nullptr;
+    const int2 size = int2(engine->resolution_x, engine->resolution_y);
+    instance->init(size, &rect);
+    instance->render_frame(engine, layer);
+  };
+
+  DRW_render_to_image(engine, depsgraph, render_to_image, [](RenderResult *) {});
+
   delete instance;
 }
 
@@ -79,26 +61,16 @@ static void eevee_game_render_update_passes(RenderEngine *engine,
   RE_engine_register_pass(
       engine, scene, view_layer, RE_PASSNAME_COMBINED, 4, "RGBA", SOCK_RGBA);
   RE_engine_register_pass(
-      engine, scene, view_layer, RE_PASSNAME_VELOCITY, 4, "XYZW", SOCK_VECTOR);
-
-  if (scene->eevee.flag & SCE_EEVEE_GAME_DEBUG_FSR_MASK) {
-    RE_engine_register_pass(
-        engine, scene, view_layer, "FSR3_Reactive", 1, "R", SOCK_FLOAT);
-  }
+      engine, scene, view_layer, RE_PASSNAME_VECTOR, 4, "XYZW", SOCK_VECTOR);
 }
 
-/* ---- Engine Type Registration ----
- * The idname "BLENDER_EEVEE_GAME" must also be registered in rna_scene.cc.
+/* ---- Engine Type ----
  *
- * IMPORTANT_XXX: Call Engine::init_static() from draw_context.cc immediately after
- * DRW_engines_register() for this engine type. This acquires the eevee::ShaderModule
- * singleton reference required for material shader compilation.
- * Example in draw_context.cc:
- *
- *   RE_engines_register(&DRW_engine_viewport_eevee_type);
- *   RE_engines_register(&DRW_engine_viewport_eevee_game_type);
- *   blender::eevee_game::Engine::init_static();  // ← TODO: add this line
- */
+ * Not registered with RE_engines_register() on purpose. The scene's render
+ * engine stays EEVEE, so every panel, node poll and material setting keeps
+ * working unchanged, and the Draw Manager selects this engine only inside
+ * DRW_game_render_loop(). The type and the F12 path above are kept for the
+ * day the engine is exposed in the render engine list. */
 RenderEngineType DRW_engine_viewport_eevee_game_type = {
     /* next */                nullptr,
     /* prev */                nullptr,

@@ -43,29 +43,12 @@
  * Local group 8×8.
  */
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#include "infos/eevee_game_infos.hh"
 
-/* Current frame combined color (HDR, RGBA16F). */
-uniform sampler2D color_tx;
-
-/* Motion vector texture (RG16F, screen-space velocity in UV units per frame). */
-uniform sampler2D vector_tx;
-
-/* Previous frame color for luma-change detection (RGBA16F). */
-uniform sampler2D color_history_tx;
+COMPUTE_SHADER_CREATE_INFO(eevee_game_fsr3_mask_gen)
 
 /* Stencil buffer texture (sampled as R8UI or R8 float).
  * Stencil bits match the eevee_game_defines.hh STENCIL_* enum. */
-uniform sampler2D stencil_tx;  /* Packed stencil, sampled as float R8 */
-
-/* Output masks at render resolution. */
-layout(r8) uniform writeonly image2D reactive_mask_img;
-layout(r8) uniform writeonly image2D transp_mask_img;
-
-/* Tuneable thresholds (can be exposed to game settings). */
-uniform float reactive_motion_threshold = 0.01;   /* UV/frame velocity above which pixel is reactive */
-uniform float reactive_luma_threshold   = 0.2;    /* Luma change above which pixel is reactive */
-uniform float reactive_base             = 0.0;    /* Minimum reactive value for all pixels */
 
 /* Stencil bit masks (match C++ StencilBits enum). */
 #define STENCIL_TRANSPARENT    (1 << 1)

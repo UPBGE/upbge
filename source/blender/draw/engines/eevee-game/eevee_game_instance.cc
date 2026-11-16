@@ -6,9 +6,14 @@
 #include "BKE_object.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DRW_render.hh"
+#include "RE_engine.h"
 #include "RE_pipeline.h"
 
+#include "draw_view_data.hh" /* DefaultTextureList */
+
 #include "DNA_camera_types.h"
+
+#include "../eevee/eevee_shader.hh"
 #include "DNA_scene_types.h"
 
 namespace blender::eevee_game {
@@ -20,14 +25,15 @@ namespace blender::eevee_game {
 GameInstance::GameInstance()
     : materials(*this),
       film(*this),
+      render_buffers(*this),
       shadows(*this, shadow_data_),
-      culling(*this),
+      velocity(*this),
       sync(*this),
       bloom(*this),
       dof(*this),
       gtao(*this),
       ssgi(*this),
-      raytrace(*this),
+      raytrace(this),
       volume(*this),
       pipelines(&shaders, this),
       upscale(*this),
@@ -39,59 +45,61 @@ GameInstance::GameInstance()
  * init
  * ================================================================ */
 
+void GameInstance::init()
+{
+  const DRWContext *ctx = DRW_context_get();
+  DefaultTextureList *dtxl = ctx->viewport_texture_list_get();
+  init(int2(GPU_texture_width(dtxl->color), GPU_texture_height(dtxl->color)), nullptr);
+}
+
 void GameInstance::init(const int2 &output_res, const rcti *output_rect)
 {
   update_eval_members();
 
   film.init(output_res);
 
-  /* Allocate render-resolution GPU resources. */
-  /* init() only fills the pass-index metadata (RenderBuffersInfoData).
-   * It takes no arguments — the resolution is queried internally from Film.
-   * acquire() must be called separately to allocate GPU texture handles;
-   * without it all TextureFromPool members remain nullptr and every
-   * framebuffer that references them is GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT.
-   * release() is paired in ShadingView::render() after present(). */
-  render_buffers.init();
-  render_buffers.acquire(film.render_extent_get());
-  hiz_buffer.front.ensure(film.render_extent_get());
-  hiz_buffer.back.ensure(film.render_extent_get());
-
-  /* Static modules. */
-  culling.init();
-  lights.init();
-  /* shadows.init() allocates both atlases.
-   * Default: DynamicShadowSlots::S16 (16 slots, 2048x2048, ~4 MB).
-   * To change at runtime (e.g. from game settings), call:
-   *   shadows.init(DynamicShadowSlots::S4 / S16 / S64 / OFF) */
-  shadows.init();
-  volume.init();
-  bloom.init();
-  dof.init();
-  gtao.init();
-  ssgi.init();
-  raytrace.init();
-
-  /* Upscaling: create the FSR3 context if mode != OFF. */
-  if (upscale_settings.mode != UpscaleMode::OFF) {
-    upscale.init(film.render_extent_get(), film.display_extent_get());
+  /* Resolution dependent targets. No-op while the resolution is unchanged.
+   * A resize is a history discontinuity like a camera cut: SSGI, FSR and
+   * occlusion culling must not read what the old buffers held. */
+  if (render_buffers.acquire(film.render_extent_get())) {
+    frame_state.camera_cut = true;
   }
 
-  /* FIX: static_shaders_load() was implemented but never called.
-   * Without this call every shader compiles synchronously on first use
-   * (inside static_shader_get()), stalling the render thread for 50-200ms
-   * per shader on cold start and causing a multi-second hitch on the first frame.
-   *
-   * Calling with SG_ALL here front-loads all compilation cost at engine startup,
-   * where a one-time stall is acceptable (it happens during the loading screen
-   * in a game, not mid-gameplay). */
-  shaders.static_shaders_load(SG_ALL);
+  if (!modules_initialized_) {
+    /* shadows.init() allocates both atlases.
+     * Default: DynamicShadowSlots::S16 (16 slots, 2048x2048, ~4 MB).
+     * To change at runtime (e.g. from game settings), call:
+     *   shadows.init(DynamicShadowSlots::S4 / S16 / S64 / OFF) */
+    shadows.init();
+    volume.init();
+    bloom.init();
+    dof.init();
+    gtao.init();
+    ssgi.init();
+    raytrace.init();
+    pipelines.aa.init();
 
-  /* FIX: ShadingView::sync() was never called, leaving postfx_tx_, aa_out_tx_, and
-   * display_res_tx_ without GPU handles. Any pass that tried to bind them would
-   * produce GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT or a null GPU handle crash.
-   * sync() allocates all three textures at the correct resolutions and rebuilds
-   * the combined framebuffer config. */
+    /* Front-load every static shader. Without this each one compiles on
+     * first use inside static_shader_get(), i.e. in the middle of a frame. */
+    shaders.static_shaders_load(SG_ALL);
+    /* The one EEVEE static shader used directly (VelocityModule). */
+    eevee::ShaderModule::module_get()->static_shaders_wait_ready(eevee::VERTEX_COPY_SHADERS);
+
+    modules_initialized_ = true;
+  }
+
+  /* Upscaling: create the FSR3 context, and recreate it only when the mode or
+   * a resolution changes. init() destroys and rebuilds the whole SDK context,
+   * which must not happen on every redraw. */
+  const int4 upscale_key = int4(film.render_extent_get(), film.display_extent_get());
+  if (upscale_settings.mode != UpscaleMode::OFF &&
+      (!upscale.is_initialized() || upscale_key != upscale_key_))
+  {
+    upscale.init(film.render_extent_get(), film.display_extent_get());
+    upscale_key_ = upscale_key;
+  }
+
+  /* Post-processing targets, Hi-Z pyramid and their passes. */
   main_view_.sync();
 
   (void)output_rect; /* Border render not yet implemented. */
@@ -119,61 +127,69 @@ void GameInstance::begin_sync()
 
   film.sync();
 
-  /* Re-sync the view textures if the resolution changed (e.g. window resize
-   * or FSR mode toggle). Film::sync() updates render_extent_ / display_extent_
-   * before this runs, so the new resolution is already available. */
-  main_view_.sync();
-
-  /* Reset per-frame module state. */
-  culling.begin_sync();
+  /* Reset per-frame module state. Materials and pipelines first: object
+   * sync fills the passes they reset here. */
+  materials.begin_sync();
+  pipelines.begin_sync();
   lights.begin_sync();
   shadows.begin_sync();
   velocity.begin_sync();
   sync.begin_sync();
 
-  if (camera_eval_object != nullptr) {
-    camera.sync(camera_eval_object);
+  /* Camera matrices.
+   *
+   * Viewport: the Draw Manager default view already holds what is on screen,
+   * whether that is the active camera, a free perspective view or the game
+   * camera set by the engine. Using it keeps culling and shading consistent
+   * with every other engine drawing into the same viewport.
+   *
+   * F12: there is no region, so the matrices come from the scene camera. */
+  const float2 render_res = float2(film.render_extent_get());
+
+  if (draw_ctx->rv3d != nullptr) {
+    const View &default_view = View::default_get();
+    uniform_data.viewmat = default_view.viewmat();
+    uniform_data.viewinv = default_view.viewinv();
+    uniform_data.projectionmat = default_view.winmat();
+    uniform_data.z_near = default_view.near_clip();
+    uniform_data.z_far = default_view.far_clip();
+    camera.object_to_world = uniform_data.viewinv;
+  }
+  else {
+    if (camera_eval_object != nullptr) {
+      camera.sync(camera_eval_object);
+    }
+    const CameraData &cam = camera.data_get();
+    uniform_data.viewinv = camera.object_to_world;
+    uniform_data.viewmat = math::invert(camera.object_to_world);
+    uniform_data.z_near = cam.clip_near;
+    uniform_data.z_far = cam.clip_far;
+
+    /* Frustum half extents on the near plane, horizontal sensor fit:
+     * tan(fov_x / 2) = sensor_width / (2 * focal_length). */
+    const float aspect = render_res.x / render_res.y;
+    const float right = cam.clip_near * cam.sensor_width / (2.0f * cam.focal_length);
+    const float top = right / aspect;
+    uniform_data.projectionmat = math::projection::perspective(
+        -right, right, -top, top, cam.clip_near, cam.clip_far);
   }
 
-  /* Upload per-frame uniform data. */
-  uniform_data.viewmat     = math::invert(camera.object_to_world);
-  uniform_data.viewinv     = camera.object_to_world;
-  uniform_data.camera_pos  = camera.position();
-  /* FSR3: advance the SDK jitter counter NOW so the offset is baked into the
-   * projection matrix before the prepass and G-Buffer are rendered.
-   * apply_fsr3() reads the value back later — it no longer advances the counter.
-   * Non-FSR path: advance_jitter() returns float2(0) without touching the SDK. */
-  uniform_data.jitter = (upscale_settings.mode != UpscaleMode::OFF) ?
-                         upscale.advance_jitter() :
-                         float2(0.0f);
-  uniform_data.z_near      = camera.data_get().clip_near;
-  uniform_data.z_far       = camera.data_get().clip_far;
-  uniform_data.delta_time  = delta_time_ms * 0.001f;
-  /* begin_sync() — single assignment, no separate tracking */
+  uniform_data.camera_pos = camera.position();
+  /* FSR3: advance the SDK jitter counter NOW so the offset is known before
+   * the prepass and G-Buffer are rendered. apply_fsr3() reads the value back
+   * later. Non-FSR path: no jitter. */
+  uniform_data.jitter = upscale.is_initialized() ? upscale.advance_jitter() : float2(0.0f);
+  uniform_data.delta_time = delta_time_ms * 0.001f;
   uniform_data.frame_count = frame_state.frame_index;
 
-  const float2 render_res = float2(film.render_extent_get());
-  /* Guard against zero height during window creation / minimise.
-   * A zero denominator produces Inf in sensor_height and NaN in atan2,
-   * which corrupts the projection matrix for the entire frame.
-   * Aspect 1:1 is a safe neutral default: produces a valid matrix with
-   * no geometry visible, better than a NaN that propagates everywhere. */
-  const float  aspect     = (render_res.y > 0.0f) ?
-                             render_res.x / render_res.y : 1.0f;
-  const float sensor_height = camera.data_get().sensor_width / aspect;
-  const float fov_y         = 2.0f * atanf(sensor_height /
-                                            (2.0f * camera.data_get().focal_length));
-
-  uniform_data.projectionmat = math::projection::perspective(
-      fov_y, aspect,
-      camera.data_get().clip_near,
-      camera.data_get().clip_far);
-
-  uniform_data.viewprojmat    = uniform_data.projectionmat * uniform_data.viewmat;
-  uniform_data.screen_res     = render_res;
+  uniform_data.viewprojmat = uniform_data.projectionmat * uniform_data.viewmat;
+  uniform_data.screen_res = render_res;
   uniform_data.screen_res_inv = float2(1.0f) / render_res;
+}
 
-  sync_scene();
+void GameInstance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
+{
+  sync.object_sync(ob_ref);
 }
 
 /* ================================================================
@@ -209,7 +225,7 @@ void GameInstance::end_sync()
   int static_slot  = 0;
   int dynamic_slot = 0;
 
-  for (auto &[id, light] : lights.light_map_.items()) {
+  for (LightEntry &light : lights.entries_) {
     if (light.data.type == uint32_t(LightType::SUN)) {
       light.data.shadow_index = 0; /* CSM always uses static atlas cascade row. */
       continue;
@@ -267,58 +283,47 @@ void GameInstance::render_sample()
   main_view_.render();
 }
 
-void GameInstance::render_frame(RenderEngine *engine, RenderLayer *layer)
+void GameInstance::draw(Manager & /*manager*/)
 {
   render_sample();
+}
 
-  RenderResult *rr = RE_engine_get_result(engine);
-  if (rr == nullptr) {
-    RE_engine_end_result(engine, layer, false, false, false);
-    return;
-  }
+void GameInstance::render_sync()
+{
+  manager->begin_sync();
+
+  begin_sync();
+  DRW_render_object_iter(
+      render_engine_, depsgraph, [&](ObjectRef &ob_ref, RenderEngine *, Depsgraph *) {
+        sync.object_sync(ob_ref);
+      });
+  end_sync();
+
+  manager->end_sync();
+}
+
+void GameInstance::render_frame(RenderEngine *engine, RenderLayer *layer)
+{
+  render_engine_ = engine;
+
+  render_sync();
+  render_sample();
 
   RenderPass *rp = RE_pass_find_by_name(layer, RE_PASSNAME_COMBINED, "");
   if (rp == nullptr) {
-    RE_engine_end_result(engine, layer, false, false, false);
     return;
   }
 
-  const int2 display_res = film.display_extent_get();
-
-  /* Read pixels directly from the final post-processed texture rather than
-   * from the viewport backbuffer. dfbl->default_fb is only valid when a
-   * viewport is open; in background F12 renders DRW_viewport_framebuffer_list_get()
-   * returns nullptr and the bind/read would crash or produce garbage.
+  /* Read back from the final post-processed texture, not from a viewport
+   * framebuffer: background renders have no viewport at all.
+   * display_res_tx_ (FSR3) and aa_out_tx_ (SMAA/FXAA) are both RGBA16F at
+   * display resolution, which is what the Combined pass expects.
    *
-   * main_view_ holds display_res_tx_ (FSR3 output) or aa_out_tx_ (SMAA/FXAA
-   * output) depending on the upscale mode. Both are plain gpu::Texture objects
-   * with valid GPU handles after render_sample() completes, so we can read them
-   * directly without touching the swapchain framebuffer at all.
-   *
-   * GPU_texture_read() performs an implicit pipeline flush and stall; acceptable
-   * here because F12 is a one-shot render, not a real-time frame. */
-  gpu::Texture *final_tx = main_view_.get_final_texture();
-  BLI_assert_msg(final_tx != nullptr,
-                 "eevee_game: render_frame called before render_sample() populated final_tx");
-
-  GPU_texture_read(final_tx->get(),
-                   GPU_DATA_FLOAT,
-                   0,
-                   rp->ibuf->float_buffer.data);
-
-  /* Flip Y: OpenGL origin is bottom-left, Blender render is top-left. */
-  const int row_bytes = display_res.x * 4 * sizeof(float);
-  Vector<uint8_t> tmp_row(row_bytes);
-  float *pixels = rp->ibuf->float_buffer.data;
-  for (int y = 0; y < display_res.y / 2; y++) {
-    float *top    = pixels + (display_res.y - 1 - y) * display_res.x * 4;
-    float *bottom = pixels + y * display_res.x * 4;
-    memcpy(tmp_row.data(), top,    row_bytes);
-    memcpy(top,    bottom, row_bytes);
-    memcpy(bottom, tmp_row.data(), row_bytes);
-  }
-
-  RE_engine_end_result(engine, layer, false, false, false);
+   * The read flushes the pipeline and stalls; fine for a one-shot F12.
+   * The returned buffer is handed to the pass as is, no copy. */
+  float *pixels = static_cast<float *>(
+      GPU_texture_read(main_view_.get_final_texture(), GPU_DATA_FLOAT, 0));
+  RE_pass_set_buffer_data(rp, pixels);
 }
 
 /* ================================================================
@@ -327,73 +332,93 @@ void GameInstance::render_frame(RenderEngine *engine, RenderLayer *layer)
 
 void GameInstance::update_eval_members()
 {
-  draw_ctx       = DRW_context_get();
-  scene          = draw_ctx ? draw_ctx->scene      : nullptr;
-  view_layer     = draw_ctx ? draw_ctx->view_layer : nullptr;
-  depsgraph      = draw_ctx ? draw_ctx->depsgraph  : nullptr;
-  manager        = draw_ctx ? draw_ctx->manager    : nullptr;
-  render_engine_ = draw_ctx ? draw_ctx->render_engine : nullptr;
+  draw_ctx = DRW_context_get();
+  manager = DRW_manager_get();
+  depsgraph = draw_ctx->depsgraph;
+  scene = DEG_get_evaluated_scene(depsgraph);
+  view_layer = DEG_get_evaluated_view_layer(depsgraph);
 
-  camera_eval_object = nullptr;
-  if (scene && scene->camera) {
-    camera_eval_object = DEG_get_evaluated_object(depsgraph, scene->camera);
+  camera_eval_object = (scene->camera != nullptr) ? DEG_get_evaluated(depsgraph, scene->camera) :
+                                                    nullptr;
+}
+
+/* ================================================================
+ * Camera
+ * ================================================================ */
+
+void Camera::sync(const Object *cam_ob)
+{
+  object_to_world = cam_ob->object_to_world();
+
+  /* Any object can be the scene camera; only real cameras carry a lens. */
+  if (cam_ob->type == OB_CAMERA) {
+    const blender::Camera &cam = DRW_object_get_data_for_drawing<const blender::Camera>(*cam_ob);
+    data_.clip_near = cam.clip_start;
+    data_.clip_far = cam.clip_end;
+    data_.focal_length = cam.lens;
+    data_.sensor_width = cam.sensor_x;
   }
 }
 
 /* ================================================================
- * HiZBuffer::ensure
+ * HiZBufferPair::ensure
  * ================================================================ */
 
-void HiZBuffer::ensure(int2 render_res)
+void HiZBufferPair::ensure(int2 render_res)
 {
-  const int mip_levels = 1 + int(floorf(log2f(float(math::reduce_max(render_res)))));
-  ref_tx_.ensure_2d_mip(gpu::TextureFormat::SFLOAT_32, render_res, mip_levels,
-                         GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
+  /* A minimised window reports a zero extent. */
+  render_res = math::max(render_res, int2(1));
+  const int2 hiz_extent = math::ceil_to_multiple(render_res, int2(1 << (HIZ_MIP_COUNT - 1)));
+
+  const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE;
+  if (tx_.ensure_2d(gpu::TextureFormat::SFLOAT_32, hiz_extent, usage, nullptr, HIZ_MIP_COUNT)) {
+    /* Fresh storage holds no depth. Occlusion culling stays off until the
+     * next update, otherwise a resize would cull against garbage. */
+    valid = false;
+    tile_counter_.clear_to_zero();
+  }
+  tx_.ensure_mip_views();
+  GPU_texture_mipmap_mode(tx_, true, false);
+  for (const int i : IndexRange(HIZ_MIP_COUNT)) {
+    mip_ref_[i] = tx_.mip_view(i);
+  }
+
+  front.ref_tx_ = tx_;
+  uv_scale = float2(render_res) / float2(hiz_extent);
 }
 
 /* ================================================================
  * LightModule
  * ================================================================ */
 
-void LightModule::init()
-{
-  light_buf_ = std::make_unique<gpu::StorageBuffer>(
-      MAX_LIGHTS * sizeof(LightData), GPU_USAGE_DYNAMIC);
-}
-
 void LightModule::begin_sync()
 {
-  light_map_.clear();
+  entries_.clear();
   active_light_count = 0;
 }
 
-void LightModule::add(int id, const LightEntry &entry)
+void LightModule::add(const LightEntry &entry)
 {
-  light_map_.add_overwrite(id, entry);
-}
-
-void LightModule::end_sync()
-{
-  active_light_count = 0;
-  LightData packed[MAX_LIGHTS];
-  for (auto &[id, entry] : light_map_.items()) {
-    if (active_light_count >= MAX_LIGHTS) {
-      break;
-    }
-    packed[active_light_count++] = entry.data;
-  }
-  light_buf_->update(packed);
+  entries_.append(entry);
 }
 
 void LightModule::upload()
 {
-  /* Re-pack and re-upload after shadow_index has been stamped by GameInstance::end_sync(). */
-  end_sync();
+  /* Pack the map into the flat array the shaders index. Runs once per frame,
+   * after GameInstance::end_sync() stamped shadow_index into every entry. */
+  active_light_count = 0;
+  for (const LightEntry &entry : entries_) {
+    if (active_light_count >= MAX_LIGHTS) {
+      break;
+    }
+    light_buf_[active_light_count++] = entry.data;
+  }
+  light_buf_.push_update();
 }
 
 void LightModule::bind_resources(PassSimple &ps)
 {
-  ps.bind_ssbo("light_buf", light_buf_.get());
+  ps.bind_ssbo("light_buf", &light_buf_);
 }
 
 } // namespace blender::eevee_game

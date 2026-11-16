@@ -21,30 +21,24 @@ void GTAOModule::sync() {
 
     // Allocate Half-Res buffer for the heavy lifting
     // R8 is enough for a grayscale occlusion value
-    gtao_lowres_tx_ = std::make_unique<gpu::Texture>();
-    gtao_lowres_tx_->ensure_2d(gpu::TextureFormat::R8, half_res, GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
+    gtao_lowres_tx_.ensure_2d(gpu::TextureFormat::UNORM_8, half_res, GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
 
     // Allocate Full-Res buffer for the final result
-    gtao_final_tx_ = std::make_unique<gpu::Texture>();
-    gtao_final_tx_->ensure_2d(gpu::TextureFormat::R8, display_res, GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
+    gtao_final_tx_.ensure_2d(gpu::TextureFormat::UNORM_8, display_res, GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
 
-    // Main Compute Shader Setup
-    gtao_main_ps_.init();
-    gtao_main_ps_.shader_set(inst_->shaders.static_shader_get(SH_GTAO_MAIN));
-    
-    // Bilateral Upscale Shader Setup (Preserves edges using Depth)
-    gtao_upsample_ps_.init();
-    gtao_upsample_ps_.shader_set(inst_->shaders.static_shader_get(SH_GTAO_UPSAMPLE));
 }
 
-void GTAOModule::render(View &view, gpu::Texture *depth_tx, gpu::Texture *normal_tx) {
+void GTAOModule::render(View & /*view*/, gpu::Texture *depth_tx) {
     if (!settings_.enabled) return;
 
     // Pass 1: Main Horizon Search (Half-Res)
+    gtao_main_ps_.init();
+    gtao_main_ps_.shader_set(inst_->shaders.static_shader_get(SH_GTAO_MAIN));
     gtao_main_ps_.bind_texture("depth_tx", depth_tx);
-    gtao_main_ps_.bind_texture("normal_tx", normal_tx);
+    /* Shading normals are decoded from the G-Buffer. */
+    inst_->render_buffers.gbuffer.bind_resources(gtao_main_ps_);
     gtao_main_ps_.bind_texture("hiz_tx", &inst_->hiz_buffer.front.ref_tx_);
-    gtao_main_ps_.bind_image("out_ao_img", gtao_lowres_tx_.get());
+    gtao_main_ps_.bind_image("out_ao_img", gtao_lowres_tx_);
     
     /* Push each field individually: the GLSL shader declares them as separate
      * uniforms (gtao_radius, gtao_falloff, etc.), not as a named struct block. */
@@ -60,17 +54,22 @@ void GTAOModule::render(View &view, gpu::Texture *depth_tx, gpu::Texture *normal
     gtao_main_ps_.push_constant("z_planes",
         float2(inst_->uniform_data.z_near, inst_->uniform_data.z_far));
     gtao_main_ps_.push_constant("screen_res", inst_->uniform_data.screen_res);
+    /* The Hi-Z texture is padded; screen UVs must be scaled before sampling it. */
+    gtao_main_ps_.push_constant("hiz_uv_scale", inst_->hiz_buffer.uv_scale);
     
-    int2 half_res = gtao_lowres_tx_->size().xy();
+    int2 half_res = gtao_lowres_tx_.size().xy();
     gtao_main_ps_.dispatch(math::divide_ceil(half_res, int2(8)));
     
     gtao_main_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
+    inst_->manager->submit(gtao_main_ps_);
 
     // Pass 2: Bilateral Upsample (Half -> Full)
     // Uses depth to ensure AO doesn't "bleed" across geometry edges
-    gtao_upsample_ps_.bind_texture("ao_lowres_tx", gtao_lowres_tx_.get());
+    gtao_upsample_ps_.init();
+    gtao_upsample_ps_.shader_set(inst_->shaders.static_shader_get(SH_GTAO_UPSAMPLE));
+    gtao_upsample_ps_.bind_texture("ao_lowres_tx", gtao_lowres_tx_);
     gtao_upsample_ps_.bind_texture("depth_tx", depth_tx);
-    gtao_upsample_ps_.bind_image("out_ao_final_img", gtao_final_tx_.get());
+    gtao_upsample_ps_.bind_image("out_ao_final_img", gtao_final_tx_);
     
     /* Bilateral upsample also needs z_planes and screen_res to linearise depth
      * for the cross-bilateral weight — declared as uniforms in the GLSL. */
@@ -78,8 +77,11 @@ void GTAOModule::render(View &view, gpu::Texture *depth_tx, gpu::Texture *normal
         float2(inst_->uniform_data.z_near, inst_->uniform_data.z_far));
     gtao_upsample_ps_.push_constant("screen_res", inst_->uniform_data.screen_res);
 
-    int2 full_res = gtao_final_tx_->size().xy();
+    int2 full_res = gtao_final_tx_.size().xy();
     gtao_upsample_ps_.dispatch(math::divide_ceil(full_res, int2(8)));
+    /* The lighting pass samples the result right after. */
+    gtao_upsample_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
+    inst_->manager->submit(gtao_upsample_ps_);
 }
 
 } // namespace blender::eevee_game

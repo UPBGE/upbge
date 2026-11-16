@@ -19,21 +19,14 @@ void SSGIModule::sync() {
     int2 half_res = math::divide_ceil(display_res, int2(2));
 
     // Allocate Half-Res buffer for the bounce color (RGB16F)
-    ssgi_lowres_tx_ = std::make_unique<gpu::Texture>();
-    ssgi_lowres_tx_->ensure_2d(gpu::TextureFormat::RGBA16F, half_res, GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
+    ssgi_lowres_tx_.ensure_2d(gpu::TextureFormat::SFLOAT_16_16_16_16, half_res, GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
 
     // Allocate Full-Res buffer for the final result
-    ssgi_final_tx_ = std::make_unique<gpu::Texture>();
-    ssgi_final_tx_->ensure_2d(gpu::TextureFormat::RGBA16F, display_res, GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
+    ssgi_final_tx_.ensure_2d(gpu::TextureFormat::SFLOAT_16_16_16_16, display_res, GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
 
-    ssgi_main_ps_.init();
-    ssgi_main_ps_.shader_set(inst_->shaders.static_shader_get(SH_SSGI_MAIN));
-
-    ssgi_blur_ps_.init();
-    ssgi_blur_ps_.shader_set(inst_->shaders.static_shader_get(SH_SSGI_BLUR));
 }
 
-void SSGIModule::render(View &view, gpu::Texture *scene_color_tx, gpu::Texture *depth_tx, gpu::Texture *normal_tx) {
+void SSGIModule::render(View & /*view*/, gpu::Texture *scene_color_tx, gpu::Texture *depth_tx) {
     if (!settings_.enabled) return;
 
     /* On the first frame and after a camera cut the previous-frame radiance
@@ -44,17 +37,20 @@ void SSGIModule::render(View &view, gpu::Texture *scene_color_tx, gpu::Texture *
         /* Clear the output to black so the lighting pass reads zero indirect
          * radiance rather than stale data from the previous frame or uninitialised
          * VRAM. A single compute clear is cheaper than a full render pass. */
-        GPU_texture_clear(ssgi_final_tx_.get(), GPU_DATA_FLOAT, float4(0.0f));
+        ssgi_final_tx_.clear(float4(0.0f));
         return;
     }
 
     // Pass 1: Main Trace (Using Hi-Z)
     // We sample the scene_color_tx (radiance) and "bounce" it based on surface normals
+    ssgi_main_ps_.init();
+    ssgi_main_ps_.shader_set(inst_->shaders.static_shader_get(SH_SSGI_MAIN));
     ssgi_main_ps_.bind_texture("scene_color_tx", scene_color_tx);
     ssgi_main_ps_.bind_texture("depth_tx", depth_tx);
-    ssgi_main_ps_.bind_texture("normal_tx", normal_tx);
+    /* Shading normals are decoded from the G-Buffer. */
+    inst_->render_buffers.gbuffer.bind_resources(ssgi_main_ps_);
     ssgi_main_ps_.bind_texture("hiz_tx", &inst_->hiz_buffer.front.ref_tx_);
-    ssgi_main_ps_.bind_image("out_ssgi_img", ssgi_lowres_tx_.get());
+    ssgi_main_ps_.bind_image("out_ssgi_img", ssgi_lowres_tx_);
     
     /* Each uniform is declared separately in the GLSL shader */
     ssgi_main_ps_.push_constant("ssgi_intensity",         settings_.intensity);
@@ -71,25 +67,33 @@ void SSGIModule::render(View &view, gpu::Texture *scene_color_tx, gpu::Texture *
     ssgi_main_ps_.push_constant("z_planes",
         float2(inst_->uniform_data.z_near, inst_->uniform_data.z_far));
     ssgi_main_ps_.push_constant("screen_res",   inst_->uniform_data.screen_res);
-    ssgi_main_ps_.push_constant("frame_count",  inst_->uniform_data.frame_count);
+    ssgi_main_ps_.push_constant("frame_count",  int(inst_->uniform_data.frame_count));
+    /* The Hi-Z texture is padded; screen UVs must be scaled before sampling it. */
+    ssgi_main_ps_.push_constant("hiz_uv_scale", inst_->hiz_buffer.uv_scale);
     
-    int2 half_res = ssgi_lowres_tx_->size().xy();
+    int2 half_res = ssgi_lowres_tx_.size().xy();
     ssgi_main_ps_.dispatch(math::divide_ceil(half_res, int2(8)));
     
     ssgi_main_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
+    inst_->manager->submit(ssgi_main_ps_);
 
     // Pass 2: Bilateral Blur & Upsample
     // Merges the noisy low-res bounce into the full-res scene
-    ssgi_blur_ps_.bind_texture("ssgi_lowres_tx", ssgi_lowres_tx_.get());
+    ssgi_blur_ps_.init();
+    ssgi_blur_ps_.shader_set(inst_->shaders.static_shader_get(SH_SSGI_BLUR));
+    ssgi_blur_ps_.bind_texture("ssgi_lowres_tx", ssgi_lowres_tx_);
     ssgi_blur_ps_.bind_texture("depth_tx", depth_tx);
-    ssgi_blur_ps_.bind_image("out_ssgi_final_img", ssgi_final_tx_.get());
+    ssgi_blur_ps_.bind_image("out_ssgi_final_img", ssgi_final_tx_);
     
     ssgi_blur_ps_.push_constant("z_planes",
         float2(inst_->uniform_data.z_near, inst_->uniform_data.z_far));
     ssgi_blur_ps_.push_constant("screen_res", inst_->uniform_data.screen_res);
 
-    int2 full_res = ssgi_final_tx_->size().xy();
+    int2 full_res = ssgi_final_tx_.size().xy();
     ssgi_blur_ps_.dispatch(math::divide_ceil(full_res, int2(8)));
+    /* The lighting pass samples the result right after. */
+    ssgi_blur_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
+    inst_->manager->submit(ssgi_blur_ps_);
 }
 
 } // namespace blender::eevee_game

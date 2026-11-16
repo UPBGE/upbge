@@ -135,6 +135,25 @@ set(SRC
   engines/eevee/eevee_view.cc
   engines/eevee/eevee_volume.cc
   engines/eevee/eevee_world.cc
+  engines/eevee-game/eevee_game_bloom.cc
+  engines/eevee-game/eevee_game_culling.cc
+  engines/eevee-game/eevee_game_depth_of_field.cc
+  engines/eevee-game/eevee_game_engine.cc
+  engines/eevee-game/eevee_game_film.cc
+  engines/eevee-game/eevee_game_gtao.cc
+  engines/eevee-game/eevee_game_instance.cc
+  engines/eevee-game/eevee_game_material.cc
+  engines/eevee-game/eevee_game_pipeline.cc
+  engines/eevee-game/eevee_game_raytrace.cc
+  engines/eevee-game/eevee_game_renderbuffers.cc
+  engines/eevee-game/eevee_game_shader.cc
+  engines/eevee-game/eevee_game_shadow.cc
+  engines/eevee-game/eevee_game_ssgi.cc
+  engines/eevee-game/eevee_game_sync.cc
+  engines/eevee-game/eevee_game_upscaling.cc
+  engines/eevee-game/eevee_game_velocity.cc
+  engines/eevee-game/eevee_game_view.cc
+  engines/eevee-game/eevee_game_volume.cc
   engines/workbench/workbench_effect_antialiasing.cc
   engines/workbench/workbench_effect_cavity.cc
   engines/workbench/workbench_effect_dof.cc
@@ -241,6 +260,26 @@ set(SRC
   engines/eevee/eevee_view.hh
   engines/eevee/eevee_volume.hh
   engines/eevee/eevee_world.hh
+  engines/eevee-game/eevee_game_bloom.hh
+  engines/eevee-game/eevee_game_culling.hh
+  engines/eevee-game/eevee_game_defines.hh
+  engines/eevee-game/eevee_game_depth_of_field.hh
+  engines/eevee-game/eevee_game_engine.h
+  engines/eevee-game/eevee_game_film.hh
+  engines/eevee-game/eevee_game_gtao.hh
+  engines/eevee-game/eevee_game_instance.hh
+  engines/eevee-game/eevee_game_material.hh
+  engines/eevee-game/eevee_game_pipeline.hh
+  engines/eevee-game/eevee_game_raytrace.hh
+  engines/eevee-game/eevee_game_renderbuffers.hh
+  engines/eevee-game/eevee_game_shader.hh
+  engines/eevee-game/eevee_game_shadow.hh
+  engines/eevee-game/eevee_game_ssgi.hh
+  engines/eevee-game/eevee_game_sync.hh
+  engines/eevee-game/eevee_game_upscaling.hh
+  engines/eevee-game/eevee_game_velocity.hh
+  engines/eevee-game/eevee_game_view.hh
+  engines/eevee-game/eevee_game_volume.hh
   engines/external/external_engine.h
   engines/gpencil/gpencil_engine.hh
   engines/gpencil/gpencil_engine_private.hh
@@ -378,6 +417,8 @@ set(GLSL_SRC
   engines/eevee/shaders/infos/eevee_velocity_infos.hh
   engines/eevee/shaders/infos/eevee_volume_infos.hh
   engines/eevee/shaders/infos/eevee_volume_resolved_infos.hh
+
+  engines/eevee-game/shaders/infos/eevee_game_infos.hh
 
   engines/image/shaders/infos/engine_image_infos.hh
 
@@ -607,6 +648,28 @@ set(GLSL_SRC
   engines/eevee/eevee_uniform_shared.hh
   engines/eevee/eevee_velocity_shared.hh
   engines/eevee/eevee_volume_shared.hh
+
+  engines/eevee-game/shaders/eevee_game_bloom_composite_comp.glsl
+  engines/eevee-game/shaders/eevee_game_bloom_downsample_comp.glsl
+  engines/eevee-game/shaders/eevee_game_bloom_upsample_comp.glsl
+  engines/eevee-game/shaders/eevee_game_culling_comp.glsl
+  engines/eevee-game/shaders/eevee_game_deferred_light_frag.glsl
+  engines/eevee-game/shaders/eevee_game_dof_fast_comp.glsl
+  engines/eevee-game/shaders/eevee_game_film_present_frag.glsl
+  engines/eevee-game/shaders/eevee_game_fsr3_mask_gen_comp.glsl
+  engines/eevee-game/shaders/eevee_game_fxaa_frag.glsl
+  engines/eevee-game/shaders/eevee_game_gtao_main_comp.glsl
+  engines/eevee-game/shaders/eevee_game_gtao_upsample_comp.glsl
+  engines/eevee-game/shaders/eevee_game_shadow_pcf_comp.glsl
+  engines/eevee-game/shaders/eevee_game_smaa_frag.glsl
+  engines/eevee-game/shaders/eevee_game_smaa_vert.glsl
+  engines/eevee-game/shaders/eevee_game_ssgi_blur_comp.glsl
+  engines/eevee-game/shaders/eevee_game_ssgi_main_comp.glsl
+  engines/eevee-game/shaders/eevee_game_volume_integrate_comp.glsl
+  engines/eevee-game/shaders/eevee_game_volume_resolve_comp.glsl
+  engines/eevee-game/shaders/eevee_game_volume_scatter_comp.glsl
+
+  engines/eevee-game/eevee_game_shader_shared.hh
 
   engines/workbench/shaders/workbench_cavity.bsl.hh
   engines/workbench/shaders/workbench_common.bsl.hh
@@ -883,6 +946,9 @@ set(GLSL_INC
   engines/eevee
   engines/eevee/shaders
   engines/eevee/shaders/infos
+  engines/eevee-game
+  engines/eevee-game/shaders
+  engines/eevee-game/shaders/infos
   engines/overlay
   engines/overlay/shaders
   engines/overlay/shaders/infos

@@ -40,82 +40,28 @@
  */
 
 /* ------------------------------------------------------------------ */
-/* SMAA configuration — must precede the library include.             */
+/* SMAA                                                                 */
 /* ------------------------------------------------------------------ */
 
-#define SMAA_GLSL_4
-#define SMAA_PRESET_HIGH
-/* Enable diagonal pattern detection for better diagonal edge quality.
- * Small cost: ~5% more ALU in the weight pass. */
-#define SMAA_DISABLE_DIAG_DETECTION 0
+#include "infos/eevee_game_infos.hh"
 
-/* Force luma edge detection (fastest and sufficient for AA). */
-#undef SMAA_EDGE_DETECTION_MODE
-#define SMAA_EDGE_DETECTION_MODE 1  /* 1 = luma, 2 = colour, 3 = depth */
+/* Adjust according to SMAA_STAGE for C++ compilation. */
+FRAGMENT_SHADER_CREATE_INFO(eevee_game_smaa_weight)
 
-/* RT metrics injected by ShaderCreateInfo via a push constant.
- * SMAA_RT_METRICS = vec4(1/W, 1/H, W, H). */
-uniform vec4 smaa_rt_metrics;
-#define SMAA_RT_METRICS smaa_rt_metrics
-
-/* ---- Luma helper for SMAA luma edge detection ----
- *
- * SMAA's luma detection expects a pre-computed luma value per texel.
- * In HDR linear space we use standard Rec.709 weights.
- * Note: the SMAA library's SMAALumaEdgeDetectionPS expects the colour texture
- * to have luma in the alpha channel, OR overrides with a custom macro.
- * We inject luma via a wrapper that reads RGB and returns luma in alpha. */
-
-/* Custom luma sample: reads the texture and returns (rgb, luma) as vec4.
- * SMAA uses texture().a as the luma in luma-detection mode. */
-vec4 smaa_luma_sample(sampler2D tex, vec2 uv)
-{
-  vec4 c    = texture(tex, uv);
-  float luma = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
-  return vec4(c.rgb, luma);
-}
-
-/* Override the texture fetch macro that SMAA uses internally.
- * This injects the luma-in-alpha trick without modifying the library. */
-#define SMAATexture2D(tex)        sampler2D tex
-#define SMAATexturePass2(tex)     tex
-#define SMAASampleLevelZero(tex, coord)       smaa_luma_sample(tex, coord)
-#define SMAASampleLevelZeroOffset(tex, coord, offset) \
-    smaa_luma_sample(tex, coord + vec2(offset) * smaa_rt_metrics.xy)
-
-/* ------------------------------------------------------------------ */
+/* SMAA_GLSL_3, SMAA_PRESET_HIGH, SMAA_RT_METRICS and SMAA_LUMA_WEIGHT come
+ * from the create info. The luma weights are Rec.709: the input is scene
+ * linear HDR, and edges are found on luma, the cheapest mode and enough for
+ * geometric aliasing. */
 #include "gpu_shader_smaa_lib.glsl"
-/* ------------------------------------------------------------------ */
-
-/* ---- Per-stage varyings (set by vertex shader) ---- */
-in vec2 uvs;
-in vec2 pixcoord;
-in vec4 offset[3];
-
-/* ---- Stage-specific uniforms ---- */
-#if SMAA_STAGE == 0
-  uniform sampler2D color_tx;
-  out vec2 out_edges;
-
-#elif SMAA_STAGE == 1
-  uniform sampler2D edges_tx;
-  uniform sampler2D area_tx;
-  uniform sampler2D search_tx;
-  out vec4 out_weights;
-
-#elif SMAA_STAGE == 2
-  uniform sampler2D color_tx;
-  uniform sampler2D blend_tx;
-  out vec4 out_color;
-
-#endif
-
-/* ================================================================== */
-/* Main                                                                */
-/* ================================================================== */
 
 void main()
 {
+  /* Varyings cannot be arrays. */
+  vec4 offset[3];
+  offset[0] = offset0;
+  offset[1] = offset1;
+  offset[2] = offset2;
+
 #if SMAA_STAGE == 0
   /* ---- Edge Detection ---- */
   out_edges = SMAALumaEdgeDetectionPS(uvs, offset, color_tx);

@@ -28,18 +28,21 @@ public:
      * Executes GTAO logic. 
      * Computed at Half-Resolution for performance, then bilaterally upsampled.
      */
-    void render(View &view, gpu::Texture *depth_tx, gpu::Texture *normal_tx);
+    void render(View &view, gpu::Texture *depth_tx);
 
-    gpu::Texture *get_result() { return gtao_final_tx_.get(); }
+    /* When false the result texture holds nothing meaningful. */
+    bool enabled() const { return settings_.enabled; }
+
+    gpu::Texture *get_result() { return gtao_final_tx_; }
 
 private:
     GameInstance *inst_;
     GTAOSettings settings_;
     
     // Low-res buffer for main computation
-    std::unique_ptr<gpu::Texture> gtao_lowres_tx_;
+    Texture gtao_lowres_tx_ = {"gtao_lowres_tx_"};
     // Final high-res buffer after upscaling
-    std::unique_ptr<gpu::Texture> gtao_final_tx_;
+    Texture gtao_final_tx_ = {"gtao_final_tx_"};
 
     PassSimple gtao_main_ps_{"GTAO.Compute"};
     PassSimple gtao_upsample_ps_{"GTAO.Upsample"};

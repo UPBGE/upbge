@@ -22,15 +22,13 @@
  * Local group 8×8 = 64 threads: one NVIDIA warp-pair, one AMD wavefront.
  */
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#include "infos/eevee_game_infos.hh"
 
-uniform sampler2D in_color_tx;
-layout(rgba16f) uniform writeonly image2D out_color_img;
+COMPUTE_SHADER_CREATE_INFO(eevee_game_bloom_downsample)
 
 /* params.x = luminance threshold (pixels dimmer than this are zeroed).
  * params.y = knee width (soft-knee Hermite transition above threshold).
  * params.xy < 0 means bypass threshold (levels 1..N). */
-uniform vec4 params;
 
 /* ------------------------------------------------------------------ */
 /* Soft-knee threshold (Schlick–Hermite smooth-step)

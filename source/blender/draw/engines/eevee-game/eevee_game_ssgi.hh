@@ -28,18 +28,21 @@ public:
      * @param scene_color_tx The lighting result from the previous frame or current pass.
      * @param depth_tx Normal/Depth info for geometric validation.
      */
-    void render(View &view, gpu::Texture *scene_color_tx, gpu::Texture *depth_tx, gpu::Texture *normal_tx);
+    void render(View &view, gpu::Texture *scene_color_tx, gpu::Texture *depth_tx);
 
-    gpu::Texture *get_result() { return ssgi_final_tx_.get(); }
+    /* When false the result texture holds nothing meaningful. */
+    bool enabled() const { return settings_.enabled; }
+
+    gpu::Texture *get_result() { return ssgi_final_tx_; }
 
 private:
     GameInstance *inst_;
     SSGISettings settings_;
     
     // Low-res buffer for the diffuse bounce (SFLOAT_16 for color)
-    std::unique_ptr<gpu::Texture> ssgi_lowres_tx_;
+    Texture ssgi_lowres_tx_ = {"ssgi_lowres_tx_"};
     // Final filtered buffer
-    std::unique_ptr<gpu::Texture> ssgi_final_tx_;
+    Texture ssgi_final_tx_ = {"ssgi_final_tx_"};
 
     PassSimple ssgi_main_ps_{"SSGI.Compute"};
     PassSimple ssgi_blur_ps_{"SSGI.BilateralBlur"};

@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_time.h"
+
+#include "BLI_math_vector.h" /* copy_v3_fl() */
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
 #include "BKE_node.hh"
@@ -368,10 +370,13 @@ Material &MaterialModule::material_sync(Object *ob,
       m.shading.sub_pass = nullptr;
     }
 
-    /* Shadow map rendering */
-    m.shadow = (ob->visibility_flag & OB_HIDE_SHADOW) ?
-                   MaterialPass() :
-                   material_pass_get(ob, blender_mat, MAT_PIPE_SHADOW, geometry_type);
+    /* No dedicated shadow pass: ShadowModule draws the opaque depth prepass
+     * from each light (see ShadowModule::render_tile). MAT_PIPE_SHADOW would
+     * compile EEVEE's virtual shadow map shader, which writes through page
+     * tables this engine does not have.
+     * Limitation: per-object shadow visibility (OB_HIDE_SHADOW, or shadow
+     * only objects hidden from the camera) is not honoured yet. */
+    m.shadow = MaterialPass();
 
     m.has_surface = GPU_material_has_surface_output(m.shading.gpumat);
     m.has_volume  = GPU_material_has_volume_output(m.shading.gpumat);

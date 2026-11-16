@@ -22,6 +22,9 @@
 #include "eevee_game_volume.hh"
 #include "eevee_game_view.hh"
 
+#include "../eevee/eevee_defines.hh" /* HIZ_MIP_COUNT, HIZ_GROUP_SIZE */
+
+#include "DRW_gpu_wrapper.hh"
 #include "GPU_storage_buffer.hh"
 #include "DNA_camera_types.h"
 #include "DNA_object_types.h"
@@ -41,15 +44,32 @@ namespace blender::eevee_game {
 
 /* ---- HiZBuffer ---- */
 
+/* Handle every consumer binds by reference (`&hiz_buffer.front.ref_tx_`). */
 struct HiZBuffer {
-  gpu::Texture ref_tx_; /* R32F mip chain, mip_count = floor(log2(max_dim)) + 1 */
-  void ensure(int2 render_res);
+  gpu::Texture *ref_tx_ = nullptr;
 };
 
+/* One pyramid is enough: within a frame it is read by culling (still holding
+ * the previous frame), rebuilt right after the opaque prepass, then read by
+ * GTAO / SSGI / SSR. Layout follows `eevee_hiz_update`: R32F, HIZ_MIP_COUNT
+ * mips, extent padded to a multiple of the coarsest texel so no mip ever has
+ * an odd size. Stores non reversed depth, farthest value per texel. */
 struct HiZBufferPair {
   HiZBuffer front;
-  HiZBuffer back;
-  void swap() { std::swap(front, back); }
+
+  draw::Texture tx_ = {"hiz_tx"};
+  std::array<gpu::Texture *, HIZ_MIP_COUNT> mip_ref_ = {};
+  /* Counts finished tiles so the last one down-samples the remaining mips. */
+  draw::StorageBuffer<uint4, true> tile_counter_ = {"hiz_tile_counter"};
+
+  /* View-projection the pyramid was rasterized with. */
+  float4x4 persmat = float4x4::identity();
+  /* render_extent / padded extent. Consumers must scale screen UVs by this. */
+  float2 uv_scale = float2(1.0f);
+  /* False until the first update after (re)allocation. */
+  bool valid = false;
+
+  void ensure(int2 render_res);
 };
 
 /* ---- Camera ---- */
@@ -82,20 +102,19 @@ struct LightEntry {
 /* ---- LightModule ---- */
 
 struct LightModule {
-  blender::Map<int, LightEntry> light_map_;
-  std::unique_ptr<gpu::StorageBuffer> light_buf_;
+  /* Rebuilt every frame and only ever walked front to back, so a flat
+   * array: no hashing, and iteration order is the sync order. */
+  Vector<LightEntry> entries_;
+  StorageArrayBuffer<LightData, MAX_LIGHTS> light_buf_ = {"light_buf"};
   int active_light_count = 0;
 
-  void init();
   void begin_sync();
-  void add(int id, const LightEntry &entry);
-  void end_sync();
+  void add(const LightEntry &entry);
 
   /**
-   * Re-pack and re-upload the light SSBO after shadow indices have been written
-   * back into light_map_ entries by GameInstance::end_sync().
-   * FIX: this method was missing — without it the shadow_index stamp was done
-   * in memory but never pushed to the GPU buffer.
+   * Pack and upload the light array. Called once per frame from
+   * GameInstance::end_sync(), after shadow indices have been written back
+   * into entries_.
    */
   void upload();
 
@@ -109,14 +128,27 @@ struct LightModule {
  * Declaration order = construction order.
  * 'shaders' must be first.
  */
-class GameInstance {
+class GameInstance : public DrawEngine {
  public:
   GameInstance();
   ~GameInstance() = default;
 
+  StringRefNull name_get() final
+  {
+    return "EEVEE Game";
+  }
+
+  /* ---- DrawEngine interface (viewport). The Draw Manager calls these in
+   * this order every redraw and iterates the scene itself, calling
+   * object_sync() once per evaluated object. ---- */
+  void init() final;
+  void begin_sync() final;
+  void object_sync(ObjectRef &ob_ref, Manager &manager) final;
+  void end_sync() final;
+  void draw(Manager &manager) final;
+
+  /* Shared by the viewport and the F12 path. */
   void init(const int2 &output_res, const rcti *output_rect);
-  void begin_sync();
-  void end_sync();
 
   void render_frame(struct RenderEngine *engine, struct RenderLayer *layer);
   void render_sample();
@@ -130,8 +162,7 @@ class GameInstance {
   Camera         camera;
   ShadowModule   shadows;
   VelocityModule velocity;
-  CullingModule  culling;
-  SyncModule     sync;        /* Scene traversal — populates culling, lights, velocity */
+  SyncModule     sync;        /* Scene traversal — populates lights, velocity, shadows */
   BloomModule    bloom;
   DepthOfField   dof;
   GTAOModule     gtao;
@@ -164,26 +195,20 @@ class GameInstance {
 
   PassSimple hiz_update_ps_{"HiZ.Update"};
 
-  struct GBufferDescriptor {
-    gpu::Texture *header_tx  = nullptr;
-    gpu::Texture *closure_tx = nullptr;
-    gpu::Texture *normal_tx  = nullptr;
-  } gbuffer;
-
   struct SamplingState {
     uint64_t sample_index = 0;
   } sampling;
 
   float delta_time_ms = 16.666f;
 
-  /* Anisotropic filtering level (1, 2, 4, 8, 16). */
-  int anisotropic_filtering = 1;
+  /* Sampler filtering override passed to every material_set() call. */
+  GPUSamplerFiltering anisotropic_filtering = GPU_SAMPLER_FILTERING_DEFAULT;
 
   /* Blender/UPBGE scene pointers (not owned) */
   Scene        *scene        = nullptr;
   ViewLayer    *view_layer   = nullptr;
   Depsgraph    *depsgraph    = nullptr;
-  DRWContext   *draw_ctx     = nullptr;
+  const DRWContext *draw_ctx = nullptr;
   RenderEngine *render_engine_ = nullptr;
 
   const Object *camera_eval_object = nullptr;
@@ -193,10 +218,15 @@ class GameInstance {
   void update_eval_members();
 
   /**
-   * Full Depsgraph traversal: calls SyncModule::object_sync() for every object.
-   * Populates culling, lights, velocity, shadows for the current frame.
+   * F12 path only: there the engine has to drive the whole sync itself,
+   * including the Depsgraph traversal the viewport gets for free.
    */
-  void sync_scene();
+  void render_sync();
+
+  /* One-time module setup done; init() runs every redraw. */
+  bool modules_initialized_ = false;
+  /* Render + display extents the FSR3 context was created for. */
+  int4 upscale_key_ = int4(0);
 
   ShadowData  shadow_data_;
   ShadingView main_view_;

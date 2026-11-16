@@ -22,15 +22,11 @@
  * Local group 8×8.
  */
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#include "infos/eevee_game_infos.hh"
 
-uniform sampler2D ssgi_lowres_tx; /* RGBA16F half-res SSGI radiance */
-uniform sampler2D depth_tx;       /* Full-res R32F NDC depth (bilateral guide) */
+COMPUTE_SHADER_CREATE_INFO(eevee_game_ssgi_blur)
 
-layout(rgba16f) uniform writeonly image2D out_ssgi_final_img; /* Full-res output */
-
-uniform vec2  z_planes;
-uniform vec2  screen_res;
+#include "eevee_reverse_z_lib.glsl"
 
 /* Depth threshold for the bilateral filter.
  * Neighbours with depth difference > DEPTH_SIGMA are suppressed.
@@ -73,7 +69,7 @@ void main()
   const vec2 half_texel = 1.0 / half_size;
 
   /* Reference depth for this output pixel. */
-  float ref_ndc = texture(depth_tx, full_uv).r;
+  float ref_ndc = reverse_z::read(texture(depth_tx, full_uv).r);
   float ref_lin = linear_depth(ref_ndc, z_near, z_far);
 
   /* Sky: no indirect light. */
@@ -99,7 +95,7 @@ void main()
 
       /* Bilateral depth weight: use full-res depth at the corresponding sample position.
        * This guides the filter to respect depth edges at full resolution. */
-      float sample_ndc = texture(depth_tx, sample_uv).r;
+      float sample_ndc = reverse_z::read(texture(depth_tx, sample_uv).r);
       float sample_lin = linear_depth(sample_ndc, z_near, z_far);
 
       float depth_diff = ref_lin - sample_lin;

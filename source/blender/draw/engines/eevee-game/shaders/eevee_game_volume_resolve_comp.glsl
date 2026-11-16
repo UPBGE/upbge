@@ -32,23 +32,11 @@
  * Local group 8×8×1.
  */
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#include "infos/eevee_game_infos.hh"
 
-/* Integrated froxel radiance + transmittance from the integration pass. */
-uniform sampler3D volume_integrated_tx;
+COMPUTE_SHADER_CREATE_INFO(eevee_game_volume_resolve)
 
-/* Full-res hardware depth for per-pixel froxel UVW reconstruction. */
-uniform sampler2D depth_tx;
-
-/* Scene color (HDR, RGBA16F) — modified in-place (READ_WRITE). */
-layout(rgba16f) uniform image2D out_color_img;
-
-/* Camera clip planes and froxel grid parameters. */
-uniform float z_near;
-uniform float z_far;
-uniform int   tile_size;   /* Screen pixels per froxel XY cell */
-uniform int   samples_z;   /* Froxel depth slices */
-uniform vec2  screen_res;  /* Full render resolution */
+#include "eevee_reverse_z_lib.glsl"
 
 /* ------------------------------------------------------------------ */
 /* Linear depth from NDC depth.
@@ -89,7 +77,7 @@ void main()
   const vec2 uv = (vec2(px) + 0.5) / screen_res;
 
   /* Read NDC depth, convert to linear. */
-  float ndc_depth = texture(depth_tx, uv).r;
+  float ndc_depth = reverse_z::read(texture(depth_tx, uv).r);
 
   /* Sky pixels (far plane) receive full volume transmittance from the last
    * froxel slice.  Sample at w = 1.0 to get the fog-to-infinity value. */

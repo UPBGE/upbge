@@ -19,25 +19,17 @@ namespace blender::eevee_game {
  * Every entry referenced from any .cc must be listed here.
  * Order matters only for readability; the enum values index shaders_[]. */
 enum eShaderType {
-  /* --- Deferred / Lighting --- */
+  /* --- Deferred lighting ---
+   * Decodes EEVEE's G-Buffer and lights it with the game light list. */
   SH_DEFERRED_LIGHT = 0,
-  SH_DEFERRED_COMBINE,
-  SH_DEFERRED_TILE_CLASSIFY,
-  SH_GBUFFER,
 
-  /* --- Shadows (Optimized Fixed Atlas) --- */
-  SH_SHADOW_DIRECTIONAL_CSM,
-  SH_SHADOW_PUNCTUAL_ATLAS,
-  SH_SHADOW_DEPTH_WRITE,
-
-  /* Deterministic 3x3 PCF shadow mask — compute shader that reads depth + normal
+  /* Deterministic 3x3 PCF shadow mask: compute shader that reads depth + normal
    * from the G-Buffer and writes one shadow factor per pixel into shadow_mask_tx.
-   * Runs after the shadow atlas is rendered, before the deferred lighting pass.
-   * Kept separate from SH_SHADOW_DEPTH_WRITE: PCF is the game-mode default path
-   * (stable, zero noise, no denoiser); PCSS is an optional higher-quality mode. */
+   * Runs after the shadow atlas is rendered, before the deferred lighting pass. */
   SH_SHADOW_PCF_FILTER,
 
-  /* --- Reflections (Fast Hi-Z SSR) --- */
+  /* --- Reflections (Hi-Z SSR) ---
+   * Not implemented yet: static_shader_get() returns null. */
   SH_SSR_TRACE,
 
   /* --- Ambient Occlusion (GTAO) --- */
@@ -48,9 +40,7 @@ enum eShaderType {
   SH_SSGI_MAIN,
   SH_SSGI_BLUR,
 
-  /* --- Bloom ---
-   * FIX: added SH_BLOOM_COMPOSITE so BloomModule::sync() can call
-   * static_shader_get(SH_BLOOM_COMPOSITE) without hitting an undefined enum value. */
+  /* --- Bloom --- */
   SH_BLOOM_DOWNSAMPLE,
   SH_BLOOM_UPSAMPLE,
   SH_BLOOM_COMPOSITE,
@@ -60,11 +50,8 @@ enum eShaderType {
   SH_VOLUME_INTEGRATE,
   SH_VOLUME_RESOLVE,
 
-  /* --- GPU-Driven Culling --- */
+  /* --- Frustum + Hi-Z occlusion culling --- */
   SH_CULLING_COMPUTE,
-
-  /* --- Forward --- */
-  SH_FORWARD,
 
   /* --- Anti-Aliasing --- */
   SH_FXAA,
@@ -76,7 +63,6 @@ enum eShaderType {
   SH_DOF_COC_SETUP,
   SH_DOF_BOKEH_BLUR,
   SH_DOF_RESOLVE,
-  SH_MOTION_BLUR_FAST,
 
   /* --- Infrastructure --- */
   SH_HIZ_UPDATE,
@@ -84,6 +70,10 @@ enum eShaderType {
 
   MAX_SHADER_TYPE,
 };
+
+/* Geometry shaders (depth prepass, G-Buffer, forward, shadow casters) are not
+ * listed: they are GPUMaterial shaders generated per material by EEVEE's
+ * codegen, fetched with material_shader_get(). */
 
 /* Groups of shaders that can be compiled together at init time to avoid frame stalls. */
 enum ShaderGroups {
@@ -96,7 +86,7 @@ enum ShaderGroups {
   SG_ALL      = 0xFF,
 };
 
-ENUM_OPERATORS(ShaderGroups, int)
+ENUM_OPERATORS(ShaderGroups)
 
 class ShaderModule {
  public:
@@ -104,7 +94,9 @@ class ShaderModule {
   ~ShaderModule();
 
   /* Returns a compiled GPU shader; performs synchronous compile on first call if
-   * static_shaders_load() was not called at init time. */
+   * static_shaders_load() was not called at init time.
+   * Returns null for shader types that have no create info yet; callers of
+   * those types must skip their pass. */
   gpu::Shader *static_shader_get(eShaderType type);
 
   /**
@@ -127,7 +119,8 @@ class ShaderModule {
                                    bool deferred,
                                    blender::Material *default_mat);
 
-  /* Maps enum to the ShaderCreateInfo name registered in eevee_game_shader_info.cc */
+  /* Maps enum to the ShaderCreateInfo name (shaders/infos/eevee_game_infos.hh),
+   * or null when the shader is not implemented yet. */
   static const char *static_shader_name_get(eShaderType type);
 
   /* Frees shared resources; called from Engine::free_static() at Blender shutdown. */
