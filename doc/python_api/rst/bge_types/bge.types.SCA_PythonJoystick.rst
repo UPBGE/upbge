@@ -218,9 +218,12 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. attribute:: type
 
-      The controller type identified by SDL: ``"xbox360"``, ``"xboxone"``, ``"ps3"``, ``"ps4"``,
-      ``"ps5"``, ``"switchpro"``, ``"joyconleft"``, ``"joyconright"``, ``"joyconpair"``,
-      ``"gamecube"``, ``"standard"`` or ``"unknown"``, and ``"joystick"`` for raw joysticks.
+      The controller type identified by SDL. For gamepads: ``"xbox360"``, ``"xboxone"``,
+      ``"ps3"``, ``"ps4"``, ``"ps5"``, ``"switchpro"``, ``"joyconleft"``, ``"joyconright"``,
+      ``"joyconpair"``, ``"gamecube"``, ``"standard"`` or ``"unknown"``. For raw joysticks, the
+      category the driver reports: ``"wheel"``, ``"flight_stick"``, ``"throttle"``,
+      ``"arcade_stick"``, ``"arcade_pad"``, ``"dance_pad"``, ``"guitar"``, ``"drum_kit"``,
+      ``"gamepad"`` (a gamepad without a mapping), or ``"joystick"`` when it reports none.
       (read-only)
 
       :type: string
@@ -245,6 +248,19 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       (read-only)
 
       :type: string (32 hexadecimal digits)
+
+   .. attribute:: vendorId
+
+      The USB vendor id of the controller, 0 if unknown. With :attr:`productId`, it identifies the
+      model, for example to load bindings saved for it. (read-only)
+
+      :type: integer
+
+   .. attribute:: productId
+
+      The USB product id of the controller, 0 if unknown. (read-only)
+
+      :type: integer
 
    .. attribute:: connection
 

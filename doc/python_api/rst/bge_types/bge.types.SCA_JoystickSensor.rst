@@ -135,7 +135,7 @@ base class --- :class:`~bge.types.SCA_ISensor`
 
    .. attribute:: index
 
-      The joystick index to use (from 0 to 7). The first joystick is always 0.
+      The joystick index to use (from 0 to 15). The first joystick is always 0.
 
       :type: integer
 

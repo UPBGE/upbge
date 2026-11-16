@@ -135,7 +135,7 @@ Variables
 .. data:: joysticks
 
    A list of attached :class:`~bge.types.SCA_PythonJoystick`.
-   The list size is the maximum number of supported joysticks.
+   The list has 16 slots, the maximum number of supported joysticks.
    If no joystick is available for a given slot, the slot is set to None.
 
    Devices that SDL does not recognize as gamepads, such as flight sticks, wheels and pedals, are

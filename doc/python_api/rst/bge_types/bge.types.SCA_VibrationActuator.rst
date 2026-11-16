@@ -24,7 +24,7 @@ base class --- :class:`~bge.types.SCA_IActuator`
 
       Joystick index.
 
-      :type: integer (0 to 7)
+      :type: integer (0 to 15)
 
    .. attribute:: strengthLeft
 
