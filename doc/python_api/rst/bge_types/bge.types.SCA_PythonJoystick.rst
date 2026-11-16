@@ -9,6 +9,15 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    A Python interface to a joystick.
 
+   Each connection of a controller gets its own object, and the settings a script applies last as
+   long as that connection: :attr:`strengthLeft`, :attr:`strengthRight`, :attr:`duration`,
+   :attr:`stickDeadzone`, :attr:`stickOuter`, :attr:`stickExponent`, :attr:`triggerDeadzone`,
+   the sensors enabled with :meth:`enableSensors`, the color set with :meth:`setLED` and
+   :attr:`playerIndex`. When the controller disconnects (for example, its battery runs out), its
+   object is replaced, and the controller that connects next, the same one or another, starts
+   with the defaults. Read the object from :data:`bge.logic.joysticks` every frame and apply the
+   settings again when it changes.
+
    .. attribute:: name
 
       The name assigned to the joystick by the operating system. (read-only)
