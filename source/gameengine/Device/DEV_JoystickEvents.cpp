@@ -228,9 +228,9 @@ bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
             DEV_Joystick::m_instance[bge_joystick_slot]->ReleaseInstance(bge_joystick_slot);
           }
           else {
-            CM_Warning(
-                "maximum quantity (8) of Game Controllers connected. It is not possible to set up "
-                "additional ones.");
+            CM_Warning("maximum quantity (" << JOYINDEX_MAX
+                                            << ") of Game Controllers connected. It is not "
+                                               "possible to set up additional ones.");
           }
         }
         break;

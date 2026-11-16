@@ -150,7 +150,8 @@ PyMethodDef SCA_VibrationActuator::Methods[] = {
 
 PyAttributeDef SCA_VibrationActuator::Attributes[] = {
     EXP_PYATTRIBUTE_INT_RW("duration", 0, INT_MAX, true, SCA_VibrationActuator, m_duration),
-    EXP_PYATTRIBUTE_INT_RW("joyindex", 0, 7, true, SCA_VibrationActuator, m_joyindex),
+    EXP_PYATTRIBUTE_INT_RW(
+        "joyindex", 0, JOYINDEX_MAX - 1, true, SCA_VibrationActuator, m_joyindex),
     EXP_PYATTRIBUTE_FLOAT_RW("strengthLeft", 0.0, 1.0, SCA_VibrationActuator, m_strengthLeft),
     EXP_PYATTRIBUTE_FLOAT_RW("strengthRight", 0.0, 1.0, SCA_VibrationActuator, m_strengthRight),
     EXP_PYATTRIBUTE_RO_FUNCTION("isVibrating", SCA_VibrationActuator, pyattr_get_isVibrating),

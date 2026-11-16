@@ -426,6 +426,6 @@ typedef struct bMovementSensor {
 #define SENS_JOY_MOTION_SHAKE_MAX 8000
 
 #define SENS_DELAY_REPEAT 1
-// should match JOYINDEX_MAX in SCA_JoystickDefines.h */
-#define SENS_JOY_MAXINDEX 8
+// should match JOYINDEX_MAX in DEV_JoystickDefines.h */
+#define SENS_JOY_MAXINDEX 16
 }  // namespace blender

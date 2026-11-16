@@ -76,7 +76,7 @@ DEV_Joystick::~DEV_Joystick()
 
 DEV_Joystick *DEV_Joystick::m_instance[JOYINDEX_MAX];
 int DEV_Joystick::m_numRawJoysticks = 0;
-uint32_t DEV_Joystick::m_rawJoystickIds[JOYINDEX_MAX] = {};
+alignas(64) uint32_t DEV_Joystick::m_rawJoystickIds[JOYINDEX_MAX] = {};
 
 /** Names of the hints set through SetHint(), reset by Close(). */
 static std::vector<std::string> g_hints_set;

@@ -30,6 +30,7 @@
 #include "DNA_constraint_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h" /* for MAXFRAME */
+#include "DNA_sensor_types.h"
 
 #include "BLI_math_rotation.hh"
 #include "BLI_string_utils.hh"
@@ -1978,7 +1979,7 @@ static void rna_def_vibration_actuator(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "joy_index", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "joyindex");
-  RNA_def_property_range(prop, 0, 7);
+  RNA_def_property_range(prop, 0, SENS_JOY_MAXINDEX - 1);
   RNA_def_property_ui_text(prop, "Joystick Index", "Joystick index");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
@@ -2015,7 +2016,7 @@ static void rna_def_led_actuator(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "joy_index", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "joyindex");
-  RNA_def_property_range(prop, 0, 7);
+  RNA_def_property_range(prop, 0, SENS_JOY_MAXINDEX - 1);
   RNA_def_property_ui_text(prop, "Joystick Index", "Joystick index");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 

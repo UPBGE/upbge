@@ -126,9 +126,9 @@ class DEV_Joystick
    * test each. */
   static int m_numRawJoysticks;
   /** SDL instance id of the joystick in each slot whose raw state is maintained, 0 elsewhere
-   * (SDL never assigns 0). Other joystick-level events are rejected by scanning these 32 bytes,
-   * without touching any instance. */
-  static uint32_t m_rawJoystickIds[JOYINDEX_MAX];
+   * (SDL never assigns 0). Other joystick-level events are rejected by scanning these 64 bytes,
+   * one cache line, without touching any instance. */
+  alignas(64) static uint32_t m_rawJoystickIds[JOYINDEX_MAX];
 
   /**
    * Motion sensors, updated from SDL_EVENT_GAMEPAD_SENSOR_UPDATE once EnableSensors() is called.

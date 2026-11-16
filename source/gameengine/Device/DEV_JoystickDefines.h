@@ -35,7 +35,7 @@
 #  undef main
 #endif
 
-#define JOYINDEX_MAX 8
+#define JOYINDEX_MAX 16 /* Matches SENS_JOY_MAXINDEX in DNA_sensor_types.h. */
 #define JOYAXIS_MAX 6
 #define JOYBUT_MAX 26  /* SDL_GAMEPAD_BUTTON_COUNT in SDL 3.2+ (MISC2..MISC6 added) */
 
