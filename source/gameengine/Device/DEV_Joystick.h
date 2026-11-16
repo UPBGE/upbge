@@ -211,6 +211,10 @@ class DEV_Joystick
   bool GetRumbleStatus();
   bool GetRumbleSupport();
   void ProcessRumbleStatus();
+  bool HasTriggerRumble() const;
+  bool RumbleTriggers(float left, float right, unsigned int duration);
+  /** Raw, controller-specific effect packet (e.g. DualSense adaptive triggers); see SDL docs. */
+  bool SendEffect(const void *data, int size);
 
   /**
    * Test if the joystick is connected
@@ -234,7 +238,7 @@ class DEV_Joystick
   bool SetPlayerIndex(int index);
 
   /**
-   * Motion sensors (DEV_JoystickFeatures.cpp), off until EnableSensors() is called: while off
+   * Motion sensors, off until EnableSensors() is called: while off
    * SDL reports no samples and they cost nothing. Axes follow SDL: x = pitch, y = yaw,
    * z = roll, counter-clockwise positive.
    */
@@ -261,7 +265,7 @@ class DEV_Joystick
   }
 
   /**
-   * Touchpads (DEV_JoystickFeatures.cpp). Fingers are written as {down, x, y, pressure}, with x
+   * Touchpads. Fingers are written as {down, x, y, pressure}, with x
    * and y in [0, 1] from the top-left corner; returns the number of fingers written.
    */
   int GetNumTouchpads() const;
@@ -272,4 +276,12 @@ class DEV_Joystick
    * "error"); r_percent receives the charge level, or -1 when unknown.
    */
   const char *GetBatteryState(int *r_percent) const;
+
+  /**
+   * LED. Each call is at most one HID write, and SDL already skips
+   * an LED write that repeats the current color: call them when the value changes, not per frame.
+   * Single-color LEDs use the brightest of the three channels.
+   */
+  bool HasLED() const;
+  bool SetLED(unsigned char red, unsigned char green, unsigned char blue);
 };

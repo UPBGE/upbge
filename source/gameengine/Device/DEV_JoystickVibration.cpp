@@ -254,3 +254,40 @@ void DEV_Joystick::ProcessRumbleStatus()
 #endif
   return;
 }
+
+bool DEV_Joystick::HasTriggerRumble() const
+{
+#ifdef WITH_SDL
+  return m_private->m_hasTriggerRumble;
+#else
+  return false;
+#endif
+}
+
+bool DEV_Joystick::RumbleTriggers(float left, float right, unsigned int duration)
+{
+#ifdef WITH_SDL
+  if (!m_private->m_hasTriggerRumble) {
+    return false;
+  }
+  /* Clamp to [0, 1] with comparisons that send NaN to 0: converting NaN to an integer is
+   * undefined behavior. */
+  left = (left > 0.0f) ? ((left < 1.0f) ? left : 1.0f) : 0.0f;
+  right = (right > 0.0f) ? ((right < 1.0f) ? right : 1.0f) : 0.0f;
+  /* SDL expires the effect after `duration` ms by itself. */
+  return SDL_RumbleGamepadTriggers(
+      m_private->m_gamecontroller, Uint16(left * 65535.0f), Uint16(right * 65535.0f), duration);
+#else
+  return false;
+#endif
+}
+
+bool DEV_Joystick::SendEffect(const void *data, int size)
+{
+#ifdef WITH_SDL
+  return m_private->m_gamecontroller && size > 0 &&
+         SDL_SendGamepadEffect(m_private->m_gamecontroller, data, size);
+#else
+  return false;
+#endif
+}

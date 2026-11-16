@@ -59,6 +59,10 @@ class SCA_PythonJoystick : public EXP_Value {
   EXP_PYMETHOD_DOC_NOARGS(SCA_PythonJoystick, startVibration);
   EXP_PYMETHOD_DOC_NOARGS(SCA_PythonJoystick, stopVibration);
   EXP_PYMETHOD_DOC(SCA_PythonJoystick, enableSensors);
+  EXP_PYMETHOD_DOC_VARARGS(SCA_PythonJoystick, setLED);
+  EXP_PYMETHOD_DOC_VARARGS(SCA_PythonJoystick, startTriggerVibration);
+  EXP_PYMETHOD_DOC_NOARGS(SCA_PythonJoystick, stopTriggerVibration);
+  EXP_PYMETHOD_DOC_O(SCA_PythonJoystick, sendEffect);
 
   static PyObject *pyattr_get_isVibrating(EXP_PyObjectPlus *self_v,
                                           const struct EXP_PYATTRIBUTE_DEF *attrdef);
@@ -96,5 +100,9 @@ class SCA_PythonJoystick : public EXP_Value {
                                         const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_battery(EXP_PyObjectPlus *self_v,
                                       const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_has_led(EXP_PyObjectPlus *self_v,
+                                      const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_has_trigger_vibration(EXP_PyObjectPlus *self_v,
+                                                    const EXP_PYATTRIBUTE_DEF *attrdef);
 #endif
 };

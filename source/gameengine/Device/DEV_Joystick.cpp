@@ -354,9 +354,15 @@ bool DEV_Joystick::CreateJoystickDevice(void)
       }
     }
 
-    /* Identity, resolved once. The player index lights the player LED (PS5, Switch) or ring
-     * quadrant (Xbox 360) that matches this slot: slot 0 is player 1. */
+    /* Identity and capabilities, resolved once. The player index lights the player LED (PS5,
+     * Switch) or ring quadrant (Xbox 360) that matches this slot: slot 0 is player 1. */
     if (!joy_error) {
+      const SDL_PropertiesID properties = SDL_GetGamepadProperties(m_private->m_gamecontroller);
+      m_private->m_hasLED =
+          SDL_GetBooleanProperty(properties, SDL_PROP_GAMEPAD_CAP_RGB_LED_BOOLEAN, false) ||
+          SDL_GetBooleanProperty(properties, SDL_PROP_GAMEPAD_CAP_MONO_LED_BOOLEAN, false);
+      m_private->m_hasTriggerRumble = SDL_GetBooleanProperty(
+          properties, SDL_PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN, false);
       m_private->m_type = SDL_GetGamepadType(m_private->m_gamecontroller);
       SDL_SetGamepadPlayerIndex(m_private->m_gamecontroller, m_bge_joystick_slot);
       m_hasGyro = SDL_GamepadHasSensor(m_private->m_gamecontroller, SDL_SENSOR_GYRO);

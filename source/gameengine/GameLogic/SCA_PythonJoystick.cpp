@@ -108,6 +108,10 @@ PyMethodDef SCA_PythonJoystick::Methods[] = {
     EXP_PYMETHODTABLE_NOARGS(SCA_PythonJoystick, startVibration),
     EXP_PYMETHODTABLE_NOARGS(SCA_PythonJoystick, stopVibration),
     EXP_PYMETHODTABLE_KEYWORDS(SCA_PythonJoystick, enableSensors),
+    EXP_PYMETHODTABLE(SCA_PythonJoystick, setLED),
+    EXP_PYMETHODTABLE(SCA_PythonJoystick, startTriggerVibration),
+    EXP_PYMETHODTABLE_NOARGS(SCA_PythonJoystick, stopTriggerVibration),
+    EXP_PYMETHODTABLE_O(SCA_PythonJoystick, sendEffect),
     {nullptr, nullptr}  // Sentinel
 };
 
@@ -148,6 +152,9 @@ PyAttributeDef SCA_PythonJoystick::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("accel", SCA_PythonJoystick, pyattr_get_accel),
     EXP_PYATTRIBUTE_RO_FUNCTION("touchpads", SCA_PythonJoystick, pyattr_get_touchpads),
     EXP_PYATTRIBUTE_RO_FUNCTION("battery", SCA_PythonJoystick, pyattr_get_battery),
+    EXP_PYATTRIBUTE_RO_FUNCTION("hasLED", SCA_PythonJoystick, pyattr_get_has_led),
+    EXP_PYATTRIBUTE_RO_FUNCTION(
+        "hasTriggerVibration", SCA_PythonJoystick, pyattr_get_has_trigger_vibration),
     EXP_PYATTRIBUTE_NULL  // Sentinel
 };
 
@@ -511,6 +518,92 @@ PyObject *SCA_PythonJoystick::pyattr_get_battery(EXP_PyObjectPlus *self_v,
   PyTuple_SET_ITEM(tuple, 0, PyUnicode_FromString(state));
   PyTuple_SET_ITEM(tuple, 1, PyLong_FromLong(percent));
   return tuple;
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_has_led(EXP_PyObjectPlus *self_v,
+                                                 const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return PyBool_FromLong(self->m_joystick->HasLED());
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_has_trigger_vibration(
+    EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return PyBool_FromLong(self->m_joystick->HasTriggerRumble());
+}
+
+/* [0, 1] float to a byte; NaN goes to 0 because every comparison with it is false. */
+static unsigned char unit_to_byte(float v)
+{
+  return (unsigned char)((v > 0.0f) ? ((v < 1.0f) ? v * 255.0f + 0.5f : 255.0f) : 0.0f);
+}
+
+EXP_PYMETHODDEF_DOC_VARARGS(
+    SCA_PythonJoystick,
+    setLED,
+    "setLED(red, green, blue)\n"
+    "\tSets the light bar color, each channel in [0, 1]. Returns False if\n"
+    "\tthe controller has no LED.\n")
+{
+  float red, green, blue;
+  if (!PyArg_ParseTuple(args, "fff:setLED", &red, &green, &blue)) {
+    return nullptr;
+  }
+  return PyBool_FromLong(
+      m_joystick->SetLED(unit_to_byte(red), unit_to_byte(green), unit_to_byte(blue)));
+}
+
+EXP_PYMETHODDEF_DOC_VARARGS(SCA_PythonJoystick,
+                            startTriggerVibration,
+                            "startTriggerVibration(left, right, duration)\n"
+                            "\tVibrates the trigger motors, strengths in [0, 1], duration in ms.\n"
+                            "\tReturns False if the controller has no trigger motors.\n")
+{
+  float left, right;
+  int duration;
+  if (!PyArg_ParseTuple(args, "ffi:startTriggerVibration", &left, &right, &duration)) {
+    return nullptr;
+  }
+  if (duration < 0) {
+    PyErr_SetString(PyExc_ValueError,
+                    "startTriggerVibration(left, right, duration): duration must be >= 0");
+    return nullptr;
+  }
+  return PyBool_FromLong(m_joystick->RumbleTriggers(left, right, (unsigned int)duration));
+}
+
+EXP_PYMETHODDEF_DOC_NOARGS(SCA_PythonJoystick,
+                           stopTriggerVibration,
+                           "stopTriggerVibration()\n"
+                           "\tStops the trigger motors.\n")
+{
+  return PyBool_FromLong(m_joystick->RumbleTriggers(0.0f, 0.0f, 0));
+}
+
+EXP_PYMETHODDEF_DOC_O(SCA_PythonJoystick,
+                      sendEffect,
+                      "sendEffect(data)\n"
+                      "\tSends a raw, controller-specific effect packet (bytes). Returns False\n"
+                      "\tif the controller does not accept it.\n")
+{
+  Py_buffer buffer;
+  if (PyObject_GetBuffer(value, &buffer, PyBUF_SIMPLE) != 0) {
+    return nullptr;
+  }
+  bool ok = false;
+  if (buffer.len > INT_MAX) {
+    PyErr_SetString(PyExc_ValueError, "sendEffect(data): data is too large");
+  }
+  else {
+    ok = m_joystick->SendEffect(buffer.buf, (int)buffer.len);
+  }
+  PyBuffer_Release(&buffer);
+  if (PyErr_Occurred()) {
+    return nullptr;
+  }
+  return PyBool_FromLong(ok);
 }
 
 #endif  // WITH_PYTHON

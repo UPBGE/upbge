@@ -222,3 +222,21 @@ const char *DEV_Joystick::GetBatteryState(int *r_percent) const
 #endif
   return "unknown";
 }
+
+bool DEV_Joystick::HasLED() const
+{
+#ifdef WITH_SDL
+  return m_private->m_hasLED;
+#else
+  return false;
+#endif
+}
+
+bool DEV_Joystick::SetLED(unsigned char red, unsigned char green, unsigned char blue)
+{
+#ifdef WITH_SDL
+  return m_private->m_hasLED && SDL_SetGamepadLED(m_private->m_gamecontroller, red, green, blue);
+#else
+  return false;
+#endif
+}
