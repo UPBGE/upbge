@@ -94,6 +94,9 @@ KX_GameObject::KX_GameObject()
       m_forceIgnoreParentTx(false),  // eevee
       m_previousLodLevel(-1),        // eevee
       m_is_dupli_instance(false),    // eevee
+      m_cullingSlot(-1),             // eevee
+      m_cullingTable(0),             // eevee
+      m_evalTransformStale(true),    // eevee
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -252,11 +255,10 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
     }
     return;
   }
-  float object_to_world[4][4];
-  NodeGetWorldTransform().getValue(&object_to_world[0][0]);
   bool staticObject = true;
   if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
     staticObject = false;
+    m_evalTransformStale = true;
     /* Wait the end of all render passes (main + custom viewports)
      * to clear dirty render because we want the objects to
      * be tagged for transform update for each render pass.
@@ -265,6 +267,16 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
       GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
     }
   }
+
+  /* Static object: the original already holds the transform written when it
+   * last moved, and nothing has to be tagged. Skips the context lookups and
+   * the matrix decomposition of BKE_object_apply_mat4 for most objects. */
+  if (staticObject && !m_forceIgnoreParentTx) {
+    return;
+  }
+
+  float object_to_world[4][4];
+  NodeGetWorldTransform().getValue(&object_to_world[0][0]);
 
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
   blender::Main *bmain = CTX_data_main(C);
@@ -327,13 +339,11 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
   m_forceIgnoreParentTx = false;
 }
 
-void KX_GameObject::TagForTransformUpdateEvaluated()
+void KX_GameObject::TagForTransformUpdateEvaluated(bool force)
 {
   if (m_is_dupli_instance) {
     return;
   }
-  float object_to_world[4][4];
-  NodeGetWorldTransform().getValue(&object_to_world[0][0]);
 
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
@@ -348,6 +358,19 @@ void KX_GameObject::TagForTransformUpdateEvaluated()
 
   if (ob_orig && !skip_transform) {
     blender::Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
+    /* The evaluated matrix still holds what was written last time unless the
+     * SG moved or the depsgraph evaluated the transform in this update (a
+     * parent, constraint target or other tag): its result may differ from
+     * the SG one (parenting conventions), the SG has the last word. */
+    const bool evaluated_now = ob_eval->runtime->last_update_transform ==
+                               DEG_get_update_count(depsgraph);
+    if (!force && !m_evalTransformStale && !evaluated_now) {
+      return;
+    }
+    m_evalTransformStale = false;
+
+    float object_to_world[4][4];
+    NodeGetWorldTransform().getValue(&object_to_world[0][0]);
     copy_m4_m4(ob_eval->runtime->object_to_world.ptr(), object_to_world);
     BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world().ptr(), false, true);
   }
@@ -961,6 +984,10 @@ void KX_GameObject::ProcessReplica()
   ReplicateBlenderObject();
 
   m_is_dupli_instance = false;
+  /* The replica registers in the culling gate on its first render pass. */
+  m_cullingSlot = -1;
+  m_cullingTable = 0;
+  m_evalTransformStale = true;
 
   GetScene()->GetBlenderSceneConverter()->RegisterGameObject(this, m_pBlenderObject);
   CreateDupliObjectFromExisting();
@@ -1278,6 +1305,9 @@ void KX_GameObject::UpdateActivity(float distance)
 
 void KX_GameObject::UpdateTransform()
 {
+  if (m_cullingSlot >= 0) {
+    GetScene()->GetCullingGate().MarkMoved(m_cullingSlot, m_cullingTable);
+  }
   // HACK: saves function call for dynamic object, they are handled differently
   if (m_pPhysicsController && !m_pPhysicsController->IsDynamic())
     m_pPhysicsController->SetTransform();
@@ -1351,7 +1381,13 @@ void KX_GameObject::SetVisible(bool v, bool recursive)
   }
 
   blender::Object *ob = GetBlenderObject();
-  if (ob) {
+  if (m_cullingSlot >= 0) {
+    /* Registered in the culling gate: visibility is a gate flag. The object
+     * is hidden on its evaluated copy and not evaluated while hidden, without
+     * touching the original, rebuilding relations or remapping collections. */
+    GetScene()->GetCullingGate().SetUserVisible(m_cullingSlot, m_cullingTable, v);
+  }
+  else if (ob) {
     blender::Main *bmain = CTX_data_main(KX_GetActiveEngine()->GetContext());
     GetScene()->TagForCollectionRemap();
     DEG_relations_tag_update(bmain);

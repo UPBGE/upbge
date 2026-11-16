@@ -195,6 +195,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_dbvt_culling = false;
   m_dbvt_occlusion_res = 0;
   m_activityCulling = false;
+  m_useCullingGate = true;
+  m_useCullingOcclusion = true;
   m_objectlist = new EXP_ListValue<KX_GameObject>();
   m_parentlist = new EXP_ListValue<KX_GameObject>();
   m_lightlist = new EXP_ListValue<KX_LightObject>();
@@ -345,6 +347,10 @@ KX_Scene::~KX_Scene()
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
   blender::Main *bmain = CTX_data_main(C);
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+
+  /* Push what the culling gate held back and unhide the evaluated objects,
+   * before the undo restore so it has the last word on transforms. */
+  m_cullingGate.RestoreAll(depsgraph);
 
   /* Restore Objects object_to_world mat */
   if (scene->gm.flag & GAME_USE_UNDO) {
@@ -690,6 +696,14 @@ void KX_Scene::PrepareGPUViewport(KX_Camera *cam)
   }
 }
 
+bool KX_Scene::UseCullingOcclusion(KX_Camera *cam)
+{
+  /* The occlusion results come from the depth of the active camera: only
+   * meaningful for that camera, and not when another camera culls for it. */
+  return m_useCullingOcclusion && cam && cam == GetActiveCamera() &&
+         !GetOverrideCullingCamera() && !KX_GetActiveEngine()->UseViewportRender();
+}
+
 void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
                                blender::Scene *scene,
                                bool is_overlay_pass,
@@ -702,6 +716,23 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
      * BKE_collection_object_add_from*/
     BKE_main_collection_sync_remap(bmain);
     m_collectionRemap = false;
+    /* Relations are rebuilt by the next update. */
+    m_cullingGate.InvalidateEvalPointers();
+  }
+
+  /* CPU culling gate: classify the scene before anything is tagged. The
+   * overlay pass only draws overlay objects, which the gate never handles:
+   * it keeps the classification of the last main pass. */
+  if (!is_overlay_pass) {
+    KX_Camera *cullcam = GetOverrideCullingCamera();
+    if (!cullcam || !cullcam->hasValidProjectionMatrix()) {
+      cullcam = cam;
+    }
+    /* The viewport render mode draws the region view, which can show more
+     * than the camera frustum: no gate there. */
+    const bool use_gate = m_useCullingGate && !KX_GetActiveEngine()->UseViewportRender();
+    m_cullingGate.BeginPass(
+        cullcam, m_imageRenderCameraList, scene, use_gate, UseCullingOcclusion(cam));
   }
 
   /* Notify the depsgraph if object transform changed in the scene
@@ -710,6 +741,20 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
     /* Update compatibles blender physics simulations */
     blender::Object *ob = gameobj->GetBlenderObject();
     TagBlenderPhysicsObject(scene, ob);
+
+    const int slot = gameobj->GetCullingSlot();
+    const uint8_t table = gameobj->GetCullingTable();
+    if (!m_cullingGate.ShouldEvaluate(slot, table)) {
+      /* Not relevant to any view of this pass: keep DIRTY_RENDER so the
+       * transform is pushed on the first pass where it is relevant again,
+       * unless another pass of this frame already pushed it. */
+      if (is_last_render_pass && m_cullingGate.TaggedThisFrame(slot, table)) {
+        gameobj->GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
+      }
+      continue;
+    }
+    m_cullingGate.FlushDeferredTags(slot, table);
+    m_cullingGate.MarkTagged(slot, table);
     gameobj->TagForTransformUpdate(is_overlay_pass, is_last_render_pass);
   }
 
@@ -725,9 +770,22 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
-  /* Update evaluated object object_to_world according to SceneGraph. */
+  /* Update evaluated object object_to_world according to SceneGraph. New
+   * objects enter the culling gate here, once their evaluated copy exists. */
   for (KX_GameObject *gameobj : GetObjectList()) {
-    gameobj->TagForTransformUpdateEvaluated();
+    if (gameobj->GetCullingSlot() == KX_CullingGate::SLOT_UNREGISTERED) {
+      m_cullingGate.Register(gameobj, depsgraph, scene);
+    }
+    if (m_cullingGate.ShouldEvaluate(gameobj->GetCullingSlot(), gameobj->GetCullingTable())) {
+      gameobj->TagForTransformUpdateEvaluated();
+    }
+  }
+
+  if (!is_overlay_pass) {
+    m_cullingGate.ApplyDrawState(depsgraph);
+  }
+  if (is_last_render_pass) {
+    m_cullingGate.EndFrame();
   }
 }
 
@@ -879,6 +937,11 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
     DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass);
   }
 
+  /* Occlusion test of the culling gate against the depth just rendered. */
+  if (!is_overlay_pass && m_useCullingGate && UseCullingOcclusion(cam)) {
+    m_cullingGate.SubmitOcclusion(cam, GPU_viewport_depth_texture(m_currentGPUViewport));
+  }
+
   RAS_FrameBuffer *input = rasty->GetFrameBuffer(rasty->NextFilterFrameBuffer(r));
   RAS_FrameBuffer *output = rasty->GetFrameBuffer(rasty->NextRenderFrameBuffer(s));
 
@@ -940,6 +1003,10 @@ void KX_Scene::RenderAfterCameraSetupImageRender(KX_Camera *cam, const blender::
                             NULL,
                             winmat,
                             NULL);
+
+  if (m_useCullingGate && !KX_GetActiveEngine()->UseViewportRender()) {
+    m_cullingGate.ApplyAuxView(cam, GetBlenderScene(), depsgraph);
+  }
 
   DRW_game_render_loop(C, cam->GetGPUViewport(), depsgraph, window, false);
 }
@@ -1358,6 +1425,11 @@ void KX_Scene::TagForExtraIdsUpdate(blender::Main *bmain, KX_Camera *cam)
            m_idsToUpdateInAllRenderPasses.begin();
        it != m_idsToUpdateInAllRenderPasses.end();
        it++) {
+    /* Objects held back by the culling gate get the tag when they are
+     * relevant again (armatures: when one of their skinned meshes is). */
+    if (m_cullingGate.DeferIdTag(it->first, it->second)) {
+      continue;
+    }
     DEG_id_tag_update(it->first, it->second);
   }
 
@@ -2120,6 +2192,8 @@ void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
 
 bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 {
+  m_cullingGate.Unregister(gameobj);
+
   gameobj->Dispose();
 
   /* remove property from debug list */
@@ -2248,6 +2322,8 @@ void KX_Scene::ReplaceMesh(KX_GameObject *gameobj,
   if (use_gfx) {
     gameobj->RemoveMeshes();
     gameobj->AddMesh(mesh);
+    /* The drawn geometry is now swapped at runtime: follow its bounds. */
+    m_cullingGate.MarkBoundsDynamic(gameobj->GetCullingSlot(), gameobj->GetCullingTable());
 
     /* Here we are in the case where we use ReplaceMesh not for levels of details
      * but for other purposes. We'll add a dummy LodManager with only 1 KX_LodLevel
@@ -2579,6 +2655,10 @@ static void MergeScene_LogicBrick(SCA_ILogicBrick *brick, KX_Scene *from, KX_Sce
 
 static void MergeScene_GameObject(KX_GameObject *gameobj, KX_Scene *to, KX_Scene *from)
 {
+  /* Slots belong to the gate of the source scene: register again in the
+   * destination on its next render pass. */
+  from->GetCullingGate().Unregister(gameobj);
+
   SCA_ActuatorList &actuators = gameobj->GetActuators();
   for (SCA_IActuator *actuator : actuators) {
     MergeScene_LogicBrick(actuator, from, to);
@@ -3136,6 +3216,31 @@ int KX_Scene::pyattr_set_remove_callback(EXP_PyObjectPlus *self_v,
   return PY_SET_ATTR_SUCCESS;
 }
 
+PyObject *KX_Scene::pyattr_get_cpu_culling_stats(EXP_PyObjectPlus *self_v,
+                                                 const EXP_PYATTRIBUTE_DEF *attrdef)
+{
+  KX_Scene *self = static_cast<KX_Scene *>(self_v);
+  const KX_CullingGate::Stats &st = self->m_cullingGate.GetStats();
+
+  PyObject *dict = PyDict_New();
+  const std::pair<const char *, int> items[] = {
+      {"objects", st.objects},
+      {"objectsDrawn", st.objects_drawn},
+      {"objectsEvaluated", st.objects_evaluated},
+      {"lights", st.lights},
+      {"lightsDrawn", st.lights_drawn},
+      {"skinned", st.skinned},
+      {"armaturesDeferred", st.armatures_deferred},
+      {"objectsOccluded", st.objects_occluded},
+  };
+  for (const std::pair<const char *, int> &item : items) {
+    PyObject *value = PyLong_FromLong(item.second);
+    PyDict_SetItemString(dict, item.first, value);
+    Py_DECREF(value);
+  }
+  return dict;
+}
+
 PyObject *KX_Scene::pyattr_get_gravity(EXP_PyObjectPlus *self_v,
                                        const EXP_PYATTRIBUTE_DEF *attrdef)
 {
@@ -3183,6 +3288,9 @@ PyAttributeDef KX_Scene::Attributes[] = {
     EXP_PYATTRIBUTE_RW_FUNCTION("gravity", KX_Scene, pyattr_get_gravity, pyattr_set_gravity),
     EXP_PYATTRIBUTE_BOOL_RO("activityCulling", KX_Scene, m_activityCulling),
     EXP_PYATTRIBUTE_BOOL_RO("dbvt_culling", KX_Scene, m_dbvt_culling),
+    EXP_PYATTRIBUTE_BOOL_RW("cpuCulling", KX_Scene, m_useCullingGate),
+    EXP_PYATTRIBUTE_BOOL_RW("cpuCullingOcclusion", KX_Scene, m_useCullingOcclusion),
+    EXP_PYATTRIBUTE_RO_FUNCTION("cpuCullingStats", KX_Scene, pyattr_get_cpu_culling_stats),
     EXP_PYATTRIBUTE_RO_FUNCTION("logger", KX_Scene, KX_PythonProxy::pyattr_get_logger),
     EXP_PYATTRIBUTE_RO_FUNCTION("loggerName", KX_Scene, KX_PythonProxy::pyattr_get_logger_name),
     EXP_PYATTRIBUTE_NULL  // Sentinel

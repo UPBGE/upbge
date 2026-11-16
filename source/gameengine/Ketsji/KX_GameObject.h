@@ -107,6 +107,12 @@ class KX_GameObject : public SCA_IObject {
   bool m_forceIgnoreParentTx;
   short m_previousLodLevel;
   bool m_is_dupli_instance;
+  /* Index in the KX_CullingGate table m_cullingTable of the scene, or one of
+   * KX_CullingGate::SLOT_UNREGISTERED (-1) / SLOT_NEVER (-2). */
+  int m_cullingSlot;
+  uint8_t m_cullingTable;
+  /* The SG transform has to be written on the evaluated object. */
+  bool m_evalTransformStale;
   /* END OF EEVEE INTEGRATION */
 
   KX_ClientObjectInfo *m_pClient_info;
@@ -150,7 +156,9 @@ class KX_GameObject : public SCA_IObject {
   /* EEVEE INTEGRATION */
 
   void TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass);
-  void TagForTransformUpdateEvaluated();
+  /* Writes the SG transform on the evaluated object when the SG moved or the
+   * depsgraph re-evaluated its transform this pass, always when force. */
+  void TagForTransformUpdateEvaluated(bool force = false);
   void ReplicateBlenderObject();
   void DiscardRenderedObject();
   void SuspendPhysics(bool freeConstraints, bool childrenRecursive);
@@ -178,6 +186,20 @@ class KX_GameObject : public SCA_IObject {
     return m_is_dupli_instance;
   }
   void TagDupliForTaaReset();
+
+  int GetCullingSlot() const
+  {
+    return m_cullingSlot;
+  }
+  uint8_t GetCullingTable() const
+  {
+    return m_cullingTable;
+  }
+  void SetCullingSlot(int slot, uint8_t table)
+  {
+    m_cullingSlot = slot;
+    m_cullingTable = table;
+  }
   /* END OF EEVEE INTEGRATION */
 
   /**

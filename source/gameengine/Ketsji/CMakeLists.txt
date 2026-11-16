@@ -69,6 +69,8 @@ set(SRC
   KX_CameraIpoSGController.cpp
   KX_CharacterWrapper.cpp
   KX_CollisionEventManager.cpp
+  KX_CullingGate.cpp
+  KX_CullingGateOcclusion.cpp
   KX_ConstraintWrapper.cpp
   KX_EmptyObject.cpp
   KX_FontObject.cpp
@@ -120,6 +122,7 @@ set(SRC
   KX_CameraIpoSGController.h
   KX_CharacterWrapper.h
   KX_ClientObjectInfo.h
+  KX_CullingGate.h
   KX_ConstraintWrapper.h
   KX_EmptyObject.h
   KX_FontObject.h

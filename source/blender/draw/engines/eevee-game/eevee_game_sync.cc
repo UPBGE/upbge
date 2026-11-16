@@ -11,6 +11,7 @@
  * Adapted from blender::eevee::SyncModule (eevee_sync.cc).
  */
 
+#include "BKE_light.h"
 #include "BKE_object.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_light_types.h"
@@ -250,12 +251,24 @@ void SyncModule::sync_light(Object *ob, ObjectHandle & /*handle*/)
   /* Lights shine down their local -Z axis. Normalized here so the shaders
    * do not have to, and so object scale cannot leak into the lighting. */
   entry.data.direction = -math::normalize(float3(entry.object_to_world[2]));
-  entry.data.color     = float3(la->r, la->g, la->b);
-  entry.data.energy    = la->energy;
+  /* Temperature and exposure included, like EEVEE. */
+  entry.data.color     = BKE_light_color(*la);
+  entry.data.energy    = BKE_light_power(*la);
   /* Emitter size: soft-shadow radius for punctual lights, panel size for area lights. */
   entry.data.radius = (la->type == LA_AREA) ? la->area_size : la->radius;
-  /* Custom distance: influence is cut beyond it, which also bounds the light for culling. */
-  entry.data.attenuation = la->att_dist;
+  /* Influence radius: the custom distance, else where the inverse square
+   * falloff of the brightest channel drops under the scene light threshold.
+   * Same rule as EEVEE Light::attenuation_radius_get() and the gameengine
+   * KX_CullingGate, so a light culled on CPU is one that contributes nothing. */
+  if (la->mode & LA_CUSTOM_ATTENUATION) {
+    entry.data.attenuation = la->att_dist;
+  }
+  else {
+    const float threshold = max_ff(1e-16f, inst_.scene->eevee.light_threshold);
+    const float max_power = math::reduce_max(entry.data.color) * fabsf(entry.data.energy / 100.0f);
+    const float power = max_fff(la->diff_fac, la->spec_fac, la->volume_fac) * max_power;
+    entry.data.attenuation = sqrtf(power / threshold);
+  }
 
   /* Shadow: -1 means no shadow; ShadowModule::end_sync() will assign atlas slots. */
   entry.data.shadow_index = (la->mode & LA_SHADOW) ? 0 : -1;

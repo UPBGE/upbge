@@ -183,6 +183,10 @@ class ShadowModule {
   /* Punctual light slots — routed by LIGHT_FLAG_SHADOW_DYNAMIC */
   std::vector<ShadowPunctual> static_punctual_;   /* max STATIC_PUNCTUAL_SLOTS */
   std::vector<ShadowPunctual> dynamic_punctual_;  /* max dynamic_slots_ count  */
+
+  /* World AABB of the shadow casters synced this frame (empty: min > max). */
+  float3 caster_min_ = float3(FLT_MAX);
+  float3 caster_max_ = float3(-FLT_MAX);
 };
 
 } // namespace blender::eevee_game

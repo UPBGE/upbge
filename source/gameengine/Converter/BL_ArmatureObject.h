@@ -96,6 +96,11 @@ class BL_ArmatureObject : public KX_GameObject {
   /// Never edit this, only for accessing names.
   blender::bPose *GetPose() const;
   void ApplyPose();
+  /// Frame stamp of the last pose evaluation of the original armature.
+  double GetLastApplyFrame() const
+  {
+    return m_lastapplyframe;
+  }
   void GameBlendPose(blender::bPose *dst, blender::bPose *src, float srcweight, short mode);
   void RemapParentChildren();
   void ApplyAction(blender::bAction *action, const blender::AnimationEvalContext &evalCtx);

@@ -37,6 +37,7 @@
 
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
+#include "KX_CullingGate.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_PythonProxy.h"
 #include "KX_PythonProxyManager.h"
@@ -260,6 +261,13 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   bool m_dbvt_culling;
 
   /**
+   * CPU visibility gate in front of the depsgraph and the draw manager.
+   */
+  KX_CullingGate m_cullingGate;
+  bool m_useCullingGate;
+  bool m_useCullingOcclusion;
+
+  /**
    * Occlusion culling resolution
    */
   int m_dbvt_occlusion_res;
@@ -438,6 +446,12 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
 
   void SetActiveCamera(class KX_Camera *);
 
+  KX_CullingGate &GetCullingGate()
+  {
+    return m_cullingGate;
+  }
+  bool UseCullingOcclusion(KX_Camera *cam);
+
   KX_Camera *GetOverrideCullingCamera() const;
   void SetOverrideCullingCamera(KX_Camera *cam);
 
@@ -592,6 +606,8 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
                                       PyObject *value);
   static PyObject *pyattr_get_overrideCullingCamera(EXP_PyObjectPlus *self_v,
                                                     const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_cpu_culling_stats(EXP_PyObjectPlus *self_v,
+                                                const EXP_PYATTRIBUTE_DEF *attrdef);
   static int pyattr_set_overrideCullingCamera(EXP_PyObjectPlus *self_v,
                                               const EXP_PYATTRIBUTE_DEF *attrdef,
                                               PyObject *value);

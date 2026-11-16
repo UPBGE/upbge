@@ -4,12 +4,14 @@
 #include "eevee_game_shadow.hh"
 #include "eevee_game_instance.hh"
 
+#include "BKE_object.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h" /* DEG2RADF */
 #include "DNA_light_types.h"
 #include "DNA_object_types.h"
 
+#include <cfloat>
 #include <cmath> /* sqrtf */
 
 namespace blender::eevee_game {
@@ -90,6 +92,8 @@ void ShadowModule::begin_sync()
   cascades_.clear();
   static_punctual_.clear();
   dynamic_punctual_.clear();
+  caster_min_ = float3(FLT_MAX);
+  caster_max_ = float3(-FLT_MAX);
 }
 
 void ShadowModule::update_cascades(Camera &camera, LightEntry &light)
@@ -109,6 +113,21 @@ void ShadowModule::update_cascades(Camera &camera, LightEntry &light)
   /* The camera looks down its local -Z axis; viewinv holds the camera axes in
    * world space as columns. */
   const float3 cam_forward = -float3(inst_->uniform_data.viewinv[2]);
+
+  /* Casters between the light and a slice are outside the slice bounds but
+   * must not be clipped by the ortho near plane. Without depth clamp the
+   * near plane is pulled toward the light up to the farthest synced caster
+   * (the CPU gate already restricted the synced set to the casters that can
+   * shadow the view). */
+  float caster_ls_zmax = -FLT_MAX;
+  if (caster_min_.x <= caster_max_.x) {
+    for (int c = 0; c < 8; c++) {
+      const float3 corner((c & 1) ? caster_max_.x : caster_min_.x,
+                          (c & 2) ? caster_max_.y : caster_min_.y,
+                          (c & 4) ? caster_max_.z : caster_min_.z);
+      caster_ls_zmax = math::max(caster_ls_zmax, math::transform_point(light_view, corner).z);
+    }
+  }
 
   for (int i = 0; i < MAX_SHADOW_CASCADES; ++i) {
     const float slice_near = (i == 0) ? near_clip :
@@ -149,6 +168,8 @@ void ShadowModule::update_cascades(Camera &camera, LightEntry &light)
     const float margin = 0.01f * (ls_max.x - ls_min.x);
     ls_min -= float3(margin);
     ls_max += float3(margin);
+    /* +Z points toward the light in light space. */
+    ls_max.z = math::max(ls_max.z, caster_ls_zmax + margin);
 
     /* The light looks down its local -Z, so depth range is [-max.z, -min.z]. */
     cascades_[i].view = light_view;
@@ -222,8 +243,24 @@ void ShadowModule::end_sync()
 
 void ShadowModule::sync_object(Object *ob, ResourceHandleRange res_handle)
 {
-  (void)ob;
   (void)res_handle;
+  if (ob->visibility_flag & OB_HIDE_SHADOW) {
+    return;
+  }
+  const std::optional<Bounds<float3>> bounds = BKE_object_boundbox_eval_cached_get(ob);
+  if (!bounds) {
+    return;
+  }
+  /* World AABB of the local box in center / half size form: the half size
+   * along a world axis is |row| . local half size (Arvo), exact for a box. */
+  const float4x4 &m = ob->object_to_world();
+  const float3 lc = (bounds->min + bounds->max) * 0.5f;
+  const float3 le = (bounds->max - bounds->min) * 0.5f;
+  const float3 wc = math::transform_point(m, lc);
+  const float3 we = math::abs(m.x_axis()) * le.x + math::abs(m.y_axis()) * le.y +
+                    math::abs(m.z_axis()) * le.z;
+  caster_min_ = math::min(caster_min_, wc - we);
+  caster_max_ = math::max(caster_max_, wc + we);
   /* TODO (dirty tracking): intersect ob's world AABB against each static
    * light's influence sphere. If they overlap, set needs_update = true on
    * that ShadowPunctual slot so render_static_atlas() re-renders it.
