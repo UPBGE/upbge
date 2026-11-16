@@ -54,6 +54,12 @@ class SCA_JoystickSensor : public SCA_ISensor {
    */
   int m_buttonf;
   /**
+   * Hat number (from 1) and direction (SDL hat bits, exact match), MUST be consecutive ints for
+   * the "hat" Python attribute
+   */
+  int m_hat;
+  int m_hatf;
+  /**
    * The threshold value the axis acts upon
    */
   int m_precision;
@@ -86,10 +92,19 @@ class SCA_JoystickSensor : public SCA_ISensor {
     KX_JOYSENSORMODE_NODEF = 0,
     KX_JOYSENSORMODE_BUTTON,
     KX_JOYSENSORMODE_AXIS,
-    KX_JOYSENSORMODE_HAT,  // unused
+    KX_JOYSENSORMODE_HAT,
     KX_JOYSENSORMODE_AXIS_SINGLE,
     KX_JOYSENSORMODE_SHOULDER_TRIGGER,
+    KX_JOYSENSORMODE_RAW_BUTTON,
+    KX_JOYSENSORMODE_RAW_AXIS,
     KX_JOYSENSORMODE_MAX
+  };
+
+  /** Joystick Axis: which side of the axis triggers (m_axisf). */
+  enum KX_JOYSENS_AXIS_SIGN {
+    KX_JOYSENS_AXIS_SIGN_POSITIVE = 0,
+    KX_JOYSENS_AXIS_SIGN_NEGATIVE,
+    KX_JOYSENS_AXIS_SIGN_BOTH,
   };
 
   enum KX_JOYSENS_BUTTON {
@@ -160,7 +175,9 @@ class SCA_JoystickSensor : public SCA_ISensor {
                      int axisf,
                      int prec,
                      int button,
-                     bool allevents);
+                     bool allevents,
+                     int hat,
+                     int hatf);
   virtual ~SCA_JoystickSensor();
   virtual EXP_Value *GetReplica();
 

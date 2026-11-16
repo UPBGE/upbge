@@ -1253,6 +1253,8 @@ static void draw_sensor_joystick(blender::ui::Layout *layout, PointerRNA *ptr)
   blender::ui::Layout *col, *row, *split;
 
   layout->prop(ptr, "joystick_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row = &layout->row(false);
+  row->prop(ptr, "mode", ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   split = &layout->split(0.75f, false);
   row = &split->row(false);
   row->prop(ptr, "event_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1283,6 +1285,28 @@ static void draw_sensor_joystick(blender::ui::Layout *layout, PointerRNA *ptr)
       col = &layout->column(false);
       col->prop(ptr, "axis_trigger_number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      break;
+    case SENS_JOY_RAW_BUTTON:
+      split->prop(ptr, "use_all_events", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+      col = &layout->column(false);
+      col->active_set(RNA_boolean_get(ptr, "use_all_events") == false);
+      col->prop(ptr, "button_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      break;
+    case SENS_JOY_RAW_AXIS:
+      col = &layout->column(false);
+      col->prop(ptr, "axis_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "axis_sign", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(ptr, "axis_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      break;
+    case SENS_JOY_HAT:
+      split->prop(ptr, "use_all_events", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+      col = &layout->column(false);
+      col->prop(ptr, "hat_number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col = &layout->column(false);
+      col->active_set(RNA_boolean_get(ptr, "use_all_events") == false);
+      col->prop(ptr, "hat_direction", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
   }
 }

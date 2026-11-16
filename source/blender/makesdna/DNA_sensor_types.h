@@ -330,6 +330,9 @@ typedef struct bMovementSensor {
 
 /* Joystick sensor - sorted by axis types */
 #define SENS_JOY_ANY_EVENT 1
+/* The sensor offers the Joystick (raw) event types instead of the Gamepad ones. Editor only: the
+ * runtime looks at the event type. */
+#define SENS_JOY_JOYSTICK_MODE 2
 
 #define SENS_JOY_BUTTON 0 /* axis type */
 #define SENS_JOY_BUTTON_PRESSED 0
@@ -371,7 +374,9 @@ typedef struct bMovementSensor {
 #define SENS_JOY_NEG_Y_AXIS 3
 #define SENS_JOY_PRECISION 4
 
-#define SENS_JOY_HAT 2 /* axis type */ /* Unused all Hat related defines */
+/* Joystick mode: a hat of a raw joystick, or the D-pad of a gamepad as hat 1. Hat numbers start at
+ * 1 and directions must match exactly, as in files saved by BGE 2.7x. */
+#define SENS_JOY_HAT 2 /* axis type */
 #define SENS_JOY_HAT_DIR 0
 #define SENS_JOY_HAT_UP 1
 #define SENS_JOY_HAT_RIGHT 2
@@ -392,6 +397,20 @@ typedef struct bMovementSensor {
 #define SENS_JOY_SHOULDER_TRIGGER 4 /* axis type */
 #define SENS_JOY_LEFT_SHOULDER_TRIGGER 1
 #define SENS_JOY_RIGHT_SHOULDER_TRIGGER 2
+
+/* Joystick mode: a button by index, from 0 (button). */
+#define SENS_JOY_RAW_BUTTON 5 /* axis type */
+#define SENS_JOY_RAW_BUTTON_MAX 128
+
+/* Joystick mode: an axis by number, from 1 as single axes were in BGE 2.7x (axis_single), and
+ * its sign (axisf). */
+#define SENS_JOY_RAW_AXIS 6 /* axis type */
+#define SENS_JOY_RAW_AXIS_MAX 16
+#define SENS_JOY_AXIS_POSITIVE 0
+#define SENS_JOY_AXIS_NEGATIVE 1
+#define SENS_JOY_AXIS_BOTH 2
+
+#define SENS_JOY_HAT_MAX 4
 
 #define SENS_DELAY_REPEAT 1
 // should match JOYINDEX_MAX in SCA_JoystickDefines.h */

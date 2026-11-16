@@ -513,6 +513,8 @@ void BL_ConvertSensors(blender::Object *blenderobject,
             int axisf = 0;
             int button = 0;
             int prec = 0;
+            int hat = 1;
+            int hatf = 0;
 
             switch (bjoy->type) {
               case SENS_JOY_AXIS: {
@@ -539,6 +541,25 @@ void BL_ConvertSensors(blender::Object *blenderobject,
                 joysticktype = SCA_JoystickSensor::KX_JOYSENSORMODE_SHOULDER_TRIGGER;
                 break;
               }
+              case SENS_JOY_RAW_BUTTON: {
+                button = bjoy->button;
+                joysticktype = SCA_JoystickSensor::KX_JOYSENSORMODE_RAW_BUTTON;
+                break;
+              }
+              case SENS_JOY_RAW_AXIS: {
+                axis = bjoy->axis_single;
+                axisf = bjoy->axisf;
+                prec = bjoy->precision;
+                joysticktype = SCA_JoystickSensor::KX_JOYSENSORMODE_RAW_AXIS;
+                break;
+              }
+              case SENS_JOY_HAT: {
+                /* Also Hat sensors saved by BGE 2.7x, whose hat field may be 0. */
+                hat = (bjoy->hat > 1) ? bjoy->hat : 1;
+                hatf = bjoy->hatf;
+                joysticktype = SCA_JoystickSensor::KX_JOYSENSORMODE_HAT;
+                break;
+              }
               default: {
                 CM_Error("bad case statement");
                 break;
@@ -552,7 +573,9 @@ void BL_ConvertSensors(blender::Object *blenderobject,
                                                 axisf,
                                                 prec,
                                                 button,
-                                                (bjoy->flag & SENS_JOY_ANY_EVENT));
+                                                (bjoy->flag & SENS_JOY_ANY_EVENT),
+                                                hat,
+                                                hatf);
           }
           else {
             CM_Error("problem finding the event manager");

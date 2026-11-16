@@ -177,6 +177,8 @@ void BKE_sca_init_sensor(bSensor *sens)
       js->axis = SENS_JOY_LEFT_STICK;
       js->axis_single = SENS_JOY_LEFT_STICK_HORIZONTAL;
       js->precision = 5000;
+      js->hat = 1;
+      js->hatf = SENS_JOY_HAT_UP;
       break;
     default:; /* this is very severe... I cannot make any memory for this        */
               /* logic brick...                                                    */

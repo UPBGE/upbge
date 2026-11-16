@@ -65,6 +65,18 @@ static const EnumPropertyItem sensor_type_items[] = {
     {SENS_RAY, "RAY", 0, "Ray", ""},
     {0, nullptr, 0, nullptr, nullptr}};
 
+/* Every joystick sensor event type. The editor lists those of the sensor's mode (Gamepad or
+ * Joystick) through rna_JoystickSensor_event_type_itemf(). */
+static const EnumPropertyItem joystick_event_type_items[] = {
+    {SENS_JOY_AXIS, "STICK_DIRECTIONS", 0, "Stick Directions", ""},
+    {SENS_JOY_AXIS_SINGLE, "STICK_AXIS", 0, "Stick Axis", ""},
+    {SENS_JOY_SHOULDER_TRIGGER, "SHOULDER_TRIGGERS", 0, "Shoulder Triggers", ""},
+    {SENS_JOY_BUTTON, "BUTTONS", 0, "Buttons", ""},
+    {SENS_JOY_RAW_BUTTON, "JOYSTICK_BUTTON", 0, "Joystick Button", "A button by its index"},
+    {SENS_JOY_RAW_AXIS, "JOYSTICK_AXIS", 0, "Joystick Axis", "An axis by its number"},
+    {SENS_JOY_HAT, "HAT", 0, "Hat", "A hat, or the D-pad of a gamepad as hat 1"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -189,6 +201,107 @@ const EnumPropertyItem *rna_Sensor_type_itemf(bContext *C,
   RNA_enum_item_end(&item, &totitem);
   *r_free = true;
 
+  return item;
+}
+
+/* Event types each joystick sensor mode offers. Connection exists in both. */
+static bool rna_joystick_type_is_joystick_only(int type)
+{
+  return ELEM(type, SENS_JOY_HAT, SENS_JOY_RAW_BUTTON, SENS_JOY_RAW_AXIS);
+}
+
+static int rna_JoystickSensor_mode_get(PointerRNA *ptr)
+{
+  const bJoystickSensor *js = (bJoystickSensor *)(((bSensor *)ptr->data)->data);
+  /* Hat sensors from older files carry no mode bit. */
+  return ((js->flag & SENS_JOY_JOYSTICK_MODE) || rna_joystick_type_is_joystick_only(js->type)) ?
+             SENS_JOY_JOYSTICK_MODE :
+             0;
+}
+
+/* Keep the fields of the new event type in its range: they are shared between types, and a
+ * value from another type would mean nothing (or read out of range) for this one. */
+static void rna_JoystickSensor_sanitize(bJoystickSensor *js)
+{
+  switch (js->type) {
+    case SENS_JOY_HAT:
+      js->hat = std::clamp(js->hat, 1, SENS_JOY_HAT_MAX);
+      if (!ELEM(js->hatf,
+                SENS_JOY_HAT_UP,
+                SENS_JOY_HAT_RIGHT,
+                SENS_JOY_HAT_DOWN,
+                SENS_JOY_HAT_LEFT,
+                SENS_JOY_HAT_UP_RIGHT,
+                SENS_JOY_HAT_DOWN_RIGHT,
+                SENS_JOY_HAT_UP_LEFT,
+                SENS_JOY_HAT_DOWN_LEFT))
+      {
+        js->hatf = SENS_JOY_HAT_UP;
+      }
+      break;
+    case SENS_JOY_RAW_BUTTON:
+      js->button = std::clamp(js->button, 0, SENS_JOY_RAW_BUTTON_MAX - 1);
+      break;
+    case SENS_JOY_RAW_AXIS:
+      js->axis_single = std::clamp(int(js->axis_single), 1, SENS_JOY_RAW_AXIS_MAX);
+      if (!ELEM(js->axisf, SENS_JOY_AXIS_POSITIVE, SENS_JOY_AXIS_NEGATIVE, SENS_JOY_AXIS_BOTH)) {
+        js->axisf = SENS_JOY_AXIS_POSITIVE;
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+static void rna_JoystickSensor_mode_set(PointerRNA *ptr, int value)
+{
+  bJoystickSensor *js = (bJoystickSensor *)(((bSensor *)ptr->data)->data);
+  if (value == SENS_JOY_JOYSTICK_MODE) {
+    js->flag |= SENS_JOY_JOYSTICK_MODE;
+    if (!rna_joystick_type_is_joystick_only(js->type)) {
+      js->type = SENS_JOY_RAW_BUTTON;
+    }
+  }
+  else {
+    js->flag &= ~SENS_JOY_JOYSTICK_MODE;
+    if (rna_joystick_type_is_joystick_only(js->type)) {
+      js->type = SENS_JOY_AXIS;
+    }
+  }
+  rna_JoystickSensor_sanitize(js);
+}
+
+static void rna_JoystickSensor_event_type_set(PointerRNA *ptr, int value)
+{
+  bJoystickSensor *js = (bJoystickSensor *)(((bSensor *)ptr->data)->data);
+  js->type = value;
+  if (rna_joystick_type_is_joystick_only(value)) {
+    js->flag |= SENS_JOY_JOYSTICK_MODE;
+  }
+  rna_JoystickSensor_sanitize(js);
+}
+
+static const EnumPropertyItem *rna_JoystickSensor_event_type_itemf(bContext * /*C*/,
+                                                                   PointerRNA *ptr,
+                                                                   PropertyRNA * /*prop*/,
+                                                                   bool *r_free)
+{
+  const EnumPropertyItem *items = joystick_event_type_items;
+  EnumPropertyItem *item = nullptr;
+  int totitem = 0;
+  if (rna_JoystickSensor_mode_get(ptr) == SENS_JOY_JOYSTICK_MODE) {
+    RNA_enum_items_add_value(&item, &totitem, items, SENS_JOY_RAW_BUTTON);
+    RNA_enum_items_add_value(&item, &totitem, items, SENS_JOY_RAW_AXIS);
+    RNA_enum_items_add_value(&item, &totitem, items, SENS_JOY_HAT);
+  }
+  else {
+    RNA_enum_items_add_value(&item, &totitem, items, SENS_JOY_AXIS);
+    RNA_enum_items_add_value(&item, &totitem, items, SENS_JOY_AXIS_SINGLE);
+    RNA_enum_items_add_value(&item, &totitem, items, SENS_JOY_SHOULDER_TRIGGER);
+    RNA_enum_items_add_value(&item, &totitem, items, SENS_JOY_BUTTON);
+  }
+  RNA_enum_item_end(&item, &totitem);
+  *r_free = true;
   return item;
 }
 
@@ -948,11 +1061,35 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const EnumPropertyItem event_type_joystick_items[] = {
-      {SENS_JOY_AXIS, "STICK_DIRECTIONS", 0, "Stick Directions", ""},
-      {SENS_JOY_AXIS_SINGLE, "STICK_AXIS", 0, "Stick Axis", ""},
-      {SENS_JOY_SHOULDER_TRIGGER, "SHOULDER_TRIGGERS", 0, "Shoulder Triggers", ""},
-      {SENS_JOY_BUTTON, "BUTTONS", 0, "Buttons", ""},
+  static const EnumPropertyItem mode_items[] = {
+      {0,
+       "GAMEPAD",
+       0,
+       "Gamepad",
+       "The standard game controller, in the Xbox 360 layout SDL maps every gamepad to"},
+      {SENS_JOY_JOYSTICK_MODE,
+       "JOYSTICK",
+       0,
+       "Joystick",
+       "Axes, buttons and hats by index, for flight sticks, wheels, pedals and other devices"},
+      {0, nullptr, 0, nullptr, nullptr}};
+
+  static const EnumPropertyItem axis_sign_items[] = {
+      {SENS_JOY_AXIS_POSITIVE, "POSITIVE", 0, "Positive", ""},
+      {SENS_JOY_AXIS_NEGATIVE, "NEGATIVE", 0, "Negative", ""},
+      {SENS_JOY_AXIS_BOTH, "BOTH", 0, "Both", ""},
+      {0, nullptr, 0, nullptr, nullptr}};
+
+  /* Identifiers as in BGE 2.7x. */
+  static const EnumPropertyItem hat_direction_items[] = {
+      {SENS_JOY_HAT_UP, "UP", 0, "Up", ""},
+      {SENS_JOY_HAT_DOWN, "DOWN", 0, "Down", ""},
+      {SENS_JOY_HAT_LEFT, "LEFT", 0, "Left", ""},
+      {SENS_JOY_HAT_RIGHT, "RIGHT", 0, "Right", ""},
+      {SENS_JOY_HAT_UP_RIGHT, "UPRIGHT", 0, "Up/Right", ""},
+      {SENS_JOY_HAT_DOWN_LEFT, "DOWNLEFT", 0, "Down/Left", ""},
+      {SENS_JOY_HAT_UP_LEFT, "UPLEFT", 0, "Up/Left", ""},
+      {SENS_JOY_HAT_DOWN_RIGHT, "DOWNRIGHT", 0, "Down/Right", ""},
       {0, nullptr, 0, nullptr, nullptr}};
 
   static EnumPropertyItem axis_items[] = {
@@ -1039,9 +1176,18 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, SENS_JOY_MAXINDEX - 1);
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, mode_items);
+  RNA_def_property_enum_funcs(
+      prop, "rna_JoystickSensor_mode_get", "rna_JoystickSensor_mode_set", nullptr);
+  RNA_def_property_ui_text(prop, "Mode", "How the sensor addresses the controller");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
   prop = RNA_def_property(srna, "event_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "type");
-  RNA_def_property_enum_items(prop, event_type_joystick_items);
+  RNA_def_property_enum_items(prop, joystick_event_type_items);
+  RNA_def_property_enum_funcs(
+      prop, nullptr, "rna_JoystickSensor_event_type_set", "rna_JoystickSensor_event_type_itemf");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
   RNA_def_property_ui_text(
       prop, "Event Type", "The type of event this joystick sensor is triggered on");
@@ -1086,6 +1232,38 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, axis_single_items);
   RNA_def_property_ui_text(
       prop, "Stick Axis", "Which stick single axis (vertical/horizontal/other) to detect");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  /* Joystick mode */
+  prop = RNA_def_property(srna, "button_index", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "button");
+  RNA_def_property_range(prop, 0, SENS_JOY_RAW_BUTTON_MAX - 1);
+  RNA_def_property_ui_text(prop, "Button", "Index of the button, from 0");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "axis_index", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "axis_single");
+  RNA_def_property_range(prop, 1, SENS_JOY_RAW_AXIS_MAX);
+  RNA_def_property_ui_text(prop, "Axis", "Number of the axis, from 1");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "axis_sign", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "axisf");
+  RNA_def_property_enum_items(prop, axis_sign_items);
+  RNA_def_property_ui_text(prop, "Sign", "Which side of the axis triggers the sensor");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "hat_number", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "hat");
+  RNA_def_property_range(prop, 1, SENS_JOY_HAT_MAX);
+  RNA_def_property_ui_text(prop, "Hat", "Number of the hat, from 1; a gamepad D-pad is hat 1");
+  RNA_def_property_update(prop, NC_LOGIC, nullptr);
+
+  prop = RNA_def_property(srna, "hat_direction", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "hatf");
+  RNA_def_property_enum_items(prop, hat_direction_items);
+  RNA_def_property_ui_text(
+      prop, "Hat Direction", "Direction of the hat; diagonals do not trigger straight directions");
   RNA_def_property_update(prop, NC_LOGIC, nullptr);
 
   /* Common */

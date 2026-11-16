@@ -31,11 +31,12 @@
 
 #include "SCA_JoystickSensor.h"
 
+#include <cstdlib>
+
 #include "CM_Message.h"
 #include "SCA_JoystickManager.h"
 
 using namespace blender;
-
 
 SCA_JoystickSensor::SCA_JoystickSensor(class SCA_JoystickManager *eventmgr,
                                        SCA_IObject *gameobj,
@@ -45,11 +46,15 @@ SCA_JoystickSensor::SCA_JoystickSensor(class SCA_JoystickManager *eventmgr,
                                        int axisf,
                                        int prec,
                                        int button,
-                                       bool allevents)
+                                       bool allevents,
+                                       int hat,
+                                       int hatf)
     : SCA_ISensor(gameobj, eventmgr),
       m_axis(axis),
       m_axisf(axisf),
       m_button(button),
+      m_hat(hat),
+      m_hatf(hatf),
       m_precision(prec),
       m_joymode(joymode),
       m_joyindex(joyindex),
@@ -99,6 +104,18 @@ bool SCA_JoystickSensor::Evaluate()
   }
 
   m_reset = false;
+
+  /* Test result -> trigger state and pulse, as the older modes below do by hand. */
+  const auto update = [&](bool positive) {
+    if (positive) {
+      m_istrig = 1;
+      result = true;
+    }
+    else if (m_istrig) {
+      m_istrig = 0;
+      result = true;
+    }
+  };
 
   switch (m_joymode) {
     case KX_JOYSENSORMODE_AXIS: {
@@ -186,6 +203,46 @@ bool SCA_JoystickSensor::Evaluate()
           result = true;
         }
       }
+      break;
+    }
+    /* Joystick mode reads the device as its SDL_Joystick reports it, bypassing any gamepad
+     * mapping. On a gamepad that starts once per connection; afterwards it is one test. */
+    case KX_JOYSENSORMODE_RAW_BUTTON: {
+      js->EnableRawInput();
+      if (!js->IsTrigButton() && !reset) { /* No events from SDL? - don't bother */
+        return false;
+      }
+      update(m_bAllEvents ? js->IsAnyRawButtonDown() : js->IsRawButtonDown(m_button));
+      break;
+    }
+    case KX_JOYSENSORMODE_RAW_AXIS: {
+      js->EnableRawInput();
+      if (!js->IsTrigAxis() && !reset) { /* No events from SDL? - don't bother */
+        return false;
+      }
+      const int value = js->GetRawAxis(m_axis - 1); /* axis numbers start at 1 */
+      switch (m_axisf) {
+        case KX_JOYSENS_AXIS_SIGN_POSITIVE:
+          update(value > m_precision);
+          break;
+        case KX_JOYSENS_AXIS_SIGN_NEGATIVE:
+          update(value < -m_precision);
+          break;
+        default:
+          update(std::abs(value) > m_precision);
+          break;
+      }
+      break;
+    }
+    case KX_JOYSENSORMODE_HAT: {
+      js->EnableRawInput();
+      /* Hats raise their own flag; a D-pad built from gamepad buttons raises the button one. */
+      if (!js->IsTrigHat() && !js->IsTrigButton() && !reset) {
+        return false;
+      }
+      /* Exact match as in BGE 2.7x: "up" does not fire on up-left or up-right. */
+      const int value = js->GetSensorHat(m_hat - 1);
+      update(value != 0 && (m_bAllEvents || value == m_hatf));
       break;
     }
     /* test for ball anyone ?*/
