@@ -135,6 +135,7 @@ DEV_InputDevice::DEV_InputDevice()
   m_reverseKeyTranslateTable[GHOST_kKeyTab] = TABKEY;
   m_reverseKeyTranslateTable[GHOST_kKeySpace] = SPACEKEY;
   m_reverseKeyTranslateTable[GHOST_kKeyEnter] = RETKEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyLinefeed] = LINEFEEDKEY;
   m_reverseKeyTranslateTable[GHOST_kKeyBackSpace] = BACKSPACEKEY;
   m_reverseKeyTranslateTable[GHOST_kKeySemicolon] = SEMICOLONKEY;
   m_reverseKeyTranslateTable[GHOST_kKeyPeriod] = PERIODKEY;
@@ -149,6 +150,27 @@ DEV_InputDevice::DEV_InputDevice()
   m_reverseKeyTranslateTable[GHOST_kKeyRightBracket] = RIGHTBRACKETKEY;
 
   m_reverseKeyTranslateTable[GHOST_kKeyLeftOS] = OSKEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyRightOS] = OSKEY; /* Blender's WM merges both too. */
+
+  // Keys added after the original set (BEGINKEYEXT range).
+  m_reverseKeyTranslateTable[GHOST_kKeyGrLess] = GRLESSKEY;
+  /* Reported on X11, Wayland and macOS by layouts with a dedicated '+' key (ES, DE, IT, ...). */
+  m_reverseKeyTranslateTable[GHOST_kKeyPlus] = PLUSKEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyApp] = APPKEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyLeftHyper] = HYPERKEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyRightHyper] = HYPERKEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyNumLock] = NUMLOCKKEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyScrollLock] = SCROLLLOCKKEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyPrintScreen] = PRINTSCREENKEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyF20] = F20KEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyF21] = F21KEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyF22] = F22KEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyF23] = F23KEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyF24] = F24KEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyMediaPlay] = MEDIAPLAYKEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyMediaStop] = MEDIASTOPKEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyMediaFirst] = MEDIAFIRSTKEY;
+  m_reverseKeyTranslateTable[GHOST_kKeyMediaLast] = MEDIALASTKEY;
 
   // Modifier keys.
   m_reverseKeyTranslateTable[GHOST_kKeyLeftControl] = LEFTCTRLKEY;

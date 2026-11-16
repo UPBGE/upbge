@@ -129,7 +129,9 @@ bool SCA_KeyboardSensor::Evaluate()
     bool status = false;
     bool events = false;
 
-    for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; ++i) {
+    for (int i = SCA_IInputDevice::BEGINKEY; i < SCA_IInputDevice::ENDKEYEXT;
+         i = SCA_IInputDevice::NextKeyboardInput(i))
+    {
       const SCA_InputEvent &input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
       if (input.End(SCA_InputEvent::ACTIVE)) {
         status = true;
@@ -137,7 +139,9 @@ bool SCA_KeyboardSensor::Evaluate()
       }
     }
 
-    for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; ++i) {
+    for (int i = SCA_IInputDevice::BEGINKEY; i < SCA_IInputDevice::ENDKEYEXT;
+         i = SCA_IInputDevice::NextKeyboardInput(i))
+    {
       const SCA_InputEvent &input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
       if (!input.m_queue.empty()) {
         events = true;
@@ -266,7 +270,7 @@ EXP_PYMETHODDEF_DOC_O(
   SCA_IInputDevice::SCA_EnumInputs keycode = (SCA_IInputDevice::SCA_EnumInputs)PyLong_AsLong(
       value);
 
-  if ((keycode < SCA_IInputDevice::BEGINKEY) || (keycode > SCA_IInputDevice::ENDKEY)) {
+  if (!SCA_IInputDevice::IsKeyboardInput(keycode)) {
     PyErr_SetString(PyExc_AttributeError,
                     "sensor.getKeyStatus(int): Keyboard Sensor, invalid keycode specified!");
     return nullptr;
@@ -328,11 +332,12 @@ PyAttributeDef SCA_KeyboardSensor::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("events", SCA_KeyboardSensor, pyattr_get_events),
     EXP_PYATTRIBUTE_RO_FUNCTION("inputs", SCA_KeyboardSensor, pyattr_get_inputs),
     EXP_PYATTRIBUTE_BOOL_RW("useAllKeys", SCA_KeyboardSensor, m_bAllKeys),
-    EXP_PYATTRIBUTE_INT_RW("key", 0, SCA_IInputDevice::ENDKEY, true, SCA_KeyboardSensor, m_hotkey),
+    EXP_PYATTRIBUTE_INT_RW(
+        "key", 0, SCA_IInputDevice::ENDKEYEXT - 1, true, SCA_KeyboardSensor, m_hotkey),
     EXP_PYATTRIBUTE_SHORT_RW(
-        "hold1", 0, SCA_IInputDevice::ENDKEY, true, SCA_KeyboardSensor, m_qual),
+        "hold1", 0, SCA_IInputDevice::ENDKEYEXT - 1, true, SCA_KeyboardSensor, m_qual),
     EXP_PYATTRIBUTE_SHORT_RW(
-        "hold2", 0, SCA_IInputDevice::ENDKEY, true, SCA_KeyboardSensor, m_qual2),
+        "hold2", 0, SCA_IInputDevice::ENDKEYEXT - 1, true, SCA_KeyboardSensor, m_qual2),
     EXP_PYATTRIBUTE_STRING_RW(
         "toggleProperty", 0, MAX_PROP_NAME, false, SCA_KeyboardSensor, m_toggleprop),
     EXP_PYATTRIBUTE_STRING_RW(
@@ -349,7 +354,9 @@ PyObject *SCA_KeyboardSensor::pyattr_get_inputs(EXP_PyObjectPlus *self_v,
 
   PyObject *dict = PyDict_New();
 
-  for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; i++) {
+  for (int i = SCA_IInputDevice::BEGINKEY; i < SCA_IInputDevice::ENDKEYEXT;
+       i = SCA_IInputDevice::NextKeyboardInput(i))
+  {
     SCA_InputEvent &input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
     if (input.Find(SCA_InputEvent::ACTIVE)) {
       PyObject *key = PyLong_FromLong(i);
@@ -371,7 +378,9 @@ PyObject *SCA_KeyboardSensor::pyattr_get_events(EXP_PyObjectPlus *self_v,
 
   PyObject *resultlist = PyList_New(0);
 
-  for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; i++) {
+  for (int i = SCA_IInputDevice::BEGINKEY; i < SCA_IInputDevice::ENDKEYEXT;
+       i = SCA_IInputDevice::NextKeyboardInput(i))
+  {
     SCA_InputEvent &input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
     int event = 0;
     if (input.m_queue.empty()) {

@@ -2267,6 +2267,11 @@ PyMODINIT_FUNC initGameKeysPythonBinding()
   KX_MACRO_addTypesToDict(d, F17KEY, SCA_IInputDevice::F17KEY);
   KX_MACRO_addTypesToDict(d, F18KEY, SCA_IInputDevice::F18KEY);
   KX_MACRO_addTypesToDict(d, F19KEY, SCA_IInputDevice::F19KEY);
+  KX_MACRO_addTypesToDict(d, F20KEY, SCA_IInputDevice::F20KEY);
+  KX_MACRO_addTypesToDict(d, F21KEY, SCA_IInputDevice::F21KEY);
+  KX_MACRO_addTypesToDict(d, F22KEY, SCA_IInputDevice::F22KEY);
+  KX_MACRO_addTypesToDict(d, F23KEY, SCA_IInputDevice::F23KEY);
+  KX_MACRO_addTypesToDict(d, F24KEY, SCA_IInputDevice::F24KEY);
 
   KX_MACRO_addTypesToDict(d, OSKEY, SCA_IInputDevice::OSKEY);
 
@@ -2276,6 +2281,18 @@ PyMODINIT_FUNC initGameKeysPythonBinding()
   KX_MACRO_addTypesToDict(d, PAGEUPKEY, SCA_IInputDevice::PAGEUPKEY);
   KX_MACRO_addTypesToDict(d, PAGEDOWNKEY, SCA_IInputDevice::PAGEDOWNKEY);
   KX_MACRO_addTypesToDict(d, ENDKEY, SCA_IInputDevice::ENDKEY);
+
+  KX_MACRO_addTypesToDict(d, GRLESSKEY, SCA_IInputDevice::GRLESSKEY);
+  KX_MACRO_addTypesToDict(d, PLUSKEY, SCA_IInputDevice::PLUSKEY);
+  KX_MACRO_addTypesToDict(d, APPKEY, SCA_IInputDevice::APPKEY);
+  KX_MACRO_addTypesToDict(d, HYPERKEY, SCA_IInputDevice::HYPERKEY);
+  KX_MACRO_addTypesToDict(d, NUMLOCKKEY, SCA_IInputDevice::NUMLOCKKEY);
+  KX_MACRO_addTypesToDict(d, SCROLLLOCKKEY, SCA_IInputDevice::SCROLLLOCKKEY);
+  KX_MACRO_addTypesToDict(d, PRINTSCREENKEY, SCA_IInputDevice::PRINTSCREENKEY);
+  KX_MACRO_addTypesToDict(d, MEDIAPLAYKEY, SCA_IInputDevice::MEDIAPLAYKEY);
+  KX_MACRO_addTypesToDict(d, MEDIASTOPKEY, SCA_IInputDevice::MEDIASTOPKEY);
+  KX_MACRO_addTypesToDict(d, MEDIAFIRSTKEY, SCA_IInputDevice::MEDIAFIRSTKEY);
+  KX_MACRO_addTypesToDict(d, MEDIALASTKEY, SCA_IInputDevice::MEDIALASTKEY);
 
   // MOUSE
   KX_MACRO_addTypesToDict(d, LEFTMOUSE, SCA_IInputDevice::LEFTMOUSE);

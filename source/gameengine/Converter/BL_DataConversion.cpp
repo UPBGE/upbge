@@ -231,6 +231,11 @@ static std::map<int, SCA_IInputDevice::SCA_EnumInputs> gReverseKeyTranslateTable
     {blender::EVT_F17KEY, SCA_IInputDevice::F17KEY},
     {blender::EVT_F18KEY, SCA_IInputDevice::F18KEY},
     {blender::EVT_F19KEY, SCA_IInputDevice::F19KEY},
+    {blender::EVT_F20KEY, SCA_IInputDevice::F20KEY},
+    {blender::EVT_F21KEY, SCA_IInputDevice::F21KEY},
+    {blender::EVT_F22KEY, SCA_IInputDevice::F22KEY},
+    {blender::EVT_F23KEY, SCA_IInputDevice::F23KEY},
+    {blender::EVT_F24KEY, SCA_IInputDevice::F24KEY},
 
     {blender::EVT_OSKEY, SCA_IInputDevice::OSKEY},
 
@@ -239,7 +244,17 @@ static std::map<int, SCA_IInputDevice::SCA_EnumInputs> gReverseKeyTranslateTable
     {blender::EVT_HOMEKEY, SCA_IInputDevice::HOMEKEY},
     {blender::EVT_PAGEUPKEY, SCA_IInputDevice::PAGEUPKEY},
     {blender::EVT_PAGEDOWNKEY, SCA_IInputDevice::PAGEDOWNKEY},
-    {blender::EVT_ENDKEY, SCA_IInputDevice::ENDKEY}};
+    {blender::EVT_ENDKEY, SCA_IInputDevice::ENDKEY},
+
+    /* Keys the logic editor accepts (ISKEYBOARD) that used to convert to NOKEY. */
+    {blender::EVT_GRLESSKEY, SCA_IInputDevice::GRLESSKEY},
+    {blender::EVT_PLUSKEY, SCA_IInputDevice::PLUSKEY},
+    {blender::EVT_APPKEY, SCA_IInputDevice::APPKEY},
+    {blender::EVT_HYPER, SCA_IInputDevice::HYPERKEY},
+    {blender::EVT_MEDIAPLAY, SCA_IInputDevice::MEDIAPLAYKEY},
+    {blender::EVT_MEDIASTOP, SCA_IInputDevice::MEDIASTOPKEY},
+    {blender::EVT_MEDIAFIRST, SCA_IInputDevice::MEDIAFIRSTKEY},
+    {blender::EVT_MEDIALAST, SCA_IInputDevice::MEDIALASTKEY}};
 
 SCA_IInputDevice::SCA_EnumInputs BL_ConvertKeyCode(int key_code)
 {

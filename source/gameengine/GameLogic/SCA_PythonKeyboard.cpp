@@ -133,7 +133,9 @@ PyObject *SCA_PythonKeyboard::pyattr_get_events(EXP_PyObjectPlus *self_v,
 
   PyObject *dict = PyDict_New();
 
-  for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; i++) {
+  for (int i = SCA_IInputDevice::BEGINKEY; i < SCA_IInputDevice::ENDKEYEXT;
+       i = SCA_IInputDevice::NextKeyboardInput(i))
+  {
     SCA_InputEvent &input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
     int event = 0;
     if (input.m_queue.empty()) {
@@ -161,7 +163,9 @@ PyObject *SCA_PythonKeyboard::pyattr_get_inputs(EXP_PyObjectPlus *self_v,
 
   PyObject *dict = PyDict_New();
 
-  for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; i++) {
+  for (int i = SCA_IInputDevice::BEGINKEY; i < SCA_IInputDevice::ENDKEYEXT;
+       i = SCA_IInputDevice::NextKeyboardInput(i))
+  {
     SCA_InputEvent &input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
     PyObject *key = PyLong_FromLong(i);
@@ -180,7 +184,9 @@ PyObject *SCA_PythonKeyboard::pyattr_get_active_inputs(EXP_PyObjectPlus *self_v,
 
   PyObject *dict = PyDict_New();
 
-  for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; i++) {
+  for (int i = SCA_IInputDevice::BEGINKEY; i < SCA_IInputDevice::ENDKEYEXT;
+       i = SCA_IInputDevice::NextKeyboardInput(i))
+  {
     SCA_InputEvent &input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
     if (input.Find(SCA_InputEvent::ACTIVE)) {
@@ -203,7 +209,9 @@ PyObject *SCA_PythonKeyboard::pyattr_get_active_events(EXP_PyObjectPlus *self_v,
 
   PyObject *dict = PyDict_New();
 
-  for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; i++) {
+  for (int i = SCA_IInputDevice::BEGINKEY; i < SCA_IInputDevice::ENDKEYEXT;
+       i = SCA_IInputDevice::NextKeyboardInput(i))
+  {
     SCA_InputEvent &input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
     if (input.Find(SCA_InputEvent::ACTIVE)) {

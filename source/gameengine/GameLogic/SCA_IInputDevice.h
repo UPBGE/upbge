@@ -202,8 +202,42 @@ class SCA_IInputDevice {
 
     ENDMOUSE,
 
+    /* Keys added after the original set. Appended after ENDMOUSE so every pre-existing code keeps
+     * its value: games persist these numbers in their key-binding files. */
+    BEGINKEYEXT,
+    GRLESSKEY,
+    PLUSKEY,
+    APPKEY,
+    HYPERKEY,
+    NUMLOCKKEY,
+    SCROLLLOCKKEY,
+    PRINTSCREENKEY,
+    F20KEY,
+    F21KEY,
+    F22KEY,
+    F23KEY,
+    F24KEY,
+    MEDIAPLAYKEY,
+    MEDIASTOPKEY,
+    MEDIAFIRSTKEY,
+    MEDIALASTKEY,
+    ENDKEYEXT,
+
     MAX_KEYS
   };  // enum
+
+  /** Keyboard codes live in two ranges: [BEGINKEY, ENDKEY] (ENDKEY is the End key itself) and
+   * (BEGINKEYEXT, ENDKEYEXT). Visit them in order with:
+   * for (int i = BEGINKEY; i < ENDKEYEXT; i = NextKeyboardInput(i)) */
+  static constexpr bool IsKeyboardInput(int input)
+  {
+    return (input >= BEGINKEY && input <= ENDKEY) || (input > BEGINKEYEXT && input < ENDKEYEXT);
+  }
+
+  static constexpr int NextKeyboardInput(int input)
+  {
+    return (input == ENDKEY) ? BEGINKEYEXT + 1 : input + 1;
+  }
 
  protected:
   /// Table of all possible input.
