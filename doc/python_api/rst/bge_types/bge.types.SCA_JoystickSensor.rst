@@ -9,6 +9,9 @@ base class --- :class:`~bge.types.SCA_ISensor`
 
    This sensor detects player joystick events.
 
+   On raw joysticks (see :attr:`~bge.types.SCA_PythonJoystick.isGamepad`), it sees axes 0 to 5
+   and buttons 0 to 25 as if they were the gamepad layout.
+
    .. attribute:: axisValues
 
       The state of the joysticks axis as a list of values :attr:`numAxis` long. (read-only).

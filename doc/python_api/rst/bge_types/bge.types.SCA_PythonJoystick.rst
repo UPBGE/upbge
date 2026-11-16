@@ -9,6 +9,18 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    A Python interface to a joystick.
 
+   SDL recognizes most controllers as gamepads and reports them in a fixed layout: 6 axes (left
+   stick, right stick, triggers) and 26 buttons. Other devices, such as flight sticks, throttles,
+   wheels, pedals and force-feedback joysticks, open as raw joysticks: :attr:`isGamepad` is
+   False, and :attr:`axisValues`, :attr:`activeButtons` and :attr:`hatValues` report the axes,
+   buttons and hats of the device by index. A mapping for the device's :attr:`guid` in
+   ``gamecontrollerdb.txt`` makes it a gamepad instead.
+
+   On a raw joystick, joystick sensors (logic bricks) see axes 0 to 5 and buttons 0 to 25 as if
+   they were the gamepad layout, and so do :attr:`leftStick`, :attr:`rightStick` and
+   :attr:`triggers`, whatever the device uses those axes for. The other axes, buttons and hats
+   are available from Python only.
+
    Each connection of a controller gets its own object, and the settings a script applies last as
    long as that connection: :attr:`strengthLeft`, :attr:`strengthRight`, :attr:`duration`,
    :attr:`stickDeadzone`, :attr:`stickOuter`, :attr:`stickExponent`, :attr:`triggerDeadzone`,
@@ -24,17 +36,25 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
       :type: string
 
+   .. attribute:: isGamepad
+
+      False for raw joysticks: devices SDL does not recognize as gamepads (see above).
+      (read-only)
+
+      :type: boolean
+
    .. attribute:: activeButtons
 
-      A list of active button values. (read-only)
+      The indices of the pressed buttons, from 0 to :attr:`numButtons` - 1. (read-only)
 
-      :type: list
+      :type: list of integers
 
    .. attribute:: axisValues
 
       The state of the joysticks axis as a list of values :attr:`numAxis` long. (read-only).
+      On a raw joystick, which axis is which depends on the device.
 
-      :type: list of ints.
+      :type: list of floats
 
       Each specifying the value of an axis between -1.0 and 1.0
       depending on how far the axis is pushed, 0 for nothing.
@@ -48,27 +68,40 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
    .. attribute:: hatValues
 
+      The hats of a raw joystick, as a list of values :attr:`numHats` long: 0 when centered,
+      otherwise 1 (up), 2 (right), 4 (down) or 8 (left), added together on diagonals (3 is up and
+      right). (read-only)
+
       .. deprecated:: 0.2.2
 
-         Use :attr:`activeButtons` instead.
+         On gamepads, which report the d-pad as buttons and return an empty list here. Use
+         :attr:`activeButtons` instead.
+
+      :type: list of integers
 
    .. attribute:: numAxis
 
-      The number of axes for the joystick at this index. (read-only).
+      The number of axes: 6 on gamepads, the device's own count (up to 16) on raw joysticks.
+      (read-only).
 
       :type: integer
 
    .. attribute:: numButtons
 
-      The number of buttons for the joystick at this index. (read-only).
+      The number of buttons: 26 on gamepads, the device's own count (up to 128) on raw joysticks.
+      (read-only).
 
       :type: integer
 
    .. attribute:: numHats
 
+      The number of hats of a raw joystick (up to 4). (read-only).
+
       .. deprecated:: 0.2.2
 
-         Use :attr:`numButtons` instead.
+         On gamepads, which have no hats and return 0 here. Use :attr:`numButtons` instead.
+
+      :type: integer
 
    .. method:: startVibration()
 
@@ -187,7 +220,8 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
 
       The controller type identified by SDL: ``"xbox360"``, ``"xboxone"``, ``"ps3"``, ``"ps4"``,
       ``"ps5"``, ``"switchpro"``, ``"joyconleft"``, ``"joyconright"``, ``"joyconpair"``,
-      ``"gamecube"``, ``"standard"`` or ``"unknown"``. (read-only)
+      ``"gamecube"``, ``"standard"`` or ``"unknown"``, and ``"joystick"`` for raw joysticks.
+      (read-only)
 
       :type: string
 

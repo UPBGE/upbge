@@ -138,6 +138,10 @@ Variables
    The list size is the maximum number of supported joysticks.
    If no joystick is available for a given slot, the slot is set to None.
 
+   Devices that SDL does not recognize as gamepads, such as flight sticks, wheels and pedals, are
+   listed too, as raw joysticks: check :attr:`~bge.types.SCA_PythonJoystick.isGamepad` before
+   relying on the gamepad layout.
+
    A new controller takes the first free slot, so a spare connected after a controller
    disconnects takes over that player's slot. Each connection gets a new
    :class:`~bge.types.SCA_PythonJoystick` with default settings: read the objects from this list
