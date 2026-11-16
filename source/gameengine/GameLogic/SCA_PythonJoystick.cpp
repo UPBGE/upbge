@@ -143,6 +143,8 @@ PyAttributeDef SCA_PythonJoystick::Attributes[] = {
     EXP_PYATTRIBUTE_RO_FUNCTION("type", SCA_PythonJoystick, pyattr_get_type),
     EXP_PYATTRIBUTE_RO_FUNCTION("buttonLabels", SCA_PythonJoystick, pyattr_get_button_labels),
     EXP_PYATTRIBUTE_RO_FUNCTION("guid", SCA_PythonJoystick, pyattr_get_guid),
+    EXP_PYATTRIBUTE_RO_FUNCTION("vendorId", SCA_PythonJoystick, pyattr_get_vendor_id),
+    EXP_PYATTRIBUTE_RO_FUNCTION("productId", SCA_PythonJoystick, pyattr_get_product_id),
     EXP_PYATTRIBUTE_RO_FUNCTION("connection", SCA_PythonJoystick, pyattr_get_connection),
     EXP_PYATTRIBUTE_RW_FUNCTION(
         "playerIndex", SCA_PythonJoystick, pyattr_get_player_index, pyattr_set_player_index),
@@ -406,6 +408,20 @@ PyObject *SCA_PythonJoystick::pyattr_get_guid(EXP_PyObjectPlus *self_v,
 {
   SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
   return PyUnicode_FromStdString(self->m_joystick->GetGUID());
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_vendor_id(EXP_PyObjectPlus *self_v,
+                                                   const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return PyLong_FromLong(self->m_joystick->GetVendorId());
+}
+
+PyObject *SCA_PythonJoystick::pyattr_get_product_id(EXP_PyObjectPlus *self_v,
+                                                    const EXP_PYATTRIBUTE_DEF * /*attrdef*/)
+{
+  SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+  return PyLong_FromLong(self->m_joystick->GetProductId());
 }
 
 PyObject *SCA_PythonJoystick::pyattr_get_connection(EXP_PyObjectPlus *self_v,

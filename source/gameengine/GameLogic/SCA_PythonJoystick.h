@@ -83,6 +83,10 @@ class SCA_PythonJoystick : public EXP_Value {
   static PyObject *pyattr_get_button_labels(EXP_PyObjectPlus *self_v,
                                             const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_guid(EXP_PyObjectPlus *self_v, const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_vendor_id(EXP_PyObjectPlus *self_v,
+                                        const EXP_PYATTRIBUTE_DEF *attrdef);
+  static PyObject *pyattr_get_product_id(EXP_PyObjectPlus *self_v,
+                                         const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_connection(EXP_PyObjectPlus *self_v,
                                          const EXP_PYATTRIBUTE_DEF *attrdef);
   static PyObject *pyattr_get_player_index(EXP_PyObjectPlus *self_v,

@@ -40,7 +40,30 @@ const char *DEV_Joystick::GetTypeName() const
     return name ? name : "unknown";
   }
   if (m_private->m_joystick) {
-    return "joystick";
+    /* The category the driver reports for a raw joystick. SDL has no strings for these, so the
+     * names follow the SDL_JoystickType enumerators. */
+    switch (SDL_GetJoystickType(m_private->m_joystick)) {
+      case SDL_JOYSTICK_TYPE_GAMEPAD: /* A gamepad without a mapping. */
+        return "gamepad";
+      case SDL_JOYSTICK_TYPE_WHEEL:
+        return "wheel";
+      case SDL_JOYSTICK_TYPE_ARCADE_STICK:
+        return "arcade_stick";
+      case SDL_JOYSTICK_TYPE_FLIGHT_STICK:
+        return "flight_stick";
+      case SDL_JOYSTICK_TYPE_DANCE_PAD:
+        return "dance_pad";
+      case SDL_JOYSTICK_TYPE_GUITAR:
+        return "guitar";
+      case SDL_JOYSTICK_TYPE_DRUM_KIT:
+        return "drum_kit";
+      case SDL_JOYSTICK_TYPE_ARCADE_PAD:
+        return "arcade_pad";
+      case SDL_JOYSTICK_TYPE_THROTTLE:
+        return "throttle";
+      default:
+        return "joystick";
+    }
   }
 #endif
   return "unknown";
@@ -85,6 +108,26 @@ std::string DEV_Joystick::GetGUID() const
   }
 #endif
   return "";
+}
+
+int DEV_Joystick::GetVendorId() const
+{
+#ifdef WITH_SDL
+  if (m_private->m_joystick) {
+    return SDL_GetJoystickVendor(m_private->m_joystick);
+  }
+#endif
+  return 0;
+}
+
+int DEV_Joystick::GetProductId() const
+{
+#ifdef WITH_SDL
+  if (m_private->m_joystick) {
+    return SDL_GetJoystickProduct(m_private->m_joystick);
+  }
+#endif
+  return 0;
 }
 
 const char *DEV_Joystick::GetConnectionName() const

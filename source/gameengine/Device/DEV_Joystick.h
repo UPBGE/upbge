@@ -321,12 +321,14 @@ class DEV_Joystick
   uint32_t GetConnectionId() const;
 
   /**
-   * Controller identity. The type is cached at open; the rest are
-   * single SDL queries, made only when a script asks.
+   * Controller identity. The gamepad type is cached at open; the rest
+   * are single SDL queries, made only when a script asks.
    */
-  const char *GetTypeName() const;              /* "xbox360", "ps5", "switchpro", ... */
+  const char *GetTypeName() const;              /* "xbox360", "ps5", "switchpro", ..., or "flight_stick", ... */
   const char *GetButtonLabel(int button) const; /* "A", "CROSS", ... or "UNKNOWN" */
   std::string GetGUID() const;                  /* For gamecontrollerdb.txt mappings. */
+  int GetVendorId() const;                      /* USB vendor id, 0 if unknown. */
+  int GetProductId() const;                     /* USB product id, 0 if unknown. */
   const char *GetConnectionName() const;        /* "wired", "wireless" or "unknown" */
   int GetPlayerIndex() const;
   bool SetPlayerIndex(int index);
