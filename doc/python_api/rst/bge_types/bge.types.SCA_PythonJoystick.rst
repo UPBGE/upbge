@@ -173,3 +173,172 @@ base class --- :class:`~bge.types.EXP_PyObjectPlus`
       Each joystick object keeps its own response settings. Values outside the type range are
       clamped; values that break the relations above, or NaN, raise :exc:`ValueError` and leave
       the previous value unchanged.
+
+   .. attribute:: type
+
+      The controller type identified by SDL: ``"xbox360"``, ``"xboxone"``, ``"ps3"``, ``"ps4"``,
+      ``"ps5"``, ``"switchpro"``, ``"joyconleft"``, ``"joyconright"``, ``"joyconpair"``,
+      ``"gamecube"``, ``"standard"`` or ``"unknown"``. (read-only)
+
+      :type: string
+
+   .. attribute:: buttonLabels
+
+      The labels printed on face buttons 0 to 3 (the indices :attr:`activeButtons` reports), for
+      choosing button prompts: ``"A"``, ``"B"``, ``"X"``, ``"Y"``, ``"CROSS"``, ``"CIRCLE"``,
+      ``"SQUARE"``, ``"TRIANGLE"`` or ``"UNKNOWN"``. (read-only)
+
+      .. code-block:: python
+
+         # ("A", "B", "X", "Y") on Xbox, ("CROSS", "CIRCLE", "SQUARE", "TRIANGLE") on PlayStation,
+         # ("B", "A", "Y", "X") on Switch controllers.
+         confirm_label = joystick.buttonLabels[0]
+
+      :type: tuple of 4 strings
+
+   .. attribute:: guid
+
+      The SDL GUID of the controller, the identifier used by ``gamecontrollerdb.txt`` mappings.
+      (read-only)
+
+      :type: string (32 hexadecimal digits)
+
+   .. attribute:: connection
+
+      ``"wired"``, ``"wireless"`` or ``"unknown"``. (read-only)
+
+      :type: string
+
+   .. attribute:: playerIndex
+
+      The player number shown by the controller: player LEDs on PS5 and Switch controllers, ring
+      quadrant on Xbox 360 controllers. Set to the joystick index (0 is player 1) when the
+      controller connects. -1 clears it. Some platforms assign it themselves (XInput on
+      Windows) and ignore changes.
+
+      :type: integer (-1 or greater)
+
+   .. method:: enableSensors(gyro=True, accel=False)
+
+      Turns the motion sensors on or off. They are off by default; while off, they cost nothing.
+
+      :arg gyro: Enable the gyroscope.
+      :type gyro: boolean
+      :arg accel: Enable the accelerometer.
+      :type accel: boolean
+      :return: False if a requested sensor is missing or could not be switched.
+      :rtype: boolean
+
+   .. attribute:: hasGyro
+
+      Whether the controller has a gyroscope. (read-only)
+
+      :type: boolean
+
+   .. attribute:: hasAccel
+
+      Whether the controller has an accelerometer. (read-only)
+
+      :type: boolean
+
+   .. attribute:: gyro
+
+      Latest angular velocity, in radians per second, as (pitch, yaw, roll): rotation around the
+      x (right), y (up) and z (towards the player) axes of the controller held in front of you,
+      counter-clockwise positive. These match the local axes of a camera. All zero until
+      :meth:`enableSensors` turns the gyroscope on. (read-only)
+
+      :type: tuple of 3 floats
+
+   .. attribute:: gyroDelta
+
+      Rotation, in radians, accumulated from every gyroscope sample received since the previous
+      logic tick, in the same axes as :attr:`gyro`. Controllers report 200 to 1000 samples per
+      second, several per tick; this sums all of them, so it is the rotation to apply this tick
+      whatever the logic rate. (read-only)
+
+      .. code-block:: python
+
+         pitch, yaw, roll = joystick.gyroDelta
+         camera.applyRotation((pitch * sensitivity, yaw * sensitivity, 0.0), True)
+
+      :type: tuple of 3 floats
+
+   .. attribute:: accel
+
+      Latest acceleration, in meters per second squared, gravity included (a controller at rest
+      reads about 9.81 along the axis pointing up). (read-only)
+
+      :type: tuple of 3 floats
+
+   .. attribute:: touchpads
+
+      The fingers on each touchpad (DualShock 4 and DualSense have one, the Steam Deck two), as
+      ``(down, x, y, pressure)`` tuples; x and y go from 0.0 to 1.0 from the top-left corner. The
+      touchpad click is reported as button 20. (read-only)
+
+      :type: list of lists of (boolean, float, float, float) tuples
+
+   .. attribute:: battery
+
+      ``(state, percent)``: state is ``"on_battery"``, ``"no_battery"``, ``"charging"``,
+      ``"charged"``, ``"unknown"`` or ``"error"``; percent is the charge level, or -1 when the
+      controller does not report it. (read-only)
+
+      :type: tuple of (string, integer)
+
+   .. attribute:: hasLED
+
+      Whether the controller has a light bar or LED that :meth:`setLED` can set. (read-only)
+
+      :type: boolean
+
+   .. method:: setLED(red, green, blue)
+
+      Sets the light bar color. On controllers with a single-color LED, the brightest channel sets
+      the brightness. Call it when the color changes, not every frame.
+
+      :arg red: Red channel, 0.0 to 1.0.
+      :type red: float
+      :arg green: Green channel, 0.0 to 1.0.
+      :type green: float
+      :arg blue: Blue channel, 0.0 to 1.0.
+      :type blue: float
+      :return: False if the controller has no LED.
+      :rtype: boolean
+
+   .. attribute:: hasTriggerVibration
+
+      Whether the controller has trigger motors (Xbox One and Series controllers). (read-only)
+
+      :type: boolean
+
+   .. method:: startTriggerVibration(left, right, duration)
+
+      Vibrates the trigger motors. The effect stops by itself after ``duration`` milliseconds.
+
+      :arg left: Left trigger strength, 0.0 to 1.0.
+      :type left: float
+      :arg right: Right trigger strength, 0.0 to 1.0.
+      :type right: float
+      :arg duration: Duration in milliseconds.
+      :type duration: integer
+      :return: False if the controller has no trigger motors.
+      :rtype: boolean
+
+   .. method:: stopTriggerVibration()
+
+      Stops the trigger motors.
+
+      :return: False if the controller has no trigger motors.
+      :rtype: boolean
+
+   .. method:: sendEffect(data)
+
+      Sends a raw, controller-specific effect packet, for example DualSense adaptive-trigger
+      settings. The packet layout is defined per controller by SDL (see ``SDL_SendGamepadEffect``).
+
+      :arg data: The packet.
+      :type data: bytes-like object
+      :return: False if the controller does not accept effect packets.
+      :rtype: boolean

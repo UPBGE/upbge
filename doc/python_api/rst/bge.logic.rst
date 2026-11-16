@@ -296,6 +296,25 @@ General functions
    
    :rtype: list [float], len(getSpectrum()) == 512
 
+.. function:: setJoystickHint(name, value)
+
+   Sets an SDL joystick hint, for example ``"SDL_JOYSTICK_HIDAPI_PS5_PLAYER_LED"``. Only names
+   starting with ``SDL_JOYSTICK_``, ``SDL_GAMECONTROLLER`` or ``SDL_HIDAPI_`` are accepted. Hints
+   SDL reads when a controller connects only affect controllers connected afterwards. Hints set
+   this way are reset when the game ends.
+
+   The engine sets ``SDL_JOYSTICK_ENHANCED_REPORTS`` to ``"auto"``: PlayStation and Switch
+   controllers on Bluetooth switch to enhanced reports only when the game uses rumble, LED or
+   motion sensors.
+
+   :arg name: The hint name.
+   :type name: string
+   :arg value: The hint value.
+   :type value: string
+   :return: False if a higher-priority value (an environment variable) already sets the hint.
+   :rtype: boolean
+   :raises ValueError: If the name is not a joystick hint.
+
 .. function:: getMaxLogicFrame()
 
    Gets the maximum number of logic frames per render frame.
