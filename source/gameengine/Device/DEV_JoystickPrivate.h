@@ -44,8 +44,9 @@ class DEV_Joystick::PrivateData {
    * The Game controller
    */
   SDL_Gamepad *m_gamecontroller;
-  /** The underlying joystick (owned by m_gamecontroller). Joystick-level calls cover what the
-   * gamepad-level ones would do, since SDL implements the latter on top of the former. */
+  /** The underlying joystick: owned by m_gamecontroller for gamepads, opened directly for raw
+   * joysticks (m_gamecontroller null). Joystick-level calls cover what the gamepad-level ones
+   * would do, since SDL implements the latter on top of the former. */
   SDL_Joystick *m_joystick;
   SDL_JoystickID m_sdl_joystick_id;
   bool m_hasRumble;

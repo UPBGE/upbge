@@ -103,6 +103,25 @@ class DEV_Joystick
   uint32_t m_pressed;
 
   /**
+   * Raw joystick state: devices SDL does not recognize as gamepads (flight sticks, throttles,
+   * wheels, pedals, force-feedback joysticks), updated from SDL_EVENT_JOYSTICK_* events. Axes 0
+   * to 5 and buttons 0 to 25 (the gamepad layout) are mirrored into m_axis_array and
+   * m_buttons/m_pressed, so logic-brick joystick sensors work unchanged. m_axismax and
+   * m_buttonmax hold the counts.
+   */
+  int16_t m_rawAxes[DEV_RAW_AXES_MAX] = {};
+  uint64_t m_rawButtons[DEV_RAW_BUTTONS_MAX / 64] = {};
+  uint64_t m_rawPressed[DEV_RAW_BUTTONS_MAX / 64] = {}; /* down edges since the last tick */
+  uint8_t m_hats[DEV_RAW_HATS_MAX] = {};
+  int m_numHats = 0;
+  /** Open raw joysticks: with none, joystick-level input events cost one test each. */
+  static int m_numRawJoysticks;
+  /** SDL instance id of the raw joystick in each slot, 0 elsewhere (SDL never assigns 0). The
+   * events SDL emits for gamepads are rejected by scanning these 32 bytes, without touching any
+   * instance. */
+  static uint32_t m_rawJoystickIds[JOYINDEX_MAX];
+
+  /**
    * Motion sensors, updated from SDL_EVENT_GAMEPAD_SENSOR_UPDATE once EnableSensors() is called.
    * m_gyroDelta accumulates every gyro sample since the previous logic tick, so the rotation a
    * script reads does not depend on how many samples (200 to 1000 Hz) fall inside one tick.
@@ -123,7 +142,11 @@ class DEV_Joystick
   void OnAxisEvent(SDL_Event *sdl_event);
   void OnButtonEvent(SDL_Event *sdl_event);
   void OnSensorEvent(SDL_Event *sdl_event);
+  void OnRawEvent(SDL_Event *sdl_event);
   void OnNothing(SDL_Event *sdl_event);
+
+  /** Open a device SDL does not recognize as a gamepad. */
+  bool CreateRawJoystickDevice();
 
   /** Output capabilities and the player index, resolved when a device opens. */
   void InitOutputs();
@@ -227,6 +250,19 @@ class DEV_Joystick
    * Name of the joytsick
    */
   const std::string GetName();
+
+  /**
+   * False for raw joysticks: devices SDL does not recognize as gamepads, opened with their own
+   * axes, buttons and hats. Counts follow the gamepad layout (6 axes, 26 buttons, no hats) for
+   * gamepads and the device for raw joysticks.
+   */
+  bool IsGamepad() const;
+  int GetNumAxes() const;
+  int GetNumButtons() const;
+  int GetNumHats() const;
+  int GetAxisValue(int axis) const;    /* -32768 to 32767 */
+  bool IsButtonDown(int button) const; /* includes presses released within the tick */
+  int GetHat(int hat) const;           /* SDL_HAT_* bit mask */
 
   /**
    * Controller identity. The type is cached at open; the rest are

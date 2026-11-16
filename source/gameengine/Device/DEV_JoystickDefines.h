@@ -39,6 +39,12 @@
 #define JOYAXIS_MAX 6
 #define JOYBUT_MAX 26  /* SDL_GAMEPAD_BUTTON_COUNT in SDL 3.2+ (MISC2..MISC6 added) */
 
+/* Limits for raw joysticks (devices SDL does not recognize as gamepads). DirectInput reports at
+ * most 8 axes and 128 buttons; Linux devices rarely exceed them. */
+#define DEV_RAW_AXES_MAX 16
+#define DEV_RAW_BUTTONS_MAX 128
+#define DEV_RAW_HATS_MAX 4
+
 #define JOYAXIS_RIGHT 0
 #define JOYAXIS_UP 1
 #define JOYAXIS_DOWN 3

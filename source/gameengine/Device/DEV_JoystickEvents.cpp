@@ -93,6 +93,70 @@ void DEV_Joystick::OnSensorEvent(SDL_Event *sdl_event)
   }
 }
 
+void DEV_Joystick::OnRawEvent(SDL_Event *sdl_event)
+{
+  /* The trigger flags wake logic-brick sensors, which only see the mirrored axes and buttons. */
+  switch (sdl_event->type) {
+    case SDL_EVENT_JOYSTICK_AXIS_MOTION: {
+      const int axis = sdl_event->jaxis.axis;
+      if (axis < DEV_RAW_AXES_MAX) {
+        m_rawAxes[axis] = sdl_event->jaxis.value;
+        if (axis < JOYAXIS_MAX) {
+          m_axis_array[axis] = sdl_event->jaxis.value;
+          m_istrig_axis = 1;
+        }
+      }
+      break;
+    }
+    case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
+    case SDL_EVENT_JOYSTICK_BUTTON_UP: {
+      const int button = sdl_event->jbutton.button;
+      if (button < DEV_RAW_BUTTONS_MAX) {
+        const uint64_t bit = uint64_t(1) << (button & 63);
+        if (sdl_event->jbutton.down) {
+          m_rawButtons[button >> 6] |= bit;
+          m_rawPressed[button >> 6] |= bit; /* Survives a release in the same tick. */
+        }
+        else {
+          m_rawButtons[button >> 6] &= ~bit;
+        }
+        /* Buttons of the gamepad layout also drive the mask that logic-brick sensors read. */
+        if (button < JOYBUT_MAX) {
+          if (sdl_event->jbutton.down) {
+            m_buttons |= 1u << button;
+            m_pressed |= 1u << button;
+          }
+          else {
+            m_buttons &= ~(1u << button);
+          }
+          m_istrig_button = 1;
+        }
+      }
+      break;
+    }
+    case SDL_EVENT_JOYSTICK_HAT_MOTION:
+      if (sdl_event->jhat.hat < DEV_RAW_HATS_MAX) {
+        m_hats[sdl_event->jhat.hat] = sdl_event->jhat.value;
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+/* Instance id of a joystick-level input event. */
+static SDL_JoystickID raw_event_joystick(const SDL_Event &event)
+{
+  switch (event.type) {
+    case SDL_EVENT_JOYSTICK_AXIS_MOTION:
+      return event.jaxis.which;
+    case SDL_EVENT_JOYSTICK_HAT_MOTION:
+      return event.jhat.which;
+    default:
+      return event.jbutton.which;
+  }
+}
+
 void DEV_Joystick::OnNothing(SDL_Event *sdl_event)
 {
   /* A tap that began and ended inside the previous tick was reported as pressed for that tick
@@ -102,6 +166,7 @@ void DEV_Joystick::OnNothing(SDL_Event *sdl_event)
   m_istrig_axis = 0;
   m_istrig_button = (tapped != 0);
   m_pressed = 0;
+  m_rawPressed[0] = m_rawPressed[1] = 0;
   /* gyroDelta is the rotation since the previous tick: restart the sum. */
   m_gyroDelta[0] = m_gyroDelta[1] = m_gyroDelta[2] = 0.0f;
 }
@@ -125,9 +190,8 @@ bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
 
     /* Note!, we need to use SDL_JOYDEVICE ADDED to find new controllers as
      * SDL_CONTROLLERDEVICEADDED doesn't report about all devices connected at beginning.
-     * Additionally we capture all devices this
-     * way and we can inform properly (with ways to solve it) if the joystick it is not a game
-     * controller */
+     * Additionally we capture all devices this way, and the ones that are not game controllers
+     * open as raw joysticks. */
 
     switch (sdl_event.type) {
       case SDL_EVENT_JOYSTICK_ADDED:
@@ -151,11 +215,16 @@ bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
           }
         }
         break;
-      case SDL_EVENT_GAMEPAD_REMOVED:
+      case SDL_EVENT_JOYSTICK_REMOVED:
+      case SDL_EVENT_GAMEPAD_REMOVED: {
+        /* Raw joysticks only report SDL_EVENT_JOYSTICK_REMOVED. Gamepads report both; the second
+         * finds the slot already released. */
+        const SDL_JoystickID which = (sdl_event.type == SDL_EVENT_JOYSTICK_REMOVED) ?
+                                         sdl_event.jdevice.which :
+                                         sdl_event.gdevice.which;
         for (int i = 0; i < JOYINDEX_MAX; i++) {
           if (DEV_Joystick::m_instance[i]) {
-            if (sdl_event.gdevice.which ==
-                DEV_Joystick::m_instance[i]->m_private->m_sdl_joystick_id) {
+            if (which == DEV_Joystick::m_instance[i]->m_private->m_sdl_joystick_id) {
               DEV_Joystick::m_instance[i]->ReleaseInstance(i);
               addrem[i] = 2;
               remap = true;
@@ -164,6 +233,7 @@ bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
           }
         }
         break;
+      }
       case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
       case SDL_EVENT_GAMEPAD_BUTTON_UP:
         for (int i = 0; i < JOYINDEX_MAX; i++) {
@@ -198,8 +268,27 @@ bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
           }
         }
         break;
+      case SDL_EVENT_JOYSTICK_AXIS_MOTION:
+      case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
+      case SDL_EVENT_JOYSTICK_BUTTON_UP:
+      case SDL_EVENT_JOYSTICK_HAT_MOTION: {
+        /* SDL also emits these for every gamepad: its gamepad layer is built on them, so they
+         * cannot be disabled. Only raw joysticks consume them; with none open, this test is
+         * all they cost. */
+        if (m_numRawJoysticks == 0) {
+          break;
+        }
+        const SDL_JoystickID which = raw_event_joystick(sdl_event);
+        for (int i = 0; i < JOYINDEX_MAX; i++) {
+          if (m_rawJoystickIds[i] == which) {
+            DEV_Joystick::m_instance[i]->OnRawEvent(&sdl_event);
+            break;
+          }
+        }
+        break;
+      }
       default:
-        /* ignore old SDL_JOYSTICKS events */
+        /* Other events are not used. */
         break;
     }
   }

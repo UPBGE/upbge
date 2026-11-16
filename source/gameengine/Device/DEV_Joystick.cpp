@@ -76,6 +76,8 @@ DEV_Joystick::~DEV_Joystick()
 }
 
 DEV_Joystick *DEV_Joystick::m_instance[JOYINDEX_MAX];
+int DEV_Joystick::m_numRawJoysticks = 0;
+uint32_t DEV_Joystick::m_rawJoystickIds[JOYINDEX_MAX] = {};
 
 /** Names of the hints set through SetHint(), reset by Close(). */
 static std::vector<std::string> g_hints_set;
@@ -260,18 +262,9 @@ bool DEV_Joystick::CreateJoystickDevice(void)
 #else  /* WITH_SDL */
   if (!m_isinit) {
     if (!joy_error && !SDL_IsGamepad(m_private->m_sdl_joystick_id)) {
-      /* mapping instruccions if joystick is not a game controller */
-      CM_Error(
-          "Game Controller index "
-          << m_bge_joystick_slot << ": Could not be initialized\n"
-          << "Please, generate Xbox360 compatible mapping using Antimicro "
-             "(https://github.com/AntiMicro/antimicro)\n"
-          << "or SDL2 Gamepad Tool (http://www.generalarcade.com/gamepadtool) or Steam big mode "
-             "applications\n"
-          << "and after, set the SDL controller variable before you launch the executable, i.e:\n"
-          << "export SDL_GAMECONTROLLERCONFIG=\"[the string you received from controllermap]\"");
-      /* Need this so python args can return empty lists */
-      joy_error = true;
+      /* Not a gamepad (flight stick, throttle, wheel, pedals, force-feedback joystick...): open it
+       * as a raw joystick whose axes, buttons and hats are addressed by index. */
+      return CreateRawJoystickDevice();
     }
 
     if (!joy_error) {
@@ -355,6 +348,52 @@ bool DEV_Joystick::CreateJoystickDevice(void)
 }
 
 #ifdef WITH_SDL
+bool DEV_Joystick::CreateRawJoystickDevice()
+{
+  SDL_Joystick *joy = SDL_OpenJoystick(m_private->m_sdl_joystick_id);
+  if (!joy) {
+    CM_Error("joystick with index " << m_bge_joystick_slot
+                                    << " could not be opened: " << SDL_GetError());
+    m_axismax = m_buttonmax = 0;
+    return false;
+  }
+  m_private->m_joystick = joy;
+  m_axismax = std::clamp(SDL_GetNumJoystickAxes(joy), 0, DEV_RAW_AXES_MAX);
+  m_buttonmax = std::clamp(SDL_GetNumJoystickButtons(joy), 0, DEV_RAW_BUTTONS_MAX);
+  m_numHats = std::clamp(SDL_GetNumJoystickHats(joy), 0, DEV_RAW_HATS_MAX);
+
+  /* Seed once from the live state; from here on only SDL events modify it. */
+  for (int i = 0; i < m_axismax; i++) {
+    m_rawAxes[i] = SDL_GetJoystickAxis(joy, i);
+    if (i < JOYAXIS_MAX) {
+      m_axis_array[i] = m_rawAxes[i];
+    }
+  }
+  m_buttons = m_pressed = 0;
+  for (int i = 0; i < m_buttonmax; i++) {
+    if (SDL_GetJoystickButton(joy, i)) {
+      m_rawButtons[i >> 6] |= uint64_t(1) << (i & 63);
+      if (i < JOYBUT_MAX) {
+        m_buttons |= 1u << i;
+      }
+    }
+  }
+  for (int i = 0; i < m_numHats; i++) {
+    m_hats[i] = SDL_GetJoystickHat(joy, i);
+  }
+
+  m_isinit = true;
+  m_numRawJoysticks++;
+  m_rawJoystickIds[m_bge_joystick_slot] = m_private->m_sdl_joystick_id;
+  CM_Message("Joystick (" << GetName() << ") with index " << m_bge_joystick_slot
+                          << " is not a gamepad: opened as a raw joystick (axes " << m_axismax
+                          << ", buttons " << m_buttonmax << ", hats " << m_numHats
+                          << "). A mapping for GUID " << GetGUID()
+                          << " in gamecontrollerdb.txt makes it a gamepad.");
+  InitOutputs();
+  return true;
+}
+
 void DEV_Joystick::InitOutputs()
 {
   SDL_Joystick *joy = m_private->m_joystick;
@@ -375,7 +414,9 @@ void DEV_Joystick::InitOutputs()
   if (!m_private->m_hasRumble) {
     m_private->m_haptic = SDL_OpenHapticFromJoystick(joy);
   }
-  if (!m_private->m_haptic && !m_private->m_hasRumble) {
+  /* Most flight sticks, throttles and pedals have no motors: only a gamepad without them is
+   * worth a warning. */
+  if (!m_private->m_haptic && !m_private->m_hasRumble && m_private->m_gamecontroller) {
     CM_Warning("Game Controller (" << GetName() << ") with index " << m_bge_joystick_slot
                                    << " has not force feedback (vibration) available");
   }
@@ -402,11 +443,65 @@ void DEV_Joystick::DestroyJoystickDevice(void)
       SDL_CloseGamepad(m_private->m_gamecontroller);
       m_private->m_gamecontroller = nullptr;
     }
+    else if (m_private->m_joystick) {
+      CM_Debug("Joystick (" << GetName() << ") with index " << m_bge_joystick_slot << " closed");
+      SDL_CloseJoystick(m_private->m_joystick);
+      m_numRawJoysticks--;
+      m_rawJoystickIds[m_bge_joystick_slot] = 0;
+    }
     m_private->m_joystick = nullptr;
 
     m_isinit = false;
   }
 #endif /* WITH_SDL */
+}
+
+bool DEV_Joystick::IsGamepad() const
+{
+#ifdef WITH_SDL
+  return m_private->m_gamecontroller != nullptr;
+#else
+  return false;
+#endif
+}
+
+int DEV_Joystick::GetNumAxes() const
+{
+  return (m_axismax > 0) ? m_axismax : 0;
+}
+
+int DEV_Joystick::GetNumButtons() const
+{
+  return (m_buttonmax > 0) ? m_buttonmax : 0;
+}
+
+int DEV_Joystick::GetNumHats() const
+{
+  return m_numHats;
+}
+
+int DEV_Joystick::GetAxisValue(int axis) const
+{
+  if ((unsigned int)axis >= (unsigned int)GetNumAxes()) {
+    return 0;
+  }
+  return IsGamepad() ? m_axis_array[axis] : m_rawAxes[axis];
+}
+
+bool DEV_Joystick::IsButtonDown(int button) const
+{
+  if ((unsigned int)button >= (unsigned int)GetNumButtons()) {
+    return false;
+  }
+  if (IsGamepad()) {
+    return ((m_buttons | m_pressed) >> button) & 1u;
+  }
+  return ((m_rawButtons[button >> 6] | m_rawPressed[button >> 6]) >> (button & 63)) & 1u;
+}
+
+int DEV_Joystick::GetHat(int hat) const
+{
+  return ((unsigned int)hat < (unsigned int)m_numHats) ? m_hats[hat] : 0;
 }
 
 int DEV_Joystick::Connected(void)

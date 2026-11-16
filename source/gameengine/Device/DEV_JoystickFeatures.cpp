@@ -39,6 +39,9 @@ const char *DEV_Joystick::GetTypeName() const
     const char *name = SDL_GetGamepadStringForType(m_private->m_type);
     return name ? name : "unknown";
   }
+  if (m_private->m_joystick) {
+    return "joystick";
+  }
 #endif
   return "unknown";
 }
