@@ -22,6 +22,8 @@ enum eShaderType {
   /* --- Deferred lighting ---
    * Decodes EEVEE's G-Buffer and lights it with the game light list. */
   SH_DEFERRED_LIGHT = 0,
+  /* Per screen tile bitmask of the lights that can reach the tile. */
+  SH_LIGHT_CULL,
 
   /* Deterministic 3x3 PCF shadow mask: compute shader that reads depth + normal
    * from the G-Buffer and writes one shadow factor per pixel into shadow_mask_tx.

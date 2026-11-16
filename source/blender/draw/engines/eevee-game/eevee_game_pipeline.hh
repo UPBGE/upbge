@@ -144,8 +144,13 @@ class PipelineModule {
   /* Binds the fixed part of the forward surface interface on a pass. */
   template<typename PassT> void forward_resources_bind(PassT &pass);
 
-  /* `game_forward_buf`: ambient and light count of the forward shaders. */
-  UniformBuffer<GameForwardData> forward_data_buf_ = {"game_forward_buf"};
+  /* `game_lighting_buf`: ambient, light count and tile grid, shared by the
+   * light culling, the deferred lighting and the forward surfaces. */
+  UniformBuffer<GameLightingData> lighting_buf_ = {"game_lighting_buf"};
+  /* Tiled light culling: per screen tile, one bit per light of light_buf. */
+  PassSimple light_cull_ps_ = {"Light.Culling"};
+  StorageArrayBuffer<uint, 16, true> light_tile_mask_buf_ = {"light_tile_mask_buf"};
+  int light_tile_mask_capacity_ = 16;
   /* Ray cast materials declare the object id and prepass normal textures
    * EEVEE's tracing reads. Nothing traces here: 1x1 stand-ins satisfy the
    * bindings. */

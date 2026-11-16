@@ -67,10 +67,23 @@ struct [[host_shared]] ShadowTileData {
   float _pad0;
 };
 
-/* Per frame constants of the forward surface shaders. */
-struct [[host_shared]] GameForwardData {
+/* Screen tiles of the light culling, in pixels of the render extent. Equal
+ * to Hi-Z mip 4 texels: the farthest depth of a tile is one fetch. */
+#define LIGHT_TILE_SIZE 16
+#define LIGHT_TILE_HIZ_LOD 4
+
+/* Per frame lighting constants, shared by the light culling, the deferred
+ * lighting and the forward surfaces. */
+struct [[host_shared]] GameLightingData {
   packed_float3 world_ambient;
   int light_count;
+  int2 tile_count;
+  int2 render_extent;
+  /** 32 lights per word of the tile masks: ceil(light_count / 32). */
+  int word_count;
+  int _pad0;
+  int _pad1;
+  int _pad2;
 };
 
 #ifndef GPU_SHADER

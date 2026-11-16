@@ -90,6 +90,14 @@ float3 light_incoming(LightData light, float3 P, out float3 L)
   return light.color * (intensity * falloff);
 }
 
+/* First word of the light mask of the screen tile holding a fragment. The
+ * set bits of the `word_count` words from there are the lights to walk. */
+int light_tile_mask_base(float2 frag_coord)
+{
+  int2 tile = int2(frag_coord) / LIGHT_TILE_SIZE;
+  return (tile.y * game_lighting_buf.tile_count.x + tile.x) * game_lighting_buf.word_count;
+}
+
 /* Lit fraction of P in one shadow face: 3x3 PCF. dist is the distance to
  * the light for a perspective face (texel size grows with it), ignored for
  * an orthographic cascade. */

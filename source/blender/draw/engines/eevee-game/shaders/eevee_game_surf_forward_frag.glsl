@@ -50,39 +50,45 @@ float3 game_forward_radiance()
   /* Lights outside, shadows inside: one shadow lookup per light, shared by
    * every closure. The geometric normal offsets the shadow lookup, it does
    * not flip with normal maps. */
-  for (int l = 0; l < game_forward_buf.light_count; l++) {
-    LightData light = light_buf[l];
+  int tile_base = light_tile_mask_base(gl_FragCoord.xy);
+  for (int w = 0; w < game_lighting_buf.word_count; w++) {
+    uint mask = light_tile_mask_buf[tile_base + w];
+    while (mask != 0u) {
+      int l = w * 32 + findLSB(mask);
+      mask &= mask - 1u;
+      LightData light = light_buf[l];
 
-    float3 L;
-    float3 incoming = light_incoming(light, P, L);
-    if (all(equal(incoming, float3(0.0f)))) {
-      continue;
-    }
-    if (light.shadow_index >= 0) {
-      incoming *= game_light_shadow(light, P, g_data.Ng, view_depth);
-    }
-
-    for (int i = 0; i < LIGHT_CLOSURE_EVAL_COUNT; i++) {
-      if (cl[i].weight <= CLOSURE_WEIGHT_CUTOFF) {
+      float3 L;
+      float3 incoming = light_incoming(light, P, L);
+      if (all(equal(incoming, float3(0.0f)))) {
         continue;
       }
-      float lobe = 0.0f;
-      switch (cl[i].type) {
-        case CLOSURE_BSSRDF_BURLEY_ID:
-        case CLOSURE_BSDF_DIFFUSE_ID:
-          lobe = saturate(dot(cl[i].N, L)) * M_1_PI;
-          break;
-        case CLOSURE_BSDF_TRANSLUCENT_ID:
-          lobe = saturate(-dot(cl[i].N, L)) * M_1_PI;
-          break;
-        case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
-          lobe = ggx_lobe(cl[i].N, L, V, to_closure_reflection(cl[i]).roughness);
-          break;
-        default:
-          /* Refraction: what is behind comes through the transmittance. */
-          break;
+      if (light.shadow_index >= 0) {
+        incoming *= game_light_shadow(light, P, g_data.Ng, view_depth);
       }
-      light_sum[i] += incoming * lobe;
+
+      for (int i = 0; i < LIGHT_CLOSURE_EVAL_COUNT; i++) {
+        if (cl[i].weight <= CLOSURE_WEIGHT_CUTOFF) {
+          continue;
+        }
+        float lobe = 0.0f;
+        switch (cl[i].type) {
+          case CLOSURE_BSSRDF_BURLEY_ID:
+          case CLOSURE_BSDF_DIFFUSE_ID:
+            lobe = saturate(dot(cl[i].N, L)) * M_1_PI;
+            break;
+          case CLOSURE_BSDF_TRANSLUCENT_ID:
+            lobe = saturate(-dot(cl[i].N, L)) * M_1_PI;
+            break;
+          case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
+            lobe = ggx_lobe(cl[i].N, L, V, to_closure_reflection(cl[i]).roughness);
+            break;
+          default:
+            /* Refraction: what is behind comes through the transmittance. */
+            break;
+        }
+        light_sum[i] += incoming * lobe;
+      }
     }
   }
 
@@ -91,7 +97,7 @@ float3 game_forward_radiance()
       continue;
     }
     if (cl[i].type != CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID) {
-      light_sum[i] += game_forward_buf.world_ambient;
+      light_sum[i] += game_lighting_buf.world_ambient;
     }
     radiance += light_sum[i] * cl[i].color;
   }

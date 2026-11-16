@@ -49,7 +49,7 @@ void main()
   /* Indirect light: one screen-space bounce plus a flat ambient term, both
    * attenuated by AO. The ambient color stands in for image based lighting
    * until there are probes. */
-  float3 indirect = (bounce + world_ambient) * ao;
+  float3 indirect = (bounce + game_lighting_buf.world_ambient) * ao;
 
   int closure_count = min(int(gbuf.header.closure_len()), GBUFFER_LAYER_MAX);
   ClosureUndetermined cl[GBUFFER_LAYER_MAX];
@@ -60,44 +60,51 @@ void main()
   }
 
   /* Lights outside, shadows inside: the shadow lookup is the expensive
-   * part and is shared by every closure of the pixel. */
-  for (int l = 0; l < light_count; l++) {
-    LightData light = light_buf[l];
+   * part and is shared by every closure of the pixel. Only the lights the
+   * culling found in this tile are walked, by bit. */
+  int tile_base = light_tile_mask_base(gl_FragCoord.xy);
+  for (int w = 0; w < game_lighting_buf.word_count; w++) {
+    uint mask = light_tile_mask_buf[tile_base + w];
+    while (mask != 0u) {
+      int l = w * 32 + findLSB(mask);
+      mask &= mask - 1u;
+      LightData light = light_buf[l];
 
-    float3 L;
-    float3 incoming = light_incoming(light, P, L);
-    if (all(equal(incoming, float3(0.0f)))) {
-      /* Out of range or outside the cone. */
-      continue;
-    }
-
-    if (light.shadow_index >= 0) {
-      /* The sun shadow comes filtered from the PCF compute, the punctual
-       * ones are looked up here, offset along the first closure normal. */
-      incoming *= (light.type == LIGHT_TYPE_SUN) ? sun_shadow :
-                                                   game_light_shadow(light, P, cl[0].N, 0.0f);
-    }
-
-    for (int i = 0; i < closure_count; i++) {
-      float lobe = 0.0f;
-      switch (cl[i].type) {
-        case CLOSURE_BSSRDF_BURLEY_ID:
-        case CLOSURE_BSDF_DIFFUSE_ID:
-          /* Lambert: a constant 1 / pi in every direction. */
-          lobe = saturate(dot(cl[i].N, L)) * M_1_PI;
-          break;
-        case CLOSURE_BSDF_TRANSLUCENT_ID:
-          /* Lit from behind. */
-          lobe = saturate(-dot(cl[i].N, L)) * M_1_PI;
-          break;
-        case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
-          lobe = ggx_lobe(cl[i].N, L, V, to_closure_reflection(cl[i]).roughness);
-          break;
-        default:
-          /* Refraction needs what is behind the surface; no direct term. */
-          break;
+      float3 L;
+      float3 incoming = light_incoming(light, P, L);
+      if (all(equal(incoming, float3(0.0f)))) {
+        /* Out of range or outside the cone. */
+        continue;
       }
-      light_sum[i] += incoming * lobe;
+
+      if (light.shadow_index >= 0) {
+        /* The sun shadow comes filtered from the PCF compute, the punctual
+         * ones are looked up here, offset along the first closure normal. */
+        incoming *= (light.type == LIGHT_TYPE_SUN) ? sun_shadow :
+                                                     game_light_shadow(light, P, cl[0].N, 0.0f);
+      }
+
+      for (int i = 0; i < closure_count; i++) {
+        float lobe = 0.0f;
+        switch (cl[i].type) {
+          case CLOSURE_BSSRDF_BURLEY_ID:
+          case CLOSURE_BSDF_DIFFUSE_ID:
+            /* Lambert: a constant 1 / pi in every direction. */
+            lobe = saturate(dot(cl[i].N, L)) * M_1_PI;
+            break;
+          case CLOSURE_BSDF_TRANSLUCENT_ID:
+            /* Lit from behind. */
+            lobe = saturate(-dot(cl[i].N, L)) * M_1_PI;
+            break;
+          case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
+            lobe = ggx_lobe(cl[i].N, L, V, to_closure_reflection(cl[i]).roughness);
+            break;
+          default:
+            /* Refraction needs what is behind the surface; no direct term. */
+            break;
+        }
+        light_sum[i] += incoming * lobe;
+      }
     }
   }
 

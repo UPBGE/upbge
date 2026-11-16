@@ -147,6 +147,8 @@ const char *ShaderModule::static_shader_name_get(eShaderType type)
     /* EEVEE's own info, used as is: the Hi-Z pyramid follows its layout. */
     case SH_HIZ_UPDATE:
       return "eevee_hiz_update";
+    case SH_LIGHT_CULL:
+      return "eevee_game_light_cull";
     case SH_FILM_PRESENT:
       return "eevee_game_film_present";
 
@@ -170,6 +172,7 @@ void ShaderModule::static_shaders_load(ShaderGroups groups)
   static const ShaderGroupEntry entries[] = {
       /* Lighting */
       {SH_DEFERRED_LIGHT, SG_LIGHTING},
+      {SH_LIGHT_CULL, SG_LIGHTING},
 
       /* Shadow: PCF compute filter */
       {SH_SHADOW_PCF_FILTER, SG_SHADOW},

@@ -222,7 +222,8 @@ template<typename PassT> void PipelineModule::forward_resources_bind(PassT &pass
   pass.bind_ssbo(SAMPLING_BUF_SLOT, &eevee_sampling_buf_);
   pass.bind_texture(HIZ_TEX_SLOT, &inst_->hiz_buffer.front.ref_tx_);
   pass.bind_ssbo(LIGHT_BUF_SLOT, &inst_->lights.light_buf_);
-  pass.bind_ubo(SPHERE_PROBE_BUF_SLOT, &forward_data_buf_);
+  pass.bind_ssbo(LIGHT_ZBIN_BUF_SLOT, &light_tile_mask_buf_);
+  pass.bind_ubo(SPHERE_PROBE_BUF_SLOT, &lighting_buf_);
   inst_->shadows.bind_resources_by_slot(pass);
   /* Shader To RGB materials declare the previous layer inputs of EEVEE's
    * layered transparency; this shader never reads them. Not combined_tx: it
@@ -340,6 +341,36 @@ void PipelineModule::sync()
 
   eevee_resources_update(math::max(normal_layers, int(GBUF_NORMAL_FB_LAYER_COUNT)));
 
+  /* ---- Lighting constants and tiled light culling ---- */
+  {
+    const int light_count = inst_->lights.active_light_count;
+    const int2 tile_count = math::divide_ceil(extent, int2(LIGHT_TILE_SIZE));
+    const int word_count = math::max(1, (light_count + 31) / 32);
+    lighting_buf_.light_count = light_count;
+    lighting_buf_.tile_count = tile_count;
+    lighting_buf_.render_extent = extent;
+    lighting_buf_.word_count = word_count;
+
+    /* Sized for the most lights, so the buffer only grows with the extent. */
+    const int mask_len = tile_count.x * tile_count.y * (MAX_LIGHTS / 32);
+    if (mask_len > light_tile_mask_capacity_) {
+      light_tile_mask_buf_.resize(mask_len);
+      light_tile_mask_capacity_ = mask_len;
+    }
+
+    PassSimple &cull = light_cull_ps_;
+    cull.init();
+    cull.shader_set(shaders_->static_shader_get(SH_LIGHT_CULL));
+    cull.bind_ubo("game_lighting_buf", &lighting_buf_);
+    cull.bind_ssbo("light_buf", &inst_->lights.light_buf_);
+    cull.bind_ssbo("light_tile_mask_out_buf", &light_tile_mask_buf_);
+    cull.bind_texture("hiz_tx", &inst_->hiz_buffer.front.ref_tx_);
+    const int thread_count = tile_count.x * tile_count.y * word_count;
+    cull.dispatch(int3((thread_count + 63) / 64, 1, 1));
+    /* Read by the lighting and forward passes right after. */
+    cull.barrier(GPU_BARRIER_SHADER_STORAGE);
+  }
+
   /* ---- Deferred Lighting pass ----
    * One full-screen triangle. Decodes the G-Buffer, loops over the light
    * list and adds the result on top of the emission the G-Buffer pass
@@ -367,16 +398,15 @@ void PipelineModule::sync()
   inst_->lights.bind_resources(light_ps);
   /* Punctual shadows are looked up per light in the lighting shader. */
   inst_->shadows.bind_resources(light_ps);
-  light_ps.push_constant("light_count", &inst_->lights.active_light_count);
+  light_ps.bind_ubo("game_lighting_buf", &lighting_buf_);
+  light_ps.bind_ssbo("light_tile_mask_buf", &light_tile_mask_buf_);
   light_ps.push_constant("use_ao", &use_ao_);
   light_ps.push_constant("use_ssgi", &use_ssgi_);
-  light_ps.push_constant("world_ambient", &world_ambient_);
   light_ps.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
   /* Forward surfaces: same ambient and lights as the deferred pass. */
-  forward_data_buf_.world_ambient = world_ambient_;
-  forward_data_buf_.light_count = inst_->lights.active_light_count;
-  forward_data_buf_.push_update();
+  lighting_buf_.world_ambient = world_ambient_;
+  lighting_buf_.push_update();
 
   /* Intermediate AA targets follow the render resolution. */
   aa.sync_framebuffers(extent);
@@ -386,6 +416,13 @@ void PipelineModule::render(View &view, Framebuffer &combined_fb)
 {
   RenderBuffers &rbufs = inst_->render_buffers;
   const int2 extent = inst_->film.render_extent_get();
+
+  /* ================================================================
+   * Pass 0: Tiled light culling, against this frame's Hi-Z (built by the
+   * prepass). Read by the deferred lighting and the forward surfaces. */
+  GPU_debug_group_begin("LightCulling");
+  inst_->manager->submit(light_cull_ps_, view);
+  GPU_debug_group_end();
 
   /* ================================================================
    * Pass 1: G-Buffer Fill
