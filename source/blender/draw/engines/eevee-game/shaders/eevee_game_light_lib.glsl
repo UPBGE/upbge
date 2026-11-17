@@ -167,20 +167,20 @@ float shadow_tile_sample(int tile_index, float3 P, float3 N, float dist)
   return 1.0f - occluded * (1.0f / 9.0f);
 }
 
-/* Lit fraction of P for a shadowed light (shadow_index >= 0). view_depth is
- * the positive view space depth of P, used to pick the sun cascade. */
-float game_light_shadow(LightData light, float3 P, float3 N, float view_depth)
+/* Shadow face of a shadowed light (shadow_index >= 0) holding P, or -1 past
+ * the sun's shadow distance. view_depth is the positive view space depth of
+ * P, used to pick the sun cascade. */
+int game_light_shadow_tile(LightData light, float3 P, float view_depth)
 {
   if (light.type == LIGHT_TYPE_SUN) {
     /* Four cascades, the first whose split covers the depth. */
     for (int c = 0; c < 4; c++) {
       int tile_index = light.shadow_index + c;
       if (view_depth < shadow_tile_buf[tile_index].split_depth) {
-        return shadow_tile_sample(tile_index, P, N, 0.0f);
+        return tile_index;
       }
     }
-    /* Beyond the shadow distance. */
-    return 1.0f;
+    return -1;
   }
 
   float3 to_p = P - light.position;
@@ -201,5 +201,41 @@ float game_light_shadow(LightData light, float3 P, float3 N, float view_depth)
     }
     tile_index += face;
   }
-  return shadow_tile_sample(tile_index, P, N, length(to_p));
+  return tile_index;
+}
+
+/* Lit fraction of P for a shadowed light (shadow_index >= 0). */
+float game_light_shadow(LightData light, float3 P, float3 N, float view_depth)
+{
+  int tile_index = game_light_shadow_tile(light, P, view_depth);
+  if (tile_index < 0) {
+    return 1.0f;
+  }
+  float dist = (light.type == LIGHT_TYPE_SUN) ? 0.0f : length(P - light.position);
+  return shadow_tile_sample(tile_index, P, N, dist);
+}
+
+/* Same for a point in a medium: one bilinear compare and no normal offset.
+ * There is no surface to get acne on, and a froxel is far larger than the
+ * 3x3 kernel anyway; this is the cost of every light in every froxel. */
+float game_light_shadow_volume(LightData light, float3 P, float view_depth)
+{
+  int tile_index = game_light_shadow_tile(light, P, view_depth);
+  if (tile_index < 0) {
+    return 1.0f;
+  }
+  ShadowTileData tile = shadow_tile_buf[tile_index];
+  float4 clip = tile.view_proj * float4(P, 1.0f);
+  if (clip.w <= 0.0f) {
+    return 1.0f;
+  }
+  float3 ndc = clip.xyz / clip.w;
+  if (any(greaterThan(abs(ndc.xy), float2(1.0f)))) {
+    return 1.0f;
+  }
+  float3 tap = float3(tile.atlas_rect.xy + (ndc.xy * 0.5f + 0.5f) * tile.atlas_rect.zw,
+                      0.5f - 0.5f * ndc.z);
+  float occluded = (tile.atlas == 0) ? textureLod(shadow_static_atlas, tap, 0.0f) :
+                                       textureLod(shadow_dynamic_atlas, tap, 0.0f);
+  return 1.0f - occluded;
 }

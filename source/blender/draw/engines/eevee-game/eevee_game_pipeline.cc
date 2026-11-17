@@ -225,6 +225,16 @@ void PipelineModule::begin_sync()
   }
 }
 
+template<typename PassT> void PipelineModule::light_data_bind(PassT &pass)
+{
+  pass.bind_ssbo(LIGHT_BUF_SLOT, &inst_->lights.light_buf_);
+  pass.bind_ssbo(LIGHT_ZBIN_BUF_SLOT, &light_tile_mask_buf_);
+  pass.bind_ubo(SPHERE_PROBE_BUF_SLOT, &lighting_buf_);
+  inst_->shadows.bind_resources_by_slot(pass);
+  inst_->world.bind_resources(pass);
+}
+template void PipelineModule::light_data_bind(PassSimple &pass);
+
 template<typename PassT> void PipelineModule::forward_resources_bind(PassT &pass)
 {
   /* `eevee_game_surf_forward` + the depth shaders of the overlap masks. Bound
@@ -233,11 +243,7 @@ template<typename PassT> void PipelineModule::forward_resources_bind(PassT &pass
   pass.bind_ubo(UNIFORM_BUF_SLOT, &eevee_uniform_buf_);
   pass.bind_ssbo(SAMPLING_BUF_SLOT, &eevee_sampling_buf_);
   pass.bind_texture(HIZ_TEX_SLOT, &inst_->hiz_buffer.front.ref_tx_);
-  pass.bind_ssbo(LIGHT_BUF_SLOT, &inst_->lights.light_buf_);
-  pass.bind_ssbo(LIGHT_ZBIN_BUF_SLOT, &light_tile_mask_buf_);
-  pass.bind_ubo(SPHERE_PROBE_BUF_SLOT, &lighting_buf_);
-  inst_->shadows.bind_resources_by_slot(pass);
-  inst_->world.bind_resources(pass);
+  light_data_bind(pass);
   /* Shader To RGB materials declare the previous layer inputs of EEVEE's
    * layered transparency; this shader never reads them. Not combined_tx: it
    * is the color attachment being drawn to. */

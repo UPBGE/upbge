@@ -40,12 +40,14 @@
 
 COMPUTE_SHADER_CREATE_INFO(eevee_game_volume_scatter)
 
+#include "eevee_game_light_lib.glsl"
+
 /* out_grid_img, one entry per froxel:
  *   RGB = sigma_s * L_in  (light contribution weighted by scattering coefficient)
  *   A   = sigma_t         (total extinction = scattering + absorption)
  *
- * light_buf[] is LightData from eevee_game_shader_shared.hh.
- * cascade_viewproj is cascade 0 of the sun, the only shadow sampled here. */
+ * The lights are those of the screen tiles the froxel column covers, from
+ * the tiled light culling of the surfaces. */
 
 /* ------------------------------------------------------------------ */
 /* Henyey-Greenstein phase function
@@ -88,30 +90,6 @@ vec3 froxel_to_world(ivec3 froxel, vec3 grid_size)
   return ws.xyz / ws.w;
 }
 
-/* ------------------------------------------------------------------ */
-/* Cascade 0 shadow lookup for directional lights.
- * Returns 1.0 (lit) or in [0,1] (penumbra via hardware PCF). */
-float shadow_directional(vec3 world_pos)
-{
-  vec4 light_clip  = cascade_viewproj * vec4(world_pos, 1.0);
-  vec3 light_ndc   = light_clip.xyz / light_clip.w;
-  vec3 shadow_uv3  = light_ndc * 0.5 + 0.5;
-
-  if (any(lessThan(shadow_uv3.xy, vec2(0.0))) ||
-      any(greaterThan(shadow_uv3.xy, vec2(1.0))))
-  {
-    return 1.0; /* Outside cascade: assume lit */
-  }
-
-  /* Cascade 0 is the first 1024 px tile of the 4096 px static atlas: the
-   * bottom-left quarter in each axis. */
-  vec2 atlas_uv = shadow_uv3.xy * 0.25;
-  /* The atlas stores reversed depth (1 = near the light), so the reference
-   * is reversed too. The compare is `ref <= stored` (LEQUAL): true when a
-   * surface at least as near to the light is there, the occluded case. */
-  return 1.0 - texture(shadow_atlas, vec3(atlas_uv, 1.0 - shadow_uv3.z));
-}
-
 /* ================================================================== */
 /* Main                                                                */
 /* ================================================================== */
@@ -127,6 +105,19 @@ void main()
   if (any(greaterThanEqual(froxel_xy, grid_size.xy))) {
     return;
   }
+
+  /* Light tiles under this column. The grid splits the render extent in
+   * ceil(extent / 16) cells, a bit under the 16 px of a light tile, so a
+   * column straddles at most 2x2 tiles: the union of their masks. The light
+   * culling slab of a tile ends at its farthest opaque surface, behind which
+   * no froxel is ever seen. */
+  ivec2 extent = game_lighting_buf.render_extent;
+  ivec2 px_lo = (froxel_xy * extent) / grid_size.xy;
+  ivec2 px_hi = ((froxel_xy + 1) * extent + grid_size.xy - 1) / grid_size.xy - 1;
+  ivec2 tile_lo = min(px_lo / LIGHT_TILE_SIZE, game_lighting_buf.tile_count - 1);
+  ivec2 tile_hi = min(px_hi / LIGHT_TILE_SIZE, game_lighting_buf.tile_count - 1);
+  int word_count = game_lighting_buf.word_count;
+  float log_ratio = log(z_far / z_near);
 
   for (int z = 0; z < grid_size.z; z++) {
     ivec3 froxel  = ivec3(froxel_xy, z);
@@ -183,22 +174,35 @@ void main()
     vec3 in_scatter = emission;
 
     if (any(greaterThan(sigma_s, vec3(0.0)))) {
-      for (int i = 0; i < light_count; i++) {
-        LightData light = light_buf[i];
-
-        if (light.type == LIGHT_TYPE_SUN) {
-          /* theta between the travel direction of the light and the way to
-           * the camera: forward scattering (g > 0) peaks when looking toward
-           * the sun. */
-          float cos_theta = dot(light.direction, view_dir);
-          float phase     = hg_phase(cos_theta, g);
-
-          /* Shadow visibility: 1.0 = fully lit, 0.0 = in shadow. */
-          float shadow = shadow_directional(ws_pos);
-
-          in_scatter += sigma_s * light.color * light.energy * phase * shadow;
+      /* Same slicing as froxel_to_world(): picks the sun cascade. */
+      float view_depth = z_near * exp(log_ratio * (float(z) + 0.5) / float(grid_size.z));
+      for (int w = 0; w < word_count; w++) {
+        uint bits = 0u;
+        for (int ty = tile_lo.y; ty <= tile_hi.y; ty++) {
+          for (int tx = tile_lo.x; tx <= tile_hi.x; tx++) {
+            int tile = ty * game_lighting_buf.tile_count.x + tx;
+            bits |= light_tile_mask_buf[tile * word_count + w];
+          }
         }
-        /* Punctual lights do not reach the volume yet. */
+        while (bits != 0u) {
+          int bit = findLSB(bits);
+          bits &= bits - 1u;
+          LightData light = light_buf[w * 32 + bit];
+
+          vec3 L;
+          vec3 irradiance = light_incoming(light, ws_pos, L);
+          if (all(equal(irradiance, vec3(0.0)))) {
+            continue;
+          }
+          /* theta between the travel direction of the light (-L) and the
+           * way to the camera: forward scattering (g > 0) peaks when looking
+           * toward the light. */
+          float phase = hg_phase(dot(-L, view_dir), g);
+          float shadow = (light.shadow_index >= 0) ?
+                             game_light_shadow_volume(light, ws_pos, view_depth) :
+                             1.0;
+          in_scatter += sigma_s * irradiance * phase * shadow;
+        }
       }
     }
 

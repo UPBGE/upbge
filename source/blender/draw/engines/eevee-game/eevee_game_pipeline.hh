@@ -116,6 +116,9 @@ class PipelineModule {
    * passes (world capture, volume properties): globals, sampling and the
    * utility texture. */
   template<typename PassT> void eevee_globals_bind(PassT &pass);
+  /* `eevee_game_light_data`: lights, their tile masks, shadows and world
+   * lighting, by slot. */
+  template<typename PassT> void light_data_bind(PassT &pass);
   /* Render pass and cryptomatte outputs some infos declare; never read back.
    * Their image slots overlap the volume property ones. */
   void render_pass_outputs_bind(PassSimple &pass);

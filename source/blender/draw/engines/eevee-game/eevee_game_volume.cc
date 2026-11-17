@@ -548,8 +548,9 @@ void VolumeModule::render(View & /*view*/)
   PassSimple &scatter = volume_scatter_ps_;
   scatter.init();
   scatter.shader_set(inst_->shaders.static_shader_get(SH_VOLUME_SCATTER));
-  scatter.bind_texture("shadow_atlas", inst_->shadows.get_static_atlas());
-  inst_->lights.bind_resources(scatter);
+  /* Lights of the tiles and shadows: culled by the lighting passes earlier
+   * in the frame. */
+  inst_->pipelines.light_data_bind(scatter);
   scatter.bind_image("out_grid_img", volume_grid_tx_);
   scatter.bind_ssbo("volume_box_buf", &box_buf_);
   scatter.push_constant("volume_box_count", box_count_);
@@ -561,15 +562,14 @@ void VolumeModule::render(View & /*view*/)
   scatter.bind_texture("prop_phase_weight_tx", &scatter_phase_weight_tx_);
   scatter.push_constant("tile_size", settings_.tile_size);
   scatter.push_constant("samples_z", settings_.samples_z);
-  scatter.push_constant("light_count", inst_->lights.active_light_count);
   scatter.push_constant("viewmat", ud.viewmat);
   scatter.push_constant("viewprojinv", math::invert(ud.viewprojmat));
   scatter.push_constant("camera_pos", ud.camera_pos);
   scatter.push_constant("z_near", ud.z_near);
   scatter.push_constant("z_far", ud.z_far);
   scatter.push_constant("screen_res", ud.screen_res);
-  scatter.push_constant("cascade_viewproj", inst_->shadows.get_data().cascade_viewproj[0]);
-  scatter.dispatch(math::divide_ceil(grid_size, int3(8, 8, 1)));
+  /* One thread per column: Z is the shader's loop, not a grid dimension. */
+  scatter.dispatch(int3(math::divide_ceil(grid_size.xy(), int2(8)), 1));
   scatter.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
   inst_->manager->submit(scatter);
 
