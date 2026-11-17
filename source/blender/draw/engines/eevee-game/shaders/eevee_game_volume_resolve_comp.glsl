@@ -93,9 +93,8 @@ void main()
 
   /* Sample the integrated volume.  Trilinear interpolation (default) gives
    * smooth depth transitions between froxel slices at no extra ALU cost. */
-  vec4 volume = texture(volume_integrated_tx, uvw);
-  vec3 L_scatter    = volume.rgb;  /* Accumulated in-scattered radiance */
-  float transmittance = volume.a;  /* Accumulated transmittance [0,1] */
+  vec3 L_scatter     = texture(volume_integrated_tx, uvw).rgb;
+  vec3 transmittance = texture(volume_transmittance_tx, uvw).rgb;  /* [0,1] per channel */
 
   /* Read current scene color for this pixel. */
   vec4 scene = imageLoad(out_color_img, px);

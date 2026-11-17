@@ -29,9 +29,9 @@
  * reads from volume_grid_tx along Z are cache-friendly (consecutive memory
  * in a 3D texture with Z as the innermost axis).
  *
- * Output: RGBA16F 3D texture.
- *   RGB = accumulated in-scattered radiance at depth slice z (L(z))
- *   A   = accumulated transmittance at depth slice z (T(z))
+ * Output, per channel:
+ *   out_integrated_img    (RGBA16F)  RGB = accumulated in-scattered radiance L(z)
+ *   out_transmittance_img (R11G11B10) RGB = accumulated transmittance T(z)
  *
  * The resolve pass reads this with a single 3D texture lookup per screen pixel.
  *
@@ -76,7 +76,7 @@ void main()
 
   /* Accumulation state: starts at z=0 (near plane). */
   vec3  L_accum = vec3(0.0);  /* Accumulated radiance L(z) */
-  float T_accum = 1.0;        /* Accumulated transmittance T(z), starts at 1 (fully lit) */
+  vec3  T_accum = vec3(1.0);  /* Accumulated transmittance T(z) per channel, starts at 1 */
 
   const vec3 grid_size_f = vec3(grid_size);
 
@@ -85,15 +85,14 @@ void main()
 
     /* Read the scatter + extinction for this slice. */
     vec3  uvw      = (vec3(froxel) + 0.5) / grid_size_f;
-    vec4  voxel    = texture(in_grid_tx, uvw);
-    vec3  in_L     = voxel.rgb;   /* In-scattered radiance (σ_s × L_i from scatter pass) */
-    float sigma_t  = voxel.a;     /* Extinction coefficient */
+    vec3  in_L     = texture(in_grid_tx, uvw).rgb;  /* sigma_s L_i + emission */
+    vec3  sigma_t  = texture(in_extinction_tx, uvw).rgb;
 
     /* Slice thickness in world units (exponential Z spacing). */
     float dz = slice_thickness(z);
 
-    /* Beer-Lambert transmittance step: T' = T × exp(-σ_t × dz). */
-    float T_step = exp(-sigma_t * dz);
+    /* Beer-Lambert transmittance step, per channel: T' = T × exp(-σ_t × dz). */
+    vec3 T_step = exp(-sigma_t * dz);
 
     /* Single-scatter radiance integral for this slice:
      *   ΔL = T_before × ∫₀^dz L_in(z') × σ_s × exp(-σ_t × z') dz'
@@ -103,19 +102,18 @@ void main()
      *
      * Guard: when σ_t × dz < 1e-4 (very thin or empty slice), the above
      * is numerically unstable (0/0 form).  L'Hopital limit: → in_L × dz. */
-    vec3 delta_L;
-    if (sigma_t * dz > 1e-4) {
-      delta_L = T_accum * (in_L / sigma_t) * (1.0 - T_step);
-    }
-    else {
-      delta_L = T_accum * in_L * dz;
-    }
+    vec3 optical = sigma_t * dz;
+    vec3 segment = mix((1.0 - T_step) / max(sigma_t, vec3(1e-30)),
+                       vec3(dz),
+                       lessThan(optical, vec3(1e-4)));
+    vec3 delta_L = T_accum * in_L * segment;
 
     L_accum += delta_L;
     T_accum *= T_step;
 
     /* Write accumulated state at this slice depth.
-     * The resolve pass samples this texture to get L + T at any pixel's depth. */
-    imageStore(out_integrated_img, froxel, vec4(L_accum, T_accum));
+     * The resolve pass samples these to get L + T at any pixel's depth. */
+    imageStore(out_integrated_img, froxel, vec4(L_accum, 0.0));
+    imageStore(out_transmittance_img, froxel, vec4(T_accum, 0.0));
   }
 }

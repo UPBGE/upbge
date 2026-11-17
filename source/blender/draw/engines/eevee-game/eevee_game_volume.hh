@@ -99,6 +99,7 @@ class VolumeModule {
   void resolve(gpu::Texture *target_color_tx, gpu::Texture *depth_tx);
 
   gpu::Texture *get_volume_texture() { return volume_integrated_tx_; }
+  gpu::Texture *get_transmittance_texture() { return volume_transmittance_tx_; }
   bool enabled() const { return enabled_; }
 
  private:
@@ -153,10 +154,14 @@ class VolumeModule {
 
   template<typename PassT> void properties_bind(PassT &pass);
 
-  /* 3D RGBA16F: scattering (RGB) + extinction (A) per froxel */
+  /* 3D RGBA16F: in-scattered light + emission (RGB) per froxel */
   Texture volume_grid_tx_ = {"volume_grid_tx_"};
-  /* 3D RGBA16F: integrated transmittance + in-scattered light after Z accumulation */
+  /* 3D R11G11B10: extinction per channel per froxel */
+  Texture volume_extinction_tx_ = {"volume_extinction_tx_"};
+  /* 3D RGBA16F: in-scattered light (RGB) integrated from the camera */
   Texture volume_integrated_tx_ = {"volume_integrated_tx_"};
+  /* 3D R11G11B10: transmittance per channel from the camera */
+  Texture volume_transmittance_tx_ = {"volume_transmittance_tx_"};
 
   PassSimple volume_scatter_ps_{"Volume.Scatter"};
   PassSimple volume_integration_ps_{"Volume.Integration"};

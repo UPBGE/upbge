@@ -448,6 +448,10 @@ void VolumeModule::sync()
   const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ;
   volume_grid_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16_16_16_16, grid_res_, usage);
   volume_integrated_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16_16_16_16, grid_res_, usage);
+  /* Extinction and transmittance per channel. R11G11B10 like EEVEE: both are
+   * positive, and transmittance lives in [0, 1]. */
+  volume_extinction_tx_.ensure_3d(gpu::TextureFormat::UFLOAT_11_11_10, grid_res_, usage);
+  volume_transmittance_tx_.ensure_3d(gpu::TextureFormat::UFLOAT_11_11_10, grid_res_, usage);
 
   if (dummy_prop_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16_16_16_16, int3(1), usage)) {
     dummy_prop_tx_.clear(float4(0.0f));
@@ -552,6 +556,7 @@ void VolumeModule::render(View & /*view*/)
    * in the frame. */
   inst_->pipelines.light_data_bind(scatter);
   scatter.bind_image("out_grid_img", volume_grid_tx_);
+  scatter.bind_image("out_extinction_img", volume_extinction_tx_);
   scatter.bind_ssbo("volume_box_buf", &box_buf_);
   scatter.push_constant("volume_box_count", box_count_);
   scatter.push_constant("use_voxels", int(use_voxels_));
@@ -581,7 +586,9 @@ void VolumeModule::render(View & /*view*/)
   integrate.init();
   integrate.shader_set(inst_->shaders.static_shader_get(SH_VOLUME_INTEGRATE));
   integrate.bind_texture("in_grid_tx", volume_grid_tx_);
+  integrate.bind_texture("in_extinction_tx", volume_extinction_tx_);
   integrate.bind_image("out_integrated_img", volume_integrated_tx_);
+  integrate.bind_image("out_transmittance_img", volume_transmittance_tx_);
   integrate.push_constant("z_near", ud.z_near);
   integrate.push_constant("z_far", ud.z_far);
   integrate.push_constant("samples_z", settings_.samples_z);
@@ -608,6 +615,7 @@ void VolumeModule::resolve(gpu::Texture *target_color_tx, gpu::Texture *depth_tx
   pass.init();
   pass.shader_set(inst_->shaders.static_shader_get(SH_VOLUME_RESOLVE));
   pass.bind_texture("volume_integrated_tx", volume_integrated_tx_);
+  pass.bind_texture("volume_transmittance_tx", volume_transmittance_tx_);
   pass.bind_texture("depth_tx", depth_tx);
   pass.bind_image("out_color_img", target_color_tx);
   pass.push_constant("z_near", ud.z_near);

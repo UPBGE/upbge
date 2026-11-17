@@ -157,18 +157,19 @@ void main()
 
   /* Fog between the camera and the surface, already integrated in the froxel
    * grid (the resolve pass gave the same to the opaque pixels). The surface
-   * light is dimmed by the transmittance T in front of it. Under it, the
-   * color composited earlier already holds the in-scatter S of that same
-   * segment; the blend keeps (1 - coverage) of it, so the surface adds back
-   * coverage * S. Premultiplied result: T C + coverage S. */
+   * light is dimmed by the transmittance T in front of it, per channel.
+   * Under it, the color composited earlier already holds the in-scatter S of
+   * that same segment; the blend keeps (1 - coverage) of it, so the surface
+   * adds back coverage * S. Premultiplied result: T C + coverage S. */
   if (game_lighting_buf.use_volume) {
     float z = -drw_point_world_to_view(g_data.P).z;
     float w = saturate(log(max(z, game_lighting_buf.volume_z_near) /
                            game_lighting_buf.volume_z_near) *
                        game_lighting_buf.volume_log_inv);
     float2 uv = gl_FragCoord.xy / float2(game_lighting_buf.render_extent);
-    float4 fog = texture(volume_tx, float3(uv, w));
-    radiance = radiance * fog.a + fog.rgb * coverage;
+    float3 uvw = float3(uv, w);
+    radiance = radiance * texture(volume_transmittance_tx, uvw).rgb +
+               texture(volume_tx, uvw).rgb * coverage;
   }
 
   out_radiance = float4(radiance, coverage);

@@ -186,7 +186,9 @@ class PipelineModule {
   /* Fog grid read by the forward surfaces: the integrated volume, or a
    * 1x1x1 stand-in (clear air) while the fog is off and nothing reads it. */
   Texture dummy_volume_tx_ = {"dummy_volume"};
+  Texture dummy_transmittance_tx_ = {"dummy_volume_transmittance"};
   gpu::Texture *volume_tx_ = nullptr;
+  gpu::Texture *volume_transmittance_tx_ = nullptr;
 
   /* Opaque-only color snapshot for the FSR reactive mask. */
   TextureFromPool opaque_copy_tx_ = {"opaque_copy"};

@@ -42,9 +42,9 @@ COMPUTE_SHADER_CREATE_INFO(eevee_game_volume_scatter)
 
 #include "eevee_game_light_lib.glsl"
 
-/* out_grid_img, one entry per froxel:
- *   RGB = sigma_s * L_in  (light contribution weighted by scattering coefficient)
- *   A   = sigma_t         (total extinction = scattering + absorption)
+/* One entry per froxel:
+ *   out_grid_img       RGB = sigma_s * L_in + emission
+ *   out_extinction_img RGB = sigma_t = sigma_s + sigma_a, per channel
  *
  * The lights are those of the screen tiles the froxel column covers, from
  * the tiled light culling of the surfaces. */
@@ -165,8 +165,7 @@ void main()
      * reaches zero at g = +-1, and the Inf would spread through the whole
      * column in the integration. */
     float g = clamp(g_sum / max(g_weight, 1.0), -0.99, 0.99);
-    /* One extinction for the three channels: the grid has one alpha. */
-    float sigma_t = dot(sigma_s + sigma_a + sigma_e_voxels, vec3(1.0 / 3.0));
+    vec3 sigma_t = sigma_s + sigma_a + sigma_e_voxels;
 
     /* View direction toward camera from this froxel. */
     vec3  view_dir = normalize(camera_pos - ws_pos);
@@ -206,7 +205,7 @@ void main()
       }
     }
 
-    /* Write: RGB = in-scattered radiance, A = extinction. */
-    imageStore(out_grid_img, froxel, vec4(in_scatter, sigma_t));
+    imageStore(out_grid_img, froxel, vec4(in_scatter, 0.0));
+    imageStore(out_extinction_img, froxel, vec4(sigma_t, 0.0));
   }
 }
