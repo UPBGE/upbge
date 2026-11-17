@@ -44,17 +44,19 @@ float4 light_bound_view(LightData light)
   /* The emitter size widens the reach of area and soft lights. */
   float radius = light.attenuation + light.radius;
   if (light.type == LIGHT_TYPE_SPOT) {
-    /* Circumsphere of the cone of length `attenuation` and half angle h. */
-    float h = min(light.spot_angle * 0.5f, 1.5707963f);
-    float c = cos(h);
-    if (h <= 0.7853982f) {
+    /* Circumsphere of the cone of length `attenuation` and half angle h,
+     * the same h as the shading: x = 1 - cos(h). Past 90 degrees (x > 1)
+     * the hemisphere bound is kept. */
+    float x = min(unpackHalf2x16(light.spot_shape).x, 1.0f);
+    float c = 1.0f - x;
+    if (c >= 0.7071068f) {
       float r = light.attenuation / (2.0f * c);
       center += light.direction * r;
       radius = r + light.radius;
     }
     else {
       center += light.direction * (light.attenuation * c);
-      radius = light.attenuation * sin(h) + light.radius;
+      radius = light.attenuation * sqrt(x * (2.0f - x)) + light.radius;
     }
   }
   return float4((drw_view().viewmat * float4(center, 1.0f)).xyz, radius);

@@ -101,6 +101,10 @@ struct LightEntry {
   /* Stable identity across frames (ObjectKey hash): keeps a static shadow
    * slot and its cached atlas tile bound to the same light. */
   uint64_t  uid = 0;
+  /* CPU only: spot cone angle (full, radians) of the shadow frustum, and
+   * LIGHT_FLAG_* bits. */
+  float spot_angle = 0.0f;
+  uint32_t flags = 0;
 };
 
 /* ---- LightModule ---- */

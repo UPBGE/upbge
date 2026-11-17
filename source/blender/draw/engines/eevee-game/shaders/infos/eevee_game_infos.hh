@@ -173,6 +173,7 @@ GPU_SHADER_CREATE_END()
 GPU_SHADER_CREATE_INFO(eevee_game_shadow_pcf_compute)
 DO_STATIC_COMPILATION()
 LOCAL_GROUP_SIZE(8, 8)
+TYPEDEF_SOURCE("eevee_game_shader_shared.hh") /* SHADOW_CASCADE_BLEND */
 SAMPLER(0, sampler2DDepth, depth_tx)
 SAMPLER(1, sampler2DShadow, shadow_atlas)
 ADDITIONAL_INFO(eevee_gbuffer_data)

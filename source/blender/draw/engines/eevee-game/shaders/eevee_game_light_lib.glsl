@@ -26,7 +26,7 @@ SHADER_LIBRARY_CREATE_INFO(eevee_game_light_data)
  * EEVEE additionally rescales its lobe to integrate to exactly one; this one
  * integrates to slightly less on rough surfaces, so they come out marginally
  * darker. Cheap, and not visible next to the other approximations here. */
-float ggx_lobe(float3 N, float3 L, float3 V, float roughness)
+float ggx_lobe(float3 N, float3 L, float3 V, float roughness, float light_size)
 {
   float NL = dot(N, L);
   if (NL <= 0.0f) {
@@ -41,9 +41,16 @@ float ggx_lobe(float3 N, float3 L, float3 V, float roughness)
   float a = max(roughness * roughness, 2e-3f);
   float a2 = a * a;
 
-  /* D: fraction of microfacets whose normal is H. */
-  float d = (NH * a2 - NH) * NH + 1.0f;
-  float D = a2 / (M_PI * d * d);
+  /* D: fraction of microfacets whose normal is H, seen through the disc of
+   * the light rather than a point: the lobe widened by a third of the sine
+   * of the light's angular radius (Karis 2013, "Real Shading in Unreal
+   * Engine 4", eq. 10). D integrates to one at any width, so a large light
+   * spreads its highlight and dims it instead of adding energy. The
+   * visibility term keeps the surface's own roughness. */
+  float a_light = min(a + light_size * (1.0f / 3.0f), 1.0f);
+  float a2_light = a_light * a_light;
+  float d = (NH * a2_light - NH) * NH + 1.0f;
+  float D = a2_light / (M_PI * d * d);
 
   /* Height correlated Smith visibility, with the 1 / (4 NL NV) of the
    * microfacet BRDF already folded in. */
@@ -54,23 +61,23 @@ float ggx_lobe(float3 N, float3 L, float3 V, float roughness)
   return D * vis * NL;
 }
 
-/* Light arriving at P from one light: direction towards the light and the
- * irradiance on a surface facing it. */
-float3 light_incoming(LightData light, float3 P, out float3 L)
+/* Light arriving at P from one light: direction towards the light, the
+ * irradiance on a surface facing it, and the sine of the angular radius of
+ * the emitter seen from P. The color is already the intensity (see
+ * LightData::color). */
+float3 light_incoming(LightData light, float3 P, out float3 L, out float size)
 {
   if (light.type == LIGHT_TYPE_SUN) {
-    /* Sun strength is already an irradiance (W/m2). */
     L = -light.direction;
-    return light.color * light.energy;
+    size = light.radius;
+    return light.color;
   }
 
   float3 to_light = light.position - P;
   float dist_sqr = max(dot(to_light, to_light), 1e-4f);
-  L = to_light * inversesqrt(dist_sqr);
-
-  /* Blender's Watt is not radiometric: a point light of power P has a
-   * radiant intensity of P / (4 pi^2), not P / (4 pi). */
-  float intensity = light.energy * (0.25f * M_1_PI * M_1_PI);
+  float inv_dist = inversesqrt(dist_sqr);
+  L = to_light * inv_dist;
+  size = min(light.radius * inv_dist, 1.0f);
 
   /* Inverse square falloff, windowed so it reaches exactly zero at the
    * light's range. A bounded light is what lets it be culled later. */
@@ -79,21 +86,26 @@ float3 light_incoming(LightData light, float3 P, out float3 L)
   float falloff = square(window) / dist_sqr;
 
   if (light.type == LIGHT_TYPE_SPOT) {
-    /* Cone with a fixed soft edge over the outer 15% of the half angle. */
-    float cos_outer = cos(light.spot_angle * 0.5f);
-    float cos_inner = cos(light.spot_angle * 0.5f * 0.85f);
-    float cos_theta = dot(-L, light.direction);
-    falloff *= smoothstep(cos_outer, cos_inner, cos_theta);
+    /* EEVEE's cone, smoothstep((cos(theta) - cos_outer) / band), written in
+     * 1 - cos units where the halves are precise. */
+    float2 spot = unpackHalf2x16(light.spot_shape);
+    float x = 1.0f - dot(-L, light.direction);
+    falloff *= smoothstep(0.0f, 1.0f, (spot.x - x) / max(spot.y, 1e-7f));
   }
   else if (light.type == LIGHT_TYPE_AREA_RECT || light.type == LIGHT_TYPE_AREA_ELLIPSE) {
     /* One sided Lambertian panel seen from far enough to be its center:
-     * I(theta) = I0 cos(theta). Same power as a point light means flux
-     * pi I0 = 4 pi I, so I0 is four times the point intensity. Near a large
-     * panel this overestimates, the real emitter being spread out. */
-    falloff *= 4.0f * max(dot(-L, light.direction), 0.0f);
+     * I(theta) = I0 cos(theta), I0 in the color. Near a large panel this
+     * overestimates, the real emitter being spread out. */
+    falloff *= max(dot(-L, light.direction), 0.0f);
   }
 
-  return light.color * (intensity * falloff);
+  return light.color * falloff;
+}
+
+float3 light_incoming(LightData light, float3 P, out float3 L)
+{
+  float size;
+  return light_incoming(light, P, L, size);
 }
 
 /* World light reaching a Lambertian surface of normal N, as the radiance a
@@ -211,8 +223,23 @@ float game_light_shadow(LightData light, float3 P, float3 N, float view_depth)
   if (tile_index < 0) {
     return 1.0f;
   }
-  float dist = (light.type == LIGHT_TYPE_SUN) ? 0.0f : length(P - light.position);
-  return shadow_tile_sample(tile_index, P, N, dist);
+  if (light.type != LIGHT_TYPE_SUN) {
+    return shadow_tile_sample(tile_index, P, N, length(P - light.position));
+  }
+  float shadow = shadow_tile_sample(tile_index, P, N, 0.0f);
+  /* Over the end of its range a cascade fades into the next one, the last
+   * into no shadow: the texel size jumps by the split ratio there, and a
+   * seam shows where a blend does not. Two lookups in the band only. */
+  float split = shadow_tile_buf[tile_index].split_depth;
+  float blend = saturate((view_depth / split - (1.0f - SHADOW_CASCADE_BLEND)) *
+                         (1.0f / SHADOW_CASCADE_BLEND));
+  if (blend > 0.0f) {
+    float next = (tile_index < light.shadow_index + 3) ?
+                     shadow_tile_sample(tile_index + 1, P, N, 0.0f) :
+                     1.0f;
+    shadow = mix(shadow, next, blend);
+  }
+  return shadow;
 }
 
 /* Same for a point in a medium: one bilinear compare and no normal offset.

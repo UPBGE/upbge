@@ -33,22 +33,34 @@ struct [[host_shared]] LightData {
   packed_float3 position;
   uint type;
 
+  /** Color times power: radiant intensity (W/sr) of point, spot and area
+   * lights (the latter on their axis), irradiance (W/m2) of suns. */
   packed_float3 color;
-  float energy;
+  /** Diffuse (x) and specular (y) factors of the light, half floats. */
+  uint diffuse_specular;
 
-  /** Spot and sun lights. */
+  /** Spot, area and sun lights. */
   packed_float3 direction;
-  /** Emitter size: soft shadow radius, or panel size for area lights. */
+  /** Emitter radius: sphere radius, half the largest side of an area light,
+   * sine of the angular radius of a sun. */
   float radius;
 
   /** Influence distance; the light contributes nothing beyond it. */
   float attenuation;
-  float spot_angle;
+  /** Spot cone, half floats: 1 - cos(half angle) (x), and the width of the
+   * blend band in the same unit (y). Small values stay small, so the halves
+   * keep their precision on narrow cones (an inverse width would overflow). */
+  uint spot_shape;
   /** Shadow atlas slot, -1 = no shadow. */
   int shadow_index;
-  /** LIGHT_FLAG_* bits. */
-  uint flags;
+  /** Factor of the light in volume scattering. */
+  float volume_factor;
 };
+
+/* Fraction of a sun cascade's split depth over which it fades into the next
+ * cascade (the last one into no shadow). Each cascade is fitted to also cover
+ * the band of the previous one. */
+#define SHADOW_CASCADE_BLEND 0.1f
 
 /* One rendered shadow face: a sun cascade (four consecutive entries), a spot
  * light, or one cube face of a point light (six consecutive entries ordered

@@ -152,9 +152,13 @@ void ShadowModule::update_cascades(Camera & /*camera*/, LightEntry &light)
   }
 
   for (int i = 0; i < MAX_SHADOW_CASCADES; ++i) {
+    /* Each cascade also covers the band where the previous one fades into
+     * it. */
     const float slice_near = (i == 0) ? near_clip :
-                                        near_clip * powf(far_clip / near_clip,
-                                                         float(i) / float(MAX_SHADOW_CASCADES));
+                                        near_clip *
+                                            powf(far_clip / near_clip,
+                                                 float(i) / float(MAX_SHADOW_CASCADES)) *
+                                            (1.0f - SHADOW_CASCADE_BLEND);
     const float slice_far = near_clip *
                             powf(far_clip / near_clip, float(i + 1) / float(MAX_SHADOW_CASCADES));
 
@@ -310,7 +314,7 @@ void ShadowModule::punctual_faces_build(ShadowPunctual &slot,
   const float guard = 2.0f * SHADOW_FACE_GUARD_TEXELS / face_res;
   /* Cube: 90 degree faces widened by the guard band. Spot: its cone. */
   const float base_tan = is_cube ? 1.0f :
-                                   tanf(math::min(light.data.spot_angle, DEG2RADF(170.0f)) *
+                                   tanf(math::min(light.spot_angle, DEG2RADF(170.0f)) *
                                         0.5f);
   const float tan_half = base_tan * (1.0f + guard);
   const float half_angle = atanf(tan_half);
@@ -435,7 +439,7 @@ void ShadowModule::end_sync()
     slot.active = true;
     slot.needs_update = true;
 
-    const bool want_dynamic = (light.data.flags & LIGHT_FLAG_SHADOW_DYNAMIC) != 0;
+    const bool want_dynamic = (light.flags & LIGHT_FLAG_SHADOW_DYNAMIC) != 0;
     if (want_dynamic && dynamic_punctual_.size() < dynamic_cap) {
       slot.is_dynamic = true;
       slot.atlas_index = uint32_t(dynamic_punctual_.size());

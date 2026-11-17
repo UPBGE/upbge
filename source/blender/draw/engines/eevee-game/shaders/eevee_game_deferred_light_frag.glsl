@@ -9,11 +9,8 @@
  * lights it with the game light list. Drawn additively over combined_tx,
  * which already holds the emission written by the G-Buffer pass.
  *
- * Deliberately a plain loop over every light per pixel: no tiles, no
- * clusters. That is the right shape for a handful of lights, and it is one
- * buffer read per light with no indirection. Once profiling shows the light
- * count is what limits a scene, the loop body stays and only the range it
- * walks changes.
+ * The lights walked are those the tiled light culling found in the pixel's
+ * screen tile.
  */
 
 #include "infos/eevee_game_infos.hh"
@@ -67,11 +64,14 @@ void main()
       LightData light = light_buf[l];
 
       float3 L;
-      float3 incoming = light_incoming(light, P, L);
-      if (all(equal(incoming, float3(0.0f)))) {
-        /* Out of range or outside the cone. */
+      float size;
+      float3 incoming = light_incoming(light, P, L, size);
+      /* Out of range, outside the cone, or a light for volumes only: no
+       * shadow lookup. */
+      if (all(equal(incoming, float3(0.0f))) || light.diffuse_specular == 0u) {
         continue;
       }
+      float2 lobe_factor = unpackHalf2x16(light.diffuse_specular);
 
       if (light.shadow_index >= 0) {
         /* The sun shadow comes filtered from the PCF compute, the punctual
@@ -86,14 +86,15 @@ void main()
           case CLOSURE_BSSRDF_BURLEY_ID:
           case CLOSURE_BSDF_DIFFUSE_ID:
             /* Lambert: a constant 1 / pi in every direction. */
-            lobe = saturate(dot(cl[i].N, L)) * M_1_PI;
+            lobe = saturate(dot(cl[i].N, L)) * (M_1_PI * lobe_factor.x);
             break;
           case CLOSURE_BSDF_TRANSLUCENT_ID:
             /* Lit from behind. */
-            lobe = saturate(-dot(cl[i].N, L)) * M_1_PI;
+            lobe = saturate(-dot(cl[i].N, L)) * (M_1_PI * lobe_factor.x);
             break;
           case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
-            lobe = ggx_lobe(cl[i].N, L, V, to_closure_reflection(cl[i]).roughness);
+            lobe = ggx_lobe(cl[i].N, L, V, to_closure_reflection(cl[i]).roughness, size) *
+                   lobe_factor.y;
             break;
           default:
             /* Refraction needs what is behind the surface; no direct term. */

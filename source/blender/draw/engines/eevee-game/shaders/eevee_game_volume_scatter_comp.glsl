@@ -249,7 +249,7 @@ void main()
           LightData light = light_buf[w * 32 + bit];
 
           vec3 L;
-          vec3 irradiance = light_incoming(light, ws_pos, L);
+          vec3 irradiance = light_incoming(light, ws_pos, L) * light.volume_factor;
           if (all(equal(irradiance, vec3(0.0)))) {
             continue;
           }

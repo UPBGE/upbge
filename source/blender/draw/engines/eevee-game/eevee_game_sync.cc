@@ -12,6 +12,7 @@
  */
 
 #include "BKE_light.h"
+#include "BLI_math_half.hh"
 #include "BKE_object.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_light_types.h"
@@ -373,7 +374,7 @@ void SyncModule::sync_light(Object *ob, ObjectHandle &handle)
       break;
     case LA_SPOT:
       entry.data.type = uint32_t(LightType::PUNCTUAL_SPOT);
-      entry.data.spot_angle = la->spotsize;
+      entry.spot_angle = la->spotsize;
       break;
     case LA_AREA:
       entry.data.type = uint32_t(LightType::AREA_RECT);
@@ -389,10 +390,51 @@ void SyncModule::sync_light(Object *ob, ObjectHandle &handle)
    * do not have to, and so object scale cannot leak into the lighting. */
   entry.data.direction = -math::normalize(float3(entry.object_to_world[2]));
   /* Temperature and exposure included, like EEVEE. */
-  entry.data.color     = BKE_light_color(*la);
-  entry.data.energy    = BKE_light_power(*la);
-  /* Emitter size: soft-shadow radius for punctual lights, panel size for area lights. */
-  entry.data.radius = (la->type == LA_AREA) ? la->area_size : la->radius;
+  const float3 color = BKE_light_color(*la);
+  const float power = BKE_light_power(*la);
+  /* Folded into the color once here instead of per pixel and light. Sun
+   * strength is already an irradiance. Blender's Watt is not radiometric: a
+   * point light of power P has a radiant intensity of P / (4 pi^2), not
+   * P / (4 pi). An area light is a one sided Lambertian panel, I(theta) =
+   * I0 cos(theta): the same power means flux pi I0 = 4 pi I, four times the
+   * point intensity on its axis. */
+  float intensity = power;
+  if (la->type != LA_SUN) {
+    intensity *= 0.25f * float(M_1_PI * M_1_PI) * ((la->type == LA_AREA) ? 4.0f : 1.0f);
+  }
+  entry.data.color = color * intensity;
+  entry.data.diffuse_specular = uint32_t(math::float_to_half_make_finite(la->diff_fac)) |
+                                (uint32_t(math::float_to_half_make_finite(la->spec_fac)) << 16);
+  entry.data.volume_factor = la->volume_fac;
+
+  /* Emitter radius, for the specular highlight size and the light reach. */
+  if (la->type == LA_SUN) {
+    entry.data.radius = sinf(math::min(la->sun_angle, float(M_PI)) * 0.5f);
+  }
+  else if (la->type == LA_AREA) {
+    /* Object scale included, as EEVEE. */
+    const bool has_size_y = ELEM(la->area_shape, LA_AREA_RECT, LA_AREA_ELLIPSE);
+    const float size_x = la->area_size * math::length(entry.object_to_world.x_axis());
+    const float size_y = (has_size_y ? la->area_sizey : la->area_size) *
+                         math::length(entry.object_to_world.y_axis());
+    entry.data.radius = 0.5f * math::max(size_x, size_y);
+  }
+  else {
+    entry.data.radius = la->radius;
+  }
+
+  /* EEVEE's spot cone: smoothstep over a band of the outer edge, the blend
+   * fraction of 1 - cos(half angle) wide. */
+  if (la->type == LA_SPOT) {
+    const float x_outer = 1.0f - cosf(la->spotsize * 0.5f);
+    entry.data.spot_shape = uint32_t(math::float_to_half_make_finite(x_outer)) |
+                            (uint32_t(math::float_to_half_make_finite(x_outer * la->spotblend))
+                             << 16);
+  }
+  else {
+    entry.data.spot_shape = 0u;
+  }
+
   /* Influence radius: the custom distance, else where the inverse square
    * falloff of the brightest channel drops under the scene light threshold.
    * Same rule as EEVEE Light::attenuation_radius_get() and the gameengine
@@ -402,9 +444,9 @@ void SyncModule::sync_light(Object *ob, ObjectHandle &handle)
   }
   else {
     const float threshold = max_ff(1e-16f, inst_.scene->eevee.light_threshold);
-    const float max_power = math::reduce_max(entry.data.color) * fabsf(entry.data.energy / 100.0f);
-    const float power = max_fff(la->diff_fac, la->spec_fac, la->volume_fac) * max_power;
-    entry.data.attenuation = sqrtf(power / threshold);
+    const float max_power = math::reduce_max(color) * fabsf(power / 100.0f);
+    const float factor_power = max_fff(la->diff_fac, la->spec_fac, la->volume_fac) * max_power;
+    entry.data.attenuation = sqrtf(factor_power / threshold);
   }
 
   /* Shadow: -1 means no shadow; ShadowModule::end_sync() will assign atlas slots. */

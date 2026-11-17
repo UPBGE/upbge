@@ -53,7 +53,7 @@ enum class DynamicShadowSlots : uint32_t {
   S64 = 64,
 };
 
-/* Set in LightData.flags for lights that should use the dynamic atlas.
+/* Set in LightEntry::flags for lights that should use the dynamic atlas.
  * Lights without this flag fall back to the static atlas. */
 #define LIGHT_FLAG_SHADOW_DYNAMIC (1u << 0)
 

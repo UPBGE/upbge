@@ -148,6 +148,54 @@ float pcf_3x3(sampler2DShadow atlas, vec3 shadow_coord, vec2 tile_min, vec2 tile
 }
 
 /* ------------------------------------------------------------------ */
+/* Lit fraction of a world position in one cascade: 1 outside its tile. */
+float cascade_shadow(int cascade_idx, vec3 world_pos, vec3 world_normal)
+{
+  mat4 lvp = (cascade_idx == 0) ? cascade_viewproj_0 :
+             (cascade_idx == 1) ? cascade_viewproj_1 :
+             (cascade_idx == 2) ? cascade_viewproj_2 : cascade_viewproj_3;
+
+  /* Direction toward the light, for N.L: the light's +Z axis in world space.
+   * It is the third row of the cascade matrix up to the orthographic depth
+   * scale, which is negative, hence the sign flip. */
+  vec3 light_dir = normalize(vec3(-lvp[0][2], -lvp[1][2], -lvp[2][2]));
+
+  /* Apply normal bias to the world position before projecting to light space. */
+  vec3 biased_pos = apply_normal_bias(world_pos, world_normal, light_dir);
+
+  /* Project biased world position into shadow-atlas UV space. */
+  vec4 light_clip  = lvp * vec4(biased_pos, 1.0);
+  vec3 shadow_coord = light_clip.xyz / light_clip.w;
+  shadow_coord      = shadow_coord * 0.5 + 0.5; /* NDC [-1,1] → UV [0,1] */
+
+  /* Reject samples outside the cascade tile boundary. */
+  if (any(lessThan(shadow_coord.xy, vec2(0.0))) ||
+      any(greaterThan(shadow_coord.xy, vec2(1.0))))
+  {
+    return 1.0;
+  }
+
+  /* Tile-local [0,1] to atlas UV: the cascades are the bottom row of the
+   * 4x4 tile grid, cascade i in column i. */
+  vec2 tile_min = vec2(float(cascade_idx), 0.0) * 0.25;
+  vec2 half_texel = vec2(0.5) / vec2(shadow_map_res);
+  vec3 atlas_coord;
+  atlas_coord.xy = tile_min + shadow_coord.xy * 0.25;
+  /* The atlas stores reversed depth (1 = near the light): reverse the
+   * reference to compare in the same space. */
+  atlas_coord.z = 1.0 - shadow_coord.z;
+
+  /* Fixed filter radius driven by pcf_offset_scale (1.0 = 2 texels). */
+  float pcf_radius = clamp(pcf_offset_scale * 2.0, 1.0, MAX_PCF_RADIUS);
+
+  return pcf_3x3(shadow_atlas,
+                 atlas_coord,
+                 tile_min + half_texel,
+                 tile_min + vec2(0.25) - half_texel,
+                 pcf_radius);
+}
+
+/* ------------------------------------------------------------------ */
 /* Main                                                                 */
 /* ------------------------------------------------------------------ */
 
@@ -196,49 +244,21 @@ void main()
     return;
   }
 
-  mat4 lvp = (cascade_idx == 0) ? cascade_viewproj_0 :
-             (cascade_idx == 1) ? cascade_viewproj_1 :
-             (cascade_idx == 2) ? cascade_viewproj_2 : cascade_viewproj_3;
-
-  /* Direction toward the light, for N.L: the light's +Z axis in world space.
-   * It is the third row of the cascade matrix up to the orthographic depth
-   * scale, which is negative, hence the sign flip. */
-  vec3 light_dir = normalize(vec3(-lvp[0][2], -lvp[1][2], -lvp[2][2]));
-
-  /* Apply normal bias to the world position before projecting to light space. */
-  vec3 biased_pos = apply_normal_bias(world_pos, world_normal, light_dir);
-
-  /* Project biased world position into shadow-atlas UV space. */
-  vec4 light_clip  = lvp * vec4(biased_pos, 1.0);
-  vec3 shadow_coord = light_clip.xyz / light_clip.w;
-  shadow_coord      = shadow_coord * 0.5 + 0.5; /* NDC [-1,1] → UV [0,1] */
-
-  /* Reject samples outside the cascade tile boundary. */
-  if (any(lessThan(shadow_coord.xy, vec2(0.0))) ||
-      any(greaterThan(shadow_coord.xy, vec2(1.0))))
-  {
-    imageStore(shadow_mask_img, px, vec4(1.0));
-    return;
+  float shadow_factor = cascade_shadow(cascade_idx, world_pos, world_normal);
+  /* Over the end of its range a cascade fades into the next one, the last
+   * into no shadow: the texel size jumps by the split ratio there, and a seam
+   * shows where a blend does not. Two lookups in the band only; each cascade
+   * is fitted to also cover the band of the previous one. */
+  float split = cascade_splits[cascade_idx];
+  float blend = clamp((view_depth / split - (1.0 - SHADOW_CASCADE_BLEND)) *
+                          (1.0 / SHADOW_CASCADE_BLEND),
+                      0.0,
+                      1.0);
+  if (blend > 0.0) {
+    float next = (cascade_idx < 3) ? cascade_shadow(cascade_idx + 1, world_pos, world_normal) :
+                                     1.0;
+    shadow_factor = mix(shadow_factor, next, blend);
   }
-
-  /* Tile-local [0,1] to atlas UV: the cascades are the bottom row of the
-   * 4x4 tile grid, cascade i in column i. */
-  vec2 tile_min = vec2(float(cascade_idx), 0.0) * 0.25;
-  vec2 half_texel = vec2(0.5) / vec2(shadow_map_res);
-  vec3 atlas_coord;
-  atlas_coord.xy = tile_min + shadow_coord.xy * 0.25;
-  /* The atlas stores reversed depth (1 = near the light): reverse the
-   * reference to compare in the same space. */
-  atlas_coord.z = 1.0 - shadow_coord.z;
-
-  /* Fixed filter radius driven by pcf_offset_scale (1.0 = 2 texels). */
-  float pcf_radius = clamp(pcf_offset_scale * 2.0, 1.0, MAX_PCF_RADIUS);
-
-  float shadow_factor = pcf_3x3(shadow_atlas,
-                                atlas_coord,
-                                tile_min + half_texel,
-                                tile_min + vec2(0.25) - half_texel,
-                                pcf_radius);
 
   imageStore(shadow_mask_img, px, vec4(shadow_factor));
 }

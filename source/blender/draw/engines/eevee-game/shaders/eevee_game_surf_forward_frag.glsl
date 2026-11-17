@@ -59,10 +59,12 @@ float3 game_forward_radiance()
       LightData light = light_buf[l];
 
       float3 L;
-      float3 incoming = light_incoming(light, P, L);
-      if (all(equal(incoming, float3(0.0f)))) {
+      float size;
+      float3 incoming = light_incoming(light, P, L, size);
+      if (all(equal(incoming, float3(0.0f))) || light.diffuse_specular == 0u) {
         continue;
       }
+      float2 lobe_factor = unpackHalf2x16(light.diffuse_specular);
       if (light.shadow_index >= 0) {
         incoming *= game_light_shadow(light, P, g_data.Ng, view_depth);
       }
@@ -75,13 +77,14 @@ float3 game_forward_radiance()
         switch (cl[i].type) {
           case CLOSURE_BSSRDF_BURLEY_ID:
           case CLOSURE_BSDF_DIFFUSE_ID:
-            lobe = saturate(dot(cl[i].N, L)) * M_1_PI;
+            lobe = saturate(dot(cl[i].N, L)) * (M_1_PI * lobe_factor.x);
             break;
           case CLOSURE_BSDF_TRANSLUCENT_ID:
-            lobe = saturate(-dot(cl[i].N, L)) * M_1_PI;
+            lobe = saturate(-dot(cl[i].N, L)) * (M_1_PI * lobe_factor.x);
             break;
           case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
-            lobe = ggx_lobe(cl[i].N, L, V, to_closure_reflection(cl[i]).roughness);
+            lobe = ggx_lobe(cl[i].N, L, V, to_closure_reflection(cl[i]).roughness, size) *
+                   lobe_factor.y;
             break;
           default:
             /* Refraction: what is behind comes through the transmittance. */
