@@ -85,6 +85,13 @@ class VolumeModule {
    * grid and depth slicing as this module. */
   void eevee_data_fill(eevee::VolumesInfoData &data) const;
 
+  /* Offset of the per froxel depth jitter this frame (EEVEE's
+   * SAMPLING_VOLUME_W dimension), shared by every volume shader. */
+  float jitter_offset_get() const
+  {
+    return jitter_.z;
+  }
+
   /**
    * Register an object that carries a volume material so the volume pipeline
    * tracks it for froxel voxelisation. Called from SyncModule::sync_mesh()
@@ -106,6 +113,21 @@ class VolumeModule {
   GameInstance *inst_;
   VolumeSettings settings_;
   bool enabled_ = false;
+
+  /* Temporal accumulation. Each frame samples the froxels at another sub
+   * froxel position (NDC xy translation of the projection, per froxel depth
+   * noise offset in z); the scatter pass blends with the previous frame
+   * reprojected. 7 / 8: an exponential window of about 8 frames, between
+   * EEVEE's 3 frames of playback and 8 of navigation. A volume or a light
+   * that moves trails over that window. */
+  static constexpr float history_opacity_ = 0.875f;
+  float3 jitter_ = float3(0.0f);
+  float4x4 winmat_jittered_ = float4x4::identity();
+  bool history_valid_ = false;
+  float4x4 history_viewmat_ = float4x4::identity();
+  float4x4 history_viewproj_ = float4x4::identity();
+  float history_z_near_ = 1.0f;
+  float history_z_far_ = 2.0f;
 
   /* Constant media in boxes; the world medium is a box without bounds. */
   StorageArrayBuffer<VolumeBoxData, VOLUME_BOX_MAX> box_buf_ = {"Volume.Boxes"};
@@ -154,10 +176,11 @@ class VolumeModule {
 
   template<typename PassT> void properties_bind(PassT &pass);
 
-  /* 3D RGBA16F: in-scattered light + emission (RGB) per froxel */
-  Texture volume_grid_tx_ = {"volume_grid_tx_"};
-  /* 3D R11G11B10: extinction per channel per froxel */
-  Texture volume_extinction_tx_ = {"volume_extinction_tx_"};
+  /* 3D RGBA16F: in-scattered light + emission (RGB) per froxel. Two, the
+   * previous frame is the history the scatter pass blends with. */
+  SwapChain<Texture, 2> volume_grid_tx_;
+  /* 3D R11G11B10: extinction per channel per froxel, same history. */
+  SwapChain<Texture, 2> volume_extinction_tx_;
   /* 3D RGBA16F: in-scattered light (RGB) integrated from the camera */
   Texture volume_integrated_tx_ = {"volume_integrated_tx_"};
   /* 3D R11G11B10: transmittance per channel from the camera */

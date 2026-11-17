@@ -372,11 +372,12 @@ void VolumeModule::eevee_data_fill(eevee::VolumesInfoData &data) const
   data.depth_near = 0.0f;
   data.depth_far = -1.0f / ud.z_near;
   data.depth_distribution = 1.0f / log2f(ud.z_far / ud.z_near);
-  data.winmat_finite = ud.projectionmat;
-  data.wininv_finite = math::invert(ud.projectionmat);
-  data.winmat_stable = data.winmat_finite;
-  data.wininv_stable = data.wininv_finite;
-  data.history_winmat_stable = data.winmat_finite;
+  /* The voxelization samples this frame's jittered positions. */
+  data.winmat_finite = winmat_jittered_;
+  data.wininv_finite = math::invert(winmat_jittered_);
+  data.winmat_stable = ud.projectionmat;
+  data.wininv_stable = math::invert(ud.projectionmat);
+  data.history_winmat_stable = data.winmat_stable;
   data.curr_view_to_past_view = float4x4::identity();
   data.history_depth_near = data.depth_near;
   data.history_depth_far = data.depth_far;
@@ -432,6 +433,8 @@ void VolumeModule::sync()
   use_voxels_ = use_world_voxels_ || (layer_count_ > 0);
   enabled_ = (box_count_ > 0) || use_voxels_;
   if (!enabled_) {
+    /* The grids stop following the camera. */
+    history_valid_ = false;
     return;
   }
   box_buf_.push_update();
@@ -446,12 +449,45 @@ void VolumeModule::sync()
   /* RGBA16F stores: RGB = scattering, A = extinction.
    * 16F is sufficient for fog density; avoids the 2x bandwidth cost of RGBA32F. */
   const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ;
-  volume_grid_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16_16_16_16, grid_res_, usage);
+  bool created = false;
+  for (int i = 0; i < 2; i++) {
+    created |= volume_grid_tx_.current().ensure_3d(
+        gpu::TextureFormat::SFLOAT_16_16_16_16, grid_res_, usage);
+    /* Extinction and transmittance per channel. R11G11B10 like EEVEE: both
+     * are positive, and transmittance lives in [0, 1]. */
+    created |= volume_extinction_tx_.current().ensure_3d(
+        gpu::TextureFormat::UFLOAT_11_11_10, grid_res_, usage);
+    volume_grid_tx_.swap();
+    volume_extinction_tx_.swap();
+  }
   volume_integrated_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16_16_16_16, grid_res_, usage);
-  /* Extinction and transmittance per channel. R11G11B10 like EEVEE: both are
-   * positive, and transmittance lives in [0, 1]. */
-  volume_extinction_tx_.ensure_3d(gpu::TextureFormat::UFLOAT_11_11_10, grid_res_, usage);
   volume_transmittance_tx_.ensure_3d(gpu::TextureFormat::UFLOAT_11_11_10, grid_res_, usage);
+  history_valid_ &= !created && inst_->frame_state.history_valid;
+
+  /* Sub froxel jitter of this frame: Halton (2, 3) in xy, within half a
+   * froxel each way in NDC, and the golden ratio sequence offsetting the per
+   * froxel depth noise. Low discrepancy, so the 8 frames of history spread
+   * over the froxel instead of clumping. Wrapped at 1024 frames, far more
+   * than the history keeps: the fraction of frame * 0.618 in float loses
+   * bits as the frame count grows. */
+  const uint32_t frame = inst_->frame_state.frame_index % 1024u;
+  auto radical_inverse = [](uint32_t i, uint32_t base) {
+    float inv = 1.0f / float(base), f = inv, r = 0.0f;
+    for (; i > 0; i /= base, f *= inv) {
+      r += f * float(i % base);
+    }
+    return r;
+  };
+  jitter_ = float3((radical_inverse(frame, 2) * 2.0f - 1.0f) / float(grid_res_.x),
+                   (radical_inverse(frame, 3) * 2.0f - 1.0f) / float(grid_res_.y),
+                   math::fract(float(frame) * 0.618034f));
+  /* Pre-multiplied clip space translation: moves NDC by jitter for any
+   * projection. */
+  winmat_jittered_ = inst_->uniform_data.projectionmat;
+  for (int c = 0; c < 4; c++) {
+    winmat_jittered_[c][0] += jitter_.x * winmat_jittered_[c][3];
+    winmat_jittered_[c][1] += jitter_.y * winmat_jittered_[c][3];
+  }
 
   if (dummy_prop_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16_16_16_16, int3(1), usage)) {
     dummy_prop_tx_.clear(float4(0.0f));
@@ -508,20 +544,27 @@ void VolumeModule::render(View & /*view*/)
   }
 
   const UniformData &ud = inst_->uniform_data;
-  const int3 grid_size = volume_grid_tx_.size();
+  /* Last frame's result becomes the history. */
+  volume_grid_tx_.swap();
+  volume_extinction_tx_.swap();
+  const int3 grid_size = volume_grid_tx_.current().size();
 
   if (use_voxels_) {
     /* Properties of the voxelized media, rasterized at froxel resolution
-     * through an infinite projection of the same frustum (unjittered, as
-     * the slicing of the scatter pass). */
+     * through an infinite projection of the same frustum, jittered as the
+     * samples of the scatter pass. */
     float left, right, bottom, top, near, far;
     projmat_dimensions(ud.projectionmat.ptr(), &left, &right, &bottom, &top, &near, &far);
     const bool is_persp = ud.projectionmat[3][3] == 0.0f;
-    const float4x4 winmat = is_persp ?
-                                math::projection::perspective_infinite(
-                                    left, right, bottom, top, near) :
-                                math::projection::orthographic_infinite(
-                                    left, right, bottom, top, near);
+    float4x4 winmat = is_persp ? math::projection::perspective_infinite(
+                                     left, right, bottom, top, near) :
+                                 math::projection::orthographic_infinite(
+                                     left, right, bottom, top, near);
+    /* Same jitter as winmat_jittered_. */
+    for (int c = 0; c < 4; c++) {
+      winmat[c][0] += jitter_.x * winmat[c][3];
+      winmat[c][1] += jitter_.y * winmat[c][3];
+    }
     volume_view_.sync(ud.viewmat, winmat);
     /* Culling against an infinite frustum is unreliable; EEVEE skips it too. */
     volume_view_.visibility_test(false);
@@ -555,8 +598,19 @@ void VolumeModule::render(View & /*view*/)
   /* Lights of the tiles and shadows: culled by the lighting passes earlier
    * in the frame. */
   inst_->pipelines.light_data_bind(scatter);
-  scatter.bind_image("out_grid_img", volume_grid_tx_);
-  scatter.bind_image("out_extinction_img", volume_extinction_tx_);
+  scatter.bind_image("out_grid_img", volume_grid_tx_.current());
+  scatter.bind_image("out_extinction_img", volume_extinction_tx_.current());
+  /* History, reprojected with the previous unjittered camera. Linear filter,
+   * clamped: reprojections out of the grid are rejected in the shader. */
+  const GPUSamplerState history_filter = {GPU_SAMPLER_FILTERING_LINEAR};
+  scatter.bind_texture("scatter_history_tx", volume_grid_tx_.previous(), history_filter);
+  scatter.bind_texture("extinction_history_tx", volume_extinction_tx_.previous(), history_filter);
+  scatter.push_constant("history_opacity", history_valid_ ? history_opacity_ : 0.0f);
+  scatter.push_constant("history_viewmat", history_viewmat_);
+  scatter.push_constant("history_viewproj", history_viewproj_);
+  scatter.push_constant("history_z_near", history_z_near_);
+  scatter.push_constant("history_z_far", history_z_far_);
+  scatter.push_constant("jitter", jitter_);
   scatter.bind_ssbo("volume_box_buf", &box_buf_);
   scatter.push_constant("volume_box_count", box_count_);
   scatter.push_constant("use_voxels", int(use_voxels_));
@@ -574,7 +628,6 @@ void VolumeModule::render(View & /*view*/)
   scatter.push_constant("samples_z", settings_.samples_z);
   scatter.push_constant("viewmat", ud.viewmat);
   scatter.push_constant("viewprojinv", math::invert(ud.viewprojmat));
-  scatter.push_constant("camera_pos", ud.camera_pos);
   scatter.push_constant("z_near", ud.z_near);
   scatter.push_constant("z_far", ud.z_far);
   scatter.push_constant("screen_res", ud.screen_res);
@@ -590,8 +643,8 @@ void VolumeModule::render(View & /*view*/)
   PassSimple &integrate = volume_integration_ps_;
   integrate.init();
   integrate.shader_set(inst_->shaders.static_shader_get(SH_VOLUME_INTEGRATE));
-  integrate.bind_texture("in_grid_tx", volume_grid_tx_);
-  integrate.bind_texture("in_extinction_tx", volume_extinction_tx_);
+  integrate.bind_texture("in_grid_tx", volume_grid_tx_.current());
+  integrate.bind_texture("in_extinction_tx", volume_extinction_tx_.current());
   integrate.bind_image("out_integrated_img", volume_integrated_tx_);
   integrate.bind_image("out_transmittance_img", volume_transmittance_tx_);
   integrate.push_constant("z_near", ud.z_near);
@@ -600,6 +653,13 @@ void VolumeModule::render(View & /*view*/)
   integrate.dispatch(int3(math::divide_ceil(grid_size.xy(), int2(8)), 1));
   integrate.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
   inst_->manager->submit(integrate);
+
+  /* Unjittered: the history is looked up at froxel centers. */
+  history_viewmat_ = ud.viewmat;
+  history_viewproj_ = ud.viewprojmat;
+  history_z_near_ = ud.z_near;
+  history_z_far_ = ud.z_far;
+  history_valid_ = true;
 }
 
 void VolumeModule::resolve(gpu::Texture *target_color_tx, gpu::Texture *depth_tx)

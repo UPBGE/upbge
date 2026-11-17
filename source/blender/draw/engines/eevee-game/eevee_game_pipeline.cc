@@ -338,7 +338,11 @@ void PipelineModule::eevee_resources_update(int normal_layer_count)
   eevee_uniform_buf_ = data;
   eevee_uniform_buf_.push_update();
 
-  static_cast<eevee::SamplingData &>(eevee_sampling_buf_) = {};
+  eevee::SamplingData &sampling = eevee_sampling_buf_;
+  sampling = {};
+  /* Per frame depth jitter of the voxelized volume shaders: the scatter
+   * pass offsets its own samples by the same amount. */
+  sampling.dimensions[eevee::SAMPLING_VOLUME_W] = inst_->volume.jitter_offset_get();
   eevee_sampling_buf_.push_update();
   cryptomatte_dummy_buf_.push_update();
 }

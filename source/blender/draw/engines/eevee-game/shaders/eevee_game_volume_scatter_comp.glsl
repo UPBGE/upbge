@@ -65,29 +65,22 @@ float hg_phase(float cos_theta, float g)
 /* ------------------------------------------------------------------ */
 /* Froxel world-space position reconstruction
  *
- * Maps (froxel_xy, depth_slice) to a world-space position.
- * Exponential Z spacing: slice index i maps to view-depth z as:
- *   z(i) = z_near * (z_far / z_near)^(i / samples_z)
- * This matches the integration pass which uses the same spacing. */
-vec3 froxel_to_world(ivec3 froxel, vec3 grid_size)
+ * Exponential Z spacing: the normalized slice coordinate w maps to the view
+ * depth d = z_near * (z_far / z_near)^w, as in the integration pass.
+ *
+ * Along the column of a screen position the world position is linear in d,
+ * for both projections: origin + ray * d. Two unprojections per column, at
+ * the clip planes (NDC -1 and 1 are depth z_near and z_far), replace one per
+ * froxel; in perspective origin is the camera. */
+void froxel_column(vec2 uv, out vec3 origin, out vec3 ray)
 {
-  /* Normalised froxel centre in [0,1]^3 */
-  vec3 uvw = (vec3(froxel) + 0.5) / grid_size;
-
-  /* Screen-space XY centre. */
-  vec2 screen_uv = uvw.xy;
-
-  /* Exponential Z: remap uvw.z from [0,1] to view-depth [z_near, z_far]. */
-  float view_depth = z_near * pow(z_far / z_near, uvw.z);
-
-  /* NDC Z corresponding to this view depth.
-   * OpenGL: z_ndc = ((z_far + z_near) - 2*z_near*z_far/view_depth) / (z_far - z_near) */
-  float z_ndc = ((z_far + z_near) - 2.0 * z_near * z_far / view_depth) / (z_far - z_near);
-
-  /* Reconstruct world position. */
-  vec4 ndc = vec4(screen_uv * 2.0 - 1.0, z_ndc, 1.0);
-  vec4 ws  = viewprojinv * ndc;
-  return ws.xyz / ws.w;
+  vec2 ndc = uv * 2.0 - 1.0;
+  vec4 p_near = viewprojinv * vec4(ndc, -1.0, 1.0);
+  vec4 p_far  = viewprojinv * vec4(ndc, 1.0, 1.0);
+  vec3 near_ws = p_near.xyz / p_near.w;
+  vec3 far_ws  = p_far.xyz / p_far.w;
+  ray    = (far_ws - near_ws) / (z_far - z_near);
+  origin = near_ws - ray * z_near;
 }
 
 /* ================================================================== */
@@ -119,22 +112,58 @@ void main()
   int word_count = game_lighting_buf.word_count;
   float log_ratio = log(z_far / z_near);
 
+  /* Sample of this frame: the whole column moves by the NDC jitter, as the
+   * projection of the voxelized media, and each froxel toward the camera by
+   * a depth noise in [0, 1) slice: EEVEE's eval_froxel and
+   * volume_froxel_jitter, so the voxels and the lights are sampled at the
+   * same points. */
+  vec2 uv_center = (vec2(froxel_xy) + 0.5) / vec2(grid_size.xy);
+  vec2 uv = uv_center - 0.5 * jitter.xy;
+  float depth_noise = fract(
+      jitter.z + 52.9829189 * fract(0.06711056 * float(froxel_xy.x) +
+                                    0.00583715 * float(froxel_xy.y)));
+  /* d_jittered = d_center * (z_far / z_near)^(-noise / grid_z). */
+  float depth_jitter_scale = exp(-log_ratio * depth_noise / float(grid_size.z));
+
+  /* The jittered column can leave the column span by half a froxel: add the
+   * tile it samples. */
+  ivec2 tile_sample = clamp(ivec2(uv * vec2(extent)) / LIGHT_TILE_SIZE,
+                            ivec2(0),
+                            game_lighting_buf.tile_count - 1);
+  tile_lo = min(tile_lo, tile_sample);
+  tile_hi = max(tile_hi, tile_sample);
+
+  /* Centers place the boxes, whose edge coverage is already a filter, and
+   * the history lookup; the jittered samples the lights. */
+  vec3 origin_center, ray_center, origin, ray;
+  froxel_column(uv_center, origin_center, ray_center);
+  froxel_column(uv, origin, ray);
+  /* Toward the camera, constant along a column. */
+  vec3 view_dir = -normalize(ray);
+
+  /* History: depth in the previous view is the dot with its view z row. */
+  vec4 history_depth_row = -vec4(history_viewmat[0][2],
+                                 history_viewmat[1][2],
+                                 history_viewmat[2][2],
+                                 history_viewmat[3][2]);
+  float history_inv_log_ratio = 1.0 / log(history_z_far / history_z_near);
+
   /* Camera axes in world space: rows of the view rotation. */
   vec3 cam_right = vec3(viewmat[0][0], viewmat[1][0], viewmat[2][0]);
   vec3 cam_up    = vec3(viewmat[0][1], viewmat[1][1], viewmat[2][1]);
   vec3 cam_back  = vec3(viewmat[0][2], viewmat[1][2], viewmat[2][2]);
 
   for (int z = 0; z < grid_size.z; z++) {
-    ivec3 froxel  = ivec3(froxel_xy, z);
-    vec3  ws_pos  = froxel_to_world(froxel, vec3(grid_size));
-    vec4  ws_pos4 = vec4(ws_pos, 1.0);
+    ivec3 froxel = ivec3(froxel_xy, z);
+    float depth_center = z_near * exp(log_ratio * (float(z) + 0.5) / float(grid_size.z));
+    vec4  center_pos4  = vec4(origin_center + ray_center * depth_center, 1.0);
+    float view_depth   = depth_center * depth_jitter_scale;
+    vec3  ws_pos       = origin + ray * view_depth;
 
-    /* Same slicing as froxel_to_world(). */
-    float view_depth = z_near * exp(log_ratio * (float(z) + 0.5) / float(grid_size.z));
     /* Half extents of the froxel along the camera axes: a 1 / grid fraction
      * of the screen laterally, half a slice in depth. */
-    vec3 froxel_half = vec3(view_depth * froxel_half_tan,
-                            0.5 * view_depth * log_ratio / float(grid_size.z));
+    vec3 froxel_half = vec3(depth_center * froxel_half_tan,
+                            0.5 * depth_center * log_ratio / float(grid_size.z));
 
     /* Medium of the froxel: sum of the constant media, each weighted by the
      * fraction of the froxel inside its box, so edges ramp over one froxel
@@ -147,9 +176,9 @@ void main()
     float g_weight = 0.0;
     for (int b = 0; b < volume_box_count; b++) {
       VolumeBoxData box = volume_box_buf[b];
-      vec3 unit = vec3(dot(box.world_to_unit_x, ws_pos4),
-                       dot(box.world_to_unit_y, ws_pos4),
-                       dot(box.world_to_unit_z, ws_pos4));
+      vec3 unit = vec3(dot(box.world_to_unit_x, center_pos4),
+                       dot(box.world_to_unit_y, center_pos4),
+                       dot(box.world_to_unit_z, center_pos4));
       /* Froxel half extent along each box axis, in unit box coordinates:
        * support of the camera aligned froxel box, |J_a . e_i| h_i summed. */
       vec3 radius = vec3(
@@ -203,9 +232,6 @@ void main()
     float g = clamp(g_sum / max(g_weight, 1.0), -0.99, 0.99);
     vec3 sigma_t = sigma_s + sigma_a + sigma_e_voxels;
 
-    /* View direction toward camera from this froxel. */
-    vec3  view_dir = normalize(camera_pos - ws_pos);
-
     vec3 in_scatter = emission;
 
     if (any(greaterThan(sigma_s, vec3(0.0)))) {
@@ -236,6 +262,34 @@ void main()
                              1.0;
           in_scatter += sigma_s * irradiance * phase * shadow;
         }
+      }
+    }
+
+    /* Exponential moving average with last frame at the same world point:
+     * the jitter of the 8 or so frames it holds spreads the samples over
+     * the froxel. Off the previous grid, this frame alone. */
+    if (history_opacity > 0.0) {
+      vec4 hs = history_viewproj * center_pos4;
+      float history_depth = dot(history_depth_row, center_pos4);
+      if (hs.w > 0.0 && history_depth > 0.0) {
+        vec3 uvw_history = vec3(hs.xy / hs.w * 0.5 + 0.5,
+                                log(history_depth / history_z_near) * history_inv_log_ratio);
+        if (all(greaterThanEqual(uvw_history, vec3(0.0))) &&
+            all(lessThanEqual(uvw_history, vec3(1.0))))
+        {
+          vec3 scatter_history = textureLod(scatter_history_tx, uvw_history, 0.0).rgb;
+          vec3 extinction_history = textureLod(extinction_history_tx, uvw_history, 0.0).rgb;
+          in_scatter = mix(in_scatter, scatter_history, history_opacity);
+          sigma_t = mix(sigma_t, extinction_history, history_opacity);
+        }
+      }
+      /* A NaN or Inf would otherwise live in the history forever and leak
+       * to the neighbors through the filtering. */
+      if (any(isnan(in_scatter)) || any(isinf(in_scatter)) || any(isnan(sigma_t)) ||
+          any(isinf(sigma_t)))
+      {
+        in_scatter = vec3(0.0);
+        sigma_t = vec3(0.0);
       }
     }
 
