@@ -128,45 +128,65 @@ void main()
     return;
   }
 
-  /* Homogeneous medium: σ_s and σ_a are constant throughout the frustum.
-   * σ_t = vol_density, σ_s = σ_t (pure scattering, no absorption for simple fog). */
-  const float sigma_t = vol_density;
-  const float sigma_s = vol_density * 0.9; /* 90% scattering albedo */
-
-  /* Camera view direction for phase function (V = -z_view in camera space). */
-  vec3 V = normalize(camera_pos);  /* Approximation: will be overridden per-froxel */
-
   for (int z = 0; z < grid_size.z; z++) {
     ivec3 froxel  = ivec3(froxel_xy, z);
     vec3  ws_pos  = froxel_to_world(froxel, vec3(grid_size));
+    vec4  ws_pos4 = vec4(ws_pos, 1.0);
+
+    /* Medium at the froxel center: sum of the constant media whose box holds
+     * it. The anisotropy is averaged over the scattering media. */
+    vec3  sigma_s  = vec3(0.0);
+    vec3  sigma_a  = vec3(0.0);
+    vec3  emission = vec3(0.0);
+    float g_sum    = 0.0;
+    float g_weight = 0.0;
+    for (int b = 0; b < volume_box_count; b++) {
+      VolumeBoxData box = volume_box_buf[b];
+      vec3 unit = vec3(dot(box.world_to_unit_x, ws_pos4),
+                       dot(box.world_to_unit_y, ws_pos4),
+                       dot(box.world_to_unit_z, ws_pos4));
+      if (any(greaterThan(abs(unit), vec3(1.0)))) {
+        continue;
+      }
+      sigma_s  += box.scattering.rgb;
+      sigma_a  += box.absorption.rgb;
+      emission += box.emission.rgb;
+      if (any(greaterThan(box.scattering.rgb, vec3(0.0)))) {
+        g_sum    += box.scattering.a;
+        g_weight += 1.0;
+      }
+    }
+    /* Clamp g to [-0.99, 0.99]: the Henyey-Greenstein denominator
+     *   (1 + g^2 - 2g cos(theta))^(3/2)
+     * reaches zero at g = +-1, and the Inf would spread through the whole
+     * column in the integration. */
+    float g = clamp(g_sum / max(g_weight, 1.0), -0.99, 0.99);
+    /* One extinction for the three channels: the grid has one alpha. */
+    float sigma_t = dot(sigma_s + sigma_a, vec3(1.0 / 3.0));
 
     /* View direction toward camera from this froxel. */
     vec3  view_dir = normalize(camera_pos - ws_pos);
 
-    vec3 in_scatter = vec3(0.0);
+    vec3 in_scatter = emission;
 
-    /* Iterate over all lights.  In practice this is bounded by MAX_LIGHTS (typically 64).
-     * Only directional (sun) lights contribute here; punctual lights are cheaper to
-     * composite in the resolve pass using the shadow mask. */
-    for (int i = 0; i < light_count; i++) {
-      LightData light = light_buf[i];
+    if (any(greaterThan(sigma_s, vec3(0.0)))) {
+      for (int i = 0; i < light_count; i++) {
+        LightData light = light_buf[i];
 
-      if (light.type == LIGHT_TYPE_SUN) {
-        /* Sun / directional light. */
-        vec3  L         = normalize(-light.direction);
-        float cos_theta = dot(L, view_dir);
-        float phase     = hg_phase(cos_theta, vol_anisotropy);
+        if (light.type == LIGHT_TYPE_SUN) {
+          /* theta between the travel direction of the light and the way to
+           * the camera: forward scattering (g > 0) peaks when looking toward
+           * the sun. */
+          float cos_theta = dot(light.direction, view_dir);
+          float phase     = hg_phase(cos_theta, g);
 
-        /* Shadow visibility: 1.0 = fully lit, 0.0 = in shadow. */
-        float shadow = shadow_directional(ws_pos);
+          /* Shadow visibility: 1.0 = fully lit, 0.0 = in shadow. */
+          float shadow = shadow_directional(ws_pos);
 
-        /* Radiance contribution: σ_s × L_i × phase × shadow. */
-        in_scatter += sigma_s * light.color * light.energy * phase * shadow;
+          in_scatter += sigma_s * light.color * light.energy * phase * shadow;
+        }
+        /* Punctual lights do not reach the volume yet. */
       }
-      /* Punctual lights: handled in volume_resolve by sampling shadow_mask_tx.
-       * Adding them here would require per-light shadow atlas tile lookups which
-       * are bandwidth-expensive in a 3D dispatch.  The resolve pass is faster
-       * because it works in 2D screen space where the shadow mask is already computed. */
     }
 
     /* Write: RGB = in-scattered radiance, A = extinction. */

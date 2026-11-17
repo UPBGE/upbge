@@ -135,6 +135,7 @@ void GameInstance::begin_sync()
   lights.begin_sync();
   shadows.begin_sync();
   velocity.begin_sync();
+  volume.begin_sync();
   sync.begin_sync();
 
   /* Camera matrices.

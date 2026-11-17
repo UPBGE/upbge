@@ -17,6 +17,7 @@
 #include "DNA_light_types.h"
 #include "DNA_object_types.h"
 #include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
@@ -162,8 +163,23 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &handle, const ObjectRef &ob
     Material &mat           = mat_array.materials[i];
     GPUMaterial *gpu_mat    = mat_array.gpu_materials[i];
 
+    /* Constant medium filling a box-shaped mesh: evaluated analytically by
+     * the volume scatter pass, no voxelization. The cached Material is shared
+     * by other objects, so the choice stays local. */
+    bool use_volume_passes = mat.has_volume;
+    if (mat.has_volume && ob->type == OB_MESH && !(ob->visibility_flag & OB_HIDE_CAMERA)) {
+      const blender::Material *bmat = GPU_material_get_material(gpu_mat);
+      const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
+      if (bmat != nullptr && inst_.volume.box_add(ob, mesh, bmat->nodetree)) {
+        if (!mat.has_surface) {
+          continue;
+        }
+        use_volume_passes = false;
+      }
+    }
+
     /* Volume embedded in a mesh material (e.g. glass with participating media) */
-    if (mat.has_volume) {
+    if (use_volume_passes) {
       if (mat.volume_occupancy.sub_pass) {
         /* volume_sub_pass() sets up per-object voxelisation state */
         PassMain::Sub *vol_pass =

@@ -89,6 +89,23 @@ struct [[host_shared]] GameLightingData {
   int _pad2;
 };
 
+/* Participating medium that is constant inside a box, evaluated
+ * analytically by the volume scatter pass instead of being voxelized. A zero
+ * matrix maps every point to the box center: an unbounded medium (world). */
+struct [[host_shared]] VolumeBoxData {
+  /** Rows of the affine world to unit box [-1, 1]^3 transform. */
+  float4 world_to_unit_x;
+  float4 world_to_unit_y;
+  float4 world_to_unit_z;
+  /** Scattering coefficient (RGB) and Henyey-Greenstein anisotropy (A). */
+  float4 scattering;
+  /** Absorption coefficient (RGB). */
+  float4 absorption;
+  /** Emitted radiance per unit length (RGB). */
+  float4 emission;
+};
+#define VOLUME_BOX_MAX 64
+
 /* World lighting cube map: mip m is the radiance pre-filtered for the GGX
  * perceptual roughness m / WORLD_CUBE_LOD_MAX. */
 #define WORLD_CUBE_MIP_COUNT 6

@@ -4,22 +4,269 @@
 #include "eevee_game_volume.hh"
 #include "eevee_game_instance.hh"
 
+#include "BKE_mesh.hh"
+#include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
+#include "DNA_mesh_types.h"
+#include "DNA_node_types.h"
+#include "DNA_world_types.h"
+#include "NOD_shader.h"
+
+#include "BLI_function_ref.hh"
+
 namespace blender::eevee_game {
+
+/* -------------------------------------------------------------------- */
+/** \name Constant media
+ *
+ * A volume node tree made of one volume node whose inputs are all left at
+ * their values is the same medium everywhere: its coefficients can be read
+ * here, on the CPU, with the formulas of the node GLSL. Anything else (links
+ * into the node, textures, attributes, several nodes) needs the shader.
+ * \{ */
+
+static bNodeSocket *input_find(bNode *node, const char *identifier)
+{
+  for (bNodeSocket &sock : node->inputs) {
+    if (STREQ(sock.identifier, identifier)) {
+      return &sock;
+    }
+  }
+  return nullptr;
+}
+
+/* Value of an unlinked input, false when linked or missing. */
+static bool input_float(bNode *node, const char *identifier, float &r_value)
+{
+  bNodeSocket *sock = input_find(node, identifier);
+  if (sock == nullptr || sock->link != nullptr || sock->default_value == nullptr) {
+    return false;
+  }
+  r_value = static_cast<const bNodeSocketValueFloat *>(sock->default_value)->value;
+  return true;
+}
+
+static bool input_color(bNode *node, const char *identifier, float3 &r_value)
+{
+  bNodeSocket *sock = input_find(node, identifier);
+  if (sock == nullptr || sock->link != nullptr || sock->default_value == nullptr) {
+    return false;
+  }
+  r_value = float3(static_cast<const bNodeSocketValueRGBA *>(sock->default_value)->value);
+  return true;
+}
+
+/* Node feeding the volume output, through reroutes. */
+static bNode *volume_source_node(bNodeTree *ntree)
+{
+  bNode *output = ntreeShaderOutputNode(ntree, SHD_OUTPUT_EEVEE);
+  if (output == nullptr) {
+    return nullptr;
+  }
+  bNodeSocket *sock = input_find(output, "Volume");
+  while (sock != nullptr && sock->link != nullptr) {
+    const bNodeLink *link = sock->link;
+    if (link->flag & NODE_LINK_MUTED) {
+      return nullptr;
+    }
+    bNode *node = link->fromnode;
+    if (node->type_legacy != NODE_REROUTE) {
+      return (node->flag & NODE_MUTED) ? nullptr : node;
+    }
+    sock = static_cast<bNodeSocket *>(node->inputs.first);
+  }
+  return nullptr;
+}
+
+/**
+ * Coefficients of a constant volume node tree, written into r_box (the
+ * matrix is left to the caller). `has_density_attribute` tells whether the
+ * geometry provides the attribute named by the Principled Volume: when it
+ * does, the density varies and the medium is not constant.
+ */
+static bool volume_constant_medium(bNodeTree *ntree,
+                                   FunctionRef<bool(const char *)> has_attribute,
+                                   VolumeBoxData &r_box)
+{
+  if (ntree == nullptr) {
+    return false;
+  }
+  bNode *node = volume_source_node(ntree);
+  if (node == nullptr) {
+    return false;
+  }
+  /* A linked weight comes from a mix: not a single node any more. */
+  if (const bNodeSocket *weight = input_find(node, "Weight"); weight && weight->link) {
+    return false;
+  }
+  float3 scattering(0.0f), absorption(0.0f), emission(0.0f);
+  float anisotropy = 0.0f;
+
+  switch (node->type_legacy) {
+    case SH_NODE_VOLUME_PRINCIPLED: {
+      float3 color, absorption_color, emission_color;
+      float density, emission_strength, blackbody_intensity;
+      if (!input_color(node, "Color", color) || !input_float(node, "Density", density) ||
+          !input_float(node, "Anisotropy", anisotropy) ||
+          !input_color(node, "Absorption Color", absorption_color) ||
+          !input_float(node, "Emission Strength", emission_strength) ||
+          !input_color(node, "Emission Color", emission_color) ||
+          !input_float(node, "Blackbody Intensity", blackbody_intensity))
+      {
+        return false;
+      }
+      /* Blackbody needs a temperature, which comes from an attribute. */
+      if (blackbody_intensity > 1e-3f) {
+        return false;
+      }
+      /* Missing attributes read 1: only a present one makes it vary. */
+      for (const char *identifier : {"Density Attribute", "Color Attribute"}) {
+        const bNodeSocket *attr = input_find(node, identifier);
+        if (attr != nullptr && attr->default_value != nullptr) {
+          const char *name =
+              static_cast<const bNodeSocketValueString *>(attr->default_value)->value;
+          if (name[0] != '\0' && has_attribute(name)) {
+            return false;
+          }
+        }
+      }
+      /* node_volume_principled(), with the attributes at their default of 1. */
+      color = math::max(color, float3(0.0f));
+      density = math::max(density, 0.0f);
+      if (density > 1e-5f) {
+        scattering = color * density;
+        const float3 absorption_sqrt = math::sqrt(math::max(absorption_color, float3(0.0f)));
+        absorption = math::max(1.0f - color, float3(0.0f)) *
+                     math::max(1.0f - absorption_sqrt, float3(0.0f)) * density;
+      }
+      if (emission_strength > 1e-5f) {
+        emission = emission_strength * math::max(emission_color, float3(0.0f));
+      }
+      break;
+    }
+    case SH_NODE_VOLUME_SCATTER: {
+      float3 color;
+      float density;
+      if (!input_color(node, "Color", color) || !input_float(node, "Density", density) ||
+          !input_float(node, "Anisotropy", anisotropy))
+      {
+        return false;
+      }
+      /* node_volume_scatter(): EEVEE keeps the Henyey-Greenstein anisotropy
+       * whatever the phase function. */
+      scattering = math::max(color, float3(0.0f)) * math::max(density, 0.0f);
+      break;
+    }
+    case SH_NODE_VOLUME_ABSORPTION: {
+      float3 color;
+      float density;
+      if (!input_color(node, "Color", color) || !input_float(node, "Density", density)) {
+        return false;
+      }
+      /* node_volume_absorption(). */
+      absorption = (1.0f - math::max(color, float3(0.0f))) * math::max(density, 0.0f);
+      break;
+    }
+    default:
+      return false;
+  }
+
+  r_box.scattering = float4(scattering, anisotropy);
+  r_box.absorption = float4(absorption, 0.0f);
+  r_box.emission = float4(emission, 0.0f);
+  return true;
+}
+
+/* Bounds of a mesh that is exactly its bounding box: 8 vertices, one on each
+ * corner. Its inside is then the box, whatever its faces. */
+static std::optional<Bounds<float3>> mesh_box_bounds(const Mesh &mesh)
+{
+  if (mesh.verts_num != 8) {
+    return std::nullopt;
+  }
+  const std::optional<Bounds<float3>> bounds = mesh.bounds_min_max();
+  if (!bounds) {
+    return std::nullopt;
+  }
+  const float3 size = bounds->max - bounds->min;
+  if (math::reduce_min(size) <= 0.0f) {
+    return std::nullopt;
+  }
+  const float eps = 1e-5f * math::reduce_max(size);
+  uint32_t corners = 0;
+  for (const float3 &p : mesh.vert_positions()) {
+    int code = 0;
+    for (int a = 0; a < 3; a++) {
+      if (fabsf(p[a] - bounds->max[a]) <= eps) {
+        code |= 1 << a;
+      }
+      else if (fabsf(p[a] - bounds->min[a]) > eps) {
+        return std::nullopt;
+      }
+    }
+    corners |= 1u << code;
+  }
+  return (corners == 0xFFu) ? bounds : std::nullopt;
+}
+
+bool VolumeModule::box_add(const Object *ob, const Mesh &mesh, bNodeTree *ntree)
+{
+  if (box_count_ >= VOLUME_BOX_MAX) {
+    return false;
+  }
+  const std::optional<Bounds<float3>> bounds = mesh_box_bounds(mesh);
+  if (!bounds) {
+    return false;
+  }
+  VolumeBoxData box;
+  auto has_attribute = [&](const char *name) { return mesh.attributes().contains(name); };
+  if (!volume_constant_medium(ntree, has_attribute, box)) {
+    return false;
+  }
+  /* World to unit box: undo the object transform, center, then scale the
+   * half extents to 1. */
+  const float3 center = bounds->center();
+  const float3 half_inv = 2.0f / (bounds->max - bounds->min);
+  const float4x4 world_to_unit = math::from_scale<float4x4>(half_inv) *
+                                 math::from_location<float4x4>(-center) *
+                                 ob->world_to_object();
+  /* Rows of the affine part: the matrix is stored by columns. */
+  const float4x4 rows = math::transpose(world_to_unit);
+  box.world_to_unit_x = rows[0];
+  box.world_to_unit_y = rows[1];
+  box.world_to_unit_z = rows[2];
+  box_buf_[box_count_++] = box;
+  return true;
+}
+
+/** \} */
 
 VolumeModule::VolumeModule(GameInstance &inst) : inst_(&inst) {}
 
-void VolumeModule::init()
+void VolumeModule::init() {}
+
+void VolumeModule::begin_sync()
 {
-  /* Defaults: mild forward-scattering fog.
-   * density = 0.1 gives a thin atmospheric haze at 100m depth.
-   * anisotropy = 0.7 biases scattering toward the light (forward-scattering medium). */
+  box_count_ = 0;
 }
 
 void VolumeModule::sync()
 {
-  if (!settings_.enabled) {
+  /* A constant world medium is a box without bounds: the zero matrix maps
+   * every point to the center. Attribute lookups have nothing to find. */
+  const World *world = inst_->scene->world;
+  if (world != nullptr && box_count_ < VOLUME_BOX_MAX) {
+    VolumeBoxData box = {};
+    if (volume_constant_medium(world->nodetree, [](const char *) { return false; }, box)) {
+      box_buf_[box_count_++] = box;
+    }
+  }
+
+  enabled_ = box_count_ > 0;
+  if (!enabled_) {
     return;
   }
+  box_buf_.push_update();
 
   const int2 render_res = inst_->film.render_extent_get();
 
@@ -38,7 +285,7 @@ void VolumeModule::sync()
 
 void VolumeModule::render(View & /*view*/)
 {
-  if (!settings_.enabled) {
+  if (!enabled_) {
     return;
   }
 
@@ -55,14 +302,10 @@ void VolumeModule::render(View & /*view*/)
   scatter.bind_texture("shadow_atlas", inst_->shadows.get_static_atlas());
   inst_->lights.bind_resources(scatter);
   scatter.bind_image("out_grid_img", volume_grid_tx_);
+  scatter.bind_ssbo("volume_box_buf", &box_buf_);
+  scatter.push_constant("volume_box_count", box_count_);
   scatter.push_constant("tile_size", settings_.tile_size);
   scatter.push_constant("samples_z", settings_.samples_z);
-  scatter.push_constant("vol_density", settings_.density);
-  /* Clamp g to [-0.99, 0.99]: the Henyey-Greenstein denominator
-   *   (1 + g^2 - 2g cos(theta))^(3/2)
-   * reaches zero at g = +-1 for theta = 0 (or pi). The resulting Inf would
-   * spread through the Beer-Lambert integration of the whole column. */
-  scatter.push_constant("vol_anisotropy", math::clamp(settings_.anisotropy, -0.99f, 0.99f));
   scatter.push_constant("light_count", inst_->lights.active_light_count);
   scatter.push_constant("viewmat", ud.viewmat);
   scatter.push_constant("viewprojinv", math::invert(ud.viewprojmat));
@@ -94,7 +337,7 @@ void VolumeModule::render(View & /*view*/)
 
 void VolumeModule::resolve(gpu::Texture *target_color_tx, gpu::Texture *depth_tx)
 {
-  if (!settings_.enabled) {
+  if (!enabled_) {
     return;
   }
 
