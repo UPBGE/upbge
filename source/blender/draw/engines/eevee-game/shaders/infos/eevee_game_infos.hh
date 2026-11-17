@@ -367,6 +367,8 @@ PUSH_CONSTANT(int, volume_box_count)
 /* Properties summed by the voxelized volume shaders (EEVEE's grids). Slots
  * around the light data ones. */
 PUSH_CONSTANT(int, use_voxels)
+/* Half size of a froxel per unit of view depth: 1 / (grid * projection). */
+PUSH_CONSTANT(float2, froxel_half_tan)
 SAMPLER(0, sampler3D, prop_scattering_tx)
 SAMPLER(1, sampler3D, prop_extinction_tx)
 SAMPLER(2, sampler3D, prop_emission_tx)

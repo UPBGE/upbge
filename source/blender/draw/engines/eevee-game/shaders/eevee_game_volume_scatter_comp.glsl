@@ -119,13 +119,27 @@ void main()
   int word_count = game_lighting_buf.word_count;
   float log_ratio = log(z_far / z_near);
 
+  /* Camera axes in world space: rows of the view rotation. */
+  vec3 cam_right = vec3(viewmat[0][0], viewmat[1][0], viewmat[2][0]);
+  vec3 cam_up    = vec3(viewmat[0][1], viewmat[1][1], viewmat[2][1]);
+  vec3 cam_back  = vec3(viewmat[0][2], viewmat[1][2], viewmat[2][2]);
+
   for (int z = 0; z < grid_size.z; z++) {
     ivec3 froxel  = ivec3(froxel_xy, z);
     vec3  ws_pos  = froxel_to_world(froxel, vec3(grid_size));
     vec4  ws_pos4 = vec4(ws_pos, 1.0);
 
-    /* Medium at the froxel center: sum of the constant media whose box holds
-     * it. The anisotropy is averaged over the scattering media. */
+    /* Same slicing as froxel_to_world(). */
+    float view_depth = z_near * exp(log_ratio * (float(z) + 0.5) / float(grid_size.z));
+    /* Half extents of the froxel along the camera axes: a 1 / grid fraction
+     * of the screen laterally, half a slice in depth. */
+    vec3 froxel_half = vec3(view_depth * froxel_half_tan,
+                            0.5 * view_depth * log_ratio / float(grid_size.z));
+
+    /* Medium of the froxel: sum of the constant media, each weighted by the
+     * fraction of the froxel inside its box, so edges ramp over one froxel
+     * instead of stepping at its center. The anisotropy is averaged over the
+     * scattering media. */
     vec3  sigma_s  = vec3(0.0);
     vec3  sigma_a  = vec3(0.0);
     vec3  emission = vec3(0.0);
@@ -136,15 +150,37 @@ void main()
       vec3 unit = vec3(dot(box.world_to_unit_x, ws_pos4),
                        dot(box.world_to_unit_y, ws_pos4),
                        dot(box.world_to_unit_z, ws_pos4));
-      if (any(greaterThan(abs(unit), vec3(1.0)))) {
+      /* Froxel half extent along each box axis, in unit box coordinates:
+       * support of the camera aligned froxel box, |J_a . e_i| h_i summed. */
+      vec3 radius = vec3(
+          dot(abs(vec3(dot(box.world_to_unit_x.xyz, cam_right),
+                       dot(box.world_to_unit_x.xyz, cam_up),
+                       dot(box.world_to_unit_x.xyz, cam_back))),
+              froxel_half),
+          dot(abs(vec3(dot(box.world_to_unit_y.xyz, cam_right),
+                       dot(box.world_to_unit_y.xyz, cam_up),
+                       dot(box.world_to_unit_y.xyz, cam_back))),
+              froxel_half),
+          dot(abs(vec3(dot(box.world_to_unit_z.xyz, cam_right),
+                       dot(box.world_to_unit_z.xyz, cam_up),
+                       dot(box.world_to_unit_z.xyz, cam_back))),
+              froxel_half));
+      /* Unbounded medium: zero matrix, zero radius. */
+      radius = max(radius, vec3(1e-6));
+      /* Overlap of [unit - r, unit + r] with [-1, 1] per axis; the product
+       * is exact for an axis aligned froxel, close otherwise. */
+      vec3 overlap = min(unit + radius, vec3(1.0)) - max(unit - radius, vec3(-1.0));
+      vec3 cover3 = clamp(overlap / (2.0 * radius), 0.0, 1.0);
+      float coverage = cover3.x * cover3.y * cover3.z;
+      if (coverage <= 0.0) {
         continue;
       }
-      sigma_s  += box.scattering.rgb;
-      sigma_a  += box.absorption.rgb;
-      emission += box.emission.rgb;
+      sigma_s  += box.scattering.rgb * coverage;
+      sigma_a  += box.absorption.rgb * coverage;
+      emission += box.emission.rgb * coverage;
       if (any(greaterThan(box.scattering.rgb, vec3(0.0)))) {
-        g_sum    += box.scattering.a;
-        g_weight += 1.0;
+        g_sum    += box.scattering.a * coverage;
+        g_weight += coverage;
       }
     }
     /* Voxelized media, written by their shaders at this same froxel. The
@@ -173,8 +209,6 @@ void main()
     vec3 in_scatter = emission;
 
     if (any(greaterThan(sigma_s, vec3(0.0)))) {
-      /* Same slicing as froxel_to_world(): picks the sun cascade. */
-      float view_depth = z_near * exp(log_ratio * (float(z) + 0.5) / float(grid_size.z));
       for (int w = 0; w < word_count; w++) {
         uint bits = 0u;
         for (int ty = tile_lo.y; ty <= tile_hi.y; ty++) {

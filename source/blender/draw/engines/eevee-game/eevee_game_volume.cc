@@ -560,6 +560,11 @@ void VolumeModule::render(View & /*view*/)
   scatter.bind_ssbo("volume_box_buf", &box_buf_);
   scatter.push_constant("volume_box_count", box_count_);
   scatter.push_constant("use_voxels", int(use_voxels_));
+  /* The grid splits [-1, 1] NDC in grid_size cells: a half cell is
+   * 1 / grid in NDC, depth / (grid P00) in view space (perspective). */
+  scatter.push_constant("froxel_half_tan",
+                        float2(1.0f / (float(grid_size.x) * ud.projectionmat[0][0]),
+                               1.0f / (float(grid_size.y) * ud.projectionmat[1][1])));
   scatter.bind_texture("prop_scattering_tx", &scatter_scattering_tx_);
   scatter.bind_texture("prop_extinction_tx", &scatter_extinction_tx_);
   scatter.bind_texture("prop_emission_tx", &scatter_emission_tx_);
