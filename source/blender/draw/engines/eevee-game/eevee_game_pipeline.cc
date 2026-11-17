@@ -237,6 +237,7 @@ template<typename PassT> void PipelineModule::forward_resources_bind(PassT &pass
   pass.bind_ssbo(LIGHT_ZBIN_BUF_SLOT, &light_tile_mask_buf_);
   pass.bind_ubo(SPHERE_PROBE_BUF_SLOT, &lighting_buf_);
   inst_->shadows.bind_resources_by_slot(pass);
+  inst_->world.bind_resources(pass);
   /* Shader To RGB materials declare the previous layer inputs of EEVEE's
    * layered transparency; this shader never reads them. Not combined_tx: it
    * is the color attachment being drawn to. */
@@ -417,12 +418,6 @@ void PipelineModule::sync()
   use_ao_ = inst_->gtao.enabled() ? 1 : 0;
   use_ssgi_ = (inst_->ssgi.enabled() && inst_->frame_state.history_valid) ? 1 : 0;
 
-  world_ambient_ = float3(0.0f);
-  if (inst_->scene->world != nullptr) {
-    const blender::World &world = *inst_->scene->world;
-    world_ambient_ = float3(world.horr, world.horg, world.horb);
-  }
-
   PassSimple &light_ps = opaque_layer_.lighting_ps_;
   light_ps.init();
   light_ps.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD_FULL);
@@ -437,14 +432,14 @@ void PipelineModule::sync()
   inst_->lights.bind_resources(light_ps);
   /* Punctual shadows are looked up per light in the lighting shader. */
   inst_->shadows.bind_resources(light_ps);
+  inst_->world.bind_resources(light_ps);
   light_ps.bind_ubo("game_lighting_buf", &lighting_buf_);
   light_ps.bind_ssbo("light_tile_mask_buf", &light_tile_mask_buf_);
   light_ps.push_constant("use_ao", &use_ao_);
   light_ps.push_constant("use_ssgi", &use_ssgi_);
   light_ps.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
-  /* Forward surfaces: same ambient and lights as the deferred pass. */
-  lighting_buf_.world_ambient = world_ambient_;
+  /* Forward surfaces: same lights as the deferred pass. */
   lighting_buf_.push_update();
 
   /* Intermediate AA targets follow the render resolution. */
@@ -649,6 +644,18 @@ PassMain::Sub *PipelineModule::material_add(Object * /*ob*/,
 static float transparent_sorting_value(const Object *ob, const float4x4 &viewinv)
 {
   return math::dot(float3(ob->object_to_world().location()), float3(viewinv[2]));
+}
+
+void PipelineModule::eevee_globals_bind(PassSimple &pass)
+{
+  RenderBuffers &rbufs = inst_->render_buffers;
+  pass.bind_image(RBUFS_COLOR_SLOT, &rbufs.rp_color_tx);
+  pass.bind_image(RBUFS_VALUE_SLOT, &rbufs.rp_value_tx);
+  pass.bind_image(RBUFS_CRYPTOMATTE_SLOT, &rbufs.cryptomatte_tx);
+  pass.bind_ssbo(CRYPTOMATTE_BUF_SLOT, &cryptomatte_dummy_buf_);
+  pass.bind_texture(RBUFS_UTILITY_TEX_SLOT, eevee_utility_tx_);
+  pass.bind_ubo(UNIFORM_BUF_SLOT, &eevee_uniform_buf_);
+  pass.bind_ssbo(SAMPLING_BUF_SLOT, &eevee_sampling_buf_);
 }
 
 PassMain::Sub *PipelineModule::shadow_caster_add(blender::Material *blender_mat,

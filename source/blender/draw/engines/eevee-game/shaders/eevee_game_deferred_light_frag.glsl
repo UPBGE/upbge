@@ -46,10 +46,6 @@ void main()
   float3 bounce = (use_ssgi != 0) ? texelFetch(ssgi_tx, texel, 0).rgb : float3(0.0f);
   float sun_shadow = texelFetch(shadow_mask_tx, texel, 0).r;
 
-  /* Indirect light: one screen-space bounce plus a flat ambient term, both
-   * attenuated by AO. The ambient color stands in for image based lighting
-   * until there are probes. */
-  float3 indirect = (bounce + game_lighting_buf.world_ambient) * ao;
 
   int closure_count = min(int(gbuf.header.closure_len()), GBUFFER_LAYER_MAX);
   ClosureUndetermined cl[GBUFFER_LAYER_MAX];
@@ -108,11 +104,26 @@ void main()
     }
   }
 
+  /* Indirect light: the world, plus one screen-space bounce on the diffuse
+   * lobes, attenuated by AO (also standing in for specular occlusion). */
   float3 radiance = float3(0.0f);
   for (int i = 0; i < closure_count; i++) {
-    /* Refraction gets no ambient either: it would turn glass opaque. */
-    if (cl[i].type != CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID) {
-      light_sum[i] += indirect;
+    switch (cl[i].type) {
+      case CLOSURE_BSSRDF_BURLEY_ID:
+      case CLOSURE_BSDF_DIFFUSE_ID:
+        light_sum[i] += (bounce + world_diffuse(cl[i].N)) * ao;
+        break;
+      case CLOSURE_BSDF_TRANSLUCENT_ID:
+        light_sum[i] += world_diffuse(-cl[i].N) * ao;
+        break;
+      case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
+        light_sum[i] += world_specular(reflect(-V, cl[i].N),
+                                       to_closure_reflection(cl[i]).roughness) *
+                        ao;
+        break;
+      default:
+        /* Refraction: no indirect term, it would turn glass opaque. */
+        break;
     }
     radiance += light_sum[i] * cl[i].color;
   }

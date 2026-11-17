@@ -35,6 +35,7 @@ GameInstance::GameInstance()
       ssgi(*this),
       raytrace(this),
       volume(*this),
+      world(*this),
       pipelines(&shaders, this),
       upscale(*this),
       main_view_(*this)
@@ -220,6 +221,8 @@ void GameInstance::end_sync()
   ssgi.sync();
   raytrace.sync();
   volume.sync();
+  /* Before the pipelines: they bind the world lighting maps it allocates. */
+  world.sync();
   pipelines.sync();
 }
 

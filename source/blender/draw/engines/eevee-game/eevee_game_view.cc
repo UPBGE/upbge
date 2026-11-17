@@ -188,6 +188,9 @@ void ShadingView::render()
   /* Sync render_view_ with the current frame's camera matrices. */
   update_view();
 
+  /* World lighting maps, only when the world changed. */
+  inst_.world.render();
+
   /* ================================================================
    * Steps 1 + 2: Culling, Depth/Velocity Prepass, Hi-Z
    *

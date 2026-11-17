@@ -5,6 +5,7 @@
 
 #include "GPU_material.hh"
 #include "DNA_material_types.h"
+#include "DNA_world_types.h"
 
 /* Delegate material shaders to EEVEE's ShaderModule singleton.
  * eevee::ShaderModule owns codegen_callback and pass_replacement_cb closures
@@ -23,6 +24,8 @@ namespace blender::eevee_game {
  * uuid as a 32 bit seed, and the game pass must never be mistaken for the
  * EEVEE pass of the same node tree (they differ only by the create info). */
 static constexpr uint64_t GAME_FORWARD_UUID_BIT = uint64_t(1) << 16;
+/* Same for the world of the lighting capture. */
+static constexpr uint64_t GAME_WORLD_UUID_BIT = uint64_t(1) << 17;
 
 /* Runs EEVEE's codegen, then swaps EEVEE's forward surface interface for the
  * game one: same node tree code, same closure setup, lit by the game lights
@@ -37,6 +40,21 @@ static void game_forward_codegen(void *thunk, GPUMaterial *mat, GPUCodegenOutput
   for (gpu::shader::ShaderCreateInfo::AdditionalInfo &additional : info.additional_infos_) {
     if (additional.name == "eevee_surf_forward") {
       additional.name = "eevee_game_surf_forward";
+    }
+  }
+  info.name_ += "_game";
+}
+
+/* Same swap for the world: only the radiance, without EEVEE's probes. */
+static void game_world_codegen(void *thunk, GPUMaterial *mat, GPUCodegenOutput *codegen)
+{
+  static_cast<eevee::ShaderModule *>(thunk)->material_create_info_amend(mat, codegen);
+
+  gpu::shader::ShaderCreateInfo &info = *reinterpret_cast<gpu::shader::ShaderCreateInfo *>(
+      codegen->create_info);
+  for (gpu::shader::ShaderCreateInfo::AdditionalInfo &additional : info.additional_infos_) {
+    if (additional.name == "eevee_surf_world") {
+      additional.name = "eevee_game_surf_world";
     }
   }
   info.name_ += "_game";
@@ -151,6 +169,10 @@ const char *ShaderModule::static_shader_name_get(eShaderType type)
       return "eevee_game_light_cull";
     case SH_VELOCITY_RESOLVE:
       return "eevee_game_velocity_resolve";
+    case SH_WORLD_SH:
+      return "eevee_game_world_sh";
+    case SH_WORLD_PREFILTER:
+      return "eevee_game_world_prefilter";
     case SH_FILM_PRESENT:
       return "eevee_game_film_present";
 
@@ -191,6 +213,8 @@ void ShaderModule::static_shaders_load(ShaderGroups groups)
       {SH_VOLUME_RESOLVE, SG_POST_FX},
       {SH_FILM_PRESENT, SG_POST_FX},
       {SH_VELOCITY_RESOLVE, SG_POST_FX},
+      {SH_WORLD_SH, SG_LIGHTING},
+      {SH_WORLD_PREFILTER, SG_LIGHTING},
 
       /* AA */
       {SH_FXAA, SG_AA},
@@ -250,6 +274,25 @@ GPUMaterial *ShaderModule::material_shader_get(blender::Material *material,
                                                                     shader_uuid,
                                                                     deferred,
                                                                     game_forward_codegen,
+                                                                    eevee_shaders,
+                                                                    nullptr);
+  return result.material;
+}
+
+GPUMaterial *ShaderModule::world_shader_get(blender::World *world, bNodeTree *ntree, bool deferred)
+{
+  eevee::ShaderModule *eevee_shaders = eevee::ShaderModule::module_get();
+  const uint64_t shader_uuid = eevee::shader_uuid_from_material_type(eevee::MAT_PIPE_DEFERRED,
+                                                                     eevee::MAT_GEOM_WORLD) |
+                               GAME_WORLD_UUID_BIT;
+  GPUMaterialFromNodeTreeResult result = GPU_material_from_nodetree(nullptr,
+                                                                    ntree,
+                                                                    &world->gpumaterial,
+                                                                    world->id.name,
+                                                                    GPU_MAT_EEVEE,
+                                                                    shader_uuid,
+                                                                    deferred,
+                                                                    game_world_codegen,
                                                                     eevee_shaders,
                                                                     nullptr);
   return result.material;

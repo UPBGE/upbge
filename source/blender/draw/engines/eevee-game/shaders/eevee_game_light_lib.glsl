@@ -96,6 +96,23 @@ float3 light_incoming(LightData light, float3 P, out float3 L)
   return light.color * (intensity * falloff);
 }
 
+/* World light reaching a Lambertian surface of normal N, as the radiance a
+ * white diffuse surface reflects: L1 spherical harmonics, clamped because a
+ * strongly directional sky rings below zero on the far side. */
+float3 world_diffuse(float3 N)
+{
+  float4 n = float4(1.0f, N);
+  return max(float3(dot(world_sh_buf[0], n), dot(world_sh_buf[1], n), dot(world_sh_buf[2], n)),
+             float3(0.0f));
+}
+
+/* World radiance seen in the mirror direction R, pre-filtered for the GGX
+ * lobe of the given perceptual roughness. */
+float3 world_specular(float3 R, float roughness)
+{
+  return textureLod(world_radiance_tx, R, roughness * WORLD_CUBE_LOD_MAX).rgb;
+}
+
 /* First word of the light mask of the screen tile holding a fragment. The
  * set bits of the `word_count` words from there are the lights to walk. */
 int light_tile_mask_base(float2 frag_coord)

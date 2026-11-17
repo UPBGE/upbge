@@ -8,7 +8,7 @@
  *
  * EEVEE's generated node tree evaluates the closures, the game light loop of
  * `eevee_game_light_lib.glsl` lights them: the same lights, shadows and lobes
- * as the deferred pass, plus the flat ambient term. Written premultiplied:
+ * as the deferred pass, plus the world lighting. Written premultiplied:
  * the blend is `dst = src.rgb + dst * (1 - src.a)` with
  * src.a = 1 - average transmittance (monochromatic transmittance).
  */
@@ -28,8 +28,8 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_game_surf_forward)
 #include "eevee_sampling_lib.glsl"
 #include "eevee_surf_lib.glsl"
 
-/* Radiance leaving the surface toward the viewer: game lights on the
- * closures of the node tree, ambient, emission. */
+/* Radiance leaving the surface toward the viewer: game lights and world on
+ * the closures of the node tree, emission. */
 float3 game_forward_radiance()
 {
   float3 radiance = g_emission;
@@ -96,8 +96,22 @@ float3 game_forward_radiance()
     if (cl[i].weight <= CLOSURE_WEIGHT_CUTOFF) {
       continue;
     }
-    if (cl[i].type != CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID) {
-      light_sum[i] += game_lighting_buf.world_ambient;
+    /* World light, as in the deferred pass (no AO here). */
+    switch (cl[i].type) {
+      case CLOSURE_BSSRDF_BURLEY_ID:
+      case CLOSURE_BSDF_DIFFUSE_ID:
+        light_sum[i] += world_diffuse(cl[i].N);
+        break;
+      case CLOSURE_BSDF_TRANSLUCENT_ID:
+        light_sum[i] += world_diffuse(-cl[i].N);
+        break;
+      case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
+        light_sum[i] += world_specular(reflect(-V, cl[i].N),
+                                       to_closure_reflection(cl[i]).roughness);
+        break;
+      default:
+        /* Refraction: what is behind comes through the transmittance. */
+        break;
     }
     radiance += light_sum[i] * cl[i].color;
   }

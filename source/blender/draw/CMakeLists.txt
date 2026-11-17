@@ -154,6 +154,7 @@ set(SRC
   engines/eevee-game/eevee_game_velocity.cc
   engines/eevee-game/eevee_game_view.cc
   engines/eevee-game/eevee_game_volume.cc
+  engines/eevee-game/eevee_game_world.cc
   engines/workbench/workbench_effect_antialiasing.cc
   engines/workbench/workbench_effect_cavity.cc
   engines/workbench/workbench_effect_dof.cc
@@ -280,6 +281,7 @@ set(SRC
   engines/eevee-game/eevee_game_velocity.hh
   engines/eevee-game/eevee_game_view.hh
   engines/eevee-game/eevee_game_volume.hh
+  engines/eevee-game/eevee_game_world.hh
   engines/external/external_engine.h
   engines/gpencil/gpencil_engine.hh
   engines/gpencil/gpencil_engine_private.hh
@@ -668,10 +670,14 @@ set(GLSL_SRC
   engines/eevee-game/shaders/eevee_game_ssgi_blur_comp.glsl
   engines/eevee-game/shaders/eevee_game_ssgi_main_comp.glsl
   engines/eevee-game/shaders/eevee_game_surf_forward_frag.glsl
+  engines/eevee-game/shaders/eevee_game_surf_world_frag.glsl
   engines/eevee-game/shaders/eevee_game_velocity_resolve_comp.glsl
   engines/eevee-game/shaders/eevee_game_volume_integrate_comp.glsl
   engines/eevee-game/shaders/eevee_game_volume_resolve_comp.glsl
   engines/eevee-game/shaders/eevee_game_volume_scatter_comp.glsl
+  engines/eevee-game/shaders/eevee_game_world_lib.glsl
+  engines/eevee-game/shaders/eevee_game_world_prefilter_comp.glsl
+  engines/eevee-game/shaders/eevee_game_world_sh_comp.glsl
 
   engines/eevee-game/eevee_game_shader_shared.hh
 

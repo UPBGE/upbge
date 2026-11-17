@@ -20,6 +20,7 @@
 #include "eevee_game_upscaling.hh"
 #include "eevee_game_velocity.hh"
 #include "eevee_game_volume.hh"
+#include "eevee_game_world.hh"
 #include "eevee_game_view.hh"
 
 #include "../eevee/eevee_defines.hh" /* HIZ_MIP_COUNT, HIZ_GROUP_SIZE */
@@ -172,6 +173,7 @@ class GameInstance : public DrawEngine {
   SSGIModule     ssgi;
   RayTraceModule raytrace;
   VolumeModule   volume;
+  WorldModule    world;
   PipelineModule pipelines;
   UpscaleModule  upscale;
   LightModule    lights;

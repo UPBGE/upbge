@@ -75,17 +75,26 @@ struct [[host_shared]] ShadowTileData {
 /* Per frame lighting constants, shared by the light culling, the deferred
  * lighting and the forward surfaces. */
 struct [[host_shared]] GameLightingData {
-  packed_float3 world_ambient;
   int light_count;
-  int2 tile_count;
-  int2 render_extent;
   /** 32 lights per word of the tile masks: ceil(light_count / 32). */
   int word_count;
+  int2 tile_count;
+  int2 render_extent;
   /** Fog of the forward surfaces: froxel slice w = log(z / near) * log_inv. */
   bool32_t use_volume;
   float volume_z_near;
   float volume_log_inv;
+  int _pad0;
+  int _pad1;
+  int _pad2;
 };
+
+/* World lighting cube map: mip m is the radiance pre-filtered for the GGX
+ * perceptual roughness m / WORLD_CUBE_LOD_MAX. */
+#define WORLD_CUBE_MIP_COUNT 6
+#define WORLD_CUBE_LOD_MAX 5.0f
+/* Face size of the mip the diffuse spherical harmonics are projected from. */
+#define WORLD_SH_RES 16
 
 #ifndef GPU_SHADER
 }  // namespace blender::eevee_game

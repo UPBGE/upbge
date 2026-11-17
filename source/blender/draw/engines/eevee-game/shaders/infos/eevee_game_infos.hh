@@ -86,6 +86,11 @@ STORAGE_BUF(LIGHT_ZBIN_BUF_SLOT, read, uint, light_tile_mask_buf[])
 STORAGE_BUF(LIGHT_TILE_BUF_SLOT, read, ShadowTileData, shadow_tile_buf[])
 SAMPLER(SHADOW_TILEMAPS_TEX_SLOT, sampler2DShadow, shadow_static_atlas)
 SAMPLER(SHADOW_ATLAS_TEX_SLOT, sampler2DShadow, shadow_dynamic_atlas)
+/* World lighting: GGX pre-filtered radiance per mip and the L1 spherical
+ * harmonics of the diffuse radiance, one float4 per channel. The slots of
+ * EEVEE's own probe inputs. */
+SAMPLER(SPHERE_PROBE_TEX_SLOT, samplerCube, world_radiance_tx)
+STORAGE_BUF(IRRADIANCE_BRICK_BUF_SLOT, read, float4, world_sh_buf[])
 GPU_SHADER_CREATE_END()
 
 /* One thread per (screen tile, word of 32 lights): tests the bounding
@@ -466,6 +471,46 @@ SAMPLER(0, sampler2D, color_tx)
 SAMPLER(1, sampler2D, blend_tx)
 FRAGMENT_OUT(0, float4, out_color)
 ADDITIONAL_INFO(eevee_game_smaa_common)
+GPU_SHADER_CREATE_END()
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name World lighting
+ * \{ */
+
+/* Replaces `eevee_surf_world` in the world capture: the world radiance only,
+ * none of EEVEE's probe, blur or render pass inputs. */
+GPU_SHADER_CREATE_INFO(eevee_game_surf_world)
+FRAGMENT_OUT(0, float4, out_background)
+FRAGMENT_SOURCE("eevee_game_surf_world_frag.glsl")
+ADDITIONAL_INFO(eevee_global_ubo)
+ADDITIONAL_INFO(eevee_sampling_data)
+ADDITIONAL_INFO(eevee_utility_texture)
+GPU_SHADER_CREATE_END()
+
+/* L1 spherical harmonics of the captured radiance, one work group. */
+GPU_SHADER_CREATE_INFO(eevee_game_world_sh)
+DO_STATIC_COMPILATION()
+LOCAL_GROUP_SIZE(64)
+TYPEDEF_SOURCE("eevee_game_shader_shared.hh")
+SAMPLER(0, samplerCube, radiance_tx)
+STORAGE_BUF(0, write, float4, out_sh_buf[])
+PUSH_CONSTANT(float, sh_lod)
+COMPUTE_SOURCE("eevee_game_world_sh_comp.glsl")
+GPU_SHADER_CREATE_END()
+
+/* GGX pre-filtering of one mip of the lighting cube map, faces in Z. */
+GPU_SHADER_CREATE_INFO(eevee_game_world_prefilter)
+DO_STATIC_COMPILATION()
+LOCAL_GROUP_SIZE(8, 8, 1)
+TYPEDEF_SOURCE("eevee_game_shader_shared.hh")
+SAMPLER(0, samplerCube, radiance_tx)
+IMAGE(0, SFLOAT_16_16_16_16, write, image2DArray, out_img)
+PUSH_CONSTANT(float, roughness)
+/* Solid angle of one texel of the source mip 0. */
+PUSH_CONSTANT(float, texel_solid_angle)
+COMPUTE_SOURCE("eevee_game_world_prefilter_comp.glsl")
 GPU_SHADER_CREATE_END()
 
 /** \} */

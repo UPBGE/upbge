@@ -12,6 +12,9 @@
 #include "../eevee/eevee_material_shared.hh"
 
 struct bNodeTree;
+namespace blender {
+struct World;
+}
 
 namespace blender::eevee_game {
 
@@ -72,6 +75,10 @@ enum eShaderType {
   /* Camera motion of the pixels without object motion (read by FSR). */
   SH_VELOCITY_RESOLVE,
 
+  /* --- World lighting (run when the world changes) --- */
+  SH_WORLD_SH,
+  SH_WORLD_PREFILTER,
+
   MAX_SHADER_TYPE,
 };
 
@@ -122,6 +129,9 @@ class ShaderModule {
                                    eevee::eMaterialGeometry geometry_type,
                                    bool deferred,
                                    blender::Material *default_mat);
+
+  /* World radiance shader of the lighting capture (`eevee_game_surf_world`). */
+  GPUMaterial *world_shader_get(blender::World *world, bNodeTree *ntree, bool deferred);
 
   /* Maps enum to the ShaderCreateInfo name (shaders/infos/eevee_game_infos.hh),
    * or null when the shader is not implemented yet. */

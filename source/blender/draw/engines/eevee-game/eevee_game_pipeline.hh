@@ -112,6 +112,10 @@ class PipelineModule {
   {
     return shadow_casters_ps_;
   }
+  /* Fixed EEVEE interface of a generated shader drawn outside the geometry
+   * passes (world capture): globals, sampling, utility texture and the render
+   * pass outputs its info declares, never read back. */
+  void eevee_globals_bind(PassSimple &pass);
   /* Depth-only bucket of the shadow casters without a camera prepass. */
   PassMain::Sub *shadow_caster_add(blender::Material *blender_mat, GPUMaterial *gpumat);
 
@@ -143,8 +147,6 @@ class PipelineModule {
   /* Blended surfaces have no opaque prepass to cast shadows with. */
   PassMain shadow_casters_ps_{"Shadow.Casters"};
 
-  /* World ambient color, the stand-in for image based lighting. */
-  float3 world_ambient_ = float3(0.0f);
   /* Pass constants referenced by address from the lighting pass. */
   int use_ao_ = 0;
   int use_ssgi_ = 0;
