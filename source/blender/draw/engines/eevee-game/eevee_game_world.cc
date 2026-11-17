@@ -67,6 +67,7 @@ void WorldModule::sync()
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR);
     inst_.pipelines.eevee_globals_bind(pass);
+    inst_.pipelines.render_pass_outputs_bind(pass);
     pass.material_set(*inst_.manager, gpumat_);
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }

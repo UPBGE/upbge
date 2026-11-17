@@ -113,9 +113,12 @@ class PipelineModule {
     return shadow_casters_ps_;
   }
   /* Fixed EEVEE interface of a generated shader drawn outside the geometry
-   * passes (world capture): globals, sampling, utility texture and the render
-   * pass outputs its info declares, never read back. */
-  void eevee_globals_bind(PassSimple &pass);
+   * passes (world capture, volume properties): globals, sampling and the
+   * utility texture. */
+  template<typename PassT> void eevee_globals_bind(PassT &pass);
+  /* Render pass and cryptomatte outputs some infos declare; never read back.
+   * Their image slots overlap the volume property ones. */
+  void render_pass_outputs_bind(PassSimple &pass);
   /* Depth-only bucket of the shadow casters without a camera prepass. */
   PassMain::Sub *shadow_caster_add(blender::Material *blender_mat, GPUMaterial *gpumat);
 

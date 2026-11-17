@@ -61,6 +61,8 @@ class SyncModule {
   /** Hair curves and point clouds: same passes as meshes, other geometry. */
   void sync_curves(Object *ob, ObjectHandle &handle, const ObjectRef &ob_ref);
   void sync_pointcloud(Object *ob, ObjectHandle &handle, const ObjectRef &ob_ref);
+  /** Volume object: voxelized from its grids. */
+  void sync_volume(Object *ob, const ObjectRef &ob_ref);
   /** Particle hair of a mesh, drawn with the object's resource handle. */
   void sync_hair_particles(Object *ob, const ObjectRef &ob_ref, ResourceHandleRange res_handle);
 

@@ -169,6 +169,8 @@ const char *ShaderModule::static_shader_name_get(eShaderType type)
       return "eevee_game_light_cull";
     case SH_VELOCITY_RESOLVE:
       return "eevee_game_velocity_resolve";
+    case SH_VOLUME_OCCUPANCY_CONVERT:
+      return "eevee_volume_occupancy_convert";
     case SH_WORLD_SH:
       return "eevee_game_world_sh";
     case SH_WORLD_PREFILTER:
@@ -213,6 +215,7 @@ void ShaderModule::static_shaders_load(ShaderGroups groups)
       {SH_VOLUME_RESOLVE, SG_POST_FX},
       {SH_FILM_PRESENT, SG_POST_FX},
       {SH_VELOCITY_RESOLVE, SG_POST_FX},
+      {SH_VOLUME_OCCUPANCY_CONVERT, SG_LIGHTING},
       {SH_WORLD_SH, SG_LIGHTING},
       {SH_WORLD_PREFILTER, SG_LIGHTING},
 

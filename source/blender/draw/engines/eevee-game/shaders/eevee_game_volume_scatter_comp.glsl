@@ -156,13 +156,26 @@ void main()
         g_weight += 1.0;
       }
     }
+    /* Voxelized media, written by their shaders at this same froxel. The
+     * extinction grid holds scattering + absorption. */
+    vec3 sigma_e_voxels = vec3(0.0);
+    if (use_voxels != 0) {
+      vec3 voxel_s    = texelFetch(prop_scattering_tx, froxel, 0).rgb;
+      sigma_e_voxels  = texelFetch(prop_extinction_tx, froxel, 0).rgb;
+      sigma_s        += voxel_s;
+      emission       += texelFetch(prop_emission_tx, froxel, 0).rgb;
+      g_sum          += texelFetch(prop_phase_tx, froxel, 0).r;
+      g_weight       += texelFetch(prop_phase_weight_tx, froxel, 0).r;
+      /* sigma_s now includes voxel_s, which the extinction grid has too. */
+      sigma_e_voxels -= voxel_s;
+    }
     /* Clamp g to [-0.99, 0.99]: the Henyey-Greenstein denominator
      *   (1 + g^2 - 2g cos(theta))^(3/2)
      * reaches zero at g = +-1, and the Inf would spread through the whole
      * column in the integration. */
     float g = clamp(g_sum / max(g_weight, 1.0), -0.99, 0.99);
     /* One extinction for the three channels: the grid has one alpha. */
-    float sigma_t = dot(sigma_s + sigma_a, vec3(1.0 / 3.0));
+    float sigma_t = dot(sigma_s + sigma_a + sigma_e_voxels, vec3(1.0 / 3.0));
 
     /* View direction toward camera from this froxel. */
     vec3  view_dir = normalize(camera_pos - ws_pos);

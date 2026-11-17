@@ -5,6 +5,8 @@
 #include "eevee_game_instance.hh"
 
 #include "BKE_mesh.hh"
+#include "BKE_modifier.hh"
+#include "DNA_modifier_types.h"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "DNA_mesh_types.h"
@@ -13,6 +15,12 @@
 #include "NOD_shader.h"
 
 #include "BLI_function_ref.hh"
+#include "BLI_math_geom.h"
+
+#include "GPU_debug.hh"
+#include "draw_common.hh" /* volume_sub_pass() */
+
+#include "../eevee/eevee_shader.hh" /* World volume shader */
 
 namespace blender::eevee_game {
 
@@ -214,6 +222,11 @@ bool VolumeModule::box_add(const Object *ob, const Mesh &mesh, bNodeTree *ntree)
   if (box_count_ >= VOLUME_BOX_MAX) {
     return false;
   }
+  /* A smoke domain is a box too, but its density comes from the simulation
+   * grids, which the volume shader reads as attributes. */
+  if (BKE_modifiers_findby_type(ob, eModifierType_Fluid) != nullptr) {
+    return false;
+  }
   const std::optional<Bounds<float3>> bounds = mesh_box_bounds(mesh);
   if (!bounds) {
     return false;
@@ -243,26 +256,181 @@ bool VolumeModule::box_add(const Object *ob, const Mesh &mesh, bNodeTree *ntree)
 
 VolumeModule::VolumeModule(GameInstance &inst) : inst_(&inst) {}
 
+VolumeModule::~VolumeModule()
+{
+  GPU_BATCH_DISCARD_SAFE(cube_batch_);
+}
+
 void VolumeModule::init() {}
 
 void VolumeModule::begin_sync()
 {
   box_count_ = 0;
+  layer_count_ = 0;
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Voxelized media
+ * \{ */
+
+template<typename PassT> void VolumeModule::properties_bind(PassT &pass)
+{
+  pass.bind_image(VOLUME_PROP_SCATTERING_IMG_SLOT, &prop_scattering_tx_);
+  pass.bind_image(VOLUME_PROP_EXTINCTION_IMG_SLOT, &prop_extinction_tx_);
+  pass.bind_image(VOLUME_PROP_EMISSION_IMG_SLOT, &prop_emission_tx_);
+  pass.bind_image(VOLUME_PROP_PHASE_IMG_SLOT, &prop_phase_tx_);
+  pass.bind_image(VOLUME_PROP_PHASE_WEIGHT_IMG_SLOT, &prop_phase_weight_tx_);
+  pass.bind_image(VOLUME_OCCUPANCY_SLOT, &occupancy_tx_);
+}
+
+bool VolumeModule::object_add(Object *ob,
+                              const blender::Material *blender_mat,
+                              GPUMaterial *occupancy_mat,
+                              GPUMaterial *volume_mat,
+                              gpu::Batch *geom,
+                              ResourceHandleRange res_handle)
+{
+  if (layer_count_ == layers_.size()) {
+    layers_.append(std::make_unique<VoxelLayer>());
+  }
+  PassMain &ps = layers_[layer_count_]->ps;
+  ps.init();
+  /* The material pass lets one fragment per froxel column through. */
+  ps.clear_stencil(0x0u);
+
+  /* Volume objects and the fast method flip the occupancy bits at every
+   * surface the ray crosses; the accurate one lists the hits and sorts them
+   * front and back facing, which also handles non-manifold meshes. */
+  const bool use_fast_method = (ob->type == OB_VOLUME) || (blender_mat == nullptr) ||
+                               (blender_mat->volume_intersection_method ==
+                                MA_VOLUME_ISECT_FAST);
+  {
+    /* Double sided, no depth test: every surface has to be counted. */
+    PassMain::Sub &occupancy = ps.sub("Occupancy");
+    occupancy.state_set(DRW_STATE_WRITE_DEPTH);
+    inst_->pipelines.eevee_globals_bind(occupancy);
+    occupancy.bind_image(VOLUME_OCCUPANCY_SLOT, &occupancy_tx_);
+    occupancy.bind_image(VOLUME_HIT_DEPTH_SLOT, &hit_depth_tx_);
+    occupancy.bind_image(VOLUME_HIT_COUNT_SLOT, &hit_count_tx_);
+    PassMain::Sub &sub = occupancy.sub(GPU_material_get_name(occupancy_mat));
+    sub.material_set(*inst_->manager, occupancy_mat, true, inst_->anisotropic_filtering);
+    sub.push_constant("use_fast_method", use_fast_method);
+    PassMain::Sub *draw = volume_sub_pass(sub, inst_->scene, ob, occupancy_mat);
+    if (draw == nullptr) {
+      return false;
+    }
+    draw->draw(geom, res_handle);
+    if (!use_fast_method) {
+      /* Sorted hits to bits, after the object drew its hits. */
+      occupancy.shader_set(inst_->shaders.static_shader_get(SH_VOLUME_OCCUPANCY_CONVERT));
+      occupancy.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS);
+      occupancy.draw_procedural(GPU_PRIM_TRIS, 1, 3);
+    }
+  }
+  {
+    PassMain::Sub &material = ps.sub("Material");
+    material.state_set(DRW_STATE_WRITE_STENCIL | DRW_STATE_STENCIL_NEQUAL);
+    material.state_stencil(0x1u, 0x1u, 0x1u);
+    material.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS);
+    inst_->pipelines.eevee_globals_bind(material);
+    properties_bind(material);
+    PassMain::Sub &sub = material.sub(GPU_material_get_name(volume_mat));
+    sub.material_set(*inst_->manager, volume_mat, true, inst_->anisotropic_filtering);
+    PassMain::Sub *draw = volume_sub_pass(sub, inst_->scene, ob, volume_mat);
+    if (draw == nullptr) {
+      return false;
+    }
+    draw->draw(geom, res_handle);
+  }
+  /* Next object reads what this one added. */
+  ps.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
+
+  layer_count_++;
+  return true;
+}
+
+void VolumeModule::eevee_data_fill(eevee::VolumesInfoData &data) const
+{
+  if (!use_voxels_) {
+    return;
+  }
+  const UniformData &ud = inst_->uniform_data;
+  const int2 extent = inst_->film.render_extent_get();
+  data.tex_size = grid_res_;
+  data.inv_tex_size = 1.0f / float3(grid_res_);
+  /* The grid spans exactly the render extent here (EEVEE pads it to whole
+   * tiles): no XY rescale between screen and grid UVs. */
+  data.coord_scale = float2(1.0f);
+  data.main_view_extent = float2(extent);
+  data.main_view_extent_inv = 1.0f / float2(extent);
+  data.tile_size = settings_.tile_size;
+  data.tile_size_lod = int(log2f(float(settings_.tile_size)));
+  /* EEVEE maps a slice w in [0, 1] to view z = (2^(w / d) - near) / far.
+   * near = 0, far = -1 / z_near and d = 1 / log2(z_far / z_near) give
+   * |z| = z_near (z_far / z_near)^w: the slicing of the scatter, integration
+   * and resolve passes. */
+  data.depth_near = 0.0f;
+  data.depth_far = -1.0f / ud.z_near;
+  data.depth_distribution = 1.0f / log2f(ud.z_far / ud.z_near);
+  data.winmat_finite = ud.projectionmat;
+  data.wininv_finite = math::invert(ud.projectionmat);
+  data.winmat_stable = data.winmat_finite;
+  data.wininv_stable = data.wininv_finite;
+  data.history_winmat_stable = data.winmat_finite;
+  data.curr_view_to_past_view = float4x4::identity();
+  data.history_depth_near = data.depth_near;
+  data.history_depth_far = data.depth_far;
+  data.history_depth_distribution = data.depth_distribution;
+  data.history_opacity = 0.0f;
+  data.light_clamp = 1e20f;
+  data.shadow_steps = 0.0f;
+}
+
+/** \} */
 
 void VolumeModule::sync()
 {
   /* A constant world medium is a box without bounds: the zero matrix maps
    * every point to the center. Attribute lookups have nothing to find. */
-  const World *world = inst_->scene->world;
-  if (world != nullptr && box_count_ < VOLUME_BOX_MAX) {
+  World *world = inst_->scene->world;
+  bool world_has_volume = false;
+  if (world != nullptr && world->nodetree != nullptr) {
+    world_has_volume = volume_source_node(world->nodetree) != nullptr;
     VolumeBoxData box = {};
-    if (volume_constant_medium(world->nodetree, [](const char *) { return false; }, box)) {
+    if (world_has_volume && box_count_ < VOLUME_BOX_MAX &&
+        volume_constant_medium(world->nodetree, [](const char *) { return false; }, box))
+    {
       box_buf_[box_count_++] = box;
+      world_has_volume = false; /* Done analytically. */
     }
   }
 
-  enabled_ = box_count_ > 0;
+  /* Any other world volume is voxelized: its shader writes every froxel,
+   * which also stands for the clear of the property grids. */
+  use_world_voxels_ = false;
+  if (world_has_volume) {
+    GPUMaterial *gpumat = eevee::ShaderModule::module_get()->world_shader_get(
+        world, world->nodetree, eevee::MAT_PIPE_VOLUME_MATERIAL, true);
+    if (GPU_material_status(gpumat) == GPU_MAT_SUCCESS &&
+        GPU_material_has_volume_output(gpumat))
+    {
+      PassSimple &pass = world_ps_;
+      pass.init();
+      pass.state_set(DRW_STATE_WRITE_COLOR);
+      inst_->pipelines.eevee_globals_bind(pass);
+      properties_bind(pass);
+      pass.material_set(*inst_->manager, gpumat, false, inst_->anisotropic_filtering);
+      /* Default values of the attributes the world cannot have. */
+      if (volume_sub_pass(pass, nullptr, nullptr, gpumat) != nullptr) {
+        pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
+        pass.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
+        use_world_voxels_ = true;
+      }
+    }
+  }
+
+  use_voxels_ = use_world_voxels_ || (layer_count_ > 0);
+  enabled_ = (box_count_ > 0) || use_voxels_;
   if (!enabled_) {
     return;
   }
@@ -273,14 +441,60 @@ void VolumeModule::sync()
   /* Froxel grid dimensions derived from render resolution and tile size.
    * XY: screen tiles of tile_size pixels each.
    * Z: exponentially-spaced depth slices (more near, fewer far). */
-  const int3 grid_res = int3(math::divide_ceil(render_res, int2(settings_.tile_size)),
-                             settings_.samples_z);
+  grid_res_ = int3(math::divide_ceil(render_res, int2(settings_.tile_size)), settings_.samples_z);
 
   /* RGBA16F stores: RGB = scattering, A = extinction.
    * 16F is sufficient for fog density; avoids the 2x bandwidth cost of RGBA32F. */
   const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ;
-  volume_grid_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16_16_16_16, grid_res, usage);
-  volume_integrated_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16_16_16_16, grid_res, usage);
+  volume_grid_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16_16_16_16, grid_res_, usage);
+  volume_integrated_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16_16_16_16, grid_res_, usage);
+
+  if (dummy_prop_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16_16_16_16, int3(1), usage)) {
+    dummy_prop_tx_.clear(float4(0.0f));
+  }
+  scatter_scattering_tx_ = dummy_prop_tx_;
+  scatter_extinction_tx_ = dummy_prop_tx_;
+  scatter_emission_tx_ = dummy_prop_tx_;
+  scatter_phase_tx_ = dummy_prop_tx_;
+  scatter_phase_weight_tx_ = dummy_prop_tx_;
+  if (!use_voxels_) {
+    /* Kept once allocated: objects entering and leaving the view would
+     * otherwise reallocate them back and forth. */
+    return;
+  }
+
+  /* EEVEE's formats: the volume shaders declare them. */
+  const eGPUTextureUsage prop_usage = usage | GPU_TEXTURE_USAGE_ATTACHMENT;
+  prop_scattering_tx_.ensure_3d(gpu::TextureFormat::UFLOAT_11_11_10, grid_res_, prop_usage);
+  prop_extinction_tx_.ensure_3d(gpu::TextureFormat::UFLOAT_11_11_10, grid_res_, prop_usage);
+  prop_emission_tx_.ensure_3d(gpu::TextureFormat::UFLOAT_11_11_10, grid_res_, prop_usage);
+  prop_phase_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16, grid_res_, prop_usage);
+  prop_phase_weight_tx_.ensure_3d(gpu::TextureFormat::SFLOAT_16, grid_res_, prop_usage);
+  scatter_scattering_tx_ = prop_scattering_tx_;
+  scatter_extinction_tx_ = prop_extinction_tx_;
+  scatter_emission_tx_ = prop_emission_tx_;
+  scatter_phase_tx_ = prop_phase_tx_;
+  scatter_phase_weight_tx_ = prop_phase_weight_tx_;
+
+  /* 32 slices per texel layer. */
+  const int occupancy_layers = (grid_res_.z + 31) / 32;
+  occupancy_tx_.ensure_3d(gpu::TextureFormat::UINT_32,
+                          int3(grid_res_.xy(), occupancy_layers),
+                          usage | GPU_TEXTURE_USAGE_ATOMIC);
+  /* Hit lists: EEVEE's ray depth setting caps the surfaces kept per column. */
+  const int hit_layers = clamp_i(inst_->scene->eevee.volumetric_ray_depth, 1, 16);
+  hit_depth_tx_.ensure_3d(
+      gpu::TextureFormat::SFLOAT_32, int3(grid_res_.xy(), hit_layers), usage);
+  if (hit_count_tx_.ensure_2d(
+          gpu::TextureFormat::UINT_32, grid_res_.xy(), usage | GPU_TEXTURE_USAGE_ATOMIC))
+  {
+    /* The convert pass resets the counts it reads. */
+    hit_count_tx_.clear(uint4(0u));
+  }
+  front_depth_tx_.ensure_2d(gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
+                            grid_res_.xy(),
+                            GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
+  occupancy_fb_.ensure(GPU_ATTACHMENT_TEXTURE(front_depth_tx_));
 }
 
 void VolumeModule::render(View & /*view*/)
@@ -291,6 +505,41 @@ void VolumeModule::render(View & /*view*/)
 
   const UniformData &ud = inst_->uniform_data;
   const int3 grid_size = volume_grid_tx_.size();
+
+  if (use_voxels_) {
+    /* Properties of the voxelized media, rasterized at froxel resolution
+     * through an infinite projection of the same frustum (unjittered, as
+     * the slicing of the scatter pass). */
+    float left, right, bottom, top, near, far;
+    projmat_dimensions(ud.projectionmat.ptr(), &left, &right, &bottom, &top, &near, &far);
+    const bool is_persp = ud.projectionmat[3][3] == 0.0f;
+    const float4x4 winmat = is_persp ?
+                                math::projection::perspective_infinite(
+                                    left, right, bottom, top, near) :
+                                math::projection::orthographic_infinite(
+                                    left, right, bottom, top, near);
+    volume_view_.sync(ud.viewmat, winmat);
+    /* Culling against an infinite frustum is unreliable; EEVEE skips it too. */
+    volume_view_.visibility_test(false);
+
+    GPU_debug_group_begin("Volume.Properties");
+    occupancy_fb_.bind();
+    if (use_world_voxels_) {
+      inst_->manager->submit(world_ps_, volume_view_);
+    }
+    else {
+      prop_scattering_tx_.clear(float4(0.0f));
+      prop_extinction_tx_.clear(float4(0.0f));
+      prop_emission_tx_.clear(float4(0.0f));
+      prop_phase_tx_.clear(float4(0.0f));
+      prop_phase_weight_tx_.clear(float4(0.0f));
+    }
+    for (int i = 0; i < layer_count_; i++) {
+      occupancy_tx_.clear(uint4(0u));
+      inst_->manager->submit(layers_[i]->ps, volume_view_);
+    }
+    GPU_debug_group_end();
+  }
 
   /* Pass 1: Light Injection (Scatter)
    * Each froxel samples the static shadow atlas (sun cascades) to determine
@@ -304,6 +553,12 @@ void VolumeModule::render(View & /*view*/)
   scatter.bind_image("out_grid_img", volume_grid_tx_);
   scatter.bind_ssbo("volume_box_buf", &box_buf_);
   scatter.push_constant("volume_box_count", box_count_);
+  scatter.push_constant("use_voxels", int(use_voxels_));
+  scatter.bind_texture("prop_scattering_tx", &scatter_scattering_tx_);
+  scatter.bind_texture("prop_extinction_tx", &scatter_extinction_tx_);
+  scatter.bind_texture("prop_emission_tx", &scatter_emission_tx_);
+  scatter.bind_texture("prop_phase_tx", &scatter_phase_tx_);
+  scatter.bind_texture("prop_phase_weight_tx", &scatter_phase_weight_tx_);
   scatter.push_constant("tile_size", settings_.tile_size);
   scatter.push_constant("samples_z", settings_.samples_z);
   scatter.push_constant("light_count", inst_->lights.active_light_count);

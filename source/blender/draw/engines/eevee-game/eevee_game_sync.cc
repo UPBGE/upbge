@@ -22,6 +22,7 @@
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_pointcloud_types.h"
+#include "DNA_volume_types.h"
 
 #include "DRW_render.hh"
 #include "draw_cache.hh"
@@ -103,12 +104,14 @@ void SyncModule::object_sync(const ObjectRef &ob_ref)
       sync_pointcloud(ob, handle, ob_ref);
       break;
 
+    case OB_VOLUME:
+      sync_volume(ob, ob_ref);
+      break;
+
     case OB_LAMP:
       sync_light(ob, handle);
       break;
 
-    /* Volume objects need their density voxelized into the froxel grid, and
-     * the fog is still a homogeneous medium. */
     default:
       break;
   }
@@ -178,25 +181,15 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &handle, const ObjectRef &ob
       }
     }
 
-    /* Volume embedded in a mesh material (e.g. glass with participating media) */
-    if (use_volume_passes) {
-      if (mat.volume_occupancy.sub_pass) {
-        /* volume_sub_pass() sets up per-object voxelisation state */
-        PassMain::Sub *vol_pass =
-            volume_sub_pass(*mat.volume_occupancy.sub_pass, inst_.scene, ob,
-                            mat.volume_occupancy.gpumat);
-        if (vol_pass) {
-          vol_pass->draw(geom, res_handle);
-        }
-      }
-      if (mat.volume_material.sub_pass) {
-        PassMain::Sub *vol_pass =
-            volume_sub_pass(*mat.volume_material.sub_pass, inst_.scene, ob,
-                            mat.volume_material.gpumat);
-        if (vol_pass) {
-          vol_pass->draw(geom, res_handle);
-        }
-      }
+    /* Any other volume in a mesh material: voxelized, one layer per object
+     * (the mesh surface bounds the medium). */
+    if (use_volume_passes && mat.volume_occupancy.gpumat && mat.volume_material.gpumat) {
+      inst_.volume.object_add(ob,
+                              GPU_material_get_material(gpu_mat),
+                              mat.volume_occupancy.gpumat,
+                              mat.volume_material.gpumat,
+                              geom,
+                              res_handle);
       has_volume = true;
       if (!mat.has_surface) {
         continue; /* Volume-only material: no surface draw call */
@@ -301,6 +294,35 @@ void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &handle, const ObjectR
   });
   inst_.shadows.sync_object(ob, handle.object_key.hash());
   inst_.manager->extract_object_attributes(res_handle, ob_ref, mat.shading.gpumat);
+}
+
+void SyncModule::sync_volume(Object *ob, const ObjectRef &ob_ref)
+{
+  if (ob->visibility_flag & OB_HIDE_CAMERA) {
+    return;
+  }
+  Material &mat = inst_.materials.material_get(
+      ob, false, VOLUME_MATERIAL_NR - 1, eevee::MAT_GEOM_VOLUME);
+  GPUMaterial *gpumat = mat.volume_material.gpumat;
+  if (gpumat == nullptr || !GPU_material_has_volume_output(gpumat)) {
+    return;
+  }
+  /* A shader that reads no grid has nothing to show (as Cycles). */
+  ListBaseT<GPUMaterialAttribute> attrs = GPU_material_attributes(gpumat);
+  if (BLI_listbase_is_empty(&attrs)) {
+    return;
+  }
+  ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
+  /* The volume shaders map the unit cube to the grid bounds. */
+  if (inst_.volume.object_add(ob,
+                              nullptr,
+                              mat.volume_occupancy.gpumat,
+                              gpumat,
+                              inst_.volume.unit_cube_batch_get(),
+                              res_handle))
+  {
+    inst_.manager->extract_object_attributes(res_handle, ob_ref, gpumat);
+  }
 }
 
 void SyncModule::sync_hair_particles(Object *ob,

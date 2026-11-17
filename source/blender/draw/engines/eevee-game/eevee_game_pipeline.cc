@@ -321,6 +321,9 @@ void PipelineModule::eevee_resources_update(int normal_layer_count)
   /* Thickness / object data live in the last normal layer. */
   data.pipeline.gbuffer_additional_data_layer_id = normal_layer_count - 1;
 
+  /* Froxel mapping of the voxelized volume shaders. */
+  inst_->volume.eevee_data_fill(data.volumes);
+
   eevee_uniform_buf_ = data;
   eevee_uniform_buf_.push_update();
 
@@ -646,16 +649,22 @@ static float transparent_sorting_value(const Object *ob, const float4x4 &viewinv
   return math::dot(float3(ob->object_to_world().location()), float3(viewinv[2]));
 }
 
-void PipelineModule::eevee_globals_bind(PassSimple &pass)
+template<typename PassT> void PipelineModule::eevee_globals_bind(PassT &pass)
+{
+  pass.bind_texture(RBUFS_UTILITY_TEX_SLOT, eevee_utility_tx_);
+  pass.bind_ubo(UNIFORM_BUF_SLOT, &eevee_uniform_buf_);
+  pass.bind_ssbo(SAMPLING_BUF_SLOT, &eevee_sampling_buf_);
+}
+template void PipelineModule::eevee_globals_bind(PassSimple &pass);
+template void PipelineModule::eevee_globals_bind(PassMain::Sub &pass);
+
+void PipelineModule::render_pass_outputs_bind(PassSimple &pass)
 {
   RenderBuffers &rbufs = inst_->render_buffers;
   pass.bind_image(RBUFS_COLOR_SLOT, &rbufs.rp_color_tx);
   pass.bind_image(RBUFS_VALUE_SLOT, &rbufs.rp_value_tx);
   pass.bind_image(RBUFS_CRYPTOMATTE_SLOT, &rbufs.cryptomatte_tx);
   pass.bind_ssbo(CRYPTOMATTE_BUF_SLOT, &cryptomatte_dummy_buf_);
-  pass.bind_texture(RBUFS_UTILITY_TEX_SLOT, eevee_utility_tx_);
-  pass.bind_ubo(UNIFORM_BUF_SLOT, &eevee_uniform_buf_);
-  pass.bind_ssbo(SAMPLING_BUF_SLOT, &eevee_sampling_buf_);
 }
 
 PassMain::Sub *PipelineModule::shadow_caster_add(blender::Material *blender_mat,

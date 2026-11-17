@@ -75,6 +75,9 @@ enum eShaderType {
   /* Camera motion of the pixels without object motion (read by FSR). */
   SH_VELOCITY_RESOLVE,
 
+  /* EEVEE's sort of the volume hit lists into occupancy bits. */
+  SH_VOLUME_OCCUPANCY_CONVERT,
+
   /* --- World lighting (run when the world changes) --- */
   SH_WORLD_SH,
   SH_WORLD_PREFILTER,
