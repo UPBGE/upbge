@@ -52,6 +52,7 @@ class VolumeModule {
   void resolve(gpu::Texture *target_color_tx, gpu::Texture *depth_tx);
 
   gpu::Texture *get_volume_texture() { return volume_integrated_tx_; }
+  bool enabled() const { return settings_.enabled; }
 
  private:
   GameInstance *inst_;

@@ -210,6 +210,10 @@ void PipelineModule::begin_sync()
       dummy_normal_tx_.ensure_2d(
           gpu::TextureFormat::SFLOAT_16_16, int2(1), GPU_TEXTURE_USAGE_SHADER_READ);
       GPU_texture_clear(dummy_normal_tx_, GPU_DATA_FLOAT, zero_f);
+      const float clear_air[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+      dummy_volume_tx_.ensure_3d(
+          gpu::TextureFormat::SFLOAT_16_16_16_16, int3(1), GPU_TEXTURE_USAGE_SHADER_READ);
+      GPU_texture_clear(dummy_volume_tx_, GPU_DATA_FLOAT, clear_air);
     }
     forward_layer_.opaque_ps.init();
     forward_resources_bind(forward_layer_.opaque_ps);
@@ -240,6 +244,7 @@ template<typename PassT> void PipelineModule::forward_resources_bind(PassT &pass
   pass.bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_->hiz_buffer.front.ref_tx_);
   pass.bind_texture(OBJECT_ID_TEX_SLOT, dummy_object_id_tx_);
   pass.bind_texture(PREPASS_NORMAL_TEX_SLOT, dummy_normal_tx_);
+  pass.bind_texture(VOLUME_SCATTERING_TEX_SLOT, &volume_tx_);
 }
 
 void PipelineModule::eevee_resources_update(int normal_layer_count)
@@ -376,6 +381,14 @@ void PipelineModule::sync()
     lighting_buf_.tile_count = tile_count;
     lighting_buf_.render_extent = extent;
     lighting_buf_.word_count = word_count;
+
+    /* Fog of the forward surfaces: same depth slicing as the volume resolve. */
+    const UniformData &ud = inst_->uniform_data;
+    const bool use_volume = inst_->volume.enabled();
+    volume_tx_ = use_volume ? inst_->volume.get_volume_texture() : dummy_volume_tx_;
+    lighting_buf_.use_volume = use_volume;
+    lighting_buf_.volume_z_near = ud.z_near;
+    lighting_buf_.volume_log_inv = 1.0f / logf(ud.z_far / ud.z_near);
 
     /* Sized for the most lights, so the buffer only grows with the extent. */
     const int mask_len = tile_count.x * tile_count.y * (MAX_LIGHTS / 32);

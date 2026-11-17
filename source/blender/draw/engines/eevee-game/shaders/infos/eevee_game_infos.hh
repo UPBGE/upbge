@@ -120,6 +120,9 @@ DEFINE("MAT_FORWARD")
 EARLY_FRAGMENT_TEST(true)
 FRAGMENT_OUT(0, float4, out_radiance)
 FRAGMENT_SOURCE("eevee_game_surf_forward_frag.glsl")
+/* Integrated fog grid: in-scatter (RGB) and transmittance (A) from the camera.
+ * The slot of EEVEE's own forward volume input. */
+SAMPLER(VOLUME_SCATTERING_TEX_SLOT, sampler3D, volume_tx)
 ADDITIONAL_INFO(eevee_game_light_data)
 ADDITIONAL_INFO(eevee_global_ubo)
 ADDITIONAL_INFO(eevee_utility_texture)

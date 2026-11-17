@@ -81,9 +81,10 @@ struct [[host_shared]] GameLightingData {
   int2 render_extent;
   /** 32 lights per word of the tile masks: ceil(light_count / 32). */
   int word_count;
-  int _pad0;
-  int _pad1;
-  int _pad2;
+  /** Fog of the forward surfaces: froxel slice w = log(z / near) * log_inv. */
+  bool32_t use_volume;
+  float volume_z_near;
+  float volume_log_inv;
 };
 
 #ifndef GPU_SHADER

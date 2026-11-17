@@ -175,6 +175,10 @@ class PipelineModule {
    * bindings. */
   Texture dummy_object_id_tx_ = {"dummy_object_id"};
   Texture dummy_normal_tx_ = {"dummy_prepass_normal"};
+  /* Fog grid read by the forward surfaces: the integrated volume, or a
+   * 1x1x1 stand-in (clear air) while the fog is off and nothing reads it. */
+  Texture dummy_volume_tx_ = {"dummy_volume"};
+  gpu::Texture *volume_tx_ = nullptr;
 
   /* Opaque-only color snapshot for the FSR reactive mask. */
   TextureFromPool opaque_copy_tx_ = {"opaque_copy"};
