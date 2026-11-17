@@ -354,6 +354,9 @@ Material &MaterialModule::material_sync(Object *ob,
   const eMaterialPipeline key_pipe = use_forward_method ? MAT_PIPE_FORWARD : MAT_PIPE_DEFERRED;
 
   MaterialKey mat_key(blender_mat, geometry_type, key_pipe, ob->visibility_flag);
+  /* The prepass variant follows the motion, which differs between objects
+   * sharing a material: without this bit the first one synced decides. */
+  mat_key.options = (mat_key.options << 1) | uint64_t(has_motion);
 
   Material &mat = material_map_.lookup_or_add_cb(mat_key.hash(), [&]() {
     Material m = {};

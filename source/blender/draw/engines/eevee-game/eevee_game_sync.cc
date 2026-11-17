@@ -115,9 +115,14 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &handle, const ObjectRef &ob
   ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
 
   /* Velocity must be synced before material_array_get() because has_motion
-   * drives the prepass pipeline choice (with/without velocity output). */
-  bool has_motion = inst_.velocity.step_object_sync(
-      handle.object_key, ob_ref, handle.recalc, res_handle);
+   * drives the prepass pipeline choice (with/without velocity output).
+   * Only FSR reads motion vectors. Without it no object is tracked: no matrix
+   * compare, no vertex copy of deformed meshes, no velocity variant of the
+   * depth shader. The velocity map then empties itself in end_sync(), so
+   * enabling FSR starts from zero motion. */
+  const bool has_motion = inst_.upscale.is_initialized() &&
+                          inst_.velocity.step_object_sync(
+                              handle.object_key, ob_ref, handle.recalc, res_handle);
 
   /* Compile or retrieve GPUMaterials for all slots and assign them to the
    * correct pipeline sub-passes (prepass, gbuffer, shadow, forward). */

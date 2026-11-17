@@ -105,45 +105,49 @@ void VelocityModule::geometry_steps_fill()
 
   geometry_steps[eevee::STEP_CURRENT]->resize(max_ii(16, dst_ofs));
 
-  /* Positions packed as float4 can be copied buffer to buffer. Everything
-   * else (mesh positions are float3, stride 12) goes through EEVEE's vertex
-   * copy compute shader, which repacks to float4 on the GPU. */
-  DRW_submission_start();
+  /* Nothing deforms (always the case without FSR): skip the submission and
+   * its barrier. */
+  if (!geometry_map.is_empty()) {
+    /* Positions packed as float4 can be copied buffer to buffer. Everything
+     * else (mesh positions are float3, stride 12) goes through EEVEE's vertex
+     * copy compute shader, which repacks to float4 on the GPU. */
+    DRW_submission_start();
 
-  PassSimple copy_ps("Velocity Copy Pass");
-  copy_ps.init();
-  copy_ps.state_set(DRW_STATE_NO_DRAW);
-  copy_ps.shader_set(eevee::ShaderModule::module_get()->static_shader_get(eevee::VERTEX_COPY));
-  copy_ps.bind_ssbo("out_buf", *geometry_steps[eevee::STEP_CURRENT]);
+    PassSimple copy_ps("Velocity Copy Pass");
+    copy_ps.init();
+    copy_ps.state_set(DRW_STATE_NO_DRAW);
+    copy_ps.shader_set(eevee::ShaderModule::module_get()->static_shader_get(eevee::VERTEX_COPY));
+    copy_ps.bind_ssbo("out_buf", *geometry_steps[eevee::STEP_CURRENT]);
 
-  for (VelocityGeometryData &geom : geometry_map.values()) {
-    gpu::VertBuf *pos_buf = geom.pos_buf_get();
-    if (!pos_buf || geom.len == 0) {
-      continue;
+    for (VelocityGeometryData &geom : geometry_map.values()) {
+      gpu::VertBuf *pos_buf = geom.pos_buf_get();
+      if (!pos_buf || geom.len == 0) {
+        continue;
+      }
+      const GPUVertFormat *fmt = GPU_vertbuf_get_format(pos_buf);
+      if (fmt->stride == 16) {
+        GPU_storagebuf_copy_sub_from_vertbuf(*geometry_steps[eevee::STEP_CURRENT],
+                                             pos_buf,
+                                             geom.ofs * sizeof(float4),
+                                             0,
+                                             geom.len * sizeof(float4));
+      }
+      else {
+        BLI_assert(fmt->stride % 4 == 0);
+        copy_ps.bind_ssbo("in_buf", pos_buf);
+        copy_ps.push_constant("start_offset", geom.ofs);
+        copy_ps.push_constant("vertex_stride", int(fmt->stride / 4));
+        copy_ps.push_constant("vertex_count", geom.len);
+        const uint group_len_x = divide_ceil_u(uint(geom.len), VERTEX_COPY_GROUP_SIZE);
+        const uint verts_per_thread = divide_ceil_u(group_len_x, GPU_max_work_group_count(0));
+        copy_ps.dispatch(int3(group_len_x / verts_per_thread, 1, 1));
+      }
     }
-    const GPUVertFormat *fmt = GPU_vertbuf_get_format(pos_buf);
-    if (fmt->stride == 16) {
-      GPU_storagebuf_copy_sub_from_vertbuf(*geometry_steps[eevee::STEP_CURRENT],
-                                           pos_buf,
-                                           geom.ofs * sizeof(float4),
-                                           0,
-                                           geom.len * sizeof(float4));
-    }
-    else {
-      BLI_assert(fmt->stride % 4 == 0);
-      copy_ps.bind_ssbo("in_buf", pos_buf);
-      copy_ps.push_constant("start_offset", geom.ofs);
-      copy_ps.push_constant("vertex_stride", int(fmt->stride / 4));
-      copy_ps.push_constant("vertex_count", geom.len);
-      const uint group_len_x = divide_ceil_u(uint(geom.len), VERTEX_COPY_GROUP_SIZE);
-      const uint verts_per_thread = divide_ceil_u(group_len_x, GPU_max_work_group_count(0));
-      copy_ps.dispatch(int3(group_len_x / verts_per_thread, 1, 1));
-    }
+    copy_ps.barrier(GPU_BARRIER_SHADER_STORAGE);
+    inst_.manager->submit(copy_ps);
+
+    DRW_submission_end();
   }
-  copy_ps.barrier(GPU_BARRIER_SHADER_STORAGE);
-  inst_.manager->submit(copy_ps);
-
-  DRW_submission_end();
 
   /* Write per-object geometry offsets back into the velocity map. */
   for (VelocityObjectData &vel : velocity_map.values()) {
