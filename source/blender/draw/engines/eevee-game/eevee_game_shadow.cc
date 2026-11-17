@@ -106,7 +106,7 @@ void ShadowModule::begin_sync()
   casters_signature_ = 0;
 }
 
-void ShadowModule::update_cascades(Camera &camera, LightEntry &light)
+void ShadowModule::update_cascades(Camera & /*camera*/, LightEntry &light)
 {
   /* Logarithmic split distribution: more resolution near the camera where
    * angular density is highest.
@@ -116,13 +116,15 @@ void ShadowModule::update_cascades(Camera &camera, LightEntry &light)
   const float near_clip = inst_->uniform_data.z_near;
   const float far_clip = inst_->uniform_data.z_far;
 
-  const float4x4 light_view = math::invert(light.object_to_world);
-  const float4x4 cam_viewproj_inv = math::invert(inst_->uniform_data.viewprojmat);
-
-  const float3 cam_pos = camera.position();
-  /* The camera looks down its local -Z axis; viewinv holds the camera axes in
-   * world space as columns. */
-  const float3 cam_forward = -float3(inst_->uniform_data.viewinv[2]);
+  /* Light space from the rotation and position of the sun only: a scaled sun
+   * object would scale it, and the texel snapping below works in world
+   * units. */
+  float4x4 light_to_world = light.object_to_world;
+  light_to_world.x_axis() = math::normalize(light_to_world.x_axis());
+  light_to_world.y_axis() = math::normalize(light_to_world.y_axis());
+  light_to_world.z_axis() = math::normalize(light_to_world.z_axis());
+  const float4x4 light_view = math::invert(light_to_world);
+  const float4x4 view_to_light = light_view * inst_->uniform_data.viewinv;
 
   /* Casters between the light and a slice are outside the slice bounds but
    * must not be clipped by the ortho near plane. Without depth clamp the
@@ -139,6 +141,16 @@ void ShadowModule::update_cascades(Camera &camera, LightEntry &light)
     }
   }
 
+  /* Frustum corners in view space at the near and far clip planes. Along each
+   * corner ray the position is linear in view depth, for both projections. */
+  const float4x4 wininv = math::invert(inst_->uniform_data.projectionmat);
+  float3 corner_near[4], corner_far[4];
+  for (int c = 0; c < 4; c++) {
+    const float2 ndc((c & 1) ? 1.0f : -1.0f, (c & 2) ? 1.0f : -1.0f);
+    corner_near[c] = math::project_point(wininv, float3(ndc, -1.0f));
+    corner_far[c] = math::project_point(wininv, float3(ndc, 1.0f));
+  }
+
   for (int i = 0; i < MAX_SHADOW_CASCADES; ++i) {
     const float slice_near = (i == 0) ? near_clip :
                                         near_clip * powf(far_clip / near_clip,
@@ -148,43 +160,66 @@ void ShadowModule::update_cascades(Camera &camera, LightEntry &light)
 
     cascades_[i].split_depth = slice_far;
 
-    /* Fit the cascade projection by taking the 4 corner rays of the camera
-     * frustum, cutting each at the slice near / far distance, and bounding
-     * the 8 resulting points in light space. */
-    float3 ls_min = float3(FLT_MAX);
-    float3 ls_max = float3(-FLT_MAX);
-
-    for (int y = 0; y < 2; y++) {
-      for (int x = 0; x < 2; x++) {
-        /* A point on the far plane gives the ray direction through this corner. */
-        float4 ws_corner = cam_viewproj_inv * float4(x * 2.0f - 1.0f, y * 2.0f - 1.0f, 1.0f, 1.0f);
-        ws_corner /= ws_corner.w;
-
-        const float3 ray_dir = math::normalize(float3(ws_corner) - cam_pos);
-        /* Slice distances are along the view axis, the ray is slanted. */
-        const float cos_theta = math::dot(ray_dir, cam_forward);
-        const float3 ws_near = cam_pos + ray_dir * (slice_near / cos_theta);
-        const float3 ws_far = cam_pos + ray_dir * (slice_far / cos_theta);
-
-        const float3 ls_near = math::transform_point(light_view, ws_near);
-        const float3 ls_far = math::transform_point(light_view, ws_far);
-
-        ls_min = math::min(ls_min, math::min(ls_near, ls_far));
-        ls_max = math::max(ls_max, math::max(ls_near, ls_far));
-      }
+    /* Stable cascades: the slice is bounded by a sphere computed in view
+     * space, so its radius, and the texel size with it, does not change when
+     * the camera turns or moves. A light space box fitted to the slice
+     * changes size with every rotation, and the shadow edges crawl. */
+    float3 corners[8];
+    const float t_near = (slice_near - near_clip) / (far_clip - near_clip);
+    const float t_far = (slice_far - near_clip) / (far_clip - near_clip);
+    float2 axis(0.0f);
+    for (int c = 0; c < 4; c++) {
+      corners[c] = math::interpolate(corner_near[c], corner_far[c], t_near);
+      corners[c + 4] = math::interpolate(corner_near[c], corner_far[c], t_far);
+      axis += corners[c].xy() + corners[c + 4].xy();
     }
+    axis /= 8.0f;
+    /* Center on the slice axis where it is as far from the near corners as
+     * from the far ones: (z - dn)^2 + a^2 = (df - z)^2 + b^2. Past the far
+     * plane (wide slices) the far plane center is the tighter choice. */
+    float a2 = 0.0f, b2 = 0.0f;
+    for (int c = 0; c < 4; c++) {
+      a2 = math::max(a2, math::length_squared(corners[c].xy() - axis));
+      b2 = math::max(b2, math::length_squared(corners[c + 4].xy() - axis));
+    }
+    const float center_depth = math::clamp(
+        (slice_far * slice_far - slice_near * slice_near + b2 - a2) /
+            (2.0f * (slice_far - slice_near)),
+        slice_near,
+        slice_far);
+    const float3 center_vs(axis, -center_depth);
+    /* Exact enclosing radius, whatever the frustum symmetry. */
+    float radius = 0.0f;
+    for (int c = 0; c < 8; c++) {
+      radius = math::max(radius, math::distance_squared(center_vs, corners[c]));
+    }
+    radius = math::sqrt(radius);
 
-    /* Small margin to avoid sub-texel shimmer at cascade boundaries. */
-    const float margin = 0.01f * (ls_max.x - ls_min.x);
-    ls_min -= float3(margin);
-    ls_max += float3(margin);
-    /* +Z points toward the light in light space. */
-    ls_max.z = math::max(ls_max.z, caster_ls_zmax + margin);
+    /* Two texels of border each side: the snapped center moves the box by
+     * up to one texel, and the 3x3 PCF reads one more. */
+    const float texel = 2.0f * radius / float(STATIC_TILE_SIZE - 4);
+    const float half_size = 0.5f * texel * float(STATIC_TILE_SIZE);
+    /* Snapped to whole texels in light space: the shadow map moves by whole
+     * texels, so its texels land on the same world positions frame after
+     * frame. Depth too, so a sub texel camera motion keeps the matrices
+     * bit identical and the cascade cache valid. */
+    float3 center_ls = math::transform_point(view_to_light, center_vs);
+    center_ls.x = math::floor(center_ls.x / texel) * texel;
+    center_ls.y = math::floor(center_ls.y / texel) * texel;
+    /* +Z points toward the light in light space; the range is snapped
+     * outward. */
+    const float z_min = math::floor((center_ls.z - radius) / texel) * texel;
+    const float z_max = math::ceil(math::max(center_ls.z + radius, caster_ls_zmax) / texel) *
+                        texel;
 
     /* The light looks down its local -Z, so depth range is [-max.z, -min.z]. */
     cascades_[i].view = light_view;
-    cascades_[i].proj = math::projection::orthographic(
-        ls_min.x, ls_max.x, ls_min.y, ls_max.y, -ls_max.z, -ls_min.z);
+    cascades_[i].proj = math::projection::orthographic(center_ls.x - half_size,
+                                                       center_ls.x + half_size,
+                                                       center_ls.y - half_size,
+                                                       center_ls.y + half_size,
+                                                       -z_max,
+                                                       -z_min);
     cascades_[i].view_proj = cascades_[i].proj * cascades_[i].view;
 
     data_.cascade_viewproj[i] = cascades_[i].view_proj;

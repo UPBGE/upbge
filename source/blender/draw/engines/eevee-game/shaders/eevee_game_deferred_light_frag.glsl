@@ -121,8 +121,32 @@ void main()
                                        to_closure_reflection(cl[i]).roughness) *
                         ao;
         break;
+      case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID: {
+        /* The world seen through the surface, as EEVEE without ray tracing
+         * (bxdf_ggx_lightprobe_transmission): an object with thickness
+         * bends the ray in and out, approximated by the inverse ratio. */
+        ClosureRefraction refraction = to_closure_refraction(cl[i]);
+        float ior = refraction.ior;
+        /* EEVEE's curve fit of the apparent blur of GGX refraction. */
+        float roughness = refraction.roughness *
+                          sqrt((ior > 1.0f) ? (1.0f - 1.0f / ior) :
+                                              (saturate(1.0f - ior) * 0.64f));
+        if (gbuffer::read_thickness(gbuf.header, texel).value() != 0.0f) {
+          ior = 1.0f / ior;
+        }
+        /* Dominant direction: from the refracted ray toward the inner
+         * normal as the lobe widens. Total internal reflection leaves the
+         * inner normal. */
+        float m = roughness * roughness;
+        float smoothness = 1.0f - m;
+        float3 D = mix(-cl[i].N,
+                       refract(-V, cl[i].N, 1.0f / ior),
+                       smoothness * (sqrt(smoothness) + m));
+        D = (dot(D, D) > 1e-8f) ? normalize(D) : -cl[i].N;
+        light_sum[i] += world_specular(D, roughness);
+        break;
+      }
       default:
-        /* Refraction: no indirect term, it would turn glass opaque. */
         break;
     }
     radiance += light_sum[i] * cl[i].color;

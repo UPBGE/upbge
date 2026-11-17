@@ -183,6 +183,10 @@ void GameInstance::begin_sync()
   uniform_data.jitter = upscale.is_initialized() ? upscale.advance_jitter() : float2(0.0f);
   uniform_data.delta_time = delta_time_ms * 0.001f;
   uniform_data.frame_count = frame_state.frame_index;
+  /* The scene exposure is part of the view transform Blender applies when it
+   * composites the viewport: applying it here too would apply it twice. Set
+   * every frame, the struct is never zero initialized. */
+  uniform_data.exposure = 1.0f;
 
   uniform_data.viewprojmat = uniform_data.projectionmat * uniform_data.viewmat;
   uniform_data.screen_res = render_res;
