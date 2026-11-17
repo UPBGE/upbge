@@ -85,7 +85,13 @@ float3 light_incoming(LightData light, float3 P, out float3 L)
     float cos_theta = dot(-L, light.direction);
     falloff *= smoothstep(cos_outer, cos_inner, cos_theta);
   }
-  /* Area lights are treated as point lights for now. */
+  else if (light.type == LIGHT_TYPE_AREA_RECT || light.type == LIGHT_TYPE_AREA_ELLIPSE) {
+    /* One sided Lambertian panel seen from far enough to be its center:
+     * I(theta) = I0 cos(theta). Same power as a point light means flux
+     * pi I0 = 4 pi I, so I0 is four times the point intensity. Near a large
+     * panel this overestimates, the real emitter being spread out. */
+    falloff *= 4.0f * max(dot(-L, light.direction), 0.0f);
+  }
 
   return light.color * (intensity * falloff);
 }
@@ -162,8 +168,9 @@ float game_light_shadow(LightData light, float3 P, float3 N, float view_depth)
 
   float3 to_p = P - light.position;
   int tile_index = light.shadow_index;
-  if (light.type == LIGHT_TYPE_POINT) {
-    /* Faces are ordered +X -X +Y -Y +Z -Z. */
+  if (light.type != LIGHT_TYPE_SPOT) {
+    /* Point and area lights: cube faces ordered +X -X +Y -Y +Z -Z. An area
+     * light skips the faces behind it, which no lit point selects. */
     float3 a = abs(to_p);
     int face;
     if (a.x >= a.y && a.x >= a.z) {

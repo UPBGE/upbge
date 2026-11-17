@@ -264,24 +264,45 @@ void ShadowModule::punctual_faces_build(ShadowPunctual &slot,
                                         const LightEntry &light,
                                         int tile_size)
 {
-  const bool is_point = light.data.type == uint32_t(LightType::PUNCTUAL_POINT);
-  slot.face_count = is_point ? 6 : 1;
+  /* Point and area lights see all around their center: a cube. */
+  const bool is_cube = light.data.type != uint32_t(LightType::PUNCTUAL_SPOT);
+  slot.face_count = is_cube ? 6 : 1;
+  slot.face_mask = (1u << slot.face_count) - 1u;
   slot.position = light.object_to_world.location();
   slot.radius = math::max(light.data.attenuation, 0.02f);
 
   const float face_res = float(face_size_get(tile_size, slot.face_count));
   const float guard = 2.0f * SHADOW_FACE_GUARD_TEXELS / face_res;
-  /* Point: 90 degree faces widened by the guard band. Spot: its cone. */
-  const float base_tan = is_point ? 1.0f :
-                                    tanf(math::min(light.data.spot_angle, DEG2RADF(170.0f)) *
-                                         0.5f);
-  const float half_angle = atanf(base_tan * (1.0f + guard));
+  /* Cube: 90 degree faces widened by the guard band. Spot: its cone. */
+  const float base_tan = is_cube ? 1.0f :
+                                   tanf(math::min(light.data.spot_angle, DEG2RADF(170.0f)) *
+                                        0.5f);
+  const float tan_half = base_tan * (1.0f + guard);
+  const float half_angle = atanf(tan_half);
   slot.proj = math::projection::perspective_fov(
       -half_angle, half_angle, -half_angle, half_angle, 0.01f, slot.radius);
 
-  if (is_point) {
+  if (is_cube) {
     for (int f = 0; f < 6; f++) {
       slot.face_view[f] = cube_face_view_get(slot.position, f);
+    }
+  }
+  if (light.data.type == uint32_t(LightType::AREA_RECT) ||
+      light.data.type == uint32_t(LightType::AREA_ELLIPSE))
+  {
+    /* One sided emitter: a face whose whole (widened) frustum lies behind
+     * the panel never sees a lit point, so it is not rendered. Its tile entry
+     * stays, the lookup picks faces by index. The frustum directions of face
+     * (axis a, sign s) are s e_a + t (+-e_b +-e_c): the largest dot with the
+     * emission direction n is s n_a + t (|n_b| + |n_c|). Typically one face. */
+    const float3 n = light.data.direction;
+    for (int f = 0; f < 6; f++) {
+      const int a = f / 2;
+      const float s = (f & 1) ? -1.0f : 1.0f;
+      const float side = fabsf(n[(a + 1) % 3]) + fabsf(n[(a + 2) % 3]);
+      if (s * n[a] + tan_half * side <= 0.0f) {
+        slot.face_mask &= ~(1u << f);
+      }
     }
   }
   else {
@@ -373,12 +394,6 @@ void ShadowModule::end_sync()
       continue;
     }
 
-    if (light.data.type != uint32_t(LightType::PUNCTUAL_SPOT) &&
-        light.data.type != uint32_t(LightType::PUNCTUAL_POINT))
-    {
-      continue; /* Area lights: shadow not yet supported */
-    }
-
     ShadowPunctual slot = {};
     slot.uid = light.uid;
     slot.light_index = l;
@@ -440,8 +455,10 @@ void ShadowModule::end_sync()
     const uint64_t signature = caster_signature(slot.position, slot.radius);
     slot.needs_update = !cache.valid || cache.light_uid != slot.uid ||
                         cache.signature != signature || cache.proj != slot.proj ||
-                        cache.face_view0 != slot.face_view[0];
+                        cache.face_view0 != slot.face_view[0] ||
+                        cache.face_mask != slot.face_mask;
     cache.light_uid = slot.uid;
+    cache.face_mask = slot.face_mask;
     cache.face_view0 = slot.face_view[0];
     cache.proj = slot.proj;
     cache.signature = signature;
@@ -574,6 +591,9 @@ void ShadowModule::render_punctual(Framebuffer &fb,
 {
   const int face_size = face_size_get(tile_size, slot.face_count);
   for (int f = 0; f < slot.face_count; f++) {
+    if ((slot.face_mask & (1u << f)) == 0) {
+      continue;
+    }
     View &view = view_ensure(views, int(slot.atlas_index) * 6 + f, "Shadow.Punctual");
     view.sync(slot.face_view[f], slot.proj);
     render_tile(fb,

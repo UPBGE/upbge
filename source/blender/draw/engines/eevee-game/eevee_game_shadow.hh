@@ -98,7 +98,8 @@ struct ShadowPunctual {
   float    radius;        /* Influence radius: caster search and far plane */
   uint64_t uid;
   int      light_index;   /* Entry in LightModule::entries_ */
-  int      face_count;    /* 1 spot, 6 point */
+  int      face_count;    /* 1 spot, 6 point and area */
+  uint32_t face_mask;     /* Faces to render: an area light skips those behind it */
   uint32_t atlas_index;   /* Flat tile index within its own atlas */
   bool     active;
   bool     is_dynamic;    /* True → lives in the dynamic atlas */
@@ -237,6 +238,7 @@ class ShadowModule {
     float4x4 face_view0;
     float4x4 proj;
     uint64_t signature;
+    uint32_t face_mask;
     bool     valid;
     bool     used;        /* Claimed by a light this frame */
   };
