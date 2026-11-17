@@ -58,6 +58,12 @@ class SyncModule {
   /** Register a mesh object into culling + velocity + shadows. */
   void sync_mesh(Object *ob, ObjectHandle &handle, const ObjectRef &ob_ref);
 
+  /** Hair curves and point clouds: same passes as meshes, other geometry. */
+  void sync_curves(Object *ob, ObjectHandle &handle, const ObjectRef &ob_ref);
+  void sync_pointcloud(Object *ob, ObjectHandle &handle, const ObjectRef &ob_ref);
+  /** Particle hair of a mesh, drawn with the object's resource handle. */
+  void sync_hair_particles(Object *ob, const ObjectRef &ob_ref, ResourceHandleRange res_handle);
+
   /** Register a light object into LightModule. */
   void sync_light(Object *ob, ObjectHandle &handle);
 

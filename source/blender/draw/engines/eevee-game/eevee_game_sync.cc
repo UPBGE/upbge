@@ -17,6 +17,10 @@
 #include "DNA_light_types.h"
 #include "DNA_object_types.h"
 #include "DNA_material_types.h"
+#include "DNA_curves_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_particle_types.h"
+#include "DNA_pointcloud_types.h"
 
 #include "DRW_render.hh"
 #include "draw_cache.hh"
@@ -90,11 +94,20 @@ void SyncModule::object_sync(const ObjectRef &ob_ref)
       sync_mesh(ob, handle, ob_ref);
       break;
 
+    case OB_CURVES:
+      sync_curves(ob, handle, ob_ref);
+      break;
+
+    case OB_POINTCLOUD:
+      sync_pointcloud(ob, handle, ob_ref);
+      break;
+
     case OB_LAMP:
       sync_light(ob, handle);
       break;
 
-    /* Curves, volumes, point clouds: not yet supported in eevee_game. */
+    /* Volume objects need their density voxelized into the froxel grid, and
+     * the fog is still a homogeneous medium. */
     default:
       break;
   }
@@ -215,6 +228,86 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &handle, const ObjectRef &ob
 
   /* Per-draw attributes (e.g. UV maps, vertex colors used by materials) */
   inst_.manager->extract_object_attributes(res_handle, ob_ref, mat_array.gpu_materials);
+
+  sync_hair_particles(ob, ob_ref, res_handle);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Curves, point clouds, particle hair
+ *
+ * Same passes as a mesh, but the geometry is expanded in the vertex shader
+ * from buffer textures the draw module binds per sub-pass, so every pass of
+ * the material gets its own small sub-pass. No velocity (FSR sees the camera
+ * motion only) and no volume: neither has a pipeline here yet.
+ * \{ */
+
+template<typename SetupFn>
+static void surface_drawcalls(Material &mat, ResourceHandleRange res_handle, SetupFn setup)
+{
+  if (mat.has_volume && !mat.has_surface) {
+    return;
+  }
+  for (MaterialPass *matpass : {&mat.prepass, &mat.shading, &mat.shadow, &mat.overlap_masking}) {
+    if (matpass->sub_pass == nullptr) {
+      continue;
+    }
+    PassMain::Sub &sub = matpass->sub_pass->sub("Geometry");
+    gpu::Batch *geom = setup(sub, matpass->gpumat);
+    sub.draw(geom, res_handle);
+  }
+}
+
+void SyncModule::sync_curves(Object *ob, ObjectHandle &handle, const ObjectRef &ob_ref)
+{
+  ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
+  Material &mat = inst_.materials.material_get(
+      ob, false, CURVES_MATERIAL_NR - 1, eevee::MAT_GEOM_CURVES);
+  surface_drawcalls(mat, res_handle, [&](PassMain::Sub &sub, GPUMaterial *gpumat) {
+    const char *error = nullptr;
+    return curves_sub_pass_setup(sub, inst_.scene, ob, error, gpumat);
+  });
+  inst_.shadows.sync_object(ob, handle.object_key.hash());
+  inst_.manager->extract_object_attributes(res_handle, ob_ref, mat.shading.gpumat);
+}
+
+void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &handle, const ObjectRef &ob_ref)
+{
+  ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
+  Material &mat = inst_.materials.material_get(
+      ob, false, POINTCLOUD_MATERIAL_NR - 1, eevee::MAT_GEOM_POINTCLOUD);
+  surface_drawcalls(mat, res_handle, [&](PassMain::Sub &sub, GPUMaterial *gpumat) {
+    gpu::Batch *geom = pointcloud_sub_pass_setup(sub, ob, gpumat);
+    /* Front-facing spheres only: back faces are for volumes. */
+    sub.push_constant("ptcloud_backface", false);
+    return geom;
+  });
+  inst_.shadows.sync_object(ob, handle.object_key.hash());
+  inst_.manager->extract_object_attributes(res_handle, ob_ref, mat.shading.gpumat);
+}
+
+void SyncModule::sync_hair_particles(Object *ob,
+                                     const ObjectRef &ob_ref,
+                                     ResourceHandleRange res_handle)
+{
+  for (ModifierData &md : ob->modifiers) {
+    if (md.type != eModifierType_ParticleSystem) {
+      continue;
+    }
+    ParticleSystem *psys = reinterpret_cast<ParticleSystemModifierData *>(&md)->psys;
+    const ParticleSettings *part = psys->part;
+    /* What the viewport shows. */
+    const int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
+    if (draw_as != PART_DRAW_PATH || !DRW_object_is_visible_psys_in_active_context(ob, psys)) {
+      continue;
+    }
+    Material &mat = inst_.materials.material_get(
+        ob, false, part->omat - 1, eevee::MAT_GEOM_CURVES);
+    surface_drawcalls(mat, res_handle, [&](PassMain::Sub &sub, GPUMaterial *gpumat) {
+      return hair_sub_pass_setup(sub, inst_.scene, ob_ref, psys, &md, gpumat);
+    });
+  }
 }
 
 /** \} */
