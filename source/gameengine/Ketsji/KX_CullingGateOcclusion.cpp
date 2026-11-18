@@ -177,7 +177,7 @@ void main()
 
 static gpu::Shader *create_hiz_shader()
 {
-  ShaderCreateInfo info("KX_CullingGate_hiz");
+  ShaderCreateInfo info("pyGPU_Shader");
   info.local_group_size(OCC_GROUP_2D, OCC_GROUP_2D, 1);
   info.sampler(0, ImageType::Depth2D, "depth_tx");
   info.image(0,
@@ -195,7 +195,7 @@ static gpu::Shader *create_hiz_shader()
 
 static gpu::Shader *create_test_shader()
 {
-  ShaderCreateInfo info("KX_CullingGate_occlusion");
+  ShaderCreateInfo info("pyGPU_Shader");
   info.local_group_size(OCC_GROUP_1D, 1, 1);
   info.image(0,
              gpu::TextureFormat::SFLOAT_32,

@@ -253,8 +253,8 @@ class ShadowModule {
   CascadeCache cascade_cache_ = {};
   bool cascades_need_update_ = true;
 
-  /* Faces of every shadowed punctual light, indexed by LightData::shadow_index. */
-  StorageArrayBuffer<ShadowTileData, MAX_SHADOW_TILES> tile_buf_ = {"shadow_tile_buf"};
+  /* Faces of every shadowed punctual light, indexed by GameLightData::shadow_index. */
+  StorageArrayBuffer<GameShadowTileData, MAX_SHADOW_TILES> tile_buf_ = {"shadow_tile_buf"};
   int tile_count_ = 0;
 };
 

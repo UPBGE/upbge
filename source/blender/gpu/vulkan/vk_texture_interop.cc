@@ -17,11 +17,9 @@
 
 #include "vk_backend.hh"
 #include "vk_common.hh"     /* VkFormat, VkImage, etc. (via <vulkan/vulkan.h>) */
-#include "vk_context.hh"
 #include "vk_device.hh"
 #include "vk_image_view.hh"
 #include "vk_texture.hh"
-#include "vk_format.hh"     /* to_vk_format(TextureFormat) */
 
 namespace blender {
 
@@ -89,28 +87,6 @@ GPUVKDeviceHandles GPU_vk_device_handles_get()
       reinterpret_cast<uintptr_t>(dev.vk_handle()));
 
   return result;
-}
-
-/* ------------------------------------------------------------------ */
-
-uint64_t GPU_vk_command_buffer_get()
-{
-  if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
-    return 0;
-  }
-
-  /* VKContext::get() returns the context active on the current thread.
-   * The command buffer is in recording state during a DRW render callback. */
-  gpu::VKContext *ctx = gpu::VKContext::get();
-  if (ctx == nullptr) {
-    return 0;
-  }
-
-  const VkCommandBuffer vk_cmd =
-      ctx->command_buffer_get().vk_command_buffer();
-
-  /* VkCommandBuffer is a dispatchable handle (a pointer). */
-  return uint64_t(reinterpret_cast<uintptr_t>(vk_cmd));
 }
 
 } // namespace blender

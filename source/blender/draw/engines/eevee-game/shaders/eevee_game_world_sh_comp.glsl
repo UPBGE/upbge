@@ -30,14 +30,14 @@ shared float sh_w[64];
 
 void main()
 {
-  int thread = int(gl_LocalInvocationIndex);
+  int local_index = int(gl_LocalInvocationIndex);
   const int face_len = WORLD_SH_RES * WORLD_SH_RES;
 
   float4 acc_r = float4(0.0f);
   float4 acc_g = float4(0.0f);
   float4 acc_b = float4(0.0f);
   float acc_w = 0.0f;
-  for (int i = thread; i < 6 * face_len; i += 64) {
+  for (int i = local_index; i < 6 * face_len; i += 64) {
     int face = i / face_len;
     int rem = i - face * face_len;
     int2 texel = int2(rem % WORLD_SH_RES, rem / WORLD_SH_RES);
@@ -54,13 +54,13 @@ void main()
     acc_b += float4(1.0f, n) * L.b;
     acc_w += w;
   }
-  sh_r[thread] = acc_r;
-  sh_g[thread] = acc_g;
-  sh_b[thread] = acc_b;
-  sh_w[thread] = acc_w;
+  sh_r[local_index] = acc_r;
+  sh_g[local_index] = acc_g;
+  sh_b[local_index] = acc_b;
+  sh_w[local_index] = acc_w;
   barrier();
 
-  if (thread != 0) {
+  if (local_index != 0) {
     return;
   }
   float4 r = float4(0.0f), g = float4(0.0f), b = float4(0.0f);

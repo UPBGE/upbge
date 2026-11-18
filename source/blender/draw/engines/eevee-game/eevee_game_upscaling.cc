@@ -47,9 +47,8 @@ FfxFsr3QualityMode UpscaleModule::to_ffx_quality(UpscaleMode mode)
  * FfxCommandList so the FSR3 SDK can record its compute dispatches
  * into the same command stream as the rest of the frame.
  *
- * GPU_vk_command_buffer_get() is the public API that gives us the
- * VkCommandBuffer without touching Blender GPU internals directly.
- * The cast chain mirrors the pattern used in init() for VkDevice. */
+ * The Vulkan backend currently records work through an asynchronous render
+ * graph, so it does not expose a command buffer here yet. */
 FfxCommandList UpscaleModule::get_command_list()
 {
   const GPUVKDeviceHandles handles = GPU_vk_device_handles_get();

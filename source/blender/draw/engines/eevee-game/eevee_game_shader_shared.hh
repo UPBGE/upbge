@@ -18,7 +18,7 @@
 namespace blender::eevee_game {
 #endif
 
-/* LightData::type. Mirrors `enum class LightType` (eevee_game_defines.hh),
+/* GameLightData::type. Mirrors `enum class LightType` (eevee_game_defines.hh),
  * which static-asserts against these so the two cannot drift apart. */
 #define LIGHT_TYPE_SUN 0u
 #define LIGHT_TYPE_POINT 1u
@@ -29,7 +29,7 @@ namespace blender::eevee_game {
 /* One light, 64 bytes: exactly one cache line per light in the shading loop.
  * Each float3 is followed by a scalar so the std430 layout has no implicit
  * padding and matches the C++ struct byte for byte. */
-struct [[host_shared]] LightData {
+struct [[host_shared]] GameLightData {
   packed_float3 position;
   uint type;
 
@@ -64,8 +64,8 @@ struct [[host_shared]] LightData {
 
 /* One rendered shadow face: a sun cascade (four consecutive entries), a spot
  * light, or one cube face of a point light (six consecutive entries ordered
- * +X -X +Y -Y +Z -Z). LightData::shadow_index is the index of the first. */
-struct [[host_shared]] ShadowTileData {
+ * +X -X +Y -Y +Z -Z). GameLightData::shadow_index is the index of the first. */
+struct [[host_shared]] GameShadowTileData {
   float4x4 view_proj;
   /** Atlas UV rectangle of the face: min in xy, size in zw. */
   float4 atlas_rect;

@@ -208,9 +208,9 @@ void GameInstance::end_sync()
    * shadow_index has been stamped into each LightEntry.  The correct upload
    * happens via lights.upload() below, which calls end_sync() internally after
    * the shadow index writeback loop.  Calling end_sync() twice per frame wastes
-   * one full SSBO DMA transfer (~MAX_LIGHTS * sizeof(LightData) bytes). */
+   * one full SSBO DMA transfer (~MAX_LIGHTS * sizeof(GameLightData) bytes). */
   /* Routes the shadowed lights to their atlas faces and writes
-   * LightData::shadow_index, which the upload below packs. */
+   * GameLightData::shadow_index, which the upload below packs. */
   shadows.end_sync();
 
   lights.upload(); /* Re-pack and push to GPU with updated shadow indices. */

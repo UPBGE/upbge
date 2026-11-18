@@ -34,7 +34,7 @@ float ggx_lobe(float3 N, float3 L, float3 V, float roughness, float light_size)
   }
   float NV = max(dot(N, V), 1e-4f);
   float3 H = normalize(L + V);
-  float NH = saturate(dot(N, H));
+  float NH = clamp(dot(N, H), 0.0f, 1.0f);
 
   /* Perceptual roughness squared, floored: a perfect mirror has an
    * infinitely narrow lobe that a punctual light can never hit. */
@@ -65,7 +65,7 @@ float ggx_lobe(float3 N, float3 L, float3 V, float roughness, float light_size)
  * irradiance on a surface facing it, and the sine of the angular radius of
  * the emitter seen from P. The color is already the intensity (see
  * LightData::color). */
-float3 light_incoming(LightData light, float3 P, out float3 L, out float size)
+float3 light_incoming(GameLightData light, float3 P, out float3 L, out float size)
 {
   if (light.type == LIGHT_TYPE_SUN) {
     L = -light.direction;
@@ -82,7 +82,7 @@ float3 light_incoming(LightData light, float3 P, out float3 L, out float size)
   /* Inverse square falloff, windowed so it reaches exactly zero at the
    * light's range. A bounded light is what lets it be culled later. */
   float range_sqr = light.attenuation * light.attenuation;
-  float window = saturate(1.0f - square(dist_sqr / max(range_sqr, 1e-4f)));
+  float window = clamp(1.0f - square(dist_sqr / max(range_sqr, 1e-4f)), 0.0f, 1.0f);
   float falloff = square(window) / dist_sqr;
 
   if (light.type == LIGHT_TYPE_SPOT) {
@@ -102,7 +102,7 @@ float3 light_incoming(LightData light, float3 P, out float3 L, out float size)
   return light.color * falloff;
 }
 
-float3 light_incoming(LightData light, float3 P, out float3 L)
+float3 light_incoming(GameLightData light, float3 P, out float3 L)
 {
   float size;
   return light_incoming(light, P, L, size);
@@ -138,7 +138,7 @@ int light_tile_mask_base(float2 frag_coord)
  * an orthographic cascade. */
 float shadow_tile_sample(int tile_index, float3 P, float3 N, float dist)
 {
-  ShadowTileData tile = shadow_tile_buf[tile_index];
+  GameShadowTileData tile = shadow_tile_buf[tile_index];
   bool is_ortho = tile.view_proj[3][3] == 1.0f;
 
   /* Normal offset of 1.5 texels measured at the receiver. It removes acne
@@ -182,7 +182,7 @@ float shadow_tile_sample(int tile_index, float3 P, float3 N, float dist)
 /* Shadow face of a shadowed light (shadow_index >= 0) holding P, or -1 past
  * the sun's shadow distance. view_depth is the positive view space depth of
  * P, used to pick the sun cascade. */
-int game_light_shadow_tile(LightData light, float3 P, float view_depth)
+int game_light_shadow_tile(GameLightData light, float3 P, float view_depth)
 {
   if (light.type == LIGHT_TYPE_SUN) {
     /* Four cascades, the first whose split covers the depth. */
@@ -217,7 +217,7 @@ int game_light_shadow_tile(LightData light, float3 P, float view_depth)
 }
 
 /* Lit fraction of P for a shadowed light (shadow_index >= 0). */
-float game_light_shadow(LightData light, float3 P, float3 N, float view_depth)
+float game_light_shadow(GameLightData light, float3 P, float3 N, float view_depth)
 {
   int tile_index = game_light_shadow_tile(light, P, view_depth);
   if (tile_index < 0) {
@@ -231,8 +231,10 @@ float game_light_shadow(LightData light, float3 P, float3 N, float view_depth)
    * into no shadow: the texel size jumps by the split ratio there, and a
    * seam shows where a blend does not. Two lookups in the band only. */
   float split = shadow_tile_buf[tile_index].split_depth;
-  float blend = saturate((view_depth / split - (1.0f - SHADOW_CASCADE_BLEND)) *
-                         (1.0f / SHADOW_CASCADE_BLEND));
+  float blend = clamp((view_depth / split - (1.0f - SHADOW_CASCADE_BLEND)) *
+                          (1.0f / SHADOW_CASCADE_BLEND),
+                      0.0f,
+                      1.0f);
   if (blend > 0.0f) {
     float next = (tile_index < light.shadow_index + 3) ?
                      shadow_tile_sample(tile_index + 1, P, N, 0.0f) :
@@ -245,13 +247,13 @@ float game_light_shadow(LightData light, float3 P, float3 N, float view_depth)
 /* Same for a point in a medium: one bilinear compare and no normal offset.
  * There is no surface to get acne on, and a froxel is far larger than the
  * 3x3 kernel anyway; this is the cost of every light in every froxel. */
-float game_light_shadow_volume(LightData light, float3 P, float view_depth)
+float game_light_shadow_volume(GameLightData light, float3 P, float view_depth)
 {
   int tile_index = game_light_shadow_tile(light, P, view_depth);
   if (tile_index < 0) {
     return 1.0f;
   }
-  ShadowTileData tile = shadow_tile_buf[tile_index];
+  GameShadowTileData tile = shadow_tile_buf[tile_index];
   float4 clip = tile.view_proj * float4(P, 1.0f);
   if (clip.w <= 0.0f) {
     return 1.0f;

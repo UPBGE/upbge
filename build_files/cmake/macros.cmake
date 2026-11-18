@@ -886,7 +886,14 @@ macro(remove_c_and_cxx_flag_unsigned_char)
      (CMAKE_C_COMPILER_ID STREQUAL "Intel"))
     remove_c_and_cxx_flag("-funsigned-char")
   elseif(MSVC)
-    remove_c_and_cxx_flag("/J")
+    foreach(flag_var
+        CMAKE_C_FLAGS CMAKE_CXX_FLAGS
+        CMAKE_C_FLAGS_DEBUG CMAKE_CXX_FLAGS_DEBUG
+        CMAKE_C_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELEASE
+        CMAKE_C_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_MINSIZEREL
+        CMAKE_C_FLAGS_RELWITHDEBINFO CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+      string(REGEX REPLACE "(^| )/J( |$)" "\\1\\2" ${flag_var} "${${flag_var}}")
+    endforeach()
   else()
     message(WARNING
       "Compiler '${CMAKE_C_COMPILER_ID}' failed to disable 'unsigned char' flag."

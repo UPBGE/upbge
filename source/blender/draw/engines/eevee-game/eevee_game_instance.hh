@@ -97,7 +97,7 @@ class Camera {
 struct LightEntry {
   LightType type;
   float4x4  object_to_world;
-  LightData data;
+  GameLightData data;
   /* Stable identity across frames (ObjectKey hash): keeps a static shadow
    * slot and its cached atlas tile bound to the same light. */
   uint64_t  uid = 0;
@@ -113,7 +113,7 @@ struct LightModule {
   /* Rebuilt every frame and only ever walked front to back, so a flat
    * array: no hashing, and iteration order is the sync order. */
   Vector<LightEntry> entries_;
-  StorageArrayBuffer<LightData, MAX_LIGHTS> light_buf_ = {"light_buf"};
+  StorageArrayBuffer<GameLightData, MAX_LIGHTS> light_buf_ = {"light_buf"};
   int active_light_count = 0;
 
   void begin_sync();

@@ -1471,17 +1471,6 @@ struct GPUVKDeviceHandles {
  */
 GPUVKDeviceHandles GPU_vk_device_handles_get();
 
-/**
- * Return the active Vulkan command buffer as a uint64_t.
- *
- * VkCommandBuffer is a dispatchable handle (a pointer).  Cast back via:
- *   reinterpret_cast<VkCommandBuffer>(static_cast<uintptr_t>(handle))
- *
- * The command buffer is in recording state during a DRW render callback.
- * Returns 0 outside of a render callback.
- */
-uint64_t GPU_vk_command_buffer_get();
-
 /** \} */
 
 }  // namespace blender

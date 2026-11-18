@@ -118,8 +118,8 @@ struct UniformData {
   float    exposure;
 };
 
-/* LightData lives in eevee_game_shader_shared.hh: shaders read it too. */
-static_assert(sizeof(LightData) == 64, "LightData must stay one cache line / std430 clean");
+/* GameLightData lives in eevee_game_shader_shared.hh: shaders read it too. */
+static_assert(sizeof(GameLightData) == 64, "GameLightData must stay one cache line / std430 clean");
 static_assert(uint32_t(LightType::SUN) == LIGHT_TYPE_SUN &&
                   uint32_t(LightType::PUNCTUAL_POINT) == LIGHT_TYPE_POINT &&
                   uint32_t(LightType::PUNCTUAL_SPOT) == LIGHT_TYPE_SPOT &&

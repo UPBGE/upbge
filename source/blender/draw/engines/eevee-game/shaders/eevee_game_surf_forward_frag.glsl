@@ -56,7 +56,7 @@ float3 game_forward_radiance()
     while (mask != 0u) {
       int l = w * 32 + findLSB(mask);
       mask &= mask - 1u;
-      LightData light = light_buf[l];
+      GameLightData light = light_buf[l];
 
       float3 L;
       float size;
@@ -77,10 +77,10 @@ float3 game_forward_radiance()
         switch (cl[i].type) {
           case CLOSURE_BSSRDF_BURLEY_ID:
           case CLOSURE_BSDF_DIFFUSE_ID:
-            lobe = saturate(dot(cl[i].N, L)) * (M_1_PI * lobe_factor.x);
+            lobe = clamp(dot(cl[i].N, L), 0.0f, 1.0f) * (M_1_PI * lobe_factor.x);
             break;
           case CLOSURE_BSDF_TRANSLUCENT_ID:
-            lobe = saturate(-dot(cl[i].N, L)) * (M_1_PI * lobe_factor.x);
+            lobe = clamp(-dot(cl[i].N, L), 0.0f, 1.0f) * (M_1_PI * lobe_factor.x);
             break;
           case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
             lobe = ggx_lobe(cl[i].N, L, V, to_closure_reflection(cl[i]).roughness, size) *
@@ -126,7 +126,7 @@ float3 game_forward_radiance()
 float4 closure_to_rgba(Closure /*cl_unused*/)
 {
   float4 out_color = float4(game_forward_radiance(),
-                            saturate(1.0f - average(g_transmittance)));
+                            clamp(1.0f - average(g_transmittance), 0.0f, 1.0f));
 
   /* Reset for the next closure tree. */
   float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
@@ -153,10 +153,10 @@ void main()
   if (flag_test(ob_flag, OBJECT_HOLDOUT)) {
     g_holdout = 1.0f - average(g_transmittance);
   }
-  g_holdout = saturate(g_holdout);
+  g_holdout = clamp(g_holdout, 0.0f, 1.0f);
   radiance *= 1.0f - g_holdout;
 
-  float coverage = saturate(1.0f - average(g_transmittance));
+  float coverage = clamp(1.0f - average(g_transmittance), 0.0f, 1.0f);
 
   /* Fog between the camera and the surface, already integrated in the froxel
    * grid (the resolve pass gave the same to the opaque pixels). The surface
@@ -166,9 +166,11 @@ void main()
    * adds back coverage * S. Premultiplied result: T C + coverage S. */
   if (game_lighting_buf.use_volume) {
     float z = -drw_point_world_to_view(g_data.P).z;
-    float w = saturate(log(max(z, game_lighting_buf.volume_z_near) /
+    float w = clamp(log(max(z, game_lighting_buf.volume_z_near) /
                            game_lighting_buf.volume_z_near) *
-                       game_lighting_buf.volume_log_inv);
+                        game_lighting_buf.volume_log_inv,
+                    0.0f,
+                    1.0f);
     float2 uv = gl_FragCoord.xy / float2(game_lighting_buf.render_extent);
     float3 uvw = float3(uv, w);
     radiance = radiance * texture(volume_transmittance_tx, uvw).rgb +

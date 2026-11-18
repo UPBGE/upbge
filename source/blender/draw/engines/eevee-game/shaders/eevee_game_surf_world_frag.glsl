@@ -39,6 +39,6 @@ void main()
 
   nodetree_surface(0.0f);
 
-  g_holdout = saturate(g_holdout);
+  g_holdout = clamp(g_holdout, 0.0f, 1.0f);
   out_background = float4(colorspace_safe_color(g_emission) * (1.0f - g_holdout), 1.0f);
 }

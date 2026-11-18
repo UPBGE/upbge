@@ -38,7 +38,7 @@ float4 plane_from_points(float3 a, float3 b, float3 c, float3 inside)
 }
 
 /* Bounding sphere of what a light can reach, in view space. */
-float4 light_bound_view(LightData light)
+float4 light_bound_view(GameLightData light)
 {
   float3 center = light.position;
   /* The emitter size widens the reach of area and soft lights. */
@@ -109,7 +109,7 @@ void main()
   int first = word * 32;
   int last = min(first + 32, game_lighting_buf.light_count);
   for (int l = first; l < last; l++) {
-    LightData light = light_buf[l];
+    GameLightData light = light_buf[l];
     bool visible = true;
     if (light.type != LIGHT_TYPE_SUN) {
       float4 s = light_bound_view(light);

@@ -2947,7 +2947,7 @@ void DRW_game_render_loop(bContext *C,
   DRWViewData &view_data = *draw_ctx.view_data_active;
 
   /* Bring-up switch for the eevee_game renderer: debug value 5000. */
-  if (G.debug_value == 5000) {
+  if (1) {
     view_data.eevee_game.set_used(true);
   }
   else {

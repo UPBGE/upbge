@@ -61,7 +61,7 @@ void main()
     while (mask != 0u) {
       int l = w * 32 + findLSB(mask);
       mask &= mask - 1u;
-      LightData light = light_buf[l];
+      GameLightData light = light_buf[l];
 
       float3 L;
       float size;
@@ -86,11 +86,11 @@ void main()
           case CLOSURE_BSSRDF_BURLEY_ID:
           case CLOSURE_BSDF_DIFFUSE_ID:
             /* Lambert: a constant 1 / pi in every direction. */
-            lobe = saturate(dot(cl[i].N, L)) * (M_1_PI * lobe_factor.x);
+            lobe = clamp(dot(cl[i].N, L), 0.0f, 1.0f) * (M_1_PI * lobe_factor.x);
             break;
           case CLOSURE_BSDF_TRANSLUCENT_ID:
             /* Lit from behind. */
-            lobe = saturate(-dot(cl[i].N, L)) * (M_1_PI * lobe_factor.x);
+            lobe = clamp(-dot(cl[i].N, L), 0.0f, 1.0f) * (M_1_PI * lobe_factor.x);
             break;
           case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
             lobe = ggx_lobe(cl[i].N, L, V, to_closure_reflection(cl[i]).roughness, size) *
@@ -131,7 +131,7 @@ void main()
         /* EEVEE's curve fit of the apparent blur of GGX refraction. */
         float roughness = refraction.roughness *
                           sqrt((ior > 1.0f) ? (1.0f - 1.0f / ior) :
-                                              (saturate(1.0f - ior) * 0.64f));
+                                              (clamp(1.0f - ior, 0.0f, 1.0f) * 0.64f));
         if (gbuffer::read_thickness(gbuf.header, texel).value() != 0.0f) {
           ior = 1.0f / ior;
         }

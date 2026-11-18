@@ -360,7 +360,7 @@ void ShadowModule::punctual_tiles_write(
       return;
     }
     const int2 origin = face_origin_get(tile_origin, face_size, slot.face_count, f);
-    ShadowTileData &tile = tile_buf_[tile_count_++];
+    GameShadowTileData &tile = tile_buf_[tile_count_++];
     tile.view_proj = slot.proj * slot.face_view[f];
     tile.atlas_rect = float4(float2(origin) / float(atlas_res),
                              float2(float(face_size) / float(atlas_res)));
@@ -389,7 +389,7 @@ uint64_t ShadowModule::caster_signature(float3 center, float radius) const
 void ShadowModule::end_sync()
 {
   /* Route each shadow-casting light to an atlas and write the faces it reads
-   * into tile_buf_. LightData::shadow_index becomes the index of the first
+   * into tile_buf_. GameLightData::shadow_index becomes the index of the first
    * face (punctual), 0 for the shadowed sun, -1 for no shadow.
    * Priority: LIGHT_FLAG_SHADOW_DYNAMIC -> dynamic (if not full).
    * Fallback: static (if not full). If both full: no shadow. */
@@ -420,7 +420,7 @@ void ShadowModule::end_sync()
          * up there, the deferred pass reads the filtered sun mask instead. */
         light.data.shadow_index = tile_count_;
         for (int i = 0; i < int(cascades_.size()) && tile_count_ < MAX_SHADOW_TILES; i++) {
-          ShadowTileData &tile = tile_buf_[tile_count_++];
+          GameShadowTileData &tile = tile_buf_[tile_count_++];
           tile.view_proj = cascades_[i].view_proj;
           tile.atlas_rect = float4(float(i) * 0.25f, 0.0f, 0.25f, 0.25f);
           tile.atlas = 0;

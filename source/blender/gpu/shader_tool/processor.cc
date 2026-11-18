@@ -96,7 +96,10 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
 
       /* Linting phase. Detect valid syntax with invalid usage. */
       lint_unbraced_statements(parser);
-      lint_reserved_tokens(parser);
+      /* GLSL vector types are reserved in BSL, but valid in GLSL. */
+      if (!filepath_.ends_with(".glsl")) {
+        lint_reserved_tokens(parser);
+      }
       lint_attributes(parser);
       lint_global_scope_constants(parser);
       lint_constructors(parser);

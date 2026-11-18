@@ -78,10 +78,18 @@ COMPUTE_SHADER_CREATE_INFO(eevee_game_shadow_pcf_compute)
  * Fragments beyond the last cascade return -1 (no shadow). */
 int select_cascade(float view_depth)
 {
-  if (view_depth < cascade_splits.x) return 0;
-  if (view_depth < cascade_splits.y) return 1;
-  if (view_depth < cascade_splits.z) return 2;
-  if (view_depth < cascade_splits.w) return 3;
+  if (view_depth < cascade_splits.x) {
+    return 0;
+  }
+  if (view_depth < cascade_splits.y) {
+    return 1;
+  }
+  if (view_depth < cascade_splits.z) {
+    return 2;
+  }
+  if (view_depth < cascade_splits.w) {
+    return 3;
+  }
   return -1; /* Beyond shadow distance. */
 }
 
