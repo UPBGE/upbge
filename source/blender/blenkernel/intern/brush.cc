@@ -108,6 +108,8 @@ static void brush_copy_data(Main * /*bmain*/,
   brush_dst->curve_auto_smooth = BKE_curvemapping_copy(brush_src->curve_auto_smooth);
   brush_dst->curve_spacing = BKE_curvemapping_copy(brush_src->curve_spacing);
 
+  brush_dst->gradient = BKE_colorband_copy_or_null(brush_src->gradient);
+
   if (brush_src->gpencil_settings != nullptr) {
     brush_dst->gpencil_settings = MEM_new<BrushGpencilSettings>(
         __func__, dna::shallow_copy(*(brush_src->gpencil_settings)));
@@ -968,7 +970,7 @@ void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset)
 
 const MTex *BKE_brush_mask_texture_get(const Brush *brush, const PaintMode paint_mode)
 {
-  if (ELEM(paint_mode, PaintMode::Sculpt, PaintMode::Vertex)) {
+  if (ELEM(paint_mode, PaintMode::Sculpt)) {
     return &brush->mtex;
   }
   return &brush->mask_mtex;
@@ -976,7 +978,7 @@ const MTex *BKE_brush_mask_texture_get(const Brush *brush, const PaintMode paint
 
 const MTex *BKE_brush_color_texture_get(const Brush *brush, const PaintMode paint_mode)
 {
-  if (ELEM(paint_mode, PaintMode::Sculpt, PaintMode::Vertex)) {
+  if (ELEM(paint_mode, PaintMode::Sculpt)) {
     return &brush->mask_mtex;
   }
   return &brush->mtex;

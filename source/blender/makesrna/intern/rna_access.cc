@@ -57,6 +57,7 @@
 #include "RNA_prototypes.hh"
 #include "RNA_types.hh"
 
+#include "UI_interface_c.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -445,6 +446,17 @@ static const StructRNA *get_rna_pointer_type(PointerRNA *ptr, const PointerPrope
   return pprop->type_fn ? pprop->type_fn(ptr) : pprop->pointer_type;
 }
 
+static const IDPropertyStructTypeInfo *rna_struct_idprop_struct_type(const StructRNA *type)
+{
+  /* Python property groups or node trees can have the same identifier as a built-in type, so they
+   * are excluded explicitly. */
+  if (type->flag & STRUCT_RUNTIME) {
+    return nullptr;
+  }
+  const char *identifier = RNA_struct_identifier(type);
+  return IDP_struct_type_find_by_rna_identifier(identifier);
+}
+
 static bool rna_idproperty_verify_valid(PointerRNA *ptr, PropertyRNA *prop, IDProperty *idprop)
 {
   /* this verifies if the idproperty actually matches the property
@@ -503,7 +515,7 @@ static bool rna_idproperty_verify_valid(PointerRNA *ptr, PropertyRNA *prop, IDPr
       const PointerPropertyRNA *pprop = reinterpret_cast<const PointerPropertyRNA *>(prop);
       if (const StructRNA *expected_type = get_rna_pointer_type(ptr, pprop)) {
         /* Type should not be one of the struct-types (like CurveMapping). */
-        if (IDP_struct_type_find_by_rna_identifier(RNA_struct_identifier(expected_type))) {
+        if (RNA_struct_is_idprops_struct(expected_type)) {
           return false;
         }
       }
@@ -518,8 +530,7 @@ static bool rna_idproperty_verify_valid(PointerRNA *ptr, PropertyRNA *prop, IDPr
       if (!expected_type) {
         return false;
       }
-      const IDPropertyStructTypeInfo *expected_info = IDP_struct_type_find_by_rna_identifier(
-          RNA_struct_identifier(expected_type));
+      const IDPropertyStructTypeInfo *expected_info = rna_struct_idprop_struct_type(expected_type);
       const IDPropertyStructTypeInfo *actual_info = IDP_struct_type_info(idprop->type);
       if (!expected_info || !actual_info || expected_info != actual_info) {
         return false;
@@ -844,12 +855,17 @@ bool RNA_struct_idprops_struct_allowed(const StructRNA *type)
   return (type->flag & (STRUCT_NO_DNASTRUCT_IDPROPERTIES | STRUCT_NO_IDPROPERTIES)) == 0;
 }
 
+bool RNA_struct_is_idprops_struct(const StructRNA *type)
+{
+  return rna_struct_idprop_struct_type(type) != nullptr;
+}
+
 bool RNA_struct_idprops_contains_struct(const StructRNA *type)
 {
   if (type->flag & STRUCT_CONTAINS_DNASTRUCT_IDPROPERTIES) {
     return true;
   }
-  return IDP_struct_type_find_by_rna_identifier(RNA_struct_identifier(type)) != nullptr;
+  return RNA_struct_is_idprops_struct(type);
 }
 
 bool RNA_struct_system_idprops_register_check(const StructRNA *type)
@@ -1688,6 +1704,8 @@ void RNA_property_float_ui_range(PointerRNA *ptr,
 
   *softmin = fprop->softmin;
   *softmax = fprop->softmax;
+  *step = fprop->step;
+  *precision = float(fprop->precision);
 
   if (fprop->range) {
     hardmin = -FLT_MAX;
@@ -1708,8 +1726,14 @@ void RNA_property_float_ui_range(PointerRNA *ptr,
     *softmax = min_ff(*softmax, hardmax);
   }
 
-  *step = fprop->step;
-  *precision = float(fprop->precision);
+  if (fprop->precision_fn) {
+    fprop->precision_fn(ptr, step, precision);
+  }
+
+  *step = std::clamp(*step,
+                     UI_PRECISION_FLOAT_STEP_MIN / UI_PRECISION_FLOAT_SCALE,
+                     UI_PRECISION_FLOAT_STEP_MAX / UI_PRECISION_FLOAT_SCALE);
+  *precision = std::clamp(*precision, -1.0f, 6.0f);
 }
 
 int RNA_property_float_clamp(PointerRNA *ptr, PropertyRNA *prop, float *value)
@@ -4942,9 +4966,7 @@ void RNA_property_pointer_add(PointerRNA *ptr, PropertyRNA *prop)
     if (group) {
       PointerPropertyRNA *pprop = reinterpret_cast<PointerPropertyRNA *>(prop);
       StructRNA *type = pprop->type_fn ? pprop->type_fn(ptr) : pprop->pointer_type;
-      if (const IDPropertyStructTypeInfo *info = IDP_struct_type_find_by_rna_identifier(
-              RNA_struct_identifier(type)))
-      {
+      if (const IDPropertyStructTypeInfo *info = rna_struct_idprop_struct_type(type)) {
         IDP_AddToGroup(group, IDP_NewStruct(prop->identifier.ref(), *info, IDP_FLAG_STATIC_TYPE));
       }
       else {
@@ -6626,9 +6648,7 @@ static void sync_system_properties(
         if (RNA_struct_is_ID(prop_srna)) {
           update_idprop_id(bmain, ptr, rna_prop, *idprop);
         }
-        else if (const IDPropertyStructTypeInfo *info = IDP_struct_type_find_by_rna_identifier(
-                     RNA_struct_identifier(prop_srna)))
-        {
+        else if (const IDPropertyStructTypeInfo *info = rna_struct_idprop_struct_type(prop_srna)) {
           if (idprop->type != info->idp_type || idprop->data.pointer == nullptr) {
             IDP_ClearProperty(idprop);
             idprop->type = info->idp_type;
