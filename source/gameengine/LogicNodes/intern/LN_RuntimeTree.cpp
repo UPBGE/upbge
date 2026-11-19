@@ -6,6 +6,7 @@
  *  \ingroup logicnodes
  */
 
+#include "LN_DateTime.h"
 #include "LN_RuntimeTree.h"
 
 #include <algorithm>
@@ -95,6 +96,8 @@
 #include "KX_KetsjiEngine.h"
 #include "KX_Light.h"
 #include "KX_NavMeshObject.h"
+#include "KX_NavMesh.h"
+#include "KX_Navigation.h"
 #include "KX_ObjectReferenceValue.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_RayCast.h"
@@ -110,6 +113,10 @@
 #include "LN_JobPool.h"
 #include "LN_Manager.h"
 #include "LN_AimMath.h"
+#include "LN_MathOps.h"
+#include "LN_Easing.h"
+#include "LN_ListOps.h"
+#include "LN_TextOps.h"
 #include "LN_MeshRays.h"
 #include "LN_Performance.h"
 #include "LN_Random.h"
@@ -140,8 +147,6 @@
 namespace {
 
 static constexpr float LN_PI = 3.14159265358979323846f;
-static constexpr float LN_WAYPOINT_RADIUS = 0.25f;
-static constexpr double LN_PATH_UPDATE_PERIOD = 0.5;
 static constexpr int32_t LN_RAYCAST_MAX_COLLISION_MASK = (1 << 10) - 1;
 static constexpr int32_t LN_RAYCAST_FROM_MESH_MAX_RAYS = 256;
 
@@ -258,6 +263,7 @@ static float ReadRigidBodyFloatAttribute(PHY_IPhysicsController &controller,
     case LN_RigidBodyAttribute::Sleeping:
     case LN_RigidBodyAttribute::AxisLocks:
     case LN_RigidBodyAttribute::AllowPhysicsRotation:
+    case LN_RigidBodyAttribute::Compound:
       break;
   }
   return 0.0f;
@@ -289,9 +295,29 @@ static bool ReadRigidBodyBoolAttribute(PHY_IPhysicsController &controller,
     case LN_RigidBodyAttribute::AxisLocks:
     case LN_RigidBodyAttribute::LinearDamping:
     case LN_RigidBodyAttribute::AngularDamping:
+    case LN_RigidBodyAttribute::Compound:
       break;
   }
   return false;
+}
+
+/** Get Rigid Body Attribute's Compound (2026-11-18): \a output_selector 0 Valid (a collision
+ * shape: its own body, or a part of a compound), 1 Enabled (the checkbox), 3 Is Part. */
+static bool ReadCompoundBoolAttribute(KX_GameObject *object, const int32_t output_selector)
+{
+  if (object == nullptr) {
+    return false;
+  }
+  switch (output_selector) {
+    case 0:
+      return object->GetPhysicsController() != nullptr || object->GetCompoundHolder() != nullptr;
+    case 1:
+      return object->GetCompoundSetting();
+    case 3:
+      return object->GetCompoundHolder() != nullptr;
+    default:
+      return false;
+  }
 }
 
 static MT_Vector3 ReadRigidBodyAxisLockAttribute(PHY_IPhysicsController &controller,
@@ -414,7 +440,8 @@ static bool QueryExpressionCanWarmCache(const LN_QueryExpression &expression)
   /* Velocity at Point is measured where its route first reads it (kept for the tick), so a column
    * run measures it in the same place (NodeOp::QPointVel, 2026-11-14). */
   return !QueryExpressionNeedsCommandOrderedEvaluation(expression.kind) &&
-         expression.kind != LN_QueryExpressionKind::PointVelocity;
+         expression.kind != LN_QueryExpressionKind::PointVelocity &&
+         expression.kind != LN_QueryExpressionKind::NavmeshQuery;
 }
 
 static void FlushPendingRaycastTransforms(KX_GameObject *game_object,
@@ -1450,11 +1477,6 @@ static LN_Value ReadMaterialParameterValue(blender::Object *object,
     return MaterialParameterValueFromFloats(socket, values);
   }
   return ReadSocketDefaultValue(socket, runtime_tree);
-}
-
-static MT_Vector3 PathWaypoint(const float *path, const int index)
-{
-  return MT_Vector3(&path[3 * index]);
 }
 
 static KX_NavMeshObject *ResolveNavMeshObject(KX_GameObject *game_object)
@@ -5114,6 +5136,9 @@ bool LN_ApplyPropertyEdit(LN_Value &collection,
       collection.dict_value.erase(iter);
       return true;
     }
+    case LN_PropertyEditOp::ListInsert:
+      list.insert(list.begin() + std::ptrdiff_t(LN_ListInsertPlace(index, list.size())), value);
+      return true;
   }
   return false;
 }
@@ -7082,15 +7107,20 @@ std::vector<LN_RuntimeRef> LN_RuntimeTree::ResolveIgnoreObjectRefs(In &in,
 }
 
 template<class In>
+KX_GameObject *LN_RuntimeTree::ResolveRigidBodyAttributeObject(In &in,
+                                                               const uint32_t object_expr_index)
+{
+  if (object_expr_index == LN_INVALID_INDEX) {
+    return m_gameObject;
+  }
+  return ResolveObjectValue(in.Value(object_expr_index, MakeNoneValue()));
+}
+
+template<class In>
 PHY_IPhysicsController *LN_RuntimeTree::ResolveRigidBodyAttributeController(In &in,
     const uint32_t object_expr_index)
 {
-  const LN_TickContext &context = in.context;
-  KX_GameObject *target_object = m_gameObject;
-  if (object_expr_index != LN_INVALID_INDEX) {
-    target_object = ResolveObjectValue(
-        in.Value(object_expr_index, MakeNoneValue()));
-  }
+  KX_GameObject *target_object = ResolveRigidBodyAttributeObject(in, object_expr_index);
   if (target_object == nullptr) {
     return nullptr;
   }
@@ -7907,6 +7937,18 @@ void LN_RuntimeTree::RebuildStateBlock(const StateKeep keep)
   }
   /* A new generation for the new registers (nothing cached in them yet). */
   m_registerExpressionState.cached_tick = UINT64_MAX;
+  /* Smooth Value states by slot (kept as the other states are; made here, on the main thread,
+   * so the column kernels never grow the list on a helper thread). */
+  if (!preserve) {
+    m_smoothValueStates.clear();
+    m_actionFrameStates.clear();
+  }
+  if (m_program != nullptr && m_smoothValueStates.size() < m_program->GetSmoothValueNodeCount()) {
+    m_smoothValueStates.resize(m_program->GetSmoothValueNodeCount());
+  }
+  if (m_program != nullptr && m_actionFrameStates.size() < m_program->GetActionFrameNodeCount()) {
+    m_actionFrameStates.resize(m_program->GetActionFrameNodeCount());
+  }
 }
 
 void LN_RuntimeTree::RefreshStateBlockLayout()
@@ -8193,7 +8235,7 @@ void LN_RuntimeTree::TickLatentTimeFlowStates(const LN_TickContext &context)
         }
         break;
       case TimeFlowRuntimeKind::Timer:
-        if (!state.active || step <= 0.0) {
+        if (!state.active || step <= 0.0 || state.paused) {
           break;
         }
 
@@ -8208,7 +8250,7 @@ void LN_RuntimeTree::TickLatentTimeFlowStates(const LN_TickContext &context)
         if (state.pulse_tick != context.tick_index) {
           state.pulse_tick = UINT64_MAX;
         }
-        if (state.pending_pulses.empty() || step <= 0.0) {
+        if (state.pending_pulses.empty() || step <= 0.0 || state.paused) {
           state.active = !state.pending_pulses.empty();
           break;
         }
@@ -8308,95 +8350,6 @@ void LN_RuntimeTree::EnsureTreePropertyStateSize(const bool preserve_existing)
     value.type = property_ref.value_type;
     value.exists = true;
     m_treeProperties.push_back(value);
-  }
-}
-
-bool LN_RuntimeTree::ResolvePathMoveTarget(InstructionMotionState &state,
-                                           KX_GameObject *target,
-                                           KX_NavMeshObject *navmesh,
-                                           const MT_Vector3 &destination,
-                                           const float reach_threshold,
-                                           MT_Vector3 &r_move_target,
-                                           bool &r_reached) const
-{
-  r_reached = false;
-  if (target == nullptr) {
-    return false;
-  }
-
-  const MT_Vector3 current = target->NodeGetWorldPosition();
-  if ((destination - current).length2() <= reach_threshold * reach_threshold) {
-    state.path_len = 0;
-    state.waypoint_index = -1;
-    state.next_path_point = destination;
-    r_reached = true;
-    return false;
-  }
-
-  if (navmesh == nullptr) {
-    r_move_target = destination;
-    state.next_path_point = destination;
-    return true;
-  }
-
-  KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  const double current_time = engine ? engine->GetRealTime() : 0.0;
-  if (state.path_len <= 0 || state.path_update_time < 0.0 ||
-      (engine && current_time - state.path_update_time > LN_PATH_UPDATE_PERIOD))
-  {
-    state.path_len = navmesh->FindPath(current, destination, state.path, kMaxPathLength);
-    state.waypoint_index = state.path_len > 1 ? 1 : -1;
-    state.path_update_time = current_time;
-  }
-
-  if (state.waypoint_index > 0 && state.waypoint_index < state.path_len) {
-    MT_Vector3 waypoint = PathWaypoint(state.path, state.waypoint_index);
-    if ((waypoint - current).length2() < LN_WAYPOINT_RADIUS * LN_WAYPOINT_RADIUS) {
-      state.waypoint_index++;
-      if (state.waypoint_index >= state.path_len) {
-        state.waypoint_index = -1;
-        r_move_target = destination;
-        state.next_path_point = destination;
-        return true;
-      }
-      waypoint = PathWaypoint(state.path, state.waypoint_index);
-    }
-    r_move_target = waypoint;
-    state.next_path_point = waypoint;
-    return true;
-  }
-
-  r_move_target = destination;
-  state.next_path_point = destination;
-  return true;
-}
-
-void LN_RuntimeTree::DrawNavigationPath(KX_GameObject *target,
-                                        const InstructionMotionState &state,
-                                        const MT_Vector3 &destination) const
-{
-  if (target == nullptr) {
-    return;
-  }
-
-  std::vector<MT_Vector3> points;
-  points.reserve(size_t(std::max(state.path_len, 0)) + 2);
-  points.push_back(target->NodeGetWorldPosition());
-  if (state.path_len > 0 && state.waypoint_index >= 0 && state.waypoint_index < state.path_len) {
-    for (int index = state.waypoint_index; index < state.path_len; index++) {
-      points.push_back(PathWaypoint(state.path, index));
-    }
-  }
-  else {
-    points.push_back(state.next_path_point);
-  }
-  if ((points.back() - destination).length2() > 1.0e-8f) {
-    points.push_back(destination);
-  }
-
-  const MT_Vector4 color(1.0f, 0.0f, 0.0f, 1.0f);
-  for (size_t index = 1; index < points.size(); index++) {
-    KX_RasterizerDrawDebugLine(points[index - 1], points[index], color);
   }
 }
 
@@ -8720,7 +8673,12 @@ bool LN_RuntimeTree::AdvanceLoopFrame(const uint32_t loop_frame_index)
 
 void LN_RuntimeTree::PrepareLeanProgram() const
 {
-  if (m_program != nullptr && LN_GetLeanMode() == LN_LeanMode::Lean) {
+  if (m_program == nullptr) {
+    return;
+  }
+  /* (Every mode: the helpers' Set Tree Property reads it, 2026-11-17.) */
+  m_program->EnsureTreePropertyWriters();
+  if (LN_GetLeanMode() == LN_LeanMode::Lean) {
     m_program->EnsureLeanProgram();
   }
 }
@@ -8834,6 +8792,20 @@ void LN_RuntimeTree::TimeFlowArmNextFrame(const uint32_t state_index,
   }
 }
 
+/** Whether a Delay's or Timer's Flow with no time to wait gives its Done in this step: only
+ * when its Done runs in the arming event and was not read yet in this step (its route comes
+ * later). Otherwise the Done comes at the next step (a countdown of 0): a route that already
+ * looked, or another event's (On Init's Done runs on the steps), never saw a pulse set now and
+ * the Done was lost (2026-11-17). */
+static bool TimeFlowZeroPulseNow(const LN_Event done_event,
+                                 const uint64_t done_read_tick,
+                                 const LN_Event event,
+                                 const LN_TickContext &context)
+{
+  return context.tick_index != UINT64_MAX && done_event == event &&
+         done_read_tick != context.tick_index;
+}
+
 void LN_RuntimeTree::TimeFlowArmTimer(const uint32_t state_index,
                                       const bool ui_event_route,
                                       const LN_Event event,
@@ -8851,12 +8823,17 @@ void LN_RuntimeTree::TimeFlowArmTimer(const uint32_t state_index,
     state->last_update_tick = context.tick_index;
     state->last_update_phase_tick = context.phase_tick_index;
     state->accumulated_time = 0.0;
-    if (duration <= 0.0f) {
+    if (duration <= 0.0f &&
+        TimeFlowZeroPulseNow(state->event, state->done_read_tick, event, context))
+    {
       state->active = false;
       state->remaining_time = 0.0;
-      if (context.tick_index != UINT64_MAX) {
-        state->pulse_tick = context.tick_index;
-      }
+      state->pulse_tick = context.tick_index;
+    }
+    else if (duration <= 0.0f) {
+      /* At the next step: a countdown of 0. */
+      state->active = true;
+      state->remaining_time = 0.0;
     }
     else {
       state->active = true;
@@ -8889,8 +8866,8 @@ void LN_RuntimeTree::TimeFlowArmDelay(const uint32_t state_index,
     pulse.remaining_time = double(duration);
     pulse.tree_properties = m_treeProperties;
 
-    if (duration <= 0.0f && context.tick_index != UINT64_MAX &&
-        state->pulse_tick != context.tick_index)
+    if (duration <= 0.0f && state->pulse_tick != context.tick_index &&
+        TimeFlowZeroPulseNow(state->event, state->done_read_tick, event, context))
     {
       state->remaining_time = 0.0;
       state->active_tree_properties = std::move(pulse.tree_properties);
@@ -9058,6 +9035,43 @@ void LN_RuntimeTree::TimeFlowResetCooldown(const uint32_t state_index,
     state->blocked_scope_serial = 0;
     state->ignore_timescale = false;
     state->event = TimeFlowContinuationEvent(event);
+  }
+}
+
+uint64_t LN_RuntimeTree::TakeSoundTicket(const int32_t packed_int_value, const uint64_t tick_index)
+{
+  const int32_t slot = (packed_int_value >> 4) - 1;
+  if (slot < 0) {
+    return 0;
+  }
+  SoundSlotState &state = SoundState(uint32_t(slot));
+  state.ticket = LN_NewSoundTicket();
+  state.ticket_tick = tick_index;
+  return state.ticket;
+}
+
+void LN_RuntimeTree::TimeFlowControl(const uint32_t state_index, const int32_t action)
+{
+  TimeFlowRuntimeState *state = FindTimeFlowState(state_index);
+  if (state == nullptr) {
+    return;
+  }
+  switch (action) {
+    case LN_TIME_FLOW_STOP:
+      /* (pulse_tick and the Done's tree properties stay: a Done due this step still runs.) */
+      state->pending_pulses.clear();
+      state->active = false;
+      state->remaining_time = 0.0;
+      state->paused = false;
+      break;
+    case LN_TIME_FLOW_PAUSE:
+      state->paused = true;
+      break;
+    case LN_TIME_FLOW_RESUME:
+      state->paused = false;
+      break;
+    default:
+      break;
   }
 }
 
@@ -9287,6 +9301,89 @@ LN_RuntimeTree::LineOfSightShape LN_RuntimeTree::LineOfSightTest(
   result.diagnostic_status = visible ? LN_QueryDiagnosticStatus::Hit :
                                        LN_QueryDiagnosticStatus::NoHit;
   return shape;
+}
+
+void LN_RuntimeTree::FindOnlyVisible(KX_GameObject *center_object,
+                                     const MT_Vector3 &center,
+                                     const LN_FindPick pick,
+                                     const float random_unit,
+                                     LN_FindAnswer &r_answer)
+{
+  std::vector<LN_FindHit> visible;
+  visible.reserve(r_answer.list.size());
+  /* (Kept per thread: a bridged Find runs on helpers; LineOfSightTest adds the target.) */
+  thread_local std::vector<LN_RuntimeRef> ignore;
+  for (const LN_FindHit &hit : r_answer.list) {
+    ignore.clear();
+    if (m_gameObject != nullptr && m_gameObject != center_object) {
+      ignore.push_back(MakeObjectRef(m_gameObject, m_gameObject->GetName()));
+    }
+    LN_PhysicsQueryResult sight;
+    const LineOfSightShape shape = LineOfSightTest(center_object,
+                                                   center,
+                                                   MT_Vector3(0.0f, 0.0f, 0.0f),
+                                                   hit.object,
+                                                   hit.position,
+                                                   0.0f,
+                                                   float(2.0 * M_PI),
+                                                   uint32_t(LN_RAYCAST_MAX_COLLISION_MASK),
+                                                   ignore,
+                                                   false,
+                                                   false,
+                                                   sight);
+    if (shape.valid && sight.hit) {
+      visible.push_back(hit);
+    }
+  }
+  LN_FindAnswer answer;
+  answer.count = int32_t(visible.size());
+  /* Nearest and Farthest compare squared distances, ties to the earlier object, as
+   * LN_FindIndex::Collect does. */
+  const auto squared = [&](const LN_FindHit &hit) {
+    const MT_Vector3 d = hit.position - center;
+    return d.x() * d.x() + d.y() * d.y() + d.z() * d.z();
+  };
+  if (!visible.empty()) {
+    answer.found = true;
+    switch (pick) {
+      case LN_FindPick::Nearest:
+      case LN_FindPick::Farthest: {
+        const bool nearest = pick == LN_FindPick::Nearest;
+        const LN_FindHit *best = &visible.front();
+        float best_squared = squared(*best);
+        for (const LN_FindHit &hit : visible) {
+          const float s = squared(hit);
+          if ((nearest ? s < best_squared : s > best_squared) ||
+              (s == best_squared && hit.order < best->order))
+          {
+            best = &hit;
+            best_squared = s;
+          }
+        }
+        answer.best = *best;
+        break;
+      }
+      case LN_FindPick::Random: {
+        std::vector<const LN_FindHit *> by_order;
+        by_order.reserve(visible.size());
+        for (const LN_FindHit &hit : visible) {
+          by_order.push_back(&hit);
+        }
+        std::sort(by_order.begin(), by_order.end(), [](const LN_FindHit *a, const LN_FindHit *b) {
+          return a->order < b->order;
+        });
+        const float unit = random_unit >= 0.0f && random_unit < 1.0f ? random_unit : 0.0f;
+        answer.best = *by_order[std::min(size_t(unit * float(by_order.size())),
+                                         by_order.size() - 1)];
+        break;
+      }
+      case LN_FindPick::All:
+        answer.best = visible.front();
+        answer.list = std::move(visible);
+        break;
+    }
+  }
+  r_answer = std::move(answer);
 }
 
 void LN_RuntimeTree::ColumnLineOfSight(const bool eye_is_object,
@@ -10104,6 +10201,23 @@ void LN_SetTimedDebugLinesForTests(LN_TimedDebugLines *lines)
   g_timed_debug_lines_for_tests = lines;
 }
 
+static bool g_wall_clock_for_tests_set = false;
+static double g_wall_clock_for_tests = 0.0;
+
+void LN_SetWallClockForTests(const double *seconds)
+{
+  g_wall_clock_for_tests_set = seconds != nullptr;
+  g_wall_clock_for_tests = seconds != nullptr ? *seconds : 0.0;
+}
+
+double LN_RuntimeTree::WallClockSeconds() const
+{
+  if (m_logicManager != nullptr) {
+    return m_logicManager->WallClockSeconds();
+  }
+  return g_wall_clock_for_tests_set ? g_wall_clock_for_tests : LN_ReadWallClockSeconds();
+}
+
 void LN_TimedDebugLines::Add(const LN_DebugLine &line, const double expires_at)
 {
   std::lock_guard<std::mutex> lock(m_mutex);
@@ -10178,6 +10292,39 @@ PHY_IPhysicsEnvironment *LN_QueryPhysicsEnvironment(const KX_GameObject *object)
   }
   KX_Scene *scene = object != nullptr ? const_cast<KX_GameObject *>(object)->GetScene() : nullptr;
   return scene != nullptr ? scene->GetPhysicsEnvironment() : nullptr;
+}
+
+static KX_Navigation *g_navigation_for_tests = nullptr;
+
+void LN_SetNavigationForTests(KX_Navigation *navigation)
+{
+  g_navigation_for_tests = navigation;
+}
+
+KX_Navigation *LN_QueryNavigation(const KX_GameObject *object)
+{
+  if (g_navigation_for_tests != nullptr) {
+    return g_navigation_for_tests;
+  }
+  KX_Scene *scene = object != nullptr ? const_cast<KX_GameObject *>(object)->GetScene() : nullptr;
+  return scene != nullptr ? scene->GetNavigation() : nullptr;
+}
+
+static LN_ActionLayerReaderForTests g_action_layer_reader_for_tests = nullptr;
+
+void LN_SetActionLayerReaderForTests(const LN_ActionLayerReaderForTests reader)
+{
+  g_action_layer_reader_for_tests = reader;
+}
+
+/** The action playing on `layer` of `object` (On Action Frame). */
+static bool ReadActionLayerOf(KX_GameObject *object, const short layer, LN_ActionLayerRead &r_read)
+{
+  if (g_action_layer_reader_for_tests != nullptr) {
+    return g_action_layer_reader_for_tests(object, layer, r_read);
+  }
+  return object->ReadActionLayer(
+      layer, r_read.action, r_read.frame, r_read.start, r_read.end, r_read.play_mode);
 }
 
 void LN_SetCollisionContactsForTests(const LN_CollisionContactsForTests *contacts)
@@ -10741,6 +10888,94 @@ const LN_RuntimeTree::CollisionResult &LN_RuntimeTree::ResolveCollisionResult(In
   return collision_result;
 }
 
+/** A weight of Get Random List Item's Weights: a number (true 1, false 0); anything else 0. */
+static float RandomListWeight(const LN_Value &value)
+{
+  if (!value.exists) {
+    return 0.0f;
+  }
+  switch (value.type) {
+    case LN_ValueType::Float:
+      return value.float_value;
+    case LN_ValueType::Int:
+      return float(value.int_value);
+    case LN_ValueType::Bool:
+      return value.bool_value ? 1.0f : 0.0f;
+    default:
+      return 0.0f;
+  }
+}
+
+template<class In>
+int32_t LN_RuntimeTree::PickRandomListPlace(In &in,
+                                            const uint32_t list_index,
+                                            const uint32_t seed_index,
+                                            const uint32_t weights_index,
+                                            const uint32_t identity,
+                                            LN_Value &r_list)
+{
+  const LN_TickContext &context = in.context;
+  r_list = in.Value(list_index, MakeNoneValue());
+  const bool is_list = r_list.type == LN_ValueType::List && r_list.exists;
+  if (weights_index == LN_INVALID_INDEX) {
+    if (!is_list || r_list.list_value.empty()) {
+      return -1;
+    }
+    const int32_t seed = in.Int(seed_index, 0);
+    return int32_t(LN_RandomIndex(
+        RandomNodeBits(identity, seed, 0, RandomTick(context), m_randomStream),
+        r_list.list_value.size()));
+  }
+  const int32_t seed = in.Int(seed_index, 0);
+  const LN_Value weights = in.Value(weights_index, MakeNoneValue());
+  if (weights.type != LN_ValueType::List || !weights.exists) {
+    return -1;
+  }
+  const float unit = LN_RandomUnitFloat(
+      RandomNodeBits(identity, seed, 0, RandomTick(context), m_randomStream));
+  return LN_RandomWeightedIndex(unit, weights.list_value.size(), [&](const size_t index) {
+    return RandomListWeight(weights.list_value[index]);
+  });
+}
+
+template<class In>
+const LN_SmoothValueState &LN_RuntimeTree::EvaluateSmoothValue(In &in,
+                                                               const uint32_t slot,
+                                                               const LN_SmoothMode mode,
+                                                               const int size,
+                                                               const uint32_t reset_index,
+                                                               const uint32_t target_index,
+                                                               const uint32_t speed_index,
+                                                               const uint32_t max_speed_index,
+                                                               const uint32_t ignore_index)
+{
+  const LN_TickContext &context = in.context;
+  LN_SmoothValueState &state = SmoothValueState(slot);
+  if (context.tick_index != UINT64_MAX && state.last_update_tick == context.tick_index) {
+    return state;
+  }
+  /* Read order: Reset, Target, Speed (Smooth Time), Max Speed, Ignore Timescale (the column
+   * kernel NSmooth reads them in this order too). */
+  const bool reset = in.Bool(reset_index, false);
+  float target[3] = {0.0f, 0.0f, 0.0f};
+  if (size == 1) {
+    target[0] = in.Float(target_index, 0.0f);
+  }
+  else {
+    const MT_Vector3 vector = in.Vector(target_index, MT_Vector3(0.0f, 0.0f, 0.0f));
+    target[0] = vector.x();
+    target[1] = vector.y();
+    target[2] = vector.z();
+  }
+  const float speed = in.Float(speed_index, 0.0f);
+  const float max_speed = in.Float(max_speed_index, 0.0f);
+  const bool ignore_timescale = in.Bool(ignore_index, false);
+  const float dt = float(TimeFlowStep(context, ignore_timescale));
+  LN_SmoothValueAdvance(
+      state, context.tick_index, mode, size, target, speed, max_speed, reset, dt);
+  return state;
+}
+
 template<class In>
 bool LN_RuntimeTree::UpdateTweenValue(In &in,
     const uint32_t tween_expr_index)
@@ -10762,6 +10997,9 @@ bool LN_RuntimeTree::UpdateTweenValue(In &in,
   }
 
   const bool on_demand = tween.bool_value;
+  /* (2026-11-17) Loop / Ping-Pong: at an end it goes on from the other end, or turns round, with
+   * Reached there (cached_result); a zero Duration plays once. */
+  const LN_TweenRepeat repeat = LN_TweenRepeatOf(tween.secondary_int_value);
   bool forward = false;
   bool back = false;
   state.cached_result = false;
@@ -10777,9 +11015,12 @@ bool LN_RuntimeTree::UpdateTweenValue(In &in,
     }
   }
   else {
-    forward = in.Bool(tween.input0, false);
-    back = in.Bool(tween.input1, false);
+    /* (2026-11-17) Forward and Back are flow inputs: the latest pulse since the last update
+     * (Op::TweenRequest). */
+    forward = state.tween_request == LN_TWEEN_REQUEST_FORWARD;
+    back = state.tween_request == LN_TWEEN_REQUEST_BACK;
   }
+  state.tween_request = LN_TWEEN_REQUEST_NONE;
 
   float duration = in.Float(tween.float_expr_index, 1.0f);
   if (!std::isfinite(duration) || duration < 0.0f) {
@@ -10795,7 +11036,15 @@ bool LN_RuntimeTree::UpdateTweenValue(In &in,
     state.previous_float = 0.0f;
   }
 
-  if (forward) {
+  const bool repeating = repeat != LN_TweenRepeat::Once && duration > 0.0f;
+  if (repeating && on_demand) {
+    /* Read: it runs, on round its cycle (Ping-Pong keeps the way it goes). */
+    if (!state.initialized) {
+      state.previous_bool = true;
+    }
+    state.active = true;
+  }
+  else if (forward) {
     const bool already_at_target = duration <= 0.0f && state.initialized && state.previous_bool;
     state.previous_bool = true;
     state.active = duration <= 0.0f ? !already_at_target :
@@ -10807,7 +11056,12 @@ bool LN_RuntimeTree::UpdateTweenValue(In &in,
     state.active = duration <= 0.0f ? !already_at_target : state.previous_float > epsilon;
   }
 
-  if (state.active && duration > 0.0f) {
+  if (repeating && (forward || back)) {
+    /* A Flow starts it (Back: backwards) and it goes on round. */
+    state.active = true;
+  }
+
+  if (state.active && duration > 0.0f && !repeating) {
     if (state.previous_bool && state.previous_float >= duration - epsilon) {
       state.previous_float = duration;
       state.cached_result = true;
@@ -10830,6 +11084,36 @@ bool LN_RuntimeTree::UpdateTweenValue(In &in,
   if (duration <= 0.0f) {
     state.cached_result = true;
     state.active = false;
+  }
+  else if (repeating) {
+    /* The time past an end (at most a Duration) goes on from the other end (Loop) or back
+     * (Ping-Pong); Reached at that end. */
+    const float next = state.previous_float + (state.previous_bool ? delta_time : -delta_time);
+    if (state.previous_bool && next >= duration - epsilon) {
+      const float over = std::clamp(next - duration, 0.0f, duration);
+      state.cached_result = true;
+      if (repeat == LN_TweenRepeat::Loop) {
+        state.previous_float = over;
+      }
+      else {
+        state.previous_float = duration - over;
+        state.previous_bool = false;
+      }
+    }
+    else if (!state.previous_bool && next <= epsilon) {
+      const float over = std::clamp(-next, 0.0f, duration);
+      state.cached_result = true;
+      if (repeat == LN_TweenRepeat::Loop) {
+        state.previous_float = duration - over;
+      }
+      else {
+        state.previous_float = over;
+        state.previous_bool = true;
+      }
+    }
+    else {
+      state.previous_float = next;
+    }
   }
   else if (state.previous_bool) {
     const float previous_time = state.previous_float;
@@ -10854,6 +11138,17 @@ bool LN_RuntimeTree::UpdateTweenValue(In &in,
   state.last_update_tick = context.tick_index;
   state.last_update_phase_tick = context.phase_tick_index;
   return state.active || state.cached_result;
+}
+
+void LN_RuntimeTree::RequestTween(const uint32_t tween_expr_index, const int32_t direction)
+{
+  if (m_program == nullptr || tween_expr_index >= m_program->GetBoolExpressions().size() ||
+      m_program->GetBoolExpressions()[tween_expr_index].kind != LN_BoolExpressionKind::TweenValue ||
+      (direction != LN_TWEEN_REQUEST_FORWARD && direction != LN_TWEEN_REQUEST_BACK))
+  {
+    return;
+  }
+  BoolExpressionState(tween_expr_index).tween_request = uint8_t(direction);
 }
 
 float LN_RuntimeTree::EvaluateCurveTable(const uint32_t table_index,
@@ -10974,6 +11269,11 @@ float LN_RuntimeTree::ResolveTweenMappedFactor(In &in,
   const float linear_factor = duration > 0.0f ? state.previous_float / duration :
                                                 (state.previous_bool ? 1.0f : 0.0f);
   const float factor = std::clamp(linear_factor, 0.0f, 1.0f);
+  /* (2026-11-17) An Easing preset instead of the node's curve (LN_Easing.h). */
+  const LN_TweenTransition transition = LN_TweenTransitionOf(tween.secondary_int_value);
+  if (transition != LN_TweenTransition::Curve) {
+    return LN_Ease(transition, LN_TweenEaseOf(tween.secondary_int_value), factor);
+  }
   return EvaluateCurveTable(tween.int_expr_index, factor, 1.0f);
 }
 

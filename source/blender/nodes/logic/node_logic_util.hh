@@ -44,6 +44,10 @@ void add_input_button_status_outputs(NodeDeclarationBuilder &b);
  * below its inputs (Keyboard Key, Mouse Button, Gamepad Button, Input Action; 2026-11-13): the
  * node uses a custom socket order and declares it last. */
 void add_use_ui_input_layout(NodeDeclarationBuilder &b);
+/** The input nodes' Time (2026-11-17): Input Type Tap, Double Tap and Hold's seconds. */
+extern const char *input_gesture_time_description;
+/** Shows the input nodes' Time only for Tap, Double Tap and Hold (custom1's mode 3-5). */
+void input_gesture_time_update(bNodeTree *tree, bNode *node);
 /** The bone nodes' name fields (node_logic_bone_search.cc, 2026-11-13): a Bone Name input drawn
  * as Blender's bone fields, its dropdown listing the bones of the armature the input
  * `armature_socket` names (empty: with `empty_is_owner` the armatures this tree is applied to;

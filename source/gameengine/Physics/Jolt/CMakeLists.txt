@@ -96,13 +96,17 @@ blender_add_lib(ge_physics_jolt "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    tests/JoltCharacter_test.cpp
     tests/JoltConstraint_test.cpp
+    tests/JoltDebugDraw_test.cpp
     tests/JoltLogicNodesQueries_test.cpp
+    tests/JoltNavigation_test.cpp
     tests/JoltProcessorCheck_test.cpp
   )
   # JoltLogicNodesQueries_test runs Logic Nodes trees (their test rigs) against a real Jolt world.
   set(TEST_INC
     ${INC}
+    ../../../../extern/recastnavigation
     ../../LogicNodes
     ../../LogicNodes/intern
     ../../LogicNodes/tests

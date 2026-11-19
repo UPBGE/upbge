@@ -648,8 +648,33 @@ def audit_blender_runtime() -> list[str]:
             tree.nodes.remove(node)
         errors.extend(audit_merged_nodes(tree, descriptor_pins, socket_idnames))
         errors.extend(audit_former_types_unregistered())
+        errors.extend(audit_one_row_nodes(tree))
     finally:
         bpy.data.node_groups.remove(tree)
+    return errors
+
+
+# Nodes drawn as one row, as Blender's Invert Color (Compositor) and Invert Rotation (2026-11-16):
+# the input shares the output's row (`align_with_previous` on the output) and shows no number
+# field (`hide_value`). Node file and input identifier.
+ONE_ROW_NODES = {
+    "LogicNativeInvertValue": ("node_logic_value_invert.cc", "Value"),
+}
+
+
+def audit_one_row_nodes(tree) -> list[str]:
+    errors: list[str] = []
+    for idname, (file_name, identifier) in ONE_ROW_NODES.items():
+        text = (NODES_DIR / file_name).read_text(encoding="utf-8")
+        for needed in (".use_custom_socket_order()", ".allow_any_socket_order()",
+                       ".hide_value()", ".align_with_previous()"):
+            if needed not in text:
+                errors.append(f"{idname}: one-row node lost {needed} ({file_name})")
+        node = tree.nodes.new(idname)
+        socket = next((s for s in node.inputs if s.identifier == identifier), None)
+        if socket is None or not socket.hide_value:
+            errors.append(f"{idname}: input {identifier!r} shows a number field")
+        tree.nodes.remove(node)
     return errors
 
 
@@ -835,14 +860,16 @@ def audit_merged_nodes(tree, descriptor_pins, socket_idnames) -> list[str]:
                           f"{node.variant_idname}, reads back {node.operation}")
     tree.nodes.remove(node)
 
-    # Draw shows only the inputs its mode reads (CompileDrawNode).
-    shown = {"LINE": {"Flow", "Color", "Origin", "Target"},
-             "ARROW": {"Flow", "Color", "Origin", "Target"},
-             "PATH": {"Flow", "Color", "Points"},
-             "CUBE": {"Flow", "Color", "Origin", "Width"},
-             "BOX": {"Flow", "Color", "Origin", "Width", "Length", "Height"},
-             "MESH": {"Flow", "Color", "Object"},
-             "AXIS": {"Flow", "Length", "Object"}}
+    # Draw shows only the inputs its mode reads (CompileDrawNode); Duration in every mode and
+    # Sphere's Radius (2026-11-17).
+    shown = {"LINE": {"Flow", "Color", "Origin", "Target", "Duration"},
+             "ARROW": {"Flow", "Color", "Origin", "Target", "Duration"},
+             "PATH": {"Flow", "Color", "Points", "Duration"},
+             "CUBE": {"Flow", "Color", "Origin", "Width", "Duration"},
+             "BOX": {"Flow", "Color", "Origin", "Width", "Length", "Height", "Duration"},
+             "MESH": {"Flow", "Color", "Object", "Duration"},
+             "AXIS": {"Flow", "Length", "Object", "Duration"},
+             "SPHERE": {"Flow", "Color", "Origin", "Radius", "Duration"}}
     node = tree.nodes.new("LogicNativeDraw")
     for item in node.bl_rna.properties["mode"].enum_items:
         node.mode = item.identifier
@@ -858,13 +885,16 @@ def audit_default_layouts() -> list[str]:
     """A node whose declaration has add_default_layout() needs draw_buttons: Blender's default
     layout calls it unchecked (only a debug assert), so drawing the node in the editor crashed
     Blender (Camera Ray, 2026-11-11 to 11-12). Counted per file: each layout needs its own
-    draw_buttons."""
+    draw_buttons. A merged node's option (logic_option_type_base) is drawn by the merged node,
+    whose draw_buttons always exists (node_logic_merged.cc; the option is no node type of its
+    own): it counts as one."""
     errors: list[str] = []
     for path in sorted(NODES_DIR.glob("*.cc")):
         text = path.read_text(encoding="utf-8")
         text = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.S)
         layouts = text.count("add_default_layout()")
         draws = len(re.findall(r"\bdraw_buttons\s*=", text))
+        draws += len(re.findall(r"\blogic_option_type_base\s*\(", text))
         if layouts > draws:
             errors.append(f"{path.name}: {layouts} add_default_layout() but {draws} draw_buttons "
                           f"(drawing the node crashes Blender)")

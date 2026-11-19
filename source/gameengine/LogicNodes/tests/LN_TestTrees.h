@@ -229,6 +229,113 @@ struct GridListSockets {
   }
 };
 
+/** The sockets Math, Vector Math and Compare declare since 2026-11-16 (Math's C, Vector Math's
+ * Axis and Value, Compare's typed inputs), for nodes a test builds by hand: a missing typed input
+ * is a compile error (real files get every declared socket on load). Unlinked, they change
+ * nothing for the older operations and Compare's Number type. */
+struct MathCSocket {
+  blender::bNodeSocket c = {};
+  blender::bNodeSocketValueFloat c_value = {};
+  void AppendTo(blender::bNode &math)
+  {
+    InitSocket(c, "C", blender::SOCK_FLOAT, &c_value);
+    Append(math.inputs, c);
+  }
+};
+
+/** Delay's and Timer's Stop, Pause and Resume flows (2026-11-17): the compiler wants every
+ * execution input of the descriptor (real files get them when Blender reads them). */
+struct CountdownControlSockets {
+  blender::bNodeSocket stop = {};
+  blender::bNodeSocket pause = {};
+  blender::bNodeSocket resume = {};
+  void AppendTo(blender::bNode &node)
+  {
+    InitSocket(stop, "Stop", blender::SOCK_BOOLEAN, nullptr);
+    InitSocket(pause, "Pause", blender::SOCK_BOOLEAN, nullptr);
+    InitSocket(resume, "Resume", blender::SOCK_BOOLEAN, nullptr);
+    Append(node.inputs, stop);
+    Append(node.inputs, pause);
+    Append(node.inputs, resume);
+  }
+};
+
+/** The input nodes' Time (Keyboard Key, Mouse Button, Gamepad Button, Input Action: Tap, Double
+ * Tap and Hold, 2026-11-17): a typed input the compiler wants (real files get it when Blender
+ * reads them). */
+struct InputTimeSocket {
+  blender::bNodeSocket time = {};
+  blender::bNodeSocketValueFloat time_value = {};
+  void AppendTo(blender::bNode &node)
+  {
+    time_value.value = 0.3f;
+    InitSocket(time, "Time", blender::SOCK_FLOAT, &time_value);
+    Append(node.inputs, time);
+  }
+};
+
+/** Play Sound 3D's Sound, At Position and Position (2026-11-17): typed inputs the compiler
+ * wants (real files get them when Blender reads them). */
+struct PlaySound3DNewSockets {
+  blender::bNodeSocket at_position = {};
+  blender::bNodeSocket position = {};
+  blender::bNodeSocketValueBoolean at_position_value = {};
+  blender::bNodeSocketValueVector position_value = {};
+  void AppendTo(blender::bNode &node)
+  {
+    position_value.dimensions = 3;
+    InitSocket(at_position, "At Position", blender::SOCK_BOOLEAN, &at_position_value);
+    InitSocket(position, "Position", blender::SOCK_VECTOR, &position_value);
+    Append(node.inputs, at_position);
+    Append(node.inputs, position);
+  }
+};
+
+struct VectorMathNewSockets {
+  blender::bNodeSocket axis = {};
+  blender::bNodeSocket value = {};
+  blender::bNodeSocketValueVector axis_value = {};
+  void AppendTo(blender::bNode &vector_math)
+  {
+    axis_value.dimensions = 3;
+    axis_value.value[2] = 1.0f;
+    InitSocket(axis, "Axis", blender::SOCK_VECTOR, &axis_value);
+    InitSocket(value, "Value", blender::SOCK_FLOAT, nullptr);
+    Append(vector_math.inputs, axis);
+    Append(vector_math.outputs, value);
+  }
+};
+
+struct CompareTypeSockets {
+  std::array<blender::bNodeSocket, 7> sockets = {};
+  blender::bNodeSocketValueVector vector_a = {};
+  blender::bNodeSocketValueVector vector_b = {};
+  blender::bNodeSocketValueFloat tolerance = {};
+  blender::bNodeSocketValueObject object_a = {};
+  blender::bNodeSocketValueObject object_b = {};
+  blender::bNodeSocketValueString text_a = {};
+  blender::bNodeSocketValueString text_b = {};
+  void AppendTo(blender::bNode &compare)
+  {
+    tolerance.value = 0.0001f;
+    vector_a.dimensions = 3;
+    vector_b.dimensions = 3;
+    const std::array<std::tuple<const char *, blender::eNodeSocketDatatype, void *>, 7> inputs = {
+        {{"Vector A", blender::SOCK_VECTOR, &vector_a},
+         {"Vector B", blender::SOCK_VECTOR, &vector_b},
+         {"Tolerance", blender::SOCK_FLOAT, &tolerance},
+         {"Object A", blender::SOCK_OBJECT, &object_a},
+         {"Object B", blender::SOCK_OBJECT, &object_b},
+         {"Text A", blender::SOCK_STRING, &text_a},
+         {"Text B", blender::SOCK_STRING, &text_b}}};
+    for (size_t index = 0; index < inputs.size(); index++) {
+      const auto &[name, type, value] = inputs[index];
+      InitSocket(sockets[index], name, type, value);
+      Append(compare.inputs, sockets[index]);
+    }
+  }
+};
+
 inline void InitLink(blender::bNodeLink &link,
                      blender::bNode &from_node,
                      blender::bNodeSocket &from_socket,
@@ -522,10 +629,22 @@ struct TestNode {
   {
     return add(input, name, blender::SOCK_BOOLEAN, nullptr, "NodeSocketLogicExecution");
   }
+  /** Delay's and Timer's Stop, Pause and Resume (CountdownControlSockets). */
+  void countdown_controls()
+  {
+    flow(true, "Stop");
+    flow(true, "Pause");
+    flow(true, "Resume");
+  }
   blender::bNodeSocket &in_float(const char *name, const float value)
   {
     floats.emplace_back().value = value;
     return add(true, name, blender::SOCK_FLOAT, &floats.back());
+  }
+  /** The input nodes' Time (InputTimeSocket). */
+  void input_time()
+  {
+    in_float("Time", 0.3f);
   }
   blender::bNodeSocket &in_int(const char *name, const int value)
   {
@@ -569,6 +688,17 @@ struct TestNode {
     vector.value[1] = value.y();
     vector.value[2] = value.z();
     return add(true, name, blender::SOCK_VECTOR, &vector);
+  }
+  /** Compare's typed inputs (2026-11-16; CompareTypeSockets): Type Number reads none of them. */
+  void in_compare_types()
+  {
+    in_vector("Vector A", MT_Vector3(0.0f, 0.0f, 0.0f));
+    in_vector("Vector B", MT_Vector3(0.0f, 0.0f, 0.0f));
+    in_float("Tolerance", 0.0001f);
+    in_object("Object A");
+    in_object("Object B");
+    in_string("Text A", "");
+    in_string("Text B", "");
   }
 };
 
@@ -642,6 +772,7 @@ struct SteppedTrees {
     context.tick_index = step + 1;
     context.phase_tick_index = step;
     context.steps_done = step;
+    context.game_time = double(step) * delta;
     context.delta_time = delta;
     context.unscaled_dt = delta;
     return context;
@@ -807,6 +938,7 @@ inline std::shared_ptr<LN_Program> CompileBrain(const BrainOptions &options)
   near.node.custom1 = 3; /* Less Than */
   blender::bNodeSocket &near_a = near.in_float("A", 0.0f);
   near.in_float("B", options.threshold);
+  near.in_compare_types();
   blender::bNodeSocket &near_result = near.add(false, "Result", blender::SOCK_BOOLEAN, nullptr);
   TestNode branch(tree, "LogicNativeBranch", "Branch", 4);
   blender::bNodeSocket &branch_flow = branch.flow(true, "Flow");
@@ -1021,6 +1153,7 @@ inline std::shared_ptr<LN_Program> BrainOf(const BrainOfOptions &options)
   near.node.custom1 = 3; /* Less Than */
   blender::bNodeSocket &near_a = near.in_float("A", 0.0f);
   near.in_float("B", options.threshold);
+  near.in_compare_types();
   blender::bNodeSocket &near_result = near.add(false, "Result", blender::SOCK_BOOLEAN, nullptr);
   link(*distance, *distance_out, near, near_a);
 
@@ -1111,6 +1244,7 @@ inline std::shared_ptr<LN_Program> BrainOf(const BrainOfOptions &options)
     add.node.custom1 = blender::NODE_MATH_ADD;
     blender::bNodeSocket &add_a = add.in_float("A", 0.0f);
     add.in_float("B", 0.01f);
+    add.in_float("C", 0.0f);
     blender::bNodeSocket &add_result = add.add(false, "Result", blender::SOCK_FLOAT, nullptr);
     link(read, read_value, add, add_a);
     TestNode &write = add_property_write("LogicNativeSetGamePropertyFloat",

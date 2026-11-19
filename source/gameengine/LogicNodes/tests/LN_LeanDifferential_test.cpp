@@ -412,10 +412,22 @@ TEST(LN_LeanDifferential, DISABLED_SeedsHoldingAFamily)
 {
   const char *family = std::getenv("UPBGE_LN_DIFF_FAMILY");
   ASSERT_NE(family, nullptr) << "set UPBGE_LN_DIFF_FAMILY to a node idname";
+  /* UPBGE_LN_DIFF_C1: only nodes with this custom1 (an idname then, not a label). */
+  const char *c1_text = std::getenv("UPBGE_LN_DIFF_C1");
   for (uint64_t seed = 1; seed <= NormalSeedCount(); seed++) {
     TreeGen generator{seed};
     const std::unique_ptr<GeneratedTree> tree = generator.Build();
-    if (tree->Describe().find(family) != std::string::npos) {
+    bool holds = false;
+    if (c1_text != nullptr) {
+      for (const auto &node : tree->nodes) {
+        holds = holds || (std::string(node->node.idname) == family &&
+                          node->node.custom1 == std::atoi(c1_text));
+      }
+    }
+    else {
+      holds = tree->Describe().find(family) != std::string::npos;
+    }
+    if (holds) {
       std::printf("holds seed %llu\n", (unsigned long long)seed);
     }
   }
@@ -849,6 +861,8 @@ TEST(LN_LeanDifferential, ColumnsEndAsTheLeanVM)
       "LogicNativeCombineXYZ",
       "LogicNativeSeparateXYZ",
       "LogicNativeClampValue",
+      /* (2026-11-16) its Smooth Steps: Float::MathFunction (FMathFn). */
+      "LogicNativeMapRange",
       "LogicNativeThreshold",
       "LogicNativeRangedThreshold",
       "LogicNativeRandomValue",
@@ -876,6 +890,15 @@ TEST(LN_LeanDifferential, ColumnsEndAsTheLeanVM)
       "LogicNativeBarrier",
       "LogicNativeSetObjectAttribute",
       "LogicNativeVectorToRotation",
+      /* (2026-11-16) RRotFn, VRotEuler; VAttr / RAttr + VRotFn. */
+      "LogicNativeRotationMath",
+      "LogicNativeTransformVector",
+      /* (2026-11-16) NSmooth, FNoise; Find Objects through the bridge (the tick's poses). */
+      "LogicNativeSmoothValue",
+      "LogicNativeNoise",
+      /* (2026-11-17) FOscCycle, FOscillate, VOscillate. */
+      "LogicNativeOscillate",
+      "LogicNativeFindObjects",
       "LogicNativeApplyRotation",
       "LogicNativeEuler",
       "LogicNativeColorRGBA",
@@ -896,6 +919,9 @@ TEST(LN_LeanDifferential, ColumnsEndAsTheLeanVM)
        * rules and runs), and Raycast All through the bridge. */
       "LogicNativeRaycast",
       "LogicNativeRaycastAll",
+      /* STweenRequest (2026-11-17: Forward / Back as flow inputs); the tween itself bridged. An
+       * accepted family, as the casts above. */
+      "LogicNativeTweenValue",
   };
   /* A family probed by UPBGE_LN_DIFF_EXTRA_FAMILIES (plan C2 P0) joins the column families. */
   std::set<std::string> probed;

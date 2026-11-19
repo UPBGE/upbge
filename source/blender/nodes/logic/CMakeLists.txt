@@ -103,6 +103,19 @@ set(SRC
   nodes/node_logic_dict_length.cc
   nodes/node_logic_dict_get_keys.cc
   nodes/node_logic_bone_rotation_to_object_rotation.cc
+  nodes/node_logic_rotation_math.cc
+  nodes/node_logic_transform_vector.cc
+  nodes/node_logic_smooth_value.cc
+  nodes/node_logic_noise.cc
+  nodes/node_logic_oscillate.cc
+  nodes/node_logic_input_combo.cc
+  nodes/node_logic_date_time.cc
+  nodes/node_logic_save_slot.cc
+  nodes/node_logic_set_rigid_body_constraint.cc
+  nodes/node_logic_set_action_layer.cc
+  nodes/node_logic_on_action_frame.cc
+  nodes/node_logic_find_objects.cc
+  nodes/node_logic_state_machine.cc
   nodes/node_logic_get_bone_pose_transform.cc
   nodes/node_logic_set_bone_pose_location.cc
   nodes/node_logic_set_bone_pose_rotation.cc
@@ -119,6 +132,8 @@ set(SRC
   nodes/node_logic_list_remove_index.cc
   nodes/node_logic_list_remove_value.cc
   nodes/node_logic_list_set_index.cc
+  nodes/node_logic_list_insert.cc
+  nodes/node_logic_list_operation.cc
   nodes/node_logic_dict_set_key.cc
   nodes/node_logic_dict_remove_key.cc
   nodes/node_logic_list_from_items.cc
@@ -139,6 +154,7 @@ set(SRC
   nodes/node_logic_drive_vehicle_options.cc
   nodes/node_logic_get_bone_point_options.cc
   nodes/node_logic_get_child_object_options.cc
+  nodes/node_logic_get_children.cc
   nodes/node_logic_get_display_setting_options.cc
   nodes/node_logic_get_game_property_value_options.cc
   nodes/node_logic_get_light_attribute_options.cc
@@ -177,9 +193,14 @@ set(SRC
   nodes/node_logic_mouse_look.cc
   nodes/node_logic_mouse_ray.cc
   nodes/node_logic_navigate.cc
+  nodes/node_logic_navmesh_query.cc
+  nodes/node_logic_get_navigation_info.cc
+  nodes/node_logic_on_navigation_link.cc
+  nodes/node_logic_set_navigation_attribute.cc
   nodes/node_logic_on_fixed_update.cc
   nodes/node_logic_on_constraint_break.cc
   nodes/node_logic_on_game_loaded.cc
+  nodes/node_logic_on_removed.cc
   nodes/node_logic_on_init.cc
   nodes/node_logic_on_next_frame.cc
   nodes/node_logic_on_update.cc

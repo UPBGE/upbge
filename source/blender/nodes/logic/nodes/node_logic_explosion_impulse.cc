@@ -34,6 +34,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "The blast happens at this object's position (where it is at that moment); empty: "
           "the object running this tree. The blast leaves this object alone");
+  b.add_input<decl::Vector>("Offset"_ustr)
+      .description(
+          "Where the blast happens from the Object, in the object's own space: it turns and "
+          "scales with the object, as a child placed there would. (0, 1.5, 0): 1.5 m along the "
+          "object's Y axis; (0, 0, 0): at the object itself");
   b.add_input<decl::Vector>("Origin"_ustr)
       .description("Center of the blast in world space, e.g. a Raycast's Hit Point");
   b.add_input<decl::Float>("Radius"_ustr)
@@ -84,6 +89,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Every object inside the blast, nearest first (at most 256), pushed or not (static "
           "objects and characters too): loop over it to deal damage");
+  b.add_output<decl::List>("Strengths"_ustr)
+      .description(
+          "The push each of Objects gets, in the same order: Strength, times the falloff from "
+          "the center to its center of mass (Linear: none at Radius). Damage = a Strength "
+          "times your factor");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -101,6 +111,9 @@ static void node_update(bNodeTree *ntree, bNode *node)
   }
   if (bNodeSocket *object = node->input_by_identifier("Object"_ustr)) {
     bke::node_set_socket_availability(*ntree, *object, node->custom2 == Object);
+  }
+  if (bNodeSocket *offset = node->input_by_identifier("Offset"_ustr)) {
+    bke::node_set_socket_availability(*ntree, *offset, node->custom2 == Object);
   }
   if (bNodeSocket *origin = node->input_by_identifier("Origin"_ustr)) {
     bke::node_set_socket_availability(*ntree, *origin, node->custom2 == Position);

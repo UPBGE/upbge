@@ -975,6 +975,21 @@ static void rna_GameSettings_jolt_physics_max_cores_set(PointerRNA *ptr, int val
   gm->jolt_physics_threads = short(std::clamp(value, 1, 64));
 }
 
+/* UPBGE (2026-11-18): the navmesh built Around NPCs. A file saved before the settings existed (the
+ * factory startup's scene too) holds 0: it reads as the default, as the engine plays it. */
+static float rna_RecastData_build_radius_get(PointerRNA *ptr)
+{
+  const RecastData *rd = static_cast<RecastData *>(ptr->data);
+  return rd->build_radius > 0.0f ? rd->build_radius : 30.0f;
+}
+
+static float rna_RecastData_remove_radius_get(PointerRNA *ptr)
+{
+  const RecastData *rd = static_cast<RecastData *>(ptr->data);
+  const float build = rna_RecastData_build_radius_get(ptr);
+  return rd->remove_radius > 0.0f ? std::max(rd->remove_radius, build) : build * 1.6f;
+}
+
 static int rna_GameSettings_jolt_physics_auto_cores_get(PointerRNA * /*ptr*/)
 {
   return BKE_game_physics_cores(-1, BKE_game_physics_computer_cores());
@@ -6964,6 +6979,75 @@ static void rna_def_scene_game_recast_data(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Max Sample Error", "Detail mesh simplification max sample error");
   RNA_def_property_update(prop, NC_SCENE, NULL);
+
+  /* UPBGE (2026-11-18): the navmesh built while the game runs. */
+  static const EnumPropertyItem build_mode_items[] = {
+      {NAVMESH_BUILD_OFF,
+       "OFF",
+       0,
+       "Off",
+       "Only navigation mesh objects (built with Build Navigation Mesh) guide NPCs"},
+      {NAVMESH_BUILD_LEVEL,
+       "LEVEL",
+       0,
+       "Whole Level",
+       "The game builds a navigation mesh of the whole level when it starts, from the static "
+       "objects' collision shapes, and keeps it up to date (obstacles, level pieces added or "
+       "removed). No navigation mesh object is needed"},
+      {NAVMESH_BUILD_AROUND_NPCS,
+       "AROUND_NPCS",
+       0,
+       "Around NPCs",
+       "The game builds the navigation mesh only around the NPCs, as they move (big, endless or "
+       "generated worlds)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "build_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "build_mode");
+  RNA_def_property_enum_items(prop, build_mode_items);
+  RNA_def_property_enum_default(prop, NAVMESH_BUILD_OFF);
+  RNA_def_property_ui_text(prop,
+                           "Build at Game Start",
+                           "Whether the game builds its own navigation mesh for NPCs (Navigate "
+                           "and Navmesh Query with no Navmesh Object use it), with the settings "
+                           "above");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "build_radius", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "build_radius");
+  RNA_def_property_float_funcs(prop, "rna_RecastData_build_radius_get", nullptr, nullptr);
+  RNA_def_property_range(prop, 1.0f, 10000.0f);
+  RNA_def_property_ui_range(prop, 5.0f, 500.0f, 100, 1);
+  RNA_def_property_float_default(prop, 30.0f);
+  RNA_def_property_ui_text(prop,
+                           "Build Radius",
+                           "Around NPCs: the navigation mesh exists within this distance of "
+                           "every NPC");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "remove_radius", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "remove_radius");
+  RNA_def_property_float_funcs(prop, "rna_RecastData_remove_radius_get", nullptr, nullptr);
+  RNA_def_property_range(prop, 1.0f, 10000.0f);
+  RNA_def_property_ui_range(prop, 5.0f, 800.0f, 100, 1);
+  RNA_def_property_float_default(prop, 48.0f);
+  RNA_def_property_ui_text(prop,
+                           "Remove Radius",
+                           "Around NPCs: navigation mesh farther than this from every NPC is "
+                           "dropped (kept compressed, it comes back at once); never less than "
+                           "the Build Radius");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "detail_distance", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "detail_distance");
+  RNA_def_property_range(prop, 0.0f, 100000.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 500.0f, 100, 1);
+  RNA_def_property_float_default(prop, 0.0f);
+  RNA_def_property_ui_text(prop,
+                           "Crowd Detail Distance",
+                           "NPCs farther than this from the active camera avoid each other only "
+                           "every 4th step (big crowds cost less). 0: every NPC every step");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
 }
 
 static void rna_def_bake_data(BlenderRNA *brna)
@@ -7831,8 +7915,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
        "AUTO",
        0,
        "Auto",
-       "Physics uses the game's own core plus up to half of the player's processor, at most 9 "
-       "cores in all (more made big scenes no faster in tests). Best for almost every game"},
+       "Physics uses every core of the player's processor, at most 9 (more made big scenes "
+       "slower in tests). Best for almost every game"},
       {1,
        "CUSTOM",
        0,

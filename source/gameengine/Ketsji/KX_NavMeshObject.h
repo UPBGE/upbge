@@ -28,14 +28,18 @@
 
 #include <vector>
 
-#include "DetourStatNavMesh.h"
 #include "EXP_PyObjectPlus.h"
 #include "KX_GameObject.h"
+
+class KX_NavMesh;
 
 class KX_NavMeshObject : public KX_GameObject {
   Py_Header
 
-      protected : dtStatNavMesh *m_navMesh;
+      protected :
+  /** The navmesh in Detour's form (2026-11-18: Detour's dtNavMesh; before, the 2010 static
+   * navmesh). Owned; a copy builds its own. */
+  KX_NavMesh *m_navMesh;
 
   bool BuildVertIndArrays(float *&vertices,
                           int &nverts,
@@ -56,7 +60,7 @@ class KX_NavMeshObject : public KX_GameObject {
   virtual void ProcessReplica();
 
   bool BuildNavMesh();
-  dtStatNavMesh *GetNavMesh();
+  KX_NavMesh *GetNavMesh();
   int FindPath(const MT_Vector3 &from, const MT_Vector3 &to, float *path, int maxPathLen);
   float Raycast(const MT_Vector3 &from, const MT_Vector3 &to);
 

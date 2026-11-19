@@ -38,6 +38,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Strength"_ustr);
   b.add_default_layout();
   b.add_input<decl::Int>("Index"_ustr).default_value(0).min(0);
+  b.add_input<decl::Float>("Time"_ustr)
+      .default_value(0.3f)
+      .min(0.0f)
+      .description(logic::input_gesture_time_description);
   logic::add_use_ui_input_layout(b);
 }
 
@@ -55,6 +59,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_update(bNodeTree *ntree, bNode *node)
 {
+  logic::input_gesture_time_update(ntree, node);
   bNodeSocket *strength = node->output_by_identifier("Strength"_ustr);
   if (strength) {
     bke::node_set_socket_availability(

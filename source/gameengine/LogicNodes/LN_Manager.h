@@ -28,6 +28,7 @@
 #include "LN_CommandBuffer.h"
 #include "LN_DenseIds.h"
 #include "LN_EventBus.h"
+#include "LN_FindObjects.h"
 #include "LN_GameState.h"
 #include "LN_InputMap.h"
 #include "LN_Inventory.h"
@@ -155,6 +156,11 @@ class LN_Manager {
 
   void NotifyGameObjectQueuedForRemoval(KX_GameObject *gameobj, KX_ObjectRemovalReason reason);
   void NotifyGameObjectsQueuedForBulkRemoval(const std::vector<KX_GameObject *> &gameobjects);
+  /** On Removed (2026-11-17), from KX_Scene::LogicNodeEndFrame before it removes `euthanasy`:
+   * an object held for its last step stays out of the list until a Logic + Physics step ran its
+   * trees (or kMaxOnRemovedHoldFrames passed), then goes back in with its trees detached. */
+  void UpdateOnRemovedHolds(std::vector<KX_GameObject *> &euthanasy);
+  bool IsHeldForOnRemoved(const KX_GameObject *gameobj) const;
   /** Compatibility/system-cleanup entry point for callers without a gameplay removal source. */
   void UnregisterGameObject(KX_GameObject *gameobj);
   void UnregisterGameObject(KX_GameObject *gameobj, KX_ObjectRemovalReason reason);
@@ -267,6 +273,15 @@ class LN_Manager {
                      uint32_t completion_expression_index,
                      uint32_t source_ref_index,
                      std::string &r_error);
+  /** Save Slot's Delete (2026-11-17, LN_GameStateService::RequestDelete). */
+  bool FlushDeleteSaveSlot(LN_RuntimeTree *runtime_tree,
+                           int32_t slot,
+                           const std::string &path,
+                           uint32_t completion_expression_index,
+                           uint32_t source_ref_index,
+                           std::string &r_error);
+  /** Save Slot's Exists (2026-11-17, LN_GameStateService::SlotExists). Main thread. */
+  bool SaveSlotExists(int32_t slot, const std::string &path);
   LN_GameStateResult ApplyTransferredGameState(const LN_GameStateLoadPayload &payload,
                                                std::string &r_error);
   void CompleteTransferredGameStateFailure(const LN_GameStateCompletionTarget &target,
@@ -353,6 +368,13 @@ class LN_Manager {
   LN_TimedDebugLines &TimedDebugLines()
   {
     return m_timedDebugLines;
+  }
+  /** The computer's clock when the tick began, seconds since 1970 (UTC): Date and Time reads it
+   * (2026-11-17), the same at every read of a tick, on any thread. UPBGE_LN_WALL_CLOCK=seconds
+   * holds it at that time (game checks). */
+  double WallClockSeconds() const
+  {
+    return m_wallClockSeconds;
   }
   const LN_RigidBodyConstraintBreakEvent *FindRigidBodyConstraintBreakEvent(
       KX_GameObject *owner,
@@ -684,6 +706,22 @@ class LN_Manager {
   uint64_t m_tickIndex = 0;
   uint64_t m_updateTickIndex = 0;
   uint64_t m_fixedTickIndex = 0;
+  /** The scaled time of the steps run so far (LN_TickContext::game_time). */
+  double m_gameTime = 0.0;
+  /** WallClockSeconds. */
+  double m_wallClockSeconds = 0.0;
+  /** On Removed (2026-11-17): objects removed while playing whose trees read Bool::BeingRemoved,
+   * hidden and out of physics, kept until a step ran their trees (UpdateOnRemovedHolds). */
+  struct OnRemovedHold {
+    KX_GameObject *object = nullptr;
+    /** m_fixedTickIndex when held: released once a later step ran. */
+    uint64_t fixed_tick = 0;
+    uint32_t end_frames = 0;
+  };
+  std::vector<OnRemovedHold> m_onRemovedHolds;
+  /** Whether one of the object's attached, enabled trees has an On Removed route. */
+  bool ObjectRunsOnRemoved(KX_GameObject *gameobj) const;
+  void HoldForOnRemoved(KX_GameObject *gameobj);
   /** The next step spread of each source tree (AssignStepSpread), by tree name and library. */
   std::unordered_map<std::string, uint32_t> m_stepSpreadCounters;
   /** The next random stream number of each source tree (AssignRandomStream). */
@@ -763,6 +801,13 @@ class LN_Manager {
     size_t runtime_tree_index = 0;
     LN_RuntimeTree *runtime_tree = nullptr;
   };
+  /** Find Objects (2026-11-16): the tick's poses and grids (LN_FindIndex) for the sources of the
+   * trees' programs, made before any tree records; the context points at it (null when no
+   * program finds objects). */
+  void PrepareFindIndex(LN_TickContext &context);
+  LN_FindIndex m_findIndex;
+  std::vector<LN_FindSourceKey> m_findSourcesScratch;
+  std::vector<KX_GameObject *> m_findObjectsScratch;
   std::vector<RunnableTree> m_tickRunnableTreesScratch;
   /** Per tree of m_runtimeTrees, this tick: 1 when it runs (CanTick and not held by a pause). */
   std::vector<uint8_t> m_tickTreeRunsScratch;

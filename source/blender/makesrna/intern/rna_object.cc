@@ -962,7 +962,9 @@ static int rna_Object_collision_bounds_type_get(PointerRNA *ptr)
     return OB_BOUND_TRIANGLE_MESH;
   }
   if (ob->gameflag & OB_CHARACTER) {
-    return OB_BOUND_SPHERE;
+    /* UPBGE: the capsule Jolt's converter fits to a Character with no bounds chosen (it showed
+     * Sphere, 2026-11-18; Bullet's converter still builds a sphere there). */
+    return OB_BOUND_CAPSULE;
   }
   if ((ob->gameflag & OB_RIGID_BODY) && !(ob->gameflag2 & OB_HAS_VEHICLE)) {
     return OB_BOUND_BOX;

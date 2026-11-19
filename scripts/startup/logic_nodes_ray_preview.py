@@ -1381,14 +1381,20 @@ def _sweep_object(ev, preview):
 
 def _explosion(ev, preview):
     """Explode or Implode Impulse: its sphere, Radius around the Object (empty: the tree's
-    object) or the Origin; arrows out (Explode) or in (Implode)."""
+    object) moved by its Offset in the object's own space (its transform, as the engine's
+    ShapeCastPlace), or the Origin; arrows out (Explode) or in (Implode)."""
     node = preview.node
     if getattr(node, "center", 'OBJECT') == 'OBJECT':
         obj = ev.object_or_owner(node, "Object")
         if obj is UNKNOWN or obj is None:
             preview.unknown_at(_owner_position(ev), ["Object"])
             return
-        center = obj.matrix_world.translation.copy()
+        offset = ev.value(node, "Offset", 'VECTOR') \
+            if _socket(node.inputs, "Offset") is not None else Vector()
+        if offset is UNKNOWN:
+            preview.unknown_at(obj.matrix_world.translation.copy(), ["Offset"])
+            return
+        center = obj.matrix_world @ Vector(offset)
     else:
         center = ev.value(node, "Origin", 'VECTOR')
         if center is UNKNOWN:
@@ -1424,13 +1430,21 @@ def keep_distance_shape(obj):
         bounds = game.collision_bounds_type
         if bounds in ('CONVEX_HULL', 'TRIANGLE_MESH') and obj.type != 'MESH':
             bounds = 'SPHERE'
-    elif kind in ('CHARACTER', 'DYNAMIC', 'VEHICLE'):
+        # A Character cannot sweep a triangle mesh or an empty shape: the converter fits it a
+        # capsule (2026-11-16). (Empty bounds kept from another type read '' here: a
+        # Character's dropdown has no Empty; the identifier is 'Empty' elsewhere.)
+        if kind == 'CHARACTER' and bounds in ('TRIANGLE_MESH', 'Empty', ''):
+            bounds = 'CAPSULE'
+    elif kind == 'CHARACTER':
+        # A Character with no bounds chosen is a capsule fitted to it (2026-11-16).
+        bounds = 'CAPSULE'
+    elif kind in ('DYNAMIC', 'VEHICLE'):
         bounds = 'SPHERE'
     elif kind in ('RIGID_BODY', 'KINEMATIC'):
         bounds = 'BOX'
     else:
         bounds = 'TRIANGLE_MESH'
-    return None if bounds in ('TRIANGLE_MESH', 'EMPTY') else bounds
+    return None if bounds in ('TRIANGLE_MESH', 'Empty', '') else bounds
 
 
 def _keep_distance(ev, preview):

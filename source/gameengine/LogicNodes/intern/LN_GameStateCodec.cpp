@@ -10,6 +10,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <exception>
 #include <initializer_list>
 #include <limits>
@@ -755,6 +757,48 @@ std::shared_ptr<DictionaryValue> encode_checkpoint_root(const Checkpoint &checkp
     hierarchy->append("ghost", std::make_shared<BooleanValue>(state.hierarchy.ghost));
   };
   /* Set Collection Member's changes; written only when there are some (older files have none). */
+  /* A held navigation order (2026-11-18), on a Save Object State record that has one. */
+  auto append_navigation_order = [](DictionaryValue &object, const ObjectState &state) {
+    if (!state.has_navigation_order) {
+      return;
+    }
+    const NavigationOrderState &order = state.navigation_order;
+    std::shared_ptr<DictionaryValue> navigation = object.append_dict("navigation");
+    navigation->append_int("mode", order.mode);
+    std::shared_ptr<ArrayValue> destination = navigation->append_array("destination");
+    append_vector3(*destination, order.destination);
+    std::shared_ptr<ArrayValue> offset = navigation->append_array("offset");
+    append_vector3(*offset, order.offset);
+    auto append_reference = [&navigation](const char *name, const ObjectReferenceState &ref) {
+      std::shared_ptr<DictionaryValue> entry = navigation->append_dict(name);
+      entry->append_str("text", ref.text);
+      entry->append("by_name", std::make_shared<BooleanValue>(ref.by_name));
+    };
+    append_reference("target", order.target);
+    append_reference("navmesh", order.navmesh);
+    append_reference("rotating", order.rotating);
+    navigation->append_double("speed", order.speed);
+    navigation->append_double("arrive_distance", order.arrive_distance);
+    navigation->append_double("radius", order.radius);
+    navigation->append_double("separation", order.separation);
+    navigation->append_double("alignment", order.alignment);
+    navigation->append_double("cohesion", order.cohesion);
+    navigation->append_double("rot_speed", order.rot_speed);
+    navigation->append_int("group", order.group);
+    navigation->append_int("priority", order.priority);
+    navigation->append_int("rot_axis", order.rot_axis);
+    navigation->append_int("front_axis", order.front_axis);
+    navigation->append("goal", std::make_shared<BooleanValue>(order.goal));
+    navigation->append("use_scene_navmesh",
+                       std::make_shared<BooleanValue>(order.use_scene_navmesh));
+    navigation->append("move_dynamic", std::make_shared<BooleanValue>(order.move_dynamic));
+    navigation->append("avoid", std::make_shared<BooleanValue>(order.avoid));
+    navigation->append("visualize", std::make_shared<BooleanValue>(order.visualize));
+    navigation->append("look_at", std::make_shared<BooleanValue>(order.look_at));
+    char seed[17];
+    std::snprintf(seed, sizeof(seed), "%016llx", (unsigned long long)order.seed);
+    navigation->append_str("seed", seed);
+  };
   auto append_collection_memberships = [](DictionaryValue &object, const ObjectState &state) {
     if (state.collection_memberships.empty()) {
       return;
@@ -842,6 +886,7 @@ std::shared_ptr<DictionaryValue> encode_checkpoint_root(const Checkpoint &checkp
       append_hierarchy_state(*object, state);
       append_rigid_body_state(*object, state);
       append_collection_memberships(*object, state);
+      append_navigation_order(*object, state);
     }
     append_properties(*object, state);
   }
@@ -876,6 +921,7 @@ std::shared_ptr<DictionaryValue> encode_checkpoint_root(const Checkpoint &checkp
       append_hierarchy_state(*object, state);
       append_rigid_body_state(*object, state);
       append_collection_memberships(*object, state);
+      append_navigation_order(*object, state);
     }
     append_properties(*object, state);
   }
@@ -2620,6 +2666,98 @@ bool decode_collection_memberships(const DictionaryValue &dictionary,
   return true;
 }
 
+/** A held navigation order ("navigation", 2026-11-18), when the record has one: only a live
+ * Save Object State record may. */
+bool decode_navigation_order(const DictionaryValue &dictionary,
+                             const std::string &object_name,
+                             ObjectState &r_object,
+                             std::string &r_error)
+{
+  if (lookup_value(dictionary, "navigation") == nullptr) {
+    return true;
+  }
+  const DictionaryValue *navigation = dictionary.lookup_dict("navigation");
+  NavigationOrderState &order = r_object.navigation_order;
+  int32_t mode = 0;
+  std::string seed;
+  auto read_reference = [&](const char *name, ObjectReferenceState &r_ref) {
+    const DictionaryValue *entry = navigation->lookup_dict(name);
+    if (entry == nullptr || !has_exact_keys(*entry, {"text", "by_name"}, {}, r_error) ||
+        !read_string(*entry, "text", r_ref.text, r_error) ||
+        !read_bool(*entry, "by_name", r_ref.by_name, r_error))
+    {
+      return false;
+    }
+    /* Empty: none; else a saved object's identity or an authored object's name. */
+    if (r_ref.text.empty()) {
+      return !r_ref.by_name;
+    }
+    return r_ref.by_name ? is_valid_checkpoint_text(r_ref.text, kMaxNameBytes, false) :
+                           is_canonical_uuid(r_ref.text);
+  };
+  if (navigation == nullptr ||
+      !has_exact_keys(*navigation,
+                      {"mode",       "destination",       "offset",       "target",
+                       "navmesh",    "rotating",          "speed",        "arrive_distance",
+                       "radius",     "separation",        "alignment",    "cohesion",
+                       "rot_speed",  "group",             "priority",     "rot_axis",
+                       "front_axis", "goal",              "use_scene_navmesh",
+                       "move_dynamic",                    "avoid",        "visualize",
+                       "look_at",    "seed"},
+                      {},
+                      r_error) ||
+      !read_int32(*navigation, "mode", mode, r_error) ||
+      !read_vector3(*navigation, "destination", order.destination, r_error) ||
+      !read_vector3(*navigation, "offset", order.offset, r_error) ||
+      !read_reference("target", order.target) || !read_reference("navmesh", order.navmesh) ||
+      !read_reference("rotating", order.rotating) ||
+      !read_float(*navigation, "speed", order.speed, r_error) ||
+      !read_float(*navigation, "arrive_distance", order.arrive_distance, r_error) ||
+      !read_float(*navigation, "radius", order.radius, r_error) ||
+      !read_float(*navigation, "separation", order.separation, r_error) ||
+      !read_float(*navigation, "alignment", order.alignment, r_error) ||
+      !read_float(*navigation, "cohesion", order.cohesion, r_error) ||
+      !read_float(*navigation, "rot_speed", order.rot_speed, r_error) ||
+      !read_int32(*navigation, "group", order.group, r_error) ||
+      !read_int32(*navigation, "priority", order.priority, r_error) ||
+      !read_int32(*navigation, "rot_axis", order.rot_axis, r_error) ||
+      !read_int32(*navigation, "front_axis", order.front_axis, r_error) ||
+      !read_bool(*navigation, "goal", order.goal, r_error) ||
+      !read_bool(*navigation, "use_scene_navmesh", order.use_scene_navmesh, r_error) ||
+      !read_bool(*navigation, "move_dynamic", order.move_dynamic, r_error) ||
+      !read_bool(*navigation, "avoid", order.avoid, r_error) ||
+      !read_bool(*navigation, "visualize", order.visualize, r_error) ||
+      !read_bool(*navigation, "look_at", order.look_at, r_error) ||
+      !read_string(*navigation, "seed", seed, r_error))
+  {
+    r_error = "invalid navigation order for object '" + object_name + "': " + r_error;
+    return false;
+  }
+  const bool finite = std::isfinite(order.speed) && std::isfinite(order.arrive_distance) &&
+                      std::isfinite(order.radius) && std::isfinite(order.separation) &&
+                      std::isfinite(order.alignment) && std::isfinite(order.cohesion) &&
+                      std::isfinite(order.rot_speed);
+  const bool hex_seed = seed.size() == 16 &&
+                        seed.find_first_not_of("0123456789abcdef") == std::string::npos;
+  if (mode < 0 || mode > 6 || !finite || order.speed < 0.0f || order.arrive_distance < 0.0f ||
+      order.radius < 0.0f || order.priority < 0 || order.priority > 100 ||
+      order.rot_axis < 0 || order.rot_axis > 2 || order.front_axis < 0 ||
+      order.front_axis > 5 || !hex_seed)
+  {
+    r_error = "navigation order of object '" + object_name + "' is out of range";
+    return false;
+  }
+  if (!(r_object.has_existence && r_object.exists && r_object.has_hierarchy_state)) {
+    r_error = "object '" + object_name +
+              "' saves a navigation order without its Save Object State";
+    return false;
+  }
+  order.mode = uint8_t(mode);
+  order.seed = std::strtoull(seed.c_str(), nullptr, 16);
+  r_object.has_navigation_order = true;
+  return true;
+}
+
 bool decode_object(const DictionaryValue &dictionary,
                    ObjectState &r_object,
                    std::string &r_error)
@@ -2634,7 +2772,8 @@ bool decode_object(const DictionaryValue &dictionary,
                        "modifier_state",
                        "hierarchy",
                        "physics",
-                       "collections"},
+                       "collections",
+                       "navigation"},
                       r_error) ||
       !read_string(dictionary, "uuid", r_object.persistence_id, r_error))
   {
@@ -2704,7 +2843,9 @@ bool decode_object(const DictionaryValue &dictionary,
   {
     return false;
   }
-  if (!decode_collection_memberships(dictionary, r_object.name, r_object, r_error)) {
+  if (!decode_collection_memberships(dictionary, r_object.name, r_object, r_error) ||
+      !decode_navigation_order(dictionary, r_object.name, r_object, r_error))
+  {
     return false;
   }
   /* Collection memberships belong to a live Save Object State record. */
@@ -2765,7 +2906,7 @@ bool decode_spawned_object(const DictionaryValue &dictionary,
                        "hierarchy",
                        "physics",
                        "properties"},
-                      {"name", "collections"},
+                      {"name", "collections", "navigation"},
                       r_error) ||
       !read_string(dictionary, "instance_uuid", r_object.persistence_id, r_error) ||
       !read_string(dictionary, "source_uuid", r_object.source_id, r_error))
@@ -2821,7 +2962,8 @@ bool decode_spawned_object(const DictionaryValue &dictionary,
       !decode_runtime_structure_state(dictionary, r_object.name, r_object, r_error) ||
       !decode_hierarchy_state(dictionary, r_object.name, r_object, r_error) ||
       !decode_rigid_body_state(dictionary, r_object.name, r_object, r_error) ||
-      !decode_collection_memberships(dictionary, r_object.name, r_object, r_error))
+      !decode_collection_memberships(dictionary, r_object.name, r_object, r_error) ||
+      !decode_navigation_order(dictionary, r_object.name, r_object, r_error))
   {
     return false;
   }

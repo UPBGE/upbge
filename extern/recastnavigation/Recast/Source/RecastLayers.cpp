@@ -16,10 +16,6 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef _USE_MATH_DEFINES
-#  define _USE_MATH_DEFINES
-#endif
-
 #include <float.h>
 #include <math.h>
 #include <string.h>
@@ -30,8 +26,23 @@
 #include "RecastAssert.h"
 
 
-static const int RC_MAX_LAYERS = RC_NOT_CONNECTED;
-static const int RC_MAX_NEIS = 16;
+// Must be 255 or smaller (not 256) because layer IDs are stored as
+// a byte where 255 is a special value.
+#ifndef RC_MAX_LAYERS_DEF
+#define RC_MAX_LAYERS_DEF 63
+#endif
+
+#if RC_MAX_LAYERS_DEF > 255
+#error RC_MAX_LAYERS_DEF must be 255 or smaller
+#endif
+
+#ifndef RC_MAX_NEIS_DEF
+#define RC_MAX_NEIS_DEF 16
+#endif
+
+// Keep type checking.
+static const int RC_MAX_LAYERS = RC_MAX_LAYERS_DEF;
+static const int RC_MAX_NEIS = RC_MAX_NEIS_DEF;
 
 struct rcLayerRegion
 {
@@ -45,24 +56,30 @@ struct rcLayerRegion
 };
 
 
-static void addUnique(unsigned char* a, unsigned char& an, unsigned char v)
-{
-	const int n = (int)an;
-	for (int i = 0; i < n; ++i)
-		if (a[i] == v)
-			return;
-	a[an] = v;
-	an++;
-}
-
 static bool contains(const unsigned char* a, const unsigned char an, const unsigned char v)
 {
 	const int n = (int)an;
 	for (int i = 0; i < n; ++i)
+	{
 		if (a[i] == v)
 			return true;
+	}
 	return false;
 }
+
+static bool addUnique(unsigned char* a, unsigned char& an, int anMax, unsigned char v)
+{
+	if (contains(a, an, v))
+		return true;
+
+	if ((int)an >= anMax)
+		return false;
+
+	a[an] = v;
+	an++;
+	return true;
+}
+
 
 inline bool overlapRange(const unsigned short amin, const unsigned short amax,
 						 const unsigned short bmin, const unsigned short bmax)
@@ -84,7 +101,7 @@ struct rcLayerSweepSpan
 /// See the #rcConfig documentation for more information on the configuration parameters.
 /// 
 /// @see rcAllocHeightfieldLayerSet, rcCompactHeightfield, rcHeightfieldLayerSet, rcConfig
-bool rcBuildHeightfieldLayers(rcContext* ctx, rcCompactHeightfield& chf,
+bool rcBuildHeightfieldLayers(rcContext* ctx, const rcCompactHeightfield& chf,
 							  const int borderSize, const int walkableHeight,
 							  rcHeightfieldLayerSet& lset)
 {
@@ -261,8 +278,13 @@ bool rcBuildHeightfieldLayers(rcContext* ctx, rcCompactHeightfield& chf,
 						const int ay = y + rcGetDirOffsetY(dir);
 						const int ai = (int)chf.cells[ax+ay*w].index + rcGetCon(s, dir);
 						const unsigned char rai = srcReg[ai];
-						if (rai != 0xff && rai != ri && regs[ri].nneis < RC_MAX_NEIS)
-							addUnique(regs[ri].neis, regs[ri].nneis, rai);
+						if (rai != 0xff && rai != ri)
+						{
+							// Don't check return value -- if we cannot add the neighbor
+							// it will just cause a few more regions to be created, which
+							// is fine.
+							addUnique(regs[ri].neis, regs[ri].nneis, RC_MAX_NEIS, rai);
+						}
 					}
 				}
 				
@@ -277,8 +299,13 @@ bool rcBuildHeightfieldLayers(rcContext* ctx, rcCompactHeightfield& chf,
 					{
 						rcLayerRegion& ri = regs[lregs[i]];
 						rcLayerRegion& rj = regs[lregs[j]];
-						addUnique(ri.layers, ri.nlayers, lregs[j]);
-						addUnique(rj.layers, rj.nlayers, lregs[i]);
+
+						if (!addUnique(ri.layers, ri.nlayers, RC_MAX_LAYERS, lregs[j]) ||
+							!addUnique(rj.layers, rj.nlayers, RC_MAX_LAYERS, lregs[i]))
+						{
+							ctx->log(RC_LOG_ERROR, "rcBuildHeightfieldLayers: layer overflow (too many overlapping walkable platforms). Try increasing RC_MAX_LAYERS.");
+							return false;
+						}
 					}
 				}
 			}
@@ -341,7 +368,13 @@ bool rcBuildHeightfieldLayers(rcContext* ctx, rcCompactHeightfield& chf,
 					regn.layerId = layerId;
 					// Merge current layers to root.
 					for (int k = 0; k < regn.nlayers; ++k)
-						addUnique(root.layers, root.nlayers, regn.layers[k]);
+					{
+						if (!addUnique(root.layers, root.nlayers, RC_MAX_LAYERS, regn.layers[k]))
+						{
+							ctx->log(RC_LOG_ERROR, "rcBuildHeightfieldLayers: layer overflow (too many overlapping walkable platforms). Try increasing RC_MAX_LAYERS.");
+							return false;
+						}
+					}
 					root.ymin = rcMin(root.ymin, regn.ymin);
 					root.ymax = rcMax(root.ymax, regn.ymax);
 				}
@@ -419,7 +452,14 @@ bool rcBuildHeightfieldLayers(rcContext* ctx, rcCompactHeightfield& chf,
 					rj.layerId = newId;
 					// Add overlaid layers from 'rj' to 'ri'.
 					for (int k = 0; k < rj.nlayers; ++k)
-						addUnique(ri.layers, ri.nlayers, rj.layers[k]);
+					{
+						if (!addUnique(ri.layers, ri.nlayers, RC_MAX_LAYERS, rj.layers[k]))
+						{
+							ctx->log(RC_LOG_ERROR, "rcBuildHeightfieldLayers: layer overflow (too many overlapping walkable platforms). Try increasing RC_MAX_LAYERS.");
+							return false;
+						}
+					}
+
 					// Update height bounds.
 					ri.ymin = rcMin(ri.ymin, rj.ymin);
 					ri.ymax = rcMax(ri.ymax, rj.ymax);

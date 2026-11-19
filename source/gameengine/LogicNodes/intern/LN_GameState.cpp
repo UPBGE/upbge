@@ -63,6 +63,8 @@
 #include "KX_EmptyObject.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
+#include "KX_NavMeshObject.h"
+#include "KX_Navigation.h"
 #include "KX_NodeRelationships.h"
 #include "KX_ObjectReferenceValue.h"
 #include "KX_Scene.h"
@@ -1229,6 +1231,66 @@ LN_GameStateResult capture_checkpoint(KX_Scene &scene,
         state.hierarchy.parent_id = parent_identity->second;
       }
 
+      /* Its held navigation order (Navigate's Until Arrived, 2026-11-18): the objects it names by
+       * save identity, else (authored ones) by name; one that cannot be named drops the order
+       * (it ends at load). */
+      if (KX_Navigation *navigation = scene.GetNavigation()) {
+        KX_NavRequest order;
+        if (navigation->GetHeldOrder(object, order)) {
+          auto reference = [&](KX_GameObject *target, ObjectReferenceState &r_ref) {
+            r_ref = ObjectReferenceState();
+            if (target == nullptr) {
+              return true;
+            }
+            if (const auto saved = saved_identities.find(target); saved != saved_identities.end()) {
+              r_ref.text = saved->second;
+              return true;
+            }
+            if (target->IsReplica() || !is_valid_checkpoint_text(target->GetName(), kMaxNameBytes) ||
+                target->GetName().empty())
+            {
+              return false;
+            }
+            r_ref.text = target->GetName();
+            r_ref.by_name = true;
+            return true;
+          };
+          NavigationOrderState &saved = state.navigation_order;
+          if (reference(order.target, saved.target) &&
+              reference(static_cast<KX_GameObject *>(order.navmesh), saved.navmesh) &&
+              reference(order.rotating_object, saved.rotating))
+          {
+            saved.mode = uint8_t(order.mode);
+            saved.destination = order.destination;
+            saved.offset = order.offset;
+            saved.speed = order.speed;
+            saved.arrive_distance = order.arrive_distance;
+            saved.radius = order.radius;
+            saved.separation = order.separation;
+            saved.alignment = order.alignment;
+            saved.cohesion = order.cohesion;
+            saved.rot_speed = order.rot_speed;
+            saved.group = order.group;
+            saved.priority = order.priority;
+            saved.rot_axis = order.rot_axis;
+            saved.front_axis = order.front_axis;
+            saved.goal = order.goal;
+            saved.use_scene_navmesh = order.use_scene_navmesh;
+            saved.move_dynamic = order.move_dynamic;
+            saved.avoid = order.avoid;
+            saved.visualize = order.visualize;
+            saved.look_at = order.look_at;
+            saved.seed = order.seed;
+            state.has_navigation_order = true;
+          }
+          else {
+            CM_Warning("Save Game: the navigation order of '"
+                       << state.name
+                       << "' names an object that is not saved (a copy): it is not kept");
+          }
+        }
+      }
+
       /* Set Collection Member's changes, in their order, each by collection name and library. */
       const std::vector<std::pair<const blender::Collection *, bool>> &memberships =
           object->GetCollectionMemberships();
@@ -2064,6 +2126,65 @@ LN_GameStateResult apply_object_states(KX_Scene &scene,
       PHY_IPhysicsController *controller = resolved.object->GetPhysicsController();
       BLI_assert(controller != nullptr);
       controller->CommitPreparedGameStateRigidBody();
+    }
+    /* Held navigation orders (2026-11-18), last: a Save Object State record gets its saved
+     * order again, or its held order ends (it had none then). An object the order names that is
+     * gone ends it too. */
+    if (KX_Navigation *navigation = scene.GetNavigation()) {
+      auto object_of = [&](const ObjectReferenceState &ref, bool &r_ok) -> KX_GameObject * {
+        if (ref.text.empty()) {
+          return nullptr;
+        }
+        KX_GameObject *found = nullptr;
+        if (ref.by_name) {
+          found = scene.GetObjectList()->FindValue(ref.text);
+        }
+        else if (const auto known = objects_by_identity.find(ref.text);
+                 known != objects_by_identity.end())
+        {
+          found = known->second;
+        }
+        r_ok = r_ok && found != nullptr;
+        return found;
+      };
+      for (const ResolvedObjectState &resolved : transforms) {
+        const ObjectState &saved = *resolved.saved;
+        if (!saved.has_hierarchy_state) {
+          continue;
+        }
+        if (!saved.has_navigation_order) {
+          navigation->RestoreHeldOrder(resolved.object, nullptr);
+          continue;
+        }
+        const NavigationOrderState &order = saved.navigation_order;
+        bool ok = true;
+        KX_NavRequest request;
+        request.mode = KX_NavRequest::Mode(std::min<int>(order.mode, 6));
+        request.destination = order.destination;
+        request.offset = order.offset;
+        request.target = object_of(order.target, ok);
+        request.navmesh = dynamic_cast<KX_NavMeshObject *>(object_of(order.navmesh, ok));
+        request.rotating_object = object_of(order.rotating, ok);
+        request.speed = order.speed;
+        request.arrive_distance = order.arrive_distance;
+        request.radius = order.radius;
+        request.separation = order.separation;
+        request.alignment = order.alignment;
+        request.cohesion = order.cohesion;
+        request.rot_speed = order.rot_speed;
+        request.group = order.group;
+        request.priority = order.priority;
+        request.rot_axis = order.rot_axis;
+        request.front_axis = order.front_axis;
+        request.goal = order.goal;
+        request.use_scene_navmesh = order.use_scene_navmesh;
+        request.move_dynamic = order.move_dynamic;
+        request.avoid = order.avoid;
+        request.visualize = order.visualize;
+        request.look_at = order.look_at;
+        request.seed = order.seed;
+        navigation->RestoreHeldOrder(resolved.object, ok ? &request : nullptr);
+      }
     }
   }
   catch (...) {
@@ -4374,6 +4495,31 @@ class LN_GameStateService::Impl {
               },
               result.error);
         }
+        else if (work.operation == LN_GameStateOperation::Delete) {
+          /* (2026-11-17) Save Slot's Delete: after every request before it; a missing file is
+           * an empty slot already. */
+          bool cancelled = false;
+          {
+            std::lock_guard lock(state->mutex);
+            cancelled = state->stopping.load(std::memory_order_acquire) ||
+                        state->epoch.load(std::memory_order_acquire) != work.epoch;
+          }
+          if (cancelled) {
+            result.status = LN_GameStateResult::Cancelled;
+            result.error = "Save Slot delete was cancelled";
+          }
+          else {
+            std::error_code error;
+            std::filesystem::remove(std::filesystem::path(work.filepath), error);
+            if (error) {
+              result.status = LN_GameStateResult::IoError;
+              result.error = "could not delete the saved game: " + error.message();
+            }
+            else {
+              result.status = LN_GameStateResult::Success;
+            }
+          }
+        }
         else {
           result.status = read_checkpoint(work.filepath, result.checkpoint, result.error);
         }
@@ -4426,6 +4572,60 @@ class LN_GameStateService::Impl {
   bool m_workerBusy = false;
   bool m_reconciling = false;
   std::thread m_worker;
+  /** Save Slot's resolved files (2026-11-17), by slot, Path and the game's main path. */
+  std::unordered_map<std::string, std::string> m_slotFiles;
+
+ public:
+  /** The existence the queued and running requests leave `filepath` with: the last Save (true)
+   * or Delete (false) of it; none when no such request is waiting. */
+  std::optional<bool> PendingExistence(const std::string &filepath) const
+  {
+    for (auto work = m_pending.rbegin(); work != m_pending.rend(); ++work) {
+      if (work->filepath != filepath) {
+        continue;
+      }
+      if (work->operation == LN_GameStateOperation::Save) {
+        return true;
+      }
+      if (work->operation == LN_GameStateOperation::Delete) {
+        return false;
+      }
+    }
+    if (m_active && m_active->filepath == filepath) {
+      if (m_active->operation == LN_GameStateOperation::Save) {
+        return true;
+      }
+      if (m_active->operation == LN_GameStateOperation::Delete) {
+        return false;
+      }
+    }
+    return std::nullopt;
+  }
+
+  /** The file of `slot` and `path` (LN_GameStateService::ResolveFilePath), kept. */
+  bool SlotFile(const int32_t slot, const std::string &path, std::string &r_filepath)
+  {
+    std::string key = std::to_string(slot);
+    key += '\0';
+    key += path;
+    key += '\0';
+    key += KX_GetMainPath();
+    if (const auto found = m_slotFiles.find(key); found != m_slotFiles.end()) {
+      r_filepath = found->second;
+      return !r_filepath.empty();
+    }
+    std::string error;
+    if (!LN_GameStateService::ResolveFilePath(
+            slot, path, SceneUuidText(), std::string(), r_filepath, error))
+    {
+      r_filepath.clear();
+    }
+    if (m_slotFiles.size() >= 256) {
+      m_slotFiles.clear();
+    }
+    m_slotFiles.emplace(std::move(key), r_filepath);
+    return !r_filepath.empty();
+  }
 };
 
 LN_GameStateService::LN_GameStateService() : m_impl(std::make_unique<Impl>()) {}
@@ -4664,6 +4864,41 @@ bool LN_GameStateService::RequestLoad(const int32_t slot,
     return false;
   }
   return m_impl->Enqueue(std::move(work), r_error);
+}
+
+bool LN_GameStateService::RequestDelete(const int32_t slot,
+                                        const std::string &path,
+                                        const LN_GameStateCompletionTarget &target,
+                                        std::string &r_error)
+{
+  if (!target.runtime_tree_id.IsValid() || target.expression_index == LN_INVALID_INDEX) {
+    r_error = "Save Slot completion target is invalid";
+    return false;
+  }
+
+  Impl::WorkItem work;
+  work.operation = LN_GameStateOperation::Delete;
+  work.target = target;
+  if (!ResolveFilePath(
+          slot, path, m_impl->SceneUuidText(), std::string(), work.filepath, r_error) ||
+      !m_impl->CanEnqueue(target, r_error))
+  {
+    return false;
+  }
+  return m_impl->Enqueue(std::move(work), r_error);
+}
+
+bool LN_GameStateService::SlotExists(const int32_t slot, const std::string &path)
+{
+  std::string filepath;
+  if (!m_impl->SlotFile(slot, path, filepath)) {
+    return false;
+  }
+  if (const std::optional<bool> pending = m_impl->PendingExistence(filepath)) {
+    return *pending;
+  }
+  std::error_code error;
+  return std::filesystem::is_regular_file(std::filesystem::path(filepath), error);
 }
 
 void LN_GameStateService::Poll(KX_Scene &scene,

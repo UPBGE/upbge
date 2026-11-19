@@ -29,6 +29,24 @@ inline bool LN_RuntimeTree::InstructionExecutedNow(const LN_TickContext &context
          state.last_execution_scope_serial == context.execution_scope_serial;
 }
 
+/* ---- NPC navigation (2026-11-18) ---- */
+
+template<class In>
+bool LN_RuntimeTree::ReadNavigationInfo(In &in, const uint32_t object_index, KX_NavAgentInfo &r_info)
+{
+  /* The object (the owner when unset), its agent's last step (the navigation writes it after the
+   * flush, never while trees record). */
+  KX_GameObject *object = m_gameObject;
+  if (object_index != LN_INVALID_INDEX) {
+    object = ResolveObjectValue(in.Value(object_index, MakeNoneValue()));
+  }
+  if (object == nullptr) {
+    return false;
+  }
+  KX_Navigation *navigation = LN_QueryNavigation(object);
+  return navigation != nullptr && navigation->GetAgentInfo(object, r_info);
+}
+
 /* ---- Object attributes read without their value (plan "Attribute and Retirement", G2/G3) ---- */
 
 template<class In>
@@ -228,6 +246,64 @@ bool LN_RuntimeTree::BoolKind(In &in,
       }
       return object_snapshot->has_character ? object_snapshot->character_on_ground : fallback;
     }
+    case LN_BoolExpressionKind::NavigationState: {
+      /* Get Navigation Info / On Navigation Link (2026-11-18): the navigation's last step for
+       * the object (written after the flush, read on any thread while trees record). */
+      KX_NavAgentInfo info;
+      if (!ReadNavigationInfo(in, expression.input0, info)) {
+        return false;
+      }
+      switch (expression.int_value) {
+        case LN_NAV_STATE_MOVING:
+          return info.moving;
+        case LN_NAV_STATE_ARRIVED:
+          return info.arrived;
+        case LN_NAV_STATE_HAS_PATH:
+          return info.has_path;
+        case LN_NAV_STATE_PATH_COMPLETE:
+          return info.path_complete;
+        case LN_NAV_STATE_NO_PATH:
+          return info.no_path;
+        case LN_NAV_STATE_ON_LINK:
+          return info.on_link;
+        case LN_NAV_STATE_LINK_STARTED:
+          return info.link_started;
+        case LN_NAV_STATE_ACTIVE:
+          return info.active;
+        case LN_NAV_STATE_REACHED:
+          return info.reached;
+        default:
+          return false;
+      }
+    }
+    case LN_BoolExpressionKind::SnapshotCharacterState: {
+      std::optional<LN_ObjectSnapshot> other_object;
+      const LN_ObjectSnapshot *object_snapshot = &m_snapshot.GetObjectSnapshot();
+      if (expression.input0 != LN_INVALID_INDEX) {
+        if (KX_GameObject *game_object = ResolveObjectValue(
+                in.Value(expression.input0, MakeNoneValue())))
+        {
+          object_snapshot = &LN_CaptureObjectSnapshot(
+              game_object, LN_SNAPSHOT_CHANNEL_CHARACTER, other_object.emplace());
+        }
+        else {
+          return fallback;
+        }
+      }
+      if (!object_snapshot->has_character) {
+        return fallback;
+      }
+      switch (expression.int_value) {
+        case LN_CHARACTER_STATE_ON_WALL:
+          return object_snapshot->character_on_wall;
+        case LN_CHARACTER_STATE_ON_CEILING:
+          return object_snapshot->character_on_ceiling;
+        case LN_CHARACTER_STATE_CROUCHED:
+          return object_snapshot->character_crouched;
+        default:
+          return fallback;
+      }
+    }
     case LN_BoolExpressionKind::WindowFullscreen:
       if (RAS_ICanvas *canvas = ActiveCanvas()) {
         return canvas->GetFullScreen();
@@ -262,6 +338,13 @@ bool LN_RuntimeTree::BoolKind(In &in,
       return in.Color(expression.input0, MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f))
                  .length2() > 0.0f;
     case LN_BoolExpressionKind::RigidBodyAttribute: {
+      if (static_cast<LN_RigidBodyAttribute>(expression.int_value) ==
+          LN_RigidBodyAttribute::Compound)
+      {
+        return ReadCompoundBoolAttribute(
+            ResolveRigidBodyAttributeObject(in, expression.input0),
+            expression.secondary_int_value);
+      }
       PHY_IPhysicsController *controller = ResolveRigidBodyAttributeController(in, expression.input0);
       if (controller == nullptr) {
         return false;
@@ -291,6 +374,19 @@ bool LN_RuntimeTree::BoolKind(In &in,
       const LN_Value a = in.Value(expression.input0, MakeNoneValue());
       const LN_Value b = in.Value(expression.input1, MakeNoneValue());
       return CompareValues(a, b, expression.float_compare_operation);
+    }
+    case LN_BoolExpressionKind::ObjectsEqual: {
+      /* Read order: A, then B. */
+      const KX_GameObject *a = ResolveObjectValue(in.Value(expression.input0, MakeNoneValue()));
+      const KX_GameObject *b = ResolveObjectValue(in.Value(expression.input1, MakeNoneValue()));
+      switch (expression.float_compare_operation) {
+        case LN_FloatCompareOperation::Equal:
+          return a == b;
+        case LN_FloatCompareOperation::NotEqual:
+          return a != b;
+        default:
+          return false;
+      }
     }
     case LN_BoolExpressionKind::MaterialSlotFound: {
       KX_GameObject *target_object = m_gameObject;
@@ -544,19 +640,100 @@ bool LN_RuntimeTree::BoolKind(In &in,
       UpdateTweenValue(in, expression.input0);
       return BoolExpressionState(expression.input0).cached_result;
     }
-    case LN_BoolExpressionKind::TimerElapsed: {
-      if (expression.int_value < 0 || context.tick_index == UINT64_MAX) {
+    case LN_BoolExpressionKind::InputGesture: {
+      /* (2026-11-17) Tap, Double Tap, Hold: once a tick (LN_InputGestureStep), on the tick's
+       * clock. Read order: Time, held, pressed, released. */
+      if (expression.int_value < 0) {
         return fallback;
       }
-      const TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(expression.int_value));
-      return state != nullptr && state->pulse_tick == context.tick_index;
+      InputGestureSlotState &slot = InputGestureState(uint32_t(expression.int_value));
+      if (context.tick_index != UINT64_MAX && slot.gesture.tick == context.tick_index) {
+        return slot.gesture.fired;
+      }
+      const float time = in.Float(expression.float_expr_index, 0.3f);
+      const bool held = in.Bool(expression.input0, false);
+      const bool pressed = in.Bool(expression.input1, false);
+      const bool released = in.Bool(expression.input2, false);
+      slot.gesture.fired = LN_InputGestureStep(slot.gesture,
+                                               LN_InputGesture(expression.secondary_int_value),
+                                               context.current_time,
+                                               double(time),
+                                               held,
+                                               pressed,
+                                               released);
+      slot.gesture.tick = context.tick_index;
+      return slot.gesture.fired;
     }
+    case LN_BoolExpressionKind::InputCombo: {
+      /* (2026-11-17) Input Combo: once a tick (LN_InputComboStep). Read order: Time, Steps 1-4. */
+      if (expression.int_value < 0) {
+        return fallback;
+      }
+      InputGestureSlotState &slot = InputGestureState(uint32_t(expression.int_value));
+      if (context.tick_index != UINT64_MAX && slot.combo.tick == context.tick_index) {
+        return slot.combo.fired;
+      }
+      const float time = in.Float(expression.float_expr_index, 0.5f);
+      uint32_t held = 0;
+      held |= in.Bool(expression.input0, false) ? 1u : 0u;
+      held |= in.Bool(expression.input1, false) ? 2u : 0u;
+      held |= in.Bool(expression.input2, false) ? 4u : 0u;
+      held |= in.Int(expression.int_expr_index, 0) != 0 ? 8u : 0u;
+      const int32_t settings = expression.secondary_int_value;
+      slot.combo.fired = LN_InputComboStep(slot.combo,
+                                           LN_InputComboMode(settings & 0xF),
+                                           context.current_time,
+                                           double(time),
+                                           ((settings >> 8) & 1) != 0,
+                                           uint32_t(settings >> 4) & 0xFu,
+                                           held,
+                                           slot.progress);
+      slot.combo.tick = context.tick_index;
+      return slot.combo.fired;
+    }
+    case LN_BoolExpressionKind::BeingRemoved:
+      return m_beingRemoved;
+    case LN_BoolExpressionKind::SaveSlotExists: {
+      /* (2026-11-17) Save Slot's Exists: the save service's answer (its queued saves and
+       * deletes count at once). Main thread. Read order: Slot, Path. */
+      const int32_t slot = in.Int(expression.int_expr_index, 0);
+      const std::string path = in.String(expression.input0, std::string());
+      return m_logicManager != nullptr && m_logicManager->SaveSlotExists(slot, path);
+    }
+    case LN_BoolExpressionKind::SoundPlaying:
+    case LN_BoolExpressionKind::SoundFinished: {
+      /* (2026-11-17) The sound the node started last (its tree's ticket): pending until its flush
+       * (Playing false), then the audio's answer; Finished once, in the step it is seen ended. */
+      if (expression.int_value < 0) {
+        return fallback;
+      }
+      SoundSlotState &state = SoundState(uint32_t(expression.int_value));
+      if (state.ticket == 0) {
+        return false;
+      }
+      const LN_SoundTicketStatus status = state.ticket_tick == context.tick_index ?
+                                              LN_SoundTicketStatus::Pending :
+                                              LN_GetSoundTicketStatus(state.ticket);
+      if (expression.kind == LN_BoolExpressionKind::SoundPlaying) {
+        return status == LN_SoundTicketStatus::Playing;
+      }
+      if (status == LN_SoundTicketStatus::Ended && state.reported_ticket != state.ticket) {
+        state.reported_ticket = state.ticket;
+        state.finished_tick = context.tick_index;
+      }
+      return context.tick_index != UINT64_MAX && state.finished_tick == context.tick_index;
+    }
+    case LN_BoolExpressionKind::TimerElapsed:
     case LN_BoolExpressionKind::DelayDone: {
       if (expression.int_value < 0 || context.tick_index == UINT64_MAX) {
         return fallback;
       }
-      const TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(expression.int_value));
-      return state != nullptr && state->pulse_tick == context.tick_index;
+      TimeFlowRuntimeState *state = FindTimeFlowState(uint32_t(expression.int_value));
+      if (state == nullptr) {
+        return false;
+      }
+      state->done_read_tick = context.tick_index; /* (TimeFlowZeroPulseNow) */
+      return state->pulse_tick == context.tick_index;
     }
     case LN_BoolExpressionKind::PulsifyPulse: {
       if (expression.int_value < 0 || context.tick_index == UINT64_MAX) {
@@ -848,6 +1025,42 @@ bool LN_RuntimeTree::BoolKind(In &in,
       const std::string action_name = target_object->GetActionName(short(layer));
       return !action_name.empty() && !target_object->IsActionDone(short(layer));
     }
+    case LN_BoolExpressionKind::ActionFrameReached: {
+      /* On Action Frame (2026-11-16): worked out once a tick (the event route's condition), its
+       * read of the layer kept for the next step. Read order: the object, Layer, Frame, Action. */
+      if (expression.int_value < 0) {
+        return fallback;
+      }
+      LN_ActionFrameState &state = ActionFrameState(uint32_t(expression.int_value));
+      if (context.tick_index != UINT64_MAX && state.last_update_tick == context.tick_index) {
+        return state.result;
+      }
+      state.last_update_tick = context.tick_index;
+      state.result = false;
+      KX_GameObject *target_object = expression.input0 != LN_INVALID_INDEX ?
+                                         ResolveObjectValue(
+                                             in.Value(expression.input0, MakeNoneValue())) :
+                                         m_gameObject;
+      if (target_object == nullptr) {
+        state.has_previous = false;
+        return false;
+      }
+      const int32_t layer = in.Int(expression.int_expr_index, 0);
+      const float frame = in.Float(expression.float_expr_index, 0.0f);
+      const std::string wanted = in.String(expression.input1, std::string());
+      LN_ActionLayerRead read;
+      if (!ReadActionLayerOf(target_object, short(layer), read) || read.action.empty() ||
+          (!wanted.empty() && read.action != wanted))
+      {
+        state.has_previous = false;
+        return false;
+      }
+      state.result = LN_ActionFrameCrossed(
+          state.has_previous ? &state.previous : nullptr, read, frame);
+      state.previous = std::move(read);
+      state.has_previous = true;
+      return state.result;
+    }
     case LN_BoolExpressionKind::ObjectsColliding: {
       KX_GameObject *obj_a = m_gameObject;
       KX_GameObject *obj_b = nullptr;
@@ -1130,6 +1343,38 @@ int32_t LN_RuntimeTree::IntKind(In &in,
       const std::string text = in.String(expression.input0, "");
       return CountStringOccurrences(text, search);
     }
+    case LN_IntExpressionKind::TextLength:
+      return LN_TextLength(in.String(expression.input0, ""));
+    case LN_IntExpressionKind::InputComboProgress: {
+      /* (2026-11-17) The combo worked out first (its tick's answer), then its Progress. */
+      in.Bool(expression.input0, false);
+      if (m_program == nullptr || expression.input0 >= m_program->GetBoolExpressions().size()) {
+        return 0;
+      }
+      const int32_t slot = m_program->GetBoolExpressions()[expression.input0].int_value;
+      return slot >= 0 ? InputGestureState(uint32_t(slot)).progress : 0;
+    }
+    case LN_IntExpressionKind::DateTimePart: {
+      /* (2026-11-17) Date and Time: the tick's wall clock (WallClockSeconds). */
+      LN_DateTimeParts parts;
+      LN_DateTimeFromSeconds(WallClockSeconds(), ((expression.int_value >> 8) & 1) != 0, parts);
+      return LN_DateTimePartValue(parts, LN_DateTimePart(expression.int_value & 0xFF));
+    }
+    case LN_IntExpressionKind::ListStatisticIndex: {
+      const LN_Value list = in.Value(expression.input0, MakeNoneValue());
+      if (list.type != LN_ValueType::List || !list.exists) {
+        return -1;
+      }
+      int32_t index = -1;
+      LN_ListStatisticOf(list.list_value, LN_ListStatistic(expression.int_value), index);
+      return index;
+    }
+    case LN_IntExpressionKind::TextFind: {
+      /* Read order: the search, the text. */
+      const std::string search = in.String(expression.input1, "");
+      const std::string text = in.String(expression.input0, "");
+      return LN_TextFind(text, search);
+    }
     case LN_IntExpressionKind::SnapshotCollisionGroup:
       if (expression.input0 != LN_INVALID_INDEX) {
         if (KX_GameObject *game_object = ResolveObjectValue(
@@ -1258,6 +1503,17 @@ int32_t LN_RuntimeTree::IntKind(In &in,
     }
     case LN_IntExpressionKind::GameRandomSeed:
       return int32_t(LN_GetRandomGameSeed());
+    case LN_IntExpressionKind::ListRandomIndex: {
+      /* The place Value::ListRandomItem of the same node picks (PickRandomListPlace). */
+      LN_Value list;
+      const int32_t place = PickRandomListPlace(in,
+                                                expression.input0,
+                                                expression.input1,
+                                                expression.input2,
+                                                uint32_t(expression.int_value),
+                                                list);
+      return place;
+    }
     case LN_IntExpressionKind::MaterialSlotCount: {
       KX_GameObject *target_object = m_gameObject;
       if (expression.input0 != LN_INVALID_INDEX) {
@@ -1380,6 +1636,17 @@ float LN_RuntimeTree::FloatKind(In &in,
       return expression.float_value;
     case LN_FloatExpressionKind::UnscaledDeltaTime:
       return float(std::max(0.0, context.unscaled_dt));
+    case LN_FloatExpressionKind::GameTime:
+      return float(context.game_time);
+    case LN_FloatExpressionKind::ListStatistic: {
+      const LN_Value list = in.Value(expression.input0, MakeNoneValue());
+      if (list.type != LN_ValueType::List || !list.exists) {
+        return 0.0f;
+      }
+      int32_t index = -1;
+      return LN_ListStatisticOf(
+          list.list_value, LN_ListStatistic(expression.int_value), index);
+    }
     case LN_FloatExpressionKind::StepTimePassed:
       /* Read from the gate, not the context: the same value wherever the output is read. */
       if (expression.int_value >= 0 && uint32_t(expression.int_value) < m_stepGates.size())
@@ -1731,6 +1998,94 @@ float LN_RuntimeTree::FloatKind(In &in,
     case LN_FloatExpressionKind::VectorLength:
       /* The column kernel FLength is the same code. */
       return in.Vector(expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f)).length();
+    case LN_FloatExpressionKind::MathFunction: {
+      /* Read order: A, B, C. The column kernel FMathFn calls the same function. */
+      const float a = in.Float(expression.input0, 0.0f);
+      const float b = in.Float(expression.input1, 0.0f);
+      const float c = in.Float(expression.input2, 0.0f);
+      return LN_MathFunctionValue(LN_MathFunction(expression.int_value), a, b, c);
+    }
+    case LN_FloatExpressionKind::VectorMeasure: {
+      /* Read order: A, B, Axis. The column kernel FVecMeasure calls the same function. */
+      const MT_Vector3 a = in.Vector(expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const MT_Vector3 b = in.Vector(expression.input1, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const MT_Vector3 axis = in.Vector(expression.input2, MT_Vector3(0.0f, 0.0f, 1.0f));
+      return LN_VectorMeasureValue(LN_VectorMeasure(expression.int_value), a, b, axis);
+    }
+    case LN_FloatExpressionKind::SmoothValue: {
+      /* The column kernel NSmooth calls the same LN_SmoothValueAdvance. */
+      if (expression.int_value < 0) {
+        return fallback;
+      }
+      return EvaluateSmoothValue(in,
+                                 uint32_t(expression.int_value),
+                                 LN_SmoothMode(expression.component_index),
+                                 1,
+                                 expression.bool_expr_index,
+                                 expression.input0,
+                                 expression.input1,
+                                 expression.input2,
+                                 expression.input_indices.empty() ? LN_INVALID_INDEX :
+                                                                    expression.input_indices[0])
+          .value[0];
+    }
+    case LN_FloatExpressionKind::Noise: {
+      /* Read order: Vector, W, Scale, Roughness, Seed. The column kernel FNoise calls the same
+       * function. */
+      const MT_Vector3 vector = in.Vector(expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const float w = in.Float(expression.input1, 0.0f);
+      const float scale = in.Float(expression.input2, 1.0f);
+      const float roughness = in.Float(
+          expression.input_indices.size() > 0 ? expression.input_indices[0] : LN_INVALID_INDEX,
+          0.5f);
+      const int32_t seed = in.Int(
+          expression.input_indices.size() > 1 ? expression.input_indices[1] : LN_INVALID_INDEX, 0);
+      return LN_NoiseValue(LN_NoiseDimensions(expression.int_value),
+                           LN_NoiseOctaves(expression.int_value),
+                           vector,
+                           w,
+                           scale,
+                           roughness,
+                           seed,
+                           expression.component_index);
+    }
+    case LN_FloatExpressionKind::OscillateCycle: {
+      /* Read order: the time, Frequency, Phase, Random Phase. The column kernel FOscCycle calls
+       * the same functions (LN_Easing.h). */
+      const float time = in.Float(expression.input0, 0.0f);
+      const float frequency = in.Float(expression.input1, 1.0f);
+      const float phase = in.Float(expression.input2, 0.0f);
+      const bool random_phase = in.Bool(expression.bool_expr_index, false);
+      return LN_OscillateCycle(
+          time,
+          frequency,
+          phase,
+          random_phase ? LN_OscillateRandomPhase(uint32_t(expression.int_value), m_randomStream) :
+                         0.0f);
+    }
+    case LN_FloatExpressionKind::Oscillate: {
+      /* Read order: the cycle, Amplitude, Center (kernel FOscillate). */
+      const float cycle = in.Float(expression.input0, 0.0f);
+      const float amplitude = in.Float(expression.input1, 1.0f);
+      const float center = in.Float(expression.input2, 0.0f);
+      return LN_OscillateValue(expression.int_value, cycle, amplitude, center);
+    }
+    case LN_FloatExpressionKind::NavigationState: {
+      KX_NavAgentInfo info;
+      if (!ReadNavigationInfo(in, expression.input0, info)) {
+        return 0.0f;
+      }
+      if (expression.int_value == LN_NAV_FLOAT_SPEED) {
+        return float(MT_Vector3(info.velocity[0], info.velocity[1], 0.0f).length());
+      }
+      return info.remaining_distance;
+    }
+    case LN_FloatExpressionKind::DayFraction: {
+      /* (2026-11-17) Date and Time's Day Fraction at the tick's wall clock. */
+      LN_DateTimeParts parts;
+      LN_DateTimeFromSeconds(WallClockSeconds(), expression.int_value != 0, parts);
+      return float(parts.day_fraction);
+    }
     case LN_FloatExpressionKind::RayPlaneDistance: {
       const MT_Vector3 relative_origin = in.Vector(expression.input0,
                                                    MT_Vector3(0.0f, 0.0f, 0.0f));
@@ -1762,6 +2117,16 @@ float LN_RuntimeTree::FloatKind(In &in,
       return state != nullptr ? state->motion_speed : fallback;
     }
     case LN_FloatExpressionKind::RigidBodyAttribute: {
+      if (static_cast<LN_RigidBodyAttribute>(expression.property_ref_index) ==
+          LN_RigidBodyAttribute::Compound)
+      {
+        /* Part Count: the parts its own shape holds (any body: a holder may be Static). */
+        KX_GameObject *target = ResolveRigidBodyAttributeObject(in, expression.input0);
+        PHY_IPhysicsController *holder = target != nullptr ? target->GetPhysicsController() :
+                                                             nullptr;
+        return holder != nullptr && holder->IsCompound() ? float(holder->GetCompoundPartCount()) :
+                                                           0.0f;
+      }
       PHY_IPhysicsController *controller = ResolveRigidBodyAttributeController(in, expression.input0);
       if (controller == nullptr) {
         return 0.0f;
@@ -1904,6 +2269,27 @@ std::string LN_RuntimeTree::StringKind(In &in,
       const int32_t width = in.Int(expression.int_expr_index, 0);
       const std::string text = in.String(expression.input0, "");
       return ZeroFillString(text, width);
+    }
+    case LN_StringExpressionKind::TextSubstring: {
+      /* Read order: Length, Start, the text (LN_TextOps.h, also the compiler's fold). */
+      const int32_t length = in.Int(expression.input2, 0);
+      const int32_t start = in.Int(expression.input1, 0);
+      const std::string text = in.String(expression.input0, "");
+      return LN_TextSubstring(text, start, length);
+    }
+    case LN_StringExpressionKind::NavigationLinkKind: {
+      KX_NavAgentInfo info;
+      if (!ReadNavigationInfo(in, expression.input0, info) || !info.on_link) {
+        return std::string();
+      }
+      return info.link_kind;
+    }
+    case LN_StringExpressionKind::TextFormatTime: {
+      /* Read order: the format, Round Up, Seconds. */
+      const int32_t format = in.Int(expression.input2, 0);
+      const bool round_up = in.Bool(expression.input1, false);
+      const float seconds = in.Float(expression.input0, 0.0f);
+      return LN_FormatTime(seconds, format, round_up);
     }
     case LN_StringExpressionKind::Format: {
       /* Read order (D20): the last input first. */
@@ -2092,6 +2478,36 @@ MT_Vector3 LN_RuntimeTree::VectorKind(In &in,
                    fallback;
       }
       return fallback;
+    }
+    case LN_VectorExpressionKind::NavigationState: {
+      KX_NavAgentInfo info;
+      if (!ReadNavigationInfo(in, expression.input0, info)) {
+        return MT_Vector3(0.0f, 0.0f, 0.0f);
+      }
+      switch (expression.int_value) {
+        case LN_NAV_VECTOR_VELOCITY:
+          return info.velocity;
+        case LN_NAV_VECTOR_GOAL:
+          return info.goal;
+        default:
+          return info.next_corner;
+      }
+    }
+    case LN_VectorExpressionKind::SnapshotCharacterSurface: {
+      const LN_ObjectSnapshot *resolved_object_snapshot = resolve_snapshot_object();
+      if (resolved_object_snapshot == nullptr || !resolved_object_snapshot->has_character) {
+        return fallback;
+      }
+      switch (expression.int_value) {
+        case LN_CHARACTER_SURFACE_GROUND_NORMAL:
+          return resolved_object_snapshot->character_ground_normal;
+        case LN_CHARACTER_SURFACE_GROUND_VELOCITY:
+          return resolved_object_snapshot->character_ground_velocity;
+        case LN_CHARACTER_SURFACE_WALL_NORMAL:
+          return resolved_object_snapshot->character_wall_normal;
+        default:
+          return fallback;
+      }
     }
     case LN_VectorExpressionKind::WindowResolution:
       if (RAS_ICanvas *canvas = ActiveCanvas()) {
@@ -2500,6 +2916,68 @@ MT_Vector3 LN_RuntimeTree::VectorKind(In &in,
       const float length = vector.length();
       return length <= 1.0e-20f ? MT_Vector3(0.0f, 0.0f, 0.0f) : vector * (1.0f / length);
     }
+    case LN_VectorExpressionKind::RotationFunction: {
+      const LN_RotationFunction function = LN_RotationFunction(expression.int_value);
+      if (LN_RotationFunctionGivesRotation(function)) {
+        /* A rotation read as Euler angles (the column kernel VRotEuler). */
+        return in.Rotation(expression_index, LN_Rotation::Identity()).ToEulerXYZ();
+      }
+      /* Read order: the vector, the rotation, the scale. The column kernel VRotFn calls the
+       * same function. */
+      const MT_Vector3 vector = in.Vector(expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const LN_Rotation rotation = in.Rotation(expression.input1, LN_Rotation::Identity());
+      const MT_Vector3 scale = in.Vector(expression.input2, MT_Vector3(1.0f, 1.0f, 1.0f));
+      return LN_RotationFunctionVector(function, vector, rotation, scale);
+    }
+    case LN_VectorExpressionKind::VectorFunction: {
+      /* Read order: A, B, Scale. The column kernel VVecFn calls the same function. */
+      const MT_Vector3 a = in.Vector(expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const MT_Vector3 b = in.Vector(expression.input1, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const float scale = in.Float(expression.float_expr_index, expression.float_value);
+      return LN_VectorFunctionValue(LN_VectorFunction(expression.int_value), a, b, scale);
+    }
+    case LN_VectorExpressionKind::SmoothValue: {
+      /* The column kernel NSmooth calls the same LN_SmoothValueAdvance. */
+      if (expression.int_value < 0) {
+        return fallback;
+      }
+      const LN_SmoothValueState &state = EvaluateSmoothValue(
+          in,
+          uint32_t(expression.int_value),
+          LN_SmoothMode(expression.property_ref_index),
+          3,
+          expression.bool_expr_index,
+          expression.input0,
+          expression.float_expr_index,
+          expression.input1,
+          expression.input2);
+      return MT_Vector3(state.value[0], state.value[1], state.value[2]);
+    }
+    case LN_VectorExpressionKind::RandomShape: {
+      /* Read order: Axis, Radius or Angle, Seed; three numbers of salts 1, 2, 3 (as Random). The
+       * column kernel VRandomShape calls the same functions. */
+      const MT_Vector3 axis = in.Vector(expression.input0, MT_Vector3(0.0f, 0.0f, 1.0f));
+      const float size = in.Float(expression.float_expr_index, 1.0f);
+      const int32_t seed = in.Int(expression.input2, 0);
+      const uint64_t node = LN_RandomNodePart(
+          LN_GetRandomGameSeed(), uint32_t(expression.int_value), RandomTick(context));
+      const uint64_t stream = (uint32_t(expression.int_value) & LN_RANDOM_SAME_FOR_ALL) != 0 ?
+                                  0 :
+                                  m_randomStream;
+      return LN_RandomShapeVector(LN_RandomShape(expression.property_ref_index),
+                                  LN_RandomUnitFloat(LN_RandomBits(node, seed, stream, 1)),
+                                  LN_RandomUnitFloat(LN_RandomBits(node, seed, stream, 2)),
+                                  LN_RandomUnitFloat(LN_RandomBits(node, seed, stream, 3)),
+                                  size,
+                                  axis);
+    }
+    case LN_VectorExpressionKind::Oscillate: {
+      /* Read order: the cycle, Axis, Amplitude (kernel VOscillate). */
+      const float cycle = in.Float(expression.input0, 0.0f);
+      const MT_Vector3 axis = in.Vector(expression.input1, MT_Vector3(0.0f, 0.0f, 1.0f));
+      const float amplitude = in.Float(expression.float_expr_index, 1.0f);
+      return LN_OscillateVector(expression.int_value, cycle, axis, amplitude);
+    }
     case LN_VectorExpressionKind::Resize: {
       const MT_Vector3 vector = in.Vector(expression.input0, MT_Vector3(0.0f, 0.0f, 0.0f));
       if (expression.float_value >= 3.0f) {
@@ -2797,6 +3275,20 @@ LN_Rotation LN_RuntimeTree::RotationKind(In &in,
           in.Rotation(expression.input0, LN_Rotation::Identity()));
       resolved = true;
       break;
+    case LN_VectorExpressionKind::RotationFunction: {
+      const LN_RotationFunction function = LN_RotationFunction(expression.int_value);
+      if (!LN_RotationFunctionGivesRotation(function)) {
+        /* A vector operation's result used as a rotation: its Euler angles. */
+        result = LN_Rotation::FromEulerXYZ(in.Vector(expression_index, fallback.ToEulerXYZ()));
+        break;
+      }
+      /* Read order: A, then B. The column kernel RRotFn calls the same function. */
+      const LN_Rotation a = in.Rotation(expression.input0, LN_Rotation::Identity());
+      const LN_Rotation b = in.Rotation(expression.input1, LN_Rotation::Identity());
+      result = LN_RotationFunctionRotation(function, a, b);
+      resolved = true;
+      break;
+    }
     case LN_VectorExpressionKind::TweenRotationResult: {
       const float factor = ResolveTweenMappedFactor(in, expression.input0);
       if (expression.property_ref_index != 0) {
@@ -3135,6 +3627,51 @@ LN_Value LN_RuntimeTree::ValueKind(In &in,
       value.runtime_ref = MakeObjectRef(object, object->GetName());
       return value;
     }
+    case LN_ValueExpressionKind::NavigationLinkObject: {
+      KX_NavAgentInfo info;
+      if (!ReadNavigationInfo(in, expression.input0, info) || !info.on_link ||
+          info.link_object == nullptr ||
+          (m_logicManager != nullptr &&
+           m_logicManager->IsGameObjectQueuedForRemoval(info.link_object)))
+      {
+        return MakeNoneValue();
+      }
+      LN_Value value;
+      value.type = LN_ValueType::ObjectRef;
+      value.exists = true;
+      value.reference_name = info.link_object->GetName();
+      value.runtime_ref = MakeObjectRef(info.link_object, info.link_object->GetName());
+      return value;
+    }
+    case LN_ValueExpressionKind::SnapshotCharacterGroundObject: {
+      std::optional<LN_ObjectSnapshot> other_object;
+      const LN_ObjectSnapshot *object_snapshot = &m_snapshot.GetObjectSnapshot();
+      if (expression.input0 != LN_INVALID_INDEX) {
+        KX_GameObject *game_object = ResolveObjectValue(
+            in.Value(expression.input0, MakeNoneValue()));
+        if (game_object == nullptr) {
+          return MakeNoneValue();
+        }
+        object_snapshot = &LN_CaptureObjectSnapshot(
+            game_object, LN_SNAPSHOT_CHANNEL_CHARACTER, other_object.emplace());
+      }
+      KX_GameObject *ground = object_snapshot->has_character ?
+                                  object_snapshot->character_ground_object :
+                                  nullptr;
+      /* Removed since the step (its body stays until the frame ends): gone, as for every other
+       * read (a ref made now would outlive it). */
+      if (ground == nullptr ||
+          (m_logicManager != nullptr && m_logicManager->IsGameObjectQueuedForRemoval(ground)))
+      {
+        return MakeNoneValue();
+      }
+      LN_Value value;
+      value.type = LN_ValueType::ObjectRef;
+      value.exists = true;
+      value.reference_name = ground->GetName();
+      value.runtime_ref = MakeObjectRef(ground, ground->GetName());
+      return value;
+    }
     case LN_ValueExpressionKind::ObjectParent: {
       const LN_Value child_value = in.Value(expression.input0, MakeNoneValue());
       KX_GameObject *child_object = ResolveObjectValue(child_value);
@@ -3422,6 +3959,37 @@ LN_Value LN_RuntimeTree::ValueKind(In &in,
           default:
             break;
         }
+      }
+      return value;
+    }
+    case LN_ValueExpressionKind::ExplosionStrengths: {
+      /* One number for each of the Objects output's entries (the query's hits, a gone object
+       * included: the lists stay side by side). The push at the flush measures from the blast's
+       * center to the body's center of mass then; here now (the same unless it moves first). */
+      const float strength = in.Float(expression.input2, 10.0f);
+      const float radius = in.Float(expression.input1, 5.0f);
+      const LN_QueryResult &query = in.Query(expression.input0);
+      const bool linear = expression.value.bool_value;
+      LN_Value value;
+      value.type = LN_ValueType::List;
+      value.exists = true;
+      value.list_value.reserve(query.physics_query_results.size());
+      for (const LN_PhysicsQueryResult &hit : query.physics_query_results) {
+        if (!hit.hit) {
+          continue;
+        }
+        float push = 0.0f;
+        KX_GameObject *game_object = ResolveObjectRef(hit.object_ref);
+        if (game_object != nullptr && std::isfinite(strength)) {
+          PHY_IPhysicsController *controller = game_object->GetPhysicsController();
+          const MT_Vector3 center_of_mass = controller != nullptr ?
+                                                controller->GetCenterOfMassPosition() :
+                                                game_object->NodeGetWorldPosition();
+          /* A zero-length cast: each hit's cast position is the blast's center. */
+          const float distance = (center_of_mass - hit.cast_position).length();
+          push = strength * LN_ExplosionFalloff(distance, radius, linear);
+        }
+        value.list_value.push_back(MakeFloatValue(push));
       }
       return value;
     }
@@ -3950,20 +4518,21 @@ LN_Value LN_RuntimeTree::ValueKind(In &in,
       return list_value.list_value[size_t(index)];
     }
     case LN_ValueExpressionKind::ListRandomItem: {
-      const LN_Value list_value = in.Value(expression.input0, MakeNoneValue());
-      if (list_value.type != LN_ValueType::List || !list_value.exists ||
-          list_value.list_value.empty())
+      /* The place Int::ListRandomIndex of the same node gives (PickRandomListPlace); with
+       * Weights, a place past the list's end is none. */
+      LN_Value list_value;
+      const int32_t place = PickRandomListPlace(in,
+                                                expression.input0,
+                                                expression.input1,
+                                                expression.input2,
+                                                uint32_t(expression.value.int_value),
+                                                list_value);
+      if (place < 0 || list_value.type != LN_ValueType::List || !list_value.exists ||
+          size_t(place) >= list_value.list_value.size())
       {
         return fallback;
       }
-      const int32_t seed = in.Int(expression.input1, 0);
-      const size_t index = LN_RandomIndex(RandomNodeBits(uint32_t(expression.value.int_value),
-                                                         seed,
-                                                         0,
-                                                         RandomTick(context),
-                                                         m_randomStream),
-                                          list_value.list_value.size());
-      return list_value.list_value[index];
+      return list_value.list_value[size_t(place)];
     }
     case LN_ValueExpressionKind::ValueSwitchList: {
       const size_t pair_count = expression.input_indices.size() / 2;
@@ -4222,6 +4791,116 @@ LN_Value LN_RuntimeTree::ValueKind(In &in,
         entry = MakeFloatValue(current + amount);
       }
       return value;
+    }
+    case LN_ValueExpressionKind::ListInsert: {
+      /* As Set List Index: the list, the index, the value (LN_ListInsertPlace). */
+      LN_Value value;
+      value.type = LN_ValueType::List;
+      value.exists = true;
+      if (expression.input0 != LN_INVALID_INDEX) {
+        const LN_Value list_value = in.Value(expression.input0, MakeNoneValue());
+        if (list_value.type == LN_ValueType::List && list_value.exists) {
+          value.list_value = list_value.list_value;
+        }
+      }
+      const int32_t index = expression.input1 != LN_INVALID_INDEX ?
+                                in.Int(expression.input1, 0) :
+                                0;
+      const LN_Value item = expression.input2 != LN_INVALID_INDEX ?
+                                in.Value(expression.input2, MakeNoneValue()) :
+                                MakeNoneValue();
+      value.list_value.insert(
+          value.list_value.begin() +
+              std::ptrdiff_t(LN_ListInsertPlace(index, value.list_value.size())),
+          item);
+      return value;
+    }
+    case LN_ValueExpressionKind::ListReverse:
+    case LN_ValueExpressionKind::ListShuffle:
+    case LN_ValueExpressionKind::ListSlice: {
+      /* Read order: Slice's Length and Start, Shuffle's Seed, then the list. */
+      int32_t length = -1, start = 0, seed = 0;
+      if (expression.kind == LN_ValueExpressionKind::ListSlice) {
+        length = in.Int(expression.input2, -1);
+        start = in.Int(expression.input1, 0);
+      }
+      else if (expression.kind == LN_ValueExpressionKind::ListShuffle) {
+        seed = in.Int(expression.input1, 0);
+      }
+      LN_Value list = in.Value(expression.input0, MakeNoneValue());
+      if (list.type != LN_ValueType::List || !list.exists) {
+        list = LN_Value();
+        list.type = LN_ValueType::List;
+        list.exists = true;
+        return list;
+      }
+      std::vector<LN_Value> &items = list.list_value;
+      if (expression.kind == LN_ValueExpressionKind::ListReverse) {
+        std::reverse(items.begin(), items.end());
+      }
+      else if (expression.kind == LN_ValueExpressionKind::ListShuffle) {
+        /* Fisher-Yates, each swap its own number of the node's step (a salt per place). */
+        const uint32_t identity = uint32_t(expression.value.int_value);
+        const uint64_t tick = RandomTick(in.context);
+        for (size_t count = items.size(); count > 1; count--) {
+          const size_t other = LN_RandomIndex(
+              RandomNodeBits(identity, seed, uint32_t(count), tick, m_randomStream), count);
+          std::swap(items[count - 1], items[other]);
+        }
+      }
+      else {
+        int64_t first = 0, last = 0;
+        LN_ClampSlice(int64_t(items.size()), start, length, first, last);
+        items = std::vector<LN_Value>(items.begin() + first, items.begin() + last);
+      }
+      return list;
+    }
+    case LN_ValueExpressionKind::ObjectChildren: {
+      /* Read order: All Descendants, the parent (none: the owner). The scene graph's order,
+       * descendants depth first (a child, then its own children). */
+      const bool all = in.Bool(expression.input1, false);
+      KX_GameObject *parent = m_gameObject;
+      if (expression.input0 != LN_INVALID_INDEX) {
+        parent = ResolveObjectValue(in.Value(expression.input0, MakeNoneValue()));
+      }
+      LN_Value list;
+      list.type = LN_ValueType::List;
+      list.exists = true;
+      if (parent == nullptr) {
+        return list;
+      }
+      std::vector<KX_GameObject *> pending = parent->GetChildren();
+      std::reverse(pending.begin(), pending.end());
+      while (!pending.empty()) {
+        KX_GameObject *child = pending.back();
+        pending.pop_back();
+        if (child == nullptr) {
+          continue;
+        }
+        LN_Value value;
+        value.type = LN_ValueType::ObjectRef;
+        value.exists = true;
+        value.reference_name = child->GetName();
+        value.runtime_ref = MakeObjectRef(child, child->GetName());
+        list.list_value.push_back(std::move(value));
+        if (all) {
+          std::vector<KX_GameObject *> grandchildren = child->GetChildren();
+          pending.insert(pending.end(), grandchildren.rbegin(), grandchildren.rend());
+        }
+      }
+      return list;
+    }
+    case LN_ValueExpressionKind::TextSplit: {
+      /* Read order: the separator, the text. */
+      const std::string separator = in.String(expression.input1, "");
+      const std::string text = in.String(expression.input0, "");
+      LN_Value list;
+      list.type = LN_ValueType::List;
+      list.exists = true;
+      for (std::string &part : LN_TextSplit(text, separator)) {
+        list.list_value.push_back(MakeStringValue(part));
+      }
+      return list;
     }
     case LN_ValueExpressionKind::ListSort:
     case LN_ValueExpressionKind::ListFindIndex: {
@@ -6145,6 +6824,192 @@ void LN_RuntimeTree::QueryKind(In &in,
                            state.cached_result);
       break;
     }
+    case LN_QueryExpressionKind::NavmeshQuery: {
+      /* Navmesh Query (2026-11-18): the navmesh (a navmesh object, else the scene's own) read on
+       * any thread with this thread's query object. Read order: the navmesh object, From /
+       * Position, To, Radius. */
+      LN_QueryResult &result = state.cached_result;
+      result.physics_query = LN_PhysicsQueryResult();
+      result.physics_query.diagnostic_status = LN_QueryDiagnosticStatus::NoHit;
+      result.physics_query_results.clear();
+      result.vector_count = 0;
+      result.valid = true;
+      KX_NavMeshObject *navmesh_object = nullptr;
+      if (expression.input0 != LN_INVALID_INDEX) {
+        navmesh_object = dynamic_cast<KX_NavMeshObject *>(ReadObjectInput(in, expression.input0));
+      }
+      const MT_Vector3 from = in.Vector(expression.input1, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const MT_Vector3 to = in.Vector(expression.input2, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const float radius = in.Float(expression.float_expr_index, 10.0f);
+      const KX_NavMesh *navmesh = nullptr;
+      if (navmesh_object != nullptr) {
+        navmesh = navmesh_object->GetNavMesh();
+      }
+      else if (KX_Navigation *navigation = LN_QueryNavigation(m_gameObject)) {
+        navmesh = navigation->FindSceneNavMesh();
+      }
+      if (navmesh == nullptr) {
+        break;
+      }
+      LN_PhysicsQueryResult &out = result.physics_query;
+      switch (LN_NavmeshQueryMode(expression.int_value)) {
+        case LN_NavmeshQueryMode::FindPath:
+        case LN_NavmeshQueryMode::IsReachable: {
+          std::vector<MT_Vector3> corners;
+          bool complete = false;
+          if (navmesh->FindPath(from, to, corners, &complete)) {
+            float length = 0.0f;
+            for (size_t i = 1; i < corners.size(); i++) {
+              length += float((corners[i] - corners[i - 1]).length());
+            }
+            out.hit = complete;
+            out.hit_position = corners.back();
+            out.hit_distance = length;
+            if (LN_NavmeshQueryMode(expression.int_value) == LN_NavmeshQueryMode::FindPath) {
+              for (const MT_Vector3 &corner : corners) {
+                LN_PhysicsQueryResult point;
+                point.hit = true;
+                point.hit_position = corner;
+                result.physics_query_results.push_back(point);
+              }
+            }
+          }
+          break;
+        }
+        case LN_NavmeshQueryMode::NearestPoint:
+          out.hit = navmesh->NearestPoint(from, out.hit_position);
+          break;
+        case LN_NavmeshQueryMode::RandomPoint: {
+          /* A new point each step (or frame), the same on any thread (the node's random
+           * identity, the tick, the tree's stream). */
+          const uint64_t node = LN_RandomNodePart(
+              LN_GetRandomGameSeed(), uint32_t(expression.secondary_int_value), RandomTick(context));
+          const uint64_t seed = LN_RandomBits(node, 0, m_randomStream, 0);
+          out.hit = navmesh->RandomPoint(from, std::max(radius, 0.0f), seed, out.hit_position);
+          break;
+        }
+        case LN_NavmeshQueryMode::WalkableLine: {
+          /* Clear: the whole line walkable (Point its end); else Point where a wall stops it. */
+          MT_Vector3 start;
+          if (!navmesh->NearestPoint(from, start)) {
+            break;
+          }
+          float fraction = 1.0f;
+          MT_Vector3 hit = to, normal(0.0f, 0.0f, 0.0f);
+          const bool wall = navmesh->Raycast(from, to, fraction, hit, normal);
+          out.hit = !wall;
+          out.hit_position = hit;
+          out.hit_normal = normal;
+          out.hit_distance = float((to - from).length()) * (wall ? fraction : 1.0f);
+          out.hit_fraction = wall ? fraction : 1.0f;
+          break;
+        }
+      }
+      /* Navmesh Query's Point and Normal (PhysicsQueryEndPoint / PhysicsQueryDirection: no
+       * hit's gate) hold whether Found or not. */
+      out.end_position = out.hit_position;
+      out.ray_direction = out.hit_normal;
+      out.diagnostic_status = out.hit ? LN_QueryDiagnosticStatus::Hit :
+                                        LN_QueryDiagnosticStatus::NoHit;
+      break;
+    }
+    case LN_QueryExpressionKind::FindObjects: {
+      /* Find Objects (2026-11-16): the tick's poses and grids (LN_FindIndex, made before any tree
+       * recorded), so the answer is the same on any thread. Read order: the center object, the
+       * List, Radius, View Angle, Exclude Self, Only Visible. */
+      LN_QueryResult &result = state.cached_result;
+      result.physics_query = LN_PhysicsQueryResult();
+      result.physics_query.diagnostic_status = LN_QueryDiagnosticStatus::NoHit;
+      result.physics_query_results.clear();
+      result.vector_count = 0;
+      result.valid = false;
+      const LN_FindSource source = LN_FindSettingsSource(expression.int_value);
+      KX_GameObject *center_object = expression.input0 != LN_INVALID_INDEX ?
+                                         ReadObjectInput(in, expression.input0) :
+                                         m_gameObject;
+      /* (Read for every source: a constant order of reads; only List has one.) */
+      const LN_Value list = in.Value(expression.input1, MakeNoneValue());
+      const float radius = in.Float(expression.float_expr_index, 0.0f);
+      const float view_angle = in.Float(expression.secondary_float_expr_index,
+                                        2.0f * LN_MATH_PI);
+      const bool exclude_self = in.Bool(expression.bool_expr_index, true);
+      const bool only_visible = expression.secondary_bool_expr_index != LN_INVALID_INDEX &&
+                                in.Bool(expression.secondary_bool_expr_index, false);
+      const LN_FindIndex *index = context.find_index;
+      if (index == nullptr || center_object == nullptr || m_program == nullptr) {
+        break;
+      }
+      LN_FindRequest request;
+      MT_Vector3 forward;
+      if (!index->PoseOf(center_object, request.center, forward)) {
+        break; /* (an object made in this tick: it was not there when the tick started) */
+      }
+      request.forward = forward;
+      request.radius = radius;
+      request.cos_half_angle = view_angle >= 2.0f * LN_MATH_PI || !(view_angle == view_angle) ?
+                                   -2.0f :
+                                   std::cos(std::clamp(view_angle * 0.5f, 0.0f, LN_MATH_PI));
+      request.pick = LN_FindSettingsPick(expression.int_value);
+      request.need_count = expression.bool_value;
+      if (exclude_self) {
+        request.exclude_a = center_object;
+        request.exclude_b = m_gameObject;
+      }
+      if (request.pick == LN_FindPick::Random) {
+        request.random_unit = LN_RandomUnitFloat(
+            RandomNodeBits(uint32_t(expression.secondary_int_value),
+                           0,
+                           0,
+                           RandomTick(context),
+                           m_randomStream));
+      }
+      /* Only Visible: every object in range first, then the pick among the visible ones. */
+      const LN_FindPick pick = request.pick;
+      if (only_visible) {
+        request.pick = LN_FindPick::All;
+        request.need_count = true;
+      }
+      LN_FindAnswer answer;
+      if (source == LN_FindSource::List) {
+        std::vector<KX_GameObject *> objects;
+        if (list.type == LN_ValueType::List && list.exists) {
+          objects.reserve(list.list_value.size());
+          for (const LN_Value &item : list.list_value) {
+            if (KX_GameObject *object = ResolveObjectValue(item)) {
+              objects.push_back(object);
+            }
+          }
+        }
+        index->SearchObjects(objects, request, answer);
+      }
+      else {
+        const std::vector<LN_FindSourceKey> &sources = m_program->GetFindSources();
+        const uint32_t source_index = LN_FindSettingsSourceIndex(expression.int_value);
+        if (source_index < sources.size()) {
+          index->Search(index->FindSource(sources[source_index]), request, answer);
+        }
+      }
+      if (only_visible) {
+        FindOnlyVisible(center_object, request.center, pick, request.random_unit, answer);
+      }
+      const auto fill = [&](const LN_FindHit &hit, LN_PhysicsQueryResult &r_hit) {
+        r_hit.hit = true;
+        r_hit.diagnostic_status = LN_QueryDiagnosticStatus::Hit;
+        r_hit.object_ref = MakeObjectRef(hit.object, hit.object->GetName());
+        r_hit.hit_position = hit.position;
+        r_hit.hit_distance = hit.distance;
+      };
+      result.vector_count = answer.count;
+      if (answer.found) {
+        fill(answer.best, result.physics_query);
+        result.valid = true;
+      }
+      result.physics_query_results.resize(answer.list.size());
+      for (size_t k = 0; k < answer.list.size(); k++) {
+        fill(answer.list[k], result.physics_query_results[k]);
+      }
+      break;
+    }
     case LN_QueryExpressionKind::VectorAverage:
       VectorAverageKind(in, expression, state.cached_result);
       break;
@@ -6363,7 +7228,8 @@ const LN_QueryResult &LN_RuntimeTree::QueryEntry(In &in, const uint32_t expressi
                             expression.kind == LN_QueryExpressionKind::LineOfSight ||
                             expression.kind == LN_QueryExpressionKind::SweepObject ||
                             expression.kind == LN_QueryExpressionKind::KeepDistance ||
-                            expression.kind == LN_QueryExpressionKind::PointVelocity;
+                            expression.kind == LN_QueryExpressionKind::PointVelocity ||
+                            expression.kind == LN_QueryExpressionKind::NavmeshQuery;
   if (state.cached_result_distance_only && expression.kind == LN_QueryExpressionKind::DistanceBetween)
   {
     /* The last result of this query set its distance fields and nothing else. */

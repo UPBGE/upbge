@@ -98,6 +98,7 @@
 #include "KX_LodLevel.h"
 #include "KX_LodManager.h"
 #include "KX_MeshProxy.h"
+#include "KX_MotionState.h"
 #include "KX_NetworkMessageScene.h"  //Needed for sendMessage()
 #include "KX_NodeRelationships.h"
 #include "KX_PhysicsEngineEnums.h"
@@ -259,6 +260,7 @@ KX_GameObject::KX_GameObject()
       m_parentCompoundIntent(false),
       m_parentGhostIntent(false),
       m_parentPhysicsManaged(false),
+      m_compoundSetting(-1),
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -1964,6 +1966,20 @@ const KX_GameObject::RigidBodyConstraintData *KX_GameObject::FindRigidBodyConstr
   return constraint != m_rigidbodyConstraints.end() ? &*constraint : nullptr;
 }
 
+bool KX_GameObject::SetRigidBodyConstraintSettings(
+    const std::string &name, const PHY_RigidBodyConstraintSettings &settings)
+{
+  const auto constraint = std::find_if(
+      m_rigidbodyConstraints.begin(),
+      m_rigidbodyConstraints.end(),
+      [&](const RigidBodyConstraintData &data) { return data.m_name == name; });
+  if (constraint == m_rigidbodyConstraints.end()) {
+    return false;
+  }
+  constraint->m_settings = settings;
+  return true;
+}
+
 bool KX_GameObject::RemoveRigidBodyConstraint(const std::string &name)
 {
   const auto constraint = std::find_if(
@@ -2426,7 +2442,10 @@ KX_ParentResult KX_GameObject::SetParent(KX_GameObject *obj, const KX_ParentOpti
   PHY_IPhysicsController *compound_root_controller = nullptr;
   if (options.compound) {
     compound_root_controller = root_physics_controller(obj->GetSGNode());
-    if (m_pPhysicsController == nullptr || compound_root_controller == nullptr ||
+    /* (A part made when the game started has no body until it leaves its compound: RemoveParent
+     * below gives it one.) */
+    if ((m_pPhysicsController == nullptr && GetCompoundHolder() == nullptr) ||
+        compound_root_controller == nullptr ||
         compound_root_controller == m_pPhysicsController ||
         !compound_root_controller->IsCompound())
     {
@@ -2452,9 +2471,14 @@ KX_ParentResult KX_GameObject::SetParent(KX_GameObject *obj, const KX_ParentOpti
   }
   const bool physics_state_matches = m_pPhysicsController == nullptr ||
                                      m_pPhysicsController->IsTransformParentingActive();
-  if (same_direct_parent && same_relation && m_parentCompoundIntent == options.compound &&
+  /* A part made when the game started (no body) is in its holder's compound too. */
+  const bool in_compound = m_parentCompoundIntent ||
+                           (options.compound && m_pPhysicsController == nullptr &&
+                            same_direct_parent && same_relation && GetCompoundHolder() != nullptr);
+  if (same_direct_parent && same_relation && in_compound == options.compound &&
       physics_state_matches)
   {
+    m_compoundSetting = options.compound ? 1 : 0;
     return KX_ParentResult::Success;
   }
 
@@ -2588,6 +2612,8 @@ KX_ParentResult KX_GameObject::SetParent(KX_GameObject *obj, const KX_ParentOpti
     return KX_ParentResult::PhysicsTransitionFailed;
   }
   m_parentCompoundIntent = options.compound;
+  /* The Compound checkbox follows the last request (a holder turned on again takes it back). */
+  m_compoundSetting = options.compound ? 1 : 0;
 
   return KX_ParentResult::Success;
 }
@@ -2675,6 +2701,23 @@ void KX_GameObject::RemoveParent()
 {
   // check on valid node in case a python controller holds a reference to a deleted object
   if (GetSGNode()->GetSGParent()) {
+    /* A compound part leaves the shape of the object holding it (2026-11-18): one made when the
+     * game started has no body and gets one now (before, its part stayed: the holder kept
+     * colliding with it where it was, and the object collided with nothing); a part's holder
+     * may be below the topmost parent. */
+    if (KX_GameObject *holder = GetCompoundHolder()) {
+      if (m_pPhysicsController == nullptr && !MakeOwnBodyOfCompoundPart()) {
+        CM_Warning("object '" << GetName()
+                              << "' left its compound but no body of its own could be made for "
+                                 "it: it no longer collides");
+      }
+      if (m_pPhysicsController != nullptr) {
+        holder->GetPhysicsController()->RemoveCompoundChild(m_pPhysicsController);
+      }
+      else {
+        holder->GetPhysicsController()->RemoveCompoundChildObject(this);
+      }
+    }
     const bool physics_managed =
         m_parentPhysicsManaged ||
         (m_pPhysicsController != nullptr && m_pPhysicsController->IsTransformParentingActive());
@@ -2729,6 +2772,413 @@ void KX_GameObject::RemoveParent()
   }
   ClearParentIntent();
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Compound parts while playing (2026-11-18)
+ *
+ * The Compound checkbox as the converter reads it (BL_CreatePhysicsObjectNew): the topmost
+ * object with Compound holds, in its own body's shape, the parts of the objects below it with
+ * Compound. A part joined while playing keeps its body (the compound-parenting state a Set
+ * Parent with Compound gives); a part made when the game started has none until it leaves
+ * (MakeOwnBodyOfCompoundPart builds it as the converter builds an object outside a compound).
+ * Nothing here changes the scene graph: parents, the order of children and local poses stay.
+ * \{ */
+
+/** The topmost object above \a node whose body holds a compound, or null. */
+static KX_GameObject *compound_holder_above(const SG_Node *node)
+{
+  KX_GameObject *holder = nullptr;
+  for (const SG_Node *above = node->GetSGParent(); above != nullptr;
+       above = above->GetSGParent())
+  {
+    KX_GameObject *object = static_cast<KX_GameObject *>(above->GetSGClientObject());
+    PHY_IPhysicsController *controller = object != nullptr ? object->GetPhysicsController() :
+                                                             nullptr;
+    if (controller != nullptr && controller->IsCompound()) {
+      holder = object;
+    }
+  }
+  return holder;
+}
+
+/** The objects below \a node in the scene graph's order; another holder below and the objects
+ * below it are left out (its parts are its own). */
+static void collect_below_holder(const SG_Node *node, std::vector<KX_GameObject *> &r_objects)
+{
+  for (const SG_Node *child : node->GetSGChildren()) {
+    KX_GameObject *object = static_cast<KX_GameObject *>(child->GetSGClientObject());
+    if (object != nullptr) {
+      PHY_IPhysicsController *controller = object->GetPhysicsController();
+      if (controller != nullptr && controller->IsCompound()) {
+        continue;
+      }
+      r_objects.push_back(object);
+    }
+    collect_below_holder(child, r_objects);
+  }
+}
+
+bool KX_GameObject::GetCompoundSetting() const
+{
+  if (m_compoundSetting >= 0) {
+    return m_compoundSetting != 0;
+  }
+  return m_pBlenderObject != nullptr && (m_pBlenderObject->gameflag & OB_CHILD) != 0;
+}
+
+KX_GameObject *KX_GameObject::GetCompoundHolder()
+{
+  if (m_pSGNode == nullptr) {
+    return nullptr;
+  }
+  for (SG_Node *node = m_pSGNode->GetSGParent(); node != nullptr; node = node->GetSGParent()) {
+    KX_GameObject *object = static_cast<KX_GameObject *>(node->GetSGClientObject());
+    PHY_IPhysicsController *controller = object != nullptr ? object->GetPhysicsController() :
+                                                             nullptr;
+    if (controller != nullptr && controller->IsCompound() &&
+        controller->OwnsCompoundChildObject(this))
+    {
+      return object;
+    }
+  }
+  return nullptr;
+}
+
+bool KX_GameObject::MakeOwnBodyOfCompoundPart()
+{
+  KX_Scene *scene = GetScene();
+  PHY_IPhysicsEnvironment *environment = scene != nullptr ? scene->GetPhysicsEnvironment() :
+                                                            nullptr;
+  if (environment == nullptr || m_pPhysicsController != nullptr) {
+    return m_pPhysicsController != nullptr;
+  }
+  return environment->CreateBodyOfCompoundPart(this, scene, new KX_MotionState(m_pSGNode)) &&
+         m_pPhysicsController != nullptr;
+}
+
+bool KX_GameObject::FollowParentWithOwnBody()
+{
+  /* As a Set Parent without Compound leaves the body (Jolt's transform parenting: a Dynamic one
+   * stops colliding, the others follow as kinematic colliders), else the older suspension. */
+  if (m_pPhysicsController == nullptr || m_pSGNode->GetSGParent() == nullptr) {
+    return false;
+  }
+  m_parentCompoundIntent = false;
+  m_parentGhostIntent = false;
+  m_parentPhysicsManaged = false;
+  if (m_pPhysicsController->BeginTransformParenting()) {
+    m_parentPhysicsManaged = true;
+    return true;
+  }
+  if (!m_pPhysicsController->IsKinematic()) {
+    m_pPhysicsController->SuspendDynamics(false);
+  }
+  return false;
+}
+
+/** Groups (object, holder) pairs by holder, holders in their first pair's order. */
+static std::vector<std::pair<KX_GameObject *, std::vector<KX_GameObject *>>> group_by_holder(
+    const std::vector<std::pair<KX_GameObject *, KX_GameObject *>> &parts)
+{
+  std::vector<std::pair<KX_GameObject *, std::vector<KX_GameObject *>>> groups;
+  std::unordered_map<KX_GameObject *, size_t> group_of;
+  for (const auto &[object, holder] : parts) {
+    const auto [item, added] = group_of.emplace(holder, groups.size());
+    if (added) {
+      groups.emplace_back(holder, std::vector<KX_GameObject *>());
+    }
+    groups[item->second].second.push_back(object);
+  }
+  return groups;
+}
+
+std::string KX_GameObject::LeaveCompounds(
+    const std::vector<std::pair<KX_GameObject *, KX_GameObject *>> &parts,
+    std::vector<KX_GameObject *> &r_stayed)
+{
+  std::string first_failure;
+  /* A part made when the game started gets its body first (where it is now); nothing changes
+   * for one whose body cannot be made. */
+  std::vector<std::pair<KX_GameObject *, KX_GameObject *>> leaving;
+  std::unordered_set<KX_GameObject *> had_body;
+  for (const auto &[object, holder] : parts) {
+    if (object->m_pPhysicsController != nullptr) {
+      had_body.insert(object);
+    }
+    else if (!object->MakeOwnBodyOfCompoundPart()) {
+      if (first_failure.empty()) {
+        first_failure = "object '" + object->GetName() +
+                        "': no body of its own could be made for it (Max Bodies?): it stays a "
+                        "part";
+      }
+      r_stayed.push_back(object);
+      continue;
+    }
+    leaving.emplace_back(object, holder);
+  }
+  /* One new shape per holder, then each body follows its parent as without Compound. */
+  for (const auto &[holder, objects] : group_by_holder(leaving)) {
+    holder->GetPhysicsController()->RemoveCompoundChildObjects(objects);
+  }
+  for (const auto &[object, holder] : leaving) {
+    PHY_IPhysicsController *controller = object->m_pPhysicsController;
+    if (had_body.count(object) != 0) {
+      if (object->m_parentPhysicsManaged || controller->IsTransformParentingActive()) {
+        controller->EndTransformParenting();
+      }
+      else {
+        controller->RestoreDynamics();
+      }
+    }
+    object->FollowParentWithOwnBody();
+  }
+  return first_failure;
+}
+
+std::string KX_GameObject::JoinCompounds(
+    const std::vector<std::pair<KX_GameObject *, KX_GameObject *>> &parts)
+{
+  std::string first_failure;
+  const auto note = [&](const std::string &failure) {
+    if (first_failure.empty()) {
+      first_failure = failure;
+    }
+  };
+  std::vector<std::pair<KX_GameObject *, KX_GameObject *>> joining;
+  for (const auto &[object, holder] : parts) {
+    PHY_IPhysicsController *controller = object->m_pPhysicsController;
+    if (controller == nullptr) {
+      note("object '" + object->GetName() +
+           "' has no collision shape (No Collision): there is nothing to join its compound");
+      continue;
+    }
+    if (dynamic_cast<KX_NormalParentRelation *>(object->m_pSGNode->GetParentRelation()) ==
+        nullptr)
+    {
+      note("object '" + object->GetName() +
+           "' is parented to a bone: it cannot be part of a compound");
+      continue;
+    }
+    /* The body leaves the state that has it follow its parent... */
+    if (object->m_parentPhysicsManaged || controller->IsTransformParentingActive()) {
+      controller->EndTransformParenting();
+    }
+    else {
+      controller->RestoreDynamics();
+    }
+    object->m_parentPhysicsManaged = false;
+    object->m_parentCompoundIntent = false;
+    object->m_parentGhostIntent = false;
+    /* ...and enters the compound's (no collision of its own: its shape is the holder's part). */
+    if (!controller->SupportsCompoundParenting() || !controller->BeginCompoundParenting()) {
+      object->FollowParentWithOwnBody();
+      note("object '" + object->GetName() +
+           "': its body cannot be part of a compound (a soft body, a body with constraints, or "
+           "a compound itself)");
+      continue;
+    }
+    joining.emplace_back(object, holder);
+  }
+  /* One new shape per holder. */
+  for (const auto &[holder, objects] : group_by_holder(joining)) {
+    std::vector<PHY_IPhysicsController *> controllers;
+    controllers.reserve(objects.size());
+    for (KX_GameObject *object : objects) {
+      controllers.push_back(object->m_pPhysicsController);
+    }
+    std::vector<bool> added;
+    holder->GetPhysicsController()->AddCompoundChildren(controllers, added);
+    for (size_t index = 0; index < objects.size(); index++) {
+      KX_GameObject *object = objects[index];
+      if (added[index]) {
+        object->m_parentPhysicsManaged = true;
+        object->m_parentCompoundIntent = true;
+        continue;
+      }
+      object->m_pPhysicsController->EndTransformParenting();
+      object->FollowParentWithOwnBody();
+      note("object '" + object->GetName() + "': '" + holder->GetName() +
+           "' cannot take its shape (a moving compound takes no Triangle Mesh: give it Convex "
+           "Hull bounds)");
+    }
+  }
+  return first_failure;
+}
+
+namespace {
+
+/** One object of a hierarchy: its compound now and as the checkboxes want it. */
+struct CompoundPlan {
+  KX_GameObject *object = nullptr;
+  /** The object whose shape holds its part now / wanted (null: none). */
+  KX_GameObject *holder_now = nullptr;
+  KX_GameObject *holder_wanted = nullptr;
+  /** Whether its body holds parts now / wanted. */
+  bool holds_now = false;
+  bool holds_wanted = false;
+};
+
+/** The converter's rule (BL_CreatePhysicsObjectNew) over \a node and the objects below it: an
+ * object with Compound and a solid body (or a part without one) is a part of the topmost such
+ * object above it, else it holds the parts below it. */
+void plan_compounds(const SG_Node *node,
+                    KX_GameObject *holder_above,
+                    std::vector<CompoundPlan> &plans)
+{
+  KX_GameObject *object = static_cast<KX_GameObject *>(node->GetSGClientObject());
+  KX_GameObject *holder_below = holder_above;
+  if (object != nullptr) {
+    CompoundPlan plan;
+    plan.object = object;
+    plan.holder_now = object->GetCompoundHolder();
+    PHY_IPhysicsController *controller = object->GetPhysicsController();
+    plan.holds_now = controller != nullptr && controller->IsCompound();
+    const bool solid = plan.holder_now != nullptr ||
+                       (controller != nullptr && !controller->IsSoftBody());
+    if (object->GetCompoundSetting() && solid) {
+      plan.holder_wanted = holder_above;
+      plan.holds_wanted = holder_above == nullptr;
+      if (plan.holds_wanted) {
+        holder_below = object;
+      }
+    }
+    plans.push_back(plan);
+  }
+  for (const SG_Node *child : node->GetSGChildren()) {
+    plan_compounds(child, holder_below, plans);
+  }
+}
+
+}  // namespace
+
+std::string KX_GameObject::SetCompoundEnabled(const bool compound)
+{
+  if (m_pSGNode == nullptr) {
+    return "the object is in no scene";
+  }
+  /* (No scene: the unit rigs, whose bodies are Jolt's.) */
+  KX_Scene *scene = GetScene();
+  if (scene != nullptr && (scene->GetBlenderScene() == nullptr ||
+                           scene->GetBlenderScene()->gm.physicsEngine != UseJolt))
+  {
+    return "changing a compound while playing needs Jolt physics";
+  }
+  m_compoundSetting = compound ? 1 : 0;
+
+  /* The whole hierarchy as the converter would build it from the checkboxes now, whatever order
+   * they were turned in (the topmost object with Compound holds; a holder below it gives its
+   * parts over). Parts leave first, holders change, then parts join. */
+  std::vector<CompoundPlan> plans;
+  plan_compounds(m_pSGNode->GetRootSGParent(), nullptr, plans);
+  std::string first_failure;
+  const auto note = [&](const std::string &failure) {
+    if (first_failure.empty()) {
+      first_failure = failure;
+    }
+  };
+  /* (A part that could not leave keeps its holder a holder and joins nothing else.) */
+  std::vector<std::pair<KX_GameObject *, KX_GameObject *>> leaving;
+  for (const CompoundPlan &plan : plans) {
+    if (plan.holder_now != nullptr && plan.holder_now != plan.holder_wanted) {
+      leaving.emplace_back(plan.object, plan.holder_now);
+    }
+  }
+  std::vector<KX_GameObject *> stayed;
+  note(LeaveCompounds(leaving, stayed));
+  std::vector<KX_GameObject *> holders_kept;
+  for (CompoundPlan &plan : plans) {
+    if (std::find(stayed.begin(), stayed.end(), plan.object) != stayed.end()) {
+      holders_kept.push_back(plan.holder_now);
+      plan.holder_wanted = plan.holder_now;
+    }
+  }
+  for (const CompoundPlan &plan : plans) {
+    PHY_IPhysicsController *controller = plan.object->GetPhysicsController();
+    if (plan.holds_now && !plan.holds_wanted &&
+        std::find(holders_kept.begin(), holders_kept.end(), plan.object) == holders_kept.end() &&
+        !controller->SetCompoundRoot(false))
+    {
+      note("object '" + plan.object->GetName() + "': its shape could not be made its own again");
+    }
+  }
+  for (const CompoundPlan &plan : plans) {
+    /* (No controller: a part whose own body could not be made, said above.) */
+    PHY_IPhysicsController *controller = plan.object->GetPhysicsController();
+    if (plan.holds_wanted && !plan.holds_now && controller != nullptr &&
+        !controller->SetCompoundRoot(true))
+    {
+      note("object '" + plan.object->GetName() + "': its body cannot hold a compound");
+    }
+  }
+  std::vector<std::pair<KX_GameObject *, KX_GameObject *>> joining;
+  for (const CompoundPlan &plan : plans) {
+    PHY_IPhysicsController *holder_controller = plan.holder_wanted != nullptr ?
+                                                    plan.holder_wanted->GetPhysicsController() :
+                                                    nullptr;
+    if (holder_controller != nullptr && holder_controller->IsCompound() &&
+        plan.holder_now != plan.holder_wanted)
+    {
+      joining.emplace_back(plan.object, plan.holder_wanted);
+    }
+  }
+  note(JoinCompounds(joining));
+
+  /* This object's own checkbox on with nothing it could be. */
+  if (compound && m_pPhysicsController == nullptr && GetCompoundHolder() == nullptr) {
+    note("object '" + GetName() +
+         "' has no collision shape (No Collision): it can neither hold nor be part of a "
+         "compound");
+  }
+  return first_failure;
+}
+
+void KX_GameObject::LeaveCompoundForRemoval()
+{
+  LeaveCompoundsForRemoval({this});
+}
+
+void KX_GameObject::LeaveCompoundsForRemoval(const std::vector<KX_GameObject *> &objects)
+{
+  /* Only where a holder above stays (the holder's own removal takes its parts with it); the
+   * objects below a removed one go with it. One new shape per holder (an explosion removing
+   * many parts at once). */
+  std::vector<std::pair<KX_GameObject *, KX_GameObject *>> parts;
+  std::unordered_set<KX_GameObject *> seen;
+  for (KX_GameObject *object : objects) {
+    if (object == nullptr || object->m_pSGNode == nullptr) {
+      continue;
+    }
+    KX_GameObject *holder = compound_holder_above(object->m_pSGNode);
+    if (holder == nullptr) {
+      continue;
+    }
+    std::vector<KX_GameObject *> leaving = {object};
+    collect_below_holder(object->m_pSGNode, leaving);
+    for (KX_GameObject *part : leaving) {
+      if (seen.insert(part).second) {
+        parts.emplace_back(part, holder);
+      }
+    }
+  }
+  for (const auto &[holder, leaving] : group_by_holder(parts)) {
+    holder->GetPhysicsController()->RemoveCompoundChildObjects(leaving);
+  }
+}
+
+void KX_GameObject::FinishCompoundCopy(const KX_GameObject &source)
+{
+  /* A copy of a part with a body that was in its holder's compound: its body in the compound's
+   * state (the copy's holder holds its part already: RebindCompoundChildObjects), not the old
+   * suspension a copied child gets. */
+  if (!source.m_parentCompoundIntent || m_pPhysicsController == nullptr) {
+    return;
+  }
+  if (KX_GameObject *holder = GetCompoundHolder()) {
+    JoinCompounds({{this, holder}});
+  }
+}
+
+/** \} */
 
 namespace {
 
@@ -2982,6 +3432,37 @@ const std::string KX_GameObject::GetActionName(short layer)
 void KX_GameObject::SetActionFrame(short layer, float frame)
 {
   GetActionManager()->SetActionFrame(layer, frame);
+}
+
+void KX_GameObject::SetActionSpeed(short layer, float speed)
+{
+  /* (No action manager: no action plays, nothing to change; none is made.) */
+  if (BL_ActionManager *manager = GetActionManagerNoCreate()) {
+    manager->SetActionSpeed(layer, speed);
+  }
+}
+
+void KX_GameObject::SetActionLayerWeight(short layer, float layer_weight)
+{
+  if (BL_ActionManager *manager = GetActionManagerNoCreate()) {
+    manager->SetActionLayerWeight(layer, layer_weight);
+  }
+}
+
+bool KX_GameObject::ReadActionLayer(const short layer,
+                                    std::string &r_name,
+                                    float &r_frame,
+                                    float &r_start,
+                                    float &r_end,
+                                    short &r_play_mode)
+{
+  BL_ActionManager *manager = GetActionManagerNoCreate();
+  if (manager == nullptr || !manager->GetActionPlayback(layer, r_start, r_end, r_play_mode)) {
+    return false;
+  }
+  r_name = manager->GetActionName(layer);
+  r_frame = manager->GetActionFrame(layer);
+  return true;
 }
 
 blender::bAction *KX_GameObject::GetCurrentAction(short layer)

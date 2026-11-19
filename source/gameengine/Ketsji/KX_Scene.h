@@ -108,6 +108,7 @@ class KX_2DFilterManager;
 class BL_SceneConverter;
 struct KX_ClientObjectInfo;
 class KX_ObstacleSimulation;
+class KX_Navigation;
 class LN_Manager;
 // struct TaskPool; removed to avoid ambiguity
 
@@ -634,6 +635,8 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   KX_2DFilterManager *m_filterManager;
 
   KX_ObstacleSimulation *m_obstacleSimulation;
+  /** NPC navigation (2026-11-18): navmeshes, agents, the step after the Logic Nodes flush. */
+  KX_Navigation *m_navigation = nullptr;
 
   /**
    * LOD Hysteresis settings
@@ -1070,6 +1073,9 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
                                   std::unordered_map<KX_GameObject *, KX_GameObject *> *
                                       created_mapping = nullptr);
   KX_GameObject *AddNodeReplicaObject(SG_Node *node, KX_GameObject *gameobj);
+  /** The compounds of a copied hierarchy (m_logicHierarchicalGameObjects) name the copies of
+   * their parts, and copied parts that joined while playing are in them again (2026-11-18). */
+  void RebindCopiedCompounds();
   void RemoveNodeDestructObject(SG_Node *node, KX_GameObject *gameobj);
   void RemoveObject(KX_GameObject *gameobj,
                     KX_ObjectRemovalReason reason = KX_ObjectRemovalReason::SystemCleanup);
@@ -1320,6 +1326,13 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   {
     return m_obstacleSimulation;
   }
+  KX_Navigation *GetNavigation()
+  {
+    return m_navigation;
+  }
+  /** Navigation (2026-11-18): a static level piece added or removed while playing builds the
+   * scene navmesh's tiles it touches again. */
+  void NoteNavigationLevelPiece(KX_GameObject *gameobj);
 
   /**  Inherited from EXP_Value -- returns the name of this object. */
   virtual std::string GetName();

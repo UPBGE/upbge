@@ -5,8 +5,12 @@
 #include "testing/testing.h"
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
+#include <fstream>
+#include <functional>
 #include <string>
+#include <thread>
 #include <utility>
 
 #include "EXP_FloatValue.h"
@@ -135,6 +139,70 @@ TEST(LN_GameState, UsesOriginalRuntimePathWhenMainPathIsUnavailable)
   EXPECT_TRUE(LN_GameStateService::ResolveFilePath(
       3, "slot.json", kSceneUuid, std::string(), filepath, error));
   EXPECT_EQ(std::filesystem::path(filepath), project_file.parent_path() / "slot.json");
+}
+
+/* Save Slot (2026-11-17): Exists sees the file, and a queued Delete at once; the Delete runs on
+ * the save worker (in order with the requests before it) and removes the file; an empty slot
+ * deletes as well; a node's second request waits for its first; a slot that cannot be resolved
+ * holds nothing. */
+TEST(LN_GameState, SaveSlotExistsAndDeleteFollowTheRequests)
+{
+  RuntimePathScope restore_paths;
+  const std::filesystem::path project_file = TestProjectFile();
+  KX_SetMainPath(project_file.string());
+  KX_SetOrigPath(std::string());
+  const std::filesystem::path folder = project_file.parent_path() / "save_slot_test";
+  std::error_code error_code;
+  std::filesystem::remove_all(folder, error_code);
+  ASSERT_TRUE(std::filesystem::create_directories(folder, error_code)) << error_code.message();
+  const std::string path = folder.string();
+  const std::filesystem::path slot3 = folder / "save3.json";
+  std::ofstream(slot3) << "{}";
+  {
+    LN_GameStateService service;
+    EXPECT_TRUE(service.SlotExists(3, path));
+    EXPECT_FALSE(service.SlotExists(4, path));
+    EXPECT_FALSE(service.SlotExists(-1, path));
+    /* (No scene: the default path has no Scene UUID to name its folder.) */
+    EXPECT_FALSE(service.SlotExists(3, std::string()));
+
+    LN_GameStateCompletionTarget target;
+    target.runtime_tree_id = LN_RuntimeTreeId{1, 1};
+    target.expression_index = 0;
+    std::string error;
+    ASSERT_TRUE(service.RequestDelete(3, path, target, error)) << error;
+    /* Asked: empty at once, whatever the worker has done yet. */
+    EXPECT_FALSE(service.SlotExists(3, path));
+    /* The same node again before its answer was taken: refused. */
+    EXPECT_FALSE(service.RequestDelete(3, path, target, error));
+    /* Another node's delete of an empty slot is fine. */
+    LN_GameStateCompletionTarget other = target;
+    other.expression_index = 1;
+    EXPECT_TRUE(service.RequestDelete(4, path, other, error)) << error;
+    /* A third node's delete of slot 3 waits behind the others (the worker's answers are not
+     * taken here): the slot is empty for it too. */
+    LN_GameStateCompletionTarget third = target;
+    third.expression_index = 2;
+    EXPECT_TRUE(service.RequestDelete(3, path, third, error)) << error;
+    EXPECT_FALSE(service.SlotExists(3, path));
+    bool gone = false;
+    for (int wait = 0; wait < 500 && !gone; wait++) {
+      gone = !std::filesystem::exists(slot3);
+      if (!gone) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      }
+    }
+    EXPECT_TRUE(gone) << "the worker did not delete " << slot3;
+    EXPECT_FALSE(service.SlotExists(3, path));
+  }
+  {
+    /* A fresh service sees only the files. */
+    std::ofstream(folder / "save5.json") << "{}";
+    LN_GameStateService service;
+    EXPECT_FALSE(service.SlotExists(3, path));
+    EXPECT_TRUE(service.SlotExists(5, path));
+  }
+  std::filesystem::remove_all(folder, error_code);
 }
 
 TEST(LN_GameState, RejectsInvalidSlotAndEmbeddedNullPath)
@@ -461,6 +529,156 @@ TEST(LN_GameState, CurrentCheckpointRoundTripsCollectionMemberships)
   std::string rewritten;
   ASSERT_EQ(encode_checkpoint(decoded, rewritten, error), LN_GameStateResult::Success) << error;
   EXPECT_EQ(rewritten, contents);
+}
+
+/* A held navigation order (Navigate's Until Arrived, 2026-11-18): every field round-trips, the
+ * objects it names by identity or by name; a record without one writes none. */
+TEST(LN_GameState, CurrentCheckpointRoundTripsNavigationOrders)
+{
+  using namespace upbge::logic_nodes::game_state;
+
+  Checkpoint checkpoint;
+  checkpoint.scene_uuid = kSceneUuid;
+  ObjectState courier = StructuralObject("11111111-1111-4111-8111-111111111111", "Courier");
+  NavigationOrderState &order = courier.navigation_order;
+  courier.has_navigation_order = true;
+  order.mode = 5;
+  order.destination = MT_Vector3(1.5f, -2.25f, 0.125f);
+  order.offset = MT_Vector3(-2.0f, -1.0f, 0.0f);
+  order.target = {"22222222-2222-4222-8222-222222222222", false};
+  order.navmesh = {"Navmesh", true};
+  order.rotating = {"", false};
+  order.speed = 3.5f;
+  order.arrive_distance = 0.75f;
+  order.radius = 12.0f;
+  order.separation = 0.5f;
+  order.alignment = 1.5f;
+  order.cohesion = 2.0f;
+  order.rot_speed = 8.0f;
+  order.group = 3;
+  order.priority = 80;
+  order.rot_axis = 2;
+  order.front_axis = 4;
+  order.goal = true;
+  order.use_scene_navmesh = false;
+  order.move_dynamic = true;
+  order.avoid = false;
+  order.visualize = true;
+  order.look_at = true;
+  order.seed = 0xfedcba9876543210ull;
+  ObjectState leader = StructuralObject("22222222-2222-4222-8222-222222222222", "Leader");
+  /* Not a live Save Object State record (a removed object's): no order is written. */
+  ObjectState keeper;
+  keeper.persistence_id = "44444444-4444-4444-8444-444444444444";
+  keeper.name = "Keeper";
+  keeper.has_existence = true;
+  keeper.exists = false;
+  keeper.has_navigation_order = true;
+  ObjectState copy = StructuralObject("33333333-3333-4333-8333-333333333333", "Courier Copy");
+  copy.spawned = true;
+  copy.source_id = courier.persistence_id;
+  copy.has_navigation_order = true;
+  copy.navigation_order.mode = 1;
+  copy.navigation_order.seed = 7;
+  checkpoint.authored_objects.push_back(std::move(courier));
+  checkpoint.authored_objects.push_back(std::move(leader));
+  checkpoint.authored_objects.push_back(std::move(keeper));
+  checkpoint.spawned_instances.push_back(std::move(copy));
+
+  std::string contents;
+  std::string error;
+  ASSERT_EQ(encode_checkpoint(checkpoint, contents, error), LN_GameStateResult::Success) << error;
+  size_t fields = 0;
+  for (size_t at = contents.find("\"navigation\""); at != std::string::npos;
+       at = contents.find("\"navigation\"", at + 1))
+  {
+    fields++;
+  }
+  EXPECT_EQ(fields, 2u);
+
+  Checkpoint decoded;
+  ASSERT_EQ(decode_checkpoint(contents, decoded, error), LN_GameStateResult::Success) << error;
+  ASSERT_EQ(decoded.authored_objects.size(), 3u);
+  ASSERT_TRUE(decoded.authored_objects[0].has_navigation_order);
+  EXPECT_FALSE(decoded.authored_objects[1].has_navigation_order);
+  EXPECT_FALSE(decoded.authored_objects[2].has_navigation_order);
+  const NavigationOrderState &read = decoded.authored_objects[0].navigation_order;
+  EXPECT_EQ(read.mode, 5);
+  EXPECT_EQ(read.destination, MT_Vector3(1.5f, -2.25f, 0.125f));
+  EXPECT_EQ(read.offset, MT_Vector3(-2.0f, -1.0f, 0.0f));
+  EXPECT_EQ(read.target.text, "22222222-2222-4222-8222-222222222222");
+  EXPECT_FALSE(read.target.by_name);
+  EXPECT_EQ(read.navmesh.text, "Navmesh");
+  EXPECT_TRUE(read.navmesh.by_name);
+  EXPECT_TRUE(read.rotating.text.empty());
+  EXPECT_EQ(read.speed, 3.5f);
+  EXPECT_EQ(read.arrive_distance, 0.75f);
+  EXPECT_EQ(read.radius, 12.0f);
+  EXPECT_EQ(read.separation, 0.5f);
+  EXPECT_EQ(read.alignment, 1.5f);
+  EXPECT_EQ(read.cohesion, 2.0f);
+  EXPECT_EQ(read.rot_speed, 8.0f);
+  EXPECT_EQ(read.group, 3);
+  EXPECT_EQ(read.priority, 80);
+  EXPECT_EQ(read.rot_axis, 2);
+  EXPECT_EQ(read.front_axis, 4);
+  EXPECT_TRUE(read.goal);
+  EXPECT_FALSE(read.use_scene_navmesh);
+  EXPECT_TRUE(read.move_dynamic);
+  EXPECT_FALSE(read.avoid);
+  EXPECT_TRUE(read.visualize);
+  EXPECT_TRUE(read.look_at);
+  EXPECT_EQ(read.seed, 0xfedcba9876543210ull);
+  ASSERT_EQ(decoded.spawned_instances.size(), 1u);
+  ASSERT_TRUE(decoded.spawned_instances[0].has_navigation_order);
+  EXPECT_EQ(decoded.spawned_instances[0].navigation_order.mode, 1);
+  EXPECT_EQ(decoded.spawned_instances[0].navigation_order.seed, 7u);
+
+  std::string rewritten;
+  ASSERT_EQ(encode_checkpoint(decoded, rewritten, error), LN_GameStateResult::Success) << error;
+  EXPECT_EQ(rewritten, contents);
+}
+
+TEST(LN_GameState, CurrentCheckpointRejectsInvalidNavigationOrders)
+{
+  using namespace upbge::logic_nodes::game_state;
+
+  const auto decode_with = [](const std::function<void(ObjectState &)> &edit,
+                              std::string &r_error) {
+    Checkpoint checkpoint;
+    checkpoint.scene_uuid = kSceneUuid;
+    ObjectState object = StructuralObject("11111111-1111-4111-8111-111111111111", "Courier");
+    object.has_navigation_order = true;
+    edit(object);
+    checkpoint.authored_objects.push_back(std::move(object));
+    std::string contents;
+    if (encode_checkpoint(checkpoint, contents, r_error) != LN_GameStateResult::Success) {
+      return LN_GameStateResult::InternalError;
+    }
+    Checkpoint decoded;
+    return decode_checkpoint(std::move(contents), decoded, r_error);
+  };
+  std::string error;
+  EXPECT_EQ(decode_with([](ObjectState &) {}, error), LN_GameStateResult::Success) << error;
+  EXPECT_EQ(decode_with([](ObjectState &o) { o.navigation_order.mode = 7; }, error),
+            LN_GameStateResult::CorruptData);
+  EXPECT_NE(error.find("out of range"), std::string::npos) << error;
+  EXPECT_EQ(decode_with([](ObjectState &o) { o.navigation_order.priority = 101; }, error),
+            LN_GameStateResult::CorruptData);
+  EXPECT_EQ(decode_with([](ObjectState &o) { o.navigation_order.speed = -1.0f; }, error),
+            LN_GameStateResult::CorruptData);
+  EXPECT_EQ(decode_with([](ObjectState &o) { o.navigation_order.front_axis = 6; }, error),
+            LN_GameStateResult::CorruptData);
+  /* A name must be text, an identity a canonical UUID. */
+  EXPECT_EQ(decode_with([](ObjectState &o) { o.navigation_order.target = {"Leader", false}; },
+                        error),
+            LN_GameStateResult::CorruptData);
+  EXPECT_EQ(decode_with([](ObjectState &o) { o.navigation_order.target = {"", true}; }, error),
+            LN_GameStateResult::CorruptData);
+  EXPECT_EQ(decode_with([](ObjectState &o) { o.navigation_order.target = {"Leader", true}; },
+                        error),
+            LN_GameStateResult::Success)
+      << error;
 }
 
 TEST(LN_GameState, CurrentCheckpointRejectsInvalidCollectionMemberships)

@@ -26,8 +26,16 @@ static constexpr int tween_type_quaternion_slerp = 3;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Execution>("Forward"_ustr);
-  b.add_input<decl::Execution>("Back"_ustr);
+  b.add_input<decl::Execution>("Forward"_ustr)
+      .description(
+          "A pulse plays it toward To; one is enough, it plays on to the end. Any flow output "
+          "works (a key, Boolean Edge, Branch, Flip-Flop, Sequence...); the latest of Forward "
+          "and Back wins. A key's or sensor's pulse moves it in that step, a route's (Branch, "
+          "Sequence, a node's Done) from the next");
+  b.add_input<decl::Execution>("Back"_ustr)
+      .description(
+          "A pulse plays it back toward From; one is enough. Forward and Back turn it round "
+          "while it plays");
   b.add_input<decl::Float>("From"_ustr, "FromFloat"_ustr).default_value(0.0f);
   b.add_input<decl::Float>("To"_ustr, "ToFloat"_ustr).default_value(1.0f);
   b.add_input<decl::Vector>("From"_ustr, "FromVector"_ustr).default_value(float3(0.0f));
@@ -44,6 +52,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Result"_ustr, "ResultVector"_ustr);
   b.add_output<decl::Rotation>("Result"_ustr, "ResultRotation"_ustr);
   b.add_output<decl::Float>("Factor"_ustr);
+  /* (2026-11-17) Apply To's object. */
+  b.add_input<decl::Object>("Object"_ustr)
+      .description("The object Apply To writes the Result to; empty: the tree's own object");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -56,13 +67,26 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
   if (RNA_boolean_get(ptr, "on_demand")) {
     layout.prop(ptr, "instant_reset", UI_ITEM_NONE, "Instant Reset", ICON_NONE);
   }
-  template_curve_mapping(&layout, ptr, "mapping", 0, false, false, false, false, false);
+  /* (2026-11-17) Easing presets and Repeat (custom2 bits 2-9, LN_Easing.h). */
+  layout.prop(ptr, "repeat", UI_ITEM_NONE, "", ICON_NONE);
+  if (RNA_enum_get(ptr, "value_type") != tween_type_float) {
+    layout.prop(ptr, "apply_to", UI_ITEM_NONE, "", ICON_NONE);
+  }
+  layout.prop(ptr, "easing", UI_ITEM_NONE, "", ICON_NONE);
+  const int easing = RNA_enum_get(ptr, "easing");
+  if (easing != (0 << 2) && easing != (1 << 2)) {
+    layout.prop(ptr, "ease", UI_ITEM_NONE, "", ICON_NONE);
+  }
+  if (easing == 0) {
+    template_curve_mapping(&layout, ptr, "mapping", 0, false, false, false, false, false);
+  }
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = tween_type_float;
-  node->custom2 = 1;
+  /* On Demand; the curve, In Out (when a preset is picked), once. */
+  node->custom2 = 1 | (2 << 6);
   node->storage = logic::curve_mapping_create_default();
 }
 
@@ -100,6 +124,17 @@ static void node_update(bNodeTree *ntree, bNode *node)
   set_input("ToRotation", rotation_type);
   set_input("Duration", true);
   set_input("Ignore Timescale", true);
+  /* Apply To (custom2 bits 10-12): only what the type can be (a Vector: positions and scales, a
+   * Rotation: rotations); another type's choice is cleared. */
+  const int apply_to = (node->custom2 >> 10) & 7;
+  const bool apply_fits = apply_to == 0 ||
+                          (vector_type && (apply_to == 1 || apply_to == 2 || apply_to == 5 ||
+                                           apply_to == 6)) ||
+                          (rotation_type && (apply_to == 3 || apply_to == 4));
+  if (!apply_fits) {
+    node->custom2 &= ~(7 << 10);
+  }
+  set_input("Object", apply_fits && apply_to != 0);
 
   set_output("Done", !on_demand);
   set_output("Reached", !on_demand);

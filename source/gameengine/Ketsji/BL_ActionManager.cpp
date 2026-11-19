@@ -87,6 +87,35 @@ const std::string BL_ActionManager::GetActionName(short layer)
   return action ? action->GetName() : "";
 }
 
+void BL_ActionManager::SetActionSpeed(short layer, float speed)
+{
+  if (BL_Action *action = GetAction(layer)) {
+    action->SetSpeed(speed);
+  }
+}
+
+void BL_ActionManager::SetActionLayerWeight(short layer, float layer_weight)
+{
+  if (BL_Action *action = GetAction(layer)) {
+    action->SetLayerWeight(layer_weight);
+  }
+}
+
+bool BL_ActionManager::GetActionPlayback(short layer,
+                                         float &r_start,
+                                         float &r_end,
+                                         short &r_play_mode)
+{
+  BL_Action *action = GetAction(layer);
+  if (action == nullptr) {
+    return false;
+  }
+  r_start = action->GetStartFrame();
+  r_end = action->GetEndFrame();
+  r_play_mode = action->GetPlayMode();
+  return true;
+}
+
 void BL_ActionManager::SetActionFrame(short layer, float frame)
 {
   BL_Action *action = GetAction(layer);

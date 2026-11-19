@@ -16,6 +16,7 @@
 #include "LN_CompileReport.h"
 #include "LN_DebugMap.h"
 #include "LN_ExecBlockIR.h"
+#include "LN_FindObjects.h"
 #include "LN_LeanProgram.h"
 #include "LN_RegisterExpressionIR.h"
 #include "LN_Types.h"
@@ -111,6 +112,14 @@ class LN_Program {
    * Inventory or Assign Geometry Nodes Modifier result): its flush-time re-write is redundant.
    * Worked out once (main thread), again after the program grows. */
   bool TreePropertyOnlySetBySetTreeProperty(uint32_t ref) const;
+  /** Works TreePropertyOnlySetBySetTreeProperty's answers out (main thread only; a no-op on a
+   * helper): before helpers run the program, as EnsureLeanProgram (which calls it). */
+  void EnsureTreePropertyWriters() const;
+  /** (Tests.) Whether EnsureTreePropertyWriters' answers are made for the program as it is. */
+  bool TreePropertyWritersReady() const
+  {
+    return m_treePropertyOtherWriters.size() == m_treePropertyRefs.size();
+  }
 
   const std::vector<std::string> &GetStringTable() const
   {
@@ -218,6 +227,18 @@ class LN_Program {
   {
     return uint32_t(m_keepDistanceNodes.size());
   }
+  /** How many Smooth Value outputs (AcquireSmoothValueNode): a tree keeps one
+   * LN_SmoothValueState for each. */
+  uint32_t GetSmoothValueNodeCount() const
+  {
+    return uint32_t(m_smoothValueNodes.size());
+  }
+  /** How many On Action Frame nodes (AcquireActionFrameNode): a tree keeps one
+   * LN_ActionFrameState for each. */
+  uint32_t GetActionFrameNodeCount() const
+  {
+    return uint32_t(m_actionFrameNodes.size());
+  }
   /** Where the state of a tree running this program lives (LN_RuntimeTree builds it the first
    * time a tree takes the program, then every tree shares it). Main thread only. */
   const std::shared_ptr<const LN_TreeStateLayout> &CachedTreeStateLayout() const
@@ -243,6 +264,9 @@ class LN_Program {
    * `1 << LN_Event`), worked out at the first ask and kept until the program grows. Main thread
    * only. */
   const std::vector<uint8_t> &GetQueryWarmEvents() const;
+  /** On Removed (2026-11-17): the program reads Bool::BeingRemoved (an On Removed route), so its
+   * object is held one step when removed (LN_Manager::UpdateOnRemovedHolds). */
+  bool UsesBeingRemoved() const;
   /** The game property refs' starting values, shared by the snapshots (LN_GamePropertyLayout);
    * made at the first ask, made again after a ref was added. Main thread only. */
   const std::shared_ptr<const LN_GamePropertyLayout> &GetGamePropertyLayout() const;
@@ -305,6 +329,25 @@ class LN_Program {
   /** The state slot of a Keep Distance node (its instruction's and its outputs' query's
    * int_value). `node_key` (the bNode) is only compared, while the program is compiled. */
   uint32_t AcquireKeepDistanceNode(const void *node_key);
+  /** Play Sound / Play Sound 3D's slot (2026-11-17): a tree keeps its ticket of the sound the
+   * node started last there (LN_RuntimeTree::SoundState). */
+  uint32_t AcquireSoundNode(const void *node_key);
+  /** An input gesture's or Input Combo's slot (2026-11-17, LN_RuntimeTree::InputGestureState). */
+  uint32_t AcquireInputGestureNode(const void *node_key);
+  /** The state slot of a Smooth Value node's output `output` (0 its number, 1 its vector: each
+   * keeps its own value). `node_key` (the bNode) is only compared, while the program is
+   * compiled. */
+  uint32_t AcquireSmoothValueNode(const void *node_key, uint32_t output);
+  /** The state slot of an On Action Frame node. `node_key` (the bNode) is only compared, while
+   * the program is compiled. */
+  uint32_t AcquireActionFrameNode(const void *node_key);
+  /** Find Objects' source `key` (2026-11-16): its place in GetFindSources (the same key once).
+   * The manager builds a grid for each source of its programs every tick. */
+  uint32_t AddFindSource(const LN_FindSourceKey &key);
+  const std::vector<LN_FindSourceKey> &GetFindSources() const
+  {
+    return m_findSources;
+  }
   void UpdateLoopFrame(uint32_t loop_frame_index, const LN_LoopFrame &loop_frame);
   uint32_t AddBoolExpression(const LN_BoolExpression &expression);
   uint32_t AddFloatExpression(const LN_FloatExpression &expression);
@@ -463,6 +506,16 @@ class LN_Program {
   std::vector<const void *> m_collisionEventNodes;
   /** AcquireKeepDistanceNode's keys (never dereferenced). */
   std::vector<const void *> m_keepDistanceNodes;
+  /** AcquireSoundNode's keys (never dereferenced). */
+  std::vector<const void *> m_soundNodes;
+  /** AcquireInputGestureNode's keys (never dereferenced). */
+  std::vector<const void *> m_inputGestureNodes;
+  /** AcquireSmoothValueNode's keys: the node and its output (never dereferenced). */
+  std::vector<std::pair<const void *, uint32_t>> m_smoothValueNodes;
+  /** AcquireActionFrameNode's keys (never dereferenced). */
+  std::vector<const void *> m_actionFrameNodes;
+  /** Find Objects' sources (AddFindSource). */
+  std::vector<LN_FindSourceKey> m_findSources;
   mutable std::shared_ptr<const LN_TreeStateLayout> m_treeStateLayout;
   mutable std::shared_ptr<const LN_LeanProgram> m_leanProgram;
   /** TreePropertyOnlySetBySetTreeProperty's answers (1: another op writes it), per ref. */
@@ -472,6 +525,9 @@ class LN_Program {
   mutable std::shared_ptr<const LN_GamePropertyLayout> m_gamePropertyLayout;
   bool m_hasUIEventRoutes = false;
   std::vector<LN_BoolExpression> m_boolExpressions;
+  /** UsesBeingRemoved's answer and the Bool expression count it was made for (main thread). */
+  mutable size_t m_usesBeingRemovedCount = SIZE_MAX;
+  mutable bool m_usesBeingRemoved = false;
   std::vector<LN_FloatExpression> m_floatExpressions;
   std::vector<LN_IntExpression> m_intExpressions;
   std::vector<LN_StringExpression> m_stringExpressions;

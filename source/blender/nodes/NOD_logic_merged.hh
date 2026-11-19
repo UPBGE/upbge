@@ -150,6 +150,10 @@ inline constexpr MergedNodeOption character_options[] = {
     {"GRAVITY", "Gravity", "The character's gravity (formerly character Set Gravity)", "LogicNativeSetCharacterGravity"},
     {"JUMP_FORCE", "Jump Force", "How high it jumps (formerly Set Jump Force)", "LogicNativeSetCharacterJumpSpeed"},
     {"MAX_JUMPS", "Max Jumps", "Jumps before landing (formerly Set Max Jumps)", "LogicNativeSetCharacterMaxJumps"},
+    {"MAX_SLOPE", "Max Slope", "The steepest slope it walks up", "LogicNativeSetCharacterMaxSlope"},
+    {"FALL_SPEED", "Fall Speed", "The fastest it falls", "LogicNativeSetCharacterFallSpeed"},
+    {"STEP_HEIGHT", "Step Height", "The highest step it walks up", "LogicNativeSetCharacterStepHeight"},
+    {"CROUCH", "Crouch", "Crouch to a shorter shape, or stand up again where there is room", "LogicNativeSetCharacterCrouch"},
 };
 inline constexpr MergedNodeOption set_light_options[] = {
     {"COLOR", "Color", "The light's color (formerly Set Light Color)", "LogicNativeSetLightColor"},
@@ -282,7 +286,8 @@ inline constexpr MergedNode all_merged_nodes[] = {
     {"LogicNativeDriveVehicle", "Drive Vehicle", "Accelerate, brake or steer a vehicle's wheels",
      "Action", merged_detail::options(merged_detail::vehicle_options), {}},
     {"LogicNativeSetCharacterAttribute", "Set Character Attribute",
-     "Set a character's gravity, jump force or number of jumps", "Attribute",
+     "Set a character's gravity, jump force, number of jumps, max slope, fall speed, step "
+     "height, or crouch", "Attribute",
      merged_detail::options(merged_detail::character_options), {}},
     {"LogicNativeSetLightAttribute", "Set Light Attribute",
      "Set a light's color, power or shadow (every object using that light changes)",

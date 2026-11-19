@@ -22,6 +22,8 @@ enum class KX_ObjectRemovalReason : uint8_t;
 enum class LN_GameStateOperation : uint8_t {
   Save = 0,
   Load,
+  /** Save Slot's Delete (2026-11-17): the slot's file removed, in order with the others. */
+  Delete,
 };
 
 enum class LN_GameStateResult : uint8_t {
@@ -119,6 +121,16 @@ class LN_GameStateService {
                    const std::string &path,
                    const LN_GameStateCompletionTarget &target,
                    std::string &r_error);
+  /** Save Slot's Delete (2026-11-17): removes the slot's file on the ordered worker, after every
+   * request queued before it (an empty slot succeeds). */
+  bool RequestDelete(int32_t slot,
+                     const std::string &path,
+                     const LN_GameStateCompletionTarget &target,
+                     std::string &r_error);
+  /** Save Slot's Exists (2026-11-17): the last queued or running Save (true) or Delete (false)
+   * of the slot's file, else whether the file is there. A slot or Path that cannot be resolved
+   * holds nothing. Game thread. */
+  bool SlotExists(int32_t slot, const std::string &path);
 
   /** Build the scene-owned checkpoint registry once, after conversion has fully completed. */
   LN_GameStateResult InitializeRegistry(KX_Scene &scene, std::string &r_error);

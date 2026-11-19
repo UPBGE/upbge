@@ -256,8 +256,9 @@ TEST(LN_MergedNodes, EveryOptionCompilesExactlyAsItsOlderNode)
       EXPECT_TRUE(compiled_somewhere) << older << " compiled in no shape:\n" << last_report;
     }
   }
-  /* 86 since Get / Set Game Property's Vector, Color, Object and List (2026-11-15). */
-  EXPECT_EQ(compared, 86u * std::size(shapes));
+  /* 86 since Get / Set Game Property's Vector, Color, Object and List (2026-11-15); 90 since Set
+   * Character Attribute's Max Slope, Fall Speed, Step Height and Crouch (2026-11-17). */
+  EXPECT_EQ(compared, 90u * std::size(shapes));
 }
 
 /* Get Game Property's Exists says whether the object has the property (what the Has Property node

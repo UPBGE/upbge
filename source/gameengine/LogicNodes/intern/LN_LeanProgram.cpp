@@ -443,6 +443,11 @@ void BuildRoute(const LN_Program &program,
         }
         op.vector_payload = &vector_payloads[op.instruction->command_payload_index];
         break;
+      case LN_LeanNative::TweenRequest:
+        if (op.instruction->opcode != LN_OpCode::TweenRequest) {
+          return;
+        }
+        break;
       case LN_LeanNative::Generic:
         return;
     }
@@ -691,6 +696,14 @@ std::shared_ptr<const LN_LeanProgram> LN_LowerToLean(const LN_Program &program)
             }
             break;
           }
+          case LN_ExecOpKind::TimeFlowControl: {
+            const LN_Instruction &instruction = program.GetInstructionPayload(
+                LN_Event(event_index), headers[exec.instruction_index]);
+            if (instruction.opcode == LN_OpCode::TweenRequest) {
+              op.native = uint16_t(LN_LeanNative::TweenRequest);
+            }
+            break;
+          }
           default:
             break;
         }
@@ -738,6 +751,8 @@ static const char *native_name(const uint16_t native)
       return "VectorCommand";
     case LN_LeanNative::ModifyProperty:
       return "ModifyProperty";
+    case LN_LeanNative::TweenRequest:
+      return "TweenRequest";
   }
   return "?";
 }

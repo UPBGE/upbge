@@ -57,6 +57,10 @@ static void node_declare(NodeDeclarationBuilder &b)
         ui::Layout &row = params.layout.row(true);
         row.prop(&params.node_ptr, "mouse_button", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
       });
+  b.add_input<decl::Float>("Time"_ustr)
+      .default_value(0.3f)
+      .min(0.0f)
+      .description(logic::input_gesture_time_description);
   logic::add_use_ui_input_layout(b);
 }
 
@@ -80,6 +84,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
+  ntype.updatefunc = logic::input_gesture_time_update;
   ntype.initfunc = node_init;
 
   bke::node_register_type(ntype);

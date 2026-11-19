@@ -35,6 +35,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 #include "DNA_object_types.h"
@@ -418,12 +419,71 @@ class PHY_IPhysicsController : public PHY_IController {
   {
     return false;
   }
+  /**
+   * The Compound checkbox of a top parent while playing (Set Rigid Body Attribute's Compound,
+   * 2026-11-18). On: compound children may join this body's shape. Off: every child's part is
+   * taken out of its shape first (the game engine gives a child that stays a body of its own
+   * before). False: refused (a soft body, a body that is a compound part itself, or a backend
+   * without runtime compounds).
+   */
+  virtual bool SetCompoundRoot(bool /*compound*/)
+  {
+    return false;
+  }
+  /** Whether \a child's shape is a part of this compound's (a part made when the game started
+   * has no body of its own; a copy's part is found by its place, as hits find it). */
+  virtual bool OwnsCompoundChildObject(KX_GameObject * /*child*/) const
+  {
+    return false;
+  }
+  /** Takes \a child's part out of this compound's shape. False when it held none. */
+  virtual bool RemoveCompoundChildObject(KX_GameObject * /*child*/)
+  {
+    return false;
+  }
+  /** How many objects' parts this compound's shape holds (Get Rigid Body Attribute's Part
+   * Count, 2026-11-18). */
+  virtual int GetCompoundPartCount() const
+  {
+    return 0;
+  }
+  /** Takes the parts of \a children out with one new shape (2026-11-18: one shape built per part
+   * made a holder of 1,000 parts take seconds). False when it held none of them. */
+  virtual bool RemoveCompoundChildObjects(const std::vector<KX_GameObject *> & /*children*/)
+  {
+    return false;
+  }
+  /** TryAddCompoundChild for many children, the shape built once; \a r_added says which joined. */
+  virtual void AddCompoundChildren(const std::vector<PHY_IPhysicsController *> &children,
+                                   std::vector<bool> &r_added)
+  {
+    r_added.assign(children.size(), false);
+  }
+  /** A copy of this compound (Add Object): each part's binding names the part's copy
+   * (\a copy_of(part), null: not copied, its part leaves the copy's shape). */
+  virtual void RebindCompoundChildObjects(
+      const std::function<KX_GameObject *(KX_GameObject *)> & /*copy_of*/)
+  {
+  }
 
   virtual bool IsDynamic() = 0;
   /** Authored transform-driven body. Backends without this motion type return false. */
   virtual bool IsKinematic() const
   {
     return false;
+  }
+  /** A Character physics type: it moves itself, and forces and impulses change its velocity
+   * (2026-11-17). Backends without one return false. */
+  virtual bool IsCharacter() const
+  {
+    return false;
+  }
+  /** Why a force or an impulse (\a angular: a torque or an angular impulse) moves nothing here,
+   * in words for a warning ("it is Kinematic"), or null when it does, while it is suspended, or
+   * when the backend does not say. Logic Nodes warn once with it (2026-11-17). */
+  virtual const char *PushIgnoredReason(bool /*angular*/) const
+  {
+    return nullptr;
   }
   /**
    * Teleport a transform-driven body to its current motion-state pose and clear

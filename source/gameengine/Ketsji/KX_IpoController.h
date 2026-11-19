@@ -40,6 +40,21 @@
 
 #define KX_MAX_IPO_CHANNELS 19  // note- [0] is not used
 
+/**
+ * The X, Y and Z angles an action keeps for the rotation channels it does not key (UPBGE fork,
+ * 2026-11-17). Blender keeps them at the numbers typed in the Rotation fields; the engine took
+ * them from the turn (MT_Matrix3x3::getEuler: Y in [-90, 90], Z 0 when pointing straight up or
+ * down), another set of numbers for the same turn when the typed Y is beyond +-90 or the turn
+ * points straight up or down with both X and Z typed: an action keying only Z then played 180
+ * (or 45) degrees off. Now: getEuler's angles where they already are the typed ones (each within
+ * 1e-4 of it, whole turns apart counting as the same: the old bits), else the typed ones where
+ * they give this turn (an object the game has not turned), else the set giving this turn
+ * closest to the typed ones (wrapped to them).
+ * \param typed: the object's Rotation fields in XYZ Euler order, or null (another rotation mode:
+ * getEuler's angles).
+ */
+MT_Vector3 KX_IpoStartEuler(const MT_Matrix3x3 &orientation, const float typed[3]);
+
 class KX_IpoController : public SG_Controller {
   KX_IpoTransform m_ipo_xform;
   T_InterpolatorList m_interpolators;

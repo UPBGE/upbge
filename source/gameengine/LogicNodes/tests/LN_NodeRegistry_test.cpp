@@ -505,7 +505,10 @@ TEST(LN_NodeRegistry, AutonomousEventCadenceIsExplicitAndIndependentFromConstrai
                              "LogicNativeGamepadButton",
                              "LogicNativeMouseMoved",
                              "LogicNativeMouseWheel",
-                             "LogicNativeInputAction"})
+                             "LogicNativeInputAction",
+                             "LogicNativeInputCombo",
+                             "LogicNativeOnRemoved",
+                             "LogicNativeOnActionFrame"})
   {
     const LN_NodeDefinition *definition = registry.FindNodeDefinition(idname);
     ASSERT_NE(definition, nullptr) << idname;
@@ -519,7 +522,9 @@ TEST(LN_NodeRegistry, AutonomousEventCadenceIsExplicitAndIndependentFromConstrai
     fixed_count += definition.autonomous_phase == LN_AutonomousPhase::FixedUpdate ? 1u : 0u;
   }
   EXPECT_EQ(update_count, 7u);
-  EXPECT_EQ(fixed_count, 14u);
+  /* (On Action Frame, 2026-11-16; Input Combo and On Removed, 2026-11-17; On Navigation Link,
+   * 2026-11-18) */
+  EXPECT_EQ(fixed_count, 18u);
 }
 
 TEST(LN_NodeRegistry, SimulationMutationsRequireFixedLogicPhysicsFlow)
@@ -535,6 +540,10 @@ TEST(LN_NodeRegistry, SimulationMutationsRequireFixedLogicPhysicsFlow)
                              "LogicNativeSetCharacterGravity",
                              "LogicNativeSetCharacterJumpSpeed",
                              "LogicNativeSetCharacterMaxJumps",
+                             "LogicNativeSetCharacterMaxSlope",
+                             "LogicNativeSetCharacterFallSpeed",
+                             "LogicNativeSetCharacterStepHeight",
+                             "LogicNativeSetCharacterCrouch",
                              "LogicNativeSetCharacterWalkDirection",
                              "LogicNativeSetCharacterVelocity",
                              "LogicNativeVehicleControl",
@@ -605,15 +614,20 @@ TEST(LN_NodeRegistry, AllNativeNodePhasesMatchAuditedExecutionModel)
       "LogicNativeOnCollision",
       "LogicNativeOnConstraintBreak",
       "LogicNativeOnFixedUpdate",
+      "LogicNativeOnRemoved",
       "LogicNativeProjectileRay",
       "LogicNativeRebuildCollisionShape",
       "LogicNativeRemoveObject",
       "LogicNativeRemoveParent",
       "LogicNativeRemovePhysicsConstraint",
       "LogicNativeRotateToward",
+      "LogicNativeSetCharacterCrouch",
+      "LogicNativeSetCharacterFallSpeed",
       "LogicNativeSetCharacterGravity",
       "LogicNativeSetCharacterJumpSpeed",
       "LogicNativeSetCharacterMaxJumps",
+      "LogicNativeSetCharacterMaxSlope",
+      "LogicNativeSetCharacterStepHeight",
       "LogicNativeSetCharacterVelocity",
       "LogicNativeSetCharacterWalkDirection",
       "LogicNativeSetCollisionGroup",
@@ -622,6 +636,7 @@ TEST(LN_NodeRegistry, AllNativeNodePhasesMatchAuditedExecutionModel)
       "LogicNativeSetParent",
       "LogicNativeSetPhysics",
       "LogicNativeSetRigidBodyAttribute",
+      "LogicNativeSetRigidBodyConstraint",
       "LogicNativeSlowFollow",
       "LogicNativeTranslate",
       "LogicNativeVehicleAccelerate",

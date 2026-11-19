@@ -172,6 +172,15 @@ class BL_ActionManager {
    */
   void SetPlayMode(short layer, short mode);
 
+  /** Logic Nodes' Set Action Layer (2026-11-16): the layer's speed (the frame shown stays; 0
+   * holds it) and its layer weight; nothing on a layer without an action. */
+  void SetActionSpeed(short layer, float speed);
+  void SetActionLayerWeight(short layer, float layer_weight);
+
+  /** The layer's playback now: its start and end frame (Ping Pong swaps them at each turn) and
+   * play mode. False on a layer without an action. */
+  bool GetActionPlayback(short layer, float &r_start, float &r_end, short &r_play_mode);
+
   /**
    * Stop playing the action on the given layer
    */

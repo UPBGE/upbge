@@ -6,6 +6,7 @@
  *  \ingroup logicnodes
  */
 
+#include "LN_DateTime.h"
 #include "LN_Manager.h"
 
 #include <algorithm>
@@ -29,6 +30,10 @@
 #include "BKE_game_physics.hh"
 #include "BKE_global.hh"
 #include "BKE_main.hh"
+#include "BLI_listbase.h"
+#include "DNA_collection_types.h"
+
+#include "../../Converter/BL_Converter.h"
 #include "CM_Message.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
@@ -47,6 +52,7 @@
 #include "KX_Globals.h"
 #include "DEV_InputDevice.h"
 #include "KX_KetsjiEngine.h"
+#include "KX_Navigation.h"
 #include "KX_Scene.h"
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
@@ -383,6 +389,15 @@ void LN_Manager::NotifyGameObjectQueuedForRemoval(KX_GameObject *gameobj,
     return;
   }
 
+  /* On Removed (2026-11-17): removed while playing, an object whose trees have an On Removed
+   * route keeps them for one more step (held: hidden, out of physics, gone for every other tree
+   * as before); removed again in that step it stays held. */
+  const bool already_held = IsHeldForOnRemoved(gameobj);
+  const bool hold = !already_held && !m_isShuttingDown &&
+                    (reason == KX_ObjectRemovalReason::Gameplay ||
+                     reason == KX_ObjectRemovalReason::Lifetime) &&
+                    ObjectRunsOnRemoved(gameobj);
+
   m_uiService->NotifyObjectRemoved(gameobj);
 
   NotifyGameStateObjectRemoved(gameobj, reason);
@@ -393,9 +408,92 @@ void LN_Manager::NotifyGameObjectQueuedForRemoval(KX_GameObject *gameobj,
                 [gameobj](const PendingRunOnce &entry) { return entry.object == gameobj; });
   InvalidateRuntimeRefs(LN_RuntimeRefKind::Object, gameobj);
   m_commandBuffer.RemoveCommandsForGameObject(gameobj);
-  DetachRuntimeTreesForGameObject(gameobj);
+  if (hold) {
+    HoldForOnRemoved(gameobj);
+  }
+  else if (!already_held) {
+    DetachRuntimeTreesForGameObject(gameobj);
+  }
 
   if (!m_isTicking) {
+    RemoveDetachedRuntimeTrees();
+  }
+}
+
+bool LN_Manager::IsHeldForOnRemoved(const KX_GameObject *gameobj) const
+{
+  return gameobj != nullptr &&
+         std::any_of(m_onRemovedHolds.begin(),
+                     m_onRemovedHolds.end(),
+                     [gameobj](const OnRemovedHold &hold) { return hold.object == gameobj; });
+}
+
+bool LN_Manager::ObjectRunsOnRemoved(KX_GameObject *gameobj) const
+{
+  const auto item = m_runtimeTreesByObject.find(gameobj);
+  if (item == m_runtimeTreesByObject.end()) {
+    return false;
+  }
+  for (const LN_RuntimeTree *runtime_tree : item->second) {
+    if (runtime_tree == nullptr || !runtime_tree->IsAttached() ||
+        !runtime_tree->IsEnabled() || !runtime_tree->OwnsGameObject(gameobj))
+    {
+      continue;
+    }
+    const LN_Program *program = runtime_tree->GetProgramPointer();
+    if (program != nullptr && program->UsesBeingRemoved()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void LN_Manager::HoldForOnRemoved(KX_GameObject *gameobj)
+{
+  if (const auto item = m_runtimeTreesByObject.find(gameobj);
+      item != m_runtimeTreesByObject.end())
+  {
+    for (LN_RuntimeTree *runtime_tree : item->second) {
+      if (runtime_tree != nullptr && runtime_tree->OwnsGameObject(gameobj)) {
+        runtime_tree->SetBeingRemoved(true);
+      }
+    }
+  }
+  OnRemovedHold hold;
+  hold.object = gameobj;
+  hold.fixed_tick = m_fixedTickIndex;
+  m_onRemovedHolds.push_back(hold);
+  /* Gone for the world now, as any removed object: not drawn, not touched (its constraints
+   * go too: it is deleted with them after its step; a compound part leaves its holder's shape). */
+  gameobj->SetVisible(false, true);
+  gameobj->SuspendPhysics(true, true);
+  gameobj->LeaveCompoundForRemoval();
+}
+
+void LN_Manager::UpdateOnRemovedHolds(std::vector<KX_GameObject *> &euthanasy)
+{
+  AssertMainThread();
+  /* (A pause runs no step: held objects go after this many frames anyway.) */
+  constexpr uint32_t kMaxOnRemovedHoldFrames = 240;
+  bool detached = false;
+  for (auto hold = m_onRemovedHolds.begin(); hold != m_onRemovedHolds.end();) {
+    KX_GameObject *gameobj = hold->object;
+    hold->end_frames++;
+    const bool step_ran = m_fixedTickIndex > hold->fixed_tick;
+    if (step_ran || hold->end_frames > kMaxOnRemovedHoldFrames || !ObjectRunsOnRemoved(gameobj))
+    {
+      DetachRuntimeTreesForGameObject(gameobj);
+      detached = true;
+      if (std::find(euthanasy.begin(), euthanasy.end(), gameobj) == euthanasy.end()) {
+        euthanasy.push_back(gameobj);
+      }
+      hold = m_onRemovedHolds.erase(hold);
+      continue;
+    }
+    std::erase(euthanasy, gameobj);
+    ++hold;
+  }
+  if (detached && !m_isTicking) {
     RemoveDetachedRuntimeTrees();
   }
 }
@@ -520,6 +618,13 @@ void LN_Manager::UnregisterGameObject(KX_GameObject *gameobj,
   }
 
   LN_CommandBuffer::ForgetSpatialSoundSpeaker(gameobj);
+  /* A held object deleted with its parent (or the scene) before its last step: its trees go
+   * with it. */
+  if (IsHeldForOnRemoved(gameobj)) {
+    std::erase_if(m_onRemovedHolds,
+                  [gameobj](const OnRemovedHold &hold) { return hold.object == gameobj; });
+    DetachRuntimeTreesForGameObject(gameobj);
+  }
   NotifyGameStateObjectRemoved(gameobj, reason);
   m_pauseProcessingObjects.erase(gameobj);
   if (IsGameObjectQueuedForRemoval(gameobj)) {
@@ -1056,6 +1161,7 @@ void LN_Manager::AbsorbRuntimeTreesFrom(LN_Manager &other)
   other.m_tickIndex = 0;
   other.m_updateTickIndex = 0;
   other.m_fixedTickIndex = 0;
+  other.m_gameTime = 0.0;
 }
 
 void LN_Manager::CaptureInput(const bool frame_update_follows)
@@ -1892,6 +1998,19 @@ void LN_Manager::Tick(const double current_time,
 {
   AssertMainThread();
   InvalidatePointerHitCache();
+  /* The game's time (2026-11-17, Float::GameTime): the steps' time before this one, counted at
+   * every step, trees or none. */
+  const double game_time = m_gameTime;
+  if (event == LN_Event::OnFixedUpdate && use_fixed_timestep && !game_paused) {
+    m_gameTime += std::max(0.0, delta_time);
+  }
+  /* Date and Time's clock (2026-11-17): read once a tick. */
+  {
+    static const char *const fixed_clock = std::getenv("UPBGE_LN_WALL_CLOCK");
+    m_wallClockSeconds = fixed_clock != nullptr && fixed_clock[0] != '\0' ?
+                             std::atof(fixed_clock) :
+                             LN_ReadWallClockSeconds();
+  }
 
   if (!m_debugBindingsScanned && logic_nodes_enable_debug_property_bindings()) {
     RegisterDebugPropertyBindings();
@@ -2118,6 +2237,7 @@ void LN_Manager::Tick(const double current_time,
   context.unscaled_dt = std::max(0.0, unscaled_delta_time);
   context.use_fixed_timestep = use_fixed_timestep;
   context.game_paused = game_paused;
+  context.game_time = game_time;
   for (int32_t user = 0; user < LN_MAX_GAMEPADS; ++user) {
     if (m_uiService->UIUsesPlayerInput(user)) {
       context.ui_input_users |= uint8_t(1u << uint32_t(user));
@@ -2358,6 +2478,9 @@ void LN_Manager::Tick(const double current_time,
     }
   }
 
+  /* Find Objects (2026-11-16): the objects where they are now, for every reader of the tick. */
+  PrepareFindIndex(context);
+
   std::chrono::steady_clock::time_point warm_start;
   if (report_tick_timings) {
     warm_start = std::chrono::steady_clock::now();
@@ -2476,6 +2599,14 @@ void LN_Manager::Tick(const double current_time,
     }
   }
 
+  /* NPC navigation (2026-11-18): once every Logic + Physics step, after the flush (every
+   * navigation request of the step in), before the physics; agents not asked this step stop. */
+  if (event == LN_Event::OnFixedUpdate && !game_paused) {
+    if (KX_Navigation *navigation = m_scene.GetNavigation()) {
+      navigation->Step(float(delta_time), m_jobPool.GetHelperCount() > 0 ? &m_jobPool : nullptr);
+    }
+  }
+
   if (m_columnsPlanned) {
     m_columnRunner.EndTick();
     m_columnsPlanned = false;
@@ -2538,6 +2669,68 @@ void LN_Manager::RecordTree(LN_RuntimeTree &runtime_tree,
     logic_nodes_accumulate_tree_profile(runtime_tree, profile_counters, *profile);
     profile->serial_tree_count++;
   }
+}
+
+void LN_Manager::PrepareFindIndex(LN_TickContext &context)
+{
+  m_findSourcesScratch.clear();
+  bool any = false;
+  for (const std::unique_ptr<LN_RuntimeTree> &runtime_tree : m_runtimeTrees) {
+    const LN_Program *program = runtime_tree ? runtime_tree->GetProgramPointer() : nullptr;
+    if (program == nullptr || program->GetFindSources().empty()) {
+      continue;
+    }
+    any = true;
+    for (const LN_FindSourceKey &key : program->GetFindSources()) {
+      if (std::find(m_findSourcesScratch.begin(), m_findSourcesScratch.end(), key) ==
+          m_findSourcesScratch.end())
+      {
+        m_findSourcesScratch.push_back(key);
+      }
+    }
+  }
+  if (!any) {
+    context.find_index = nullptr;
+    return;
+  }
+  m_findObjectsScratch.clear();
+  if (EXP_ListValue<KX_GameObject> *objects = m_scene.GetObjectList()) {
+    for (KX_GameObject *object : *objects) {
+      m_findObjectsScratch.push_back(object);
+    }
+  }
+  m_findIndex.Begin(context.tick_index, m_findObjectsScratch);
+  for (const LN_FindSourceKey &key : m_findSourcesScratch) {
+    switch (key.source) {
+      case LN_FindSource::All:
+        m_findIndex.AddSource(key, [](KX_GameObject *) { return true; });
+        break;
+      case LN_FindSource::Collection: {
+        /* By name in the game's Main, its child collections included (as a camera's). */
+        const blender::Collection *collection = nullptr;
+        if (KX_KetsjiEngine *engine = KX_GetActiveEngine()) {
+          if (engine->GetConverter() != nullptr && engine->GetConverter()->GetMain() != nullptr) {
+            collection = static_cast<const blender::Collection *>(blender::BLI_findstring(
+                &engine->GetConverter()->GetMain()->collections,
+                key.name.c_str(),
+                offsetof(blender::ID, name) + 2));
+          }
+        }
+        m_findIndex.AddSource(key, [&](KX_GameObject *object) {
+          return collection != nullptr && m_scene.IsInCollection(object, collection, true);
+        });
+        break;
+      }
+      case LN_FindSource::Property:
+        m_findIndex.AddSource(key, [&](KX_GameObject *object) {
+          return object->GetProperty(key.name) != nullptr;
+        });
+        break;
+      case LN_FindSource::List:
+        break; /* (its objects come with the List, through the same poses) */
+    }
+  }
+  context.find_index = &m_findIndex;
 }
 
 void LN_Manager::RecordRunnableTrees(const std::vector<RunnableTree> &runnable_trees,
@@ -2946,6 +3139,7 @@ void LN_Manager::Clear()
   m_tickIndex = 0;
   m_updateTickIndex = 0;
   m_fixedTickIndex = 0;
+  m_gameTime = 0.0;
   m_stepSpreadCounters.clear();
   m_randomStreamCounters.clear();
   m_randomScanProgram = nullptr;
@@ -4346,6 +4540,43 @@ bool LN_Manager::FlushLoadGame(LN_RuntimeTree *runtime_tree,
   return queued;
 }
 
+bool LN_Manager::FlushDeleteSaveSlot(LN_RuntimeTree *runtime_tree,
+                                     const int32_t slot,
+                                     const std::string &path,
+                                     const uint32_t completion_expression_index,
+                                     const uint32_t source_ref_index,
+                                     std::string &r_error)
+{
+  AssertMainThread();
+  if (runtime_tree == nullptr || !runtime_tree->IsAttached() ||
+      m_denseIds.ResolveRuntimeTreeId(runtime_tree->GetDenseRuntimeTreeId()) != runtime_tree)
+  {
+    r_error = "owning runtime logic tree is no longer active";
+    return false;
+  }
+  if (m_gameStateTransitionPending) {
+    r_error = "Save Slot is unavailable while this scene is being replaced by Load Game";
+    runtime_tree->CompletePersistenceOperation(completion_expression_index, false);
+    return false;
+  }
+  LN_GameStateCompletionTarget target;
+  target.runtime_tree_id = runtime_tree->GetDenseRuntimeTreeId();
+  target.program_revision = runtime_tree->GetProgramRevision();
+  target.expression_index = completion_expression_index;
+  target.source_ref_index = source_ref_index;
+  const bool queued = m_gameStateService.RequestDelete(slot, path, target, r_error);
+  if (!queued) {
+    runtime_tree->CompletePersistenceOperation(completion_expression_index, false);
+  }
+  return queued;
+}
+
+bool LN_Manager::SaveSlotExists(const int32_t slot, const std::string &path)
+{
+  AssertMainThread();
+  return m_gameStateService.SlotExists(slot, path);
+}
+
 LN_GameStateResult LN_Manager::ApplyTransferredGameState(
     const LN_GameStateLoadPayload &payload, std::string &r_error)
 {
@@ -4449,7 +4680,8 @@ void LN_Manager::CompleteGameStateOperation(const LN_GameStateCompletionTarget &
   }
   if (!success && report_failure) {
     const char *operation_name = operation == LN_GameStateOperation::Save ? "Save Game" :
-                                                                            "Load Game";
+                                 operation == LN_GameStateOperation::Load ? "Load Game" :
+                                                                            "Save Slot Delete";
     CM_Warning("Logic Nodes " << operation_name << " failed for '" << filepath << "': " << error
                               << " (source ref " << target.source_ref_index << ")");
   }

@@ -112,8 +112,21 @@ TEST(LN_KindCatalog, EveryKindOfTheEnumsIsListedOnce)
    * (2026-11-12); 634 since Float::VectorLength (Speed), Query::PointVelocity and
    * Value::PhysicsQueryImpactVelocities (Velocity at Point, 2026-11-14); 636 since
    * Vector::SnapshotGameProperty and Color::SnapshotGameProperty (Get Game Property's Vector and
-   * Color, 2026-11-15). */
-  EXPECT_EQ(count, 636u);
+   * Color, 2026-11-15); 641 since Float::MathFunction, Float::VectorMeasure,
+   * Vector::VectorFunction, Bool::ObjectsEqual and Vector::RotationFunction (Math, Vector Math,
+   * Compare, Rotation Math, Transform Vector, 2026-11-16); 646 since Float / Vector::SmoothValue,
+   * Float::Noise, Vector::RandomShape and Int::ListRandomIndex (Smooth Value, Noise, Random
+   * Value's shapes, Get Random List Item's Weights, 2026-11-16); 647 since
+   * Bool::ActionFrameReached (On Action Frame); 648 since Query::FindObjects (Find Objects); 649
+   * since Float::GameTime (State Machine's Time in State); 654 since String Operation's text kinds
+   * (2026-11-17: TextSubstring, TextFormatTime, TextLength, TextFind, TextSplit); 675 since
+   * Op::TweenRequest (Tween Value's Forward / Back as flow inputs, 2026-11-17); 678 since
+   * Bool::SnapshotCharacterState, Vector::SnapshotCharacterSurface and
+   * Value::SnapshotCharacterGroundObject (Get Character Info's new outputs, 2026-11-17); 685
+   * since Bool / Float / Vector::NavigationState, Value::NavigationLinkObject,
+   * String::NavigationLinkKind, Query::NavmeshQuery and Op::NavigationAttribute (navigation,
+   * 2026-11-18). */
+  EXPECT_EQ(count, 685u);
   /* Each (domain, value) pair appears once. */
   std::set<std::pair<int, int>> seen;
   std::set<std::string> names_seen;

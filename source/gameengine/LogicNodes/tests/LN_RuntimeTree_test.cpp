@@ -50,6 +50,12 @@ class LN_RuntimeTreeTestAccess {
     return {result.amount, result.outcome};
   }
 
+  /** Op::TweenRequest's work (a pulse into Forward / Back). */
+  static void RequestTween(LN_RuntimeTree &tree, const uint32_t tween, const int32_t direction)
+  {
+    tree.RequestTween(tween, direction);
+  }
+
   static void StoreCollisionPayload(LN_RuntimeTree &tree,
                                     KX_GameObject *owner,
                                     KX_GameObject *hit_object,
@@ -754,14 +760,28 @@ TweenExpressionRefs AddTweenExpressions(LN_Program &program,
 
   LN_BoolExpression tween;
   tween.kind = LN_BoolExpressionKind::TweenValue;
-  tween.input0 = forward_index;
-  tween.input1 = back_index;
   tween.input2 = AddBoolConstant(program, ignore_timescale);
   tween.float_expr_index = AddFloatConstant(program, duration);
   tween.int_expr_index = AddLinearTweenCurveTable(program, curve_end_value);
   tween.bool_value = on_demand;
   tween.float_value = instant_reset ? 1.0f : 0.0f;
   refs.tween_index = program.AddBoolExpression(tween);
+
+  /* Forward and Back are flow inputs (2026-11-17): a Logic + Physics step's request behind each
+   * pulse, before the instructions a test adds after (as the compiler orders them). */
+  const auto add_request = [&](const uint32_t pulse, const int32_t direction) {
+    if (pulse == LN_INVALID_INDEX || on_demand) {
+      return;
+    }
+    LN_Instruction request;
+    request.opcode = LN_OpCode::TweenRequest;
+    request.int_value = int32_t(refs.tween_index);
+    request.secondary_int_value = direction;
+    request.bool_guard_expr_index = pulse;
+    program.AddInstruction(LN_Event::OnFixedUpdate, request);
+  };
+  add_request(forward_index, LN_TWEEN_REQUEST_FORWARD);
+  add_request(back_index, LN_TWEEN_REQUEST_BACK);
 
   LN_BoolExpression reached;
   reached.kind = LN_BoolExpressionKind::TweenReached;
@@ -5923,6 +5943,11 @@ TEST(LN_RuntimeTree, PauseContextAndUnscaledTweenUseTheRenderUpdateClock)
   context.unscaled_dt = 0.1;
   context.tick_index = 1;
   context.phase_tick_index = 1;
+  /* (This frame resolves the tweens without running ops: their Forward pulses by hand.) */
+  LN_RuntimeTreeTestAccess::RequestTween(
+      runtime_tree, scaled_tween.tween_index, LN_TWEEN_REQUEST_FORWARD);
+  LN_RuntimeTreeTestAccess::RequestTween(
+      runtime_tree, unscaled_tween.tween_index, LN_TWEEN_REQUEST_FORWARD);
 
   EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(runtime_tree, paused_index, context));
   EXPECT_FLOAT_EQ(
@@ -5944,6 +5969,8 @@ TEST(LN_RuntimeTree, PauseContextAndUnscaledTweenUseTheRenderUpdateClock)
   context.game_paused = true;
   context.tick_index = 3;
   context.phase_tick_index = 3;
+  LN_RuntimeTreeTestAccess::RequestTween(
+      register_runtime_tree, unscaled_tween.tween_index, LN_TWEEN_REQUEST_FORWARD);
   EXPECT_TRUE(LN_RuntimeTreeTestAccess::ResolveBool(register_runtime_tree, paused_index, context));
   EXPECT_FLOAT_EQ(LN_RuntimeTreeTestAccess::ResolveFloat(
                       register_runtime_tree, unscaled_delta_index, -1.0f, context),

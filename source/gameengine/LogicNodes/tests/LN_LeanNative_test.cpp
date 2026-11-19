@@ -585,3 +585,51 @@ TEST(LN_LeanNative, TheReferenceModeNeverRunsANativeOp)
   EXPECT_EQ(program->GetLeanProgram(), nullptr);
   EXPECT_EQ(rig.Float(rig.Object(0), "p"), 3.0f);
 }
+
+/* Tween Value's Forward / Back (Op::TweenRequest, 2026-11-17): Forward from the step's own path
+ * and from a Boolean Edge (requested where the tween compiles, behind its condition), Back from
+ * a Branch's False route and another Boolean Edge through Any Flow. The native op and the route
+ * end as the generic handler, and the event keeps its route: every op of it is native. */
+TEST(LN_LeanNative, TweenRequestsEndAsTheGenericHandlerAndKeepTheRoute)
+{
+  TreeBuilder b;
+  GenNode &event = b.Add("LogicNativeOnFixedUpdate");
+  GenNode &tween = b.Add("LogicNativeTweenValue", 0, int16_t(1 << 2));
+  b.Float(tween, "FromFloat", 0.0f);
+  b.Float(tween, "ToFloat", 6.0f);
+  b.Float(tween, "Duration", 0.1f);
+  GenNode &read = b.Add("LogicNativeGetGamePropertyBool");
+  b.String(read, "Property", "pb0");
+  GenNode &branch = b.Add("LogicNativeBranch");
+  b.Link(read, "Value", branch, "Condition");
+  b.Link(event, "Out", branch, "Flow");
+  GenNode &other = b.Add("LogicNativeGetGamePropertyBool");
+  b.String(other, "Property", "pb1");
+  GenNode &edge = b.Add("LogicNativeBooleanEdge");
+  b.Link(other, "Value", edge, "Condition");
+  GenNode &any_back = b.Add("LogicNativeAnyFlow");
+  b.Link(branch, "False", any_back, "In");
+  b.Link(edge, "Rising", any_back, "In");
+  b.Link(any_back, "Out", tween, "Back");
+  GenNode &rising = b.Add("LogicNativeBooleanEdge");
+  b.Link(read, "Value", rising, "Condition");
+  b.Link(rising, "Rising", tween, "Forward");
+  GenNode &write = b.Add("LogicNativeSetGamePropertyFloat");
+  b.String(write, "Property", "pf1");
+  b.Link(tween, "ResultFloat", write, "Value");
+  b.Link(event, "Out", write, "Flow");
+  const std::shared_ptr<LN_Program> program = CompileOrFail(b);
+  ASSERT_NE(program, nullptr);
+  ExpectSameBothWays(program, "tween requests");
+  const std::shared_ptr<const LN_LeanProgram> &lean = program->GetLeanProgram();
+  ASSERT_NE(lean, nullptr);
+  const LN_LeanEvent &fixed = lean->events[size_t(LN_Event::OnFixedUpdate)];
+  uint32_t requests = 0;
+  for (const LN_LeanOp &op : fixed.ops) {
+    requests += op.native == uint16_t(LN_LeanNative::TweenRequest) ? 1 : 0;
+  }
+  /* Forward's edge, and Back's two routes into Any Flow (an op on each). */
+  EXPECT_EQ(requests, 3u);
+  EXPECT_TRUE(fixed.fully_native);
+  EXPECT_TRUE(fixed.has_route);
+}

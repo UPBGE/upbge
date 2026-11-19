@@ -9,6 +9,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "LN_CommandBuffer.h"
 
@@ -20,5 +21,11 @@ std::string LN_DescribeCommandFailure(const LN_CommandBuffer::Command &command,
 /** Emit each fully contextualized command failure only once per process. Thread-safe. */
 void LN_WarnCommandFailureOnce(const LN_CommandBuffer::Command &command,
                                const std::string &reason);
+/** Emit `message` as a warning once per process (the set LN_WarnCommandFailureOnce keeps; a
+ * message without a payload, so a value changing every step warns once). Thread-safe. True
+ * when it was printed now. */
+bool LN_WarnOnce(const std::string &message);
 /** Tests: forget the warnings issued, so a run prints its own whatever ran before it. */
 void LN_ResetCommandFailureWarningsForTests();
+/** Tests: the warnings issued since the last reset (LN_WarnCommandFailureOnce, LN_WarnOnce). */
+std::vector<std::string> LN_IssuedWarningsForTests();

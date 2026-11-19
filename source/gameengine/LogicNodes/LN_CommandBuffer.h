@@ -21,6 +21,7 @@
 #include "BLI_vector.hh"
 
 #include "LN_DenseIds.h"
+#include "KX_Navigation.h"
 #include "LN_KeepDistance.h"
 #include "LN_Performance.h"
 #include "LN_StrictDump.h"
@@ -71,6 +72,22 @@ void LN_SetImpulseObserverForTests(LN_ImpulseObserver observer, void *user);
  * armatures cannot see in its world. Main thread. */
 using LN_AppliedCommandObserver = void (*)(void *user, const std::string &line);
 void LN_SetAppliedCommandObserverForTests(LN_AppliedCommandObserver observer, void *user);
+
+/** Play Sound's tickets (2026-11-17): each play a node records takes one; the flush ties it to
+ * the sound's audio handle, the node's Playing and Finished ask for it. */
+enum class LN_SoundTicketStatus : uint8_t {
+  /** Not played yet (its flush has not come). */
+  Pending,
+  Playing,
+  Paused,
+  /** Ended, stopped, or never started (no such sound, no audio). */
+  Ended,
+};
+uint64_t LN_NewSoundTicket();
+LN_SoundTicketStatus LN_GetSoundTicketStatus(uint64_t ticket);
+/** (Tests.) Answers for tickets in place of the audio (a status as an int; below 0: ask the
+ * audio); null: the audio's. */
+void LN_SetSoundTicketStatusForTests(int (*answer)(uint64_t ticket));
 
 class LN_CommandBuffer;
 struct LN_FlushWriteKey;
@@ -724,6 +741,17 @@ class LN_CommandBuffer {
    * Distance recorded them into its chunk buffer, 2026-11-14; the flush's end answers them by
    * sort key, as if the trees had recorded here). */
   void TakeKeepDistanceRequests(LN_CommandBuffer &chunk);
+  /** A navigation node's request (Navigate, Follow Path: 2026-11-18), handed to the object's
+   * scene's KX_Navigation at the end of the flush, by sort key (the last for an object wins).
+   * Any thread, into its own buffer. */
+  void AppendNavigationRequest(const KX_NavRequest &request);
+  size_t NavigationRequestCount() const
+  {
+    return m_navigationRequests.size();
+  }
+  /** Moves `chunk`'s navigation requests after this buffer's (a column run's bridged Navigate
+   * recorded them into its chunk buffer). */
+  void TakeNavigationRequests(LN_CommandBuffer &chunk);
   void AppendExplosionImpulse(KX_GameObject *gameobj,
                               const MT_Vector3 &origin,
                               float radius,
@@ -850,7 +878,8 @@ class LN_CommandBuffer {
   static float SoundGroupVolume(int32_t group);
   /** Tests: Play Sound finds a sine tone of `frequency` Hz named `name` (no Blender data
    * needed). */
-  static void CacheToneForTests(const std::string &name, float frequency);
+  /** (Tests.) A sine tone under `name`; `seconds` above 0: it ends after that long. */
+  static void CacheToneForTests(const std::string &name, float frequency, float seconds = 0.0f);
   /** Places the scene's playing 3D sounds for this frame: at their speaker, heard from their
    * listener's camera (Play Sound 3D). Main thread, once a frame. */
   static void UpdateSpatialSounds(const KX_Scene *scene);
@@ -989,10 +1018,14 @@ class LN_CommandBuffer {
                                  const MT_Vector3 &gravity,
                                  uint64_t sort_key,
                                  uint32_t source_ref_index);
+  /** Set Character Attribute's float settings: \a setting is LN_CHARACTER_SETTING_* (Jump Force
+   * by default), \a value its value (Crouch: the Height), \a crouch Crouch's Bool. */
   void AppendSetCharacterJumpSpeed(KX_GameObject *gameobj,
-                                   float jump_speed,
+                                   float value,
                                    uint64_t sort_key,
-                                   uint32_t source_ref_index);
+                                   uint32_t source_ref_index,
+                                   int32_t setting = 0,
+                                   bool crouch = false);
   void AppendSetCharacterMaxJumps(KX_GameObject *gameobj,
                                   int32_t max_jumps,
                                   uint64_t sort_key,
@@ -1116,11 +1149,14 @@ class LN_CommandBuffer {
                         int32_t layer,
                         uint64_t sort_key,
                         uint32_t source_ref_index);
+  /** `attribute` (LN_ACTION_LAYER_SET_*, 2026-11-16): the frame, or Set Action Layer's speed or
+   * layer weight (`frame` holds the value). */
   void AppendSetActionFrame(KX_GameObject *gameobj,
                             int32_t layer,
                             float frame,
                             uint64_t sort_key,
-                            uint32_t source_ref_index);
+                            uint32_t source_ref_index,
+                            uint32_t attribute = 0);
   void AppendSetShapeKeyValue(KX_GameObject *gameobj,
                               const std::string &shape_key_name,
                               float value,
@@ -1136,7 +1172,8 @@ class LN_CommandBuffer {
                        uint64_t sort_key,
                        uint32_t source_ref_index,
                        int32_t group = 0,
-                       KX_GameObject *emitter = nullptr);
+                       KX_GameObject *emitter = nullptr,
+                       uint64_t ticket = 0);
   /** Set Volume: `group`'s volume (Master too) becomes `volume`, at once or over `fade`
    * seconds. */
   void AppendSetSoundVolume(int32_t group,
@@ -1157,7 +1194,10 @@ class LN_CommandBuffer {
                          uint32_t source_ref_index,
                          int32_t listener = 0,
                          int32_t user = 0,
-                         int32_t group = 0);
+                         int32_t group = 0,
+                         uint64_t ticket = 0,
+                         bool at_position = false,
+                         const MT_Vector3 &position = MT_Vector3(0.0f, 0.0f, 0.0f));
   void AppendPauseSound(const std::string &sound_name,
                         uint64_t sort_key,
                         uint32_t source_ref_index);
@@ -1279,13 +1319,16 @@ class LN_CommandBuffer {
                       const std::string &scene_name,
                       uint64_t sort_key,
                       uint32_t source_ref_index);
+  /** `delete_slot` (2026-11-17, Save Slot's Delete): the slot's file is deleted instead, in order
+   * with the save service's other requests. */
   void AppendSaveGame(LN_RuntimeTree *runtime_tree,
                       KX_GameObject *gameobj,
                       int32_t slot,
                       const std::string &path,
                       uint32_t completion_expression_index,
                       uint64_t sort_key,
-                      uint32_t source_ref_index);
+                      uint32_t source_ref_index,
+                      bool delete_slot = false);
   void AppendSetSaveExistence(LN_RuntimeTree *runtime_tree,
                               KX_GameObject *owner,
                               KX_GameObject *target,
@@ -1652,6 +1695,13 @@ class LN_CommandBuffer {
     /** The volume group (LN_SoundGroup); Set Volume's fade in seconds (its volume is `volume`). */
     int32_t group = 0;
     float fade = 0.0f;
+    /** Play Sound's ticket (LN_NewSoundTicket, 0: none): the flush ties it to the sound's
+     * handle for the node's Playing and Finished. */
+    uint64_t ticket = 0;
+    /** Play Sound 3D's At Position: plays at `position` in the speaker's scene (found at the
+     * flush: recording never reads the object), no object (2026-11-17). */
+    bool at_position = false;
+    MT_Vector3 position = MT_Vector3(0.0f, 0.0f, 0.0f);
   };
 
   struct TypedLifecycleCommand {
@@ -1944,6 +1994,7 @@ class LN_CommandBuffer {
   std::unordered_set<KX_GameObject *> m_removedObjectsDuringFlush;
   /** Keep Distance's requests of the step (AppendKeepDistance), answered at the flush's end. */
   std::vector<LN_KeepDistanceRequest> m_keepDistanceRequests;
+  std::vector<KX_NavRequest> m_navigationRequests;
   std::unordered_map<AddObjectSourceStateKey, bool, AddObjectSourceStateKeyHash>
       m_addObjectSourceInactiveCache;
   std::unordered_set<MaterialParameterDefaultStateKey, MaterialParameterDefaultStateKeyHash>

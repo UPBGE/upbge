@@ -44,6 +44,10 @@ typedef unsigned long uint_ptr;
 
 #include "KX_IpoController.h"
 
+#include <algorithm>
+#include <cfloat>
+#include <cmath>
+
 #include "KX_GameObject.h"
 #include "KX_IpoChannels.h"
 #include "KX_ScalarInterpolator.h"
@@ -122,6 +126,78 @@ void KX_IpoController::SetGameObject(KX_GameObject *go)
   m_game_object = go;
 }
 
+/** `angle` plus the whole turns that bring it nearest `reference`. */
+static float ipo_angle_near(const float angle, const float reference)
+{
+  const float turn = float(2.0 * MT_PI);
+  return angle - turn * std::round((angle - reference) / turn);
+}
+
+/** How far the turn of `angles` is from `orientation`: the largest difference of an entry. */
+static float ipo_euler_error(const MT_Matrix3x3 &orientation, const MT_Vector3 &angles)
+{
+  const MT_Matrix3x3 rebuilt(angles);
+  float error = 0.0f;
+  for (int row = 0; row < 3; row++) {
+    for (int column = 0; column < 3; column++) {
+      error = std::max(error, std::fabs(orientation[row][column] - rebuilt[row][column]));
+    }
+  }
+  return std::isfinite(error) ? error : FLT_MAX;
+}
+
+MT_Vector3 KX_IpoStartEuler(const MT_Matrix3x3 &orientation, const float typed[3])
+{
+  MT_Scalar x, y, z;
+  orientation.getEuler(x, y, z);
+  const MT_Vector3 old(x, y, z);
+  if (typed == nullptr || !std::isfinite(typed[0]) || !std::isfinite(typed[1]) ||
+      !std::isfinite(typed[2]))
+  {
+    return old;
+  }
+  /* (0.0057 degrees: far below what shows, far above float noise.) */
+  constexpr float same = 1.0e-4f;
+  const MT_Vector3 reference(typed[0], typed[1], typed[2]);
+  if (std::fabs(ipo_angle_near(old[0], reference[0]) - reference[0]) <= same &&
+      std::fabs(ipo_angle_near(old[1], reference[1]) - reference[1]) <= same &&
+      std::fabs(ipo_angle_near(old[2], reference[2]) - reference[2]) <= same)
+  {
+    return old;
+  }
+  if (ipo_euler_error(orientation, reference) <= same) {
+    return reference;
+  }
+  /* The game turned the object: every set of angles giving its turn, the closest to the typed
+   * ones. getEuler's; the same turn with Y beyond +-90 (X and Z half a turn on); straight up or
+   * down (getEuler gave Z 0 there and X the turn around the vertical, X + Z at -90, X - Z at +90),
+   * the typed Z with the X that keeps the turn. */
+  const float half = float(MT_PI);
+  MT_Vector3 candidates[3] = {old, MT_Vector3(x + half, half - y, z + half), old};
+  int count = 2;
+  if (std::hypot(orientation[0][0], orientation[1][0]) <= 16.0f * FLT_EPSILON) {
+    const float typed_z = reference[2];
+    candidates[count++] = MT_Vector3(y < 0.0f ? x - typed_z : x + typed_z, y, typed_z);
+  }
+  MT_Vector3 best = old;
+  float best_distance = FLT_MAX;
+  for (int index = 0; index < count; index++) {
+    /* (Not "near": <windows.h> makes it an empty macro.) */
+    MT_Vector3 closest;
+    float distance = 0.0f;
+    for (int axis = 0; axis < 3; axis++) {
+      closest[axis] = ipo_angle_near(candidates[index][axis], reference[axis]);
+      distance += std::fabs(closest[axis] - reference[axis]);
+    }
+    /* (Each candidate gives the turn; checked, so that a mistake can never turn the object.) */
+    if (distance < best_distance && ipo_euler_error(orientation, closest) <= same) {
+      best = closest;
+      best_distance = distance;
+    }
+  }
+  return best;
+}
+
 void KX_IpoController::SetFieldInitial(const PartDeflect *pd)
 {
   if (pd == nullptr) {
@@ -185,8 +261,13 @@ bool KX_IpoController::Update(double currentTime)
       m_ipo_start_initialized = true;
       if (!m_ipo_euler_initialized) {
         // do it only once to avoid angle discontinuities
-        m_ipo_start_orient.getEuler(
-            m_ipo_start_euler[0], m_ipo_start_euler[1], m_ipo_start_euler[2]);
+        /* The channels it does not key keep the typed Rotation (XYZ Euler) as in Blender
+         * (KX_IpoStartEuler). */
+        Object *blender_object = m_game_object ? m_game_object->GetBlenderObject() : nullptr;
+        const float *typed = (blender_object && blender_object->rotmode == ROT_MODE_EUL) ?
+                                 blender_object->rot :
+                                 nullptr;
+        m_ipo_start_euler = KX_IpoStartEuler(m_ipo_start_orient, typed);
         m_ipo_euler_initialized = true;
       }
     }

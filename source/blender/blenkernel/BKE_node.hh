@@ -530,6 +530,9 @@ struct bNodeTreeType {
   void (*update)(bNodeTree *ntree) = nullptr;
 
   bool (*validate_link)(eNodeSocketDatatype from, eNodeSocketDatatype to) = nullptr;
+  /* UPBGE: a link the socket types allow but the sockets themselves refuse (Logic Nodes' flow
+   * sockets are boolean sockets). Returns the link's error text, or null when it is valid. */
+  const char *(*link_socket_error)(const bNodeSocket &from, const bNodeSocket &to) = nullptr;
 
   /* Check if the socket type is valid for this tree type. */
   bool (*valid_socket_type)(bNodeTreeType *ntreetype, bNodeSocketType *socket_type) = nullptr;

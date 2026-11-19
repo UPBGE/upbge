@@ -16,10 +16,6 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef _USE_MATH_DEFINES
-#  define _USE_MATH_DEFINES
-#endif
-
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -34,11 +30,11 @@ struct rcEdge
 	unsigned short poly[2];
 };
 
-/*static*/ bool buildMeshAdjacency(unsigned short* polys, const int npolys,
+static bool buildMeshAdjacency(unsigned short* polys, const int npolys,
 							   const int nverts, const int vertsPerPoly)
 {
 	// Based on code by Eric Lengyel from:
-	// http://www.terathon.com/code/edges.php
+	// https://web.archive.org/web/20080704083314/http://www.terathon.com/code/edges.php
 	
 	int maxEdgeCount = npolys*vertsPerPoly;
 	unsigned short* firstEdge = (unsigned short*)rcAlloc(sizeof(unsigned short)*(nverts + maxEdgeCount), RC_ALLOC_TEMP);
@@ -172,15 +168,6 @@ inline int area2(const int* a, const int* b, const int* c)
 	return (b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2]);
 }
 
-//	Exclusive or: true iff exactly one argument is true.
-//	The arguments are negated to ensure that they are 0/1
-//	values.  Then the bitwise Xor operator may apply.
-//	(This idea is due to Michael Baldwin.)
-inline bool xorb(bool x, bool y)
-{
-	return !x ^ !y;
-}
-
 // Returns true iff c is strictly to the left of the directed
 // line through a to b.
 inline bool left(const int* a, const int* b, const int* c)
@@ -208,7 +195,7 @@ static bool intersectProp(const int* a, const int* b, const int* c, const int* d
 		collinear(c,d,a) || collinear(c,d,b))
 		return false;
 	
-	return xorb(left(a,b,c), left(a,b,d)) && xorb(left(c,d,a), left(c,d,b));
+	return (left(a,b,c) ^ left(a,b,d)) && (left(c,d,a) ^ left(c,d,b));
 }
 
 // Returns T iff (a,b,c) are collinear and point c lies 
@@ -220,8 +207,8 @@ static bool between(const int* a, const int* b, const int* c)
 	// If ab not vertical, check betweenness on x; else on y.
 	if (a[0] != b[0])
 		return	((a[0] <= c[0]) && (c[0] <= b[0])) || ((a[0] >= c[0]) && (c[0] >= b[0]));
-	else
-		return	((a[2] <= c[2]) && (c[2] <= b[2])) || ((a[2] >= c[2]) && (c[2] >= b[2]));
+
+	return	((a[2] <= c[2]) && (c[2] <= b[2])) || ((a[2] >= c[2]) && (c[2] >= b[2]));
 }
 
 // Returns true iff segments ab and cd intersect, properly or improperly.
@@ -229,11 +216,12 @@ static bool intersect(const int* a, const int* b, const int* c, const int* d)
 {
 	if (intersectProp(a, b, c, d))
 		return true;
-	else if (between(a, b, c) || between(a, b, d) ||
-			 between(c, d, a) || between(c, d, b))
+
+	if (between(a, b, c) || between(a, b, d) ||
+		between(c, d, a) || between(c, d, b))
 		return true;
-	else
-		return false;
+	
+	return false;
 }
 
 static bool vequal(const int* a, const int* b)
@@ -382,7 +370,7 @@ static int triangulate(int n, const int* verts, int* indices, int* tris)
 			// We might get here because the contour has overlapping segments, like this:
 			//
 			//  A o-o=====o---o B
-			//   /  |C   D|    \
+			//   /  |C   D|    \.
 			//  o   o     o     o
 			//  :   :     :     :
 			// We'll try to recover by loosing up the inCone test a bit so that a diagonal
@@ -569,7 +557,6 @@ static bool canRemoveVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned sho
 	const int nvp = mesh.nvp;
 	
 	// Count number of polygons to remove.
-	int numRemovedVerts = 0;
 	int numTouchedVerts = 0;
 	int numRemainingEdges = 0;
 	for (int i = 0; i < mesh.npolys; ++i)
@@ -589,7 +576,6 @@ static bool canRemoveVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned sho
 		}
 		if (numRemoved)
 		{
-			numRemovedVerts += numRemoved;
 			numRemainingEdges += numVerts-(numRemoved+1);
 		}
 	}
@@ -989,10 +975,10 @@ static bool removeVertex(rcContext* ctx, rcPolyMesh& mesh, const unsigned short 
 /// @par
 ///
 /// @note If the mesh data is to be used to construct a Detour navigation mesh, then the upper 
-/// limit must be retricted to <= #DT_VERTS_PER_POLYGON.
+/// limit must be restricted to <= #DT_VERTS_PER_POLYGON.
 ///
 /// @see rcAllocPolyMesh, rcContourSet, rcPolyMesh, rcConfig
-bool rcBuildPolyMesh(rcContext* ctx, rcContourSet& cset, const int nvp, rcPolyMesh& mesh)
+bool rcBuildPolyMesh(rcContext* ctx, const rcContourSet& cset, const int nvp, rcPolyMesh& mesh)
 {
 	rcAssert(ctx);
 	

@@ -31,6 +31,7 @@
 #include "BLI_math_geom.h"
 
 #include "KX_Globals.h"
+#include "KX_NavMesh.h"
 #include "KX_NavMeshObject.h"
 
 using namespace blender;
@@ -231,26 +232,16 @@ void KX_ObstacleSimulation::AddObstacleForObj(KX_GameObject *gameobj)
 
 void KX_ObstacleSimulation::AddObstaclesForNavMesh(KX_NavMeshObject *navmeshobj)
 {
-  dtStatNavMesh *navmesh = navmeshobj->GetNavMesh();
-  if (navmesh) {
-    int npoly = navmesh->getPolyCount();
-    for (int pi = 0; pi < npoly; pi++) {
-      const dtStatPoly *poly = navmesh->getPoly(pi);
-
-      for (int i = 0, j = (int)poly->nv - 1; i < (int)poly->nv; j = i++) {
-        if (poly->n[j])
-          continue;
-        const float *vj = navmesh->getVertex(poly->v[j]);
-        const float *vi = navmesh->getVertex(poly->v[i]);
-
-        KX_Obstacle *obstacle = CreateObstacle(navmeshobj);
-        obstacle->m_type = KX_OBSTACLE_NAV_MESH;
-        obstacle->m_shape = KX_OBSTACLE_SEGMENT;
-        obstacle->m_pos = MT_Vector3(vj[0], vj[2], vj[1]);
-        obstacle->m_pos2 = MT_Vector3(vi[0], vi[2], vi[1]);
-        obstacle->m_rad = 0;
-      }
-    }
+  if (KX_NavMesh *navmesh = navmeshobj->GetNavMesh()) {
+    /* Every wall edge, in the navmesh object's space (turned into the world where tested). */
+    navmesh->ForEachWallEdge([&](const MT_Vector3 &a, const MT_Vector3 &b) {
+      KX_Obstacle *obstacle = CreateObstacle(navmeshobj);
+      obstacle->m_type = KX_OBSTACLE_NAV_MESH;
+      obstacle->m_shape = KX_OBSTACLE_SEGMENT;
+      obstacle->m_pos = a;
+      obstacle->m_pos2 = b;
+      obstacle->m_rad = 0;
+    });
   }
 }
 

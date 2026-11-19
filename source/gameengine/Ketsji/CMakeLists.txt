@@ -52,8 +52,11 @@ set(INC
 
 set(INC_SYS
   ../../../intern/moto/include
+  ../../../extern/recastnavigation
   ../../../extern/recastnavigation/Recast/Include
   ../../../extern/recastnavigation/Detour/Include
+  ../../../extern/recastnavigation/DetourCrowd/Include
+  ../../../extern/recastnavigation/DetourTileCache/Include
   ${PTHREADS_INCLUDE_DIRS}
 )
 
@@ -91,6 +94,9 @@ set(SRC
   KX_MaterialShader.cpp
   KX_MeshProxy.cpp
   KX_MotionState.cpp
+  KX_NavBuild.cpp
+  KX_NavMesh.cpp
+  KX_Navigation.cpp
   KX_NavMeshObject.cpp
   KX_ObColorIpoSGController.cpp
   KX_ObstacleSimulation.cpp
@@ -154,6 +160,11 @@ set(SRC
   KX_MaterialShader.h
   KX_MeshProxy.h
   KX_MotionState.h
+  KX_Detour.h
+  KX_NavBuild.h
+  KX_NavMesh.h
+  KX_NavOrca.h
+  KX_Navigation.h
   KX_NavMeshObject.h
   KX_ObColorIpoSGController.h
   KX_ObstacleSimulation.h
@@ -218,6 +229,8 @@ endif()
 
 
 add_definitions(${GL_DEFINITIONS})
+# Detour is built so (extern/recastnavigation): every file including it must agree (KX_Detour.h).
+add_definitions(-DDT_POLYREF64 -DDT_VIRTUAL_QUERYFILTER)
 
 if(WITH_IMAGE_DDS)
   add_definitions(-DWITH_DDS)
@@ -298,6 +311,7 @@ if(WITH_GTESTS)
     tests/KX_DepsgraphThreads_test.cpp
     tests/KX_DrawCulling_test.cpp
     tests/KX_FrameScheduler_test.cpp
+    tests/KX_IpoStartEuler_test.cpp
     tests/KX_PhysicsInterpolation_test.cpp
     tests/KX_OverlayResource_test.cpp
     tests/KX_PlayerViews_test.cpp

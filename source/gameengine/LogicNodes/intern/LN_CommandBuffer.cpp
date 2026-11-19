@@ -69,6 +69,7 @@
 #  include <devices/I3DHandle.h>
 #  include <devices/IDevice.h>
 #  include <devices/IHandle.h>
+#  include <fx/Limiter.h>
 #  include <generator/Sine.h>
 #endif
 
@@ -105,6 +106,7 @@
 #include "EXP_Vector4Value.h"
 #include "KX_Camera.h"
 #include "KX_GameObject.h"
+#include "KX_NavMeshObject.h"
 #include "KX_ObjectReferenceValue.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
@@ -139,6 +141,26 @@ extern StructRNA *RNA_Scene;
 }  // namespace blender
 
 namespace {
+
+/** Set Action Frame's command (`attribute` LN_ACTION_LAYER_SET_*): the frame, or Set Action
+ * Layer's speed or layer weight (2026-11-16). */
+void apply_action_layer_set(KX_GameObject *object,
+                            const int32_t layer,
+                            const float value,
+                            const uint32_t attribute)
+{
+  switch (int32_t(attribute)) {
+    case LN_ACTION_LAYER_SET_SPEED:
+      object->SetActionSpeed(short(layer), value);
+      break;
+    case LN_ACTION_LAYER_SET_WEIGHT:
+      object->SetActionLayerWeight(short(layer), LN_ActionLayerWeight(value));
+      break;
+    default:
+      object->SetActionFrame(short(layer), value);
+      break;
+  }
+}
 
 using blender::G;
 using blender::GameVehicleSettings;
@@ -253,8 +275,29 @@ static const char *apply_rigid_body_attribute(PHY_IPhysicsController &physics_co
        * locked: no free axis would be left.) */
       physics_controller.SetRigidBody(bool_value);
       break;
+    case LN_RigidBodyAttribute::Compound:
+      /* (The object's, not its body's: apply_compound_attribute.) */
+      break;
   }
   return nullptr;
+}
+
+/** Set Rigid Body Attribute's Compound (2026-11-18): the object's Compound checkbox, also for a
+ * part of a compound made when the game started (no body of its own). True when it was this
+ * mode (warned once when refused). */
+static bool apply_compound_attribute(KX_GameObject &object,
+                                     const LN_RigidBodyAttribute attribute,
+                                     const bool enabled,
+                                     const LN_CommandBuffer::Command &warn_as)
+{
+  if (attribute != LN_RigidBodyAttribute::Compound) {
+    return false;
+  }
+  const std::string reason = object.SetCompoundEnabled(enabled);
+  if (!reason.empty()) {
+    LN_WarnCommandFailureOnce(warn_as, reason);
+  }
+  return true;
 }
 
 struct SelectedVehicleWheel {
@@ -984,6 +1027,73 @@ static void warn_add_object_source_not_inactive(const LN_CommandBuffer::Command 
   CM_Warning(warning.str());
 }
 
+/* Play Sound's tickets (2026-11-17): every ticket below `g_sound_tickets_flushed_below` went
+ * through a flush (its handle in the map while it may still play); newer ones are pending. */
+static std::atomic<uint64_t> g_sound_ticket_next{1};
+static std::atomic<uint64_t> g_sound_tickets_flushed_below{1};
+static int (*g_sound_ticket_status_for_tests)(uint64_t) = nullptr;
+#ifdef WITH_AUDASPACE
+static std::unordered_map<uint64_t, AUD_Handle> g_sound_ticket_handles;
+#endif
+
+}  // namespace
+
+uint64_t LN_NewSoundTicket()
+{
+  return g_sound_ticket_next.fetch_add(1, std::memory_order_relaxed);
+}
+
+void LN_SetSoundTicketStatusForTests(int (*answer)(uint64_t ticket))
+{
+  g_sound_ticket_status_for_tests = answer;
+}
+
+LN_SoundTicketStatus LN_GetSoundTicketStatus(const uint64_t ticket)
+{
+  if (ticket == 0) {
+    return LN_SoundTicketStatus::Ended;
+  }
+  if (g_sound_ticket_status_for_tests != nullptr) {
+    const int answer = g_sound_ticket_status_for_tests(ticket);
+    if (answer >= 0) {
+      return LN_SoundTicketStatus(answer);
+    }
+  }
+  if (ticket >= g_sound_tickets_flushed_below.load(std::memory_order_relaxed)) {
+    return LN_SoundTicketStatus::Pending;
+  }
+#ifdef WITH_AUDASPACE
+  const auto it = g_sound_ticket_handles.find(ticket);
+  if (it != g_sound_ticket_handles.end() && it->second) {
+    switch (it->second->getStatus()) {
+      case aud::STATUS_PLAYING:
+        return LN_SoundTicketStatus::Playing;
+      case aud::STATUS_PAUSED:
+        return LN_SoundTicketStatus::Paused;
+      default:
+        break;
+    }
+  }
+#endif
+  return LN_SoundTicketStatus::Ended;
+}
+
+namespace {
+
+/** At a flush's end: every ticket taken so far went through it; tickets of ended sounds leave
+ * the map (their answer stays Ended). */
+static void logic_native_sound_tickets_flushed()
+{
+  g_sound_tickets_flushed_below.store(g_sound_ticket_next.load(std::memory_order_relaxed),
+                                      std::memory_order_relaxed);
+#ifdef WITH_AUDASPACE
+  std::erase_if(g_sound_ticket_handles, [](const auto &entry) {
+    const aud::Status status = entry.second ? entry.second->getStatus() : aud::STATUS_INVALID;
+    return status != aud::STATUS_PLAYING && status != aud::STATUS_PAUSED;
+  });
+#endif
+}
+
 #ifdef WITH_AUDASPACE
 /**
  * Native logic sound v1 (2D / non-spatial):
@@ -1003,6 +1113,7 @@ static void warn_add_object_source_not_inactive(const LN_CommandBuffer::Command 
  *   off). Stop, Pause and Resume Sound still act on every copy of the name.
  */
 constexpr size_t k_logic_native_sound_handle_cap = 256;
+
 struct LogicNativeSoundHandle {
   /** The Sound's name: Stop, Pause and Resume Sound find it by it. */
   std::string name;
@@ -1210,6 +1321,35 @@ static void logic_native_spatial_sound_place(LogicNativeSpatialSound &sound)
   }
 }
 
+/** Play Sound 3D's At Position (2026-11-17): a 3D sound at a place of `scene`, no object; it
+ * stays there (as a sound whose speaker was removed). */
+static void logic_native_spatial_sound_start_at(const AUD_Handle &handle,
+                                                const std::shared_ptr<aud::I3DHandle> &h3d,
+                                                const MT_Vector3 &position,
+                                                const KX_Scene *scene,
+                                                const int32_t listener,
+                                                const int32_t user)
+{
+  if (!h3d || scene == nullptr) {
+    return;
+  }
+  LogicNativeSpatialSound sound;
+  sound.handle = handle;
+  sound.h3d = h3d;
+  sound.speaker = nullptr;
+  sound.scene = scene;
+  sound.position = position;
+  sound.listener = LN_SoundListener(std::clamp(listener,
+                                               int32_t(LN_SoundListener::NearestPlayer),
+                                               int32_t(LN_SoundListener::ActiveCamera)));
+  sound.user = user;
+  logic_native_spatial_sound_place(sound);
+  if (g_logic_native_spatial_sounds.size() >= k_logic_native_sound_handle_cap) {
+    g_logic_native_spatial_sounds.erase(g_logic_native_spatial_sounds.begin());
+  }
+  g_logic_native_spatial_sounds.push_back(std::move(sound));
+}
+
 /** Places a new 3D sound and keeps placing it every frame while it plays. */
 static void logic_native_spatial_sound_start(const AUD_Handle &handle,
                                              const std::shared_ptr<aud::I3DHandle> &h3d,
@@ -1333,7 +1473,11 @@ static void logic_native_sound_play(const std::string &name,
                                     KX_GameObject *speaker,
                                     const int32_t listener,
                                     const int32_t user,
-                                    const KX_GameObject *emitter)
+                                    const KX_GameObject *emitter,
+                                    const uint64_t ticket = 0,
+                                    const bool at_position = false,
+                                    const MT_Vector3 &position = MT_Vector3(0.0f, 0.0f, 0.0f),
+                                    const KX_Scene *scene = nullptr)
 {
   const blender::Speaker *speaker_data = logic_native_speaker_data(speaker);
   const LN_CommandBuffer::SpeakerPlay play = LN_CommandBuffer::SpeakerPlayOf(
@@ -1350,10 +1494,16 @@ static void logic_native_sound_play(const std::string &name,
     if (!snd) {
       return;
     }
-    logic_native_sound_handles_stop_emitted(play.sound, emitter);
+    if (!at_position) {
+      /* (At Position: no emitter, each plays beside the others.) */
+      logic_native_sound_handles_stop_emitted(play.sound, emitter);
+    }
     AUD_Handle handle = device->play(snd, false);
     if (!handle) {
       return;
+    }
+    if (ticket != 0) {
+      g_sound_ticket_handles[ticket] = handle;
     }
     if (auto h3d = std::dynamic_pointer_cast<aud::I3DHandle>(handle)) {
       h3d->setRelative(true);
@@ -1368,7 +1518,10 @@ static void logic_native_sound_play(const std::string &name,
         h3d->setConeAngleInner(speaker_data->cone_angle_inner);
         h3d->setConeVolumeOuter(speaker_data->cone_volume_outer);
       }
-      if (speaker != nullptr) {
+      if (at_position) {
+        logic_native_spatial_sound_start_at(handle, h3d, position, scene, listener, user);
+      }
+      else if (speaker != nullptr) {
         logic_native_spatial_sound_start(
             handle,
             h3d,
@@ -4466,6 +4619,75 @@ void ApplyObjectTransformCommand(const LN_CommandBuffer::Command &command)
 LN_ForceObserver g_force_observer = nullptr;
 void *g_force_observer_user = nullptr;
 
+/** Set Character Attribute's float settings (Op::SetCharacterJumpSpeed's command, 2026-11-17):
+ * \a setting LN_CHARACTER_SETTING_*, each held to what the Physics panel allows (Step Height
+ * from 0: no stairs; Max Slope 0..90 degrees, Jolt's 0 being no limit). */
+void apply_character_setting(KX_GameObject *object,
+                             const int32_t setting,
+                             const float value,
+                             const bool crouch)
+{
+  /* (The scene's physics; the unit rigs' world: LN_SetPhysicsEnvironmentForTests.) */
+  PHY_IPhysicsEnvironment *environment = object ? LN_QueryPhysicsEnvironment(object) : nullptr;
+  PHY_ICharacter *character = environment ? environment->GetCharacterController(object) :
+                                            nullptr;
+  if (character == nullptr || !std::isfinite(value)) {
+    return;
+  }
+  switch (setting) {
+    case LN_CHARACTER_SETTING_JUMP_FORCE:
+      character->SetJumpSpeed(std::max(value, 0.0f));
+      break;
+    case LN_CHARACTER_SETTING_MAX_SLOPE:
+      character->SetMaxSlope(std::clamp(value, 0.0f, 1.57079632679489661923f));
+      break;
+    case LN_CHARACTER_SETTING_FALL_SPEED:
+      character->SetFallSpeed(std::max(value, 0.0f));
+      break;
+    case LN_CHARACTER_SETTING_STEP_HEIGHT:
+      character->SetStepHeight(std::max(value, 0.0f));
+      break;
+    case LN_CHARACTER_SETTING_CROUCH:
+      character->SetCrouch(crouch, value);
+      break;
+    default:
+      break;
+  }
+}
+
+/**
+ * A force, torque or impulse that moves nothing (2026-11-17): one warning per object name, push
+ * and reason for the play (the push may change every step). The body says why
+ * (PHY_IPhysicsController::PushIgnoredReason: Kinematic, Static, a Sensor, a Character's or a
+ * Dynamic body's turn...); an object without a body only in a scene with physics (the unit rig
+ * has neither). An explosion warns of nothing: it pushes whatever is around.
+ */
+void warn_push_ignored(KX_GameObject *object, const char *push, const bool angular)
+{
+  if (object == nullptr) {
+    return;
+  }
+  const PHY_IPhysicsController *controller = object->GetPhysicsController();
+  std::string reason;
+  if (controller != nullptr) {
+    const char *why = controller->PushIgnoredReason(angular);
+    if (why == nullptr) {
+      return;
+    }
+    reason = why;
+  }
+  else {
+    KX_Scene *scene = object->GetSGNode() != nullptr ? object->GetScene() : nullptr;
+    if (scene == nullptr || scene->GetPhysicsEnvironment() == nullptr) {
+      return;
+    }
+    reason = "it has no physics body (No Collision)";
+  }
+  LN_WarnOnce(std::string("Logic Nodes: ") + push + " on \"" + object->GetName() +
+              "\" moves nothing: " + reason +
+              " (forces and impulses move Dynamic and Rigid Body objects, and Characters)");
+}
+
 void apply_force_or_torque(KX_GameObject *object,
                            const MT_Vector3 &vector,
                            const bool local,
@@ -4474,6 +4696,7 @@ void apply_force_or_torque(KX_GameObject *object,
   if (g_force_observer != nullptr) {
     g_force_observer(g_force_observer_user, object, vector, local, torque);
   }
+  warn_push_ignored(object, torque ? "a torque" : "a force", torque);
   if (torque) {
     object->ApplyTorque(vector, local);
   }
@@ -4602,6 +4825,7 @@ void apply_impulse_command(KX_GameObject *object,
   const bool visualize = (flags & kImpulseVisualize) != 0;
   const bool old_impulse = mode == LN_ImpulseMode::WorldOffset && !local && !ignore_mass;
   if (old_impulse && !visualize && g_impulse_observer == nullptr) {
+    warn_push_ignored(object, "an impulse", false);
     if (controller != nullptr) {
       controller->ApplyImpulse(secondary, vector, false);
     }
@@ -4653,10 +4877,9 @@ void apply_impulse_command(KX_GameObject *object,
                                                         position;
       const float radius = secondary.x();
       const float distance = (center - vector).length();
-      float factor = 1.0f;
-      if ((flags & kImpulseLinearFalloff) != 0) {
-        factor = radius > 0.0f ? std::clamp(1.0f - distance / radius, 0.0f, 1.0f) : 0.0f;
-      }
+      /* (The Strengths output works it out the same way: LN_ExplosionFalloff.) */
+      const float factor = LN_ExplosionFalloff(
+          distance, radius, (flags & kImpulseLinearFalloff) != 0);
       MT_Vector3 direction;
       if ((flags & kImpulseImplode) != 0) {
         /* Implode: toward the center, Upward Lift above it (so it still lifts); an object at
@@ -4679,6 +4902,9 @@ void apply_impulse_command(KX_GameObject *object,
   }
   if (!impulse_vector_is_finite(world_vector) || !impulse_vector_is_finite(world_point)) {
     return;
+  }
+  if (mode != LN_ImpulseMode::Explosion) {
+    warn_push_ignored(object, angular ? "an angular impulse" : "an impulse", angular);
   }
   if (g_impulse_observer != nullptr) {
     g_impulse_observer(
@@ -4703,8 +4929,14 @@ void apply_impulse_command(KX_GameObject *object,
     }
   }
   if (visualize) {
-    const MT_Vector3 velocity_after = angular ? controller->GetAngularVelocity() :
-                                                controller->GetLinearVelocity();
+    MT_Vector3 velocity_after = angular ? controller->GetAngularVelocity() :
+                                          controller->GetLinearVelocity();
+    if (!angular && controller->IsCharacter()) {
+      /* A character takes the change at its next step (impulse / its mass); a turn none. */
+      const float mass = float(controller->GetMass());
+      const MT_Vector3 pushed = old_impulse ? vector : world_vector;
+      velocity_after = velocity_before + (ignore_mass || !(mass > 0.0f) ? pushed : pushed / mass);
+    }
     draw_impulse(world_point,
                  at_point,
                  angular,
@@ -7831,6 +8063,7 @@ std::vector<LN_CommandBuffer::Command> LN_CommandBuffer::BuildPlannedCommands(
 void LN_CommandBuffer::ClearTypedStreams()
 {
   m_keepDistanceRequests.clear();
+  m_navigationRequests.clear();
   m_transformCommands.clear();
   m_velocityCommands.clear();
   m_relativeVectorCommands.clear();
@@ -7990,6 +8223,8 @@ void LN_CommandBuffer::AppendRecordedChunk(LN_CommandBuffer &chunk)
                                   std::make_move_iterator(chunk.m_keepDistanceRequests.end()));
     chunk.m_keepDistanceRequests.clear();
   }
+  /* Navigation requests (2026-11-18) keep their order too: the flush hands them over by tree. */
+  TakeNavigationRequests(chunk);
   /* What the chunk's appends counted, for all its streams: the order within each stream, the
    * last-write-wins writes, a move in the legacy stream. */
   m_commandStreamsSorted = m_commandStreamsSorted && chunk.m_commandStreamsSorted;
@@ -8606,13 +8841,20 @@ float LN_CommandBuffer::SoundGroupVolume(const int32_t group)
 #endif
 }
 
-void LN_CommandBuffer::CacheToneForTests(const std::string &name, const float frequency)
+void LN_CommandBuffer::CacheToneForTests(const std::string &name,
+                                         const float frequency,
+                                         const float seconds)
 {
 #ifdef WITH_AUDASPACE
-  g_logic_native_sound_cache[name] = std::make_shared<aud::Sine>(frequency);
+  AUD_Sound tone = std::make_shared<aud::Sine>(frequency);
+  if (seconds > 0.0f) {
+    tone = std::make_shared<aud::Limiter>(tone, 0.0, double(seconds));
+  }
+  g_logic_native_sound_cache[name] = tone;
 #else
   (void)name;
   (void)frequency;
+  (void)seconds;
 #endif
 }
 
@@ -9191,9 +9433,11 @@ void LN_CommandBuffer::AppendSetCharacterGravity(KX_GameObject *gameobj,
 }
 
 void LN_CommandBuffer::AppendSetCharacterJumpSpeed(KX_GameObject *gameobj,
-                                                   const float jump_speed,
+                                                   const float value,
                                                    const uint64_t sort_key,
-                                                   const uint32_t source_ref_index)
+                                                   const uint32_t source_ref_index,
+                                                   const int32_t setting,
+                                                   const bool crouch)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -9206,10 +9450,10 @@ void LN_CommandBuffer::AppendSetCharacterJumpSpeed(KX_GameObject *gameobj,
                             gameobj,
                             MT_Vector3(0.0f, 0.0f, 0.0f),
                             MT_Vector3(0.0f, 0.0f, 0.0f),
-                            jump_speed,
+                            value,
+                            setting,
                             0,
-                            0,
-                            false,
+                            crouch,
                             false,
                             sort_key,
                             source_ref_index);
@@ -11079,7 +11323,8 @@ void LN_CommandBuffer::AppendSetActionFrame(KX_GameObject *const gameobj,
                                             const int32_t layer,
                                             const float frame,
                                             const uint64_t sort_key,
-                                            const uint32_t source_ref_index)
+                                            const uint32_t source_ref_index,
+                                            const uint32_t attribute)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -11100,7 +11345,7 @@ void LN_CommandBuffer::AppendSetActionFrame(KX_GameObject *const gameobj,
                               frame,
                               layer,
                               0,
-                              0u,
+                              attribute,
                               sort_key,
                               source_ref_index);
 }
@@ -11155,7 +11400,8 @@ void LN_CommandBuffer::AppendPlaySound(const std::string &sound_name,
                                        const uint64_t sort_key,
                                        const uint32_t source_ref_index,
                                        const int32_t group,
-                                       KX_GameObject *emitter)
+                                       KX_GameObject *emitter,
+                                       const uint64_t ticket)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -11175,6 +11421,7 @@ void LN_CommandBuffer::AppendPlaySound(const std::string &sound_name,
   command.pitch = pitch;
   command.loop = loop;
   command.group = sound_group;
+  command.ticket = ticket;
   AppendTypedCommand(m_audioCommands, std::move(command));
 }
 
@@ -11227,7 +11474,10 @@ void LN_CommandBuffer::AppendPlaySound3D(KX_GameObject *speaker_object,
                                          const uint32_t source_ref_index,
                                          const int32_t listener,
                                          const int32_t user,
-                                         const int32_t group)
+                                         const int32_t group,
+                                         const uint64_t ticket,
+                                         const bool at_position,
+                                         const MT_Vector3 &position)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -11251,6 +11501,14 @@ void LN_CommandBuffer::AppendPlaySound3D(KX_GameObject *speaker_object,
   command.listener = listener;
   command.listener_user = user;
   command.group = sound_group;
+  command.ticket = ticket;
+  command.at_position = at_position;
+  command.position = position;
+  if (at_position) {
+    /* No emitter: it plays beside every other copy (the speaker still gives a Speaker's own
+     * sound and settings). */
+    command.emitter = nullptr;
+  }
   AppendTypedCommand(m_audioCommands, std::move(command));
 }
 
@@ -11771,7 +12029,8 @@ void LN_CommandBuffer::AppendSaveGame(LN_RuntimeTree *runtime_tree,
                                       const std::string &path,
                                       const uint32_t completion_expression_index,
                                       const uint64_t sort_key,
-                                      const uint32_t source_ref_index)
+                                      const uint32_t source_ref_index,
+                                      const bool delete_slot)
 {
   AssertMainThread();
   BLI_assert(m_isRecording);
@@ -11790,6 +12049,7 @@ void LN_CommandBuffer::AppendSaveGame(LN_RuntimeTree *runtime_tree,
   command.int_value = slot;
   command.property_name = path;
   command.property_ref_index = completion_expression_index;
+  command.bool_value = delete_slot;
   command.sort_key = sort_key;
   command.source_ref_index = source_ref_index;
   AppendLegacyCommand(std::move(command));
@@ -12789,6 +13049,10 @@ void LN_CommandBuffer::AppendEditGameProperty(LN_RuntimeTree *runtime_tree,
       break;
     case LN_PropertyEditOp::DictRemoveKey:
       command.secondary_property_name = key;
+      break;
+    case LN_PropertyEditOp::ListInsert:
+      command.secondary_int_value = index;
+      command.property_value = value;
       break;
   }
   command.sort_key = sort_key;
@@ -14371,6 +14635,13 @@ void LN_CommandBuffer::Flush()
         }
         break;
       case CommandType::SetRigidBodyAttribute:
+        if (apply_compound_attribute(*command.object,
+                                     static_cast<LN_RigidBodyAttribute>(command.int_value),
+                                     command.bool_value,
+                                     command))
+        {
+          break;
+        }
         if (PHY_IPhysicsController *physics_controller = command.object->GetPhysicsController()) {
           if (const char *reason = apply_rigid_body_attribute(
                   *physics_controller,
@@ -14404,13 +14675,8 @@ void LN_CommandBuffer::Flush()
         }
         break;
       case CommandType::SetCharacterJumpSpeed:
-        if (KX_Scene *scene = command.object->GetScene()) {
-          if (PHY_IPhysicsEnvironment *environment = scene->GetPhysicsEnvironment()) {
-            if (PHY_ICharacter *character = environment->GetCharacterController(command.object)) {
-              character->SetJumpSpeed(std::max(command.scalar_value, 0.0f));
-            }
-          }
-        }
+        apply_character_setting(
+            command.object, command.int_value, command.scalar_value, command.bool_value);
         break;
       case CommandType::SetCharacterMaxJumps:
         if (KX_Scene *scene = command.object->GetScene()) {
@@ -14712,7 +14978,8 @@ void LN_CommandBuffer::Flush()
         break;
       case CommandType::SetActionFrame:
         if (command.object != nullptr) {
-          command.object->SetActionFrame(short(command.int_value), command.scalar_value);
+          apply_action_layer_set(
+              command.object, command.int_value, command.scalar_value, command.animation_flags);
         }
         break;
       case CommandType::SetShapeKeyValue:
@@ -15153,13 +15420,20 @@ void LN_CommandBuffer::Flush()
           break;
         }
         std::string error;
-        if (!m_logicManager->FlushSaveGame(command.runtime_tree,
-                                           command.int_value,
-                                           command.property_name,
-                                           command.property_ref_index,
-                                           command.source_ref_index,
-                                           error))
-        {
+        const bool queued = command.bool_value ?
+                                m_logicManager->FlushDeleteSaveSlot(command.runtime_tree,
+                                                                    command.int_value,
+                                                                    command.property_name,
+                                                                    command.property_ref_index,
+                                                                    command.source_ref_index,
+                                                                    error) :
+                                m_logicManager->FlushSaveGame(command.runtime_tree,
+                                                              command.int_value,
+                                                              command.property_name,
+                                                              command.property_ref_index,
+                                                              command.source_ref_index,
+                                                              error);
+        if (!queued) {
           warn_command_failure_once(command, error.c_str());
         }
         break;
@@ -15973,7 +16247,13 @@ void LN_CommandBuffer::Flush()
                                 spatial ? typed_command.speaker : nullptr,
                                 typed_command.listener,
                                 typed_command.listener_user,
-                                typed_command.emitter);
+                                typed_command.emitter,
+                                typed_command.ticket,
+                                spatial && typed_command.at_position,
+                                typed_command.position,
+                                spatial && typed_command.speaker != nullptr ?
+                                    typed_command.speaker->GetScene() :
+                                    nullptr);
 #endif
         break;
       }
@@ -16292,7 +16572,10 @@ void LN_CommandBuffer::Flush()
         }
         break;
       case CommandType::SetActionFrame:
-        object->SetActionFrame(short(typed_command.layer), typed_command.frame);
+        apply_action_layer_set(object,
+                               typed_command.layer,
+                               typed_command.frame,
+                               typed_command.animation_flags);
         break;
       default:
         flush_command(make_animation_command(typed_command));
@@ -16424,6 +16707,13 @@ void LN_CommandBuffer::Flush()
         }
         break;
       case CommandType::SetRigidBodyAttribute:
+        if (apply_compound_attribute(*object,
+                                     static_cast<LN_RigidBodyAttribute>(typed_command.int_value),
+                                     typed_command.bool_value,
+                                     make_physics_command(typed_command)))
+        {
+          break;
+        }
         if (PHY_IPhysicsController *physics_controller = object->GetPhysicsController()) {
           if (const char *reason = apply_rigid_body_attribute(
                   *physics_controller,
@@ -16457,13 +16747,10 @@ void LN_CommandBuffer::Flush()
         }
         break;
       case CommandType::SetCharacterJumpSpeed:
-        if (KX_Scene *scene = object->GetScene()) {
-          if (PHY_IPhysicsEnvironment *environment = scene->GetPhysicsEnvironment()) {
-            if (PHY_ICharacter *character = environment->GetCharacterController(object)) {
-              character->SetJumpSpeed(std::max(typed_command.scalar_value, 0.0f));
-            }
-          }
-        }
+        apply_character_setting(object,
+                                typed_command.int_value,
+                                typed_command.scalar_value,
+                                typed_command.bool_value);
         break;
       case CommandType::SetCharacterMaxJumps:
         if (KX_Scene *scene = object->GetScene()) {
@@ -16986,7 +17273,41 @@ void LN_CommandBuffer::Flush()
         m_keepDistanceRequests, m_removedObjectsDuringFlush, keep_distance_apply_force);
   }
 
+  /* Navigation (2026-11-18): every request of the step to its object's scene's navigation, in
+   * the trees' order (the navigation step after the flush takes the last one of each object). */
+  if (!m_navigationRequests.empty()) {
+    std::stable_sort(m_navigationRequests.begin(),
+                     m_navigationRequests.end(),
+                     [](const KX_NavRequest &a, const KX_NavRequest &b) {
+                       return a.sort_key < b.sort_key;
+                     });
+    for (KX_NavRequest &request : m_navigationRequests) {
+      if (request.object == nullptr || m_removedObjectsDuringFlush.count(request.object)) {
+        continue;
+      }
+      if (request.target != nullptr && m_removedObjectsDuringFlush.count(request.target)) {
+        request.target = nullptr;
+      }
+      if (request.rotating_object != nullptr &&
+          m_removedObjectsDuringFlush.count(request.rotating_object))
+      {
+        request.rotating_object = nullptr;
+        request.look_at = false;
+      }
+      if (request.navmesh != nullptr &&
+          m_removedObjectsDuringFlush.count(static_cast<KX_GameObject *>(request.navmesh)))
+      {
+        request.navmesh = nullptr;
+      }
+      if (KX_Navigation *navigation = LN_QueryNavigation(request.object)) {
+        navigation->Submit(request);
+      }
+    }
+    m_navigationRequests.clear();
+  }
+
   m_isFlushing = false;
+  logic_native_sound_tickets_flushed();
   m_removedObjectsDuringFlush.clear();
   m_commands.clear();
   ClearTypedStreams();
@@ -16998,6 +17319,23 @@ void LN_CommandBuffer::AppendKeepDistance(LN_KeepDistanceRequest &&request)
   BLI_assert(m_isRecording);
   BLI_assert(!m_isFlushing);
   m_keepDistanceRequests.push_back(std::move(request));
+}
+
+void LN_CommandBuffer::AppendNavigationRequest(const KX_NavRequest &request)
+{
+  BLI_assert(!m_isFlushing);
+  m_navigationRequests.push_back(request);
+}
+
+void LN_CommandBuffer::TakeNavigationRequests(LN_CommandBuffer &chunk)
+{
+  if (chunk.m_navigationRequests.empty() || &chunk == this) {
+    return;
+  }
+  m_navigationRequests.insert(m_navigationRequests.end(),
+                              chunk.m_navigationRequests.begin(),
+                              chunk.m_navigationRequests.end());
+  chunk.m_navigationRequests.clear();
 }
 
 void LN_CommandBuffer::TakeKeepDistanceRequests(LN_CommandBuffer &chunk)

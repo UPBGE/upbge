@@ -176,9 +176,31 @@ class BL_Action {
 
   blender::bAction *GetAction();
 
+  /** The playback now (Logic Nodes' On Action Frame, 2026-11-16): Ping Pong swaps the start and
+   * end frame at each turn, so the frames go from start toward end. */
+  float GetStartFrame() const
+  {
+    return m_startframe;
+  }
+  float GetEndFrame() const
+  {
+    return m_endframe;
+  }
+  short GetPlayMode() const
+  {
+    return m_playmode;
+  }
+
   // Mutators
   void SetFrame(float frame);
   void SetPlayMode(short play_mode);
+  /** Logic Nodes' Set Action Layer (2026-11-16): the frame shown stays and later frames go at the
+   * new speed; 0 holds the frame. */
+  void SetSpeed(float speed);
+  /** Logic Nodes' Set Action Layer (2026-11-16): how much of the layers below shows (negative:
+   * none). An armature action follows it at once; a shape-key action blends only when it was
+   * started with a weight. */
+  void SetLayerWeight(float layer_weight);
   void RebaseTime(float previous_time, float current_time, bool use_pause_clock);
 
   enum {

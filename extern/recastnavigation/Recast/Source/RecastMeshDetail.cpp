@@ -16,10 +16,6 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef _USE_MATH_DEFINES
-#  define _USE_MATH_DEFINES
-#endif
-
 #include <float.h>
 #include <math.h>
 #include <string.h>
@@ -287,7 +283,7 @@ static unsigned short getHeight(const float fx, const float fy, const float fz,
 enum EdgeValues
 {
 	EV_UNDEF = -1,
-	EV_HULL = -2,
+	EV_HULL = -2
 };
 
 static int findEdge(const int* edges, int nedges, int s, int t)
@@ -461,7 +457,7 @@ static void completeFacet(rcContext* ctx, const float* pts, int npts, int* edges
 
 static void delaunayHull(rcContext* ctx, const int npts, const float* pts,
 						 const int nhull, const int* hull,
-						 rcIntArray& tris, rcIntArray& edges)
+						 rcTempVector<int>& tris, rcTempVector<int>& edges)
 {
 	int nfaces = 0;
 	int nedges = 0;
@@ -560,15 +556,16 @@ static float polyMinExtent(const float* verts, const int nverts)
 inline int prev(int i, int n) { return i-1 >= 0 ? i-1 : n-1; }
 inline int next(int i, int n) { return i+1 < n ? i+1 : 0; }
 
-static void triangulateHull(const int /*nverts*/, const float* verts, const int nhull, const int* hull, rcIntArray& tris)
+static void triangulateHull(const int /*nverts*/, const float* verts, const int nhull, const int* hull, const int nin, rcTempVector<int>& tris)
 {
 	int start = 0, left = 1, right = nhull-1;
 	
 	// Start from an ear with shortest perimeter.
 	// This tends to favor well formed triangles as starting point.
-	float dmin = 0;
+	float dmin = FLT_MAX;
 	for (int i = 0; i < nhull; i++)
 	{
+		if (hull[i] >= nin) continue; // Ears are triangles with original vertices as middle vertex while others are actually line segments on edges
 		int pi = prev(i, nhull);
 		int ni = next(i, nhull);
 		const float* pv = &verts[hull[pi]*3];
@@ -585,15 +582,15 @@ static void triangulateHull(const int /*nverts*/, const float* verts, const int 
 	}
 	
 	// Add first triangle
-	tris.push(hull[start]);
-	tris.push(hull[left]);
-	tris.push(hull[right]);
-	tris.push(0);
+	tris.push_back(hull[start]);
+	tris.push_back(hull[left]);
+	tris.push_back(hull[right]);
+	tris.push_back(0);
 	
 	// Triangulate the polygon by moving left or right,
 	// depending on which triangle has shorter perimeter.
-	// This heuristic was chose emprically, since it seems
-	// handle tesselated straight edges well.
+	// This heuristic was chose empirically, since it seems
+	// handle tessellated straight edges well.
 	while (next(left, nhull) != right)
 	{
 		// Check to see if se should advance left or right.
@@ -609,18 +606,18 @@ static void triangulateHull(const int /*nverts*/, const float* verts, const int 
 		
 		if (dleft < dright)
 		{
-			tris.push(hull[left]);
-			tris.push(hull[nleft]);
-			tris.push(hull[right]);
-			tris.push(0);
+			tris.push_back(hull[left]);
+			tris.push_back(hull[nleft]);
+			tris.push_back(hull[right]);
+			tris.push_back(0);
 			left = nleft;
 		}
 		else
 		{
-			tris.push(hull[left]);
-			tris.push(hull[nright]);
-			tris.push(hull[right]);
-			tris.push(0);
+			tris.push_back(hull[left]);
+			tris.push_back(hull[nright]);
+			tris.push_back(hull[right]);
+			tris.push_back(0);
 			right = nright;
 		}
 	}
@@ -637,11 +634,45 @@ inline float getJitterY(const int i)
 	return (((i * 0xd8163841) & 0xffff) / 65535.0f * 2.0f) - 1.0f;
 }
 
+static bool onHull(int a, int b, int nhull, int* hull)
+{
+	// All internal sampled points come after the hull so we can early out for those.
+	if (a >= nhull || b >= nhull)
+		return false;
+
+	for (int j = nhull - 1, i = 0; i < nhull; j = i++)
+	{
+		if (a == hull[j] && b == hull[i])
+			return true;
+	}
+
+	return false;
+}
+
+// Find edges that lie on hull and mark them as such.
+static void setTriFlags(rcTempVector<int>& tris, int nhull, int* hull)
+{
+	// Matches DT_DETAIL_EDGE_BOUNDARY
+	const int DETAIL_EDGE_BOUNDARY = 0x1;
+
+	for (int i = 0; i < tris.size(); i += 4)
+	{
+		int a = tris[i + 0];
+		int b = tris[i + 1];
+		int c = tris[i + 2];
+		unsigned short flags = 0;
+		flags |= (onHull(a, b, nhull, hull) ? DETAIL_EDGE_BOUNDARY : 0) << 0;
+		flags |= (onHull(b, c, nhull, hull) ? DETAIL_EDGE_BOUNDARY : 0) << 2;
+		flags |= (onHull(c, a, nhull, hull) ? DETAIL_EDGE_BOUNDARY : 0) << 4;
+		tris[i + 3] = (int)flags;
+	}
+}
+
 static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 							const float sampleDist, const float sampleMaxError,
 							const int heightSearchRadius, const rcCompactHeightfield& chf,
 							const rcHeightPatch& hp, float* verts, int& nverts,
-							rcIntArray& tris, rcIntArray& edges, rcIntArray& samples)
+							rcTempVector<int>& tris, rcTempVector<int>& edges, rcTempVector<int>& samples)
 {
 	static const int MAX_VERTS = 127;
 	static const int MAX_TRIS = 255;	// Max tris for delaunay is 2n-2-k (n=num verts, k=num hull verts).
@@ -650,14 +681,13 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 	int hull[MAX_VERTS];
 	int nhull = 0;
 	
-	nverts = 0;
+	nverts = nin;
 	
 	for (int i = 0; i < nin; ++i)
 		rcVcopy(&verts[i*3], &in[i*3]);
-	nverts = nin;
 	
-	edges.resize(0);
-	tris.resize(0);
+	edges.clear();
+	tris.clear();
 	
 	const float cs = chf.cs;
 	const float ics = 1.0f/cs;
@@ -774,15 +804,16 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 	// If the polygon minimum extent is small (sliver or small triangle), do not try to add internal points.
 	if (minExtent < sampleDist*2)
 	{
-		triangulateHull(nverts, verts, nhull, hull, tris);
+		triangulateHull(nverts, verts, nhull, hull, nin, tris);
+		setTriFlags(tris, nhull, hull);
 		return true;
 	}
 	
 	// Tessellate the base mesh.
 	// We're using the triangulateHull instead of delaunayHull as it tends to
-	// create a bit better triangulation for long thing triangles when there
+	// create a bit better triangulation for long thin triangles when there
 	// are no internal points.
-	triangulateHull(nverts, verts, nhull, hull, tris);
+	triangulateHull(nverts, verts, nhull, hull, nin, tris);
 	
 	if (tris.size() == 0)
 	{
@@ -806,7 +837,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 		int x1 = (int)ceilf(bmax[0]/sampleDist);
 		int z0 = (int)floorf(bmin[2]/sampleDist);
 		int z1 = (int)ceilf(bmax[2]/sampleDist);
-		samples.resize(0);
+		samples.clear();
 		for (int z = z0; z < z1; ++z)
 		{
 			for (int x = x0; x < x1; ++x)
@@ -817,17 +848,17 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 				pt[2] = z*sampleDist;
 				// Make sure the samples are not too close to the edges.
 				if (distToPoly(nin,in,pt) > -sampleDist/2) continue;
-				samples.push(x);
-				samples.push(getHeight(pt[0], pt[1], pt[2], cs, ics, chf.ch, heightSearchRadius, hp));
-				samples.push(z);
-				samples.push(0); // Not added
+				samples.push_back(x);
+				samples.push_back(getHeight(pt[0], pt[1], pt[2], cs, ics, chf.ch, heightSearchRadius, hp));
+				samples.push_back(z);
+				samples.push_back(0); // Not added
 			}
 		}
 		
 		// Add the samples starting from the one that has the most
 		// error. The procedure stops when all samples are added
 		// or when the max error is within treshold.
-		const int nsamples = samples.size()/4;
+		const int nsamples = static_cast<int>(samples.size()) / 4;
 		for (int iter = 0; iter < nsamples; ++iter)
 		{
 			if (nverts >= MAX_VERTS)
@@ -847,7 +878,8 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 				pt[0] = s[0]*sampleDist + getJitterX(i)*cs*0.1f;
 				pt[1] = s[1]*chf.ch;
 				pt[2] = s[2]*sampleDist + getJitterY(i)*cs*0.1f;
-				float d = distToTriMesh(pt, verts, nverts, &tris[0], tris.size()/4);
+				if (tris.size() == 0) continue;
+				float d = distToTriMesh(pt, verts, nverts, &tris[0], static_cast<int>(tris.size()) / 4);
 				if (d < 0) continue; // did not hit the mesh.
 				if (d > bestd)
 				{
@@ -867,18 +899,20 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 			
 			// Create new triangulation.
 			// TODO: Incremental add instead of full rebuild.
-			edges.resize(0);
-			tris.resize(0);
+			edges.clear();
+			tris.clear();
 			delaunayHull(ctx, nverts, verts, nhull, hull, tris, edges);
 		}
 	}
 	
-	const int ntris = tris.size()/4;
+	const int ntris = static_cast<int>(tris.size()) / 4;
 	if (ntris > MAX_TRIS)
 	{
 		tris.resize(MAX_TRIS*4);
 		ctx->log(RC_LOG_ERROR, "rcBuildPolyMeshDetail: Shrinking triangle count from %d to max %d.", ntris, MAX_TRIS);
 	}
+
+	setTriFlags(tris, nhull, hull);
 	
 	return true;
 }
@@ -886,7 +920,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 static void seedArrayWithPolyCenter(rcContext* ctx, const rcCompactHeightfield& chf,
 									const unsigned short* poly, const int npoly,
 									const unsigned short* verts, const int bs,
-									rcHeightPatch& hp, rcIntArray& array)
+									rcHeightPatch& hp, rcTempVector<int>& array)
 {
 	// Note: Reads to the compact heightfield are offset by border size (bs)
 	// since border size offset is already removed from the polymesh vertices.
@@ -938,10 +972,10 @@ static void seedArrayWithPolyCenter(rcContext* ctx, const rcCompactHeightfield& 
 	pcy /= npoly;
 	
 	// Use seeds array as a stack for DFS
-	array.resize(0);
-	array.push(startCellX);
-	array.push(startCellY);
-	array.push(startSpanIndex);
+	array.clear();
+	array.push_back(startCellX);
+	array.push_back(startCellY);
+	array.push_back(startSpanIndex);
 
 	int dirs[] = { 0, 1, 2, 3 };
 	memset(hp.data, 0, sizeof(unsigned short)*hp.width*hp.height);
@@ -958,9 +992,9 @@ static void seedArrayWithPolyCenter(rcContext* ctx, const rcCompactHeightfield& 
 			break;
 		}
 
-		ci = array.pop();
-		cy = array.pop();
-		cx = array.pop();
+		ci = array.back(); array.pop_back();
+		cy = array.back(); array.pop_back();
+		cx = array.back(); array.pop_back();
 
 		if (cx == pcx && cy == pcy)
 			break;
@@ -996,19 +1030,19 @@ static void seedArrayWithPolyCenter(rcContext* ctx, const rcCompactHeightfield& 
 				continue;
 
 			hp.data[hpx+hpy*hp.width] = 1;
-			array.push(newX);
-			array.push(newY);
-			array.push((int)chf.cells[(newX+bs)+(newY+bs)*chf.width].index + rcGetCon(cs, dir));
+			array.push_back(newX);
+			array.push_back(newY);
+			array.push_back((int)chf.cells[(newX+bs)+(newY+bs)*chf.width].index + rcGetCon(cs, dir));
 		}
 
 		rcSwap(dirs[directDir], dirs[3]);
 	}
 
-	array.resize(0);
+	array.clear();
 	// getHeightData seeds are given in coordinates with borders
-	array.push(cx+bs);
-	array.push(cy+bs);
-	array.push(ci);
+	array.push_back(cx+bs);
+	array.push_back(cy+bs);
+	array.push_back(ci);
 
 	memset(hp.data, 0xff, sizeof(unsigned short)*hp.width*hp.height);
 	const rcCompactSpan& cs = chf.spans[ci];
@@ -1016,7 +1050,7 @@ static void seedArrayWithPolyCenter(rcContext* ctx, const rcCompactHeightfield& 
 }
 
 
-static void push3(rcIntArray& queue, int v1, int v2, int v3)
+static void push3(rcTempVector<int>& queue, int v1, int v2, int v3)
 {
 	queue.resize(queue.size() + 3);
 	queue[queue.size() - 3] = v1;
@@ -1027,13 +1061,13 @@ static void push3(rcIntArray& queue, int v1, int v2, int v3)
 static void getHeightData(rcContext* ctx, const rcCompactHeightfield& chf,
 						  const unsigned short* poly, const int npoly,
 						  const unsigned short* verts, const int bs,
-						  rcHeightPatch& hp, rcIntArray& queue,
+						  rcHeightPatch& hp, rcTempVector<int>& queue,
 						  int region)
 {
 	// Note: Reads to the compact heightfield are offset by border size (bs)
 	// since border size offset is already removed from the polymesh vertices.
 	
-	queue.resize(0);
+	queue.clear();
 	// Set all heights to RC_UNSET_HEIGHT.
 	memset(hp.data, 0xff, sizeof(unsigned short)*hp.width*hp.height);
 
@@ -1141,30 +1175,6 @@ static void getHeightData(rcContext* ctx, const rcCompactHeightfield& chf,
 	}
 }
 
-static unsigned char getEdgeFlags(const float* va, const float* vb,
-								  const float* vpoly, const int npoly)
-{
-	// Return true if edge (va,vb) is part of the polygon.
-	static const float thrSqr = rcSqr(0.001f);
-	for (int i = 0, j = npoly-1; i < npoly; j=i++)
-	{
-		if (distancePtSeg2d(va, &vpoly[j*3], &vpoly[i*3]) < thrSqr &&
-			distancePtSeg2d(vb, &vpoly[j*3], &vpoly[i*3]) < thrSqr)
-			return 1;
-	}
-	return 0;
-}
-
-static unsigned char getTriFlags(const float* va, const float* vb, const float* vc,
-								 const float* vpoly, const int npoly)
-{
-	unsigned char flags = 0;
-	flags |= getEdgeFlags(va,vb,vpoly,npoly) << 0;
-	flags |= getEdgeFlags(vb,vc,vpoly,npoly) << 2;
-	flags |= getEdgeFlags(vc,va,vpoly,npoly) << 4;
-	return flags;
-}
-
 /// @par
 ///
 /// See the #rcConfig documentation for more information on the configuration parameters.
@@ -1188,10 +1198,10 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 	const int borderSize = mesh.borderSize;
 	const int heightSearchRadius = rcMax(1, (int)ceilf(mesh.maxEdgeError));
 	
-	rcIntArray edges(64);
-	rcIntArray tris(512);
-	rcIntArray arr(512);
-	rcIntArray samples(512);
+	rcTempVector<int> edges(64);
+	rcTempVector<int> tris(512);
+	rcTempVector<int> arr(512);
+	rcTempVector<int> samples(512);
 	float verts[256*3];
 	rcHeightPatch hp;
 	int nPolyVerts = 0;
@@ -1326,7 +1336,7 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 		}
 		
 		// Store detail submesh.
-		const int ntris = tris.size()/4;
+		const int ntris = static_cast<int>(tris.size()) / 4;
 		
 		dmesh.meshes[i*4+0] = (unsigned int)dmesh.nverts;
 		dmesh.meshes[i*4+1] = (unsigned int)nverts;
@@ -1380,7 +1390,7 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 			dmesh.tris[dmesh.ntris*4+0] = (unsigned char)t[0];
 			dmesh.tris[dmesh.ntris*4+1] = (unsigned char)t[1];
 			dmesh.tris[dmesh.ntris*4+2] = (unsigned char)t[2];
-			dmesh.tris[dmesh.ntris*4+3] = getTriFlags(&verts[t[0]*3], &verts[t[1]*3], &verts[t[2]*3], poly, npoly);
+			dmesh.tris[dmesh.ntris*4+3] = (unsigned char)t[3];
 			dmesh.ntris++;
 		}
 	}

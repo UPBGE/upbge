@@ -132,6 +132,8 @@ const char *bool_kind_refusal(const LN_BoolExpression &expression)
   switch (expression.kind) {
     case LN_BoolExpressionKind::Constant:
     case LN_BoolExpressionKind::GamePaused:
+    /* (2026-11-17) On Removed: the tree's own flag, set before the tick. */
+    case LN_BoolExpressionKind::BeingRemoved:
     case LN_BoolExpressionKind::Random:
     case LN_BoolExpressionKind::SnapshotGameProperty:
     case LN_BoolExpressionKind::SnapshotGamePropertyExists:
@@ -153,6 +155,8 @@ const char *bool_kind_refusal(const LN_BoolExpression &expression)
     case LN_BoolExpressionKind::FromVector:
     case LN_BoolExpressionKind::FromColor:
     case LN_BoolExpressionKind::ValueCompare:
+    /* (2026-11-16) Compare's Object type: two object values resolved, as Object Distance's. */
+    case LN_BoolExpressionKind::ObjectsEqual:
     case LN_BoolExpressionKind::DictHasKey:
     case LN_BoolExpressionKind::ListContains:
     case LN_BoolExpressionKind::StoreValueDone:
@@ -201,8 +205,12 @@ const char *bool_kind_refusal(const LN_BoolExpression &expression)
     case LN_BoolExpressionKind::ActionFailed:
       return nullptr;
     case LN_BoolExpressionKind::SnapshotCharacterOnGround:
+    case LN_BoolExpressionKind::SnapshotCharacterState:
       return expression.input0 == LN_INVALID_INDEX ? nullptr :
                                                      "another object's character state";
+    /* (2026-11-18) The navigation's last step, written after the flush (any object's). */
+    case LN_BoolExpressionKind::NavigationState:
+      return nullptr;
     default:
       return "a bool node that is not batch safe";
   }
@@ -215,6 +223,13 @@ const char *int_kind_refusal(const LN_IntExpression &expression)
     case LN_IntExpressionKind::SnapshotGameProperty:
     case LN_IntExpressionKind::RuntimeTreeProperty:
     case LN_IntExpressionKind::StringCount:
+    /* (2026-11-17) String Operation's Length and Find: text of their inputs. */
+    case LN_IntExpressionKind::TextLength:
+    case LN_IntExpressionKind::TextFind:
+    /* (2026-11-17) List Operation's Index: its list's numbers. */
+    case LN_IntExpressionKind::ListStatisticIndex:
+    /* (2026-11-17) Date and Time: the tick's wall clock, set before any tree records. */
+    case LN_IntExpressionKind::DateTimePart:
     case LN_IntExpressionKind::SnapshotCollisionGroup:
     case LN_IntExpressionKind::MouseWheelDelta:
     case LN_IntExpressionKind::WindowResolutionWidth:
@@ -225,6 +240,8 @@ const char *int_kind_refusal(const LN_IntExpression &expression)
     case LN_IntExpressionKind::FromGenericValue:
     case LN_IntExpressionKind::Random:
     case LN_IntExpressionKind::GameRandomSeed:
+    /* (2026-11-16) Get Random List Item's Index: a hash over the list it reads. */
+    case LN_IntExpressionKind::ListRandomIndex:
     case LN_IntExpressionKind::FromBool:
     case LN_IntExpressionKind::FromFloat:
     case LN_IntExpressionKind::FromString:
@@ -245,6 +262,8 @@ const char *float_kind_refusal(const LN_FloatExpression &expression)
   switch (expression.kind) {
     case LN_FloatExpressionKind::Constant:
     case LN_FloatExpressionKind::UnscaledDeltaTime:
+    /* (2026-11-17) The tick's game time, the same for every tree. */
+    case LN_FloatExpressionKind::GameTime:
     case LN_FloatExpressionKind::StepTimePassed:
     case LN_FloatExpressionKind::SnapshotGameProperty:
     case LN_FloatExpressionKind::RuntimeTreeProperty:
@@ -302,6 +321,22 @@ const char *float_kind_refusal(const LN_FloatExpression &expression)
     case LN_FloatExpressionKind::RayPlaneDistance:
     case LN_FloatExpressionKind::ArcFlightTime:
     case LN_FloatExpressionKind::VectorLength:
+    /* (2026-11-16) Math's and Vector Math's newer operations: math of their inputs
+     * (LN_MathOps.h). */
+    case LN_FloatExpressionKind::MathFunction:
+    case LN_FloatExpressionKind::VectorMeasure:
+    /* (2026-11-16) Smooth Value: its tree's own state and the pass's time; Noise: math of its
+     * inputs (LN_MathOps.h). */
+    case LN_FloatExpressionKind::SmoothValue:
+    case LN_FloatExpressionKind::Noise:
+    /* (2026-11-17) List Operation's Min, Max, Sum, Average: its list's numbers. */
+    case LN_FloatExpressionKind::ListStatistic:
+    /* (2026-11-17) Oscillate: its inputs, the tree's random stream. */
+    case LN_FloatExpressionKind::OscillateCycle:
+    case LN_FloatExpressionKind::Oscillate:
+    /* (2026-11-17) Date and Time's Day Fraction: the tick's wall clock. */
+    case LN_FloatExpressionKind::DayFraction:
+    case LN_FloatExpressionKind::NavigationState:
     /* (2026-11-14) A rest bone's length: the armature's own data, never changed while playing. */
     case LN_FloatExpressionKind::BoneLength:
       return nullptr;
@@ -324,6 +359,9 @@ const char *string_kind_refusal(const LN_StringExpression &expression)
     case LN_StringExpressionKind::ToLowercase:
     case LN_StringExpressionKind::ZeroFill:
     case LN_StringExpressionKind::Format:
+    case LN_StringExpressionKind::TextSubstring:
+    case LN_StringExpressionKind::TextFormatTime:
+    case LN_StringExpressionKind::NavigationLinkKind:
     case LN_StringExpressionKind::KeyLoggerCharacter:
     case LN_StringExpressionKind::KeyLoggerKeycode:
     case LN_StringExpressionKind::FromGenericValue:
@@ -360,6 +398,12 @@ const char *vector_kind_refusal(const LN_VectorExpression &expression)
     case LN_VectorExpressionKind::Maximum:
     case LN_VectorExpressionKind::Scale:
     case LN_VectorExpressionKind::Normalize:
+    case LN_VectorExpressionKind::VectorFunction:
+    case LN_VectorExpressionKind::RotationFunction:
+    /* (2026-11-16) Smooth Value (the tree's own state), Random Value's shapes (a hash). */
+    case LN_VectorExpressionKind::SmoothValue:
+    case LN_VectorExpressionKind::RandomShape:
+    case LN_VectorExpressionKind::Oscillate:
     case LN_VectorExpressionKind::Resize:
     case LN_VectorExpressionKind::RotateAroundAxis:
     case LN_VectorExpressionKind::VectorToRotation:
@@ -391,8 +435,12 @@ const char *vector_kind_refusal(const LN_VectorExpression &expression)
     case LN_VectorExpressionKind::SnapshotCharacterGravity:
     case LN_VectorExpressionKind::SnapshotCharacterWalkDirection:
     case LN_VectorExpressionKind::SnapshotCharacterLocalWalkDirection:
+    case LN_VectorExpressionKind::SnapshotCharacterSurface:
       return expression.input0 == LN_INVALID_INDEX ? nullptr :
                                                      "another object's velocity or character";
+    /* (2026-11-18) The navigation's last step (any object's): written after the flush. */
+    case LN_VectorExpressionKind::NavigationState:
+      return nullptr;
     default:
       return "a vector node that is not batch safe";
   }
@@ -419,6 +467,15 @@ const char *color_kind_refusal(const LN_ColorExpression &expression)
 const char *value_kind_refusal(const LN_Program &program, const LN_ValueExpression &expression)
 {
   switch (expression.kind) {
+    /* Get Character Info's Ground Object of the owner: its snapshot's character channel (the
+     * object found by its body without a lock, nothing adds or removes bodies while trees
+     * record), a ref in the tree's own table. */
+    case LN_ValueExpressionKind::SnapshotCharacterGroundObject:
+      return expression.input0 == LN_INVALID_INDEX ? nullptr :
+                                                     "another object's character state";
+    /* (2026-11-18) The navigation's last step (any object's), a ref in the tree's own table. */
+    case LN_ValueExpressionKind::NavigationLinkObject:
+      return nullptr;
     /* Get Object Attribute of the owner or of a constant object (plan phase B0): a transform,
      * the colour, the visibility, the name or a game property, read as it is. Nothing a batch
      * runs changes the scene and the read applies no pending move (unlike Get Distance), so it
@@ -490,6 +547,14 @@ const char *value_kind_refusal(const LN_Program &program, const LN_ValueExpressi
     case LN_ValueExpressionKind::ValueSwitchListCompare:
     case LN_ValueExpressionKind::ListSort:
     case LN_ValueExpressionKind::ListFindIndex:
+    case LN_ValueExpressionKind::TextSplit:
+    /* (2026-11-17) Insert's Output Only, List Operation's Reverse, Shuffle (the tree's random
+     * stream, as Get Random List Item) and Slice: their list. Get Children reads the hierarchy:
+     * main thread, as Get Child. */
+    case LN_ValueExpressionKind::ListInsert:
+    case LN_ValueExpressionKind::ListReverse:
+    case LN_ValueExpressionKind::ListShuffle:
+    case LN_ValueExpressionKind::ListSlice:
     case LN_ValueExpressionKind::DictAddValue:
       return nullptr;
     default:
@@ -513,6 +578,14 @@ const char *query_refusal(const LN_Program &program, const LN_QueryExpression &e
       return "a Get Distance whose ends can change during a pass";
     }
     case LN_QueryExpressionKind::Count:
+      return nullptr;
+    /* (2026-11-16) Find Objects reads the tick's poses (LN_FindIndex), made before any tree
+     * records and only read while they do. */
+    case LN_QueryExpressionKind::FindObjects:
+      return nullptr;
+    /* (2026-11-18) Navmesh Query reads the navmesh (changed only by the navigation step, after
+     * the flush) with the thread's own query object. */
+    case LN_QueryExpressionKind::NavmeshQuery:
       return nullptr;
     default:
       return "a ray, cast, pointer or UI query";
@@ -652,6 +725,12 @@ const char *op_refusal(const LN_Program &program, const LN_Instruction &instruct
     case LN_OpCode::ResetRepeatLimit:
     case LN_OpCode::ResetMotion:
     case LN_OpCode::BreakLoop:
+    case LN_OpCode::TweenRequest:
+    /* (2026-11-18) Navigation requests: recorded, handed to the navigation at the flush's end
+     * (its step moves the NPCs after the flush; nothing read or moved now). */
+    case LN_OpCode::Navigate:
+    case LN_OpCode::FollowPath:
+    case LN_OpCode::NavigationAttribute:
     /* Recorded writes (the object reference resolved through the tree's own slots). */
     case LN_OpCode::SetTreeProperty:
     case LN_OpCode::SetVisibility:
@@ -1098,11 +1177,10 @@ size_t LN_TreeBatchRecorder::Record(LN_JobPool &pool,
     m_chunks.push_back(std::make_unique<LN_CommandBuffer>());
   }
   /* Lean programs are made on the main thread only (plan phase A17): before the chunks go to the
-   * helpers, every tree's program has its lean form (none in the reference mode). */
-  if (LN_GetLeanMode() == LN_LeanMode::Lean) {
-    for (size_t index = 0; index < count; index++) {
-      trees[index]->PrepareLeanProgram();
-    }
+   * helpers, every tree's program has its lean form (none in the reference mode) and its tree
+   * property answers (every mode: two helpers once filled them at once, 2026-11-17). */
+  for (size_t index = 0; index < count; index++) {
+    trees[index]->PrepareLeanProgram();
   }
   /* The chunks' reads look for pending moves in the tick's buffer too (the safety net). */
   buffer.PrepareForChunkReads();

@@ -1696,6 +1696,33 @@ if(WITH_GAMEENGINE_LOGICNODES)
     --python "${CMAKE_CURRENT_LIST_DIR}/logic_nodes_ray_preview.py"
   )
 
+  # Links between real logic nodes are drawn without red exactly for the pairs the engine converts
+  # by itself (numbers, true/false, vectors, rotations, colors; the gtest LN_ImplicitConversion
+  # checks the compiler's side).
+  add_blender_test_impl(
+    "logic_nodes_link_conversions"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/logic_nodes_link_conversions.py"
+  )
+
+  # Compare's Operation follows its Type: an Object lists only Equal and Not Equal, each type's
+  # list says what an operation means (2026-11-17; the engine's warning is a gtest).
+  add_blender_test_impl(
+    "logic_nodes_compare_operations"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/logic_nodes_compare_operations.py"
+  )
+
   # Backspace over one logic node setting gives what a new node starts with (the RNA defaults equal
   # the nodes' inits), for every logic node and merged option.
   add_blender_test_impl(
@@ -1770,6 +1797,18 @@ if(WITH_GAMEENGINE_LOGICNODES)
     --python "${CMAKE_CURRENT_LIST_DIR}/game_physics_no_free_axis_warning.py"
   )
 
+  # The Collision Bounds panel warns when a shape centred on the origin is away from the mesh.
+  add_blender_test_impl(
+    "game_physics_origin_offset_warning"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/game_physics_origin_offset_warning.py"
+  )
+
   # The legacy Python Logic Nodes add-ons are enabled by default in UPBGE and can abort under
   # --debug-memory during shutdown. Keep Python exit-code checking, but avoid debug-memory here so
   # this native editor serialization probe is judged by the script result.
@@ -1799,6 +1838,21 @@ if(WITH_GAMEENGINE_LOGICNODES)
     --python "${CMAKE_CURRENT_LIST_DIR}/game_ui_guide_rebuild_test.py"
     --
     --output-dir "${TEST_OUT_DIR}/game_ui"
+  )
+
+  # The Split-Screen Guide (split_screen_guide.html) explains every logic frame, object,
+  # material and action of the Split-Screen Example, every name and value its words mark is in
+  # the example, and the shipped page is the one the script makes now (its pictures aside).
+  add_blender_test_impl(
+    "split_screen_guide_check"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_SOURCE_DIR}/release/datafiles/game_ui/make_split_screen_guide.py"
+    --
+    --check
   )
 
 endif()

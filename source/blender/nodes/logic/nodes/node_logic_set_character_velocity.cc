@@ -21,9 +21,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       "Character object to affect; defaults to the owner when unset");
   b.add_input<decl::Vector>("Velocity"_ustr)
       .default_value({0.0f, 0.0f, 0.0f})
-      .description("Character velocity vector");
+      .description(
+          "Velocity in m/s: its up part becomes the vertical speed at once (a launch or a "
+          "knock-back; gravity then acts), its horizontal part replaces walking for Time");
   b.add_input<decl::Float>("Time"_ustr).default_value(0.0f).min(0.0f).description(
-      "Duration over which the velocity remains active");
+      "Seconds the horizontal part replaces the walking velocity (0: one step)");
   b.add_output<decl::Execution>("Done"_ustr, "Out"_ustr);
   b.add_output<decl::Execution>("Done"_ustr).available(false);
 }

@@ -48,9 +48,12 @@ JPH_SUPPRESS_WARNINGS
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <functional>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
+class JoltCharacter;
 class JoltSoftBody;
 class PHY_IMotionState;
 
@@ -276,6 +279,14 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   virtual void AddCompoundChild(PHY_IPhysicsController *child) override;
   bool TryAddCompoundChild(PHY_IPhysicsController *child) override;
   virtual void RemoveCompoundChild(PHY_IPhysicsController *child) override;
+  bool SetCompoundRoot(bool compound) override;
+  bool RemoveCompoundChildObject(KX_GameObject *child) override;
+  bool RemoveCompoundChildObjects(const std::vector<KX_GameObject *> &children) override;
+  int GetCompoundPartCount() const override;
+  void AddCompoundChildren(const std::vector<PHY_IPhysicsController *> &children,
+                           std::vector<bool> &r_added) override;
+  void RebindCompoundChildObjects(
+      const std::function<KX_GameObject *(KX_GameObject *)> &copy_of) override;
 
   virtual bool IsDynamic() override;
   virtual bool IsCompound() override;
@@ -330,6 +341,11 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   {
     return m_isKinematic;
   }
+  bool IsCharacter() const override
+  {
+    return m_character != nullptr;
+  }
+  const char *PushIgnoredReason(bool angular) const override;
   void RebaseKinematicMotionState() override
   {
     SynchronizeKinematicPose();
@@ -423,6 +439,30 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   {
     return m_isSensor;
   }
+
+  /** The Character physics type's mover (owned by the environment), or null. */
+  JoltCharacter *GetCharacter() const
+  {
+    return m_character;
+  }
+  void SetCharacter(JoltCharacter *character)
+  {
+    m_character = character;
+  }
+  /** Set by the character each step: while true it moves the body itself and the step's
+   * kinematic write leaves the body alone. */
+  void SetCharacterDrivesBody(const bool drives)
+  {
+    m_characterDrivesBody = drives;
+  }
+  /** A character's body to where the character went over \a timeStep (MoveKinematic). */
+  void MoveCharacterBody(const MT_Vector3 &position,
+                         const MT_Matrix3x3 &orientation,
+                         float timeStep);
+  /** A Kinematic body's scale rule: the shape is rebuilt when the object's world scale changed
+   * (parenting, logic). */
+  void SyncKinematicScaling();
+
   bool IsRigidBodyFlag() const
   {
     return m_isRigidBody;
@@ -455,9 +495,12 @@ class JoltPhysicsController : public PHY_IPhysicsController {
                                         const JPH::Vec3 &relativePos,
                                         const JPH::Quat &relativeRot);
   void RemoveCompoundChildBinding(uint32_t userData);
+  /** The binding naming \a childObject (a copy's are re-bound when it is made). 0: none. */
   uint32_t FindCompoundChildBinding(KX_GameObject *childObject) const;
+  /** Takes the parts of these bindings out of the shape, one new shape for all. */
+  bool RemoveCompoundBindings(const std::unordered_set<uint32_t> &userDatas);
   KX_GameObject *ResolveCompoundChildObject(const JPH::SubShapeID &subShapeID) const;
-  bool OwnsCompoundChildObject(KX_GameObject *childObject) const;
+  bool OwnsCompoundChildObject(KX_GameObject *childObject) const override;
   void SetCompoundChildFlag(bool compoundChild);
 
   /* FH (Floating Height) spring parameters. */
@@ -632,6 +675,12 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   void CopyScalingStateToReplica(JoltPhysicsController &replica) const;
 
   JoltSoftBody *m_softBody = nullptr;
+  /** The Character physics type: its mover (the environment owns it), the character a copy
+   * takes its settings from (GetReplica -> PostProcessReplica), and whether the character moved
+   * the body this step. */
+  JoltCharacter *m_character = nullptr;
+  JoltCharacter *m_replicaCharacterSource = nullptr;
+  bool m_characterDrivesBody = false;
   JoltPhysicsEnvironment *m_physicsEnv = nullptr; /* m_softBody declared above */
 
   /** Deferred soft body clone: set in PostProcessReplica, consumed in SetTransform()

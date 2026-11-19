@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <thread>
 
 #include "LN_JobPool.h"
 #include "LN_LeanProgram.h"
@@ -974,5 +975,62 @@ TEST(LN_LeanProgram, DISABLED_TreeEntryBench)
     std::printf("ENTRY_BENCH one write %-8s record %.0f ns a tree\n",
                 straight ? "straight" : "lean",
                 best * 1.0e6 / kOwners);
+  }
+}
+
+/* Set Tree Property asks the program whether only Set Tree Property writes its property; the
+ * answers are made on the main thread before helpers run (as the lean program), never by a
+ * helper: two helpers of a tree batch once filled them at once and crashed (2026-11-17, a
+ * random-tester run). A helper asking before they are made works its answer out and keeps none. */
+TEST(LN_LeanProgram, TreePropertyAnswersAreMadeOnTheMainThreadOnly)
+{
+  const auto compile = []() {
+    TreeBuilder b;
+    GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+    GenNode &set = b.Add("LogicNativeSetTreeProperty");
+    b.String(set, "Property", "p");
+    GenNode &read = b.Add("LogicNativeGetGamePropertyFloat");
+    b.String(read, "Property", "speed");
+    b.Link(read, "Value", set, "Value");
+    b.Link(step, "Out", set, "Flow");
+    std::string report;
+    std::shared_ptr<LN_Program> program = b.Compile(&report);
+    EXPECT_NE(program, nullptr) << report;
+    return program;
+  };
+  const std::shared_ptr<LN_Program> program = compile();
+  ASSERT_NE(program, nullptr);
+  ASSERT_EQ(program->GetTreePropertyRefs().size(), 1u);
+  ASSERT_FALSE(program->TreePropertyWritersReady());
+  bool answer = false;
+  std::thread helper([&]() {
+    LN_SetLeanHelperThread(true);
+    answer = program->TreePropertyOnlySetBySetTreeProperty(0);
+    LN_SetLeanHelperThread(false);
+  });
+  helper.join();
+  EXPECT_TRUE(answer);
+  EXPECT_FALSE(program->TreePropertyWritersReady()) << "a helper keeps no answers";
+  EXPECT_TRUE(program->TreePropertyOnlySetBySetTreeProperty(0));
+  EXPECT_TRUE(program->TreePropertyWritersReady()) << "the main thread keeps them";
+  /* Made before tree batches and wide runs (PrepareLeanProgram), in every mode. */
+  for (const int lean_mode : {0, 2}) {
+    LN_SetLeanModeForTests(lean_mode);
+    const std::shared_ptr<LN_Program> fresh = compile();
+    ASSERT_NE(fresh, nullptr);
+    {
+      SemRig rig(fresh, kProduction, 1);
+      rig.Tree(0).PrepareLeanProgram();
+      EXPECT_TRUE(fresh->TreePropertyWritersReady()) << "lean mode " << lean_mode;
+    }
+    /* A batch of many trees on helpers. */
+    const std::shared_ptr<LN_Program> batched = compile();
+    ASSERT_NE(batched, nullptr);
+    SemRig rig(batched, kProduction, 96);
+    rig.SetBatchRecording(8, 4);
+    rig.Step();
+    rig.Step();
+    EXPECT_TRUE(batched->TreePropertyWritersReady()) << "lean mode " << lean_mode;
+    LN_SetLeanModeForTests(-1);
   }
 }

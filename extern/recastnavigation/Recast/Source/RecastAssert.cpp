@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2009 Mikko Mononen memon@inside.org
+// Copyright (c) 2009-2010 Mikko Mononen memon@inside.org
 //
 // This software is provided 'as-is', without any express or implied
 // warranty.  In no event will the authors be held liable for any damages
@@ -16,18 +16,16 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef DETOURSTATNAVMESHBUILDER_H
-#define DETOURSTATNAVMESHBUILDER_H
+#include "RecastAssert.h"
 
-bool dtCreateNavMeshData(const unsigned short* verts, const int nverts,
-						 const unsigned short* polys, const int npolys, const int nvp,
-						 const float* bmin, const float* bmax, float cs, float ch,
-						 const unsigned short* dmeshes, const float* dverts, const int ndverts,
-						 const unsigned char* dtris, const int ndtris, 
-						 unsigned char** outData, int* outDataSize);
+static rcAssertFailFunc* sRecastAssertFailFunc = 0;
 
-int createBVTree(const unsigned short* verts, const int nverts,
-						const unsigned short* polys, const int npolys, const int nvp,
-						float cs, float ch, int nnodes, dtStatBVNode* nodes);
+void rcAssertFailSetCustom(rcAssertFailFunc* assertFailFunc)
+{
+	sRecastAssertFailFunc = assertFailFunc;
+}
 
-#endif // DETOURSTATNAVMESHBUILDER_H
+rcAssertFailFunc* rcAssertFailGetCustom()
+{
+	return sRecastAssertFailFunc;
+}

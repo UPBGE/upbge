@@ -56,7 +56,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Vector"_ustr);
   b.add_output<decl::Bool>("Visible"_ustr);
   b.add_output<decl::Vector>("Position"_ustr);
-  b.add_output<decl::Rotation>("Rotation"_ustr, "Orientation"_ustr);
+  b.add_output<decl::Rotation>("Rotation"_ustr, "Orientation"_ustr)
+      .description("The object's rotation. As angles (Separate Euler, a vector input) a turn has "
+                   "more than one set of numbers: Y stays between -90 and 90 degrees, and "
+                   "pointing straight up or down Z is 0 and X takes the turn around the vertical, "
+                   "so they may differ from the Rotation typed in Blender. To compare or follow "
+                   "turns, use Rotation Math or Get Axis Vector");
   b.add_output<decl::Vector>("Scale"_ustr);
   b.add_output<decl::Color>("Color"_ustr);
   b.add_output<decl::Float>("Speed"_ustr)

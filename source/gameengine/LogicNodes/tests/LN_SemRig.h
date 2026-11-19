@@ -274,6 +274,14 @@ class SemRig {
     }
     LN_TickContext context = MakeContext(event);
     const bool fixed = event == LN_Event::OnFixedUpdate;
+    {
+      /* Find Objects (2026-11-16): as the manager, before any tree records. */
+      std::vector<LN_RuntimeTree *> trees;
+      for (std::unique_ptr<LN_RuntimeTree> &tree : m_trees) {
+        trees.push_back(tree.get());
+      }
+      diff::PrepareFindIndexForTests(m_find_index, trees, m_access.objects, context);
+    }
     std::vector<LN_RuntimeTree *> runnable;
     for (std::unique_ptr<LN_RuntimeTree> &tree : m_trees) {
       if (fixed && tree->HasStepGates()) {
@@ -284,6 +292,13 @@ class SemRig {
       }
     }
     LN_TickReadContext read;
+    if (m_input != nullptr) {
+      /* (SetInput: every tree reads this input.) */
+      read.input = m_input;
+      read.raw_input = m_input;
+      read.has_input = true;
+      read.input_channels = ~uint32_t(0);
+    }
     read.has_timing = true;
     read.frame_delta = float(kStep);
     read.elapsed_time = float(m_time);
@@ -535,6 +550,11 @@ class SemRig {
    * `min_run` trees, chunks on a pool of `helpers` helper threads (0: this thread). Off (the
    * default): every tree runs the column pass, the column system's own pass for one tree; tests
    * compare the two (since plan C2 P10 the column system is the only one, also in the tests). */
+  /** (2026-11-17) The input every tree reads from the next tick on (null: none). */
+  void SetInput(const LN_InputSnapshot *input)
+  {
+    m_input = input;
+  }
   void SetColumns(const bool on, const uint32_t helpers = 0, const size_t min_run = 1)
   {
     m_use_columns = on;
@@ -644,9 +664,13 @@ class SemRig {
     context.use_fixed_timestep = true;
     context.tick_index = m_tick_index++;
     context.steps_done = m_fixed_index;
+    context.game_time = double(m_fixed_index) * kStep;
     context.phase_tick_index = event == LN_Event::OnUpdate ? m_update_index++ : m_fixed_index++;
     return context;
   }
+
+  /** Find Objects' index of the rig's ticks. */
+  LN_FindIndex m_find_index;
 
   static constexpr double kStep = 1.0 / 60.0;
 
@@ -695,6 +719,7 @@ class SemRig {
   std::string m_last_column_refusal;
   PhaseTimes m_times;
   double m_time = 0.0;
+  const LN_InputSnapshot *m_input = nullptr;
   uint64_t m_tick_index = 0, m_update_index = 0, m_fixed_index = 0;
 };
 

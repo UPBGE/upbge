@@ -308,6 +308,23 @@ void BL_Action::SetPlayMode(short play_mode)
   m_playmode = play_mode;
 }
 
+void BL_Action::SetSpeed(const float speed)
+{
+  if (!std::isfinite(speed) || speed == m_speed) {
+    return;
+  }
+  m_speed = speed;
+  /* The next update counts on from the frame shown now (ResetStartTime). */
+  m_calc_localtime = false;
+}
+
+void BL_Action::SetLayerWeight(const float layer_weight)
+{
+  if (std::isfinite(layer_weight)) {
+    m_layer_weight = std::min(layer_weight, 1.0f);
+  }
+}
+
 void BL_Action::RebaseTime(const float previous_time,
                            const float current_time,
                            const bool use_pause_clock)
@@ -341,11 +358,21 @@ void BL_Action::SetLocalTime(float curtime)
 
 void BL_Action::ResetStartTime(float curtime)
 {
+  if (m_speed == 0.0f) {
+    /* Speed 0 (Set Action Layer): the frame stays until another speed is set (no start time
+     * holds it: the division below would give infinities). */
+    return;
+  }
   float dt = (m_localframe > m_startframe) ? m_localframe - m_startframe :
                                              m_startframe - m_localframe;
 
   m_starttime = curtime - dt / ((float)KX_GetActiveEngine()->GetAnimFrameRate() * m_speed);
+  /* The frame shown now, exactly: the start time worked back from it gives it again only up to
+   * rounding, and a frame a hair before it read as the action looping (On Action Frame fired
+   * again after Set Action Layer changed the speed, 2026-11-17). */
+  const float frame = m_localframe;
   SetLocalTime(curtime);
+  m_localframe = frame;
 }
 
 void BL_Action::IncrementBlending(float curtime)
@@ -487,7 +514,8 @@ void BL_Action::UpdateActionTiming(float curtime)
   }
   else {
     ResetStartTime(curtime);
-    m_calc_localtime = true;
+    /* At speed 0 the frame is held (ResetStartTime keeps it) until another speed is set. */
+    m_calc_localtime = m_speed != 0.0f;
   }
 }
 

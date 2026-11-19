@@ -383,6 +383,48 @@ enum class LN_NodeKind : uint16_t {
   SetGamePropertyColor,
   SetGamePropertyObject,
   SetGamePropertyList,
+  /* 2026-11-16: Vector::RotationFunction. */
+  RotationMath,
+  TransformVector,
+  /* 2026-11-16: Float / Vector::SmoothValue, Float::Noise. */
+  SmoothValue,
+  Noise,
+  /* 2026-11-16: Set Action Frame's op with an attribute; Bool::ActionFrameReached. */
+  SetActionLayer,
+  OnActionFrame,
+  /* 2026-11-16: Query::FindObjects. */
+  FindObjects,
+  /* 2026-11-17: tree properties and routes (no kind of its own). */
+  StateMachine,
+  /* 2026-11-17, the small conveniences: Value::ListInsert / EditGameProperty; Value::ListReverse,
+   * ListShuffle, ListSlice, Float::ListStatistic, Int::ListStatisticIndex; Value::ObjectChildren. */
+  ListInsert,
+  ListOperation,
+  GetChildren,
+  /* Float::OscillateCycle, Float::Oscillate, Vector::Oscillate. */
+  Oscillate,
+  /* Bool::InputCombo, Int::InputComboProgress. */
+  InputCombo,
+  /* Int::DateTimePart, Float::DayFraction. */
+  DateTime,
+  /* Bool::SaveSlotExists; Op::SaveGame with secondary_int_value LN_SAVE_SLOT_DELETE. */
+  SaveSlot,
+  /* Op::AddPhysicsConstraint with secondary_int_value LN_RIGID_BODY_CONSTRAINT_SET + setting. */
+  SetRigidBodyConstraint,
+  /* Bool::BeingRemoved (LN_Manager's On Removed holds). */
+  OnRemoved,
+  /* Set Character Attribute's Max Slope, Fall Speed, Step Height and Crouch (2026-11-17):
+   * Op::SetCharacterJumpSpeed with int_value LN_CHARACTER_SETTING_*. */
+  SetCharacterMaxSlope,
+  SetCharacterFallSpeed,
+  SetCharacterStepHeight,
+  SetCharacterCrouch,
+  /* NPC navigation (2026-11-18): Query::NavmeshQuery; Bool / Float / Vector::NavigationState,
+   * Value::NavigationLinkObject, String::NavigationLinkKind; Op::NavigationAttribute. */
+  NavmeshQuery,
+  GetNavigationInfo,
+  OnNavigationLink,
+  SetNavigationAttribute,
 };
 
 enum class LN_RequiredPhase : uint8_t {

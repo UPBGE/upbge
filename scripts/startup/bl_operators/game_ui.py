@@ -37,6 +37,10 @@ EXAMPLE_FOLDER = "game_ui"
 EXAMPLE_FILE = "game_ui_example.blend"
 # How the example is built, step by step: a web page next to it.
 GUIDE_FILE = "game_ui_guide.html"
+# A two-player split-screen first-person game made with the same tools (each player's view, HUD,
+# minimap and menus), and how it works: next to the UI example.
+SPLIT_SCREEN_EXAMPLE_FILE = "split_screen_example.blend"
+SPLIT_SCREEN_GUIDE_FILE = "split_screen_guide.html"
 
 # Curve resolution of texts that change in the game (values, grid counts): each change rebuilds
 # the text's shape, about 3 times faster than at Blender's 12, and it looks the same at UI sizes.
@@ -793,6 +797,66 @@ class WM_OT_game_ui_guide_open(Operator):
             return {'CANCELLED'}
 
 
+def _game_ui_datafile(name):
+    """A file installed with UPBGE in datafiles/game_ui, or an empty string when it is missing."""
+    import os
+    folder = bpy.utils.system_resource('DATAFILES', path=EXAMPLE_FOLDER)
+    filepath = os.path.join(folder, name) if folder else ""
+    return filepath if os.path.isfile(filepath) else ""
+
+
+class WM_OT_game_ui_split_screen_example_open(Operator):
+    """Open a two-player split-screen first-person game as a new file: each player has their """ \
+        """own view, HUD, minimap and menus (inventory, chest, settings), with a pause menu, a """ \
+        """computer one player takes over and a terminal both use, to play and take apart"""
+    bl_idname = "wm.game_ui_split_screen_example_open"
+    bl_label = "Open Split-Screen Example"
+
+    @classmethod
+    def poll(cls, _context):
+        if _game_ui_datafile(SPLIT_SCREEN_EXAMPLE_FILE):
+            return True
+        cls.poll_message_set("The split-screen example file is not installed with this build")
+        return False
+
+    def invoke(self, _context, _event):
+        return self.open_example('INVOKE_DEFAULT')
+
+    def execute(self, _context):
+        return self.open_example('EXEC_DEFAULT')
+
+    def open_example(self, execution_context):
+        # As the Complete UI Example: Blender asks to save unsaved changes first, and the example
+        # opens untitled, so saving it never writes over the installed copy.
+        try:
+            return bpy.ops.wm.read_homefile(
+                execution_context, filepath=_game_ui_datafile(SPLIT_SCREEN_EXAMPLE_FILE))
+        except RuntimeError as ex:
+            self.report({'ERROR'}, str(ex))
+            return {'CANCELLED'}
+
+
+class WM_OT_game_ui_split_screen_guide_open(Operator):
+    """Open the split-screen guide in the web browser: how the Split-Screen Example works, every """ \
+        """logic frame pictured and explained, to make your own split-screen game"""
+    bl_idname = "wm.game_ui_split_screen_guide_open"
+    bl_label = "Open Split-Screen Guide"
+
+    @classmethod
+    def poll(cls, _context):
+        if _game_ui_datafile(SPLIT_SCREEN_GUIDE_FILE):
+            return True
+        cls.poll_message_set("The split-screen guide is not installed with this build")
+        return False
+
+    def execute(self, _context):
+        try:
+            return bpy.ops.wm.path_open(filepath=_game_ui_datafile(SPLIT_SCREEN_GUIDE_FILE))
+        except RuntimeError as ex:
+            self.report({'ERROR'}, str(ex))
+            return {'CANCELLED'}
+
+
 # Parts of the Complete UI Example (the UI guide has a chapter on each).
 TEMPLATE_ITEMS = (
     ('INVENTORY', "Inventory",
@@ -928,4 +992,6 @@ classes = (
     OBJECT_OT_game_ui_template_add,
     WM_OT_game_ui_example_open,
     WM_OT_game_ui_guide_open,
+    WM_OT_game_ui_split_screen_example_open,
+    WM_OT_game_ui_split_screen_guide_open,
 )

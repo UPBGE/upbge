@@ -146,6 +146,7 @@ bool logic_nodes_phase10_opcode_has_direct_exec_path(const LN_OpCode opcode)
     case LN_OpCode::SampleMotion:
     case LN_OpCode::ResetMotion:
     case LN_OpCode::BreakLoop:
+    case LN_OpCode::TweenRequest:
     case LN_OpCode::SetWorldPosition:
     case LN_OpCode::SetLocalPosition:
     case LN_OpCode::SetWorldOrientation:
@@ -281,6 +282,7 @@ bool logic_nodes_phase10_opcode_has_direct_exec_path(const LN_OpCode opcode)
     case LN_OpCode::InputMap:
     case LN_OpCode::Navigate:
     case LN_OpCode::FollowPath:
+    case LN_OpCode::NavigationAttribute:
     case LN_OpCode::SetCollectionVisibility:
     case LN_OpCode::SetCollectionMember:
     case LN_OpCode::SetOverlayCollection:
@@ -596,6 +598,7 @@ bool logic_nodes_phase10_expression_kind_has_register_path(const LN_RuntimeExpre
         case LN_BoolExpressionKind::SnapshotGamePropertyExists:
         case LN_BoolExpressionKind::SnapshotVisibility:
         case LN_BoolExpressionKind::SnapshotCharacterOnGround:
+        case LN_BoolExpressionKind::SnapshotCharacterState:
         case LN_BoolExpressionKind::InputStatus:
         case LN_BoolExpressionKind::KeyboardActive:
         case LN_BoolExpressionKind::WindowFullscreen:
@@ -622,6 +625,7 @@ bool logic_nodes_phase10_expression_kind_has_register_path(const LN_RuntimeExpre
       switch (LN_FloatExpressionKind(kind)) {
         case LN_FloatExpressionKind::Constant:
         case LN_FloatExpressionKind::UnscaledDeltaTime:
+        case LN_FloatExpressionKind::GameTime:
         case LN_FloatExpressionKind::RuntimeTreeProperty:
         case LN_FloatExpressionKind::SnapshotGameProperty:
         case LN_FloatExpressionKind::SnapshotTimeScale:
@@ -695,6 +699,7 @@ bool logic_nodes_phase10_expression_kind_has_register_path(const LN_RuntimeExpre
         case LN_VectorExpressionKind::SnapshotCharacterGravity:
         case LN_VectorExpressionKind::SnapshotCharacterWalkDirection:
         case LN_VectorExpressionKind::SnapshotCharacterLocalWalkDirection:
+        case LN_VectorExpressionKind::SnapshotCharacterSurface:
         case LN_VectorExpressionKind::CursorPosition:
         case LN_VectorExpressionKind::CursorMovement:
         case LN_VectorExpressionKind::GamepadStick:

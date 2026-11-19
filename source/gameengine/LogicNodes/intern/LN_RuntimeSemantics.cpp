@@ -260,22 +260,12 @@ static constexpr LN_RuntimeInstructionSemantics semantics_catalog[] = {
     LN_MAIN_DIRECT(RemoveVariable, WRITE_DIRECT_FILE, Ordering::ObservableGlobal),
     LN_MAIN_DIRECT(InputMap, WRITE_DIRECT_FILE | WRITE_DIRECT_GLOBAL, Ordering::ObservableGlobal),
     LN_WORKER_COMMAND(Translate, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
-    LN_SEM_WITH_FALLBACK(Navigate,
-                         READ_COMMAND_INPUTS,
-                         WRITE_COMMAND_OBJECT | WRITE_COMMAND_RENDER,
-                         Timing::DeferredCommandFlush,
-                         Threading::MainThreadRecord,
-                         Ordering::ObservablePerTarget,
-                         Coalescing::Forbidden,
-                         LN_RUNTIME_FALLBACK_ENGINE_SERVICE_BOUNDARY),
-    LN_SEM_WITH_FALLBACK(FollowPath,
-                         READ_COMMAND_INPUTS,
-                         WRITE_COMMAND_OBJECT,
-                         Timing::DeferredCommandFlush,
-                         Threading::MainThreadRecord,
-                         Ordering::ObservablePerTarget,
-                         Coalescing::Forbidden,
-                         LN_RUNTIME_FALLBACK_ENGINE_SERVICE_BOUNDARY),
+    /* (2026-11-18) Navigate, Follow Path and Set Navigation Attribute only record a request
+     * (any thread); the navigation step after the flush moves the NPCs and changes the navmesh
+     * on the main thread. */
+    LN_WORKER_COMMAND(Navigate, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
+    LN_WORKER_COMMAND(FollowPath, WRITE_COMMAND_OBJECT, Ordering::ObservablePerTarget),
+    LN_WORKER_COMMAND(NavigationAttribute, WRITE_COMMAND_SCENE, Ordering::ObservableGlobal),
     LN_MAIN_DIRECT(SetCollectionVisibility, WRITE_DIRECT_RENDER, Ordering::ObservableGlobal),
     LN_MAIN_DIRECT(SetCollectionMember, WRITE_DIRECT_RENDER, Ordering::ObservableGlobal),
     LN_MAIN_COMMAND(SetOverlayCollection, WRITE_COMMAND_RENDER, Ordering::ObservableGlobal),
@@ -429,6 +419,13 @@ static constexpr LN_RuntimeInstructionSemantics semantics_catalog[] = {
            Ordering::ObservablePerTarget,
            Coalescing::Forbidden),
     LN_SEM(SetFlowGate,
+           READ_COMMAND_INPUTS,
+           LN_RUNTIME_SEMANTIC_WRITE_RUNTIME_TREE_STATE,
+           Timing::RuntimeTreeState,
+           Threading::WorkerSafeRecord,
+           Ordering::ObservablePerTarget,
+           Coalescing::Forbidden),
+    LN_SEM(TweenRequest,
            READ_COMMAND_INPUTS,
            LN_RUNTIME_SEMANTIC_WRITE_RUNTIME_TREE_STATE,
            Timing::RuntimeTreeState,
@@ -760,6 +757,7 @@ LN_RuntimeCommandFamily LN_GetRuntimeCommandFamily(const LN_OpCode opcode)
     case LN_OpCode::SampleMotion:
     case LN_OpCode::ResetMotion:
     case LN_OpCode::BreakLoop:
+    case LN_OpCode::TweenRequest:
     case LN_OpCode::BranchRoute:
       return LN_RuntimeCommandFamily::TreeState;
     case LN_OpCode::QuitGame:
@@ -792,6 +790,7 @@ LN_RuntimeCommandFamily LN_GetRuntimeCommandFamily(const LN_OpCode opcode)
       return LN_RuntimeCommandFamily::Collection;
     case LN_OpCode::Navigate:
     case LN_OpCode::FollowPath:
+    case LN_OpCode::NavigationAttribute:
       return LN_RuntimeCommandFamily::Navigation;
     case LN_OpCode::AddPhysicsConstraint:
     case LN_OpCode::RemovePhysicsConstraint:
@@ -847,6 +846,7 @@ LN_RuntimeSideEffectDelivery LN_GetRuntimeSideEffectDelivery(const LN_OpCode opc
     case LN_OpCode::SampleMotion:
     case LN_OpCode::ResetMotion:
     case LN_OpCode::BreakLoop:
+    case LN_OpCode::TweenRequest:
     case LN_OpCode::BranchRoute:
       return LN_RuntimeSideEffectDelivery::RuntimeTreeState;
     case LN_OpCode::SetGlobalProperty:
@@ -874,7 +874,6 @@ LN_RuntimeSideEffectDelivery LN_GetRuntimeSideEffectDelivery(const LN_OpCode opc
       return LN_RuntimeSideEffectDelivery::ImmediateMainThread;
     case LN_OpCode::AddPhysicsConstraint:
     case LN_OpCode::RemovePhysicsConstraint:
-    case LN_OpCode::Navigate:
       return LN_RuntimeSideEffectDelivery::ImmediateAndDeferred;
     case LN_OpCode::Count:
       break;
@@ -891,6 +890,7 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_BoolExpr
     case LN_BoolExpressionKind::SnapshotVisibility:
     case LN_BoolExpressionKind::SnapshotGamePropertyExists:
     case LN_BoolExpressionKind::SnapshotCharacterOnGround:
+    case LN_BoolExpressionKind::SnapshotCharacterState:
       LN_EXPR(Bool, SnapshotGameProperty, READ_SNAPSHOT_EXPRESSION);
     case LN_BoolExpressionKind::RuntimeTreeProperty:
     case LN_BoolExpressionKind::LogicTreeRunning:
@@ -902,6 +902,24 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_BoolExpr
     case LN_BoolExpressionKind::InstructionExecuted:
     case LN_BoolExpressionKind::InstructionReached:
       LN_EXPR(Bool, RuntimeTreeProperty, READ_RUNTIME_STATE_EXPRESSION);
+    /* (2026-11-16) On Action Frame: the object's action layer and the tree's own read of it. */
+    case LN_BoolExpressionKind::ActionFrameReached:
+      LN_EXPR_STATE(Bool, ActionFrameReached);
+    /* (2026-11-17) Play Sound's Playing / Finished: the audio's answer for the tree's ticket
+     * (main thread: the flush writes the tickets' handles) and Finished's report. */
+    case LN_BoolExpressionKind::SoundPlaying:
+      LN_EXPR_MAIN(Bool, SoundPlaying, READ_RUNTIME_STATE_EXPRESSION);
+    case LN_BoolExpressionKind::SoundFinished:
+      LN_EXPR_MAIN(Bool, SoundFinished, READ_RUNTIME_STATE_EXPRESSION);
+    /* (2026-11-17) Tap / Double Tap / Hold and Input Combo: their inputs and the tree's own
+     * input slot (main thread: player input, a few objects). */
+    case LN_BoolExpressionKind::InputGesture:
+      LN_EXPR_MAIN(Bool, InputGesture, READ_RUNTIME_STATE_EXPRESSION);
+    case LN_BoolExpressionKind::InputCombo:
+      LN_EXPR_MAIN(Bool, InputCombo, READ_RUNTIME_STATE_EXPRESSION);
+    /* (2026-11-17) Save Slot's Exists: the save service and the file system. */
+    case LN_BoolExpressionKind::SaveSlotExists:
+      LN_EXPR_MAIN(Bool, SaveSlotExists, READ_FILE_EXPRESSION);
     case LN_BoolExpressionKind::NextFrameDone:
     case LN_BoolExpressionKind::Once:
     case LN_BoolExpressionKind::ValueChanged:
@@ -958,6 +976,9 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_BoolExpr
       LN_EXPR_STATE(Bool, ActionFailed);
     case LN_BoolExpressionKind::GameLoadPulse:
       LN_EXPR_RUNTIME_READ(Bool, GameLoadPulse);
+    /* (2026-11-17) On Removed: the tree's own flag, set before the tick. */
+    case LN_BoolExpressionKind::BeingRemoved:
+      LN_EXPR_RUNTIME_READ(Bool, BeingRemoved);
     case LN_BoolExpressionKind::GameLoadSucceeded:
       LN_EXPR_RUNTIME_READ(Bool, GameLoadSucceeded);
     case LN_BoolExpressionKind::InputStatus:
@@ -1063,6 +1084,15 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_BoolExpr
     case LN_BoolExpressionKind::PlayerGamepadConnected:
     case LN_BoolExpressionKind::PlayerGamepadJoined:
       LN_EXPR_MAIN(Bool, PlayerGamepadConnected, READ_SCENE_EXPRESSION);
+    case LN_BoolExpressionKind::ObjectsEqual:
+      /* Compare's Object type: resolves two object values, as Float::ObjectDistance. */
+      return Expr(LN_RuntimeExpressionFamily::Bool,
+                  uint32_t(kind),
+                  "ObjectsEqual",
+                  READ_SCENE_EXPRESSION,
+                  LN_RUNTIME_SEMANTIC_WRITE_NONE,
+                  Threading::MainThreadRecord,
+                  LN_RUNTIME_FALLBACK_MAIN_THREAD_LIVE_READ | LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP);
     case LN_BoolExpressionKind::ObjectGamePropertyExists:
       /* As Value::ObjectGameProperty: a live read of an object's properties. */
       return Expr(LN_RuntimeExpressionFamily::Bool,
@@ -1075,6 +1105,8 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_BoolExpr
                       LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP);
     case LN_BoolExpressionKind::ArcCanReach:
       LN_EXPR(Bool, ArcCanReach, READ_EXPRESSION_INPUTS);
+    case LN_BoolExpressionKind::NavigationState:
+      LN_EXPR(Bool, NavigationState, READ_GLOBAL_EXPRESSION);
     case LN_BoolExpressionKind::Count:
       break;
   }
@@ -1100,6 +1132,7 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_FloatExp
     case LN_FloatExpressionKind::StoreValue:
     case LN_FloatExpressionKind::TweenFactor:
     case LN_FloatExpressionKind::TweenFloatResult:
+    case LN_FloatExpressionKind::SmoothValue:
       LN_EXPR_STATE(Float, StoreValue);
     case LN_FloatExpressionKind::GamepadButtonStrength:
     case LN_FloatExpressionKind::InputActionValue:
@@ -1141,6 +1174,7 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_FloatExp
       LN_EXPR_RUNTIME_READ(Float, StepTimePassed);
     case LN_FloatExpressionKind::Constant:
     case LN_FloatExpressionKind::UnscaledDeltaTime:
+    case LN_FloatExpressionKind::GameTime:
     case LN_FloatExpressionKind::Add:
     case LN_FloatExpressionKind::Subtract:
     case LN_FloatExpressionKind::Multiply:
@@ -1188,7 +1222,17 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_FloatExp
     case LN_FloatExpressionKind::RayPlaneDistance:
     case LN_FloatExpressionKind::ArcFlightTime:
     case LN_FloatExpressionKind::VectorLength:
+    case LN_FloatExpressionKind::MathFunction:
+    case LN_FloatExpressionKind::VectorMeasure:
+    case LN_FloatExpressionKind::Noise:
+    case LN_FloatExpressionKind::ListStatistic:
+    case LN_FloatExpressionKind::OscillateCycle:
+    case LN_FloatExpressionKind::Oscillate:
       LN_EXPR(Float, RayPlaneDistance, READ_EXPRESSION_INPUTS);
+    case LN_FloatExpressionKind::DayFraction:
+      LN_EXPR(Float, DayFraction, READ_GLOBAL_EXPRESSION);
+    case LN_FloatExpressionKind::NavigationState:
+      LN_EXPR(Float, NavigationState, READ_GLOBAL_EXPRESSION);
     case LN_FloatExpressionKind::Count:
       break;
   }
@@ -1215,10 +1259,14 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_IntExpre
       LN_EXPR(Int, MouseWheelDelta, READ_INPUT_EXPRESSION);
     case LN_IntExpressionKind::Constant:
     case LN_IntExpressionKind::StringCount:
+    case LN_IntExpressionKind::TextLength:
+    case LN_IntExpressionKind::TextFind:
+    case LN_IntExpressionKind::ListStatisticIndex:
     case LN_IntExpressionKind::ListLength:
     case LN_IntExpressionKind::DictLength:
     case LN_IntExpressionKind::Random:
     case LN_IntExpressionKind::GameRandomSeed:
+    case LN_IntExpressionKind::ListRandomIndex:
     case LN_IntExpressionKind::FromBool:
     case LN_IntExpressionKind::FromFloat:
     case LN_IntExpressionKind::FromString:
@@ -1282,6 +1330,11 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_IntExpre
                             LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION);
     case LN_IntExpressionKind::PlayerViewCount:
       LN_EXPR_MAIN(Int, PlayerViewCount, READ_SCENE_EXPRESSION);
+    case LN_IntExpressionKind::InputComboProgress:
+      LN_EXPR_MAIN(Int, InputComboProgress, READ_RUNTIME_STATE_EXPRESSION);
+    /* (2026-11-17) Date and Time: the tick's wall clock (one double the manager sets first). */
+    case LN_IntExpressionKind::DateTimePart:
+      LN_EXPR(Int, DateTimePart, READ_GLOBAL_EXPRESSION);
     case LN_IntExpressionKind::PlayerJoinUser:
     case LN_IntExpressionKind::PlayerJoinGamepad:
       LN_EXPR_RUNTIME_READ(Int, PlayerJoinUser);
@@ -1314,6 +1367,8 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_StringEx
     case LN_StringExpressionKind::ToLowercase:
     case LN_StringExpressionKind::ZeroFill:
     case LN_StringExpressionKind::Format:
+    case LN_StringExpressionKind::TextSubstring:
+    case LN_StringExpressionKind::TextFormatTime:
     case LN_StringExpressionKind::MasterFolder:
     case LN_StringExpressionKind::ObjectID:
     case LN_StringExpressionKind::FromBool:
@@ -1363,6 +1418,8 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_StringEx
                             LN_RUNTIME_FALLBACK_GENERIC_VALUE_CONVERSION);
     case LN_StringExpressionKind::PhysicsQueryMaterial:
       LN_EXPR(String, PhysicsQueryMaterial, READ_QUERY_EXPRESSION);
+    case LN_StringExpressionKind::NavigationLinkKind:
+      LN_EXPR(String, NavigationLinkKind, READ_GLOBAL_EXPRESSION);
     case LN_StringExpressionKind::Count:
       break;
   }
@@ -1381,6 +1438,7 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_VectorEx
     case LN_VectorExpressionKind::SnapshotCharacterGravity:
     case LN_VectorExpressionKind::SnapshotCharacterWalkDirection:
     case LN_VectorExpressionKind::SnapshotCharacterLocalWalkDirection:
+    case LN_VectorExpressionKind::SnapshotCharacterSurface:
     case LN_VectorExpressionKind::BoneHeadWorld:
     case LN_VectorExpressionKind::BoneTailWorld:
     case LN_VectorExpressionKind::BoneCenterWorld:
@@ -1433,6 +1491,8 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_VectorEx
     case LN_VectorExpressionKind::TweenVectorResult:
     case LN_VectorExpressionKind::TweenRotationResult:
       LN_EXPR(Vector, InstructionNextPoint, READ_RUNTIME_STATE_EXPRESSION);
+    case LN_VectorExpressionKind::SmoothValue:
+      LN_EXPR_STATE(Vector, SmoothValue);
     case LN_VectorExpressionKind::MotionPosition:
     case LN_VectorExpressionKind::MotionVelocity:
     case LN_VectorExpressionKind::MotionDirection:
@@ -1448,6 +1508,8 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_VectorEx
     case LN_VectorExpressionKind::Maximum:
     case LN_VectorExpressionKind::Scale:
     case LN_VectorExpressionKind::Normalize:
+    case LN_VectorExpressionKind::VectorFunction:
+    case LN_VectorExpressionKind::RotationFunction:
     case LN_VectorExpressionKind::Resize:
     case LN_VectorExpressionKind::RotateAroundAxis:
     case LN_VectorExpressionKind::VectorToRotation:
@@ -1456,6 +1518,8 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_VectorEx
     case LN_VectorExpressionKind::Combine:
     case LN_VectorExpressionKind::EvaluateCurveAtFactor:
     case LN_VectorExpressionKind::Random:
+    case LN_VectorExpressionKind::RandomShape:
+    case LN_VectorExpressionKind::Oscillate:
     case LN_VectorExpressionKind::BroadcastFloat:
     case LN_VectorExpressionKind::BroadcastInt:
     case LN_VectorExpressionKind::FromColor:
@@ -1472,6 +1536,8 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_VectorEx
     case LN_VectorExpressionKind::RayPlaneNormal:
     case LN_VectorExpressionKind::ArcLaunchVelocity:
       LN_EXPR(Vector, RayPlanePoint, READ_EXPRESSION_INPUTS);
+    case LN_VectorExpressionKind::NavigationState:
+      LN_EXPR(Vector, NavigationState, READ_GLOBAL_EXPRESSION);
     case LN_VectorExpressionKind::Count:
       break;
   }
@@ -1521,9 +1587,14 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_ValueExp
                       LN_RUNTIME_FALLBACK_DYNAMIC_LOOKUP);
     case LN_ValueExpressionKind::RuntimeTreeProperty:
       LN_EXPR_RUNTIME_READ(Value, RuntimeTreeProperty);
+    case LN_ValueExpressionKind::SnapshotCharacterGroundObject:
+      LN_EXPR(Value, SnapshotCharacterGroundObject, READ_SNAPSHOT_EXPRESSION);
+    case LN_ValueExpressionKind::NavigationLinkObject:
+      LN_EXPR(Value, NavigationLinkObject, READ_GLOBAL_EXPRESSION);
     case LN_ValueExpressionKind::ObjectParent:
     case LN_ValueExpressionKind::ObjectChild:
     case LN_ValueExpressionKind::ObjectChildByName:
+    case LN_ValueExpressionKind::ObjectChildren:
       return Expr(LN_RuntimeExpressionFamily::Value,
                   uint32_t(kind),
                   "ObjectHierarchyRead",
@@ -1588,6 +1659,9 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_ValueExp
     case LN_ValueExpressionKind::PhysicsQueryEndPoints:
     case LN_ValueExpressionKind::ProjectileParabola:
       LN_EXPR(Value, PhysicsQueryObject, READ_QUERY_EXPRESSION);
+    case LN_ValueExpressionKind::ExplosionStrengths:
+      /* The query's objects' centers of mass now (2026-11-17). */
+      LN_EXPR_MAIN(Value, ExplosionStrengths, READ_QUERY_EXPRESSION | READ_SCENE_EXPRESSION);
     case LN_ValueExpressionKind::UIElementEventObject:
     case LN_ValueExpressionKind::UIElementEventTarget:
     case LN_ValueExpressionKind::UIElementEventItem:
@@ -1686,6 +1760,11 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_ValueExp
     case LN_ValueExpressionKind::ValueSwitchListCompare:
     case LN_ValueExpressionKind::ListSort:
     case LN_ValueExpressionKind::ListFindIndex:
+    case LN_ValueExpressionKind::TextSplit:
+    case LN_ValueExpressionKind::ListInsert:
+    case LN_ValueExpressionKind::ListReverse:
+    case LN_ValueExpressionKind::ListShuffle:
+    case LN_ValueExpressionKind::ListSlice:
     case LN_ValueExpressionKind::InventoryItemCount:
     case LN_ValueExpressionKind::RecipeInfo:
     case LN_ValueExpressionKind::RecipeFind:
@@ -1743,6 +1822,11 @@ LN_RuntimeExpressionSemantics LN_GetRuntimeExpressionSemantics(const LN_QueryExp
       LN_EXPR_MAIN(Query, KeepDistance, READ_QUERY_EXPRESSION);
     case LN_QueryExpressionKind::PointVelocity:
       LN_EXPR_MAIN(Query, PointVelocity, READ_QUERY_EXPRESSION);
+    /* (2026-11-16) Find Objects: the tick's poses (LN_FindIndex), made before the trees record. */
+    case LN_QueryExpressionKind::FindObjects:
+      LN_EXPR(Query, FindObjects, READ_QUERY_EXPRESSION);
+    case LN_QueryExpressionKind::NavmeshQuery:
+      LN_EXPR(Query, NavmeshQuery, READ_QUERY_EXPRESSION);
     case LN_QueryExpressionKind::Count:
       break;
   }

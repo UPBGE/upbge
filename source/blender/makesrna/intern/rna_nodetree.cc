@@ -641,6 +641,80 @@ static constexpr int logic_set_socket_value_material = 6;
 static constexpr int logic_set_socket_value_generic = 7;
 static constexpr int logic_set_socket_target_per_object_only = 1 << 0;
 
+/* Compare's Operation (and Evaluate Object Property's), with the meaning of each for Compare's
+ * Type (2026-11-17): an Object compares only as the same object or not, so its list holds only
+ * Equal and Not Equal (the others always gave false, silently); Vector's Greater and Less compare
+ * lengths, Text's order (rna_LogicCompare_operation_itemf). */
+[[maybe_unused]] static const EnumPropertyItem logic_compare_operation_items[] = {
+    {0,
+     "EQUAL",
+     0,
+     "Equal",
+     "A equals B, within a small tolerance (0.000001; Evaluate Object Property: 0.0001)"},
+    {1,
+     "NOT_EQUAL",
+     0,
+     "Not Equal",
+     "A and B differ by more than a small tolerance (0.000001; Evaluate Object Property: "
+     "0.0001)"},
+    {2, "GREATER_THAN", 0, "Greater Than", "A is greater than B (exactly)"},
+    {3, "LESS_THAN", 0, "Less Than", "A is less than B (exactly)"},
+    {4, "GREATER_EQUAL", 0, "Greater or Equal", "A is greater than or equal to B (exactly)"},
+    {5, "LESS_EQUAL", 0, "Less or Equal", "A is less than or equal to B (exactly)"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+[[maybe_unused]] static const EnumPropertyItem logic_compare_vector_operation_items[] = {
+    {0, "EQUAL", 0, "Equal", "A and B are at most Tolerance apart"},
+    {1, "NOT_EQUAL", 0, "Not Equal", "A and B are farther apart than Tolerance"},
+    {2, "GREATER_THAN", 0, "Greater Than", "A is longer than B"},
+    {3, "LESS_THAN", 0, "Less Than", "A is shorter than B"},
+    {4, "GREATER_EQUAL", 0, "Greater or Equal", "A is at least as long as B"},
+    {5, "LESS_EQUAL", 0, "Less or Equal", "A is at most as long as B"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+[[maybe_unused]] static const EnumPropertyItem logic_compare_object_operation_items[] = {
+    {0,
+     "EQUAL",
+     0,
+     "Equal",
+     "A and B are the same object (an empty field or a removed object is no object; two copies "
+     "of one object are two objects)"},
+    {1, "NOT_EQUAL", 0, "Not Equal", "A and B are not the same object"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+[[maybe_unused]] static const EnumPropertyItem logic_compare_text_operation_items[] = {
+    {0, "EQUAL", 0, "Equal", "A and B are exactly the same text (capitals count)"},
+    {1, "NOT_EQUAL", 0, "Not Equal", "A and B are not exactly the same text"},
+    {2,
+     "GREATER_THAN",
+     0,
+     "Greater Than",
+     "A comes after B: as numbers when both are numbers (\"10\" after \"9\"), else in character "
+     "order (capitals before small letters)"},
+    {3,
+     "LESS_THAN",
+     0,
+     "Less Than",
+     "A comes before B: as numbers when both are numbers, else in character order"},
+    {4, "GREATER_EQUAL", 0, "Greater or Equal", "A comes after B or is the same"},
+    {5, "LESS_EQUAL", 0, "Less or Equal", "A comes before B or is the same"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+/* Tween Value's Apply To (2026-11-17, custom2 bits 10-12): what the Result is written to on each
+ * step the tween moves; offered by the tween's type (a Vector: a position or a scale, a Rotation:
+ * a rotation). */
+[[maybe_unused]] static const EnumPropertyItem logic_tween_apply_items[] = {
+    {0, "NONE", 0, "Result Only", "Only the Result output (link it where it goes)"},
+    {1 << 10, "WORLD_POSITION", 0, "World Position", "The Object's position in the world"},
+    {2 << 10, "LOCAL_POSITION", 0, "Local Position", "The Object's position under its parent"},
+    {3 << 10, "WORLD_ROTATION", 0, "World Rotation", "The Object's rotation in the world"},
+    {4 << 10, "LOCAL_ROTATION", 0, "Local Rotation", "The Object's rotation under its parent"},
+    {5 << 10, "WORLD_SCALE", 0, "World Scale", "The Object's size in the world"},
+    {6 << 10, "LOCAL_SCALE", 0, "Local Scale", "The Object's size under its parent"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -4118,6 +4192,68 @@ static int rna_LogicMerged_variant_get(PointerRNA *ptr)
   return merged != nullptr ? nodes::logic::merged_option_index(*merged, *node) : 0;
 }
 
+/** Compare's Operation for its Type (custom2: Number 0, Vector 1, Object 2, Text 3): an Object
+ * has only Equal and Not Equal; each list says what an operation means for that type. */
+static const EnumPropertyItem *rna_LogicCompare_operation_itemf(bContext * /*C*/,
+                                                                PointerRNA *ptr,
+                                                                PropertyRNA * /*prop*/,
+                                                                bool *r_free)
+{
+  *r_free = false;
+  const bNode *node = ptr ? static_cast<const bNode *>(ptr->data) : nullptr;
+  switch (node ? node->custom2 : 0) {
+    case 1:
+      return logic_compare_vector_operation_items;
+    case 2:
+      return logic_compare_object_operation_items;
+    case 3:
+      return logic_compare_text_operation_items;
+    default:
+      return logic_compare_operation_items;
+  }
+}
+
+static const EnumPropertyItem *rna_LogicTween_apply_to_itemf(bContext * /*C*/,
+                                                             PointerRNA *ptr,
+                                                             PropertyRNA * /*prop*/,
+                                                             bool *r_free)
+{
+  static const EnumPropertyItem vector_items[] = {logic_tween_apply_items[0],
+                                                  logic_tween_apply_items[1],
+                                                  logic_tween_apply_items[2],
+                                                  logic_tween_apply_items[5],
+                                                  logic_tween_apply_items[6],
+                                                  {0, nullptr, 0, nullptr, nullptr}};
+  static const EnumPropertyItem rotation_items[] = {logic_tween_apply_items[0],
+                                                    logic_tween_apply_items[3],
+                                                    logic_tween_apply_items[4],
+                                                    {0, nullptr, 0, nullptr, nullptr}};
+  static const EnumPropertyItem float_items[] = {logic_tween_apply_items[0],
+                                                 {0, nullptr, 0, nullptr, nullptr}};
+  *r_free = false;
+  const bNode *node = ptr ? static_cast<const bNode *>(ptr->data) : nullptr;
+  switch (node ? node->custom1 : 0) {
+    case 1:
+      return vector_items;
+    case 2:
+    case 3:
+      return rotation_items;
+    default:
+      return float_items;
+  }
+}
+
+/** Compare's Type changed: an Object keeps Equal or Not Equal (Greater and Less mean nothing for
+ * objects: they become Equal). */
+static void rna_LogicCompare_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  bNode *node = static_cast<bNode *>(ptr->data);
+  if (node != nullptr && node->custom2 == 2 && node->custom1 > 1) {
+    node->custom1 = 0;
+  }
+  rna_Node_socket_update(bmain, scene, ptr);
+}
+
 /** Drive Vehicle's Steer starts on the front wheels, its other options and Set Vehicle Attributes
  * on the rear ones (the options' inits): resetting the Axis gives what a new node of the option
  * starts with. */
@@ -4213,13 +4349,14 @@ static void rna_LogicMergedThreshold_pass_when_set(PointerRNA *ptr, const int va
 static int rna_LogicNativeInput_input_type_get(PointerRNA *ptr)
 {
   const bNode *node = static_cast<const bNode *>(ptr->data);
-  return std::clamp(node->custom1 & LOGIC_NODE_INPUT_MODE_MASK, 0, 2);
+  return std::clamp(node->custom1 & LOGIC_NODE_INPUT_MODE_MASK, 0, 5);
 }
 
 static void rna_LogicNativeInput_input_type_set(PointerRNA *ptr, const int value)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
-  node->custom1 = int16_t((node->custom1 & ~LOGIC_NODE_INPUT_MODE_MASK) | std::clamp(value, 0, 2));
+  /* (2026-11-17) 3-5: Tap, Double Tap, Hold. */
+  node->custom1 = int16_t((node->custom1 & ~LOGIC_NODE_INPUT_MODE_MASK) | std::clamp(value, 0, 5));
 }
 
 /* On Logic + Physics Step's Every: nodes saved before it hold 0, which runs every step too. */
@@ -5883,6 +6020,7 @@ static void def_logic_math(BlenderRNA * /*brna*/, StructRNA *srna)
       {NODE_MATH_MULTIPLY, "MULTIPLY", 0, "Multiply", "A * B"},
       {NODE_MATH_DIVIDE, "DIVIDE", 0, "Divide", "A / B"},
         {NODE_MATH_POWER, "POWER", 0, "Power", "A power B"},
+        {NODE_MATH_SQRT, "SQRT", 0, "Square Root", "Square root of A (0 for a negative A)"},
         {NODE_MATH_MINIMUM, "MINIMUM", 0, "Minimum", "The minimum from A and B"},
         {NODE_MATH_MAXIMUM, "MAXIMUM", 0, "Maximum", "The maximum from A and B"},
         {NODE_MATH_ABSOLUTE, "ABSOLUTE", 0, "Absolute", "Magnitude of A"},
@@ -5897,8 +6035,38 @@ static void def_logic_math(BlenderRNA * /*brna*/, StructRNA *srna)
         {NODE_MATH_TRUNC, "TRUNC", 0, "Truncate", "The integer part of A"},
         {NODE_MATH_FRACTION, "FRACT", 0, "Fraction", "The fraction part of A"},
         {NODE_MATH_MODULO, "MODULO", 0, "Modulo", "The remainder of A / B"},
+        {NODE_MATH_WRAP,
+         "WRAP",
+         0,
+         "Wrap",
+         "A wrapped into the range from C (Min) up to B (Max), as an angle wraps around"},
+        {NODE_MATH_SNAP, "SNAP", 0, "Snap", "A rounded down to a multiple of B (0 when B is 0)"},
+        {NODE_MATH_PINGPONG,
+         "PINGPONG",
+         0,
+         "Ping-Pong",
+         "A bouncing back and forth between 0 and B (0 when B is 0)"},
         {NODE_MATH_SINE, "SINE", 0, "Sine", "sin(A)"},
         {NODE_MATH_COSINE, "COSINE", 0, "Cosine", "cos(A)"},
+        {NODE_MATH_TANGENT, "TANGENT", 0, "Tangent", "tan(A)"},
+        {NODE_MATH_ARCSINE, "ARCSINE", 0, "Arcsine", "arcsin(A), in radians (A clamped to -1..1)"},
+        {NODE_MATH_ARCCOSINE,
+         "ARCCOSINE",
+         0,
+         "Arccosine",
+         "arccos(A), in radians (A clamped to -1..1)"},
+        {NODE_MATH_ARCTANGENT, "ARCTANGENT", 0, "Arctangent", "arctan(A), in radians"},
+        {NODE_MATH_ARCTAN2,
+         "ARCTAN2",
+         0,
+         "Arctan2",
+         "The angle of the point (B, A) around the origin, in radians from -pi to pi: atan2(A, B)"},
+        /* UPBGE: Logic Nodes' own operation (LN_MATH_ANGLE_DIFFERENCE in LN_Types.h). */
+        {100,
+         "ANGLE_DIFFERENCE",
+         0,
+         "Angle Difference",
+         "The shortest turn from angle A to angle B, in radians from -pi to pi (B - A, wrapped)"},
         {NODE_MATH_RADIANS, "RADIANS", 0, "To Radians", "Convert from degrees to radians"},
         {NODE_MATH_DEGREES, "DEGREES", 0, "To Degrees", "Convert from radians to degrees"},
       {0, nullptr, 0, nullptr, nullptr},
@@ -5937,6 +6105,49 @@ static void def_logic_vector_math(BlenderRNA * /*brna*/, StructRNA *srna)
         {NODE_VECTOR_MATH_ABSOLUTE, "ABSOLUTE", 0, "Absolute", "Entry-wise absolute"},
         {NODE_VECTOR_MATH_MINIMUM, "MINIMUM", 0, "Minimum", "Entry-wise minimum"},
         {NODE_VECTOR_MATH_MAXIMUM, "MAXIMUM", 0, "Maximum", "Entry-wise maximum"},
+        /* Logic Nodes, 2026-11-16: the number results go to the Value output. 100 and up are
+         * Logic Nodes' own operations (LN_VECTOR_MATH_* in LN_Types.h). */
+        {NODE_VECTOR_MATH_DOT_PRODUCT,
+         "DOT_PRODUCT",
+         0,
+         "Dot Product",
+         "A dot B (Value): positive when they point the same way, 0 at a right angle; with B a "
+         "unit direction, how far A goes along it"},
+        {NODE_VECTOR_MATH_CROSS_PRODUCT,
+         "CROSS_PRODUCT",
+         0,
+         "Cross Product",
+         "A cross B: at a right angle to both (which side: the sign of its Z when both are flat)"},
+        {NODE_VECTOR_MATH_LENGTH, "LENGTH", 0, "Length", "Length of A (Value)"},
+        {NODE_VECTOR_MATH_DISTANCE, "DISTANCE", 0, "Distance", "Distance between A and B (Value)"},
+        {100,
+         "ANGLE",
+         0,
+         "Angle",
+         "The angle between A and B in radians, 0 to pi (Value); 0 when either is zero"},
+        {101,
+         "SIGNED_ANGLE",
+         0,
+         "Signed Angle",
+         "The turn from A to B around Axis in radians, -pi to pi (Value): positive turns "
+         "counter-clockwise seen from where Axis points (with Axis up: left)"},
+        {NODE_VECTOR_MATH_PROJECT, "PROJECT", 0, "Project", "A projected onto B"},
+        {NODE_VECTOR_MATH_REFLECT,
+         "REFLECT",
+         0,
+         "Reflect",
+         "A reflected around the surface normal B (B need not be unit length), as a ball bounces"},
+        {102,
+         "LIMIT_LENGTH",
+         0,
+         "Limit Length",
+         "A shortened to at most Scale long (a speed limit)"},
+        {103,
+         "MOVE_TOWARDS",
+         0,
+         "Move Towards",
+         "A moved toward B by at most Scale: B once nearer than Scale (a negative Scale moves "
+         "away)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -5963,6 +6174,36 @@ static void def_logic_string_operation(BlenderRNA * /*brna*/, StructRNA *srna)
       {7, "UPPER", 0, "To Uppercase", "Convert the string to uppercase"},
       {8, "LOWER", 0, "To Lowercase", "Convert the string to lowercase"},
       {9, "ZFILL", 0, "Prepend Zeroes", "Pad the string with leading zeroes"},
+      {10,
+       "SUBSTRING",
+       0,
+       "Substring",
+       "Length characters from Start (0 the first character, below 0 from the end; a Length "
+       "below 0 takes the rest): typewriter text, a name cut short"},
+      {11, "LENGTH", 0, "Length", "How many characters the string has"},
+      {12,
+       "FIND",
+       0,
+       "Find",
+       "Where the substring first appears (0 the first character), -1 when it does not"},
+      {13,
+       "SPLIT",
+       0,
+       "Split",
+       "Cut the string into a list at each Separator (empty: at spaces, tabs and new lines)"},
+      {14,
+       "FORMAT_TIME",
+       0,
+       "Format Time",
+       "Seconds as a clock: 75 seconds show as 1:15 (race times, countdowns)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  /* Format Time's clock (custom2, 2026-11-17; LN_TimeFormat). */
+  static const EnumPropertyItem logic_time_format_items[] = {
+      {0, "M_SS", 0, "M:SS", "Minutes and seconds: 1:15, 75:00"},
+      {1, "MM_SS", 0, "MM:SS", "Minutes with two digits: 01:15"},
+      {2, "H_MM_SS", 0, "H:MM:SS", "Hours, minutes and seconds: 1:01:15"},
+      {3, "M_SS_CC", 0, "M:SS.cc", "Minutes, seconds and hundredths: 1:15.25"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -5972,6 +6213,15 @@ static void def_logic_string_operation(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_enum_sdna(prop, nullptr, "custom1");
   RNA_def_property_enum_items(prop, logic_string_operation_items);
   RNA_def_property_ui_text(prop, "Operation", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "time_format", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_time_format_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Time Format", "How Format Time shows the seconds");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -6032,6 +6282,14 @@ static void def_logic_keyboard_key(BlenderRNA * /*brna*/, StructRNA *srna)
       {0, "TAP", 0, "Pressed", "Pulse once when the input becomes active"},
       {1, "DOWN", 0, "While Held", "Pulse on every selected update while the input is active"},
       {2, "UP", 0, "Released", "Pulse once when the input becomes inactive"},
+      /* (2026-11-17) Gestures, on the Time input (LN_InputGestures.h). */
+      {3,
+       "TAP_QUICK",
+       0,
+       "Tap",
+       "Pulse when released within Time of its press (a quick tap, not a hold)"},
+      {4, "DOUBLE_TAP", 0, "Double Tap", "Pulse at a second press within Time of the first"},
+      {5, "HOLD", 0, "Hold", "Pulse once when held for Time (charge, long press)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -6281,35 +6539,58 @@ static void def_logic_gamepad_stick(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 
-static void def_logic_compare(BlenderRNA * /*brna*/, StructRNA *srna)
+static PropertyRNA *def_logic_compare_operation(StructRNA *srna)
 {
-  static const EnumPropertyItem logic_compare_items[] = {
-      {0,
-       "EQUAL",
-       0,
-       "Equal",
-       "A equals B, within a small tolerance (0.000001; Evaluate Object Property: 0.0001)"},
-      {1,
-       "NOT_EQUAL",
-       0,
-       "Not Equal",
-       "A and B differ by more than a small tolerance (0.000001; Evaluate Object Property: "
-       "0.0001)"},
-      {2, "GREATER_THAN", 0, "Greater Than", "A is greater than B (exactly)"},
-      {3, "LESS_THAN", 0, "Less Than", "A is less than B (exactly)"},
-      {4, "GREATER_EQUAL", 0, "Greater or Equal", "A is greater than or equal to B (exactly)"},
-      {5, "LESS_EQUAL", 0, "Less or Equal", "A is less than or equal to B (exactly)"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  PropertyRNA *prop;
-
-  prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+  PropertyRNA *prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "custom1");
-  RNA_def_property_enum_items(prop, logic_compare_items);
+  RNA_def_property_enum_items(prop, logic_compare_operation_items);
   RNA_def_property_ui_text(prop, "Operation", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  return prop;
+}
+
+static void def_logic_compare(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  def_logic_compare_operation(srna);
+}
+
+/* Compare's Type (custom2, 2026-11-16; Number on every older node). Evaluate Object Property shares
+ * def_logic_compare only. The Operation lists what makes sense for the Type (2026-11-17). */
+static void def_logic_compare_node(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *operation = def_logic_compare_operation(srna);
+  RNA_def_property_enum_funcs(operation, nullptr, nullptr, "rna_LogicCompare_operation_itemf");
+
+  static const EnumPropertyItem logic_compare_type_items[] = {
+      {0, "NUMBER", 0, "Number", "Compare two numbers"},
+      {1,
+       "VECTOR",
+       0,
+       "Vector",
+       "Compare two vectors: Equal when at most Tolerance apart; Greater and Less compare their "
+       "lengths"},
+      {2,
+       "OBJECT",
+       0,
+       "Object",
+       "Whether two objects are the same object (Equal or Not Equal)"},
+      {3,
+       "TEXT",
+       0,
+       "Text",
+       "Compare two texts: Equal when the same (case matters); Greater and Less in alphabetical "
+       "order"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_compare_type_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Type", "What A and B are");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_LogicCompare_type_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 
@@ -6498,6 +6779,90 @@ static void def_logic_tween_value(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_pointer_sdna(prop, nullptr, "storage");
   RNA_def_property_struct_type(prop, "CurveMapping");
   RNA_def_property_ui_text(prop, "Mapping", "Curve used to remap the tween factor");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  /* (2026-11-17) Easing, Ease and Repeat in custom2 above its two flags (bits 2-5, 6-7, 8-9;
+   * LN_Easing.h): 0 in every node saved before (its curve, once). */
+  static const EnumPropertyItem logic_tween_easing_items[] = {
+      {0 << 2, "CURVE", 0, "Curve", "The curve drawn below"},
+      {1 << 2, "LINEAR", 0, "Linear", "The same speed all the way"},
+      {2 << 2, "SINE", 0, "Sine", "A gentle start or stop"},
+      {3 << 2, "QUAD", 0, "Quadratic", "A start or stop a little stronger than Sine"},
+      {4 << 2, "CUBIC", 0, "Cubic", "A stronger start or stop"},
+      {5 << 2, "QUART", 0, "Quartic", "A sharp start or stop"},
+      {6 << 2, "QUINT", 0, "Quintic", "A very sharp start or stop"},
+      {7 << 2, "EXPO", 0, "Exponential", "Almost still, then very fast (or the other way)"},
+      {8 << 2, "CIRC", 0, "Circular", "A quarter circle: sudden at one end"},
+      {9 << 2,
+       "BACK",
+       0,
+       "Back",
+       "Pulls back a little before going (In), overshoots and settles (Out)"},
+      {10 << 2, "ELASTIC", 0, "Elastic", "Springs around the end like a rubber band"},
+      {11 << 2, "BOUNCE", 0, "Bounce", "Bounces at the end like a dropped ball (Out)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "easing", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_tween_easing_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop,
+                           "Easing",
+                           "How the Tween speeds up and slows down: the curve below, or a "
+                           "preset (Bounce, Elastic, Back go past or around the end)");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  static const EnumPropertyItem logic_tween_ease_items[] = {
+      {0 << 6, "IN", 0, "In", "The easing at the start (slow start)"},
+      {1 << 6, "OUT", 0, "Out", "The easing at the end (slow stop, Bounce's bounces)"},
+      {2 << 6, "IN_OUT", 0, "In Out", "The easing at both ends"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "ease", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_tween_ease_items);
+  RNA_def_property_enum_default(prop, 2 << 6);
+  RNA_def_property_ui_text(prop, "Ease", "Which end of the Tween the easing shapes");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  prop = RNA_def_property(srna, "apply_to", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_tween_apply_items);
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_LogicTween_apply_to_itemf");
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop,
+                           "Apply To",
+                           "Write the Result to the Object on each step the tween moves (none "
+                           "while it waits): a door that slides, a lift, a turning lever");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  static const EnumPropertyItem logic_tween_repeat_items[] = {
+      {0 << 8, "ONCE", 0, "Once", "Stops at the end"},
+      {1 << 8,
+       "LOOP",
+       0,
+       "Loop",
+       "Starts again from the start at the end (Reached each time): a spinning fan, a "
+       "scrolling sign"},
+      {2 << 8,
+       "PING_PONG",
+       0,
+       "Ping-Pong",
+       "Turns round at each end (Reached each time): a moving platform, a breathing light"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "repeat", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_tween_repeat_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop,
+                           "Repeat",
+                           "What the Tween does at its end. On Demand: it runs while read; "
+                           "Forward or Back starts it");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
@@ -7210,6 +7575,116 @@ static void def_logic_aim_for_arc(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
+static void def_logic_navigate(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  /* KX_NavRequest::Mode (2026-11-18). */
+  static const EnumPropertyItem mode_items[] = {
+      {0, "GO_TO", 0, "Go To", "To the Destination, or after the Target Object"},
+      {1,
+       "WANDER",
+       0,
+       "Wander",
+       "To random places within Radius of the Destination (its home), one after another"},
+      {2,
+       "FLEE",
+       0,
+       "Flee",
+       "Away from the Target Object (else the Destination) until Radius away"},
+      {3, "PURSUE", 0, "Pursue", "To where the Target Object will be when it gets there"},
+      {4, "EVADE", 0, "Evade", "Away from where the Target Object will be, until Radius away"},
+      {5,
+       "FORMATION",
+       0,
+       "Formation",
+       "To its place in the Target Object's formation (Offset in the leader's space)"},
+      {6,
+       "FLOCK",
+       0,
+       "Flock",
+       "With the other NPCs flocking after the same Target Object: apart, the same way, "
+       "together (Weights)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, mode_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Mode", "Where the NPC goes");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  /* custom2 bit 0, LN_NAVIGATE_UNTIL_ARRIVED (2026-11-18). */
+  prop = RNA_def_property(srna, "use_until_arrived", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1 << 0);
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_ui_text(prop,
+                           "Until Arrived",
+                           "One pulse is enough: the NPC keeps going until it arrives, a new "
+                           "order replaces it or Stop ends it (off: it walks only while Flow keeps "
+                           "running)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_navmesh_query(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  /* LN_NavmeshQueryMode (2026-11-18). */
+  static const EnumPropertyItem query_items[] = {
+      {0, "FIND_PATH", 0, "Find Path", "The way from From to To: its corners and length"},
+      {1,
+       "NEAREST_POINT",
+       0,
+       "Nearest Point",
+       "The navigation mesh point nearest Position (where an NPC can stand)"},
+      {2,
+       "RANDOM_POINT",
+       0,
+       "Random Point",
+       "A random point reachable from Position, within Radius of it"},
+      {3, "IS_REACHABLE", 0, "Is Reachable", "Whether a walk from From can reach To"},
+      {4,
+       "WALKABLE_LINE",
+       0,
+       "Walkable Line",
+       "Whether a straight walk from From to To stays on the navigation mesh"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "query", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, query_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Query", "What to ask the navigation mesh");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void def_logic_set_navigation_attribute(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  /* LN_NavigationAttribute (2026-11-18). */
+  static const EnumPropertyItem attribute_items[] = {
+      {0,
+       "OBSTACLE",
+       0,
+       "Obstacle",
+       "Whether NPCs walk around the object (cut out of the scene's navigation mesh)"},
+      {1, "AREA_COST", 0, "Area Cost", "How much a meter of an area costs the NPC"},
+      {2, "AREA_CLOSED", 0, "Area Closed", "Whether the NPC may walk an area at all"},
+      {3,
+       "REBUILD_AREA",
+       0,
+       "Rebuild Area",
+       "Make the scene's navigation mesh again inside a box (level pieces changed)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "attribute", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, attribute_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Attribute", "What to change");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
 static void def_logic_velocity_at_point(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   static const EnumPropertyItem point_from_items[] = {
@@ -7682,6 +8157,30 @@ static void def_logic_map_range(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(prop, "Clamp", "Clamp the mapped value to the target range");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  /* Logic Nodes, 2026-11-16: custom2, 0 (Linear) on every node made before. */
+  static const EnumPropertyItem logic_map_range_interpolation_items[] = {
+      {0, "LINEAR", 0, "Linear", "A straight line from the source range to the target range"},
+      {1,
+       "SMOOTHSTEP",
+       0,
+       "Smooth Step",
+       "Eases in and out of the target range (the value stays between To Min and To Max)"},
+      {2,
+       "SMOOTHERSTEP",
+       0,
+       "Smoother Step",
+       "Eases in and out more gently (the value stays between To Min and To Max)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "interpolation_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, logic_map_range_interpolation_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Interpolation", "How the value is carried to the target range");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 
 /* The list and dictionary action nodes (node_logic_util.hh collection_store_*): custom1 1 changes
@@ -7933,6 +8432,27 @@ static void def_logic_random_value(BlenderRNA * /*brna*/, StructRNA *srna)
        ICON_NODE_SOCKET_BOOLEAN,
        "Boolean",
        "True with the Probability (0.25: one time in four)"},
+      /* The shapes (2026-11-16): vectors, into the Vector output. */
+      {4,
+       "DIRECTION",
+       ICON_NODE_SOCKET_VECTOR,
+       "Direction",
+       "A direction one unit long, every direction equally likely (a random heading, a bounce)"},
+      {5,
+       "IN_SPHERE",
+       ICON_NODE_SOCKET_VECTOR,
+       "In Sphere",
+       "A point inside a ball of the Radius around (0, 0, 0), every place equally likely"},
+      {6,
+       "IN_CIRCLE",
+       ICON_NODE_SOCKET_VECTOR,
+       "In Circle",
+       "A point inside a disc of the Radius on the ground (Z 0): spawn places around a point"},
+      {7,
+       "IN_CONE",
+       ICON_NODE_SOCKET_VECTOR,
+       "In Cone",
+       "A direction one unit long at most Angle away from Axis (a weapon's spread)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   PropertyRNA *prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
@@ -7946,8 +8466,137 @@ static void def_logic_random_value(BlenderRNA * /*brna*/, StructRNA *srna)
   def_logic_random_variation(srna);
 }
 
+/* Input Combo (2026-11-17): the Mode (custom1) and Strict (custom2 bit 0 off). */
+static void def_logic_input_combo(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem mode_items[] = {
+      {0,
+       "SEQUENCE",
+       0,
+       "Sequence",
+       "The steps pressed in order, each within Time of the one before (a fighting game's "
+       "combo, a cheat code)"},
+      {1,
+       "CHORD",
+       0,
+       "Chord",
+       "The steps held together, the last pressed within Time of the first (two shoulder "
+       "buttons for a special move)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "combo_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, mode_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Mode", "In order or together");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_strict", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "custom2", 1 << 0);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(
+      prop, "Strict", "A step pressed out of order starts the combo again (off: it is ignored)");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+/* Set Rigid Body Constraint (2026-11-17): what it changes (custom1,
+ * LN_RigidBodyConstraintSetting). */
+static void def_logic_set_rigid_body_constraint(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem setting_items[] = {
+      {0, "ENABLED", 0, "Enabled", "Switch the constraint on or off (a door that locks)"},
+      {1,
+       "LIMITS",
+       0,
+       "Limits",
+       "How far the bodies may slide and turn (a hinge's swing, a slider's travel)"},
+      {2, "MOTOR", 0, "Motor", "A Motor constraint's speed and strength (a drawbridge, a fan)"},
+      {3, "SPRINGS", 0, "Springs", "A Generic Spring constraint's springs (stiffer suspension)"},
+      {4, "BREAKING", 0, "Breaking", "Whether and at what force the constraint breaks"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "setting", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, setting_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Setting", "What the node changes");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+/* Date and Time (2026-11-17): UTC (custom1 1) or the computer's local time (0). */
+static void def_logic_date_time(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop = RNA_def_property(srna, "use_utc", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_ui_text(
+      prop,
+      "UTC",
+      "Universal time, the same for every player in the world (off: the computer's local time)");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+/* Oscillate (2026-11-17): the Wave (custom1, LN_OscillateWave). */
+static void def_logic_oscillate(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem wave_items[] = {
+      {0, "SINE", 0, "Sine", "A smooth swing (a bobbing pickup, a breathing light)"},
+      {1, "TRIANGLE", 0, "Triangle", "Straight up and down at a steady speed (a patrol)"},
+      {2, "SQUARE", 0, "Square", "One end for half a cycle, then the other (a blinking light)"},
+      {3, "SAWTOOTH", 0, "Sawtooth", "Rises steadily, then jumps back (a scanning beam)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "wave", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, wave_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Wave", "The shape of the swing (Orbit always goes round)");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_logic_list_random_item(BlenderRNA * /*brna*/, StructRNA *srna)
 {
+  def_logic_random_variation(srna);
+}
+
+/* List Operation (2026-11-17): the operation (custom1) and Shuffle's variation (custom2). */
+static void def_logic_list_operation(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem operation_items[] = {
+      {0, "REVERSE", 0, "Reverse", "The list in the opposite order"},
+      {1,
+       "SHUFFLE",
+       0,
+       "Shuffle",
+       "The list in a random order, a new one every step (a deck of cards, a random turn "
+       "order)"},
+      {2,
+       "SLICE",
+       0,
+       "Slice",
+       "Length items from Start (0 the first, below 0 from the end; a Length below 0 takes the "
+       "rest): the first three, the last five"},
+      RNA_ENUM_ITEM_SEPR,
+      {3, "MIN", 0, "Min", "The smallest number in the list, and where it is"},
+      {4, "MAX", 0, "Max", "The largest number in the list, and where it is"},
+      {5, "SUM", 0, "Sum", "All numbers in the list added up (a score total, the weight carried)"},
+      {6, "AVERAGE", 0, "Average", "The numbers' sum divided by how many there are"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, operation_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Operation", "What the node does with the list");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
   def_logic_random_variation(srna);
 }
 
@@ -8436,6 +9085,257 @@ static void def_logic_axis_selector(BlenderRNA * /*brna*/, StructRNA *srna)
   def_logic_axis_property(srna, 0);
 }
 
+/* Rotation Math (2026-11-16): custom1, LN_RotationFunction's first four. */
+static void def_logic_rotation_math(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem items[] = {
+      {0,
+       "COMBINE",
+       0,
+       "Combine",
+       "B applied after A, around the world's axes (a turn added on top of a pose)"},
+      {1,
+       "COMBINE_LOCAL",
+       0,
+       "Combine Local",
+       "B applied around A's own axes (a turn added in the object's own frame)"},
+      {2, "INVERT", 0, "Invert", "A undone: the rotation that turns A back to no rotation"},
+      {3,
+       "DIFFERENCE",
+       0,
+       "Difference",
+       "The turn from A to B: combined after A it gives B"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "operation", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Operation", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+/* Smooth Value (2026-11-16): custom1 the type, custom2 the mode (LN_SmoothMode). */
+static void def_logic_smooth_value(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem type_items[] = {
+      {0, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "A number follows its Target"},
+      {1,
+       "FLOAT_VECTOR",
+       ICON_NODE_SOCKET_VECTOR,
+       "Vector",
+       "A vector follows its Target (a position, a direction, a color)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, type_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Type", "What kind of value follows its Target");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  static const EnumPropertyItem mode_items[] = {
+      {0,
+       "SMOOTH",
+       0,
+       "Smooth",
+       "Closes the same share of the gap every second, slowing down as it nears Target (a "
+       "following camera, a health bar)"},
+      {1,
+       "CONSTANT_SPEED",
+       0,
+       "Constant Speed",
+       "Moves toward Target at Speed units a second and stops exactly on it (a door, a lift, a "
+       "turret's aim)"},
+      {2,
+       "SMOOTH_DAMP",
+       0,
+       "Smooth Damp",
+       "A spring that reaches Target in about Smooth Time without overshooting and keeps its speed "
+       "when Target moves (a chasing camera, steering)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, mode_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Mode", "How the value moves toward its Target");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+/* Noise (2026-11-16): custom1 the dimensions, custom2 the octaves. */
+static void def_logic_noise(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem dimension_items[] = {
+      {1, "1D", 0, "1D", "Changes along W only (a time: flicker, camera shake)"},
+      {2, "2D", 0, "2D", "Changes over the Vector's X and Y (a terrain, a map)"},
+      {3, "3D", 0, "3D", "Changes over the Vector (each place its own value)"},
+      {4, "4D", 0, "4D", "Changes over the Vector and along W (a field that moves with time)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "noise_dimensions", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, dimension_items);
+  RNA_def_property_enum_default(prop, 3);
+  RNA_def_property_ui_text(prop, "Dimensions", "What the noise changes along");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "octaves", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "custom2");
+  RNA_def_property_range(prop, 1, 8);
+  RNA_def_property_int_default(prop, 2);
+  RNA_def_property_ui_text(prop,
+                           "Octaves",
+                           "How many layers of ever finer detail are added (each costs as much as "
+                           "the first)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+/* Find Objects (2026-11-16): custom1 the source, custom2 the pick. */
+static void def_logic_find_objects(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem source_items[] = {
+      {0, "ALL", 0, "All Objects", "Every object of the scene"},
+      {1, "COLLECTION", 0, "Collection", "The objects of a collection (its child collections too)"},
+      {2,
+       "PROPERTY",
+       0,
+       "With Property",
+       "The objects with a game property (\"enemy\", \"pickup\", \"cover\")"},
+      {3, "LIST", 0, "List", "The objects of a list"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "source", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, source_items);
+  RNA_def_property_enum_default(prop, 2);
+  RNA_def_property_ui_text(prop, "Source", "Which objects to search");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  static const EnumPropertyItem pick_items[] = {
+      {0, "NEAREST", 0, "Nearest", "The nearest object (a target, a cover, a pickup)"},
+      {1, "FARTHEST", 0, "Farthest", "The farthest object within the Radius"},
+      {2, "RANDOM", 0, "Random", "A random one of them, a new one every step"},
+      {3, "ALL", 0, "All", "All of them, nearest first (Objects)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "pick", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, pick_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Pick", "Which of the objects found to give");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+/* Set Action Layer (2026-11-16): custom1 what it changes. */
+static void def_logic_set_action_layer(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem items[] = {
+      {0,
+       "SPEED",
+       0,
+       "Speed",
+       "The action's speed (0 holds its frame); the frame shown stays where it is"},
+      {1,
+       "LAYER_WEIGHT",
+       0,
+       "Layer Weight",
+       "How much of the layers below still shows through this layer"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "attribute", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Attribute", "What the node changes on the playing layer");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+/* Rotate To (2026-11-16): custom1 how it turns. */
+static void def_logic_rotate_toward(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem turn_items[] = {
+      {0,
+       "FACTOR",
+       0,
+       "Factor",
+       "Turns a share (Factor) of the turn left each step: fast at first, slower near the target"},
+      {1,
+       "SPEED",
+       0,
+       "Turn Speed",
+       "Turns at most Turn Speed a second and stops exactly on the target (a turret, a guard)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "turn", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, turn_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Turn", "How the object turns toward the target");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+/* Transform Vector (2026-11-16): custom1 the direction, custom2 what the vector is. */
+static void def_logic_transform_vector(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  static const EnumPropertyItem space_items[] = {
+      {0,
+       "LOCAL_TO_WORLD",
+       0,
+       "Local to World",
+       "From the object's own space into the world (a spot on a ship, a gun's muzzle)"},
+      {1,
+       "WORLD_TO_LOCAL",
+       0,
+       "World to Local",
+       "From the world into the object's own space (where a target is, seen from the object)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem type_items[] = {
+      {0,
+       "POINT",
+       0,
+       "Point",
+       "A place: moved, turned and scaled with the object"},
+      {1, "DIRECTION", 0, "Direction", "A way to point: only turned with the object"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, space_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Space", "Which way the vector is carried");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  prop = RNA_def_property(srna, "vector_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, type_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Type", "What the vector is");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
 static void def_logic_vector_to_rotation(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   /* A new Vector to Rotation points its Z axis along the vector. */
@@ -8535,6 +9435,7 @@ static void def_logic_draw_mode(BlenderRNA * /*brna*/, StructRNA *srna)
       {4, "BOX", 0, "Box", "Box"},
       {5, "MESH", 0, "Mesh", "Mesh"},
       {6, "AXIS", 0, "Axis", "Axis"},
+      {7, "SPHERE", 0, "Sphere", "Three circles of Radius around the Origin"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   PropertyRNA *prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
@@ -8763,6 +9664,16 @@ static void def_logic_set_rigid_body_attribute(BlenderRNA * /*brna*/, StructRNA 
        0,
        "Allow Physics Rotation",
        "Allow physics simulation to rotate the dynamic body"},
+      /* (2026-11-18) */
+      {15,
+       "COMPOUND",
+       0,
+       "Compound",
+       "Turn the Physics panel's Compound on or off while the game runs (Jolt). On a part below "
+       "a compound: its shape joins or leaves the shape of the topmost object with Compound, "
+       "the object staying parented. On any other object: it holds the shapes of the objects "
+       "below it with Compound (on) or lets every one go (off). A part that leaves gets a body "
+       "of its own; parented, it follows its parent as without Compound"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -8839,6 +9750,13 @@ static void def_logic_get_rigid_body_attribute(BlenderRNA * /*brna*/, StructRNA 
        0,
        "Allow Physics Rotation",
        "Get whether physics simulation can rotate the dynamic body"},
+      /* (2026-11-18) */
+      {15,
+       "COMPOUND",
+       0,
+       "Compound",
+       "Get the object's Compound checkbox (Enabled), whether its shape is a part of a compound "
+       "now (Is Part) and how many parts its own shape holds (Part Count)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -14718,7 +15636,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeColorRGBA");
   define("LogicNode", "LogicNativeCombineXYZ");
   define("LogicNode", "LogicNativeCombineXYZW");
-  define("LogicNode", "LogicNativeCompare", def_logic_compare);
+  define("LogicNode", "LogicNativeCompare", def_logic_compare_node);
   define("LogicNode", "LogicNativeCooldown");
   define("LogicNode", "LogicNativeFlowGate");
   define("LogicNode", "LogicNativeAnyFlow");
@@ -14728,6 +15646,19 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeBreakLoop");
   define("LogicNode", "LogicNativeEuler");
   define("LogicNode", "LogicNativeVectorToRotation", def_logic_vector_to_rotation);
+  define("LogicNode", "LogicNativeRotationMath", def_logic_rotation_math);
+  define("LogicNode", "LogicNativeTransformVector", def_logic_transform_vector);
+  define("LogicNode", "LogicNativeSmoothValue", def_logic_smooth_value);
+  define("LogicNode", "LogicNativeSetActionLayer", def_logic_set_action_layer);
+  define("LogicNode", "LogicNativeOnActionFrame");
+  define("LogicNode", "LogicNativeFindObjects", def_logic_find_objects);
+  define("LogicNode", "LogicNativeStateMachine");
+  define("LogicNode", "LogicNativeNoise", def_logic_noise);
+  define("LogicNode", "LogicNativeOscillate", def_logic_oscillate);
+  define("LogicNode", "LogicNativeInputCombo", def_logic_input_combo);
+  define("LogicNode", "LogicNativeDateTime", def_logic_date_time);
+  define("LogicNode", "LogicNativeSaveSlot");
+  define("LogicNode", "LogicNativeSetRigidBodyConstraint", def_logic_set_rigid_body_constraint);
   define("LogicNode", "LogicNativeBoneRotationToObjectRotation");
   define("LogicNode", "LogicNativeEvaluateProperty", def_logic_evaluate_property);
   define("LogicNode", "LogicNativeGate", def_logic_gate);
@@ -14740,6 +15671,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeFormattedString");
   define("LogicNode", "LogicNativeGetOwner");
   define("LogicNode", "LogicNativeGetParent");
+  define("LogicNode", "LogicNativeGetChildren");
   define("LogicNode", "LogicNativeFindObject");
   define("LogicNode", "LogicNativeGetObjectAttribute", def_logic_get_object_attribute);
   define("LogicNode", "LogicNativeGetDistance", def_logic_distance_between);
@@ -14761,14 +15693,19 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeKeyLogger");
   define("LogicNode", "LogicNativeListGetItem");
   define("LogicNode", "LogicNativeListRandomItem", def_logic_list_random_item);
+  define("LogicNode", "LogicNativeListOperation", def_logic_list_operation);
   define("LogicNode", "LogicNativeListSavedVariables");
   define("LogicNode", "LogicNativeListLength");
   define("LogicNode", "LogicNativeLoop");
   define("LogicNode", "LogicNativeLoopFromList");
   define("LogicNode", "LogicNativeMath", def_logic_math);
   define("LogicNode", "LogicNativeMoveToward");
-  define("LogicNode", "LogicNativeNavigate");
+  define("LogicNode", "LogicNativeNavigate", def_logic_navigate);
   define("LogicNode", "LogicNativeFollowPath");
+  define("LogicNode", "LogicNativeNavmeshQuery", def_logic_navmesh_query);
+  define("LogicNode", "LogicNativeGetNavigationInfo");
+  define("LogicNode", "LogicNativeOnNavigationLink");
+  define("LogicNode", "LogicNativeSetNavigationAttribute", def_logic_set_navigation_attribute);
   define("LogicNode", "LogicNativeTranslate");
   define("LogicNode", "LogicNativeMouseMoved", def_logic_mouse_moved);
   define("LogicNode", "LogicNativeMouseOver", def_logic_interaction_view);
@@ -14803,6 +15740,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeGamepadLook", def_logic_gamepad_look);
   define("LogicNode", "LogicNativeOnConstraintBreak", def_logic_constraint_break_match_mode);
   define("LogicNode", "LogicNativeOnGameLoaded");
+  define("LogicNode", "LogicNativeOnRemoved");
   define("LogicNode", "LogicNativeOnInit");
   define("LogicNode", "LogicNativeOnFixedUpdate", def_logic_on_fixed_update);
   define("LogicNode", "LogicNativeOnNextFrame");
@@ -14826,7 +15764,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeSetActionFrame");
   define("LogicNode", "LogicNativeSetShapeKeyValue");
   define("LogicNode", "LogicNativeAlignAxisToVector");
-  define("LogicNode", "LogicNativeRotateToward");
+  define("LogicNode", "LogicNativeRotateToward", def_logic_rotate_toward);
   define("LogicNode", "LogicNativeSetObjectAttribute", def_logic_set_object_attribute);
   define("LogicNode", "LogicNativeGetRigidBodyAttribute", def_logic_get_rigid_body_attribute);
   define("LogicNode",
@@ -14880,6 +15818,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeListRemoveIndex", def_logic_collection_store);
   define("LogicNode", "LogicNativeListRemoveValue", def_logic_collection_store);
   define("LogicNode", "LogicNativeListSetIndex", def_logic_collection_store);
+  define("LogicNode", "LogicNativeListInsert", def_logic_collection_store);
   define("LogicNode", "LogicNativeDictSetKey", def_logic_collection_store);
   define("LogicNode", "LogicNativeDictAddValue", def_logic_collection_store);
   define("LogicNode", "LogicNativeInventory", def_logic_inventory);

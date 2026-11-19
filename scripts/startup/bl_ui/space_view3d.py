@@ -2790,6 +2790,17 @@ class VIEW3D_MT_game_ui_add(Menu):
             icon='FILE_BLEND',
         )
         layout.operator("wm.game_ui_guide_open", text="Open UI Guide", icon='HELP')
+        layout.separator()
+        layout.operator(
+            "wm.game_ui_split_screen_example_open",
+            text="Open Split-Screen Example",
+            icon='FILE_BLEND',
+        )
+        layout.operator(
+            "wm.game_ui_split_screen_guide_open",
+            text="Open Split-Screen Guide",
+            icon='HELP',
+        )
 
 
 class VIEW3D_MT_game_ui_templates(Menu):

@@ -25,6 +25,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Priority"_ustr).default_value(0);
   b.add_input<decl::Float>("Blend In"_ustr).default_value(0.0f).min(0.0f);
   b.add_input<decl::Float>("Speed"_ustr).default_value(1.0f);
+  b.add_input<decl::Float>("Layer Weight"_ustr)
+      .default_value(0.0f)
+      .min(0.0f)
+      .max(1.0f)
+      .description("How much of the layers below still shows: 0 none (this layer covers them), "
+                   "0.5 half each (Blend) or half of their pose added (Add), 1 all of them");
+  b.add_input<decl::String>("Action Name"_ustr)
+      .description("An action by its name (a game property may choose it while playing); empty: "
+                   "the action picked above");
   b.add_output<decl::Execution>("Started"_ustr)
       .description("Pulses when this exact action playback request is accepted");
   b.add_output<decl::Execution>("Completed"_ustr)

@@ -484,6 +484,11 @@ put(blast, "Radius", 3.0)
 p = preview(tree, blast, owner)
 check(near(p.data.get("center"), (10, 0, 0)) and near(p.data.get("radius"), 3.0),
       "Explosion around the owner: %s" % p.data)
+# (2026-11-17) The Offset, in the owner's own space (turned 90 degrees about Z, scaled 2): (0, 1, 0)
+# is 2 m along -X.
+put(blast, "Offset", (0.0, 1.0, 0.0))
+p = preview(tree, blast, owner)
+check(near(p.data.get("center"), (8, 0, 0)), "Explosion at the owner's Offset: %s" % p.data)
 blast.center = 'POSITION'
 put(blast, "Origin", (1.0, 1.0, 1.0))
 p = preview(tree, blast, owner)
@@ -505,16 +510,23 @@ ball = mesh_object("KeepBall", [(x, y, z) for x in (-1, 1) for y in (-1, 1) for 
                     (1, 5, 7, 3)], location=(0, 5, 0), scale=(0.5, 0.5, 0.5))
 socket(keep, "Object").default_value = ball
 for kind, bounds, expected in (('DYNAMIC', None, 'SPHERE'), ('RIGID_BODY', None, 'BOX'),
-                               ('KINEMATIC', None, 'BOX'), ('CHARACTER', None, 'SPHERE'),
+                               ('KINEMATIC', None, 'BOX'), ('CHARACTER', None, 'CAPSULE'),
+                               # (Made a Character, chosen Triangle Mesh bounds become Box:
+                               # the RNA's type setter.)
+                               ('CHARACTER', 'TRIANGLE_MESH', 'BOX'),
+                               ('CHARACTER', 'Empty', 'CAPSULE'), ('STATIC', 'Empty', None),
                                ('STATIC', None, None), ('SENSOR', None, None),
                                ('SOFT_BODY', None, None), ('NO_COLLISION', None, None),
                                ('RIGID_BODY', 'CAPSULE', 'CAPSULE'),
                                ('RIGID_BODY', 'CONVEX_HULL', 'CONVEX_HULL'),
                                ('STATIC', 'BOX', 'BOX'), ('STATIC', 'TRIANGLE_MESH', None)):
-    ball.game.physics_type = kind
+    # (A Character's dropdown offers no Triangle Mesh nor Empty: such bounds come from another
+    # type's, kept when the type changed.)
+    ball.game.physics_type = 'STATIC'
     ball.game.use_collision_bounds = bounds is not None
     if bounds is not None:
         ball.game.collision_bounds_type = bounds
+    ball.game.physics_type = kind
     check(rp.keep_distance_shape(ball) == expected,
           "Keep Distance shape of %s %s: %s" % (kind, bounds, rp.keep_distance_shape(ball)))
 ball.game.physics_type = 'RIGID_BODY'

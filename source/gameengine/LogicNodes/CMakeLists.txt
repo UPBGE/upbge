@@ -30,8 +30,6 @@ set(INC
 
 set(INC_SYS
   ../../../extern/json/include
-  ../../../extern/recastnavigation/Recast/Include
-  ../../../extern/recastnavigation/Detour/Include
   ../../../intern/moto/include
   ../../../intern/ghost
 )
@@ -52,6 +50,7 @@ set(SRC
   intern/LN_GameStateStorage.cpp
   intern/LN_InputMap.cpp
   intern/LN_JobPool.cpp
+  intern/LN_FindObjects.cpp
   intern/LN_KeepDistance.cpp
   intern/LN_KindCatalog.cpp
   intern/LN_LeanProgram.cpp
@@ -93,6 +92,7 @@ set(SRC
   LN_GameState.h
   LN_InputMap.h
   LN_JobPool.h
+  LN_FindObjects.h
   LN_KeepDistance.h
   LN_Inventory.h
   LN_PersistenceCapability.h
@@ -102,6 +102,8 @@ set(SRC
   LN_LeanReader.h
   LN_Manager.h
   LN_AimMath.h
+  LN_ActionFrames.h
+  LN_MathOps.h
   LN_DebugLines.h
   LN_MeshRays.h
   LN_NodeMetadata.h
@@ -163,6 +165,7 @@ if(WITH_GTESTS)
     tests/LN_GameState_test.cpp
     tests/LN_GenericOutputs_test.cpp
     tests/LN_Impulse_test.cpp
+    tests/LN_ImplicitConversion_test.cpp
     tests/LN_InputMap_test.cpp
     tests/LN_Inventory_test.cpp
     tests/LN_JobPool_test.cpp
@@ -184,6 +187,13 @@ if(WITH_GTESTS)
     tests/LN_NodeValues_test.cpp
     tests/LN_ReadOrder_test.cpp
     tests/LN_RemovedObjects_test.cpp
+    tests/LN_TextOps_test.cpp
+    tests/LN_ListOps_test.cpp
+    tests/LN_Countdown_test.cpp
+    tests/LN_Easing_test.cpp
+    tests/LN_InputGestures_test.cpp
+    tests/LN_SmallConveniences_test.cpp
+    tests/LN_TweenFlow_test.cpp
     tests/LN_Performance_test.cpp
     tests/LN_Program_test.cpp
     tests/LN_Rotation_test.cpp

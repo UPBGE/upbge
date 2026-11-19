@@ -21,7 +21,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       "Character object to affect; defaults to the owner when unset");
   b.add_input<decl::Vector>("Vector"_ustr)
       .default_value({0.0f, 0.0f, 0.0f})
-      .description("Desired character walk direction");
+      .description(
+          "Walking velocity in m/s (world axes, or the object's with Local); the character keeps "
+          "walking at it until changed, (0, 0, 0) stops. Its up part is ignored: jumps and "
+          "gravity move it up and down");
   b.add_output<decl::Execution>("Done"_ustr, "Out"_ustr);
   b.add_output<decl::Execution>("Done"_ustr).available(false);
 }

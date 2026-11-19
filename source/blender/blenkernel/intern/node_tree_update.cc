@@ -1522,6 +1522,14 @@ class NodeTreeMainUpdater {
           continue;
         }
       }
+      /* UPBGE: the tree type's rule on the sockets themselves (Logic Nodes' flow sockets). */
+      if (ntree.typeinfo->link_socket_error) {
+        if (const char *error = ntree.typeinfo->link_socket_error(*link.fromsock, *link.tosock)) {
+          link.flag &= ~NODE_LINK_VALID;
+          ntree.runtime->link_errors.add(NodeLinkKey{link}, NodeLinkError{error});
+          continue;
+        }
+      }
       if (fallback_zones) {
         if (!fallback_zones->link_between_sockets_is_allowed(*link.fromsock, *link.tosock)) {
           if (const bNodeTreeZone *from_zone = fallback_zones->get_zone_by_socket(*link.fromsock))

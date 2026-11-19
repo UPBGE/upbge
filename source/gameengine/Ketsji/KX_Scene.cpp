@@ -123,6 +123,7 @@
 #include "KX_MotionState.h"
 #include "KX_NetworkMessageScene.h"
 #include "KX_NodeRelationships.h"
+#include "KX_Navigation.h"
 #include "KX_ObstacleSimulation.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_PyMath.h"
@@ -582,6 +583,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     default:
       m_obstacleSimulation = nullptr;
   }
+  m_navigation = new KX_Navigation(this);
 
 #ifdef WITH_PYTHON
   m_attr_dict = nullptr;
@@ -749,6 +751,8 @@ KX_Scene::~KX_Scene()
   if (m_obstacleSimulation) {
     delete m_obstacleSimulation;
   }
+  delete m_navigation;
+  m_navigation = nullptr;
 
   if (m_objectlist)
     m_objectlist->Release();
@@ -6451,6 +6455,7 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 #ifdef WITH_GAMEENGINE_LOGICNODES
   ReplicateLogicNodeRuntimeTreesForReplicaMap();
 #endif
+  RebindCopiedCompounds();
 
   // Build lookup map for fast name resolution during constraint replication.
   std::unordered_map<std::string, KX_GameObject *> hierarchyLookup;
@@ -6602,6 +6607,10 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
       gameobj->GetPhysicsController()->RebaseKinematicMotionState();
     }
   }
+  RebindCopiedCompounds();
+  for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
+    NoteNavigationLevelPiece(gameobj);
+  }
 
   // now replicate logic
   for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
@@ -6649,6 +6658,41 @@ KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject,
   return replica;
 }
 
+void KX_Scene::NoteNavigationLevelPiece(KX_GameObject *gameobj)
+{
+  PHY_IPhysicsController *controller = gameobj != nullptr ? gameobj->GetPhysicsController() :
+                                                            nullptr;
+  MT_Vector3 aabb_min, aabb_max;
+  if (m_navigation != nullptr && controller != nullptr && m_physicsEnvironment != nullptr &&
+      m_physicsEnvironment->GetStaticBodyBounds(controller, aabb_min, aabb_max))
+  {
+    m_navigation->NoteStaticChanged(aabb_min, aabb_max);
+  }
+}
+
+void KX_Scene::RebindCopiedCompounds()
+{
+  /* A copied holder holds its source's shape and bindings: they name the copies of the parts
+   * from now on (each copy has its own Blender object: before, a copy's parts were never found,
+   * Hit Part gave the holder, and Compound or Remove Parent changed nothing). */
+  for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
+    PHY_IPhysicsController *controller = gameobj->GetPhysicsController();
+    if (controller == nullptr || !controller->IsCompound()) {
+      continue;
+    }
+    controller->RebindCompoundChildObjects([this](KX_GameObject *source) -> KX_GameObject * {
+      const auto item = m_map_gameobject_to_replica.find(source);
+      return item != m_map_gameobject_to_replica.end() ?
+                 static_cast<KX_GameObject *>(item->second) :
+                 nullptr;
+    });
+  }
+  for (const auto &[source, copy] : m_map_gameobject_to_replica) {
+    static_cast<KX_GameObject *>(copy)->FinishCompoundCopy(
+        *static_cast<KX_GameObject *>(source));
+  }
+}
+
 void KX_Scene::RemoveObject(KX_GameObject *gameobj, const KX_ObjectRemovalReason reason)
 {
   // disconnect child from parent
@@ -6657,6 +6701,11 @@ void KX_Scene::RemoveObject(KX_GameObject *gameobj, const KX_ObjectRemovalReason
   if (node) {
     const KX_ObjectRemovalReason previous_reason = m_activeRemovalReason;
     m_activeRemovalReason = reason;
+    /* A compound part leaving the game leaves its holder's shape (2026-11-18: the holder kept
+     * colliding with it). The scene's end removes whole hierarchies: nothing to leave. */
+    if (reason != KX_ObjectRemovalReason::SceneTeardown) {
+      gameobj->LeaveCompoundForRemoval();
+    }
     node->DisconnectFromParent();
 
     // recursively destruct
@@ -6869,6 +6918,10 @@ bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj, const KX_ObjectRemovalRea
 
   if (m_obstacleSimulation) {
     m_obstacleSimulation->DestroyObstacleForObj(gameobj);
+  }
+  if (m_navigation) {
+    NoteNavigationLevelPiece(gameobj);
+    m_navigation->ForgetObject(gameobj);
   }
 
   m_proxyManager.Unregister(gameobj);
@@ -7330,6 +7383,8 @@ void KX_Scene::LogicEndFrame()
 #ifdef WITH_GAMEENGINE_LOGICNODES
   LogicNodeEndFrame();
 #else
+  /* Compound parts among them leave their holders, one new shape per holder (2026-11-18). */
+  KX_GameObject::LeaveCompoundsForRemoval(m_euthanasyobjects);
   /* Don't remove the objects from the euthanasy list here as the child objects of a deleted
    * parent object are destructed directly from the sgnode in the same time the parent
    * object is destructed. These child objects must be removed automatically from the
@@ -7357,9 +7412,15 @@ void KX_Scene::LogicEndFrame()
 #ifdef WITH_GAMEENGINE_LOGICNODES
 void KX_Scene::LogicNodeEndFrame()
 {
+  /* On Removed (2026-11-17): objects held for their last step stay; those whose step ran go. */
+  if (m_logicNodeManager) {
+    m_logicNodeManager->UpdateOnRemovedHolds(m_euthanasyobjects);
+  }
   if (m_logicNodeManager && !m_euthanasyobjects.empty()) {
     m_logicNodeManager->NotifyGameObjectsQueuedForBulkRemoval(m_euthanasyobjects);
   }
+  /* Compound parts among them leave their holders, one new shape per holder (2026-11-18). */
+  KX_GameObject::LeaveCompoundsForRemoval(m_euthanasyobjects);
 
   /* Don't remove the objects from the euthanasy list here as the child objects of a deleted
    * parent object are destructed directly from the sgnode in the same time the parent
@@ -7863,6 +7924,8 @@ bool KX_Scene::MergeScene(KX_Scene *other)
       // Replicate all constraints in the right physics environment.
       gameobj->GetPhysicsController()->ReplicateConstraints(gameobj, physicsObjects);
       gameobj->ClearConstraints();
+      /* Navigation (2026-11-18): the merged scene's level pieces join this scene's navmesh. */
+      NoteNavigationLevelPiece(gameobj);
     }
 
     // Build lookup map for fast name resolution during rigid body constraint replication.

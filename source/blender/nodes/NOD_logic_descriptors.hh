@@ -183,6 +183,9 @@ inline constexpr PinMetadata on_game_loaded_outputs[] = {
   {"Out", "Out", PinType::Execution, "false", false},
   {"Success", "Success", PinType::Bool, "false", false},
 };
+inline constexpr PinMetadata on_removed_outputs[] = {
+  {"Out", "Out", PinType::Execution, "false", false},
+};
 inline constexpr PinMetadata branch_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", true},
   {"Condition", "Condition", PinType::Condition, "false", false},
@@ -300,12 +303,19 @@ inline constexpr PinMetadata timer_inputs[] = {
   {"Set Timer", "Set Timer", PinType::Execution, "false", false},
   {"Seconds", "Seconds", PinType::Float, "0.0", false},
   {"Ignore Timescale", "Ignore Timescale", PinType::Bool, "false", false},
+  {"Stop", "Stop", PinType::Execution, "false", false},
+  {"Pause", "Pause", PinType::Execution, "false", false},
+  {"Resume", "Resume", PinType::Execution, "false", false},
 };
 inline constexpr PinMetadata timer_outputs[] = {
   {"Out", "When Elapsed", PinType::Execution, "false", false},
+  {"Remaining", "Remaining", PinType::Float, "0.0", false},
+  {"Waiting", "Waiting", PinType::Bool, "false", false},
 };
 inline constexpr PinMetadata delay_outputs[] = {
   {"Out", "Done", PinType::Execution, "false", false},
+  {"Remaining", "Remaining", PinType::Float, "0.0", false},
+  {"Waiting", "Waiting", PinType::Bool, "false", false},
 };
 inline constexpr PinMetadata pulsify_outputs[] = {
   {"Out", "Pulse", PinType::Execution, "false", false},
@@ -375,9 +385,11 @@ inline constexpr PinMetadata list_get_item_outputs[] = {
 inline constexpr PinMetadata list_random_item_inputs[] = {
   {"List", "List", PinType::List, "0", false},
   {"Seed", "Seed", PinType::Int, "0", false},
+  {"Weights", "Weights", PinType::List, "0", false},
 };
 inline constexpr PinMetadata list_random_item_outputs[] = {
   {"Value", "Value", PinType::Generic, "0", false},
+  {"Index", "Index", PinType::Int, "0", false},
 };
 inline constexpr PinMetadata value_switch_list_inputs[] = {
   {"if A", "if A", PinType::Bool, "false", false},
@@ -582,6 +594,33 @@ inline constexpr PinMetadata list_set_index_inputs[] = {
   {"Index", "Index", PinType::Int, "0", false},
   {"Value", "Value", PinType::Generic, "0", false},
 };
+inline constexpr PinMetadata list_insert_inputs[] = {
+  {"Flow", "Flow", PinType::Execution, "false", false},
+  {"Object", "Object", PinType::Object, "", false},
+  {"Property", "Property", PinType::String, "", false},
+  {"List", "List", PinType::List, "0", false},
+  {"Index", "Index", PinType::Int, "0", false},
+  {"Value", "Value", PinType::Generic, "0", false},
+};
+inline constexpr PinMetadata list_operation_inputs[] = {
+  {"List", "List", PinType::List, "0", false},
+  {"Start", "Start", PinType::Int, "0", false},
+  {"Length", "Length", PinType::Int, "-1", false},
+  {"Seed", "Seed", PinType::Int, "0", false},
+};
+inline constexpr PinMetadata list_operation_outputs[] = {
+  {"List", "List", PinType::List, "0", false},
+  {"Value", "Value", PinType::Float, "0.0", false},
+  {"Index", "Index", PinType::Int, "0", false},
+};
+inline constexpr PinMetadata get_children_inputs[] = {
+  {"Parent", "Parent", PinType::Object, "", false},
+  {"All Descendants", "All Descendants", PinType::Bool, "false", false},
+};
+inline constexpr PinMetadata get_children_outputs[] = {
+  {"Children", "Children", PinType::List, "0", false},
+  {"Count", "Count", PinType::Int, "0", false},
+};
 inline constexpr PinMetadata dict_set_key_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", false},
   {"Object", "Object", PinType::Object, "", false},
@@ -785,6 +824,9 @@ inline constexpr PinMetadata delay_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", false},
   {"Delay", "Delay", PinType::Float, "0.0", false},
   {"Ignore Timescale", "Ignore Timescale", PinType::Bool, "false", false},
+  {"Stop", "Stop", PinType::Execution, "false", false},
+  {"Pause", "Pause", PinType::Execution, "false", false},
+  {"Resume", "Resume", PinType::Execution, "false", false},
 };
 inline constexpr PinMetadata pulsify_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", false},
@@ -800,6 +842,9 @@ inline constexpr PinMetadata random_value_inputs[] = {
   {"Min_Vector", "Min", PinType::Vector, "0,0,0", false},
   {"Max_Vector", "Max", PinType::Vector, "1,1,1", false},
   {"Probability", "Probability", PinType::Float, "0.5", false},
+  {"Radius", "Radius", PinType::Float, "1.0", false},
+  {"Axis", "Axis", PinType::Vector, "0.0, 0.0, 1.0", false},
+  {"Angle", "Angle", PinType::Angle, "0.5235988", false},
   {"Seed", "Seed", PinType::Int, "0", false},
 };
 inline constexpr PinMetadata random_value_outputs[] = {
@@ -834,6 +879,7 @@ inline constexpr PinMetadata tween_value_inputs[] = {
   {"ToRotation", "To", PinType::Rotation, "0.0, 0.0, 0.0", false},
   {"Duration", "Duration", PinType::Float, "1.0", false},
   {"Ignore Timescale", "Ignore Timescale", PinType::Bool, "false", false},
+  {"Object", "Object", PinType::Object, "", false},
 };
 inline constexpr PinMetadata tween_value_outputs[] = {
   {"Done", "Done", PinType::Execution, "false", false},
@@ -891,6 +937,40 @@ inline constexpr PinMetadata remove_physics_constraint_inputs[] = {
   {"Object", "First", PinType::Object, "", false},
   {"Remove All", "Remove All", PinType::Bool, "false", false},
   {"Name", "Name", PinType::String, "constraint", false},
+};
+inline constexpr PinMetadata set_rigid_body_constraint_inputs[] = {
+  {"Flow", "Flow", PinType::Execution, "false", true},
+  {"Object", "Object", PinType::Object, "", false},
+  {"Name", "Name", PinType::String, "constraint", false},
+  {"Enabled", "Enabled", PinType::Bool, "true", false},
+  {"Use Linear Limit X", "Use Linear Limit X", PinType::Bool, "false", false},
+  {"Use Linear Limit Y", "Use Linear Limit Y", PinType::Bool, "false", false},
+  {"Use Linear Limit Z", "Use Linear Limit Z", PinType::Bool, "false", false},
+  {"Linear Lower", "Linear Lower", PinType::Vector, "-1,-1,-1", false},
+  {"Linear Upper", "Linear Upper", PinType::Vector, "1,1,1", false},
+  {"Use Angular Limit X", "Use Angular Limit X", PinType::Bool, "false", false},
+  {"Use Angular Limit Y", "Use Angular Limit Y", PinType::Bool, "false", false},
+  {"Use Angular Limit Z", "Use Angular Limit Z", PinType::Bool, "false", false},
+  {"Angular Lower", "Angular Lower", PinType::Vector, "-0.785398,-0.785398,-0.785398", false},
+  {"Angular Upper", "Angular Upper", PinType::Vector, "0.785398,0.785398,0.785398", false},
+  {"Use Linear Motor", "Use Linear Motor", PinType::Bool, "false", false},
+  {"Linear Motor Target Velocity", "Linear Motor Target Velocity", PinType::Float, "1.0", false},
+  {"Linear Motor Max Impulse", "Linear Motor Max Impulse", PinType::Float, "1.0", false},
+  {"Use Angular Motor", "Use Angular Motor", PinType::Bool, "false", false},
+  {"Angular Motor Target Velocity", "Angular Motor Target Velocity", PinType::Float, "1.0", false},
+  {"Angular Motor Max Impulse", "Angular Motor Max Impulse", PinType::Float, "1.0", false},
+  {"Use Spring X", "Use Spring X", PinType::Bool, "false", false},
+  {"Use Spring Y", "Use Spring Y", PinType::Bool, "false", false},
+  {"Use Spring Z", "Use Spring Z", PinType::Bool, "false", false},
+  {"Spring Stiffness", "Spring Stiffness", PinType::Vector, "10,10,10", false},
+  {"Spring Damping", "Spring Damping", PinType::Vector, "0.5,0.5,0.5", false},
+  {"Use Angular Spring X", "Use Angular Spring X", PinType::Bool, "false", false},
+  {"Use Angular Spring Y", "Use Angular Spring Y", PinType::Bool, "false", false},
+  {"Use Angular Spring Z", "Use Angular Spring Z", PinType::Bool, "false", false},
+  {"Angular Spring Stiffness", "Angular Spring Stiffness", PinType::Vector, "10,10,10", false},
+  {"Angular Spring Damping", "Angular Spring Damping", PinType::Vector, "0.5,0.5,0.5", false},
+  {"Breakable", "Breakable", PinType::Bool, "false", false},
+  {"Breaking Threshold", "Breaking Threshold", PinType::Float, "10.0", false},
 };
 inline constexpr PinMetadata get_rigid_body_constraints_inputs[] = {
   {"Object", "First", PinType::Object, "", false},
@@ -1098,9 +1178,11 @@ inline constexpr PinMetadata modify_property_inputs[] = {
 };
 inline constexpr PinMetadata keyboard_key_inputs[] = {
   {"Key", "Key", PinType::String, "A", false},
+  {"Time", "Time", PinType::Float, "0.3", false},
 };
 inline constexpr PinMetadata mouse_button_inputs[] = {
   {"Button", "Button", PinType::String, "LEFTMOUSE", false},
+  {"Time", "Time", PinType::Float, "0.3", false},
 };
 inline constexpr PinMetadata none_inputs[] = {
   {"Value", "Value", PinType::Generic, "0", false},
@@ -1234,6 +1316,7 @@ inline constexpr PinMetadata gamepad_active_inputs[] = {
 };
 inline constexpr PinMetadata gamepad_button_inputs[] = {
   {"Index", "Index", PinType::Int, "0", false},
+  {"Time", "Time", PinType::Float, "0.3", false},
 };
 inline constexpr PinMetadata gamepad_button_outputs[] = {
   {"Out", "Triggered", PinType::Execution, "false", false},
@@ -1245,6 +1328,19 @@ inline constexpr PinMetadata gamepad_button_outputs[] = {
 inline constexpr PinMetadata input_action_inputs[] = {
   {"Action", "Action", PinType::String, "", false},
   {"User", "User", PinType::Int, "0", false},
+  {"Time", "Time", PinType::Float, "0.3", false},
+};
+/* Input Combo (2026-11-17). */
+inline constexpr PinMetadata input_combo_inputs[] = {
+  {"Time", "Time", PinType::Float, "0.5", false},
+  {"Step 1", "Step 1", PinType::Bool, "false", false},
+  {"Step 2", "Step 2", PinType::Bool, "false", false},
+  {"Step 3", "Step 3", PinType::Bool, "false", false},
+  {"Step 4", "Step 4", PinType::Bool, "false", false},
+};
+inline constexpr PinMetadata input_combo_outputs[] = {
+  {"Triggered", "Triggered", PinType::Execution, "false", false},
+  {"Progress", "Progress", PinType::Int, "0", false},
 };
 inline constexpr PinMetadata input_action_outputs[] = {
   {"Out", "Triggered", PinType::Execution, "false", false},
@@ -1784,11 +1880,18 @@ inline constexpr PinMetadata string_operation_inputs[] = {
   {"Substring", "Substring", PinType::String, "", false},
   {"Replacement", "Replacement", PinType::String, "", false},
   {"Length", "Length", PinType::Int, "0", false},
+  {"Start", "Start", PinType::Int, "0", false},
+  {"Separator", "Separator", PinType::String, ",", false},
+  {"Seconds", "Seconds", PinType::Float, "0.0", false},
+  {"Round Up", "Round Up", PinType::Bool, "false", false},
 };
 inline constexpr PinMetadata string_operation_outputs[] = {
   {"String", "String", PinType::String, "", false},
   {"Result", "Result", PinType::Bool, "false", false},
   {"Count", "Count", PinType::Int, "0", false},
+  {"Length", "Length", PinType::Int, "0", false},
+  {"Index", "Index", PinType::Int, "0", false},
+  {"List", "List", PinType::List, "", false},
 };
 inline constexpr PinMetadata formatted_string_inputs[] = {
   {"Format String", "Format String", PinType::String, "A is {} and B is {}", false},
@@ -1834,6 +1937,91 @@ inline constexpr PinMetadata separate_euler_outputs[] = {
 inline constexpr PinMetadata vector_to_rotation_inputs[] = {
   {"Direction", "Direction", PinType::Vector, "0.0, 0.0, 1.0", false},
   {"Up", "Up Reference", PinType::Vector, "0.0, 1.0, 0.0", false},
+};
+/* State Machine (2026-11-17). */
+inline constexpr PinMetadata state_machine_inputs[] = {
+  {"Update", "Update", PinType::Execution, "false", false},
+  {"Go To", "Go To", PinType::Execution, "false", false},
+  {"State", "State", PinType::Int, "0", false},
+  {"Start State", "Start State", PinType::Int, "0", false},
+};
+inline constexpr PinMetadata state_machine_outputs[] = {
+  {"State ", "State #", PinType::Execution, "false", false, false, true},
+  {"Entered", "Entered", PinType::Execution, "false", false},
+  {"Current State", "Current State", PinType::Int, "0", false},
+  {"Previous State", "Previous State", PinType::Int, "0", false},
+  {"Time in State", "Time in State", PinType::Float, "0.0", false},
+};
+/* Find Objects (2026-11-16). */
+inline constexpr PinMetadata find_objects_inputs[] = {
+  {"Collection", "Collection", PinType::Collection, "", false},
+  {"Property", "Property", PinType::String, "", false},
+  {"List", "List", PinType::List, "0", false},
+  {"Center", "Center", PinType::Object, "", false},
+  {"Radius", "Radius", PinType::Float, "0.0", false},
+  {"View Angle", "View Angle", PinType::Angle, "6.2831855", false},
+  {"Exclude Self", "Exclude Self", PinType::Bool, "true", false},
+  {"Only Visible", "Only Visible", PinType::Bool, "false", false},
+};
+inline constexpr PinMetadata find_objects_outputs[] = {
+  {"Found", "Found", PinType::Bool, "false", false},
+  {"Object", "Object", PinType::Object, "", false},
+  {"Position", "Position", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Distance", "Distance", PinType::Float, "0.0", false},
+  {"Count", "Count", PinType::Int, "0", false},
+  {"Objects", "Objects", PinType::List, "0", false},
+  {"Distances", "Distances", PinType::List, "0", false},
+};
+/* Smooth Value and Noise (2026-11-16). */
+inline constexpr PinMetadata smooth_value_inputs[] = {
+  {"Target", "Target", PinType::Float, "0.0", false},
+  {"Target_Vector", "Target", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Speed", "Speed", PinType::Float, "5.0", false},
+  {"Smooth Time", "Smooth Time", PinType::Float, "0.3", false},
+  {"Max Speed", "Max Speed", PinType::Float, "0.0", false},
+  {"Reset", "Reset", PinType::Bool, "false", false},
+  {"Ignore Timescale", "Ignore Timescale", PinType::Bool, "false", false},
+};
+inline constexpr PinMetadata smooth_value_outputs[] = {
+  {"Value", "Value", PinType::Float, "0.0", false},
+  {"Value_Vector", "Value", PinType::Vector, "0.0, 0.0, 0.0", false},
+};
+inline constexpr PinMetadata noise_inputs[] = {
+  {"Vector", "Vector", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"W", "W", PinType::Float, "0.0", false},
+  {"Scale", "Scale", PinType::Float, "1.0", false},
+  {"Roughness", "Roughness", PinType::Float, "0.5", false},
+  {"Seed", "Seed", PinType::Int, "0", false},
+};
+inline constexpr PinMetadata noise_outputs[] = {
+  {"Value", "Value", PinType::Float, "0.0", false},
+  {"Vector", "Vector", PinType::Vector, "0.0, 0.0, 0.0", false},
+};
+/* Oscillate (2026-11-17). */
+inline constexpr PinMetadata oscillate_inputs[] = {
+  {"Frequency", "Frequency", PinType::Float, "1.0", false},
+  {"Amplitude", "Amplitude", PinType::Float, "1.0", false},
+  {"Center", "Center", PinType::Float, "0.0", false},
+  {"Axis", "Axis", PinType::Vector, "0.0, 0.0, 1.0", false},
+  {"Phase", "Phase", PinType::Float, "0.0", false},
+  {"Random Phase", "Random Phase", PinType::Bool, "false", false},
+};
+inline constexpr PinMetadata oscillate_outputs[] = {
+  {"Value", "Value", PinType::Float, "0.0", false},
+  {"Bob", "Bob", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Orbit", "Orbit", PinType::Vector, "0.0, 0.0, 0.0", false},
+};
+/* Rotation Math and Transform Vector (2026-11-16). */
+inline constexpr PinMetadata rotation_math_inputs[] = {
+  {"A", "A", PinType::Rotation, "0.0, 0.0, 0.0", false},
+  {"B", "B", PinType::Rotation, "0.0, 0.0, 0.0", false},
+};
+inline constexpr PinMetadata transform_vector_inputs[] = {
+  {"Object", "Object", PinType::Object, "", false},
+  {"Vector", "Vector", PinType::Vector, "0.0, 0.0, 0.0", false},
+};
+inline constexpr PinMetadata transform_vector_outputs[] = {
+  {"Vector", "Vector", PinType::Vector, "0.0, 0.0, 0.0", false},
 };
 inline constexpr PinMetadata bone_rotation_to_object_rotation_inputs[] = {
   {"Bone Rotation", "Bone Rotation", PinType::Rotation, "0.0, 0.0, 0.0", false},
@@ -1900,6 +2088,13 @@ inline constexpr PinMetadata ranged_threshold_outputs[] = {
 inline constexpr PinMetadata compare_inputs[] = {
   {"A", "A", PinType::Float, "0.0", false},
   {"B", "B", PinType::Float, "0.0", false},
+  {"Vector A", "Vector A", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Vector B", "Vector B", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Tolerance", "Tolerance", PinType::Float, "0.0001", false},
+  {"Object A", "Object A", PinType::Object, "", false},
+  {"Object B", "Object B", PinType::Object, "", false},
+  {"Text A", "Text A", PinType::String, "", false},
+  {"Text B", "Text B", PinType::String, "", false},
 };
 inline constexpr PinMetadata compare_outputs[] = {
   {"Result", "Result", PinType::Bool, "false", false},
@@ -1915,6 +2110,7 @@ inline constexpr PinMetadata within_range_outputs[] = {
 inline constexpr PinMetadata math_inputs[] = {
   {"A", "A", PinType::Float, "0.0", false},
   {"B", "B", PinType::Float, "0.0", false},
+  {"C", "C", PinType::Float, "0.0", false},
 };
 inline constexpr PinMetadata math_outputs[] = {
   {"Result", "Result", PinType::Float, "0.0", false},
@@ -1923,9 +2119,11 @@ inline constexpr PinMetadata vector_math_inputs[] = {
   {"A", "A", PinType::Vector, "0.0, 0.0, 0.0", false},
   {"B", "B", PinType::Vector, "0.0, 0.0, 0.0", false},
   {"Scale", "Scale", PinType::Float, "1.0", false},
+  {"Axis", "Axis", PinType::Vector, "0.0, 0.0, 1.0", false},
 };
 inline constexpr PinMetadata vector_math_outputs[] = {
   {"Result", "Result", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Value", "Value", PinType::Float, "0.0", false},
 };
 inline constexpr PinMetadata get_game_property_inputs[] = {
   {"Object", "Object", PinType::Object, "", false},
@@ -1990,6 +2188,7 @@ inline constexpr PinMetadata apply_angular_impulse_inputs[] = {
 inline constexpr PinMetadata explosion_impulse_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", true},
   {"Object", "Object", PinType::Object, "", false},
+  {"Offset", "Offset", PinType::Vector, "0.0, 0.0, 0.0", false},
   {"Origin", "Origin", PinType::Vector, "0.0, 0.0, 0.0", false},
   {"Radius", "Radius", PinType::Float, "5.0", false},
   {"Strength", "Strength", PinType::Float, "10.0", false},
@@ -2004,6 +2203,7 @@ inline constexpr PinMetadata explosion_impulse_inputs[] = {
 inline constexpr PinMetadata explosion_impulse_outputs[] = {
   {"Done", "Done", PinType::Execution, "false", false},
   {"Objects", "Objects", PinType::List, "", false},
+  {"Strengths", "Strengths", PinType::List, "", false},
 };
 inline constexpr PinMetadata keep_distance_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", true},
@@ -2340,16 +2540,25 @@ inline constexpr PinMetadata get_rigid_body_attribute_outputs[] = {
   {"Allow Sleeping", "Allow Sleeping", PinType::Bool, "false", false},
   {"Lock Translation", "Lock Translation", PinType::Vector, "0.0, 0.0, 0.0", false},
   {"Lock Rotation", "Lock Rotation", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Is Part", "Is Part", PinType::Bool, "false", false},
+  {"Part Count", "Part Count", PinType::Int, "0", false},
 };
 inline constexpr PinMetadata get_character_info_inputs[] = {
   {"Object", "Object", PinType::Object, "", false},
 };
 inline constexpr PinMetadata get_character_info_outputs[] = {
-  {"Max Jumps", "Max Jumps", PinType::Int, "1", false},
-  {"Current Jump Count", "Current Jump Count", PinType::Int, "0", false},
-  {"Gravity", "Gravity", PinType::Vector, "0.0, 0.0, -9.8", false},
-  {"Walk Direction", "Walk Direction", PinType::Vector, "0.0, 0.0, 0.0", false},
   {"On Ground", "On Ground", PinType::Bool, "false", false},
+  {"On Wall", "On Wall", PinType::Bool, "false", false},
+  {"On Ceiling", "On Ceiling", PinType::Bool, "false", false},
+  {"Crouched", "Crouched", PinType::Bool, "false", false},
+  {"Ground Normal", "Ground Normal", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Ground Velocity", "Ground Velocity", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Ground Object", "Ground Object", PinType::Object, "", false},
+  {"Wall Normal", "Wall Normal", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Walk Direction", "Walk Direction", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Gravity", "Gravity", PinType::Vector, "0.0, 0.0, -9.8", false},
+  {"Current Jump Count", "Current Jump Count", PinType::Int, "0", false},
+  {"Max Jumps", "Max Jumps", PinType::Int, "1", false},
 };
 inline constexpr PinMetadata character_jump_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", false},
@@ -2369,6 +2578,27 @@ inline constexpr PinMetadata set_character_max_jumps_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", false},
   {"Object", "Object", PinType::Object, "", false},
   {"Max Jumps", "Max Jumps", PinType::Int, "1", false},
+};
+inline constexpr PinMetadata set_character_max_slope_inputs[] = {
+  {"Flow", "Flow", PinType::Execution, "false", false},
+  {"Object", "Object", PinType::Object, "", false},
+  {"Max Slope", "Max Slope", PinType::Angle, "0.7853982", false},
+};
+inline constexpr PinMetadata set_character_fall_speed_inputs[] = {
+  {"Flow", "Flow", PinType::Execution, "false", false},
+  {"Object", "Object", PinType::Object, "", false},
+  {"Fall Speed", "Fall Speed", PinType::Float, "55.0", false},
+};
+inline constexpr PinMetadata set_character_step_height_inputs[] = {
+  {"Flow", "Flow", PinType::Execution, "false", false},
+  {"Object", "Object", PinType::Object, "", false},
+  {"Step Height", "Step Height", PinType::Float, "0.3", false},
+};
+inline constexpr PinMetadata set_character_crouch_inputs[] = {
+  {"Flow", "Flow", PinType::Execution, "false", false},
+  {"Object", "Object", PinType::Object, "", false},
+  {"Crouch", "Crouch", PinType::Bool, "true", false},
+  {"Height", "Height", PinType::Float, "0.5", false},
 };
 inline constexpr PinMetadata set_character_walk_direction_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", false},
@@ -2420,6 +2650,17 @@ inline constexpr PinMetadata time_outputs[] = {
   {"Delta", "Delta (Frametime)", PinType::Float, "0.0", false},
   {"FPS", "FPS", PinType::Float, "0.0", false},
   {"Delta Factor", "Delta Factor", PinType::Float, "0.0", false},
+};
+inline constexpr PinMetadata date_time_outputs[] = {
+  {"Year", "Year", PinType::Int, "0", false},
+  {"Month", "Month", PinType::Int, "0", false},
+  {"Day", "Day", PinType::Int, "0", false},
+  {"Hour", "Hour", PinType::Int, "0", false},
+  {"Minute", "Minute", PinType::Int, "0", false},
+  {"Second", "Second", PinType::Int, "0", false},
+  {"Weekday", "Weekday", PinType::Int, "0", false},
+  {"Day Fraction", "Day Fraction", PinType::Float, "0.0", false},
+  {"Day Number", "Day Number", PinType::Int, "0", false},
 };
 inline constexpr PinMetadata while_paused_inputs[] = {
   {"Object", "Root Object", PinType::Object, "", false},
@@ -2536,6 +2777,7 @@ inline constexpr PinMetadata translate_outputs[] = {
 };
 inline constexpr PinMetadata navigate_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", false},
+  {"Stop", "Stop", PinType::Execution, "false", false},
   {"Moving Object", "Moving Object", PinType::Object, "", false},
   {"Rotating Object", "Rotating Object", PinType::Object, "", false},
   {"Navmesh Object", "Navmesh Object", PinType::Object, "", false},
@@ -2548,6 +2790,12 @@ inline constexpr PinMetadata navigate_inputs[] = {
   {"Front", "Front", PinType::Int, "1", false},
   {"Rot Speed", "Rot Speed", PinType::Float, "1.0", false},
   {"Visualize", "Visualize", PinType::Bool, "false", false},
+  {"Target Object", "Target Object", PinType::Object, "", false},
+  {"Avoid Others", "Avoid Others", PinType::Bool, "true", false},
+  {"Priority", "Priority", PinType::Int, "50", false},
+  {"Radius", "Radius", PinType::Float, "10.0", false},
+  {"Offset", "Offset", PinType::Vector, "-2.0, -2.0, 0.0", false},
+  {"Weights", "Weights", PinType::Vector, "1.0, 1.0, 1.0", false},
 };
 inline constexpr PinMetadata navigate_outputs[] = {
   {"Done", "Done", PinType::Execution, "false", false},
@@ -2569,6 +2817,56 @@ inline constexpr PinMetadata follow_path_inputs[] = {
   {"Rot Speed", "Rot Speed", PinType::Float, "1.0", false},
   {"Rot Axis", "Rot Axis", PinType::Int, "2", false},
   {"Front", "Front", PinType::Int, "1", false},
+};
+inline constexpr PinMetadata navmesh_query_inputs[] = {
+  {"Navmesh Object", "Navmesh Object", PinType::Object, "", false},
+  {"From", "From", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"To", "To", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Position", "Position", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Radius", "Radius", PinType::Float, "10.0", false},
+};
+inline constexpr PinMetadata navmesh_query_outputs[] = {
+  {"Found", "Found", PinType::Bool, "false", false},
+  {"Point", "Point", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Points", "Points", PinType::List, "", false},
+  {"Length", "Length", PinType::Float, "0.0", false},
+  {"Normal", "Normal", PinType::Vector, "0.0, 0.0, 0.0", false},
+};
+inline constexpr PinMetadata get_navigation_info_inputs[] = {
+  {"Object", "Object", PinType::Object, "", false},
+};
+inline constexpr PinMetadata get_navigation_info_outputs[] = {
+  {"Moving", "Moving", PinType::Bool, "false", false},
+  {"Arrived", "Arrived", PinType::Bool, "false", false},
+  {"Has Path", "Has Path", PinType::Bool, "false", false},
+  {"Path Complete", "Path Complete", PinType::Bool, "false", false},
+  {"No Path", "No Path", PinType::Bool, "false", false},
+  {"On Link", "On Link", PinType::Bool, "false", false},
+  {"Next Corner", "Next Corner", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Velocity", "Velocity", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Goal", "Goal", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Remaining Distance", "Remaining Distance", PinType::Float, "0.0", false},
+  {"Speed", "Speed", PinType::Float, "0.0", false},
+  {"Link Object", "Link Object", PinType::Object, "", false},
+  {"Link Kind", "Link Kind", PinType::String, "", false},
+};
+inline constexpr PinMetadata on_navigation_link_inputs[] = {
+  {"Object", "Object", PinType::Object, "", false},
+};
+inline constexpr PinMetadata on_navigation_link_outputs[] = {
+  {"On Link Start", "On Link Start", PinType::Execution, "false", false},
+  {"Link Object", "Link Object", PinType::Object, "", false},
+  {"Link Kind", "Link Kind", PinType::String, "", false},
+};
+inline constexpr PinMetadata set_navigation_attribute_inputs[] = {
+  {"Flow", "Flow", PinType::Execution, "false", true},
+  {"Object", "Object", PinType::Object, "", false},
+  {"Enabled", "Enabled", PinType::Bool, "true", false},
+  {"Area", "Area", PinType::String, "", false},
+  {"Cost", "Cost", PinType::Float, "1.0", false},
+  {"Closed", "Closed", PinType::Bool, "true", false},
+  {"Center", "Center", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Size", "Size", PinType::Vector, "10.0, 10.0, 10.0", false},
 };
 inline constexpr PinMetadata slow_follow_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", true},
@@ -2728,6 +3026,16 @@ inline constexpr PinMetadata save_game_outputs[] = {
   {"Done", "Done", PinType::Execution, "false", false},
   {"Success", "Success", PinType::Bool, "false", false},
 };
+inline constexpr PinMetadata save_slot_inputs[] = {
+  {"Delete", "Delete", PinType::Execution, "false", false},
+  {"Slot", "Slot", PinType::Int, "0", false},
+  {"Path", "Path", PinType::String, "", false},
+};
+inline constexpr PinMetadata save_slot_outputs[] = {
+  {"Done", "Done", PinType::Execution, "false", false},
+  {"Success", "Success", PinType::Bool, "false", false},
+  {"Exists", "Exists", PinType::Bool, "false", false},
+};
 inline constexpr PinMetadata set_save_existence_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", true},
   {"Object", "Object", PinType::Object, "", false},
@@ -2757,6 +3065,7 @@ inline constexpr PinMetadata rotate_toward_inputs[] = {
   {"Object", "Object", PinType::Object, "", false},
   {"Target", "Target", PinType::Vector, "1.0, 0.0, 0.0", false},
   {"Factor", "Factor", PinType::Float, "1.0", false},
+  {"Turn Speed", "Turn Speed", PinType::Angle, "3.1415927", false},
   {"Rot Axis", "Rot Axis", PinType::Int, "2", false},
   {"Front Axis", "Front", PinType::Int, "1", false},
 };
@@ -2889,6 +3198,8 @@ inline constexpr PinMetadata play_action_inputs[] = {
     {"Priority", "Priority", PinType::Int, "0", false},
     {"Blend In", "Blend In", PinType::Float, "0.0", false},
     {"Speed", "Speed", PinType::Float, "1.0", false},
+    {"Layer Weight", "Layer Weight", PinType::Float, "0.0", false},
+    {"Action Name", "Action Name", PinType::String, "", false},
 };
 inline constexpr PinMetadata play_action_outputs[] = {
     {"Started", "Started", PinType::Execution, "false", false},
@@ -2910,6 +3221,23 @@ inline constexpr PinMetadata set_action_frame_inputs[] = {
     {"Layer", "Layer", PinType::Int, "0", false},
     {"Frame", "Frame", PinType::Float, "0.0", false},
 };
+/* Set Action Layer and On Action Frame (2026-11-16). */
+inline constexpr PinMetadata set_action_layer_inputs[] = {
+    {"Flow", "Flow", PinType::Execution, "false", true},
+    {"Object", "Object", PinType::Object, "", false},
+    {"Layer", "Layer", PinType::Int, "0", false},
+    {"Speed", "Speed", PinType::Float, "1.0", false},
+    {"Layer Weight", "Layer Weight", PinType::Float, "0.0", false},
+};
+inline constexpr PinMetadata on_action_frame_inputs[] = {
+    {"Object", "Object", PinType::Object, "", false},
+    {"Layer", "Layer", PinType::Int, "0", false},
+    {"Frame", "Frame", PinType::Float, "10.0", false},
+    {"Action", "Action", PinType::String, "", false},
+};
+inline constexpr PinMetadata on_action_frame_outputs[] = {
+    {"On Frame", "On Frame", PinType::Execution, "false", false},
+};
 inline constexpr PinMetadata set_action_frame_outputs[] = {
     {"Done", "Done", PinType::Execution, "false", false},
 };
@@ -2930,9 +3258,16 @@ inline constexpr PinMetadata play_sound_inputs[] = {
     {"Volume", "Volume", PinType::Float, "1.0", false},
     {"Pitch", "Pitch", PinType::Float, "1.0", false},
     {"Loop", "Loop", PinType::Bool, "false", false},
+    {"Sound", "Sound", PinType::Sound, "", false},
 };
 inline constexpr PinMetadata play_sound_outputs[] = {
     {"Done", "Done", PinType::Execution, "false", false},
+};
+/* Play Sound and Play Sound 3D (2026-11-17): Playing and Finished of the sound started last. */
+inline constexpr PinMetadata play_sound_state_outputs[] = {
+    {"Done", "Done", PinType::Execution, "false", false},
+    {"Playing", "Playing", PinType::Bool, "false", false},
+    {"Finished", "Finished", PinType::Bool, "false", false},
 };
 inline constexpr PinMetadata set_volume_inputs[] = {
     {"Flow", "Flow", PinType::Execution, "false", true},
@@ -2952,6 +3287,9 @@ inline constexpr PinMetadata play_sound_3d_inputs[] = {
     {"Pitch", "Pitch", PinType::Float, "1.0", false},
     {"Loop", "Loop", PinType::Bool, "false", false},
     {"User", "User", PinType::Int, "0", false},
+    {"Sound", "Sound", PinType::Sound, "", false},
+    {"At Position", "At Position", PinType::Bool, "false", false},
+    {"Position", "Position", PinType::Vector, "0.0, 0.0, 0.0", false},
 };
 inline constexpr PinMetadata play_sound_3d_outputs[] = {
     {"Done", "Done", PinType::Execution, "false", false},
@@ -3219,6 +3557,8 @@ inline constexpr PinMetadata draw_inputs[] = {
   {"Length", "Length", PinType::Float, "1.0", false},
   {"Height", "Height", PinType::Float, "1.0", false},
   {"Object", "Object", PinType::Object, "", false},
+  {"Radius", "Radius", PinType::Float, "1.0", false},
+  {"Duration", "Duration", PinType::Float, "0.0", false},
 };
 inline constexpr PinMetadata get_master_folder_inputs[] = {
   {"Name", "Name", PinType::String, "Data", false},
@@ -3296,6 +3636,19 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    false,
    ExecutionClass::SnapshotReadOnly,
    AutonomousPhase::Update},
+  {"LogicNativeOnRemoved",
+   "Events",
+   "On Removed",
+   "Once, in the object's last Logic + Physics step after it was removed (hidden and out of "
+   "physics, deleted at the step's end): drop loot, a death sound, a score",
+   {},
+   pin_span(on_removed_outputs),
+   false,
+   RequiredPhase::FixedUpdate,
+   false,
+   false,
+   ExecutionClass::SnapshotReadOnly,
+   AutonomousPhase::FixedUpdate},
   {"LogicNativeOnUpdate",
    "Events",
    "On Frame Update",
@@ -3335,7 +3688,9 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeFlowGate",
    "Flow",
    "Flow Gate",
-   "Passes Enter pulses only while open; explicit flow order wins, otherwise controls use Close > Open > Toggle precedence",
+   "Passes Enter pulses only while open; Toggle flips Is Open and Open / Close set it, so it is "
+   "also a toggle with a start value and no game property; explicit flow order wins, otherwise "
+   "controls use Close > Open > Toggle precedence",
    pin_span(flow_gate_inputs),
    pin_span(flow_gate_outputs),
    false,
@@ -3401,7 +3756,8 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeFlipFlop",
    "Flow",
    "Flip-Flop",
-   "Alternates Flow pulses between A and B; Reset makes the next pulse use A",
+   "Alternates Flow pulses between A and B; Is A flips at every pulse, so it is a toggle with no "
+   "game property; Reset makes the next pulse use A",
    pin_span(flip_flop_inputs),
    pin_span(flip_flop_outputs),
    false,
@@ -3560,8 +3916,9 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeRandomValue",
    "Values",
    "Random Value",
-   "A random number, whole number, vector or true/false (Type); each object its own numbers or "
-   "the same for all (Variation); a new value every step (every frame in a Frame Update route)",
+   "A random number, whole number, vector, true/false, direction or point in a sphere, circle or "
+   "cone (Type); each object its own numbers or the same for all (Variation); a new value every "
+   "step (every frame in a Frame Update route)",
    pin_span(random_value_inputs),
    pin_span(random_value_outputs),
    false,
@@ -3970,6 +4327,18 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    RequiredPhase::None,
    false,
    true,
+   ExecutionClass::SnapshotReadOnly,
+   AutonomousPhase::FixedUpdate},
+  {"LogicNativeInputCombo",
+   "Input",
+   "Input Combo",
+   "Inputs pressed in order within a time (a combo), or held together (a chord)",
+   pin_span(input_combo_inputs),
+   pin_span(input_combo_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   false,
    ExecutionClass::SnapshotReadOnly,
    AutonomousPhase::FixedUpdate},
   {"LogicNativeInputAction",
@@ -4381,6 +4750,18 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    "Elapsed game time, frame delta and frames per second",
    {},
    pin_span(time_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   true,
+   ExecutionClass::SnapshotReadOnly},
+  {"LogicNativeDateTime",
+   "Time",
+   "Date and Time",
+   "The computer's date and time, read once a step: daily rewards, a day and night cycle that "
+   "follows the real day, a save's date",
+   {},
+   pin_span(date_time_outputs),
    false,
    RequiredPhase::None,
    false,
@@ -4889,6 +5270,50 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    true,
    false,
    ExecutionClass::CommandEmitting},
+  {"LogicNativeSetCharacterMaxSlope",
+   "Physics/Character",
+   "Set Max Slope",
+   "Queues changing the steepest slope a character walks up",
+   pin_span(set_character_max_slope_inputs),
+   pin_span(out_done_and_done_outputs),
+   true,
+   RequiredPhase::FixedUpdate,
+   true,
+   false,
+   ExecutionClass::CommandEmitting},
+  {"LogicNativeSetCharacterFallSpeed",
+   "Physics/Character",
+   "Set Fall Speed",
+   "Queues changing the fastest a character falls",
+   pin_span(set_character_fall_speed_inputs),
+   pin_span(out_done_and_done_outputs),
+   true,
+   RequiredPhase::FixedUpdate,
+   true,
+   false,
+   ExecutionClass::CommandEmitting},
+  {"LogicNativeSetCharacterStepHeight",
+   "Physics/Character",
+   "Set Step Height",
+   "Queues changing the highest step a character walks up",
+   pin_span(set_character_step_height_inputs),
+   pin_span(out_done_and_done_outputs),
+   true,
+   RequiredPhase::FixedUpdate,
+   true,
+   false,
+   ExecutionClass::CommandEmitting},
+  {"LogicNativeSetCharacterCrouch",
+   "Physics/Character",
+   "Crouch",
+   "Queues crouching (a shorter shape) or standing up again where there is room",
+   pin_span(set_character_crouch_inputs),
+   pin_span(out_done_and_done_outputs),
+   true,
+   RequiredPhase::FixedUpdate,
+   true,
+   false,
+   ExecutionClass::CommandEmitting},
   {"LogicNativeSetCharacterWalkDirection",
    "Physics/Character",
    "Walk",
@@ -5099,6 +5524,90 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    false,
    true,
    ExecutionClass::SnapshotReadOnly},
+  {"LogicNativeRotationMath",
+   "Values/Rotation",
+   "Rotation Math",
+   "Combines rotations (B after A around the world's or A's own axes), undoes one, or gives the "
+   "turn from A to B",
+   pin_span(rotation_math_inputs),
+   pin_span(euler_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   true,
+   ExecutionClass::SnapshotReadOnly},
+  {"LogicNativeSmoothValue",
+   "Time",
+   "Smooth Value",
+   "A number or a vector that follows its Target over time (Smooth, Constant Speed or Smooth "
+   "Damp), each object its own: smooth cameras, health bars, aim, doors, steering",
+   pin_span(smooth_value_inputs),
+   pin_span(smooth_value_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   false,
+   ExecutionClass::SnapshotReadOnly},
+  {"LogicNativeStateMachine",
+   "Flow",
+   "State Machine",
+   "The state an object is in (0, 1, 2 ...), kept per object: Go To changes it (Entered pulses), "
+   "each Update continues on the output of the state it is in; Time in State, Previous State",
+   pin_span(state_machine_inputs),
+   pin_span(state_machine_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   false,
+   ExecutionClass::SnapshotReadOnly},
+  {"LogicNativeFindObjects",
+   "Objects",
+   "Find Objects",
+   "The nearest, farthest, a random one or all of a set of objects (all, a collection's, those "
+   "with a game property, a list) around a center, within a radius and a view angle, where they "
+   "were when the step started",
+   pin_span(find_objects_inputs),
+   pin_span(find_objects_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   true,
+   ExecutionClass::SnapshotReadOnly},
+  {"LogicNativeOscillate",
+   "Values",
+   "Oscillate",
+   "A value that swings back and forth with the game's time: a pickup that bobs, a light that "
+   "pulses, a moon that orbits",
+   pin_span(oscillate_inputs),
+   pin_span(oscillate_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   true,
+   ExecutionClass::SnapshotReadOnly},
+  {"LogicNativeNoise",
+   "Values",
+   "Noise",
+   "Smooth random values from -1 to 1 that change gradually with a position or a time: camera "
+   "shake, wind, flicker, wandering",
+   pin_span(noise_inputs),
+   pin_span(noise_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   true,
+   ExecutionClass::SnapshotReadOnly},
+  {"LogicNativeTransformVector",
+   "Values/Vector",
+   "Transform Vector",
+   "Carries a point or a direction from an object's own space into the world, or back",
+   pin_span(transform_vector_inputs),
+   pin_span(transform_vector_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   true,
+   ExecutionClass::SnapshotReadOnly},
   {"LogicNativeBoneRotationToObjectRotation",
    "Values/Rotation",
    "Bone Rotation to Object Rotation",
@@ -5247,7 +5756,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeInvertValue",
    "Values",
    "Invert",
-   "Multiplies a value by -1",
+   "Multiplies a value by -1 (for true/false, use Boolean Combine's Not)",
    pin_span(invert_value_inputs),
    pin_span(invert_value_outputs),
    false,
@@ -5269,7 +5778,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeMapRange",
    "Math",
    "Map Range",
-   "Linearly remaps a value between ranges; optionally clamps to the target range",
+   "Remaps a value between ranges, linearly or eased (Interpolation); optionally clamps to the target range",
    pin_span(map_range_inputs),
    pin_span(map_range_outputs),
    false,
@@ -5280,7 +5789,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeCompare",
    "Math",
    "Compare",
-   "Compares two float values",
+   "Compares two numbers, vectors, objects or texts (Type)",
    pin_span(compare_inputs),
    pin_span(compare_outputs),
    false,
@@ -5480,7 +5989,8 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    "Transform",
    "Apply Impulse",
    "Pushes an object once: changes its speed at once (impulse / mass), and spins it when the "
-   "push lands away from its center of mass",
+   "push lands away from its center of mass. A Character is knocked back (70 kg, no spin); "
+   "Kinematic and Static objects do not move (a warning says so)",
    pin_span(apply_impulse_inputs),
    pin_span(done_output),
    true,
@@ -5491,7 +6001,8 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeApplyAngularImpulse",
    "Transform",
    "Apply Angular Impulse",
-   "Spins an object once: changes its spin at once, more for a lighter object",
+   "Spins an object once: changes its spin at once, more for a lighter object. Only Rigid Body "
+   "objects turn (a warning says so for the others)",
    pin_span(apply_angular_impulse_inputs),
    pin_span(done_output),
    true,
@@ -5503,7 +6014,8 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    "Transform",
    "Explode or Implode Impulse",
    "One blast: pushes every physics object inside a sphere away from its center (Explode) or "
-   "pulls them toward it (Implode), less with distance when the falloff is Linear",
+   "pulls them toward it (Implode), less with distance when the falloff is Linear. Characters "
+   "are knocked back too",
    pin_span(explosion_impulse_inputs),
    pin_span(explosion_impulse_outputs),
    true,
@@ -5593,7 +6105,9 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeApplyForce",
    "Transform",
    "Apply Force",
-   "Applies a force to the owner object's physics controller",
+   "Pushes an object for as long as it runs: its speed grows by force / mass each second. A "
+   "Character is pushed too (70 kg); Kinematic and Static objects do not move (a warning says "
+   "so)",
    pin_span(apply_force_inputs),
    pin_span(done_output),
    true,
@@ -5615,7 +6129,8 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeApplyTorque",
    "Transform",
    "Apply Torque",
-   "Applies torque to the owner object's physics controller",
+   "Turns an object for as long as it runs: its spin grows with the torque. Only Rigid Body "
+   "objects turn (a warning says so for the others)",
    pin_span(apply_torque_inputs),
    pin_span(done_output),
    true,
@@ -5768,6 +6283,30 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    false,
    false,
    ExecutionClass::CommandEmitting},
+  {"LogicNativeSetActionLayer",
+   "Animation",
+   "Set Action Layer",
+   "Changes a playing action's Speed (0 holds its frame) or Layer Weight on the given layer",
+   pin_span(set_action_layer_inputs),
+   pin_span(done_output),
+   true,
+   RequiredPhase::None,
+   false,
+   false,
+   ExecutionClass::CommandEmitting},
+  {"LogicNativeOnActionFrame",
+   "Animation",
+   "On Action Frame",
+   "Pulses once in the step an action on the layer reaches or passes a frame (footsteps, a "
+   "sword's hit, a sound on cue), also when it loops",
+   pin_span(on_action_frame_inputs),
+   pin_span(on_action_frame_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   false,
+   ExecutionClass::SnapshotReadOnly,
+   AutonomousPhase::FixedUpdate},
   {"LogicNativeSetShapeKeyValue",
    "Animation",
    "Set Shape Key Value",
@@ -5796,7 +6335,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    "Plays the selected Sound, not placed in 3D, in a volume Group (Set Volume changes a group's "
    "volume, also while its sounds play)",
    pin_span(play_sound_inputs),
-   pin_span(done_output),
+   pin_span(play_sound_state_outputs),
    true,
    RequiredPhase::None,
    false,
@@ -5844,7 +6383,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    "camera the Listener picks (the nearest player's in split screen). A Speaker object plays "
    "as in Blender: its own sound when no Sound is picked, and its own settings",
    pin_span(play_sound_3d_inputs),
-   pin_span(done_output),
+   pin_span(play_sound_state_outputs),
    true,
    RequiredPhase::None,
    false,
@@ -6218,9 +6757,10 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    false,
    ExecutionClass::CommandEmitting},
   {"LogicNativeNavigate",
-   "Objects/Transformation",
+   "Objects/Navigation",
    "Move To with Navmesh",
-   "Move in world units per second and optionally rotate in radians per second toward a navmesh destination",
+   "Moves an NPC along a navigation mesh, avoiding other NPCs: to a place or after an object, "
+   "wandering, fleeing, pursuing, evading, in formation or as a flock",
    pin_span(navigate_inputs),
    pin_span(navigate_outputs),
    true,
@@ -6229,13 +6769,60 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    false,
    ExecutionClass::CommandEmitting},
   {"LogicNativeFollowPath",
-   "Objects/Transformation",
+   "Objects/Navigation",
    "Follow Path",
    "Move in world units per second and optionally rotate in radians per second along path points",
    pin_span(follow_path_inputs),
    pin_span(done_output),
    true,
    RequiredPhase::FixedUpdate,
+   false,
+   false,
+   ExecutionClass::CommandEmitting},
+  {"LogicNativeNavmeshQuery",
+   "Objects/Navigation",
+   "Navmesh Query",
+   "Asks a navigation mesh: the way between two points, the nearest point on it, a random "
+   "reachable point, whether a point can be reached, whether a straight line is walkable",
+   pin_span(navmesh_query_inputs),
+   pin_span(navmesh_query_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   false,
+   ExecutionClass::SnapshotReadOnly},
+  {"LogicNativeGetNavigationInfo",
+   "Objects/Navigation",
+   "Get Navigation Info",
+   "How an NPC's navigation went in the last step: moving, arrived, its way, a link it crosses",
+   pin_span(get_navigation_info_inputs),
+   pin_span(get_navigation_info_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   false,
+   ExecutionClass::SnapshotReadOnly},
+  {"LogicNativeOnNavigationLink",
+   "Objects/Navigation",
+   "On Navigation Link",
+   "Pulses when an NPC starts crossing a navigation link (a jump, a ladder, a door, a teleport)",
+   pin_span(on_navigation_link_inputs),
+   pin_span(on_navigation_link_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   false,
+   ExecutionClass::SnapshotReadOnly,
+   AutonomousPhase::FixedUpdate},
+  {"LogicNativeSetNavigationAttribute",
+   "Objects/Navigation",
+   "Set Navigation Attribute",
+   "Changes the navigation while playing: an object an obstacle or not, an area's cost or "
+   "closed for an NPC, the navigation mesh made again in a box",
+   pin_span(set_navigation_attribute_inputs),
+   pin_span(done_output),
+   true,
+   RequiredPhase::None,
    false,
    false,
    ExecutionClass::CommandEmitting},
@@ -6477,6 +7064,18 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    false,
    false,
    ExecutionClass::CommandEmitting},
+  {"LogicNativeSaveSlot",
+   "Game",
+   "Save Slot",
+   "Whether a Save Game slot holds a saved game, and deleting one (in order with the Save Game "
+   "and Load Game requests before it)",
+   pin_span(save_slot_inputs),
+   pin_span(save_slot_outputs),
+   true,
+   RequiredPhase::None,
+   false,
+   false,
+   ExecutionClass::CommandEmitting},
   {"LogicNativeSetSaveExistence",
    "Game",
    "Set Save Object State",
@@ -6516,7 +7115,8 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeRotateToward",
    "Transform",
    "Rotate To",
-   "Rotate an object around an axis so its front axis turns toward a target point",
+   "Rotate an object around an axis so its front axis turns toward a target point, by a Factor "
+   "of the turn left or at a Turn Speed (Turn)",
    pin_span(rotate_toward_inputs),
    pin_span(done_output),
    true,
@@ -6606,7 +7206,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
   {"LogicNativeListRandomItem",
    "Data/List",
    "Get Random List Item",
-   "Retrieve a random item from a list",
+   "Retrieve a random item from a list, each equally likely or by Weights, and its Index",
    pin_span(list_random_item_inputs),
    pin_span(list_random_item_outputs),
    false,
@@ -7009,6 +7609,40 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    false,
    false,
    ExecutionClass::SnapshotReadOnly},
+  {"LogicNativeListInsert",
+   "Data/List",
+   "Insert",
+   "Puts a value at an index of the list a game property holds, the items from there on moving "
+   "one place up (Output Only: gives the list with it inserted)",
+   pin_span(list_insert_inputs),
+   pin_span(list_action_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   false,
+   ExecutionClass::SnapshotReadOnly},
+  {"LogicNativeListOperation",
+   "Data/List",
+   "List Operation",
+   "Reverse, shuffle or slice a list, or its numbers' Min, Max, Sum or Average",
+   pin_span(list_operation_inputs),
+   pin_span(list_operation_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   true,
+   ExecutionClass::SnapshotReadOnly},
+  {"LogicNativeGetChildren",
+   "Objects/Object Data",
+   "Get Children",
+   "Every child of an object as a list, and how many (All Descendants: their children too)",
+   pin_span(get_children_inputs),
+   pin_span(get_children_outputs),
+   false,
+   RequiredPhase::None,
+   false,
+   false,
+   ExecutionClass::MainThreadOnly},
   {"LogicNativeDictSetKey",
    "Data/Dict",
    "Set Dictionary Key",
@@ -7144,6 +7778,18 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    true,
    false,
    ExecutionClass::MainThreadOnly},
+  {"LogicNativeSetRigidBodyConstraint",
+   "Physics",
+   "Set Rigid Body Constraint",
+   "Change a live rigid body constraint by its name: on or off, its limits, motor, springs or "
+   "breaking",
+   pin_span(set_rigid_body_constraint_inputs),
+   pin_span(done_output),
+   true,
+   RequiredPhase::FixedUpdate,
+   true,
+   false,
+   ExecutionClass::CommandEmitting},
   {"LogicNativeRemovePhysicsConstraint",
    "Physics",
    "Remove Rigid Body Constraints",

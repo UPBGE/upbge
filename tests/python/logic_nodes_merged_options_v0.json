@@ -149,6 +149,33 @@
     false,
     false,
     false
+   ],
+   [
+    "Stop",
+    "Stop",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Pause",
+    "Pause",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Resume",
+    "Resume",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
    ]
   ],
   "merged": "LogicNativeDelayFlow",
@@ -161,6 +188,24 @@
     true,
     false,
     null
+   ],
+   [
+    "Remaining",
+    "Remaining",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Waiting",
+    "Waiting",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
    ]
   ],
   "settings": {}
@@ -2635,6 +2680,121 @@
   ],
   "settings": {}
  },
+ "LogicNativeSetCharacterCrouch": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Crouch",
+    "Crouch",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    true
+   ],
+   [
+    "Height",
+    "Height",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.5
+   ]
+  ],
+  "merged": "LogicNativeSetCharacterAttribute",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    false,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetCharacterFallSpeed": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Fall Speed",
+    "Fall Speed",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    55.0
+   ]
+  ],
+  "merged": "LogicNativeSetCharacterAttribute",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    false,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
  "LogicNativeSetCharacterGravity": {
   "inputs": [
    [
@@ -2773,6 +2933,112 @@
     false,
     false,
     1
+   ]
+  ],
+  "merged": "LogicNativeSetCharacterAttribute",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    false,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetCharacterMaxSlope": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Max Slope",
+    "Max Slope",
+    "NodeSocketFloatAngle",
+    true,
+    false,
+    false,
+    0.785398
+   ]
+  ],
+  "merged": "LogicNativeSetCharacterAttribute",
+  "outputs": [
+   [
+    "Out",
+    "Done",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Done",
+    "Done",
+    "NodeSocketLogicExecution",
+    false,
+    true,
+    false,
+    null
+   ]
+  ],
+  "settings": {}
+ },
+ "LogicNativeSetCharacterStepHeight": {
+  "inputs": [
+   [
+    "Flow",
+    "Flow",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Object",
+    "Object",
+    "NodeSocketLogicObject",
+    true,
+    false,
+    false,
+    null
+   ],
+   [
+    "Step Height",
+    "Step Height",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.3
    ]
   ],
   "merged": "LogicNativeSetCharacterAttribute",
@@ -4810,6 +5076,33 @@
     false,
     false,
     false
+   ],
+   [
+    "Stop",
+    "Stop",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Pause",
+    "Pause",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
+   ],
+   [
+    "Resume",
+    "Resume",
+    "NodeSocketLogicExecution",
+    true,
+    true,
+    false,
+    null
    ]
   ],
   "merged": "LogicNativeDelayFlow",
@@ -4822,6 +5115,24 @@
     true,
     false,
     null
+   ],
+   [
+    "Remaining",
+    "Remaining",
+    "NodeSocketLogicFloat",
+    true,
+    false,
+    false,
+    0.0
+   ],
+   [
+    "Waiting",
+    "Waiting",
+    "NodeSocketLogicBool",
+    true,
+    false,
+    false,
+    false
    ]
   ],
   "settings": {}

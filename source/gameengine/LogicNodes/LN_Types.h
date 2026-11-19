@@ -217,6 +217,10 @@ enum class LN_OpCode : uint8_t {
   SetActionFrame,
   SetShapeKeyValue,
   StopAllSounds,
+  /** Play Sound and Play Sound 3D: int_value bits 0-3 Play Sound 3D's listener, bits 4 and up
+   * the node's sound slot + 1 (2026-11-17, LN_Program::AcquireSoundNode; 0: none, every older
+   * program). Play Sound 3D: tertiary_bool_expr_index At Position, vector_expr_index Position
+   * (read last). */
   PlaySound,
   PlaySound3D,
   PauseSound,
@@ -278,6 +282,10 @@ enum class LN_OpCode : uint8_t {
   SetVelocityVector,
   ApplyTransformVector,
   ApplyPhysicsVector,
+  /** Timer and Delay (Restart / Queue): int_value the time flow state, float_expr_index the
+   * seconds, secondary_bool_expr_index Ignore Timescale. secondary_int_value (2026-11-17,
+   * LN_TIME_FLOW_*): 0 arms a countdown (every older op); Stop, Pause and Resume act on the
+   * node's countdowns and read no input. */
   ArmTimer,
   ArmDelay,
   ArmNextFrame,
@@ -356,7 +364,9 @@ enum class LN_OpCode : uint8_t {
   /** Explode or Implode Impulse (2026-11-11; idname LogicNativeExplosionImpulse):
    * secondary_int_value the center (LN_EXPLOSION_CENTER_*):
    * Object reads tertiary_value_expr_index (none: the owner; its pending moves applied first,
-   * the object itself left alone), Position reads vector_expr_index Origin; then
+   * the object itself left alone), then vector_expr_index its Offset (2026-11-17: in the
+   * object's own space, its transform x the Offset as ShapeCastPlace; none or zero: its
+   * position), Position reads vector_expr_index Origin; then
    * float_expr_index Radius, secondary_float_expr_index Strength, tertiary_float_expr_index
    * Upward Lift, bool_expr_index Ignore Mass, secondary_bool_expr_index Visualize,
    * secondary_value_expr_index Ignore Object (none: nothing more ignored),
@@ -387,8 +397,28 @@ enum class LN_OpCode : uint8_t {
    * end, the physics queries on the physics threads, and pushes (LN_KeepDistance.h). Main thread
    * only (its requests are the scene buffer's). */
   KeepDistance,
+  /** Tween Value's Forward / Back (2026-11-17): a pulse reaching the input. int_value the
+   * tween's Bool::TweenValue expression, secondary_int_value LN_TWEEN_REQUEST_FORWARD or _BACK.
+   * It only stores the request in the tween's state (the latest of a step wins); the tween takes
+   * it at its next update (LN_RuntimeTree::UpdateTweenValue): in the same step when it is read
+   * after the op, else in the next. A sensor's or Boolean Edge's pulse gets the op where the tween
+   * compiles, in the sensor's event behind its condition, so it starts the tween in the step it
+   * fires. Reads nothing; a native lean op and a column node (STweenRequest). */
+  TweenRequest,
+  /* Set Navigation Attribute (2026-11-18): int_value the LN_NavigationAttribute; a request handed
+   * to the scene's KX_Navigation at the flush's end, as Navigate's. */
+  NavigationAttribute,
   Count,
 };
+
+/** ArmTimer / ArmDelay's secondary_int_value (2026-11-17): Arm (0, every older op) starts a
+ * countdown; Stop forgets every countdown still waiting, and a pause (a Done already due this
+ * step still runs); Pause holds them where they are (a Flow arriving meanwhile waits paused too);
+ * Resume lets them run on. */
+inline constexpr int32_t LN_TIME_FLOW_ARM = 0;
+inline constexpr int32_t LN_TIME_FLOW_STOP = 1;
+inline constexpr int32_t LN_TIME_FLOW_PAUSE = 2;
+inline constexpr int32_t LN_TIME_FLOW_RESUME = 3;
 
 /** How an ApplyImpulse instruction and command push (2026-11-11; the instruction's int_value, the
  * command's int_value). Nodes made before 2026-11-11 hold WorldOffset (custom1 0). */
@@ -411,7 +441,36 @@ inline constexpr int32_t LN_IMPULSE_MODE_LAST = int32_t(LN_ImpulseMode::Explosio
 /** Explode or Implode Impulse's options (the node's custom1 bits, the instruction's int_value):
  * bit 0 the Falloff (Linear), bit 1 Implode (pull toward the center instead of pushing away). */
 inline constexpr int32_t LN_EXPLOSION_FALLOFF_CONSTANT = 0;
+/** Set Rigid Body Constraint (2026-11-17): Op::AddPhysicsConstraint with secondary_int_value
+ * LN_RIGID_BODY_CONSTRAINT_SET + the setting (custom1, LN_RigidBodyConstraintSetting) changes
+ * the named constraint of the Object (empty: the owner) instead of adding one; its payload holds
+ * the setting's inputs (the Add node's names). 0: Add. */
+inline constexpr int32_t LN_RIGID_BODY_CONSTRAINT_SET = 1;
+enum class LN_RigidBodyConstraintSetting : int32_t {
+  Enabled = 0,
+  Limits,
+  Motor,
+  Springs,
+  Breaking,
+};
+/** Save Slot's Delete (2026-11-17): Op::SaveGame's secondary_int_value, a Save Game command's
+ * bool_value: delete the slot's file, in order with the save service's other requests. */
+inline constexpr int32_t LN_SAVE_SLOT_DELETE = 1;
 inline constexpr int32_t LN_EXPLOSION_FALLOFF_LINEAR = 1;
+/** Explode or Implode's falloff at `distance` from the center (the push at the flush and the
+ * Strengths output, 2026-11-17): Linear: 1 at the center to 0 at `radius` (0 without a radius);
+ * else 1. */
+inline float LN_ExplosionFalloff(const float distance, const float radius, const bool linear)
+{
+  if (!linear) {
+    return 1.0f;
+  }
+  if (!(radius > 0.0f)) {
+    return 0.0f;
+  }
+  const float factor = 1.0f - distance / radius;
+  return factor < 0.0f ? 0.0f : (factor > 1.0f ? 1.0f : factor);
+}
 inline constexpr int32_t LN_EXPLOSION_IMPLODE = 2;
 /** Explosion Impulse's Center (the node's custom2, the instruction's secondary_int_value); nodes
  * made before the dropdown hold Position. */
@@ -430,6 +489,15 @@ inline constexpr int32_t LN_KEEP_DISTANCE_MODE_PULL = 1;
 inline constexpr int32_t LN_KEEP_DISTANCE_MODE_HOLD = 2;
 inline constexpr int32_t LN_KEEP_DISTANCE_MEASURE_OBJECT_SHAPE = 0;
 inline constexpr int32_t LN_KEEP_DISTANCE_MEASURE_SPHERE = 1;
+
+/** Math's and Vector Math's own operations (custom1, 2026-11-16): Blender's NODE_MATH_* and
+ * NODE_VECTOR_MATH_* values stay below 100; these have no Blender value. rna_nodetree.cc and the
+ * node files use the same numbers. */
+inline constexpr int16_t LN_MATH_ANGLE_DIFFERENCE = 100;
+inline constexpr int16_t LN_VECTOR_MATH_ANGLE = 100;
+inline constexpr int16_t LN_VECTOR_MATH_SIGNED_ANGLE = 101;
+inline constexpr int16_t LN_VECTOR_MATH_LIMIT_LENGTH = 102;
+inline constexpr int16_t LN_VECTOR_MATH_MOVE_TOWARDS = 103;
 /** The bits of its instruction's secondary_int_value. */
 inline constexpr int32_t LN_KEEP_DISTANCE_BIT_SMOOTH = 1 << 0;
 inline constexpr int32_t LN_KEEP_DISTANCE_BIT_SPHERE = 1 << 1;
@@ -513,6 +581,9 @@ enum class LN_RigidBodyAttribute : uint8_t {
   /** Set only (2026-11-15, the user's call): one damping, the other left as it is. */
   LinearDamping,
   AngularDamping,
+  /** Set only (2026-11-18, the user's request): the Compound checkbox while playing
+   * (KX_GameObject::SetCompoundEnabled; Enabled, as CCD's). */
+  Compound,
 };
 
 enum class LN_RigidBodyConstraintMatchMode : uint8_t {
@@ -526,6 +597,75 @@ enum class LN_FlowGateControl : int32_t {
   Open,
   Close,
 };
+
+/** Tween Value's Forward / Back (Op::TweenRequest's secondary_int_value, and the request a
+ * tween's state holds until its next update: BoolExpressionRuntimeState::tween_request). */
+inline constexpr int32_t LN_TWEEN_REQUEST_NONE = 0;
+inline constexpr int32_t LN_TWEEN_REQUEST_FORWARD = 1;
+inline constexpr int32_t LN_TWEEN_REQUEST_BACK = 2;
+
+/** Set Character Attribute's settings (2026-11-17): Op::SetCharacterJumpSpeed and its command
+ * carry every one, the setting in the instruction's and the command's int_value (Jump Force 0:
+ * every older program). The value is the instruction's Float (float_expr_index, fallback
+ * vector_value.x); Crouch also reads its Bool (bool_expr_index, fallback bool_value), the Float
+ * then its Height. Read order: the Float, then the Bool. */
+inline constexpr int32_t LN_CHARACTER_SETTING_JUMP_FORCE = 0;
+inline constexpr int32_t LN_CHARACTER_SETTING_MAX_SLOPE = 1;
+inline constexpr int32_t LN_CHARACTER_SETTING_FALL_SPEED = 2;
+inline constexpr int32_t LN_CHARACTER_SETTING_STEP_HEIGHT = 3;
+inline constexpr int32_t LN_CHARACTER_SETTING_CROUCH = 4;
+
+/** Get Character Info's Bool::SnapshotCharacterState (int_value). */
+inline constexpr int32_t LN_CHARACTER_STATE_ON_WALL = 0;
+inline constexpr int32_t LN_CHARACTER_STATE_ON_CEILING = 1;
+inline constexpr int32_t LN_CHARACTER_STATE_CROUCHED = 2;
+
+/** Get Navigation Info's Bool::NavigationState (int_value), On Navigation Link's event. */
+inline constexpr int32_t LN_NAV_STATE_MOVING = 0;
+inline constexpr int32_t LN_NAV_STATE_ARRIVED = 1;
+inline constexpr int32_t LN_NAV_STATE_HAS_PATH = 2;
+inline constexpr int32_t LN_NAV_STATE_PATH_COMPLETE = 3;
+inline constexpr int32_t LN_NAV_STATE_NO_PATH = 4;
+inline constexpr int32_t LN_NAV_STATE_ON_LINK = 5;
+inline constexpr int32_t LN_NAV_STATE_LINK_STARTED = 6;
+inline constexpr int32_t LN_NAV_STATE_ACTIVE = 7;
+/** Navigate's When Reached (2026-11-18): it arrived in the last step (KX_NavAgentInfo::reached). */
+inline constexpr int32_t LN_NAV_STATE_REACHED = 8;
+/** Vector::NavigationState (int_value). */
+inline constexpr int32_t LN_NAV_VECTOR_NEXT_CORNER = 0;
+inline constexpr int32_t LN_NAV_VECTOR_VELOCITY = 1;
+inline constexpr int32_t LN_NAV_VECTOR_GOAL = 2;
+/** Float::NavigationState (int_value). */
+inline constexpr int32_t LN_NAV_FLOAT_REMAINING = 0;
+inline constexpr int32_t LN_NAV_FLOAT_SPEED = 1;
+
+/** Navigate's custom2 bits (2026-11-18). Until Arrived: one pulse is enough, the order holds until
+ * the NPC arrives, a new order replaces it or Stop ends it. */
+inline constexpr int16_t LN_NAVIGATE_UNTIL_ARRIVED = 1 << 0;
+
+/** Navmesh Query's mode (custom1). */
+enum class LN_NavmeshQueryMode : uint8_t {
+  FindPath = 0,
+  NearestPoint = 1,
+  RandomPoint = 2,
+  IsReachable = 3,
+  WalkableLine = 4,
+};
+
+/** Set Navigation Attribute's attribute (custom1). */
+enum class LN_NavigationAttribute : uint8_t {
+  Obstacle = 0,
+  AreaCost = 1,
+  AreaClosed = 2,
+  RebuildArea = 3,
+  /** Navigate's Stop input (2026-11-18; not in the node's dropdown): the object's order ends. */
+  Stop = 4,
+};
+
+/** Get Character Info's Vector::SnapshotCharacterSurface (int_value). */
+inline constexpr int32_t LN_CHARACTER_SURFACE_GROUND_NORMAL = 0;
+inline constexpr int32_t LN_CHARACTER_SURFACE_GROUND_VELOCITY = 1;
+inline constexpr int32_t LN_CHARACTER_SURFACE_WALL_NORMAL = 2;
 
 enum class LN_DistanceEndpointMode : uint8_t {
   Object = 0,
@@ -924,6 +1064,48 @@ enum class LN_BoolExpressionKind : uint8_t {
   /** Aim for Arc's Can Reach (LN_Ballistics.h): input0 Start, input1 Target, input2 Gravity
    * (vectors), float_expr_index Speed or Arc Height, int_value the mode (LN_ArcSolveMode). */
   ArcCanReach,
+  /** Compare's Object type (2026-11-16): input0 A, input1 B (object values, read A then B), each
+   * resolved by ResolveObjectValue (a removed object is none, an empty socket is none);
+   * float_compare_operation Equal: the same object (none equals none), NotEqual the opposite,
+   * any other operation false. */
+  ObjectsEqual,
+  /** On Action Frame (2026-11-16): the layer's action passed a frame since the step before
+   * (LN_ActionFrameCrossed, LN_ActionFrames.h). Keeps its read per tree (int_value the state slot,
+   * LN_Program::AcquireActionFrameNode), worked out once a tick. Read order: input0 the object
+   * (none: the tree's own), int_expr_index the Layer, float_expr_index the Frame, input1 the
+   * Action (a string; empty: any). */
+  ActionFrameReached,
+  /** Play Sound / Play Sound 3D's Playing (2026-11-17): the sound the node started last plays
+   * (LN_GetSoundTicketStatus of the tree's ticket of sound slot int_value). */
+  SoundPlaying,
+  /** Their Finished: true in the step it is first seen ended (the tree's sound slot int_value;
+   * LN_SoundSlotState). */
+  SoundFinished,
+  /** An input node's Input Type Tap, Double Tap or Hold (2026-11-17, LN_InputGestureStep):
+   * input0 the input held, input1 pressed, input2 released (Bool), float_expr_index Time;
+   * int_value the tree's input slot (LN_Program::AcquireInputGestureNode), secondary_int_value
+   * the LN_InputGesture. Worked out once a tick. Read order: Time, held, pressed, released. */
+  InputGesture,
+  /** Input Combo's Triggered (2026-11-17, LN_InputComboStep): input0, input1, input2 Steps 1-3,
+   * int_expr_index Step 4 (an Int::FromBool: not 0 held), float_expr_index Time; int_value the
+   * input slot, secondary_int_value the mode | the linked steps << 4 | Strict << 8. Read order:
+   * Time, Steps 1 to 4. */
+  InputCombo,
+  /** Save Slot's Exists (2026-11-17, LN_GameStateService::SlotExists): int_expr_index Slot,
+   * input0 Path (String); whether the slot holds a saved game, a Save Game or a delete asked
+   * for it counting at once. Main thread (the save service, the file system). Read order: Slot,
+   * Path. */
+  SaveSlotExists,
+  /** On Removed's Out (2026-11-17): the tree's object was removed and this is its last step
+   * (LN_RuntimeTree::IsBeingRemoved, set by LN_Manager's hold before the tick). */
+  BeingRemoved,
+  /** Get Character Info's On Wall, On Ceiling and Crouched (2026-11-17): int_value the
+   * LN_CHARACTER_STATE_*; input0 the object (none: the owner), read from its character channel
+   * as On Ground (the character's end of its last step: PHY_ICharacter::OnWall & co). */
+  SnapshotCharacterState,
+  /* Get Navigation Info / On Navigation Link (2026-11-18): input0 the object (the owner when
+   * unset), int_value the LN_NAV_STATE_*; the navigation's last step (KX_NavAgentInfo). */
+  NavigationState,
   Count,
 };
 
@@ -1080,6 +1262,46 @@ enum class LN_FloatExpressionKind : uint8_t {
   ArcFlightTime,
   /** The length of vector input0 (Get Object Attribute's Speed, Velocity at Point's Speed). */
   VectorLength,
+  /** Math's newer operations (2026-11-16): int_value the LN_MathFunction, input0 A, input1 B,
+   * input2 C (floats; read A, B, C), `LN_MathFunctionValue` (LN_MathOps.h). */
+  MathFunction,
+  /** Vector Math's number results (2026-11-16): int_value the LN_VectorMeasure, input0 A,
+   * input1 B, input2 the Axis (vectors; read A, B, Axis), `LN_VectorMeasureValue`. */
+  VectorMeasure,
+  /** Smooth Value's number (2026-11-16): keeps its value per tree (int_value the state slot,
+   * LN_Program::AcquireSmoothValueNode), component_index the LN_SmoothMode. Read order:
+   * bool_expr_index Reset, input0 Target, input1 Speed (Smooth Damp: Smooth Time), input2 Max
+   * Speed (Smooth Damp only), input_indices[0] Ignore Timescale; read only on the first
+   * evaluation of a tick. `LN_SmoothValueAdvance` (LN_MathOps.h). */
+  SmoothValue,
+  /** Noise (2026-11-16): `LN_NoiseValue`; int_value LN_NoiseSettings (dimensions, octaves),
+   * component_index the channel (a Vector output's axis). Read order: input0 Vector, input1 W,
+   * input2 Scale, input_indices[0] Roughness (floats), input_indices[1] Seed (int). */
+  Noise,
+  /** The game's time (2026-11-17): the scaled time of the Logic + Physics steps run before this
+   * tick (LN_TickContext::game_time), the same on the frames between two steps, still while
+   * paused: a step's time a step whatever the frames (the frame clock, SnapshotElapsedTime, is
+   * not). State Machine's Time in State. */
+  GameTime,
+  /** List Operation's Min, Max, Sum and Average (2026-11-17, LN_ListStatistic): input0 the List,
+   * int_value the LN_ListStatistic; over the numbers in it (whole or decimal), others skipped;
+   * none: 0. */
+  ListStatistic,
+  /** Oscillate's place in its cycle, 0..1 (2026-11-17, LN_OscillateCycle): input0 the time
+   * (Float::GameTime), input1 Frequency, input2 Phase, bool_expr_index Random Phase, int_value
+   * the node's random identity (the object's own phase: its tree's stream, tick 0). Read order:
+   * the time, Frequency, Phase, Random Phase. */
+  OscillateCycle,
+  /** Oscillate's Value (LN_OscillateWaveValue): input0 the cycle (OscillateCycle), input1
+   * Amplitude, input2 Center, int_value the LN_OscillateWave. Center + Amplitude x the wave. Read
+   * order: the cycle, Amplitude, Center. */
+  Oscillate,
+  /** Date and Time's Day Fraction (2026-11-17, LN_DateTime.h): how much of the day has passed
+   * at the tick's wall clock (LN_Manager::WallClockSeconds); int_value 1: UTC, 0: local time. */
+  DayFraction,
+  /* Get Navigation Info's Remaining Distance (2026-11-18): input0 the object, int_value
+   * LN_NAV_FLOAT_*. */
+  NavigationState,
   Count,
 };
 
@@ -1160,6 +1382,24 @@ enum class LN_IntExpressionKind : uint8_t {
   MenuPlayerUser,
   /** Set Random Seed's Seed output: the game's random seed now (LN_GetRandomGameSeed). */
   GameRandomSeed,
+  /** Get Random List Item's Index (2026-11-16): the place Value::ListRandomItem of the same
+   * fields picks (input0 List, input1 Seed, input2 Weights, int_value the identity), -1 when it
+   * picks none. */
+  ListRandomIndex,
+  /** String Operation's Length (2026-11-17, LN_TextLength): input0 the text (String). */
+  TextLength,
+  /** String Operation's Find (2026-11-17, LN_TextFind): input0 the text, input1 the search
+   * (String), -1 when absent. Read order: the search, the text. */
+  TextFind,
+  /** List Operation's Index for Min and Max (2026-11-17): where the first smallest (largest)
+   * number of input0 is, -1 without numbers; int_value the LN_ListStatistic. */
+  ListStatisticIndex,
+  /** Input Combo's Progress (2026-11-17): input0 its Bool::InputCombo (worked out first), the
+   * steps matched (Sequence) or held (Chord). */
+  InputComboProgress,
+  /** Date and Time's whole numbers (2026-11-17, LN_DateTime.h) at the tick's wall clock
+   * (LN_Manager::WallClockSeconds): int_value the LN_DateTimePart | UTC << 8. */
+  DateTimePart,
   Count,
 };
 
@@ -1202,6 +1442,15 @@ enum class LN_StringExpressionKind : uint8_t {
   /** Hit Material: the name of the material on the hit face (the slot on the Hit Part's object;
    * slot 0 for shapes without triangles), empty without a hit or a material. input0 = query. */
   PhysicsQueryMaterial,
+  /** String Operation's Substring (2026-11-17, LN_TextSubstring): input0 the text (String),
+   * input1 Start and input2 Length (Int). Read order: Length, Start, the text. */
+  TextSubstring,
+  /** String Operation's Format Time (2026-11-17, LN_FormatTime): input0 Seconds (Float), input1
+   * Round Up (Bool), input2 the LN_TimeFormat (a constant Int). Read order: the format, Round Up,
+   * Seconds. */
+  TextFormatTime,
+  /* Get Navigation Info / On Navigation Link's Link Kind (2026-11-18): input0 the object. */
+  NavigationLinkKind,
   Count,
 };
 
@@ -1299,6 +1548,35 @@ enum class LN_VectorExpressionKind : uint8_t {
    * three); the ref's default (zero) when the object has no such property or it gives no
    * vector. */
   SnapshotGameProperty,
+  /** Vector Math's newer vector results (2026-11-16): int_value the LN_VectorFunction, input0 A,
+   * input1 B (vectors), float_expr_index Scale with float_value its fallback (read A, B, Scale),
+   * `LN_VectorFunctionValue` (LN_MathOps.h). */
+  VectorFunction,
+  /** Rotation Math and Transform Vector (2026-11-16): int_value the LN_RotationFunction. The
+   * rotation operations (output_type Rotation): input0 A, input1 B (rotations, read A then B),
+   * `LN_RotationFunctionRotation`; the vector ones: input0 the vector, input1 the rotation,
+   * input2 the scale (read in that order), `LN_RotationFunctionVector` (LN_MathOps.h). */
+  RotationFunction,
+  /** Smooth Value's vector (2026-11-16): as Float::SmoothValue, property_ref_index the
+   * LN_SmoothMode (set explicitly). Read order: bool_expr_index Reset, input0 Target (vector),
+   * float_expr_index Speed (Smooth Damp: Smooth Time), input1 Max Speed (a float, Smooth Damp
+   * only), input2 Ignore Timescale (a bool). */
+  SmoothValue,
+  /** Random Value's shapes (2026-11-16): property_ref_index the LN_RandomShape (set
+   * explicitly), int_value the node's identity (LN_Random.h, as Random). Read order: input0 Axis
+   * (In Cone), float_expr_index Radius or Angle, input2 Seed (an int).
+   * `LN_RandomShapeVector`. */
+  RandomShape,
+  /** Oscillate's Bob and Orbit (2026-11-17, LN_OscillateBob / LN_OscillateOrbit): input0 the
+   * cycle (Float::OscillateCycle), input1 Axis, float_expr_index Amplitude; int_value the
+   * LN_OscillateWave, LN_OSCILLATE_ORBIT for Orbit. Read order: the cycle, Axis, Amplitude. */
+  Oscillate,
+  /** Get Character Info's Ground Normal, Ground Velocity and Wall Normal (2026-11-17), world
+   * space: int_value the LN_CHARACTER_SURFACE_*; input0 the object (none: the owner), read from
+   * its character channel. */
+  SnapshotCharacterSurface,
+  /* Get Navigation Info's vectors (2026-11-18): input0 the object, int_value LN_NAV_VECTOR_*. */
+  NavigationState,
   Count,
 };
 
@@ -1400,7 +1678,9 @@ enum class LN_ValueExpressionKind : uint8_t {
   ValueChangedOld,
   ValueChangedNew,
   /** Get Random List Item: input0 List, input1 Seed (int), value.int_value the node's identity
-   * with bit 0 = Same for All (LN_Random.h). */
+   * with bit 0 = Same for All (LN_Random.h). input2 Weights (a list, 2026-11-16; none: every
+   * item equally likely): item i's chance is weight i over the positive weights' sum
+   * (LN_RandomWeightedIndex), an item past the weights' end never comes out. */
   ListRandomItem,
   ValueSwitchList,
   ValueSwitchListCompare,
@@ -1454,6 +1734,38 @@ enum class LN_ValueExpressionKind : uint8_t {
   /** Velocity at Point's Velocities: the `impact_velocity` of every result of a list query (as
    * PhysicsQueryPoints lists their `hit_position`). */
   PhysicsQueryImpactVelocities,
+  /** String Operation's Split (2026-11-17, LN_TextSplit): a List of Strings; input0 the text,
+   * input1 the separator (String). Read order: the separator, the text. */
+  TextSplit,
+  /** Insert's Output Only (2026-11-17): input0 the List, input1 the Index (Int), input2 the
+   * Value; the list with the value inserted (LN_ListInsertPlace). Read order: the list, the
+   * index, the value (as Set List Index). */
+  ListInsert,
+  /** List Operation's Reverse (2026-11-17): input0 the List. */
+  ListReverse,
+  /** List Operation's Shuffle (2026-11-17): input0 the List, input1 the Seed (Int), value.int_value
+   * the node's random identity (Same for All bit); a new order every step (frame), repeatable as
+   * every random node (game seed, node, step). Read order: the seed, the list. */
+  ListShuffle,
+  /** List Operation's Slice (2026-11-17): input0 the List, input1 Start, input2 Length (Int), as
+   * Substring (LN_ClampSlice). Read order: Length, Start, the list. */
+  ListSlice,
+  /** Get Children (2026-11-17): input0 the parent (none: the owner), input1 All Descendants
+   * (Bool); the children in the scene graph's order, all descendants depth first. Read order:
+   * All Descendants, the parent. */
+  ObjectChildren,
+  /** Explode or Implode Impulse's Strengths (2026-11-17, LN_ExplosionFalloff): input0 its Objects
+   * query, input1 Radius, input2 Strength (Float); value.bool_value the Linear falloff. For each
+   * of the query's objects: Strength x the falloff from the blast's center (each result's
+   * cast_position: the cast has no length) to the object's center of mass, as the push at the
+   * flush. Read order: Strength, Radius, the query. */
+  ExplosionStrengths,
+  /** Get Character Info's Ground Object (2026-11-17): what the character stands on while On
+   * Ground (its character channel's character_ground_object), else None; input0 the object
+   * (none: the owner). */
+  SnapshotCharacterGroundObject,
+  /* Get Navigation Info / On Navigation Link's Link Object (2026-11-18): input0 the object. */
+  NavigationLinkObject,
   Count,
 };
 
@@ -1552,6 +1864,20 @@ enum class LN_QueryExpressionKind : uint8_t {
    * physics_query.hit_position the point, impact_velocity its velocity (hit: a body moves it);
    * Each Vertex: one result per vertex in physics_query_results. */
   PointVelocity,
+  /** Find Objects (2026-11-16, LN_FindObjects.h): the tick's LN_FindIndex searched around a
+   * center. int_value LN_FindSettings (source, pick, the program's find source), secondary_int_value
+   * Random's identity (LN_Random.h), bool_value: Count is read. Read order: input0 the center
+   * object (none: the tree's own), input1 the List, float_expr_index Radius,
+   * secondary_float_expr_index the View Angle (radians, the cone's whole width), bool_expr_index
+   * Exclude Self. Result: physics_query hit / object_ref / hit_position / hit_distance the pick,
+   * vector_count the count, physics_query_results the list (All). */
+  FindObjects,
+  /* Navmesh Query (2026-11-18): input0 the navmesh object (unset: the scene's own), input1 From /
+   * Position, input2 To, float_expr_index Radius; int_value the LN_NavmeshQueryMode,
+   * secondary_int_value the node's random identity. Result: hit (found, reachable, clear),
+   * hit_position the point, hit_normal a wall's normal, hit_distance the length; Find Path's
+   * corners one result each (hit_position). */
+  NavmeshQuery,
   Count,
 };
 
@@ -1916,6 +2242,15 @@ enum LN_ActionOutputMask : uint8_t {
                          LN_ACTION_OUTPUT_INTERRUPTED | LN_ACTION_OUTPUT_FAILED,
 };
 
+/** What Set Action Frame's instruction sets (its secondary_int_value; the command's
+ * animation_flags): the frame (every Set Action Frame), or Set Action Layer's speed or layer
+ * weight (2026-11-16). */
+enum : int32_t {
+  LN_ACTION_LAYER_SET_FRAME = 0,
+  LN_ACTION_LAYER_SET_SPEED = 1,
+  LN_ACTION_LAYER_SET_WEIGHT = 2,
+};
+
 enum class LN_ValueType : uint8_t {
   None = 0,
   Bool,
@@ -2231,6 +2566,9 @@ enum class LN_PropertyEditOp : uint8_t {
   DictSetKey,
   DictAddValue,
   DictRemoveKey,
+  /** Insert (2026-11-17): the value at the index (below 0 counts from the end; past the end:
+   * at the end), as Python's list.insert. */
+  ListInsert,
 };
 
 /** The list and dictionary nodes' custom1: 0 gives the changed copy at the output (every node
@@ -2241,7 +2579,8 @@ inline constexpr int16_t LN_COLLECTION_STORE_GAME_PROPERTY = 1;
 inline constexpr bool LN_PropertyEditIsList(const LN_PropertyEditOp op)
 {
   return op == LN_PropertyEditOp::ListAppend || op == LN_PropertyEditOp::ListRemoveIndex ||
-         op == LN_PropertyEditOp::ListRemoveValue || op == LN_PropertyEditOp::ListSetIndex;
+         op == LN_PropertyEditOp::ListRemoveValue || op == LN_PropertyEditOp::ListSetIndex ||
+         op == LN_PropertyEditOp::ListInsert;
 }
 
 struct LN_GamePropertyCommandPayload {
@@ -2704,6 +3043,8 @@ struct LN_Constant {
   LN_Value value;
 };
 
+class LN_FindIndex;
+
 struct LN_TickContext {
   LN_Event event = LN_Event::OnFixedUpdate;
   double current_time = 0.0;
@@ -2736,4 +3077,10 @@ struct LN_TickContext {
   /** Monotonic command-execution point used by command-ordered query caches. */
   uint64_t command_execution_key = UINT64_MAX;
   uint64_t execution_scope_serial = 0;
+  /** Find Objects' poses and grids of this tick (2026-11-16; LN_Manager and the test rigs set
+   * it before the trees record; null: Find Objects finds nothing). */
+  const LN_FindIndex *find_index = nullptr;
+  /** The scaled time of the Logic + Physics steps run before this tick (2026-11-17; the sum of
+   * their delta_time): Float::GameTime. */
+  double game_time = 0.0;
 };

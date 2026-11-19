@@ -12,6 +12,7 @@
 #include "LN_Random.h"
 #include "LN_SoundGroups.h"
 #include "LN_TreeCompiler_internal.hh"
+#include "LN_Easing.h"
 
 #include <algorithm>
 #include <array>
@@ -85,6 +86,11 @@ struct FlowPath {
   std::vector<uint32_t> execution_order;
 };
 
+struct FlowEventsResult {
+  std::vector<FlowPath> paths;
+  bool valid = true;
+};
+
 struct InstructionSchedule {
   std::array<std::vector<std::vector<uint32_t>>, 3> execution_orders;
   std::array<std::vector<uint32_t>, 3> loop_order_depths;
@@ -121,15 +127,27 @@ struct InstructionSchedule {
 thread_local InstructionSchedule *g_active_instruction_schedule = nullptr;
 thread_local CompiledOutputCaches g_compiled_output_caches;
 
+using FlowEventsCache = std::unordered_map<const blender::bNodeSocket *, FlowEventsResult>;
+/** The tree compile in progress and its routes (BuildBranchOutputPulse builds a Branch's route
+ * where its output is read as a value). */
+thread_local const blender::bNodeTree *g_active_tree = nullptr;
+thread_local FlowEventsCache *g_active_flow_events_cache = nullptr;
+
 class ScopedCompilerScratchState {
  public:
-  ScopedCompilerScratchState(LoopFrameCache &loop_frame_cache,
+  ScopedCompilerScratchState(const blender::bNodeTree &tree,
+                             FlowEventsCache &flow_events_cache,
+                             LoopFrameCache &loop_frame_cache,
                              InstructionSchedule &instruction_schedule,
                              const CompiledOutputCaches &compiled_output_caches)
-      : m_previous_loop_frame_cache(g_active_loop_frame_cache),
+      : m_previous_tree(g_active_tree),
+        m_previous_flow_events_cache(g_active_flow_events_cache),
+        m_previous_loop_frame_cache(g_active_loop_frame_cache),
         m_previous_instruction_schedule(g_active_instruction_schedule),
         m_previous_compiled_output_caches(g_compiled_output_caches)
   {
+    g_active_tree = &tree;
+    g_active_flow_events_cache = &flow_events_cache;
     g_active_loop_frame_cache = &loop_frame_cache;
     g_active_instruction_schedule = &instruction_schedule;
     g_compiled_output_caches = compiled_output_caches;
@@ -137,12 +155,16 @@ class ScopedCompilerScratchState {
 
   ~ScopedCompilerScratchState()
   {
+    g_active_tree = m_previous_tree;
+    g_active_flow_events_cache = m_previous_flow_events_cache;
     g_active_loop_frame_cache = m_previous_loop_frame_cache;
     g_active_instruction_schedule = m_previous_instruction_schedule;
     g_compiled_output_caches = m_previous_compiled_output_caches;
   }
 
  private:
+  const blender::bNodeTree *m_previous_tree;
+  FlowEventsCache *m_previous_flow_events_cache;
   LoopFrameCache *m_previous_loop_frame_cache;
   InstructionSchedule *m_previous_instruction_schedule;
   CompiledOutputCaches m_previous_compiled_output_caches;
@@ -217,11 +239,6 @@ const char *RequiredPhaseName(const LN_RequiredPhase required_phase)
   return "any phase";
 }
 
-struct FlowEventsResult {
-  std::vector<FlowPath> paths;
-  bool valid = true;
-};
-
 /** `fires_with_source`: the continuation belongs to the runs of its source route (Pulsify's
  * pulse, a Barrier passing: updated by their own instruction). It then keeps the Every N Steps
  * gate its sources share, so it runs on their steps with their time; a Delay's Done, which fires
@@ -277,8 +294,6 @@ bool MixesRecurringContinuationDomains(const FlowEventsResult &source_flow)
   }
   return false;
 }
-
-using FlowEventsCache = std::unordered_map<const blender::bNodeSocket *, FlowEventsResult>;
 
 static void AddLoopStartEvents(LN_Program &program,
                                const uint32_t loop_frame_index,
@@ -788,6 +803,58 @@ static FlowEventsResult BuildBranchRouteFlowEvents(LN_Program &program,
                                        flow_events_cache);
 }
 
+std::optional<uint32_t> BuildBranchOutputPulse(LN_Program &program,
+                                               const blender::bNode &branch_node,
+                                               const blender::bNodeSocket &route_socket,
+                                               const NodeDefinitionMap &node_definitions,
+                                               const InputLinkMap &input_links,
+                                               ValueCache &value_cache,
+                                               FloatExpressionCache &float_expression_cache,
+                                               BoolExpressionCache &bool_expression_cache)
+{
+  if (g_active_tree == nullptr || g_active_flow_events_cache == nullptr ||
+      g_active_loop_frame_cache == nullptr)
+  {
+    return std::nullopt;
+  }
+  const auto definition = node_definitions.find(&branch_node);
+  if (definition == node_definitions.end() ||
+      definition->second->kind != LN_NodeKind::Branch)
+  {
+    return std::nullopt;
+  }
+  const FlowEventsResult routes = BuildBranchRouteFlowEvents(program,
+                                                             *g_active_tree,
+                                                             branch_node,
+                                                             route_socket,
+                                                             *definition->second,
+                                                             node_definitions,
+                                                             input_links,
+                                                             value_cache,
+                                                             float_expression_cache,
+                                                             bool_expression_cache,
+                                                             *g_active_flow_events_cache,
+                                                             *g_active_loop_frame_cache);
+  if (!routes.valid || routes.paths.empty()) {
+    return std::nullopt;
+  }
+  /* Built now: the route's pulses are cached for the socket (BuildConditionRouteFlowEvents). */
+  if (const auto cached = bool_expression_cache.find(&route_socket);
+      cached != bool_expression_cache.end() && cached->second)
+  {
+    return cached->second;
+  }
+  std::vector<uint32_t> pulses;
+  pulses.reserve(routes.paths.size());
+  for (const FlowPath &path : routes.paths) {
+    if (path.bool_guard_expr_index == LN_INVALID_INDEX) {
+      return std::nullopt;
+    }
+    pulses.push_back(path.bool_guard_expr_index);
+  }
+  return CombineBoolExpressionsWithOr(program, pulses);
+}
+
 /** Every link from the route (unmuted, through reroutes) goes straight into an Open Object Menu,
  * and nothing follows those menus (their Opened, Closed and Failed lead nowhere, so no Logic +
  * Physics node depends on the step they run in). `r_pause_toggle`: one of them pauses the game
@@ -830,29 +897,24 @@ static bool OnlyOpensMenus(const InputLinkMap &input_links,
   return true;
 }
 
-static FlowEventsResult BuildPollingRouteFlowEvents(LN_Program &program,
-                                                    const blender::bNodeTree &tree,
-                                                    const blender::bNode &source_node,
-                                                    const blender::bNodeSocket &route_socket,
-                                                    const LN_NodeDefinition &definition,
-                                                    const NodeDefinitionMap &node_definitions,
-                                                    const InputLinkMap &input_links,
-                                                    ValueCache &value_cache,
-                                                    FloatExpressionCache &float_expression_cache,
-                                                    BoolExpressionCache &bool_expression_cache,
-                                                    FlowEventsCache &flow_events_cache)
+/** A polling node's output route (a sensor, Boolean Edge, On UI Event, a Tween's Done...): the
+ * path it starts from (its event and route flags) and its condition, without the BranchRoute
+ * BuildPollingRouteFlowEvents puts behind them. False when the output has no route. */
+static bool PollingRouteSource(LN_Program &program,
+                               const blender::bNodeTree &tree,
+                               const blender::bNode &source_node,
+                               const blender::bNodeSocket &route_socket,
+                               const LN_NodeDefinition &definition,
+                               const NodeDefinitionMap &node_definitions,
+                               const InputLinkMap &input_links,
+                               ValueCache &value_cache,
+                               FloatExpressionCache &float_expression_cache,
+                               BoolExpressionCache &bool_expression_cache,
+                               FlowPath &r_source_path,
+                               uint32_t &r_condition)
 {
-  if (const auto cached = flow_events_cache.find(&route_socket); cached != flow_events_cache.end())
-  {
-    return cached->second;
-  }
-
-  FlowEventsResult result;
-  result.valid = false;
-
   if (!IsExecutionOutputSocket(definition, route_socket)) {
-    flow_events_cache[&route_socket] = result;
-    return result;
+    return false;
   }
 
   const std::optional<uint32_t> condition = BuildOutputBoolExpression(program,
@@ -864,8 +926,7 @@ static FlowEventsResult BuildPollingRouteFlowEvents(LN_Program &program,
                                                                       float_expression_cache,
                                                                       bool_expression_cache);
   if (!condition) {
-    flow_events_cache[&route_socket] = result;
-    return result;
+    return false;
   }
 
   FlowPath source_path;
@@ -898,8 +959,7 @@ static FlowEventsResult BuildPollingRouteFlowEvents(LN_Program &program,
                    route_socket.name,
                    LN_CompileSeverity::Error,
                    "Internal node contract is missing an autonomous event phase");
-      flow_events_cache[&route_socket] = result;
-      return result;
+      return false;
   }
   switch (definition.kind) {
     case LN_NodeKind::OnUIEvent:
@@ -948,6 +1008,49 @@ static FlowEventsResult BuildPollingRouteFlowEvents(LN_Program &program,
           uint32_t(fired.secondary_int_value - 1), kind);
     }
   }
+  r_source_path = std::move(source_path);
+  r_condition = *condition;
+  return true;
+}
+
+static FlowEventsResult BuildPollingRouteFlowEvents(LN_Program &program,
+                                                    const blender::bNodeTree &tree,
+                                                    const blender::bNode &source_node,
+                                                    const blender::bNodeSocket &route_socket,
+                                                    const LN_NodeDefinition &definition,
+                                                    const NodeDefinitionMap &node_definitions,
+                                                    const InputLinkMap &input_links,
+                                                    ValueCache &value_cache,
+                                                    FloatExpressionCache &float_expression_cache,
+                                                    BoolExpressionCache &bool_expression_cache,
+                                                    FlowEventsCache &flow_events_cache)
+{
+  if (const auto cached = flow_events_cache.find(&route_socket); cached != flow_events_cache.end())
+  {
+    return cached->second;
+  }
+
+  FlowEventsResult result;
+  result.valid = false;
+
+  FlowPath source_path;
+  uint32_t condition = LN_INVALID_INDEX;
+  if (!PollingRouteSource(program,
+                          tree,
+                          source_node,
+                          route_socket,
+                          definition,
+                          node_definitions,
+                          input_links,
+                          value_cache,
+                          float_expression_cache,
+                          bool_expression_cache,
+                          source_path,
+                          condition))
+  {
+    flow_events_cache[&route_socket] = result;
+    return result;
+  }
   FlowEventsResult source_flow;
   source_flow.paths.push_back(source_path);
 
@@ -956,7 +1059,7 @@ static FlowEventsResult BuildPollingRouteFlowEvents(LN_Program &program,
                                        source_node,
                                        route_socket,
                                        source_flow,
-                                       *condition,
+                                       condition,
                                        true,
                                        nullptr,
                                        flow_events_cache);
@@ -1228,6 +1331,45 @@ static FlowEventsResult BuildCommandContinuationRouteFlowEvents(
                                        flow_events_cache);
 }
 
+/** A route of an execution input of `node` (Wait for Next Frame's Flow, a Tween's Forward or Back)
+ * is a UI event's: what the node finishes belongs to that UI route and runs while paused too. */
+static bool StartedByUIRoute(LN_Program &program,
+                             const blender::bNodeTree &tree,
+                             const blender::bNode &node,
+                             const LN_NodeDefinition &definition,
+                             const NodeDefinitionMap &node_definitions,
+                             const InputLinkMap &input_links,
+                             ValueCache &value_cache,
+                             FloatExpressionCache &float_expression_cache,
+                             BoolExpressionCache &bool_expression_cache,
+                             FlowEventsCache &flow_events_cache,
+                             LoopFrameCache &loop_frame_cache)
+{
+  for (const LN_PinDefinition &pin : definition.inputs) {
+    if (pin.kind != LN_PinKind::Execution) {
+      continue;
+    }
+    const FlowEventsResult input_flow = ResolveFlowEvents(program,
+                                                          tree,
+                                                          node,
+                                                          pin.name,
+                                                          node_definitions,
+                                                          input_links,
+                                                          value_cache,
+                                                          float_expression_cache,
+                                                          bool_expression_cache,
+                                                          flow_events_cache,
+                                                          loop_frame_cache);
+    if (std::any_of(input_flow.paths.begin(), input_flow.paths.end(), [](const FlowPath &path) {
+          return path.ui_event_route;
+        }))
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 static FlowEventsResult ResolveFlowLinkEvents(LN_Program &program,
                                               const blender::bNodeTree &tree,
                                               const ResolvedLink &link,
@@ -1343,27 +1485,18 @@ static FlowEventsResult ResolveFlowLinkEvents(LN_Program &program,
             return path.ui_event_route;
           }))
       {
-        bool started_by_ui = false;
-        for (const LN_PinDefinition &pin : definition.inputs) {
-          if (pin.kind != LN_PinKind::Execution || started_by_ui) {
-            continue;
-          }
-          const FlowEventsResult input_flow = ResolveFlowEvents(program,
-                                                                tree,
-                                                                *link.fromnode,
-                                                                pin.name,
-                                                                node_definitions,
-                                                                input_links,
-                                                                value_cache,
-                                                                float_expression_cache,
-                                                                bool_expression_cache,
-                                                                flow_events_cache,
-                                                                loop_frame_cache);
-          started_by_ui = std::any_of(input_flow.paths.begin(),
-                                      input_flow.paths.end(),
-                                      [](const FlowPath &path) { return path.ui_event_route; });
-        }
-        if (started_by_ui) {
+        if (StartedByUIRoute(program,
+                             tree,
+                             *link.fromnode,
+                             definition,
+                             node_definitions,
+                             input_links,
+                             value_cache,
+                             float_expression_cache,
+                             bool_expression_cache,
+                             flow_events_cache,
+                             loop_frame_cache))
+        {
           for (FlowPath &path : result.paths) {
             path.ui_event_route = true;
           }
@@ -2463,6 +2596,36 @@ static void WarnCombineXYZWIntoVectorInputs(LN_Program &program,
         }
       }
     }
+  }
+}
+
+/** Compare with Type Object and Greater or Less (2026-11-17): objects are only the same or not,
+ * so such a Compare is always false. The editor lists only Equal and Not Equal for objects (and
+ * turns the others into Equal when the Type becomes Object); a node saved so before says it. */
+static void WarnCompareOrderOfObjects(LN_Program &program,
+                                      const blender::bNodeTree &tree,
+                                      const std::vector<const blender::bNode *> &nodes,
+                                      const NodeDefinitionMap &node_definitions,
+                                      const ActiveNodeSet &active_nodes)
+{
+  constexpr int16_t type_object = 2;
+  for (const blender::bNode *node : nodes) {
+    if (!IsNodeActive(active_nodes, node) || node->custom2 != type_object || node->custom1 <= 1) {
+      continue;
+    }
+    const auto definition = node_definitions.find(node);
+    if (definition == node_definitions.end() ||
+        definition->second->kind != LN_NodeKind::Compare)
+    {
+      continue;
+    }
+    AddNodeIssue(program,
+                 tree,
+                 *node,
+                 "Result",
+                 LN_CompileSeverity::Warning,
+                 "Compare: objects are only the same or not, so this Greater or Less is always "
+                 "false; choose Equal or Not Equal");
   }
 }
 
@@ -3822,6 +3985,11 @@ void CompileCharacterJumpNode(CompilerContext &context);
 void CompileSetCharacterGravityNode(CompilerContext &context);
 void CompileSetCharacterJumpSpeedNode(CompilerContext &context);
 void CompileSetCharacterMaxJumpsNode(CompilerContext &context);
+void CompileSetCharacterMaxSlopeNode(CompilerContext &context);
+void CompileSetNavigationAttributeNode(CompilerContext &context);
+void CompileSetCharacterFallSpeedNode(CompilerContext &context);
+void CompileSetCharacterStepHeightNode(CompilerContext &context);
+void CompileSetCharacterCrouchNode(CompilerContext &context);
 void CompileSetCharacterWalkDirectionNode(CompilerContext &context);
 void CompileSetCharacterVelocityNode(CompilerContext &context);
 void CompileVehicleControlNode(CompilerContext &context);
@@ -3853,6 +4021,7 @@ void CompileLoadBlendFileNode(CompilerContext &context);
 void CompilePlayActionNode(CompilerContext &context);
 void CompileStopActionNode(CompilerContext &context);
 void CompileSetActionFrameNode(CompilerContext &context);
+void CompileSetActionLayerNode(CompilerContext &context);
 void CompileSetShapeKeyValueNode(CompilerContext &context);
 void CompileStopAllSoundsNode(CompilerContext &context);
 void CompilePlaySoundNode(CompilerContext &context);
@@ -3871,6 +4040,7 @@ void CompileSlowFollowNode(CompilerContext &context);
 void CompileLoadSceneNode(CompilerContext &context);
 void CompileSetSceneNode(CompilerContext &context);
 void CompileSaveGameNode(CompilerContext &context);
+void CompileSaveSlotNode(CompilerContext &context);
 void CompileSetSaveExistenceNode(CompilerContext &context);
 void CompileLoadGameNode(CompilerContext &context);
 void CompileAlignAxisToVectorNode(CompilerContext &context);
@@ -3936,10 +4106,22 @@ void CompileSetUIFocusNode(CompilerContext &context);
 void CompileGetUIFocusNode(CompilerContext &context);
 void CompileScreenAnchorNode(CompilerContext &context);
 void CompileRandomValueNode(CompilerContext &context);
+void CompileSmoothValueNode(CompilerContext &context);
+void CompileNoiseNode(CompilerContext &context);
+void CompileOscillateNode(CompilerContext &context);
+void CompileInputComboNode(CompilerContext &context);
+void CompileFindObjectsNode(CompilerContext &context);
+void CompileStateMachineNode(CompilerContext &context);
 static int32_t RandomNodeIdentity(const CompilerContext &context, bool same_for_all);
+static bool InputOrDefault(CompilerContext &context,
+                           const char *node_name,
+                           const char *input,
+                           std::optional<uint32_t> expr,
+                           uint32_t &r_index);
 void CompileFormulaNode(CompilerContext &context);
 void CompileTweenValueNode(CompilerContext &context);
 void CompileAddPhysicsConstraintNode(CompilerContext &context);
+void CompileSetRigidBodyConstraintNode(CompilerContext &context);
 void CompileGetRigidBodyConstraintsNode(CompilerContext &context);
 void CompileRemovePhysicsConstraintNode(CompilerContext &context);
 FlowPath GuardFlowPath(LN_Program &program, const FlowPath &path, uint32_t guard_expr);
@@ -4171,6 +4353,9 @@ static bool CompileCollectionEdit(CompilerContext &context, const LN_PropertyEdi
     case LN_PropertyEditOp::ListSetIndex:
       node_name = "Set List Index";
       break;
+    case LN_PropertyEditOp::ListInsert:
+      node_name = "Insert";
+      break;
     case LN_PropertyEditOp::DictSetKey:
       node_name = "Set Dictionary Key";
       break;
@@ -4197,13 +4382,15 @@ static bool CompileCollectionEdit(CompilerContext &context, const LN_PropertyEdi
     return true;
   }
   const bool uses_index = op == LN_PropertyEditOp::ListRemoveIndex ||
-                          op == LN_PropertyEditOp::ListSetIndex;
+                          op == LN_PropertyEditOp::ListSetIndex ||
+                          op == LN_PropertyEditOp::ListInsert;
   const bool uses_key = op == LN_PropertyEditOp::DictSetKey ||
                         op == LN_PropertyEditOp::DictAddValue ||
                         op == LN_PropertyEditOp::DictRemoveKey;
   const bool uses_value = op == LN_PropertyEditOp::ListAppend ||
                           op == LN_PropertyEditOp::ListRemoveValue ||
                           op == LN_PropertyEditOp::ListSetIndex ||
+                          op == LN_PropertyEditOp::ListInsert ||
                           op == LN_PropertyEditOp::DictSetKey;
   uint32_t index_expr = LN_INVALID_INDEX;
   uint32_t key_expr = LN_INVALID_INDEX;
@@ -4467,6 +4654,108 @@ void CompileDataContainerNode(CompilerContext &context)
         expression.input2 = *value_expr;
       }
       context.CacheValueOutputPin("List", context.program.AddValueExpression(expression));
+      break;
+    }
+    case LN_NodeKind::ListInsert: {
+      /* As Set List Index (2026-11-17): Game Property mode inserts into the property at the
+       * flush; the List output keeps its Output Only meaning. */
+      if (!CompileCollectionEdit(context, LN_PropertyEditOp::ListInsert)) {
+        const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution();
+        if (done_expr) {
+          context.CacheBoolOutputPin("Done", *done_expr);
+        }
+      }
+      LN_ValueExpression expression;
+      expression.kind = LN_ValueExpressionKind::ListInsert;
+      if (const std::optional<uint32_t> list_expr = context.BuildValueExpression("List")) {
+        expression.input0 = *list_expr;
+      }
+      if (const std::optional<uint32_t> index_expr = context.BuildInt("Index")) {
+        expression.input1 = *index_expr;
+      }
+      if (const std::optional<uint32_t> value_expr = context.BuildValueExpression("Value")) {
+        expression.input2 = *value_expr;
+      }
+      context.CacheValueOutputPin("List", context.program.AddValueExpression(expression));
+      break;
+    }
+    case LN_NodeKind::ListOperation: {
+      /* custom1 the operation (node_logic_list_operation.cc: Reverse 0, Shuffle 1, Slice 2, Min
+       * 3, Max 4, Sum 5, Average 6; LN_ListOps.h). An output the operation hides gives its
+       * default (an empty list, 0, -1), so a link left from it still compiles. */
+      const int32_t operation = context.node.custom1;
+      const bool gives_list = operation >= 0 && operation <= 2;
+      const bool gives_number = operation >= 3 && operation <= 6;
+      const bool gives_index = operation == 3 || operation == 4;
+      if (gives_list && context.OutputIsLinked("List")) {
+        LN_ValueExpression expression;
+        expression.kind = operation == 0 ? LN_ValueExpressionKind::ListReverse :
+                          operation == 1 ? LN_ValueExpressionKind::ListShuffle :
+                                           LN_ValueExpressionKind::ListSlice;
+        if (const std::optional<uint32_t> list_expr = context.BuildValueExpression("List")) {
+          expression.input0 = *list_expr;
+        }
+        if (operation == 1) {
+          /* As Get Random List Item: custom2 Per Object 0 / Same for All 1. */
+          expression.value.int_value = RandomNodeIdentity(context, context.node.custom2 == 1);
+          expression.input1 = context.BuildInt("Seed").value_or(LN_INVALID_INDEX);
+        }
+        else if (operation == 2) {
+          expression.input1 = context.BuildInt("Start").value_or(LN_INVALID_INDEX);
+          expression.input2 = context.BuildInt("Length").value_or(LN_INVALID_INDEX);
+        }
+        context.CacheValueOutputPin("List", context.program.AddValueExpression(expression));
+      }
+      else if (!gives_list) {
+        LN_Value empty;
+        empty.type = LN_ValueType::List;
+        empty.exists = true;
+        context.CacheValueOutputPin("List", AddConstantValueExpression(context.program, empty));
+      }
+      if (gives_number || gives_index) {
+        const std::optional<uint32_t> list_expr = context.BuildValueExpression("List");
+        const int32_t statistic = operation - 3;
+        if (gives_number) {
+          LN_FloatExpression expression;
+          expression.kind = LN_FloatExpressionKind::ListStatistic;
+          expression.input0 = list_expr.value_or(LN_INVALID_INDEX);
+          expression.int_value = statistic;
+          context.CacheFloatOutputPin("Value", context.program.AddFloatExpression(expression));
+        }
+        if (gives_index) {
+          LN_IntExpression expression;
+          expression.kind = LN_IntExpressionKind::ListStatisticIndex;
+          expression.input0 = list_expr.value_or(LN_INVALID_INDEX);
+          expression.int_value = statistic;
+          context.CacheIntOutputPin("Index", context.program.AddIntExpression(expression));
+        }
+      }
+      if (!gives_number) {
+        context.CacheFloatOutputPin("Value", AddConstantFloatExpression(context.program, 0.0f));
+      }
+      if (!gives_index) {
+        context.CacheIntOutputPin("Index", AddConstantIntExpression(context.program, -1));
+      }
+      break;
+    }
+    case LN_NodeKind::GetChildren: {
+      /* An empty Parent is the owner (input0 left out: the tree's own object); a link that did
+       * not compile gives nothing, never the owner. Count is List Length's kind over the list. */
+      const std::optional<uint32_t> parent_expr = context.BuildOptionalObject("Parent");
+      if (!parent_expr && context.InputIsLinked("Parent")) {
+        context.AddError("Parent", "Get Children Parent input link did not compile");
+        break;
+      }
+      LN_ValueExpression expression;
+      expression.kind = LN_ValueExpressionKind::ObjectChildren;
+      expression.input0 = parent_expr.value_or(LN_INVALID_INDEX);
+      expression.input1 = context.BuildBool("All Descendants").value_or(LN_INVALID_INDEX);
+      const uint32_t children = context.program.AddValueExpression(expression);
+      context.CacheValueOutputPin("Children", children);
+      LN_IntExpression count;
+      count.kind = LN_IntExpressionKind::ListLength;
+      count.input0 = children;
+      context.CacheIntOutputPin("Count", context.program.AddIntExpression(count));
       break;
     }
     case LN_NodeKind::DictSetKey: {
@@ -5613,14 +5902,44 @@ void CompileValueSwitchListCompareNode(CompilerContext &context)
 
 void CompileListRandomItemNode(CompilerContext &context)
 {
-  /* custom2: 0 Per Object, 1 Same for All (as Random Value); the identity in value.int_value. */
-  if (const std::optional<uint32_t> list_expr = context.BuildValueExpression("List")) {
+  /* custom2: 0 Per Object, 1 Same for All (as Random Value); the identity in value.int_value.
+   * Weights (2026-11-16): only when linked (else every item equally likely, as before); the
+   * Index output picks the same place (Int::ListRandomIndex of the same fields). */
+  const int32_t identity = RandomNodeIdentity(context, context.node.custom2 == 1);
+  const uint32_t seed = context.BuildInt("Seed").value_or(LN_INVALID_INDEX);
+  uint32_t weights = LN_INVALID_INDEX;
+  if (context.InputIsLinked("Weights") &&
+      !InputOrDefault(context,
+                      "Get Random List Item",
+                      "Weights",
+                      context.BuildValueExpression("Weights"),
+                      weights))
+  {
+    return;
+  }
+  const std::optional<uint32_t> list_expr = context.BuildValueExpression("List");
+  if (list_expr) {
     LN_ValueExpression expression;
     expression.kind = LN_ValueExpressionKind::ListRandomItem;
     expression.input0 = *list_expr;
-    expression.input1 = context.BuildInt("Seed").value_or(LN_INVALID_INDEX);
-    expression.value.int_value = RandomNodeIdentity(context, context.node.custom2 == 1);
+    expression.input1 = seed;
+    expression.input2 = weights;
+    expression.value.int_value = identity;
     context.CacheValueOutputPin("Value", context.program.AddValueExpression(expression));
+  }
+  if (context.OutputIsLinked("Index")) {
+    /* Weights alone give an index too (an empty List). */
+    if (!list_expr && context.InputIsLinked("List")) {
+      context.AddError("List", "Get Random List Item List input link did not compile");
+      return;
+    }
+    LN_IntExpression expression;
+    expression.kind = LN_IntExpressionKind::ListRandomIndex;
+    expression.input0 = list_expr.value_or(LN_INVALID_INDEX);
+    expression.input1 = seed;
+    expression.input2 = weights;
+    expression.int_value = identity;
+    context.CacheIntOutputPin("Index", context.program.AddIntExpression(expression));
   }
 }
 
@@ -6218,6 +6537,54 @@ void CompileGetTreePropertyNode(CompilerContext &context)
   CompileExpressionOutputsNode(context);
 }
 
+/** Input Combo (2026-11-17, LN_InputGestures.h): custom1 the Mode (Sequence 0, Chord 1), custom2
+ * bit 0 not Strict; the linked Steps (Active outputs) into Bool::InputCombo (Step 4 through an
+ * Int::FromBool), its Progress Int::InputComboProgress. Its Triggered starts routes on the steps
+ * as an input's event does. */
+void CompileInputComboNode(CompilerContext &context)
+{
+  LN_BoolExpression combo;
+  combo.kind = LN_BoolExpressionKind::InputCombo;
+  const char *steps[] = {"Step 1", "Step 2", "Step 3", "Step 4"};
+  uint32_t step_exprs[4] = {LN_INVALID_INDEX, LN_INVALID_INDEX, LN_INVALID_INDEX, LN_INVALID_INDEX};
+  uint32_t linked = 0;
+  for (int k = 0; k < 4; k++) {
+    if (!context.InputIsLinked(steps[k])) {
+      continue;
+    }
+    const std::optional<uint32_t> step = context.BuildBool(steps[k]);
+    if (!step) {
+      context.AddError(steps[k], std::string("Input Combo ") + steps[k] + " link did not compile");
+      return;
+    }
+    step_exprs[k] = *step;
+    linked |= 1u << k;
+  }
+  combo.float_expr_index = context.BuildFloat("Time").value_or(LN_INVALID_INDEX);
+  combo.input0 = step_exprs[0];
+  combo.input1 = step_exprs[1];
+  combo.input2 = step_exprs[2];
+  if (step_exprs[3] != LN_INVALID_INDEX) {
+    LN_IntExpression fourth;
+    fourth.kind = LN_IntExpressionKind::FromBool;
+    fourth.input0 = step_exprs[3];
+    combo.int_expr_index = context.program.AddIntExpression(fourth);
+  }
+  const bool chord = context.node.custom1 == int16_t(LN_InputComboMode::Chord);
+  const bool strict = (context.node.custom2 & 1) == 0;
+  combo.int_value = int32_t(context.program.AcquireInputGestureNode(&context.node));
+  combo.secondary_int_value = (chord ? 1 : 0) | int32_t(linked << 4) | (strict ? 1 << 8 : 0);
+  const uint32_t combo_index = context.program.AddBoolExpression(combo);
+  if (context.OutputFeedsActiveNode("Triggered")) {
+    context.has_event_node = true;
+  }
+  context.CacheBoolOutputPin("Triggered", combo_index);
+  LN_IntExpression progress;
+  progress.kind = LN_IntExpressionKind::InputComboProgress;
+  progress.input0 = combo_index;
+  context.CacheIntOutputPin("Progress", context.program.AddIntExpression(progress));
+}
+
 void CompileInputActionNode(CompilerContext &context)
 {
   const uint32_t user = context.BuildInt("User").value_or(LN_INVALID_INDEX);
@@ -6240,7 +6607,33 @@ void CompileInputActionNode(CompilerContext &context)
   if (context.OutputFeedsActiveNode("Out")) {
     context.has_event_node = true;
   }
-  cache_state("Out", MouseInputStatusFromCustom(context.node.custom1));
+  if (LN_IsInputGesture(context.node.custom1 & blender::LOGIC_NODE_INPUT_MODE_MASK)) {
+    /* (2026-11-17) Tap, Double Tap, Hold: Bool::InputGesture over the action's states. */
+    if (context.OutputFeedsActiveNode("Out")) {
+      const auto status_expression = [&](const int32_t status) {
+        LN_BoolExpression expression;
+        expression.kind = LN_BoolExpressionKind::InputActionState;
+        expression.input0 = user;
+        expression.input1 = action;
+        expression.secondary_int_value = status;
+        expression.bool_value = also_ui;
+        return context.program.AddBoolExpression(expression);
+      };
+      if (const std::optional<uint32_t> gesture = BuildInputGestureExpression(
+              context.program,
+              context.node,
+              status_expression,
+              context.node_definitions,
+              context.input_links,
+              context.value_cache))
+      {
+        context.CacheBoolOutputPin("Out", *gesture);
+      }
+    }
+  }
+  else {
+    cache_state("Out", MouseInputStatusFromCustom(context.node.custom1));
+  }
   cache_state("Active", SCA_InputEvent::ACTIVE);
   cache_state("Pressed", SCA_InputEvent::JUSTACTIVATED);
   cache_state("Released", SCA_InputEvent::JUSTRELEASED);
@@ -6767,6 +7160,37 @@ void CompileRandomValueNode(CompilerContext &context)
       }
       break;
     }
+    case 4:
+    case 5:
+    case 6:
+    case 7: {
+      /* The shapes (2026-11-16): 4 Direction, 5 In Sphere, 6 In Circle, 7 In Cone (the
+       * LN_RandomShape of type - 4), into the Vector output. Only the inputs a shape reads. */
+      const LN_RandomShape shape = LN_RandomShape(context.node.custom1 - 4);
+      LN_VectorExpression expression;
+      expression.kind = LN_VectorExpressionKind::RandomShape;
+      expression.property_ref_index = uint32_t(shape);
+      expression.input2 = seed;
+      expression.int_value = identity;
+      if (shape == LN_RandomShape::InSphere || shape == LN_RandomShape::InCircle) {
+        const std::optional<uint32_t> radius = context.BuildFloat("Radius");
+        if (!radius) {
+          break;
+        }
+        expression.float_expr_index = *radius;
+      }
+      else if (shape == LN_RandomShape::InCone) {
+        const std::optional<uint32_t> axis = context.BuildVector("Axis");
+        const std::optional<uint32_t> angle = context.BuildFloat("Angle");
+        if (!axis || !angle) {
+          break;
+        }
+        expression.input0 = *axis;
+        expression.float_expr_index = *angle;
+      }
+      context.CacheVectorOutputPin("Value_Vector", context.program.AddVectorExpression(expression));
+      break;
+    }
     default: {
       const std::optional<uint32_t> min_expr = context.BuildFloat("Min");
       const std::optional<uint32_t> max_expr = context.BuildFloat("Max");
@@ -6782,6 +7206,259 @@ void CompileRandomValueNode(CompilerContext &context)
       break;
     }
   }
+}
+
+/** Smooth Value (2026-11-16): custom1 the type (0 Float: the output Value, 1 Vector: Value_Vector),
+ * custom2 the LN_SmoothMode. Each output keeps its own value per tree
+ * (LN_Program::AcquireSmoothValueNode); the hidden type's output is built only when linked. An
+ * input the mode does not read is no input (Smooth, Constant Speed: Speed; Smooth Damp: Smooth
+ * Time and Max Speed). */
+void CompileSmoothValueNode(CompilerContext &context)
+{
+  const int32_t mode = std::clamp(
+      int32_t(context.node.custom2), 0, int32_t(LN_SmoothMode::Count) - 1);
+  const bool damp = LN_SmoothMode(mode) == LN_SmoothMode::SmoothDamp;
+  const bool vector_type = context.node.custom1 == 1;
+  uint32_t reset = LN_INVALID_INDEX, speed = LN_INVALID_INDEX, max_speed = LN_INVALID_INDEX;
+  uint32_t ignore = LN_INVALID_INDEX;
+  const char *speed_name = damp ? "Smooth Time" : "Speed";
+  if (!InputOrDefault(context, "Smooth Value", "Reset", context.BuildBool("Reset"), reset) ||
+      !InputOrDefault(context, "Smooth Value", speed_name, context.BuildFloat(speed_name), speed) ||
+      (damp && !InputOrDefault(context,
+                               "Smooth Value",
+                               "Max Speed",
+                               context.BuildFloat("Max Speed"),
+                               max_speed)) ||
+      !InputOrDefault(context,
+                      "Smooth Value",
+                      "Ignore Timescale",
+                      context.BuildBool("Ignore Timescale"),
+                      ignore))
+  {
+    return;
+  }
+  if (!vector_type || context.OutputIsLinked("Value")) {
+    uint32_t target = LN_INVALID_INDEX;
+    if (!InputOrDefault(context, "Smooth Value", "Target", context.BuildFloat("Target"), target)) {
+      return;
+    }
+    LN_FloatExpression expression;
+    expression.kind = LN_FloatExpressionKind::SmoothValue;
+    expression.int_value = int32_t(context.program.AcquireSmoothValueNode(&context.node, 0));
+    expression.component_index = uint8_t(mode);
+    expression.bool_expr_index = reset;
+    expression.input0 = target;
+    expression.input1 = speed;
+    expression.input2 = max_speed;
+    expression.input_indices = {ignore};
+    context.CacheFloatOutputPin("Value", context.program.AddFloatExpression(expression));
+  }
+  if (vector_type || context.OutputIsLinked("Value_Vector")) {
+    uint32_t target = LN_INVALID_INDEX;
+    if (!InputOrDefault(
+            context, "Smooth Value", "Target_Vector", context.BuildVector("Target_Vector"), target))
+    {
+      return;
+    }
+    LN_VectorExpression expression;
+    expression.kind = LN_VectorExpressionKind::SmoothValue;
+    expression.int_value = int32_t(context.program.AcquireSmoothValueNode(&context.node, 1));
+    expression.property_ref_index = uint32_t(mode);
+    expression.bool_expr_index = reset;
+    expression.input0 = target;
+    expression.float_expr_index = speed;
+    expression.input1 = max_speed;
+    expression.input2 = ignore;
+    context.CacheVectorOutputPin("Value_Vector", context.program.AddVectorExpression(expression));
+  }
+}
+
+/** Noise (2026-11-16): custom1 the dimensions (1 W, 2 X Y, 3 Vector, 4 Vector and W), custom2
+ * the octaves (1 to 8). Value is channel 0; the Vector output combines channels 0, 1, 2 (so
+ * its X is Value). Only the inputs the dimensions read. */
+/** Oscillate (2026-11-17): one cycle expression (the steps' game time x Frequency + Phase, the
+ * object's own phase with Random Phase) feeds Value (Float::Oscillate) and Bob / Orbit
+ * (Vector::Oscillate); custom1 the Wave (LN_Easing.h). */
+void CompileOscillateNode(CompilerContext &context)
+{
+  LN_FloatExpression time;
+  time.kind = LN_FloatExpressionKind::GameTime;
+  LN_FloatExpression cycle;
+  cycle.kind = LN_FloatExpressionKind::OscillateCycle;
+  cycle.input0 = context.program.AddFloatExpression(time);
+  cycle.input1 = context.BuildFloat("Frequency").value_or(LN_INVALID_INDEX);
+  cycle.input2 = context.BuildFloat("Phase").value_or(LN_INVALID_INDEX);
+  cycle.bool_expr_index = context.BuildBool("Random Phase").value_or(LN_INVALID_INDEX);
+  cycle.int_value = RandomNodeIdentity(context, false);
+  const uint32_t cycle_index = context.program.AddFloatExpression(cycle);
+  const int32_t wave = std::clamp(int32_t(context.node.custom1), 0, 3);
+
+  LN_FloatExpression value;
+  value.kind = LN_FloatExpressionKind::Oscillate;
+  value.input0 = cycle_index;
+  value.input1 = context.BuildFloat("Amplitude").value_or(LN_INVALID_INDEX);
+  value.input2 = context.BuildFloat("Center").value_or(LN_INVALID_INDEX);
+  value.int_value = wave;
+  context.CacheFloatOutputPin("Value", context.program.AddFloatExpression(value));
+
+  for (const bool orbit : {false, true}) {
+    LN_VectorExpression vector;
+    vector.kind = LN_VectorExpressionKind::Oscillate;
+    vector.input0 = cycle_index;
+    vector.input1 = context.BuildVector("Axis").value_or(LN_INVALID_INDEX);
+    vector.float_expr_index = context.BuildFloat("Amplitude").value_or(LN_INVALID_INDEX);
+    vector.int_value = orbit ? LN_OSCILLATE_ORBIT : wave;
+    context.CacheVectorOutputPin(orbit ? "Orbit" : "Bob",
+                                 context.program.AddVectorExpression(vector));
+  }
+}
+
+void CompileNoiseNode(CompilerContext &context)
+{
+  const int dimensions = std::clamp(int(context.node.custom1), 1, 4);
+  const int octaves = std::clamp(int(context.node.custom2), 1, 8);
+  uint32_t vector = LN_INVALID_INDEX, w = LN_INVALID_INDEX, scale = LN_INVALID_INDEX;
+  uint32_t roughness = LN_INVALID_INDEX, seed = LN_INVALID_INDEX;
+  if ((dimensions != 1 &&
+       !InputOrDefault(context, "Noise", "Vector", context.BuildVector("Vector"), vector)) ||
+      ((dimensions == 1 || dimensions == 4) &&
+       !InputOrDefault(context, "Noise", "W", context.BuildFloat("W"), w)) ||
+      !InputOrDefault(context, "Noise", "Scale", context.BuildFloat("Scale"), scale) ||
+      (octaves > 1 &&
+       !InputOrDefault(context, "Noise", "Roughness", context.BuildFloat("Roughness"), roughness)) ||
+      !InputOrDefault(context, "Noise", "Seed", context.BuildInt("Seed"), seed))
+  {
+    return;
+  }
+  const auto channel = [&](const uint8_t index) {
+    LN_FloatExpression expression;
+    expression.kind = LN_FloatExpressionKind::Noise;
+    expression.int_value = LN_NoiseSettings(dimensions, octaves);
+    expression.component_index = index;
+    expression.input0 = vector;
+    expression.input1 = w;
+    expression.input2 = scale;
+    expression.input_indices = {roughness, seed};
+    return context.program.AddFloatExpression(expression);
+  };
+  context.CacheFloatOutputPin("Value", channel(0));
+  if (context.OutputIsLinked("Vector")) {
+    LN_VectorExpression combine;
+    combine.kind = LN_VectorExpressionKind::Combine;
+    combine.input0 = channel(0);
+    combine.input1 = channel(1);
+    combine.input2 = channel(2);
+    context.CacheVectorOutputPin("Vector", context.program.AddVectorExpression(combine));
+  }
+}
+
+/** Find Objects (2026-11-16): custom1 the source (All, Collection, With Property, List), custom2
+ * the pick (Nearest, Farthest, Random, All). A Collection or a Property is picked or typed (the
+ * manager makes its grid before the trees record: no link can choose one while playing). One
+ * query (Query::FindObjects) for the outputs, which read its result as a ray's. */
+void CompileFindObjectsNode(CompilerContext &context)
+{
+  const LN_FindSource source = LN_FindSource(std::clamp(int(context.node.custom1), 0, 3));
+  const LN_FindPick pick = LN_FindPick(std::clamp(int(context.node.custom2), 0, 3));
+  LN_FindSourceKey key;
+  key.source = source;
+  if (source == LN_FindSource::Collection || source == LN_FindSource::Property) {
+    const char *socket = source == LN_FindSource::Collection ? "Collection" : "Property";
+    if (context.InputIsLinked(socket)) {
+      context.AddError(socket,
+                       std::string("Find Objects needs a picked ") + socket +
+                           ": a link cannot choose one while playing");
+      return;
+    }
+    const std::optional<LN_Value> value = context.ReadValue(
+        socket,
+        source == LN_FindSource::Collection ? LN_ValueType::CollectionRef :
+                                              LN_ValueType::String);
+    if (value) {
+      key.name = source == LN_FindSource::Collection ? value->reference_name :
+                                                       value->string_value;
+    }
+    if (key.name.empty()) {
+      context.AddWarning(socket,
+                         std::string("Find Objects finds nothing: no ") + socket + " is given");
+    }
+  }
+  /* (A List's program has a source too: the manager makes the tick's poses for it.) */
+  const uint32_t source_index = context.program.AddFindSource(key);
+  const std::optional<uint32_t> center = context.BuildOptionalObject("Center");
+  if (!center && context.InputIsLinked("Center")) {
+    context.AddError("Center", "Find Objects Center input link did not compile");
+    return;
+  }
+  uint32_t list = LN_INVALID_INDEX, radius = LN_INVALID_INDEX, view = LN_INVALID_INDEX;
+  uint32_t exclude = LN_INVALID_INDEX;
+  if ((source == LN_FindSource::List &&
+       !InputOrDefault(
+           context, "Find Objects", "List", context.BuildValueExpression("List"), list)) ||
+      !InputOrDefault(context, "Find Objects", "Radius", context.BuildFloat("Radius"), radius) ||
+      !InputOrDefault(
+          context, "Find Objects", "View Angle", context.BuildFloat("View Angle"), view) ||
+      !InputOrDefault(
+          context, "Find Objects", "Exclude Self", context.BuildBool("Exclude Self"), exclude))
+  {
+    return;
+  }
+  LN_QueryExpression query;
+  query.kind = LN_QueryExpressionKind::FindObjects;
+  query.int_value = LN_FindSettings(source, pick, source_index);
+  query.secondary_int_value = RandomNodeIdentity(context, false);
+  query.bool_value = context.OutputIsLinked("Count");
+  query.cache_key = context.node.identifier;
+  query.input0 = center.value_or(LN_INVALID_INDEX);
+  query.input1 = list;
+  query.float_expr_index = radius;
+  query.secondary_float_expr_index = view;
+  query.bool_expr_index = exclude;
+  /* Only Visible (2026-11-17): a ray from the Center to each found object; none in a node
+   * without the socket. */
+  if (FindInputSocket(context.node, "Only Visible") != nullptr) {
+    uint32_t only_visible = LN_INVALID_INDEX;
+    if (!InputOrDefault(context,
+                        "Find Objects",
+                        "Only Visible",
+                        context.BuildBool("Only Visible"),
+                        only_visible))
+    {
+      return;
+    }
+    query.secondary_bool_expr_index = only_visible;
+  }
+  const uint32_t query_index = context.program.AddQueryExpression(query);
+
+  LN_BoolExpression found;
+  found.kind = LN_BoolExpressionKind::PhysicsQueryHit;
+  found.input0 = query_index;
+  context.CacheBoolOutputPin("Found", context.program.AddBoolExpression(found));
+  LN_ValueExpression object;
+  object.kind = LN_ValueExpressionKind::PhysicsQueryObject;
+  object.input0 = query_index;
+  context.CacheValueOutputPin("Object", context.program.AddValueExpression(object));
+  LN_VectorExpression position;
+  position.kind = LN_VectorExpressionKind::PhysicsQueryPoint;
+  position.input0 = query_index;
+  context.CacheVectorOutputPin("Position", context.program.AddVectorExpression(position));
+  LN_FloatExpression distance;
+  distance.kind = LN_FloatExpressionKind::PhysicsQueryDistance;
+  distance.input0 = query_index;
+  context.CacheFloatOutputPin("Distance", context.program.AddFloatExpression(distance));
+  LN_IntExpression count;
+  count.kind = LN_IntExpressionKind::QueryVectorCount;
+  count.input0 = query_index;
+  context.CacheIntOutputPin("Count", context.program.AddIntExpression(count));
+  LN_ValueExpression objects;
+  objects.kind = LN_ValueExpressionKind::PhysicsQueryObjects;
+  objects.input0 = query_index;
+  context.CacheValueOutputPin("Objects", context.program.AddValueExpression(objects));
+  /* Distances (2026-11-17): each result's distance, in Objects' order. */
+  LN_ValueExpression distances;
+  distances.kind = LN_ValueExpressionKind::PhysicsQueryDistances;
+  distances.input0 = query_index;
+  context.CacheValueOutputPin("Distances", context.program.AddValueExpression(distances));
 }
 
 /** Set Random Seed (2026-11-07): custom1 0 = the Seed input, 1 = a new seed from the clock. The
@@ -6828,20 +7505,121 @@ void CompileFormulaNode(CompilerContext &context)
   context.CacheFloatOutputPin("Result", context.program.AddFloatExpression(expression));
 }
 
+/** Tween Value's Forward or Back (2026-11-17): an Op::TweenRequest on every route reaching the
+ * input, as any flow input's op. A polling node's pulse (a key, Boolean Edge, On UI Event, another
+ * Tween's Done...) gets its op where the tween compiles, before the nodes reading the tween, in
+ * the polling node's event behind its condition: the tween starts in the step the pulse fires, as
+ * when Forward and Back were read as values (a route's op runs after every op of its event's own
+ * path). False after an error. */
+static bool AppendTweenRequests(CompilerContext &context,
+                                const char *socket_name,
+                                const uint32_t tween_index,
+                                const int32_t direction)
+{
+  const blender::bNodeSocket *socket = FindInputSocket(context.node, socket_name);
+  if (socket == nullptr) {
+    return true;
+  }
+  const auto links = context.input_links.find(socket);
+  if (links == context.input_links.end() || links->second.empty()) {
+    return true;
+  }
+  std::vector<FlowPath> paths;
+  for (const ResolvedLink &link : links->second) {
+    const auto definition = context.node_definitions.find(link.fromnode);
+    const InternalCompileHandler *handler = definition == context.node_definitions.end() ?
+                                                nullptr :
+                                                FindInternalCompileHandler(
+                                                    definition->second->kind);
+    bool resolved = false;
+    if (handler != nullptr && handler->flow_kind == FlowResolverKind::PollingEventRoute) {
+      FlowPath path;
+      uint32_t condition = LN_INVALID_INDEX;
+      if (PollingRouteSource(context.program,
+                             context.tree,
+                             *link.fromnode,
+                             *link.fromsock,
+                             *definition->second,
+                             context.node_definitions,
+                             context.input_links,
+                             context.value_cache,
+                             context.float_expression_cache,
+                             context.bool_expression_cache,
+                             path,
+                             condition))
+      {
+        if (!path.ui_event_route &&
+            ELEM(definition->second->kind, LN_NodeKind::OnNextFrame, LN_NodeKind::TweenValue) &&
+            StartedByUIRoute(context.program,
+                             context.tree,
+                             *link.fromnode,
+                             *definition->second,
+                             context.node_definitions,
+                             context.input_links,
+                             context.value_cache,
+                             context.float_expression_cache,
+                             context.bool_expression_cache,
+                             context.flow_events_cache,
+                             context.loop_frame_cache))
+        {
+          path.ui_event_route = true;
+        }
+        path.bool_guard_expr_index = condition;
+        paths.push_back(std::move(path));
+        resolved = true;
+      }
+    }
+    else if (handler != nullptr) {
+      const FlowEventsResult routes = ResolveFlowLinkEvents(context.program,
+                                                            context.tree,
+                                                            link,
+                                                            context.node_definitions,
+                                                            context.input_links,
+                                                            context.value_cache,
+                                                            context.float_expression_cache,
+                                                            context.bool_expression_cache,
+                                                            context.flow_events_cache,
+                                                            context.loop_frame_cache);
+      if (routes.valid) {
+        paths.insert(paths.end(), routes.paths.begin(), routes.paths.end());
+        resolved = true;
+      }
+    }
+    if (!resolved) {
+      context.AddError(socket_name,
+                       std::string("Tween Value's ") + socket_name +
+                           " must be driven by an event or another execution output");
+      return false;
+    }
+  }
+  for (const FlowPath &path : paths) {
+    LN_Instruction instruction;
+    instruction.opcode = LN_OpCode::TweenRequest;
+    instruction.source_ref_index = context.MakeSourceRef(socket_name);
+    instruction.int_value = int32_t(tween_index);
+    instruction.secondary_int_value = direction;
+    AppendFlowInstruction(context.program, path, instruction);
+  }
+  return true;
+}
+
 void CompileTweenValueNode(CompilerContext &context)
 {
   const int tween_type = std::clamp(int(context.node.custom1), 0, 3);
 
   LN_BoolExpression tween_expr;
   tween_expr.kind = LN_BoolExpressionKind::TweenValue;
-  tween_expr.input0 = context.BuildExecution("Forward").value_or(LN_INVALID_INDEX);
-  tween_expr.input1 = context.BuildExecution("Back").value_or(LN_INVALID_INDEX);
+  /* (2026-11-17) Forward and Back are no inputs of the expression: their routes request
+   * (AppendTweenRequests below). */
   tween_expr.float_expr_index = context.BuildFloat("Duration").value_or(LN_INVALID_INDEX);
   tween_expr.input2 = context.BuildBool("Ignore Timescale").value_or(LN_INVALID_INDEX);
   tween_expr.int_value = tween_type;
   tween_expr.int_expr_index = BakeCurveTable(context);
   tween_expr.bool_value = (context.node.custom2 & 1) != 0;
   tween_expr.float_value = (context.node.custom2 & 2) != 0 ? 1.0f : 0.0f;
+  /* (2026-11-17) Easing, Ease and Repeat: custom2 bits 2-9 (LN_Easing.h); 0 for every node saved
+   * before: its curve, once. */
+  tween_expr.secondary_int_value = (int32_t(context.node.custom2) & 0x3FC) >> 2;
   const uint32_t tween_index = context.program.AddBoolExpression(tween_expr);
   context.CacheBoolOutputPin("Done", tween_index);
 
@@ -6867,7 +7645,8 @@ void CompileTweenValueNode(CompilerContext &context)
   vector_result.input0 = tween_index;
   vector_result.input1 = context.BuildVector("FromVector").value_or(LN_INVALID_INDEX);
   vector_result.input2 = context.BuildVector("ToVector").value_or(LN_INVALID_INDEX);
-  context.CacheVectorOutputPin("ResultVector", context.program.AddVectorExpression(vector_result));
+  const uint32_t vector_index = context.program.AddVectorExpression(vector_result);
+  context.CacheVectorOutputPin("ResultVector", vector_index);
 
   LN_VectorExpression rotation_result;
   rotation_result.kind = LN_VectorExpressionKind::TweenRotationResult;
@@ -6876,8 +7655,73 @@ void CompileTweenValueNode(CompilerContext &context)
   rotation_result.input1 = context.BuildRotation("FromRotation").value_or(LN_INVALID_INDEX);
   rotation_result.input2 = context.BuildRotation("ToRotation").value_or(LN_INVALID_INDEX);
   rotation_result.property_ref_index = tween_type == 3 ? 1u : 0u;
-  context.CacheVectorOutputPin("ResultRotation",
-                               context.program.AddVectorExpression(rotation_result));
+  const uint32_t rotation_index = context.program.AddVectorExpression(rotation_result);
+  context.CacheVectorOutputPin("ResultRotation", rotation_index);
+
+  /* Forward and Back, before Apply To's route reads the tween (On Demand plays without them:
+   * their sockets are hidden). */
+  if (!tween_expr.bool_value &&
+      (!AppendTweenRequests(context, "Forward", tween_index, LN_TWEEN_REQUEST_FORWARD) ||
+       !AppendTweenRequests(context, "Back", tween_index, LN_TWEEN_REQUEST_BACK)))
+  {
+    return;
+  }
+
+  /* Apply To (2026-11-17, custom2 bits 10-12): Set Object Attribute's own instruction for the
+   * attribute, on the tween's Done route (each step it moves or reaches an end; On Demand too:
+   * the route is there, its socket hidden), so every way a tree runs already knows it. */
+  const int apply_to = (int(context.node.custom2) >> 10) & 7;
+  if (apply_to == 0) {
+    return;
+  }
+  const bool vector_type = tween_type == 1;
+  const bool rotation_type = tween_type == 2 || tween_type == 3;
+  std::optional<LN_OpCode> opcode;
+  uint32_t value_index = LN_INVALID_INDEX;
+  if (vector_type && (apply_to == 1 || apply_to == 2 || apply_to == 5 || apply_to == 6)) {
+    opcode = apply_to == 1 ? LN_OpCode::SetWorldPosition :
+             apply_to == 2 ? LN_OpCode::SetLocalPosition :
+             apply_to == 5 ? LN_OpCode::SetWorldScale :
+                             LN_OpCode::SetLocalScale;
+    value_index = vector_index;
+  }
+  else if (rotation_type && (apply_to == 3 || apply_to == 4)) {
+    opcode = apply_to == 3 ? LN_OpCode::SetWorldOrientation : LN_OpCode::SetLocalOrientation;
+    value_index = rotation_index;
+  }
+  if (!opcode) {
+    context.AddWarning("Object", "Tween Value's Apply To does not fit its type: nothing is applied");
+    return;
+  }
+  const blender::bNodeSocket *done = FindOutputSocket(context.node, "Done");
+  if (done == nullptr) {
+    return;
+  }
+  const FlowEventsResult routes = BuildPollingRouteFlowEvents(context.program,
+                                                              context.tree,
+                                                              context.node,
+                                                              *done,
+                                                              context.definition,
+                                                              context.node_definitions,
+                                                              context.input_links,
+                                                              context.value_cache,
+                                                              context.float_expression_cache,
+                                                              context.bool_expression_cache,
+                                                              context.flow_events_cache);
+  if (!routes.valid) {
+    context.AddError("Object", "Tween Value's Apply To found no step to run on");
+    return;
+  }
+  const std::optional<uint32_t> object_expr = context.BuildOptionalObject("Object");
+  for (const FlowPath &path : routes.paths) {
+    AppendSetObjectAttributeVectorInstruction(context,
+                                              path,
+                                              object_expr,
+                                              *opcode,
+                                              "Object",
+                                              value_index,
+                                              MT_Vector3(0.0f, 0.0f, 0.0f));
+  }
 }
 
 void CompileAddPhysicsConstraintNode(CompilerContext &context)
@@ -6983,6 +7827,99 @@ void CompileAddPhysicsConstraintNode(CompilerContext &context)
 
     LN_Instruction instruction;
     instruction.opcode = LN_OpCode::AddPhysicsConstraint;
+    instruction.source_ref_index = context.MakeSourceRef("Name");
+    instruction.bool_guard_expr_index = path.bool_guard_expr_index;
+    instruction.command_payload_index = context.program.AddRigidBodyConstraintCommandPayload(
+        payload);
+    AppendFlowInstruction(context.program, path, instruction);
+  }
+  if (const std::optional<uint32_t> done_expr = context.BuildPrimaryExecution()) {
+    context.CacheBoolOutputPin("Done", *done_expr);
+  }
+}
+
+/** Set Rigid Body Constraint (2026-11-17): Add's op in its set mode (LN_RIGID_BODY_CONSTRAINT_SET
+ * + the setting, custom1), its payload holding the Object, the Name and the setting's inputs
+ * (the Add node's socket names) only. */
+void CompileSetRigidBodyConstraintNode(CompilerContext &context)
+{
+  const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
+      "Set Rigid Body Constraint flow must be driven by an event or branch");
+  if (!flow_events) {
+    return;
+  }
+  const LN_RigidBodyConstraintSetting setting = LN_RigidBodyConstraintSetting(
+      std::clamp(int(context.node.custom1),
+                 int(LN_RigidBodyConstraintSetting::Enabled),
+                 int(LN_RigidBodyConstraintSetting::Breaking)));
+  for (const FlowPath &path : flow_events->paths) {
+    LN_RigidBodyConstraintCommandPayload payload;
+    payload.object_value_expr_index = context.BuildOptionalObject("Object").value_or(
+        LN_INVALID_INDEX);
+    payload.name_string_expr_index = context.BuildString("Name").value_or(LN_INVALID_INDEX);
+    const auto set_bool = [&](const LN_RigidBodyConstraintBoolInput input, const char *name) {
+      payload.bool_expr_indices[size_t(input)] = context.BuildBool(name).value_or(
+          LN_INVALID_INDEX);
+    };
+    const auto set_vector = [&](const LN_RigidBodyConstraintVectorInput input,
+                                const char *name) {
+      payload.vector_expr_indices[size_t(input)] = context.BuildVector(name).value_or(
+          LN_INVALID_INDEX);
+    };
+    const auto set_float = [&](const LN_RigidBodyConstraintFloatInput input, const char *name) {
+      payload.float_expr_indices[size_t(input)] = context.BuildFloat(name).value_or(
+          LN_INVALID_INDEX);
+    };
+    switch (setting) {
+      case LN_RigidBodyConstraintSetting::Enabled:
+        set_bool(LN_RigidBodyConstraintBoolInput::Enabled, "Enabled");
+        break;
+      case LN_RigidBodyConstraintSetting::Limits:
+        set_bool(LN_RigidBodyConstraintBoolInput::UseLimitLinX, "Use Linear Limit X");
+        set_bool(LN_RigidBodyConstraintBoolInput::UseLimitLinY, "Use Linear Limit Y");
+        set_bool(LN_RigidBodyConstraintBoolInput::UseLimitLinZ, "Use Linear Limit Z");
+        set_vector(LN_RigidBodyConstraintVectorInput::LinearLower, "Linear Lower");
+        set_vector(LN_RigidBodyConstraintVectorInput::LinearUpper, "Linear Upper");
+        set_bool(LN_RigidBodyConstraintBoolInput::UseLimitAngX, "Use Angular Limit X");
+        set_bool(LN_RigidBodyConstraintBoolInput::UseLimitAngY, "Use Angular Limit Y");
+        set_bool(LN_RigidBodyConstraintBoolInput::UseLimitAngZ, "Use Angular Limit Z");
+        set_vector(LN_RigidBodyConstraintVectorInput::AngularLower, "Angular Lower");
+        set_vector(LN_RigidBodyConstraintVectorInput::AngularUpper, "Angular Upper");
+        break;
+      case LN_RigidBodyConstraintSetting::Motor:
+        set_bool(LN_RigidBodyConstraintBoolInput::UseMotorLin, "Use Linear Motor");
+        set_float(LN_RigidBodyConstraintFloatInput::MotorLinTargetVelocity,
+                  "Linear Motor Target Velocity");
+        set_float(LN_RigidBodyConstraintFloatInput::MotorLinMaxImpulse,
+                  "Linear Motor Max Impulse");
+        set_bool(LN_RigidBodyConstraintBoolInput::UseMotorAng, "Use Angular Motor");
+        set_float(LN_RigidBodyConstraintFloatInput::MotorAngTargetVelocity,
+                  "Angular Motor Target Velocity");
+        set_float(LN_RigidBodyConstraintFloatInput::MotorAngMaxImpulse,
+                  "Angular Motor Max Impulse");
+        break;
+      case LN_RigidBodyConstraintSetting::Springs:
+        set_bool(LN_RigidBodyConstraintBoolInput::UseSpringX, "Use Spring X");
+        set_bool(LN_RigidBodyConstraintBoolInput::UseSpringY, "Use Spring Y");
+        set_bool(LN_RigidBodyConstraintBoolInput::UseSpringZ, "Use Spring Z");
+        set_vector(LN_RigidBodyConstraintVectorInput::SpringStiffness, "Spring Stiffness");
+        set_vector(LN_RigidBodyConstraintVectorInput::SpringDamping, "Spring Damping");
+        set_bool(LN_RigidBodyConstraintBoolInput::UseSpringAngX, "Use Angular Spring X");
+        set_bool(LN_RigidBodyConstraintBoolInput::UseSpringAngY, "Use Angular Spring Y");
+        set_bool(LN_RigidBodyConstraintBoolInput::UseSpringAngZ, "Use Angular Spring Z");
+        set_vector(LN_RigidBodyConstraintVectorInput::AngularSpringStiffness,
+                   "Angular Spring Stiffness");
+        set_vector(LN_RigidBodyConstraintVectorInput::AngularSpringDamping,
+                   "Angular Spring Damping");
+        break;
+      case LN_RigidBodyConstraintSetting::Breaking:
+        set_bool(LN_RigidBodyConstraintBoolInput::Breakable, "Breakable");
+        set_float(LN_RigidBodyConstraintFloatInput::BreakingThreshold, "Breaking Threshold");
+        break;
+    }
+    LN_Instruction instruction;
+    instruction.opcode = LN_OpCode::AddPhysicsConstraint;
+    instruction.secondary_int_value = LN_RIGID_BODY_CONSTRAINT_SET + int32_t(setting);
     instruction.source_ref_index = context.MakeSourceRef("Name");
     instruction.bool_guard_expr_index = path.bool_guard_expr_index;
     instruction.command_payload_index = context.program.AddRigidBodyConstraintCommandPayload(
@@ -7186,6 +8123,13 @@ void CompileExpressionOutputsNode(CompilerContext &context)
 }
 
 static void CompileGameLoadEventNode(CompilerContext &context)
+{
+  context.has_event_node = true;
+  CompileExpressionOutputsNode(context);
+}
+
+/** On Removed (2026-11-17): a step event (Bool::BeingRemoved), like On Game Loaded's. */
+static void CompileRemovedEventNode(CompilerContext &context)
 {
   context.has_event_node = true;
   CompileExpressionOutputsNode(context);
@@ -7712,6 +8656,158 @@ void CompileSwitchFlowStringNode(CompilerContext &context)
     return;
   }
   CompileSwitchFlowRoutes(context, *input_flow, *selector, outputs, case_values);
+}
+
+/** State Machine (2026-11-17): three hidden tree properties per node (the state, the one before,
+ * the elapsed time it was entered) and existing instructions: Go To, guarded by "State differs",
+ * sets them (previous, entered time, then the state; Entered continues after it), Update on
+ * State <n> as Integer Switch Flow does on the state. No runtime of its own: wide runs take it as
+ * they take tree properties and routes. */
+void CompileStateMachineNode(CompilerContext &context)
+{
+  std::vector<std::pair<uint32_t, std::string>> outputs;
+  for (const blender::bNodeSocket *socket =
+           static_cast<const blender::bNodeSocket *>(context.node.outputs.first);
+       socket;
+       socket = socket->next)
+  {
+    if (const std::optional<uint32_t> rank = DynamicSocketRank(*socket, "State ")) {
+      outputs.emplace_back(*rank, socket->identifier[0] != '\0' ? socket->identifier :
+                                                                  socket->name);
+    }
+  }
+  std::sort(outputs.begin(), outputs.end());
+  for (size_t index = 0; index < outputs.size(); index++) {
+    if (outputs[index].first != index) {
+      context.AddError(outputs[index].second.c_str(),
+                       "State Machine outputs must be numbered from State 0 without a gap");
+      return;
+    }
+  }
+  if (context.InputIsLinked("Start State")) {
+    context.AddError("Start State", "State Machine needs a typed Start State (no link)");
+    return;
+  }
+  const std::optional<LN_Value> start_value = context.ReadValue("Start State", LN_ValueType::Int);
+  const int32_t start = start_value ? start_value->int_value : 0;
+  const std::string base = "__native_state_machine_" + std::to_string(context.node.identifier);
+  LN_Value start_state = MakeDefaultValue(LN_ValueType::Int);
+  start_state.int_value = start;
+  const uint32_t state_ref = AddTreePropertyRef(
+      context.program, base + "_state", LN_ValueType::Int, start_state);
+  const uint32_t previous_ref = AddTreePropertyRef(
+      context.program, base + "_previous", LN_ValueType::Int, start_state);
+  const uint32_t since_ref = AddTreePropertyRef(
+      context.program, base + "_since", LN_ValueType::Float, MakeDefaultValue(LN_ValueType::Float));
+  const auto int_read = [&](const uint32_t ref) {
+    LN_IntExpression read;
+    read.kind = LN_IntExpressionKind::RuntimeTreeProperty;
+    read.property_ref_index = ref;
+    return context.program.AddIntExpression(read);
+  };
+  const auto value_of_int = [&](const uint32_t int_expr) {
+    LN_ValueExpression value;
+    value.kind = LN_ValueExpressionKind::FromInt;
+    value.input0 = int_expr;
+    return context.program.AddValueExpression(value);
+  };
+  /* The game's time (2026-11-17): the steps' scaled time, not the frame clock (two steps of one
+   * frame read the same frame time, and its start differs from play to play). */
+  LN_FloatExpression elapsed;
+  elapsed.kind = LN_FloatExpressionKind::GameTime;
+  const uint32_t elapsed_expr = context.program.AddFloatExpression(elapsed);
+  const uint32_t current_int = int_read(state_ref);
+  const uint32_t current_value = value_of_int(current_int);
+
+  /* Go To: State differs -> previous, state, entered time; then Entered. */
+  if (context.InputIsLinked("Go To")) {
+    const std::optional<FlowEventsResult> go_to = context.ResolveOptionalFlow("Go To");
+    const std::optional<uint32_t> target = context.BuildInt("State");
+    if (!go_to || !target) {
+      context.AddError("Go To", "State Machine Go To must be driven by an execution output");
+      return;
+    }
+    const uint32_t target_value = value_of_int(*target);
+    LN_BoolExpression differs;
+    differs.kind = LN_BoolExpressionKind::ValueCompare;
+    differs.input0 = target_value;
+    differs.input1 = current_value;
+    differs.float_compare_operation = LN_FloatCompareOperation::NotEqual;
+    const uint32_t differs_expr = context.program.AddBoolExpression(differs);
+    LN_ValueExpression since_value;
+    since_value.kind = LN_ValueExpressionKind::FromFloat;
+    since_value.input0 = elapsed_expr;
+    const uint32_t since_value_expr = context.program.AddValueExpression(since_value);
+    std::vector<FlowPath> entered_paths;
+    for (const FlowPath &path : go_to->paths) {
+      const FlowPath guarded = GuardFlowPath(context.program, path, differs_expr);
+      const auto set = [&](const uint32_t ref, const uint32_t value) {
+        LN_Instruction instruction;
+        instruction.opcode = LN_OpCode::SetTreeProperty;
+        instruction.source_ref_index = context.MakeSourceRef("Go To");
+        instruction.property_ref_index = ref;
+        instruction.value_expr_index = value;
+        return AppendFlowInstruction(context.program, guarded, instruction);
+      };
+      /* (Each op checks "State differs" again: the state is written last, or the ops after it
+       * would see no difference and not run.) */
+      set(previous_ref, current_value);
+      set(since_ref, since_value_expr);
+      const uint32_t last = set(state_ref, target_value);
+      FlowPath entered = guarded;
+      entered.bool_guard_expr_index = AddInstructionPulseExpression(
+          context.program, LN_BoolExpressionKind::InstructionExecuted, guarded.event, last);
+      entered_paths.push_back(entered);
+    }
+    CachePrecompiledRoutes(context, "Entered", entered_paths);
+  }
+  else if (context.OutputFeedsActiveNode("Entered")) {
+    /* No Go To: Entered never pulses (a route never taken behind Update). */
+    const std::optional<FlowEventsResult> update = context.ResolveOptionalFlow("Update");
+    if (!update) {
+      context.AddError("Go To", "State Machine Entered needs a Go To execution input");
+      return;
+    }
+    const uint32_t never = AddConstantBoolExpression(context.program, false);
+    std::vector<FlowPath> never_paths;
+    for (const FlowPath &path : update->paths) {
+      never_paths.push_back(GuardFlowPath(context.program, path, never));
+    }
+    CachePrecompiledRoutes(context, "Entered", never_paths);
+  }
+
+  /* Update: on to the output of the state it is in. */
+  const bool any_state_output = std::any_of(outputs.begin(), outputs.end(), [&](const auto &o) {
+    return context.OutputFeedsActiveNode(o.second.c_str());
+  });
+  if (any_state_output) {
+    const std::optional<FlowEventsResult> update = context.ResolveOptionalFlow("Update");
+    if (!update) {
+      context.AddError("Update", "State Machine Update must be driven by an event");
+      return;
+    }
+    std::vector<uint32_t> case_values;
+    case_values.reserve(outputs.size());
+    for (const auto &[rank, _name] : outputs) {
+      LN_Value value;
+      value.type = LN_ValueType::Int;
+      value.exists = true;
+      value.int_value = int32_t(rank);
+      case_values.push_back(AddConstantValueExpression(context.program, value));
+    }
+    CompileSwitchFlowRoutes(context, *update, current_value, outputs, case_values);
+  }
+
+  context.CacheIntOutputPin("Current State", current_int);
+  context.CacheIntOutputPin("Previous State", int_read(previous_ref));
+  LN_FloatExpression since_read;
+  since_read.kind = LN_FloatExpressionKind::RuntimeTreeProperty;
+  since_read.property_ref_index = since_ref;
+  LN_FloatExpression time_in_state;
+  time_in_state.kind = LN_FloatExpressionKind::Subtract;
+  time_in_state.input0 = elapsed_expr;
+  time_in_state.input1 = context.program.AddFloatExpression(since_read);
+  context.CacheFloatOutputPin("Time in State", context.program.AddFloatExpression(time_in_state));
 }
 
 static uint32_t AddFlowRouterRouteExpression(LN_Program &program,
@@ -8495,6 +9591,50 @@ void CompileCooldownNode(CompilerContext &context)
   }
 }
 
+/** A Delay's or Timer's Remaining and Waiting outputs and its Stop / Pause / Resume flows
+ * (2026-11-17): the outputs read its time flow state as Cooldown's Remaining and Is Ready do
+ * (Waiting: not ready); the flows are the node's own op (ArmDelay / ArmTimer) with their action
+ * (LN_TIME_FLOW_*), so threading, batches and columns already know them. */
+static void CompileCountdownControls(CompilerContext &context,
+                                     const LN_OpCode opcode,
+                                     const uint32_t state_index,
+                                     const char *node_name)
+{
+  LN_FloatExpression remaining;
+  remaining.kind = LN_FloatExpressionKind::CooldownRemaining;
+  remaining.int_value = int32_t(state_index);
+  context.CacheFloatOutputPin("Remaining", context.program.AddFloatExpression(remaining));
+  LN_BoolExpression ready;
+  ready.kind = LN_BoolExpressionKind::CooldownReady;
+  ready.int_value = int32_t(state_index);
+  context.CacheBoolOutputPin(
+      "Waiting",
+      AddNotBoolExpression(context.program, context.program.AddBoolExpression(ready)));
+  const std::pair<const char *, int32_t> controls[] = {{"Stop", LN_TIME_FLOW_STOP},
+                                                       {"Pause", LN_TIME_FLOW_PAUSE},
+                                                       {"Resume", LN_TIME_FLOW_RESUME}};
+  for (const auto &[socket, action] : controls) {
+    if (!context.InputIsLinked(socket)) {
+      continue;
+    }
+    const std::optional<FlowEventsResult> flow = context.ResolveOptionalFlow(socket);
+    if (!flow) {
+      context.AddError(socket,
+                       std::string(node_name) + " " + socket +
+                           " must be driven by an event or branch");
+      continue;
+    }
+    for (const FlowPath &path : flow->paths) {
+      LN_Instruction instruction;
+      instruction.opcode = opcode;
+      instruction.source_ref_index = context.MakeSourceRef(socket);
+      instruction.int_value = int32_t(state_index);
+      instruction.secondary_int_value = action;
+      AppendFlowInstruction(context.program, path, instruction);
+    }
+  }
+}
+
 void CompileDelayNode(CompilerContext &context)
 {
   const std::optional<uint32_t> duration_expr = context.BuildFloat("Delay");
@@ -8509,6 +9649,7 @@ void CompileDelayNode(CompilerContext &context)
   done_expr.kind = LN_BoolExpressionKind::DelayDone;
   done_expr.int_value = int32_t(state_index);
   context.CacheBoolOutputPin("Out", context.program.AddBoolExpression(done_expr));
+  CompileCountdownControls(context, LN_OpCode::ArmDelay, state_index, "Delay");
 
   const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
       "Delay flow must be driven by an event or branch");
@@ -8548,6 +9689,7 @@ void CompileTimerNode(CompilerContext &context)
   elapsed_expr.int_value = int32_t(timer_state_index);
   const uint32_t elapsed_expr_index = context.program.AddBoolExpression(elapsed_expr);
   context.CacheBoolOutputPin("Out", elapsed_expr_index);
+  CompileCountdownControls(context, LN_OpCode::ArmTimer, timer_state_index, "Timer");
 
   const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
       "Timer Set Timer must be driven by an event or branch");
@@ -8962,14 +10104,69 @@ void CompileNavigateNode(CompilerContext &context)
                      "Move To with Navmesh requires destination, speed, and threshold inputs");
     return;
   }
+  /* (2026-11-18) The Mode (custom1, KX_NavRequest::Mode) and its inputs; Offset (Formation) and
+   * Weights (Flock) share the instruction's second vector. */
+  const int32_t mode = std::clamp(int32_t(context.node.custom1), 0, 6);
+  const std::optional<uint32_t> target_expr = context.BuildOptionalObject("Target Object");
+  const std::optional<uint32_t> avoid_expr = context.BuildBool("Avoid Others");
+  const std::optional<uint32_t> priority_expr = context.BuildInt("Priority");
+  const std::optional<uint32_t> radius_expr = context.BuildFloat("Radius");
+  std::optional<uint32_t> extra_expr;
+  if (mode == 5) {
+    extra_expr = context.BuildVector("Offset");
+  }
+  else if (mode == 6) {
+    extra_expr = context.BuildVector("Weights");
+  }
 
+  /* Stop (2026-11-18): the object's order ends (Set Navigation Attribute's op, attribute Stop),
+   * on every route reaching it. */
+  if (const std::optional<FlowEventsResult> stop_flow = context.ResolveOptionalFlow("Stop")) {
+    for (const FlowPath &path : stop_flow->paths) {
+      LN_Instruction stop;
+      stop.opcode = LN_OpCode::NavigationAttribute;
+      stop.source_ref_index = context.MakeSourceRef("Stop");
+      stop.int_value = int32_t(LN_NavigationAttribute::Stop);
+      if (object_expr) {
+        stop.value_expr_index = *object_expr;
+      }
+      AppendFlowInstruction(context.program, path, stop);
+    }
+  }
+  /* When Reached (2026-11-18): the arrival itself (LN_NAV_STATE_REACHED of the moving object:
+   * once an arrival, read in the step after it), a route of its own checked every Logic +
+   * Physics step, whether or not Navigate ran then (with Until Arrived nothing runs it while
+   * the NPC walks). */
+  {
+    LN_BoolExpression reached;
+    reached.kind = LN_BoolExpressionKind::NavigationState;
+    reached.input0 = object_expr ? *object_expr : LN_INVALID_INDEX;
+    reached.int_value = LN_NAV_STATE_REACHED;
+    const uint32_t reached_expr = context.program.AddBoolExpression(reached);
+    if (context.OutputFeedsActiveNode("When Reached")) {
+      FlowPath step;
+      step.event = LN_Event::OnFixedUpdate;
+      CachePrecompiledRoutes(
+          context,
+          "When Reached",
+          {AppendPrecompiledRoute(context, step, reached_expr, "When Reached")});
+    }
+    else {
+      context.CacheBoolOutputPin("When Reached", reached_expr);
+    }
+  }
+  if (!InputSocketIdentifierIsLinked(context.node, "Flow", context.input_links) &&
+      InputSocketIdentifierIsLinked(context.node, "Stop", context.input_links))
+  {
+    /* Only stopping (another Navigate gives the order). */
+    return;
+  }
   const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
       "Move To with Navmesh flow must be driven by an event or branch");
   if (!flow_events) {
     return;
   }
   std::vector<uint32_t> done_outputs;
-  std::vector<uint32_t> reached_outputs;
   uint32_t first_instruction_index = LN_INVALID_INDEX;
   for (const FlowPath &path : flow_events->paths) {
     LN_Instruction instruction;
@@ -8993,6 +10190,24 @@ void CompileNavigateNode(CompilerContext &context)
     instruction.float_expr_index = *speed_expr;
     instruction.secondary_float_expr_index = *threshold_expr;
     instruction.tertiary_float_expr_index = *rot_speed_expr;
+    instruction.int_value = mode;
+    /* Until Arrived (custom2 LN_NAVIGATE_UNTIL_ARRIVED): one pulse is enough. */
+    instruction.secondary_int_value = (context.node.custom2 & LN_NAVIGATE_UNTIL_ARRIVED) ? 1 : 0;
+    if (target_expr) {
+      instruction.quaternary_value_expr_index = *target_expr;
+    }
+    if (avoid_expr) {
+      instruction.quaternary_bool_expr_index = *avoid_expr;
+    }
+    if (priority_expr) {
+      instruction.tertiary_int_expr_index = *priority_expr;
+    }
+    if (radius_expr) {
+      instruction.quaternary_float_expr_index = *radius_expr;
+    }
+    if (extra_expr) {
+      instruction.secondary_vector_expr_index = *extra_expr;
+    }
     const uint32_t instruction_index = AppendFlowInstruction(context.program, path, instruction);
     if (first_instruction_index == LN_INVALID_INDEX) {
       first_instruction_index = instruction_index;
@@ -9002,15 +10217,8 @@ void CompileNavigateNode(CompilerContext &context)
                                       LN_BoolExpressionKind::InstructionExecuted,
                                       path.event,
                                       instruction_index));
-    reached_outputs.push_back(
-        AddInstructionPulseExpression(context.program,
-                                      LN_BoolExpressionKind::InstructionReached,
-                                      path.event,
-                                      instruction_index));
   }
   context.CacheBoolOutputPin("Done", CombineBoolExpressionsWithOr(context.program, done_outputs));
-  context.CacheBoolOutputPin("When Reached",
-                             CombineBoolExpressionsWithOr(context.program, reached_outputs));
   if (first_instruction_index != LN_INVALID_INDEX) {
     LN_VectorExpression next_point_expression;
     next_point_expression.kind = LN_VectorExpressionKind::InstructionNextPoint;
@@ -9186,8 +10394,15 @@ void CompilePlayActionNode(CompilerContext &context)
 {
   const blender::ID *action_id = context.node.id;
   std::string action_name;
+  const std::optional<LN_Value> typed_name = context.ReadValue("Action Name",
+                                                               LN_ValueType::String);
+  const bool named = context.InputIsLinked("Action Name") ||
+                     (typed_name && typed_name->type == LN_ValueType::String &&
+                      !typed_name->string_value.empty());
   if (action_id == nullptr) {
-    context.AddWarning("action", "Play Action will pulse Failed: no Action is selected");
+    if (!named) {
+      context.AddWarning("action", "Play Action will pulse Failed: no Action is selected");
+    }
   }
   else {
     /* ID codes live in the first two bytes of #ID.name (see #GS in DNA_ID.h). Do not read
@@ -9201,7 +10416,27 @@ void CompilePlayActionNode(CompilerContext &context)
       action_name.assign(action_id->name + 2);
     }
   }
-  const uint32_t name_expr = AddConstantStringExpression(context.program, action_name);
+  /* Action Name (2026-11-16): linked or typed, it names the action; empty, the picked one. */
+  uint32_t name_expr = LN_INVALID_INDEX;
+  if (context.InputIsLinked("Action Name")) {
+    const std::optional<uint32_t> linked = context.BuildString("Action Name");
+    if (!linked) {
+      context.AddError("Action Name", "Play Action Action Name input link did not compile");
+      return;
+    }
+    name_expr = *linked;
+  }
+  else if (const std::optional<LN_Value> typed = context.ReadValue("Action Name",
+                                                                    LN_ValueType::String);
+           typed && typed->type == LN_ValueType::String && !typed->string_value.empty())
+  {
+    name_expr = AddConstantStringExpression(context.program, typed->string_value);
+  }
+  else {
+    name_expr = AddConstantStringExpression(context.program, action_name);
+  }
+  /* Layer Weight (2026-11-16): a generic value (every float field is taken), read as a number. */
+  const std::optional<uint32_t> layer_weight_expr = context.BuildValueExpression("Layer Weight");
 
   const std::optional<uint32_t> start_expr = context.BuildFloat("Start Frame");
   const std::optional<uint32_t> end_expr = context.BuildFloat("End Frame");
@@ -9212,6 +10447,10 @@ void CompilePlayActionNode(CompilerContext &context)
   const std::optional<uint32_t> object_expr = context.BuildOptionalObject("Object");
   if (!start_expr || !end_expr || !layer_expr || !priority_expr || !blendin_expr || !speed_expr) {
     context.AddError("Start Frame", "Play Action requires numeric inputs");
+    return;
+  }
+  if (!layer_weight_expr && context.InputIsLinked("Layer Weight")) {
+    context.AddError("Layer Weight", "Play Action Layer Weight input link did not compile");
     return;
   }
 
@@ -9251,6 +10490,7 @@ void CompilePlayActionNode(CompilerContext &context)
     instruction.secondary_int_value = int32_t(completion.output_mask);
     instruction.property_ref_index = completion.lifecycle;
     instruction.secondary_vector_value = MT_Vector3(-1.0f, 1.0f, 0.0f);
+    instruction.secondary_value_expr_index = layer_weight_expr.value_or(LN_INVALID_INDEX);
     if (object_expr) {
       instruction.value_expr_index = *object_expr;
     }
@@ -9327,6 +10567,40 @@ void CompileSetActionFrameNode(CompilerContext &context)
   }
 }
 
+/** Set Action Layer (2026-11-16): Set Action Frame's instruction with the attribute in
+ * secondary_int_value (1 Speed, 2 Layer Weight: custom1 + 1; 0, every Set Action Frame, the
+ * frame), its value in float_expr_index. */
+void CompileSetActionLayerNode(CompilerContext &context)
+{
+  const bool weight = context.node.custom1 == 1;
+  const std::optional<uint32_t> layer_expr = context.BuildInt("Layer");
+  const std::optional<uint32_t> value_expr = context.BuildFloat(weight ? "Layer Weight" : "Speed");
+  if (!layer_expr || !value_expr) {
+    context.AddError(weight ? "Layer Weight" : "Speed",
+                     "Set Action Layer requires a layer and a value");
+    return;
+  }
+  const std::optional<uint32_t> object_expr = context.BuildOptionalObject("Object");
+  const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
+      "Set Action Layer flow must be driven by an event or branch");
+  if (!flow_events) {
+    return;
+  }
+  for (const FlowPath &path : flow_events->paths) {
+    LN_Instruction instruction;
+    instruction.opcode = LN_OpCode::SetActionFrame;
+    instruction.source_ref_index = context.MakeSourceRef("Flow");
+    instruction.int_expr_index = *layer_expr;
+    instruction.float_expr_index = *value_expr;
+    instruction.secondary_int_value = weight ? LN_ACTION_LAYER_SET_WEIGHT :
+                                               LN_ACTION_LAYER_SET_SPEED;
+    if (object_expr) {
+      instruction.value_expr_index = *object_expr;
+    }
+    AppendFlowInstruction(context.program, path, instruction);
+  }
+}
+
 void CompileSetShapeKeyValueNode(CompilerContext &context)
 {
   const std::optional<uint32_t> shape_key_expr = context.BuildString("Shape Key");
@@ -9371,20 +10645,63 @@ void CompileStopAllSoundsNode(CompilerContext &context)
   }
 }
 
+/** Play Sound / Play Sound 3D's Playing and Finished (2026-11-17): the node's sound slot
+ * (LN_Program::AcquireSoundNode), packed into the op's int_value (bits 4 and up, slot + 1). */
+static int32_t CompileSoundSlotOutputs(CompilerContext &context)
+{
+  const uint32_t slot = context.program.AcquireSoundNode(&context.node);
+  for (const bool finished : {false, true}) {
+    LN_BoolExpression expression;
+    expression.kind = finished ? LN_BoolExpressionKind::SoundFinished :
+                                 LN_BoolExpressionKind::SoundPlaying;
+    expression.int_value = int32_t(slot);
+    context.CacheBoolOutputPin(finished ? "Finished" : "Playing",
+                               context.program.AddBoolExpression(expression));
+  }
+  return int32_t(slot + 1) << 4;
+}
+
+/** A linked Sound input (2026-11-17): the sound's name from the linked value (a Get Sound, a list
+ * of sounds' item), read when the node plays; none when not linked. */
+static std::optional<uint32_t> LinkedSoundName(CompilerContext &context, const char *node_name)
+{
+  if (!context.InputIsLinked("Sound")) {
+    return std::nullopt;
+  }
+  const std::optional<uint32_t> value = context.BuildValueExpression("Sound");
+  if (!value) {
+    context.AddError("Sound", std::string(node_name) + " Sound input link did not compile");
+    return std::nullopt;
+  }
+  LN_StringExpression name;
+  name.kind = LN_StringExpressionKind::FromGenericValue;
+  name.value_expr_index = *value;
+  return context.program.AddStringExpression(name);
+}
+
 void CompilePlaySoundNode(CompilerContext &context)
 {
-  const blender::ID *sound_id = context.node.id;
-  if (sound_id == nullptr) {
-    context.AddWarning("sound", "Play Sound skipped: no Sound is selected on the node");
-    return;
+  const int32_t sound_slot = CompileSoundSlotOutputs(context);
+  uint32_t name_expr = LN_INVALID_INDEX;
+  if (const std::optional<uint32_t> linked = LinkedSoundName(context, "Play Sound")) {
+    name_expr = *linked;
   }
-  const int16_t id_code = int16_t(*reinterpret_cast<const uint16_t *>(sound_id->name));
-  if (id_code != int16_t(blender::ID_SO)) {
-    context.AddWarning("sound", "Play Sound skipped: selected data-block is not a Sound");
-    return;
+  else {
+    if (context.InputIsLinked("Sound")) {
+      return;
+    }
+    const blender::ID *sound_id = context.node.id;
+    if (sound_id == nullptr) {
+      context.AddWarning("sound", "Play Sound skipped: no Sound is selected on the node");
+      return;
+    }
+    const int16_t id_code = int16_t(*reinterpret_cast<const uint16_t *>(sound_id->name));
+    if (id_code != int16_t(blender::ID_SO)) {
+      context.AddWarning("sound", "Play Sound skipped: selected data-block is not a Sound");
+      return;
+    }
+    name_expr = AddConstantStringExpression(context.program, std::string(sound_id->name + 2));
   }
-  const std::string sound_name(sound_id->name + 2);
-  const uint32_t name_expr = AddConstantStringExpression(context.program, sound_name);
 
   const std::optional<uint32_t> volume_expr = context.BuildFloat("Volume");
   const std::optional<uint32_t> pitch_expr = context.BuildFloat("Pitch");
@@ -9410,6 +10727,7 @@ void CompilePlaySoundNode(CompilerContext &context)
     instruction.bool_expr_index = *loop_expr;
     instruction.vector_value = MT_Vector3(1.0f, 1.0f, 0.0f);
     instruction.secondary_int_value = int32_t(LN_SoundGroupFromInt(context.node.custom2, false));
+    instruction.int_value = sound_slot;
     AppendFlowInstruction(context.program, path, instruction);
   }
 }
@@ -9486,10 +10804,18 @@ static bool CompileSoundNameFromNode(CompilerContext &context, std::string &r_so
 
 void CompilePlaySound3DNode(CompilerContext &context)
 {
+  const int32_t sound_slot = CompileSoundSlotOutputs(context);
+  const std::optional<uint32_t> linked_name = LinkedSoundName(context, "Play Sound 3D");
+  if (!linked_name && context.InputIsLinked("Sound")) {
+    return;
+  }
   /* No Sound picked: the Speaker object's own sound, played with its settings (the former Start
    * Speaker node, removed 2026-11-08). */
   std::string sound_name;
-  if (context.node.id == nullptr) {
+  if (linked_name) {
+    /* (The linked Sound: its name when the node plays.) */
+  }
+  else if (context.node.id == nullptr) {
     const blender::bNodeSocket *speaker_socket = FindInputSocket(context.node, "Speaker");
     const auto *speaker_default =
         speaker_socket != nullptr && !context.InputIsLinked("Speaker") ?
@@ -9511,8 +10837,13 @@ void CompilePlaySound3DNode(CompilerContext &context)
   else if (!CompileSoundNameFromNode(context, sound_name)) {
     return;
   }
-  const uint32_t name_expr = AddConstantStringExpression(context.program, sound_name);
+  const uint32_t name_expr = linked_name ? *linked_name :
+                                           AddConstantStringExpression(context.program,
+                                                                       sound_name);
   const std::optional<uint32_t> speaker_expr = context.BuildOptionalObject("Speaker");
+  /* At Position, Position (2026-11-17): unlinked and off, nothing (every older node). */
+  const std::optional<uint32_t> at_position_expr = context.BuildBool("At Position");
+  const std::optional<uint32_t> position_expr = context.BuildVector("Position");
   const std::optional<uint32_t> volume_expr = context.BuildFloat("Volume");
   const std::optional<uint32_t> pitch_expr = context.BuildFloat("Pitch");
   const std::optional<uint32_t> loop_expr = context.BuildBool("Loop");
@@ -9544,7 +10875,9 @@ void CompilePlaySound3DNode(CompilerContext &context)
     instruction.float_expr_index = *volume_expr;
     instruction.secondary_float_expr_index = *pitch_expr;
     instruction.bool_expr_index = *loop_expr;
-    instruction.int_value = listener;
+    instruction.int_value = listener | sound_slot;
+    instruction.tertiary_bool_expr_index = at_position_expr.value_or(LN_INVALID_INDEX);
+    instruction.vector_expr_index = position_expr.value_or(LN_INVALID_INDEX);
     instruction.secondary_int_expr_index = user_expr;
     instruction.secondary_int_value = int32_t(LN_SoundGroupFromInt(context.node.custom2, false));
     if (speaker_expr) {
@@ -9899,6 +11232,60 @@ void CompileSaveGameNode(CompilerContext &context)
     LN_Instruction instruction;
     instruction.opcode = LN_OpCode::SaveGame;
     instruction.source_ref_index = context.MakeSourceRef("Flow");
+    instruction.int_expr_index = *slot_expr;
+    instruction.bool_expr_index = completed_expr;
+    if (path_expr) {
+      instruction.string_expr_index = *path_expr;
+    }
+    AppendFlowInstruction(context.program, path, instruction);
+  }
+  if (context.OutputFeedsActiveNode("Done")) {
+    CachePrecompiledRoutes(context, "Done", ContinuationPaths(*flow_events, completed_expr));
+  }
+}
+
+/** Save Slot (2026-11-17): Exists is Bool::SaveSlotExists (the by-kind builder); Delete is Save
+ * Game's request, deleting (Op::SaveGame, secondary_int_value LN_SAVE_SLOT_DELETE): Done when
+ * the save service did it, after the requests before it, Success then. */
+void CompileSaveSlotNode(CompilerContext &context)
+{
+  if (!context.InputIsLinked("Delete")) {
+    /* Only Exists: no delete ever succeeds. */
+    context.CacheBoolOutputPin("Success", AddConstantBoolExpression(context.program, false));
+    return;
+  }
+  const std::optional<uint32_t> slot_expr = context.BuildInt("Slot");
+  const std::optional<uint32_t> path_expr = context.BuildString("Path");
+  if (!slot_expr) {
+    context.AddError("Slot", "Save Slot requires a slot input");
+    return;
+  }
+  const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredFlow(
+      "Delete", "Save Slot's Delete must be driven by an event or branch");
+  if (!flow_events) {
+    return;
+  }
+  if (std::any_of(flow_events->paths.begin(), flow_events->paths.end(), [](const FlowPath &path) {
+        return path.loop_frame_index != LN_INVALID_INDEX;
+      }))
+  {
+    context.AddError("Delete", "Save Slot's Delete cannot run inside a Loop body");
+    return;
+  }
+
+  LN_BoolExpression completed;
+  completed.kind = LN_BoolExpressionKind::PersistenceCompleted;
+  const uint32_t completed_expr = context.program.AddBoolExpression(completed);
+  LN_BoolExpression succeeded;
+  succeeded.kind = LN_BoolExpressionKind::PersistenceSucceeded;
+  succeeded.input0 = completed_expr;
+  context.CacheBoolOutputPin("Success", context.program.AddBoolExpression(succeeded));
+
+  for (const FlowPath &path : flow_events->paths) {
+    LN_Instruction instruction;
+    instruction.opcode = LN_OpCode::SaveGame;
+    instruction.secondary_int_value = LN_SAVE_SLOT_DELETE;
+    instruction.source_ref_index = context.MakeSourceRef("Delete");
     instruction.int_expr_index = *slot_expr;
     instruction.bool_expr_index = completed_expr;
     if (path_expr) {
@@ -10738,6 +12125,23 @@ void CompileAssignGeometryNodesModifierNode(CompilerContext &context)
   }
 }
 
+/* Draw's Duration (2026-11-17, quaternary_float_expr_index): none in a node without the socket
+ * (a step, as before). */
+static bool DrawDurationExpression(CompilerContext &context, uint32_t &r_duration)
+{
+  r_duration = LN_INVALID_INDEX;
+  if (FindInputSocket(context.node, "Duration") == nullptr) {
+    return true;
+  }
+  const std::optional<uint32_t> duration = context.BuildFloat("Duration");
+  if (!duration) {
+    context.AddError("Duration", "Draw's Duration input did not compile");
+    return false;
+  }
+  r_duration = *duration;
+  return true;
+}
+
 static void CompileDrawBoxLikeNode(CompilerContext &context, const bool cube)
 {
   const std::optional<uint32_t> color_expr = context.BuildColor("Color");
@@ -10749,6 +12153,10 @@ static void CompileDrawBoxLikeNode(CompilerContext &context, const bool cube)
     context.AddError("Width",
                      cube ? "Draw Cube requires color, origin, and width" :
                             "Draw Box requires color, origin, width, length, and height");
+    return;
+  }
+  uint32_t duration = LN_INVALID_INDEX;
+  if (!DrawDurationExpression(context, duration)) {
     return;
   }
   const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
@@ -10767,6 +12175,7 @@ static void CompileDrawBoxLikeNode(CompilerContext &context, const bool cube)
     instruction.secondary_float_expr_index = *length_expr;
     instruction.tertiary_float_expr_index = *height_expr;
     instruction.bool_value = context.node.custom2 != 0;
+    instruction.quaternary_float_expr_index = duration;
     AppendFlowInstruction(context.program, path, instruction);
   }
 }
@@ -10781,6 +12190,10 @@ void CompileDrawNode(CompilerContext &context)
       context.AddError("Target", "Draw line mode requires color, origin, and target inputs");
       return;
     }
+    uint32_t duration = LN_INVALID_INDEX;
+    if (!DrawDurationExpression(context, duration)) {
+      return;
+    }
     const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
         "Draw flow must be driven by an event or branch");
     if (!flow_events) {
@@ -10793,6 +12206,7 @@ void CompileDrawNode(CompilerContext &context)
       instruction.color_expr_index = *color_expr;
       instruction.vector_expr_index = *origin_expr;
       instruction.secondary_vector_expr_index = *target_expr;
+      instruction.quaternary_float_expr_index = duration;
       AppendFlowInstruction(context.program, path, instruction);
     }
     return;
@@ -10802,6 +12216,10 @@ void CompileDrawNode(CompilerContext &context)
     const std::optional<uint32_t> points_expr = context.BuildValueExpression("Points");
     if (!color_expr || !points_expr) {
       context.AddError("Points", "Draw path mode requires color and points inputs");
+      return;
+    }
+    uint32_t duration = LN_INVALID_INDEX;
+    if (!DrawDurationExpression(context, duration)) {
       return;
     }
     const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
@@ -10815,6 +12233,7 @@ void CompileDrawNode(CompilerContext &context)
       instruction.source_ref_index = context.MakeSourceRef("Flow");
       instruction.color_expr_index = *color_expr;
       instruction.value_expr_index = *points_expr;
+      instruction.quaternary_float_expr_index = duration;
       AppendFlowInstruction(context.program, path, instruction);
     }
     return;
@@ -10829,6 +12248,10 @@ void CompileDrawNode(CompilerContext &context)
       context.AddError("Color", "Draw mesh mode requires a color input");
       return;
     }
+    uint32_t duration = LN_INVALID_INDEX;
+    if (!DrawDurationExpression(context, duration)) {
+      return;
+    }
     const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
         "Draw flow must be driven by an event or branch");
     if (!flow_events) {
@@ -10841,6 +12264,7 @@ void CompileDrawNode(CompilerContext &context)
       instruction.source_ref_index = context.MakeSourceRef("Flow");
       instruction.color_expr_index = *color_expr;
       instruction.value_expr_index = object_expr.value_or(LN_INVALID_INDEX);
+      instruction.quaternary_float_expr_index = duration;
       AppendFlowInstruction(context.program, path, instruction);
     }
     return;
@@ -10849,6 +12273,10 @@ void CompileDrawNode(CompilerContext &context)
     const std::optional<uint32_t> length_expr = context.BuildFloat("Length");
     if (!length_expr) {
       context.AddError("Length", "Draw axis mode requires a length input");
+      return;
+    }
+    uint32_t duration = LN_INVALID_INDEX;
+    if (!DrawDurationExpression(context, duration)) {
       return;
     }
     const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
@@ -10863,6 +12291,39 @@ void CompileDrawNode(CompilerContext &context)
       instruction.source_ref_index = context.MakeSourceRef("Flow");
       instruction.float_expr_index = *length_expr;
       instruction.value_expr_index = object_expr.value_or(LN_INVALID_INDEX);
+      instruction.quaternary_float_expr_index = duration;
+      AppendFlowInstruction(context.program, path, instruction);
+    }
+    return;
+  }
+  if (context.node.custom1 == 7) {
+    /* Sphere (2026-11-17): Draw Box's opcode with secondary_int_value 1, the Origin its center,
+     * float_expr_index the Radius. */
+    const std::optional<uint32_t> color_expr = context.BuildColor("Color");
+    const std::optional<uint32_t> origin_expr = context.BuildVector("Origin");
+    const std::optional<uint32_t> radius_expr = context.BuildFloat("Radius");
+    if (!color_expr || !origin_expr || !radius_expr) {
+      context.AddError("Radius", "Draw Sphere requires color, origin, and radius inputs");
+      return;
+    }
+    uint32_t duration = LN_INVALID_INDEX;
+    if (!DrawDurationExpression(context, duration)) {
+      return;
+    }
+    const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
+        "Draw flow must be driven by an event or branch");
+    if (!flow_events) {
+      return;
+    }
+    for (const FlowPath &path : flow_events->paths) {
+      LN_Instruction instruction;
+      instruction.opcode = LN_OpCode::DrawBox;
+      instruction.secondary_int_value = 1;
+      instruction.source_ref_index = context.MakeSourceRef("Flow");
+      instruction.color_expr_index = *color_expr;
+      instruction.vector_expr_index = *origin_expr;
+      instruction.float_expr_index = *radius_expr;
+      instruction.quaternary_float_expr_index = duration;
       AppendFlowInstruction(context.program, path, instruction);
     }
     return;
@@ -10885,9 +12346,13 @@ void CompileGetObjectAttributeNode(CompilerContext &context)
 
 void CompileRotateTowardNode(CompilerContext &context)
 {
+  /* Turn (2026-11-16, custom1): 0 Factor (every older node: a share of the turn left each
+   * step), 1 Turn Speed (at most that many radians a second, the op's int_value 1). */
+  const bool turn_speed = context.node.custom1 == 1;
   const std::optional<uint32_t> object_expr = context.BuildOptionalObject("Object");
   const std::optional<uint32_t> target_expr = context.BuildVector("Target");
-  const std::optional<uint32_t> factor_expr = context.BuildFloat("Factor");
+  const std::optional<uint32_t> factor_expr = context.BuildFloat(turn_speed ? "Turn Speed" :
+                                                                              "Factor");
   const std::optional<uint32_t> rot_axis_expr = context.BuildInt("Rot Axis");
   const std::optional<uint32_t> front_axis_expr = context.BuildInt("Front Axis");
   if (!target_expr || !factor_expr || !rot_axis_expr || !front_axis_expr) {
@@ -10908,6 +12373,7 @@ void CompileRotateTowardNode(CompilerContext &context)
     instruction.source_ref_index = context.MakeSourceRef("Flow");
     instruction.vector_expr_index = *target_expr;
     instruction.float_expr_index = *factor_expr;
+    instruction.int_value = turn_speed ? 1 : 0;
     instruction.int_expr_index = *rot_axis_expr;
     instruction.secondary_int_expr_index = *front_axis_expr;
     if (object_expr) {
@@ -11127,7 +12593,8 @@ void CompileSetRigidBodyAttributeNode(CompilerContext &context)
       break;
     }
     case LN_RigidBodyAttribute::Ccd:
-    case LN_RigidBodyAttribute::AllowPhysicsRotation: {
+    case LN_RigidBodyAttribute::AllowPhysicsRotation:
+    case LN_RigidBodyAttribute::Compound: {
       const std::optional<uint32_t> enabled_expr = context.BuildBool("Enabled");
       if (!enabled_expr) {
         context.AddError("Enabled", "Set Rigid Body Attribute requires a boolean enabled input");
@@ -12255,9 +13722,13 @@ void CompileExplosionImpulseNode(CompilerContext &context)
   const std::optional<uint32_t> center_object_expr = at_object ?
                                                          context.BuildOptionalObject("Object") :
                                                          std::nullopt;
-  const std::optional<uint32_t> origin_expr = at_object ?
-                                                  std::optional<uint32_t>(LN_INVALID_INDEX) :
-                                                  context.BuildVector("Origin");
+  /* The Object's Offset (2026-11-17), in its own space; a node without the socket: none. In
+   * Position mode the Origin. Both ride in vector_expr_index. */
+  const std::optional<uint32_t> origin_expr =
+      !at_object ? context.BuildVector("Origin") :
+      FindInputSocket(context.node, "Offset") != nullptr ?
+                   context.BuildVector("Offset") :
+                   std::optional<uint32_t>(LN_INVALID_INDEX);
   const std::optional<uint32_t> radius_expr = context.BuildFloat("Radius");
   const std::optional<uint32_t> strength_expr = context.BuildFloat("Strength");
   const std::optional<uint32_t> lift_expr = context.BuildFloat("Upward Lift");
@@ -12271,7 +13742,8 @@ void CompileExplosionImpulseNode(CompilerContext &context)
           std::optional<uint32_t>(LN_INVALID_INDEX);
   const std::optional<uint32_t> property_expr = context.BuildString("Property");
   const std::optional<uint32_t> mask_expr = context.BuildInt("Mask");
-  const std::pair<const char *, bool> inputs[] = {{"Origin", bool(origin_expr)},
+  const std::pair<const char *, bool> inputs[] = {{at_object ? "Offset" : "Origin",
+                                                   bool(origin_expr)},
                                                   {"Radius", bool(radius_expr)},
                                                   {"Strength", bool(strength_expr)},
                                                   {"Upward Lift", bool(lift_expr)},
@@ -12293,9 +13765,10 @@ void CompileExplosionImpulseNode(CompilerContext &context)
   if (!flow_events) {
     return;
   }
-  const MT_Vector3 origin_fallback = at_object ? MT_Vector3(0.0f, 0.0f, 0.0f) :
-                                                 VectorExpressionConstantFallback(context.program,
-                                                                                  *origin_expr);
+  const MT_Vector3 origin_fallback = *origin_expr == LN_INVALID_INDEX ?
+                                         MT_Vector3(0.0f, 0.0f, 0.0f) :
+                                         VectorExpressionConstantFallback(context.program,
+                                                                          *origin_expr);
   for (const FlowPath &path : flow_events->paths) {
     LN_Instruction instruction;
     instruction.opcode = LN_OpCode::ExplosionImpulse;
@@ -12973,6 +14446,140 @@ void CompileSetCharacterJumpSpeedNode(CompilerContext &context)
   }
 }
 
+/** Set Character Attribute's Max Slope, Fall Speed, Step Height and Crouch (2026-11-17): Set Jump
+ * Force's op with the setting in int_value (LN_CHARACTER_SETTING_*); \a float_socket is the
+ * value, Crouch's Height; \a bool_socket only Crouch's. */
+void CompileSetCharacterSetting(CompilerContext &context,
+                                const int32_t setting,
+                                const char *float_socket,
+                                const char *bool_socket,
+                                const char *label)
+{
+  const std::optional<uint32_t> float_expr = context.BuildFloat(float_socket);
+  if (!float_expr) {
+    context.AddError(float_socket,
+                     std::string(label) + " requires a float " + float_socket + " input");
+    return;
+  }
+  std::optional<uint32_t> bool_expr;
+  if (bool_socket != nullptr) {
+    bool_expr = context.BuildBool(bool_socket);
+    if (!bool_expr) {
+      context.AddError(bool_socket,
+                       std::string(label) + " requires a " + bool_socket + " input");
+      return;
+    }
+  }
+
+  const std::optional<uint32_t> object_expr = context.BuildOptionalObject("Object");
+  const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
+      std::string(label) + " flow must be driven by an event or branch");
+  if (!flow_events) {
+    return;
+  }
+
+  const float float_fallback = FloatExpressionConstantFallback(context.program, *float_expr);
+  const bool bool_fallback = bool_expr ?
+                                 BoolExpressionConstantFallback(context.program, *bool_expr) :
+                                 false;
+  for (const FlowPath &path : flow_events->paths) {
+    LN_Instruction instruction;
+    instruction.opcode = LN_OpCode::SetCharacterJumpSpeed;
+    instruction.source_ref_index = context.MakeSourceRef(float_socket);
+    if (object_expr) {
+      instruction.value_expr_index = *object_expr;
+    }
+    instruction.float_expr_index = *float_expr;
+    instruction.vector_value = MT_Vector3(float_fallback, 0.0f, 0.0f);
+    instruction.int_value = setting;
+    if (bool_expr) {
+      instruction.bool_expr_index = *bool_expr;
+      instruction.bool_value = bool_fallback;
+    }
+    AppendFlowInstruction(context.program, path, instruction);
+  }
+}
+
+void CompileSetNavigationAttributeNode(CompilerContext &context)
+{
+  /* Set Navigation Attribute (2026-11-18): custom1 the LN_NavigationAttribute; a request handed
+   * to the navigation at the flush's end (Op::NavigationAttribute). */
+  const LN_NavigationAttribute attribute = LN_NavigationAttribute(
+      std::clamp(int(context.node.custom1), 0, 3));
+  const std::optional<uint32_t> object_expr = context.BuildOptionalObject("Object");
+  std::optional<uint32_t> enabled_expr, area_expr, cost_expr, center_expr, size_expr;
+  switch (attribute) {
+    case LN_NavigationAttribute::Obstacle:
+      enabled_expr = context.BuildBool("Enabled");
+      break;
+    case LN_NavigationAttribute::AreaCost:
+      area_expr = context.BuildString("Area");
+      cost_expr = context.BuildFloat("Cost");
+      break;
+    case LN_NavigationAttribute::AreaClosed:
+      area_expr = context.BuildString("Area");
+      enabled_expr = context.BuildBool("Closed");
+      break;
+    case LN_NavigationAttribute::RebuildArea:
+      center_expr = context.BuildVector("Center");
+      size_expr = context.BuildVector("Size");
+      break;
+  }
+  const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
+      "Set Navigation Attribute flow must be driven by an event or branch");
+  if (!flow_events) {
+    return;
+  }
+  for (const FlowPath &path : flow_events->paths) {
+    LN_Instruction instruction;
+    instruction.opcode = LN_OpCode::NavigationAttribute;
+    instruction.source_ref_index = context.MakeSourceRef("Flow");
+    instruction.int_value = int32_t(attribute);
+    if (object_expr) {
+      instruction.value_expr_index = *object_expr;
+    }
+    if (enabled_expr) {
+      instruction.bool_expr_index = *enabled_expr;
+    }
+    if (area_expr) {
+      instruction.string_expr_index = *area_expr;
+    }
+    if (cost_expr) {
+      instruction.float_expr_index = *cost_expr;
+    }
+    if (center_expr) {
+      instruction.vector_expr_index = *center_expr;
+    }
+    if (size_expr) {
+      instruction.secondary_vector_expr_index = *size_expr;
+    }
+    AppendFlowInstruction(context.program, path, instruction);
+  }
+}
+
+void CompileSetCharacterMaxSlopeNode(CompilerContext &context)
+{
+  CompileSetCharacterSetting(
+      context, LN_CHARACTER_SETTING_MAX_SLOPE, "Max Slope", nullptr, "Set Max Slope");
+}
+
+void CompileSetCharacterFallSpeedNode(CompilerContext &context)
+{
+  CompileSetCharacterSetting(
+      context, LN_CHARACTER_SETTING_FALL_SPEED, "Fall Speed", nullptr, "Set Fall Speed");
+}
+
+void CompileSetCharacterStepHeightNode(CompilerContext &context)
+{
+  CompileSetCharacterSetting(
+      context, LN_CHARACTER_SETTING_STEP_HEIGHT, "Step Height", nullptr, "Set Step Height");
+}
+
+void CompileSetCharacterCrouchNode(CompilerContext &context)
+{
+  CompileSetCharacterSetting(context, LN_CHARACTER_SETTING_CROUCH, "Height", "Crouch", "Crouch");
+}
+
 void CompileSetCharacterMaxJumpsNode(CompilerContext &context)
 {
   const std::optional<uint32_t> max_jumps_expr = context.BuildInt("Max Jumps");
@@ -13438,6 +15045,10 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
                         "event.game_loaded",
                         FlowResolverKind::PollingEventRoute,
                         CompileGameLoadEventNode),
+    CUSTOM_EXPR_HANDLER(OnRemoved,
+                        "event.removed",
+                        FlowResolverKind::PollingEventRoute,
+                        CompileRemovedEventNode),
     CUSTOM_EXPR_HANDLER(OnPlayerJoin,
                         "event.player_join",
                         FlowResolverKind::PollingEventRoute,
@@ -13467,6 +15078,12 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
         VectorRotate, "vector.rotate", FlowResolverKind::Invalid, CompileExpressionOutputsNode),
     CUSTOM_EXPR_HANDLER(VectorToRotation,
                         "vector.to_rotation",
+                        FlowResolverKind::Invalid,
+                        CompileExpressionOutputsNode),
+    CUSTOM_EXPR_HANDLER(
+        RotationMath, "rotation.math", FlowResolverKind::Invalid, CompileExpressionOutputsNode),
+    CUSTOM_EXPR_HANDLER(TransformVector,
+                        "vector.transform",
                         FlowResolverKind::Invalid,
                         CompileExpressionOutputsNode),
     CUSTOM_EXPR_HANDLER(BoneRotationToObjectRotation,
@@ -13518,6 +15135,10 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
                         "flow.switch_int",
                         FlowResolverKind::PrecompiledRoute,
                         CompileSwitchFlowIntNode),
+    CUSTOM_EXPR_HANDLER(StateMachine,
+                        "flow.state_machine",
+                        FlowResolverKind::PrecompiledRoute,
+                        CompileStateMachineNode),
     CUSTOM_EXPR_HANDLER(SwitchFlowString,
                         "flow.switch_string",
                         FlowResolverKind::PrecompiledRoute,
@@ -13593,6 +15214,7 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     DATA_ACTION_HANDLER(ListRemoveIndex, "data.list_remove_index"),
     DATA_ACTION_HANDLER(ListRemoveValue, "data.list_remove_value"),
     DATA_ACTION_HANDLER(ListSetIndex, "data.list_set_index"),
+    DATA_ACTION_HANDLER(ListInsert, "data.list_insert"),
     DATA_ACTION_HANDLER(DictSetKey, "data.dict_set_key"),
     DATA_ACTION_HANDLER(DictAddValue, "data.dict_add_value"),
     COMMAND_HANDLER(Inventory, "data.inventory", CompileInventoryNode),
@@ -13603,6 +15225,8 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     DATA_CONTAINER_HANDLER(FindRecipe, "data.find_recipe"),
     DATA_CONTAINER_HANDLER(ListSort, "data.list_sort"),
     DATA_CONTAINER_HANDLER(ListFindIndex, "data.list_find_index"),
+    DATA_CONTAINER_HANDLER(ListOperation, "data.list_operation"),
+    DATA_CONTAINER_HANDLER(GetChildren, "objects.get_children"),
     COMMAND_HANDLER(SetText, "ui.set_text", CompileSetTextNode),
     DATA_ACTION_HANDLER(DictRemoveKey, "data.dict_remove_key"),
     DATA_CONTAINER_HANDLER(ListFromItems, "data.list_from_items"),
@@ -13615,6 +15239,13 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     DATA_CONTAINER_HANDLER(ListContains, "data.list_contains"),
     CUSTOM_EXPR_HANDLER(
         RandomValue, "value.random", FlowResolverKind::Invalid, CompileRandomValueNode),
+    CUSTOM_EXPR_HANDLER(
+        SmoothValue, "value.smooth", FlowResolverKind::Invalid, CompileSmoothValueNode),
+    CUSTOM_EXPR_HANDLER(Noise, "value.noise", FlowResolverKind::Invalid, CompileNoiseNode),
+    CUSTOM_EXPR_HANDLER(
+        Oscillate, "value.oscillate", FlowResolverKind::Invalid, CompileOscillateNode),
+    CUSTOM_EXPR_HANDLER(
+        FindObjects, "objects.find", FlowResolverKind::Invalid, CompileFindObjectsNode),
     CUSTOM_EXPR_HANDLER(
         Typecast, "value.typecast", FlowResolverKind::Invalid, CompileTypecastNode),
     CUSTOM_EXPR_HANDLER(MixValue, "value.mix", FlowResolverKind::Invalid, CompileMixValueNode),
@@ -13677,6 +15308,7 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
                         "input.input_action",
                         FlowResolverKind::PollingEventRoute,
                         CompileInputActionNode),
+    CUSTOM_EXPR_HANDLER(InputCombo, "input.combo", FlowResolverKind::PollingEventRoute, CompileInputComboNode),
     CUSTOM_EXPR_HANDLER(GetInputBinding,
                         "input.input_binding",
                         FlowResolverKind::Invalid,
@@ -13704,6 +15336,7 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     SNAPSHOT_TRANSFORM_HANDLER(GetGravity, "scene.gravity"),
     EXPRESSION_HANDLER(GetTimescale, Expression, "scene.timescale", FlowResolverKind::Invalid),
     EXPRESSION_HANDLER(Time, Expression, "time.data", FlowResolverKind::Invalid),
+    EXPRESSION_HANDLER(DateTime, Expression, "time.date_time", FlowResolverKind::Invalid),
     EXPRESSION_HANDLER(
         GetActiveCamera, ValueExpression, "scene.active_camera", FlowResolverKind::Invalid),
     EXPRESSION_HANDLER(
@@ -13916,6 +15549,11 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     COMMAND_HANDLER(PlayAction, "animation.play_action", CompilePlayActionNode),
     COMMAND_HANDLER(StopAction, "animation.stop_action", CompileStopActionNode),
     COMMAND_HANDLER(SetActionFrame, "animation.set_action_frame", CompileSetActionFrameNode),
+    COMMAND_HANDLER(SetActionLayer, "animation.set_action_layer", CompileSetActionLayerNode),
+    EXPRESSION_HANDLER(OnActionFrame,
+                       Expression,
+                       "animation.on_action_frame",
+                       FlowResolverKind::PollingEventRoute),
     COMMAND_HANDLER(
         SetShapeKeyValue, "animation.set_shape_key_value", CompileSetShapeKeyValueNode),
     COMMAND_HANDLER(StopAllSounds, "audio.stop_all_sounds", CompileStopAllSoundsNode),
@@ -13965,6 +15603,7 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
     COMMAND_HANDLER(LoadScene, "scene.load_scene", CompileLoadSceneNode),
     COMMAND_HANDLER(SetScene, "scene.set_scene", CompileSetSceneNode),
     COMMAND_HANDLER(SaveGame, "game.save_game", CompileSaveGameNode),
+    COMMAND_HANDLER(SaveSlot, "game.save_slot", CompileSaveSlotNode),
     COMMAND_HANDLER(SetSaveExistence, "game.set_save_existence", CompileSetSaveExistenceNode),
     COMMAND_HANDLER(LoadGame, "game.load_game", CompileLoadGameNode),
     COMMAND_HANDLER(AlignAxisToVector, "transform.align_axis", CompileAlignAxisToVectorNode),
@@ -14078,6 +15717,19 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
                         "physics.get_constraints",
                         FlowResolverKind::Invalid,
                         CompileGetRigidBodyConstraintsNode),
+    COMMAND_HANDLER(SetRigidBodyConstraint,
+                    "physics.set_constraint",
+                    CompileSetRigidBodyConstraintNode),
+    COMMAND_HANDLER(SetCharacterMaxSlope,
+                    "physics.character_set_max_slope",
+                    CompileSetCharacterMaxSlopeNode),
+    COMMAND_HANDLER(SetCharacterFallSpeed,
+                    "physics.character_set_fall_speed",
+                    CompileSetCharacterFallSpeedNode),
+    COMMAND_HANDLER(SetCharacterStepHeight,
+                    "physics.character_set_step_height",
+                    CompileSetCharacterStepHeightNode),
+    COMMAND_HANDLER(SetCharacterCrouch, "physics.character_crouch", CompileSetCharacterCrouchNode),
     COMMAND_HANDLER(
         RemovePhysicsConstraint, "physics.remove_constraint", CompileRemovePhysicsConstraintNode),
     CUSTOM_EXPR_HANDLER(ProjectileRay,
@@ -14097,6 +15749,21 @@ static constexpr InternalCompileHandler internal_compile_handlers[] = {
                        Expression,
                        "physics.velocity_at_point",
                        FlowResolverKind::Invalid),
+    EXPRESSION_HANDLER(NavmeshQuery,
+                       Expression,
+                       "navigation.navmesh_query",
+                       FlowResolverKind::Invalid),
+    EXPRESSION_HANDLER(GetNavigationInfo,
+                       Expression,
+                       "navigation.get_navigation_info",
+                       FlowResolverKind::Invalid),
+    EXPRESSION_HANDLER(OnNavigationLink,
+                       Expression,
+                       "navigation.on_navigation_link",
+                       FlowResolverKind::PollingEventRoute),
+    COMMAND_HANDLER(SetNavigationAttribute,
+                    "navigation.set_attribute",
+                    CompileSetNavigationAttributeNode),
     EXPRESSION_HANDLER(RayToPlane, Expression, "math.ray_to_plane", FlowResolverKind::Invalid),
 };
 
@@ -14833,6 +16500,7 @@ std::shared_ptr<LN_Program> LN_TreeCompiler::Compile(const blender::bNodeTree &t
   ValidateEventInputs(*program, tree, nodes, node_definitions, input_links, active_nodes);
   WarnCombineXYZWIntoVectorInputs(
       *program, tree, nodes, node_definitions, input_links, active_nodes);
+  WarnCompareOrderOfObjects(*program, tree, nodes, node_definitions, active_nodes);
 
   if (program->m_compileReport.HasErrors()) {
     program->m_compileReport.SetDisabledReason("Logic Nodes compilation failed");
@@ -14859,7 +16527,9 @@ std::shared_ptr<LN_Program> LN_TreeCompiler::Compile(const blender::bNodeTree &t
   VectorExpressionCache vector_expression_cache;
   ColorExpressionCache color_expression_cache;
   ValueExpressionCache value_expression_cache;
-  ScopedCompilerScratchState compiler_scratch_state(loop_frame_cache,
+  ScopedCompilerScratchState compiler_scratch_state(tree,
+                                                    flow_events_cache,
+                                                    loop_frame_cache,
                                                     instruction_schedule,
                                                     {&bool_expression_cache,
                                                      &int_expression_cache,

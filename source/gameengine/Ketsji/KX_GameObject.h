@@ -326,6 +326,9 @@ class KX_GameObject : public SCA_IObject {
   bool m_parentCompoundIntent;
   bool m_parentGhostIntent;
   bool m_parentPhysicsManaged;
+  /** The Compound checkbox while playing (2026-11-18): -1 as the Blender object's (OB_CHILD),
+   * else what Set Rigid Body Attribute's Compound or a Set Parent with Compound last said. */
+  int8_t m_compoundSetting;
   int m_layer;
   std::vector<RAS_MeshObject *> m_meshes;
   KX_LodManager *m_lodManager;
@@ -461,6 +464,17 @@ class KX_GameObject : public SCA_IObject {
 
   BL_ActionManager *GetActionManager();
   void ClearParentIntent();
+  /* Compound parts (SetCompoundEnabled): each parented object's body joins its holder's shape
+   * (object, holder pairs), or leaves it and follows its parent on its own; a part made when the
+   * game started gets its body first (\a r_stayed: none could be made). One new shape per
+   * holder. The scene graph stays as it is. Empty: done, else the first reason why not. */
+  static std::string JoinCompounds(
+      const std::vector<std::pair<KX_GameObject *, KX_GameObject *>> &parts);
+  static std::string LeaveCompounds(
+      const std::vector<std::pair<KX_GameObject *, KX_GameObject *>> &parts,
+      std::vector<KX_GameObject *> &r_stayed);
+  bool FollowParentWithOwnBody();
+  bool MakeOwnBodyOfCompoundPart();
   void ApplyRuntimeVisibility();
   void GetPhysicsInterpolatedPose(double alpha,
                                   MT_Vector3 &r_position,
@@ -772,6 +786,10 @@ class KX_GameObject : public SCA_IObject {
                                      int constraintId);
   void SetRigidBodyConstraintId(blender::RigidBodyCon *cons, int constraintId);
   const RigidBodyConstraintData *FindRigidBodyConstraint(const std::string &name) const;
+  /** Set Rigid Body Constraint (2026-11-17): the named constraint's settings, once its physics
+   * constraint took them. False when there is none of the name. */
+  bool SetRigidBodyConstraintSettings(const std::string &name,
+                                      const PHY_RigidBodyConstraintSettings &settings);
   bool RemoveRigidBodyConstraint(const std::string &name);
   void RemoveRigidBodyConstraintId(int constraintId);
   void RemoveRigidBodyConstraintIds(const std::vector<int> &constraintIds);
@@ -816,6 +834,29 @@ class KX_GameObject : public SCA_IObject {
    * Removes the parent of this object to a game object
    */
   void RemoveParent();
+
+  /**
+   * The Compound checkbox while playing (Set Rigid Body Attribute's Compound, 2026-11-18; Jolt).
+   * As the converter reads it: the topmost object with Compound holds the parts of the objects
+   * below it with Compound. On for an object below such a holder: its shape joins the holder's
+   * (it stays parented as it is); on for any other object: it holds the parts of its children
+   * with Compound. Off: its part leaves the holder's shape (a part made when the game started
+   * gets a body of its own then), or, for a holder, every part leaves. The scene graph is never
+   * changed. Empty when done, else why not (also when nothing could follow).
+   */
+  std::string SetCompoundEnabled(bool compound);
+  /** The Compound checkbox now (the Blender object's until set while playing). */
+  bool GetCompoundSetting() const;
+  /** The object above this one whose compound shape holds this object's part, or null. */
+  KX_GameObject *GetCompoundHolder();
+  /** An object leaving the game: the parts of it and of the objects below it go out of a
+   * holder above it that stays (else the holder kept colliding with them). */
+  void LeaveCompoundForRemoval();
+  /** LeaveCompoundForRemoval for many objects, one new shape per holder. */
+  static void LeaveCompoundsForRemoval(const std::vector<KX_GameObject *> &objects);
+  /** After an Add Object copy: a part of \a source joined while playing (it has a body) is in
+   * its copied holder's compound again (KX_Scene::AddReplicaObject). */
+  void FinishCompoundCopy(const KX_GameObject &source);
 
   /** Runtime compound/ghost arguments retained from the last successful SetParent operation. */
   bool GetParentCompoundIntent() const;
@@ -892,6 +933,18 @@ class KX_GameObject : public SCA_IObject {
    * Sets the current frame of an action
    */
   void SetActionFrame(short layer, float frame);
+
+  /** Logic Nodes' Set Action Layer and On Action Frame (2026-11-16): BL_ActionManager's. */
+  void SetActionSpeed(short layer, float speed);
+  void SetActionLayerWeight(short layer, float layer_weight);
+  /** The action playing on `layer` (its name, frame, start and end frame, play mode) without
+   * making an action manager: false when none plays there. */
+  bool ReadActionLayer(short layer,
+                       std::string &r_name,
+                       float &r_frame,
+                       float &r_start,
+                       float &r_end,
+                       short &r_play_mode);
 
   /**
    * Gets the currently running action on the given layer

@@ -6,6 +6,7 @@
  * \ingroup nodes
  *
  * Get Random List Item: custom2 the variation (0 Per Object, 1 Same for All), as Random Value.
+ * Weights and Index (2026-11-16): a weighted pick (loot tables, an AI's choice), the place too.
  */
 
 #include "node_logic_util.hh"
@@ -23,7 +24,14 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(0)
       .description("Another number picks other items. Link a Loop's Index for a new pick in "
                    "every iteration");
+  b.add_input<decl::List>("Weights"_ustr)
+      .description("How likely each item is (a list of numbers, one per item: 3, 1 picks the "
+                   "first three times as often as the second; 0 never). Not linked: every item "
+                   "equally likely");
   b.add_output<decl::Generic>("Value"_ustr);
+  b.add_output<decl::Int>("Index"_ustr)
+      .description("The place of the picked item (0 the first); -1 when nothing could be "
+                   "picked");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)

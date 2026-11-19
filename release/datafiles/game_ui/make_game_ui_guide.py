@@ -182,6 +182,12 @@ ROW = 22
 HEADER = 26
 # Longer input values are cut short in a picture, and given in full under it.
 PICTURE_VALUE_LENGTH = 24
+# A link stub naming more than this many other ends sums them up (None: names them all, as this
+# guide does; the split-screen guide sets it).
+STUB_ENDS_SHOWN = None
+# Empty space between rows of nodes taller than this is left out (None: kept, as this guide
+# draws them; the split-screen guide sets it).
+ROW_GAP = None
 # The widest empty space between two columns of nodes in a picture.
 COLUMN_GAP = 70
 NODE_SKIP_PROPS = R.NODE_SKIP | {"panel_states"}
@@ -298,6 +304,74 @@ def node_draws():
 
 NODE_DRAWS, SOCKET_DRAWS = node_draws()
 
+NODE_LOGIC_UTIL = os.path.join(os.path.dirname(NODE_SOURCES), "node_logic_util.cc")
+_LAYOUT_ROW = re.compile(
+    r'\.prop\(\s*ptr\s*,\s*"(\w+)"\s*,\s*([^,]+),\s*'
+    r'(std::nullopt|IFACE_\("(?:[^"\\]|\\.)*"\)|"(?:[^"\\]|\\.)*")'
+    r'|\.label\(\s*(?:IFACE_\()?"((?:[^"\\]|\\.)*)"')
+
+
+def _layout_rows(text):
+    """The rows a layout function draws, in order: ("prop", (property, label: None for its own
+    name, expanded)) for a setting, ("text", words) for a line of text (layout.label)."""
+    rows = []
+    for call in _LAYOUT_ROW.finditer(text):
+        prop, flags, label, words = call.groups()
+        if words is not None:
+            rows.append(("text", words))
+            continue
+        label = None if label == "std::nullopt" else re.search(r'"((?:[^"\\]|\\.)*)"',
+                                                                label).group(1)
+        rows.append(("prop", (prop, label, "EXPAND" in flags)))
+    return rows
+
+
+def node_declared_layouts():
+    """The rows a node declares with b.add_layout (directly or through a helper of
+    node_logic_util.cc: Also When UI Uses It), drawn where they are declared, not with the
+    node's draw_buttons: idname -> [(the input declared just before or None, rows)]
+    (2026-11-17: the drawings had left Also When UI Uses It and Keep Distance's legend out)."""
+    layout_call = re.compile(r'\bb\.add_layout\(')
+    helpers = {}
+    util = open(NODE_LOGIC_UTIL, encoding="utf-8").read()
+    for match in re.finditer(r'void (add_\w+)\(NodeDeclarationBuilder &b\)\s*\{', util):
+        start, depth, body = match.end() - 1, 0, None
+        for position in range(start, len(util)):
+            depth += {"{": 1, "}": -1}.get(util[position], 0)
+            if depth == 0:
+                body = util[start:position + 1]
+                break
+        if body is not None and layout_call.search(body):
+            if re.search(r'\bb\.add_input<', body):
+                raise RuntimeError(f"the guide cannot place {match.group(1)}'s layout rows")
+            helpers[match.group(1)] = [row for call in layout_call.finditer(body)
+                                       for row in _layout_rows(_statements(body, call.end()))]
+    event = re.compile(r'\bb\.add_input<[^>]+>\(\s*"([^"]*)"_ustr(?:\s*,\s*"([^"]*)"_ustr)?\)'
+                       r'|\bb\.add_layout\('
+                       r'|\b(?:logic::)?(add_\w+)\(b\)')
+    layouts = {}
+    for name, source in node_sources():
+        declare = re.search(r"\bdeclare\s*=\s*(\w+)\s*;", source)
+        body = _function_body(source, declare.group(1)) if declare is not None else None
+        if body is None:
+            continue
+        found, last_input = [], None
+        for match in event.finditer(body):
+            if match.group(1) is not None:
+                last_input = match.group(2) or match.group(1)
+            elif match.group(3) is not None:
+                if match.group(3) in helpers:
+                    found.append((last_input, helpers[match.group(3)]))
+            else:
+                found.append((last_input, _layout_rows(_statements(body, match.end()))))
+        if found:
+            for idname in node_idnames(source):
+                layouts[idname] = found
+    return layouts
+
+
+NODE_LAYOUTS = node_declared_layouts()
+
 
 def node_panels():
     """The folded sections each logic node declares, read from the node sources: idname ->
@@ -381,6 +455,26 @@ def node_draw_list(node):
     return [("variant", "", False)] + option
 
 
+def _enum_value_is(node, identifier, number):
+    prop = node.bl_rna.properties[identifier]
+    return next(item.value for item in prop.enum_items
+                if item.identifier == getattr(node, identifier)) == number
+
+
+# Settings a node's draw function shows only sometimes (its `if`s; node_draws reads every
+# layout.prop it has): (node type, setting) -> whether the editor draws it for this node.
+DRAWN_WHEN = {
+    # node_logic_on_fixed_update.cc: Spread Out only for Every 2 and more.
+    ("LogicNativeOnFixedUpdate", "use_step_spread"): lambda node: node.step_interval > 1,
+    # node_logic_typecast.cc: the rounding only for To Integer (to_type 0).
+    ("LogicNativeTypecast", "integer_rounding"):
+        lambda node: _enum_value_is(node, "to_type", 0),
+    # node_logic_string_operation.cc: the Time Format only for Format Time (operation 14).
+    ("LogicNativeStringOperation", "time_format"):
+        lambda node: _enum_value_is(node, "operation", 14),
+}
+
+
 def node_props(node):
     """The node's own settings as the editor draws them: (label or "", value, checkbox state,
     expanded enum items)."""
@@ -389,18 +483,43 @@ def node_props(node):
         raise RuntimeError(f"the guide cannot read how {node.bl_idname} draws its settings")
     rows = []
     for identifier, label, expanded in draws:
-        prop = node.bl_rna.properties[identifier]
-        value = getattr(node, identifier)
-        text = prop.name if label is None else label
-        if prop.type == 'ENUM':
-            items = [item.name for item in prop.enum_items] if expanded else None
-            rows.append((text, enum_label(node.bl_rna, identifier, value), None, items))
-        elif prop.type == 'POINTER':
-            # A data-block picker shows the name of what it holds (Play Sound's sound).
-            rows.append((text, value.name if value is not None else "", None, None))
-        else:
-            rows.append((text, None, bool(value), None))
+        row = prop_row(node, identifier, label, expanded)
+        if row is not None:
+            rows.append(row)
     return rows
+
+
+def prop_row(node, identifier, label, expanded):
+    """One setting's row as the editor draws it, or None when the node does not draw it now."""
+    shown = DRAWN_WHEN.get((works_as(node), identifier))
+    if shown is not None and not shown(node):
+        return None
+    prop = node.bl_rna.properties[identifier]
+    value = getattr(node, identifier)
+    text = prop.name if label is None else label
+    if prop.type in {'INT', 'FLOAT'}:
+        # A number field: its label and value (On Logic + Physics Step's Every).
+        return (text, num(value), None, None)
+    if prop.type == 'ENUM':
+        items = [item.name for item in prop.enum_items] if expanded else None
+        return (text, enum_label(node.bl_rna, identifier, value), None, items)
+    if prop.type == 'POINTER':
+        # A data-block picker shows the name of what it holds (Play Sound's sound).
+        return (text, value.name if value is not None else "", None, None)
+    return (text, None, bool(value), None)
+
+
+def declared_layout_rows(node, rows):
+    """Node rows of the layout rows `rows` (_layout_rows): ("prop", row) or ("text", words)."""
+    out = []
+    for kind, item in rows:
+        if kind == "text":
+            out.append(("text", item))
+        else:
+            row = prop_row(node, *item)
+            if row is not None:
+                out.append(("prop", row))
+    return out
 
 
 def socket_value(socket):
@@ -465,9 +584,28 @@ def node_layout(node):
     inputs = {socket.identifier: socket for socket in node.inputs}
     folded = {identifier for _title, members, toggle in panels
               for identifier in members + ([toggle] if toggle else [])}
+    # Rows declared with b.add_layout, each after the input declared before it (Also When UI
+    # Uses It after the inputs, Keep Distance's legend under Mode); none before: with the
+    # settings.
+    declared = NODE_LAYOUTS.get(works_as(node), ())
+    placed = set()
+    for after, layout_rows in declared:
+        if after is None:
+            rows.extend(declared_layout_rows(node, layout_rows))
+            placed.add(id(layout_rows))
     for socket in node.inputs:
         if drawn(socket) and socket.identifier not in folded:
             rows.append(("in", socket))
+        if socket.identifier in folded:
+            continue
+        for after, layout_rows in declared:
+            if after == socket.identifier and id(layout_rows) not in placed:
+                rows.extend(declared_layout_rows(node, layout_rows))
+                placed.add(id(layout_rows))
+    for after, layout_rows in declared:
+        if id(layout_rows) not in placed:
+            # After an input in a folded section (none yet): after the plain inputs.
+            rows.extend(declared_layout_rows(node, layout_rows))
     for state, (title, members, toggle) in zip(node.panel_states, panels):
         sockets = [inputs[identifier] for identifier in members if drawn(inputs[identifier])]
         header = inputs[toggle] if toggle and drawn(inputs[toggle]) else None
@@ -519,6 +657,18 @@ def frame_svg(tree, frame):
             box[0] -= extra
             shift += extra
         reach = box[0] + box[2] if reach is None else max(reach, box[0] + box[2])
+    if ROW_GAP is not None:
+        # The same for empty space wider than ROW_GAP between rows of nodes (a node placed far
+        # below the others in the file).
+        reach = None
+        shift = 0.0
+        for box in sorted(boxes.values(), key=lambda box: box[1]):
+            box[1] -= shift
+            if reach is not None and box[1] - reach > ROW_GAP:
+                extra = box[1] - reach - ROW_GAP
+                box[1] -= extra
+                shift += extra
+            reach = box[1] + box[3] if reach is None else max(reach, box[1] + box[3])
     # Links to or from another frame: a dashed stub with the other end's name.
     incoming = [link for link in tree.links
                 if link.to_node.parent == frame and link.from_node.parent != frame]
@@ -539,6 +689,14 @@ def frame_svg(tree, frame):
     stub_names = {key: "; ".join(f"{node} › {', '.join(names)} ({frame_name})"
                                  for (node, frame_name), names in others.items())
                   for key, others in ends.items()}
+    if STUB_ENDS_SHOWN is not None:
+        # An output feeding many frames (a player's number) is summed up, not listed.
+        for key, others in ends.items():
+            if len(others) > STUB_ENDS_SHOWN:
+                names = sorted({name for socket_names in others.values()
+                                for name in socket_names})
+                total = sum(len(socket_names) for socket_names in others.values())
+                stub_names[key] = f"{total} inputs in other frames: {', '.join(names)}"
     room_in = max((text_width(name) + 50 for key, name in stub_names.items() if key[1] == "in"),
                   default=0)
     room_out = max((text_width(name) + 50 for key, name in stub_names.items()
@@ -609,6 +767,10 @@ def frame_svg(tree, frame):
                                  f'height="12" rx="2" class="{"n-check-on" if check else "n-check"}"/>')
                     parts.append(f'<text x="{x + 28:.0f}" y="{row_y:.0f}" class="n-label">'
                                  f'{esc(short_name(label, w - 36))}</text>')
+            elif side == "text":
+                # A line of text the node draws (Keep Distance's "0 Push · 1 Pull · 2 Hold").
+                parts.append(f'<text x="{x + 10:.0f}" y="{row_y:.0f}" class="n-dim">'
+                             f'{esc(short_name(item, w - 20))}</text>')
             elif side == "panel":
                 # A folded section's header: its arrow, its checkbox (a socket once linked), its
                 # name.
@@ -639,16 +801,25 @@ def frame_svg(tree, frame):
                 if drawn is not None and not item.is_linked:
                     # Settings drawn in the input's row (X, Y, Z toggles) instead of its value.
                     row_label, props = drawn
+                    toggles_w = sum(max(20.0, text_width(node.bl_rna.properties[prop].name) + 8)
+                                    + 2 for prop in props)
                     parts.append(f'<text x="{x + 11:.0f}" y="{row_y:.0f}" class="n-label">'
-                                 f'{esc(row_label or socket_label(item))}</text>')
-                    for toggle_index, prop in enumerate(reversed(props)):
-                        toggle_x = x + w - 12 - 22 * (toggle_index + 1)
+                                 f'{esc(short_name(row_label or socket_label(item), w - 27 - toggles_w))}'
+                                 '</text>')
+                    # Each toggle as wide as its name (Mouse Look's Invert X), at least 20.
+                    toggle_right = x + w - 12
+                    for prop in reversed(props):
+                        toggle_name = node.bl_rna.properties[prop].name
+                        toggle_w = max(20.0, text_width(toggle_name) + 8)
+                        toggle_x = toggle_right - toggle_w - 2
+                        toggle_right = toggle_x
                         on = getattr(node, prop)
-                        parts.append(f'<rect x="{toggle_x:.0f}" y="{row_y - 13:.0f}" width="20" '
-                                     f'height="17" rx="3" class="{"n-check-on" if on else "n-field"}"/>')
-                        parts.append(f'<text x="{toggle_x + 10:.0f}" y="{row_y:.0f}" '
+                        parts.append(f'<rect x="{toggle_x:.0f}" y="{row_y - 13:.0f}" '
+                                     f'width="{toggle_w:.0f}" height="17" rx="3" '
+                                     f'class="{"n-check-on" if on else "n-field"}"/>')
+                        parts.append(f'<text x="{toggle_x + toggle_w / 2:.0f}" y="{row_y:.0f}" '
                                      f'class="n-label" text-anchor="middle">'
-                                     f'{esc(node.bl_rna.properties[prop].name)}</text>')
+                                     f'{esc(toggle_name)}</text>')
                     continue
                 name = socket_label(item)
                 value = socket_value(item)
@@ -694,7 +865,8 @@ def frame_svg(tree, frame):
         text_x = end - 4 if side == "in" else end + 4
         stubs.append(f'<text x="{text_x:.0f}" y="{y + 4:.0f}" class="n-stub" '
                      f'text-anchor="{anchor}">{esc(name)}</text>')
-    label = esc(frame.label)
+    # A tree without frames is drawn whole (frame None: the split-screen guide's small trees).
+    label = esc(frame.label if frame is not None else tree.name)
     # A wide picture is made smaller to fit the page, down to 2/3, then scrolls.
     return (f'<svg viewBox="0 0 {width:.0f} {height:.0f}" width="{width:.0f}" '
             f'height="{height:.0f}" style="min-width:{width * 2 / 3:.0f}px" role="img" '

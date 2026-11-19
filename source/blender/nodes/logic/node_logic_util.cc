@@ -102,6 +102,18 @@ void add_input_button_status_outputs(NodeDeclarationBuilder &b)
       "True once when released; frame and fixed flow consume independent accumulated edges");
 }
 
+const char *input_gesture_time_description =
+    "Tap: the longest press that is a tap. Double Tap: the most seconds from one press to the "
+    "next. Hold: how long to hold it";
+
+void input_gesture_time_update(bNodeTree *tree, bNode *node)
+{
+  const int mode = node->custom1 & LOGIC_NODE_INPUT_MODE_MASK;
+  if (bNodeSocket *time = node->input_by_identifier("Time"_ustr)) {
+    bke::node_set_socket_availability(*tree, *time, mode >= 3 && mode <= 5);
+  }
+}
+
 void add_use_ui_input_layout(NodeDeclarationBuilder &b)
 {
   b.add_layout([](ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr) {

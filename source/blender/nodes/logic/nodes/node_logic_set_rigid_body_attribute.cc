@@ -57,9 +57,12 @@ static bool uses_angular_damping_input(const int attribute_type)
   return attribute_type == angular_damping;
 }
 
+/* Compound (2026-11-18): the Physics panel's checkbox while the game runs. */
+static constexpr int compound = 15;
+
 static bool uses_enabled_input(const int attribute_type)
 {
-  return ELEM(attribute_type, 9, 12);
+  return ELEM(attribute_type, 9, 12, compound);
 }
 
 static bool uses_sleeping_input(const int attribute_type)
@@ -142,7 +145,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("As the Physics panel's Rotation Damping, a rate per second: 0 never slows, "
                    "0.05 (Jolt's default) loses about 5% of the spin a second, 1 about 63%, 5 "
                    "about 99% (up to 100)");
-  b.add_input<logic_decl::Bool>("Enabled"_ustr).default_value(true);
+  b.add_input<logic_decl::Bool>("Enabled"_ustr)
+      .default_value(true)
+      .description("On or off: Continuous Collision Detection, Allow Physics Rotation, or "
+                   "Compound (a part below a compound joins (on) or leaves (off) its shape; any "
+                   "other object holds the parts of the objects below it with Compound, or lets "
+                   "them all go)");
   b.add_input<logic_decl::Bool>("Allow Sleeping"_ustr).default_value(true);
   b.add_input<logic_decl::Bool>("Wake"_ustr).default_value(false);
   /* Axis Locks (2026-11-15): each axis on its own. Lock says what happens to the chosen axes;

@@ -104,6 +104,9 @@ class LN_InputSnapshot {
   /** Remove the mouse wheel movement: a scroll view used it. */
   void ConsumeWheel();
   void SetGamepadForTests(int32_t gamepad_index, const LN_GamepadSnapshot &gamepad);
+  /** (Tests, 2026-11-17.) Key or mouse button `input_code` held, pressed and released this
+   * sample (a device then exists). */
+  void SetKeyForTests(int32_t input_code, bool active, bool pressed, bool released);
 
   bool HasDevice() const
   {
@@ -314,6 +317,14 @@ struct LN_ObjectSnapshot {
   int32_t collision_group = 0;
   bool has_character = false;
   bool character_on_ground = false;
+  /* (2026-11-17: the end of its last step, PHY_ICharacter's OnWall & co.) */
+  bool character_on_wall = false;
+  bool character_on_ceiling = false;
+  bool character_crouched = false;
+  KX_GameObject *character_ground_object = nullptr;
+  MT_Vector3 character_ground_normal = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Vector3 character_ground_velocity = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Vector3 character_wall_normal = MT_Vector3(0.0f, 0.0f, 0.0f);
   int32_t character_max_jumps = 0;
   int32_t character_jump_count = 0;
   MT_Vector3 character_gravity = MT_Vector3(0.0f, 0.0f, -9.8f);

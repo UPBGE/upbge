@@ -45,6 +45,7 @@ JPH_SUPPRESS_WARNINGS
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/SoftBody/SoftBodyMotionProperties.h>
 
+#include "JoltCharacter.h"
 #include "JoltDefaultMotionState.h"
 #include "JoltMathUtils.h"
 #include "JoltPhysicsEnvironment.h"
@@ -1308,18 +1309,14 @@ void JoltPhysicsController::WriteMotionStateToDynamics(bool nondynaonly, float t
     return;
   }
 
+  /* A Character that moved itself this step: JoltCharacter::ApplyStep moved the body already. */
+  if (m_characterDrivesBody) {
+    m_staticSyncedEpoch = 0;
+    return;
+  }
+
   if (m_isKinematic) {
-    /* Parenting can change world scale without calling the child's local-scale
-     * setter. Keep the collision shape synchronized lazily at the fixed-step
-     * boundary and allocate a new shape only when scale actually changed. */
-    EnsureScalingStateFromMotionState();
-    const MT_Vector3 worldScale = m_motionState->GetWorldScaling();
-    if (JoltScaleIsValid(worldScale) && m_gameStateScalingStateValid) {
-      const JPH::Vec3 targetScale(worldScale[0], worldScale[2], worldScale[1]);
-      if (!JoltScalesMatch(targetScale, m_gameStateKnownScale)) {
-        SetScaling(worldScale);
-      }
-    }
+    SyncKinematicScaling();
   }
 
   /* No-lock interface is safe here: called from the main thread while
@@ -1380,6 +1377,45 @@ void JoltPhysicsController::WriteMotionStateToDynamics(bool nondynaonly, float t
     m_staticSyncedBody = m_bodyID;
     m_staticSyncedEpoch = poseEpoch;
   }
+}
+
+void JoltPhysicsController::SyncKinematicScaling()
+{
+  if (!m_motionState) {
+    return;
+  }
+  /* Parenting can change world scale without calling the child's local-scale
+   * setter. Keep the collision shape synchronized lazily at the fixed-step
+   * boundary and allocate a new shape only when scale actually changed. */
+  EnsureScalingStateFromMotionState();
+  const MT_Vector3 worldScale = m_motionState->GetWorldScaling();
+  if (JoltScaleIsValid(worldScale) && m_gameStateScalingStateValid) {
+    const JPH::Vec3 targetScale(worldScale[0], worldScale[2], worldScale[1]);
+    if (!JoltScalesMatch(targetScale, m_gameStateKnownScale)) {
+      SetScaling(worldScale);
+    }
+  }
+}
+
+void JoltPhysicsController::MoveCharacterBody(const MT_Vector3 &position,
+                                              const MT_Matrix3x3 &orientation,
+                                              const float timeStep)
+{
+  if (!m_physicsEnv || m_bodyID.IsInvalid() || !(timeStep > 0.0f)) {
+    return;
+  }
+  const JPH::RVec3 targetPos = JoltMath::ToJolt(position);
+  JPH::Quat targetRot = JoltMath::ToJolt(orientation.getRotation());
+  if (!JoltPositionIsFinite(targetPos) || !JoltQuaternionIsFinite(targetRot)) {
+    return;
+  }
+  /* Every step, the same target too: its velocity is the character's (a ball meets a running
+   * character with it), zero once it stands. */
+  m_physicsEnv->GetBodyInterfaceNoLock().MoveKinematic(
+      m_bodyID, targetPos, targetRot.Normalized(), timeStep);
+  /* Should the step's kinematic write take the body over (parented, suspended), its first write
+   * stops it even at an unchanged target. */
+  m_kinematicNeedsStop = true;
 }
 
 bool JoltPhysicsController::SynchronizeKinematicPose()
@@ -1509,6 +1545,9 @@ void JoltPhysicsController::PostProcessReplica(PHY_IMotionState *motionstate,
                                                PHY_IPhysicsController *parentctrl)
 {
   (void)parentctrl;
+  /* A Character's copy: taken here so that no early return keeps it. */
+  JoltCharacter *characterSource = m_replicaCharacterSource;
+  m_replicaCharacterSource = nullptr;
   m_motionState = motionstate;
   EnsureScalingStateFromMotionState();
   /* Replicas are live scene objects even when their source controller belongs to
@@ -1657,6 +1696,11 @@ void JoltPhysicsController::PostProcessReplica(PHY_IMotionState *motionstate,
     bi.AddBody(m_bodyID, JPH::EActivation::Activate);
     m_physicsEnv->NotifyRigidBodyBodyAdded();
   }
+
+  /* A Character's copy (Add Object): a character of its own, with its source's settings. */
+  if (characterSource) {
+    m_physicsEnv->AddCharacterReplica(this, characterSource);
+  }
 }
 
 void JoltPhysicsController::SetPhysicsEnvironment(PHY_IPhysicsEnvironment *env)
@@ -1753,6 +1797,7 @@ void JoltPhysicsController::RemoveCompoundChildBinding(const uint32_t userData)
 
 uint32_t JoltPhysicsController::FindCompoundChildBinding(KX_GameObject *childObject) const
 {
+  /* (A copy's compound names its own parts: RebindCompoundChildObjects at Add Object.) */
   if (!childObject) {
     return 0;
   }
@@ -1763,6 +1808,30 @@ uint32_t JoltPhysicsController::FindCompoundChildBinding(KX_GameObject *childObj
     }
   }
   return 0;
+}
+
+void JoltPhysicsController::RebindCompoundChildObjects(
+    const std::function<KX_GameObject *(KX_GameObject *)> &copy_of)
+{
+  /* A copy of a compound (Add Object) holds its source's shape and bindings: each binding names
+   * the copy of its part from now on (hits, Compound, Remove Parent and removals find it by it:
+   * the copy's own Blender object is another than the source's). A part that was not copied
+   * leaves the copy's shape. (Only pointers are compared: a binding's object may be gone.) */
+  std::unordered_set<uint32_t> notCopied;
+  for (size_t index = 0; index < m_compoundChildBindings.size(); ++index) {
+    CompoundChildBinding &binding = m_compoundChildBindings[index];
+    if (!binding.active) {
+      continue;
+    }
+    KX_GameObject *copy = copy_of(binding.sourceObject);
+    if (copy == nullptr) {
+      notCopied.insert(uint32_t(index + 1));
+      continue;
+    }
+    binding.sourceObject = copy;
+    binding.blenderObject = copy->GetBlenderObject();
+  }
+  RemoveCompoundBindings(notCopied);
 }
 
 KX_GameObject *JoltPhysicsController::ResolveCompoundChildObject(
@@ -1820,11 +1889,18 @@ bool JoltPhysicsController::OwnsCompoundChildObject(KX_GameObject *childObject) 
   if (!childObject) {
     return false;
   }
-  for (const CompoundChildBinding &binding : m_compoundChildBindings) {
-    if (!binding.active) {
-      continue;
-    }
-    if (ResolveCompoundChildBinding(binding) == childObject) {
+  /* The binding made for it (a copy's are re-bound when it is made), while it is below this
+   * root: no walk of the hierarchy (2026-11-18: a walk per binding made turning a holder of
+   * 1,000 parts on take seconds). */
+  const KX_ClientObjectInfo *rootInfo = static_cast<const KX_ClientObjectInfo *>(m_newClientInfo);
+  const KX_GameObject *rootObject = rootInfo ? rootInfo->m_gameobject : nullptr;
+  if (!rootObject || !childObject->GetSGNode() || FindCompoundChildBinding(childObject) == 0) {
+    return false;
+  }
+  for (const SG_Node *node = childObject->GetSGNode()->GetSGParent(); node;
+       node = node->GetSGParent())
+  {
+    if (node == rootObject->GetSGNode()) {
       return true;
     }
   }
@@ -2196,6 +2272,10 @@ void JoltPhysicsController::SetTransform()
 
 MT_Scalar JoltPhysicsController::GetMass()
 {
+  /* A character: the mass pushes move it with (and it presses floors with). */
+  if (m_character) {
+    return JoltCharacter::kMass;
+  }
   /* Kinematic bodies have solver-internal mass properties because Jolt needs a
    * MotionProperties allocation, but contacts treat them as infinite mass and
    * UPBGE does not expose a configurable Kinematic mass. Match Static's public
@@ -2311,6 +2391,11 @@ void JoltPhysicsController::ApplyImpulse(const MT_Vector3 &attach,
                                          const MT_Vector3 &impulse,
                                          bool local)
 {
+  if (m_character) {
+    /* A character: a velocity change (2026-11-17); where it lands turns nothing. */
+    m_character->AddImpulse(local ? GetOrientation() * impulse : impulse, false);
+    return;
+  }
   if (!m_physicsEnv || m_bodyID.IsInvalid() || m_isKinematic) {
     return;
   }
@@ -2352,6 +2437,12 @@ void JoltPhysicsController::ApplyWorldImpulse(const MT_Vector3 &impulse,
                                               const MT_Vector3 *point,
                                               const bool velocity_change)
 {
+  if (m_character) {
+    /* A character: a velocity change (2026-11-17); the point turns nothing. */
+    (void)point;
+    m_character->AddImpulse(impulse, velocity_change);
+    return;
+  }
   if (!m_physicsEnv || m_bodyID.IsInvalid() || m_isKinematic || m_softBody) {
     return;
   }
@@ -2424,6 +2515,11 @@ void JoltPhysicsController::ApplyTorque(const MT_Vector3 &torque, bool local)
 
 void JoltPhysicsController::ApplyForce(const MT_Vector3 &force, bool local)
 {
+  if (m_character) {
+    /* A character: force / mass x its next step (2026-11-17). */
+    m_character->AddForce(local ? GetOrientation() * force : force);
+    return;
+  }
   if (!m_physicsEnv || m_bodyID.IsInvalid() || m_isKinematic) {
     return;
   }
@@ -2458,6 +2554,12 @@ void JoltPhysicsController::SetAngularVelocity(const MT_Vector3 &ang_vel, bool l
 
 void JoltPhysicsController::SetLinearVelocity(const MT_Vector3 &lin_vel, bool local)
 {
+  if (m_character) {
+    /* A character: its vertical speed now, the horizontal part for one step (Set Character
+     * Velocity with Time 0). */
+    m_character->SetVelocity(lin_vel, 0.0f, local);
+    return;
+  }
   if (!m_physicsEnv || m_bodyID.IsInvalid() || m_isKinematic) {
     return;
   }
@@ -2507,6 +2609,10 @@ void JoltPhysicsController::SetLinearVelocity(const MT_Vector3 &lin_vel, bool lo
 
 MT_Vector3 JoltPhysicsController::GetLinearVelocity()
 {
+  if (m_character) {
+    /* How fast the character moved (its body is moved after it). */
+    return m_character->GetLinearVelocity();
+  }
   if (!m_physicsEnv || m_bodyID.IsInvalid()) {
     return MT_Vector3(0.0f, 0.0f, 0.0f);
   }
@@ -2531,6 +2637,10 @@ MT_Vector3 JoltPhysicsController::GetAngularVelocity()
 
 MT_Vector3 JoltPhysicsController::GetVelocity(const MT_Vector3 &posin)
 {
+  if (m_character) {
+    /* A character does not turn by physics: every point moves as it does. */
+    return m_character->GetLinearVelocity();
+  }
   if (!m_physicsEnv || m_bodyID.IsInvalid()) {
     return MT_Vector3(0.0f, 0.0f, 0.0f);
   }
@@ -3879,6 +3989,8 @@ PHY_IPhysicsController *JoltPhysicsController::GetReplica()
 
   replica->m_physicsEnv = m_physicsEnv;
   replica->m_newClientInfo = m_newClientInfo;
+  /* A Character's copy gets a character of its own in PostProcessReplica (this one's settings). */
+  replica->m_replicaCharacterSource = m_character;
   replica->m_shape = m_shape;
   replica->m_shapeQueryData = m_shapeQueryData;
   CopyScalingStateToReplica(*replica);
@@ -4093,65 +4205,97 @@ void JoltPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
 
 bool JoltPhysicsController::TryAddCompoundChild(PHY_IPhysicsController *child)
 {
-  JoltPhysicsController *childCtrl = dynamic_cast<JoltPhysicsController *>(child);
+  std::vector<bool> added;
+  AddCompoundChildren({child}, added);
+  return added[0];
+}
+
+void JoltPhysicsController::AddCompoundChildren(const std::vector<PHY_IPhysicsController *> &children,
+                                                std::vector<bool> &r_added)
+{
+  r_added.assign(children.size(), false);
+  KX_ClientObjectInfo *parentInfo = static_cast<KX_ClientObjectInfo *>(m_newClientInfo);
+  KX_GameObject *parentObject = parentInfo ? parentInfo->m_gameobject : nullptr;
   if (!m_isCompound || !m_physicsEnv || m_physicsEnv->IsPhysicsUpdating() ||
-      m_bodyID.IsInvalid() || !m_shape || !childCtrl || childCtrl == this ||
-      childCtrl->m_physicsEnv != m_physicsEnv || childCtrl->m_bodyID.IsInvalid() ||
-      !childCtrl->GetShape() || childCtrl->m_softBody)
+      m_bodyID.IsInvalid() || !m_shape || !parentObject)
   {
-    return false;
+    return;
   }
 
-  /* Build new compound from current shape + child shape. */
+  /* Every new part into one new compound: the shape is built once, however many join
+   * (2026-11-18: one build per part made 1,000 parts take seconds). */
   JPH::StaticCompoundShapeSettings compoundSettings;
   JoltAddExistingShapeToCompoundSettings(compoundSettings, m_shape.GetPtr());
-
-  KX_ClientObjectInfo *parentInfo = static_cast<KX_ClientObjectInfo *>(m_newClientInfo);
-  KX_ClientObjectInfo *childInfo = static_cast<KX_ClientObjectInfo *>(
-      childCtrl->GetNewClientInfo());
-  KX_GameObject *parentObject = parentInfo ? parentInfo->m_gameobject : nullptr;
-  KX_GameObject *childObject = childInfo ? childInfo->m_gameobject : nullptr;
-  if (!parentObject || !childObject) {
-    return false;
+  JoltShapeQueryDataPtr queryData = m_shapeQueryData;
+  struct NewPart {
+    size_t index;
+    JoltPhysicsController *controller;
+    JPH::uint32 userData;
+  };
+  std::vector<NewPart> newParts;
+  for (size_t index = 0; index < children.size(); ++index) {
+    JoltPhysicsController *childCtrl = dynamic_cast<JoltPhysicsController *>(children[index]);
+    if (!childCtrl || childCtrl == this || childCtrl->m_physicsEnv != m_physicsEnv ||
+        childCtrl->m_bodyID.IsInvalid() || !childCtrl->GetShape() || childCtrl->m_softBody)
+    {
+      continue;
+    }
+    KX_ClientObjectInfo *childInfo = static_cast<KX_ClientObjectInfo *>(
+        childCtrl->GetNewClientInfo());
+    KX_GameObject *childObject = childInfo ? childInfo->m_gameobject : nullptr;
+    if (!childObject) {
+      continue;
+    }
+    /* A part already. */
+    if (FindCompoundChildBinding(childObject) != 0) {
+      childCtrl->SetCompoundChildFlag(true);
+      r_added[index] = true;
+      continue;
+    }
+    /* A moving compound holds no triangle mesh (Jolt: a static-only shape). */
+    if (childCtrl->m_isCompound || childCtrl->m_isCompoundChild ||
+        ((m_isDynamic || m_isKinematic) && childCtrl->GetShape()->MustBeStatic()))
+    {
+      continue;
+    }
+    JPH::Vec3 relativePosition;
+    JPH::Quat relativeRotation;
+    if (!JoltRootRelativeTransform(
+            *parentObject, *childObject, relativePosition, relativeRotation))
+    {
+      continue;
+    }
+    const JPH::uint32 userData = RegisterCompoundChildBinding(
+        childObject, relativePosition, relativeRotation);
+    if (userData == 0) {
+      continue;
+    }
+    compoundSettings.AddShape(relativePosition, relativeRotation, childCtrl->GetShape(), userData);
+    queryData = JoltMergeShapeQueryData(queryData, childCtrl->m_shapeQueryData);
+    newParts.push_back({index, childCtrl, userData});
   }
-
-  if (FindCompoundChildBinding(childObject) != 0) {
-    childCtrl->SetCompoundChildFlag(true);
-    return true;
+  if (newParts.empty()) {
+    return;
   }
-  if (childCtrl->m_isCompound || childCtrl->m_isCompoundChild) {
-    return false;
-  }
-
-  JPH::Vec3 relativePosition;
-  JPH::Quat relativeRotation;
-  if (!JoltRootRelativeTransform(*parentObject, *childObject, relativePosition, relativeRotation))
-  {
-    return false;
-  }
-
-  const JPH::uint32 childUserData = RegisterCompoundChildBinding(
-      childObject, relativePosition, relativeRotation);
-  if (childUserData == 0) {
-    return false;
-  }
-
-  compoundSettings.AddShape(
-      relativePosition, relativeRotation, childCtrl->GetShape(), childUserData);
 
   JPH::Shape::ShapeResult result = compoundSettings.Create();
-  if (!result.HasError()) {
-    if ((m_isDynamic || m_isKinematic) && result.Get()->MustBeStatic()) {
-      RemoveCompoundChildBinding(childUserData);
-      return false;
+  if (result.HasError() || ((m_isDynamic || m_isKinematic) && result.Get()->MustBeStatic())) {
+    for (const NewPart &part : newParts) {
+      RemoveCompoundChildBinding(part.userData);
     }
-    SetShapePreservingMassPropertiesAndCenterOfMass(
-        result.Get(), JoltMergeShapeQueryData(m_shapeQueryData, childCtrl->m_shapeQueryData));
-    childCtrl->SetCompoundChildFlag(true);
-    return true;
+    /* (One by one then, so one part Jolt refuses does not keep the others out.) */
+    if (newParts.size() > 1) {
+      for (const NewPart &part : newParts) {
+        r_added[part.index] = TryAddCompoundChild(part.controller);
+      }
+    }
+    return;
   }
-  RemoveCompoundChildBinding(childUserData);
-  return false;
+  SetShapePreservingMassPropertiesAndCenterOfMass(result.Get(), queryData);
+  for (const NewPart &part : newParts) {
+    part.controller->SetCompoundChildFlag(true);
+    r_added[part.index] = true;
+  }
 }
 
 void JoltPhysicsController::RemoveCompoundChild(PHY_IPhysicsController *child)
@@ -4163,18 +4307,70 @@ void JoltPhysicsController::RemoveCompoundChild(PHY_IPhysicsController *child)
   KX_ClientObjectInfo *childInfo = static_cast<KX_ClientObjectInfo *>(
       childCtrl->GetNewClientInfo());
   KX_GameObject *childObject = childInfo ? childInfo->m_gameobject : nullptr;
-  const JPH::uint32 childUserData = FindCompoundChildBinding(childObject);
-  const JPH::StaticCompoundShape *compound = JoltAsStaticCompoundShape(m_shape.GetPtr());
-  if (childUserData == 0 || !compound) {
+  RemoveCompoundChildObjects({childObject});
+  if (FindCompoundChildBinding(childObject) == 0) {
     childCtrl->SetCompoundChildFlag(false);
-    return;
+  }
+}
+
+bool JoltPhysicsController::RemoveCompoundChildObject(KX_GameObject *child)
+{
+  return RemoveCompoundChildObjects({child});
+}
+
+int JoltPhysicsController::GetCompoundPartCount() const
+{
+  /* (Every binding names a part in the shape: removals and copies keep them so.) */
+  int count = 0;
+  for (const CompoundChildBinding &binding : m_compoundChildBindings) {
+    count += binding.active ? 1 : 0;
+  }
+  return m_isCompound ? count : 0;
+}
+
+bool JoltPhysicsController::RemoveCompoundChildObjects(const std::vector<KX_GameObject *> &children)
+{
+  /* Every part named goes in one new compound: the shape is built once (2026-11-18). */
+  const JPH::StaticCompoundShape *compound = JoltAsStaticCompoundShape(m_shape.GetPtr());
+  if (!compound || children.empty()) {
+    return false;
+  }
+  const std::unordered_set<const KX_GameObject *> leaving(children.begin(), children.end());
+  std::unordered_set<JPH::uint32> userDatas;
+  for (size_t index = 0; index < m_compoundChildBindings.size(); ++index) {
+    const CompoundChildBinding &binding = m_compoundChildBindings[index];
+    if (binding.active && leaving.count(binding.sourceObject) != 0) {
+      userDatas.insert(JPH::uint32(index + 1));
+    }
+  }
+  if (!RemoveCompoundBindings(userDatas)) {
+    return false;
+  }
+  /* The parts with a body are parts no more. */
+  for (KX_GameObject *child : children) {
+    if (JoltPhysicsController *childCtrl = child != nullptr ?
+                                              dynamic_cast<JoltPhysicsController *>(
+                                                  child->GetPhysicsController()) :
+                                              nullptr)
+    {
+      childCtrl->SetCompoundChildFlag(false);
+    }
+  }
+  return true;
+}
+
+bool JoltPhysicsController::RemoveCompoundBindings(const std::unordered_set<uint32_t> &userDatas)
+{
+  const JPH::StaticCompoundShape *compound = JoltAsStaticCompoundShape(m_shape.GetPtr());
+  if (!compound || userDatas.empty()) {
+    return false;
   }
 
   JPH::StaticCompoundShapeSettings compoundSettings;
   JPH::uint remainingShapeCount = 0;
   for (JPH::uint index = 0; index < compound->GetNumSubShapes(); ++index) {
     const JPH::CompoundShape::SubShape &subShape = compound->GetSubShape(index);
-    if (subShape.mUserData == childUserData) {
+    if (userDatas.count(subShape.mUserData) != 0) {
       continue;
     }
     compoundSettings.AddShape(JoltCompoundSubShapeLocalPosition(*compound, subShape),
@@ -4184,16 +4380,78 @@ void JoltPhysicsController::RemoveCompoundChild(PHY_IPhysicsController *child)
     ++remainingShapeCount;
   }
   if (remainingShapeCount == 0) {
-    return;
+    return false;
   }
 
   JPH::Shape::ShapeResult result = compoundSettings.Create();
   if (result.HasError()) {
-    return;
+    return false;
   }
   SetShapePreservingMassPropertiesAndCenterOfMass(result.Get(), m_shapeQueryData);
-  RemoveCompoundChildBinding(childUserData);
-  childCtrl->SetCompoundChildFlag(false);
+  for (const uint32_t userData : userDatas) {
+    RemoveCompoundChildBinding(userData);
+  }
+  return true;
+}
+
+bool JoltPhysicsController::SetCompoundRoot(const bool compound)
+{
+  if (compound) {
+    if (m_isCompound) {
+      return true;
+    }
+    /* A part of a compound (or a body following its parent as one) holds no parts itself, and a
+     * soft body has no compound shape. */
+    if (!m_physicsEnv || m_bodyID.IsInvalid() || !m_shape || m_softBody || m_isCompoundChild ||
+        (m_transformParentingActive && m_transformParentingCompound))
+    {
+      return false;
+    }
+    m_isCompound = true;
+    return true;
+  }
+  if (!m_isCompound) {
+    return true;
+  }
+  if (m_physicsEnv && m_physicsEnv->IsPhysicsUpdating()) {
+    return false;
+  }
+
+  /* Every part still in the shape goes (the game engine moved the objects that stay out first:
+   * what is left belongs to objects that are gone). (Jolt makes a compound of one shape at the
+   * origin that shape itself again: the body's own shape, as before it held parts.) */
+  if (const JPH::StaticCompoundShape *shapeCompound = JoltAsStaticCompoundShape(m_shape.GetPtr()))
+  {
+    JPH::StaticCompoundShapeSettings ownSettings;
+    JPH::uint ownCount = 0;
+    bool partsLeft = false;
+    for (JPH::uint index = 0; index < shapeCompound->GetNumSubShapes(); ++index) {
+      const JPH::CompoundShape::SubShape &subShape = shapeCompound->GetSubShape(index);
+      if (subShape.mUserData != 0) {
+        partsLeft = true;
+        continue;
+      }
+      ownSettings.AddShape(JoltCompoundSubShapeLocalPosition(*shapeCompound, subShape),
+                           subShape.GetRotation(),
+                           subShape.mShape,
+                           subShape.mUserData);
+      ++ownCount;
+    }
+    if (partsLeft && ownCount > 0) {
+      JPH::Shape::ShapeResult result = ownSettings.Create();
+      if (result.HasError()) {
+        return false;
+      }
+      SetShapePreservingMassPropertiesAndCenterOfMass(result.Get(), m_shapeQueryData);
+    }
+  }
+  for (CompoundChildBinding &binding : m_compoundChildBindings) {
+    binding.active = false;
+    binding.blenderObject = nullptr;
+    binding.sourceObject = nullptr;
+  }
+  m_isCompound = false;
+  return true;
 }
 
 /** \} */
@@ -4215,6 +4473,33 @@ bool JoltPhysicsController::IsCompound()
 bool JoltPhysicsController::IsDynamicsSuspended() const
 {
   return m_dynamicsSuspended;
+}
+
+const char *JoltPhysicsController::PushIgnoredReason(const bool angular) const
+{
+  /* (Suspended on purpose, or no body known: no warning.) */
+  if (m_physicsSuspended || m_dynamicsSuspended || !m_physicsEnv || m_bodyID.IsInvalid() ||
+      m_softBody)
+  {
+    return nullptr;
+  }
+  if (m_character) {
+    return angular ? "it is a Character, which does not turn from physics (turn it with Apply "
+                     "Rotation)" :
+                     nullptr;
+  }
+  if (m_transformParentingActive) {
+    return "it follows its parent";
+  }
+  if (m_isDynamic && !m_isKinematic) {
+    return angular && !m_isRigidBody ? "it is Dynamic, which does not turn from physics (Rigid "
+                                       "Body does)" :
+                                       nullptr;
+  }
+  if (m_isSensorPhysicsType) {
+    return "it is a Sensor";
+  }
+  return m_isKinematic ? "it is Kinematic" : "it is Static";
 }
 
 bool JoltPhysicsController::IsPhysicsSuspended()

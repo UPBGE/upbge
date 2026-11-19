@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2009 Mikko Mononen memon@inside.org
+// Copyright (c) 2009-2010 Mikko Mononen memon@inside.org
 //
 // This software is provided 'as-is', without any express or implied
 // warranty.  In no event will the authors be held liable for any damages
@@ -19,66 +19,87 @@
 #ifndef DETOURNODE_H
 #define DETOURNODE_H
 
+#include "DetourNavMesh.h"
+
 enum dtNodeFlags
 {
 	DT_NODE_OPEN = 0x01,
 	DT_NODE_CLOSED = 0x02,
+	DT_NODE_PARENT_DETACHED = 0x04 // parent of the node is not adjacent. Found using raycast.
 };
 
+typedef unsigned short dtNodeIndex;
+static const dtNodeIndex DT_NULL_IDX = (dtNodeIndex)~0;
+
+static const int DT_NODE_PARENT_BITS = 24;
+static const int DT_NODE_STATE_BITS = 2;
 struct dtNode
 {
-	float cost;
-	float total;
-	unsigned int id;
-	unsigned int pidx : 30;
-	unsigned int flags : 2;
+	float pos[3];								///< Position of the node.
+	float cost;									///< Cost from previous node to current node.
+	float total;								///< Cost up to the node.
+	unsigned int pidx : DT_NODE_PARENT_BITS;	///< Index to parent node.
+	unsigned int state : DT_NODE_STATE_BITS;	///< extra state information. A polyRef can have multiple nodes with different extra info. see DT_MAX_STATES_PER_NODE
+	unsigned int flags : 3;						///< Node flags. A combination of dtNodeFlags.
+	dtPolyRef id;								///< Polygon ref the node corresponds to.
 };
+
+static const int DT_MAX_STATES_PER_NODE = 1 << DT_NODE_STATE_BITS;	// number of extra states per node. See dtNode::state
 
 class dtNodePool
 {
 public:
 	dtNodePool(int maxNodes, int hashSize);
 	~dtNodePool();
-	inline void operator=(const dtNodePool&) {}
 	void clear();
-	dtNode* getNode(unsigned int id);
-	const dtNode* findNode(unsigned int id) const;
+
+	// Get a dtNode by ref and extra state information. If there is none then - allocate
+	// There can be more than one node for the same polyRef but with different extra state information
+	dtNode* getNode(dtPolyRef id, unsigned char state=0);	
+	dtNode* findNode(dtPolyRef id, unsigned char state);
+	unsigned int findNodes(dtPolyRef id, dtNode** nodes, const int maxNodes);
 
 	inline unsigned int getNodeIdx(const dtNode* node) const
 	{
 		if (!node) return 0;
-		return (unsigned int)(node - m_nodes)+1;
+		return (unsigned int)(node - m_nodes) + 1;
 	}
 
 	inline dtNode* getNodeAtIdx(unsigned int idx)
 	{
 		if (!idx) return 0;
-		return &m_nodes[idx-1];
+		return &m_nodes[idx - 1];
+	}
+
+	inline const dtNode* getNodeAtIdx(unsigned int idx) const
+	{
+		if (!idx) return 0;
+		return &m_nodes[idx - 1];
 	}
 	
 	inline int getMemUsed() const
 	{
 		return sizeof(*this) +
-		sizeof(dtNode)*m_maxNodes +
-		sizeof(unsigned short)*m_maxNodes +
-		sizeof(unsigned short)*m_hashSize;
+			sizeof(dtNode)*m_maxNodes +
+			sizeof(dtNodeIndex)*m_maxNodes +
+			sizeof(dtNodeIndex)*m_hashSize;
 	}
+	
+	inline int getMaxNodes() const { return m_maxNodes; }
+	
+	inline int getHashSize() const { return m_hashSize; }
+	inline dtNodeIndex getFirst(int bucket) const { return m_first[bucket]; }
+	inline dtNodeIndex getNext(int i) const { return m_next[i]; }
+	inline int getNodeCount() const { return m_nodeCount; }
 	
 private:
-	inline unsigned int hashint(unsigned int a) const
-	{
-		a += ~(a<<15);
-		a ^=  (a>>10);
-		a +=  (a<<3);
-		a ^=  (a>>6);
-		a += ~(a<<11);
-		a ^=  (a>>16);
-		return a;
-	}
+	// Explicitly disabled copy constructor and copy assignment operator.
+	dtNodePool(const dtNodePool&);
+	dtNodePool& operator=(const dtNodePool&);
 	
 	dtNode* m_nodes;
-	unsigned short* m_first;
-	unsigned short* m_next;
+	dtNodeIndex* m_first;
+	dtNodeIndex* m_next;
 	const int m_maxNodes;
 	const int m_hashSize;
 	int m_nodeCount;
@@ -89,17 +110,10 @@ class dtNodeQueue
 public:
 	dtNodeQueue(int n);
 	~dtNodeQueue();
-	inline void operator=(dtNodeQueue&) {}
 	
-	inline void clear()
-	{
-		m_size = 0;
-	}
+	inline void clear() { m_size = 0; }
 	
-	inline dtNode* top()
-	{
-		return m_heap[0];
-	}
+	inline dtNode* top() { return m_heap[0]; }
 	
 	inline dtNode* pop()
 	{
@@ -132,11 +146,16 @@ public:
 	inline int getMemUsed() const
 	{
 		return sizeof(*this) +
-		sizeof(dtNode*)*(m_capacity+1);
+		sizeof(dtNode*) * (m_capacity + 1);
 	}
 	
+	inline int getCapacity() const { return m_capacity; }
 	
 private:
+	// Explicitly disabled copy constructor and copy assignment operator.
+	dtNodeQueue(const dtNodeQueue&);
+	dtNodeQueue& operator=(const dtNodeQueue&);
+
 	void bubbleUp(int i, dtNode* node);
 	void trickleDown(int i, dtNode* node);
 	

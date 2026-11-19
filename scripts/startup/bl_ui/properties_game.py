@@ -60,6 +60,76 @@ def draw_no_free_axis_warning(layout, game, rotation_enabled):
     col.label(text="To keep the object still, use the Static physics type.", icon='BLANK1')
 
 
+# Collision bounds built from the size of the mesh's bounding box alone, centred on the object's
+# origin (both engines' converters, BGE's rule): a mesh whose middle is away from its origin gets
+# a shape that does not sit where the mesh is (a character's capsule half under its feet).
+ORIGIN_CENTRED_BOUNDS = {'BOX', 'SPHERE', 'CYLINDER', 'CONE', 'CAPSULE'}
+
+
+def game_collision_bounds(ob, is_jolt):
+    """The collision bounds the game builds for `ob`: the chosen ones, else its physics type's
+    (JoltPhysicsEnvironment's and CcdPhysicsEnvironment's converters, 2026-11-18)."""
+    game = ob.game
+    ptype = game.physics_type
+    if game.use_collision_bounds:
+        bounds = game.collision_bounds_type
+        if bounds in {'CONVEX_HULL', 'TRIANGLE_MESH'} and ob.type != 'MESH':
+            bounds = 'SPHERE'
+        # (Empty bounds kept from another type read '' for a Character, whose dropdown has no
+        # Empty; the identifier is 'Empty' elsewhere.)
+        if is_jolt and ptype == 'CHARACTER' and bounds in {'TRIANGLE_MESH', 'Empty', ''}:
+            bounds = 'CAPSULE'
+        return bounds
+    if ptype == 'SOFT_BODY':
+        return 'TRIANGLE_MESH'
+    if ptype == 'CHARACTER':
+        return 'CAPSULE' if is_jolt else 'SPHERE'
+    if ptype == 'RIGID_BODY':
+        return 'BOX'
+    if is_jolt and ptype == 'KINEMATIC':
+        return 'BOX'
+    if ptype in {'DYNAMIC', 'VEHICLE'}:
+        return 'SPHERE'
+    return 'TRIANGLE_MESH'
+
+
+def collision_origin_offset(ob):
+    """How far (m, the object's scale included) the middle of `ob`'s mesh is from its origin, and
+    the mesh's largest size; None for an object without a mesh."""
+    if ob.type != 'MESH':
+        return None
+    corners = [tuple(corner) for corner in ob.bound_box]
+    low = [min(corner[axis] for corner in corners) for axis in range(3)]
+    high = [max(corner[axis] for corner in corners) for axis in range(3)]
+    scale = [abs(value) for value in ob.scale]
+    middle = [0.5 * (low[axis] + high[axis]) * scale[axis] for axis in range(3)]
+    offset = sum(value * value for value in middle) ** 0.5
+    largest = max((high[axis] - low[axis]) * scale[axis] for axis in range(3))
+    return offset, largest
+
+
+def draw_collision_origin_warning(layout, ob, is_jolt):
+    """2026-11-18: a Box, Sphere, Cylinder, Cone or Capsule is centred on the object's origin, not
+    on the mesh: said when they are apart (more than 1 mm and 1% of the mesh's size)."""
+    if game_collision_bounds(ob, is_jolt) not in ORIGIN_CENTRED_BOUNDS:
+        return
+    measured = collision_origin_offset(ob)
+    if measured is None:
+        return
+    offset, largest = measured
+    if offset <= max(0.001, 0.01 * largest):
+        return
+    col = layout.column(align=True)
+    col.label(text="The shape is centred on the object's origin, %.2f m from the" % offset,
+              icon='ERROR')
+    col.label(text="middle of the mesh, so it does not sit where the mesh is.", icon='BLANK1')
+    col.label(text="Origin to Geometry moves the origin there (the mesh stays):", icon='BLANK1')
+    row = col.row()
+    op = row.operator("object.origin_set", text="Origin to Geometry", icon='OBJECT_ORIGIN')
+    op.type = 'ORIGIN_GEOMETRY'
+    op.center = 'BOUNDS'
+
+
 class GameButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -1384,6 +1454,8 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
         sub.active = game.physics_type not in {'SOFT_BODY', 'CHARACTER'}
         sub.prop(game, "use_collision_compound", text="Compound")
 
+        draw_collision_origin_warning(layout, context.active_object, is_jolt)
+
         layout.separator()
         if is_jolt:
             layout.prop(game, "collision_layers")
@@ -1719,6 +1791,16 @@ class SCENE_PT_game_navmesh(SceneButtonsPanel, Panel):
         row = col.row()
         row.prop(rd, "sample_dist")
         row.prop(rd, "sample_max_error")
+
+        # UPBGE (2026-11-18): the navigation mesh the game builds itself, and the crowd's cost.
+        col = layout.column()
+        col.label(text="While Playing:")
+        col.prop(rd, "build_mode")
+        if rd.build_mode == 'AROUND_NPCS':
+            row = col.row()
+            row.prop(rd, "build_radius")
+            row.prop(rd, "remove_radius")
+        col.prop(rd, "detail_distance")
 
 
 class SCENE_PT_game_hysteresis(SceneButtonsPanel, Panel):

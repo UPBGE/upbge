@@ -44,9 +44,31 @@ std::string SafeString(const char *value)
   return value ? std::string(value) : std::string();
 }
 
+bool LN_ImplicitlyConvertible(const LN_ValueType from_type, const LN_ValueType to_type)
+{
+  using T = LN_ValueType;
+  switch (from_type) {
+    case T::Bool:
+      return ELEM(to_type, T::Int, T::Float, T::Vector);
+    case T::Int:
+      return ELEM(to_type, T::Bool, T::Float, T::Vector);
+    case T::Float:
+      return ELEM(to_type, T::Bool, T::Int, T::Vector);
+    case T::Vector:
+      return ELEM(to_type, T::Bool, T::Rotation, T::Color);
+    case T::Rotation:
+      return to_type == T::Vector;
+    default:
+      return false;
+  }
+}
+
 bool LogicPinTypesCompatible(const LN_ValueType from_type, const LN_ValueType to_type)
 {
   if (from_type == to_type) {
+    return true;
+  }
+  if (LN_ImplicitlyConvertible(from_type, to_type)) {
     return true;
   }
   if ((from_type == LN_ValueType::List && to_type == LN_ValueType::Vector) ||
@@ -141,6 +163,37 @@ int32_t MouseInputStatusFromCustom(const int custom1)
     default:
       return SCA_InputEvent::JUSTACTIVATED;
   }
+}
+
+std::optional<uint32_t> BuildInputGestureExpression(
+    LN_Program &program,
+    const blender::bNode &node,
+    const std::function<uint32_t(int32_t status)> &status,
+    const NodeDefinitionMap &node_definitions,
+    const InputLinkMap &input_links,
+    ValueCache &value_cache)
+{
+  const int32_t mode = node.custom1 & blender::LOGIC_NODE_INPUT_MODE_MASK;
+  if (!LN_IsInputGesture(mode)) {
+    return std::nullopt;
+  }
+  LN_BoolExpression gesture;
+  gesture.kind = LN_BoolExpressionKind::InputGesture;
+  gesture.input0 = status(SCA_InputEvent::ACTIVE);
+  gesture.input1 = status(SCA_InputEvent::JUSTACTIVATED);
+  gesture.input2 = status(SCA_InputEvent::JUSTRELEASED);
+  FloatExpressionCache float_expression_cache;
+  gesture.float_expr_index = BuildInputFloatExpression(program,
+                                                       node,
+                                                       "Time",
+                                                       node_definitions,
+                                                       input_links,
+                                                       value_cache,
+                                                       float_expression_cache)
+                                 .value_or(LN_INVALID_INDEX);
+  gesture.int_value = int32_t(program.AcquireInputGestureNode(&node));
+  gesture.secondary_int_value = mode;
+  return program.AddBoolExpression(gesture);
 }
 
 LN_Value MakeNoneValue()
@@ -1203,7 +1256,86 @@ bool IsSupportedLogicMathOperation(int16_t operation)
     case blender::NODE_MATH_DEGREES:
       return true;
   }
-  return false;
+  return LogicMathFunctionOf(operation).has_value();
+}
+
+std::optional<LN_MathFunction> LogicMathFunctionOf(const int16_t operation)
+{
+  switch (operation) {
+    case blender::NODE_MATH_SQRT:
+      return LN_MathFunction::SquareRoot;
+    case blender::NODE_MATH_TANGENT:
+      return LN_MathFunction::Tangent;
+    case blender::NODE_MATH_ARCSINE:
+      return LN_MathFunction::Arcsine;
+    case blender::NODE_MATH_ARCCOSINE:
+      return LN_MathFunction::Arccosine;
+    case blender::NODE_MATH_ARCTANGENT:
+      return LN_MathFunction::Arctangent;
+    case blender::NODE_MATH_ARCTAN2:
+      return LN_MathFunction::Arctan2;
+    case blender::NODE_MATH_WRAP:
+      return LN_MathFunction::Wrap;
+    case blender::NODE_MATH_SNAP:
+      return LN_MathFunction::Snap;
+    case blender::NODE_MATH_PINGPONG:
+      return LN_MathFunction::PingPong;
+    case LN_MATH_ANGLE_DIFFERENCE:
+      return LN_MathFunction::AngleDifference;
+  }
+  return std::nullopt;
+}
+
+bool LogicMathFunctionReadsB(const LN_MathFunction function)
+{
+  switch (function) {
+    case LN_MathFunction::Arctan2:
+    case LN_MathFunction::Wrap:
+    case LN_MathFunction::Snap:
+    case LN_MathFunction::PingPong:
+    case LN_MathFunction::AngleDifference:
+      return true;
+    default:
+      return false;
+  }
+}
+
+std::optional<LN_VectorMeasure> LogicVectorMeasureOf(const int16_t operation)
+{
+  switch (operation) {
+    case blender::NODE_VECTOR_MATH_DOT_PRODUCT:
+      return LN_VectorMeasure::Dot;
+    case blender::NODE_VECTOR_MATH_DISTANCE:
+      return LN_VectorMeasure::Distance;
+    case LN_VECTOR_MATH_ANGLE:
+      return LN_VectorMeasure::Angle;
+    case LN_VECTOR_MATH_SIGNED_ANGLE:
+      return LN_VectorMeasure::SignedAngle;
+  }
+  return std::nullopt;
+}
+
+std::optional<LN_VectorFunction> LogicVectorFunctionOf(const int16_t operation)
+{
+  switch (operation) {
+    case blender::NODE_VECTOR_MATH_CROSS_PRODUCT:
+      return LN_VectorFunction::Cross;
+    case blender::NODE_VECTOR_MATH_PROJECT:
+      return LN_VectorFunction::Project;
+    case blender::NODE_VECTOR_MATH_REFLECT:
+      return LN_VectorFunction::Reflect;
+    case LN_VECTOR_MATH_LIMIT_LENGTH:
+      return LN_VectorFunction::LimitLength;
+    case LN_VECTOR_MATH_MOVE_TOWARDS:
+      return LN_VectorFunction::MoveTowards;
+  }
+  return std::nullopt;
+}
+
+bool LogicVectorMathGivesNumber(const int16_t operation)
+{
+  return operation == blender::NODE_VECTOR_MATH_LENGTH ||
+         LogicVectorMeasureOf(operation).has_value();
 }
 
 bool IsSupportedLogicVectorMathOperation(int16_t operation)
@@ -1220,7 +1352,7 @@ bool IsSupportedLogicVectorMathOperation(int16_t operation)
     case blender::NODE_VECTOR_MATH_NORMALIZE:
       return true;
   }
-  return false;
+  return LogicVectorMathGivesNumber(operation) || LogicVectorFunctionOf(operation).has_value();
 }
 
 bool IsSupportedLogicStringOperation(int16_t operation)
@@ -1235,9 +1367,50 @@ bool IsSupportedLogicStringOperation(int16_t operation)
     case LN_STRING_OP_UPPER:
     case LN_STRING_OP_LOWER:
     case LN_STRING_OP_ZFILL:
+    case LN_STRING_OP_SUBSTRING:
+    case LN_STRING_OP_LENGTH:
+    case LN_STRING_OP_FIND:
+    case LN_STRING_OP_SPLIT:
+    case LN_STRING_OP_FORMAT_TIME:
       return true;
   }
   return false;
+}
+
+std::optional<LN_Value> StringOperationHiddenOutput(const blender::bNode &node,
+                                                    const blender::bNodeSocket &output_socket)
+{
+  const int16_t operation = node.custom1;
+  if (!IsSupportedLogicStringOperation(operation)) {
+    return std::nullopt;
+  }
+  const auto is = [&](const char *name) {
+    return NamesMatch(output_socket.name, output_socket.identifier, name);
+  };
+  LN_Value value;
+  value.exists = true;
+  const auto whole = [&](const int16_t gives, const int32_t empty) -> std::optional<LN_Value> {
+    if (operation == gives) {
+      return std::nullopt;
+    }
+    value.type = LN_ValueType::Int;
+    value.int_value = empty;
+    return value;
+  };
+  if (is("Length")) {
+    return whole(LN_STRING_OP_LENGTH, 0);
+  }
+  if (is("Index")) {
+    return whole(LN_STRING_OP_FIND, -1);
+  }
+  if (is("List")) {
+    if (operation == LN_STRING_OP_SPLIT) {
+      return std::nullopt;
+    }
+    value.type = LN_ValueType::List;
+    return value;
+  }
+  return std::nullopt;
 }
 
 bool StringStartsWith(const std::string &value, const std::string &prefix)
@@ -2551,9 +2724,10 @@ std::optional<uint32_t> BuildExplosionImpulseQueryExpression(
                                                 vector_cache,
                                                 color_cache,
                                                 value_expr_cache);
-  /* Center Object (custom2): the cast's Local mode around the object at (0, 0, 0) is its position
-   * after its pending moves, the owner when the input is empty, and leaves the object alone (the
-   * caster) - what the instruction does. */
+  /* Center Object (custom2): the cast's Local mode around the object at its Offset (2026-11-17;
+   * (0, 0, 0) its position) after its pending moves, the owner when the input is empty, and
+   * leaves the object alone (the caster) - what the instruction does (the object's transform x
+   * the Offset: LN_RuntimeTree::ShapeCastPlace). */
   const bool at_object = std::clamp<int>(node.custom2,
                                          LN_EXPLOSION_CENTER_POSITION,
                                          LN_EXPLOSION_CENTER_OBJECT) == LN_EXPLOSION_CENTER_OBJECT;
@@ -2592,16 +2766,18 @@ std::optional<uint32_t> BuildExplosionImpulseQueryExpression(
       return std::nullopt;
     }
   }
-  const auto origin = at_object ? std::optional<uint32_t>(AddConstantVectorExpression(
-                                      program, MT_Vector3(0.0f, 0.0f, 0.0f))) :
-                                  BuildInputVectorExpression(program,
-                                                             node,
-                                                             "Origin",
-                                                             node_definitions,
-                                                             input_links,
-                                                             value_cache,
-                                                             float_cache,
-                                                             vector_cache);
+  const bool has_offset = at_object && FindInputSocket(node, "Offset") != nullptr;
+  const auto origin = at_object && !has_offset ?
+                          std::optional<uint32_t>(AddConstantVectorExpression(
+                              program, MT_Vector3(0.0f, 0.0f, 0.0f))) :
+                          BuildInputVectorExpression(program,
+                                                     node,
+                                                     at_object ? "Offset" : "Origin",
+                                                     node_definitions,
+                                                     input_links,
+                                                     value_cache,
+                                                     float_cache,
+                                                     vector_cache);
   const auto radius = BuildInputFloatExpression(
       program, node, "Radius", node_definitions, input_links, value_cache, float_cache);
   const auto property = BuildInputStringExpression(
@@ -3096,8 +3272,18 @@ std::optional<uint32_t> BuildInputExecutionExpression(
       case LN_NodeKind::EventOnInit:
       case LN_NodeKind::EventOnUpdate:
       case LN_NodeKind::EventOnFixedUpdate:
-      case LN_NodeKind::Branch:
         return AddConstantBoolExpression(program, true);
+      case LN_NodeKind::Branch:
+        /* (2026-11-17) The pulse of its route, as every other flow node's output: it counted as
+         * always on (its Condition ignored) unless another node had built its route first. */
+        return BuildBranchOutputPulse(program,
+                                      *link.fromnode,
+                                      *link.fromsock,
+                                      node_definitions,
+                                      input_links,
+                                      value_cache,
+                                      float_expression_cache,
+                                      bool_expression_cache);
       default:
         break;
     }

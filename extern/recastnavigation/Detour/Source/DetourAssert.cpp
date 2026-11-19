@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2009 Mikko Mononen memon@inside.org
+// Copyright (c) 2009-2010 Mikko Mononen memon@inside.org
 //
 // This software is provided 'as-is', without any express or implied
 // warranty.  In no event will the authors be held liable for any damages
@@ -16,14 +16,20 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef DETOURTILEDNAVMESHBUILDER_H
-#define DETOURTILEDNAVMESHBUILDER_H
+#include "DetourAssert.h"
 
-bool dtCreateNavMeshTileData(const unsigned short* verts, const int nverts,
-							 const unsigned short* polys, const int npolys, const int nvp,
-							 const unsigned short* dmeshes, const float* dverts, const int ndverts,
-							 const unsigned char* dtris, const int ndtris, 
-							 const float* bmin, const float* bmax, float cs, float ch, int tileSize, int walkableClimb,
-							 unsigned char** outData, int* outDataSize);
+#ifndef RC_DISABLE_ASSERTS
 
-#endif // DETOURTILEDNAVMESHBUILDER_H
+static dtAssertFailFunc* sAssertFailFunc = 0;
+
+void dtAssertFailSetCustom(dtAssertFailFunc *assertFailFunc)
+{
+	sAssertFailFunc = assertFailFunc;
+}
+
+dtAssertFailFunc* dtAssertFailGetCustom()
+{
+	return sAssertFailFunc;
+}
+
+#endif

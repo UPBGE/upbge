@@ -158,24 +158,30 @@ public:
 	       			 -sj,      cj * si,      cj * ci);
 	}
 
+	/** The X (yaw), Y (pitch) and Z (roll) angles of this turn, Rz * Ry * Rx (Blender's XYZ Euler);
+	 * the Y angle lies in [-90, 90] degrees. */
 	void getEuler(MT_Scalar& yaw, MT_Scalar& pitch, MT_Scalar& roll) const
-		{			
-			if (m_el[2][0] != -1.0f && m_el[2][0] != 1.0f) {
-				pitch = MT_Scalar(-asinf(m_el[2][0]));
-				yaw = MT_Scalar(atan2f(m_el[2][1] / cosf(pitch), m_el[2][2] / cosf(pitch)));
-				roll = MT_Scalar(atan2f(m_el[1][0] / cosf(pitch), m_el[0][0] / cosf(pitch)));
+		{
+			/* UPBGE fork (2026-11-17): within about 2.6 degrees of a Y angle of +-90 the formula
+			 * below loses precision (an arcsine of a number near 1, divisions by a cosine near 0),
+			 * and at exactly -90 its special case took the +90 case's angle, giving an X 180
+			 * degrees off with Z folded in: a turn pointing straight down came back flipped.
+			 * There Z is found first (0 when the Y angle is +-90 within float precision, as
+			 * Blender's mat3_normalized_to_eul), then X and Y from what the Z turn leaves (Ry * Rx),
+			 * so the three angles always rebuild this turn. Elsewhere the result is the old one to
+			 * the bit. */
+			if (fabsf(m_el[2][0]) >= 0.999f) {
+				const float cos_pitch = hypotf(m_el[0][0], m_el[1][0]);
+				roll = cos_pitch > 16.0f * FLT_EPSILON ? MT_Scalar(atan2f(m_el[1][0], m_el[0][0])) :
+				                                         MT_Scalar(0);
+				const float s = sinf(roll), c = cosf(roll);
+				yaw = MT_Scalar(atan2f(s * m_el[0][2] - c * m_el[1][2], c * m_el[1][1] - s * m_el[0][1]));
+				pitch = MT_Scalar(atan2f(-m_el[2][0], c * m_el[0][0] + s * m_el[1][0]));
+				return;
 			}
-			else {
-				roll = MT_Scalar(0);
-				if (m_el[2][0] == -1.0f) {
-					pitch = (MT_Scalar)MT_PI / 2.0f;
-					yaw = MT_Scalar(atan2f(m_el[0][1], m_el[0][2]));
-				}
-				else {
-					pitch = (MT_Scalar)-MT_PI / 2.0f;
-					yaw = MT_Scalar(atan2f(m_el[0][1], m_el[0][2]));
-				}
-			}
+			pitch = MT_Scalar(-asinf(m_el[2][0]));
+			yaw = MT_Scalar(atan2f(m_el[2][1] / cosf(pitch), m_el[2][2] / cosf(pitch)));
+			roll = MT_Scalar(atan2f(m_el[1][0] / cosf(pitch), m_el[0][0] / cosf(pitch)));
 		}
 
     void scale(MT_Scalar x, MT_Scalar y, MT_Scalar z) {

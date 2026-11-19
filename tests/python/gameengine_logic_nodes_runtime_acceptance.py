@@ -3837,7 +3837,9 @@ def check_owner(owner):
             and observed_position[2] >= min_z
             and not property_on_ground
         )
-        ok = state_delivery_ok
+        # Jolt characters move since 2026-11-16 (before, the object never moved: the motion was
+        # only reported).
+        ok = state_delivery_ok and motion_ok
         return ok, {
             "mode": mode,
             "state_delivery_ok": state_delivery_ok,
@@ -7954,7 +7956,9 @@ def check_owner(owner):
             and observed_position[2] >= min_z
             and not property_on_ground
         )
-        ok = state_delivery_ok
+        # Jolt characters move since 2026-11-16 (before, the object never moved: the motion was
+        # only reported).
+        ok = state_delivery_ok and motion_ok
         return ok, {
             "mode": mode,
             "state_delivery_ok": state_delivery_ok,
@@ -10468,9 +10472,11 @@ def build_character_state_tree(name, target_obj, gravity, walk_direction, veloci
         set_jump_speed,
         set_max_jumps,
         set_walk_direction,
-        set_velocity,
     ):
         tree.links.new(on_fixed_update.outputs["Out"], flow_input(node))
+    # Once, as a knock-back: its velocity replaces walking for its Time (set every step it would
+    # replace walking for good), then the character walks again.
+    tree.links.new(once.outputs["Out"], flow_input(set_velocity))
 
     for node in (
         set_gravity_x,
@@ -12225,7 +12231,10 @@ def build_brain_crowd_tree(tree, player, chains):
         math_node = new_logic_node(tree.nodes, "LogicNativeMath")
         math_node.operation = op
         tree.links.new(read_a.outputs[0], math_node.inputs["A"])
-        tree.links.new(read_b.outputs[0], math_node.inputs["B"])
+        # (One-input operations hide B since 2026-11-16: bpy finds no hidden socket by name.)
+        b_socket = math_node.inputs.get("B")
+        if b_socket is not None:
+            tree.links.new(read_b.outputs[0], b_socket)
         write = new_logic_node(tree.nodes, "LogicNativeSetGamePropertyFloat")
         write.inputs["Property"].default_value = "m_" + op
         tree.links.new(math_node.outputs["Result"], write.inputs["Value"])
@@ -13390,6 +13399,29 @@ def run_ray_preview_parity_acceptance(status_path):
 
     record_int("blast_count", length_of(out(blast, "Objects")), reached)
 
+    # (2026-11-17) Object mode's Offset: a holder at x 204 turned 90 degrees about Z and scaled 2,
+    # Offset (0, 2, 0): its own +Y is the world's -X, scaled: the blast at x 200 again (only
+    # BlastIn; around the holder itself both boxes would be).
+    holder = empty("BlastHolder", (204.0, 0.0, 0.0), (0.0, 0.0, math.pi / 2), (2.0, 2.0, 2.0))
+    blast_offset = new_logic_node(nodes, "LogicNativeExplosionImpulse")
+    blast_offset.center = "OBJECT"
+    inp(blast_offset, "Object", holder)
+    inp(blast_offset, "Offset", (0.0, 2.0, 0.0))
+    inp(blast_offset, "Radius", 3.0)
+    chain(blast_offset)
+
+    def reached_offset():
+        center, radius = data("blast_offset")["center"], data("blast_offset")["radius"]
+        count = 0
+        for box in blast_boxes:
+            low = box.location - mathutils.Vector(box.scale)
+            high = box.location + mathutils.Vector(box.scale)
+            nearest = mathutils.Vector([min(max(center[i], low[i]), high[i]) for i in range(3)])
+            count += (nearest - center).length <= radius
+        return count
+
+    record_int("blast_offset_count", length_of(out(blast_offset, "Objects")), reached_offset)
+
     # Keep Distance from empties beside the BlastIn box (its face at x = 201.5), the Radius
     # sphere every time (Measure From Sphere, and Object's Shape of an object without a body):
     # Push 0.1 m inside its cushion and 0.4 m outside it, Pull 0.1 m inside its Distance, Hold
@@ -13432,12 +13464,18 @@ def run_ray_preview_parity_acceptance(status_path):
     depsgraph = bpy.context.evaluated_depsgraph_get()
     for key, node in ([("ray", ray), ("ray_local", ray_local), ("ray_caster", ray_caster),
                        ("shape", shape), ("mouse", mouse), ("look", look), ("sweep", sweep),
-                       ("plane", plane), ("blast", blast)] + mesh_rays + camera_rays + throws +
+                       ("plane", plane), ("blast", blast), ("blast_offset", blast_offset)] +
+                      mesh_rays + camera_rays + throws +
                       arcs + keeps):
         preview = rp.preview_node(scene, depsgraph, tree, node, owner)
         require(not preview.dynamic and not preview.problem,
                 f"preview of {key}: dynamic {preview.dynamic}, problem {preview.problem!r}")
         previews[key] = preview
+    # The Offset's center, worked out apart from the preview (a preview and an engine both
+    # ignoring the Offset would still agree).
+    offset_center = data("blast_offset")["center"]
+    require((mathutils.Vector(offset_center) - mathutils.Vector((200.0, 0.0, 0.0))).length < 1.0e-4,
+            f"preview of blast_offset: center {tuple(offset_center)}, expected (200, 0, 0)")
     for name, expected, tolerance in records:
         value = expected()
         if isinstance(value, bool) or tolerance is None:
@@ -17652,7 +17690,7 @@ def run_character_state_acceptance(status_path):
         gravity,
         walk_direction,
         velocity,
-        0.1,
+        0.05,
         max_jumps,
         jump_speed,
     )

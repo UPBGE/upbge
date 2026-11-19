@@ -315,6 +315,134 @@ TEST(LN_SoundGroups, TheVoiceCapStopsTheOldestSoundThatDoesNotLoop)
   EXPECT_NEAR(audio.Loudness(), 0.5f * kSineLoudness, 0.01f);
 }
 
+/* Play Sound's tickets (2026-11-17): pending until their flush, then the sound's own state
+ * (Playing, Paused, Ended), Ended for a sound that never started. */
+TEST(LN_SoundGroups, ATicketFollowsItsSound)
+{
+  ScopedReadDevice audio;
+  LN_CommandBuffer::CacheToneForTests("LN Test Short", 440.0f, 0.05f);
+  LN_CommandBuffer::CacheToneForTests("LN Test Long", 330.0f);
+  EXPECT_EQ(LN_GetSoundTicketStatus(0), LN_SoundTicketStatus::Ended) << "no ticket: no sound";
+  const uint64_t short_ticket = LN_NewSoundTicket();
+  const uint64_t long_ticket = LN_NewSoundTicket();
+  const uint64_t missing_ticket = LN_NewSoundTicket();
+  EXPECT_EQ(LN_GetSoundTicketStatus(short_ticket), LN_SoundTicketStatus::Pending);
+  FlushOne([&](LN_CommandBuffer &buffer) {
+    buffer.AppendPlaySound("LN Test Short", 1.0f, 1.0f, false, 10, 1, 0, nullptr, short_ticket);
+    buffer.AppendPlaySound("LN Test Long", 0.5f, 1.0f, true, 11, 1, 0, nullptr, long_ticket);
+    buffer.AppendPlaySound("LN Test Nothing", 1.0f, 1.0f, false, 12, 1, 0, nullptr, missing_ticket);
+  });
+  EXPECT_EQ(LN_GetSoundTicketStatus(short_ticket), LN_SoundTicketStatus::Playing);
+  EXPECT_EQ(LN_GetSoundTicketStatus(long_ticket), LN_SoundTicketStatus::Playing);
+  EXPECT_EQ(LN_GetSoundTicketStatus(missing_ticket), LN_SoundTicketStatus::Ended)
+      << "no such sound: it ended at once";
+  audio.Loudness(); /* 0.2 s: the short tone (0.05 s) ends */
+  EXPECT_EQ(LN_GetSoundTicketStatus(short_ticket), LN_SoundTicketStatus::Ended);
+  EXPECT_EQ(LN_GetSoundTicketStatus(long_ticket), LN_SoundTicketStatus::Playing);
+  FlushOne([](LN_CommandBuffer &buffer) { buffer.AppendPauseSound("LN Test Long", 10, 1); });
+  EXPECT_EQ(LN_GetSoundTicketStatus(long_ticket), LN_SoundTicketStatus::Paused);
+  FlushOne([](LN_CommandBuffer &buffer) { buffer.AppendStopSound("LN Test Long", 10, 1); });
+  EXPECT_EQ(LN_GetSoundTicketStatus(long_ticket), LN_SoundTicketStatus::Ended);
+}
+
+/* Play Sound 3D's At Position (2026-11-17): no emitter, so two plays of one sound from one tree
+ * sound together, where at the speaker the second restarts the first. */
+TEST(LN_SoundGroups, SoundsAtPositionsPlayBesideEachOther)
+{
+  ScopedReadDevice audio;
+  LN_CommandBuffer::CacheToneForTests("LN Test Boom", 220.0f);
+  /* (No speaker object: the rig has none; the restart rule keys on the speaker, here none.) */
+  KX_GameObject *const owner = nullptr;
+  FlushOne([&](LN_CommandBuffer &buffer) {
+    for (int k = 0; k < 2; k++) {
+      buffer.AppendPlaySound3D(owner, "LN Test Boom", 0.25f, 1.0f, true, 10, 1, 2, 0, 0, 0, true,
+                               MT_Vector3(float(k), 0.0f, 0.0f));
+    }
+  });
+  const float both = audio.Loudness();
+  FlushOne([](LN_CommandBuffer &buffer) { buffer.AppendStopSound("LN Test Boom", 10, 1); });
+  EXPECT_LT(audio.Loudness(), 0.001f);
+  FlushOne([&](LN_CommandBuffer &buffer) {
+    for (int k = 0; k < 2; k++) {
+      buffer.AppendPlaySound3D(owner, "LN Test Boom", 0.25f, 1.0f, true, 10, 1, 2, 0, 0);
+    }
+  });
+  const float restarted = audio.Loudness();
+  EXPECT_GT(restarted, 0.01f);
+  EXPECT_NEAR(both, 2.0f * restarted, 0.02f) << "two copies at positions, one at the speaker";
+}
+
 #endif /* WITH_AUDASPACE */
 
 }  // namespace
+
+#ifdef WITH_AUDASPACE
+
+#  include "LN_SemRig.h"
+
+using namespace ln_test;
+using namespace ln_test::sem;
+
+/* The nodes (2026-11-17): a Sound linked from a value (here a property holding its name), Playing from the step
+ * after it starts, Finished once when it ends; in every mode. */
+TEST(LN_SoundNodes, PlayingAndFinishedFollowTheSoundStartedLast)
+{
+  for (const bool spatial : {false, true}) {
+    SCOPED_TRACE(spatial ? "Play Sound 3D" : "Play Sound");
+    TreeBuilder b;
+    GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+    GenNode &start = b.Add("LogicNativeGetGamePropertyBool");
+    b.String(start, "Property", "play");
+    GenNode &edge = b.Add("LogicNativeBooleanEdge");
+    b.Link(start, "Value", edge, "Condition");
+    /* (A value, as a list's item gives it: Get Random List Item of sounds.) */
+    GenNode &name = b.Add("LogicNativeGetGameProperty");
+    b.String(name, "Property", "sound");
+    GenNode &play = b.Add(spatial ? "LogicNativePlaySound3D" : "LogicNativePlaySound");
+    b.Link(edge, "Rising", play, "Flow");
+    b.Link(name, "Value", play, "Sound");
+    GenNode &playing = b.Add("LogicNativeSetGamePropertyBool");
+    b.String(playing, "Property", "playing");
+    b.Link(play, "Playing", playing, "Value");
+    b.Link(step, "Out", playing, "Flow");
+    GenNode &branch = b.Add("LogicNativeBranch");
+    b.Link(play, "Finished", branch, "Condition");
+    b.Link(playing, "Done", branch, "Flow");
+    GenNode &count = b.Add("LogicNativeModifyProperty", int16_t(blender::NODE_MATH_ADD));
+    b.String(count, "Property", "finished");
+    b.Float(count, "Value", 1.0f);
+    b.Link(branch, "True", count, "Flow");
+    std::string report;
+    const std::shared_ptr<LN_Program> program = b.Compile(&report);
+    ASSERT_NE(program, nullptr) << report;
+    std::string reference;
+    for (const SemMode &mode : AllModes()) {
+      SCOPED_TRACE(mode.name);
+      ScopedReadDevice audio;
+      LN_CommandBuffer::CacheToneForTests("LN Test Short", 440.0f, 0.05f);
+      SemRig rig(program, mode, 1);
+      KX_GameObject &object = rig.Object(0);
+      rig.SetString(object, "sound", "LN Test Short");
+      rig.SetFloat(object, "finished", 0.0f);
+      std::string text;
+      for (int s = 0; s < 8; s++) {
+        rig.SetBool(object, "play", s >= 2);
+        rig.Step();
+        if (s == 4) {
+          audio.Loudness(); /* 0.2 s of sound: the tone (0.05 s) ends */
+        }
+        text += std::to_string(int(rig.Float(object, "playing"))) +
+                std::to_string(int(rig.Float(object, "finished"))) + " ";
+      }
+      /* Started in step 2 (its flush), playing from step 3 until the audio moved on after step
+       * 4, finished in step 5 (seen once). */
+      EXPECT_EQ(text, "00 00 00 10 10 01 01 01 ");
+      if (reference.empty()) {
+        reference = text;
+      }
+      EXPECT_EQ(text, reference);
+    }
+  }
+}
+
+#endif /* WITH_AUDASPACE */

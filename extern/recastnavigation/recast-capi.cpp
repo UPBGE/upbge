@@ -28,16 +28,106 @@
 
 #include <math.h>
 #include "Recast.h"
+#include "RecastAlloc.h"
 
 static rcContext *sctx;
 
 #define INIT_SCTX()			\
 	if (sctx == NULL) sctx = new rcContext(false)
 
+/* Recast keeps its buildMeshAdjacency() static (RecastMesh.cpp): this is a copy of it, so the
+ * library stays as released (UPBGE, 2026-11-18). Based on code by Eric Lengyel. */
+struct recast_capi_edge
+{
+	unsigned short vert[2];
+	unsigned short polyEdge[2];
+	unsigned short poly[2];
+};
+
 int recast_buildMeshAdjacency(unsigned short* polys, const int npolys,
 			const int nverts, const int vertsPerPoly)
 {
-	return (int) buildMeshAdjacency(polys, npolys, nverts, vertsPerPoly);
+	const int maxEdgeCount = npolys*vertsPerPoly;
+	unsigned short* firstEdge = (unsigned short*)rcAlloc(sizeof(unsigned short)*(nverts + maxEdgeCount), RC_ALLOC_TEMP);
+	if (!firstEdge)
+		return 0;
+	unsigned short* nextEdge = firstEdge + nverts;
+	int edgeCount = 0;
+
+	recast_capi_edge* edges = (recast_capi_edge*)rcAlloc(sizeof(recast_capi_edge)*maxEdgeCount, RC_ALLOC_TEMP);
+	if (!edges)
+	{
+		rcFree(firstEdge);
+		return 0;
+	}
+
+	for (int i = 0; i < nverts; i++)
+		firstEdge[i] = RC_MESH_NULL_IDX;
+
+	for (int i = 0; i < npolys; ++i)
+	{
+		unsigned short* t = &polys[i*vertsPerPoly*2];
+		for (int j = 0; j < vertsPerPoly; ++j)
+		{
+			if (t[j] == RC_MESH_NULL_IDX) break;
+			unsigned short v0 = t[j];
+			unsigned short v1 = (j+1 >= vertsPerPoly || t[j+1] == RC_MESH_NULL_IDX) ? t[0] : t[j+1];
+			if (v0 < v1)
+			{
+				recast_capi_edge& edge = edges[edgeCount];
+				edge.vert[0] = v0;
+				edge.vert[1] = v1;
+				edge.poly[0] = (unsigned short)i;
+				edge.polyEdge[0] = (unsigned short)j;
+				edge.poly[1] = (unsigned short)i;
+				edge.polyEdge[1] = 0;
+				nextEdge[edgeCount] = firstEdge[v0];
+				firstEdge[v0] = (unsigned short)edgeCount;
+				edgeCount++;
+			}
+		}
+	}
+
+	for (int i = 0; i < npolys; ++i)
+	{
+		unsigned short* t = &polys[i*vertsPerPoly*2];
+		for (int j = 0; j < vertsPerPoly; ++j)
+		{
+			if (t[j] == RC_MESH_NULL_IDX) break;
+			unsigned short v0 = t[j];
+			unsigned short v1 = (j+1 >= vertsPerPoly || t[j+1] == RC_MESH_NULL_IDX) ? t[0] : t[j+1];
+			if (v0 > v1)
+			{
+				for (unsigned short e = firstEdge[v1]; e != RC_MESH_NULL_IDX; e = nextEdge[e])
+				{
+					recast_capi_edge& edge = edges[e];
+					if (edge.vert[1] == v0 && edge.poly[0] == edge.poly[1])
+					{
+						edge.poly[1] = (unsigned short)i;
+						edge.polyEdge[1] = (unsigned short)j;
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	for (int i = 0; i < edgeCount; ++i)
+	{
+		const recast_capi_edge& e = edges[i];
+		if (e.poly[0] != e.poly[1])
+		{
+			unsigned short* p0 = &polys[e.poly[0]*vertsPerPoly*2];
+			unsigned short* p1 = &polys[e.poly[1]*vertsPerPoly*2];
+			p0[vertsPerPoly + e.polyEdge[0]] = e.poly[1];
+			p1[vertsPerPoly + e.polyEdge[1]] = e.poly[0];
+		}
+	}
+
+	rcFree(firstEdge);
+	rcFree(edges);
+
+	return 1;
 }
 
 void recast_calcBounds(const float *verts, int nv, float *bmin, float *bmax)

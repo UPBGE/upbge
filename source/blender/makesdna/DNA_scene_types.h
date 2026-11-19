@@ -746,9 +746,26 @@ typedef struct RecastData {
   float detailsampledist = 6.0f;
   float detailsamplemaxerror = 1.0f;
   char partitioning = RC_PARTITION_WATERSHED;
-  char _pad1 = 0;
+  /** UPBGE (2026-11-18): the game builds its own navmesh from the level's collision shapes,
+   * #NAVMESH_BUILD_OFF / _LEVEL / _AROUND_NPCS. */
+  char build_mode = 0;
   short _pad2[5] = {};
+  /** Around NPCs: the navmesh exists within this distance of every NPC (0: 30 m) and is dropped
+   * past remove_radius (0: 1.6 x build_radius). */
+  float build_radius = 30.0f;
+  float remove_radius = 48.0f;
+  /** NPCs farther than this from the active camera avoid each other only every few steps (0:
+   * always every step). */
+  float detail_distance = 0.0f;
+  float _pad3 = 0.0f;
 } RecastData;
+
+/** #RecastData.build_mode */
+enum {
+  NAVMESH_BUILD_OFF = 0,
+  NAVMESH_BUILD_LEVEL = 1,
+  NAVMESH_BUILD_AROUND_NPCS = 2,
+};
 
 /** One key, mouse button or gamepad control of a #GameInputAction. */
 typedef struct GameInputBinding {

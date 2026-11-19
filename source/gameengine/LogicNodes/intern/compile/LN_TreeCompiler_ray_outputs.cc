@@ -15,8 +15,10 @@
 #include "../LN_TreeCompiler_internal.hh"
 
 #include <algorithm>
+#include <cstring>
 
 #include "DNA_node_types.h"
+#include "LN_Random.h"
 
 namespace ln_compiler {
 
@@ -441,7 +443,140 @@ static std::optional<uint32_t> BuildVelocityAtPointQueryExpression(
   return program.AddQueryExpression(query);
 }
 
+/** Navmesh Query (2026-11-18): one query its outputs share (LN_QueryExpressionKind::
+ * NavmeshQuery). Its mode (custom1) picks the inputs: From and To (Find Path, Is Reachable,
+ * Walkable Line), Position (Nearest Point, Random Point; input1 too) and Radius. */
+static std::optional<uint32_t> BuildNavmeshQueryExpression(LN_Program &program,
+                                                           const blender::bNode &node,
+                                                           const NodeDefinitionMap &node_definitions,
+                                                           const InputLinkMap &input_links,
+                                                           ValueCache &value_cache,
+                                                           FloatExpressionCache &float_cache,
+                                                           BoolExpressionCache &bool_cache)
+{
+  InputReader in(
+      program, node, node_definitions, input_links, value_cache, float_cache, bool_cache);
+  const LN_NavmeshQueryMode mode = LN_NavmeshQueryMode(std::clamp(int(node.custom1), 0, 4));
+  const bool point_mode = mode == LN_NavmeshQueryMode::NearestPoint ||
+                          mode == LN_NavmeshQueryMode::RandomPoint;
+  LN_QueryExpression query;
+  query.kind = LN_QueryExpressionKind::NavmeshQuery;
+  query.int_value = int32_t(mode);
+  /* The navmesh object: an object of no navmesh reads as the scene's own (the kind's cast). */
+  query.input0 = in.OptionalObject("Navmesh Object");
+  query.input1 = in.Vector(point_mode ? "Position" : "From");
+  if (!point_mode) {
+    query.input2 = in.Vector("To");
+  }
+  if (mode == LN_NavmeshQueryMode::RandomPoint) {
+    query.float_expr_index = in.Float("Radius");
+  }
+  if (in.failed()) {
+    return std::nullopt;
+  }
+  /* Random Point's numbers: the node's own (its name), the tick, the tree's stream. */
+  uint64_t hash = LN_RandomHashText(node.name, std::strlen(node.name));
+  hash = LN_RandomHashText("navmesh query", 13, hash);
+  query.secondary_int_value = int32_t(uint32_t(hash ^ (hash >> 32)) & ~LN_RANDOM_SAME_FOR_ALL);
+  query.cache_key = node.identifier;
+  return program.AddQueryExpression(query);
+}
+
 namespace {
+
+/** Get Navigation Info and On Navigation Link (2026-11-18): the agent's last step, one kind per
+ * output type (Bool / Float / Vector::NavigationState, Value::NavigationLinkObject,
+ * String::NavigationLinkKind), the Object input (the owner when empty) shared. */
+std::optional<uint32_t> BuildNavigationInfoOutput(LN_Program &program,
+                                                  const blender::bNode &node,
+                                                  const blender::bNodeSocket &socket,
+                                                  const NodeDefinitionMap &node_definitions,
+                                                  const InputLinkMap &input_links,
+                                                  ValueCache &value_cache,
+                                                  FloatExpressionCache &float_cache,
+                                                  BoolExpressionCache &bool_cache)
+{
+  InputReader in(
+      program, node, node_definitions, input_links, value_cache, float_cache, bool_cache);
+  const uint32_t object = in.OptionalObject("Object");
+  if (in.failed()) {
+    return std::nullopt;
+  }
+  const auto is = [&](const char *name) {
+    return NamesMatch(socket.name, socket.identifier, name);
+  };
+  const auto state_bool = [&](const int32_t field) {
+    LN_BoolExpression expression;
+    expression.kind = LN_BoolExpressionKind::NavigationState;
+    expression.input0 = object;
+    expression.int_value = field;
+    return program.AddBoolExpression(expression);
+  };
+  const auto state_vector = [&](const int32_t field) {
+    LN_VectorExpression expression;
+    expression.kind = LN_VectorExpressionKind::NavigationState;
+    expression.input0 = object;
+    expression.int_value = field;
+    expression.property_ref_index = LN_INVALID_INDEX;
+    return program.AddVectorExpression(expression);
+  };
+  const auto state_float = [&](const int32_t field) {
+    LN_FloatExpression expression;
+    expression.kind = LN_FloatExpressionKind::NavigationState;
+    expression.input0 = object;
+    expression.int_value = field;
+    return program.AddFloatExpression(expression);
+  };
+  if (is("On Link Start")) {
+    return state_bool(LN_NAV_STATE_LINK_STARTED);
+  }
+  if (is("Moving")) {
+    return state_bool(LN_NAV_STATE_MOVING);
+  }
+  if (is("Arrived")) {
+    return state_bool(LN_NAV_STATE_ARRIVED);
+  }
+  if (is("Has Path")) {
+    return state_bool(LN_NAV_STATE_HAS_PATH);
+  }
+  if (is("Path Complete")) {
+    return state_bool(LN_NAV_STATE_PATH_COMPLETE);
+  }
+  if (is("No Path")) {
+    return state_bool(LN_NAV_STATE_NO_PATH);
+  }
+  if (is("On Link")) {
+    return state_bool(LN_NAV_STATE_ON_LINK);
+  }
+  if (is("Next Corner")) {
+    return state_vector(LN_NAV_VECTOR_NEXT_CORNER);
+  }
+  if (is("Velocity")) {
+    return state_vector(LN_NAV_VECTOR_VELOCITY);
+  }
+  if (is("Goal")) {
+    return state_vector(LN_NAV_VECTOR_GOAL);
+  }
+  if (is("Remaining Distance")) {
+    return state_float(LN_NAV_FLOAT_REMAINING);
+  }
+  if (is("Speed")) {
+    return state_float(LN_NAV_FLOAT_SPEED);
+  }
+  if (is("Link Object")) {
+    LN_ValueExpression expression;
+    expression.kind = LN_ValueExpressionKind::NavigationLinkObject;
+    expression.input0 = object;
+    return program.AddValueExpression(expression);
+  }
+  if (is("Link Kind")) {
+    LN_StringExpression expression;
+    expression.kind = LN_StringExpressionKind::NavigationLinkKind;
+    expression.input0 = object;
+    return program.AddStringExpression(expression);
+  }
+  return std::nullopt;
+}
 
 /** The query of a ray family node (the one its other outputs share: same cache key). */
 std::optional<uint32_t> BuildFamilyQuery(const LN_NodeKind kind,
@@ -489,6 +624,9 @@ std::optional<uint32_t> BuildFamilyQuery(const LN_NodeKind kind,
     case LN_NodeKind::VelocityAtPoint:
       return BuildVelocityAtPointQueryExpression(
           program, node, node_definitions, input_links, value_cache, float_cache, bool_cache);
+    case LN_NodeKind::NavmeshQuery:
+      return BuildNavmeshQueryExpression(
+          program, node, node_definitions, input_links, value_cache, float_cache, bool_cache);
     default:
       return std::nullopt;
   }
@@ -520,6 +658,9 @@ bool HandlesOutput(const LN_NodeKind kind, const blender::bNodeSocket &socket)
     case LN_NodeKind::KeepDistance:
       return !is("Done");
     case LN_NodeKind::VelocityAtPoint:
+    case LN_NodeKind::NavmeshQuery:
+    case LN_NodeKind::GetNavigationInfo:
+    case LN_NodeKind::OnNavigationLink:
       return true;
     default:
       return false;
@@ -755,6 +896,58 @@ bool TryCompileRayFamilyOutput(LN_Program &program,
                                    value_cache,
                                    float_expression_cache,
                                    bool_expression_cache);
+  }
+  else if (kind == LN_NodeKind::GetNavigationInfo || kind == LN_NodeKind::OnNavigationLink) {
+    result = BuildNavigationInfoOutput(program,
+                                       node,
+                                       output_socket,
+                                       node_definitions,
+                                       input_links,
+                                       value_cache,
+                                       float_expression_cache,
+                                       bool_expression_cache);
+  }
+  else if (kind == LN_NodeKind::NavmeshQuery) {
+    /* Found, Point, Normal, Length read the query's result; Points each corner of the path. */
+    if (const std::optional<uint32_t> query = BuildFamilyQuery(kind,
+                                                               program,
+                                                               node,
+                                                               node_definitions,
+                                                               input_links,
+                                                               value_cache,
+                                                               float_expression_cache,
+                                                               bool_expression_cache))
+    {
+      if (is("Found")) {
+        LN_BoolExpression expression;
+        expression.kind = LN_BoolExpressionKind::PhysicsQueryHit;
+        expression.input0 = *query;
+        result = program.AddBoolExpression(expression);
+      }
+      else if (is("Point") || is("Normal")) {
+        /* Point and Normal hold whether Found or not (a way that ends short of To, a line a wall
+         * stops): the kind keeps them in the end point and the direction, which the ray kinds
+         * read without the hit's gate. */
+        LN_VectorExpression expression;
+        expression.kind = is("Point") ? LN_VectorExpressionKind::PhysicsQueryEndPoint :
+                                        LN_VectorExpressionKind::PhysicsQueryDirection;
+        expression.input0 = *query;
+        expression.property_ref_index = LN_INVALID_INDEX;
+        result = program.AddVectorExpression(expression);
+      }
+      else if (is("Length")) {
+        LN_FloatExpression expression;
+        expression.kind = LN_FloatExpressionKind::PhysicsQueryDistance;
+        expression.input0 = *query;
+        result = program.AddFloatExpression(expression);
+      }
+      else if (is("Points")) {
+        LN_ValueExpression list;
+        list.kind = LN_ValueExpressionKind::PhysicsQueryPoints;
+        list.input0 = *query;
+        result = program.AddValueExpression(list);
+      }
+    }
   }
   else if (kind == LN_NodeKind::VelocityAtPoint) {
     /* Velocity and Point read the query's result, Speed is the length of that Velocity, the lists

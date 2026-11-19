@@ -11,11 +11,13 @@ JPH_SUPPRESS_WARNINGS
 #include <Jolt/Physics/Body/BodyLockMulti.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
+#include <Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.h>
 #include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/Constraints/FixedConstraint.h>
 #include <Jolt/Physics/Constraints/SixDOFConstraint.h>
+#include <Jolt/Physics/Constraints/HingeConstraint.h>
 #include <Jolt/Physics/Constraints/SliderConstraint.h>
 #include <Jolt/Physics/SoftBody/SoftBodyMotionProperties.h>
 #include <Jolt/Physics/StateRecorderImpl.h>
@@ -30,12 +32,16 @@ JPH_SUPPRESS_WARNINGS
 #include "JoltSoftBody.h"
 #include "KX_ClientObjectInfo.h"
 #include "KX_GameObject.h"
+#include "KX_NodeRelationships.h"
 #include "SG_Node.h"
 
 #include <atomic>
 #include <bit>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <deque>
 #include <limits>
 #include <memory>
 #include <string>
@@ -1078,6 +1084,438 @@ TEST(JoltPhysicsController, CompoundParentingRejectsNonCompoundRootWithoutMutati
   EXPECT_FALSE(root.controller.OwnsCompoundChildObject(&child.object));
   EXPECT_TRUE(child.controller.SupportsCompoundParenting());
 }
+
+/* -------------------------------------------------------------------- */
+/** \name The Compound checkbox while playing (2026-11-18)
+ * \{ */
+
+/** Whether a ray straight down at (x, 0) hits `controller`'s body (as `part`, when given). */
+static bool RayDownHits(TestJoltPhysicsEnvironment &environment,
+                        const float x,
+                        const PHY_IPhysicsController *controller,
+                        const KX_GameObject *part = nullptr)
+{
+  AcceptAllRayCastFilter filter;
+  PHY_RayQuerySettings settings;
+  settings.origin = MT_Vector3(x, 0.0f, 5.0f);
+  settings.destination = MT_Vector3(x, 0.0f, -5.0f);
+  settings.detail_flags = PHY_RAY_QUERY_DETAIL_PART;
+  std::vector<PHY_RayCastResult> results;
+  environment.RayCast(settings, filter, results);
+  for (const PHY_RayCastResult &result : results) {
+    if (result.m_controller == controller && (part == nullptr || result.m_partObject == part)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Whether `shape` is a compound (also behind the offset that keeps a center of mass). */
+static bool IsCompoundShape(const JPH::Shape *shape)
+{
+  if (shape != nullptr && shape->GetSubType() == JPH::EShapeSubType::OffsetCenterOfMass) {
+    shape = static_cast<const JPH::OffsetCenterOfMassShape *>(shape)->GetInnerShape();
+  }
+  return shape != nullptr && shape->GetSubType() == JPH::EShapeSubType::StaticCompound;
+}
+
+/** A root box at the origin and a child box 2 to the side, parented as Set Parent does (a normal
+ * relation). */
+struct CompoundPair {
+  explicit CompoundPair(TestJoltPhysicsEnvironment &environment,
+                        const JPH::EMotionType root_motion = JPH::EMotionType::Static)
+      : root(environment, root_motion, JPH::RVec3::sZero()),
+        child(environment, JPH::EMotionType::Dynamic, JPH::RVec3(2.0f, 0.0f, 0.0f)),
+        hierarchy(root.object, child.object)
+  {
+    hierarchy.child_node.SetParentRelation(new KX_NormalParentRelation());
+    hierarchy.parent_node.SetWorldPosition(MT_Vector3(0.0f, 0.0f, 0.0f));
+    hierarchy.parent_node.SetWorldOrientation(MT_Matrix3x3::Identity());
+    hierarchy.parent_node.SetWorldScale(MT_Vector3(1.0f, 1.0f, 1.0f));
+    hierarchy.child_node.SetLocalPosition(MT_Vector3(2.0f, 0.0f, 0.0f));
+    hierarchy.child_node.SetLocalOrientation(MT_Matrix3x3::Identity());
+    hierarchy.child_node.SetLocalScale(MT_Vector3(1.0f, 1.0f, 1.0f));
+    hierarchy.child_node.SetWorldPosition(MT_Vector3(2.0f, 0.0f, 0.0f));
+    hierarchy.child_node.SetWorldOrientation(MT_Matrix3x3::Identity());
+    hierarchy.child_node.SetWorldScale(MT_Vector3(1.0f, 1.0f, 1.0f));
+    SetControllerQueryMotionState(child.controller, MT_Vector3(2.0f, 0.0f, 0.0f));
+  }
+  ~CompoundPair()
+  {
+    /* (Back to their own bodies before the bodies go.) */
+    root.controller.SetCompoundRoot(false);
+    child.controller.EndTransformParenting();
+  }
+
+  LogicContactTarget root;
+  LogicContactTarget child;
+  TestObjectHierarchy hierarchy;
+};
+
+/** A holder box at the origin and `count` part boxes (bodies) in a row above it, parented with a
+ * normal relation, each part's Compound on (each holds nothing yet). */
+struct CompoundCrowd {
+  CompoundCrowd(TestJoltPhysicsEnvironment &environment, const int count)
+      : root(environment, JPH::EMotionType::Dynamic, JPH::RVec3::sZero()),
+        root_node(&root.object, nullptr, callbacks)
+  {
+    root.object.SetSGNode(&root_node);
+    root_node.SetParentRelation(new KX_NormalParentRelation());
+    root_node.SetWorldPosition(MT_Vector3(0.0f, 0.0f, 0.0f));
+    root_node.SetWorldOrientation(MT_Matrix3x3::Identity());
+    root_node.SetWorldScale(MT_Vector3(1.0f, 1.0f, 1.0f));
+    for (int index = 0; index < count; index++) {
+      const MT_Vector3 place(float(index % 32), float(index / 32), 2.0f);
+      LogicContactTarget &part = parts.emplace_back(
+          environment, JPH::EMotionType::Dynamic, JoltMath::ToJoltR(place));
+      SG_Node &node = nodes.emplace_back(&part.object, nullptr, callbacks);
+      part.object.SetSGNode(&node);
+      node.SetParentRelation(new KX_NormalParentRelation());
+      root_node.AddChild(&node);
+      node.SetLocalPosition(place);
+      node.SetWorldPosition(place);
+      node.SetWorldOrientation(MT_Matrix3x3::Identity());
+      node.SetWorldScale(MT_Vector3(1.0f, 1.0f, 1.0f));
+      SetControllerQueryMotionState(part.controller, place);
+      part.object.SetCompoundEnabled(true);
+    }
+  }
+  ~CompoundCrowd()
+  {
+    root.object.SetCompoundEnabled(false);
+    for (LogicContactTarget &part : parts) {
+      part.controller.SetCompoundRoot(false);
+      part.controller.EndTransformParenting();
+      part.object.GetSGNode()->DisconnectFromParent();
+      part.object.SetSGNode(nullptr);
+    }
+    root.object.SetSGNode(nullptr);
+  }
+
+  SG_Callbacks callbacks;
+  LogicContactTarget root;
+  SG_Node root_node;
+  std::deque<LogicContactTarget> parts;
+  std::deque<SG_Node> nodes;
+};
+
+TEST(JoltPhysicsController, ACompoundRootHoldsPartsAndLetsThemGoBackToItsOwnShape)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  CompoundPair pair(environment);
+  const JPH::RefConst<JPH::Shape> own_shape = pair.root.controller.GetShape();
+
+  /* Off: no part joins. On: one does. */
+  EXPECT_FALSE(pair.root.controller.IsCompound());
+  ASSERT_TRUE(pair.root.controller.SetCompoundRoot(true));
+  EXPECT_TRUE(pair.root.controller.IsCompound());
+  ASSERT_TRUE(pair.child.controller.BeginCompoundParenting());
+  ASSERT_TRUE(pair.root.controller.TryAddCompoundChild(&pair.child.controller));
+  EXPECT_TRUE(pair.root.controller.OwnsCompoundChildObject(&pair.child.object));
+  EXPECT_TRUE(RayDownHits(environment, 2.0f, &pair.root.controller, &pair.child.object));
+  /* A part holds no parts. */
+  EXPECT_FALSE(pair.child.controller.SetCompoundRoot(true));
+  EXPECT_FALSE(pair.child.controller.IsCompound());
+
+  /* Off: the part goes, the root's shape is its own one again (not a compound of one). */
+  ASSERT_TRUE(pair.root.controller.SetCompoundRoot(false));
+  EXPECT_FALSE(pair.root.controller.IsCompound());
+  EXPECT_FALSE(pair.root.controller.OwnsCompoundChildObject(&pair.child.object));
+  EXPECT_FALSE(RayDownHits(environment, 2.0f, &pair.root.controller));
+  EXPECT_TRUE(RayDownHits(environment, 0.0f, &pair.root.controller));
+  EXPECT_FALSE(IsCompoundShape(pair.root.controller.GetShape()));
+  EXPECT_EQ(pair.root.controller.GetShape()->GetSubType(), own_shape->GetSubType());
+  /* A root that is no compound joins no part. */
+  pair.child.controller.EndTransformParenting();
+  pair.child.controller.SetCompoundChildFlag(false);
+  ASSERT_TRUE(pair.child.controller.BeginCompoundParenting());
+  EXPECT_FALSE(pair.root.controller.TryAddCompoundChild(&pair.child.controller));
+}
+
+/* A part of a compound made when the game started has no body of its own: its part is found and
+ * taken out by its object (as the converter binds it: no controller). */
+TEST(JoltPhysicsController, APartWithoutABodyLeavesByItsObject)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  CompoundPair pair(environment);
+  ASSERT_TRUE(pair.root.controller.SetCompoundRoot(true));
+  ASSERT_TRUE(pair.child.controller.BeginCompoundParenting());
+  ASSERT_TRUE(pair.root.controller.TryAddCompoundChild(&pair.child.controller));
+  /* (Its controller gone: as the converter leaves such a part.) */
+  pair.child.object.SetPhysicsController(nullptr);
+  EXPECT_TRUE(pair.root.controller.OwnsCompoundChildObject(&pair.child.object));
+  EXPECT_TRUE(pair.root.controller.RemoveCompoundChildObject(&pair.child.object));
+  EXPECT_FALSE(pair.root.controller.OwnsCompoundChildObject(&pair.child.object));
+  EXPECT_FALSE(RayDownHits(environment, 2.0f, &pair.root.controller));
+  EXPECT_FALSE(pair.root.controller.RemoveCompoundChildObject(&pair.child.object));
+  pair.child.object.SetPhysicsController(&pair.child.controller);
+}
+
+/* A copy's compound (Add Object) holds its source's shape and bindings: they name the copies of
+ * the parts after RebindCompoundChildObjects (the copy's parts have Blender objects of their
+ * own: no part was ever found by its place); a part not copied leaves the copy's shape. */
+TEST(JoltPhysicsController, ACopysCompoundNamesTheCopiesOfItsParts)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  CompoundPair pair(environment);
+  ASSERT_TRUE(pair.root.controller.SetCompoundRoot(true));
+  /* The source's two parts (2 and -2 to the side), their objects not in this hierarchy: the
+   * child is the copy of the first, the second was not copied. */
+  KX_GameObject copied_source;
+  KX_GameObject lost_source;
+  const JPH::uint32 copied = pair.root.controller.RegisterCompoundChildBinding(
+      &copied_source, JoltMath::ToJolt(MT_Vector3(2.0f, 0.0f, 0.0f)), JPH::Quat::sIdentity());
+  const JPH::uint32 lost = pair.root.controller.RegisterCompoundChildBinding(
+      &lost_source, JoltMath::ToJolt(MT_Vector3(-2.0f, 0.0f, 0.0f)), JPH::Quat::sIdentity());
+  JPH::StaticCompoundShapeSettings shape;
+  shape.AddShape(JPH::Vec3::sZero(), JPH::Quat::sIdentity(), pair.root.controller.GetShape(), 0);
+  shape.AddShape(JoltMath::ToJolt(MT_Vector3(2.0f, 0.0f, 0.0f)),
+                 JPH::Quat::sIdentity(),
+                 new JPH::BoxShape(JPH::Vec3::sReplicate(0.5f)),
+                 copied);
+  shape.AddShape(JoltMath::ToJolt(MT_Vector3(-2.0f, 0.0f, 0.0f)),
+                 JPH::Quat::sIdentity(),
+                 new JPH::BoxShape(JPH::Vec3::sReplicate(0.5f)),
+                 lost);
+  pair.root.controller.SetShapePreservingMassPropertiesAndCenterOfMass(shape.Create().Get(),
+                                                                       nullptr);
+  /* Before: the copy's part is no part (in a game the hits named none either: the copy's
+   * Blender object is its own; the rig's objects have none, so a hit finds it by its place). */
+  EXPECT_FALSE(pair.root.controller.OwnsCompoundChildObject(&pair.child.object));
+  EXPECT_EQ(pair.child.object.GetCompoundHolder(), nullptr);
+  EXPECT_TRUE(RayDownHits(environment, -2.0f, &pair.root.controller));
+
+  pair.root.controller.RebindCompoundChildObjects(
+      [&](KX_GameObject *source) -> KX_GameObject * {
+        return source == &copied_source ? &pair.child.object : nullptr;
+      });
+  EXPECT_EQ(pair.root.controller.FindCompoundChildBinding(&pair.child.object), copied);
+  EXPECT_EQ(pair.root.controller.FindCompoundChildBinding(&copied_source), 0u);
+  EXPECT_TRUE(pair.root.controller.OwnsCompoundChildObject(&pair.child.object));
+  EXPECT_EQ(pair.child.object.GetCompoundHolder(), &pair.root.object);
+  EXPECT_TRUE(RayDownHits(environment, 2.0f, &pair.root.controller, &pair.child.object));
+  EXPECT_FALSE(RayDownHits(environment, -2.0f, &pair.root.controller));
+  EXPECT_EQ(pair.root.controller.FindCompoundChildBinding(&lost_source), 0u);
+}
+
+/* Parts join and leave in batches: one new shape for all of them; a part a moving compound
+ * cannot take (a triangle mesh) stays out alone. */
+TEST(JoltPhysicsController, PartsJoinAndLeaveInOneShapeChange)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  CompoundCrowd crowd(environment, 6);
+  /* The fourth part a triangle mesh: a Dynamic holder cannot take it. */
+  JPH::TriangleList triangles = {
+      JPH::Triangle(JPH::Float3(0, 0, 0), JPH::Float3(1, 0, 0), JPH::Float3(0, 0, 1))};
+  crowd.parts[3].controller.SetShape(JPH::MeshShapeSettings(triangles).Create().Get(), nullptr);
+  ASSERT_TRUE(crowd.root.controller.SetCompoundRoot(true));
+  std::vector<PHY_IPhysicsController *> children;
+  for (LogicContactTarget &part : crowd.parts) {
+    ASSERT_TRUE(part.controller.SetCompoundRoot(false));
+    ASSERT_TRUE(part.controller.BeginCompoundParenting());
+    children.push_back(&part.controller);
+  }
+  std::vector<bool> added;
+  crowd.root.controller.AddCompoundChildren(children, added);
+  ASSERT_EQ(added.size(), 6u);
+  for (size_t index = 0; index < 6; index++) {
+    EXPECT_EQ(added[index], index != 3) << index;
+    EXPECT_EQ(crowd.root.controller.OwnsCompoundChildObject(&crowd.parts[index].object),
+              index != 3)
+        << index;
+  }
+  /* Twice: nothing new. */
+  crowd.root.controller.AddCompoundChildren(children, added);
+  EXPECT_EQ(added[0], true);
+  EXPECT_EQ(added[3], false);
+  /* Two leave at once, the others stay. */
+  EXPECT_TRUE(crowd.root.controller.RemoveCompoundChildObjects(
+      {&crowd.parts[0].object, &crowd.parts[5].object}));
+  EXPECT_FALSE(crowd.root.controller.OwnsCompoundChildObject(&crowd.parts[0].object));
+  EXPECT_FALSE(crowd.root.controller.OwnsCompoundChildObject(&crowd.parts[5].object));
+  EXPECT_TRUE(crowd.root.controller.OwnsCompoundChildObject(&crowd.parts[1].object));
+  EXPECT_TRUE(RayDownHits(environment, 1.0f, &crowd.root.controller, &crowd.parts[1].object));
+  EXPECT_FALSE(RayDownHits(environment, 5.0f, &crowd.root.controller));
+  EXPECT_FALSE(crowd.root.controller.RemoveCompoundChildObjects({&crowd.parts[0].object}));
+  for (LogicContactTarget &part : crowd.parts) {
+    crowd.root.controller.RemoveCompoundChild(&part.controller);
+    part.controller.EndTransformParenting();
+  }
+}
+
+/* Many parts removed from the game at once leave their holder in one shape change, and an
+ * object's removal takes the parts below it out too. */
+TEST(JoltPhysicsController, RemovedPartsLeaveTheirHolderAtOnce)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  CompoundCrowd crowd(environment, 4);
+  ASSERT_EQ(crowd.root.object.SetCompoundEnabled(true), "");
+  for (LogicContactTarget &part : crowd.parts) {
+    ASSERT_EQ(part.object.GetCompoundHolder(), &crowd.root.object);
+  }
+  KX_GameObject::LeaveCompoundsForRemoval(
+      {&crowd.parts[1].object, &crowd.parts[2].object, &crowd.parts[1].object, nullptr});
+  EXPECT_EQ(crowd.parts[0].object.GetCompoundHolder(), &crowd.root.object);
+  EXPECT_EQ(crowd.parts[1].object.GetCompoundHolder(), nullptr);
+  EXPECT_EQ(crowd.parts[2].object.GetCompoundHolder(), nullptr);
+  EXPECT_EQ(crowd.parts[3].object.GetCompoundHolder(), &crowd.root.object);
+  EXPECT_FALSE(RayDownHits(environment, 1.0f, &crowd.root.controller));
+  EXPECT_TRUE(RayDownHits(environment, 3.0f, &crowd.root.controller, &crowd.parts[3].object));
+}
+
+/* The Compound checkbox of objects (KX_GameObject::SetCompoundEnabled, Set Rigid Body
+ * Attribute's Compound): a part joins and leaves its holder, a holder takes back the parts with
+ * Compound; the scene graph never changes. */
+TEST(JoltPhysicsController, CompoundSettingJoinsAndLeavesWithoutChangingTheSceneGraph)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  CompoundPair pair(environment, JPH::EMotionType::Dynamic);
+  JPH::BodyInterface &body_interface = environment.GetBodyInterface();
+  KX_GameObject &root = pair.root.object;
+  KX_GameObject &child = pair.child.object;
+  const auto expect_scene_graph_kept = [&]() {
+    EXPECT_EQ(pair.hierarchy.child_node.GetSGParent(), &pair.hierarchy.parent_node);
+    EXPECT_EQ(pair.hierarchy.parent_node.GetSGChildren().size(), 1u);
+    EXPECT_EQ(pair.hierarchy.child_node.GetLocalPosition(), MT_Vector3(2.0f, 0.0f, 0.0f));
+  };
+
+  /* The child without Compound: the root holds, nothing joins. */
+  EXPECT_FALSE(child.GetCompoundSetting());
+  EXPECT_EQ(root.SetCompoundEnabled(true), "");
+  EXPECT_TRUE(pair.root.controller.IsCompound());
+  EXPECT_FALSE(pair.root.controller.OwnsCompoundChildObject(&child));
+  EXPECT_EQ(child.GetCompoundHolder(), nullptr);
+
+  /* The child on: it joins (no collision of its own, out of the world). */
+  EXPECT_EQ(child.SetCompoundEnabled(true), "");
+  EXPECT_EQ(child.GetCompoundHolder(), &root);
+  EXPECT_TRUE(child.GetParentCompoundIntent());
+  EXPECT_TRUE(pair.child.controller.IsTransformParentingActive());
+  EXPECT_FALSE(body_interface.IsAdded(pair.child.body_id));
+  EXPECT_TRUE(RayDownHits(environment, 2.0f, &pair.root.controller, &child));
+  expect_scene_graph_kept();
+  /* Again: nothing changes. */
+  EXPECT_EQ(child.SetCompoundEnabled(true), "");
+  EXPECT_EQ(child.GetCompoundHolder(), &root);
+
+  /* The child off: it leaves and follows its parent as without Compound (a Dynamic body:
+   * no collision while parented). */
+  EXPECT_EQ(child.SetCompoundEnabled(false), "");
+  EXPECT_EQ(child.GetCompoundHolder(), nullptr);
+  EXPECT_FALSE(child.GetParentCompoundIntent());
+  EXPECT_TRUE(child.GetParentPhysicsManaged());
+  EXPECT_TRUE(pair.child.controller.IsTransformParentingActive());
+  EXPECT_FALSE(RayDownHits(environment, 2.0f, &pair.root.controller));
+  EXPECT_TRUE(pair.root.controller.IsCompound());
+  expect_scene_graph_kept();
+
+  /* The root off with the child in: the child leaves, the root's shape is its own. The child,
+   * now the topmost object with Compound, holds (the converter's rule; nothing below it). */
+  EXPECT_EQ(child.SetCompoundEnabled(true), "");
+  EXPECT_EQ(child.GetCompoundHolder(), &root);
+  EXPECT_EQ(root.SetCompoundEnabled(false), "");
+  EXPECT_FALSE(pair.root.controller.IsCompound());
+  EXPECT_EQ(child.GetCompoundHolder(), nullptr);
+  EXPECT_FALSE(RayDownHits(environment, 2.0f, &pair.root.controller));
+  EXPECT_FALSE(IsCompoundShape(pair.root.controller.GetShape()));
+  EXPECT_TRUE(child.GetCompoundSetting());
+  EXPECT_TRUE(pair.child.controller.IsCompound());
+  expect_scene_graph_kept();
+
+  /* The root on again: the child (still with Compound) gives up holding and joins back. */
+  EXPECT_EQ(root.SetCompoundEnabled(true), "");
+  EXPECT_FALSE(pair.child.controller.IsCompound());
+  EXPECT_EQ(child.GetCompoundHolder(), &root);
+  EXPECT_TRUE(RayDownHits(environment, 2.0f, &pair.root.controller, &child));
+
+  /* The order the checkboxes are turned in does not matter: both off, then the child on before
+   * the root ends as the root on before the child. */
+  EXPECT_EQ(root.SetCompoundEnabled(false), "");
+  EXPECT_EQ(child.SetCompoundEnabled(false), "");
+  EXPECT_FALSE(pair.child.controller.IsCompound());
+  EXPECT_EQ(child.SetCompoundEnabled(true), "");
+  EXPECT_EQ(root.SetCompoundEnabled(true), "");
+  EXPECT_EQ(child.GetCompoundHolder(), &root);
+  EXPECT_FALSE(pair.child.controller.IsCompound());
+  expect_scene_graph_kept();
+}
+
+/* A part made when the game started (no body) stays a part when no body can be made for it (the
+ * rig has no scene to build one), with a reason; an object leaving the game takes its part out. */
+TEST(JoltPhysicsController, APartWithoutABodyStaysWhenNoneCanBeMadeAndLeavesWhenRemoved)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  CompoundPair pair(environment);
+  KX_GameObject &child = pair.child.object;
+  ASSERT_TRUE(pair.root.controller.SetCompoundRoot(true));
+  ASSERT_TRUE(pair.child.controller.BeginCompoundParenting());
+  ASSERT_TRUE(pair.root.controller.TryAddCompoundChild(&pair.child.controller));
+  child.SetPhysicsController(nullptr);
+
+  EXPECT_EQ(child.GetCompoundHolder(), &pair.root.object);
+  const std::string reason = child.SetCompoundEnabled(false);
+  EXPECT_NE(reason.find("no body of its own"), std::string::npos) << reason;
+  EXPECT_EQ(child.GetCompoundHolder(), &pair.root.object);
+  EXPECT_TRUE(RayDownHits(environment, 2.0f, &pair.root.controller, &child));
+  /* The holder off: the part cannot leave, the holder stays one. */
+  EXPECT_FALSE(pair.root.object.SetCompoundEnabled(false).empty());
+  EXPECT_TRUE(pair.root.controller.IsCompound());
+
+  child.LeaveCompoundForRemoval();
+  EXPECT_EQ(child.GetCompoundHolder(), nullptr);
+  EXPECT_FALSE(RayDownHits(environment, 2.0f, &pair.root.controller));
+  child.SetPhysicsController(&pair.child.controller);
+}
+
+/* A No Collision object has nothing to join or hold. */
+TEST(JoltPhysicsController, CompoundSettingOfAnObjectWithoutABodyWarns)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  CompoundPair pair(environment);
+  pair.child.object.SetPhysicsController(nullptr);
+  pair.root.object.SetCompoundEnabled(true);
+  EXPECT_NE(pair.child.object.SetCompoundEnabled(true).find("No Collision"), std::string::npos);
+  pair.child.object.SetPhysicsController(&pair.child.controller);
+  pair.root.object.SetPhysicsController(nullptr);
+  EXPECT_NE(pair.root.object.SetCompoundEnabled(true).find("No Collision"), std::string::npos);
+  pair.root.object.SetPhysicsController(&pair.root.controller);
+}
+
+/* What turning a holder's Compound on and off costs with many parts (UPBGE_LN_BENCH_PARTS,
+ * default 1000): every part joins, then leaves. */
+TEST(JoltPhysicsController, DISABLED_CompoundOfManyPartsCost)
+{
+  const char *count_text = std::getenv("UPBGE_LN_BENCH_PARTS");
+  const int count = count_text != nullptr ? std::atoi(count_text) : 1000;
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(
+      &scene, 1, count + 64, count + 64, count + 64, 8, false);
+  CompoundCrowd crowd(environment, count);
+  for (int round = 0; round < 3; round++) {
+    const auto start = std::chrono::steady_clock::now();
+    EXPECT_EQ(crowd.root.object.SetCompoundEnabled(true), "");
+    const auto joined = std::chrono::steady_clock::now();
+    EXPECT_EQ(crowd.parts.back().object.GetCompoundHolder(), &crowd.root.object);
+    EXPECT_EQ(crowd.root.object.SetCompoundEnabled(false), "");
+    const auto left = std::chrono::steady_clock::now();
+    EXPECT_EQ(crowd.parts.back().object.GetCompoundHolder(), nullptr);
+    /* (Each part holds again: it is the topmost object with Compound.) */
+    std::printf("compound of %d parts: on %.2f ms, off %.2f ms\n",
+                count,
+                std::chrono::duration<double, std::milli>(joined - start).count(),
+                std::chrono::duration<double, std::milli>(left - joined).count());
+  }
+}
+
+/** \} */
 
 TEST(JoltPhysicsEnvironment, KinematicMotionStateUsesFixedStepVelocityAndStopsAtTarget)
 {
@@ -2935,6 +3373,147 @@ TEST(JoltPhysicsEnvironment, RigidBodyConstraintUsesNativeJoltMappings)
   object2.SetSGNode(nullptr);
 }
 
+/* Set Rigid Body Constraint (2026-11-17): SetRigidBodyConstraintSettings gives a live constraint
+ * its limits, motor, springs, breaking and enabled state as making it with them would, and turns
+ * each off again; an unknown id changes nothing. */
+TEST(JoltPhysicsEnvironment, SetRigidBodyConstraintSettingsChangesALiveConstraint)
+{
+  blender::Scene scene{};
+  TestJoltPhysicsEnvironment environment(&scene, 1, 128, 128, 128, 8, false);
+  JPH::BodyInterface &body_interface = environment.GetBodyInterface();
+  const JPH::RefConst<JPH::Shape> shape = new JPH::BoxShape(JPH::Vec3::sReplicate(0.5f));
+  const JPH::BodyID dynamic_body = body_interface.CreateAndAddBody(
+      JPH::BodyCreationSettings(shape,
+                                JPH::RVec3::sZero(),
+                                JPH::Quat::sIdentity(),
+                                JPH::EMotionType::Dynamic,
+                                JoltMakeObjectLayer(1, 1, JOLT_BP_DYNAMIC)),
+      JPH::EActivation::Activate);
+  const JPH::BodyID static_body = body_interface.CreateAndAddBody(
+      JPH::BodyCreationSettings(shape,
+                                JPH::RVec3(1.0f, 0.0f, 0.0f),
+                                JPH::Quat::sIdentity(),
+                                JPH::EMotionType::Static,
+                                JoltMakeObjectLayer(1, 1, JOLT_BP_STATIC)),
+      JPH::EActivation::DontActivate);
+  JoltPhysicsController dynamic_controller;
+  dynamic_controller.SetEnvironment(&environment);
+  dynamic_controller.SetBodyID(dynamic_body);
+  JoltPhysicsController static_controller;
+  static_controller.SetEnvironment(&environment);
+  static_controller.SetBodyID(static_body);
+  KX_GameObject object1;
+  KX_GameObject object2;
+  SG_Callbacks callbacks;
+  SG_Node node1(&object1, nullptr, callbacks);
+  SG_Node node2(&object2, nullptr, callbacks);
+  object1.SetSGNode(&node1);
+  object2.SetSGNode(&node2);
+  object1.SetPhysicsController(&dynamic_controller);
+  object2.SetPhysicsController(&static_controller);
+  const auto make = [&](const PHY_RigidBodyConstraintSettings &settings) {
+    return environment.CreateRigidBodyConstraint(
+        &object1, &object2, MT_Vector3(0.0f, 0.0f, 0.0f), MT_Matrix3x3::Identity(), settings);
+  };
+
+  EXPECT_FALSE(environment.SetRigidBodyConstraintSettings(12345, PHY_RigidBodyConstraintSettings{}));
+
+  /* A hinge: its swing (Z) limited, then free again. */
+  PHY_RigidBodyConstraintSettings hinge;
+  hinge.type = PHY_RigidBodyConstraintType::Hinge;
+  int id = make(hinge);
+  ASSERT_NE(id, -1);
+  JoltConstraint *wrapper = environment.FindConstraint(id);
+  ASSERT_EQ(wrapper->GetConstraint()->GetSubType(), JPH::EConstraintSubType::Hinge);
+  JPH::HingeConstraint *hinge_constraint = static_cast<JPH::HingeConstraint *>(
+      wrapper->GetConstraint());
+  hinge.flags |= PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Z;
+  hinge.limit_ang_z_lower = -0.5f;
+  hinge.limit_ang_z_upper = 0.75f;
+  ASSERT_TRUE(environment.SetRigidBodyConstraintSettings(id, hinge));
+  EXPECT_FLOAT_EQ(hinge_constraint->GetLimitsMin(), -0.5f);
+  EXPECT_FLOAT_EQ(hinge_constraint->GetLimitsMax(), 0.75f);
+  EXPECT_TRUE(hinge_constraint->HasLimits());
+  hinge.flags &= ~PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Z;
+  ASSERT_TRUE(environment.SetRigidBodyConstraintSettings(id, hinge));
+  EXPECT_FALSE(hinge_constraint->HasLimits());
+  /* Breaking, then not; switched off and on. */
+  hinge.flags |= PHY_RB_CONSTRAINT_USE_BREAKING;
+  hinge.breaking_threshold = 7.0f;
+  ASSERT_TRUE(environment.SetRigidBodyConstraintSettings(id, hinge));
+  EXPECT_FLOAT_EQ(wrapper->GetBreakingThreshold(), 7.0f);
+  hinge.flags &= ~(PHY_RB_CONSTRAINT_USE_BREAKING | PHY_RB_CONSTRAINT_ENABLED);
+  ASSERT_TRUE(environment.SetRigidBodyConstraintSettings(id, hinge));
+  EXPECT_EQ(wrapper->GetBreakingThreshold(), FLT_MAX);
+  EXPECT_FALSE(wrapper->GetEnabled());
+  EXPECT_FALSE(environment.IsRigidBodyConstraintEnabled(id));
+  hinge.flags |= PHY_RB_CONSTRAINT_ENABLED;
+  ASSERT_TRUE(environment.SetRigidBodyConstraintSettings(id, hinge));
+  EXPECT_TRUE(wrapper->GetEnabled());
+  EXPECT_TRUE(environment.RemoveConstraintById(id, true));
+
+  /* A motor: started, its speed changed, stopped. */
+  PHY_RigidBodyConstraintSettings motor;
+  motor.type = PHY_RigidBodyConstraintType::Motor;
+  id = make(motor);
+  ASSERT_NE(id, -1);
+  wrapper = environment.FindConstraint(id);
+  ASSERT_EQ(wrapper->GetConstraint()->GetSubType(), JPH::EConstraintSubType::SixDOF);
+  JPH::SixDOFConstraint *six_dof = static_cast<JPH::SixDOFConstraint *>(wrapper->GetConstraint());
+  EXPECT_EQ(six_dof->GetMotorState(JPH::SixDOFConstraint::EAxis::RotationX),
+            JPH::EMotorState::Off);
+  motor.flags |= PHY_RB_CONSTRAINT_USE_MOTOR_ANG;
+  motor.motor_ang_target_velocity = 2.0f;
+  motor.motor_ang_max_impulse = 5.0f;
+  ASSERT_TRUE(environment.SetRigidBodyConstraintSettings(id, motor));
+  EXPECT_EQ(six_dof->GetMotorState(JPH::SixDOFConstraint::EAxis::RotationX),
+            JPH::EMotorState::Velocity);
+  EXPECT_FLOAT_EQ(six_dof->GetTargetAngularVelocityCS().GetX(), 2.0f);
+  EXPECT_FLOAT_EQ(
+      six_dof->GetMotorSettings(JPH::SixDOFConstraint::EAxis::RotationX).mMaxTorqueLimit, 5.0f);
+  motor.motor_ang_target_velocity = -3.0f;
+  ASSERT_TRUE(environment.SetRigidBodyConstraintSettings(id, motor));
+  EXPECT_FLOAT_EQ(six_dof->GetTargetAngularVelocityCS().GetX(), -3.0f);
+  EXPECT_EQ(six_dof->GetMotorState(JPH::SixDOFConstraint::EAxis::TranslationX),
+            JPH::EMotorState::Off);
+  motor.flags &= ~PHY_RB_CONSTRAINT_USE_MOTOR_ANG;
+  ASSERT_TRUE(environment.SetRigidBodyConstraintSettings(id, motor));
+  EXPECT_EQ(six_dof->GetMotorState(JPH::SixDOFConstraint::EAxis::RotationX),
+            JPH::EMotorState::Off);
+  EXPECT_TRUE(environment.RemoveConstraintById(id, true));
+
+  /* Generic Spring: a spring added, stiffened, taken away; a limit set on a generic axis. */
+  PHY_RigidBodyConstraintSettings spring;
+  spring.type = PHY_RigidBodyConstraintType::GenericSpring;
+  id = make(spring);
+  ASSERT_NE(id, -1);
+  wrapper = environment.FindConstraint(id);
+  six_dof = static_cast<JPH::SixDOFConstraint *>(wrapper->GetConstraint());
+  spring.flags |= PHY_RB_CONSTRAINT_USE_SPRING_Y | PHY_RB_CONSTRAINT_USE_LIMIT_LIN_Z;
+  spring.spring_stiffness_y = 40.0f;
+  spring.spring_damping_y = 2.0f;
+  spring.limit_lin_z_lower = -0.25f;
+  spring.limit_lin_z_upper = 0.5f;
+  ASSERT_TRUE(environment.SetRigidBodyConstraintSettings(id, spring));
+  EXPECT_EQ(six_dof->GetMotorState(JPH::SixDOFConstraint::EAxis::TranslationY),
+            JPH::EMotorState::Position);
+  EXPECT_FLOAT_EQ(six_dof->GetMotorSettings(JPH::SixDOFConstraint::EAxis::TranslationY)
+                      .mSpringSettings.mStiffness,
+                  40.0f);
+  EXPECT_FLOAT_EQ(six_dof->GetLimitsMin(JPH::SixDOFConstraint::EAxis::TranslationZ), -0.25f);
+  EXPECT_FLOAT_EQ(six_dof->GetLimitsMax(JPH::SixDOFConstraint::EAxis::TranslationZ), 0.5f);
+  spring.flags &= ~PHY_RB_CONSTRAINT_USE_SPRING_Y;
+  ASSERT_TRUE(environment.SetRigidBodyConstraintSettings(id, spring));
+  EXPECT_EQ(six_dof->GetMotorState(JPH::SixDOFConstraint::EAxis::TranslationY),
+            JPH::EMotorState::Off);
+  EXPECT_TRUE(environment.RemoveConstraintById(id, true));
+
+  object1.SetPhysicsController(nullptr);
+  object2.SetPhysicsController(nullptr);
+  object1.SetSGNode(nullptr);
+  object2.SetSGNode(nullptr);
+}
+
 TEST(JoltPhysicsEnvironment, RayAndShapeCastReturnMeshFaceAndUVThroughMirroredScale)
 {
   blender::Scene scene{};
@@ -4068,11 +4647,13 @@ TEST(JoltPhysicsEnvironment, ShapeCastSensorsAreOptIn)
 
 TEST(JoltPhysicsEnvironment, PhysicsThreadsCountTheGamesOwnThread)
 {
-  /* Auto (-1 and 0): half the CPU's threads as helpers, at most 8. */
+  /* Auto (-1 and 0): every thread, at most 9 in all (the game's own and up to 8 helpers). */
   EXPECT_EQ(JoltPhysicsEnvironment::HelperThreadsForSetting(-1, 32), 8);
   EXPECT_EQ(JoltPhysicsEnvironment::HelperThreadsForSetting(0, 32), 8);
-  EXPECT_EQ(JoltPhysicsEnvironment::HelperThreadsForSetting(-1, 12), 6);
-  EXPECT_EQ(JoltPhysicsEnvironment::HelperThreadsForSetting(-1, 8), 4);
+  EXPECT_EQ(JoltPhysicsEnvironment::HelperThreadsForSetting(-1, 16), 8);
+  EXPECT_EQ(JoltPhysicsEnvironment::HelperThreadsForSetting(-1, 12), 8);
+  EXPECT_EQ(JoltPhysicsEnvironment::HelperThreadsForSetting(-1, 8), 7);
+  EXPECT_EQ(JoltPhysicsEnvironment::HelperThreadsForSetting(-1, 4), 3);
   EXPECT_EQ(JoltPhysicsEnvironment::HelperThreadsForSetting(-1, 2), 1);
   EXPECT_EQ(JoltPhysicsEnvironment::HelperThreadsForSetting(-1, 1), 0);
   /* An unknown CPU (0 threads reported) counts as one thread. */

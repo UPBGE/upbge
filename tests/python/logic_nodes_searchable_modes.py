@@ -11,7 +11,9 @@ that option set (scripts/startup/bl_ui/node_add_menu_logic.py: `searchable_mode_
   LOGIC_NODES_WITHOUT_MODE (then a new node with several dropdowns must be given its mode in
   LOGIC_NODE_SEARCHABLE_MODES);
 - the search entries are drawn with the menu's label, one per option, each setting its option;
-- each option set on a new node really takes.
+- each option set on a new node really takes;
+- each search word of LOGIC_NODE_SEARCH_ALIASES ("Toggle ▸ Flip-Flop") is listed once, in the
+  search only, adding the plain node.
 
     blender --background --factory-startup --python tests/python/logic_nodes_searchable_modes.py
 """
@@ -153,8 +155,56 @@ menu._node_operator_with_modes(fake, type("Context", (), {"is_menu_search": Fals
                                menu.searchable_mode_of(item))
 check(len(fake.entries) == 1, "outside the search the menu shows %d entries" % len(fake.entries))
 
-print("%d logic nodes in the Add menu, %d with a searchable mode, %d search entries" % (
-    len(items), searchable, entries))
+
+# Search words (2026-11-16): "Toggle ▸ Flip-Flop" and "Toggle ▸ Flow Gate" add the plain node, in
+# the search only. Drawn through the real menu pages, so a page that forgets them fails here.
+class FakeLayout:
+    def separator(self):
+        pass
+
+
+class FakePageMenu(FakeMenu):
+    layout = FakeLayout()
+
+    def draw_menu(self, layout, path):
+        pass
+
+
+def page_entries(context):
+    fake = FakePageMenu()
+    for path, layout_items in menu.LOGIC_MENU_LAYOUTS.items():
+        menu._draw_menu_items(fake, context, layout_items)
+    return fake.entries
+
+
+searched = page_entries(search_context)
+plain = page_entries(type("Context", (), {"is_menu_search": False})())
+check(menu.LOGIC_NODE_SEARCH_ALIASES.get("LogicNativeFlipFlop") == ("Toggle",) and
+      menu.LOGIC_NODE_SEARCH_ALIASES.get("LogicNativeFlowGate") == ("Toggle",),
+      "Flip-Flop and Flow Gate lost their search word Toggle")
+aliases = 0
+for idname, words in sorted(menu.LOGIC_NODE_SEARCH_ALIASES.items()):
+    check(idname in items, "%s has search words but is not in the Add menu" % idname)
+    if idname not in items:
+        continue
+    name = items[idname].get("label") or getattr(bpy.types, idname).bl_rna.name
+    for word in words:
+        label = "%s ▸ %s" % (word, name)
+        found = [entry for entry in searched if entry.label == label]
+        check(len(found) == 1, "the search lists %r %d times" % (label, len(found)))
+        for entry in found:
+            aliases += 1
+            check(entry.idname == idname and not entry.settings,
+                  "%r adds %s with settings %s" % (label, entry.idname, entry.settings))
+            check(entry.use_transform, "%r does not follow the menu's transform" % label)
+        check(not any(entry.label == label for entry in plain),
+              "%r shows outside the search" % label)
+check(len(searched) == len(plain) + entries + aliases,
+      "the search draws %d entries, the menu %d, the modes %d and the search words %d" % (
+          len(searched), len(plain), entries, aliases))
+
+print("%d logic nodes in the Add menu, %d with a searchable mode, %d search entries, "
+      "%d search words" % (len(items), searchable, entries, aliases))
 print("PROBLEMS (%d):" % len(PROBLEMS))
 for problem in PROBLEMS:
     print("  " + problem)

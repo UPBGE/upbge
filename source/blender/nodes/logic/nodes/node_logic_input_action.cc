@@ -35,6 +35,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0)
       .description("Player: 0 has the keyboard and mouse. Gamepads: Scene > Game Input Map (by "
                    "default player N has gamepad N)");
+  b.add_input<decl::Float>("Time"_ustr)
+      .default_value(0.3f)
+      .min(0.0f)
+      .description(logic::input_gesture_time_description);
   logic::add_use_ui_input_layout(b);
 }
 
@@ -56,6 +60,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
+  ntype.updatefunc = logic::input_gesture_time_update;
   ntype.initfunc = node_init;
   /* Wide enough for an action name and Also When UI Uses It. */
   bke::node_type_size(ntype, 190, 140, NODE_DEFAULT_MAX_WIDTH);

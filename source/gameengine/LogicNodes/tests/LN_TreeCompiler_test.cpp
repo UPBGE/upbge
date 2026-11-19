@@ -321,6 +321,8 @@ TEST(LN_TreeCompiler, EmitsEventInstructionsAndTopologicalConstants)
   Append(math.inputs, math_a);
   Append(math.inputs, math_b);
   Append(math.outputs, math_result);
+  MathCSocket math_new_sockets;
+  math_new_sockets.AppendTo(math);
   Append(tree.nodes, math);
 
   blender::bNodeSocketValueFloat timescale_default = {};
@@ -384,6 +386,8 @@ TEST(LN_TreeCompiler, RejectsCycles)
   Append(first.inputs, first_a);
   Append(first.inputs, first_b);
   Append(first.outputs, first_result);
+  MathCSocket first_new_sockets;
+  first_new_sockets.AppendTo(first);
   Append(tree.nodes, first);
 
   blender::bNode second = {};
@@ -397,6 +401,8 @@ TEST(LN_TreeCompiler, RejectsCycles)
   Append(second.inputs, second_a);
   Append(second.inputs, second_b);
   Append(second.outputs, second_result);
+  MathCSocket second_new_sockets;
+  second_new_sockets.AppendTo(second);
   Append(tree.nodes, second);
 
   blender::bNodeSocketValueVector position_default = {};
@@ -701,6 +707,8 @@ TEST(LN_TreeCompiler, RejectsMissingInputSocket)
   InitSocket(math_result, "Result", blender::SOCK_FLOAT, nullptr);
   Append(math.inputs, math_a);
   Append(math.outputs, math_result);
+  MathCSocket math_new_sockets;
+  math_new_sockets.AppendTo(math);
   Append(tree.nodes, math);
 
   blender::bNodeSocketValueVector position_default = {};
@@ -2403,6 +2411,8 @@ TEST(LN_TreeCompiler, KeyboardDrivenEmptySendEventDoesNotDisableSiblingFlow)
   blender::bNodeSocket key_input = {};
   blender::bNodeSocket keyboard_pressed = {};
   InitNode(keyboard, "LogicNativeKeyboardKey", "Keyboard Key", 1);
+  InputTimeSocket keyboard_time;
+  keyboard_time.AppendTo(keyboard);
   InitSocket(key_input, "Key", blender::SOCK_STRING, &key_default);
   InitSocket(keyboard_pressed, "Out", blender::SOCK_BOOLEAN, nullptr);
   Append(keyboard.inputs, key_input);
@@ -5986,6 +5996,8 @@ TEST(LN_TreeCompiler, DelayAndPulsifyCompileAsTimeFlowContinuations)
   Append(delay.inputs, delay_flow);
   Append(delay.inputs, delay_duration);
   Append(delay.inputs, delay_ignore_timescale);
+  CountdownControlSockets delay_controls;
+  delay_controls.AppendTo(delay);
   Append(delay.outputs, delay_out);
   Append(tree.nodes, delay);
 
@@ -6109,6 +6121,8 @@ TEST(LN_TreeCompiler, DelayInheritsFrameUpdateDomainFromItsTrigger)
   Append(delay.inputs, delay_flow);
   Append(delay.inputs, duration);
   Append(delay.inputs, ignore_timescale);
+  CountdownControlSockets delay_controls;
+  delay_controls.AppendTo(delay);
   Append(delay.outputs, delay_out);
   Append(tree.nodes, delay);
 
@@ -6196,6 +6210,8 @@ TEST(LN_TreeCompiler, LatentTimeNodeRejectsMixedFrameAndFixedClockDomains)
   Append(delay.inputs, delay_flow);
   Append(delay.inputs, duration);
   Append(delay.inputs, ignore_timescale);
+  CountdownControlSockets delay_controls;
+  delay_controls.AppendTo(delay);
   Append(delay.outputs, delay_out);
   Append(tree.nodes, delay);
 
@@ -6332,6 +6348,8 @@ TEST(LN_TreeCompiler, LatentCompletionDropsExpiredConstraintBreakGuard)
   Append(delay.inputs, delay_flow);
   Append(delay.inputs, delay_duration);
   Append(delay.inputs, delay_ignore_timescale);
+  CountdownControlSockets delay_controls;
+  delay_controls.AppendTo(delay);
   Append(delay.outputs, delay_out);
   Append(tree.nodes, delay);
 
@@ -6406,6 +6424,8 @@ TEST(LN_TreeCompiler, TimerCompilesOnInitArmAndFixedUpdateContinuation)
   Append(timer.inputs, timer_flow);
   Append(timer.inputs, timer_seconds);
   Append(timer.inputs, timer_ignore_timescale);
+  CountdownControlSockets timer_controls;
+  timer_controls.AppendTo(timer);
   Append(timer.outputs, timer_out);
   Append(tree.nodes, timer);
 
@@ -6597,6 +6617,8 @@ TEST(LN_TreeCompiler, CompareWithALiveInputDrivesABranch)
   Append(compare.inputs, compare_a);
   Append(compare.inputs, compare_b);
   Append(compare.outputs, compare_result);
+  CompareTypeSockets compare_new_sockets;
+  compare_new_sockets.AppendTo(compare);
   Append(tree.nodes, compare);
 
   blender::bNode branch = {};
@@ -7496,11 +7518,14 @@ TEST(LN_TreeCompiler, PlayActionCompilesExactAsynchronousLifecycleRoutes)
   blender::bNodeSocketValueInt priority_default = {};
   blender::bNodeSocketValueFloat blendin_default = {};
   blender::bNodeSocketValueFloat speed_default = {};
+  /* Layer Weight and Action Name (2026-11-16). */
+  blender::bNodeSocketValueFloat weight_default = {};
+  blender::bNodeSocketValueString name_default = {};
   end_default.value = 9.0f;
   speed_default.value = 1.0f;
 
   blender::bNode play = {};
-  std::array<blender::bNodeSocket, 8> inputs = {};
+  std::array<blender::bNodeSocket, 10> inputs = {};
   std::array<blender::bNodeSocket, 4> outputs = {};
   InitNode(play, "LogicNativePlayAction", "Play Action", 2);
   play.id = &action_id;
@@ -7512,6 +7537,8 @@ TEST(LN_TreeCompiler, PlayActionCompilesExactAsynchronousLifecycleRoutes)
   InitSocket(inputs[5], "Priority", blender::SOCK_INT, &priority_default);
   InitSocket(inputs[6], "Blend In", blender::SOCK_FLOAT, &blendin_default);
   InitSocket(inputs[7], "Speed", blender::SOCK_FLOAT, &speed_default);
+  InitSocket(inputs[8], "Layer Weight", blender::SOCK_FLOAT, &weight_default);
+  InitSocket(inputs[9], "Action Name", blender::SOCK_STRING, &name_default);
   const std::array<const char *, 4> output_names = {
       "Started", "Completed", "Interrupted", "Failed"};
   for (blender::bNodeSocket &socket : inputs) {
@@ -10097,6 +10124,8 @@ TEST(LN_TreeCompiler, EmitsVectorMathExpressionForSetWorldPosition)
   Append(vector_math.inputs, math_b);
   Append(vector_math.inputs, math_scale);
   Append(vector_math.outputs, math_result);
+  VectorMathNewSockets vector_math_new_sockets;
+  vector_math_new_sockets.AppendTo(vector_math);
   Append(tree.nodes, vector_math);
 
   blender::bNodeSocketValueVector position_default = {};
@@ -10169,6 +10198,8 @@ TEST(LN_TreeCompiler, RejectsUnsupportedVectorMathOperation)
   Append(vector_math.inputs, input_b);
   Append(vector_math.inputs, scale);
   Append(vector_math.outputs, result);
+  VectorMathNewSockets vector_math_new_sockets;
+  vector_math_new_sockets.AppendTo(vector_math);
   Append(tree.nodes, vector_math);
 
   blender::bNodeSocketValueVector position_default = {};
@@ -10217,6 +10248,8 @@ TEST(LN_TreeCompiler, RejectsUnsupportedMathOperation)
   Append(math.inputs, math_a);
   Append(math.inputs, math_b);
   Append(math.outputs, math_result);
+  MathCSocket math_new_sockets;
+  math_new_sockets.AppendTo(math);
   Append(tree.nodes, math);
 
   blender::bNodeSocketValueVector position_default = {};
@@ -10511,6 +10544,8 @@ TEST(LN_TreeCompiler, KeyboardKeyCompilesInputStatusCodeAndStatus)
   blender::bNodeSocket key_input = {};
   blender::bNodeSocket keyboard_out = {};
   InitNode(keyboard, "LogicNativeKeyboardKey", "Keyboard Key", 1);
+  InputTimeSocket keyboard_time;
+  keyboard_time.AppendTo(keyboard);
   InitSocket(key_input, "Key", blender::SOCK_STRING, &key_default);
   InitSocket(keyboard_out, "Out", blender::SOCK_BOOLEAN, nullptr);
   Append(keyboard.inputs, key_input);
@@ -10573,6 +10608,8 @@ TEST(LN_TreeCompiler, InputActionAndTheAlsoUIFlagCompile)
   blender::bNodeSocket action_user = {};
   blender::bNodeSocket action_out = {};
   InitNode(action, "LogicNativeInputAction", "Input Action", 1);
+  InputTimeSocket action_time;
+  action_time.AppendTo(action);
   action.custom1 = int16_t(1 | blender::LOGIC_NODE_INPUT_ALSO_UI);
   InitSocket(action_name, "Action", blender::SOCK_STRING, &action_default);
   InitSocket(action_user, "User", blender::SOCK_INT, &user_default);
@@ -10651,6 +10688,8 @@ TEST(LN_TreeCompiler, GamepadTriggerSeparatesSelectedEdgeFromActiveState)
   blender::bNodeSocket triggered = {};
   blender::bNodeSocket active = {};
   InitNode(gamepad, "LogicNativeGamepadButton", "Gamepad Trigger", 1);
+  InputTimeSocket gamepad_time;
+  gamepad_time.AppendTo(gamepad);
   gamepad.custom1 = 2;
   gamepad.custom2 = 15;
   InitSocket(index, "Index", blender::SOCK_INT, &index_default);
@@ -10737,7 +10776,10 @@ TEST(LN_TreeCompiler, KeyboardActiveStateCanBeSampledByFixedSimulationFlow)
   blender::bNodeSocket key = {};
   blender::bNodeSocket active = {};
   InitNode(keyboard, "LogicNativeKeyboardKey", "Keyboard Key", 2);
-  keyboard.custom1 = 3; /* Active. */
+  InputTimeSocket keyboard_time;
+  keyboard_time.AppendTo(keyboard);
+  /* Tap: the Active output reads the held state whatever the Input Type. */
+  keyboard.custom1 = 3;
   InitSocket(key, "Key", blender::SOCK_STRING, &key_default);
   InitSocket(active, "Active", blender::SOCK_BOOLEAN, nullptr);
   Append(keyboard.inputs, key);
@@ -10812,6 +10854,8 @@ TEST(LN_TreeCompiler, KeyboardPressedConditionUsesFixedInputEdgeIndependentlyOfT
   blender::bNodeSocket key = {};
   blender::bNodeSocket pressed = {};
   InitNode(keyboard, "LogicNativeKeyboardKey", "Keyboard Key", 2);
+  InputTimeSocket keyboard_time;
+  keyboard_time.AppendTo(keyboard);
   keyboard.custom1 = 2; /* Triggered is configured for Released; Pressed remains explicit. */
   InitSocket(key, "Key", blender::SOCK_STRING, &key_default);
   InitSocket(pressed, "Pressed", blender::SOCK_BOOLEAN, nullptr);
@@ -11578,6 +11622,8 @@ TEST(LN_TreeCompiler, KeyboardKeyAcceptsBlenderEventIdentifiers)
     blender::bNodeSocket key_input = {};
     blender::bNodeSocket keyboard_out = {};
     InitNode(keyboard, "LogicNativeKeyboardKey", "Keyboard Key", 1);
+    InputTimeSocket keyboard_time;
+    keyboard_time.AppendTo(keyboard);
     InitSocket(key_input, "Key", blender::SOCK_STRING, &key_default);
     InitSocket(keyboard_out, "Out", blender::SOCK_BOOLEAN, nullptr);
     Append(keyboard.inputs, key_input);
@@ -12771,6 +12817,8 @@ TEST(LN_TreeCompiler, EmitsVectorScaleFromGamePropertyFloat)
   Append(vector_math.inputs, math_b);
   Append(vector_math.inputs, math_scale);
   Append(vector_math.outputs, math_result);
+  VectorMathNewSockets vector_math_new_sockets;
+  vector_math_new_sockets.AppendTo(vector_math);
   Append(tree.nodes, vector_math);
 
   blender::bNodeSocketValueVector position_default = {};
@@ -12857,6 +12905,8 @@ TEST(LN_TreeCompiler, DiagnosticsIncludeSocketForMissingRequiredInput)
   InitSocket(math_result, "Result", blender::SOCK_FLOAT, nullptr);
   Append(math.inputs, math_a);
   Append(math.outputs, math_result);
+  MathCSocket math_new_sockets;
+  math_new_sockets.AppendTo(math);
   Append(tree.nodes, math);
 
   blender::bNode print_node = {};
@@ -13240,6 +13290,8 @@ TEST(LN_TreeCompiler, EmitsPlaySound3DPauseAndResumeOpcodes)
   Append(play_3d.inputs, play_pitch);
   Append(play_3d.inputs, play_loop);
   Append(play_3d.inputs, play_user);
+  PlaySound3DNewSockets play_new_sockets;
+  play_new_sockets.AppendTo(play_3d);
   Append(play_3d.outputs, play_done);
   Append(tree.nodes, play_3d);
 
@@ -13290,7 +13342,9 @@ TEST(LN_TreeCompiler, EmitsPlaySound3DPauseAndResumeOpcodes)
                                                             play_instruction->string_expr_index);
   ASSERT_NE(name_expr, nullptr);
   EXPECT_EQ(name_expr->string_value, "TestSound");
-  EXPECT_EQ(play_instruction->int_value, int32_t(LN_SoundListener::Player));
+  /* (2026-11-17) Bits 0-3 the listener, 4 and up the node's sound slot + 1. */
+  EXPECT_EQ(play_instruction->int_value & 0xF, int32_t(LN_SoundListener::Player));
+  EXPECT_EQ(play_instruction->int_value >> 4, 1) << "the first sound slot";
   const LN_IntExpression *listener_user = IntExpressionAt(
       *program, play_instruction->secondary_int_expr_index);
   ASSERT_NE(listener_user, nullptr);
@@ -14607,18 +14661,28 @@ TEST(LN_TreeCompiler, StringOperationResultReadsRuntimeText)
   blender::bNodeSocketValueString count_default = {};
   SetCString(count_default.value, "Count");
   blender::bNodeSocketValueInt zero = {};
+  blender::bNodeSocketValueFloat zero_seconds = {};
+  blender::bNodeSocketValueBoolean no_round_up = {};
   blender::bNode operation = {};
-  std::array<blender::bNodeSocket, 4> operation_inputs = {};
-  std::array<blender::bNodeSocket, 3> operation_outputs = {};
+  /* (2026-11-17: Start, Separator, Seconds, Round Up; Length, Index, List.) */
+  std::array<blender::bNodeSocket, 8> operation_inputs = {};
+  std::array<blender::bNodeSocket, 6> operation_outputs = {};
   InitNode(operation, "LogicNativeStringOperation", "String Operation", 3);
   operation.custom1 = 2; /* Contains. */
   InitSocket(operation_inputs[0], "String", blender::SOCK_STRING, &empty_string);
   InitSocket(operation_inputs[1], "Substring", blender::SOCK_STRING, &count_default);
   InitSocket(operation_inputs[2], "Replacement", blender::SOCK_STRING, &empty_string);
   InitSocket(operation_inputs[3], "Length", blender::SOCK_INT, &zero);
+  InitSocket(operation_inputs[4], "Start", blender::SOCK_INT, &zero);
+  InitSocket(operation_inputs[5], "Separator", blender::SOCK_STRING, &empty_string);
+  InitSocket(operation_inputs[6], "Seconds", blender::SOCK_FLOAT, &zero_seconds);
+  InitSocket(operation_inputs[7], "Round Up", blender::SOCK_BOOLEAN, &no_round_up);
   InitSocket(operation_outputs[0], "String", blender::SOCK_STRING, nullptr);
   InitSocket(operation_outputs[1], "Result", blender::SOCK_BOOLEAN, nullptr);
   InitSocket(operation_outputs[2], "Count", blender::SOCK_INT, nullptr);
+  InitSocket(operation_outputs[3], "Length", blender::SOCK_INT, nullptr);
+  InitSocket(operation_outputs[4], "Index", blender::SOCK_INT, nullptr);
+  InitSocket(operation_outputs[5], "List", blender::SOCK_CUSTOM, nullptr, "NodeSocketLogicList");
   for (blender::bNodeSocket &socket : operation_inputs) {
     Append(operation.inputs, socket);
   }
@@ -16033,6 +16097,7 @@ TEST(LN_TreeCompiler, KeyAndTreePropertyNamesFromRuntimeLinksAreErrors)
   TestNode key_name(tree, "LogicNativeGetGameProperty", "Get Object Property", 2);
   blender::bNodeSocket &key_value = AddPropertyRead(key_name, "jump_key");
   TestNode key(tree, "LogicNativeKeyboardKey", "Keyboard Key", 3);
+  key.input_time();
   blender::bNodeSocket &key_input = key.in_string("Key", "A");
   blender::bNodeSocket &key_out = key.flow(false, "Out");
   key.add(false, "Active", blender::SOCK_BOOLEAN, nullptr);
@@ -16804,6 +16869,7 @@ TEST(LN_TreeCompiler, OpenObjectMenuPauseToggleAndClosedCompile)
   blender::bNodeTree tree = {};
   InitTree(tree);
   TestNode pressed(tree, "LogicNativeInputAction", "Input Action", 1);
+  pressed.input_time();
   pressed.in_string("Action", "Pause");
   pressed.in_int("User", 0);
   blender::bNodeSocket &out = pressed.flow(false, "Out");
@@ -16907,6 +16973,7 @@ TEST(LN_TreeCompiler, OpenObjectMenuPauseToggleAndClosedCompile)
 
   /* A Keyboard Key straight into the menu is read in the frame update too. */
   TestNode key(tree, "LogicNativeKeyboardKey", "Keyboard Key", 5);
+  key.input_time();
   key.in_string("Key", "ESC");
   blender::bNodeSocket &key_out = key.flow(false, "Out");
   Remove(tree.links, links[0]);
@@ -16922,6 +16989,7 @@ TEST(LN_TreeCompiler, OpenObjectMenuPauseToggleAndClosedCompile)
 
   /* A Mouse Button straight into the menu too (a right click opens and closes it). */
   TestNode mouse(tree, "LogicNativeMouseButton", "Mouse Button", 6);
+  mouse.input_time();
   mouse.in_string("Button", "RIGHTMOUSE");
   blender::bNodeSocket &mouse_out = mouse.flow(false, "Out");
   Remove(tree.links, from_key);
@@ -17073,6 +17141,10 @@ TEST(LN_TreeCompiler, StoreValueStoresOnlyWhenItsFlowRuns)
   random.in_vector("Min_Vector", MT_Vector3(0.0f, 0.0f, 0.0f));
   random.in_vector("Max_Vector", MT_Vector3(1.0f, 1.0f, 1.0f));
   random.in_float("Probability", 0.5f);
+  /* The shapes' inputs (2026-11-16). */
+  random.in_float("Radius", 1.0f);
+  random.in_vector("Axis", MT_Vector3(0.0f, 0.0f, 1.0f));
+  random.in_float("Angle", 0.5f);
   random.in_int("Seed", 0);
   blender::bNodeSocket &random_out = random.add(false, "Value", blender::SOCK_FLOAT, nullptr);
   TestNode store(tree, "LogicNativeStoreValue", "Store Value", 4);
@@ -17725,6 +17797,7 @@ TEST(LN_TreeCompiler, PerPlayerMenuNodesReachTheirReaders)
   blender::bNodeTree tree = {};
   InitTree(tree);
   TestNode pressed(tree, "LogicNativeInputAction", "Input Action", 1);
+  pressed.input_time();
   pressed.in_string("Action", "Inventory");
   pressed.in_int("User", 0);
   blender::bNodeSocket &out = pressed.flow(false, "Out");
@@ -18353,6 +18426,7 @@ TEST(LN_TreeCompiler, ADelayStartedByASlowedRouteFiresOnTime)
   blender::bNodeSocket &delay_flow = delay.flow(true, "Flow");
   delay.in_float("Delay", 0.5f);
   delay.in_bool("Ignore Timescale", false);
+  delay.countdown_controls();
   blender::bNodeSocket &done = delay.flow(false, "Out");
   TestNode print(tree, "LogicNativePrint", "Print", 3);
   blender::bNodeSocket &print_flow = print.flow(true, "Flow");
@@ -18533,6 +18607,7 @@ TEST(LN_TreeCompiler, RunLogicTreePassesCountAStepsTimeOnce)
   blender::bNodeSocket &delay_flow = delay.flow(true, "Flow");
   delay.in_float("Delay", 1.0f);
   delay.in_bool("Ignore Timescale", false);
+  delay.countdown_controls();
   blender::bNodeSocket &done = delay.flow(false, "Out");
   TestNode keep(tree, "LogicNativeOnFixedUpdate", "On Logic + Physics Step", 3);
   blender::bNodeSocket &keep_out = keep.flow(false, "Out");
@@ -19454,6 +19529,7 @@ TEST(LN_TreeCompiler, ATreeBatchChecksEveryMoveAgainstTheReadsBeforeIt)
     near.node.custom1 = 3;
     blender::bNodeSocket &near_a = near.in_float("A", 0.0f);
     near.in_float("B", 5.0f);
+    near.in_compare_types();
     blender::bNodeSocket &near_result = near.add(false, "Result", blender::SOCK_BOOLEAN, nullptr);
     const auto branch_node = [&](TestNode &node, blender::bNodeSocket *&r_flow,
                                  blender::bNodeSocket *&r_condition) -> blender::bNodeSocket & {

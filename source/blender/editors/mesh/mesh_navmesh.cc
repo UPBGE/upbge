@@ -79,7 +79,6 @@ static void createVertsTrisData(
 
   std::vector<float> verts_vec;
   std::vector<int> tris_vec;
-  int base_vert_offset = 0;
 
   for (oblink = obs; oblink; oblink = oblink->next) {
     ob = (Object *)oblink->link;
@@ -106,7 +105,10 @@ static void createVertsTrisData(
           verts_vec.push_back(wco[0]);
           verts_vec.push_back(wco[2]);  // swap Y/Z
           verts_vec.push_back(wco[1]);
-          vert_map[vert_i] = base_vert_offset + (int)(verts_vec.size() / 3) - 1;
+          /* UPBGE: the vertex's place in the list of every selected object's vertices (that list
+           * already counts the earlier objects: adding their count again sent every object after
+           * the first past the list's end, and it was left out of the navmesh). */
+          vert_map[vert_i] = (int)(verts_vec.size() / 3) - 1;
         }
         tri_indices[j] = vert_map[vert_i];
       }
@@ -114,7 +116,6 @@ static void createVertsTrisData(
       tris_vec.push_back(tri_indices[2]);
       tris_vec.push_back(tri_indices[1]);
     }
-    base_vert_offset = (int)(verts_vec.size() / 3);
   }
 
   int nverts = (int)(verts_vec.size() / 3);

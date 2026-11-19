@@ -313,7 +313,9 @@ TEST(LN_CollisionEvents, CollidedObjectIsTheRunsObjectOnlyInsideTheEventRoutes)
 }
 
 /* A Loop in an event route runs whole for each object (its frame restarts in each run), and its
- * Completed after each of them; a Delay's Done is no part of the route: it runs once. */
+ * Completed after each of them. A Delay's Done is no part of the route: each run's Flow is a
+ * countdown of its own (Queue), its Done one a step after the route (2026-11-17: the first
+ * one's Done was lost, its route had already looked, and this test read 1). */
 TEST(LN_CollisionEvents, ALoopInAnEventRouteRunsForEachObject)
 {
   TreeBuilder b;
@@ -361,7 +363,7 @@ TEST(LN_CollisionEvents, ALoopInAnEventRouteRunsForEachObject)
     EXPECT_EQ(rig.Float(bb, "loops"), 3.0f);
     EXPECT_EQ(rig.Float(a, "done"), 1.0f);
     EXPECT_EQ(rig.Float(bb, "done"), 1.0f);
-    EXPECT_EQ(rig.Float(owner, "after_delay"), 1.0f);
+    EXPECT_EQ(rig.Float(owner, "after_delay"), 2.0f);
   }
 }
 

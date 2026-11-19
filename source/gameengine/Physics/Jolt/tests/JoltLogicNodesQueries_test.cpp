@@ -17,6 +17,7 @@ JPH_SUPPRESS_WARNINGS
 
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
@@ -29,6 +30,7 @@ JPH_SUPPRESS_WARNINGS
 #include <cstring>
 #include <deque>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -41,11 +43,14 @@ JPH_SUPPRESS_WARNINGS
 #include "DNA_scene_types.h"
 
 #include "EXP_Vector3Value.h"
+#include "JoltCharacter.h"
 #include "JoltMathUtils.h"
 #include "JoltPhysicsController.h"
 #include "JoltPhysicsEnvironment.h"
 #include "KX_ClientObjectInfo.h"
 #include "KX_GameObject.h"
+#include "KX_MotionState.h"
+#include "LN_CommandBuffer.h"
 #include "LN_CommandDiagnostics.h"
 #include "LN_RuntimeTree.h"
 #include "LN_SemRig.h"
@@ -1346,6 +1351,31 @@ TEST(JoltLogicNodes, KeepDistancePushesAwayFromAWallHarderTheCloser)
   }
 }
 
+/** Keep Distance pushes a Character as it pushes a Dynamic body (2026-11-17): the force is the
+ * acceleration x the character's 70 kg, which moves the character at that acceleration (two
+ * steps' forces before its physics step: 2 x 4 m/s^2 x 1/60 s). */
+TEST(JoltLogicNodes, KeepDistancePushesACharacterWithItsMass)
+{
+  KeepDistanceTree tree;
+  const std::shared_ptr<LN_Program> program = tree.tree.Compile();
+  ASSERT_NE(program, nullptr);
+  SemRig rig(program, kProduction);
+  World world;
+  KX_GameObject &owner = rig.Object(0);
+  Body &body = world.Box(owner, MT_Vector3(0.3f, 0.3f, 0.9f), JPH::EMotionType::Kinematic);
+  body.controller.SetMotionState(new KX_MotionState(owner.GetSGNode()));
+  ASSERT_NE(world.environment.CreateCharacter(&body.controller, 0.3f), nullptr);
+  Wall(rig, world, "Wall", 1.3f);
+  rig.Step();
+  rig.Step();
+  EXPECT_FLOAT_EQ(float(body.controller.GetMass()), JoltCharacter::kMass);
+  ExpectVector(Acceleration(rig, body), MT_Vector3(-4.0f, 0.0f, 0.0f), 1e-3f);
+  ASSERT_TRUE(world.environment.ProceedDeltaTime(0.0, 1.0 / 60.0, 1.0 / 60.0));
+  owner.NodeUpdateGS(0.0);
+  EXPECT_NEAR(body.controller.GetLinearVelocity().x(), -2.0f * 4.0f / 60.0f, 2e-3f);
+  EXPECT_LT(owner.NodeGetWorldPosition().x(), 0.0f);
+}
+
 /** Pull: toward the nearest surface only, Strength x (1 - gap / Distance): the ball between a
  * wall 0.6 to its left and one 0.8 to its right is pulled left at 8 m/s^2 (Push in the same place:
  * 2.67 right); past Distance nothing pulls. */
@@ -2334,6 +2364,158 @@ TEST(JoltLogicNodes, AxisLocksNeverLeaveABodyWithoutAFreeAxis)
     EXPECT_TRUE(inverse_inertia() == JPH::Vec3(5.0f, 6.0f, 7.0f));
     EXPECT_TRUE(body.controller.SetRigidBodyAxisLocks(F, T, F, F, F, F));
     EXPECT_FALSE(inverse_inertia() == JPH::Vec3(5.0f, 6.0f, 7.0f));
+  }
+}
+
+/* Set Rigid Body Attribute's Compound (2026-11-18, the user's request): the Physics panel's
+ * Compound while the game runs. A tree on each of three objects (a holder, a part 2 to its side,
+ * a No Collision object below it too) sets its own Compound from its game property "compound"
+ * (Enabled linked). The part joins and leaves the holder's shape, the holder holds and lets go,
+ * the object without a body warns once; in every mode. */
+TEST(JoltLogicNodes, CompoundTurnsOnAndOffWhileTheGameRuns)
+{
+  Tree tree;
+  GenNode &set = tree.Add("LogicNativeSetRigidBodyAttribute",
+                          int16_t(LN_RigidBodyAttribute::Compound));
+  GenNode &enabled = tree.Add("LogicNativeGetGamePropertyBool");
+  tree.b.String(enabled, "Property", "compound");
+  tree.b.Link(enabled, "Value", set, "Enabled");
+  tree.b.Link(*tree.flow, tree.flow_pin, set, "Flow");
+  const std::shared_ptr<LN_Program> program = tree.Compile();
+  ASSERT_NE(program, nullptr);
+  for (const SemMode &mode : Modes()) {
+    SCOPED_TRACE(mode.name);
+    SemRig rig(program, mode, 3);
+    World world;
+    KX_GameObject &holder = rig.Object(0);
+    KX_GameObject &part = rig.Object(1);
+    KX_GameObject &decor = rig.Object(2);
+    part.NodeSetLocalPosition(MT_Vector3(2.0f, 0.0f, 0.0f));
+    decor.NodeSetLocalPosition(MT_Vector3(-2.0f, 0.0f, 0.0f));
+    rig.Parent(1, 0);
+    rig.Parent(2, 0);
+    Body &holder_body = world.Box(holder, MT_Vector3(0.5f, 0.5f, 0.5f), JPH::EMotionType::Dynamic);
+    Body &part_body = world.Box(part, MT_Vector3(0.5f, 0.5f, 0.5f), JPH::EMotionType::Dynamic);
+    holder_body.controller.SetMotionState(new KX_MotionState(holder.GetSGNode()));
+    part_body.controller.SetMotionState(new KX_MotionState(part.GetSGNode()));
+    JPH::BodyInterface &body_interface = world.environment.GetBodyInterface();
+    LN_ResetCommandFailureWarningsForTests();
+    const auto step = [&](const bool holder_on, const bool part_on) {
+      rig.SetBool(holder, "compound", holder_on);
+      rig.SetBool(part, "compound", part_on);
+      rig.SetBool(decor, "compound", true);
+      rig.Step();
+    };
+
+    step(true, true);
+    EXPECT_TRUE(holder_body.controller.IsCompound());
+    EXPECT_EQ(part.GetCompoundHolder(), &holder);
+    EXPECT_TRUE(part.GetParentCompoundIntent());
+    EXPECT_FALSE(body_interface.IsAdded(part_body.body_id));
+    /* The part off: it leaves and follows its parent (a Dynamic body: no collision then). */
+    step(true, false);
+    EXPECT_EQ(part.GetCompoundHolder(), nullptr);
+    EXPECT_TRUE(holder_body.controller.IsCompound());
+    EXPECT_TRUE(part.GetParentPhysicsManaged());
+    EXPECT_FALSE(part.GetParentCompoundIntent());
+    step(true, true);
+    EXPECT_EQ(part.GetCompoundHolder(), &holder);
+    /* The holder off: the part leaves; it is the topmost object with Compound now: it holds. */
+    step(false, true);
+    EXPECT_FALSE(holder_body.controller.IsCompound());
+    EXPECT_EQ(part.GetCompoundHolder(), nullptr);
+    EXPECT_TRUE(part_body.controller.IsCompound());
+    /* Both on: as at the start. */
+    step(true, true);
+    EXPECT_FALSE(part_body.controller.IsCompound());
+    EXPECT_EQ(part.GetCompoundHolder(), &holder);
+    /* The scene graph as it was. */
+    EXPECT_EQ(part.GetParent(), &holder);
+    EXPECT_EQ(decor.GetParent(), &holder);
+    EXPECT_EQ(part.NodeGetLocalPosition(), MT_Vector3(2.0f, 0.0f, 0.0f));
+
+    const std::string printed = rig.Printed();
+    EXPECT_NE(printed.find("No Collision"), std::string::npos) << printed;
+    EXPECT_EQ(printed.find("No Collision"), printed.rfind("No Collision")) << printed;
+
+    step(false, false);
+    EXPECT_FALSE(holder_body.controller.IsCompound());
+    EXPECT_FALSE(part_body.controller.IsCompound());
+    EXPECT_EQ(part.GetCompoundHolder(), nullptr);
+    part_body.controller.EndTransformParenting();
+  }
+}
+
+/* Get Rigid Body Attribute's Compound (2026-11-18): Enabled (the checkbox), Is Part, Part Count
+ * and Valid (a collision shape, its own or as a part), for a holder (Static: no Dynamic body
+ * needed), its part and a No Collision object below it; read through each object's tree after
+ * its Set Rigid Body Attribute's Compound took effect (the step after: writes apply at the
+ * flush), in every mode. */
+TEST(JoltLogicNodes, GetRigidBodyAttributeReadsCompound)
+{
+  Tree tree;
+  GenNode &set = tree.Add("LogicNativeSetRigidBodyAttribute",
+                          int16_t(LN_RigidBodyAttribute::Compound));
+  GenNode &enabled = tree.Add("LogicNativeGetGamePropertyBool");
+  tree.b.String(enabled, "Property", "compound");
+  tree.b.Link(enabled, "Value", set, "Enabled");
+  tree.b.Link(*tree.flow, tree.flow_pin, set, "Flow");
+  tree.flow = &set;
+  tree.flow_pin = "Done";
+  GenNode &get = tree.Add("LogicNativeGetRigidBodyAttribute",
+                          int16_t(LN_RigidBodyAttribute::Compound));
+  tree.StoreBool(get, "Valid", "valid");
+  tree.StoreBool(get, "Enabled", "on");
+  tree.StoreBool(get, "Is Part", "part");
+  tree.StoreFloat(get, "Part Count", "parts");
+  const std::shared_ptr<LN_Program> program = tree.Compile();
+  ASSERT_NE(program, nullptr);
+  for (const SemMode &mode : Modes()) {
+    SCOPED_TRACE(mode.name);
+    SemRig rig(program, mode, 3);
+    World world;
+    KX_GameObject &holder = rig.Object(0);
+    KX_GameObject &part = rig.Object(1);
+    KX_GameObject &decor = rig.Object(2);
+    part.NodeSetLocalPosition(MT_Vector3(2.0f, 0.0f, 0.0f));
+    decor.NodeSetLocalPosition(MT_Vector3(-2.0f, 0.0f, 0.0f));
+    rig.Parent(1, 0);
+    rig.Parent(2, 0);
+    Body &holder_body = world.Box(holder, MT_Vector3(0.5f, 0.5f, 0.5f), JPH::EMotionType::Static);
+    Body &part_body = world.Box(part, MT_Vector3(0.5f, 0.5f, 0.5f), JPH::EMotionType::Dynamic);
+    holder_body.controller.SetMotionState(new KX_MotionState(holder.GetSGNode()));
+    part_body.controller.SetMotionState(new KX_MotionState(part.GetSGNode()));
+    const auto steps = [&](const bool holder_on, const bool part_on) {
+      rig.SetBool(holder, "compound", holder_on);
+      rig.SetBool(part, "compound", part_on);
+      rig.SetBool(decor, "compound", true);
+      rig.Step();
+      rig.Step();
+    };
+    const auto expect = [&](KX_GameObject &object,
+                            const bool valid,
+                            const bool on,
+                            const bool is_part,
+                            const float parts) {
+      EXPECT_EQ(rig.Float(object, "valid") != 0.0f, valid) << object.GetName();
+      EXPECT_EQ(rig.Float(object, "on") != 0.0f, on) << object.GetName();
+      EXPECT_EQ(rig.Float(object, "part") != 0.0f, is_part) << object.GetName();
+      EXPECT_EQ(rig.Float(object, "parts"), parts) << object.GetName();
+    };
+
+    steps(true, true);
+    expect(holder, true, true, false, 1.0f);
+    expect(part, true, true, true, 0.0f);
+    expect(decor, false, true, false, 0.0f);
+    steps(true, false);
+    expect(holder, true, true, false, 0.0f);
+    expect(part, true, false, false, 0.0f);
+    steps(false, true);
+    /* (The part is the topmost object with Compound now: it holds, nothing.) */
+    expect(holder, true, false, false, 0.0f);
+    expect(part, true, true, false, 0.0f);
+    steps(false, false);
+    part_body.controller.EndTransformParenting();
   }
 }
 
@@ -4043,6 +4225,419 @@ TEST(JoltLogicNodes, AProjectileRayCastsBehindEveryKindOfFlow)
   }
 }
 
+/** A ray's Flow from a Branch (2026-11-17): it casts only on the steps the Branch takes that way,
+ * also where its outputs are read off that route (a write on the step's own path). The Branch
+ * counted as always on there: the ray cast every step whatever its Condition. */
+TEST(JoltLogicNodes, AQueryBehindABranchCastsOnlyWhenTheBranchTakesThatWay)
+{
+  Tree tree;
+  GenNode &ray = StraightThrow(tree, "s_");
+  GenNode &go = tree.Add("LogicNativeGetGamePropertyBool");
+  tree.b.String(go, "Property", "go");
+  GenNode &branch = tree.Add("LogicNativeBranch");
+  tree.b.Link(go, "Value", branch, "Condition");
+  tree.b.Link(*tree.step, "Out", branch, "Flow");
+  tree.b.Link(branch, "True", ray, "Flow");
+  const std::shared_ptr<LN_Program> program = tree.Compile();
+  ASSERT_NE(program, nullptr);
+  for (const SemMode &mode : Modes()) {
+    SCOPED_TRACE(mode.name);
+    SemRig rig(program, mode);
+    World world;
+    world.Box(rig.AddObject("Wall", MT_Vector3(5.0f, 0.0f, 0.0f)), MT_Vector3(0.5f, 5.0f, 5.0f));
+    KX_GameObject &owner = rig.Object(0);
+    std::string seen;
+    for (int at = 1; at <= 5; at++) {
+      rig.SetBool(owner, "go", at == 2 || at == 4);
+      rig.Step();
+      seen += rig.Float(owner, "s_hit") == 1.0f ? "hit " : "- ";
+    }
+    EXPECT_EQ(seen, "- hit - hit - ");
+  }
+}
+
+/** Apply Force and Apply Impulse on a body they cannot move warn once each for the play, naming
+ * the object and why (2026-11-17); on a Dynamic body nothing; an explosion around a static wall
+ * nothing (it pushes whatever is around). */
+TEST(JoltLogicNodes, APushThatMovesNothingWarnsOnceNamingWhy)
+{
+  Tree tree;
+  GenNode &force = tree.Add("LogicNativeApplyForce");
+  tree.b.Vector(force, "Force", 10.0f, 0.0f, 0.0f);
+  tree.b.Link(*tree.step, "Out", force, "Flow");
+  GenNode &impulse = tree.Add("LogicNativeApplyImpulse");
+  tree.b.Vector(impulse, "Impulse", 0.0f, 0.0f, 5.0f);
+  tree.b.Link(*tree.step, "Out", impulse, "Flow");
+  GenNode &blast = tree.Add("LogicNativeExplosionImpulse");
+  tree.b.Float(blast, "Radius", 5.0f);
+  tree.b.Float(blast, "Strength", 10.0f);
+  tree.b.Link(*tree.step, "Out", blast, "Flow");
+  const std::shared_ptr<LN_Program> program = tree.Compile();
+  ASSERT_NE(program, nullptr);
+  const std::pair<JPH::EMotionType, const char *> cases[] = {
+      {JPH::EMotionType::Kinematic, "it is Kinematic"},
+      {JPH::EMotionType::Static, "it is Static"},
+      {JPH::EMotionType::Dynamic, nullptr}};
+  for (const auto &[motion, why] : cases) {
+    for (const SemMode &mode : Modes()) {
+      SCOPED_TRACE(std::string(mode.name) + ", " + (why != nullptr ? why : "Dynamic"));
+      SemRig rig(program, mode);
+      World world;
+      world.Box(rig.Object(0), MT_Vector3(0.5f, 0.5f, 0.5f), motion);
+      world.Box(rig.AddObject("Wall", MT_Vector3(2.0f, 0.0f, 0.0f)), MT_Vector3(0.1f, 2.0f, 2.0f));
+      LN_ResetCommandFailureWarningsForTests();
+      for (int step = 0; step < 3; step++) {
+        rig.Step();
+      }
+      std::vector<std::string> pushes;
+      for (const std::string &warning : LN_IssuedWarningsForTests()) {
+        if (warning.find("moves nothing") != std::string::npos) {
+          pushes.push_back(warning);
+        }
+      }
+      if (why == nullptr) {
+        EXPECT_TRUE(pushes.empty()) << pushes.front();
+        continue;
+      }
+      ASSERT_EQ(pushes.size(), 2u);
+      EXPECT_EQ(pushes[0],
+                std::string("Logic Nodes: a force on \"Obj0\" moves nothing: ") + why +
+                    " (forces and impulses move Dynamic and Rigid Body objects, and Characters)");
+      EXPECT_NE(pushes[1].find(std::string("an impulse on \"Obj0\" moves nothing: ") + why),
+                std::string::npos);
+    }
+  }
+  LN_ResetCommandFailureWarningsForTests();
+}
+
+/** Apply Impulse and Explode or Implode knock a Character away through the nodes (2026-11-17):
+ * the flush hands the push to the character and its next step moves it; no warning. */
+TEST(JoltLogicNodes, PushNodesKnockACharacterAway)
+{
+  BlenderObject hero_blender("Hero");
+  for (const bool explosion : {false, true}) {
+    SCOPED_TRACE(explosion ? "Explode or Implode" : "Apply Impulse");
+    Tree tree;
+    GenNode &once = tree.Add("LogicNativeOnce");
+    tree.b.Link(*tree.step, "Out", once, "Flow");
+    if (explosion) {
+      /* Around the owner (at the origin), 140 N s: 2 m/s on 70 kg, away along +X. */
+      GenNode &blast = tree.Add("LogicNativeExplosionImpulse");
+      tree.b.Float(blast, "Radius", 5.0f);
+      tree.b.Float(blast, "Strength", 140.0f);
+      tree.b.Link(once, "Out", blast, "Flow");
+    }
+    else {
+      GenNode &impulse = tree.Add("LogicNativeApplyImpulse");
+      tree.b.ObjectNamed(impulse, "Object", &hero_blender.object);
+      tree.b.Vector(impulse, "Impulse", 140.0f, 0.0f, 0.0f);
+      tree.b.Link(once, "Out", impulse, "Flow");
+    }
+    const std::shared_ptr<LN_Program> program = tree.Compile();
+    ASSERT_NE(program, nullptr);
+    SemRig rig(program, kProduction);
+    World world;
+    KX_GameObject &hero = rig.AddObject("Hero", MT_Vector3(2.0f, 0.0f, 0.0f));
+    Body &body = world.Box(hero, MT_Vector3(0.3f, 0.3f, 0.9f), JPH::EMotionType::Kinematic);
+    body.controller.SetMotionState(new KX_MotionState(hero.GetSGNode()));
+    ASSERT_NE(world.environment.CreateCharacter(&body.controller, 0.3f), nullptr);
+    LN_ResetCommandFailureWarningsForTests();
+    rig.Step();
+    for (int step = 0; step < 6; step++) {
+      ASSERT_TRUE(world.environment.ProceedDeltaTime(0.0, 1.0 / 60.0, 1.0 / 60.0));
+      hero.NodeUpdateGS(0.0);
+    }
+    /* No gravity in this world: it flies on at 2 m/s less the air's slow drag (its first step
+     * at 2, then 5 steps of drag). */
+    const float drag = 1.0f - JoltCharacter::kKnockbackAirDrag / 60.0f;
+    EXPECT_NEAR(hero.NodeGetWorldPosition().x(), 2.0f + 2.0f * 6.0f / 60.0f, 0.01f);
+    EXPECT_NEAR(hero.NodeGetWorldPosition().y(), 0.0f, 1.0e-4f);
+    EXPECT_NEAR(body.controller.GetLinearVelocity().x(), 2.0f * std::pow(drag, 5.0f), 1.0e-3f);
+    for (const std::string &warning : LN_IssuedWarningsForTests()) {
+      EXPECT_EQ(warning.find("moves nothing"), std::string::npos) << warning;
+    }
+  }
+  LN_ResetCommandFailureWarningsForTests();
+}
+
+/* -------------------------------------------------------------------- */
+/** \name The character controller's outputs and settings (2026-11-17)
+ * \{ */
+
+namespace {
+
+/** A Character (a 1.8 m capsule, 0.3 m round, its origin in its middle) for the rig's \a object,
+ * where it is. */
+JoltCharacter *MakeCharacter(World &world, KX_GameObject &object, Body **r_body = nullptr)
+{
+  Body &body = world.Add(object,
+                         new JPH::CapsuleShape(0.6f, 0.3f),
+                         JPH::EMotionType::Kinematic,
+                         false,
+                         1,
+                         nullptr);
+  body.controller.SetMotionState(new KX_MotionState(object.GetSGNode()));
+  if (r_body != nullptr) {
+    *r_body = &body;
+  }
+  return world.environment.CreateCharacter(&body.controller, 0.3f);
+}
+
+/** Gravity down (characters made after it take it), a floor whose top is at z = 0. */
+void CharacterGround(SemRig &rig, World &world, const float half = 20.0f)
+{
+  world.environment.GetPhysicsSystem()->SetGravity(
+      JoltMath::ToJolt(MT_Vector3(0.0f, 0.0f, -9.81f)));
+  world.Box(rig.AddObject("Floor", MT_Vector3(0.0f, 0.0f, -0.5f)), MT_Vector3(half, half, 0.5f));
+}
+
+/** \a steps physics steps of 1/60 s; the moved objects' world poses follow (KX_MotionState). */
+void PhysicsSteps(World &world, const std::vector<KX_GameObject *> &moved, const int steps)
+{
+  for (int step = 0; step < steps; step++) {
+    ASSERT_TRUE(world.environment.ProceedDeltaTime(0.0, 1.0 / 60.0, 1.0 / 60.0));
+    for (KX_GameObject *object : moved) {
+      object->NodeUpdateGS(0.0);
+    }
+  }
+}
+
+/** Get Character Info's state outputs into the owner's properties, and a Crouch from the owner's
+ * game property "duck" (of \a named when set, else of the owner). */
+std::shared_ptr<LN_Program> CharacterStateTree(blender::Object *named)
+{
+  Tree tree;
+  GenNode &info = tree.Add("LogicNativeGetCharacterInfo");
+  if (named != nullptr) {
+    tree.b.ObjectNamed(info, "Object", named);
+  }
+  tree.StoreBool(info, "On Ground", "ground");
+  tree.StoreBool(info, "On Wall", "wall");
+  tree.StoreBool(info, "On Ceiling", "ceiling");
+  tree.StoreBool(info, "Crouched", "crouched");
+  tree.StoreVector(info, "Wall Normal", "wn");
+  tree.StoreVector(info, "Ground Normal", "gn");
+  tree.StoreVector(info, "Ground Velocity", "gv");
+  tree.StoreText(info, "Ground Object", "below");
+  GenNode &wish = tree.Add("LogicNativeGetGamePropertyBool");
+  tree.b.String(wish, "Property", "duck");
+  GenNode &crouch = tree.Add("LogicNativeSetCharacterCrouch");
+  if (named != nullptr) {
+    tree.b.ObjectNamed(crouch, "Object", named);
+  }
+  tree.b.Link(wish, "Value", crouch, "Crouch");
+  tree.b.Float(crouch, "Height", 0.5f);
+  tree.b.Link(*tree.flow, tree.flow_pin, crouch, "Flow");
+  return tree.Compile();
+}
+
+}  // namespace
+
+/** Get Character Info's On Wall, On Ceiling, Crouched, Ground Normal / Velocity / Object and Wall
+ * Normal in a real Jolt world, of the owner and of a named character: walked into a wall it
+ * stands On Ground and On Wall (the wall's normal, the floor's, the floor its Ground Object);
+ * Set Character Attribute's Crouch crouches it (its body too) and stands it up again. */
+TEST(JoltLogicNodes, GetCharacterInfoTellsWallsGroundAndCrouch)
+{
+  BlenderObject hero_blender("Hero");
+  for (const bool named : {false, true}) {
+    SCOPED_TRACE(named ? "a named character" : "the owner");
+    const std::shared_ptr<LN_Program> program = CharacterStateTree(
+        named ? &hero_blender.object : nullptr);
+    ASSERT_NE(program, nullptr);
+    for (const SemMode &mode : Modes()) {
+      SCOPED_TRACE(mode.name);
+      SemRig rig(program, mode);
+      World world;
+      CharacterGround(rig, world);
+      /* A wall whose face is at x = 1.5. */
+      world.Box(rig.AddObject("Wall", MT_Vector3(1.7f, 0.0f, 1.5f)), MT_Vector3(0.2f, 3.0f, 1.5f));
+      KX_GameObject &owner = rig.Object(0);
+      KX_GameObject &hero = named ? rig.AddObject("Hero", MT_Vector3(0.0f, 0.0f, 0.9f)) : owner;
+      if (!named) {
+        hero.NodeSetWorldPosition(MT_Vector3(0.0f, 0.0f, 0.9f));
+        hero.NodeUpdateGS(0.0);
+      }
+      Body *body = nullptr;
+      JoltCharacter *character = MakeCharacter(world, hero, &body);
+      ASSERT_NE(character, nullptr);
+      rig.SetBool(owner, "duck", false);
+      rig.Step();
+      PhysicsSteps(world, {&hero}, 10);
+      rig.Step();
+      EXPECT_EQ(rig.Float(owner, "ground"), 1.0f);
+      EXPECT_EQ(rig.Float(owner, "wall"), 0.0f);
+      EXPECT_EQ(rig.Text(owner, "below"), "Floor");
+      ExpectVector(ReadVector(rig, owner, "gn"), MT_Vector3(0.0f, 0.0f, 1.0f), 1.0e-5f);
+      ExpectVector(ReadVector(rig, owner, "wn"), MT_Vector3(0.0f, 0.0f, 0.0f), 0.0f);
+
+      character->SetWalkDirection(MT_Vector3(2.0f, 0.0f, 0.0f));
+      PhysicsSteps(world, {&hero}, 60);
+      rig.Step();
+      EXPECT_EQ(rig.Float(owner, "ground"), 1.0f);
+      EXPECT_EQ(rig.Float(owner, "wall"), 1.0f);
+      EXPECT_EQ(rig.Float(owner, "ceiling"), 0.0f);
+      EXPECT_EQ(rig.Float(owner, "crouched"), 0.0f);
+      ExpectVector(ReadVector(rig, owner, "wn"), MT_Vector3(-1.0f, 0.0f, 0.0f), 1.0e-4f);
+      ExpectVector(ReadVector(rig, owner, "gv"), MT_Vector3(0.0f, 0.0f, 0.0f), 1.0e-5f);
+      EXPECT_EQ(rig.Text(owner, "below"), "Floor");
+
+      /* Crouch: the flush asks, its next step crouches, the next tick reads it. */
+      rig.SetBool(owner, "duck", true);
+      rig.Step();
+      PhysicsSteps(world, {&hero}, 1);
+      rig.Step();
+      EXPECT_EQ(rig.Float(owner, "crouched"), 1.0f);
+      const JPH::AABox crouched =
+          world.environment.GetBodyInterface().GetShape(body->body_id)->GetLocalBounds();
+      EXPECT_NEAR(crouched.mMax.GetY() - crouched.mMin.GetY(), 0.9f, 1.0e-4f);
+      EXPECT_NEAR(hero.NodeGetWorldPosition().z(), 0.9f, 0.03f);
+      rig.SetBool(owner, "duck", false);
+      rig.Step();
+      PhysicsSteps(world, {&hero}, 1);
+      rig.Step();
+      EXPECT_EQ(rig.Float(owner, "crouched"), 0.0f);
+      const JPH::AABox standing =
+          world.environment.GetBodyInterface().GetShape(body->body_id)->GetLocalBounds();
+      EXPECT_NEAR(standing.mMax.GetY() - standing.mMin.GetY(), 1.8f, 1.0e-4f);
+    }
+  }
+}
+
+/** Set Character Attribute's Max Slope, Fall Speed and Step Height (and the older Jump Force,
+ * the same op) set the character at the flush, held to the Physics panel's ranges. */
+TEST(JoltLogicNodes, SetCharacterAttributeSetsSlopeFallSpeedAndStepHeight)
+{
+  struct Case {
+    float jump, slope, fall, step;
+    float expect_jump, expect_slope, expect_fall, expect_step;
+  };
+  const Case cases[] = {{3.5f, 0.6f, 7.0f, 0.42f, 3.5f, 0.6f, 7.0f, 0.42f},
+                        {-2.0f, 3.0f, -5.0f, -1.0f, 0.0f, float(M_PI_2), 0.0f, 0.0f}};
+  for (const Case &c : cases) {
+    SCOPED_TRACE(c.jump);
+    Tree tree;
+    GenNode &once = tree.Add("LogicNativeOnce");
+    tree.b.Link(*tree.step, "Out", once, "Flow");
+    GenNode &jump = tree.Add("LogicNativeSetCharacterJumpSpeed");
+    tree.b.Float(jump, "Force", c.jump);
+    tree.b.Link(once, "Out", jump, "Flow");
+    GenNode &slope = tree.Add("LogicNativeSetCharacterMaxSlope");
+    tree.b.Float(slope, "Max Slope", c.slope);
+    tree.b.Link(jump, "Out", slope, "Flow");
+    GenNode &fall = tree.Add("LogicNativeSetCharacterFallSpeed");
+    tree.b.Float(fall, "Fall Speed", c.fall);
+    tree.b.Link(slope, "Out", fall, "Flow");
+    GenNode &step = tree.Add("LogicNativeSetCharacterStepHeight");
+    tree.b.Float(step, "Step Height", c.step);
+    tree.b.Link(fall, "Out", step, "Flow");
+    const std::shared_ptr<LN_Program> program = tree.Compile();
+    ASSERT_NE(program, nullptr);
+    SemRig rig(program, kProduction);
+    World world;
+    CharacterGround(rig, world);
+    JoltCharacter *character = MakeCharacter(world, rig.Object(0));
+    ASSERT_NE(character, nullptr);
+    rig.Step();
+    EXPECT_FLOAT_EQ(character->GetJumpSpeed(), c.expect_jump);
+    EXPECT_FLOAT_EQ(character->GetMaxSlope(), c.expect_slope);
+    EXPECT_FLOAT_EQ(character->GetFallSpeed(), c.expect_fall);
+    EXPECT_FLOAT_EQ(character->GetStepHeight(), c.expect_step);
+  }
+}
+
+/** A crowd of 300 characters reading Get Character Info (walls, ground, a pad under some,
+ * crouching some) runs wide as each tree's column pass, bit for bit, on one thread and with
+ * helpers; the reads are bridged on the helpers. */
+TEST(JoltLogicNodes, CharacterInfoRunsWideAsItsColumnPass)
+{
+  const uint32_t owners = 300; /* two chunks */
+  const std::shared_ptr<LN_Program> program = CharacterStateTree(nullptr);
+  ASSERT_NE(program, nullptr);
+  {
+    std::string refusal;
+    const std::shared_ptr<const LN_ColumnProgram> columns = LN_CompileColumnProgram(
+        *program, LN_Event::OnFixedUpdate, &refusal, false);
+    ASSERT_NE(columns, nullptr) << refusal;
+  }
+  const std::vector<const char *> names = {"ground", "wall", "ceiling", "crouched", "wnX",
+                                           "wnY",    "wnZ",  "gnX",     "gnY",      "gnZ",
+                                           "gvX",    "gvY",  "gvZ"};
+  for (const SemMode &mode : Modes()) {
+    SCOPED_TRACE(mode.name);
+    std::string reference;
+    for (const int columns : {0, 1, 4}) {
+      SCOPED_TRACE("columns " + std::to_string(columns));
+      SemRig rig(program, mode, owners);
+      if (columns != 0) {
+        rig.SetColumns(true, uint32_t(columns - 1));
+      }
+      World world(owners * 2 + 32);
+      CharacterGround(rig, world, 60.0f);
+      /* Walls between the columns 0|1, 4|5, 8|9, 12|13, 16|17 of the 20 x 15 grid. */
+      for (int wall = 0; wall < 5; wall++) {
+        const float x = float(wall * 4) * 3.0f - 28.5f + 1.5f;
+        world.Box(rig.AddObject(("Wall" + std::to_string(wall)).c_str(), MT_Vector3(x, 0.0f, 1.5f)),
+                  MT_Vector3(0.2f, 25.0f, 1.5f));
+      }
+      std::vector<KX_GameObject *> moved;
+      for (uint32_t index = 0; index < owners; index++) {
+        KX_GameObject &owner = rig.Object(index);
+        const uint32_t column = index % 20;
+        const MT_Vector3 at(float(column) * 3.0f - 28.5f, float(index / 20) * 3.0f - 21.5f, 0.0f);
+        const bool on_pad = index % 7 == 3;
+        if (on_pad) {
+          world.Box(rig.AddObject("Pad", at + MT_Vector3(0.0f, 0.0f, 0.1f)),
+                    MT_Vector3(1.0f, 1.0f, 0.1f));
+        }
+        owner.NodeSetWorldPosition(at + MT_Vector3(0.0f, 0.0f, on_pad ? 1.1f : 0.9f));
+        owner.NodeUpdateGS(0.0);
+        JoltCharacter *character = MakeCharacter(world, owner);
+        ASSERT_NE(character, nullptr);
+        /* Into the walls beside them, or along them. */
+        const MT_Vector3 walk = column % 4 == 0 ? MT_Vector3(1.5f, 0.0f, 0.0f) :
+                                column % 4 == 1 ? MT_Vector3(-1.5f, 0.0f, 0.0f) :
+                                                  MT_Vector3(0.0f, 0.5f, 0.0f);
+        character->SetWalkDirection(on_pad ? MT_Vector3(0.0f, 0.0f, 0.0f) : walk);
+        rig.SetBool(owner, "duck", index % 5 == 0);
+        moved.push_back(&owner);
+      }
+      const uint64_t ran_before = LN_ColumnLaneCount();
+      std::string text;
+      for (int step = 0; step < 50; step++) {
+        PhysicsSteps(world, moved, 1);
+        rig.Step();
+        if (step % 10 != 9) {
+          continue;
+        }
+        text += CrowdBits(rig, owners, names);
+        for (uint32_t index = 0; index < owners; index++) {
+          text += rig.Text(rig.Object(index), "below") + " ";
+        }
+      }
+      if (columns == 0) {
+        reference = text;
+        /* Something happened: walls, pads, crouching. */
+        KX_GameObject &walker = rig.Object(0);
+        EXPECT_EQ(rig.Float(walker, "wall"), 1.0f);
+        EXPECT_EQ(rig.Float(walker, "crouched"), 1.0f);
+        EXPECT_EQ(rig.Text(rig.Object(3), "below"), "Pad");
+        EXPECT_EQ(rig.Text(rig.Object(2), "below"), "Floor");
+        EXPECT_EQ(rig.Float(rig.Object(2), "wall"), 0.0f);
+      }
+      else {
+        EXPECT_TRUE(text == reference) << "a wide run's outputs differ from the column pass's";
+        if (LN_GetColumnDirectMode() != LN_ColumnDirectMode::Force) {
+          EXPECT_GE(LN_ColumnLaneCount() - ran_before, uint64_t(owners) * 40)
+              << rig.LastColumnRefusal();
+        }
+      }
+    }
+  }
+}
+
+/** \} */
+
 /** A Tween whose Done leads (through Translate's When Done) to a Projectile Ray's Flow, in a tree
  * that also runs on frames: the Tween moves only on the steps that read it. */
 TEST(JoltLogicNodes, ATweenFeedingAProjectileRayKeepsItsSpeed)
@@ -4085,10 +4680,13 @@ TEST(JoltLogicNodes, ATweenFeedingAProjectileRayKeepsItsSpeed)
       for (int frame = 0; frame < 6; frame++) {
         rig.Frame();
       }
-      /* 6 steps of 1/60 s into a Tween of 0.5 s: 0.2 (a frame tick moving it gave 0.4). */
-      EXPECT_NEAR(rig.Float(owner, "t"), 6.0f / 30.0f, 1.0e-5f);
-      /* The Tween's Done runs a step while it moves: one cast each. */
-      EXPECT_EQ(rig.Float(owner, "casts"), with_ray ? 6.0f : 0.0f);
+      /* 6 steps of 1/60 s into a Tween of 0.5 s; a frame tick moving it gave twice as much.
+       * Forward is a pulse of the first write's Done (2026-11-17: Forward is a flow input), a
+       * route that runs after the step's own writes: "t" reads the tween before its first
+       * request, so it moves from the second step on: 5 steps, 1/6. */
+      EXPECT_NEAR(rig.Float(owner, "t"), 5.0f / 30.0f, 1.0e-5f);
+      /* The Tween's Done runs a step while it moves: one cast each (5 steps). */
+      EXPECT_EQ(rig.Float(owner, "casts"), with_ray ? 5.0f : 0.0f);
     }
   }
 }
@@ -4216,6 +4814,453 @@ TEST(JoltLogicNodes, TheWarmUpTakesOnlyQueriesItCanKeep)
     EXPECT_EQ(events_only(drawn), kSteps);
     EXPECT_EQ(events_of(drawn) & LN_QUERY_WARM_ON_HELPERS, 0);
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Damage helpers (2026-11-17): Find Objects' Only Visible and Distances, Explode or
+ * Implode Impulse's Strengths
+ * \{ */
+
+namespace {
+
+/** Find Objects of the "enemy" property with `pick`, its outputs into "<prefix>..." properties:
+ * Object (name), Distance, Count, the Objects' names (items 0-2) and the Distances' sum, least
+ * and most (List Operation). */
+GenNode &FindEnemies(Tree &tree,
+                     const char *prefix,
+                     const int16_t pick,
+                     const bool only_visible,
+                     blender::Object *center = nullptr)
+{
+  GenNode &find = tree.Add("LogicNativeFindObjects", 2 /* With Property */, pick);
+  tree.b.String(find, "Property", "enemy");
+  tree.b.Float(find, "Radius", 0.0f);
+  tree.b.Bool(find, "Only Visible", only_visible);
+  if (center != nullptr) {
+    tree.b.ObjectNamed(find, "Center", center);
+  }
+  const std::string p(prefix);
+  const auto name = [&](const char *what) {
+    tree.names.push_back(p + what);
+    return tree.names.back().c_str();
+  };
+  tree.StoreText(find, "Object", name("object"));
+  tree.StoreFloat(find, "Distance", name("distance"));
+  tree.StoreFloat(find, "Count", name("count"));
+  if (pick == 3) {
+    tree.StoreCount(find, "Objects", name("objects"));
+    for (int index = 0; index < 3; index++) {
+      tree.StoreItem(find, "Objects", index, name(("item" + std::to_string(index)).c_str()));
+    }
+    for (const auto &[operation, what] :
+         std::vector<std::pair<int16_t, const char *>>{{5, "sum"}, {3, "least"}, {4, "most"}})
+    {
+      GenNode &measure = tree.Add("LogicNativeListOperation", operation);
+      tree.b.Link(find, "Distances", measure, "List");
+      tree.StoreFloat(measure, "Value", name(what));
+    }
+  }
+  return find;
+}
+
+}  // namespace
+
+/** Only Visible keeps the objects Line of Sight sees from the center (a wall hides two of five
+ * "enemy" objects; one has no body at all), then picks among them: Nearest, Farthest, Random,
+ * All (its Distances side by side with Objects), Count the visible ones; a center inside the
+ * owner's own body is not blocked by it. */
+TEST(JoltLogicNodes, FindObjectsOnlyVisibleSkipsWhatAWallHides)
+{
+  BlenderObject head_blender("Head");
+  Tree tree;
+  FindEnemies(tree, "near_", 0, true);
+  FindEnemies(tree, "nearall_", 0, false);
+  FindEnemies(tree, "far_", 1, true);
+  FindEnemies(tree, "farall_", 1, false);
+  FindEnemies(tree, "list_", 3, true);
+  FindEnemies(tree, "listall_", 3, false);
+  FindEnemies(tree, "random_", 2, true);
+  FindEnemies(tree, "head_", 0, true, &head_blender.object);
+  const std::shared_ptr<LN_Program> program = tree.Compile();
+  ASSERT_NE(program, nullptr);
+
+  for (const SemMode &mode : Modes()) {
+    SCOPED_TRACE(mode.name);
+    SemRig rig(program, mode);
+    /* After the rig: its bodies go first (a game object deletes its controller). */
+    World world;
+    KX_GameObject &owner = rig.Object(0);
+    world.Box(owner, MT_Vector3(0.5f, 0.5f, 1.0f));
+    /* The head: inside the owner's body. */
+    rig.AddObject("Head", MT_Vector3(0.0f, 0.0f, 0.5f));
+    world.Box(rig.AddObject("Wall", MT_Vector3(0.0f, 2.0f, 0.0f)), MT_Vector3(3.0f, 0.1f, 2.0f));
+    const auto enemy = [&](const char *name, const MT_Vector3 &position, const bool body) {
+      KX_GameObject &object = rig.AddObject(name, position);
+      rig.SetBool(object, "enemy", true);
+      if (body) {
+        world.Box(object, MT_Vector3(0.5f, 0.5f, 0.5f));
+      }
+    };
+    enemy("Hidden", MT_Vector3(0.0f, 4.0f, 0.0f), true);
+    enemy("Near", MT_Vector3(5.0f, 0.0f, 0.0f), true);
+    enemy("Bare", MT_Vector3(0.0f, -7.0f, 0.0f), false);
+    enemy("Far", MT_Vector3(-9.0f, 0.0f, 0.0f), true);
+    enemy("Hidden2", MT_Vector3(1.0f, 12.0f, 0.0f), true);
+    rig.Step();
+
+    EXPECT_EQ(rig.Text(owner, "near_object"), "Near");
+    EXPECT_NEAR(rig.Float(owner, "near_distance"), 5.0f, 1.0e-5f);
+    EXPECT_EQ(rig.Float(owner, "near_count"), 3.0f);
+    EXPECT_EQ(rig.Text(owner, "nearall_object"), "Hidden");
+    EXPECT_EQ(rig.Float(owner, "nearall_count"), 5.0f);
+    EXPECT_EQ(rig.Text(owner, "far_object"), "Far");
+    EXPECT_NEAR(rig.Float(owner, "far_distance"), 9.0f, 1.0e-5f);
+    EXPECT_EQ(rig.Text(owner, "farall_object"), "Hidden2");
+    /* All: nearest first, the Distances beside them. */
+    EXPECT_EQ(rig.Float(owner, "list_objects"), 3.0f);
+    EXPECT_EQ(rig.Text(owner, "list_item0"), "Near");
+    EXPECT_EQ(rig.Text(owner, "list_item1"), "Bare");
+    EXPECT_EQ(rig.Text(owner, "list_item2"), "Far");
+    EXPECT_NEAR(rig.Float(owner, "list_sum"), 21.0f, 1.0e-4f);
+    EXPECT_NEAR(rig.Float(owner, "list_least"), 5.0f, 1.0e-5f);
+    EXPECT_NEAR(rig.Float(owner, "list_most"), 9.0f, 1.0e-5f);
+    EXPECT_EQ(rig.Float(owner, "list_count"), 3.0f);
+    EXPECT_EQ(rig.Float(owner, "listall_objects"), 5.0f);
+    EXPECT_EQ(rig.Text(owner, "listall_item0"), "Hidden");
+    EXPECT_NEAR(rig.Float(owner, "listall_sum"), 4.0f + 5.0f + 7.0f + 9.0f + std::sqrt(145.0f),
+                1.0e-3f);
+    EXPECT_NEAR(rig.Float(owner, "listall_most"), std::sqrt(145.0f), 1.0e-4f);
+    /* Random: one of the visible ones. */
+    const std::string random = rig.Text(owner, "random_object");
+    EXPECT_TRUE(random == "Near" || random == "Bare" || random == "Far") << random;
+    EXPECT_EQ(rig.Float(owner, "random_count"), 3.0f);
+    /* From the head: the owner's body around it does not hide anything. */
+    EXPECT_EQ(rig.Text(owner, "head_object"), "Near");
+    EXPECT_EQ(rig.Float(owner, "head_count"), 3.0f);
+
+    /* The wall gone: Hidden seen; Hidden2 still not, behind Hidden's body (another enemy hides
+     * what is behind it, as with Line of Sight). */
+    const auto remove_body = [&](const char *name) {
+      world.bodies.erase(std::find_if(world.bodies.begin(),
+                                      world.bodies.end(),
+                                      [&](const std::unique_ptr<Body> &body) {
+                                        return body->object.GetName() == name;
+                                      }));
+    };
+    remove_body("Wall");
+    rig.Step();
+    EXPECT_EQ(rig.Text(owner, "near_object"), "Hidden");
+    EXPECT_EQ(rig.Float(owner, "near_count"), 4.0f);
+    EXPECT_EQ(rig.Text(owner, "far_object"), "Far");
+    EXPECT_EQ(rig.Float(owner, "list_objects"), 4.0f);
+    /* Hidden without a body: nothing in the way of either. */
+    remove_body("Hidden");
+    rig.Step();
+    EXPECT_EQ(rig.Float(owner, "near_count"), 5.0f);
+    EXPECT_EQ(rig.Text(owner, "far_object"), "Hidden2");
+    EXPECT_EQ(rig.Float(owner, "list_objects"), 5.0f);
+  }
+}
+
+namespace {
+
+/** The pushes the flush hands the bodies (LN_SetImpulseObserverForTests): name -> length. */
+class PushLengths {
+ public:
+  PushLengths()
+  {
+    LN_SetImpulseObserverForTests(&PushLengths::Note, this);
+  }
+  ~PushLengths()
+  {
+    LN_SetImpulseObserverForTests(nullptr, nullptr);
+  }
+  std::vector<std::pair<std::string, float>> pushes;
+
+ private:
+  static void Note(void *user,
+                   const KX_GameObject *object,
+                   const MT_Vector3 &vector,
+                   const MT_Vector3 & /*point*/,
+                   const bool /*at_point*/,
+                   const bool /*angular*/,
+                   const bool /*velocity_change*/)
+  {
+    static_cast<PushLengths *>(user)->pushes.emplace_back(
+        const_cast<KX_GameObject *>(object)->GetName(), float(vector.length()));
+  }
+};
+
+}  // namespace
+
+/** Strengths gives each of Objects the push it gets (Strength x the falloff to its center of
+ * mass): Linear and constant falloffs, a Position center and the Object center (the object
+ * itself left out), a body reaching into the sphere with its center outside (0), static bodies
+ * too; the flush's pushes have exactly these lengths. */
+TEST(JoltLogicNodes, ExplosionStrengthsAreThePushEachObjectGets)
+{
+  for (const bool linear : {true, false}) {
+    for (const bool at_object : {false, true}) {
+      SCOPED_TRACE(std::string(linear ? "Linear" : "Constant") +
+                   (at_object ? ", Object" : ", Position"));
+      Tree tree;
+      GenNode &blast = tree.Add(
+          "LogicNativeExplosionImpulse", linear ? 1 : 0, at_object ? 1 : 0);
+      tree.b.Link(*tree.step, "Out", blast, "Flow");
+      tree.b.Vector(blast, "Origin", 0.0f, 0.0f, 0.0f);
+      tree.b.Float(blast, "Radius", 10.0f);
+      tree.b.Float(blast, "Strength", 20.0f);
+      tree.flow = &blast;
+      tree.flow_pin = "Done";
+      tree.StoreCount(blast, "Objects", "objects");
+      tree.StoreCount(blast, "Strengths", "strengths");
+      for (int index = 0; index < 5; index++) {
+        tree.names.push_back("object" + std::to_string(index));
+        tree.StoreItem(blast, "Objects", index, tree.names.back().c_str());
+        tree.names.push_back("strength" + std::to_string(index));
+        tree.StoreItem(blast, "Strengths", index, tree.names.back().c_str());
+      }
+      const std::shared_ptr<LN_Program> program = tree.Compile();
+      ASSERT_NE(program, nullptr);
+      SemRig rig(program, kProduction);
+      /* After the rig: its bodies go first (a game object deletes its controller). */
+      World world;
+      KX_GameObject &owner = rig.Object(0);
+      if (at_object) {
+        world.Box(owner, MT_Vector3(0.25f, 0.25f, 0.25f), JPH::EMotionType::Dynamic);
+      }
+      world.Box(rig.AddObject("A", MT_Vector3(2.0f, 0.0f, 0.0f)),
+                MT_Vector3(0.25f, 0.25f, 0.25f),
+                JPH::EMotionType::Dynamic);
+      world.Box(rig.AddObject("B", MT_Vector3(0.0f, 5.0f, 0.0f)),
+                MT_Vector3(0.25f, 0.25f, 0.25f),
+                JPH::EMotionType::Dynamic);
+      world.Box(rig.AddObject("C", MT_Vector3(0.0f, 0.0f, 7.5f)), MT_Vector3(0.25f, 0.25f, 0.25f));
+      /* Its center outside the sphere, a side inside. */
+      world.Box(rig.AddObject("E", MT_Vector3(10.5f, 0.0f, 0.0f)),
+                MT_Vector3(1.0f, 1.0f, 1.0f),
+                JPH::EMotionType::Dynamic);
+      /* Wholly outside. */
+      world.Box(rig.AddObject("D", MT_Vector3(0.0f, 0.0f, 12.0f)),
+                MT_Vector3(0.25f, 0.25f, 0.25f),
+                JPH::EMotionType::Dynamic);
+      PushLengths observed;
+      rig.Step();
+
+      const std::map<std::string, float> expected = {{"A", linear ? 16.0f : 20.0f},
+                                                     {"B", linear ? 10.0f : 20.0f},
+                                                     {"C", linear ? 5.0f : 20.0f},
+                                                     {"E", linear ? 0.0f : 20.0f}};
+      ASSERT_EQ(rig.Float(owner, "objects"), 4.0f);
+      ASSERT_EQ(rig.Float(owner, "strengths"), 4.0f);
+      std::map<std::string, float> given;
+      for (int index = 0; index < 4; index++) {
+        const std::string name = rig.Text(owner, ("object" + std::to_string(index)).c_str());
+        given[name] = std::stof(rig.Text(owner, ("strength" + std::to_string(index)).c_str()));
+      }
+      for (const auto &[name, strength] : expected) {
+        ASSERT_EQ(given.count(name), 1u) << name;
+        EXPECT_NEAR(given[name], strength, 1.0e-4f) << name;
+      }
+      /* The flush pushed each with exactly that length (E with none: its push has no length). */
+      std::map<std::string, float> pushed;
+      for (const auto &[name, length] : observed.pushes) {
+        pushed[name] = length;
+      }
+      for (const auto &[name, strength] : expected) {
+        ASSERT_EQ(pushed.count(name), 1u) << name;
+        EXPECT_NEAR(pushed[name], given[name], 1.0e-4f) << name;
+      }
+      EXPECT_EQ(pushed.count(owner.GetName()), 0u);
+      EXPECT_EQ(pushed.count("D"), 0u);
+    }
+  }
+}
+
+/** The Offset of Object mode (2026-11-17): the blast happens in the object's own space, turned
+ * and scaled with it. The owner turned 90 degrees about Z and scaled 2: Offset (0, 1, 0) is 2 m
+ * along -X. A box 1 m beyond that point is pushed away from it (Linear: 20 x (1 - 1 / 2.5)), one
+ * 2 m on the owner's other side is out of reach (around the owner itself, with no Offset, it is
+ * the one reached); the owner is left alone; Objects and Strengths measure from the same point. */
+TEST(JoltLogicNodes, AnExplosionsOffsetPutsTheBlastInTheObjectsOwnSpace)
+{
+  struct PushVectors {
+    PushVectors()
+    {
+      LN_SetImpulseObserverForTests(&PushVectors::Note, this);
+    }
+    ~PushVectors()
+    {
+      LN_SetImpulseObserverForTests(nullptr, nullptr);
+    }
+    static void Note(void *user,
+                     const KX_GameObject *object,
+                     const MT_Vector3 &vector,
+                     const MT_Vector3 & /*point*/,
+                     const bool /*at_point*/,
+                     const bool /*angular*/,
+                     const bool /*velocity_change*/)
+    {
+      static_cast<PushVectors *>(user)->pushes[const_cast<KX_GameObject *>(object)->GetName()] =
+          vector;
+    }
+    std::map<std::string, MT_Vector3> pushes;
+  };
+  for (const bool offset : {false, true}) {
+    SCOPED_TRACE(offset ? "Offset (0, 1, 0)" : "no Offset");
+    Tree tree;
+    GenNode &blast = tree.Add("LogicNativeExplosionImpulse", 1 /* Linear */, 1 /* Object */);
+    tree.b.Link(*tree.step, "Out", blast, "Flow");
+    tree.b.Vector(blast, "Offset", 0.0f, offset ? 1.0f : 0.0f, 0.0f);
+    tree.b.Float(blast, "Radius", 2.5f);
+    tree.b.Float(blast, "Strength", 20.0f);
+    tree.flow = &blast;
+    tree.flow_pin = "Done";
+    tree.StoreCount(blast, "Objects", "objects");
+    tree.StoreItem(blast, "Objects", 0, "object0");
+    tree.StoreItem(blast, "Strengths", 0, "strength0");
+    const std::shared_ptr<LN_Program> program = tree.Compile();
+    ASSERT_NE(program, nullptr);
+    SemRig rig(program, kProduction);
+    World world;
+    KX_GameObject &owner = rig.Object(0);
+    MT_Matrix3x3 quarter;
+    quarter.setEuler(MT_Vector3(0.0f, 0.0f, float(M_PI_2)));
+    owner.NodeSetLocalOrientation(quarter);
+    owner.NodeSetLocalScale(MT_Vector3(2.0f, 2.0f, 2.0f));
+    owner.NodeUpdateGS(0.0);
+    world.Box(owner, MT_Vector3(0.25f, 0.25f, 0.25f), JPH::EMotionType::Dynamic);
+    world.Box(rig.AddObject("Near", MT_Vector3(-3.0f, 0.0f, 0.0f)),
+              MT_Vector3(0.25f, 0.25f, 0.25f),
+              JPH::EMotionType::Dynamic);
+    world.Box(rig.AddObject("Far", MT_Vector3(2.0f, 0.0f, 0.0f)),
+              MT_Vector3(0.25f, 0.25f, 0.25f),
+              JPH::EMotionType::Dynamic);
+    PushVectors observed;
+    rig.Step();
+    const char *reached = offset ? "Near" : "Far";
+    const char *missed = offset ? "Far" : "Near";
+    /* Near: 1 m from the offset point; Far: 2 m from the owner. */
+    const float strength = offset ? 20.0f * (1.0f - 1.0f / 2.5f) : 20.0f * (1.0f - 2.0f / 2.5f);
+    EXPECT_EQ(rig.Float(owner, "objects"), 1.0f);
+    EXPECT_EQ(rig.Text(owner, "object0"), reached);
+    EXPECT_NEAR(std::stof(rig.Text(owner, "strength0")), strength, 1.0e-4f);
+    ASSERT_EQ(observed.pushes.count(reached), 1u);
+    ExpectVector(observed.pushes[reached],
+                 MT_Vector3(offset ? -strength : strength, 0.0f, 0.0f),
+                 1.0e-4f);
+    EXPECT_EQ(observed.pushes.count(missed), 0u);
+    EXPECT_EQ(observed.pushes.count(owner.GetName()), 0u) << "the object is left alone";
+  }
+}
+
+/** A crowd of 300 NPCs, each finding the nearest other NPC it sees within 8 (two walls and the
+ * NPCs' bodies in the way): wide runs give every output bit for bit as each tree's column pass,
+ * on this thread and with helpers (the rays run where the bridged Find runs). */
+TEST(JoltLogicNodes, FindObjectsOnlyVisibleRunsWideAsItsColumnPass)
+{
+  const uint32_t owners = 300; /* two chunks */
+  Tree tree;
+  GenNode &find = tree.Add("LogicNativeFindObjects", 2 /* With Property */, 0 /* Nearest */);
+  tree.b.String(find, "Property", "npc");
+  tree.b.Float(find, "Radius", 8.0f);
+  tree.b.Bool(find, "Only Visible", true);
+  tree.StoreFloat(find, "Distance", "d");
+  tree.StoreFloat(find, "Count", "c");
+  tree.StoreBool(find, "Found", "f");
+  const std::shared_ptr<LN_Program> program = tree.Compile();
+  ASSERT_NE(program, nullptr);
+  uint64_t lanes = 0;
+  ExpectCrowdAlike(
+      program,
+      owners,
+      {"d", "c", "f"},
+      [](SemRig &, World &) {},
+      [](SemRig &rig, KX_GameObject &owner, uint32_t) { rig.SetBool(owner, "npc", true); },
+      [&](SemRig &rig) {
+        /* Something was seen, and the walls hid some: fewer seen than the 8 m around hold. */
+        uint32_t found = 0;
+        float seen = 0.0f;
+        for (uint32_t index = 0; index < owners; index++) {
+          found += rig.Float(rig.Object(index), "f") != 0.0f ? 1u : 0u;
+          seen += rig.Float(rig.Object(index), "c");
+        }
+        EXPECT_GT(found, owners / 2);
+        EXPECT_GT(seen, 0.0f);
+      },
+      lanes);
+  /* (UPBGE_LN_COLUMN_DIRECT=force: every tree a column pass, no lanes to count.) */
+  if (LN_GetColumnDirectMode() != LN_ColumnDirectMode::Force) {
+    EXPECT_GE(lanes, uint64_t(owners));
+  }
+}
+
+/** Set Rigid Body Constraint (2026-11-17): a hinge "door" between the owner and a wall, made as
+ * Add Rigid Body Constraints makes it; one step of four nodes gives its swing limits, makes it
+ * breakable, switches it off; a name the owner has no constraint of changes nothing. The kept
+ * settings follow, and Jolt's constraint is off. */
+TEST(JoltLogicNodes, SetRigidBodyConstraintChangesALiveConstraint)
+{
+  Tree tree;
+  GenNode &limits = tree.Add("LogicNativeSetRigidBodyConstraint", 1 /* Limits */);
+  tree.b.Link(*tree.step, "Out", limits, "Flow");
+  tree.b.String(limits, "Name", "door");
+  tree.b.Bool(limits, "Use Angular Limit Z", true);
+  tree.b.Vector(limits, "Angular Lower", 0.0f, 0.0f, -0.3f);
+  tree.b.Vector(limits, "Angular Upper", 0.0f, 0.0f, 0.6f);
+  GenNode &breaking = tree.Add("LogicNativeSetRigidBodyConstraint", 4 /* Breaking */);
+  tree.b.Link(limits, "Done", breaking, "Flow");
+  tree.b.String(breaking, "Name", "door");
+  tree.b.Bool(breaking, "Breakable", true);
+  tree.b.Float(breaking, "Breaking Threshold", 9.0f);
+  GenNode &off = tree.Add("LogicNativeSetRigidBodyConstraint", 0 /* Enabled */);
+  tree.b.Link(breaking, "Done", off, "Flow");
+  tree.b.String(off, "Name", "door");
+  tree.b.Bool(off, "Enabled", false);
+  GenNode &missing = tree.Add("LogicNativeSetRigidBodyConstraint", 0);
+  tree.b.Link(off, "Done", missing, "Flow");
+  tree.b.String(missing, "Name", "nope");
+  const std::shared_ptr<LN_Program> program = tree.Compile();
+  ASSERT_NE(program, nullptr);
+
+  SemRig rig(program, kProduction);
+  /* After the rig: its bodies go first (a game object deletes its controller). */
+  World world;
+  KX_GameObject &owner = rig.Object(0);
+  world.Box(owner, MT_Vector3(0.5f, 0.1f, 1.0f), JPH::EMotionType::Dynamic);
+  KX_GameObject &wall = rig.AddObject("Wall", MT_Vector3(-0.6f, 0.0f, 0.0f));
+  world.Box(wall, MT_Vector3(0.1f, 0.5f, 1.0f));
+  PHY_RigidBodyConstraintSettings settings;
+  settings.type = PHY_RigidBodyConstraintType::Hinge;
+  const MT_Vector3 pivot(-0.5f, 0.0f, 0.0f);
+  const int id = world.environment.CreateRigidBodyConstraint(
+      &owner, &wall, pivot, MT_Matrix3x3::Identity(), settings, "door");
+  ASSERT_NE(id, -1);
+  owner.AddRuntimeRigidBodyConstraint(
+      "door", &owner, &wall, settings, pivot, MT_Matrix3x3::Identity(), id);
+  ASSERT_TRUE(world.environment.IsRigidBodyConstraintEnabled(id));
+
+  rig.SetCapturePrints(false);
+  testing::internal::CaptureStderr();
+  testing::internal::CaptureStdout();
+  rig.Step();
+  const std::string printed = testing::internal::GetCapturedStdout() +
+                              testing::internal::GetCapturedStderr();
+  EXPECT_NE(printed.find("has no rigid body constraint 'nope'"), std::string::npos) << printed;
+
+  const KX_GameObject::RigidBodyConstraintData *data = owner.FindRigidBodyConstraint("door");
+  ASSERT_NE(data, nullptr);
+  const PHY_RigidBodyConstraintSettings &kept = data->m_settings;
+  EXPECT_NE(kept.flags & PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Z, 0);
+  EXPECT_FLOAT_EQ(kept.limit_ang_z_lower, -0.3f);
+  EXPECT_FLOAT_EQ(kept.limit_ang_z_upper, 0.6f);
+  EXPECT_NE(kept.flags & PHY_RB_CONSTRAINT_USE_BREAKING, 0);
+  EXPECT_FLOAT_EQ(kept.breaking_threshold, 9.0f);
+  EXPECT_EQ(kept.flags & PHY_RB_CONSTRAINT_ENABLED, 0);
+  EXPECT_FALSE(world.environment.IsRigidBodyConstraintEnabled(id));
+  EXPECT_TRUE(world.environment.RemoveConstraintById(id, true));
 }
 
 /** \} */

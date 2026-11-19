@@ -318,6 +318,43 @@ struct CollectionMembershipState {
   bool member = true;
 };
 
+/** An object a saved navigation order names: by save identity when the object is saved itself,
+ * else by its game name (`by_name`); empty: none. */
+struct ObjectReferenceState {
+  std::string text;
+  bool by_name = false;
+};
+
+/** An NPC's held navigation order (Navigate's Until Arrived, 2026-11-18): the request as it was
+ * asked (KX_NavRequest), restored by Load Game for a Save Object State record. */
+struct NavigationOrderState {
+  uint8_t mode = 0;
+  MT_Vector3 destination = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Vector3 offset = MT_Vector3(0.0f, 0.0f, 0.0f);
+  ObjectReferenceState target;
+  ObjectReferenceState navmesh;
+  ObjectReferenceState rotating;
+  float speed = 1.0f;
+  float arrive_distance = 0.5f;
+  float radius = 10.0f;
+  float separation = 1.0f;
+  float alignment = 1.0f;
+  float cohesion = 1.0f;
+  float rot_speed = 1.0f;
+  int32_t group = 0;
+  int32_t priority = 50;
+  int32_t rot_axis = 2;
+  int32_t front_axis = 1;
+  bool goal = false;
+  bool use_scene_navmesh = true;
+  bool move_dynamic = false;
+  bool avoid = true;
+  bool visualize = false;
+  bool look_at = false;
+  /** Wander's random numbers, as 16 hex digits (a JSON number holds no 64-bit integer). */
+  uint64_t seed = 0;
+};
+
 struct ObjectState {
   std::string persistence_id;
   std::string source_id;
@@ -347,6 +384,10 @@ struct ObjectState {
   /** Set Collection Member's changes, oldest first (live Save Object State records only; none
    * written when empty, and a record without them restores none). */
   std::vector<CollectionMembershipState> collection_memberships;
+  /** Its held navigation order (live Save Object State records only; none written without one,
+   * and a record without one ends any held order at load). */
+  bool has_navigation_order = false;
+  NavigationOrderState navigation_order;
 };
 
 struct Checkpoint {

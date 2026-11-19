@@ -31,9 +31,18 @@ static bool uses_damping_output(const int attribute_type)
   return attribute_type == 3;
 }
 
+/* Compound (2026-11-18): the Physics panel's checkbox (Enabled), whether the object is a part
+ * of a compound now, how many parts its own shape holds. */
+static constexpr int compound = 15;
+
 static bool uses_enabled_output(const int attribute_type)
 {
-  return ELEM(attribute_type, 9, 12);
+  return ELEM(attribute_type, 9, 12, compound);
+}
+
+static bool uses_compound_outputs(const int attribute_type)
+{
+  return attribute_type == compound;
 }
 
 static bool uses_sleeping_output(const int attribute_type)
@@ -49,7 +58,9 @@ static bool uses_axis_locks_output(const int attribute_type)
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Object>("Object"_ustr).description("Object to read, or the owner when empty");
-  b.add_output<decl::Bool>("Valid"_ustr);
+  b.add_output<decl::Bool>("Valid"_ustr)
+      .description("The object has a Dynamic body to read (Compound: the object has a collision "
+                   "shape, its own or as a part of a compound)");
   b.add_output<decl::Float>("Value"_ustr)
       .description("The value, as the Physics panel's (Angular Velocity Min / Max in radians per "
                    "second: the panel shows degrees)");
@@ -57,10 +68,19 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("As the Physics panel's Translation Damping: Jolt's rate per second");
   b.add_output<decl::Float>("Angular Damping"_ustr)
       .description("As the Physics panel's Rotation Damping: Jolt's rate per second");
-  b.add_output<decl::Bool>("Enabled"_ustr);
+  b.add_output<decl::Bool>("Enabled"_ustr)
+      .description("On or off: Continuous Collision Detection, Allow Physics Rotation, or the "
+                   "object's Compound checkbox (as the Physics panel or Set Rigid Body Attribute "
+                   "last set it)");
   b.add_output<decl::Bool>("Allow Sleeping"_ustr);
   b.add_output<decl::Vector>("Lock Translation"_ustr);
   b.add_output<decl::Vector>("Lock Rotation"_ustr);
+  b.add_output<decl::Bool>("Is Part"_ustr)
+      .description("The object's shape is a part of the compound shape of an object above it "
+                   "now");
+  b.add_output<decl::Int>("Part Count"_ustr)
+      .description("How many objects' shapes are parts of this object's compound shape now (0 "
+                   "when it holds none)");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -83,8 +103,18 @@ static void node_update(bNodeTree *ntree, bNode *node)
   bNodeSocket *allow_sleeping_socket = node->output_by_identifier("Allow Sleeping"_ustr);
   bNodeSocket *lock_translation_socket = node->output_by_identifier("Lock Translation"_ustr);
   bNodeSocket *lock_rotation_socket = node->output_by_identifier("Lock Rotation"_ustr);
+  bNodeSocket *is_part_socket = node->output_by_identifier("Is Part"_ustr);
+  bNodeSocket *part_count_socket = node->output_by_identifier("Part Count"_ustr);
 
   const int attribute_type = node->custom1;
+  if (is_part_socket) {
+    bke::node_set_socket_availability(
+        *ntree, *is_part_socket, uses_compound_outputs(attribute_type));
+  }
+  if (part_count_socket) {
+    bke::node_set_socket_availability(
+        *ntree, *part_count_socket, uses_compound_outputs(attribute_type));
+  }
   if (value_socket) {
     bke::node_set_socket_availability(*ntree, *value_socket, uses_value_output(attribute_type));
   }

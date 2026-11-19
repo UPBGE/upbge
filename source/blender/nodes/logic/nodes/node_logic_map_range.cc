@@ -32,11 +32,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(1.0f)
       .description("Result when Value equals From Max");
   b.add_output<decl::Float>("Result"_ustr).description(
-      "Linearly remapped value; equal source endpoints return To Min");
+      "Remapped value (linear or eased by Interpolation); equal source endpoints return To Min");
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
+  layout.prop(ptr, "interpolation_type", UI_ITEM_NONE, "", ICON_NONE);
   layout.prop(ptr, "use_clamp", UI_ITEM_NONE, "Clamp", ICON_NONE);
 }
 

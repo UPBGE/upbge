@@ -58,6 +58,7 @@ JPH_SUPPRESS_WARNINGS
 #include <vector>
 
 class JoltCharacter;
+struct JoltCharacterContact;
 class JoltConstraint;
 class JoltPhysicsController;
 class JoltGraphicController;
@@ -594,6 +595,16 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                                    PHY_IShapeCastFilterCallback &filterCallback,
                                    uint32_t max_results,
                                    std::vector<PHY_IPhysicsController *> &controllers) override;
+  virtual void CollectStaticTriangles(
+      const MT_Vector3 &aabb_min,
+      const MT_Vector3 &aabb_max,
+      const std::function<void(KX_GameObject *object,
+                               const MT_Vector3 &a,
+                               const MT_Vector3 &b,
+                               const MT_Vector3 &c)> &triangle) override;
+  virtual bool GetStaticBodyBounds(PHY_IPhysicsController *controller,
+                                   MT_Vector3 &r_min,
+                                   MT_Vector3 &r_max) override;
   virtual bool ProximityBatch(const std::vector<PHY_ProximityQuery> &queries,
                               std::vector<std::vector<PHY_ProximityPatch>> &results) override;
 
@@ -646,6 +657,9 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
                              int activeLayerBitInfo,
                              bool isCompoundChild,
                              bool hasCompoundChildren) override;
+  bool CreateBodyOfCompoundPart(KX_GameObject *gameobj,
+                                KX_Scene *kxscene,
+                                PHY_IMotionState *motionstate) override;
 
   virtual void SetupObjectConstraints(KX_GameObject *obj_src,
                                       KX_GameObject *obj_dest,
@@ -660,6 +674,8 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
       const PHY_RigidBodyConstraintSettings &settings,
       const std::string &constraint_name = std::string()) override;
   virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) override;
+  virtual bool SetRigidBodyConstraintSettings(
+      int constraintid, const PHY_RigidBodyConstraintSettings &settings) override;
 
   virtual void ExportFile(const std::string &filename) override;
 
@@ -679,6 +695,41 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   void AddController(JoltPhysicsController *ctrl);
   bool RemoveController(JoltPhysicsController *ctrl);
+
+  /** A Character physics type object (JoltCharacter): a character for \a ctrl's object at its
+   * pose with its shape, registered (the converter; tests). Null without a shape. */
+  JoltCharacter *CreateCharacter(JoltPhysicsController *ctrl, float stepHeight);
+  /** A copy's character (Add Object), \a source's settings. */
+  void AddCharacterReplica(JoltPhysicsController *replicaCtrl, JoltCharacter *source);
+  /** The characters in the order they were made (their step order). */
+  const std::vector<JoltCharacter *> &GetCharacters() const
+  {
+    return m_characters;
+  }
+  /** At least this many characters moving in a step move on Jolt's threads (the same result
+   * as one after another: JoltCharacter::Simulate only reads the world). */
+  static constexpr size_t kCharactersPerThreadedStep = 16;
+
+  /* ---- Physics Visualization (JoltDebugDraw, 2026-11-18) ---- */
+
+  const std::vector<JoltVehicle *> &GetVehicles() const
+  {
+    return m_vehicles;
+  }
+  const std::unordered_map<int, JoltConstraint *> &GetConstraintsById() const
+  {
+    return m_constraintById;
+  }
+  /** A contact point of the last step (world space) and its normal (from the first body toward
+   * the second), kept only while Physics Visualization is on. */
+  struct DebugContact {
+    JPH::RVec3 point;
+    JPH::Vec3 normal;
+  };
+  /** The most contact points kept a step (the rest are not drawn). */
+  static constexpr size_t kMaxDebugContacts = 8192;
+  /** A copy of the last step's contact points (main thread, between steps). */
+  void CopyDebugContacts(std::vector<DebugContact> &r_contacts) const;
   /** True when a two-body Jolt constraint references this body. */
   bool HasConstraintsForBody(JPH::BodyID bodyID) const;
   void RemoveConstraintsForBody(JPH::BodyID bodyID);
@@ -804,6 +855,15 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
  protected:
   /** Refresh solver ordering and stale impulses after coalesced topology mutations. */
   void ProcessPendingConstraintTopologyChanges();
+  /** The step's character phase (before Jolt's update): PrepareStep, Simulate (on Jolt's
+   * threads from kCharactersPerThreadedStep moving characters), ApplyStep in character order. */
+  void UpdateCharacters(float timeStep);
+  void RegisterCharacter(JoltCharacter *character);
+  void DeleteCharacterOf(JoltPhysicsController *ctrl);
+  /** The characters' touching contacts into the logic contacts (On Collision): the bodies Jolt
+   * itself reports none for (static, kinematic, other characters) and the dynamic ones it
+   * reports none for this step. */
+  void AddCharacterLogicContacts();
 
   std::unique_ptr<JPH::TempAllocatorImpl> m_tempAllocator;
   std::unique_ptr<JPH::JobSystemThreadPool> m_jobSystem;
@@ -847,6 +907,13 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   std::unordered_map<const JPH::Body *, JPH::uint32> m_constraintPriorityHeightsScratch;
   std::vector<const JPH::Body *> m_constraintPriorityTraversalScratch;
   std::unordered_map<KX_GameObject *, JoltCharacter *> m_characterByObject;
+  /** Every character, in the order made: the step order (an object's character is found by
+   * m_characterByObject). */
+  std::vector<JoltCharacter *> m_characters;
+  std::vector<JoltCharacter *> m_characterStepScratch;
+  /** The logic contact keys the characters added last step (taken out again each step). */
+  std::vector<JPH::SubShapeIDPair> m_characterLogicContactKeys;
+  std::vector<JoltCharacterContact> m_characterContactScratch;
   std::vector<JoltVehicle *> m_vehicles;
   std::set<JoltGraphicController *> m_graphicControllers;
   std::vector<JoltSoftBody *> m_softBodies;
@@ -984,6 +1051,11 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
 
   int m_numTimeSubSteps;
   int m_debugMode;
+  /** Physics Visualization's contact points (JoltContactListener writes them from Jolt's threads
+   * while it is on; each step starts them anew). */
+  std::atomic<bool> m_debugContactsEnabled{false};
+  mutable std::mutex m_debugContactsMutex;
+  std::vector<DebugContact> m_debugContacts;
   bool m_debugErrors = false;
   /** EPhysicsUpdateError bits already reported: a full cache is always reported, once. */
   uint32_t m_reportedUpdateErrors = 0;

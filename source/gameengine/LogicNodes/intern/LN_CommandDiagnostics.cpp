@@ -8,6 +8,7 @@
 
 #include "LN_CommandDiagnostics.h"
 
+#include <algorithm>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -560,8 +561,28 @@ void LN_WarnCommandFailureOnce(const LN_CommandBuffer::Command &command,
   CM_Warning(message);
 }
 
+bool LN_WarnOnce(const std::string &message)
+{
+  {
+    std::lock_guard lock(issued_warnings_mutex);
+    if (!issued_warnings.insert(message).second) {
+      return false;
+    }
+  }
+  CM_Warning(message);
+  return true;
+}
+
 void LN_ResetCommandFailureWarningsForTests()
 {
   std::lock_guard lock(issued_warnings_mutex);
   issued_warnings.clear();
+}
+
+std::vector<std::string> LN_IssuedWarningsForTests()
+{
+  std::lock_guard lock(issued_warnings_mutex);
+  std::vector<std::string> warnings(issued_warnings.begin(), issued_warnings.end());
+  std::sort(warnings.begin(), warnings.end());
+  return warnings;
 }

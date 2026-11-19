@@ -27,9 +27,11 @@
 #include "KX_GameObject.h"
 #include "PHY_IPhysicsController.h"
 #include "LN_CommandBuffer.h"
+#include "LN_Easing.h"
 #include "LN_JobPool.h"
 #include "LN_KindCatalog.h"
 #include "LN_LeanProgram.h"
+#include "LN_MathOps.h"
 #include "LN_Program.h"
 #include "LN_Random.h"
 #include "LN_RuntimeTree.h"
@@ -384,6 +386,9 @@ enum class NodeOp : uint8_t {
   SGateSet,
   /** Flow Gate's Is Open read (`property_ref` the gate, `b` Start Open, `d` where evaluated). */
   SGateRead,
+  /** Tween Value's Forward / Back (Op::TweenRequest, 2026-11-17): where `a`, the request
+   * `int_value` stored in tween `property_ref`'s state (LN_RuntimeTree::RequestTween). */
+  STweenRequest,
   /** A Delay, Timer, Wait for Next Frame, Pulsify, Barrier or Cooldown op (`compare`: TimeOp) of
    * time flow state `property_ref` for the NPCs of mask `a` (LN_RuntimeTree::TimeFlow*): `b` its
    * float input (duration, interval), `c` its Ignore Timescale, `d` a Barrier's condition;
@@ -466,10 +471,60 @@ enum class NodeOp : uint8_t {
   /** The object a tree property (`property_ref`) holds at this place of the pass, per NPC, into
    * the run's target column `int_value` (a write's object, plan C1-11). */
   OTreeObj,
+  /** Math's newer operations (2026-11-16): `int_value` the LN_MathFunction, `a`, `b`, `c` the
+   * inputs (FloatKind's MathFunction: LN_MathFunctionValue, LN_MathOps.h). */
+  FMathFn,
+  /** Vector Math's number results: `int_value` the LN_VectorMeasure, `position_a` A,
+   * `position_b` B, `vec_c` the Axis (FloatKind's VectorMeasure: LN_VectorMeasureValue). */
+  FVecMeasure,
+  /** Vector Math's newer vector results: `int_value` the LN_VectorFunction, `position_a` A,
+   * `position_b` B, `c` the Scale; `out`, `out2`, `out3` (VectorKind's VectorFunction). */
+  VVecFn,
+  /** Rotation Math (2026-11-16): `int_value` the LN_RotationFunction, `a` A, `b` B (rotation
+   * slots), `out` a rotation slot (RotationKind's RotationFunction). */
+  RRotFn,
+  /** A rotation slot `a` read as Euler angles into `out`, `out2`, `out3` (VectorKind's
+   * RotationFunction of a rotation operation). */
+  VRotEuler,
+  /** Transform Vector's turn (2026-11-16): `int_value` the LN_RotationFunction, `position_a` the
+   * vector, `a` the rotation slot, `vec_c` the scale; `out`, `out2`, `out3`. */
+  VRotFn,
+  /** Smooth Value (2026-11-16, Float / VectorKind's SmoothValue): `compare` the size (1: `out`;
+   * 3: `out`, `out2`, `out3`), `int_value` the LN_SmoothMode, `property_ref` the state slot,
+   * `position_a` the Target (x only for 1), `b` Speed, `c` Max Speed, `vec_c.x` the time step,
+   * `vec_c.y` Reset (a bool slot), `d` where the VM evaluates it (kNone: everywhere). */
+  NSmooth,
+  /** Noise (2026-11-16, FloatKind's Noise): `int_value` LN_NoiseSettings, `compare` the channel,
+   * `position_a` the Vector, `a` W, `b` Scale, `c` Roughness, `d` Seed (an int slot). */
+  FNoise,
+  /** Random Value's shapes (2026-11-16, VectorKind's RandomShape): `compare` the LN_RandomShape,
+   * `int_value` the identity, `position_a` the Axis, `a` Radius or Angle, `c` Seed (an int
+   * slot); `out`, `out2`, `out3`. */
+  VRandomShape,
+  /** Oscillate (2026-11-17, FloatKind's OscillateCycle): `int_value` the identity, `a` the time,
+   * `b` Frequency, `c` Phase, `d` Random Phase (a bool slot); `out`. */
+  FOscCycle,
+  /** FloatKind's Oscillate: `int_value` the wave, `a` the cycle, `b` Amplitude, `c` Center. */
+  FOscillate,
+  /** VectorKind's Oscillate: `int_value` the wave or LN_OSCILLATE_ORBIT, `a` the cycle,
+   * `position_a` the Axis, `b` Amplitude; `out`, `out2`, `out3`. */
+  VOscillate,
 };
 
 /** STimeOp's ops. */
-enum class TimeOp : uint8_t { NextFrame, Timer, Delay, Pulsify, Barrier, Cooldown, ResetCooldown };
+/** (Stop, Pause, Resume: a Delay's or Timer's, 2026-11-17, LN_TIME_FLOW_*.) */
+enum class TimeOp : uint8_t {
+  NextFrame,
+  Timer,
+  Delay,
+  Pulsify,
+  Barrier,
+  Cooldown,
+  ResetCooldown,
+  Stop,
+  Pause,
+  Resume
+};
 
 /** STimeRead's reads (the kinds' code). */
 enum class TimeRead : uint8_t {
@@ -496,6 +551,8 @@ enum class Uniform : uint8_t {
   FPS,
   DeltaFactor,
   TimeScale,
+  /** LN_TickContext::game_time (2026-11-17, Float::GameTime). */
+  GameTime,
   Count
 };
 
@@ -1020,6 +1077,9 @@ constexpr KindInputRow kKindInputRows[] = {
  * instruction, a stick number) or is never read (the second input a one-input math node gets). A
  * set field neither the table nor this list names makes the walk answer "unknown". */
 constexpr KindInputRow kKindInputSupplement[] = {
+    /* (2026-11-16) Transform Vector's turns: the scale (the rig records a rotation operation,
+     * which reads input0 and input1 only). */
+    {"Vector::RotationFunction", "input2:V"},
     {"Bool::InstructionExecuted", "input0:-"},
     {"Bool::InstructionReached", "input0:-"},
     {"Vector::InstructionNextPoint", "input0:-"},
@@ -1037,6 +1097,9 @@ constexpr KindInputRow kKindInputSupplement[] = {
     {"Float::Degrees", "input1:-"},
     {"Bool::RepeatLimitExhausted", "input0:I"},
     {"Bool::AnimationPlaying", "int_expr_index:I"},
+    /* (2026-11-16) On Action Frame reads its Layer, Frame and Action after its object resolved
+     * (the rig has none). */
+    {"Bool::ActionFrameReached", "int_expr_index:I input3:F input1:S"},
     {"Bool::ActionDone", "int_expr_index:I"},
     {"Bool::ActionStarted", "input0:B"},
     {"Bool::ActionCompleted", "input0:B"},
@@ -1502,6 +1565,49 @@ class ColumnCompiler {
     result.reads_ops = true; /* depends on the route that reads it */
     return result;
   }
+  /** The pass's unscaled delta (not below 0) where the op being compiled runs: the gate's behind
+   * a gate, else the pass's (FloatKind's UnscaledDeltaTime). */
+  Slot UnscaledDeltaSlot()
+  {
+    Node node;
+    node.out = NewFloat();
+    if (m_gate != kNone) {
+      node.op = NodeOp::FGateUnscaled;
+      node.property_ref = m_gate;
+    }
+    else {
+      node.op = NodeOp::FUniform;
+      node.compare = uint8_t(Uniform::UnscaledDeltaTime);
+    }
+    m_out.nodes.push_back(node);
+    Slot result;
+    result.slot = node.out;
+    result.reads_ops = true; /* depends on the route that reads it */
+    return result;
+  }
+  /** TimeFlowStep's delta where the op being compiled runs: the unscaled one where `ignore`
+   * (a bool slot) is set, else the scaled one. */
+  Slot TimeStepSlot(const Slot &ignore)
+  {
+    const Slot scaled = DeltaSlot(false);
+    const Slot unscaled = UnscaledDeltaSlot();
+    Slot result;
+    result.slot = SelectSlot(NodeOp::FSelect, ignore.slot, unscaled.slot, scaled.slot);
+    result.reads_ops = true;
+    return result;
+  }
+  /** Smooth Value (Float / Vector::SmoothValue) where the VM evaluates it: its state moves once a
+   * tick (NSmooth, LN_SmoothValueAdvance), its inputs compiled in the VM's read order. */
+  bool SmoothValueNode(uint32_t slot,
+                       LN_SmoothMode mode,
+                       int size,
+                       uint32_t reset_index,
+                       uint32_t target_index,
+                       uint32_t speed_index,
+                       uint32_t max_speed_index,
+                       uint32_t ignore_index,
+                       Node &r_node,
+                       uint64_t &r_touched);
   /** The stamp index of the instruction `instruction` of this event (InstructionStateIndex). */
   uint32_t StateIndexOf(uint32_t instruction) const;
   uint32_t NewFloat()
@@ -1744,6 +1850,9 @@ class ColumnCompiler {
   /** Plan C2 fix 1: a bridged Bool kind that may sit in a stateful node's input (Colliding of the
    * owner or a named object by constant filters). */
   bool RepeatableBridgedBool(uint32_t index) const;
+  /** RepeatableBridgedBool, and (2026-11-17) an answer of Find Objects warmed for this event of
+   * any family (B I F V): may sit in a stateful node's input (BridgeAllowedHere). */
+  bool RepeatableBridged(char family, uint32_t index) const;
   bool Endpoint(LN_DistanceEndpointMode mode,
                 uint32_t input,
                 bool owner_when_empty,
@@ -2070,6 +2179,63 @@ uint32_t ColumnCompiler::RanSlot(const uint32_t instruction, bool &r_always)
   return ran == kNone ? BoolConst(false).slot : ran;
 }
 
+bool ColumnCompiler::SmoothValueNode(const uint32_t slot,
+                                     const LN_SmoothMode mode,
+                                     const int size,
+                                     const uint32_t reset_index,
+                                     const uint32_t target_index,
+                                     const uint32_t speed_index,
+                                     const uint32_t max_speed_index,
+                                     const uint32_t ignore_index,
+                                     Node &r_node,
+                                     uint64_t &r_touched)
+{
+  if (mode < LN_SmoothMode::Smooth || mode >= LN_SmoothMode::Count) {
+    return Refuse("a Smooth Value mode this build does not know");
+  }
+  if (!StatefulAllowed("a Smooth Value read")) {
+    return false;
+  }
+  /* The VM reads the inputs only on the tick's first evaluation (so none surely: their distances
+   * are only touched), in this order: Reset, Target, Speed, Max Speed, Ignore Timescale. No
+   * stateful node inside (the VM would evaluate it only sometimes). */
+  m_in_stateful++;
+  const Slot reset = Bool(reset_index, false);
+  Slot target_x;
+  Vec target;
+  if (size == 1) {
+    target_x = Float(target_index, 0.0f);
+  }
+  else {
+    target = Vector(target_index, MT_Vector3(0.0f, 0.0f, 0.0f));
+  }
+  const Slot speed = Float(speed_index, 0.0f);
+  const Slot max_speed = Float(max_speed_index, 0.0f);
+  const Slot ignore = Bool(ignore_index, false);
+  m_in_stateful--;
+  if (!m_refusal.empty()) {
+    return false;
+  }
+  const Slot dt = TimeStepSlot(ignore);
+  r_touched = reset.touched | target_x.touched | target.touched | speed.touched |
+              max_speed.touched | ignore.touched;
+  r_node.op = NodeOp::NSmooth;
+  r_node.compare = uint8_t(size);
+  r_node.int_value = int32_t(mode);
+  r_node.property_ref = slot;
+  if (size == 1) {
+    r_node.position_a = {target_x.slot, kNone, kNone};
+  }
+  else {
+    r_node.position_a = target.slots;
+  }
+  r_node.b = speed.slot;
+  r_node.c = max_speed.slot;
+  r_node.d = EvalMask();
+  r_node.vec_c = {dt.slot, reset.slot, kNone};
+  return true;
+}
+
 uint32_t ColumnCompiler::StateIndexOf(const uint32_t instruction) const
 {
   /* InstructionStateIndex: the event's offset plus the instruction (the lowering's state_index). */
@@ -2238,6 +2404,9 @@ ColumnCompiler::Slot ColumnCompiler::Float(const uint32_t index, const float fal
     case LN_FloatExpressionKind::SnapshotElapsedTime:
       result = uniform(Uniform::ElapsedTime);
       break;
+    case LN_FloatExpressionKind::GameTime:
+      result = uniform(Uniform::GameTime);
+      break;
     case LN_FloatExpressionKind::SnapshotFrameDelta:
       result = uniform(Uniform::FrameDelta);
       break;
@@ -2346,6 +2515,96 @@ ColumnCompiler::Slot ColumnCompiler::Float(const uint32_t index, const float fal
       m_out.nodes.push_back(node);
       result.reads_ops = true;
       return result;
+    }
+    case LN_FloatExpressionKind::SmoothValue: {
+      /* One node per read site: the first evaluation of the tick moves the state, the others
+       * read it (LN_SmoothValueAdvance's tick check). */
+      if (e.int_value < 0) {
+        result = FloatConst(fallback);
+        return result;
+      }
+      uint64_t touched = 0;
+      if (!SmoothValueNode(uint32_t(e.int_value),
+                           LN_SmoothMode(e.component_index),
+                           1,
+                           e.bool_expr_index,
+                           e.input0,
+                           e.input1,
+                           e.input2,
+                           e.input_indices.empty() ? kNone : e.input_indices[0],
+                           node,
+                           touched))
+      {
+        return {};
+      }
+      node.out = NewFloat();
+      m_out.nodes.push_back(node);
+      result.slot = node.out;
+      result.reads_ops = true;
+      result.touched = touched;
+      return result;
+    }
+    case LN_FloatExpressionKind::Noise: {
+      /* The VM's read order: Vector, W, Scale, Roughness, Seed. */
+      const Vec vector = Vector(e.input0, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const Slot w = Float(e.input1, 0.0f);
+      const Slot scale = Float(e.input2, 1.0f);
+      const Slot roughness = Float(e.input_indices.size() > 0 ? e.input_indices[0] : kNone, 0.5f);
+      const Slot seed = Int(e.input_indices.size() > 1 ? e.input_indices[1] : kNone, 0);
+      if (!m_refusal.empty()) {
+        return {};
+      }
+      node.op = NodeOp::FNoise;
+      node.int_value = e.int_value;
+      node.compare = e.component_index;
+      node.position_a = vector.slots;
+      node.a = w.slot;
+      node.b = scale.slot;
+      node.c = roughness.slot;
+      node.d = seed.slot;
+      node.out = NewFloat();
+      result.slot = node.out;
+      result = Emit(node, Merge(Merge(Merge(Merge(Merge(result, vector), w), scale), roughness), seed));
+      break;
+    }
+    case LN_FloatExpressionKind::OscillateCycle: {
+      /* The VM's read order: the time, Frequency, Phase, Random Phase. */
+      const Slot time = Float(e.input0, 0.0f);
+      const Slot frequency = Float(e.input1, 1.0f);
+      const Slot phase = Float(e.input2, 0.0f);
+      const Slot random_phase = Bool(e.bool_expr_index, false);
+      if (!m_refusal.empty()) {
+        return {};
+      }
+      node.op = NodeOp::FOscCycle;
+      node.int_value = e.int_value;
+      node.a = time.slot;
+      node.b = frequency.slot;
+      node.c = phase.slot;
+      node.d = random_phase.slot;
+      node.out = NewFloat();
+      result.slot = node.out;
+      result = Emit(node,
+                    Merge(Merge(Merge(Merge(result, time), frequency), phase), random_phase));
+      break;
+    }
+    case LN_FloatExpressionKind::Oscillate: {
+      /* The VM's read order: the cycle, Amplitude, Center. */
+      const Slot cycle = Float(e.input0, 0.0f);
+      const Slot amplitude = Float(e.input1, 1.0f);
+      const Slot center = Float(e.input2, 0.0f);
+      if (!m_refusal.empty()) {
+        return {};
+      }
+      node.op = NodeOp::FOscillate;
+      node.int_value = e.int_value;
+      node.a = cycle.slot;
+      node.b = amplitude.slot;
+      node.c = center.slot;
+      node.out = NewFloat();
+      result.slot = node.out;
+      result = Emit(node, Merge(Merge(Merge(result, cycle), amplitude), center));
+      break;
     }
     case LN_FloatExpressionKind::Absolute:
       result = FloatNode(NodeOp::FAbs, Float(e.input0, 0.0f));
@@ -2458,6 +2717,45 @@ ColumnCompiler::Slot ColumnCompiler::Float(const uint32_t index, const float fal
       node.out = NewFloat();
       result.slot = node.out;
       result = Emit(node, Merge(result, vector));
+      break;
+    }
+    case LN_FloatExpressionKind::MathFunction: {
+      if (e.int_value < 0 || e.int_value >= int32_t(LN_MathFunction::Count)) {
+        Refuse("a Math operation this build does not know");
+        return {};
+      }
+      /* The VM's read order: A, B, C. */
+      const Slot a = Float(e.input0, 0.0f), b = Float(e.input1, 0.0f), c = Float(e.input2, 0.0f);
+      node.op = NodeOp::FMathFn;
+      node.int_value = e.int_value;
+      node.a = a.slot;
+      node.b = b.slot;
+      node.c = c.slot;
+      node.out = NewFloat();
+      result.slot = node.out;
+      result = Emit(node, Merge(Merge(Merge(result, a), b), c));
+      break;
+    }
+    case LN_FloatExpressionKind::VectorMeasure: {
+      if (e.int_value < 0 || e.int_value >= int32_t(LN_VectorMeasure::Count)) {
+        Refuse("a Vector Math operation this build does not know");
+        return {};
+      }
+      /* The VM's read order: A, B, Axis. */
+      const Vec a = Vector(e.input0, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const Vec b = Vector(e.input1, MT_Vector3(0.0f, 0.0f, 0.0f));
+      const Vec axis = Vector(e.input2, MT_Vector3(0.0f, 0.0f, 1.0f));
+      if (!m_refusal.empty()) {
+        return {};
+      }
+      node.op = NodeOp::FVecMeasure;
+      node.int_value = e.int_value;
+      node.position_a = a.slots;
+      node.position_b = b.slots;
+      node.vec_c = axis.slots;
+      node.out = NewFloat();
+      result.slot = node.out;
+      result = Emit(node, Merge(Merge(Merge(result, a), b), axis));
       break;
     }
     case LN_FloatExpressionKind::Select: {
@@ -3334,6 +3632,163 @@ ColumnCompiler::Vec ColumnCompiler::Vector(const uint32_t index, const MT_Vector
       result.reads_ops = v.reads_ops;
       result.queries = v.queries;
       result.touched = v.touched;
+      break;
+    }
+    case LN_VectorExpressionKind::RotationFunction: {
+      if (e.int_value < 0 || e.int_value >= int32_t(LN_RotationFunction::Count)) {
+        Refuse("a Rotation Math operation this build does not know");
+        return {};
+      }
+      const LN_RotationFunction function = LN_RotationFunction(e.int_value);
+      Node node;
+      if (LN_RotationFunctionGivesRotation(function)) {
+        /* The VM reads the rotation as its Euler angles. */
+        const Slot rotation = Rotation(index, LN_Rotation::Identity());
+        if (!m_refusal.empty()) {
+          return {};
+        }
+        node.op = NodeOp::VRotEuler;
+        node.a = rotation.slot;
+        node.out = NewFloat();
+        node.out2 = NewFloat();
+        node.out3 = NewFloat();
+        m_out.nodes.push_back(node);
+        result.slots = {node.out, node.out2, node.out3};
+        result.reads_ops = rotation.reads_ops;
+        result.queries = rotation.queries;
+        result.touched = rotation.touched;
+        break;
+      }
+      /* The VM's read order: the vector, the rotation, the scale. */
+      const Vec vector = Vector(e.input0, zero);
+      const Slot rotation = Rotation(e.input1, LN_Rotation::Identity());
+      const Vec scale = Vector(e.input2, MT_Vector3(1.0f, 1.0f, 1.0f));
+      if (!m_refusal.empty()) {
+        return {};
+      }
+      node.op = NodeOp::VRotFn;
+      node.int_value = e.int_value;
+      node.position_a = vector.slots;
+      node.a = rotation.slot;
+      node.vec_c = scale.slots;
+      node.out = NewFloat();
+      node.out2 = NewFloat();
+      node.out3 = NewFloat();
+      m_out.nodes.push_back(node);
+      result.slots = {node.out, node.out2, node.out3};
+      result.reads_ops = vector.reads_ops || rotation.reads_ops || scale.reads_ops;
+      result.queries = vector.queries | rotation.queries | scale.queries;
+      result.touched = vector.touched | rotation.touched | scale.touched;
+      break;
+    }
+    case LN_VectorExpressionKind::VectorFunction: {
+      if (e.int_value < 0 || e.int_value >= int32_t(LN_VectorFunction::Count)) {
+        Refuse("a Vector Math operation this build does not know");
+        return {};
+      }
+      /* The VM's read order: A, B, Scale. */
+      const Vec a = Vector(e.input0, zero);
+      const Vec b = Vector(e.input1, zero);
+      const Slot scale = Float(e.float_expr_index, e.float_value);
+      if (!m_refusal.empty()) {
+        return {};
+      }
+      Node node;
+      node.op = NodeOp::VVecFn;
+      node.int_value = e.int_value;
+      node.position_a = a.slots;
+      node.position_b = b.slots;
+      node.c = scale.slot;
+      node.out = NewFloat();
+      node.out2 = NewFloat();
+      node.out3 = NewFloat();
+      m_out.nodes.push_back(node);
+      result.slots = {node.out, node.out2, node.out3};
+      result.reads_ops = a.reads_ops || b.reads_ops || scale.reads_ops;
+      result.queries = a.queries | b.queries | scale.queries;
+      result.touched = a.touched | b.touched | scale.touched;
+      break;
+    }
+    case LN_VectorExpressionKind::SmoothValue: {
+      /* As FloatKind's SmoothValue: one node per read site. */
+      if (e.int_value < 0) {
+        return VectorConst(fallback);
+      }
+      Node node;
+      uint64_t touched = 0;
+      if (!SmoothValueNode(uint32_t(e.int_value),
+                           LN_SmoothMode(e.property_ref_index),
+                           3,
+                           e.bool_expr_index,
+                           e.input0,
+                           e.float_expr_index,
+                           e.input1,
+                           e.input2,
+                           node,
+                           touched))
+      {
+        return {};
+      }
+      node.out = NewFloat();
+      node.out2 = NewFloat();
+      node.out3 = NewFloat();
+      m_out.nodes.push_back(node);
+      result.slots = {node.out, node.out2, node.out3};
+      result.reads_ops = true;
+      result.touched = touched;
+      return result;
+    }
+    case LN_VectorExpressionKind::RandomShape: {
+      if (e.property_ref_index >= uint32_t(LN_RandomShape::Count)) {
+        Refuse("a Random Value shape this build does not know");
+        return {};
+      }
+      /* The VM's read order: Axis, Radius or Angle, Seed. */
+      const Vec axis = Vector(e.input0, MT_Vector3(0.0f, 0.0f, 1.0f));
+      const Slot size = Float(e.float_expr_index, 1.0f);
+      const Slot seed = Int(e.input2, 0);
+      if (!m_refusal.empty()) {
+        return {};
+      }
+      Node node;
+      node.op = NodeOp::VRandomShape;
+      node.compare = uint8_t(e.property_ref_index);
+      node.int_value = e.int_value;
+      node.position_a = axis.slots;
+      node.a = size.slot;
+      node.c = seed.slot;
+      node.out = NewFloat();
+      node.out2 = NewFloat();
+      node.out3 = NewFloat();
+      m_out.nodes.push_back(node);
+      result.slots = {node.out, node.out2, node.out3};
+      result.reads_ops = axis.reads_ops || size.reads_ops || seed.reads_ops;
+      result.queries = axis.queries | size.queries | seed.queries;
+      result.touched = axis.touched | size.touched | seed.touched;
+      break;
+    }
+    case LN_VectorExpressionKind::Oscillate: {
+      /* The VM's read order: the cycle, Axis, Amplitude. */
+      const Slot cycle = Float(e.input0, 0.0f);
+      const Vec axis = Vector(e.input1, MT_Vector3(0.0f, 0.0f, 1.0f));
+      const Slot amplitude = Float(e.float_expr_index, 1.0f);
+      if (!m_refusal.empty()) {
+        return {};
+      }
+      Node node;
+      node.op = NodeOp::VOscillate;
+      node.int_value = e.int_value;
+      node.a = cycle.slot;
+      node.position_a = axis.slots;
+      node.b = amplitude.slot;
+      node.out = NewFloat();
+      node.out2 = NewFloat();
+      node.out3 = NewFloat();
+      m_out.nodes.push_back(node);
+      result.slots = {node.out, node.out2, node.out3};
+      result.reads_ops = cycle.reads_ops || axis.reads_ops || amplitude.reads_ops;
+      result.queries = cycle.queries | axis.queries | amplitude.queries;
+      result.touched = cycle.touched | axis.touched | amplitude.touched;
       break;
     }
     case LN_VectorExpressionKind::RotateAroundAxis: {
@@ -4967,6 +5422,21 @@ ColumnCompiler::Slot ColumnCompiler::Rotation(const uint32_t index, const LN_Rot
       Refuse(std::string("rotation kind ") +
              LN_KindName(LN_KindDomain::Vector, uint16_t(e.kind)));
       return {};
+    case LN_VectorExpressionKind::RotationFunction:
+      if (e.int_value >= 0 && e.int_value < int32_t(LN_RotationFunction::Count) &&
+          LN_RotationFunctionGivesRotation(LN_RotationFunction(e.int_value)))
+      {
+        /* RotationKind's: A, then B (LN_RotationFunctionRotation). */
+        const Slot a = Rotation(e.input0, LN_Rotation::Identity());
+        const Slot b = Rotation(e.input1, LN_Rotation::Identity());
+        node.op = NodeOp::RRotFn;
+        node.int_value = e.int_value;
+        node.a = a.slot;
+        node.b = b.slot;
+        result = Merge(Merge(result, a), b);
+        break;
+      }
+      [[fallthrough]];
     default: {
       /* Any other vector, as Euler angles. */
       const Vec euler = Vector(index, fallback.ToEulerXYZ());
@@ -5065,9 +5535,62 @@ bool ColumnCompiler::RepeatableBridgedBool(const uint32_t index) const
   return plain_value(e.input0) && plain_text && plain_value(e.input2);
 }
 
+bool ColumnCompiler::RepeatableBridged(const char family, const uint32_t index) const
+{
+  /* Find Objects (2026-11-17): an answer warmed for this event is worked out from the tick's start
+   * poses (LN_FindIndex) before any tree records and kept for the tick; a wide run's lanes (never
+   * warmed) work it out at their first read, from the same poses and from inputs that reach no
+   * stateful kind (the warm-up's rule): every read of the tick gives that answer and changes
+   * nothing but the per-tick cache, so a Smooth Value of the nearest target's distance runs wide. */
+  uint32_t query = kNone;
+  switch (family) {
+    case 'B': {
+      const std::vector<LN_BoolExpression> &bools = m_program.GetBoolExpressions();
+      if (index < bools.size() && bools[index].kind == LN_BoolExpressionKind::PhysicsQueryHit) {
+        query = bools[index].input0;
+      }
+      break;
+    }
+    case 'I': {
+      const std::vector<LN_IntExpression> &ints = m_program.GetIntExpressions();
+      if (index < ints.size() && ints[index].kind == LN_IntExpressionKind::QueryVectorCount) {
+        query = ints[index].input0;
+      }
+      break;
+    }
+    case 'F': {
+      const std::vector<LN_FloatExpression> &floats = m_program.GetFloatExpressions();
+      if (index < floats.size() &&
+          floats[index].kind == LN_FloatExpressionKind::PhysicsQueryDistance)
+      {
+        query = floats[index].input0;
+      }
+      break;
+    }
+    case 'V': {
+      const std::vector<LN_VectorExpression> &vectors = m_program.GetVectorExpressions();
+      if (index < vectors.size() &&
+          vectors[index].kind == LN_VectorExpressionKind::PhysicsQueryPoint)
+      {
+        query = vectors[index].input0;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  if (query != kNone) {
+    const std::vector<LN_QueryExpression> &queries = m_program.GetQueryExpressions();
+    const std::vector<uint8_t> &warm = m_program.GetQueryWarmEvents();
+    return query < queries.size() && queries[query].kind == LN_QueryExpressionKind::FindObjects &&
+           query < warm.size() && (warm[query] & (1u << uint32_t(m_event))) != 0;
+  }
+  return family == 'B' && RepeatableBridgedBool(index);
+}
+
 ColumnCompiler::Slot ColumnCompiler::BridgeBool(const uint32_t index, const bool fallback)
 {
-  if (!BridgeAllowedHere("a bridged node", ReachOf('B', index), RepeatableBridgedBool(index))) {
+  if (!BridgeAllowedHere("a bridged node", ReachOf('B', index), RepeatableBridged('B', index))) {
     return {};
   }
   Node node;
@@ -5090,7 +5613,7 @@ ColumnCompiler::Slot ColumnCompiler::BridgeBool(const uint32_t index, const bool
 
 ColumnCompiler::Slot ColumnCompiler::BridgeInt(const uint32_t index, const int32_t fallback)
 {
-  if (!BridgeAllowedHere("a bridged node", ReachOf('I', index))) {
+  if (!BridgeAllowedHere("a bridged node", ReachOf('I', index), RepeatableBridged('I', index))) {
     return {};
   }
   Node node;
@@ -5113,7 +5636,7 @@ ColumnCompiler::Slot ColumnCompiler::BridgeInt(const uint32_t index, const int32
 
 ColumnCompiler::Slot ColumnCompiler::BridgeFloat(const uint32_t index, const float fallback)
 {
-  if (!BridgeAllowedHere("a bridged node", ReachOf('F', index))) {
+  if (!BridgeAllowedHere("a bridged node", ReachOf('F', index), RepeatableBridged('F', index))) {
     return {};
   }
   Node node;
@@ -5136,7 +5659,7 @@ ColumnCompiler::Slot ColumnCompiler::BridgeFloat(const uint32_t index, const flo
 
 ColumnCompiler::Vec ColumnCompiler::BridgeVector(const uint32_t index, const MT_Vector3 &fallback)
 {
-  if (!BridgeAllowedHere("a bridged node", ReachOf('V', index))) {
+  if (!BridgeAllowedHere("a bridged node", ReachOf('V', index), RepeatableBridged('V', index))) {
     return {};
   }
   Node node;
@@ -5445,6 +5968,15 @@ const ColumnCompiler::QueryReach &ColumnCompiler::ReachOf(const char family, con
       if (query == LN_QueryExpressionKind::KeepDistance) {
         refusal = nullptr;
       }
+      /* Find Objects (2026-11-16): the tick's poses, only read while the trees record. */
+      if (query == LN_QueryExpressionKind::FindObjects) {
+        refusal = nullptr;
+      }
+      /* Navmesh Query (2026-11-18): the navmesh, changed only by the navigation step (after the
+       * flush): the same on any thread, no object's pose read. */
+      if (query == LN_QueryExpressionKind::NavmeshQuery) {
+        refusal = nullptr;
+      }
     }
     if (refusal != nullptr && domain == LN_KindDomain::Value &&
         LN_ValueExpressionKind(kind) == LN_ValueExpressionKind::Constant)
@@ -5726,6 +6258,12 @@ std::string ColumnCompiler::ReachUnsafeHere(const QueryReach &reach)
     if (query.kind == LN_QueryExpressionKind::KeepDistance) {
       continue; /* its tree's state: no object read */
     }
+    if (query.kind == LN_QueryExpressionKind::FindObjects) {
+      continue; /* the tick's start poses: no pending move read */
+    }
+    if (query.kind == LN_QueryExpressionKind::NavmeshQuery) {
+      continue; /* the navmesh: no object's pose read */
+    }
     /* A ray, a shape cast, a sweep or a line of sight: cast again at every op that reads it,
      * after its objects' pending moves are applied. A named object has none (the run starts only
      * without them, and the lanes move only their owners). */
@@ -5795,10 +6333,11 @@ bool ColumnCompiler::CompileLoopBlock(const LN_ExecBlockProgram &ir,
         m_event, headers[exec.instruction_index]);
     const LN_OpCode opcode = exec.opcode;
     /* The body's ops record commands (never a move: a caught one could not be applied early) or
-     * change the tree's own states. */
+     * change the tree's own states (a Tween's request: taken at the tween's next update, so a
+     * value of it already read this step stays right). */
     const bool allowed = exec.kind == LN_ExecOpKind::BranchRoute ||
                          exec.kind == LN_ExecOpKind::Nop || opcode == LN_OpCode::BreakLoop ||
-                         opcode == LN_OpCode::SetTreeProperty ||
+                         opcode == LN_OpCode::SetTreeProperty || opcode == LN_OpCode::TweenRequest ||
                          (exec.kind == LN_ExecOpKind::GamePropertyCommand &&
                           opcode == LN_OpCode::SetGameProperty) ||
                          (BridgeableOp(exec.kind, opcode) && opcode != LN_OpCode::AddObject);
@@ -5895,6 +6434,7 @@ bool ColumnCompiler::CompileCollisionBlock(const LN_ExecBlockProgram &ir,
     const LN_OpCode opcode = exec.opcode;
     const bool allowed = exec.kind == LN_ExecOpKind::BranchRoute ||
                          exec.kind == LN_ExecOpKind::Nop || opcode == LN_OpCode::SetTreeProperty ||
+                         opcode == LN_OpCode::TweenRequest ||
                          (exec.kind == LN_ExecOpKind::GamePropertyCommand &&
                           opcode == LN_OpCode::SetGameProperty) ||
                          (BridgeableOp(exec.kind, opcode) && opcode != LN_OpCode::AddObject);
@@ -6116,6 +6656,26 @@ bool ColumnCompiler::CompileTimeOp(const LN_Instruction &instruction,
   node.property_ref = state;
   node.int_value = m_gate == kNone ? -1 : int32_t(m_gate);
   node.bool_value = (header.flags & LN_INSTRUCTION_FLAG_UI_EVENT_ROUTE) != 0;
+  if ((instruction.opcode == LN_OpCode::ArmTimer || instruction.opcode == LN_OpCode::ArmDelay) &&
+      instruction.secondary_int_value != LN_TIME_FLOW_ARM)
+  {
+    /* Stop / Pause / Resume: no input. */
+    switch (instruction.secondary_int_value) {
+      case LN_TIME_FLOW_STOP:
+        node.compare = uint8_t(TimeOp::Stop);
+        break;
+      case LN_TIME_FLOW_PAUSE:
+        node.compare = uint8_t(TimeOp::Pause);
+        break;
+      case LN_TIME_FLOW_RESUME:
+        node.compare = uint8_t(TimeOp::Resume);
+        break;
+      default:
+        return Refuse("a time flow op of another kind");
+    }
+    m_out.nodes.push_back(node);
+    return true;
+  }
   switch (instruction.opcode) {
     case LN_OpCode::ArmNextFrame:
       node.compare = uint8_t(TimeOp::NextFrame);
@@ -6540,6 +7100,14 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
           /* Keep Distance's outputs (2026-11-14): its tree's own state, written at the flush's
            * end (QKeep reads them; the bridge its Nearest Object). */
           break;
+        case LN_QueryExpressionKind::FindObjects:
+          /* Find Objects (2026-11-16): the tick's start poses (LN_FindIndex), the same at every
+           * op of a run. */
+          break;
+        case LN_QueryExpressionKind::NavmeshQuery:
+          /* Navmesh Query (2026-11-18): the navmesh only (the navigation changes it after the
+           * flush), with this thread's query object. */
+          break;
         default:
           m_bridge_ok = false;
           break;
@@ -6727,6 +7295,25 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
         op_marks = unconditional &&
                    ((condition.slot == m_true && instruction.bool_value) ||
                     (condition.slot == m_false && !instruction.bool_value));
+        break;
+      }
+      case LN_LeanNative::TweenRequest: {
+        /* Tween Value's Forward / Back: the request stored NPC by NPC; it reads nothing (the
+         * tween, bridged, takes it at its next update). */
+        const std::vector<LN_BoolExpression> &tween_bools = m_program.GetBoolExpressions();
+        if (instruction.opcode != LN_OpCode::TweenRequest || instruction.int_value < 0 ||
+            uint32_t(instruction.int_value) >= tween_bools.size() ||
+            tween_bools[uint32_t(instruction.int_value)].kind != LN_BoolExpressionKind::TweenValue)
+        {
+          Refuse("a Tween request without its tween");
+          break;
+        }
+        Node node;
+        node.op = NodeOp::STweenRequest;
+        node.a = guard.slot;
+        node.property_ref = uint32_t(instruction.int_value);
+        node.int_value = instruction.secondary_int_value;
+        m_out.nodes.push_back(node);
         break;
       }
       case LN_LeanNative::SetNumber: {
@@ -7237,6 +7824,13 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
               break;
             }
             read(vector.queries | scalar.queries | int_a.queries | int_b.queries);
+            if (instruction.int_value == 1) {
+              /* Turn Speed (2026-11-16): radians a second times the route's time, the largest
+               * turn of the step (its handler's math). */
+              const Slot dt = DeltaSlot(false);
+              scalar = FloatNode(NodeOp::FMul, scalar, &dt);
+              write.motion_bool = true;
+            }
           }
           else {
             write.command = CT::AlignAxisToVector;
@@ -7249,7 +7843,8 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
             read(vector.queries | int_a.queries | scalar.queries);
           }
           if (m_gate != kNone &&
-              (opcode == LN_OpCode::RotateToward || opcode == LN_OpCode::AlignAxisToVector))
+              ((opcode == LN_OpCode::RotateToward && instruction.int_value != 1) ||
+               opcode == LN_OpCode::AlignAxisToVector))
           {
             /* Their handlers' factor for the steps the gate's run covers (LN_StepFactor). */
             Node factor;
@@ -7730,7 +8325,10 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
         case LN_QueryExpressionKind::VectorAverage:
         case LN_QueryExpressionKind::ProjectileRay:
         case LN_QueryExpressionKind::KeepDistance:
-          break; /* live positions (Keep Distance: its tree's state): it applies no pending move */
+        case LN_QueryExpressionKind::FindObjects:
+        case LN_QueryExpressionKind::NavmeshQuery:
+          break; /* live positions (Keep Distance: its tree's state; Find Objects: the tick's
+                  * start poses): it applies no pending move */
         default:
           reads_owner = true;
           break;
@@ -10112,6 +10710,190 @@ void LN_ColumnRunner::Impl::RunChunk(const LN_ColumnProgram &program,
       program, run, first, n, chunk_scratch(), 0, program.nodes.size(), kPartBegin | kPartEnd);
 }
 
+/* The kernels of the LN_MathOps.h kinds: one loop per operation, the operation a constant in it
+ * (the inline function's switch folds away), the same function the VM's kinds call. */
+template<LN_MathFunction F>
+static void MathFunctionLanes(
+    const float *a, const float *b, const float *c, float *out, const size_t n)
+{
+  for (size_t l = 0; l < n; l++) {
+    out[l] = LN_MathFunctionValue(F, a[l], b[l], c[l]);
+  }
+}
+
+static void MathFunctionKernel(const LN_MathFunction function,
+                               const float *a, const float *b, const float *c, float *out,
+                               const size_t n)
+{
+  switch (function) {
+#define LN_MATH_FN_CASE(NAME) \
+  case LN_MathFunction::NAME: \
+    MathFunctionLanes<LN_MathFunction::NAME>(a, b, c, out, n); \
+    break;
+    LN_MATH_FN_CASE(SquareRoot)
+    LN_MATH_FN_CASE(Tangent)
+    LN_MATH_FN_CASE(Arcsine)
+    LN_MATH_FN_CASE(Arccosine)
+    LN_MATH_FN_CASE(Arctangent)
+    LN_MATH_FN_CASE(Arctan2)
+    LN_MATH_FN_CASE(Wrap)
+    LN_MATH_FN_CASE(Snap)
+    LN_MATH_FN_CASE(PingPong)
+    LN_MATH_FN_CASE(AngleDifference)
+    LN_MATH_FN_CASE(SmoothStep)
+    LN_MATH_FN_CASE(SmootherStep)
+#undef LN_MATH_FN_CASE
+    case LN_MathFunction::Count:
+      break;
+  }
+}
+
+template<LN_VectorMeasure M>
+static void VectorMeasureLanes(const float *const a[3], const float *const b[3],
+                               const float *const axis[3], float *out, const size_t n)
+{
+  for (size_t l = 0; l < n; l++) {
+    out[l] = LN_VectorMeasureValue(M,
+                                   MT_Vector3(a[0][l], a[1][l], a[2][l]),
+                                   MT_Vector3(b[0][l], b[1][l], b[2][l]),
+                                   MT_Vector3(axis[0][l], axis[1][l], axis[2][l]));
+  }
+}
+
+static void VectorMeasureKernel(const LN_VectorMeasure measure, const float *const a[3],
+                                const float *const b[3], const float *const axis[3], float *out,
+                                const size_t n)
+{
+  switch (measure) {
+    case LN_VectorMeasure::Dot:
+      VectorMeasureLanes<LN_VectorMeasure::Dot>(a, b, axis, out, n);
+      break;
+    case LN_VectorMeasure::Distance:
+      VectorMeasureLanes<LN_VectorMeasure::Distance>(a, b, axis, out, n);
+      break;
+    case LN_VectorMeasure::Angle:
+      VectorMeasureLanes<LN_VectorMeasure::Angle>(a, b, axis, out, n);
+      break;
+    case LN_VectorMeasure::SignedAngle:
+      VectorMeasureLanes<LN_VectorMeasure::SignedAngle>(a, b, axis, out, n);
+      break;
+    case LN_VectorMeasure::Count:
+      break;
+  }
+}
+
+template<LN_VectorFunction V>
+static void VectorFunctionLanes(const float *const a[3], const float *const b[3],
+                                const float *scale, float *const out[3], const size_t n)
+{
+  for (size_t l = 0; l < n; l++) {
+    const MT_Vector3 result = LN_VectorFunctionValue(V,
+                                                     MT_Vector3(a[0][l], a[1][l], a[2][l]),
+                                                     MT_Vector3(b[0][l], b[1][l], b[2][l]),
+                                                     scale[l]);
+    out[0][l] = result.x();
+    out[1][l] = result.y();
+    out[2][l] = result.z();
+  }
+}
+
+static void VectorFunctionKernel(const LN_VectorFunction function, const float *const a[3],
+                                 const float *const b[3], const float *scale,
+                                 float *const out[3], const size_t n)
+{
+  switch (function) {
+    case LN_VectorFunction::Cross:
+      VectorFunctionLanes<LN_VectorFunction::Cross>(a, b, scale, out, n);
+      break;
+    case LN_VectorFunction::Project:
+      VectorFunctionLanes<LN_VectorFunction::Project>(a, b, scale, out, n);
+      break;
+    case LN_VectorFunction::Reflect:
+      VectorFunctionLanes<LN_VectorFunction::Reflect>(a, b, scale, out, n);
+      break;
+    case LN_VectorFunction::LimitLength:
+      VectorFunctionLanes<LN_VectorFunction::LimitLength>(a, b, scale, out, n);
+      break;
+    case LN_VectorFunction::MoveTowards:
+      VectorFunctionLanes<LN_VectorFunction::MoveTowards>(a, b, scale, out, n);
+      break;
+    case LN_VectorFunction::Count:
+      break;
+  }
+}
+
+template<LN_RotationFunction R>
+static void RotationFunctionLanes(
+    const LN_Rotation *a, const LN_Rotation *b, LN_Rotation *out, const size_t n)
+{
+  for (size_t l = 0; l < n; l++) {
+    out[l] = LN_RotationFunctionRotation(R, a[l], b[l]);
+  }
+}
+
+static void RotationFunctionKernel(const LN_RotationFunction function,
+                                   const LN_Rotation *a,
+                                   const LN_Rotation *b,
+                                   LN_Rotation *out,
+                                   const size_t n)
+{
+  switch (function) {
+    case LN_RotationFunction::Combine:
+      RotationFunctionLanes<LN_RotationFunction::Combine>(a, b, out, n);
+      break;
+    case LN_RotationFunction::CombineLocal:
+      RotationFunctionLanes<LN_RotationFunction::CombineLocal>(a, b, out, n);
+      break;
+    case LN_RotationFunction::Invert:
+      RotationFunctionLanes<LN_RotationFunction::Invert>(a, b, out, n);
+      break;
+    case LN_RotationFunction::Difference:
+      RotationFunctionLanes<LN_RotationFunction::Difference>(a, b, out, n);
+      break;
+    default:
+      break;
+  }
+}
+
+template<LN_RotationFunction R>
+static void RotateVectorLanes(const float *const vector[3], const LN_Rotation *rotation,
+                              const float *const scale[3], float *const out[3], const size_t n)
+{
+  for (size_t l = 0; l < n; l++) {
+    const MT_Vector3 result = LN_RotationFunctionVector(
+        R,
+        MT_Vector3(vector[0][l], vector[1][l], vector[2][l]),
+        rotation[l],
+        MT_Vector3(scale[0][l], scale[1][l], scale[2][l]));
+    out[0][l] = result.x();
+    out[1][l] = result.y();
+    out[2][l] = result.z();
+  }
+}
+
+static void RotateVectorKernel(const LN_RotationFunction function, const float *const vector[3],
+                               const LN_Rotation *rotation, const float *const scale[3],
+                               float *const out[3], const size_t n)
+{
+  switch (function) {
+    case LN_RotationFunction::RotateVector:
+      RotateVectorLanes<LN_RotationFunction::RotateVector>(vector, rotation, scale, out, n);
+      break;
+    case LN_RotationFunction::UnrotateVector:
+      RotateVectorLanes<LN_RotationFunction::UnrotateVector>(vector, rotation, scale, out, n);
+      break;
+    case LN_RotationFunction::ScaleRotateVector:
+      RotateVectorLanes<LN_RotationFunction::ScaleRotateVector>(vector, rotation, scale, out, n);
+      break;
+    case LN_RotationFunction::UnrotateUnscaleVector:
+      RotateVectorLanes<LN_RotationFunction::UnrotateUnscaleVector>(
+          vector, rotation, scale, out, n);
+      break;
+    default:
+      break;
+  }
+}
+
 void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
                                          Run &run,
                                          const size_t first,
@@ -10376,6 +11158,53 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
           /* FloatKind's VectorLength. */
           out[l] = MT_Vector3(x[l], y[l], z[l]).length();
         }
+        break;
+      }
+      case NodeOp::FMathFn:
+        /* FloatKind's MathFunction. */
+        MathFunctionKernel(
+            LN_MathFunction(node.int_value), f(node.a), f(node.b), f(node.c), f(node.out), n);
+        break;
+      case NodeOp::FVecMeasure: {
+        /* FloatKind's VectorMeasure. */
+        const float *const a[3] = {
+            f(node.position_a.x), f(node.position_a.y), f(node.position_a.z)};
+        const float *const bv[3] = {
+            f(node.position_b.x), f(node.position_b.y), f(node.position_b.z)};
+        const float *const axis[3] = {f(node.vec_c.x), f(node.vec_c.y), f(node.vec_c.z)};
+        VectorMeasureKernel(LN_VectorMeasure(node.int_value), a, bv, axis, f(node.out), n);
+        break;
+      }
+      case NodeOp::VVecFn: {
+        /* VectorKind's VectorFunction. */
+        const float *const a[3] = {
+            f(node.position_a.x), f(node.position_a.y), f(node.position_a.z)};
+        const float *const bv[3] = {
+            f(node.position_b.x), f(node.position_b.y), f(node.position_b.z)};
+        float *const out[3] = {f(node.out), f(node.out2), f(node.out3)};
+        VectorFunctionKernel(LN_VectorFunction(node.int_value), a, bv, f(node.c), out, n);
+        break;
+      }
+      case NodeOp::RRotFn:
+        /* RotationKind's RotationFunction. */
+        RotationFunctionKernel(
+            LN_RotationFunction(node.int_value), r(node.a), r(node.b), r(node.out), n);
+        break;
+      case NodeOp::VRotEuler: {
+        /* VectorKind's RotationFunction of a rotation operation. */
+        const LN_Rotation *rotation = r(node.a);
+        for (size_t l = 0; l < n; l++) {
+          vector3(node, l, rotation[l].ToEulerXYZ());
+        }
+        break;
+      }
+      case NodeOp::VRotFn: {
+        /* VectorKind's RotationFunction of a vector operation. */
+        const float *const vector[3] = {
+            f(node.position_a.x), f(node.position_a.y), f(node.position_a.z)};
+        const float *const scale[3] = {f(node.vec_c.x), f(node.vec_c.y), f(node.vec_c.z)};
+        float *const out[3] = {f(node.out), f(node.out2), f(node.out3)};
+        RotateVectorKernel(LN_RotationFunction(node.int_value), vector, r(node.a), scale, out, n);
         break;
       }
       case NodeOp::FClamp: {
@@ -10879,6 +11708,137 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
         }
         break;
       }
+      case NodeOp::VRandomShape: {
+        /* VectorKind's RandomShape: three numbers of salts 1, 2, 3 (LN_RandomShapeVector). */
+        const uint32_t identity = uint32_t(node.int_value);
+        const uint64_t part = LN_RandomNodePart(
+            LN_GetRandomGameSeed(), identity, context.phase_tick_index);
+        const bool shared = (identity & LN_RANDOM_SAME_FOR_ALL) != 0;
+        const LN_RandomShape shape = LN_RandomShape(node.compare);
+        const float *ax = f(node.position_a.x), *ay = f(node.position_a.y),
+                    *az = f(node.position_a.z);
+        const float *size = f(node.a);
+        const int32_t *seed = i(node.c);
+        for (size_t l = 0; l < n; l++) {
+          const uint64_t stream = shared ? 0 : trees[l]->GetRandomStream();
+          vector3(node,
+                  l,
+                  LN_RandomShapeVector(
+                      shape,
+                      LN_RandomUnitFloat(LN_RandomBits(part, seed[l], stream, 1)),
+                      LN_RandomUnitFloat(LN_RandomBits(part, seed[l], stream, 2)),
+                      LN_RandomUnitFloat(LN_RandomBits(part, seed[l], stream, 3)),
+                      size[l],
+                      MT_Vector3(ax[l], ay[l], az[l])));
+        }
+        break;
+      }
+      case NodeOp::FOscCycle: {
+        /* FloatKind's OscillateCycle (LN_OscillateCycle, LN_OscillateRandomPhase). */
+        const float *time = f(node.a);
+        const float *frequency = f(node.b);
+        const float *phase = f(node.c);
+        const uint8_t *random_phase = b(node.d);
+        float *out = f(node.out);
+        const uint32_t identity = uint32_t(node.int_value);
+        for (size_t l = 0; l < n; l++) {
+          out[l] = LN_OscillateCycle(
+              time[l],
+              frequency[l],
+              phase[l],
+              random_phase[l] != 0 ?
+                  LN_OscillateRandomPhase(identity, trees[l]->GetRandomStream()) :
+                  0.0f);
+        }
+        break;
+      }
+      case NodeOp::FOscillate: {
+        /* FloatKind's Oscillate (LN_OscillateValue). */
+        const float *cycle = f(node.a);
+        const float *amplitude = f(node.b);
+        const float *center = f(node.c);
+        float *out = f(node.out);
+        for (size_t l = 0; l < n; l++) {
+          out[l] = LN_OscillateValue(node.int_value, cycle[l], amplitude[l], center[l]);
+        }
+        break;
+      }
+      case NodeOp::VOscillate: {
+        /* VectorKind's Oscillate (LN_OscillateVector). */
+        const float *cycle = f(node.a);
+        const float *ax = f(node.position_a.x), *ay = f(node.position_a.y),
+                    *az = f(node.position_a.z);
+        const float *amplitude = f(node.b);
+        for (size_t l = 0; l < n; l++) {
+          vector3(node,
+                  l,
+                  LN_OscillateVector(
+                      node.int_value, cycle[l], MT_Vector3(ax[l], ay[l], az[l]), amplitude[l]));
+        }
+        break;
+      }
+      case NodeOp::FNoise: {
+        /* FloatKind's Noise (LN_NoiseValue). */
+        const int dimensions = LN_NoiseDimensions(node.int_value);
+        const int octaves = LN_NoiseOctaves(node.int_value);
+        const float *x = f(node.position_a.x), *y = f(node.position_a.y),
+                    *z = f(node.position_a.z);
+        const float *w = f(node.a);
+        const float *scale = f(node.b);
+        const float *roughness = f(node.c);
+        const int32_t *seed = i(node.d);
+        float *out = f(node.out);
+        for (size_t l = 0; l < n; l++) {
+          out[l] = LN_NoiseValue(dimensions,
+                                 octaves,
+                                 MT_Vector3(x[l], y[l], z[l]),
+                                 w[l],
+                                 scale[l],
+                                 roughness[l],
+                                 seed[l],
+                                 node.compare);
+        }
+        break;
+      }
+      case NodeOp::NSmooth: {
+        /* Float / VectorKind's SmoothValue where the VM evaluates it: the first evaluation of
+         * the tick moves the state (LN_SmoothValueAdvance), every read gives it. */
+        const uint8_t *eval = node.d == kNone ? nullptr : b(node.d);
+        const int size = node.compare == 3 ? 3 : 1;
+        const LN_SmoothMode mode = LN_SmoothMode(node.int_value);
+        const float *tx = f(node.position_a.x);
+        const float *ty = size == 3 ? f(node.position_a.y) : nullptr;
+        const float *tz = size == 3 ? f(node.position_a.z) : nullptr;
+        const float *speed = f(node.b);
+        const float *max_speed = f(node.c);
+        const float *dt = f(node.vec_c.x);
+        const uint8_t *reset = b(node.vec_c.y);
+        float *out = f(node.out);
+        float *out2 = size == 3 ? f(node.out2) : nullptr;
+        float *out3 = size == 3 ? f(node.out3) : nullptr;
+        for (size_t l = 0; l < n; l++) {
+          LN_SmoothValueState &state = trees[l]->SmoothValueState(node.property_ref);
+          if (eval == nullptr || eval[l] != 0) {
+            const float target[3] = {
+                tx[l], size == 3 ? ty[l] : 0.0f, size == 3 ? tz[l] : 0.0f};
+            LN_SmoothValueAdvance(state,
+                                  context.tick_index,
+                                  mode,
+                                  size,
+                                  target,
+                                  speed[l],
+                                  max_speed[l],
+                                  reset[l] != 0,
+                                  dt[l]);
+          }
+          out[l] = state.value[0];
+          if (size == 3) {
+            out2[l] = state.value[1];
+            out3[l] = state.value[2];
+          }
+        }
+        break;
+      }
       case NodeOp::BExists: {
         uint8_t *out = b(node.out);
         for (size_t l = 0; l < n; l++) {
@@ -11048,6 +12008,15 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
         }
         break;
       }
+      case NodeOp::STweenRequest: {
+        const uint8_t *ran = b(node.a);
+        for (size_t l = 0; l < n; l++) {
+          if (ran[l] != 0) {
+            trees[l]->RequestTween(node.property_ref, node.int_value);
+          }
+        }
+        break;
+      }
       case NodeOp::SGateRead: {
         const uint8_t *eval = node.d == kNone ? nullptr : b(node.d);
         const uint8_t *start_open = b(node.b);
@@ -11138,6 +12107,15 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
             case TimeOp::ResetCooldown:
               tree.TimeFlowResetCooldown(node.property_ref, program.event, route);
               break;
+            case TimeOp::Stop:
+              tree.TimeFlowControl(node.property_ref, LN_TIME_FLOW_STOP);
+              break;
+            case TimeOp::Pause:
+              tree.TimeFlowControl(node.property_ref, LN_TIME_FLOW_PAUSE);
+              break;
+            case TimeOp::Resume:
+              tree.TimeFlowControl(node.property_ref, LN_TIME_FLOW_RESUME);
+              break;
           }
         }
         break;
@@ -11154,6 +12132,10 @@ void LN_ColumnRunner::Impl::RunChunkPart(const LN_ColumnProgram &program,
             case TimeRead::Pulse:
               if (tick != UINT64_MAX) {
                 result = state != nullptr && state->pulse_tick == tick;
+                if (state != nullptr) {
+                  /* As the VM's DelayDone / TimerElapsed (TimeFlowZeroPulseNow). */
+                  trees[l]->FindTimeFlowState(node.property_ref)->done_read_tick = tick;
+                }
               }
               break;
             case TimeRead::PulsifyPulse:
@@ -12750,6 +13732,7 @@ size_t LN_ColumnRunner::Impl::RunSetBegin(std::vector<uint32_t> &lanes,
   run.uniforms[size_t(Uniform::UnscaledDeltaTime)] = float(std::max(0.0, context.unscaled_dt));
   run.uniforms[size_t(Uniform::DeltaTime)] = float(std::max(0.0, context.delta_time));
   run.uniforms[size_t(Uniform::DeltaTimeRaw)] = float(context.delta_time);
+  run.uniforms[size_t(Uniform::GameTime)] = float(context.game_time);
   /* LN_Snapshot::GetGravity: the tick read context's (Plan refuses a program without one). */
   if (d.read != nullptr && d.read->has_gravity) {
     run.uniforms[size_t(Uniform::GravityX)] = d.read->gravity.x();
@@ -13165,6 +14148,7 @@ void LN_ColumnRunner::Impl::RunSetEnd(const size_t run_index,
     for (size_t chunk = 0; chunk < chunks && chunk < run.captures.size(); chunk++) {
       if (run.captures[chunk].buffer != nullptr) {
         buffer.TakeKeepDistanceRequests(*run.captures[chunk].buffer);
+        buffer.TakeNavigationRequests(*run.captures[chunk].buffer);
       }
     }
   }

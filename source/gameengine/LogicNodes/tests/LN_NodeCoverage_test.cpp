@@ -972,6 +972,7 @@ const CollectionNodeCase kCollectionNodes[] = {
      true,
      false},
     {"LogicNativeListSetIndex", LN_PropertyEditOp::ListSetIndex, "List", true, false, true, false},
+    {"LogicNativeListInsert", LN_PropertyEditOp::ListInsert, "List", true, false, true, false},
     {"LogicNativeDictSetKey", LN_PropertyEditOp::DictSetKey, "Dictionary", false, true, true, false},
     {"LogicNativeDictAddValue",
      LN_PropertyEditOp::DictAddValue,

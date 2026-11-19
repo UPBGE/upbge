@@ -21,10 +21,13 @@
 #include <vector>
 
 #include "LN_DebugLines.h"
+#include "LN_InputGestures.h"
 #include "LN_DenseIds.h"
 #include "LN_EventBus.h"
 #include "LN_Inventory.h"
+#include "LN_ActionFrames.h"
 #include "LN_KeepDistance.h"
+#include "LN_MathOps.h"
 #include "LN_Performance.h"
 #include "LN_Program.h"
 #include "LN_Snapshot.h"
@@ -65,6 +68,14 @@ using LN_CollisionContactsForTests =
     std::unordered_map<const KX_GameObject *, std::vector<const PHY_CachedCollisionContact *>>;
 void LN_SetCollisionContactsForTests(const LN_CollisionContactsForTests *contacts);
 
+/** Tests only (the unit tests play no actions): the action each owner's layer plays, read by On
+ * Action Frame instead of the object's action manager (false: nothing plays there). nullptr (the
+ * default): the object (KX_GameObject::ReadActionLayer). */
+using LN_ActionLayerReaderForTests = bool (*)(const KX_GameObject *object,
+                                              short layer,
+                                              LN_ActionLayerRead &r_read);
+void LN_SetActionLayerReaderForTests(LN_ActionLayerReaderForTests reader);
+
 class PHY_IPhysicsEnvironment;
 /** Tests only: the physics world every ray, shape cast and sweep of the Logic Nodes asks (a Jolt
  * environment built by the test, so rays hit without a KX_Scene). nullptr (the default): the
@@ -74,6 +85,13 @@ void LN_SetPhysicsEnvironmentForTests(PHY_IPhysicsEnvironment *environment);
  * object's scene's (null without either). */
 PHY_IPhysicsEnvironment *LN_QueryPhysicsEnvironment(const KX_GameObject *object);
 
+class KX_Navigation;
+/** Tests only: the navigation every navigation node of the Logic Nodes asks (null, the default:
+ * the object's scene's). */
+void LN_SetNavigationForTests(KX_Navigation *navigation);
+/** The navigation an object's navigation nodes ask: the test one when set, else its scene's. */
+KX_Navigation *LN_QueryNavigation(const KX_GameObject *object);
+
 /** Tests only: every Visualize line goes to this list as well (with its duration, seconds; 0 =
  * this step only) instead of (or besides) the rasterizer. nullptr (the default): none. */
 using LN_DebugLinesForTests = std::vector<std::pair<LN_DebugLine, float>>;
@@ -81,6 +99,9 @@ void LN_SetDebugLinesForTests(LN_DebugLinesForTests *lines);
 /** Tests: the timed lines of trees without a manager (the rigs') go to this list; null (the
  * default): they are drawn for their step only. */
 void LN_SetTimedDebugLinesForTests(LN_TimedDebugLines *lines);
+/** Tests: Date and Time reads `seconds` (since 1970, UTC) in trees without a manager (the rigs');
+ * null (the default): the computer's clock. */
+void LN_SetWallClockForTests(const double *seconds);
 
 class LN_RuntimeTree;
 class LN_JobPool;
@@ -290,6 +311,60 @@ class LN_RuntimeTree {
   {
     return slot < m_keepDistanceStates.size() ? &m_keepDistanceStates[slot] : nullptr;
   }
+  /** Play Sound's slot (LN_Program::AcquireSoundNode, 2026-11-17): the ticket of the sound the
+   * node started last, the tick it took it, and Finished's report. */
+  struct SoundSlotState {
+    uint64_t ticket = 0;
+    uint64_t ticket_tick = UINT64_MAX;
+    uint64_t reported_ticket = 0;
+    uint64_t finished_tick = UINT64_MAX;
+  };
+  SoundSlotState &SoundState(const uint32_t slot)
+  {
+    if (slot >= m_soundStates.size()) {
+      m_soundStates.resize(size_t(slot) + 1);
+    }
+    return m_soundStates[slot];
+  }
+  /** An input gesture's or Input Combo's state (LN_Program::AcquireInputGestureNode). */
+  struct InputGestureSlotState {
+    LN_InputGestureState gesture;
+    LN_InputComboState combo;
+    int32_t progress = 0;
+  };
+  InputGestureSlotState &InputGestureState(const uint32_t slot)
+  {
+    if (slot >= m_inputGestureStates.size()) {
+      m_inputGestureStates.resize(size_t(slot) + 1);
+    }
+    return m_inputGestureStates[slot];
+  }
+  /** A Play Sound op's ticket: a new one in its slot (int_value bits 4 and up, slot + 1), none
+   * for a program without slots. */
+  uint64_t TakeSoundTicket(int32_t packed_int_value, uint64_t tick_index);
+  /** The state of Smooth Value output `slot` (LN_Program::AcquireSmoothValueNode). The state
+   * block's rebuild makes the program's slots (RebuildStateBlock); a slot past them (a program
+   * grown after) is made when first asked. */
+  LN_SmoothValueState &SmoothValueState(const uint32_t slot)
+  {
+    if (slot >= m_smoothValueStates.size()) {
+      m_smoothValueStates.resize(size_t(slot) + 1);
+    }
+    return m_smoothValueStates[slot];
+  }
+  uint32_t GetSmoothValueStateCount() const
+  {
+    return uint32_t(m_smoothValueStates.size());
+  }
+  /** The state of On Action Frame node `slot` (LN_Program::AcquireActionFrameNode), made as
+   * SmoothValueState's. */
+  LN_ActionFrameState &ActionFrameState(const uint32_t slot)
+  {
+    if (slot >= m_actionFrameStates.size()) {
+      m_actionFrameStates.resize(size_t(slot) + 1);
+    }
+    return m_actionFrameStates[slot];
+  }
   bool HasStepSpread() const
   {
     return m_hasStepSpread;
@@ -425,6 +500,8 @@ class LN_RuntimeTree {
                            blender::FunctionRef<float()> duration,
                            blender::FunctionRef<bool()> ignore_timescale);
   void TimeFlowResetCooldown(uint32_t state_index, LN_Event event, const LN_TickContext &context);
+  /** A Delay's or Timer's Stop, Pause or Resume (LN_TIME_FLOW_*). */
+  void TimeFlowControl(uint32_t state_index, int32_t action);
   /** Plan C1: the attribute of `object` as Get Object Attribute's vector output reads it (the
    * typed read, ObjectAttributeAsVector). */
   static bool ColumnObjectAttributeVector(KX_GameObject &object,
@@ -791,6 +868,16 @@ class LN_RuntimeTree {
   {
     return m_runtimeActive;
   }
+  /** On Removed (2026-11-17): the object was removed and this is its last step (set by
+   * LN_Manager's hold; the tree is deleted with the object). Bool::BeingRemoved. */
+  void SetBeingRemoved(const bool being_removed)
+  {
+    m_beingRemoved = being_removed;
+  }
+  bool IsBeingRemoved() const
+  {
+    return m_beingRemoved;
+  }
 
   void SetRuntimeActive(bool runtime_active)
   {
@@ -901,7 +988,6 @@ class LN_RuntimeTree {
   StateDump DumpStateForTests(uint64_t current_tick) const;
 
  private:
-  static constexpr int kMaxPathLength = 128;
   /**
    * Deterministic per-tree budget for loop body executions in one scheduler tick. Excess work is
    * retained and resumed on later fixed ticks instead of freezing the main thread or dropping
@@ -934,12 +1020,10 @@ class LN_RuntimeTree {
      * opened or got the pointer back). */
     float mouse_look_settle = 0.0f;
     int mouse_look_settle_runs = 0;
-    int path_len = 0;
-    int waypoint_index = -1;
+    /** Follow Path: the point it walks to. */
     int list_point_index = 0;
-    float path[kMaxPathLength * 3] = {};
+    /** Navigate / Follow Path: the next corner (Next Point), from the navigation's last step. */
     MT_Vector3 next_path_point = MT_Vector3(0.0f, 0.0f, 0.0f);
-    double path_update_time = -1.0;
     uint64_t last_reached_tick = UINT64_MAX;
     uint64_t last_reached_scope_serial = 0;
   };
@@ -958,6 +1042,9 @@ class LN_RuntimeTree {
     uint64_t pending_persistence_results = 0;
     uint8_t pending_persistence_count = 0;
     bool last_persistence_success = false;
+    /** Tween Value: Forward / Back asked since its last update (LN_TWEEN_REQUEST_*, the latest
+     * wins; Op::TweenRequest, taken by UpdateTweenValue). */
+    uint8_t tween_request = 0;
   };
 
   /** Value Changed To's values: the last one seen and the change it reported (its Old / New). */
@@ -1028,6 +1115,13 @@ class LN_RuntimeTree {
     bool ignore_timescale = false;
     /** Armed by a UI event route: still ticked while only UI event routes run (paused game). */
     bool ui_event_route = false;
+    /** A Delay's or Timer's Pause (2026-11-17): its countdowns hold until Resume or Stop. */
+    bool paused = false;
+    /** The tick its Done (When Elapsed) was last read (2026-11-17): a Flow with no time to wait
+     * arriving after that, or armed in another event than its Done runs in (On Init), gives
+     * its Done at the next step; before, that Done was lost (LN_RuntimeTree.cpp's
+     * TimeFlowZeroPulseNow). */
+    uint64_t done_read_tick = UINT64_MAX;
     LN_Event event = LN_Event::OnUpdate;
   };
 
@@ -1261,6 +1355,14 @@ class LN_RuntimeTree {
    * run this one code): the angle and distance, in range and in view, the ray against the Mask
    * (the eye's and the target's bodies and `ignore_refs` passed; the target is added to it).
    * `r_result` gets every field the kind sets but a diagnostic of an invalid end or filter. */
+  /** Set Rigid Body Constraint (2026-11-17, Op::AddPhysicsConstraint's set mode). */
+  template<class Frame>
+  void SetRigidBodyConstraintOp(Frame &ef,
+                                const LN_Instruction &instruction,
+                                const LN_RigidBodyConstraintCommandPayload &payload);
+  /** Date and Time's clock: the manager's tick reading (LN_Manager::WallClockSeconds), else the
+   * tests' (LN_SetWallClockForTests), else now. */
+  double WallClockSeconds() const;
   LineOfSightShape LineOfSightTest(KX_GameObject *eye_object,
                                    const MT_Vector3 &eye,
                                    const MT_Vector3 &forward,
@@ -1273,6 +1375,17 @@ class LN_RuntimeTree {
                                    bool include_sensors,
                                    bool hit_back_faces,
                                    LN_PhysicsQueryResult &r_result);
+  /** Find Objects' Only Visible (2026-11-17): `r_answer` holds every object in range (pick All,
+   * nearest first); keeps those Line of Sight sees from `center` (LineOfSightTest: no view angle
+   * or distance of its own, every collision layer, the center object's and the tree's own
+   * object's bodies passed, no pending move applied: the tick's poses at both ends), then picks
+   * `pick` among them as LN_FindIndex picks (Random over their scene order with `random_unit`).
+   * Count is the visible ones. */
+  void FindOnlyVisible(KX_GameObject *center_object,
+                       const MT_Vector3 &center,
+                       LN_FindPick pick,
+                       float random_unit,
+                       LN_FindAnswer &r_answer);
 
   /** The register file: values in the state block, valid while their generation is the active
    * one (a new tick starts a new generation). */
@@ -1373,11 +1486,36 @@ class LN_RuntimeTree {
   template<class In>
   bool UpdateTweenValue(In &in,
                   uint32_t tween_expr_index);
+  /** Op::TweenRequest: stores Forward / Back (LN_TWEEN_REQUEST_*) in the tween's state for its
+   * next update; never updates the tween (the VM's handler, the lean op and the column node). */
+  void RequestTween(uint32_t tween_expr_index, int32_t direction);
   bool EvaluateMouseMoved(bool each_logic_tick) const;
   float EvaluateCurveTable(uint32_t table_index, float input, float influence) const;
   template<class In>
   float ResolveTweenMappedFactor(In &in,
                   uint32_t tween_expr_index);
+  /** Get Random List Item's pick (Value::ListRandomItem, Int::ListRandomIndex): reads the list
+   * (input0), then the Seed (input1) and the Weights (input2); the place picked in it or -1.
+   * Without Weights an empty list or none reads no Seed (the node's older read order). */
+  template<class In>
+  int32_t PickRandomListPlace(In &in,
+                              uint32_t list_index,
+                              uint32_t seed_index,
+                              uint32_t weights_index,
+                              uint32_t identity,
+                              LN_Value &r_list);
+  /** Smooth Value (Float::SmoothValue, Vector::SmoothValue): moves the slot's state once a tick
+   * (LN_SmoothValueAdvance), reading its inputs only then. */
+  template<class In>
+  const LN_SmoothValueState &EvaluateSmoothValue(In &in,
+                                                 uint32_t slot,
+                                                 LN_SmoothMode mode,
+                                                 int size,
+                                                 uint32_t reset_index,
+                                                 uint32_t target_index,
+                                                 uint32_t speed_index,
+                                                 uint32_t max_speed_index,
+                                                 uint32_t ignore_index);
 
   struct LoopRuntimeState {
     bool active = false;
@@ -1472,16 +1610,6 @@ class LN_RuntimeTree {
     m_instructionStamps[state_index].last_execution_tick = tick_index;
     m_instructionStamps[state_index].last_execution_scope_serial = m_activeExecutionScopeSerial;
   }
-  bool ResolvePathMoveTarget(InstructionMotionState &state,
-                             KX_GameObject *target,
-                             KX_NavMeshObject *navmesh,
-                             const MT_Vector3 &destination,
-                             float reach_threshold,
-                             MT_Vector3 &r_move_target,
-                             bool &r_reached) const;
-  void DrawNavigationPath(KX_GameObject *target,
-                          const InstructionMotionState &state,
-                          const MT_Vector3 &destination) const;
   void MarkInstructionExecuted(LN_Event event, uint32_t instruction_index, uint64_t tick_index);
   void ProfileInstructionDispatch(const LN_Instruction &instruction);
   void ProfileExpressionEvaluation(uint32_t fallback_requirements);
@@ -1571,6 +1699,8 @@ class LN_RuntimeTree {
   void OpLeanVector(Frame &frame, const LN_ExecOp &op, const LN_LeanOp &lean_op);
   template<class Frame>
   void OpLeanModifyProperty(Frame &frame, const LN_ExecOp &op, const LN_LeanOp &lean_op);
+  template<class Frame>
+  void OpLeanTweenRequest(Frame &frame, const LN_ExecOp &op, const LN_LeanOp &lean_op);
   /** The native ops' work after their guard, shared by the OpLean handlers above and the compiled
    * routes (plan phase A33), so the two cannot differ. `branch` (LeanFlowBody): the BranchRoute's
    * instruction, null for a Nop. */
@@ -1593,6 +1723,8 @@ class LN_RuntimeTree {
                       const LN_Instruction &instruction,
                       const LN_GamePropertyCommandPayload &payload,
                       uint32_t state_index);
+  template<class Frame>
+  void LeanTweenRequestBody(Frame &frame, const LN_Instruction &instruction, uint32_t state_index);
   /** Runs an event as its compiled route (LN_LeanRoute, plan phase A33): the walk of its blocks
    * for an event with no Loop and no UI event route, and each op its handler's prelude reduced to
    * what changes between runs (the command key, the guard), then the shared body. */
@@ -1697,6 +1829,10 @@ class LN_RuntimeTree {
   /** ResolveObjectValue(in.Value(value_index)), without making the value of a constant object
    * (its steps repeated one by one). */
   template<class In> KX_GameObject *ReadObjectInput(In &in, uint32_t value_index);
+  /** Navigation reads (2026-11-18): the agent of the object (the owner when `object_index` is
+   * unset), as the navigation's last step left it. False: no agent. */
+  template<class In>
+  bool ReadNavigationInfo(In &in, uint32_t object_index, struct KX_NavAgentInfo &r_info);
   /** The object a Constant Object value expression's value resolves to (ValueKind's Constant case
    * followed by ResolveObjectValue, without the value). */
   KX_GameObject *ConstantObjectTarget(uint32_t value_index, const LN_Value &constant);
@@ -1862,6 +1998,10 @@ class LN_RuntimeTree {
   template<class In>
   PHY_IPhysicsController *ResolveRigidBodyAttributeController(In &in,
                   uint32_t object_expr_index);
+  /** Get Rigid Body Attribute's object (its Object input, else the owner), any body or none
+   * (Compound reads parts without one). */
+  template<class In>
+  KX_GameObject *ResolveRigidBodyAttributeObject(In &in, uint32_t object_expr_index);
   KX_GameObject *FindSceneObjectByName(const std::string &name,
                                        bool include_inactive = false) const;
   /** Plan A9: what ResolveObjectValue gives a Constant Object value expression with no ref yet
@@ -1942,6 +2082,7 @@ class LN_RuntimeTree {
   bool m_enabled = true;
   bool m_runtimeActive = true;
   bool m_initExecuted = false;
+  bool m_beingRemoved = false;
   BatchNote m_batchNote;
   /** IsColumnLane (set and cleared by LN_ColumnRunner). */
   bool m_columnLane = false;
@@ -1974,6 +2115,12 @@ class LN_RuntimeTree {
   bool m_hasStepSpread = false;
   /** Keep Distance nodes' states (KeepDistanceState: a deque keeps their addresses). */
   std::deque<LN_KeepDistanceState> m_keepDistanceStates;
+  std::deque<SoundSlotState> m_soundStates;
+  std::deque<InputGestureSlotState> m_inputGestureStates;
+  /** Smooth Value outputs' states (SmoothValueState). */
+  std::vector<LN_SmoothValueState> m_smoothValueStates;
+  /** On Action Frame nodes' states (ActionFrameState). */
+  std::vector<LN_ActionFrameState> m_actionFrameStates;
   uint64_t m_randomStream = 0;
   /** On Init runs now (RandomTick). */
   bool m_randomInInit = false;

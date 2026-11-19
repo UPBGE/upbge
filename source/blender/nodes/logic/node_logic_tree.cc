@@ -95,6 +95,21 @@ static void logic_node_tree_update(bNodeTree *ntree)
   logic_node_tree_remove_python_addon_nodes(ntree);
 }
 
+bool nodes::logic::link_types_convert(const eNodeSocketDatatype from,
+                                      const eNodeSocketDatatype to)
+{
+  /* A vector into a number stays refused: which axis? (Separate XYZ says.) */
+  if (ELEM(from, SOCK_BOOLEAN, SOCK_INT, SOCK_FLOAT) &&
+      ELEM(to, SOCK_BOOLEAN, SOCK_INT, SOCK_FLOAT, SOCK_VECTOR))
+  {
+    return from != to;
+  }
+  if (from == SOCK_VECTOR) {
+    return ELEM(to, SOCK_BOOLEAN, SOCK_ROTATION, SOCK_RGBA);
+  }
+  return from == SOCK_ROTATION && to == SOCK_VECTOR;
+}
+
 static void foreach_nodeclass(void *calldata, bke::bNodeClassCallback func)
 {
   func(calldata, NODE_CLASS_INPUT, N_("Events and Values"));
@@ -113,7 +128,39 @@ static bool logic_node_tree_validate_link(eNodeSocketDatatype type_a, eNodeSocke
   if (ELEM(type_a, SOCK_OBJECT, SOCK_INT, SOCK_FLOAT) && type_b == SOCK_STRING) {
     return true;
   }
+  /* Values convert by themselves, as in Geometry Nodes (link_types_convert). Flow sockets are
+   * boolean sockets here, so this rule cannot tell a flow link from a true/false one:
+   * logic_node_tree_link_socket_error refuses flow into data and data into flow, and link search
+   * never offers them (node_logic_socket_declarations.cc). */
+  if (nodes::logic::link_types_convert(type_a, type_b)) {
+    return true;
+  }
   return type_a == type_b;
+}
+
+static bool is_flow_socket(const bNodeSocket &socket)
+{
+  return STREQ(socket.idname, "NodeSocketLogicExecution");
+}
+
+/** Flow sockets are boolean sockets, so the type rule above lets a flow link into a true/false or
+ * number input (and data into a flow input). The compiler refuses both ("Execution output cannot
+ * connect to data input"): draw them red too. Reroutes take the flow socket's type. */
+static const char *logic_node_tree_link_socket_error(const bNodeSocket &from,
+                                                     const bNodeSocket &to)
+{
+  if (STREQ(from.idname, "NodeSocketVirtual") || STREQ(to.idname, "NodeSocketVirtual")) {
+    return nullptr;
+  }
+  if (is_flow_socket(from) && !is_flow_socket(to)) {
+    return TIP_("A flow output (white diamond) connects only to flow inputs");
+  }
+  if (!is_flow_socket(from) && is_flow_socket(to)) {
+    return TIP_(
+        "A flow input (white diamond) takes only flow outputs; true/false data goes into a "
+        "Branch's Condition");
+  }
+  return nullptr;
 }
 
 static bool logic_node_tree_socket_type_valid(bke::bNodeTreeType * /*treetype*/,
@@ -153,6 +200,7 @@ void register_node_tree_type_logic()
   tt->foreach_nodeclass = foreach_nodeclass;
   tt->valid_socket_type = logic_node_tree_socket_type_valid;
   tt->validate_link = logic_node_tree_validate_link;
+  tt->link_socket_error = logic_node_tree_link_socket_error;
   tt->no_group_interface = true;
 
   bke::node_tree_type_add(*tt);

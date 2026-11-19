@@ -1,22 +1,19 @@
-The version of Recast is 1.5.0, from:
+Recast & Detour (Recast, Detour, DetourCrowd, DetourTileCache), from:
 https://github.com/recastnavigation/recastnavigation
-Changes made:
-  * Recast/Source/RecastMesh.cpp: made buildMeshAdjacency() non-static so it can be used with recast-capi
-  * Recast/Include/Recast.h: Added forward declaration for buildMeshAdjacency()
 
-The following additional files were added:
-  * recast-capi.cpp
-  * recast-capi.h
-These expose a C interface to the Recast library, which has only C++ headers.
+Version: the main branch at commit 9f4ce64458dfae86e1239c525ddc219c4e9e06f1 (2026-02-27),
+after release 1.6.0 (2023-05-21) plus its bug fixes (UPBGE, 2026-11-18; before: Recast 1.5.0 and
+Detour 1.4 from 2010).
 
-The version of Detour is 1.4, from:
-https://code.google.com/archive/p/recastnavigation/downloads
-Changes made:
-  * DetourStatNavMesh.h: use more portable definition of DT_STAT_NAVMESH_MAGIC
-  * DetourStatNavMesh.cpp: comment out some unused variables to avoid compiler warnings
-  * DetourStatNavMeshBuilder.h: add forward declaration for createBVTree
-  * DetourStatNavMeshBuilder.cpp: made createBVTree non-static for use with recast-capi
+The library's files are copied unchanged (Include and Source of the four modules, License.txt,
+README.md). Never edit them: update by copying a newer version over them.
 
-The CMakeLists.txt file has been added, since the original software does not include build files for the libraries.
+Build options (CMakeLists.txt, also given to every target that links the library):
+  * DT_POLYREF64: 64-bit polygon references.
+  * DT_VIRTUAL_QUERYFILTER: query filters with virtual passFilter / getCost.
 
-~rdb
+Our own files:
+  * recast-capi.cpp, recast-capi.h: a C interface to Recast for the editor's Build Navigation
+    Mesh (source/blender/editors/mesh/mesh_navmesh.cc) and the game engine. It holds a copy of
+    Recast's buildMeshAdjacency(), which the library keeps static.
+  * CMakeLists.txt.

@@ -72,6 +72,21 @@ static bool socket_is_execution_compatible(const bNodeSocket &socket)
   return socket.type == SOCK_BOOLEAN && STREQ(socket.idname, execution_socket_idname);
 }
 
+/** Whether a link between a socket of `socket_decl` (of `decl_type`) and `socket` converts by
+ * itself (link_types_convert, as the tree's link rule). A flow socket is a boolean socket but no
+ * true/false value: never offered for a conversion. */
+static bool link_converts(const SocketDeclaration &socket_decl,
+                          const eNodeSocketDatatype decl_type,
+                          const bNodeSocket &socket)
+{
+  if (socket.type == SOCK_BOOLEAN && !socket_is_boolean_compatible(socket)) {
+    return false;
+  }
+  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(socket.type);
+  return socket_decl.in_out == SOCK_IN ? link_types_convert(socket_type, decl_type) :
+                                         link_types_convert(decl_type, socket_type);
+}
+
 static bool condition_socket_matches_common_data(const Condition &decl,
                                                  const bNodeSocket &socket)
 {
@@ -193,7 +208,8 @@ bNodeSocket &Condition::update_or_build(bNodeTree &ntree, bNode &node, bNodeSock
 
 bool Condition::can_connect(const bNodeSocket &socket) const
 {
-  return sockets_can_connect(*this, socket) && socket_is_boolean_compatible(socket);
+  return sockets_can_connect(*this, socket) &&
+         (socket_is_boolean_compatible(socket) || link_converts(*this, SOCK_BOOLEAN, socket));
 }
 
 bNodeSocket &Bool::build(bNodeTree &ntree, bNode &node) const
@@ -227,7 +243,8 @@ bNodeSocket &Bool::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &s
 
 bool Bool::can_connect(const bNodeSocket &socket) const
 {
-  return sockets_can_connect(*this, socket) && socket_is_boolean_compatible(socket);
+  return sockets_can_connect(*this, socket) &&
+         (socket_is_boolean_compatible(socket) || link_converts(*this, SOCK_BOOLEAN, socket));
 }
 
 bNodeSocket &Int::build(bNodeTree &ntree, bNode &node) const
@@ -262,7 +279,8 @@ bNodeSocket &Int::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &so
 
 bool Int::can_connect(const bNodeSocket &socket) const
 {
-  return sockets_can_connect(*this, socket) && socket.type == SOCK_INT;
+  return sockets_can_connect(*this, socket) &&
+         (socket.type == SOCK_INT || link_converts(*this, SOCK_INT, socket));
 }
 
 static void set_int_socket_value_range(const nodes::decl::Int &decl, bNodeSocket &socket)
@@ -353,7 +371,8 @@ bNodeSocket &Float::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &
 
 bool Float::can_connect(const bNodeSocket &socket) const
 {
-  return sockets_can_connect(*this, socket) && socket.type == SOCK_FLOAT;
+  return sockets_can_connect(*this, socket) &&
+         (socket.type == SOCK_FLOAT || link_converts(*this, SOCK_FLOAT, socket));
 }
 
 bNodeSocket &String::build(bNodeTree &ntree, bNode &node) const
@@ -441,7 +460,8 @@ bNodeSocket &Vector::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
 bool Vector::can_connect(const bNodeSocket &socket) const
 {
   return sockets_can_connect(*this, socket) &&
-         (socket.type == SOCK_VECTOR || socket_has_idname(socket, list_socket_idname));
+         (socket.type == SOCK_VECTOR || socket_has_idname(socket, list_socket_idname) ||
+          link_converts(*this, SOCK_VECTOR, socket));
 }
 
 bNodeSocket &Rotation::build(bNodeTree &ntree, bNode &node) const
@@ -471,7 +491,8 @@ bNodeSocket &Rotation::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocke
 
 bool Rotation::can_connect(const bNodeSocket &socket) const
 {
-  return sockets_can_connect(*this, socket) && socket.type == SOCK_ROTATION;
+  return sockets_can_connect(*this, socket) &&
+         (socket.type == SOCK_ROTATION || link_converts(*this, SOCK_ROTATION, socket));
 }
 
 bNodeSocket &Color::build(bNodeTree &ntree, bNode &node) const
@@ -501,7 +522,8 @@ bNodeSocket &Color::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &
 
 bool Color::can_connect(const bNodeSocket &socket) const
 {
-  return sockets_can_connect(*this, socket) && socket.type == SOCK_RGBA;
+  return sockets_can_connect(*this, socket) &&
+         (socket.type == SOCK_RGBA || link_converts(*this, SOCK_RGBA, socket));
 }
 
 Object::Object() : nodes::decl::IDSocketDeclaration("NodeSocketLogicObject") {}

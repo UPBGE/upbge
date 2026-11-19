@@ -2833,8 +2833,9 @@ TEST(LN_Program, RuntimeCommandFamiliesClassifyCoreDeliveryPaths)
   const LN_RuntimeInstructionSemantics *follow_path = LN_GetRuntimeInstructionSemantics(
       LN_OpCode::FollowPath);
   ASSERT_NE(follow_path, nullptr);
-  EXPECT_EQ(follow_path->threading, LN_RuntimeSemanticThreading::MainThreadRecord);
-  EXPECT_TRUE(HasFallback(*follow_path, LN_RUNTIME_FALLBACK_ENGINE_SERVICE_BOUNDARY));
+  /* (2026-11-18) A request recorded on any thread; the navigation step applies it. */
+  EXPECT_EQ(follow_path->threading, LN_RuntimeSemanticThreading::WorkerSafeRecord);
+  EXPECT_FALSE(HasFallback(*follow_path, LN_RUNTIME_FALLBACK_ENGINE_SERVICE_BOUNDARY));
   EXPECT_EQ(LN_GetRuntimeCommandFamily(LN_OpCode::FollowPath),
             LN_RuntimeCommandFamily::Navigation);
   EXPECT_EQ(LN_GetRuntimeSideEffectDelivery(LN_OpCode::FollowPath),
@@ -4327,8 +4328,16 @@ TEST(LN_Program, IsParallelEligibleRejectsImmediateDebugDrawMutation)
   EXPECT_EQ(ReasonForOpcode(LN_OpCode::DrawBox), LN_MainThreadOnlyReason::DebugDraw);
   EXPECT_EQ(ReasonForOpcode(LN_OpCode::DrawMesh), LN_MainThreadOnlyReason::DebugDraw);
   EXPECT_EQ(ReasonForOpcode(LN_OpCode::DrawAxis), LN_MainThreadOnlyReason::DebugDraw);
-  EXPECT_EQ(ReasonForOpcode(LN_OpCode::Navigate), LN_MainThreadOnlyReason::Navigation);
-  EXPECT_EQ(ReasonForOpcode(LN_OpCode::FollowPath), LN_MainThreadOnlyReason::Navigation);
+  /* (2026-11-18) The navigation ops only record a request: no main-thread reason. */
+  for (const LN_OpCode opcode :
+       {LN_OpCode::Navigate, LN_OpCode::FollowPath, LN_OpCode::NavigationAttribute})
+  {
+    LN_Program program;
+    LN_Instruction instruction;
+    instruction.opcode = opcode;
+    program.AddInstruction(LN_Event::OnFixedUpdate, instruction);
+    EXPECT_TRUE(program.IsParallelEligible()) << int(opcode);
+  }
 }
 
 TEST(LN_Program, IsParallelEligibleRejectsFileAndGlobalValueExpressions)

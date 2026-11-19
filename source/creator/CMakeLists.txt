@@ -704,11 +704,15 @@ endif()
 
 # Complete Game UI example and its guide (Add > Game UI > Open Complete UI Example, Open UI
 # Guide). The guide is written from the example by release/datafiles/game_ui/make_game_ui_guide.py.
+# The same for the Split-Screen Example (Open Split-Screen Example, Open Split-Screen Guide),
+# written by make_split_screen_guide.py.
 if(WITH_GAMEENGINE AND WITH_GAMEENGINE_LOGICNODES)
   install(
     FILES
       ${CMAKE_SOURCE_DIR}/release/datafiles/game_ui/game_ui_example.blend
       ${CMAKE_SOURCE_DIR}/release/datafiles/game_ui/game_ui_guide.html
+      ${CMAKE_SOURCE_DIR}/release/datafiles/game_ui/split_screen_example.blend
+      ${CMAKE_SOURCE_DIR}/release/datafiles/game_ui/split_screen_guide.html
     DESTINATION ${TARGETDIR_VER}/datafiles/game_ui
   )
 endif()

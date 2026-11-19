@@ -63,6 +63,9 @@ enum class LN_LeanNative : uint16_t {
   /** Modify Property (Set Game Property with a Modify op: Add, Subtract, ... with an optional
    * clamp): the change is recorded and applied to the live value at the flush. */
   ModifyProperty,
+  /** Tween Value's Forward / Back (Op::TweenRequest, 2026-11-17): the request is stored in the
+   * tween's state (LN_RuntimeTree::RequestTween). */
+  TweenRequest,
 };
 
 struct LN_LeanOp {

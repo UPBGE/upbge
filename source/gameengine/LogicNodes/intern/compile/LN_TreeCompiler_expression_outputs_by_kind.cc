@@ -9,6 +9,7 @@
  */
 
 #include "../LN_TreeCompiler_internal.hh"
+#include "LN_DateTime.h"
 
 #include <cmath>
 
@@ -90,7 +91,14 @@ static bool GetRigidBodyAttributeUsesDampingOutput(const int attribute_type)
 
 static bool GetRigidBodyAttributeUsesEnabledOutput(const int attribute_type)
 {
-  return attribute_type == 9 || attribute_type == 12;
+  return attribute_type == 9 || attribute_type == 12 ||
+         attribute_type == int(LN_RigidBodyAttribute::Compound);
+}
+
+/** Compound's Is Part and Part Count (2026-11-18). */
+static bool GetRigidBodyAttributeUsesCompoundOutputs(const int attribute_type)
+{
+  return attribute_type == int(LN_RigidBodyAttribute::Compound);
 }
 
 static bool GetRigidBodyAttributeUsesSleepingOutput(const int attribute_type)
@@ -323,6 +331,28 @@ static std::optional<uint32_t> TryCompileExpressionBoolOutput(
 
   const LN_NodeDefinition &definition = *definition_iter->second;
   switch (definition.kind) {
+    case LN_NodeKind::SaveSlot: {
+      /* (2026-11-17) Save Slot's Exists (Success: CompileSaveSlotNode). */
+      r_handled = true;
+      if (!NamesMatch(output_socket.name, output_socket.identifier, "Exists")) {
+        break;
+      }
+      IntExpressionCache int_cache;
+      StringExpressionCache string_cache;
+      const std::optional<uint32_t> slot = BuildInputIntExpression(
+          program, node, "Slot", node_definitions, input_links, value_cache, int_cache);
+      const std::optional<uint32_t> path = BuildInputStringExpression(
+          program, node, "Path", node_definitions, input_links, value_cache, string_cache);
+      if (!slot || !path) {
+        break;
+      }
+      LN_BoolExpression expression;
+      expression.kind = LN_BoolExpressionKind::SaveSlotExists;
+      expression.int_expr_index = *slot;
+      expression.input0 = *path;
+      result = program.AddBoolExpression(expression);
+      break;
+    }
 case LN_NodeKind::OnConstraintBreak:
       r_handled = true;
       {
@@ -414,7 +444,19 @@ case LN_NodeKind::GetGamePropertyBool:
       r_handled = true;
       {
       r_handled = true;
-      if (NamesMatch(output_socket.name, output_socket.identifier, "On Ground")) {
+      int32_t character_state = -1;
+      if (NamesMatch(output_socket.name, output_socket.identifier, "On Wall")) {
+        character_state = LN_CHARACTER_STATE_ON_WALL;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "On Ceiling")) {
+        character_state = LN_CHARACTER_STATE_ON_CEILING;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Crouched")) {
+        character_state = LN_CHARACTER_STATE_CROUCHED;
+      }
+      if (NamesMatch(output_socket.name, output_socket.identifier, "On Ground") ||
+          character_state >= 0)
+      {
         IntExpressionCache int_expression_cache_local;
         StringExpressionCache string_expression_cache_local;
         VectorExpressionCache vector_expression_cache_local;
@@ -436,6 +478,10 @@ case LN_NodeKind::GetGamePropertyBool:
             value_expression_cache_local);
         LN_BoolExpression expression;
         expression.kind = LN_BoolExpressionKind::SnapshotCharacterOnGround;
+        if (character_state >= 0) {
+          expression.kind = LN_BoolExpressionKind::SnapshotCharacterState;
+          expression.int_value = character_state;
+        }
         if (object_expr) {
           expression.input0 = *object_expr;
         }
@@ -541,16 +587,25 @@ case LN_NodeKind::GetGamePropertyBool:
         if (input_code == SCA_IInputDevice::NOKEY) {
           break;
         }
-        LN_BoolExpression expression;
-        expression.kind = LN_BoolExpressionKind::InputStatus;
-        expression.int_value = int32_t(input_code);
-        expression.secondary_int_value = wants_active ? SCA_InputEvent::ACTIVE :
-                                         wants_pressed ? SCA_InputEvent::JUSTACTIVATED :
-                                         wants_released ? SCA_InputEvent::JUSTRELEASED :
-                                                          MouseInputStatusFromCustom(node.custom1);
-        expression.string_value = normalized_name;
-        expression.bool_value = (node.custom1 & blender::LOGIC_NODE_INPUT_ALSO_UI) != 0;
-        result = program.AddBoolExpression(expression);
+        const auto status_expression = [&](const int32_t status) {
+          LN_BoolExpression expression;
+          expression.kind = LN_BoolExpressionKind::InputStatus;
+          expression.int_value = int32_t(input_code);
+          expression.secondary_int_value = status;
+          expression.string_value = normalized_name;
+          expression.bool_value = (node.custom1 & blender::LOGIC_NODE_INPUT_ALSO_UI) != 0;
+          return program.AddBoolExpression(expression);
+        };
+        if (wants_pulse) {
+          result = BuildInputGestureExpression(
+              program, node, status_expression, node_definitions, input_links, value_cache);
+        }
+        if (!result) {
+          result = status_expression(wants_active ? SCA_InputEvent::ACTIVE :
+                                     wants_pressed ? SCA_InputEvent::JUSTACTIVATED :
+                                     wants_released ? SCA_InputEvent::JUSTRELEASED :
+                                                      MouseInputStatusFromCustom(node.custom1));
+        }
       }
       break;
     }case LN_NodeKind::MouseButton:
@@ -597,16 +652,25 @@ case LN_NodeKind::GetGamePropertyBool:
         if (input_code == SCA_IInputDevice::NOKEY) {
           break;
         }
-        LN_BoolExpression expression;
-        expression.kind = LN_BoolExpressionKind::InputStatus;
-        expression.int_value = int32_t(input_code);
-        expression.secondary_int_value = wants_active ? SCA_InputEvent::ACTIVE :
-                                         wants_pressed ? SCA_InputEvent::JUSTACTIVATED :
-                                         wants_released ? SCA_InputEvent::JUSTRELEASED :
-                                                          MouseInputStatusFromCustom(node.custom1);
-        expression.string_value = button_name;
-        expression.bool_value = (node.custom1 & blender::LOGIC_NODE_INPUT_ALSO_UI) != 0;
-        result = program.AddBoolExpression(expression);
+        const auto status_expression = [&](const int32_t status) {
+          LN_BoolExpression expression;
+          expression.kind = LN_BoolExpressionKind::InputStatus;
+          expression.int_value = int32_t(input_code);
+          expression.secondary_int_value = status;
+          expression.string_value = button_name;
+          expression.bool_value = (node.custom1 & blender::LOGIC_NODE_INPUT_ALSO_UI) != 0;
+          return program.AddBoolExpression(expression);
+        };
+        if (wants_pulse) {
+          result = BuildInputGestureExpression(
+              program, node, status_expression, node_definitions, input_links, value_cache);
+        }
+        if (!result) {
+          result = status_expression(wants_active ? SCA_InputEvent::ACTIVE :
+                                     wants_pressed ? SCA_InputEvent::JUSTACTIVATED :
+                                     wants_released ? SCA_InputEvent::JUSTRELEASED :
+                                                      MouseInputStatusFromCustom(node.custom1));
+        }
       }
       break;
     }case LN_NodeKind::KeyboardActive:
@@ -891,6 +955,42 @@ case LN_NodeKind::GetGamePropertyBool:
         result = program.AddBoolExpression(expression);
       }
       break;
+    }case LN_NodeKind::OnActionFrame:
+      r_handled = true;
+      {
+      /* On Action Frame (2026-11-16): its event route's condition, kept per tree. */
+      uint32_t object_expr = LN_INVALID_INDEX;
+      uint32_t layer_expr = LN_INVALID_INDEX;
+      if (!NamesMatch(output_socket.name, output_socket.identifier, "On Frame") ||
+          !AnimationStatusInputs(
+              program, node, node_definitions, input_links, value_cache, object_expr, layer_expr))
+      {
+        break;
+      }
+      StringExpressionCache string_expression_cache;
+      const std::optional<uint32_t> frame_expr = BuildInputFloatExpression(program,
+                                                                           node,
+                                                                           "Frame",
+                                                                           node_definitions,
+                                                                           input_links,
+                                                                           value_cache,
+                                                                           float_expression_cache,
+                                                                           &bool_expression_cache,
+                                                                           nullptr);
+      const std::optional<uint32_t> action_expr = BuildInputStringExpression(
+          program, node, "Action", node_definitions, input_links, value_cache, string_expression_cache);
+      if (!frame_expr || !action_expr) {
+        break;
+      }
+      LN_BoolExpression expression;
+      expression.kind = LN_BoolExpressionKind::ActionFrameReached;
+      expression.input0 = object_expr;
+      expression.int_expr_index = layer_expr;
+      expression.float_expr_index = *frame_expr;
+      expression.input1 = *action_expr;
+      expression.int_value = int32_t(program.AcquireActionFrameNode(&node));
+      result = program.AddBoolExpression(expression);
+      break;
     }case LN_NodeKind::OnCollision:
       r_handled = true;
       {
@@ -1100,7 +1200,11 @@ case LN_NodeKind::GetGamePropertyBool:
                                               output_socket.identifier,
                                               "Allow Sleeping") &&
                                    GetRigidBodyAttributeUsesSleepingOutput(attribute_type);
-      if (!valid_output && !enabled_output && !sleeping_output) {
+      const bool is_part_output = NamesMatch(output_socket.name,
+                                             output_socket.identifier,
+                                             "Is Part") &&
+                                  GetRigidBodyAttributeUsesCompoundOutputs(attribute_type);
+      if (!valid_output && !enabled_output && !sleeping_output && !is_part_output) {
         break;
       }
 
@@ -1128,7 +1232,11 @@ case LN_NodeKind::GetGamePropertyBool:
         expression.input0 = *object_expr;
       }
       expression.int_value = attribute_type;
-      expression.secondary_int_value = valid_output ? 0 : (enabled_output ? 1 : 2);
+      /* (The output: 0 Valid, 1 Enabled, 2 Allow Sleeping, 3 Is Part.) */
+      expression.secondary_int_value = valid_output   ? 0 :
+                                       enabled_output ? 1 :
+                                       is_part_output ? 3 :
+                                                        2;
       result = program.AddBoolExpression(expression);
       break;
     }case LN_NodeKind::GetObjectAttribute:
@@ -1215,23 +1323,31 @@ case LN_NodeKind::GetGamePropertyBool:
       const GamepadButtonTarget target = GamepadButtonTargetFromNode(
           node, node_definitions, input_links, value_cache);
       if (index_expr) {
-        LN_BoolExpression expression;
-        expression.kind = LN_BoolExpressionKind::GamepadButton;
-        expression.input0 = *index_expr;
-        expression.int_value = target.index;
-        expression.bool_value = target.is_trigger;
-        /* secondary_int_value: also what the UI used. */
-        expression.secondary_int_value = (node.custom1 & blender::LOGIC_NODE_INPUT_ALSO_UI) != 0 ?
-                                             1 :
-                                             0;
-        LN_IntExpression input_type_expr;
-        input_type_expr.kind = LN_IntExpressionKind::Constant;
-        input_type_expr.int_value = wants_active ? SCA_InputEvent::ACTIVE :
-                                    wants_pressed ? SCA_InputEvent::JUSTACTIVATED :
-                                    wants_released ? SCA_InputEvent::JUSTRELEASED :
-                                                     MouseInputStatusFromCustom(node.custom1);
-        expression.int_expr_index = program.AddIntExpression(input_type_expr);
-        result = program.AddBoolExpression(expression);
+        const auto status_expression = [&](const int32_t status) {
+          LN_BoolExpression expression;
+          expression.kind = LN_BoolExpressionKind::GamepadButton;
+          expression.input0 = *index_expr;
+          expression.int_value = target.index;
+          expression.bool_value = target.is_trigger;
+          /* secondary_int_value: also what the UI used. */
+          expression.secondary_int_value =
+              (node.custom1 & blender::LOGIC_NODE_INPUT_ALSO_UI) != 0 ? 1 : 0;
+          LN_IntExpression input_type_expr;
+          input_type_expr.kind = LN_IntExpressionKind::Constant;
+          input_type_expr.int_value = status;
+          expression.int_expr_index = program.AddIntExpression(input_type_expr);
+          return program.AddBoolExpression(expression);
+        };
+        if (wants_trigger) {
+          result = BuildInputGestureExpression(
+              program, node, status_expression, node_definitions, input_links, value_cache);
+        }
+        if (!result) {
+          result = status_expression(wants_active ? SCA_InputEvent::ACTIVE :
+                                     wants_pressed ? SCA_InputEvent::JUSTACTIVATED :
+                                     wants_released ? SCA_InputEvent::JUSTRELEASED :
+                                                      MouseInputStatusFromCustom(node.custom1));
+        }
       }
       break;
     }case LN_NodeKind::Raycast:
@@ -1426,11 +1542,123 @@ case LN_NodeKind::GetGamePropertyBool:
       /* Constant inputs fold earlier; this compares values that change while the game runs. */
       const std::optional<LN_FloatCompareOperation> operation = FloatCompareOperationFromCustom1(
           node.custom1);
+      if (!operation) {
+        break;
+      }
+      IntExpressionCache int_expression_cache;
+      StringExpressionCache string_expression_cache;
+      VectorExpressionCache vector_expression_cache;
+      ColorExpressionCache color_expression_cache;
+      ValueExpressionCache value_expression_cache;
+      /* Type (custom2, 2026-11-16): Number 0 (every older node), Vector 1, Object 2, Text 3. */
+      if (node.custom2 == 1) {
+        /* Vector: Equal = at most Tolerance apart, Not Equal = farther; the others compare the
+         * lengths. Existing kinds only (VectorMeasure, VectorLength, FloatCompare): the column
+         * kernels run them. */
+        const std::optional<uint32_t> a = BuildInputVectorExpression(program,
+                                                                     node,
+                                                                     "Vector A",
+                                                                     node_definitions,
+                                                                     input_links,
+                                                                     value_cache,
+                                                                     float_expression_cache,
+                                                                     vector_expression_cache);
+        const std::optional<uint32_t> b = BuildInputVectorExpression(program,
+                                                                     node,
+                                                                     "Vector B",
+                                                                     node_definitions,
+                                                                     input_links,
+                                                                     value_cache,
+                                                                     float_expression_cache,
+                                                                     vector_expression_cache);
+        if (!a || !b) {
+          break;
+        }
+        if (*operation == LN_FloatCompareOperation::Equal ||
+            *operation == LN_FloatCompareOperation::NotEqual)
+        {
+          const std::optional<uint32_t> tolerance = BuildInputFloatExpression(program,
+                                                                              node,
+                                                                              "Tolerance",
+                                                                              node_definitions,
+                                                                              input_links,
+                                                                              value_cache,
+                                                                              float_expression_cache);
+          if (!tolerance) {
+            break;
+          }
+          LN_FloatExpression distance;
+          distance.kind = LN_FloatExpressionKind::VectorMeasure;
+          distance.int_value = int32_t(LN_VectorMeasure::Distance);
+          distance.input0 = *a;
+          distance.input1 = *b;
+          result = AddFloatCompareBoolExpression(
+              program,
+              program.AddFloatExpression(distance),
+              *tolerance,
+              *operation == LN_FloatCompareOperation::Equal ?
+                  LN_FloatCompareOperation::LessEqual :
+                  LN_FloatCompareOperation::GreaterThan);
+          break;
+        }
+        LN_FloatExpression length_a;
+        length_a.kind = LN_FloatExpressionKind::VectorLength;
+        length_a.input0 = *a;
+        LN_FloatExpression length_b;
+        length_b.kind = LN_FloatExpressionKind::VectorLength;
+        length_b.input0 = *b;
+        const uint32_t length_a_index = program.AddFloatExpression(length_a);
+        result = AddFloatCompareBoolExpression(
+            program, length_a_index, program.AddFloatExpression(length_b), *operation);
+        break;
+      }
+      if (node.custom2 == 2 || node.custom2 == 3) {
+        /* Object: the same object (Bool::ObjectsEqual resolves both: a removed object is none);
+         * Text: Bool::ValueCompare (Equal when the same, the others alphabetical). */
+        const bool objects = node.custom2 == 2;
+        const std::optional<uint32_t> a = BuildInputValueExpression(program,
+                                                                    node,
+                                                                    objects ? "Object A" : "Text A",
+                                                                    node_definitions,
+                                                                    input_links,
+                                                                    value_cache,
+                                                                    bool_expression_cache,
+                                                                    int_expression_cache,
+                                                                    float_expression_cache,
+                                                                    string_expression_cache,
+                                                                    vector_expression_cache,
+                                                                    color_expression_cache,
+                                                                    value_expression_cache);
+        const std::optional<uint32_t> b = BuildInputValueExpression(program,
+                                                                    node,
+                                                                    objects ? "Object B" : "Text B",
+                                                                    node_definitions,
+                                                                    input_links,
+                                                                    value_cache,
+                                                                    bool_expression_cache,
+                                                                    int_expression_cache,
+                                                                    float_expression_cache,
+                                                                    string_expression_cache,
+                                                                    vector_expression_cache,
+                                                                    color_expression_cache,
+                                                                    value_expression_cache);
+        if (!a || !b) {
+          break;
+        }
+        LN_BoolExpression expression;
+        expression.kind = objects ? LN_BoolExpressionKind::ObjectsEqual :
+                                    LN_BoolExpressionKind::ValueCompare;
+        expression.input0 = *a;
+        expression.input1 = *b;
+        expression.float_compare_operation = *operation;
+        result = program.AddBoolExpression(expression);
+        break;
+      }
       const std::optional<uint32_t> a = BuildInputFloatExpression(
           program, node, "A", node_definitions, input_links, value_cache, float_expression_cache);
       const std::optional<uint32_t> b = BuildInputFloatExpression(
           program, node, "B", node_definitions, input_links, value_cache, float_expression_cache);
-      if (operation && a && b) {
+      if (a && b) {
         result = AddFloatCompareBoolExpression(program, *a, *b, *operation);
       }
       break;
@@ -1533,6 +1761,16 @@ case LN_NodeKind::GetGamePropertyBool:
       if (NamesMatch(output_socket.name, output_socket.identifier, "Out")) {
         LN_BoolExpression expression;
         expression.kind = LN_BoolExpressionKind::PlayerJoinPulse;
+        result = program.AddBoolExpression(expression);
+      }
+      break;
+    }case LN_NodeKind::OnRemoved:
+      r_handled = true;
+      {
+      /* (2026-11-17) The object's last step after it was removed. */
+      if (NamesMatch(output_socket.name, output_socket.identifier, "Out")) {
+        LN_BoolExpression expression;
+        expression.kind = LN_BoolExpressionKind::BeingRemoved;
         result = program.AddBoolExpression(expression);
       }
       break;
@@ -1676,6 +1914,71 @@ static std::optional<uint32_t> TryCompileExpressionIntOutput(
 
   const LN_NodeDefinition &definition = *definition_iter->second;
     switch (definition.kind) {
+    case LN_NodeKind::GetRigidBodyAttribute: {
+      /* (2026-11-18) Compound's Part Count: the read is a Float::RigidBodyAttribute (a count, a
+       * whole number), given as a whole number. */
+      r_handled = true;
+      if (!NamesMatch(output_socket.name, output_socket.identifier, "Part Count") ||
+          !GetRigidBodyAttributeUsesCompoundOutputs(node.custom1))
+      {
+        break;
+      }
+      BoolExpressionCache bool_cache_local;
+      FloatExpressionCache float_cache_local;
+      StringExpressionCache string_cache_local;
+      VectorExpressionCache vector_cache_local;
+      ColorExpressionCache color_cache_local;
+      ValueExpressionCache value_cache_local;
+      const std::optional<uint32_t> object_expr = BuildGetObjectAttributeObjectExpression(
+          program,
+          node,
+          node_definitions,
+          input_links,
+          value_cache,
+          bool_expression_cache ? *bool_expression_cache : bool_cache_local,
+          int_expression_cache,
+          float_expression_cache ? *float_expression_cache : float_cache_local,
+          string_expression_cache ? *string_expression_cache : string_cache_local,
+          vector_expression_cache ? *vector_expression_cache : vector_cache_local,
+          color_expression_cache ? *color_expression_cache : color_cache_local,
+          value_expression_cache ? *value_expression_cache : value_cache_local);
+      LN_FloatExpression count;
+      count.kind = LN_FloatExpressionKind::RigidBodyAttribute;
+      if (object_expr) {
+        count.input0 = *object_expr;
+      }
+      count.property_ref_index = uint32_t(LN_RigidBodyAttribute::Compound);
+      LN_IntExpression expression;
+      expression.kind = LN_IntExpressionKind::FromFloat;
+      expression.float_to_int_mode = LN_FloatToIntMode::Truncate;
+      expression.input0 = program.AddFloatExpression(count);
+      result = program.AddIntExpression(expression);
+      break;
+    }
+    case LN_NodeKind::DateTime: {
+      /* (2026-11-17) Date and Time: one Int::DateTimePart per output, UTC (custom1) << 8. */
+      r_handled = true;
+      static const std::pair<const char *, LN_DateTimePart> parts[] = {
+          {"Year", LN_DateTimePart::Year},
+          {"Month", LN_DateTimePart::Month},
+          {"Day", LN_DateTimePart::Day},
+          {"Hour", LN_DateTimePart::Hour},
+          {"Minute", LN_DateTimePart::Minute},
+          {"Second", LN_DateTimePart::Second},
+          {"Weekday", LN_DateTimePart::Weekday},
+          {"Day Number", LN_DateTimePart::DayNumber},
+      };
+      for (const auto &[name, part] : parts) {
+        if (NamesMatch(output_socket.name, output_socket.identifier, name)) {
+          LN_IntExpression expression;
+          expression.kind = LN_IntExpressionKind::DateTimePart;
+          expression.int_value = int32_t(part) | ((node.custom1 & 1) << 8);
+          result = program.AddIntExpression(expression);
+          break;
+        }
+      }
+      break;
+    }
 case LN_NodeKind::OnConstraintBreak:
       r_handled = true;
       {
@@ -2142,6 +2445,18 @@ static std::optional<uint32_t> TryCompileExpressionFloatOutput(
 
   const LN_NodeDefinition &definition = *definition_iter->second;
   switch (definition.kind) {
+    case LN_NodeKind::DateTime: {
+      /* (2026-11-17) Date and Time's Day Fraction. */
+      r_handled = true;
+      if (!NamesMatch(output_socket.name, output_socket.identifier, "Day Fraction")) {
+        break;
+      }
+      LN_FloatExpression expression;
+      expression.kind = LN_FloatExpressionKind::DayFraction;
+      expression.int_value = node.custom1 & 1;
+      result = program.AddFloatExpression(expression);
+      break;
+    }
     case LN_NodeKind::AnimationStatus: {
       r_handled = true;
       uint32_t object_expr = LN_INVALID_INDEX;
@@ -3316,6 +3631,18 @@ case LN_NodeKind::OnConstraintBreak:
                               LN_VectorExpressionKind::SnapshotCharacterLocalWalkDirection :
                               LN_VectorExpressionKind::SnapshotCharacterWalkDirection;
       }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Ground Normal")) {
+        expression.kind = LN_VectorExpressionKind::SnapshotCharacterSurface;
+        expression.int_value = LN_CHARACTER_SURFACE_GROUND_NORMAL;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Ground Velocity")) {
+        expression.kind = LN_VectorExpressionKind::SnapshotCharacterSurface;
+        expression.int_value = LN_CHARACTER_SURFACE_GROUND_VELOCITY;
+      }
+      else if (NamesMatch(output_socket.name, output_socket.identifier, "Wall Normal")) {
+        expression.kind = LN_VectorExpressionKind::SnapshotCharacterSurface;
+        expression.int_value = LN_CHARACTER_SURFACE_WALL_NORMAL;
+      }
       else {
         break;
       }
@@ -3794,8 +4121,54 @@ case LN_NodeKind::OnConstraintBreak:
             expression.kind = LN_VectorExpressionKind::Normalize;
             result = program.AddVectorExpression(expression);
             break;
-          default:
+          default: {
+            /* The newer vector operations (2026-11-16): one kind. B and Scale are inputs of the
+             * expression only for the operations that read them. A number operation's Result is
+             * zero (the output is hidden then). */
+            const std::optional<LN_VectorFunction> function = LogicVectorFunctionOf(node.custom1);
+            if (!function) {
+              if (LogicVectorMathGivesNumber(node.custom1)) {
+                result = AddConstantVectorExpression(program, MT_Vector3(0.0f, 0.0f, 0.0f));
+              }
+              break;
+            }
+            expression.kind = LN_VectorExpressionKind::VectorFunction;
+            expression.int_value = int32_t(*function);
+            if (*function != LN_VectorFunction::LimitLength) {
+              const std::optional<uint32_t> input1 = BuildInputVectorExpression(
+                  program,
+                  node,
+                  "B",
+                  node_definitions,
+                  input_links,
+                  value_cache,
+                  float_expression_cache,
+                  vector_expression_cache);
+              if (!input1) {
+                break;
+              }
+              expression.input1 = *input1;
+            }
+            if (*function == LN_VectorFunction::LimitLength ||
+                *function == LN_VectorFunction::MoveTowards)
+            {
+              const std::optional<uint32_t> scale = BuildInputFloatExpression(
+                  program,
+                  node,
+                  "Scale",
+                  node_definitions,
+                  input_links,
+                  value_cache,
+                  float_expression_cache);
+              if (!scale) {
+                break;
+              }
+              expression.float_expr_index = *scale;
+              expression.float_value = FloatExpressionConstantFallback(program, *scale);
+            }
+            result = program.AddVectorExpression(expression);
             break;
+          }
         }
         break;
       }
@@ -4076,7 +4449,35 @@ static std::optional<uint32_t> TryCompileExpressionValueOutput(
       expression.kind = LN_ValueExpressionKind::ActiveCamera;
       result = program.AddValueExpression(expression);
       break;
-    }case LN_NodeKind::GetParent:
+    }case LN_NodeKind::GetCharacterInfo: {
+      /* Ground Object (2026-11-17): what the character stands on, else None. */
+      if (!NamesMatch(output_socket.name, output_socket.identifier, "Ground Object")) {
+        break;
+      }
+      r_handled = true;
+      const std::optional<uint32_t> object_expr = BuildOptionalObjectTargetExpression(
+          program,
+          node,
+          "Object",
+          node_definitions,
+          input_links,
+          value_cache,
+          bool_expression_cache,
+          int_expression_cache,
+          float_expression_cache,
+          string_expression_cache,
+          vector_expression_cache,
+          color_expression_cache,
+          value_expression_cache);
+      LN_ValueExpression expression;
+      expression.kind = LN_ValueExpressionKind::SnapshotCharacterGroundObject;
+      if (object_expr) {
+        expression.input0 = *object_expr;
+      }
+      result = program.AddValueExpression(expression);
+      break;
+    }
+    case LN_NodeKind::GetParent:
       r_handled = true;
       {
       r_handled = true;
@@ -4491,8 +4892,10 @@ static std::optional<uint32_t> TryCompileExpressionValueOutput(
     case LN_NodeKind::ExplosionImpulse:
       r_handled = true;
       {
-      /* Objects: the objects inside the blast's sphere, found when read (2026-11-11). */
-      if (!NamesMatch(output_socket.name, output_socket.identifier, "Objects")) {
+      /* Objects: the objects inside the blast's sphere, found when read (2026-11-11); Strengths
+       * (2026-11-17): the push each gets, in the same order. */
+      const bool strengths = NamesMatch(output_socket.name, output_socket.identifier, "Strengths");
+      if (!strengths && !NamesMatch(output_socket.name, output_socket.identifier, "Objects")) {
         break;
       }
       BoolExpressionCache bool_cache;
@@ -4504,7 +4907,24 @@ static std::optional<uint32_t> TryCompileExpressionValueOutput(
           value_cache,
           float_expression_cache,
           bool_cache);
-      if (query_expr) {
+      if (query_expr && strengths) {
+        const std::optional<uint32_t> radius = BuildInputFloatExpression(
+            program, node, "Radius", node_definitions, input_links, value_cache,
+            float_expression_cache);
+        const std::optional<uint32_t> strength = BuildInputFloatExpression(
+            program, node, "Strength", node_definitions, input_links, value_cache,
+            float_expression_cache);
+        if (radius && strength) {
+          LN_ValueExpression expression;
+          expression.kind = LN_ValueExpressionKind::ExplosionStrengths;
+          expression.input0 = *query_expr;
+          expression.input1 = *radius;
+          expression.input2 = *strength;
+          expression.value.bool_value = (node.custom1 & LN_EXPLOSION_FALLOFF_LINEAR) != 0;
+          result = program.AddValueExpression(expression);
+        }
+      }
+      else if (query_expr) {
         LN_ValueExpression expression;
         expression.kind = LN_ValueExpressionKind::PhysicsQueryObjects;
         expression.input0 = *query_expr;

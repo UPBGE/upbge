@@ -107,6 +107,7 @@ JPH_SUPPRESS_WARNINGS
 #include "MEM_guardedalloc.h"
 
 #include "BL_SceneConverter.h"
+#include "KX_Camera.h"
 #include "KX_ClientObjectInfo.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
@@ -1079,6 +1080,18 @@ void JoltContactListener::StoreContact(const JPH::Body &inBody1,
   if (!m_env) {
     return;
   }
+  /* Physics Visualization's contact points (2026-11-18): the manifold's points on the first
+   * body, only while it is on. */
+  if (m_env->m_debugContactsEnabled.load(std::memory_order_relaxed)) {
+    std::lock_guard<std::mutex> lock(m_env->m_debugContactsMutex);
+    for (const JPH::Vec3 &point : inManifold.mRelativeContactPointsOn1) {
+      if (m_env->m_debugContacts.size() >= JoltPhysicsEnvironment::kMaxDebugContacts) {
+        break;
+      }
+      m_env->m_debugContacts.push_back(
+          {inManifold.mBaseOffset + point, inManifold.mWorldSpaceNormal});
+    }
+  }
   const bool collectForCallbacks = m_env->m_collectContactsForCallbacks.load(
       std::memory_order_relaxed);
   const bool collectForLogicNodes = m_env->m_collectContactsForLogicNodes.load(
@@ -1472,7 +1485,7 @@ JoltPhysicsEnvironment::JoltPhysicsEnvironment(blender::Scene *blenderscene,
   m_physicsSystem->SetGravity(JPH::Vec3(0.0f, -9.81f, 0.0f));
 
   if (visualizePhysics) {
-    m_debugMode = 1;
+    SetDebugMode(1);
   }
   m_debugErrors = blenderscene->gm.jolt_debug_errors != 0;
 
@@ -1512,9 +1525,13 @@ JoltPhysicsEnvironment::~JoltPhysicsEnvironment()
   m_constraintById.clear();
 
   /* Delete characters (CharacterVirtual instances). */
-  for (auto &pair : m_characterByObject) {
-    delete pair.second;
+  for (JoltCharacter *character : m_characters) {
+    if (JoltPhysicsController *ctrl = character->GetController()) {
+      ctrl->SetCharacter(nullptr);
+    }
+    delete character;
   }
+  m_characters.clear();
   m_characterByObject.clear();
 
   /* Delete vehicles. */
@@ -1861,6 +1878,22 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
   m_softBodyAddsSinceLastStep = 0;
   m_rigidBodyAddsSinceLastStep = 0;
 
+  /* Step 0.5: Characters move (as Jolt's samples, before the update: what they push moves in
+   * this step) and their objects and bodies follow; a character's body is then left alone by
+   * Step 1. */
+  PerfClock::time_point characterStart;
+  if (perfProbeEnabled) {
+    characterStart = PerfClock::now();
+  }
+
+  UpdateCharacters(timeStep);
+
+  if (perfProbeEnabled) {
+    perfCharacterUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
+                        PerfClock::now() - characterStart)
+                        .count();
+  }
+
   /* Step 1: Write game object transforms to kinematic bodies. */
   PerfClock::time_point writeKinematicStart;
   if (perfProbeEnabled) {
@@ -2014,6 +2047,12 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
     updateStart = PerfClock::now();
   }
 
+  /* (Physics Visualization shows the contacts of the last step.) */
+  if (m_debugContactsEnabled.load(std::memory_order_relaxed)) {
+    std::lock_guard<std::mutex> lock(m_debugContactsMutex);
+    m_debugContacts.clear();
+  }
+
   m_isPhysicsUpdating = true;
   JPH::EPhysicsUpdateError updateErr = m_physicsSystem->Update(
       timeStep, collisionSteps, m_tempAllocator.get(), m_jobSystem.get());
@@ -2157,21 +2196,7 @@ bool JoltPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, fl
                           .count();
   }
 
-  /* Step 5: Update characters. */
-  PerfClock::time_point characterStart;
-  if (perfProbeEnabled) {
-    characterStart = PerfClock::now();
-  }
-
-  for (auto &pair : m_characterByObject) {
-    pair.second->Update(timeStep);
-  }
-
-  if (perfProbeEnabled) {
-    perfCharacterUS = (double)std::chrono::duration_cast<std::chrono::microseconds>(
-                        PerfClock::now() - characterStart)
-                        .count();
-  }
+  /* (Step 5, the characters, runs before Step 1: UpdateCharacters.) */
 
   /* Step 6: Sync vehicle wheels. */
   PerfClock::time_point vehicleStart;
@@ -3504,8 +3529,29 @@ void JoltPhysicsEnvironment::DebugDrawWorld()
   if (m_debugMode <= 0) {
     return;
   }
-  JoltDebugDraw::DrawBodies(this);
-  JoltDebugDraw::DrawConstraints(this);
+  /* Into the rasterizer's debug lines; triangle meshes near the scene's camera only (the engine
+   * makes the drawn scene the active one around this call). */
+  JoltDebugDraw::Settings settings;
+  settings.debug_mode = m_debugMode;
+  MT_Vector3 viewCenter;
+  if (KX_Scene *scene = KX_GetActiveScene()) {
+    if (KX_Camera *camera = scene->GetActiveCamera()) {
+      viewCenter = camera->NodeGetWorldPosition();
+      settings.view_center = &viewCenter;
+    }
+  }
+  JoltDebugDraw::DrawWorld(
+      *this,
+      settings,
+      [](const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color) {
+        KX_RasterizerDrawDebugLine(from, to, color);
+      });
+}
+
+void JoltPhysicsEnvironment::CopyDebugContacts(std::vector<DebugContact> &r_contacts) const
+{
+  std::lock_guard<std::mutex> lock(m_debugContactsMutex);
+  r_contacts = m_debugContacts;
 }
 
 void JoltPhysicsEnvironment::SetFixedTimeStep(bool useFixedTimeStep, float fixedTimeStep)
@@ -3536,6 +3582,12 @@ int JoltPhysicsEnvironment::GetDebugMode() const
 void JoltPhysicsEnvironment::SetDebugMode(int debugMode)
 {
   m_debugMode = debugMode;
+  m_debugContactsEnabled.store(debugMode > 0, std::memory_order_relaxed);
+  if (debugMode <= 0) {
+    std::lock_guard<std::mutex> lock(m_debugContactsMutex);
+    m_debugContacts.clear();
+    m_debugContacts.shrink_to_fit();
+  }
 }
 
 void JoltPhysicsEnvironment::SetNumIterations(int numIter)
@@ -4352,6 +4404,228 @@ PHY_ICharacter *JoltPhysicsEnvironment::GetCharacterController(KX_GameObject *ob
   return nullptr;
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Characters
+ * \{ */
+
+static KX_GameObject *JoltGameObjectOf(JoltPhysicsController *ctrl)
+{
+  KX_ClientObjectInfo *info = ctrl ? static_cast<KX_ClientObjectInfo *>(ctrl->GetNewClientInfo()) :
+                                     nullptr;
+  return info ? info->m_gameobject : nullptr;
+}
+
+JoltCharacter *JoltPhysicsEnvironment::CreateCharacter(JoltPhysicsController *ctrl,
+                                                       const float stepHeight)
+{
+  PHY_IMotionState *motionState = ctrl ? ctrl->GetMotionState() : nullptr;
+  if (!motionState || !ctrl->GetShape()) {
+    return nullptr;
+  }
+  JoltCharacter *character = new JoltCharacter(ctrl,
+                                               this,
+                                               motionState->GetWorldPosition(),
+                                               motionState->GetWorldOrientation(),
+                                               stepHeight);
+  RegisterCharacter(character);
+  return character;
+}
+
+void JoltPhysicsEnvironment::AddCharacterReplica(JoltPhysicsController *replicaCtrl,
+                                                 JoltCharacter *source)
+{
+  if (!replicaCtrl || !source || replicaCtrl->GetCharacter()) {
+    return;
+  }
+  if (JoltCharacter *character = source->CreateReplica(replicaCtrl)) {
+    RegisterCharacter(character);
+  }
+}
+
+void JoltPhysicsEnvironment::RegisterCharacter(JoltCharacter *character)
+{
+  JoltPhysicsController *ctrl = character->GetController();
+  ctrl->SetCharacter(character);
+  m_characters.push_back(character);
+  if (KX_GameObject *gameobj = JoltGameObjectOf(ctrl)) {
+    m_characterByObject[gameobj] = character;
+  }
+}
+
+void JoltPhysicsEnvironment::DeleteCharacterOf(JoltPhysicsController *ctrl)
+{
+  JoltCharacter *character = ctrl ? ctrl->GetCharacter() : nullptr;
+  if (!character) {
+    return;
+  }
+  ctrl->SetCharacter(nullptr);
+  ctrl->SetCharacterDrivesBody(false);
+  m_characters.erase(std::remove(m_characters.begin(), m_characters.end(), character),
+                     m_characters.end());
+  m_characterStepScratch.erase(
+      std::remove(m_characterStepScratch.begin(), m_characterStepScratch.end(), character),
+      m_characterStepScratch.end());
+  for (auto it = m_characterByObject.begin(); it != m_characterByObject.end();) {
+    it = it->second == character ? m_characterByObject.erase(it) : std::next(it);
+  }
+  delete character;
+}
+
+void JoltPhysicsEnvironment::UpdateCharacters(const float timeStep)
+{
+  m_characterStepScratch.clear();
+  if (m_characters.empty()) {
+    return;
+  }
+  for (JoltCharacter *character : m_characters) {
+    if (character->PrepareStep(timeStep)) {
+      m_characterStepScratch.push_back(character);
+    }
+  }
+  const std::vector<JoltCharacter *> &moving = m_characterStepScratch;
+  if (moving.empty()) {
+    return;
+  }
+
+  /* Simulate reads the world only and writes only its character: on Jolt's threads, the same
+   * result as one after another. One job a thread, each taking the next few characters (as
+   * ProximityBatch). */
+  constexpr size_t charactersATake = 4;
+  const size_t concurrency = m_jobSystem ?
+                                 size_t(std::max(1, m_jobSystem->GetMaxConcurrency())) :
+                                 1;
+  const size_t jobCount = std::min(concurrency,
+                                   (moving.size() + charactersATake - 1) / charactersATake);
+  JPH::JobSystem::Barrier *barrier = (moving.size() >= kCharactersPerThreadedStep &&
+                                      jobCount > 1 && !m_isPhysicsUpdating) ?
+                                         m_jobSystem->CreateBarrier() :
+                                         nullptr;
+  if (barrier == nullptr) {
+    for (JoltCharacter *character : moving) {
+      character->Simulate(timeStep, *m_tempAllocator);
+    }
+  }
+  else {
+    std::atomic<size_t> next{0};
+    const auto take = [&]() {
+      /* Jolt's temporary allocator is one thread's: one per thread, kept for the next steps. */
+      thread_local JPH::TempAllocatorImplWithMallocFallback allocator(256 * 1024);
+      for (size_t begin = next.fetch_add(charactersATake, std::memory_order_relaxed);
+           begin < moving.size();
+           begin = next.fetch_add(charactersATake, std::memory_order_relaxed))
+      {
+        const size_t end = std::min(begin + charactersATake, moving.size());
+        for (size_t index = begin; index < end; index++) {
+          moving[index]->Simulate(timeStep, allocator);
+        }
+      }
+    };
+    std::vector<JPH::JobSystem::JobHandle> jobs;
+    jobs.reserve(jobCount);
+    for (size_t jobIndex = 0; jobIndex < jobCount; jobIndex++) {
+      jobs.push_back(m_jobSystem->CreateJob("Characters", JPH::Color::sOrange, take, 1));
+    }
+    barrier->AddJobs(jobs.data(), JPH::uint(jobs.size()));
+    JPH::JobSystem::JobHandle::sRemoveDependencies(jobs.data(), JPH::uint(jobs.size()));
+    m_jobSystem->WaitForJobs(barrier);
+    m_jobSystem->DestroyBarrier(barrier);
+  }
+
+  for (JoltCharacter *character : moving) {
+    character->ApplyStep(timeStep);
+  }
+}
+
+void JoltPhysicsEnvironment::AddCharacterLogicContacts()
+{
+  /* Last step's character contacts out again (Jolt's own keys never equal them: a character's
+   * body is body 1 with no sub shape, and Jolt reports none against static or kinematic bodies
+   * for a Kinematic body). */
+  for (const JPH::SubShapeIDPair &key : m_characterLogicContactKeys) {
+    m_logicActiveContactPairs.erase(key);
+  }
+  std::vector<JPH::SubShapeIDPair> previous;
+  previous.swap(m_characterLogicContactKeys);
+  std::sort(previous.begin(), previous.end());
+  m_logicPairsByBodyValid = false;
+  if (m_characterStepScratch.empty()) {
+    return;
+  }
+
+  const auto bodyPairKey = [](const JPH::BodyID a, const JPH::BodyID b) {
+    return (uint64_t(a.GetIndexAndSequenceNumber()) << 32) | uint64_t(b.GetIndexAndSequenceNumber());
+  };
+  /* Pairs Jolt itself reports this step (a character's body against a dynamic body): those keep
+   * Jolt's contact. */
+  std::unordered_set<uint64_t> joltPairs;
+  for (const JoltContactPair &pair : m_contactPairsScratch) {
+    if ((pair.ctrl1 && pair.ctrl1->GetCharacter()) || (pair.ctrl2 && pair.ctrl2->GetCharacter())) {
+      joltPairs.insert(bodyPairKey(pair.bodyID1, pair.bodyID2));
+      joltPairs.insert(bodyPairKey(pair.bodyID2, pair.bodyID1));
+    }
+  }
+  std::unordered_set<uint64_t> characterPairs;
+
+  JPH::BodyInterface &bodyInterface = GetBodyInterfaceNoLock();
+  for (JoltCharacter *character : m_characterStepScratch) {
+    JoltPhysicsController *ctrl = character->GetController();
+    KX_GameObject *object = JoltGameObjectOf(ctrl);
+    const JPH::BodyID characterBody = ctrl ? ctrl->GetBodyID() : JPH::BodyID();
+    if (!object || characterBody.IsInvalid() || JoltIsObjectSensor(ctrl)) {
+      continue;
+    }
+    character->GetTouchingContacts(m_characterContactScratch);
+    for (const JoltCharacterContact &contact : m_characterContactScratch) {
+      if (!bodyInterface.IsAdded(contact.body)) {
+        continue;
+      }
+      KX_ClientObjectInfo *info2 = reinterpret_cast<KX_ClientObjectInfo *>(
+          bodyInterface.GetUserData(contact.body));
+      JoltPhysicsController *ctrl2 = static_cast<JoltPhysicsController *>(
+          JoltGetPhysicsController(info2));
+      if (!ctrl2 || !info2->m_gameobject || ctrl2 == ctrl || JoltIsObjectSensor(info2) ||
+          m_controllers.find(ctrl2) == m_controllers.end() || ctrl2->GetBodyID() != contact.body)
+      {
+        continue;
+      }
+      if (joltPairs.count(bodyPairKey(characterBody, contact.body))) {
+        continue;
+      }
+      /* Two characters touching: one contact for the two. */
+      if (ctrl2->GetCharacter()) {
+        if (characterPairs.count(bodyPairKey(contact.body, characterBody))) {
+          continue;
+        }
+        characterPairs.insert(bodyPairKey(characterBody, contact.body));
+      }
+
+      JoltContactPair pair{};
+      pair.subShapePair = JPH::SubShapeIDPair(
+          characterBody, JPH::SubShapeID(), contact.body, contact.subShape);
+      pair.bodyID1 = characterBody;
+      pair.bodyID2 = contact.body;
+      pair.ctrl1 = ctrl;
+      pair.ctrl2 = ctrl2;
+      pair.object1 = object;
+      pair.object2 = info2->m_gameobject;
+      pair.contactPosition = contact.position;
+      pair.contactPositions[0] = contact.position;
+      pair.contactNormal = contact.normal;
+      pair.contactCount = 1;
+      pair.storedContactCount = 1;
+      pair.penetrationDepth = contact.penetration;
+      pair.combinedFriction = 0.0f;
+      pair.combinedRestitution = 0.0f;
+      pair.appliedImpulse = 0.0f;
+      pair.isNew = !std::binary_search(previous.begin(), previous.end(), pair.subShapePair);
+      m_logicActiveContactPairs[pair.subShapePair] = pair;
+      m_characterLogicContactKeys.push_back(pair.subShapePair);
+    }
+  }
+}
+
+/** \} */
+
 PHY_IPhysicsController *JoltPhysicsEnvironment::RayTest(
     PHY_IRayCastFilterCallback &filterCallback,
     float fromX,
@@ -4752,8 +5026,17 @@ PHY_BodySweepStatus JoltPhysicsEnvironment::SweepBody(const PHY_BodySweepSetting
 {
   results.clear();
   JoltPhysicsController *controller = static_cast<JoltPhysicsController *>(settings.controller);
-  const JPH::RefConst<JPH::Shape> shape = controller ? controller->GetShape() :
-                                                       JPH::RefConst<JPH::Shape>();
+  JPH::RefConst<JPH::Shape> shape = controller ? controller->GetShape() :
+                                                 JPH::RefConst<JPH::Shape>();
+  /* A Character casts the shape it has now (crouched: the shorter one, 2026-11-17); its
+   * controller keeps the standing one. */
+  if (JoltCharacter *character = controller ? controller->GetCharacter() : nullptr) {
+    if (JPH::CharacterVirtual *virtualCharacter = character->GetCharacterVirtual()) {
+      if (virtualCharacter->GetShape() != nullptr) {
+        shape = virtualCharacter->GetShape();
+      }
+    }
+  }
   if (!shape || shape->GetType() == JPH::EShapeType::Empty ||
       shape->GetType() == JPH::EShapeType::SoftBody)
   {
@@ -4825,6 +5108,86 @@ class JoltBestShapeCastHitCollector final : public JPH::CastShapeCollector {
   JPH::ShapeCastResult m_hit;
   bool m_hadHit = false;
 };
+
+void JoltPhysicsEnvironment::CollectStaticTriangles(
+    const MT_Vector3 &aabb_min,
+    const MT_Vector3 &aabb_max,
+    const std::function<void(KX_GameObject *object,
+                             const MT_Vector3 &a,
+                             const MT_Vector3 &b,
+                             const MT_Vector3 &c)> &triangle)
+{
+  /* The navmesh's level (2026-11-18): static solid bodies whose bounds meet the box, in the
+   * order they were made (the broadphase's own order follows its trees). The box and the
+   * triangles in Jolt's space (Y up: game y is Jolt's -z, so the corners are encapsulated, not
+   * taken as min and max), the triangles handed over in the game's. */
+  JPH::AABox box;
+  box.Encapsulate(JoltMath::ToJolt(aabb_min));
+  box.Encapsulate(JoltMath::ToJolt(aabb_max));
+  JPH::AllHitCollisionCollector<JPH::CollideShapeBodyCollector> candidates;
+  m_physicsSystem->GetBroadPhaseQuery().CollideAABox(box, candidates);
+  std::vector<JPH::BodyID> ids(candidates.mHits.begin(), candidates.mHits.end());
+  std::sort(ids.begin(), ids.end());
+  const JPH::BodyLockInterface &lockInterface = m_physicsSystem->GetBodyLockInterface();
+  constexpr int kBatch = 256;
+  static_assert(kBatch >= JPH::Shape::cGetTrianglesMinTrianglesRequested);
+  std::vector<JPH::Float3> vertices(size_t(kBatch) * 3);
+  for (const JPH::BodyID &id : ids) {
+    JPH::TransformedShape shape;
+    KX_GameObject *object = nullptr;
+    {
+      JPH::BodyLockRead lock(lockInterface, id);
+      if (!lock.Succeeded()) {
+        continue;
+      }
+      const JPH::Body &body = lock.GetBody();
+      if (!body.IsStatic() || body.IsSensor()) {
+        continue;
+      }
+      if (KX_ClientObjectInfo *info = JoltGetClientInfo(body)) {
+        object = info->m_gameobject;
+      }
+      shape = body.GetTransformedShape();
+    }
+    JPH::Shape::GetTrianglesContext context;
+    shape.GetTrianglesStart(context, box, JPH::RVec3::sZero());
+    int count;
+    while ((count = shape.GetTrianglesNext(context, kBatch, vertices.data())) > 0) {
+      for (int i = 0; i < count; i++) {
+        /* (A turn: the winding is kept.) */
+        const auto game = [](const JPH::Float3 &v) {
+          return JoltMath::ToMT(JPH::Vec3(v.x, v.y, v.z));
+        };
+        triangle(object,
+                 game(vertices[size_t(i) * 3 + 0]),
+                 game(vertices[size_t(i) * 3 + 1]),
+                 game(vertices[size_t(i) * 3 + 2]));
+      }
+    }
+  }
+}
+
+bool JoltPhysicsEnvironment::GetStaticBodyBounds(PHY_IPhysicsController *controller,
+                                                 MT_Vector3 &r_min,
+                                                 MT_Vector3 &r_max)
+{
+  JoltPhysicsController *jolt = dynamic_cast<JoltPhysicsController *>(controller);
+  if (jolt == nullptr || jolt->GetBodyID().IsInvalid()) {
+    return false;
+  }
+  JPH::BodyLockRead lock(m_physicsSystem->GetBodyLockInterface(), jolt->GetBodyID());
+  if (!lock.Succeeded() || !lock.GetBody().IsStatic() || lock.GetBody().IsSensor()) {
+    return false;
+  }
+  /* Jolt's corners in the game's space (game y is Jolt's -z: min and max swap there). */
+  const JPH::AABox bounds = lock.GetBody().GetWorldSpaceBounds();
+  const MT_Vector3 a = JoltMath::ToMT(bounds.mMin), b = JoltMath::ToMT(bounds.mMax);
+  for (int axis = 0; axis < 3; axis++) {
+    r_min[axis] = std::min(a[axis], b[axis]);
+    r_max[axis] = std::max(a[axis], b[axis]);
+  }
+  return true;
+}
 
 bool JoltPhysicsEnvironment::OverlapSphereBodies(const MT_Vector3 &center,
                                                  const float radius,
@@ -6016,13 +6379,20 @@ void JoltPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env
   other->m_rigidBodyAddIdleFrames = 0;
   other->m_softBodyAddIdleFrames = 0;
 
-  /* Transfer characters. */
-  for (auto it = other->m_characterByObject.begin(); it != other->m_characterByObject.end();) {
-    JoltCharacter *character = it->second;
+  /* Transfer characters, in their order (rebuilt in this physics system: a CharacterVirtual
+   * queries the system it was made in). */
+  for (auto it = other->m_characters.begin(); it != other->m_characters.end();) {
+    JoltCharacter *character = *it;
     if (character && m_controllers.find(character->GetController()) != m_controllers.end()) {
-      character->SetEnvironment(this);
-      m_characterByObject[it->first] = character;
-      it = other->m_characterByObject.erase(it);
+      character->MoveToEnvironment(this);
+      RegisterCharacter(character);
+      for (auto mapIt = other->m_characterByObject.begin();
+           mapIt != other->m_characterByObject.end();)
+      {
+        mapIt = mapIt->second == character ? other->m_characterByObject.erase(mapIt) :
+                                             std::next(mapIt);
+      }
+      it = other->m_characters.erase(it);
     }
     else {
       ++it;
@@ -6073,7 +6443,8 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     if (blenderobject->gameflag & OB_SOFT_BODY)
       boundsType = OB_BOUND_TRIANGLE_MESH;
     else if (blenderobject->gameflag & OB_CHARACTER)
-      boundsType = OB_BOUND_SPHERE;
+      /* A capsule fitted to the object: a character's usual shape (stairs, slopes, doors). */
+      boundsType = OB_BOUND_CAPSULE;
     else if (isRigidBody && !(blenderobject->gameflag2 & OB_HAS_VEHICLE))
       boundsType = OB_BOUND_BOX;
     else if (isKinematic)
@@ -6090,6 +6461,16 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     }
     else {
       boundsType = blenderobject->collision_boundtype;
+    }
+    /* A character sweeps its shape through the world: a triangle mesh cannot be swept, and an
+     * empty shape is nothing to sweep. */
+    if (isCharacter && ELEM(boundsType, OB_BOUND_TRIANGLE_MESH, OB_BOUND_EMPTY)) {
+      printf("Warning: Jolt physics: Character '%s': its Collision Bounds (%s) cannot move as a "
+             "character; it uses a capsule fitted to the object\n",
+             blenderobject->id.name + 2,
+             boundsType == OB_BOUND_EMPTY ? "Empty" : "Triangle Mesh");
+      fflush(stdout);
+      boundsType = OB_BOUND_CAPSULE;
     }
   }
 
@@ -6509,11 +6890,12 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     motionType = JPH::EMotionType::Static;
     bpCategory = JOLT_BP_SENSOR;
   }
-  else if (isKinematic) {
+  else if (isKinematic || isCharacter) {
+    /* A character's body follows its JoltCharacter as Jolt's inner body does (Kinematic). */
     motionType = JPH::EMotionType::Kinematic;
     bpCategory = JOLT_BP_DYNAMIC;
   }
-  else if (isCharacter || isDyna) {
+  else if (isDyna) {
     motionType = JPH::EMotionType::Dynamic;
     bpCategory = JOLT_BP_DYNAMIC;
   }
@@ -6582,8 +6964,9 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
     bodySettings.mInertiaMultiplier = blenderobject->formfactor / 0.4f;
   }
 
-  /* Per-body sleep control: OB_COLLISION_RESPONSE means "No Sleeping" in UI. */
-  if (blenderobject->gameflag & OB_COLLISION_RESPONSE) {
+  /* Per-body sleep control: OB_COLLISION_RESPONSE means "No Sleeping" in UI. A character's body
+   * never sleeps (as Jolt's inner body: sensors keep seeing a character standing in them). */
+  if ((blenderobject->gameflag & OB_COLLISION_RESPONSE) || isCharacter) {
     bodySettings.mAllowSleeping = false;
   }
 
@@ -6656,7 +7039,7 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   ctrl->SetMotionState(motionstate);
   ctrl->SetEnvironment(this);
   ctrl->SetDynamic(isDyna);
-  ctrl->SetKinematic(isKinematic);
+  ctrl->SetKinematic(isKinematic || isCharacter);
   ctrl->SetRigidBodyFlag(isDyna && isRigidBody);
   ctrl->SetSensorFlag(bodySettings.mIsSensor);
   ctrl->SetSensorPhysicsType(isSensor);
@@ -6714,21 +7097,14 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   ctrl->SetCollisionGroup(col_group);
   ctrl->SetCollisionMask(col_mask);
 
-  /* --- Character controller: create JoltCharacter alongside the rigid body --- */
+  /* --- Character: a JoltCharacter moves the object, its body follows --- */
   if (isCharacter) {
-    float capsuleRadius = std::max(bounds_extends[0], bounds_extends[1]);
-    float capsuleHalfHeight = bounds_extends[2] - capsuleRadius;
-    if (capsuleHalfHeight < 0.01f) {
-      capsuleHalfHeight = 0.01f;
+    if (JoltCharacter *character = CreateCharacter(ctrl, blenderobject->step_height)) {
+      character->SetJumpSpeed(blenderobject->jump_speed);
+      character->SetFallSpeed(blenderobject->fall_speed);
+      character->SetMaxSlope(blenderobject->max_slope);
+      character->SetMaxJumps(blenderobject->max_jumps);
     }
-    float stepHeight = blenderobject->step_height;
-    JoltCharacter *character = new JoltCharacter(
-        ctrl, this, capsuleRadius, capsuleHalfHeight, stepHeight, pos);
-    character->SetJumpSpeed(blenderobject->jump_speed);
-    character->SetFallSpeed(blenderobject->fall_speed);
-    character->SetMaxSlope(blenderobject->max_slope);
-    character->SetMaxJumps(blenderobject->max_jumps);
-    m_characterByObject[gameobj] = character;
   }
 
   /* Don't add sensor objects automatically — they are added when a collision sensor registers. */
@@ -6771,10 +7147,48 @@ void JoltPhysicsEnvironment::ConvertObject(BL_SceneConverter *converter,
   }
   /* Dynamic children cannot simultaneously be solver-driven and parent-driven.
    * Kinematic children have no such ownership conflict: their parent-composed
-   * world transform is exactly the target submitted to MoveKinematic. */
-  if (blenderRoot && converter && !isKinematic) {
+   * world transform is exactly the target submitted to MoveKinematic. A parented Character's
+   * body is Kinematic too, and the character follows its object while parented. */
+  if (blenderRoot && converter && !isKinematic && !isCharacter) {
     converter->AddPendingJoltTransformParenting(gameobj);
   }
+}
+
+bool JoltPhysicsEnvironment::CreateBodyOfCompoundPart(KX_GameObject *gameobj,
+                                                      KX_Scene *kxscene,
+                                                      PHY_IMotionState *motionstate)
+{
+  if (!gameobj || gameobj->GetPhysicsController() || !gameobj->GetBlenderObject() ||
+      IsPhysicsUpdating())
+  {
+    delete motionstate;
+    return false;
+  }
+  /* As the converter builds an object outside a compound, from its game mesh at its scale and
+   * pose now; no converter: nothing waits for a scene's conversion to end (the caller sets up its
+   * parenting). */
+  RAS_MeshObject *meshobj = gameobj->GetMeshCount() > 0 ? gameobj->GetMesh(0) : nullptr;
+  ConvertObject(nullptr, gameobj, meshobj, kxscene, motionstate, ~0, false, false);
+  JoltPhysicsController *ctrl = static_cast<JoltPhysicsController *>(
+      gameobj->GetPhysicsController());
+  if (!ctrl || ctrl->GetBodyID().IsInvalid()) {
+    return false;
+  }
+  /* An object of the running scene: in the world now, whatever its Blender object's layer and
+   * base flags say (a copy's are its hidden template's), never through the queue of the scene's
+   * start (a body still waiting there is not in the world for its parenting's state). */
+  ctrl->SetLogicCollisionQueryActive(true);
+  RemovePendingRigidBodyBodyAdd(ctrl->GetBodyID());
+  if (ctrl->IsSensorPhysicsType()) {
+    ctrl->SetLogicObjectSensorActive(true);
+    return true;
+  }
+  JPH::BodyInterface &bi = GetBodyInterface();
+  if (!bi.IsAdded(ctrl->GetBodyID())) {
+    bi.AddBody(ctrl->GetBodyID(), JPH::EActivation::Activate);
+    NotifyRigidBodyBodyAdded();
+  }
+  return true;
 }
 
 void JoltPhysicsEnvironment::SetupObjectConstraints(
@@ -7119,6 +7533,134 @@ void JoltPhysicsEnvironment::SetRigidBodyConstraintEnabled(int constraintid, boo
   it->second->SetEnabled(enabled);
 }
 
+bool JoltPhysicsEnvironment::SetRigidBodyConstraintSettings(
+    const int constraintid, const PHY_RigidBodyConstraintSettings &settings)
+{
+  auto it = m_constraintById.find(constraintid);
+  if (it == m_constraintById.end() || it->second == nullptr) {
+    return false;
+  }
+  JoltConstraint *constraint = it->second;
+  /* The parameters CreateRigidBodyConstraint gives a new constraint, each also turned off when
+   * its setting is off (a new constraint starts with them off). The kind of Jolt constraint is
+   * the one it was made as (a Slider is Jolt's slider or a SixDOF, by its first limits). */
+  const auto flag = [&](const int bit) { return (settings.flags & bit) != 0; };
+  const auto limit = [&](const int param, const bool use, const float lower, const float upper) {
+    const bool valid = use && std::isfinite(lower) && std::isfinite(upper) && lower <= upper;
+    constraint->SetParam(param, valid ? lower : 1.0f, valid ? upper : -1.0f);
+  };
+  const auto spring = [&](const int param, const bool use, const float stiffness,
+                          const float damping) {
+    constraint->SetParam(param, use ? stiffness : 0.0f, damping);
+  };
+  switch (constraint->GetType()) {
+    case PHY_GENERIC_6DOF_CONSTRAINT:
+    case PHY_GENERIC_6DOF_SPRING2_CONSTRAINT:
+      if (settings.type == PHY_RigidBodyConstraintType::Slider) {
+        limit(0,
+              flag(PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X),
+              settings.limit_lin_x_lower,
+              settings.limit_lin_x_upper);
+      }
+      else if (settings.type == PHY_RigidBodyConstraintType::Piston) {
+        limit(0,
+              flag(PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X),
+              settings.limit_lin_x_lower,
+              settings.limit_lin_x_upper);
+        limit(3,
+              flag(PHY_RB_CONSTRAINT_USE_LIMIT_ANG_X),
+              settings.limit_ang_x_lower,
+              settings.limit_ang_x_upper);
+      }
+      else if (settings.type == PHY_RigidBodyConstraintType::Motor) {
+        constraint->SetParam(6,
+                             settings.motor_lin_target_velocity,
+                             flag(PHY_RB_CONSTRAINT_USE_MOTOR_LIN) ?
+                                 settings.motor_lin_max_impulse :
+                                 0.0f);
+        constraint->SetParam(9,
+                             settings.motor_ang_target_velocity,
+                             flag(PHY_RB_CONSTRAINT_USE_MOTOR_ANG) ?
+                                 settings.motor_ang_max_impulse :
+                                 0.0f);
+      }
+      else {
+        limit(0,
+              flag(PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X),
+              settings.limit_lin_x_lower,
+              settings.limit_lin_x_upper);
+        limit(1,
+              flag(PHY_RB_CONSTRAINT_USE_LIMIT_LIN_Y),
+              settings.limit_lin_y_lower,
+              settings.limit_lin_y_upper);
+        limit(2,
+              flag(PHY_RB_CONSTRAINT_USE_LIMIT_LIN_Z),
+              settings.limit_lin_z_lower,
+              settings.limit_lin_z_upper);
+        limit(3,
+              flag(PHY_RB_CONSTRAINT_USE_LIMIT_ANG_X),
+              settings.limit_ang_x_lower,
+              settings.limit_ang_x_upper);
+        limit(4,
+              flag(PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Y),
+              settings.limit_ang_y_lower,
+              settings.limit_ang_y_upper);
+        limit(5,
+              flag(PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Z),
+              settings.limit_ang_z_lower,
+              settings.limit_ang_z_upper);
+        if (settings.type == PHY_RigidBodyConstraintType::GenericSpring) {
+          spring(12,
+                 flag(PHY_RB_CONSTRAINT_USE_SPRING_X),
+                 settings.spring_stiffness_x,
+                 settings.spring_damping_x);
+          spring(13,
+                 flag(PHY_RB_CONSTRAINT_USE_SPRING_Y),
+                 settings.spring_stiffness_y,
+                 settings.spring_damping_y);
+          spring(14,
+                 flag(PHY_RB_CONSTRAINT_USE_SPRING_Z),
+                 settings.spring_stiffness_z,
+                 settings.spring_damping_z);
+          spring(15,
+                 flag(PHY_RB_CONSTRAINT_USE_SPRING_ANG_X),
+                 settings.spring_stiffness_ang_x,
+                 settings.spring_damping_ang_x);
+          spring(16,
+                 flag(PHY_RB_CONSTRAINT_USE_SPRING_ANG_Y),
+                 settings.spring_stiffness_ang_y,
+                 settings.spring_damping_ang_y);
+          spring(17,
+                 flag(PHY_RB_CONSTRAINT_USE_SPRING_ANG_Z),
+                 settings.spring_stiffness_ang_z,
+                 settings.spring_damping_ang_z);
+        }
+      }
+      break;
+    case PHY_SLIDER_CONSTRAINT:
+      /* (Jolt's slider takes a range that spans 0 only: another one keeps the old range.) */
+      limit(0,
+            flag(PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X),
+            settings.limit_lin_x_lower,
+            settings.limit_lin_x_upper);
+      break;
+    case PHY_LINEHINGE_CONSTRAINT:
+      limit(3,
+            flag(PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Z),
+            settings.limit_ang_z_lower,
+            settings.limit_ang_z_upper);
+      break;
+    default:
+      break;
+  }
+  constraint->SetBreakingThreshold(flag(PHY_RB_CONSTRAINT_USE_BREAKING) &&
+                                           settings.type != PHY_RigidBodyConstraintType::Motor ?
+                                       settings.breaking_threshold :
+                                       FLT_MAX);
+  constraint->SetEnabled(flag(PHY_RB_CONSTRAINT_ENABLED));
+  return true;
+}
+
 void JoltPhysicsEnvironment::ExportFile(const std::string &filename)
 {
   /* Optional: serialize Jolt world state. */
@@ -7398,16 +7940,7 @@ bool JoltPhysicsEnvironment::RemoveController(JoltPhysicsController *ctrl)
     }
   }
 
-  for (auto it = m_characterByObject.begin(); it != m_characterByObject.end();) {
-    JoltCharacter *character = it->second;
-    if (character && character->UsesController(ctrl)) {
-      delete character;
-      it = m_characterByObject.erase(it);
-    }
-    else {
-      ++it;
-    }
-  }
+  DeleteCharacterOf(ctrl);
 
   const JPH::BodyID bodyID = ctrl->GetBodyID();
   if (bodyID.IsInvalid()) {
@@ -7906,6 +8439,10 @@ void JoltPhysicsEnvironment::CallbackTriggers()
         processRemoval(m_removedContactPairsScratch[event.index]);
       }
     }
+
+    /* What the characters touch (their bodies meet static and kinematic bodies in no Jolt
+     * contact). */
+    AddCharacterLogicContacts();
 
     for (auto it = m_logicActiveContactPairs.begin(); it != m_logicActiveContactPairs.end();) {
       const JoltContactPair &pair = it->second;

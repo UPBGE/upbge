@@ -350,15 +350,9 @@ LN_RuntimeTree::StateDump LN_RuntimeTree::DumpStateForTests(const uint64_t curre
                       " ui_serial=" + std::to_string(s.mouse_look_ui_serial) + " centered=" +
                       (s.mouse_look_centered ? "1" : "0") + " settle=" +
                       LN_DumpFloatBits(s.mouse_look_settle) + "/" +
-                      std::to_string(s.mouse_look_settle_runs) + "} path{len=" +
-                      std::to_string(s.path_len) + " waypoint=" + std::to_string(s.waypoint_index) +
-                      " list_point=" + std::to_string(s.list_point_index) + " next=" +
-                      LN_DumpVector3(s.next_path_point) +
-                      " update_time=" + LN_DumpDoubleBits(s.path_update_time) + " points=";
-    const int count = std::clamp(s.path_len, 0, kMaxPathLength);
-    for (int index = 0; index < count * 3; index++) {
-      out += (index != 0 ? " " : "") + LN_DumpFloatBits(s.path[index]);
-    }
+                      std::to_string(s.mouse_look_settle_runs) + "} path{list_point=" +
+                      std::to_string(s.list_point_index) + " next=" +
+                      LN_DumpVector3(s.next_path_point);
     return out + "} reached_scope=" + std::to_string(s.last_reached_scope_serial);
   };
   const auto change_meaning = [&](const ValueChangeState &s) {
@@ -414,6 +408,30 @@ LN_RuntimeTree::StateDump LN_RuntimeTree::DumpStateForTests(const uint64_t curre
     book << "float[" << index << "] store_tick=" << tick_text(m_floatStates[index].last_store_tick)
          << "\n";
   }
+  for (uint32_t index = 0; index < m_smoothValueStates.size(); index++) {
+    const LN_SmoothValueState &s = m_smoothValueStates[index];
+    meaning << "smooth[" << index << "] init=" << (s.initialized ? 1 : 0) << " value=";
+    for (int k = 0; k < 3; k++) {
+      meaning << (k != 0 ? "," : "") << LN_DumpFloatBits(s.value[k]);
+    }
+    meaning << " velocity=";
+    for (int k = 0; k < 3; k++) {
+      meaning << (k != 0 ? "," : "") << LN_DumpFloatBits(s.velocity[k]);
+    }
+    meaning << "\n";
+    book << "smooth[" << index << "] update_tick=" << tick_text(s.last_update_tick) << "\n";
+  }
+  for (uint32_t index = 0; index < m_actionFrameStates.size(); index++) {
+    const LN_ActionFrameState &s = m_actionFrameStates[index];
+    meaning << "action_frame[" << index << "] has=" << (s.has_previous ? 1 : 0)
+            << " result=" << (s.result ? 1 : 0) << " action=" << s.previous.action
+            << " frame=" << LN_DumpFloatBits(s.previous.frame)
+            << " start=" << LN_DumpFloatBits(s.previous.start)
+            << " end=" << LN_DumpFloatBits(s.previous.end) << " mode=" << s.previous.play_mode
+            << "\n";
+    book << "action_frame[" << index << "] update_tick=" << tick_text(s.last_update_tick)
+         << "\n";
+  }
   for (uint32_t index = 0; index < m_timeFlowStates.size(); index++) {
     const TimeFlowRuntimeState &s = m_timeFlowStates[index];
     meaning << "time[" << index << "] kind=" << int(s.kind) << " active=" << s.active
@@ -423,7 +441,11 @@ LN_RuntimeTree::StateDump LN_RuntimeTree::DumpStateForTests(const uint64_t curre
             << " stride=" << s.last_update_phase_stride << " ignore_timescale=" << s.ignore_timescale
             << " ui_route=" << s.ui_event_route << " event=" << int(s.event)
             << " has_props=" << s.has_active_tree_properties
-            << " active_props=" << values(s.active_tree_properties) << " pending=[";
+            << " active_props=" << values(s.active_tree_properties);
+    if (s.paused) {
+      meaning << " paused=1"; /* (only then: the older dumps stay as they were) */
+    }
+    meaning << " pending=[";
     for (const TimeFlowRuntimeState::PendingPulse &pulse : s.pending_pulses) {
       meaning << "{remaining=" << LN_DumpDoubleBits(pulse.remaining_time)
               << " props=" << values(pulse.tree_properties) << "}";
@@ -457,7 +479,7 @@ LN_RuntimeTree::StateDump LN_RuntimeTree::DumpStateForTests(const uint64_t curre
             << " reached_now=" << ran_text(m_motionStates[index].last_reached_tick, current_tick)
             << "\n";
     book << "motion[" << index << "] reached_tick=" << tick_text(m_motionStates[index].last_reached_tick)
-         << " path_update_time=" << LN_DumpDoubleBits(m_motionStates[index].path_update_time) << "\n";
+         << "\n";
   }
   for (uint32_t index = 0; index < m_valueChangeStates.size(); index++) {
     meaning << "change[" << index << "] " << change_meaning(m_valueChangeStates[index]) << "\n";

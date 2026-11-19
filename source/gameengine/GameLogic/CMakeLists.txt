@@ -44,8 +44,6 @@ set(INC
 
 set(INC_SYS
   ../../../intern/moto/include
-        ../../../extern/recastnavigation/Recast/Include
-        ../../../extern/recastnavigation/Detour/Include
 )
 
 set(SRC

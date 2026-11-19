@@ -421,7 +421,10 @@ TEST(LN_Impulse, AnExplosionAtAnObjectBlastsAroundItAndLeavesItAlone)
     ASSERT_NE(explosion, nullptr) << LN_DumpProgramText(*program);
     EXPECT_EQ(explosion->secondary_int_value, LN_EXPLOSION_CENTER_OBJECT);
     EXPECT_EQ(explosion->int_value, LN_EXPLOSION_FALLOFF_LINEAR | LN_EXPLOSION_IMPLODE);
-    EXPECT_EQ(explosion->vector_expr_index, LN_INVALID_INDEX) << "the Origin is not read";
+    /* (2026-11-17) The Offset rides in vector_expr_index in Object mode: (0, 0, 0) here, never
+     * the Origin's (7, 7, 7). */
+    EXPECT_FLOAT_EQ(explosion->vector_value.x(), 0.0f) << "the Origin is not read";
+    EXPECT_FLOAT_EQ(explosion->vector_value.z(), 0.0f) << "the Origin is not read";
     EXPECT_EQ(explosion->tertiary_value_expr_index != LN_INVALID_INDEX, named);
 
     /* Objects: a Local cast around the object at (0, 0, 0) - the object is its caster, left
@@ -456,5 +459,76 @@ TEST(LN_Impulse, AnExplosionAtAnObjectBlastsAroundItAndLeavesItAlone)
     rig.SetInt(rig.Object(0), "pi0", -1);
     rig.Tick(LN_Event::OnFixedUpdate);
     EXPECT_FLOAT_EQ(rig.Float(rig.Object(0), "pi0"), 0.0f);
+  }
+}
+
+/* The Offset of Object mode (2026-11-17) reaches the instruction and the Objects output's Local
+ * cast as the same vector (the object's transform x it, ShapeCastPlace); a linked Offset too;
+ * Position mode reads its Origin, never the Offset. */
+TEST(LN_Impulse, AnExplosionsOffsetReachesItsBlastAndItsObjectsOutput)
+{
+  for (const bool linked : {false, true}) {
+    for (const int16_t center : {int16_t(1) /* Object */, int16_t(0) /* Position */}) {
+      SCOPED_TRACE(std::string(linked ? "linked, " : "") + (center == 1 ? "Object" : "Position"));
+      TreeBuilder b;
+      b.SetRealSockets(true);
+      GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+      GenNode &blast = b.Add("LogicNativeExplosionImpulse", 0, center);
+      b.Vector(blast, "Origin", 7.0f, 7.0f, 7.0f);
+      if (linked) {
+        /* (A value read while playing: constants would be folded into one.) */
+        GenNode &value = b.Add("LogicNativeCombineXYZ");
+        GenNode &forward = b.Add("LogicNativeGetGamePropertyFloat");
+        b.String(forward, "Property", "pf0");
+        b.Link(forward, "Value", value, "Y");
+        b.Float(value, "Z", 0.25f);
+        b.Link(value, "Vector", blast, "Offset");
+      }
+      else {
+        b.Vector(blast, "Offset", 0.0f, 1.5f, 0.25f);
+      }
+      b.Link(step, "Out", blast, "Flow");
+      GenNode &count = b.Add("LogicNativeListLength");
+      b.Link(blast, "Objects", count, "List");
+      GenNode &store = b.Add("LogicNativeSetGamePropertyInt");
+      b.String(store, "Property", "pi0");
+      b.Link(count, "Length", store, "Value");
+      b.Link(blast, "Done", store, "Flow");
+      std::string report;
+      const std::shared_ptr<LN_Program> program = b.Compile(&report);
+      ASSERT_NE(program, nullptr) << report;
+      const LN_Instruction *explosion = nullptr;
+      for (const LN_Instruction &instruction :
+           program->GetInstructions(LN_Event::OnFixedUpdate)) {
+        if (instruction.opcode == LN_OpCode::ExplosionImpulse) {
+          explosion = &instruction;
+        }
+      }
+      ASSERT_NE(explosion, nullptr);
+      ASSERT_NE(explosion->vector_expr_index, LN_INVALID_INDEX);
+      const MT_Vector3 expected = center == 1 ? MT_Vector3(0.0f, 1.5f, 0.25f) :
+                                                MT_Vector3(7.0f, 7.0f, 7.0f);
+      const LN_VectorExpression &read = program->GetVectorExpressions()[explosion->vector_expr_index];
+      if (!linked || center == 0) {
+        EXPECT_EQ(read.kind, LN_VectorExpressionKind::Constant);
+        EXPECT_FLOAT_EQ(read.vector_value.y(), expected.y());
+        EXPECT_FLOAT_EQ(read.vector_value.z(), expected.z());
+      }
+      else {
+        EXPECT_NE(read.kind, LN_VectorExpressionKind::Constant) << "the linked Offset";
+      }
+      size_t queries = 0;
+      for (const LN_QueryExpression &query : program->GetQueryExpressions()) {
+        if (query.kind != LN_QueryExpressionKind::ShapeCastAll) {
+          continue;
+        }
+        queries++;
+        EXPECT_EQ(query.input1, query.input2);
+        EXPECT_EQ(query.input1, explosion->vector_expr_index)
+            << "the cast's center is the blast's";
+        EXPECT_EQ(query.bool_value, center == 1) << "Local around the object in Object mode";
+      }
+      EXPECT_EQ(queries, 1u);
+    }
   }
 }

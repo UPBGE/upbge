@@ -3146,6 +3146,16 @@ static void declare_draw(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Length"_ustr).default_value(1.0f).min(0.0f);
   b.add_input<decl::Float>("Height"_ustr).default_value(1.0f).min(0.0f);
   b.add_input<decl::Object>("Object"_ustr);
+  /* (2026-11-17) Sphere's size, and how long any shape stays. */
+  b.add_input<decl::Float>("Radius"_ustr)
+      .default_value(1.0f)
+      .min(0.0f)
+      .description("The sphere's radius (three circles around the Origin)");
+  b.add_input<decl::Float>("Duration"_ustr)
+      .default_value(0.0f)
+      .min(0.0f)
+      .description("How long the drawing stays, in seconds of game time; 0: this step (or "
+                   "frame) only");
   b.add_output<decl::Execution>("Done"_ustr);
 }
 
@@ -3456,14 +3466,15 @@ static void update_draw(bNodeTree *ntree, bNode *node)
     return;
   }
   const int mode = node->custom1;
-  const bool known_mode = mode >= 0 && mode <= 6;
+  const bool known_mode = mode >= 0 && mode <= 7;
   const auto set_available = [&](const UString identifier, const bool available) {
     if (bNodeSocket *socket = node->input_by_identifier(identifier)) {
       bke::node_set_socket_availability(*ntree, *socket, !known_mode || available);
     }
   };
   set_available("Color"_ustr, mode != 6);
-  set_available("Origin"_ustr, ELEM(mode, 0, 1, 3, 4));
+  set_available("Origin"_ustr, ELEM(mode, 0, 1, 3, 4, 7));
+  set_available("Radius"_ustr, mode == 7);
   set_available("Target"_ustr, ELEM(mode, 0, 1));
   set_available("Points"_ustr, mode == 2);
   set_available("Width"_ustr, ELEM(mode, 3, 4));

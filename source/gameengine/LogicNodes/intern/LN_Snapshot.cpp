@@ -814,6 +814,25 @@ void LN_InputConsumption::Clear()
   m_wheel = false;
 }
 
+void LN_InputSnapshot::SetKeyForTests(const int32_t input_code,
+                                      const bool active,
+                                      const bool pressed,
+                                      const bool released)
+{
+  if (input_code < 0) {
+    return;
+  }
+  m_hasDevice = true;
+  if (input_code >= int32_t(m_entries.size())) {
+    m_entries.resize(size_t(input_code) + 1);
+  }
+  uint8_t mask = 0;
+  mask |= active ? uint8_t(1u << SCA_InputEvent::ACTIVE) : 0;
+  mask |= pressed ? uint8_t(1u << SCA_InputEvent::JUSTACTIVATED) : 0;
+  mask |= released ? uint8_t(1u << SCA_InputEvent::JUSTRELEASED) : 0;
+  m_entries[input_code].status_mask = mask;
+}
+
 bool LN_InputSnapshot::GetStatus(const int32_t input_code, const int32_t status) const
 {
   if (!m_hasDevice || input_code < 0 || status < int32_t(SCA_InputEvent::NONE) ||
@@ -919,8 +938,9 @@ static LN_SnapshotChannelMask capture_object_state(KX_GameObject &gameobj,
 
   if (HasSnapshotChannel(mask, LN_SNAPSHOT_CHANNEL_CHARACTER)) {
     r_object.character_gravity = gravity;
-    if (KX_Scene *scene = gameobj.GetScene()) {
-      if (PHY_IPhysicsEnvironment *environment = scene->GetPhysicsEnvironment()) {
+    /* (The scene's physics; the unit rigs' world: LN_SetPhysicsEnvironmentForTests.) */
+    {
+      if (PHY_IPhysicsEnvironment *environment = LN_QueryPhysicsEnvironment(&gameobj)) {
         if (PHY_ICharacter *character = environment->GetCharacterController(&gameobj)) {
           const MT_Vector3 walk_direction = character->GetWalkDirection();
           r_object.has_character = true;
@@ -931,6 +951,13 @@ static LN_SnapshotChannelMask capture_object_state(KX_GameObject &gameobj,
           r_object.character_walk_direction_world = walk_direction;
           r_object.character_walk_direction_local =
               gameobj.NodeGetWorldOrientation().transposed() * walk_direction;
+          r_object.character_on_wall = character->OnWall();
+          r_object.character_on_ceiling = character->OnCeiling();
+          r_object.character_crouched = character->IsCrouched();
+          r_object.character_wall_normal = character->GetWallNormal();
+          r_object.character_ground_normal = character->GetGroundNormal();
+          r_object.character_ground_velocity = character->GetGroundVelocity();
+          r_object.character_ground_object = character->GetGroundObject();
         }
       }
     }

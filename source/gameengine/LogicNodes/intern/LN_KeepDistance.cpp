@@ -416,8 +416,9 @@ void LN_ProcessKeepDistanceRequests(std::vector<LN_KeepDistanceRequest> &request
       else if (request.tree->ResolveObjectRef(state.nearest_object) != nearest) {
         state.nearest_object = request.tree->MakeObjectRef(nearest, nearest->GetName());
       }
-      /* The body's mass, read once a check. */
-      state.dynamic = entry.controller != nullptr && entry.controller->IsDynamic();
+      /* The body's mass, read once a check (a Character's too: forces move it, 2026-11-17). */
+      state.dynamic = entry.controller != nullptr &&
+                      (entry.controller->IsDynamic() || entry.controller->IsCharacter());
       state.mass = state.dynamic ? float(entry.controller->GetMass()) : 1.0f;
     }
 

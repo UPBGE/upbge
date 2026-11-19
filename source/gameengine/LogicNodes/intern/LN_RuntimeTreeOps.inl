@@ -530,7 +530,10 @@ void LN_RuntimeTree::OpTimeFlowControlInstruction(Frame &ef,
       break;
     }
     case LN_OpCode::ArmTimer: {
-      if (instruction.int_value >= 0) {
+      if (instruction.int_value >= 0 && instruction.secondary_int_value != LN_TIME_FLOW_ARM) {
+        TimeFlowControl(uint32_t(instruction.int_value), instruction.secondary_int_value);
+      }
+      else if (instruction.int_value >= 0) {
         TimeFlowArmTimer(
             uint32_t(instruction.int_value),
             ui_event_route,
@@ -542,7 +545,10 @@ void LN_RuntimeTree::OpTimeFlowControlInstruction(Frame &ef,
       break;
     }
     case LN_OpCode::ArmDelay: {
-      if (instruction.int_value >= 0) {
+      if (instruction.int_value >= 0 && instruction.secondary_int_value != LN_TIME_FLOW_ARM) {
+        TimeFlowControl(uint32_t(instruction.int_value), instruction.secondary_int_value);
+      }
+      else if (instruction.int_value >= 0) {
         TimeFlowArmDelay(
             uint32_t(instruction.int_value),
             ui_event_route,
@@ -909,6 +915,13 @@ void LN_RuntimeTree::OpTimeFlowControlInstruction(Frame &ef,
       }
       break;
     }
+    case LN_OpCode::TweenRequest: {
+      /* Stored for the tween's next update; the tween is not updated here. */
+      if (instruction.int_value >= 0) {
+        RequestTween(uint32_t(instruction.int_value), instruction.secondary_int_value);
+      }
+      break;
+    }
     case LN_OpCode::BreakLoop: {
       if (instruction.int_value < 0 || instruction.loop_frame_index == LN_INVALID_INDEX ||
           uint32_t(instruction.int_value) != instruction.loop_frame_index ||
@@ -1114,6 +1127,178 @@ void LN_RuntimeTree::OpVariableInstruction(Frame &ef,
   MarkInstructionExecuted(event, instruction_id, context.tick_index);
 }
 
+/** Set Rigid Body Constraint (2026-11-17): the named constraint of the Object (empty: the
+ * owner) takes the setting's inputs over its kept settings (KX_GameObject's record), at once, as
+ * Add and Remove do; a name the object has no constraint of changes nothing (warned once). Read
+ * order: the Object, the Name, the setting's inputs in the node's order. */
+template<class Frame>
+void LN_RuntimeTree::SetRigidBodyConstraintOp(Frame &ef,
+                                              const LN_Instruction &instruction,
+                                              const LN_RigidBodyConstraintCommandPayload &payload)
+{
+  KX_GameObject *target = ef.ResolveRequiredObject(payload.object_value_expr_index);
+  if (target == nullptr && payload.object_value_expr_index == LN_INVALID_INDEX) {
+    target = m_gameObject;
+  }
+  std::string name = ef.String(payload.name_string_expr_index, "constraint");
+  if (name.empty()) {
+    name = "constraint";
+  }
+  const auto bool_input = [&](const LN_RigidBodyConstraintBoolInput input, const bool fallback) {
+    return ef.Bool(payload.bool_expr_indices[size_t(input)], fallback);
+  };
+  const auto vector_input = [&](const LN_RigidBodyConstraintVectorInput input,
+                                const MT_Vector3 &fallback) {
+    return ef.Vector(payload.vector_expr_indices[size_t(input)], fallback);
+  };
+  const auto float_input = [&](const LN_RigidBodyConstraintFloatInput input, const float fallback) {
+    return ef.Float(payload.float_expr_indices[size_t(input)], fallback);
+  };
+  const KX_GameObject::RigidBodyConstraintData *data =
+      target != nullptr ? target->FindRigidBodyConstraint(name) : nullptr;
+  /* (The object's scene's physics, as the queries take it: the tests' world too.) */
+  PHY_IPhysicsEnvironment *environment = target != nullptr ? LN_QueryPhysicsEnvironment(target) :
+                                                             nullptr;
+  if (data == nullptr || data->m_constraintId < 0 || environment == nullptr) {
+    if (target != nullptr) {
+      static std::atomic<bool> warned{false};
+      if (!warned.exchange(true)) {
+        CM_Warning("Set Rigid Body Constraint: '" << target->GetName()
+                                                  << "' has no rigid body constraint '" << name
+                                                  << "' (warned once)");
+      }
+    }
+    return;
+  }
+  PHY_RigidBodyConstraintSettings settings = data->m_settings;
+  const auto set_flag = [&](const int bit, const bool on) {
+    settings.flags = on ? (settings.flags | bit) : (settings.flags & ~bit);
+  };
+  const auto set_flag_input = [&](const int bit, const LN_RigidBodyConstraintBoolInput input) {
+    set_flag(bit, bool_input(input, (settings.flags & bit) != 0));
+  };
+  switch (LN_RigidBodyConstraintSetting(instruction.secondary_int_value -
+                                        LN_RIGID_BODY_CONSTRAINT_SET))
+  {
+    case LN_RigidBodyConstraintSetting::Enabled:
+      set_flag_input(PHY_RB_CONSTRAINT_ENABLED, LN_RigidBodyConstraintBoolInput::Enabled);
+      break;
+    case LN_RigidBodyConstraintSetting::Limits: {
+      set_flag_input(PHY_RB_CONSTRAINT_USE_LIMIT_LIN_X,
+                     LN_RigidBodyConstraintBoolInput::UseLimitLinX);
+      set_flag_input(PHY_RB_CONSTRAINT_USE_LIMIT_LIN_Y,
+                     LN_RigidBodyConstraintBoolInput::UseLimitLinY);
+      set_flag_input(PHY_RB_CONSTRAINT_USE_LIMIT_LIN_Z,
+                     LN_RigidBodyConstraintBoolInput::UseLimitLinZ);
+      const MT_Vector3 linear_lower = vector_input(
+          LN_RigidBodyConstraintVectorInput::LinearLower,
+          MT_Vector3(settings.limit_lin_x_lower,
+                     settings.limit_lin_y_lower,
+                     settings.limit_lin_z_lower));
+      const MT_Vector3 linear_upper = vector_input(
+          LN_RigidBodyConstraintVectorInput::LinearUpper,
+          MT_Vector3(settings.limit_lin_x_upper,
+                     settings.limit_lin_y_upper,
+                     settings.limit_lin_z_upper));
+      set_flag_input(PHY_RB_CONSTRAINT_USE_LIMIT_ANG_X,
+                     LN_RigidBodyConstraintBoolInput::UseLimitAngX);
+      set_flag_input(PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Y,
+                     LN_RigidBodyConstraintBoolInput::UseLimitAngY);
+      set_flag_input(PHY_RB_CONSTRAINT_USE_LIMIT_ANG_Z,
+                     LN_RigidBodyConstraintBoolInput::UseLimitAngZ);
+      const MT_Vector3 angular_lower = vector_input(
+          LN_RigidBodyConstraintVectorInput::AngularLower,
+          MT_Vector3(settings.limit_ang_x_lower,
+                     settings.limit_ang_y_lower,
+                     settings.limit_ang_z_lower));
+      const MT_Vector3 angular_upper = vector_input(
+          LN_RigidBodyConstraintVectorInput::AngularUpper,
+          MT_Vector3(settings.limit_ang_x_upper,
+                     settings.limit_ang_y_upper,
+                     settings.limit_ang_z_upper));
+      settings.limit_lin_x_lower = linear_lower.x();
+      settings.limit_lin_y_lower = linear_lower.y();
+      settings.limit_lin_z_lower = linear_lower.z();
+      settings.limit_lin_x_upper = linear_upper.x();
+      settings.limit_lin_y_upper = linear_upper.y();
+      settings.limit_lin_z_upper = linear_upper.z();
+      settings.limit_ang_x_lower = angular_lower.x();
+      settings.limit_ang_y_lower = angular_lower.y();
+      settings.limit_ang_z_lower = angular_lower.z();
+      settings.limit_ang_x_upper = angular_upper.x();
+      settings.limit_ang_y_upper = angular_upper.y();
+      settings.limit_ang_z_upper = angular_upper.z();
+      break;
+    }
+    case LN_RigidBodyConstraintSetting::Motor:
+      set_flag_input(PHY_RB_CONSTRAINT_USE_MOTOR_LIN,
+                     LN_RigidBodyConstraintBoolInput::UseMotorLin);
+      settings.motor_lin_target_velocity = float_input(
+          LN_RigidBodyConstraintFloatInput::MotorLinTargetVelocity,
+          settings.motor_lin_target_velocity);
+      settings.motor_lin_max_impulse = float_input(
+          LN_RigidBodyConstraintFloatInput::MotorLinMaxImpulse, settings.motor_lin_max_impulse);
+      set_flag_input(PHY_RB_CONSTRAINT_USE_MOTOR_ANG,
+                     LN_RigidBodyConstraintBoolInput::UseMotorAng);
+      settings.motor_ang_target_velocity = float_input(
+          LN_RigidBodyConstraintFloatInput::MotorAngTargetVelocity,
+          settings.motor_ang_target_velocity);
+      settings.motor_ang_max_impulse = float_input(
+          LN_RigidBodyConstraintFloatInput::MotorAngMaxImpulse, settings.motor_ang_max_impulse);
+      break;
+    case LN_RigidBodyConstraintSetting::Springs: {
+      set_flag_input(PHY_RB_CONSTRAINT_USE_SPRING_X, LN_RigidBodyConstraintBoolInput::UseSpringX);
+      set_flag_input(PHY_RB_CONSTRAINT_USE_SPRING_Y, LN_RigidBodyConstraintBoolInput::UseSpringY);
+      set_flag_input(PHY_RB_CONSTRAINT_USE_SPRING_Z, LN_RigidBodyConstraintBoolInput::UseSpringZ);
+      const MT_Vector3 stiffness = vector_input(
+          LN_RigidBodyConstraintVectorInput::SpringStiffness,
+          MT_Vector3(settings.spring_stiffness_x,
+                     settings.spring_stiffness_y,
+                     settings.spring_stiffness_z));
+      const MT_Vector3 damping = vector_input(
+          LN_RigidBodyConstraintVectorInput::SpringDamping,
+          MT_Vector3(settings.spring_damping_x, settings.spring_damping_y, settings.spring_damping_z));
+      set_flag_input(PHY_RB_CONSTRAINT_USE_SPRING_ANG_X,
+                     LN_RigidBodyConstraintBoolInput::UseSpringAngX);
+      set_flag_input(PHY_RB_CONSTRAINT_USE_SPRING_ANG_Y,
+                     LN_RigidBodyConstraintBoolInput::UseSpringAngY);
+      set_flag_input(PHY_RB_CONSTRAINT_USE_SPRING_ANG_Z,
+                     LN_RigidBodyConstraintBoolInput::UseSpringAngZ);
+      const MT_Vector3 angular_stiffness = vector_input(
+          LN_RigidBodyConstraintVectorInput::AngularSpringStiffness,
+          MT_Vector3(settings.spring_stiffness_ang_x,
+                     settings.spring_stiffness_ang_y,
+                     settings.spring_stiffness_ang_z));
+      const MT_Vector3 angular_damping = vector_input(
+          LN_RigidBodyConstraintVectorInput::AngularSpringDamping,
+          MT_Vector3(settings.spring_damping_ang_x,
+                     settings.spring_damping_ang_y,
+                     settings.spring_damping_ang_z));
+      settings.spring_stiffness_x = stiffness.x();
+      settings.spring_stiffness_y = stiffness.y();
+      settings.spring_stiffness_z = stiffness.z();
+      settings.spring_damping_x = damping.x();
+      settings.spring_damping_y = damping.y();
+      settings.spring_damping_z = damping.z();
+      settings.spring_stiffness_ang_x = angular_stiffness.x();
+      settings.spring_stiffness_ang_y = angular_stiffness.y();
+      settings.spring_stiffness_ang_z = angular_stiffness.z();
+      settings.spring_damping_ang_x = angular_damping.x();
+      settings.spring_damping_ang_y = angular_damping.y();
+      settings.spring_damping_ang_z = angular_damping.z();
+      break;
+    }
+    case LN_RigidBodyConstraintSetting::Breaking:
+      set_flag_input(PHY_RB_CONSTRAINT_USE_BREAKING, LN_RigidBodyConstraintBoolInput::Breakable);
+      settings.breaking_threshold = float_input(
+          LN_RigidBodyConstraintFloatInput::BreakingThreshold, settings.breaking_threshold);
+      break;
+  }
+  if (environment->SetRigidBodyConstraintSettings(data->m_constraintId, settings)) {
+    target->SetRigidBodyConstraintSettings(name, settings);
+  }
+}
+
 template<class Frame>
 void LN_RuntimeTree::OpPhysicsConstraintInstruction(Frame &ef,
                                    const LN_Instruction &instruction,
@@ -1126,6 +1311,10 @@ void LN_RuntimeTree::OpPhysicsConstraintInstruction(Frame &ef,
     case LN_OpCode::AddPhysicsConstraint: {
       const LN_RigidBodyConstraintCommandPayload payload = ef.RigidBodyConstraintCommandPayload(
           instruction);
+      if (instruction.secondary_int_value >= LN_RIGID_BODY_CONSTRAINT_SET) {
+        SetRigidBodyConstraintOp(ef, instruction, payload);
+        break;
+      }
       KX_GameObject *target = ef.ResolveRequiredObject(payload.object_value_expr_index);
       KX_GameObject *child = ef.ResolveRequiredObject(payload.target_value_expr_index);
       if (target == nullptr && m_gameObject != nullptr &&
@@ -1391,6 +1580,13 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
 
   switch (instruction.opcode) {
     case LN_OpCode::Navigate: {
+      /* Navigate (rebuilt 2026-11-18 on the scene's navigation, KX_Navigation): the run only asks
+       * (a request handed over at the flush's end; the navigation step after the flush moves
+       * every NPC at once: paths, avoidance, the hand-over by physics type) and reads the last
+       * step's outcome (When Reached, Next Point). Read order: Destination, Lin Speed, Reach
+       * Threshold, Move as Dynamic, Look At, Visualize, Rot Axis, Front, Rot Speed, the Navmesh
+       * Object, the Rotating Object, then the newer inputs (Target Object, Avoid Others,
+       * Priority, Radius, Offset / Weights). */
       if (KX_GameObject *target = ef.ResolveCommandTarget(instruction)) {
         const MT_Vector3 destination = ef.Vector(
             instruction.vector_expr_index, MT_Vector3(0.0f, 0.0f, 0.0f));
@@ -1422,48 +1618,120 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
             rotating_object = input_object;
           }
         }
+        KX_NavRequest request;
+        request.mode = KX_NavRequest::Mode(std::clamp(instruction.int_value, 0, 6));
+        /* Until Arrived (secondary_int_value): one pulse is enough, the order holds. */
+        request.until_arrived = instruction.secondary_int_value != 0;
+        if (instruction.quaternary_value_expr_index != LN_INVALID_INDEX) {
+          request.target = ResolveObjectValue(
+              ef.Value(instruction.quaternary_value_expr_index, MakeNoneValue()));
+        }
+        request.avoid = ef.Bool(instruction.quaternary_bool_expr_index, true);
+        request.priority = std::clamp(ef.Int(instruction.tertiary_int_expr_index, 50), 0, 100);
+        request.radius = std::max(ef.Float(instruction.quaternary_float_expr_index, 10.0f), 0.0f);
+        const MT_Vector3 extra = ef.Vector(instruction.secondary_vector_expr_index,
+                                           MT_Vector3(1.0f, 1.0f, 1.0f));
+        if (request.mode == KX_NavRequest::Mode::Formation) {
+          request.offset = extra;
+        }
+        else if (request.mode == KX_NavRequest::Mode::Flock) {
+          request.separation = float(extra[0]);
+          request.alignment = float(extra[1]);
+          request.cohesion = float(extra[2]);
+          /* With a Target Object the flock heads for it; the flock is everyone flocking after the
+           * same target (or after none). */
+          request.goal = request.target != nullptr;
+          request.group = 0;
+        }
+        request.object = target;
+        request.navmesh = navmesh;
+        request.destination = destination;
+        request.speed = std::max(speed, 0.0f);
+        request.arrive_distance = std::max(threshold, 0.0f);
+        request.move_dynamic = move_dynamic;
+        request.seed = LN_RandomMix(GetRandomStream() * 0x9E3779B97F4A7C15ull ^
+                                    uint64_t(instruction.source_ref_index + 1));
+        request.visualize = visualize;
+        request.sort_key = ef.SortKey();
+        /* Behind Every N Steps it is asked every N steps: it keeps walking in between. */
+        request.hold_steps = std::max<uint32_t>(context.phase_tick_stride, 1u);
+        /* Look At: the navigation step turns it toward the way it walks, after moving it (no
+         * move is recorded here: the run stays a recorder, wide runs as the column pass). */
+        request.look_at = look_at && rotating_object != nullptr;
+        request.rotating_object = rotating_object;
+        request.rot_axis = rot_axis;
+        request.front_axis = front_axis;
+        request.rot_speed = rot_speed;
+
+        /* The last step's outcome (the navigation writes it after the flush, never while trees
+         * record: any thread reads it). The run reads no object's pose: the navigation step reads
+         * them (a pending move of this step is applied by then). */
+        KX_Navigation *navigation = LN_QueryNavigation(target);
+        KX_NavAgentInfo info;
+        const bool known = navigation != nullptr && navigation->GetAgentInfo(target, info) &&
+                           info.active;
+
+        /* (When Reached is the arrival itself, a route of its own: LN_NAV_STATE_REACHED.) */
         const uint32_t state_index = InstructionStateIndex(event, instruction_id);
         if (state_index < m_instructionStamps.size()) {
           InstructionMotionState &state = MotionState(state_index);
-          MT_Vector3 move_target;
-          bool reached = false;
-          if (ResolvePathMoveTarget(
-                  state, target, navmesh, destination, threshold, move_target, reached))
-          {
-            if (visualize) {
-              DrawNavigationPath(target, state, destination);
-            }
-            command_buffer.AppendMoveToward(target,
-                                            move_target,
-                                            speed,
-                                            threshold,
-                                            move_dynamic,
-                                            true,
-                                            float(context.delta_time),
-                                            ef.SortKey(),
-                                            instruction.source_ref_index);
-            if (look_at && rotating_object != nullptr) {
-              command_buffer.AppendRotateToward(
-                  rotating_object,
-                  move_target,
-                  std::max(0.0f, rot_speed) * float(std::max(0.0, context.delta_time)),
-                  rot_axis,
-                  front_axis,
-                  true,
-                  ef.SortKey(),
-                  instruction.source_ref_index);
-            }
-          }
-          if (reached) {
-            state.last_reached_tick = context.tick_index;
-            state.last_reached_scope_serial = m_activeExecutionScopeSerial;
-          }
+          state.next_path_point = known ? info.next_corner : destination;
+          command_buffer.AppendNavigationRequest(request);
         }
       }
       MarkInstructionExecuted(event, instruction_id, context.tick_index);
       break;
     }
+    case LN_OpCode::NavigationAttribute: {
+      /* Set Navigation Attribute (2026-11-18): a request too (in the trees' order with the
+       * NPCs' own), applied at the navigation step's start. Read order: the Object, Enabled,
+       * Area, Cost, Center, Size. */
+      KX_GameObject *target = ef.ResolveCommandTarget(instruction);
+      const bool enabled = ef.Bool(instruction.bool_expr_index, true);
+      const std::string area = ef.String(instruction.string_expr_index, std::string());
+      const float cost = ef.Float(instruction.float_expr_index, 1.0f);
+      const MT_Vector3 center = ef.Vector(instruction.vector_expr_index,
+                                          MT_Vector3(0.0f, 0.0f, 0.0f));
+      const MT_Vector3 size = ef.Vector(instruction.secondary_vector_expr_index,
+                                        MT_Vector3(10.0f, 10.0f, 10.0f));
+      KX_NavRequest request;
+      request.object = target;
+      request.sort_key = ef.SortKey();
+      switch (LN_NavigationAttribute(instruction.int_value)) {
+        case LN_NavigationAttribute::Obstacle:
+          request.command = KX_NavRequest::Command::SetObstacle;
+          request.enabled = enabled;
+          break;
+        case LN_NavigationAttribute::AreaCost:
+          request.command = KX_NavRequest::Command::SetAreaCost;
+          request.area = area;
+          request.cost = cost;
+          break;
+        case LN_NavigationAttribute::AreaClosed:
+          request.command = KX_NavRequest::Command::SetAreaClosed;
+          request.area = area;
+          request.enabled = enabled;
+          break;
+        case LN_NavigationAttribute::RebuildArea:
+          request.command = KX_NavRequest::Command::RebuildArea;
+          request.destination = center;
+          request.offset = size * 0.5f;
+          break;
+        case LN_NavigationAttribute::Stop:
+          request.command = KX_NavRequest::Command::Stop;
+          break;
+      }
+      if (target != nullptr) {
+        command_buffer.AppendNavigationRequest(request);
+      }
+      MarkInstructionExecuted(event, instruction_id, context.tick_index);
+      break;
+    }
     case LN_OpCode::FollowPath: {
+      /* Follow Path (on the scene's navigation, 2026-11-18): the first point not reached yet is
+       * asked for (Navigate's way); with Loop the first again after the last. It walks the
+       * Optional Navmesh only (no navmesh: straight, as moving platforms do) and avoids others
+       * only on a navmesh (NPCs; a platform must not swerve). */
       if (KX_GameObject *target = ef.ResolveCommandTarget(instruction)) {
         const LN_Value path_value = ef.Value(
             instruction.secondary_value_expr_index, MakeNoneValue());
@@ -1503,80 +1771,56 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
           return;
         }
         InstructionMotionState &state = MotionState(state_index);
-        if (state.list_point_index < 0 || state.list_point_index >= int(path_points.size())) {
+        /* Past the end (a shorter list): from the start. At the end it stays there without Loop
+         * (2026-11-18: it walked the path again, as with Loop), with Loop it starts again. */
+        if (state.list_point_index < 0 || state.list_point_index > int(path_points.size()) ||
+            (state.list_point_index == int(path_points.size()) && loop))
+        {
           state.list_point_index = 0;
         }
-
-        MT_Vector3 move_target;
-        while (state.list_point_index < int(path_points.size())) {
-          const MT_Vector3 &point = path_points[size_t(state.list_point_index)];
-          bool reached = false;
-          if (ResolvePathMoveTarget(
-                  state, target, navmesh, point, threshold, move_target, reached))
-          {
-            command_buffer.AppendMoveToward(target,
-                                            move_target,
-                                            speed,
-                                            threshold,
-                                            move_dynamic,
-                                            true,
-                                            float(context.delta_time),
-                                            ef.SortKey(),
-                                            instruction.source_ref_index);
-            if (look_at && rotating_object != nullptr) {
-              command_buffer.AppendRotateToward(
-                  rotating_object,
-                  move_target,
-                  std::max(0.0f, rot_speed) * float(std::max(0.0, context.delta_time)),
-                  rot_axis,
-                  front_axis,
-                  true,
-                  ef.SortKey(),
-                  instruction.source_ref_index);
-            }
-            break;
-          }
-          if (reached) {
-            state.last_reached_tick = context.tick_index;
-            state.last_reached_scope_serial = m_activeExecutionScopeSerial;
-          }
+        const float arrive = std::max(threshold, 0.0f);
+        /* The point the navigation says it reached in the last step is passed (it pulses When
+         * Reached's state); with Loop the first comes again after the last. */
+        KX_Navigation *navigation = LN_QueryNavigation(target);
+        KX_NavAgentInfo info;
+        const bool known = navigation != nullptr && navigation->GetAgentInfo(target, info) &&
+                           info.active;
+        bool any_left = state.list_point_index < int(path_points.size());
+        if (known && info.arrived && any_left &&
+            (info.goal - path_points[size_t(state.list_point_index)]).length2() < 1e-8f)
+        {
+          state.last_reached_tick = context.tick_index;
+          state.last_reached_scope_serial = m_activeExecutionScopeSerial;
           state.list_point_index++;
-          state.path_len = 0;
-          state.waypoint_index = -1;
-        }
-
-        if (state.list_point_index >= int(path_points.size()) && loop && !path_points.empty()) {
-          state.list_point_index = 0;
-          const MT_Vector3 &point = path_points[0];
-          bool reached = false;
-          if (ResolvePathMoveTarget(
-                  state, target, navmesh, point, threshold, move_target, reached))
-          {
-            command_buffer.AppendMoveToward(target,
-                                            move_target,
-                                            speed,
-                                            threshold,
-                                            move_dynamic,
-                                            true,
-                                            float(context.delta_time),
-                                            ef.SortKey(),
-                                            instruction.source_ref_index);
-            if (look_at && rotating_object != nullptr) {
-              command_buffer.AppendRotateToward(
-                  rotating_object,
-                  move_target,
-                  std::max(0.0f, rot_speed) * float(std::max(0.0, context.delta_time)),
-                  rot_axis,
-                  front_axis,
-                  true,
-                  ef.SortKey(),
-                  instruction.source_ref_index);
+          if (state.list_point_index >= int(path_points.size())) {
+            if (loop && !path_points.empty()) {
+              state.list_point_index = 0;
+            }
+            else {
+              any_left = false;
             }
           }
-          if (reached) {
-            state.last_reached_tick = context.tick_index;
-            state.last_reached_scope_serial = m_activeExecutionScopeSerial;
-          }
+        }
+        if (any_left) {
+          const MT_Vector3 &point = path_points[size_t(state.list_point_index)];
+          KX_NavRequest request;
+          request.object = target;
+          request.navmesh = navmesh;
+          request.destination = point;
+          request.speed = std::max(speed, 0.0f);
+          request.arrive_distance = arrive;
+          request.move_dynamic = move_dynamic;
+          request.avoid = navmesh != nullptr;
+          request.use_scene_navmesh = false;
+          request.sort_key = ef.SortKey();
+          request.hold_steps = std::max<uint32_t>(context.phase_tick_stride, 1u);
+          request.look_at = look_at && rotating_object != nullptr;
+          request.rotating_object = rotating_object;
+          request.rot_axis = rot_axis;
+          request.front_axis = front_axis;
+          request.rot_speed = rot_speed;
+          command_buffer.AppendNavigationRequest(request);
+          state.next_path_point = known ? info.next_corner : point;
         }
       }
       MarkInstructionExecuted(event, instruction_id, context.tick_index);
@@ -2336,10 +2580,17 @@ void LN_RuntimeTree::OpDebugDrawInstruction(Frame &ef,
   const LN_Event event = ef.event;
   LN_TickContext &context = ef.context;
 
-  if (!RasterizerReady()) {
+  /* (The tests' list sees the lines without a rasterizer.) */
+  if (!RasterizerReady() && g_debug_lines_for_tests == nullptr) {
     MarkInstructionExecuted(event, instruction_id, context.tick_index);
     return;
   }
+  /* Duration (2026-11-17): the lines go through VisualizeLine, as the queries' Visualize, and
+   * are drawn again at each step until the time is up; 0 (and every older node): this step. */
+  const float duration = instruction.quaternary_float_expr_index != LN_INVALID_INDEX ?
+                             ef.Float(instruction.quaternary_float_expr_index, 0.0f) :
+                             0.0f;
+  const VisualizeScope scope(m_logicManager, context.current_time, duration);
 
   switch (instruction.opcode) {
     case LN_OpCode::DrawLine: {
@@ -2349,7 +2600,7 @@ void LN_RuntimeTree::OpDebugDrawInstruction(Frame &ef,
           instruction.secondary_vector_expr_index, instruction.secondary_vector_value);
       const MT_Vector4 color = ef.Color(
           instruction.color_expr_index, instruction.color_value);
-      KX_RasterizerDrawDebugLine(from, to, color);
+      VisualizeLine(from, to, color);
       break;
     }
     case LN_OpCode::DrawArrow: {
@@ -2370,7 +2621,7 @@ void LN_RuntimeTree::OpDebugDrawInstruction(Frame &ef,
         const MT_Vector4 color = ef.Color(
             instruction.color_expr_index, instruction.color_value);
         for (size_t index = 1; index < points.size(); index++) {
-          KX_RasterizerDrawDebugLine(points[index - 1], points[index], color);
+          VisualizeLine(points[index - 1], points[index], color);
         }
       }
       break;
@@ -2380,6 +2631,14 @@ void LN_RuntimeTree::OpDebugDrawInstruction(Frame &ef,
           instruction.vector_expr_index, instruction.vector_value);
       const MT_Vector4 color = ef.Color(
           instruction.color_expr_index, instruction.color_value);
+      if (instruction.secondary_int_value == 1) {
+        /* Sphere (2026-11-17): three circles of Radius around the Origin. */
+        const float radius = ef.Float(instruction.float_expr_index, 1.0f);
+        if (std::isfinite(radius) && radius > 0.0f) {
+          DrawDebugSphere(origin, MT_Matrix3x3::Identity(), radius, color);
+        }
+        break;
+      }
       const float half_x =
           std::max(0.0f, ef.Float(instruction.float_expr_index, 1.0f)) *
           0.5f;
@@ -2428,7 +2687,7 @@ void LN_RuntimeTree::OpDebugDrawInstruction(Frame &ef,
               if (from_vertex == nullptr || to_vertex == nullptr) {
                 continue;
               }
-              KX_RasterizerDrawDebugLine(transform * MT_Vector3(from_vertex->getXYZ()),
+              VisualizeLine(transform * MT_Vector3(from_vertex->getXYZ()),
                                          transform * MT_Vector3(to_vertex->getXYZ()),
                                          color);
             }
@@ -2462,8 +2721,8 @@ void LN_RuntimeTree::OpDebugDrawInstruction(Frame &ef,
             MT_Vector4(0.0f, 0.35f, 1.0f, 1.0f),
         };
         for (int axis = 0; axis < 3; axis++) {
-          KX_RasterizerDrawDebugLine(origin, origin + axes[axis], colors[axis]);
-          KX_RasterizerDrawDebugLine(origin, origin - axes[axis], colors[axis] * 0.55f);
+          VisualizeLine(origin, origin + axes[axis], colors[axis]);
+          VisualizeLine(origin, origin - axes[axis], colors[axis] * 0.55f);
         }
       }
       break;
@@ -2789,9 +3048,21 @@ void LN_RuntimeTree::OpDirectPhysicsCommand(Frame &ef,
       MT_Vector3 origin = instruction.vector_value;
       if (at_object) {
         center = ef.ResolveObjectExpression(instruction.tertiary_value_expr_index);
+        /* The Offset (2026-11-17): in the object's own space, as the Objects output's Local cast
+         * places it (ShapeCastPlace: its transform x the Offset); none: its position. */
+        const MT_Vector3 offset = ef.Vector(instruction.vector_expr_index,
+                                            instruction.vector_value);
         if (center != nullptr) {
           FlushPendingRaycastTransforms(center, context);
-          origin = center->NodeGetWorldPosition();
+          if (offset.x() == 0.0f && offset.y() == 0.0f && offset.z() == 0.0f) {
+            origin = center->NodeGetWorldPosition();
+          }
+          else {
+            MT_Vector3 destination = offset;
+            MT_Matrix3x3 orientation = MT_Matrix3x3::Identity();
+            origin = offset;
+            ShapeCastPlace(center, true, origin, destination, orientation);
+          }
         }
       }
       else {
@@ -3106,6 +3377,7 @@ void LN_RuntimeTree::OpDirectPhysicsCommand(Frame &ef,
           break;
         case LN_RigidBodyAttribute::Ccd:
         case LN_RigidBodyAttribute::AllowPhysicsRotation:
+        case LN_RigidBodyAttribute::Compound:
           bool_value = ef.Bool(
               instruction.bool_expr_index, instruction.bool_value);
           break;
@@ -3170,11 +3442,18 @@ void LN_RuntimeTree::OpDirectPhysicsCommand(Frame &ef,
       break;
     }
     case LN_OpCode::SetCharacterJumpSpeed: {
-      const float jump_speed = ef.Float(
-          instruction.float_expr_index, instruction.vector_value.x());
+      /* Every float setting of a character (int_value LN_CHARACTER_SETTING_*: Jump Force, Max
+       * Slope, Fall Speed, Step Height, Crouch's Height); Crouch reads its Bool after. */
+      const float value = ef.Float(instruction.float_expr_index, instruction.vector_value.x());
+      const bool crouch = instruction.int_value == LN_CHARACTER_SETTING_CROUCH &&
+                          ef.Bool(instruction.bool_expr_index, instruction.bool_value);
       append_targeted([&](KX_GameObject *target, const uint64_t sort_key) {
-        command_buffer.AppendSetCharacterJumpSpeed(
-            target, jump_speed, sort_key, instruction.source_ref_index);
+        command_buffer.AppendSetCharacterJumpSpeed(target,
+                                                   value,
+                                                   sort_key,
+                                                   instruction.source_ref_index,
+                                                   instruction.int_value,
+                                                   crouch);
       });
       break;
     }
@@ -3250,9 +3529,15 @@ void LN_RuntimeTree::OpDirectPhysicsCommand(Frame &ef,
     case LN_OpCode::RotateToward: {
       const MT_Vector3 target_point = ef.Vector(
           instruction.vector_expr_index, MT_Vector3(1.0f, 0.0f, 0.0f));
-      /* (Per step: a run behind Every N Steps covers N.) */
-      const float factor = LN_StepFactor(ef.Float(instruction.float_expr_index, 1.0f),
-                                         StepGateStepsCovered(instruction.step_gate_index));
+      /* Factor: per step (a run behind Every N Steps covers N). Turn Speed (int_value 1,
+       * 2026-11-16): radians a second times the route's time (a gate's run: the time since it
+       * last ran), the flush's largest turn this step (the motion command's max angular step). */
+      const float amount = ef.Float(instruction.float_expr_index, 1.0f);
+      const bool turn_speed = instruction.int_value == 1;
+      const float factor = turn_speed ?
+                               amount * float(std::max(0.0, context.delta_time)) :
+                               LN_StepFactor(amount,
+                                             StepGateStepsCovered(instruction.step_gate_index));
       const int32_t rot_axis = ef.Int(instruction.int_expr_index, 2);
       const int32_t front_axis = ef.Int(
           instruction.secondary_int_expr_index, 1);
@@ -3262,7 +3547,7 @@ void LN_RuntimeTree::OpDirectPhysicsCommand(Frame &ef,
                                           factor,
                                           rot_axis,
                                           front_axis,
-                                          false,
+                                          turn_speed,
                                           ef.SortKey(),
                                           instruction.source_ref_index);
       }
@@ -3963,7 +4248,8 @@ void LN_RuntimeTree::OpDirectAudioCommand(Frame &ef,
                                      ef.SortKey(),
                                      instruction.source_ref_index,
                                      instruction.secondary_int_value,
-                                     m_gameObject);
+                                     m_gameObject,
+                                     TakeSoundTicket(instruction.int_value, ef.context.tick_index));
       break;
     }
     case LN_OpCode::SetSoundVolume: {
@@ -4004,6 +4290,13 @@ void LN_RuntimeTree::OpDirectAudioCommand(Frame &ef,
       const float volume = ef.Float(instruction.float_expr_index, 1.0f);
       const float pitch = ef.Float(instruction.secondary_float_expr_index, 1.0f);
       const bool loop = ef.Bool(instruction.bool_expr_index, instruction.bool_value);
+      const int32_t user = ef.Int(instruction.secondary_int_expr_index, 0);
+      /* (2026-11-17) At Position, then Position: a place, no object. */
+      const bool at_position = ef.Bool(instruction.tertiary_bool_expr_index, false);
+      const MT_Vector3 position = at_position ?
+                                      ef.Vector(instruction.vector_expr_index,
+                                                MT_Vector3(0.0f, 0.0f, 0.0f)) :
+                                      MT_Vector3(0.0f, 0.0f, 0.0f);
       command_buffer.AppendPlaySound3D(
           speaker,
           sound_name,
@@ -4012,9 +4305,12 @@ void LN_RuntimeTree::OpDirectAudioCommand(Frame &ef,
           loop,
           ef.SortKey(),
           instruction.source_ref_index,
-          instruction.int_value,
-          ef.Int(instruction.secondary_int_expr_index, 0),
-          instruction.secondary_int_value);
+          instruction.int_value & 0xF,
+          user,
+          instruction.secondary_int_value,
+          TakeSoundTicket(instruction.int_value, ef.context.tick_index),
+          at_position,
+          position);
       break;
     }
     case LN_OpCode::PauseSound: {
@@ -4071,7 +4367,17 @@ void LN_RuntimeTree::OpDirectActionCommand(Frame &ef,
       const float playback_speed = ef.Float(
           instruction.quaternary_float_expr_index,
           instruction.secondary_vector_value.y());
-      const float layer_weight = instruction.secondary_vector_value.x();
+      /* Layer Weight (2026-11-16): above 0 (at most 1) how much of the layers below shows;
+       * 0, none, or a node without the input: -1, the layer covers them (as before). */
+      float layer_weight = instruction.secondary_vector_value.x();
+      if (instruction.secondary_value_expr_index != LN_INVALID_INDEX) {
+        float weight = 0.0f;
+        if (ValueAsFloat(ef.Value(instruction.secondary_value_expr_index, MakeNoneValue()),
+                         weight))
+        {
+          layer_weight = LN_ActionLayerWeight(weight);
+        }
+      }
       const int32_t layer = ef.Int(instruction.int_expr_index, 0);
       const int32_t priority = ef.Int(
           instruction.secondary_int_expr_index, 0);
@@ -4104,8 +4410,13 @@ void LN_RuntimeTree::OpDirectActionCommand(Frame &ef,
           instruction.int_expr_index, instruction.int_value);
       const float frame = ef.Float(
           instruction.float_expr_index, instruction.vector_value.x());
-      command_buffer.AppendSetActionFrame(
-          target_object, layer, frame, sort_key, instruction.source_ref_index);
+      /* Set Action Layer (2026-11-16): the same op sets the speed or layer weight. */
+      command_buffer.AppendSetActionFrame(target_object,
+                                          layer,
+                                          frame,
+                                          sort_key,
+                                          instruction.source_ref_index,
+                                          uint32_t(instruction.secondary_int_value));
       break;
     }
     case LN_OpCode::SetShapeKeyValue: {
@@ -4657,13 +4968,15 @@ void LN_RuntimeTree::OpDirectFileCommand(Frame &ef,
       const int32_t slot = ef.Int(instruction.int_expr_index, 0);
       const std::string path = ef.String(
           instruction.string_expr_index, std::string());
+      /* (2026-11-17) Save Slot's Delete: the same request, deleting. */
       command_buffer.AppendSaveGame(this,
                                     m_gameObject,
                                     slot,
                                     path,
                                     instruction.bool_expr_index,
                                     ef.SortKey(),
-                                    instruction.source_ref_index);
+                                    instruction.source_ref_index,
+                                    instruction.secondary_int_value == LN_SAVE_SLOT_DELETE);
       break;
     }
     case LN_OpCode::SetSaveExistence: {
@@ -5257,6 +5570,9 @@ void LN_RuntimeTree::OpLean(Frame &ef, const LN_ExecOp &op, const LN_LeanOp &lea
     case LN_LeanNative::ModifyProperty:
       OpLeanModifyProperty(ef, op, lean_op);
       return;
+    case LN_LeanNative::TweenRequest:
+      OpLeanTweenRequest(ef, op, lean_op);
+      return;
     case LN_LeanNative::Generic:
       break;
   }
@@ -5441,6 +5757,40 @@ void LN_RuntimeTree::LeanFlowBody(Frame &ef,
   MarkInstructionStamp(state_index, ef.context.tick_index);
 }
 
+/** Tween Value's Forward / Back (Op::TweenRequest): OpDirect's work (the TweenRequest case of
+ * OpTimeFlowControlInstruction) with the instruction's stamp known from the lowering. */
+template<class Frame>
+void LN_RuntimeTree::OpLeanTweenRequest(Frame &ef, const LN_ExecOp &op, const LN_LeanOp &lean_op)
+{
+  if (m_uiEventRoutesOnly && !op.ui_event_route) {
+    return;
+  }
+  LN_TickContext &context = ef.context;
+  LN_ScopedCommandQueryContext command_query_context(
+      context, ef.command_buffer, NextCommandExecutionKey());
+  ProfileDirectExecOp(op);
+  if (op.guard_bool_expr_index != LN_INVALID_INDEX &&
+      !ef.Bool(op.guard_bool_expr_index, false))
+  {
+    return;
+  }
+  LeanTweenRequestBody(ef,
+                       m_program->GetInstructionPayload(ef.event,
+                                                        ef.instructions[op.instruction_index]),
+                       lean_op.state_index);
+}
+
+template<class Frame>
+void LN_RuntimeTree::LeanTweenRequestBody(Frame &ef,
+                                          const LN_Instruction &instruction,
+                                          const uint32_t state_index)
+{
+  if (instruction.int_value >= 0) {
+    RequestTween(uint32_t(instruction.int_value), instruction.secondary_int_value);
+  }
+  MarkInstructionStamp(state_index, ef.context.tick_index);
+}
+
 /** Set Game Property Bool / Int / Float as a number write: the number branch of
  * OpDirectGamePropertyCommand with the payload read in place and no state index worked out. */
 template<class Frame>
@@ -5582,6 +5932,9 @@ void LN_RuntimeTree::RunLeanRoute(Frame &ef, const LN_LeanRoute &route, const ui
           break;
         case LN_LeanNative::ModifyProperty:
           LeanModifyBody(ef, *op.instruction, *op.property_payload, op.state_index);
+          break;
+        case LN_LeanNative::TweenRequest:
+          LeanTweenRequestBody(ef, *op.instruction, op.state_index);
           break;
         case LN_LeanNative::Generic:
           break;

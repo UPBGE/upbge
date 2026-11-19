@@ -15,7 +15,11 @@ namespace logic_decl = blender::nodes::logic::decl;
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<logic_decl::Rotation>("Rotation"_ustr)
-      .description("Rotation to express as equivalent XYZ Euler angles");
+      .description("Rotation to express as equivalent XYZ Euler angles. A turn has more than one "
+                   "set of angles: Y stays between -90 and 90 degrees, and pointing straight up "
+                   "or down Z is 0 and X takes the turn around the vertical, so they may differ "
+                   "from the Rotation typed in Blender. To compare or follow turns, use Rotation "
+                   "Math or Get Axis Vector");
   b.add_output<decl::Float>("X"_ustr)
       .subtype(PROP_ANGLE)
       .description("Equivalent angle around the X axis in XYZ Euler order");

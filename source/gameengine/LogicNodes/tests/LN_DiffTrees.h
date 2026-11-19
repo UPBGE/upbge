@@ -39,6 +39,8 @@
 #include "DNA_node_types.h"
 #include "nodes/NOD_logic_descriptors.hh"
 
+#include "LN_FindObjects.h"
+
 #include "EXP_BoolValue.h"
 #include "EXP_FloatValue.h"
 #include "EXP_IntValue.h"
@@ -238,7 +240,260 @@ struct Family {
    * TreeGen::SetAcceptedFamilies (the fixed seeds keep the table their goldens were recorded
    * with, and enough batch-safe trees); its probe tree is always made. */
   bool accepted_row = false;
+  /** PickDataFamily counts an output only when one of `custom1`'s settings shows it
+   * (`output_ok`): Vector Math's Value (2026-11-16) feeds number inputs only from its number
+   * operations. Off for the older rows: their draws stay the recorded ones. */
+  bool fit_by_setting = false;
 };
+
+/** Vector Math (2026-11-16): Value for the number operations (Dot Product 7, Distance 8, Length 9,
+ * Angle 100, Signed Angle 101), Result for the others. */
+inline bool VectorMathGivesNumber(const int16_t custom1)
+{
+  return custom1 == 7 || custom1 == 8 || custom1 == 9 || custom1 == 100 || custom1 == 101;
+}
+
+inline bool VectorMathOutputOk(const int16_t custom1,
+                               const int16_t /*custom2*/,
+                               const std::string &output)
+{
+  return output == "Value" ? VectorMathGivesNumber(custom1) : !VectorMathGivesNumber(custom1);
+}
+
+/** The inputs added on 2026-11-16 that a node's setting does not read (Math's C outside Wrap,
+ * Vector Math's Axis outside Signed Angle and B / Scale of its newer operations, Compare's
+ * inputs of the other Types): never linked or given a value, as the editor hides them. Inputs
+ * the older settings had keep their old treatment (a random tree's draws stay the recorded
+ * ones). */
+inline bool InputReadBySetting(const char *idname,
+                               const int16_t custom1,
+                               const int16_t custom2,
+                               const std::string &input)
+{
+  const std::string node = idname;
+  if (node == "LogicNativeExplosionImpulse" && input == "Offset") {
+    return custom2 == 1; /* (2026-11-17) Object mode's Offset */
+  }
+  if (node == "LogicNativeMath") {
+    if (input == "C") {
+      return custom1 == 34; /* Wrap */
+    }
+    if (input == "B" && (custom1 == 23 || (custom1 >= 6 && custom1 <= 9))) {
+      return false; /* Square Root, Tangent, Arcsine, Arccosine, Arctangent */
+    }
+    return true;
+  }
+  if (node == "LogicNativeVectorMath") {
+    if (input == "Axis") {
+      return custom1 == 101;
+    }
+    const bool newer = (custom1 >= 4 && custom1 <= 9) || custom1 >= 100;
+    if (newer && input == "B") {
+      return custom1 != 9 && custom1 != 102; /* Length, Limit Length */
+    }
+    if (newer && input == "Scale") {
+      return custom1 == 102 || custom1 == 103;
+    }
+    return true;
+  }
+  if (node == "LogicNativeCompare") {
+    if (input == "A" || input == "B") {
+      return custom2 == 0;
+    }
+    if (input == "Vector A" || input == "Vector B") {
+      return custom2 == 1;
+    }
+    if (input == "Tolerance") {
+      return custom2 == 1 && (custom1 == 0 || custom1 == 1);
+    }
+    if (input == "Object A" || input == "Object B") {
+      return custom2 == 2;
+    }
+    if (input == "Text A" || input == "Text B") {
+      return custom2 == 3;
+    }
+    return true;
+  }
+  /* Phase B of the "build first" list (2026-11-16). */
+  if (node == "LogicNativeRandomValue") {
+    if (input == "Radius") {
+      return custom1 == 5 || custom1 == 6; /* In Sphere, In Circle */
+    }
+    if (input == "Axis" || input == "Angle") {
+      return custom1 == 7; /* In Cone */
+    }
+    return true;
+  }
+  if (node == "LogicNativeListRandomItem" && input == "Weights") {
+    /* The tester's own setting: custom1 1 (which the node ignores) links Weights. */
+    return custom1 == 1;
+  }
+  if (node == "LogicNativeRotateToward") {
+    if (input == "Turn Speed") {
+      return custom1 == 1;
+    }
+    if (input == "Factor") {
+      return custom1 != 1;
+    }
+    return true;
+  }
+  if (node == "LogicNativeSmoothValue") {
+    if (input == "Target") {
+      return custom1 == 0;
+    }
+    if (input == "Target_Vector") {
+      return custom1 == 1;
+    }
+    if (input == "Speed") {
+      return custom2 != 2;
+    }
+    if (input == "Smooth Time" || input == "Max Speed") {
+      return custom2 == 2;
+    }
+    return true;
+  }
+  if (node == "LogicNativePlayAction" && (input == "Layer Weight" || input == "Action Name")) {
+    /* (2026-11-16) Left at their defaults: the rig plays no actions (a random name would only
+     * fail) and Layer Weight reaches only the command (LN_NodeValues checks it). */
+    return false;
+  }
+  if (node == "LogicNativeSetActionLayer") {
+    if (input == "Speed") {
+      return custom1 == 0;
+    }
+    if (input == "Layer Weight") {
+      return custom1 == 1;
+    }
+    return true;
+  }
+  if (node == "LogicNativeStateMachine" && input == "Start State") {
+    return false; /* a typed number only (the compiler refuses a link): its default */
+  }
+  if (node == "LogicNativeFindObjects") {
+    if (input == "Collection") {
+      return custom1 == 1;
+    }
+    if (input == "Property") {
+      return custom1 == 2;
+    }
+    if (input == "List") {
+      return custom1 == 3;
+    }
+    if (input == "Only Visible") {
+      return false; /* (2026-11-17) the rig has no physics: no ray blocks; its default */
+    }
+    return true;
+  }
+  if (node == "LogicNativeTweenValue" && input == "Object") {
+    return ((custom2 >> 10) & 7) != 0; /* (2026-11-17) Apply To's object */
+  }
+  if (node == "LogicNativeDraw" && (input == "Radius" || input == "Duration")) {
+    /* (2026-11-17) The rig has no rasterizer: Draw reads none of its inputs there. */
+    return false;
+  }
+  if (node == "LogicNativeNoise") {
+    if (input == "Vector") {
+      return custom1 != 1;
+    }
+    if (input == "W") {
+      return custom1 == 1 || custom1 == 4;
+    }
+    if (input == "Roughness") {
+      return custom2 > 1;
+    }
+    return true;
+  }
+  if ((node == "LogicNativeKeyboardKey" || node == "LogicNativeMouseButton" ||
+       node == "LogicNativeGamepadButton" || node == "LogicNativeInputAction") &&
+      input == "Time")
+  {
+    /* (2026-11-17) Read only by Input Type Tap, Double Tap and Hold (custom1 3-5). */
+    return (custom1 & 0xFF) >= 3 && (custom1 & 0xFF) <= 5;
+  }
+  if ((node == "LogicNativePlaySound" || node == "LogicNativePlaySound3D") &&
+      (input == "Sound" || input == "At Position" || input == "Position"))
+  {
+    /* (2026-11-17) Left at their defaults: the picked sound, at the speaker (the rig plays no
+     * sound; LN_Sound's tests play them). */
+    return false;
+  }
+  if (node == "LogicNativeListOperation") {
+    /* (2026-11-17) Slice's Start and Length, Shuffle's Seed. */
+    if (input == "Start" || input == "Length") {
+      return custom1 == 2;
+    }
+    if (input == "Seed") {
+      return custom1 == 1;
+    }
+    return true;
+  }
+  if (node == "LogicNativeStringOperation") {
+    /* (2026-11-17) Substring's Start, Split's Separator, Format Time's Seconds and Round Up;
+     * the older pins as before (every setting). */
+    if (input == "Start") {
+      return custom1 == 10;
+    }
+    if (input == "Separator") {
+      return custom1 == 13;
+    }
+    if (input == "Seconds" || input == "Round Up") {
+      return custom1 == 14;
+    }
+  }
+  return true;
+}
+
+/** Get Random List Item's Index (2026-11-16): only with the tester's Weights setting (custom1
+ * 1), so the rows without it draw as before. */
+inline bool ListRandomItemOutputOk(const int16_t custom1,
+                                   const int16_t /*custom2*/,
+                                   const std::string &output)
+{
+  return output != "Index" || custom1 == 1;
+}
+
+/** List Operation (2026-11-17): each operation's own outputs (Reverse, Shuffle, Slice the List;
+ * Min, Max the Value and the Index; Sum, Average the Value). */
+inline bool ListOperationOutputOk(const int16_t custom1,
+                                  const int16_t /*custom2*/,
+                                  const std::string &output)
+{
+  if (output == "List") {
+    return custom1 <= 2;
+  }
+  if (output == "Value") {
+    return custom1 >= 3;
+  }
+  if (output == "Index") {
+    return custom1 == 3 || custom1 == 4;
+  }
+  return true;
+}
+
+/** Find Objects (2026-11-16): Objects and Distances (2026-11-17) only with the All pick. */
+inline bool FindObjectsOutputOk(const int16_t /*custom1*/,
+                                const int16_t custom2,
+                                const std::string &output)
+{
+  return (output != "Objects" && output != "Distances") || custom2 == 3;
+}
+
+/** Explode or Implode Impulse (2026-11-17): never Strengths (the rig has no physics: its
+ * Objects, and so its Strengths, are always none). */
+inline bool ExplosionImpulseOutputOk(const int16_t /*custom1*/,
+                                     const int16_t /*custom2*/,
+                                     const std::string &output)
+{
+  return output != "Strengths";
+}
+
+/** Smooth Value (2026-11-16): each type's own output. */
+inline bool SmoothValueOutputOk(const int16_t custom1,
+                                const int16_t /*custom2*/,
+                                const std::string &output)
+{
+  return output == (custom1 == 1 ? "Value_Vector" : "Value");
+}
 
 inline bool StringOperationOutputOk(const int16_t custom1,
                                     const int16_t /*custom2*/,
@@ -251,7 +506,17 @@ inline bool StringOperationOutputOk(const int16_t custom1,
   if (output == "Count") {
     return custom1 == 3;
   }
-  return !boolean && custom1 != 3; /* "String" */
+  /* (2026-11-17) Length 11, Find 12, Split 13. */
+  if (output == "Length") {
+    return custom1 == 11;
+  }
+  if (output == "Index") {
+    return custom1 == 12;
+  }
+  if (output == "List") {
+    return custom1 == 13;
+  }
+  return !boolean && custom1 != 3 && custom1 != 11 && custom1 != 12 && custom1 != 13; /* "String" */
 }
 
 /** Get Object Attribute (custom1 = the attribute): the outputs each attribute shows. Visible and
@@ -324,15 +589,39 @@ inline std::optional<Family> AutoFamily(const char *idname, const int weight)
   /* Random Value (2026-11-07): every type (custom1) and variation (custom2), each type's own
    * output; Get Random List Item's variation. */
   if (std::string(meta->idname) == "LogicNativeRandomValue") {
-    family.custom1 = {0, 1, 2, 3};
+    /* The shapes 4 to 7 (2026-11-16) into the Vector output. */
+    family.custom1 = {0, 1, 2, 3, 4, 5, 6, 7};
     family.custom2 = {0, 1};
     family.output_ok = [](const int16_t custom1, const int16_t, const std::string &output) {
       static const char *outputs[] = {"Value", "Value_Int", "Value_Vector", "Value_Bool"};
+      if (custom1 >= 4 && custom1 <= 7) {
+        return output == "Value_Vector";
+      }
       return custom1 >= 0 && custom1 < 4 && output == outputs[custom1];
     };
   }
-  else if (std::string(meta->idname) == "LogicNativeListRandomItem") {
+  else if (std::string(meta->idname) == "LogicNativeTweenValue") {
+    /* (2026-11-17) Forward and On Demand with the curve once (every older node), and the
+     * presets with Loop and Ping-Pong (custom2 bits 2-9, LN_Easing.h). */
+    family.custom2 = {0,
+                      1,
+                      int16_t(1 | (11 << 2) | (1 << 6) | (1 << 8)),
+                      int16_t(1 | (9 << 2) | (2 << 8)),
+                      int16_t((10 << 2) | (2 << 6) | (2 << 8)),
+                      int16_t((3 << 2) | (1 << 8))};
+  }
+  else if (std::string(meta->idname) == "LogicNativeListOperation") {
+    /* Every operation (2026-11-17), Shuffle's variation; each its own outputs. */
+    family.custom1 = {0, 1, 2, 3, 4, 5, 6};
     family.custom2 = {0, 1};
+    family.output_ok = ListOperationOutputOk;
+    family.fit_by_setting = true;
+  }
+  else if (std::string(meta->idname) == "LogicNativeListRandomItem") {
+    /* custom1 1 (the tester's): Weights linked and Index read (2026-11-16). */
+    family.custom1 = {0, 1};
+    family.custom2 = {0, 1};
+    family.output_ok = ListRandomItemOutputOk;
   }
   else if (std::string(meta->idname) == "LogicNativeApplyImpulse") {
     /* Point Mode (2026-11-11): World Offset, World Point, Local Point. */
@@ -342,6 +631,7 @@ inline std::optional<Family> AutoFamily(const char *idname, const int weight)
     /* Falloff and Implode (bits of custom1), and the Center: Position or Object (2026-11-11). */
     family.custom1 = {0, 1, 2, 3};
     family.custom2 = {0, 1};
+    family.output_ok = ExplosionImpulseOutputOk;
   }
   /* The raycast recommendations (2026-11-11). */
   else if (std::string(meta->idname) == "LogicNativeShapeCast" ||
@@ -604,6 +894,32 @@ inline const std::vector<std::pair<std::string, int>> &AutoFamilyNames()
         "LogicNativeSetGamePropertyList",
         "LogicNativeSetGamePropertyObject",
         "LogicNativeSetGamePropertyVector",
+        /* c2_p0/family_probe.py --only, 2026-11-17 (the small conveniences): accepted (the
+         * generator feeds no list: List Operation and Insert see empty lists, their settings,
+         * reads and runs are what is compared; LN_ListOps.* hold their answers; Get Children
+         * finds the rig's children). */
+        "LogicNativeGetChildren",
+        "LogicNativeListInsert",
+        "LogicNativeListOperation",
+        /* c2_p0/family_probe.py --only, 2026-11-17: Input Combo accepted (its Steps random
+         * bools, Sequence; LN_InputGestures.* hold its answers). */
+        "LogicNativeInputCombo",
+        /* c2_p0/family_probe.py --only, 2026-11-17 (the character controller): Set Character
+         * Attribute's Max Slope, Fall Speed, Step Height and Crouch accepted (the rig's objects
+         * are no characters: their reads, records and runs are what is compared;
+         * JoltLogicNodes.*Character* set and read real characters). */
+        "LogicNativeSetCharacterCrouch",
+        "LogicNativeSetCharacterFallSpeed",
+        "LogicNativeSetCharacterMaxSlope",
+        "LogicNativeSetCharacterStepHeight",
+        /* c2_p0/family_probe.py --only, 2026-11-18 (navigation): accepted (the rig has no
+         * navigation: Navigate and Set Navigation Attribute record requests nobody takes, the
+         * reads give their defaults; KX_NavigationNodes.* run them on a real navigation). */
+        "LogicNativeGetNavigationInfo",
+        "LogicNativeNavigate",
+        "LogicNativeNavmeshQuery",
+        "LogicNativeOnNavigationLink",
+        "LogicNativeSetNavigationAttribute",
     };
     std::vector<std::pair<std::string, int>> out;
     for (const char *idname : accepted) {
@@ -632,19 +948,24 @@ inline const std::vector<Family> &FamilyTable()
   static const std::vector<Family> table = [] {
     std::vector<Family> t;
     std::vector<int16_t> math;
-    for (const int16_t op :
-         {blender::NODE_MATH_ADD,      blender::NODE_MATH_SUBTRACT, blender::NODE_MATH_MULTIPLY,
+    for (const int op : std::initializer_list<int>{
+             blender::NODE_MATH_ADD,      blender::NODE_MATH_SUBTRACT, blender::NODE_MATH_MULTIPLY,
           blender::NODE_MATH_DIVIDE,   blender::NODE_MATH_POWER,    blender::NODE_MATH_MINIMUM,
           blender::NODE_MATH_MAXIMUM,  blender::NODE_MATH_ABSOLUTE, blender::NODE_MATH_SIGN,
           blender::NODE_MATH_ROUND,    blender::NODE_MATH_FLOOR,    blender::NODE_MATH_CEIL,
           blender::NODE_MATH_TRUNC,    blender::NODE_MATH_FRACTION, blender::NODE_MATH_MODULO,
           blender::NODE_MATH_SINE,     blender::NODE_MATH_COSINE,   blender::NODE_MATH_RADIANS,
-          blender::NODE_MATH_DEGREES})
+          blender::NODE_MATH_DEGREES,
+          /* 2026-11-16: Float::MathFunction. */
+          blender::NODE_MATH_SQRT,     blender::NODE_MATH_TANGENT,  blender::NODE_MATH_ARCSINE,
+          blender::NODE_MATH_ARCCOSINE, blender::NODE_MATH_ARCTANGENT, blender::NODE_MATH_ARCTAN2,
+          blender::NODE_MATH_WRAP,     blender::NODE_MATH_SNAP,     blender::NODE_MATH_PINGPONG,
+          100 /* Angle Difference */})
     {
-      math.push_back(op);
+      math.push_back(int16_t(op));
     }
     std::vector<int16_t> vmath;
-    for (const int16_t op : {blender::NODE_VECTOR_MATH_ADD,
+    for (const int op : std::initializer_list<int>{blender::NODE_VECTOR_MATH_ADD,
                              blender::NODE_VECTOR_MATH_SUBTRACT,
                              blender::NODE_VECTOR_MATH_MULTIPLY,
                              blender::NODE_VECTOR_MATH_DIVIDE,
@@ -652,9 +973,21 @@ inline const std::vector<Family> &FamilyTable()
                              blender::NODE_VECTOR_MATH_MINIMUM,
                              blender::NODE_VECTOR_MATH_MAXIMUM,
                              blender::NODE_VECTOR_MATH_SCALE,
-                             blender::NODE_VECTOR_MATH_NORMALIZE})
+                             blender::NODE_VECTOR_MATH_NORMALIZE,
+                             /* 2026-11-16: Float::VectorMeasure (Value), VectorLength (Value),
+                              * Vector::VectorFunction (Result). */
+                             blender::NODE_VECTOR_MATH_DOT_PRODUCT,
+                             blender::NODE_VECTOR_MATH_DISTANCE,
+                             blender::NODE_VECTOR_MATH_LENGTH,
+                             100 /* Angle */,
+                             101 /* Signed Angle */,
+                             blender::NODE_VECTOR_MATH_CROSS_PRODUCT,
+                             blender::NODE_VECTOR_MATH_PROJECT,
+                             blender::NODE_VECTOR_MATH_REFLECT,
+                             102 /* Limit Length */,
+                             103 /* Move Towards */})
     {
-      vmath.push_back(op);
+      vmath.push_back(int16_t(op));
     }
     /* Events. */
     t.push_back({"LogicNativeOnUpdate", Role::Event, 5});
@@ -682,18 +1015,28 @@ inline const std::vector<Family> &FamilyTable()
     t.push_back({"LogicNativeLoop", Role::Flow, 1});
     /* Data. */
     t.push_back({"LogicNativeMath", Role::Data, 24, math});
-    t.push_back({"LogicNativeCompare", Role::Data, 5, {0, 1, 2, 3, 4, 5}});
-    t.push_back({"LogicNativeVectorMath", Role::Data, 6, vmath});
+    /* Compare's Type (custom2, 2026-11-16): Number, Vector, Object, Text. */
+    t.push_back({"LogicNativeCompare", Role::Data, 5, {0, 1, 2, 3, 4, 5}, {0, 1, 2, 3}});
+    t.push_back({"LogicNativeVectorMath", Role::Data, 6, vmath, {}, {}, VectorMathOutputOk});
+    t.back().fit_by_setting = true;
+    /* 2026-11-16: Vector::RotationFunction (Rotation Math's four operations; Transform Vector's
+     * spaces and types, its object empty (the owner) or found). */
+    t.push_back({"LogicNativeRotationMath", Role::Data, 2, {0, 1, 2, 3}});
+    t.push_back({"LogicNativeTransformVector", Role::Data, 2, {0, 1}, {0, 1}});
     t.push_back({"LogicNativeCombineXYZ", Role::Data, 3});
     t.push_back({"LogicNativeSeparateXYZ", Role::Data, 3});
     t.push_back({"LogicNativeClampValue", Role::Data, 2});
     t.push_back({"LogicNativeInvertValue", Role::Data, 1});
-    t.push_back({"LogicNativeMapRange", Role::Data, 2});
+    /* Map Range's Interpolation (custom2, 2026-11-16): Linear, Smooth Step, Smoother Step. */
+    t.push_back({"LogicNativeMapRange", Role::Data, 2, {}, {0, 1, 2}});
     t.push_back({"LogicNativeThreshold", Role::Data, 1, {0, 1}});
     t.push_back({"LogicNativeWithinRange", Role::Data, 1, {0, 1}});
     t.push_back({"LogicNativeRangedThreshold", Role::Data, 1, {0, 1}});
     t.push_back({"LogicNativeGate", Role::Data, 3, {0, 1, 2, 3, 4, 5, 6}});
-    t.push_back({"LogicNativeStringOperation", Role::Data, 5, {0, 2, 3, 4, 5, 6, 7, 8, 9}, {}, {}, StringOperationOutputOk});
+    /* (2026-11-17) Substring 10, Length 11, Find 12, Split 13, Format Time 14 (its Time Format,
+     * custom2, through every value: 0 to 3). */
+    t.push_back({"LogicNativeStringOperation", Role::Data, 5, {0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, {0, 1, 2, 3}, {}, StringOperationOutputOk});
+    t.back().fit_by_setting = true;
     t.push_back({"LogicNativeFormattedString", Role::Data, 2});
     t.push_back({"LogicNativeTypecast", Role::Data, 5, {0, 1, 2, 3}, {0, 1, 2, 3}, {}, TypecastOutputOk, {Cat::Float, Cat::Int, Cat::Bool}});
     t.push_back({"LogicNativeMixValue", Role::Data, 1, {}, {}, {}, nullptr, {Cat::Float, Cat::Vector}});
@@ -719,15 +1062,42 @@ inline const std::vector<Family> &FamilyTable()
     t.push_back({"LogicNativeFlowGate", Role::Flow, 2, {}, {}, {"Is Open"}});
     t.push_back({"LogicNativeTranslate", Role::Flow, 3, {}, {}, {}, nullptr, {}, false, true});
     t.push_back({"LogicNativeMoveToward", Role::Flow, 3, {}, {}, {}, nullptr, {}, false, true});
-    t.push_back({"LogicNativeRotateToward", Role::Flow, 2, {}, {}, {}, nullptr, {}, false, true});
+    /* Turn (custom1, 2026-11-16): Factor, Turn Speed. */
+    t.push_back({"LogicNativeRotateToward", Role::Flow, 2, {0, 1}, {}, {}, nullptr, {}, false, true});
     t.push_back({"LogicNativeAlignAxisToVector", Role::Flow, 2, {}, {}, {}, nullptr, {}, false, true});
     t.push_back({"LogicNativeGetGravity", Role::Data, 1});
     t.push_back({"LogicNativeBarrier", Role::Flow, 2});
     /* Positions, orientations (Value as Euler angles), velocities, scales, color, visibility;
      * every axis. */
     t.push_back({"LogicNativeSetObjectAttribute", Role::Flow, 3, {0, 1, 2, 3, 5, 6, 7, 8, 9, 11, 12, 13}, {15}, {}, nullptr, {}, false, true});
+    /* Its Color and Visible once more (2026-11-16): the table grown by phase B / C drew them in
+     * no random tree, leaving their kinds to their probes (48 runs, EveryKindTheTreesReachRanOften
+     * wants 50). */
+    t.push_back({"LogicNativeSetObjectAttribute", Role::Flow, 1, {11, 12}, {15}, {}, nullptr, {}, false, true});
     t.push_back({"LogicNativeEuler", Role::Data, 2});
     t.push_back({"LogicNativeColorRGBA", Role::Data, 1});
+    /* Phase B of the "build first" list (2026-11-16): Smooth Value's types and modes (each type
+     * its own output), Noise's dimensions and octaves (1 to 3: the tester's trees stay quick). */
+    t.push_back({"LogicNativeSmoothValue", Role::Data, 3, {0, 1}, {0, 1, 2}, {}, SmoothValueOutputOk});
+    t.back().fit_by_setting = true;
+    t.push_back({"LogicNativeNoise", Role::Data, 2, {1, 2, 3, 4}, {1, 2, 3}});
+    /* (2026-11-17) Oscillate's four waves: Value, Bob, Orbit (kernels FOscCycle, FOscillate,
+     * VOscillate; Random Phase reads the tree's stream). */
+    t.push_back({"LogicNativeOscillate", Role::Data, 2, {0, 1, 2, 3}});
+    /* Phase C (2026-11-16): Set Action Layer's Speed and Layer Weight (the recorded command);
+     * On Action Frame (the rig plays no actions: its reads and its event route). */
+    t.push_back({"LogicNativeSetActionLayer", Role::Flow, 1, {0, 1}});
+    /* Phase E (2026-11-17): State Machine (its Update routes, Go To when linked, its outputs). */
+    t.push_back({"LogicNativeStateMachine", Role::Flow, 1});
+    /* Phase D (2026-11-16): Find Objects of all objects, those with a property, a list (the rig
+     * has no collections), every pick. */
+    t.push_back({"LogicNativeFindObjects", Role::Data, 2, {0, 2, 3}, {0, 1, 2, 3}, {}, FindObjectsOutputOk});
+    /* (An accepted row, as the casts: its result values keep a tree out of batches.) */
+    t.back().accepted_row = true;
+    t.push_back({"LogicNativeOnActionFrame", Role::Event, 1});
+    /* (An accepted row: never batched, it would thin the base seeds' batch-eligible trees
+     * (VariantsOfARunEndAlike wants 20); its probe and AcceptedFamiliesEndAlike run it.) */
+    t.back().accepted_row = true;
     /* Plan C2 P0: rows worked out from descriptors (AutoFamilyNames), never twice. */
     for (const auto &[idname, weight] : AutoFamilyNames()) {
       const bool listed = std::any_of(t.begin(), t.end(), [&](const Family &family) {
@@ -1342,7 +1712,14 @@ class TreeGen {
                                         [&](const char *name) {
                                           return std::string(name) == meta->outputs[out].identifier;
                                         });
-        if (listed && (generic_fits || CanLink(category, wanted))) {
+        const bool shown = !family.fit_by_setting || family.output_ok == nullptr ||
+                           std::any_of(family.custom1.begin(),
+                                       family.custom1.end(),
+                                       [&](const int16_t custom1) {
+                                         return family.output_ok(
+                                             custom1, 0, meta->outputs[out].identifier);
+                                       });
+        if (listed && shown && (generic_fits || CanLink(category, wanted))) {
           fitting.push_back(&family);
           total += family.weight;
           break;
@@ -1642,6 +2019,11 @@ class TreeGen {
       const Cat category = node.input_category(index);
       const PinMetadata &pin = node.in_pins[index];
       if (category == Cat::Exec || node.input_linked[index]) {
+        continue;
+      }
+      if (!InputReadBySetting(
+              node.meta->idname, node.node.custom1, node.node.custom2, pin.identifier))
+      {
         continue;
       }
       if (category == Cat::Object) {
@@ -2014,6 +2396,20 @@ class TreeGen {
         return std::nullopt;
     }
     GenNode *node = AddFamilyNode(*family);
+    /* A setting with no output of the wanted type (an attribute that is a name or a speed) is
+     * rolled again: with none the leaf failed and a generic pin stayed unlinked (2026-11-16,
+     * Mix Value's probe after the table grew). Only such leaves draw more. */
+    const auto fits = [&]() {
+      for (size_t out = 0; out < node->outputs.size(); out++) {
+        if (node->output_allowed(out) && node->output_category(out) == wanted) {
+          return true;
+        }
+      }
+      return false;
+    };
+    for (int attempt = 0; attempt < 8 && !family->custom1.empty() && !fits(); attempt++) {
+      SetCustom(*node, m_rng.pick(family->custom1), node->node.custom2);
+    }
     FillInputs(*node, m_max_depth);
     for (size_t out = 0; out < node->outputs.size(); out++) {
       if (node->output_allowed(out) && node->output_category(out) == wanted) {
@@ -2433,6 +2829,50 @@ inline uint64_t CountWarnings(const std::string &text)
 
 /** The manager's tick, for a few trees of one program: decide who runs, snapshots, warm-ups,
  * recording, EndRecording, Flush, in the manager's order and with its context fields. */
+/** Find Objects (2026-11-16): the tick's poses and grids of `objects` for the sources of the
+ * trees' programs, as LN_Manager::PrepareFindIndex makes them (no scene: a Collection source is
+ * empty); sets the context's pointer (left null when no program finds objects). */
+inline void PrepareFindIndexForTests(LN_FindIndex &index,
+                                     const std::vector<LN_RuntimeTree *> &trees,
+                                     const std::vector<KX_GameObject *> &objects,
+                                     LN_TickContext &context)
+{
+  std::vector<LN_FindSourceKey> keys;
+  for (const LN_RuntimeTree *tree : trees) {
+    const LN_Program *program = tree->GetProgramPointer();
+    if (program == nullptr) {
+      continue;
+    }
+    for (const LN_FindSourceKey &key : program->GetFindSources()) {
+      if (std::find(keys.begin(), keys.end(), key) == keys.end()) {
+        keys.push_back(key);
+      }
+    }
+  }
+  if (keys.empty()) {
+    return;
+  }
+  index.Begin(context.tick_index, objects);
+  for (const LN_FindSourceKey &key : keys) {
+    switch (key.source) {
+      case LN_FindSource::All:
+        index.AddSource(key, [](KX_GameObject *) { return true; });
+        break;
+      case LN_FindSource::Property:
+        index.AddSource(key, [&](KX_GameObject *object) {
+          return object->GetProperty(key.name) != nullptr;
+        });
+        break;
+      case LN_FindSource::Collection:
+        index.AddSource(key, [](KX_GameObject *) { return false; });
+        break;
+      case LN_FindSource::List:
+        break;
+    }
+  }
+  context.find_index = &index;
+}
+
 inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunOptions &options)
 {
   RunResult result;
@@ -2444,6 +2884,21 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
    * costs a temporary file. */
   testing::internal::CaptureStdout();
   testing::internal::CaptureStderr();
+  /* (An exception out of the run left both captured: every later line, the test's failure
+   * included, went into the capture and the process ended with 1 and nothing said; the column
+   * soak's seed 74692, 2026-11-17. Released here then, its text shown.) */
+  struct CaptureGuard {
+    bool active = true;
+    ~CaptureGuard()
+    {
+      if (active) {
+        const std::string out = testing::internal::GetCapturedStdout();
+        const std::string err = testing::internal::GetCapturedStderr();
+        std::fputs(out.c_str(), stdout);
+        std::fputs(err.c_str(), stderr);
+      }
+    }
+  } capture_guard;
 
   /* The world: owners with properties of every type, a pose each, and the Target. */
   std::deque<BatchObject> objects;
@@ -2621,6 +3076,7 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
   double time = 0.0;
   uint64_t tick_index = 0, update_index = 0, fixed_index = 0;
 
+  LN_FindIndex find_index;
   const auto tick = [&](const LN_Event event) {
     LN_TickContext context;
     context.event = event;
@@ -2630,8 +3086,10 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
     context.use_fixed_timestep = true;
     context.tick_index = tick_index++;
     context.steps_done = fixed_index;
+    context.game_time = double(fixed_index) * step;
     context.phase_tick_index = event == LN_Event::OnUpdate ? update_index++ : fixed_index++;
     const bool fixed = event == LN_Event::OnFixedUpdate;
+    PrepareFindIndexForTests(find_index, tree_pointers, world_objects, context);
 
     std::vector<LN_RuntimeTree *> runnable;
     for (LN_RuntimeTree *tree : tree_pointers) {
@@ -2862,6 +3320,7 @@ inline RunResult RunWorld(const std::shared_ptr<LN_Program> &program, const RunO
   tree_pointers.clear();
   trees.clear();
   LN_SetSceneAccessForTests(nullptr);
+  capture_guard.active = false;
   std::string printed = testing::internal::GetCapturedStdout();
   const std::string errors = testing::internal::GetCapturedStderr();
   /* A NaN's sign is no logic (LN_DumpFloatBits): "-nan" printed as "nan". */

@@ -25,37 +25,25 @@
 
 remove_c_and_cxx_flag_unsigned_char()
 
-set(INC 
+set(INC
 	Recast/Include
 	Detour/Include
+	DetourCrowd/Include
+	DetourTileCache/Include
 )
 
 set(INC_SYS
 
 )
 
-set(SRC 
+set(SRC
 	recast-capi.cpp
 	recast-capi.h
-
-
-	Detour/Source/DetourCommon.cpp
-	Detour/Source/DetourNode.cpp
-	Detour/Source/DetourStatNavMesh.cpp
-	Detour/Source/DetourStatNavMeshBuilder.cpp
-	Detour/Source/DetourTileNavMesh.cpp
-	Detour/Source/DetourTileNavMeshBuilder.cpp
-
-	Detour/Include/DetourCommon.h
-	Detour/Include/DetourNode.h
-	Detour/Include/DetourStatNavMesh.h
-	Detour/Include/DetourStatNavMeshBuilder.h
-	Detour/Include/DetourTileNavMesh.h
-	Detour/Include/DetourTileNavMeshBuilder.h
 
 	Recast/Source/Recast.cpp
 	Recast/Source/RecastAlloc.cpp
 	Recast/Source/RecastArea.cpp
+	Recast/Source/RecastAssert.cpp
 	Recast/Source/RecastContour.cpp
 	Recast/Source/RecastFilter.cpp
 	Recast/Source/RecastLayers.cpp
@@ -63,13 +51,53 @@ set(SRC
 	Recast/Source/RecastMeshDetail.cpp
 	Recast/Source/RecastRasterization.cpp
 	Recast/Source/RecastRegion.cpp
-
 	Recast/Include/Recast.h
 	Recast/Include/RecastAlloc.h
 	Recast/Include/RecastAssert.h
+
+	Detour/Source/DetourAlloc.cpp
+	Detour/Source/DetourAssert.cpp
+	Detour/Source/DetourCommon.cpp
+	Detour/Source/DetourNavMesh.cpp
+	Detour/Source/DetourNavMeshBuilder.cpp
+	Detour/Source/DetourNavMeshQuery.cpp
+	Detour/Source/DetourNode.cpp
+	Detour/Include/DetourAlloc.h
+	Detour/Include/DetourAssert.h
+	Detour/Include/DetourCommon.h
+	Detour/Include/DetourMath.h
+	Detour/Include/DetourNavMesh.h
+	Detour/Include/DetourNavMeshBuilder.h
+	Detour/Include/DetourNavMeshQuery.h
+	Detour/Include/DetourNode.h
+	Detour/Include/DetourStatus.h
+
+	DetourCrowd/Source/DetourCrowd.cpp
+	DetourCrowd/Source/DetourLocalBoundary.cpp
+	DetourCrowd/Source/DetourObstacleAvoidance.cpp
+	DetourCrowd/Source/DetourPathCorridor.cpp
+	DetourCrowd/Source/DetourPathQueue.cpp
+	DetourCrowd/Source/DetourProximityGrid.cpp
+	DetourCrowd/Include/DetourCrowd.h
+	DetourCrowd/Include/DetourLocalBoundary.h
+	DetourCrowd/Include/DetourObstacleAvoidance.h
+	DetourCrowd/Include/DetourPathCorridor.h
+	DetourCrowd/Include/DetourPathQueue.h
+	DetourCrowd/Include/DetourProximityGrid.h
+
+	DetourTileCache/Source/DetourTileCache.cpp
+	DetourTileCache/Source/DetourTileCacheBuilder.cpp
+	DetourTileCache/Include/DetourTileCache.h
+	DetourTileCache/Include/DetourTileCacheBuilder.h
 )
 
 set(LIB
 )
 
+# UPBGE (2026-11-18): 64-bit polygon references (room for big and endless worlds) and query
+# filters with virtual costs (closed areas, crowded polygons). Every file that includes a Detour
+# header must see both: the engine's navigation code checks them (KX_Detour.h).
+add_definitions(-DDT_POLYREF64 -DDT_VIRTUAL_QUERYFILTER)
+
 blender_add_lib(extern_recastnavigation "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+target_compile_definitions(extern_recastnavigation INTERFACE DT_POLYREF64 DT_VIRTUAL_QUERYFILTER)

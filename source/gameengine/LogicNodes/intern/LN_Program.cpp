@@ -20,6 +20,7 @@
 #include "LN_BonePoseRotation.h"
 #include "LN_Columns.h"
 #include "LN_KindCatalog.h"
+#include "LN_MathOps.h"
 #include "LN_RuntimeSemantics.h"
 #include "LN_TreeBatch.h"
 #include "LN_TypeConversion.h"
@@ -28,25 +29,46 @@ namespace {
 std::atomic<uint64_t> g_programs_changed{0};
 }  // namespace
 
+/** Per tree property ref, 1 where an op but Set Tree Property writes it (Add Object, Inventory,
+ * Assign Geometry Nodes Modifier). */
+static std::vector<uint8_t> TreePropertyOtherWritersOf(const LN_Program &program)
+{
+  std::vector<uint8_t> writers(program.GetTreePropertyRefs().size(), 0);
+  for (const LN_Event event : {LN_Event::OnInit, LN_Event::OnUpdate, LN_Event::OnFixedUpdate}) {
+    for (const LN_InstructionHeader &header : program.GetInstructionHeaders(event)) {
+      const LN_Instruction &instruction = program.GetInstructionPayload(event, header);
+      if ((instruction.opcode == LN_OpCode::AddObject ||
+           instruction.opcode == LN_OpCode::InventoryEdit ||
+           instruction.opcode == LN_OpCode::AssignGeometryNodesModifier) &&
+          instruction.property_ref_index < writers.size())
+      {
+        writers[instruction.property_ref_index] = 1;
+      }
+    }
+  }
+  return writers;
+}
+
+void LN_Program::EnsureTreePropertyWriters() const
+{
+  if (!LN_LeanHelperThread() && m_treePropertyOtherWriters.size() != m_treePropertyRefs.size()) {
+    m_treePropertyOtherWriters = TreePropertyOtherWritersOf(*this);
+  }
+}
+
 bool LN_Program::TreePropertyOnlySetBySetTreeProperty(const uint32_t ref) const
 {
   if (ref >= m_treePropertyRefs.size()) {
     return false;
   }
   if (m_treePropertyOtherWriters.size() != m_treePropertyRefs.size()) {
-    m_treePropertyOtherWriters.assign(m_treePropertyRefs.size(), 0);
-    for (const LN_Event event : {LN_Event::OnInit, LN_Event::OnUpdate, LN_Event::OnFixedUpdate}) {
-      for (const LN_InstructionHeader &header : GetInstructionHeaders(event)) {
-        const LN_Instruction &instruction = GetInstructionPayload(event, header);
-        if ((instruction.opcode == LN_OpCode::AddObject ||
-             instruction.opcode == LN_OpCode::InventoryEdit ||
-             instruction.opcode == LN_OpCode::AssignGeometryNodesModifier) &&
-            instruction.property_ref_index < m_treePropertyOtherWriters.size())
-        {
-          m_treePropertyOtherWriters[instruction.property_ref_index] = 1;
-        }
-      }
+    if (LN_LeanHelperThread()) {
+      /* Made on the main thread before helpers run (EnsureTreePropertyWriters, as the lean
+       * program): a helper never writes it. Two helpers of a tree batch filling it at once
+       * crashed (2026-11-17); a program nothing prepared is worked out here, not kept. */
+      return TreePropertyOtherWritersOf(*this)[ref] == 0;
     }
+    EnsureTreePropertyWriters();
   }
   return m_treePropertyOtherWriters[ref] == 0;
 }
@@ -265,6 +287,7 @@ void AddInstructionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_OpCode::ResetOnce:
     case LN_OpCode::SetFlowGate:
     case LN_OpCode::TryFlowGate:
+    case LN_OpCode::TweenRequest:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_BOOL_EXPRESSION);
       break;
     case LN_OpCode::SetPlayerPointer:
@@ -458,6 +481,7 @@ void AddBoolExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_VISIBILITY);
       break;
     case LN_BoolExpressionKind::SnapshotCharacterOnGround:
+    case LN_BoolExpressionKind::SnapshotCharacterState:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_CHARACTER);
       break;
     case LN_BoolExpressionKind::InputStatus:
@@ -632,6 +656,7 @@ void AddFloatExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_FloatExpressionKind::StoreValue:
     case LN_FloatExpressionKind::TweenFactor:
     case LN_FloatExpressionKind::TweenFloatResult:
+    case LN_FloatExpressionKind::SmoothValue:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_FLOAT_EXPRESSION);
       break;
     case LN_FloatExpressionKind::CooldownRemaining:
@@ -854,6 +879,7 @@ void AddVectorExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_VectorExpressionKind::SnapshotCharacterGravity:
     case LN_VectorExpressionKind::SnapshotCharacterWalkDirection:
     case LN_VectorExpressionKind::SnapshotCharacterLocalWalkDirection:
+    case LN_VectorExpressionKind::SnapshotCharacterSurface:
       AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_CHARACTER);
       break;
     case LN_VectorExpressionKind::CursorPosition:
@@ -895,6 +921,7 @@ void AddVectorExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_VectorExpressionKind::InstructionNextPoint:
     case LN_VectorExpressionKind::TweenVectorResult:
     case LN_VectorExpressionKind::TweenRotationResult:
+    case LN_VectorExpressionKind::SmoothValue:
       AddRuntimeStateDependency(summary, LN_DEP_STATE_FLOAT_EXPRESSION);
       break;
     case LN_VectorExpressionKind::MotionPosition:
@@ -1106,6 +1133,7 @@ void AddValueExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_ValueExpressionKind::ObjectParent:
     case LN_ValueExpressionKind::ObjectChild:
     case LN_ValueExpressionKind::ObjectChildByName:
+    case LN_ValueExpressionKind::ObjectChildren:
       /* The hierarchy is mutable and not part of LN_Snapshot. Keep these reads on the main
        * thread until a real immutable object-graph snapshot exists. */
       AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
@@ -1126,6 +1154,10 @@ void AddValueExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
       if (expression.kind == LN_ValueExpressionKind::ObjectByName) {
         AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
       }
+      break;
+    case LN_ValueExpressionKind::SnapshotCharacterGroundObject:
+      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_CHARACTER);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
       break;
     case LN_ValueExpressionKind::BoneAttribute:
     case LN_ValueExpressionKind::BonePoseRotation:
@@ -1174,6 +1206,13 @@ void AddValueExpressionDependencyDetails(LN_ProgramDependencySummary &summary,
     case LN_ValueExpressionKind::PhysicsQueryRayDirections:
     case LN_ValueExpressionKind::PhysicsQueryEndPoints:
       AddQueryDependency(summary, LN_DEP_QUERY_RESULT_FIELDS);
+      break;
+    case LN_ValueExpressionKind::ExplosionStrengths:
+      /* The query's objects' centers of mass now. */
+      AddQueryDependency(summary, LN_DEP_QUERY_RESULT_FIELDS);
+      AddSnapshotDependency(summary, LN_DEP_SNAPSHOT_OBJECT_GRAPH);
+      AddDynamicDependency(summary, LN_DEP_DYNAMIC_OBJECT_REF);
+      AddMainThreadDependency(summary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_ValueExpressionKind::ProjectileParabola:
       AddQueryDependency(summary, LN_DEP_QUERY_PROJECTILE | LN_DEP_QUERY_RESULT_FIELDS);
@@ -1526,7 +1565,7 @@ bool VectorExpressionsEqual(const LN_VectorExpression &a, const LN_VectorExpress
          a.output_type == b.output_type &&
          a.rotation_value.NearlyEquals(b.rotation_value, 1.0e-7f) &&
          VectorEqual(a.vector_value, b.vector_value) && FloatEqual(a.float_value, b.float_value) &&
-         a.bool_value == b.bool_value;
+         a.bool_value == b.bool_value && a.int_value == b.int_value;
 }
 
 bool ColorExpressionsEqual(const LN_ColorExpression &a, const LN_ColorExpression &b)
@@ -1642,6 +1681,13 @@ bool FloatExpressionCanCSE(const LN_FloatExpressionKind kind)
     case LN_FloatExpressionKind::RangedThreshold:
     case LN_FloatExpressionKind::VectorComponent:
     case LN_FloatExpressionKind::VectorLength:
+    case LN_FloatExpressionKind::MathFunction:
+    case LN_FloatExpressionKind::VectorMeasure:
+    /* (2026-11-16: a hash of its inputs, the same for every tree.) */
+    case LN_FloatExpressionKind::Noise:
+    case LN_FloatExpressionKind::ListStatistic:
+    case LN_FloatExpressionKind::OscillateCycle:
+    case LN_FloatExpressionKind::Oscillate:
     case LN_FloatExpressionKind::ColorComponent:
     case LN_FloatExpressionKind::Select:
     case LN_FloatExpressionKind::FloatCurve:
@@ -1659,6 +1705,9 @@ bool IntExpressionCanCSE(const LN_IntExpressionKind kind)
   switch (kind) {
     case LN_IntExpressionKind::Constant:
     case LN_IntExpressionKind::StringCount:
+    case LN_IntExpressionKind::TextLength:
+    case LN_IntExpressionKind::TextFind:
+    case LN_IntExpressionKind::ListStatisticIndex:
     case LN_IntExpressionKind::FromBool:
     case LN_IntExpressionKind::FromFloat:
     case LN_IntExpressionKind::FromString:
@@ -1678,6 +1727,8 @@ bool StringExpressionCanCSE(const LN_StringExpressionKind kind)
     case LN_StringExpressionKind::ToLowercase:
     case LN_StringExpressionKind::ZeroFill:
     case LN_StringExpressionKind::Format:
+    case LN_StringExpressionKind::TextSubstring:
+    case LN_StringExpressionKind::TextFormatTime:
     case LN_StringExpressionKind::FromBool:
     case LN_StringExpressionKind::FromInt:
     case LN_StringExpressionKind::FromFloat:
@@ -1702,6 +1753,9 @@ bool VectorExpressionCanCSE(const LN_VectorExpressionKind kind)
     case LN_VectorExpressionKind::Maximum:
     case LN_VectorExpressionKind::Scale:
     case LN_VectorExpressionKind::Normalize:
+    case LN_VectorExpressionKind::VectorFunction:
+    case LN_VectorExpressionKind::RotationFunction:
+    case LN_VectorExpressionKind::Oscillate:
     case LN_VectorExpressionKind::Resize:
     case LN_VectorExpressionKind::VectorToRotation:
     case LN_VectorExpressionKind::BoneRotationToObjectRotation:
@@ -1854,6 +1908,30 @@ LN_FloatExpression FoldFloatExpression(const LN_FloatExpression &expression,
         return MakeConstantFloatExpression(a + b);
       }
       break;
+    case LN_FloatExpressionKind::MathFunction:
+      /* The VM's and the column kernel's function (LN_MathOps.h). */
+      if (expression.int_value >= 0 && expression.int_value < int32_t(LN_MathFunction::Count) &&
+          GetConstantFloat(float_expressions, expression.input0, a) &&
+          GetConstantFloat(float_expressions, expression.input1, b) &&
+          GetConstantFloat(float_expressions, expression.input2, c))
+      {
+        return MakeConstantFloatExpression(
+            LN_MathFunctionValue(LN_MathFunction(expression.int_value), a, b, c));
+      }
+      break;
+    case LN_FloatExpressionKind::VectorMeasure: {
+      MT_Vector3 vector_b;
+      MT_Vector3 axis;
+      if (expression.int_value >= 0 && expression.int_value < int32_t(LN_VectorMeasure::Count) &&
+          GetConstantVector(vector_expressions, expression.input0, vector) &&
+          GetConstantVector(vector_expressions, expression.input1, vector_b) &&
+          GetConstantVector(vector_expressions, expression.input2, axis))
+      {
+        return MakeConstantFloatExpression(LN_VectorMeasureValue(
+            LN_VectorMeasure(expression.int_value), vector, vector_b, axis));
+      }
+      break;
+    }
     case LN_FloatExpressionKind::Subtract:
       if (GetConstantFloat(float_expressions, expression.input0, a) &&
           GetConstantFloat(float_expressions, expression.input1, b))
@@ -2121,6 +2199,18 @@ LN_VectorExpression FoldVectorExpression(
                                                                  a * (1.0f / length));
       }
       break;
+    case LN_VectorExpressionKind::VectorFunction:
+      /* The VM's and the column kernel's function (LN_MathOps.h). */
+      if (expression.int_value >= 0 &&
+          expression.int_value < int32_t(LN_VectorFunction::Count) &&
+          GetConstantVector(vector_expressions, expression.input0, a) &&
+          GetConstantVector(vector_expressions, expression.input1, b) &&
+          GetConstantFloat(float_expressions, expression.float_expr_index, scalar))
+      {
+        return MakeConstantVectorExpression(
+            LN_VectorFunctionValue(LN_VectorFunction(expression.int_value), a, b, scalar));
+      }
+      break;
     case LN_VectorExpressionKind::Combine:
       if (GetConstantFloat(float_expressions, expression.input0, x) &&
           GetConstantFloat(float_expressions, expression.input1, y) &&
@@ -2232,9 +2322,8 @@ LN_MainThreadOnlyReason MainThreadOnlyReasonForOpcode(const LN_OpCode opcode)
     case LN_OpCode::DrawMesh:
     case LN_OpCode::DrawAxis:
       return LN_MainThreadOnlyReason::DebugDraw;
-    case LN_OpCode::Navigate:
-    case LN_OpCode::FollowPath:
-      return LN_MainThreadOnlyReason::Navigation;
+    /* (2026-11-18) Navigate and Follow Path only record a request (the navigation step after the
+     * flush moves the NPCs). */
     default:
       return LN_MainThreadOnlyReason::None;
   }
@@ -2351,6 +2440,7 @@ LN_InstructionPayloadKind PayloadKindForOpcode(const LN_OpCode opcode)
       return LN_InstructionPayloadKind::Persistence;
     case LN_OpCode::Navigate:
     case LN_OpCode::FollowPath:
+    case LN_OpCode::NavigationAttribute:
       return LN_InstructionPayloadKind::Navigation;
     case LN_OpCode::SetUIInteractable:
     case LN_OpCode::ResetSmoothing:
@@ -2411,6 +2501,7 @@ LN_InstructionPayloadKind PayloadKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SampleMotion:
     case LN_OpCode::ResetMotion:
     case LN_OpCode::BreakLoop:
+    case LN_OpCode::TweenRequest:
       return LN_InstructionPayloadKind::None;
     default:
       return LN_InstructionPayloadKind::Generic;
@@ -2674,10 +2765,7 @@ uint32_t CommandResourceAccessForOpcode(const LN_OpCode opcode)
     case LN_OpCode::GamepadLook:
     case LN_OpCode::MouseLook:
       return LN_SCHEDULER_RESOURCE_WORLD;
-    case LN_OpCode::Navigate:
-      return LN_SCHEDULER_RESOURCE_WORLD | LN_SCHEDULER_RESOURCE_RENDER;
-    case LN_OpCode::FollowPath:
-      return LN_SCHEDULER_RESOURCE_WORLD;
+    /* (2026-11-18) Navigate, Follow Path, Set Navigation Attribute: requests only. */
     default:
       return LN_SCHEDULER_RESOURCE_NONE;
   }
@@ -2907,6 +2995,7 @@ LN_ExecOpKind ExecOpKindForOpcode(const LN_OpCode opcode)
     case LN_OpCode::SampleMotion:
     case LN_OpCode::ResetMotion:
     case LN_OpCode::BreakLoop:
+    case LN_OpCode::TweenRequest:
       return LN_ExecOpKind::TimeFlowControl;
     case LN_OpCode::SetWorldPosition:
     case LN_OpCode::SetLocalPosition:
@@ -3066,6 +3155,7 @@ LN_ExecOpKind ExecOpKindForOpcode(const LN_OpCode opcode)
       return LN_ExecOpKind::VariableCommand;
     case LN_OpCode::Navigate:
     case LN_OpCode::FollowPath:
+    case LN_OpCode::NavigationAttribute:
       return LN_ExecOpKind::NavigationCommand;
     case LN_OpCode::SetCollectionVisibility:
     case LN_OpCode::SetCollectionMember:
@@ -3120,6 +3210,7 @@ bool OpcodeHasDirectExecOp(const LN_Instruction &instruction)
     case LN_OpCode::SampleMotion:
     case LN_OpCode::ResetMotion:
     case LN_OpCode::BreakLoop:
+    case LN_OpCode::TweenRequest:
     case LN_OpCode::SetWorldPosition:
     case LN_OpCode::SetLocalPosition:
     case LN_OpCode::SetWorldOrientation:
@@ -3253,6 +3344,7 @@ bool OpcodeHasDirectExecOp(const LN_Instruction &instruction)
     case LN_OpCode::InputMap:
     case LN_OpCode::Navigate:
     case LN_OpCode::FollowPath:
+    case LN_OpCode::NavigationAttribute:
     case LN_OpCode::SetCollectionVisibility:
     case LN_OpCode::SetCollectionMember:
     case LN_OpCode::SetOverlayCollection:
@@ -3406,6 +3498,22 @@ const LN_TreeBatchProfile &LN_Program::GetTreeBatchProfile() const
         LN_AnalyzeTreeBatchSafety(*this));
   }
   return *m_treeBatchProfile;
+}
+
+bool LN_Program::UsesBeingRemoved() const
+{
+  /* Asked at every removal while playing (main thread): kept while the program's Bool
+   * expressions are the same many (a program that grew is scanned again). */
+  if (m_usesBeingRemovedCount != m_boolExpressions.size()) {
+    m_usesBeingRemoved = std::any_of(m_boolExpressions.begin(),
+                                     m_boolExpressions.end(),
+                                     [](const LN_BoolExpression &expression) {
+                                       return expression.kind ==
+                                              LN_BoolExpressionKind::BeingRemoved;
+                                     });
+    m_usesBeingRemovedCount = m_boolExpressions.size();
+  }
+  return m_usesBeingRemoved;
 }
 
 const std::vector<uint8_t> &LN_Program::GetQueryWarmEvents() const
@@ -3836,6 +3944,62 @@ uint32_t LN_Program::AcquireKeepDistanceNode(const void *node_key)
   }
   m_keepDistanceNodes.push_back(node_key);
   return uint32_t(m_keepDistanceNodes.size() - 1);
+}
+
+uint32_t LN_Program::AcquireSoundNode(const void *node_key)
+{
+  for (uint32_t index = 0; index < m_soundNodes.size(); index++) {
+    if (m_soundNodes[index] == node_key) {
+      return index;
+    }
+  }
+  m_soundNodes.push_back(node_key);
+  return uint32_t(m_soundNodes.size() - 1);
+}
+
+uint32_t LN_Program::AcquireInputGestureNode(const void *node_key)
+{
+  for (uint32_t index = 0; index < m_inputGestureNodes.size(); index++) {
+    if (m_inputGestureNodes[index] == node_key) {
+      return index;
+    }
+  }
+  m_inputGestureNodes.push_back(node_key);
+  return uint32_t(m_inputGestureNodes.size() - 1);
+}
+
+uint32_t LN_Program::AcquireSmoothValueNode(const void *node_key, const uint32_t output)
+{
+  for (uint32_t index = 0; index < m_smoothValueNodes.size(); index++) {
+    if (m_smoothValueNodes[index].first == node_key && m_smoothValueNodes[index].second == output)
+    {
+      return index;
+    }
+  }
+  m_smoothValueNodes.emplace_back(node_key, output);
+  return uint32_t(m_smoothValueNodes.size() - 1);
+}
+
+uint32_t LN_Program::AddFindSource(const LN_FindSourceKey &key)
+{
+  for (uint32_t index = 0; index < m_findSources.size(); index++) {
+    if (m_findSources[index] == key) {
+      return index;
+    }
+  }
+  m_findSources.push_back(key);
+  return uint32_t(m_findSources.size() - 1);
+}
+
+uint32_t LN_Program::AcquireActionFrameNode(const void *node_key)
+{
+  for (uint32_t index = 0; index < m_actionFrameNodes.size(); index++) {
+    if (m_actionFrameNodes[index] == node_key) {
+      return index;
+    }
+  }
+  m_actionFrameNodes.push_back(node_key);
+  return uint32_t(m_actionFrameNodes.size() - 1);
 }
 
 uint32_t LN_Program::AddSourceRef(const LN_SourceRef &source_ref)
@@ -4976,6 +5140,7 @@ void LN_Program::RebuildRegisterExpressionIR()
         case LN_VectorExpressionKind::SnapshotCharacterGravity:
         case LN_VectorExpressionKind::SnapshotCharacterWalkDirection:
         case LN_VectorExpressionKind::SnapshotCharacterLocalWalkDirection:
+        case LN_VectorExpressionKind::SnapshotCharacterSurface:
           supported = expression.input0 == LN_INVALID_INDEX;
           op.kind = LN_RegisterExpressionOpKind::VectorSnapshotRead;
           break;
@@ -5235,6 +5400,7 @@ void LN_Program::RebuildRegisterExpressionIR()
           break;
         case LN_BoolExpressionKind::SnapshotVisibility:
         case LN_BoolExpressionKind::SnapshotCharacterOnGround:
+        case LN_BoolExpressionKind::SnapshotCharacterState:
           supported = expression.input0 == LN_INVALID_INDEX;
           op.kind = LN_RegisterExpressionOpKind::BoolSnapshotRead;
           break;
@@ -5591,8 +5757,10 @@ void LN_Program::RebuildRegisterExpressionIR()
                                ir.value_expression_registers);
           op.input1 = make_ref(
               LN_RegisterValueKind::Int, expression.input1, ir.int_expression_registers);
+          /* (Weights, 2026-11-16: no register op reads them.) */
           supported = RegisterRefIsValid(op.input0) &&
-                      (expression.input1 == LN_INVALID_INDEX || RegisterRefIsValid(op.input1));
+                      (expression.input1 == LN_INVALID_INDEX || RegisterRefIsValid(op.input1)) &&
+                      expression.input2 == LN_INVALID_INDEX;
           op.kind = LN_RegisterExpressionOpKind::ValueListRandomItem;
           break;
         case LN_ValueExpressionKind::ValueSwitchList: {
@@ -6171,6 +6339,18 @@ void LN_Program::ValidateInstructionPayloadCollection(
       else if (m_boolExpressions[uint32_t(payload.int_value)].kind != LN_BoolExpressionKind::Once)
       {
         add_error(index, "Once state opcode does not reference a Once expression");
+      }
+    }
+    if (payload.opcode == LN_OpCode::TweenRequest) {
+      if (payload.int_value < 0 || uint32_t(payload.int_value) >= m_boolExpressions.size() ||
+          m_boolExpressions[uint32_t(payload.int_value)].kind != LN_BoolExpressionKind::TweenValue)
+      {
+        add_error(index, "Tween request does not reference a Tween Value expression");
+      }
+      if (payload.secondary_int_value != LN_TWEEN_REQUEST_FORWARD &&
+          payload.secondary_int_value != LN_TWEEN_REQUEST_BACK)
+      {
+        add_error(index, "Tween request direction is invalid");
       }
     }
     if (payload.opcode == LN_OpCode::SetFlowGate || payload.opcode == LN_OpCode::TryFlowGate) {
@@ -7724,9 +7904,7 @@ void LN_Program::UpdateSchedulerSummaryForInstruction(const LN_Event event,
 
   const uint32_t resource_access = CommandResourceAccessForOpcode(instruction.opcode);
   if (OpcodeEmitsCommands(instruction.opcode)) {
-    const LN_EstimatedWorkClass work_class = (instruction.opcode == LN_OpCode::Navigate) ?
-                                                 LN_EstimatedWorkClass::Heavy :
-                                                 LN_EstimatedWorkClass::Small;
+    const LN_EstimatedWorkClass work_class = LN_EstimatedWorkClass::Small;
     MarkCommandWrite(m_schedulerSummary, resource_access, work_class);
   }
   else {
@@ -7813,6 +7991,7 @@ void LN_Program::UpdateSchedulerSummaryForBoolExpression(const LN_BoolExpression
     case LN_BoolExpressionKind::SnapshotVisibility:
     case LN_BoolExpressionKind::SnapshotGamePropertyExists:
     case LN_BoolExpressionKind::SnapshotCharacterOnGround:
+    case LN_BoolExpressionKind::SnapshotCharacterState:
       MarkSnapshotRead(m_schedulerSummary);
       break;
     case LN_BoolExpressionKind::RuntimeTreeProperty:
@@ -7820,6 +7999,7 @@ void LN_Program::UpdateSchedulerSummaryForBoolExpression(const LN_BoolExpression
     case LN_BoolExpressionKind::LogicTreeStopped:
     case LN_BoolExpressionKind::ActionDone:
     case LN_BoolExpressionKind::AnimationPlaying:
+    case LN_BoolExpressionKind::ActionFrameReached:
     case LN_BoolExpressionKind::LoopActive:
     case LN_BoolExpressionKind::StoreValueDone:
     case LN_BoolExpressionKind::InstructionExecuted:
@@ -7859,6 +8039,24 @@ void LN_Program::UpdateSchedulerSummaryForBoolExpression(const LN_BoolExpression
     case LN_BoolExpressionKind::RepeatLimitExhausted:
     case LN_BoolExpressionKind::MotionValid:
       MarkRuntimeTreeStateRead(m_schedulerSummary);
+      break;
+    case LN_BoolExpressionKind::SoundPlaying:
+    case LN_BoolExpressionKind::SoundFinished:
+    case LN_BoolExpressionKind::InputGesture:
+    case LN_BoolExpressionKind::InputCombo:
+      /* (2026-11-17) The audio's answer; the tree's input slots: main thread. */
+      MarkRuntimeTreeStateRead(m_schedulerSummary);
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_BoolExpressionKind::BeingRemoved:
+      /* (2026-11-17) On Removed: the tree's own flag, set before the tick. */
+      MarkRuntimeTreeStateRead(m_schedulerSummary);
+      break;
+    case LN_BoolExpressionKind::SaveSlotExists:
+      /* (2026-11-17) The save service and the file system: main thread. */
+      AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_LOGIC_MANAGER);
+      m_schedulerSummary.reads_snapshot_only = false;
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
       break;
     case LN_BoolExpressionKind::InputStatus:
     case LN_BoolExpressionKind::KeyboardActive:
@@ -7944,6 +8142,7 @@ void LN_Program::UpdateSchedulerSummaryForFloatExpression(const LN_FloatExpressi
     case LN_FloatExpressionKind::CooldownProgress:
     case LN_FloatExpressionKind::MotionSpeed:
     case LN_FloatExpressionKind::StepTimePassed:
+    case LN_FloatExpressionKind::SmoothValue:
       MarkRuntimeTreeStateRead(m_schedulerSummary);
       break;
     case LN_FloatExpressionKind::GamepadButtonStrength:
@@ -8107,6 +8306,7 @@ void LN_Program::UpdateSchedulerSummaryForVectorExpression(const LN_VectorExpres
     case LN_VectorExpressionKind::SnapshotCharacterGravity:
     case LN_VectorExpressionKind::SnapshotCharacterWalkDirection:
     case LN_VectorExpressionKind::SnapshotCharacterLocalWalkDirection:
+    case LN_VectorExpressionKind::SnapshotCharacterSurface:
       MarkSnapshotRead(m_schedulerSummary);
       break;
     case LN_VectorExpressionKind::WindowResolution:
@@ -8145,6 +8345,7 @@ void LN_Program::UpdateSchedulerSummaryForVectorExpression(const LN_VectorExpres
     case LN_VectorExpressionKind::MotionVelocity:
     case LN_VectorExpressionKind::MotionDirection:
     case LN_VectorExpressionKind::MotionPredictedPosition:
+    case LN_VectorExpressionKind::SmoothValue:
       MarkRuntimeTreeStateRead(m_schedulerSummary);
       break;
     case LN_VectorExpressionKind::RigidBodyAttribute:
@@ -8191,6 +8392,10 @@ void LN_Program::UpdateSchedulerSummaryForQueryExpression(const LN_QueryExpressi
     case LN_QueryExpressionKind::KeepDistance:
     case LN_QueryExpressionKind::PointVelocity:
       MarkQueryCacheRead(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
+    case LN_QueryExpressionKind::FindObjects:
+      /* (2026-11-16) The tick's poses: read only while the trees record. */
+      MarkSnapshotQueryCacheRead(m_schedulerSummary);
       break;
     case LN_QueryExpressionKind::UIElementEvent:
       AddResourceAccess(m_schedulerSummary,
@@ -8272,6 +8477,7 @@ void LN_Program::UpdateSchedulerSummaryForValueExpression(const LN_ValueExpressi
     /* An empty Camera socket (Set FOV, Set Camera Viewport...): without this the game rejects
      * a tree that reads nothing else from the snapshot. */
     case LN_ValueExpressionKind::ActiveCamera:
+    case LN_ValueExpressionKind::SnapshotCharacterGroundObject:
       MarkSnapshotRead(m_schedulerSummary);
       break;
     case LN_ValueExpressionKind::ObjectGameProperty:
@@ -8283,6 +8489,7 @@ void LN_Program::UpdateSchedulerSummaryForValueExpression(const LN_ValueExpressi
     case LN_ValueExpressionKind::ObjectParent:
     case LN_ValueExpressionKind::ObjectChild:
     case LN_ValueExpressionKind::ObjectChildByName:
+    case LN_ValueExpressionKind::ObjectChildren:
       AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_SCENE);
       m_schedulerSummary.reads_snapshot_only = false;
       MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
@@ -8346,6 +8553,13 @@ void LN_Program::UpdateSchedulerSummaryForValueExpression(const LN_ValueExpressi
     case LN_ValueExpressionKind::ProjectileParabola:
       MarkSnapshotQueryCacheRead(m_schedulerSummary);
       break;
+    case LN_ValueExpressionKind::ExplosionStrengths:
+      /* The query's objects' centers of mass now. */
+      MarkSnapshotQueryCacheRead(m_schedulerSummary);
+      AddResourceAccess(m_schedulerSummary, LN_SCHEDULER_RESOURCE_SCENE);
+      m_schedulerSummary.reads_snapshot_only = false;
+      MarkMainThreadOnly(m_schedulerSummary, LN_MainThreadOnlyReason::QueryExpression);
+      break;
     case LN_ValueExpressionKind::UIFocusObject:
     case LN_ValueExpressionKind::UIElementEventObject:
     case LN_ValueExpressionKind::UIElementEventTarget:
@@ -8391,7 +8605,11 @@ void LN_Program::UpdateSchedulerSummaryForValueExpression(const LN_ValueExpressi
 
 void LN_Program::EnsureLeanProgram() const
 {
-  if (m_leanProgram != nullptr || LN_LeanHelperThread()) {
+  if (LN_LeanHelperThread()) {
+    return;
+  }
+  EnsureTreePropertyWriters();
+  if (m_leanProgram != nullptr) {
     return;
   }
   m_leanProgram = LN_LowerToLean(*this);

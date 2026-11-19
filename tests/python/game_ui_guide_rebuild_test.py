@@ -962,6 +962,15 @@ def ui_settings(ob):
     return {key: value for key, value in values.items() if key not in drop}
 
 
+def played_damping(scene, game):
+    """In a Jolt scene Bullet's untouched pair (0.04, 0.1) plays as Jolt's default (0.05, 0.05),
+    and choosing a physics type there stores Jolt's pair (2026-11-14): both are the same game."""
+    if scene.game_settings.physics_engine == 'JOLT' and same(game.get("damping"), 0.04) and \
+            same(game.get("rotation_damping"), 0.1):
+        game = dict(game, damping=0.05, rotation_damping=0.05)
+    return game
+
+
 def fingerprint(scene):
     objects = {}
     used_materials = set()
@@ -976,7 +985,7 @@ def fingerprint(scene):
             "settings": {key: value for key, value in
                          settings(ob, skip=NOT_SETTINGS).items()
                          if key not in VIEW_ONLY_SETTINGS},
-            "game": settings(ob.game, skip=R.GAME_SKIP),
+            "game": played_damping(scene, settings(ob.game, skip=R.GAME_SKIP)),
             "ui": ui_settings(ob),
             # A text's Text property equal to its body changes nothing (the guide leaves it out).
             # In any order: the game finds them by name.

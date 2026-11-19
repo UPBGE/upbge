@@ -66,9 +66,15 @@ LOGIC_NODE_SEARCHABLE_MODES = {
     "LogicNativeMouseButton": "mouse_button",
     "LogicNativeGamepadButton": "gamepad_button",
     "LogicNativeRandomValue": "data_type",
+    "LogicNativeListOperation": "operation",
+    "LogicNativeTweenValue": "value_type",
+    "LogicNativeSmoothValue": "mode",
+    "LogicNativeFindObjects": "pick",
+    "LogicNativeCompare": "data_type",
     "LogicNativeTypecast": "to_type",
     "LogicNativeMatrixToXYZ": "output",
     "LogicNativeVectorRotate": "mode",
+    "LogicNativeTransformVector": "space",
     "LogicNativeEvaluateProperty": "operation",
     "LogicNativePlayAction": "play_mode",
     "LogicNativeGetBoneAttribute": "attribute",
@@ -84,6 +90,7 @@ LOGIC_NODE_SEARCHABLE_MODES = {
     "LogicNativeRaycastFromMesh": "mesh_domain",
     "LogicNativeAimForArc": "solve_by",
     "LogicNativeVelocityAtPoint": "point_from",
+    "LogicNativeNavigate": "mode",
     "LogicNativeOpenObjectMenu": "menu_open_mode",
     "LogicNativeScreenAnchor": "screen_anchor",
     "LogicNativeObjectGridView": "interaction_view",
@@ -103,10 +110,58 @@ def searchable_input_mode_path(identifier):
 
 
 LOGIC_NODES_WITHOUT_MODE = {
+    "LogicNativeOnActionFrame",
+    "LogicNativeStateMachine",
     "LogicNativeGetDistance",
     "LogicNativeLineOfSight",
     "LogicNativeGetMaterialParameter",
 }
+
+# Words a game maker types for what a node does when its name says it another way (2026-11-16):
+# the Add menu's search also lists "Word ▸ Node", which adds the plain node. Flip-Flop's Is A and
+# Flow Gate's Is Open flip at every pulse (Toggle): a toggle needs no game property.
+LOGIC_NODE_SEARCH_ALIASES = {
+    "LogicNativeFlipFlop": ("Toggle",),
+    "LogicNativeFlowGate": ("Toggle",),
+    # (2026-11-16) Other engines' names for following a value over time, Perlin noise and a
+    # weighted pick.
+    "LogicNativeSmoothValue": ("Lerp", "Interpolate", "Damp"),
+    "LogicNativeNoise": ("Perlin",),
+    # (2026-11-17) Other engines' words for a value swinging with time; Tween's presets.
+    "LogicNativeOscillate": ("Sine Wave", "Bob", "Orbit", "Pulse"),
+    "LogicNativeTweenValue": ("Easing", "Bounce", "Elastic"),
+    "LogicNativeInputCombo": ("Combo", "Chord", "Key Sequence", "Cheat Code"),
+    "LogicNativeListRandomItem": ("Weighted Random",),
+    "LogicNativeOnActionFrame": ("Animation Event", "Footstep"),
+    "LogicNativeSetActionLayer": ("Action Speed",),
+    "LogicNativeFindObjects": ("Nearest", "Closest", "Find Nearest", "Targets"),
+    "LogicNativeStateMachine": ("FSM", "States", "AI State"),
+    # (2026-11-17) What people type for the text operations.
+    "LogicNativeStringOperation": ("Text", "Clock Text", "Timer Text"),
+    # (2026-11-18) Other engines' words for NPC movement and navmesh questions.
+    "LogicNativeNavigate": ("Pathfinding", "Steering", "Crowd", "AI Move"),
+    "LogicNativeNavmeshQuery": ("Pathfinding", "Reachable"),
+    "LogicNativeSetNavigationAttribute": ("Navmesh Obstacle", "Rebuild Navmesh"),
+}
+
+
+def _draw_search_aliases(menu, context, item):
+    """The search-only "Word ▸ Node" entries of LOGIC_NODE_SEARCH_ALIASES."""
+    idname = item["idname"]
+    if not getattr(context, "is_menu_search", False) or idname not in LOGIC_NODE_SEARCH_ALIASES:
+        return
+    label = item.get("label")
+    node_name = iface_(label) if label else iface_(getattr(bpy.types, idname).bl_rna.name)
+    for word in LOGIC_NODE_SEARCH_ALIASES[idname]:
+        props = menu.node_operator(
+            menu.layout,
+            idname,
+            label="{:s} ▸ {:s}".format(iface_(word), node_name),
+            translate=False,
+            search_weight=item.get("search_weight", 0.0),
+        )
+        if hasattr(props, "use_transform"):
+            props.use_transform = menu.use_transform
 
 _searchable_mode_cache = {}
 
@@ -217,6 +272,7 @@ LOGIC_IMPORTANT_SUBMENU_PATHS = {
     "Nodes": ("Nodes/Materials", "Nodes/Geometry"),
     "Objects": (
         "Objects/Transformation",
+        "Objects/Navigation",
         "Objects/Object Data",
         "Objects/Curves",
     ),
@@ -244,6 +300,7 @@ LOGIC_MENU_LAYOUTS = {
     "Events": (
         _node_item("LogicNativeOnInit", "On Init"),
         _node_item("LogicNativeOnGameLoaded", "On Game Loaded"),
+        _node_item("LogicNativeOnRemoved", "On Removed"),
         _node_item("LogicNativeOnPlayerJoin", "On Player Join"),
         _node_item("LogicNativeOnUpdate", "On Frame Update"),
         _node_item("LogicNativeWhilePaused", "While Paused"),
@@ -267,6 +324,7 @@ LOGIC_MENU_LAYOUTS = {
         _separator(),
         _node_item("LogicNativeSaveGame", "Save Game"),
         _node_item("LogicNativeLoadGame", "Load Game"),
+        _node_item("LogicNativeSaveSlot", "Save Slot"),
         _node_item("LogicNativeSetSaveExistence", "Set Save Object State"),
     ),
     "Input": (
@@ -278,6 +336,7 @@ LOGIC_MENU_LAYOUTS = {
     ),
     "Input/Input Map": (
         _node_item("LogicNativeInputAction", "Input Action"),
+        _node_item("LogicNativeInputCombo", "Input Combo", searchable_enum="combo_mode"),
         _node_item("LogicNativeGetInputBinding", "Get Input Binding"),
         _separator(),
         _node_item("LogicNativeRebindInputAction", "Rebind Input Action"),
@@ -323,6 +382,8 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativeStringOperation", searchable_enum="operation"),
         _node_item("LogicNativeFormattedString", "Formatted String"),
         _node_item("LogicNativeRandomValue", "Random Value"),
+        _node_item("LogicNativeNoise", "Noise"),
+        _node_item("LogicNativeOscillate", "Oscillate"),
         _node_item("LogicNativeSetRandomSeed", "Set Random Seed"),
         _node_item("LogicNativeTypecast", "Typecast Value"),
         _node_item("LogicNativeMixValue", "Mix Value"),
@@ -349,11 +410,13 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativeXYZToMatrix", "XYZ to Matrix"),
         _node_item("LogicNativeMatrixToXYZ", "Matrix to XYZ"),
         _node_item("LogicNativeVectorRotate", "Vector Rotate"),
+        _node_item("LogicNativeTransformVector", "Transform Vector"),
     ),
     "Values/Rotation": (
         _node_item("LogicNativeEuler", "Combine Rotation"),
         _node_item("LogicNativeSeparateEuler", "Separate Rotation"),
         _separator(),
+        _node_item("LogicNativeRotationMath", "Rotation Math"),
         _node_item("LogicNativeVectorToRotation", "Vector to Rotation"),
         _node_item("LogicNativeBoneRotationToObjectRotation",
                    "Bone Rotation to Object Rotation"),
@@ -393,8 +456,10 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativePlayAction", "Play Action"),
         _node_item("LogicNativeStopAction", "Stop Action"),
         _node_item("LogicNativeSetActionFrame", "Set Action Frame"),
+        _node_item("LogicNativeSetActionLayer", "Set Action Layer"),
         _separator(),
         _node_item("LogicNativeAnimationStatus", "Animation Status"),
+        _node_item("LogicNativeOnActionFrame", "On Action Frame"),
     ),
     "Animation/Shape Keys": (
         _node_item("LogicNativeSetShapeKeyValue", "Set Shape Key Value"),
@@ -453,6 +518,7 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativeSetObjectAttribute", "Set Object Attribute"),
         _separator(),
         _menu_item("Objects/Transformation"),
+        _menu_item("Objects/Navigation"),
         _menu_item("Objects/Object Data"),
         _menu_item("Objects/Curves"),
     ),
@@ -468,16 +534,25 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativeKeepDistance", "Keep Distance"),
         _separator(),
         _node_item("LogicNativeMoveToward", "Move To"),
-        _node_item("LogicNativeNavigate", "Navigate"),
-        _node_item("LogicNativeFollowPath", "Follow Path"),
         _node_item("LogicNativeTranslate", "Translate"),
         _node_item("LogicNativeRotateToward", "Rotate To"),
         _node_item("LogicNativeSlowFollow", "Slow Follow"),
         _node_item("LogicNativeAlignAxisToVector", "Align Axis to Vector"),
     ),
+    "Objects/Navigation": (
+        _node_item("LogicNativeNavigate", "Navigate"),
+        _node_item("LogicNativeFollowPath", "Follow Path"),
+        _separator(),
+        _node_item("LogicNativeGetNavigationInfo", "Get Navigation Info"),
+        _node_item("LogicNativeOnNavigationLink", "On Navigation Link"),
+        _node_item("LogicNativeNavmeshQuery", "Navmesh Query"),
+        _separator(),
+        _node_item("LogicNativeSetNavigationAttribute", "Set Navigation Attribute"),
+    ),
     "Objects/Object Data": (
         _node_item("LogicNativeFindObject", "Get Object"),
         _node_item("LogicNativeObjectByName", "Get Object By Name"),
+        _node_item("LogicNativeFindObjects", "Find Objects"),
         _node_item("LogicNativeGetOwner", "Get Owner"),
         _node_item("LogicNativeGetObjectID", "Get Object ID"),
         _node_item("LogicNativeGetAxisVector", "Get Axis Vector"),
@@ -488,6 +563,7 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativeSetParent", "Set Parent"),
         _node_item("LogicNativeGetParent", "Get Parent"),
         _node_item("LogicNativeGetChildObject", "Get Child", searchable_enum="variant"),
+        _node_item("LogicNativeGetChildren", "Get Children"),
         _node_item("LogicNativeRemoveParent", "Remove Parent"),
         _node_item("LogicNativeRemoveObject", "Remove Object"),
         _separator(),
@@ -552,6 +628,7 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativeAnyFlow", "Any Flow"),
         _node_item("LogicNativeSequence", "Sequence"),
         _node_item("LogicNativeSwitchFlow", "Switch Flow", searchable_enum="variant"),
+        _node_item("LogicNativeStateMachine", "State Machine"),
         _node_item("LogicNativeFlowRouter", "Flow Router"),
         _node_item("LogicNativeFlipFlop", "Flip-Flop"),
         _node_item("LogicNativeRepeatLimit", "Repeat Limit"),
@@ -597,6 +674,7 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativeAimForArc", "Aim for Arc"),
         _node_item("LogicNativeAddPhysicsConstraint", "Add Rigid Body Constraints"),
         _node_item("LogicNativeGetRigidBodyConstraints", "Get Rigid Body Constraints"),
+        _node_item("LogicNativeSetRigidBodyConstraint", "Set Rigid Body Constraint"),
         _node_item("LogicNativeRemovePhysicsConstraint", "Remove Rigid Body Constraints"),
         _node_item("LogicNativeObjectsColliding", "Objects Colliding"),
         _node_item("LogicNativeSetPhysics", "Enable Physics Body"),
@@ -625,6 +703,7 @@ LOGIC_MENU_LAYOUTS = {
     "Python": (),
     "Time": (
         _node_item("LogicNativeTime", "Time"),
+        _node_item("LogicNativeDateTime", "Date and Time"),
         _separator(),
         _node_item("LogicNativeOnNextFrame", "Wait for Next Frame"),
         _node_item("LogicNativeDelayFlow", "Delay", searchable_enum="variant"),
@@ -632,6 +711,7 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativePulsify", "Pulsify"),
         _node_item("LogicNativeBarrier", "Barrier"),
         _node_item("LogicNativeTweenValue", "Tween Value"),
+        _node_item("LogicNativeSmoothValue", "Smooth Value"),
     ),
     "Data": (
         _menu_item("Data/List"),
@@ -650,11 +730,13 @@ LOGIC_MENU_LAYOUTS = {
         _node_item("LogicNativeListContains", "List Contains"),
         _node_item("LogicNativeListFindIndex", "List Find Index"),
         _node_item("LogicNativeListSort", "List Sort"),
+        _node_item("LogicNativeListOperation", "List Operation", searchable_enum="operation"),
         _separator(),
         _node_item("LogicNativeListAppend", "Append"),
         _node_item("LogicNativeListRemoveIndex", "Remove Index"),
         _node_item("LogicNativeListRemoveValue", "Remove Value"),
         _node_item("LogicNativeListSetIndex", "Set List Index"),
+        _node_item("LogicNativeListInsert", "Insert"),
         _node_item("LogicNativeListRandomItem", "Get Random List Item"),
     ),
     "Data/Dict": (
@@ -789,6 +871,7 @@ def _draw_menu_items(menu, context, items):
                     label=item.get("label"),
                     search_weight=item.get("search_weight", 0.0),
                 )
+            _draw_search_aliases(menu, context, item)
 
         drew_item = True
 

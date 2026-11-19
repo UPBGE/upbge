@@ -37,12 +37,14 @@
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
 #include "PHY_DynamicTypes.h"
+#include "PHY_IMotionState.h"
 #include "PHY_RigidBodyConstraintSettings.h"
 
 #include "DNA_constraint_types.h"
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -530,6 +532,33 @@ class PHY_IPhysicsEnvironment {
   }
 
   /**
+   * Navigation (2026-11-18): every triangle of the static, solid bodies (no sensors) meeting the
+   * box, in the world, with its body's object, bodies in the order they were made. The scene's
+   * navmesh is built of them. The default (Bullet): none.
+   */
+  virtual void CollectStaticTriangles(
+      const MT_Vector3 & /*aabb_min*/,
+      const MT_Vector3 & /*aabb_max*/,
+      const std::function<void(class KX_GameObject *object,
+                               const MT_Vector3 &a,
+                               const MT_Vector3 &b,
+                               const MT_Vector3 &c)> & /*triangle*/)
+  {
+  }
+
+  /**
+   * Navigation (2026-11-18): the world bounds of `controller`'s body when it is static and solid
+   * (a level piece the navmesh is built of), in the game's space. False otherwise and by default
+   * (Bullet).
+   */
+  virtual bool GetStaticBodyBounds(PHY_IPhysicsController * /*controller*/,
+                                   MT_Vector3 & /*r_min*/,
+                                   MT_Vector3 & /*r_max*/)
+  {
+    return false;
+  }
+
+  /**
    * Keep Distance: one PHY_ProximityQuery each, `results[i]` for `queries[i]`, nearest first.
    * Jolt runs them on its job system when there are enough (the results are the same). Only the
    * queries' own fields are read (no game callback), so the backend may run them on helpers.
@@ -631,6 +660,21 @@ class PHY_IPhysicsEnvironment {
                              bool isCompoundChild,
                              bool hasCompoundChildren) = 0;
 
+  /**
+   * Gives a part of a compound made when the game started (it has no body: its shape lives in
+   * its top parent's) a body of its own, as the converter builds one for an object outside a
+   * compound, at the object's pose now and in the world (2026-11-18: when it leaves the
+   * compound). Takes \a motionstate (deleted when no body is made). False when none was made (a
+   * backend without runtime compounds, Max Bodies).
+   */
+  virtual bool CreateBodyOfCompoundPart(KX_GameObject * /*gameobj*/,
+                                        KX_Scene * /*kxscene*/,
+                                        PHY_IMotionState *motionstate)
+  {
+    delete motionstate;
+    return false;
+  }
+
   /* Set the rigid body joints constraints values for converted objects and replicated group
    * instances. */
   virtual void SetupObjectConstraints(KX_GameObject *obj_src,
@@ -646,4 +690,12 @@ class PHY_IPhysicsEnvironment {
       const PHY_RigidBodyConstraintSettings &settings,
       const std::string &constraint_name = std::string()) = 0;
   virtual void SetRigidBodyConstraintEnabled(int constraintid, bool enabled) = 0;
+  /** Set Rigid Body Constraint (2026-11-17): gives a live constraint `settings` (its type the one
+   * it was made with): enabled, breaking, limits, motors, springs, as making it with them would.
+   * False when there is no such constraint or the backend cannot (Bullet). */
+  virtual bool SetRigidBodyConstraintSettings(int /*constraintid*/,
+                                              const PHY_RigidBodyConstraintSettings & /*settings*/)
+  {
+    return false;
+  }
 };

@@ -227,6 +227,180 @@ TEST(LN_RemovedObjects, ARemovedObjectInAStoredListIsNone)
   }
 }
 
+/* Compare's Object type (2026-11-16, Bool::ObjectsEqual): the same object, resolved as every
+ * object read is. A remembered object that is removed equals nothing (an empty input), never the
+ * other copy of the same name the name now finds. */
+TEST(LN_RemovedObjects, CompareObjectsSeesARemovedObjectAsNothing)
+{
+  constexpr int16_t equal = 0, not_equal = 1, object_type = 2;
+  TreeBuilder b;
+  GenNode &touch = b.Add("LogicNativeOnCollision", kEachObject);
+  GenNode &keep = b.Add("LogicNativeSetTreeProperty");
+  b.String(keep, "Property", "target");
+  b.Link(touch, "Collided Object", keep, "Value");
+  b.Link(touch, "On Enter", keep, "Flow");
+  GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+  GenNode &read = b.Add("LogicNativeGetTreeProperty");
+  b.String(read, "Property", "target");
+  GenNode &owner_node = b.Add("LogicNativeGetOwner");
+  GenNode &named = b.Add("LogicNativeObjectByName");
+  b.String(named, "Name", "Spawn");
+  const auto compare = [&](const char *property,
+                           const int16_t operation,
+                           GenNode *a,
+                           const char *a_output,
+                           GenNode *bnode,
+                           const char *b_output) {
+    GenNode &node = b.Add("LogicNativeCompare", operation, object_type);
+    if (a != nullptr) {
+      b.Link(*a, a_output, node, "Object A");
+    }
+    if (bnode != nullptr) {
+      b.Link(*bnode, b_output, node, "Object B");
+    }
+    GenNode &write = b.Add("LogicNativeSetGamePropertyBool");
+    b.String(write, "Property", property);
+    b.Link(node, "Result", write, "Value");
+    b.Link(step, "Out", write, "Flow");
+  };
+  compare("is_none", equal, &read, "Value", nullptr, nullptr);
+  compare("is_named", equal, &read, "Value", &named, "Object");
+  compare("not_owner", not_equal, &owner_node, "Owner Object", &read, "Value");
+  compare("self", equal, &owner_node, "Owner Object", &owner_node, "Owner Object");
+  compare("empty", equal, nullptr, nullptr, nullptr, nullptr);
+  std::string report;
+  const std::shared_ptr<LN_Program> program = b.Compile(&report);
+  ASSERT_NE(program, nullptr) << report;
+  for (const SemMode &mode : AllModes()) {
+    SCOPED_TRACE(mode.name);
+    SemRig rig(program, mode);
+    KX_GameObject &owner = rig.Object(0);
+    KX_GameObject &a = rig.AddObject("Spawn", MT_Vector3(1.0f, 0.0f, 0.0f));
+    rig.AddObject("Spawn", MT_Vector3(2.0f, 0.0f, 0.0f));
+    for (const char *property : {"is_none", "is_named", "not_owner", "self", "empty"}) {
+      rig.SetBool(owner, property, false);
+    }
+    Contacts contacts;
+    contacts.Set(owner, {&a});
+    rig.Step();
+    contacts.Set(owner, {});
+    rig.Step();
+    EXPECT_EQ(rig.Float(owner, "is_none"), 0.0f);
+    EXPECT_EQ(rig.Float(owner, "is_named"), 1.0f) << "the remembered Spawn is the first Spawn";
+    EXPECT_EQ(rig.Float(owner, "not_owner"), 1.0f);
+    EXPECT_EQ(rig.Float(owner, "self"), 1.0f);
+    EXPECT_EQ(rig.Float(owner, "empty"), 1.0f) << "nothing equals nothing";
+
+    RemoveFromTrees(rig, a);
+    rig.Step();
+    EXPECT_EQ(rig.Float(owner, "is_none"), 1.0f) << "a removed object is nothing";
+    EXPECT_EQ(rig.Float(owner, "is_named"), 0.0f) << "the removed object became the other copy";
+    EXPECT_EQ(rig.Float(owner, "not_owner"), 1.0f);
+    EXPECT_EQ(rig.Float(owner, "self"), 1.0f);
+  }
+}
+
+/* Compare's Object type with Greater or Less (2026-11-17): objects are only the same or not, so it
+ * is always false; the editor no longer lists those for objects, and a node saved with one says
+ * so in a warning (the tree still runs). */
+TEST(LN_RemovedObjects, CompareObjectsByOrderWarnsAndIsFalse)
+{
+  constexpr int16_t object_type = 2;
+  for (const int16_t operation : {2, 3, 4, 5}) {
+    SCOPED_TRACE("operation " + std::to_string(operation));
+    TreeBuilder b;
+    GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+    GenNode &owner_node = b.Add("LogicNativeGetOwner");
+    GenNode &compare = b.Add("LogicNativeCompare", operation, object_type);
+    b.Link(owner_node, "Owner Object", compare, "Object A");
+    b.Link(owner_node, "Owner Object", compare, "Object B");
+    GenNode &write = b.Add("LogicNativeSetGamePropertyBool");
+    b.String(write, "Property", "result");
+    b.Link(compare, "Result", write, "Value");
+    b.Link(step, "Out", write, "Flow");
+    std::string report;
+    const std::shared_ptr<LN_Program> program = b.Compile(&report);
+    ASSERT_NE(program, nullptr) << report;
+    size_t warned = 0;
+    for (const auto &issue : program->GetCompileReport().GetIssues()) {
+      warned += issue.severity == LN_CompileSeverity::Warning &&
+                issue.message.find("objects are only the same or not") != std::string::npos;
+    }
+    EXPECT_EQ(warned, 1u);
+    SemRig rig(program, kProduction);
+    rig.SetBool(rig.Object(0), "result", true);
+    rig.Step();
+    EXPECT_EQ(rig.Float(rig.Object(0), "result"), 0.0f);
+  }
+  /* Equal and Not Equal: no warning. */
+  for (const int16_t operation : {0, 1}) {
+    TreeBuilder b;
+    GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+    GenNode &owner_node = b.Add("LogicNativeGetOwner");
+    GenNode &compare = b.Add("LogicNativeCompare", operation, object_type);
+    b.Link(owner_node, "Owner Object", compare, "Object A");
+    GenNode &write = b.Add("LogicNativeSetGamePropertyBool");
+    b.String(write, "Property", "result");
+    b.Link(compare, "Result", write, "Value");
+    b.Link(step, "Out", write, "Flow");
+    std::string report;
+    const std::shared_ptr<LN_Program> program = b.Compile(&report);
+    ASSERT_NE(program, nullptr) << report;
+    for (const auto &issue : program->GetCompileReport().GetIssues()) {
+      EXPECT_EQ(issue.message.find("objects are only the same or not"), std::string::npos);
+    }
+  }
+}
+
+/* Compare's Text type (2026-11-16, Bool::ValueCompare of texts): Equal when the same (case
+ * matters), the order alphabetical by character codes. */
+TEST(LN_RemovedObjects, CompareTextsByTheirCharacters)
+{
+  TreeBuilder b;
+  GenNode &step = b.Add("LogicNativeOnFixedUpdate");
+  GenNode &word = b.Add("LogicNativeGetGamePropertyString");
+  b.String(word, "Property", "word");
+  const auto compare = [&](const char *property, const int16_t operation, const char *other) {
+    GenNode &node = b.Add("LogicNativeCompare", operation, int16_t(3));
+    b.Link(word, "Value", node, "Text A");
+    b.String(node, "Text B", other);
+    GenNode &write = b.Add("LogicNativeSetGamePropertyBool");
+    b.String(write, "Property", property);
+    b.Link(node, "Result", write, "Value");
+    b.Link(step, "Out", write, "Flow");
+  };
+  compare("eq", 0, "apple");
+  compare("ne", 1, "apple");
+  compare("less", 3, "banana");
+  compare("greater", 2, "banana");
+  std::string report;
+  const std::shared_ptr<LN_Program> program = b.Compile(&report);
+  ASSERT_NE(program, nullptr) << report;
+  const struct {
+    const char *word;
+    bool eq, less, greater;
+  } cases[] = {{"apple", true, true, false},
+               {"Apple", false, true, false},
+               {"cherry", false, false, true},
+               {"", false, true, false}};
+  for (const SemMode &mode : AllModes()) {
+    SCOPED_TRACE(mode.name);
+    SemRig rig(program, mode, uint32_t(std::size(cases)));
+    for (size_t index = 0; index < std::size(cases); index++) {
+      rig.SetString(rig.Object(index), "word", cases[index].word);
+    }
+    rig.Step();
+    for (size_t index = 0; index < std::size(cases); index++) {
+      SCOPED_TRACE(cases[index].word);
+      KX_GameObject &owner = rig.Object(index);
+      EXPECT_EQ(rig.Float(owner, "eq"), cases[index].eq ? 1.0f : 0.0f);
+      EXPECT_EQ(rig.Float(owner, "ne"), cases[index].eq ? 0.0f : 1.0f);
+      EXPECT_EQ(rig.Float(owner, "less"), cases[index].less ? 1.0f : 0.0f);
+      EXPECT_EQ(rig.Float(owner, "greater"), cases[index].greater ? 1.0f : 0.0f);
+    }
+  }
+}
+
 /* A value that is only a name (an object picked in the editor) is still found by its name: the
  * first object of that name, and the next one once the first is gone. */
 TEST(LN_RemovedObjects, ANamedObjectIsStillFoundByItsName)

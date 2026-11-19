@@ -16,10 +16,6 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#ifndef _USE_MATH_DEFINES
-#  define _USE_MATH_DEFINES
-#endif
-
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -105,8 +101,8 @@ static int getCornerHeight(int x, int y, int i, int dir,
 }
 
 static void walkContour(int x, int y, int i,
-						rcCompactHeightfield& chf,
-						unsigned char* flags, rcIntArray& points)
+						const rcCompactHeightfield& chf,
+						unsigned char* flags, rcTempVector<int>& points)
 {
 	// Choose the first non-connected edge
 	unsigned char dir = 0;
@@ -150,10 +146,10 @@ static void walkContour(int x, int y, int i,
 				r |= RC_BORDER_VERTEX;
 			if (isAreaBorder)
 				r |= RC_AREA_BORDER;
-			points.push(px);
-			points.push(py);
-			points.push(pz);
-			points.push(r);
+			points.push_back(px);
+			points.push_back(py);
+			points.push_back(pz);
+			points.push_back(r);
 			
 			flags[i] &= ~(1 << dir); // Remove visited edges
 			dir = (dir+1) & 0x3;  // Rotate CW
@@ -210,7 +206,7 @@ static float distancePtSeg(const int x, const int z,
 	return dx*dx + dz*dz;
 }
 
-static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
+static void simplifyContour(rcTempVector<int>& points, rcTempVector<int>& simplified,
 							const float maxError, const int maxEdgeLen, const int buildFlags)
 {
 	// Add initial points.
@@ -228,17 +224,17 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 	{
 		// The contour has some portals to other regions.
 		// Add a new point to every location where the region changes.
-		for (int i = 0, ni = points.size()/4; i < ni; ++i)
+		for (int i = 0, ni = static_cast<int>(points.size()) / 4; i < ni; ++i)
 		{
 			int ii = (i+1) % ni;
 			const bool differentRegs = (points[i*4+3] & RC_CONTOUR_REG_MASK) != (points[ii*4+3] & RC_CONTOUR_REG_MASK);
 			const bool areaBorders = (points[i*4+3] & RC_AREA_BORDER) != (points[ii*4+3] & RC_AREA_BORDER);
 			if (differentRegs || areaBorders)
 			{
-				simplified.push(points[i*4+0]);
-				simplified.push(points[i*4+1]);
-				simplified.push(points[i*4+2]);
-				simplified.push(i);
+				simplified.push_back(points[i*4+0]);
+				simplified.push_back(points[i*4+1]);
+				simplified.push_back(points[i*4+2]);
+				simplified.push_back(i);
 			}
 		}
 	}
@@ -276,20 +272,20 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 				uri = i/4;
 			}
 		}
-		simplified.push(llx);
-		simplified.push(lly);
-		simplified.push(llz);
-		simplified.push(lli);
+		simplified.push_back(llx);
+		simplified.push_back(lly);
+		simplified.push_back(llz);
+		simplified.push_back(lli);
 		
-		simplified.push(urx);
-		simplified.push(ury);
-		simplified.push(urz);
-		simplified.push(uri);
+		simplified.push_back(urx);
+		simplified.push_back(ury);
+		simplified.push_back(urz);
+		simplified.push_back(uri);
 	}
 	
 	// Add points until all raw points are within
 	// error tolerance to the simplified shape.
-	const int pn = points.size()/4;
+	const int pn = static_cast<int>(points.size()) / 4;
 	for (int i = 0; i < simplified.size()/4; )
 	{
 		int ii = (i+1) % (simplified.size()/4);
@@ -348,7 +344,7 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 		{
 			// Add space for the new point.
 			simplified.resize(simplified.size()+4);
-			const int n = simplified.size()/4;
+			const int n = static_cast<int>(simplified.size()) / 4;
 			for (int j = n-1; j > i; --j)
 			{
 				simplified[j*4+0] = simplified[(j-1)*4+0];
@@ -403,7 +399,7 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 				if (dx*dx + dz*dz > maxEdgeLen*maxEdgeLen)
 				{
 					// Round based on the segments in lexilogical order so that the
-					// max tesselation is consistent regardles in which direction
+					// max tesselation is consistent regardless in which direction
 					// segments are traversed.
 					const int n = bi < ai ? (bi+pn - ai) : (bi - ai);
 					if (n > 1)
@@ -422,7 +418,7 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 			{
 				// Add space for the new point.
 				simplified.resize(simplified.size()+4);
-				const int n = simplified.size()/4;
+				const int n = static_cast<int>(simplified.size()) / 4;
 				for (int j = n-1; j > i; --j)
 				{
 					simplified[j*4+0] = simplified[(j-1)*4+0];
@@ -476,15 +472,6 @@ inline int area2(const int* a, const int* b, const int* c)
 	return (b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2]);
 }
 
-//	Exclusive or: true iff exactly one argument is true.
-//	The arguments are negated to ensure that they are 0/1
-//	values.  Then the bitwise Xor operator may apply.
-//	(This idea is due to Michael Baldwin.)
-inline bool xorb(bool x, bool y)
-{
-	return !x ^ !y;
-}
-
 // Returns true iff c is strictly to the left of the directed
 // line through a to b.
 inline bool left(const int* a, const int* b, const int* c)
@@ -512,11 +499,11 @@ static bool intersectProp(const int* a, const int* b, const int* c, const int* d
 		collinear(c,d,a) || collinear(c,d,b))
 		return false;
 	
-	return xorb(left(a,b,c), left(a,b,d)) && xorb(left(c,d,a), left(c,d,b));
+	return (left(a,b,c) ^ left(a,b,d)) && (left(c,d,a) ^ left(c,d,b));
 }
 
 // Returns T iff (a,b,c) are collinear and point c lies
-// on the closed segement ab.
+// on the closed segment ab.
 static bool between(const int* a, const int* b, const int* c)
 {
 	if (!collinear(a, b, c))
@@ -545,7 +532,7 @@ static bool vequal(const int* a, const int* b)
 	return a[0] == b[0] && a[2] == b[2];
 }
 
-static bool intersectSegCountour(const int* d0, const int* d1, int i, int n, const int* verts)
+static bool intersectSegContour(const int* d0, const int* d1, int i, int n, const int* verts)
 {
 	// For each edge (k,k+1) of P
 	for (int k = 0; k < n; k++)
@@ -580,11 +567,11 @@ static bool	inCone(int i, int n, const int* verts, const int* pj)
 }
 
 
-static void removeDegenerateSegments(rcIntArray& simplified)
+static void removeDegenerateSegments(rcTempVector<int>& simplified)
 {
 	// Remove adjacent vertices which are equal on xz-plane,
 	// or else the triangulator will get confused.
-	int npts = simplified.size()/4;
+	int npts = static_cast<int>(simplified.size()) / 4;
 	for (int i = 0; i < npts; ++i)
 	{
 		int ni = next(i, npts);
@@ -753,7 +740,7 @@ static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 		for (int iter = 0; iter < hole->nverts; iter++)
 		{
 			// Find potential diagonals.
-			// The 'best' vertex must be in the cone described by 3 cosequtive vertices of the outline.
+			// The 'best' vertex must be in the cone described by 3 consecutive vertices of the outline.
 			// ..o j-1
 			//   |
 			//   |   * best
@@ -781,9 +768,9 @@ static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 			for (int j = 0; j < ndiags; j++)
 			{
 				const int* pt = &outline->verts[diags[j].vert*4];
-				bool intersect = intersectSegCountour(pt, corner, diags[i].vert, outline->nverts, outline->verts);
+				bool intersect = intersectSegContour(pt, corner, diags[i].vert, outline->nverts, outline->verts);
 				for (int k = i; k < region.nholes && !intersect; k++)
-					intersect |= intersectSegCountour(pt, corner, -1, region.holes[k].contour->nverts, region.holes[k].contour->verts);
+					intersect |= intersectSegContour(pt, corner, -1, region.holes[k].contour->nverts, region.holes[k].contour->verts);
 				if (!intersect)
 				{
 					index = diags[j].vert;
@@ -824,7 +811,7 @@ static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 /// See the #rcConfig documentation for more information on the configuration parameters.
 ///
 /// @see rcAllocContourSet, rcCompactHeightfield, rcContourSet, rcConfig
-bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
+bool rcBuildContours(rcContext* ctx, const rcCompactHeightfield& chf,
 					 const float maxError, const int maxEdgeLen,
 					 rcContourSet& cset, const int buildFlags)
 {
@@ -904,8 +891,8 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 	
 	ctx->stopTimer(RC_TIMER_BUILD_CONTOURS_TRACE);
 	
-	rcIntArray verts(256);
-	rcIntArray simplified(64);
+	rcTempVector<int> verts(256);
+	rcTempVector<int> simplified(64);
 	
 	for (int y = 0; y < h; ++y)
 	{
@@ -924,8 +911,8 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 					continue;
 				const unsigned char area = chf.areas[i];
 				
-				verts.resize(0);
-				simplified.resize(0);
+				verts.clear();
+				simplified.clear();
 				
 				ctx->startTimer(RC_TIMER_BUILD_CONTOURS_TRACE);
 				walkContour(x, y, i, chf, flags, verts);
@@ -963,7 +950,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 					
 					rcContour* cont = &cset.conts[cset.nconts++];
 					
-					cont->nverts = simplified.size()/4;
+					cont->nverts = static_cast<int>(simplified.size()) / 4;
 					cont->verts = (int*)rcAlloc(sizeof(int)*cont->nverts*4, RC_ALLOC_PERM);
 					if (!cont->verts)
 					{
@@ -982,8 +969,8 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 						}
 					}
 					
-					cont->nrverts = verts.size()/4;
-					cont->rverts = (int*)rcAlloc(sizeof(int)*cont->nrverts*4, RC_ALLOC_PERM);
+					cont->nrverts = static_cast<int>(verts.size()) / 4;
+					cont->rverts = static_cast<int*>(rcAlloc(sizeof(int) * cont->nrverts * 4, RC_ALLOC_PERM));
 					if (!cont->rverts)
 					{
 						ctx->log(RC_LOG_ERROR, "rcBuildContours: Out of memory 'rverts' (%d).", cont->nrverts);
@@ -1012,7 +999,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 	if (cset.nconts > 0)
 	{
 		// Calculate winding of all polygons.
-		rcScopedDelete<char> winding((char*)rcAlloc(sizeof(char)*cset.nconts, RC_ALLOC_TEMP));
+		rcScopedDelete<signed char> winding((signed char*)rcAlloc(sizeof(signed char)*cset.nconts, RC_ALLOC_TEMP));
 		if (!winding)
 		{
 			ctx->log(RC_LOG_ERROR, "rcBuildContours: Out of memory 'hole' (%d).", cset.nconts);

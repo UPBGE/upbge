@@ -11,6 +11,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -24,6 +25,8 @@
 
 #include "SCA_IInputDevice.h"
 
+#include "LN_MathOps.h"
+#include "LN_InputGestures.h"
 #include "LN_NodeRegistry.h"
 #include "LN_Program.h"
 #include "LN_TreeCompiler.h"
@@ -141,6 +144,12 @@ inline constexpr int16_t LN_STRING_OP_ENDS_WITH = 6;
 inline constexpr int16_t LN_STRING_OP_UPPER = 7;
 inline constexpr int16_t LN_STRING_OP_LOWER = 8;
 inline constexpr int16_t LN_STRING_OP_ZFILL = 9;
+/* (2026-11-17, LN_TextOps.h) */
+inline constexpr int16_t LN_STRING_OP_SUBSTRING = 10;
+inline constexpr int16_t LN_STRING_OP_LENGTH = 11;
+inline constexpr int16_t LN_STRING_OP_FIND = 12;
+inline constexpr int16_t LN_STRING_OP_SPLIT = 13;
+inline constexpr int16_t LN_STRING_OP_FORMAT_TIME = 14;
 
 struct CompilerContext;
 
@@ -218,12 +227,39 @@ void AddNodeIssue(LN_Program &program,
 
 bool IsSupportedLogicMathOperation(int16_t operation);
 bool IsSupportedLogicVectorMathOperation(int16_t operation);
+/** Math's newer operations (custom1) as Float::MathFunction's operation (2026-11-16). */
+std::optional<LN_MathFunction> LogicMathFunctionOf(int16_t operation);
+/** Whether a Math function reads B (and C: Wrap only). */
+bool LogicMathFunctionReadsB(LN_MathFunction function);
+/** Vector Math's number operations (custom1) as Float::VectorMeasure's (Length is
+ * Float::VectorLength, not a measure). */
+std::optional<LN_VectorMeasure> LogicVectorMeasureOf(int16_t operation);
+/** Vector Math's newer vector operations as Vector::VectorFunction's. */
+std::optional<LN_VectorFunction> LogicVectorFunctionOf(int16_t operation);
+/** Whether a Vector Math operation gives a number (its Value), not a vector (its Result). */
+bool LogicVectorMathGivesNumber(int16_t operation);
 bool IsSupportedLogicStringOperation(int16_t operation);
+/** String Operation's newer outputs Length, Index and List (2026-11-17) when the operation hides
+ * them (the editor's node_update, node_logic_string_operation.cc): their empty value (0, -1, an
+ * empty list). A link left from one after the operation changed is not drawn any more, so it
+ * must not fail the node it feeds. The older String, Result and Count keep what they always did
+ * for the other operations (no value: the input they feed takes its own; old files run as
+ * before). Nothing for an output the operation gives, or an operation Logic Nodes do not know. */
+std::optional<LN_Value> StringOperationHiddenOutput(const blender::bNode &node,
+                                                    const blender::bNodeSocket &output_socket);
 
 int32_t IntExpressionConstantFallback(const LN_Program &program, uint32_t expression_index);
 MT_Vector4 ColorExpressionConstantFallback(const LN_Program &program, uint32_t expression_index);
 
 /* Socket / link helpers */
+/** Whether a link from an output of `from_type` into an input of `to_type` (two different types)
+ * converts by itself, as Geometry Nodes converts (2026-11-16): numbers, true/false and vectors
+ * into each other (but a vector into no number: which axis?), a vector and a rotation (Euler
+ * angles in radians) into each other, a vector into a color. The output builders insert the
+ * conversion Typecast Value compiles (BuildOutputFloatExpression and its siblings); the editor's
+ * link rule (node_logic_tree.cc) and link search (node_logic_socket_declarations.cc) say the
+ * same. */
+bool LN_ImplicitlyConvertible(LN_ValueType from_type, LN_ValueType to_type);
 bool LogicPinTypesCompatible(LN_ValueType from_type, LN_ValueType to_type);
 bool LogicPinsCompatible(const LN_PinDefinition &from_pin, const LN_PinDefinition &to_pin);
 std::string AddObjectResultPropertyName(const blender::bNode &node);
@@ -360,6 +396,16 @@ std::string FormatStringSlots(const std::string &format,
 std::string NormalizeInputEventName(std::string name);
 std::string MouseButtonNameFromCustom(int custom2);
 int32_t MouseInputStatusFromCustom(int custom1);
+/** An input node's Triggered for Input Type Tap, Double Tap or Hold (2026-11-17,
+ * Bool::InputGesture over the input's held, pressed and released states `status(status)`, the
+ * node's Time, its input slot); nothing for the other Input Types. */
+std::optional<uint32_t> BuildInputGestureExpression(
+    LN_Program &program,
+    const blender::bNode &node,
+    const std::function<uint32_t(int32_t status)> &status,
+    const NodeDefinitionMap &node_definitions,
+    const InputLinkMap &input_links,
+    ValueCache &value_cache);
 bool IsInputSocketLinked(const blender::bNode &node,
                          const std::string &socket_name,
                          const InputLinkMap &input_links);
@@ -508,6 +554,19 @@ std::optional<uint32_t> BuildInputExecutionExpression(LN_Program &program,
                                                       ValueCache &value_cache,
                                                       FloatExpressionCache &float_expression_cache,
                                                       BoolExpressionCache &bool_expression_cache);
+
+/** A Branch's True or False read as a value (a Flow read where its pulse arrives: a query's or
+ * Store Value's Flow, a Loop's start, a node's Done; 2026-11-17): the pulse of its route, as
+ * Sequence's or Flip-Flop's outputs are (true where the route ran this step, before the read).
+ * Builds the route (its BranchRoute) as a flow consumer would; nullopt outside a tree compile. */
+std::optional<uint32_t> BuildBranchOutputPulse(LN_Program &program,
+                                               const blender::bNode &branch_node,
+                                               const blender::bNodeSocket &route_socket,
+                                               const NodeDefinitionMap &node_definitions,
+                                               const InputLinkMap &input_links,
+                                               ValueCache &value_cache,
+                                               FloatExpressionCache &float_expression_cache,
+                                               BoolExpressionCache &bool_expression_cache);
 
 std::optional<uint32_t> BuildInputIntExpression(
     LN_Program &program,
