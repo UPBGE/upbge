@@ -471,7 +471,7 @@ void KX_Scene::RegisterUpbgeDupliInstance(blender::Object *base_orig,
       dob->ob = DEG_get_evaluated(depsgraph, base_orig);
     }
   }
-  UpdateUpbgeDupliTransforms(nullptr);
+  UpdateUpbgeDupliTransforms(nullptr, true);
 }
 
 void KX_Scene::UnregisterUpbgeDupliInstance(blender::Object *base_orig,
@@ -867,7 +867,7 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
-  UpdateUpbgeDupliTransforms(depsgraph);
+  UpdateUpbgeDupliTransforms(depsgraph, is_last_render_pass);
 
   /* Update evaluated object object_to_world according to SceneGraph. */
   for (KX_GameObject *gameobj : GetObjectList()) {
