@@ -65,6 +65,9 @@ struct DupliObject {
    */
   int instance_idx[4];
   const bke::GeometrySet *instance_data[4];
+
+  /* UPBGE: per-instance color (replaces parent inheritance for BGE dupli instances). */
+  float upbge_color[4];
 };
 
 using DupliList = VectorList<DupliObject>;

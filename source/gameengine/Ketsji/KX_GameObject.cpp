@@ -90,6 +90,7 @@ KX_GameObject::KX_GameObject()
       m_previousLodLevel(-1),        // eevee
       m_isUpbgeDupliBase(false),      // eevee
       m_isUpbgeDupliInstance(false),    // eevee
+      m_upbgeDupliObject(nullptr),
       m_layer(0),
       m_lodManager(nullptr),
       m_currentLodLevel(0),
@@ -230,18 +231,10 @@ void KX_GameObject::ForceIgnoreParentTx()
 void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass)
 {
   /* Upbge dupli bases and upbge dupli instances are unsynced from depsgraph transform updates (don't tag).
-   * - For upbge dupli bases, transform will be handled in TagForTransformUpdateEvaluated (BGE SceneGraph WorldTransform).
-   * - For upbge dupli instances, transform updates are handled in static void
-   * bge_dupli_provider(DEGObjectIterData *data) (KX_Scene) (BGE SceneGraph WorldTransform).
+   * - For upbge dupli bases, transform updates are handled in TagForTransformUpdateEvaluated.
+   * - For upbge dupli instances, transform and color updates are handled by DupliObject.
    */
   if (m_isUpbgeDupliBase || m_isUpbgeDupliInstance) {
-    if (m_isUpbgeDupliInstance) {
-      /* SG_Node::DIRTY_RENDER is used to know if an object is static or not. */
-      /* GetSGNode()->ClearDirty will be called in TagForTransformUpdateEvaluated at last render pass */
-      if (GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
-        TagUpbgeDupliInstanceForTaaReset();
-      }
-    }
     return;
   }
   /* When gameobj are not upbge dupli bases or instances, transform updates are synced with depsgraph */
@@ -321,14 +314,8 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass)
 /* After BKE_scene_graph_update_tagged and just before drawing loop */
 void KX_GameObject::TagForTransformUpdateEvaluated(bool is_last_render_pass)
 {
-  /* For upbge dupli instances, transform updates are handled in
-   * static void bge_dupli_provider(DEGObjectIterData *data) (KX_Scene) */
-  if (m_isUpbgeDupliInstance) {
-    if (is_last_render_pass) {
-      GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
-    }
-    return;
-  }
+  /* UPBGE dupli instance transforms are synchronized through their DupliObject. */
+  
   /* 1. Apply BGE SceneGraph gameobj WorldTransform to the evaluated object. (Priority to
    * SceneGraph transform by default). Exception: The transform is overridden by Depsgraph (override_game_priority).*/
   /* 2. Bump update count for upbge dupli bases because they have not been tagged in
@@ -444,9 +431,10 @@ void KX_GameObject::DiscardRenderedObject()
     /* 1. Rendered blender::Object is a dupli instance, just erase it from duplis list */
     if (m_isUpbgeDupliInstance) {
       if (GetScene()) {
-        GetScene()->RequestTaaReset();
-        GetScene()->RemoveUpbgeDupliInstanceFromList(this);
+        GetScene()->UnregisterUpbgeDupliInstance(GetBlenderObject(), this);
       }
+      delete m_upbgeDupliObject;
+      m_upbgeDupliObject = nullptr;
       m_isUpbgeDupliInstance = false;
       return;
     }
@@ -477,25 +465,14 @@ void KX_GameObject::CreateUpbgeDupliInstanceFromExisting()
   }
   m_isUpbgeDupliInstance = true;
 
-  TagUpbgeDupliInstanceForTaaReset();
-
-  GetScene()->AddUpbgeDupliInstanceToList(this);
-}
-
-void KX_GameObject::TagUpbgeDupliInstanceForTaaReset()
-{
-  if (!m_isUpbgeDupliInstance) {
-    return;
+  if (m_pBlenderObject) {
+    blender::Object *base_orig = m_pBlenderObject;
+    if (base_orig) {
+      m_upbgeDupliObject = new blender::DupliObject();
+      GetScene()->RegisterUpbgeDupliInstance(base_orig, this);
+    }
   }
 
-  /* Tag dupli Base object to reset taa samples +
-   * update last_transform_update i guess - no noticeable
-   * performances loss */
-  if (GetBlenderObject()->id.recalc == 0) {
-    GetScene()->AppendToIdsToUpdate(&GetBlenderObject()->id,
-                                    ID_RECALC_TRANSFORM,
-                                    GetBlenderObject()->gameflag & OB_OVERLAY_COLLECTION);
-  }
 }
 
 void KX_GameObject::Dispose()

@@ -32,9 +32,11 @@
 #pragma once
 
 #include <list>
+#include <map>
 #include <set>
 #include <vector>
 
+#include "BKE_duplilist.hh"
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
 #include "KX_PhysicsEngineEnums.h"
@@ -160,8 +162,8 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   EXP_ListValue<KX_Camera> *m_cameralist;
   /// The set of fonts for this scene
   EXP_ListValue<KX_FontObject> *m_fontlist;
-  std::vector<KX_GameObject *> m_upbgeDupliInstancesList;
-  bool m_taaResetRequested = false;
+  std::map<blender::Object *, std::vector<KX_GameObject *>> m_upbgeDupliByBase;
+  std::map<blender::Object *, int> m_upbgeDupliNextId;
 
   SG_QList m_sghead;  // list of nodes that needs scenegraph update
                       // the Dlist is not object that must be updated
@@ -365,13 +367,10 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void OverlayPassDisableEffects(blender::Depsgraph *depsgraph,
                                  KX_Camera *kxcam,
                                  bool isOverlayPass);
-  const std::vector<KX_GameObject *> &GetDupliListVector() const
-  {
-    return m_upbgeDupliInstancesList;
-  }
-  void AddUpbgeDupliInstanceToList(KX_GameObject *gameobj);
-  void RemoveUpbgeDupliInstanceFromList(KX_GameObject *gameobj);
-  void RequestTaaReset();
+  void RegisterUpbgeDupliInstance(blender::Object *base_orig, KX_GameObject *instance);
+  void UnregisterUpbgeDupliInstance(blender::Object *base_orig, KX_GameObject *instance);
+  void UpdateUpbgeDupliTransforms(blender::Depsgraph *depsgraph, bool is_last_render_pass);
+  const std::vector<KX_GameObject *> *GetUpbgeDupliInstances(blender::Object *base_orig) const;
 
   void ApplyLifespan(KX_GameObject *replica, float lifespan);
   void ApplyReferenceTransform(KX_GameObject *replica, KX_GameObject *reference);

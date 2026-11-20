@@ -77,6 +77,8 @@ bool ConvertPythonToGameObject(SCA_LogicManager *logicmgr,
 void KX_GameObject_Mathutils_Callback_Init(void);
 #endif
 
+#include "BKE_duplilist.hh"
+
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
@@ -108,6 +110,7 @@ class KX_GameObject : public SCA_IObject {
   short m_previousLodLevel;
   bool m_isUpbgeDupliBase;
   bool m_isUpbgeDupliInstance;
+  blender::DupliObject *m_upbgeDupliObject;
   /* END OF EEVEE INTEGRATION */
 
   KX_ClientObjectInfo *m_pClient_info;
@@ -169,9 +172,7 @@ class KX_GameObject : public SCA_IObject {
   void SetIsUpbgeDupliBase();
   BL_ActionManager *GetActionManagerNoCreate();
   /**
-   * Create a dupli based on the existing Blender object.
-   * This method does NOT duplicate the Blender object, it only adds the KX_GameObject
-   * to m_upbgeDupliInstancesList. All the duplis will point to the same BlenderObject.
+   * Create a DupliObject-backed UPBGE instance. The Blender object remains shared.
    */
   void CreateUpbgeDupliInstanceFromExisting();
 
@@ -182,7 +183,10 @@ class KX_GameObject : public SCA_IObject {
   {
     return m_isUpbgeDupliInstance;
   }
-  void TagUpbgeDupliInstanceForTaaReset();
+  blender::DupliObject *GetUpbgeDupliObject() const
+  {
+    return m_upbgeDupliObject;
+  }
   /* END OF EEVEE INTEGRATION */
 
   /**

@@ -269,64 +269,6 @@ struct DEGObjectIterSettings {
       blender::DEG_ITER_OBJECT_FLAG_VISIBLE | blender::DEG_ITER_OBJECT_FLAG_DUPLI
 
 
-// Structure to store temporary BGE objects
-struct BGEObjectData {
-  Object temp_object;                        // Stack-allocated object copy
-  bke::ObjectRuntime temp_runtime;  // Stack-allocated runtime copy
-
-  // Optimized constructor - zero dynamic allocations
-  BGEObjectData(Object *source_ob, float source_mat[4][4])
-      : temp_object(dna::shallow_copy(*source_ob)), temp_runtime(*source_ob->runtime)
-  {
-    // Connect runtime to object
-    temp_object.runtime = &temp_runtime;
-
-    // Configure visibility flags for rendering
-    temp_object.base_flag = BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
-                            BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT | BASE_FROM_DUPLI;
-    temp_object.visibility_flag &= ~OB_HIDE_VIEWPORT;
-
-    // Handle some types which need their data to be "replaced on_shallow_copy"
-    if (temp_object.runtime->geometry_set_eval) {
-      bke::GeometrySet *geom_set = (bke::GeometrySet *)
-                                                temp_object.runtime->geometry_set_eval;
-      ID *data = (ID *)geom_set->get_mesh();
-      if (!data) {
-        data = (ID *)geom_set->get_curves();
-      }
-      if (!data) {
-        data = (ID *)geom_set->get_pointcloud();
-      }
-      if (!data) {
-        data = (ID *)geom_set->get_volume();
-      }
-      if (!data) {
-        data = (ID *)geom_set->get_grease_pencil();
-      }
-
-      if (data) {
-        BKE_object_replace_data_on_shallow_copy(&temp_object, data);
-      }
-    }
-
-    bool is_neg_scale = is_negative_m4(source_mat);
-    SET_FLAG_FROM_TEST(temp_object.transflag, is_neg_scale, OB_NEG_SCALE);
-
-    // Update runtime transformation matrices
-    copy_m4_m4(temp_object.runtime->object_to_world.ptr(), source_mat);
-    invert_m4_m4(temp_object.runtime->world_to_object.ptr(), source_mat);
-  }
-
-  // Prevent copying
-  BGEObjectData(const BGEObjectData &) = delete;
-  BGEObjectData &operator=(const BGEObjectData &) = delete;
-
-  // Allow moving
-  BGEObjectData(BGEObjectData &&) = default;
-  BGEObjectData &operator=(BGEObjectData &&) = default;
-};
-/*********/
-
 struct DEGObjectIterData {
   DEGObjectIterSettings *settings;
   Depsgraph *graph;
@@ -360,12 +302,6 @@ struct DEGObjectIterData {
   /* **** Iteration over ID nodes **** */
   size_t id_node_index;
   size_t num_id_nodes;
-
-  /* UPBGE duplis */
-  size_t bge_object_index = 0;
-  // Use unique_ptr to avoid copy issues entirely
-  std::vector<std::unique_ptr<BGEObjectData>> bge_objects;
-  /****************/
 
   /* Copy the current/next data and move the DupliList. */
   void transfer_from(DEGObjectIterData &other);
@@ -538,39 +474,6 @@ void DEG_foreach_ID(const Depsgraph *depsgraph, DEGForeachIDCallback callback);
 bool DEG_scene_component_depends_on_time(const Depsgraph &depsgraph,
                                          const Scene &scene,
                                          const eDepsSceneComponentType component_type);
-
-/* UPBGE stuff */
-/**
- * BGE-specific object iteration is implemented using a dedicated iterator,
- * rather than adding BGE dupli objects directly to Blender's native ob->duplilist.
- *
- * This approach is safer and avoids conflicts because:
- * - BGE dupli objects are managed separately from Blender's internal duplilist,
- *   ensuring that game engine instances do not interfere with Blender's own
- *   duplication and rendering logic.
- * - The native Blender iterators only traverse objects present in ob->duplilist,
- *   so BGE dupli objects will never be processed by Blender's core systems
- *   (render, export, etc.) unless explicitly intended.
- * - Memory management and lifecycle of BGE dupli objects remain under control
- *   of the game engine, preventing issues such as double-free or invalid pointers.
- * - This separation allows both systems to evolve independently and maintain
- *   compatibility, without risk of side effects or unexpected behavior.
- *
- * In summary, using a dedicated iterator for BGE objects guarantees that
- * BGE dupli instances are isolated from Blender's native object iteration,
- * making the integration robust and maintainable.
- */
-// Callback add BGE objects to drawing pass
-using BGEObjectProvider = void (*)(DEGObjectIterData *data);
-
-void add_bge_object(DEGObjectIterData *data, Object *ob, float mat[4][4], float color[4]);
-
-// Register a provider to add BGE objects to drawing pass (called from game engine)
-void DEG_register_bge_object_provider(BGEObjectProvider provider);
-
-// Unregister BGE provider
-void DEG_unregister_bge_object_provider();
-/***************/
 
 /** \} */
 

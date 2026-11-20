@@ -52,58 +52,8 @@ using evil::DEG_iterator_temp_object_from_dupli;
 
 /* ************************ DEG ITERATORS ********************* */
 
-/* UPBGE specific iterator stuff for duplis (adds BGE duplis to drawing pass) */
-// Add a BGE object to the iterator's vector
-void add_bge_object(DEGObjectIterData *data, Object *ob, float mat[4][4], float color[4])
-{
-  if (!ob) {
-    return;
-  }
-  data->bge_objects.emplace_back(std::make_unique<BGEObjectData>(ob, mat));
-  if (color) {
-    copy_v4_v4(data->bge_objects.back()->temp_object.color, color);
-  }
-}
-
 namespace {
-// Provider global for BGE objects
-static BGEObjectProvider g_bge_object_provider = nullptr;
-
-// Iterator for BGE objects
-bool deg_iterator_bge_objects_step(DEGObjectIterData *data)
-{
-  // Collect BGE objects if index is 0 and provider exists
-  if (data->bge_object_index == 0 && g_bge_object_provider) {
-    data->bge_objects.clear();
-    g_bge_object_provider(data);  // Provider must fill data->bge_objects via add_bge_object
-  }
-
-  // Return next BGE object if available
-  if (data->bge_object_index < data->bge_objects.size()) {
-    data->next_object = &data->bge_objects[data->bge_object_index]->temp_object;
-    data->bge_object_index++;
-    return true;
-  }
-
-  // Reset index when no more objects (will trigger collection next time)
-  data->bge_object_index = 0;
-  data->bge_objects.clear();
-  return false;
-}
-
 }  // namespace
-
-void DEG_register_bge_object_provider(BGEObjectProvider provider)
-{
-  g_bge_object_provider = provider;
-}
-
-void DEG_unregister_bge_object_provider()
-{
-  g_bge_object_provider = nullptr;
-}
-
-/* End of UPBGE stuff */
 
 namespace {
 
@@ -421,10 +371,6 @@ void DEG_iterator_objects_next(BLI_Iterator *iter)
     if (deg_iterator_objects_step(data)) {
       continue;
     }
-    /* UPBGE stuff */
-    if (deg_iterator_bge_objects_step(data)) {
-      continue;
-    }
     iter->valid = false;
     break;
   }
@@ -559,6 +505,11 @@ bool evil::DEG_iterator_temp_object_from_dupli(const Object *dupli_parent,
   r_temp_object->dt = std::min(r_temp_object->dt, dupli_parent->dt);
   copy_v4_v4(r_temp_object->color, dupli_parent->color);
   r_temp_object->runtime->select_id = dupli_parent->runtime->select_id;
+  if (dupli_parent->gameflag & OB_DUPLI_UPBGE) {
+    r_temp_object->base_flag |=
+        BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT | BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT;
+    r_temp_object->visibility_flag &= ~OB_HIDE_VIEWPORT;
+  }
   if (dupli->ob->data != dupli->ob_data) {
     BKE_object_replace_data_on_shallow_copy(r_temp_object, dupli->ob_data);
   }

@@ -356,6 +356,7 @@ void LA_Launcher::ExitEngine()
     m_converter = nullptr;
   }
   if (m_ketsjiEngine) {
+    KX_SetActiveEngine(nullptr);
     delete m_ketsjiEngine;
     m_ketsjiEngine = nullptr;
   }

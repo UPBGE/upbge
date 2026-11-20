@@ -46,6 +46,7 @@
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BLI_listbase.hh"
+#include "BLI_hash_c.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_task.hh"
 #include "DEG_depsgraph_query.hh"
@@ -103,36 +104,6 @@
 #endif
 
 using namespace blender;
-
-static void bge_dupli_provider(DEGObjectIterData *data)
-{
-  KX_KetsjiEngine *engine = KX_GetActiveEngine();
-  if (!engine || !engine->CurrentScenes()) {
-    return;
-  }
-
-  KX_Scene *kx_scene = engine->CurrentScenes()->GetFront();
-  const std::vector<KX_GameObject *> &dupli_list = kx_scene->GetDupliListVector();
-  blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-
-  for (KX_GameObject *game_obj : dupli_list) {
-    if (game_obj && game_obj->IsUpbgeDupliInstance()) {
-      if (!game_obj->GetVisible()) {
-        continue;
-      }
-      blender::Object *blender_obj = DEG_get_evaluated(depsgraph, game_obj->GetBlenderObject());
-      float mat[4][4];
-      game_obj->NodeGetWorldTransform().getValue(&mat[0][0]);
-
-      if (blender_obj) {
-        float color[4];
-        game_obj->GetObjectColor().getValue(color);
-        add_bge_object(data, blender_obj, mat, color);
-      }
-    }
-  }
-}
 
 static void *KX_SceneReplicationFunc(SG_Node *node, void *gameobj, void *scene)
 {
@@ -200,7 +171,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
   m_inactivelist = new EXP_ListValue<KX_GameObject>();
   m_cameralist = new EXP_ListValue<KX_Camera>();
   m_fontlist = new EXP_ListValue<KX_FontObject>();
-  m_upbgeDupliInstancesList.clear();
 
   m_filterManager = new KX_2DFilterManager();
   m_logicmgr = new SCA_LogicManager();
@@ -323,8 +293,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
     scene->flag |= SCE_INTERACTIVE_VIEWPORT;
   }
 
-  DEG_register_bge_object_provider(bge_dupli_provider);
-
   /* Fix black shading issue with addObject https://github.com/UPBGE/upbge/issues/1354 */
   GPU_shader_force_unbind();
   /****************************************************/
@@ -411,7 +379,6 @@ KX_Scene::~KX_Scene()
     m_fontlist->Release();
   }
 
-  m_upbgeDupliInstancesList.clear();
 
   if (m_filterManager) {
     delete m_filterManager;
@@ -432,8 +399,6 @@ KX_Scene::~KX_Scene()
   if (m_sceneConverter) {
     delete m_sceneConverter;
   }
-
-  DEG_unregister_bge_object_provider();
 
   RestoreVisibilityFlag();
 
@@ -459,25 +424,196 @@ KX_Scene::~KX_Scene()
 
 /*******************EEVEE INTEGRATION******************/
 
-void KX_Scene::AddUpbgeDupliInstanceToList(KX_GameObject *gameobj)
+void KX_Scene::RegisterUpbgeDupliInstance(blender::Object *base_orig,
+                                          KX_GameObject *instance)
 {
-  auto it = std::find(m_upbgeDupliInstancesList.begin(), m_upbgeDupliInstancesList.end(), gameobj);
-  if (it == m_upbgeDupliInstancesList.end()) {
-    m_upbgeDupliInstancesList.push_back(gameobj);
+  if (!base_orig || !instance) {
+    return;
+  }
+  base_orig = DEG_get_original(base_orig);
+
+  blender::DupliObject *dob = instance->GetUpbgeDupliObject();
+  if (!dob) {
+    return;
+  }
+
+  int &next_id = m_upbgeDupliNextId[base_orig];
+  if (next_id == INT_MAX) {
+    CM_Warning("Unable to allocate a persistent ID for UPBGE dupli instance");
+    return;
+  }
+  const int persistent_id = next_id++;
+  m_upbgeDupliByBase[base_orig].push_back(instance);
+
+  *dob = {};
+  dob->ob = base_orig;
+  dob->ob_data = nullptr;
+  dob->type = 0;
+  dob->no_draw = false;
+  dob->level = 0;
+  dob->preview_base_geometry = nullptr;
+  dob->preview_instance_index = -1;
+  dob->persistent_id[0] = persistent_id;
+  for (int i = 1; i < MAX_DUPLI_RECUR; i++) {
+    dob->persistent_id[i] = INT_MAX;
+  }
+  dob->random_id = BLI_hash_int_2d(BLI_hash_string(base_orig->id.name + 2),
+                                   uint(persistent_id));
+  dob->particle_system = nullptr;
+  for (float &value : dob->upbge_color) {
+    value = 1.0f;
+  }
+
+  blender::bContext *C = KX_GetActiveEngine()->GetContext();
+  if (C) {
+    blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    if (depsgraph) {
+      dob->ob = DEG_get_evaluated(depsgraph, base_orig);
+    }
+  }
+  UpdateUpbgeDupliTransforms(nullptr);
+}
+
+void KX_Scene::UnregisterUpbgeDupliInstance(blender::Object *base_orig,
+                                            KX_GameObject *instance)
+{
+  if (!base_orig || !instance) {
+    return;
+  }
+  base_orig = DEG_get_original(base_orig);
+
+  auto instances_it = m_upbgeDupliByBase.find(base_orig);
+  if (instances_it != m_upbgeDupliByBase.end()) {
+    auto instance_it = std::find(instances_it->second.begin(), instances_it->second.end(), instance);
+    if (instance_it != instances_it->second.end()) {
+      instances_it->second.erase(instance_it);
+    }
+    if (instances_it->second.empty()) {
+      m_upbgeDupliByBase.erase(instances_it);
+    }
+  }
+
+}
+
+void KX_Scene::UpdateUpbgeDupliTransforms(blender::Depsgraph *depsgraph, bool is_last_render_pass)
+{
+  if (!depsgraph) {
+    blender::bContext *C = KX_GetActiveEngine() ? KX_GetActiveEngine()->GetContext() : nullptr;
+    depsgraph = C ? CTX_data_depsgraph_pointer(C) : nullptr;
+  }
+
+  for (auto &[base_orig, instances] : m_upbgeDupliByBase) {
+    blender::Object *base_eval = depsgraph ? DEG_get_evaluated(depsgraph, base_orig) :
+                                             base_orig;
+    for (KX_GameObject *instance : instances) {
+      if (!instance || !instance->IsUpbgeDupliInstance()) {
+        continue;
+      }
+      blender::DupliObject *dob = instance->GetUpbgeDupliObject();
+      if (!dob) {
+        continue;
+      }
+
+      dob->ob = base_eval;
+
+      /* Extract evaluated data from geometry_set_eval (same logic as old BGEObjectData).
+       * This is needed because DEG_iterator_temp_object_from_dupli does a shallow_copy of
+       * dupli->ob, which has the original data. If ob_data != ob->data, it calls
+       * BKE_object_replace_data_on_shallow_copy to use the evaluated data instead.
+       * Without this, modifiers on the base would be lost in the dupli instances.
+       *
+       * When there's no geometry_set_eval (simple mesh without modifiers), we set ob_data
+       * to base_eval->data so that the test (dupli->ob->data != dupli->ob_data) is false
+       * and no data replacement is performed. */
+      if (base_eval->runtime->geometry_set_eval) {
+        bke::GeometrySet *geom_set = (bke::GeometrySet *)
+            base_eval->runtime->geometry_set_eval;
+        ID *data = (ID *)geom_set->get_mesh();
+        if (!data) {
+          data = (ID *)geom_set->get_curves();
+        }
+        if (!data) {
+          data = (ID *)geom_set->get_pointcloud();
+        }
+        if (!data) {
+          data = (ID *)geom_set->get_volume();
+        }
+        if (!data) {
+          data = (ID *)geom_set->get_grease_pencil();
+        }
+        dob->ob_data = data;
+      }
+      else {
+        /* No modifiers: use the evaluated object's data directly.
+         * This ensures DEG_iterator_temp_object_from_dupli won't replace the data. */
+        dob->ob_data = base_eval->data;
+      }
+      if (is_last_render_pass) {
+        if (instance->GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
+          float mat[4][4];
+          instance->NodeGetWorldTransform().getValue(&mat[0][0]);
+          /* Draw/EEVEE tracks transform updates through the prototype object's runtime. */
+          DEG_bump_update_count(depsgraph);
+          base_eval->runtime->last_update_transform = DEG_get_update_count(depsgraph);
+          copy_m4_m4(dob->mat, mat);
+          instance->GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
+        }
+      }
+      float color[4];
+      instance->GetObjectColor().getValue(color);
+      copy_v4_v4(dob->upbge_color, color);
+    }
   }
 }
 
-void KX_Scene::RemoveUpbgeDupliInstanceFromList(KX_GameObject *gameobj)
+const std::vector<KX_GameObject *> *KX_Scene::GetUpbgeDupliInstances(
+    blender::Object *base_orig) const
 {
-  auto it = std::find(m_upbgeDupliInstancesList.begin(), m_upbgeDupliInstancesList.end(), gameobj);
-  if (it != m_upbgeDupliInstancesList.end()) {
-    m_upbgeDupliInstancesList.erase(it);
-  }
+  base_orig = DEG_get_original(base_orig);
+  auto it = m_upbgeDupliByBase.find(base_orig);
+  return it == m_upbgeDupliByBase.end() ? nullptr : &it->second;
 }
 
-void KX_Scene::RequestTaaReset()
+namespace blender {
+void bge_get_upbge_duplis(Depsgraph *depsgraph,
+                          Object *ob,
+                          VectorList<DupliObject *> &r_out)
 {
-  m_taaResetRequested = true;
+  KX_KetsjiEngine *engine = KX_GetActiveEngine();
+  if (!engine) {
+    return;
+  }
+
+  EXP_ListValue<KX_Scene> *scenes = engine->CurrentScenes();
+  if (!scenes || scenes->GetCount() == 0) {
+    return;
+  }
+
+  blender::Scene *input_scene = DEG_get_input_scene(depsgraph);
+  if (!input_scene) {
+    return;
+  }
+
+  for (KX_Scene *kx_scene : *scenes) {
+    if (DEG_get_original(kx_scene->GetBlenderScene()) != DEG_get_original(input_scene)) {
+      continue;
+    }
+    const std::vector<KX_GameObject *> *instances =
+        kx_scene->GetUpbgeDupliInstances(DEG_get_original(ob));
+    if (!instances) {
+      continue;
+    }
+
+    for (KX_GameObject *instance : *instances) {
+      if (instance && instance->IsUpbgeDupliInstance() && instance->GetVisible()) {
+        blender::DupliObject *dob = instance->GetUpbgeDupliObject();
+        if (dob) {
+          r_out.append(dob);
+        }
+      }
+    }
+  }
+}
 }
 
 void KX_Scene::ReinitBlenderContextVariables()
@@ -731,6 +867,8 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
+  UpdateUpbgeDupliTransforms(depsgraph);
+
   /* Update evaluated object object_to_world according to SceneGraph. */
   for (KX_GameObject *gameobj : GetObjectList()) {
     gameobj->TagForTransformUpdateEvaluated(is_last_render_pass);
@@ -821,11 +959,6 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
   engine->CountDepsgraphTime();
   UpdateDepsgraph(bmain, scene, is_overlay_pass, is_last_render_pass, cam);
   engine->EndCountDepsgraphTime();
-
-  if (m_taaResetRequested) {
-    DEG_bump_update_count(depsgraph);
-    m_taaResetRequested = false;
-  }
 
   blender::rcti window;
   int v[4];

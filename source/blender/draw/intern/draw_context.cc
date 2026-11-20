@@ -139,6 +139,10 @@
 
 namespace blender {
 
+void bge_get_upbge_duplis(Depsgraph *depsgraph,
+                          Object *ob,
+                          VectorList<DupliObject *> &r_out);
+
 thread_local DRWContext *DRWContext::g_context = nullptr;
 
 DRWContext::DRWContext(Mode mode_,
@@ -1138,16 +1142,19 @@ static void foreach_obref_in_scene(
     }
 
     const int visibility = BKE_object_visibility(ob, eval_mode);
-    const bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
+    const bool is_upbge_dupli_base = (ob->gameflag & OB_DUPLI_UPBGE) != 0;
+    const bool ob_visible = (visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES)) &&
+                            !is_upbge_dupli_base;
     const bool instances_visible = (visibility & OB_VISIBLE_INSTANCES) && is_object_instancer(*ob);
     /* Don't create duplis from temporary preview objects, object_duplilist_preview already takes
      * care of everything. (See #146194, #146211) */
     const bool is_preview_dupli = data_.dupli_parent && data_.dupli_object_current;
-    const bool process_duplis = instances_visible && !is_preview_dupli;
+    const bool process_upbge_duplis = is_upbge_dupli_base;
+    const bool process_duplis = instances_visible && !is_preview_dupli && !process_upbge_duplis;
 
     /* Fully hidden non-instancers don't need a predicate call: the iterator has nothing
      * to do with them. Skip them before invoking the predicate. */
-    if (!ob_visible && !process_duplis) {
+    if (!ob_visible && !process_duplis && !process_upbge_duplis) {
       continue;
     }
 
@@ -1159,6 +1166,95 @@ static void foreach_obref_in_scene(
        * dupli_parent and dupli_object_current won't be null for these. */
       ObjectRef ob_ref(ob, data_.dupli_parent, data_.dupli_object_current);
       draw_object_cb(ob_ref);
+    }
+
+    if (process_upbge_duplis) {
+      VectorList<DupliObject *> upbge_duplis;
+      bge_get_upbge_duplis(depsgraph, ob, upbge_duplis);
+      if (upbge_duplis.is_empty()) {
+        continue;
+      }
+      dupli_map.clear();
+      dupli_set_2d.clear();
+      for (DupliObject *dupli : upbge_duplis) {
+        if (!dupli || dupli->ob == nullptr) {
+          continue;
+        }
+
+        const bool is_negative_scale = is_negative_m4(dupli->mat);
+        std::optional<InstancesKey> key;
+        auto get_key = [&]() -> const InstancesKey & {
+          if (!key) {
+            key.emplace(dupli->ob,
+                        dupli->ob_data,
+                        is_negative_scale ? InstancesFlags::IsNegativeScale : InstancesFlags(0),
+                        dupli->preview_base_geometry,
+                        dupli->preview_instance_index);
+          }
+          return *key;
+        };
+
+        if (is_2d_view && !dupli_set_2d.add(get_key())) {
+          continue;
+        }
+
+        if (supports_handle_ranges(dupli, ob, draw_ctx)) {
+          dupli_map.lookup_or_add_default(get_key()).append(dupli);
+          continue;
+        }
+
+        bool tempobj_ok = evil::DEG_iterator_temp_object_from_dupli(
+                ob, dupli, eval_mode, false, &tmp_object, &tmp_runtime);
+        if (!tempobj_ok) {
+          continue;
+        }
+
+        DrawFilter dupli_filter = should_draw_object_cb(tmp_object, dupli);
+        if (!ELEM(dupli_filter, DrawFilter::Draw, DrawFilter::DrawNonRecursive)) {
+          evil::DEG_iterator_temp_object_free_properties(dupli, &tmp_object);
+          continue;
+        }
+
+        copy_v4_v4(tmp_object.color, dupli->upbge_color);
+        tmp_object.light_linking = dupli->ob->light_linking;
+        SET_FLAG_FROM_TEST(tmp_object.transflag, is_negative_scale, OB_NEG_SCALE);
+        tmp_object.runtime->object_to_world = float4x4(dupli->mat);
+        tmp_object.runtime->world_to_object = invert(tmp_object.runtime->object_to_world);
+
+        draw::ObjectRef ob_ref(&tmp_object, ob, dupli);
+        draw_object_cb(ob_ref);
+        evil::DEG_iterator_temp_object_free_properties(dupli, &tmp_object);
+      }
+
+      for (const auto &[key, instances] : dupli_map.items()) {
+        DupliObject *first_dupli = instances.first();
+        bool range_tempobj_ok = evil::DEG_iterator_temp_object_from_dupli(
+                ob, first_dupli, eval_mode, false, &tmp_object, &tmp_runtime);
+        if (!range_tempobj_ok) {
+          continue;
+        }
+
+        DrawFilter range_filter = should_draw_object_cb(tmp_object, first_dupli);
+        if (!ELEM(range_filter, DrawFilter::Draw, DrawFilter::DrawNonRecursive)) {
+          evil::DEG_iterator_temp_object_free_properties(first_dupli, &tmp_object);
+          continue;
+        }
+
+        copy_v4_v4(tmp_object.color, first_dupli->upbge_color);
+        tmp_object.light_linking = first_dupli->ob->light_linking;
+        SET_FLAG_FROM_TEST(tmp_object.transflag,
+                           flag_is_set(key.flags, InstancesFlags::IsNegativeScale),
+                           OB_NEG_SCALE);
+        tmp_object.runtime->object_to_world = float4x4();
+        tmp_object.runtime->world_to_object = float4x4();
+#ifndef NDEBUG
+        tmp_object.runtime->is_draw_dupli_reference_tmp_object = true;
+#endif
+        draw::ObjectRef ob_ref(tmp_object, ob, instances);
+        draw_object_cb(ob_ref);
+        evil::DEG_iterator_temp_object_free_properties(first_dupli, &tmp_object);
+      }
+      continue;
     }
 
     if (!process_duplis) {
