@@ -143,6 +143,10 @@
 #include "readfile.hh"
 #include "writefile.hh"
 
+#ifdef WITH_GAMEENGINE_BINARYCRYPT
+#  include "BC_binarycrypt.hh"
+#endif
+
 #include <zstd.h>
 
 namespace blender {
@@ -2202,6 +2206,13 @@ bool BLO_write_file(Main *mainvar,
                     const BlendFileWriteParams *params,
                     ReportList *reports)
 {
+#ifdef WITH_GAMEENGINE_BINARYCRYPT
+  /* UPBGE: never write back data that was decrypted from a protected container. */
+  if (BC_runtime_is_tainted()) {
+    BKE_report(reports, RPT_ERROR, "Saving is disabled: data was loaded from an encrypted file");
+    return false;
+  }
+#endif
   RawWriteWrap raw_wrap;
 
   if (write_flags & G_FILE_COMPRESS) {

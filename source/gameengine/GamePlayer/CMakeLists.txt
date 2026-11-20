@@ -153,6 +153,13 @@ if(WITH_GAMEENGINE_BPPLAYER)
   add_definitions(-DWITH_GAMEENGINE_BPPLAYER)
 endif()
 
+if(WITH_GAMEENGINE_BINARYCRYPT)
+  list(APPEND LIB
+    PRIVATE bf::intern::binarycrypt
+  )
+  add_definitions(-DWITH_GAMEENGINE_BINARYCRYPT)
+endif()
+
 if(WITH_VULKAN_METAL)
   add_definitions(-DWITH_VULKAN_METAL)
 endif()

@@ -146,7 +146,8 @@ void LA_Launcher::InitEngine()
   bool properties = (SYS_GetCommandLineInt(syshandle, "show_properties", 0) != 0);
   bool profile = (SYS_GetCommandLineInt(syshandle, "show_profile", 0) != 0);
 
-  bool showPhysics = (gm.flag & GAME_SHOW_PHYSICS);
+  static const bool cli_physics = SYS_GetCommandLineInt(syshandle, "show_physics", 0) != 0;
+  bool showPhysics = cli_physics || (gm.flag & GAME_SHOW_PHYSICS);
   SYS_WriteCommandLineInt(syshandle, "show_physics", showPhysics);
 
   // WARNING: Fixed time is the opposite of fixed framerate.
