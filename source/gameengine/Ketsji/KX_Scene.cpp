@@ -470,7 +470,7 @@ void KX_Scene::RegisterUpbgeDupliInstance(blender::Object *base_orig,
       dob->ob = DEG_get_evaluated(depsgraph, base_orig);
     }
   }
-  UpdateUpbgeDupliTransforms(nullptr, true);
+  //UpdateUpbgeDupliTransforms(nullptr, true);
 }
 
 void KX_Scene::UnregisterUpbgeDupliInstance(blender::Object *base_orig,
