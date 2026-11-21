@@ -1030,6 +1030,24 @@ void do_versions_after_linking_upbge(FileData *fd, Main *bmain)
     }
   }
 
+  /* Navigation Visualization's range (2026-11-20): 60 m round the camera as before it. */
+  if (!DNA_struct_member_exists(fd->filesdna, "RecastData", "float", "vis_range")) {
+    for (Scene &scene : bmain->scenes) {
+      scene.gm.recastData.vis_range = 60.0f;
+      scene.gm.recastData.vis_max_lines = 20000;
+    }
+  }
+
+  /* Navigation settings (2026-11-20): files from before read zeros (a link one way, closed,
+   * radius 0); they start as a new object's. */
+  if (!DNA_struct_member_exists(fd->filesdna, "Object", "ObjectGameNavigation", "game_navigation"))
+  {
+    const ObjectGameNavigation defaults;
+    for (Object &ob : bmain->objects) {
+      ob.game_navigation = defaults;
+    }
+  }
+
   /* Frame pacing: the jitter fix while vsync paces frames, as for new files (it only moves when
    * steps run, never their size). */
   if (!DNA_struct_member_exists(fd->filesdna, "GameData", "float", "jitter_fix")) {

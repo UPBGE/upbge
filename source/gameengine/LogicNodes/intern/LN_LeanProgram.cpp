@@ -195,7 +195,8 @@ void BuildLeanMemo(const LN_Program &program, LN_LeanProgram &lean)
         }
         for (const uint32_t index : {instruction.int_expr_index,
                                      instruction.secondary_int_expr_index,
-                                     instruction.tertiary_int_expr_index})
+                                     instruction.tertiary_int_expr_index,
+                                     instruction.quaternary_int_expr_index})
         {
           read(1, index);
         }

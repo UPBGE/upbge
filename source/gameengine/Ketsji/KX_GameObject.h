@@ -104,6 +104,48 @@ void KX_GameObject_Mathutils_Callback_Init(void);
  * KX_GameObject is the main class for dynamic objects.
  */
 class KX_ObjectReferenceValue;
+class BL_SceneConverter;
+
+/** What NPCs make of an object (Physics tab > Navigation, 2026-11-20): read from its Blender
+ * object when converted, changed by Set Navigation Attribute while playing (then
+ * KX_NavSettingsSerial moves on). The link's end is KX_GameObject::GetNavLinkEnd. */
+struct KX_NavObjectSettings {
+  /** NPCs walk on it and ride along (a ship, a train car, a lift's cab). */
+  bool vehicle = false;
+  bool link_both_ways = true;
+  /** The link is open (closed: Go Round or Wait, `link_wait`). */
+  bool link_enabled = true;
+  bool link_wait = false;
+  /** The link's kind ("jump", "drop", "ladder", "door", "teleport", "gangway", or the game's
+   * own name). */
+  std::string link_kind = "jump";
+  /** The area its surfaces are (empty: ground). */
+  std::string area;
+  float link_radius = 0.5f;
+  float link_duration = 0.0f;
+  float link_reach = 1.5f;
+  /** Wait: seconds an NPC waits before it goes another way (0: for ever). */
+  float link_wait_time = 0.0f;
+  /** As an NPC, its radius on the navigation mesh (0: its collision shape's, else its mesh's;
+   * 2026-11-20). Not changed while playing (it picks the NPC's navmesh). */
+  float npc_radius = 0.0f;
+  /** As an obstacle: the extra room NPCs keep (m); an object with no shape: its zone's radius
+   * (2026-11-20). */
+  float keep_away = 0.0f;
+};
+
+/** Moves on whenever any object's navigation settings change while playing (any scene, also
+ * objects without one in tests): the navigation reads the links and vehicles again. */
+uint64_t KX_NavSettingsSerial();
+
+/** KX_GameObject::GetNavChanged: the settings that differ from the file's (Set Navigation
+ * Attribute changed them; Save Object State keeps those). */
+enum : uint8_t {
+  KX_NAV_CHANGED_VEHICLE = 1 << 0,
+  KX_NAV_CHANGED_LINK_ENABLED = 1 << 1,
+  KX_NAV_CHANGED_LINK_END = 1 << 2,
+  KX_NAV_CHANGED_AREA = 1 << 3,
+};
 
 class KX_GameObject : public SCA_IObject {
   Py_Header
@@ -329,6 +371,13 @@ class KX_GameObject : public SCA_IObject {
   /** The Compound checkbox while playing (2026-11-18): -1 as the Blender object's (OB_CHILD),
    * else what Set Rigid Body Attribute's Compound or a Set Parent with Compound last said. */
   int8_t m_compoundSetting;
+  /** Navigation (2026-11-20): its settings, the reference to its link's end (emptied when that
+   * object goes; null: no link). */
+  KX_NavObjectSettings m_navSettings;
+  KX_ObjectReferenceValue *m_navLinkEnd = nullptr;
+  /** As converted (Load Game gives what a save did not change these values again). */
+  KX_NavObjectSettings m_navConverted;
+  KX_ObjectReferenceValue *m_navConvertedLinkEnd = nullptr;
   int m_layer;
   std::vector<RAS_MeshObject *> m_meshes;
   KX_LodManager *m_lodManager;
@@ -847,6 +896,35 @@ class KX_GameObject : public SCA_IObject {
   std::string SetCompoundEnabled(bool compound);
   /** The Compound checkbox now (the Blender object's until set while playing). */
   bool GetCompoundSetting() const;
+
+  /** Navigation settings (2026-11-20; Physics tab > Navigation). Read from the Blender object
+   * when converted; the link's end is found once every object is converted
+   * (ResolveNavLinkEnd). Retired game properties (nav_link, nav_area, nav_vehicle and the
+   * others) are warned about once. */
+  void ConvertNavSettings(blender::Object *blender_object);
+  void ResolveNavLinkEnd(BL_SceneConverter &converter);
+  const KX_NavObjectSettings &GetNavSettings() const
+  {
+    return m_navSettings;
+  }
+  /** The object at the other end of its navigation link (null: no link, or that object went). */
+  KX_GameObject *GetNavLinkEnd() const;
+  /** Set Navigation Attribute's changes: a change tells the scene's navigation to read the
+   * settings again. */
+  void SetNavVehicle(bool vehicle);
+  void SetNavLinkEnabled(bool enabled);
+  void SetNavLinkEnd(KX_GameObject *end);
+  void SetNavArea(const std::string &area);
+  /** The settings that differ from the converted ones now (KX_NAV_CHANGED_*). */
+  uint8_t GetNavChanged() const;
+  /** The settings as converted (the Blender object's), its link's end then. */
+  const KX_NavObjectSettings &GetConvertedNavSettings() const
+  {
+    return m_navConverted;
+  }
+  KX_GameObject *GetConvertedNavLinkEnd() const;
+  /** Tests: settings as if converted (no Blender object). */
+  void SetNavSettingsForTests(const KX_NavObjectSettings &settings, KX_GameObject *end);
   /** The object above this one whose compound shape holds this object's part, or null. */
   KX_GameObject *GetCompoundHolder();
   /** An object leaving the game: the parts of it and of the objects below it go out of a

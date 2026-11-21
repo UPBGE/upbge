@@ -1319,3 +1319,50 @@ TEST(JoltCharacter, CrouchedShapesKeepTheirBottom)
 }
 
 /** \} */
+
+/* Navigation made easy, item 12 (2026-11-20): a Character moved by the navigation passes
+ * through the bodies of the other navigating NPCs physics cannot push (SetNavigatingBodies);
+ * whatever is not navigating (a player steered by keys, an NPC standing) is met as before.
+ * A walks at 2 m/s for 2 s from x -2 into B standing at x 0 (or a Kinematic box there). */
+TEST(JoltCharacter, NavigatingNpcsPassThroughEachOther)
+{
+  struct Case {
+    const char *name;
+    bool a_navigates, b_navigates, b_box;
+    bool passes;
+  };
+  for (const Case &c : {Case{"both navigate", true, true, false, true},
+                        Case{"B stands", true, false, false, false},
+                        Case{"A steered by keys", false, true, false, false},
+                        Case{"neither", false, false, false, false},
+                        Case{"through a navigating Kinematic NPC", true, true, true, true},
+                        Case{"a Kinematic NPC standing", true, false, true, false}})
+  {
+    SCOPED_TRACE(c.name);
+    World world;
+    TestObject &a = world.AddCharacter(-2.0f, 0.0f);
+    TestObject &b = c.b_box ? world.Add(JPH::EMotionType::Kinematic,
+                                        Box(0.3f, 0.3f, 0.9f),
+                                        MT_Vector3(0.0f, 0.0f, kStand)) :
+                              world.AddCharacter(0.0f, 0.0f);
+    std::vector<PHY_IPhysicsController *> navigating;
+    if (c.a_navigates) {
+      navigating.push_back(&a.controller);
+    }
+    if (c.b_navigates) {
+      navigating.push_back(&b.controller);
+    }
+    world.environment.SetNavigatingBodies(navigating);
+    world.Step(10);
+    World::CharacterOf(a)->SetWalkDirection(MT_Vector3(2.0f, 0.0f, 0.0f));
+    world.Step(120);
+    if (c.passes) {
+      EXPECT_GT(a.Position().x(), 1.5f);
+    }
+    else {
+      EXPECT_LT(a.Position().x(), -0.5f);
+    }
+    /* B is where it stood (a standing Character pressed on gives a centimetre or so). */
+    EXPECT_NEAR(b.Position().x(), 0.0f, 0.05f);
+  }
+}

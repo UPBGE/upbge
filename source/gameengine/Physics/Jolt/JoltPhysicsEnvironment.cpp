@@ -5113,6 +5113,7 @@ void JoltPhysicsEnvironment::CollectStaticTriangles(
     const MT_Vector3 &aabb_min,
     const MT_Vector3 &aabb_max,
     const std::function<void(KX_GameObject *object,
+                             int solid_piece,
                              const MT_Vector3 &a,
                              const MT_Vector3 &b,
                              const MT_Vector3 &c)> &triangle)
@@ -5132,6 +5133,7 @@ void JoltPhysicsEnvironment::CollectStaticTriangles(
   constexpr int kBatch = 256;
   static_assert(kBatch >= JPH::Shape::cGetTrianglesMinTrianglesRequested);
   std::vector<JPH::Float3> vertices(size_t(kBatch) * 3);
+  int solid_pieces = 0;
   for (const JPH::BodyID &id : ids) {
     JPH::TransformedShape shape;
     KX_GameObject *object = nullptr;
@@ -5149,16 +5151,88 @@ void JoltPhysicsEnvironment::CollectStaticTriangles(
       }
       shape = body.GetTransformedShape();
     }
+    /* Its leaves (a compound's parts each), each convex one a closed solid piece of its own:
+     * Recast sees only surfaces, and the floor inside a box taller than an NPC stayed walkable
+     * (NPCs pressed into a wall walked inside it, 2026-11-19). */
+    struct Leaves : public JPH::TransformedShapeCollector {
+      std::vector<JPH::TransformedShape> shapes;
+      void AddHit(const JPH::TransformedShape &inResult) override
+      {
+        shapes.push_back(inResult);
+      }
+    } leaves;
+    shape.CollectTransformedShapes(box, leaves);
+    for (const JPH::TransformedShape &leaf : leaves.shapes) {
+      const bool convex = leaf.mShape != nullptr &&
+                          leaf.mShape->GetType() == JPH::EShapeType::Convex;
+      const int piece = convex ? solid_pieces++ : -1;
+      JPH::Shape::GetTrianglesContext context;
+      leaf.GetTrianglesStart(context, box, JPH::RVec3::sZero());
+      int count;
+      while ((count = leaf.GetTrianglesNext(context, kBatch, vertices.data())) > 0) {
+        for (int i = 0; i < count; i++) {
+          /* (A turn: the winding is kept.) */
+          const auto game = [](const JPH::Float3 &v) {
+            return JoltMath::ToMT(JPH::Vec3(v.x, v.y, v.z));
+          };
+          triangle(object,
+                   piece,
+                   game(vertices[size_t(i) * 3 + 0]),
+                   game(vertices[size_t(i) * 3 + 1]),
+                   game(vertices[size_t(i) * 3 + 2]));
+        }
+      }
+    }
+  }
+}
+
+void JoltPhysicsEnvironment::CollectBodyTriangles(
+    PHY_IPhysicsController *controller,
+    const std::function<void(int solid_piece,
+                             const MT_Vector3 &a,
+                             const MT_Vector3 &b,
+                             const MT_Vector3 &c)> &triangle)
+{
+  /* A vehicle's own shape (2026-11-19): its body as it stands in the world, any motion type,
+   * its leaves (a compound's parts) each a solid piece when convex, as CollectStaticTriangles
+   * hands the level over. */
+  JoltPhysicsController *jolt = dynamic_cast<JoltPhysicsController *>(controller);
+  if (jolt == nullptr || jolt->GetBodyID().IsInvalid()) {
+    return;
+  }
+  JPH::TransformedShape shape;
+  {
+    JPH::BodyLockRead lock(m_physicsSystem->GetBodyLockInterface(), jolt->GetBodyID());
+    if (!lock.Succeeded() || lock.GetBody().IsSensor()) {
+      return;
+    }
+    shape = lock.GetBody().GetTransformedShape();
+  }
+  struct Leaves : public JPH::TransformedShapeCollector {
+    std::vector<JPH::TransformedShape> shapes;
+    void AddHit(const JPH::TransformedShape &inResult) override
+    {
+      shapes.push_back(inResult);
+    }
+  } leaves;
+  const JPH::AABox everywhere = JPH::AABox::sBiggest();
+  shape.CollectTransformedShapes(everywhere, leaves);
+  constexpr int kBatch = 256;
+  std::vector<JPH::Float3> vertices(size_t(kBatch) * 3);
+  int solid_pieces = 0;
+  for (const JPH::TransformedShape &leaf : leaves.shapes) {
+    const bool convex = leaf.mShape != nullptr &&
+                        leaf.mShape->GetType() == JPH::EShapeType::Convex;
+    const int piece = convex ? solid_pieces++ : -1;
     JPH::Shape::GetTrianglesContext context;
-    shape.GetTrianglesStart(context, box, JPH::RVec3::sZero());
+    leaf.GetTrianglesStart(context, everywhere, JPH::RVec3::sZero());
     int count;
-    while ((count = shape.GetTrianglesNext(context, kBatch, vertices.data())) > 0) {
+    while ((count = leaf.GetTrianglesNext(context, kBatch, vertices.data())) > 0) {
       for (int i = 0; i < count; i++) {
-        /* (A turn: the winding is kept.) */
         const auto game = [](const JPH::Float3 &v) {
           return JoltMath::ToMT(JPH::Vec3(v.x, v.y, v.z));
         };
-        triangle(object,
+        triangle(piece,
                  game(vertices[size_t(i) * 3 + 0]),
                  game(vertices[size_t(i) * 3 + 1]),
                  game(vertices[size_t(i) * 3 + 2]));
@@ -5187,6 +5261,81 @@ bool JoltPhysicsEnvironment::GetStaticBodyBounds(PHY_IPhysicsController *control
     r_max[axis] = std::max(a[axis], b[axis]);
   }
   return true;
+}
+
+void JoltPhysicsEnvironment::SetNavigatingBodies(
+    const std::vector<PHY_IPhysicsController *> &controllers)
+{
+  /* (Item 12, 2026-11-20: read by the characters' Simulate on Jolt's threads, written only here,
+   * between steps.) */
+  m_navigatingBodies.clear();
+  for (PHY_IPhysicsController *controller : controllers) {
+    const JoltPhysicsController *jolt = dynamic_cast<JoltPhysicsController *>(controller);
+    if (jolt != nullptr && !jolt->GetBodyID().IsInvalid()) {
+      m_navigatingBodies.push_back(jolt->GetBodyID());
+    }
+  }
+  std::sort(m_navigatingBodies.begin(), m_navigatingBodies.end());
+  m_navigatingBodies.erase(std::unique(m_navigatingBodies.begin(), m_navigatingBodies.end()),
+                           m_navigatingBodies.end());
+}
+
+void JoltPhysicsEnvironment::SetStaticChangeTracking(const bool enabled)
+{
+  m_staticChangeTracking = enabled;
+  if (!enabled) {
+    m_staticChanges.clear();
+    m_staticChangeOwners.clear();
+    m_staticChangeIndex.clear();
+  }
+}
+
+void JoltPhysicsEnvironment::NoteStaticBodyChanging(JoltPhysicsController *controller)
+{
+  /* Navigation (2026-11-19): once a controller until the notes are taken, where its body was
+   * then (the navmesh was built with it there). Cheap when the body moves every step: one
+   * lookup. */
+  if (!m_staticChangeTracking || controller == nullptr ||
+      m_staticChangeIndex.count(controller) != 0)
+  {
+    return;
+  }
+  PHY_StaticBodyChange change;
+  if (KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo *>(
+          controller->GetNewClientInfo()))
+  {
+    change.object = info->m_gameobject;
+  }
+  if (change.object == nullptr) {
+    return;
+  }
+  if (!controller->GetBodyID().IsInvalid() &&
+      GetBodyInterface().IsAdded(controller->GetBodyID()))
+  {
+    change.had_bounds = GetStaticBodyBounds(controller, change.before_min, change.before_max);
+  }
+  m_staticChangeIndex.emplace(controller, m_staticChanges.size());
+  m_staticChanges.push_back(change);
+  m_staticChangeOwners.push_back(controller);
+}
+
+void JoltPhysicsEnvironment::ForgetStaticBodyChanges(JoltPhysicsController *controller)
+{
+  auto it = m_staticChangeIndex.find(controller);
+  if (it == m_staticChangeIndex.end()) {
+    return;
+  }
+  m_staticChanges[it->second].object = nullptr;
+  m_staticChangeOwners[it->second] = nullptr;
+  m_staticChangeIndex.erase(it);
+}
+
+void JoltPhysicsEnvironment::TakeStaticBodyChanges(std::vector<PHY_StaticBodyChange> &r_changes)
+{
+  r_changes.clear();
+  r_changes.swap(m_staticChanges);
+  m_staticChangeOwners.clear();
+  m_staticChangeIndex.clear();
 }
 
 bool JoltPhysicsEnvironment::OverlapSphereBodies(const MT_Vector3 &center,
@@ -7905,6 +8054,8 @@ bool JoltPhysicsEnvironment::RemoveController(JoltPhysicsController *ctrl)
     return false;
   }
 
+  /* (Also a controller never added to the list: its note must not outlive it.) */
+  ForgetStaticBodyChanges(ctrl);
   const bool removed = m_controllers.erase(ctrl) > 0;
   if (!removed) {
     return false;

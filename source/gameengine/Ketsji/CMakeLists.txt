@@ -94,7 +94,9 @@ set(SRC
   KX_MaterialShader.cpp
   KX_MeshProxy.cpp
   KX_MotionState.cpp
+  KX_NavAir.cpp
   KX_NavBuild.cpp
+  KX_NavJumpLinks.cpp
   KX_NavMesh.cpp
   KX_Navigation.cpp
   KX_NavMeshObject.cpp
@@ -161,9 +163,12 @@ set(SRC
   KX_MeshProxy.h
   KX_MotionState.h
   KX_Detour.h
+  KX_NavAir.h
   KX_NavBuild.h
+  KX_NavJumpLinks.h
   KX_NavMesh.h
   KX_NavOrca.h
+  KX_NavOrca3D.h
   KX_Navigation.h
   KX_NavMeshObject.h
   KX_ObColorIpoSGController.h

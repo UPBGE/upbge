@@ -295,9 +295,14 @@ static int buildPolygonsByDetailedMeshes(const int vertsPerPoly,
       if (distSq > tolerance)
         adjustedPoly[adjustedNv++] = cur;
     }
-    memcpy(newPoly, adjustedPoly, adjustedNv * sizeof(unsigned short));
+    /* A thin polygon (a sliver beside a thin wall) is no line (2026-11-19: its third corner
+     * near the line through the other two was dropped too, and the navmesh object was refused:
+     * "can't find vertex in polygon"; found by the navigation examples). */
+    if (adjustedNv >= 3) {
+      memcpy(newPoly, adjustedPoly, adjustedNv * sizeof(unsigned short));
+      nv = adjustedNv;
+    }
     MEM_delete(adjustedPoly);
-    nv = adjustedNv;
 
     allBorderTraversed = 1;
     for (i = 0; i < dtrisNum; i++) {
@@ -642,6 +647,9 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
       }
     }
     nverts = curIdx;
+    /* Detail points that are another polygon's corner (dropped from this polygon's outline as
+     * lying on its line): (their index, the mesh vertex they copy). */
+    std::vector<std::pair<int, int>> borrowed;
     //...then iterate over detailed meshes
     // transform indices to local ones (for each navigation polygon)
     for (int polyidx = 0; polyidx < npolys; polyidx++) {
@@ -651,23 +659,35 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
       unsigned short tribase = dmesh[2];
       unsigned short trinum = dmesh[3];
       unsigned short vbase = curIdx;
+      const size_t borrowed_base = borrowed.size();
       for (int j = 0; j < trinum; j++) {
         unsigned short *dtri = &dtris[(tribase + j) * 3 * 2];
         for (int k = 0; k < 3; k++) {
-          int newVertexIdx = verticesMap[dtri[k]];
+          const int source = dtri[k];
+          int newVertexIdx = verticesMap[source];
           if (newVertexIdx == 0xffff) {
             newVertexIdx = curIdx++;
-            verticesMap[dtri[k]] = newVertexIdx;
+            verticesMap[source] = newVertexIdx;
           }
 
           if (newVertexIdx < nverts) {
             // it's polygon vertex ("shared")
             int idxInPoly = polyFindVertex(poly, vertsPerPoly, newVertexIdx);
             if (idxInPoly == -1) {
-              CM_Error("building NavMeshObject, can't find vertex in polygon\n");
-              MEM_SAFE_DELETE(allVerts);
-              MEM_delete(verticesMap);
-              return false;
+              /* Not this polygon's corner (2026-11-19: the navmesh object was refused, "can't
+               * find vertex in polygon"): one of its detail points at the same place. */
+              int detail = -1;
+              for (size_t b = borrowed_base; b < borrowed.size(); b++) {
+                if (borrowed[b].second == source) {
+                  detail = borrowed[b].first;
+                }
+              }
+              if (detail < 0) {
+                detail = curIdx++;
+                borrowed.emplace_back(detail, source);
+              }
+              dtri[k] = detail - vbase + nv;
+              continue;
             }
             dtri[k] = idxInPoly;
           }
@@ -697,6 +717,9 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices,
           memcpy(dvertices + 3 * (newIdx - nverts), allVerts + 3 * vi, 3 * sizeof(float));
         }
       }
+    }
+    for (const std::pair<int, int> &item : borrowed) {
+      memcpy(dvertices + 3 * (item.first - nverts), allVerts + 3 * item.second, 3 * sizeof(float));
     }
 
     MEM_SAFE_DELETE(allVerts);
@@ -844,7 +867,7 @@ bool KX_NavMeshObject::BuildNavMesh()
     polygons.walkable_height = settings.agentheight;
     polygons.walkable_radius = settings.agentradius;
     polygons.walkable_climb = settings.agentmaxclimb;
-    /* The scene's navigation links (objects with a nav_link property), in this navmesh's space:
+    /* The scene's navigation links (Physics > Navigation > Link), in this navmesh's space:
      * their numbers are the scene's (KX_Navigation reads the same list). */
     for (const KX_NavLink &link : KX_NavCollectLinks(scene)) {
       for (const MT_Vector3 *point : {&link.start, &link.end}) {

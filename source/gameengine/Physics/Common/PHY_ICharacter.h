@@ -53,6 +53,24 @@ class PHY_ICharacter {
     return 0.0f;
   }
   virtual void SetStepHeight(float /*stepHeight*/) {}
+  /** Navigation (2026-11-19): the highest ledge it walks up (m): its Step Height, or, with a
+   * round bottom (a capsule, a sphere), an edge it meets at most its Max Slope from up and rides
+   * up as a ramp. */
+  virtual float GetClimbHeight() const
+  {
+    return GetStepHeight();
+  }
+
+  /** Navigation's physics jumps (2026-11-19): whether Launch moves it (else the navigation
+   * carries it over a jump link). */
+  virtual bool CanLaunch() const
+  {
+    return false;
+  }
+  /** At its next step it leaves where it stands going \a upSpeed (m/s) along its up, whatever
+   * its jumps so far (not counted as one); its sideways velocity stays its walking (the
+   * navigation steers it through the air by its walk direction). */
+  virtual void Launch(float /*upSpeed*/) {}
 
   /** Crouching: a shape \a height (a part of the standing one, 0..1) tall, its bottom where the
    * standing one's is. It stands up again only where the standing shape has room. */

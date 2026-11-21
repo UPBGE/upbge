@@ -101,6 +101,7 @@ if(WITH_GTESTS)
     tests/JoltDebugDraw_test.cpp
     tests/JoltLogicNodesQueries_test.cpp
     tests/JoltNavigation_test.cpp
+    tests/KX_NavAir_test.cpp
     tests/JoltProcessorCheck_test.cpp
   )
   # JoltLogicNodesQueries_test runs Logic Nodes trees (their test rigs) against a real Jolt world.

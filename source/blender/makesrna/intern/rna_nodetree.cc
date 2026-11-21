@@ -7575,6 +7575,33 @@ static void def_logic_aim_for_arc(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
+static void def_logic_follow_path(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  /* custom1, LN_FOLLOW_PATH_WAY_* (2026-11-19). */
+  static const EnumPropertyItem way_items[] = {
+      {0,
+       "STRAIGHT",
+       0,
+       "Straight",
+       "From point to point in a straight line, avoiding nothing: moving platforms, rails, "
+       "carts (on the Optional Navmesh when one is given, avoiding others there)"},
+      {1,
+       "NAVMESH",
+       0,
+       "Navmesh",
+       "Walks the navigation mesh round walls, avoiding others, as Navigate: the Optional "
+       "Navmesh, else the scene's (Scene > Navigation Mesh)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  PropertyRNA *prop = RNA_def_property(srna, "way", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, way_items);
+  RNA_def_property_enum_default(prop, 1);
+  RNA_def_property_ui_text(prop, "Way", "How it goes from point to point");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
 static void def_logic_navigate(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   /* KX_NavRequest::Mode (2026-11-18). */
@@ -7590,7 +7617,12 @@ static void def_logic_navigate(BlenderRNA * /*brna*/, StructRNA *srna)
        0,
        "Flee",
        "Away from the Target Object (else the Destination) until Radius away"},
-      {3, "PURSUE", 0, "Pursue", "To where the Target Object will be when it gets there"},
+      {3,
+       "PURSUE",
+       0,
+       "Pursue",
+       "To where the Target Object will be when it gets there. Several NPCs pursuing one target "
+       "with Avoidance Polite surround it, each at its own place round it (Dense ones pile on)"},
       {4, "EVADE", 0, "Evade", "Away from where the Target Object will be, until Radius away"},
       {5,
        "FORMATION",
@@ -7624,6 +7656,64 @@ static void def_logic_navigate(BlenderRNA * /*brna*/, StructRNA *srna)
                            "running)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  /* (custom2 bit 1 was the Polite / Dense dropdown until 2026-11-20: the Avoidance input now,
+   * node_update moves a saved Dense into it.) */
+
+  /* custom2 bits 2-3, LN_NAVIGATE_MOVE_* (2026-11-19). */
+  static const EnumPropertyItem movement_items[] = {
+      {0, "WALK", 0, "Walk", "Walks the navigation mesh (the scene's, or the Navmesh Object)"},
+      {1 << 2,
+       "FLY",
+       0,
+       "Fly",
+       "Flies through the air round the level's solid shapes, avoiding other flyers in all "
+       "directions (a Dynamic body hovers, its gravity undone; a Character cannot fly)"},
+      {2 << 2,
+       "SWIM",
+       0,
+       "Swim",
+       "Swims inside the water (Buoyancy Volume sensors) round the level's solid shapes (a "
+       "Dynamic body floats there and steers across only, its height left to the water; with "
+       "Gravity Factor 0 it dives as a fish)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "movement", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, movement_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Movement", "How the NPC gets there: walking, flying or swimming");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  /* custom2 bits 4-5, LN_NAVIGATE_CLIMB_* (2026-11-19). */
+  static const EnumPropertyItem climb_items[] = {
+      {0, "FLOORS", 0, "Floors", "Walks the floors (the navigation mesh)"},
+      {1 << 4,
+       "WALLS",
+       0,
+       "Walls",
+       "Climbs walls too: crawls over the floors, walls and slopes of the level's solid shapes, "
+       "round their edges and into corners, its up following the surface (no navigation mesh "
+       "needed). A Character's gravity turns toward the wall it climbs"},
+      {2 << 4,
+       "CEILINGS",
+       0,
+       "Walls and Ceilings",
+       "Climbs walls and walks on ceilings too (spiders, insects, wall-crawling creatures)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "climb", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, climb_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop,
+                           "Climb",
+                           "Where a walking NPC may go: floors only, walls too, or walls and "
+                           "ceilings (the area costs \"wall\" and \"ceiling\" of Set Navigation "
+                           "Attribute make climbing dearer, cheaper or closed for it)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 
 static void def_logic_navmesh_query(BlenderRNA * /*brna*/, StructRNA *srna)
@@ -7647,6 +7737,31 @@ static void def_logic_navmesh_query(BlenderRNA * /*brna*/, StructRNA *srna)
        0,
        "Walkable Line",
        "Whether a straight walk from From to To stays on the navigation mesh"},
+      {5,
+       "AIR_NEAREST_POINT",
+       0,
+       "Air: Nearest Point",
+       "The free point in the air nearest Position, within Radius of it, for a flyer the size of "
+       "the object running the tree"},
+      {6,
+       "AIR_CLEAR_LINE",
+       0,
+       "Air: Clear Line",
+       "Whether a flyer the size of the object running the tree flies straight from From to To "
+       "without touching anything solid"},
+      {7,
+       "AIR_FIND_PATH",
+       0,
+       "Air: Find Path",
+       "The way through the air from From to To for a flyer the size of the object running the "
+       "tree: its corners and length"},
+      {8,
+       "FIND_SPOT",
+       0,
+       "Find Spot",
+       "A good place to go round Position: reachable on foot from From, seen or hidden from the "
+       "one at Look From, behind cover, not taken by another NPC, scored by the walk and the "
+       "distance from the look (hiding places, cover, places to shoot from)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   PropertyRNA *prop = RNA_def_property(srna, "query", PROP_ENUM, PROP_NONE);
@@ -7655,6 +7770,44 @@ static void def_logic_navmesh_query(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_enum_default(prop, 0);
   RNA_def_property_ui_text(prop, "Query", "What to ask the navigation mesh");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  /* custom2 bit 0, LN_NAVMESH_QUERY_WATER (2026-11-19). */
+  prop = RNA_def_property(srna, "use_water", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1 << 0);
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_ui_text(
+      prop,
+      "In Water",
+      "Air queries for a swimmer: only inside the water (Buoyancy Volume sensors)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
+  /* custom2 bits 1-2, LN_NAVMESH_QUERY_SPOT_* (2026-11-20). */
+  static const EnumPropertyItem visibility_items[] = {
+      {0, "ANY", 0, "Any", "Seen by the one at Look From or not"},
+      {1 << 1,
+       "HIDDEN",
+       0,
+       "Hidden From",
+       "Only places the one at Look From does not see (the line from its eye to the middle of "
+       "the asking NPC crouching there, 0.55 of its height up, is blocked; 1 m for an asker "
+       "without a body): hiding places, a dog's lower than a man's"},
+      {2 << 1,
+       "SEEN",
+       0,
+       "Seen By",
+       "Only places the one at Look From sees (a clear line from its eye to the asking NPC's "
+       "eyes standing there, 0.85 of its height up; 1.5 m for an asker without a body): "
+       "places to shoot or watch from, over low cover too"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "spot_visibility", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, visibility_items);
+  RNA_def_property_enum_default(prop, 0);
+  RNA_def_property_ui_text(prop, "Visibility", "Find Spot: seen by the look, or hidden from it");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 
@@ -7674,6 +7827,37 @@ static void def_logic_set_navigation_attribute(BlenderRNA * /*brna*/, StructRNA 
        0,
        "Rebuild Area",
        "Make the scene's navigation mesh again inside a box (level pieces changed)"},
+      /* 4 is Navigate's Stop (no option of this node). */
+      {5,
+       "JUMP_LIMITS",
+       0,
+       "Jump Limits",
+       "How wide a gap, how high a ledge and how deep a drop the NPC jumps on jump links (a "
+       "Character's own jump decides unless set)"},
+      /* 2026-11-20: Physics > Navigation's settings while playing. */
+      {6,
+       "VEHICLE",
+       0,
+       "Vehicle",
+       "Whether NPCs walk on the object and ride along (a ship, a train car, a lift's cab)"},
+      {7,
+       "LINK_ENABLED",
+       0,
+       "Link Enabled",
+       "Open or close the object's navigation link (a locked door, a raised drawbridge, a "
+       "switched-off teleporter)"},
+      {8,
+       "LINK_END",
+       0,
+       "Link End",
+       "Where the object's navigation link goes (a teleporter's destination, a gangway moved to "
+       "another ship)"},
+      {9,
+       "AREA",
+       0,
+       "Area",
+       "The area the object's surfaces are in the navigation mesh (a floor turning to lava or "
+       "mud)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   PropertyRNA *prop = RNA_def_property(srna, "attribute", PROP_ENUM, PROP_NONE);
@@ -15701,7 +15885,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("LogicNode", "LogicNativeMath", def_logic_math);
   define("LogicNode", "LogicNativeMoveToward");
   define("LogicNode", "LogicNativeNavigate", def_logic_navigate);
-  define("LogicNode", "LogicNativeFollowPath");
+  define("LogicNode", "LogicNativeFollowPath", def_logic_follow_path);
   define("LogicNode", "LogicNativeNavmeshQuery", def_logic_navmesh_query);
   define("LogicNode", "LogicNativeGetNavigationInfo");
   define("LogicNode", "LogicNativeOnNavigationLink");

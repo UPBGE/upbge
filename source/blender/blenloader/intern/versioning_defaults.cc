@@ -622,6 +622,16 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     sce.gm.recastData.detailsampledist = 6.0f;
     sce.gm.recastData.detailsamplemaxerror = 1.0f;
     sce.gm.recastData.partitioning = RC_PARTITION_WATERSHED;
+    /* UPBGE (2026-11-19): new scenes' NPCs really jump (older files read Carried). */
+    sce.gm.recastData.link_crossing = NAVMESH_LINK_PHYSICS;
+    /* UPBGE (2026-11-20): new scenes build their navmesh when a node needs it, its cells worked
+     * out from the NPCs' size (older files keep what they say). */
+    sce.gm.recastData.build_mode = NAVMESH_BUILD_AUTO;
+    sce.gm.recastData.auto_cells = 1;
+    sce.gm.recastData.jump_gap = 3.0f;
+    sce.gm.recastData.jump_up = 1.5f;
+    sce.gm.recastData.jump_drop = 4.0f;
+    sce.gm.recastData.jump_spacing = 2.0f;
 
     /* Blender key code for ESC */
     sce.gm.exitkey = 218;

@@ -72,6 +72,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_force_types.h"
+#include "DNA_property_types.h"
 #include "DNA_scene_types.h"
 #include "WM_api.hh"
 
@@ -294,6 +295,12 @@ KX_GameObject::KX_GameObject()
 KX_GameObject::~KX_GameObject()
 {
   ClearReferenceValues();
+  for (KX_ObjectReferenceValue **end : {&m_navLinkEnd, &m_navConvertedLinkEnd}) {
+    if (*end != nullptr) {
+      (*end)->Release();
+      *end = nullptr;
+    }
+  }
   if (m_drawCull.distance_value != nullptr) {
     m_drawCull.distance_value->Release();
     m_drawCull.distance_value = nullptr;
@@ -2826,6 +2833,177 @@ bool KX_GameObject::GetCompoundSetting() const
   return m_pBlenderObject != nullptr && (m_pBlenderObject->gameflag & OB_CHILD) != 0;
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Navigation settings (2026-11-20, Physics tab > Navigation)
+ * \{ */
+
+void KX_GameObject::ConvertNavSettings(blender::Object *blender_object)
+{
+  const blender::ObjectGameNavigation &nav = blender_object->game_navigation;
+  m_navSettings = KX_NavObjectSettings();
+  m_navSettings.vehicle = (nav.flag & OB_NAV_VEHICLE) != 0;
+  m_navSettings.link_both_ways = (nav.flag & OB_NAV_LINK_BOTH_WAYS) != 0;
+  m_navSettings.link_enabled = (nav.flag & OB_NAV_LINK_ENABLED) != 0;
+  m_navSettings.link_wait = nav.link_when_closed == OB_NAV_LINK_CLOSED_WAIT;
+  static const char *const kinds[] = {"jump", "drop", "ladder", "door", "teleport", "gangway"};
+  if (nav.link_kind == OB_NAV_LINK_KIND_CUSTOM) {
+    m_navSettings.link_kind = nav.link_kind_name[0] != '\0' ? nav.link_kind_name : "custom";
+  }
+  else if (nav.link_kind >= 0 && nav.link_kind < int(std::size(kinds))) {
+    m_navSettings.link_kind = kinds[int(nav.link_kind)];
+  }
+  m_navSettings.area = nav.area;
+  m_navSettings.link_radius = std::max(nav.link_radius, 0.05f);
+  m_navSettings.link_duration = std::max(nav.link_duration, 0.0f);
+  m_navSettings.link_reach = std::max(nav.link_reach, 0.0f);
+  m_navSettings.npc_radius = std::max(nav.npc_radius, 0.0f);
+  m_navSettings.keep_away = std::max(nav.keep_away, 0.0f);
+  m_navSettings.link_wait_time = std::max(nav.link_wait_time, 0.0f);
+  m_navConverted = m_navSettings;
+  for (KX_ObjectReferenceValue **end : {&m_navLinkEnd, &m_navConvertedLinkEnd}) {
+    if (*end != nullptr) {
+      (*end)->Release();
+      *end = nullptr;
+    }
+    if (nav.link_end != nullptr && nav.link_end != blender_object) {
+      /* Found once every object is converted (ResolveNavLinkEnd). */
+      *end = new KX_ObjectReferenceValue(nav.link_end);
+    }
+  }
+  /* The game properties these settings replaced (until 2026-11-20): said once, so files made
+   * with them show what to set up again. */
+  static const char *const retired[] = {"nav_link",
+                                        "nav_link_kind",
+                                        "nav_link_both_ways",
+                                        "nav_link_radius",
+                                        "nav_link_duration",
+                                        "nav_link_reach",
+                                        "nav_area",
+                                        "nav_vehicle"};
+  for (const blender::bProperty *prop = static_cast<const blender::bProperty *>(
+           blender_object->prop.first);
+       prop != nullptr;
+       prop = prop->next)
+  {
+    for (const char *name : retired) {
+      if (STREQ(prop->name, name)) {
+        CM_Warning("navigation: \"" << GetName() << "\" has the old game property " << name
+                                    << ": use Physics > Navigation instead (it is ignored)");
+        break;
+      }
+    }
+  }
+}
+
+void KX_GameObject::ResolveNavLinkEnd(BL_SceneConverter &converter)
+{
+  for (KX_ObjectReferenceValue *end : {m_navLinkEnd, m_navConvertedLinkEnd}) {
+    if (end != nullptr) {
+      end->ResolveConverted(converter);
+    }
+  }
+}
+
+KX_GameObject *KX_GameObject::GetNavLinkEnd() const
+{
+  return m_navLinkEnd != nullptr ? m_navLinkEnd->GetObject() : nullptr;
+}
+
+KX_GameObject *KX_GameObject::GetConvertedNavLinkEnd() const
+{
+  return m_navConvertedLinkEnd != nullptr ? m_navConvertedLinkEnd->GetObject() : nullptr;
+}
+
+static std::atomic<uint64_t> g_navSettingsSerial{0};
+
+uint64_t KX_NavSettingsSerial()
+{
+  return g_navSettingsSerial.load(std::memory_order_relaxed);
+}
+
+static void note_navigation_settings_changed(KX_GameObject * /*object*/)
+{
+  g_navSettingsSerial.fetch_add(1, std::memory_order_relaxed);
+}
+
+uint8_t KX_GameObject::GetNavChanged() const
+{
+  uint8_t changed = 0;
+  if (m_navSettings.vehicle != m_navConverted.vehicle) {
+    changed |= KX_NAV_CHANGED_VEHICLE;
+  }
+  if (m_navSettings.link_enabled != m_navConverted.link_enabled) {
+    changed |= KX_NAV_CHANGED_LINK_ENABLED;
+  }
+  if (GetNavLinkEnd() != GetConvertedNavLinkEnd()) {
+    changed |= KX_NAV_CHANGED_LINK_END;
+  }
+  if (m_navSettings.area != m_navConverted.area) {
+    changed |= KX_NAV_CHANGED_AREA;
+  }
+  return changed;
+}
+
+void KX_GameObject::SetNavVehicle(const bool vehicle)
+{
+  if (m_navSettings.vehicle != vehicle) {
+    m_navSettings.vehicle = vehicle;
+    note_navigation_settings_changed(this);
+  }
+}
+
+void KX_GameObject::SetNavLinkEnabled(const bool enabled)
+{
+  if (m_navSettings.link_enabled != enabled) {
+    m_navSettings.link_enabled = enabled;
+    note_navigation_settings_changed(this);
+  }
+}
+
+void KX_GameObject::SetNavLinkEnd(KX_GameObject *end)
+{
+  if (end == this) {
+    end = nullptr;
+  }
+  if (GetNavLinkEnd() == end) {
+    return;
+  }
+  if (m_navLinkEnd == nullptr) {
+    m_navLinkEnd = new KX_ObjectReferenceValue(end);
+  }
+  else {
+    m_navLinkEnd->SetObject(end);
+  }
+  note_navigation_settings_changed(this);
+}
+
+void KX_GameObject::SetNavArea(const std::string &area)
+{
+  if (m_navSettings.area != area) {
+    m_navSettings.area = area;
+    note_navigation_settings_changed(this);
+  }
+}
+
+void KX_GameObject::SetNavSettingsForTests(const KX_NavObjectSettings &settings,
+                                           KX_GameObject *end)
+{
+  m_navSettings = settings;
+  m_navConverted = settings;
+  for (KX_ObjectReferenceValue **reference : {&m_navLinkEnd, &m_navConvertedLinkEnd}) {
+    if (*reference != nullptr) {
+      (*reference)->Release();
+      *reference = nullptr;
+    }
+    if (end != nullptr) {
+      *reference = new KX_ObjectReferenceValue(end);
+    }
+  }
+  note_navigation_settings_changed(this);
+}
+
+/** \} */
+
 KX_GameObject *KX_GameObject::GetCompoundHolder()
 {
   if (m_pSGNode == nullptr) {
@@ -3517,6 +3695,13 @@ void KX_GameObject::ProcessReplica()
   m_viewClipVisible = true;
   /* References to the source stay with the source. */
   m_referenceValues.clear();
+  /* Its navigation link's end: the same object (Add Object's relink then takes the end's copy
+   * when both were copied together). Settings changed while playing are copied as they are. */
+  for (KX_ObjectReferenceValue **end : {&m_navLinkEnd, &m_navConvertedLinkEnd}) {
+    if (*end != nullptr) {
+      *end = static_cast<KX_ObjectReferenceValue *>((*end)->GetReplica());
+    }
+  }
   /* The source gives its Blender object's color back; a copy draws its own (or the shared
    * instance's) Blender object. */
   m_hasConvertedColor = false;
@@ -4990,6 +5175,11 @@ void KX_GameObject::RelinkObjectProperties(const std::map<SCA_IObject *, SCA_IOb
 {
   for (int index = 0; index < GetPropertyCount(); index++) {
     KX_RelinkObjectReferences(GetProperty(index), copies);
+  }
+  for (KX_ObjectReferenceValue *end : {m_navLinkEnd, m_navConvertedLinkEnd}) {
+    if (end != nullptr) {
+      KX_RelinkObjectReferences(end, copies);
+    }
   }
 }
 

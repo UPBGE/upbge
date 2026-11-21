@@ -30,6 +30,8 @@
 #include "JoltPhysicsConfig.h"
 #include "JoltShapeQueryData.h"
 
+#include <algorithm>
+
 #include <Jolt/Jolt.h>
 
 JPH_SUPPRESS_WARNINGS
@@ -599,12 +601,36 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
       const MT_Vector3 &aabb_min,
       const MT_Vector3 &aabb_max,
       const std::function<void(KX_GameObject *object,
+                               int solid_piece,
                                const MT_Vector3 &a,
                                const MT_Vector3 &b,
                                const MT_Vector3 &c)> &triangle) override;
+  virtual void CollectBodyTriangles(PHY_IPhysicsController *controller,
+                                    const std::function<void(int solid_piece,
+                                                             const MT_Vector3 &a,
+                                                             const MT_Vector3 &b,
+                                                             const MT_Vector3 &c)> &triangle)
+      override;
   virtual bool GetStaticBodyBounds(PHY_IPhysicsController *controller,
                                    MT_Vector3 &r_min,
                                    MT_Vector3 &r_max) override;
+  virtual void SetStaticChangeTracking(bool enabled) override;
+  virtual void TakeStaticBodyChanges(std::vector<PHY_StaticBodyChange> &r_changes) override;
+  virtual void SetNavigatingBodies(const std::vector<PHY_IPhysicsController *> &controllers)
+      override;
+  /** Whether `id` is the body of an NPC navigating in this step (SetNavigatingBodies; any
+   * thread while the step runs: the list is written only between steps). */
+  bool IsNavigatingBody(const JPH::BodyID &id) const
+  {
+    return !m_navigatingBodies.empty() &&
+           std::binary_search(m_navigatingBodies.begin(), m_navigatingBodies.end(), id);
+  }
+  /** Navigation (2026-11-19): `controller`'s static body (or one becoming or ceasing to be
+   * static) may change now. JoltPhysicsController calls it before the change: the first note
+   * until the notes are taken keeps where the body was. Nothing while tracking is off. */
+  void NoteStaticBodyChanging(JoltPhysicsController *controller);
+  /** `controller` goes away: a note of it keeps only where its body was. */
+  void ForgetStaticBodyChanges(JoltPhysicsController *controller);
   virtual bool ProximityBatch(const std::vector<PHY_ProximityQuery> &queries,
                               std::vector<std::vector<PHY_ProximityPatch>> &results) override;
 
@@ -1006,6 +1032,9 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   /** True when m_buoyancyVolumesIterationCache must be rebuilt from m_controllers. */
   bool m_buoyancyVolumesIterationCacheDirty = true;
 
+  /** SetNavigatingBodies' bodies, sorted (item 12, 2026-11-20). */
+  std::vector<JPH::BodyID> m_navigatingBodies;
+
   /** GetQuerySensors' list, its lock and whether it must be rebuilt from m_controllers. */
   mutable std::vector<JoltPhysicsController *> m_querySensors;
   mutable std::mutex m_querySensorsMutex;
@@ -1069,6 +1098,13 @@ class JoltPhysicsEnvironment : public PHY_IPhysicsEnvironment {
   }
   static uint32_t NextBodyPoseEpoch();
   uint32_t m_bodyPoseEpoch = NextBodyPoseEpoch();
+
+  /** Navigation's notes of static bodies that may have changed (NoteStaticBodyChanging), one a
+   * controller until taken; `m_staticChangeOwners[i]` is note i's controller (null: gone). */
+  bool m_staticChangeTracking = false;
+  std::vector<PHY_StaticBodyChange> m_staticChanges;
+  std::vector<JoltPhysicsController *> m_staticChangeOwners;
+  std::unordered_map<JoltPhysicsController *, size_t> m_staticChangeIndex;
 
   float m_fixedTimeStep = 0.0f;
   float m_deactivationTime;

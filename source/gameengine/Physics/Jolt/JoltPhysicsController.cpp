@@ -40,6 +40,7 @@ JPH_SUPPRESS_WARNINGS
 #include <Jolt/Physics/Body/MotionType.h>
 #include <Jolt/Physics/Collision/Shape/MutableCompoundShape.h>
 #include <Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.h>
+#include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/PhysicsSystem.h>
@@ -824,6 +825,7 @@ void JoltPhysicsController::CommitPreparedGameStateScaling()
   m_shape = shape;
   m_gameStateKnownShape = shape;
   m_gameStateKnownScale = m_gameStatePreparedScale;
+  NoteLevelPieceChanging(false);
   m_physicsEnv->RemoveLogicActiveContactsForBody(m_bodyID);
   m_physicsEnv->GetBodyInterface().SetShape(m_bodyID, shape, true, JPH::EActivation::Activate);
 }
@@ -1019,6 +1021,7 @@ void JoltPhysicsController::CommitPreparedGameStateRigidBody()
   {
     return;
   }
+  NoteLevelPieceChanging(true);
 
   const JPH::EMotionType targetBaseMotionType =
       JoltGameStateBaseMotionType(state, m_originalMotionType);
@@ -1368,6 +1371,9 @@ void JoltPhysicsController::WriteMotionStateToDynamics(bool nondynaonly, float t
 
   /* Skip no-op transform writes, including harmless conversion noise. */
   if (targetChanged) {
+    if (staticBody) {
+      NoteLevelPieceChanging(false);
+    }
     m_physicsEnv->RemoveLogicActiveContactsForBody(m_bodyID);
     bi.SetPositionAndRotation(m_bodyID, targetPos, targetRot, JPH::EActivation::DontActivate);
   }
@@ -1458,6 +1464,7 @@ bool JoltPhysicsController::SynchronizeSceneGraphPose(const bool clearVelocity)
   const bool poseChanged = JoltPositionChanged(currentPosition, targetPosition) ||
                            JoltRotationChanged(currentRotation, targetRotation);
   if (poseChanged) {
+    NoteLevelPieceChanging(false);
     m_physicsEnv->RemoveLogicActiveContactsForBody(m_bodyID);
     /* An already-added body must wake so the teleported broadphase bounds can
      * create contacts with sleeping Dynamic bodies on the next step. Removed
@@ -2048,6 +2055,7 @@ void JoltPhysicsController::RelativeTranslate(const MT_Vector3 &dloc, bool local
   }
 
   if (!delta.IsNearZero()) {
+    NoteLevelPieceChanging(false);
     m_physicsEnv->RemoveLogicActiveContactsForBody(m_bodyID);
   }
   bi.SetPosition(m_bodyID, curPos + delta, JPH::EActivation::Activate);
@@ -2076,6 +2084,7 @@ void JoltPhysicsController::RelativeRotate(const MT_Matrix3x3 &drot, bool local)
 
   const JPH::Quat targetRot = newRot.Normalized();
   if (JoltRotationChanged(curRot, targetRot)) {
+    NoteLevelPieceChanging(false);
     m_physicsEnv->RemoveLogicActiveContactsForBody(m_bodyID);
   }
   bi.SetRotation(m_bodyID, targetRot, JPH::EActivation::Activate);
@@ -2105,6 +2114,7 @@ void JoltPhysicsController::SetOrientation(const MT_Matrix3x3 &orn)
   JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
   const JPH::Quat targetRot = JoltMath::ToJolt(quat);
   if (JoltRotationChanged(bi.GetRotation(m_bodyID), targetRot)) {
+    NoteLevelPieceChanging(false);
     m_physicsEnv->RemoveLogicActiveContactsForBody(m_bodyID);
   }
   bi.SetRotation(m_bodyID, targetRot, JPH::EActivation::Activate);
@@ -2120,6 +2130,7 @@ void JoltPhysicsController::SetPosition(const MT_Vector3 &pos)
   JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
   const JPH::RVec3 targetPos = JoltMath::ToJolt(pos);
   if (JoltPositionChanged(bi.GetPosition(m_bodyID), targetPos)) {
+    NoteLevelPieceChanging(false);
     m_physicsEnv->RemoveLogicActiveContactsForBody(m_bodyID);
   }
   bi.SetPosition(m_bodyID, targetPos, JPH::EActivation::Activate);
@@ -2185,6 +2196,7 @@ void JoltPhysicsController::SetScaling(const MT_Vector3 &scale)
   }
 
   JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
+  NoteLevelPieceChanging(false);
   m_physicsEnv->RemoveLogicActiveContactsForBody(m_bodyID);
   bi.SetShape(m_bodyID, newShape, true, JPH::EActivation::Activate);
 }
@@ -2259,9 +2271,119 @@ void JoltPhysicsController::SetTransform()
   JPH::Quat currentRot;
   bi.GetPositionAndRotation(m_bodyID, currentPos, currentRot);
   if (JoltPositionChanged(currentPos, targetPos) || JoltRotationChanged(currentRot, targetRot)) {
+    NoteLevelPieceChanging(false);
     m_physicsEnv->RemoveLogicActiveContactsForBody(m_bodyID);
   }
   bi.SetPositionAndRotation(m_bodyID, targetPos, targetRot, JPH::EActivation::Activate);
+}
+
+void JoltPhysicsController::NoteLevelPieceChanging(const bool any_type)
+{
+  /* Only what the navmesh is built of (static solid bodies), unless the physics type or the
+   * body's presence changes; the environment notes nothing while no navmesh is built. */
+  if (m_physicsEnv == nullptr || m_bodyID.IsInvalid() || m_softBody) {
+    return;
+  }
+  if (!any_type && (m_isDynamic || m_isKinematic || m_isSensor)) {
+    return;
+  }
+  m_physicsEnv->NoteStaticBodyChanging(this);
+}
+
+bool JoltPhysicsController::IsAsleep() const
+{
+  /* Main thread, while Jolt does not step: the lock-free interface. */
+  if (m_physicsEnv == nullptr || m_bodyID.IsInvalid() || m_physicsSuspended) {
+    return false;
+  }
+  const JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterfaceNoLock();
+  return bi.IsAdded(m_bodyID) && !bi.IsActive(m_bodyID);
+}
+
+bool JoltPhysicsController::GetWorldBounds(MT_Vector3 &r_min, MT_Vector3 &r_max) const
+{
+  if (m_physicsEnv == nullptr || m_bodyID.IsInvalid()) {
+    return false;
+  }
+  JPH::BodyLockRead lock(m_physicsEnv->GetPhysicsSystem()->GetBodyLockInterface(), m_bodyID);
+  if (!lock.Succeeded()) {
+    return false;
+  }
+  /* Jolt's corners in the game's space (game y is Jolt's -z: min and max swap there). */
+  const JPH::AABox bounds = lock.GetBody().GetWorldSpaceBounds();
+  const MT_Vector3 a = JoltMath::ToMT(bounds.mMin), b = JoltMath::ToMT(bounds.mMax);
+  for (int axis = 0; axis < 3; axis++) {
+    r_min[axis] = std::min(a[axis], b[axis]);
+    r_max[axis] = std::max(a[axis], b[axis]);
+  }
+  return true;
+}
+
+bool JoltPhysicsController::GetShapeLocalBounds(MT_Vector3 &r_min, MT_Vector3 &r_max) const
+{
+  if (m_physicsEnv == nullptr || m_bodyID.IsInvalid()) {
+    return false;
+  }
+  JPH::BodyLockRead lock(m_physicsEnv->GetPhysicsSystem()->GetBodyLockInterface(), m_bodyID);
+  if (!lock.Succeeded()) {
+    return false;
+  }
+  /* (Jolt's local bounds are around the center of mass: the shape's own space is them moved by
+   * it. A Character's body takes the CharacterVirtual's shape, crouched too: `SyncBodyShape`.) */
+  const JPH::Shape *shape = lock.GetBody().GetShape();
+  if (shape == nullptr) {
+    return false;
+  }
+  JPH::AABox bounds = shape->GetLocalBounds();
+  bounds.Translate(shape->GetCenterOfMass());
+  const MT_Vector3 a = JoltMath::ToMT(bounds.mMin), b = JoltMath::ToMT(bounds.mMax);
+  for (int axis = 0; axis < 3; axis++) {
+    r_min[axis] = std::min(a[axis], b[axis]);
+    r_max[axis] = std::max(a[axis], b[axis]);
+  }
+  return true;
+}
+
+bool JoltPhysicsController::GetShapeIsRound(bool &r_round) const
+{
+  if (m_physicsEnv == nullptr || m_bodyID.IsInvalid()) {
+    return false;
+  }
+  JPH::BodyLockRead lock(m_physicsEnv->GetPhysicsSystem()->GetBodyLockInterface(), m_bodyID);
+  if (!lock.Succeeded()) {
+    return false;
+  }
+  /* Through the decorations the converter and the game put round a shape (its scale, its
+   * centre of mass, a translation): a turn inside makes it no longer upright. The round shapes
+   * stand along Jolt's Y, the object's own up. */
+  const JPH::Shape *shape = lock.GetBody().GetShape();
+  while (shape != nullptr && shape->GetType() == JPH::EShapeType::Decorated) {
+    if (shape->GetSubType() == JPH::EShapeSubType::RotatedTranslated) {
+      const JPH::Quat turn =
+          static_cast<const JPH::RotatedTranslatedShape *>(shape)->GetRotation();
+      if (!turn.IsClose(JPH::Quat::sIdentity(), 1.0e-6f)) {
+        r_round = false;
+        return true;
+      }
+    }
+    shape = static_cast<const JPH::DecoratedShape *>(shape)->GetInnerShape();
+  }
+  if (shape == nullptr) {
+    return false;
+  }
+  switch (shape->GetSubType()) {
+    case JPH::EShapeSubType::Sphere:
+    case JPH::EShapeSubType::Capsule:
+    case JPH::EShapeSubType::TaperedCapsule:
+    case JPH::EShapeSubType::Cylinder:
+    case JPH::EShapeSubType::TaperedCylinder:
+      r_round = true;
+      break;
+    default:
+      r_round = false;
+      break;
+  }
+  return true;
 }
 
 /** \} */
@@ -2874,6 +2996,7 @@ void JoltPhysicsController::SuspendPhysics(bool freeConstraints)
   if (m_physicsSuspended || !m_physicsEnv || m_bodyID.IsInvalid()) {
     return;
   }
+  NoteLevelPieceChanging(true);
 
   /* If physics is currently updating, defer removal. */
   if (m_physicsEnv->IsPhysicsUpdating()) {
@@ -2910,6 +3033,7 @@ void JoltPhysicsController::RestorePhysics()
   if (!m_physicsSuspended || !m_physicsEnv || m_bodyID.IsInvalid()) {
     return;
   }
+  NoteLevelPieceChanging(true);
 
   /* No Collision owns the independent reason this body is absent. Clear only the physics
    * suspension; RestoreDynamics will add the body if gameplay later enables dynamics. */
@@ -3119,6 +3243,7 @@ bool JoltPhysicsController::ApplyRuntimePhysicsTypeState(
   if (!CanApplyRuntimePhysicsType(targetMotionType, requireRuntimePhysicsTypeSupport)) {
     return false;
   }
+  NoteLevelPieceChanging(true);
 
   JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
   /* Authored Sensor objects stay out of the broadphase until a collision
@@ -3329,6 +3454,7 @@ bool JoltPhysicsController::BeginTransformParenting()
   if (!SupportsTransformParenting() || m_physicsEnv->HasConstraintsForBody(m_bodyID)) {
     return false;
   }
+  NoteLevelPieceChanging(true);
 
   m_parentingSavedDynamicsMode = m_dynamicsMode;
   m_parentingSavedDynamicsSuspended = m_dynamicsSuspended;
@@ -3428,6 +3554,7 @@ void JoltPhysicsController::EndTransformParenting()
     m_transformParentingBehavior = TransformParentingBehavior::NoCollision;
     return;
   }
+  NoteLevelPieceChanging(true);
 
   const bool was_parenting_kinematic = m_transformParentingKinematic;
   if (was_parenting_kinematic) {
@@ -3549,6 +3676,7 @@ void JoltPhysicsController::SetSuspendedDynamicsMode(PHY_DynamicsMode mode, bool
   if (!m_physicsEnv || m_bodyID.IsInvalid()) {
     return;
   }
+  NoteLevelPieceChanging(true);
 
   JPH::BodyInterface &bi = m_physicsEnv->GetBodyInterface();
   const bool was_suspended = m_dynamicsSuspended;
@@ -4524,6 +4652,7 @@ bool JoltPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj,
   if (!m_physicsEnv || m_bodyID.IsInvalid() || !from_gameobj || m_softBody || m_isCompound) {
     return false;
   }
+  NoteLevelPieceChanging(false);
 
   const bool dynamic_shape = m_isDynamic || m_isKinematic || m_isSensor;
   JoltShapeQueryDataPtr newQueryData;
@@ -4559,6 +4688,7 @@ bool JoltPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
   if (!other || !other->m_shape) {
     return false;
   }
+  NoteLevelPieceChanging(false);
 
   JPH::RefConst<JPH::Shape> replacementShape = other->m_shape;
   JoltShapeQueryDataPtr replacementQueryData = other->m_shapeQueryData;

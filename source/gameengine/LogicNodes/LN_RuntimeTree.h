@@ -1022,6 +1022,14 @@ class LN_RuntimeTree {
     int mouse_look_settle_runs = 0;
     /** Follow Path: the point it walks to. */
     int list_point_index = 0;
+    /** Follow Path (2026-11-19): the phase step it last ran (a pause: it starts again from the
+     * first point unless Continue), how many points its list had (-1: never ran), and the point
+     * it walks to (an object, compared by identity only, or a place): a list of another length
+     * goes on to that point where it is in it, else from its first. */
+    uint64_t follow_last_phase_tick = UINT64_MAX;
+    int follow_count = -1;
+    const KX_GameObject *follow_object = nullptr;
+    MT_Vector3 follow_point = MT_Vector3(0.0f, 0.0f, 0.0f);
     /** Navigate / Follow Path: the next corner (Next Point), from the navigation's last step. */
     MT_Vector3 next_path_point = MT_Vector3(0.0f, 0.0f, 0.0f);
     uint64_t last_reached_tick = UINT64_MAX;

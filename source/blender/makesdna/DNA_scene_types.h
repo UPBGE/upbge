@@ -747,9 +747,27 @@ typedef struct RecastData {
   float detailsamplemaxerror = 1.0f;
   char partitioning = RC_PARTITION_WATERSHED;
   /** UPBGE (2026-11-18): the game builds its own navmesh from the level's collision shapes,
-   * #NAVMESH_BUILD_OFF / _LEVEL / _AROUND_NPCS. */
-  char build_mode = 0;
-  short _pad2[5] = {};
+   * #NAVMESH_BUILD_OFF / _LEVEL / _AROUND_NPCS / _AUTO (2026-11-20: new scenes; built the first
+   * time a node needs it). */
+  char build_mode = 3;
+  /** UPBGE (2026-11-19): NPCs avoid physics objects nobody marked as obstacles (Dynamic and
+   * Rigid Body objects, Characters that are no NPC) of at least `physics_min_size`; a body Jolt
+   * put to sleep is cut out of the navmesh. */
+  char avoid_physics_objects = 0;
+  /** UPBGE (2026-11-19): a Dense crowd pressing a Character that is no NPC pushes it back. */
+  char crowd_push_characters = 0;
+  /** UPBGE (2026-11-19): jump links found by the build, #NAVMESH_JUMP_LINKS_OFF / _AUTO. */
+  char jump_links = 0;
+  /** UPBGE (2026-11-19): how NPCs cross jump links, #NAVMESH_LINK_CARRIED (older files) /
+   * #NAVMESH_LINK_PHYSICS (new scenes: Characters and Dynamic bodies really jump). */
+  char link_crossing = 1;
+  /** UPBGE (2026-11-20): what Obstacle Simulation's Visualization leaves out,
+   * #NAVMESH_VIS_HIDE_NAVMESH and the others (0: everything drawn). */
+  char vis_hide = 0;
+  /** UPBGE (2026-11-20): the cell size worked out from the smallest NPC (its radius / 2 within
+   * 0.1 .. 0.3 m, the cell height half of it); 0: cellsize / cellheight as set (older files). */
+  char auto_cells = 1;
+  char _pad2[4] = {};
   /** Around NPCs: the navmesh exists within this distance of every NPC (0: 30 m) and is dropped
    * past remove_radius (0: 1.6 x build_radius). */
   float build_radius = 30.0f;
@@ -757,14 +775,50 @@ typedef struct RecastData {
   /** NPCs farther than this from the active camera avoid each other only every few steps (0:
    * always every step). */
   float detail_distance = 0.0f;
-  float _pad3 = 0.0f;
+  /** Avoid Physics Objects: the smallest one avoided (its widest side; 0: 0.5 m). */
+  float physics_min_size = 0.5f;
+  /** UPBGE (2026-11-19) Jump Links Automatic: the widest gap jumped across (0: 3 m), the highest
+   * ledge jumped up (0: 1.5 m), the deepest drop (0: 4 m), one link per this much of a ledge
+   * (0: 2 m). */
+  float jump_gap = 3.0f;
+  float jump_up = 1.5f;
+  float jump_drop = 4.0f;
+  float jump_spacing = 2.0f;
+  /** UPBGE (2026-11-20) Visualization: the navmesh and links drawn within this distance of the
+   * active camera (0: everywhere), at most this many lines a frame (0: 20000). */
+  float vis_range = 60.0f;
+  int vis_max_lines = 20000;
 } RecastData;
+
+/** #RecastData.vis_hide */
+enum {
+  NAVMESH_VIS_HIDE_NAVMESH = 1 << 0,
+  NAVMESH_VIS_HIDE_LINKS = 1 << 1,
+  NAVMESH_VIS_HIDE_AGENTS = 1 << 2,
+  NAVMESH_VIS_HIDE_PATHS = 1 << 3,
+  NAVMESH_VIS_HIDE_OBSTACLES = 1 << 4,
+  NAVMESH_VIS_HIDE_VEHICLES = 1 << 5,
+};
 
 /** #RecastData.build_mode */
 enum {
   NAVMESH_BUILD_OFF = 0,
   NAVMESH_BUILD_LEVEL = 1,
   NAVMESH_BUILD_AROUND_NPCS = 2,
+  /** Whole Level, built the first time a node needs the scene's navmesh (2026-11-20). */
+  NAVMESH_BUILD_AUTO = 3,
+};
+
+/** #RecastData.jump_links */
+enum {
+  NAVMESH_JUMP_LINKS_OFF = 0,
+  NAVMESH_JUMP_LINKS_AUTO = 1,
+};
+
+/** #RecastData.link_crossing */
+enum {
+  NAVMESH_LINK_CARRIED = 0,
+  NAVMESH_LINK_PHYSICS = 1,
 };
 
 /** One key, mouse button or gamepad control of a #GameInputAction. */

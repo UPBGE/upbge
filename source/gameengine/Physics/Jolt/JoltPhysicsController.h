@@ -345,6 +345,10 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   {
     return m_character != nullptr;
   }
+  bool IsAsleep() const override;
+  bool GetWorldBounds(MT_Vector3 &r_min, MT_Vector3 &r_max) const override;
+  bool GetShapeLocalBounds(MT_Vector3 &r_min, MT_Vector3 &r_max) const override;
+  bool GetShapeIsRound(bool &r_round) const override;
   const char *PushIgnoredReason(bool angular) const override;
   void RebaseKinematicMotionState() override
   {
@@ -581,6 +585,10 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   {
     return m_buoyancyVolumeEnabled;
   }
+  bool IsBuoyancyVolume() const override
+  {
+    return m_buoyancyVolumeEnabled && (m_isSensor || m_isSensorPhysicsType);
+  }
   void SetBuoyancy(float buoyancy)
   {
     m_buoyancy = buoyancy;
@@ -657,6 +665,11 @@ class JoltPhysicsController : public PHY_IPhysicsController {
   bool DynamicRotationEnabled() const;
   /** Prints `what` (a change refused or axis locks dropped: no free axis left), once per body. */
   void WarnNoFreeAxisOnce(const char *what);
+  /** Navigation (2026-11-19): the body is about to change in a way the scene's navmesh may hold
+   * (JoltPhysicsEnvironment::NoteStaticBodyChanging): a static solid body moved, turned, scaled
+   * or given a new shape; `any_type`: a change of physics type or presence, which may make a
+   * body a level piece or end one. */
+  void NoteLevelPieceChanging(bool any_type);
   void ActivateBodyIfAdded();
   void NotifyFhSettingsChanged();
   void NotifyBuoyancySettingsChanged();

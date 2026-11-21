@@ -217,6 +217,12 @@ class PHY_IPhysicsController : public PHY_IController {
   {
     return 1.0f;
   }
+  /** Navigation (phase 8, 2026-11-19): water for swimming NPCs (Jolt's Buoyancy Volume
+   * sensors). */
+  virtual bool IsBuoyancyVolume() const
+  {
+    return false;
+  }
   virtual void SetGravityFactor(float /*factor*/) {}
   virtual bool GetAllowSleeping() const
   {
@@ -475,6 +481,33 @@ class PHY_IPhysicsController : public PHY_IController {
   /** A Character physics type: it moves itself, and forces and impulses change its velocity
    * (2026-11-17). Backends without one return false. */
   virtual bool IsCharacter() const
+  {
+    return false;
+  }
+  /** A body in the world that the physics put to sleep (it lies still until something wakes it).
+   * Navigation carves such physics objects into the navmesh (2026-11-19). Backends without
+   * sleeping bodies return false. Main thread, while the physics does not step. */
+  virtual bool IsAsleep() const
+  {
+    return false;
+  }
+  /** The body's world bounds in the game's space (Navigation's physics objects, 2026-11-19).
+   * False when there is no body or the backend does not say. Main thread. */
+  virtual bool GetWorldBounds(MT_Vector3 & /*r_min*/, MT_Vector3 & /*r_max*/) const
+  {
+    return false;
+  }
+  /** The body's collision shape's bounds in its object's own space, scale included (an NPC's
+   * size on the navigation mesh, 2026-11-20; a Character's: the shape it moves with now). False
+   * when there is no body or the backend does not say. Main thread. */
+  virtual bool GetShapeLocalBounds(MT_Vector3 & /*r_min*/, MT_Vector3 & /*r_max*/) const
+  {
+    return false;
+  }
+  /** Whether the body's collision shape is round about its object's own up axis (a sphere, a
+   * capsule, a cylinder: a circle seen from above while it stands upright): an obstacle's
+   * outline on the navigation mesh (2026-11-20). False when unknown (Bullet) or no body. */
+  virtual bool GetShapeIsRound(bool & /*r_round*/) const
   {
     return false;
   }

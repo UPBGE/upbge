@@ -102,7 +102,7 @@ KX_NavMesh::~KX_NavMesh()
       dtFreeNavMeshQuery(q);
     }
   }
-  if (m_mesh) {
+  if (m_mesh && m_source == nullptr) {
     dtFreeNavMesh(m_mesh);
   }
 }
@@ -112,6 +112,18 @@ std::unique_ptr<KX_NavMesh> KX_NavMesh::FromDetour(dtNavMesh *mesh)
   std::unique_ptr<KX_NavMesh> navmesh(new KX_NavMesh());
   navmesh->m_mesh = mesh;
   return navmesh;
+}
+
+std::unique_ptr<KX_NavMesh> KX_NavMesh::ViewOf(const KX_NavMesh &source,
+                                               const KX_GameObject *owner)
+{
+  std::unique_ptr<KX_NavMesh> view(new KX_NavMesh());
+  view->m_source = source.Source();
+  view->m_mesh = view->m_source->m_mesh;
+  view->m_owner = owner;
+  /* (Built from the vehicle's shape at its size: its turn and place only.) */
+  view->m_ownerScaled = false;
+  return view;
 }
 
 namespace {
@@ -345,8 +357,10 @@ void KX_NavMesh::ToNav(const MT_Vector3 &world, float r_nav[3]) const
   MT_Vector3 local = world;
   if (m_owner != nullptr) {
     MT_Matrix3x3 orientation = m_owner->NodeGetWorldOrientation();
-    const MT_Vector3 &scale = m_owner->NodeGetWorldScaling();
-    orientation.scale(scale[0], scale[1], scale[2]);
+    if (m_ownerScaled) {
+      const MT_Vector3 &scale = m_owner->NodeGetWorldScaling();
+      orientation.scale(scale[0], scale[1], scale[2]);
+    }
     MT_Transform transform(m_owner->NodeGetWorldPosition(), orientation);
     MT_Transform inverse;
     inverse.invert(transform);
@@ -364,8 +378,10 @@ MT_Vector3 KX_NavMesh::ToWorld(const float nav[3]) const
     return local;
   }
   MT_Matrix3x3 orientation = m_owner->NodeGetWorldOrientation();
-  const MT_Vector3 &scale = m_owner->NodeGetWorldScaling();
-  orientation.scale(scale[0], scale[1], scale[2]);
+  if (m_ownerScaled) {
+    const MT_Vector3 &scale = m_owner->NodeGetWorldScaling();
+    orientation.scale(scale[0], scale[1], scale[2]);
+  }
   return MT_Transform(m_owner->NodeGetWorldPosition(), orientation)(local);
 }
 
@@ -386,6 +402,10 @@ MT_Vector3 KX_NavMesh::NavDirectionToWorld(const float nav[3]) const
 
 dtNavMeshQuery *KX_NavMesh::ThreadQuery() const
 {
+  if (m_source != nullptr) {
+    /* (The queries work in the mesh's own space: one set serves every view.) */
+    return m_source->ThreadQuery();
+  }
   if (m_mesh == nullptr) {
     return nullptr;
   }
@@ -434,6 +454,78 @@ bool KX_NavMesh::NearestPoint(const MT_Vector3 &world,
     *r_ref = ref;
   }
   return true;
+}
+
+bool KX_NavMesh::WalkCosts(const MT_Vector3 &from,
+                           const float radius,
+                           const dtQueryFilter *filter,
+                           std::unordered_map<KX_NavPolyRef, WalkCost> &r_costs) const
+{
+  r_costs.clear();
+  dtNavMeshQuery *query = ThreadQuery();
+  if (query == nullptr) {
+    return false;
+  }
+  const dtQueryFilter *f = filter ? filter : m_defaultFilter.get();
+  float pos[3], start[3];
+  ToNav(from, pos);
+  dtPolyRef start_ref = 0;
+  if (dtStatusFailed(query->findNearestPoly(pos, kSnapExtents, f, &start_ref, start)) ||
+      start_ref == 0)
+  {
+    return false;
+  }
+  constexpr int kMaxPolys = 2048;
+  thread_local std::vector<dtPolyRef> refs(kMaxPolys), parents(kMaxPolys);
+  thread_local std::vector<float> costs(kMaxPolys);
+  int count = 0;
+  query->findPolysAroundCircle(
+      start_ref, start, radius, f, refs.data(), parents.data(), costs.data(), &count, kMaxPolys);
+  for (int i = 0; i < count; i++) {
+    WalkCost walk;
+    walk.cost = costs[i];
+    walk.entry = ToWorld(start);
+    /* Where it enters: the middle of the parent's edge shared with it (a tile border's link
+     * holds only part of the edge: its bmin..bmax, as Detour's portals). */
+    const dtMeshTile *tile = nullptr;
+    const dtPoly *poly = nullptr;
+    if (parents[i] != 0 &&
+        dtStatusSucceed(m_mesh->getTileAndPolyByRef(parents[i], &tile, &poly)) && poly != nullptr)
+    {
+      for (unsigned int k = poly->firstLink; k != DT_NULL_LINK; k = tile->links[k].next) {
+        const dtLink &link = tile->links[k];
+        if (link.ref != refs[i] || link.edge >= poly->vertCount) {
+          continue;
+        }
+        const float *va = &tile->verts[poly->verts[link.edge] * 3];
+        const float *vb = &tile->verts[poly->verts[(link.edge + 1) % poly->vertCount] * 3];
+        float t0 = 0.0f, t1 = 1.0f;
+        if (link.side != 0xff && (link.bmin != 0 || link.bmax != 255)) {
+          t0 = float(link.bmin) / 255.0f;
+          t1 = float(link.bmax) / 255.0f;
+        }
+        float mid[3];
+        dtVlerp(mid, va, vb, (t0 + t1) * 0.5f);
+        walk.entry = ToWorld(mid);
+        break;
+      }
+    }
+    r_costs[KX_NavPolyRef(refs[i])] = walk;
+  }
+  return true;
+}
+
+int KX_NavMesh::PolygonArea(const KX_NavPolyRef ref) const
+{
+  const dtMeshTile *tile = nullptr;
+  const dtPoly *poly = nullptr;
+  if (m_mesh == nullptr ||
+      dtStatusFailed(m_mesh->getTileAndPolyByRef(dtPolyRef(ref), &tile, &poly)) ||
+      poly == nullptr)
+  {
+    return -1;
+  }
+  return int(poly->getArea());
 }
 
 bool KX_NavMesh::FindPath(const MT_Vector3 &from,
@@ -792,6 +884,97 @@ void KX_NavMesh::Draw(const DrawMode mode,
       }
     }
   }
+}
+
+void KX_NavMesh::DrawAreas(const std::function<bool(const MT_Vector3 &a,
+                                                     const MT_Vector3 &b,
+                                                     int area,
+                                                     bool wall)> &edge,
+                           const MT_Vector3 &center,
+                           const float range) const
+{
+  if (m_mesh == nullptr) {
+    return;
+  }
+  const dtNavMesh *mesh = m_mesh;
+  const float range_sq = range * range;
+  for (int i = 0; i < mesh->getMaxTiles(); i++) {
+    const dtMeshTile *tile = mesh->getTile(i);
+    if (tile == nullptr || tile->header == nullptr) {
+      continue;
+    }
+    for (int p = 0; p < tile->header->polyCount; p++) {
+      const dtPoly *poly = &tile->polys[p];
+      if (poly->getType() != DT_POLYTYPE_GROUND) {
+        continue;
+      }
+      if (range > 0.0f &&
+          (ToWorld(&tile->verts[poly->verts[0] * 3]) - center).length2() > range_sq)
+      {
+        continue;
+      }
+      for (int j = 0, k = poly->vertCount - 1; j < poly->vertCount; k = j++) {
+        const bool wall = !edge_has_neighbour(tile, poly, k);
+        /* (An inner edge once: from the polygon of the lower index.) */
+        if (!wall && poly->neis[k] != 0 && (poly->neis[k] & DT_EXT_LINK) == 0 &&
+            int(poly->neis[k] - 1) < p)
+        {
+          continue;
+        }
+        if (!edge(ToWorld(&tile->verts[poly->verts[k] * 3]),
+                  ToWorld(&tile->verts[poly->verts[j] * 3]),
+                  int(poly->getArea()),
+                  wall))
+        {
+          return;
+        }
+      }
+    }
+  }
+}
+
+void KX_NavMesh::NoteTilesChanged(const std::vector<KX_NavChangedPlace> *places)
+{
+  /* The places of the last changes (2026-11-19): an agent asks which changed since its corridor
+   * was checked (a shortcut opened near its way?). Few kept: past them, anything may have. */
+  constexpr size_t kRemembered = 1024;
+  const uint64_t stamp = m_tileStamp.fetch_add(1, std::memory_order_relaxed) + 1;
+  if (places == nullptr || places->size() > kRemembered) {
+    m_forgottenStamp = stamp;
+    m_changes.clear();
+    return;
+  }
+  for (const KX_NavChangedPlace &place : *places) {
+    m_changes.push_back({stamp, place});
+  }
+  if (m_changes.size() > kRemembered) {
+    /* The oldest changes are forgotten whole (a change half remembered is not remembered). */
+    const size_t drop = m_changes.size() - kRemembered;
+    m_forgottenStamp = std::max(m_forgottenStamp, m_changes[drop - 1].stamp);
+    size_t first = 0;
+    while (first < m_changes.size() && m_changes[first].stamp <= m_forgottenStamp) {
+      first++;
+    }
+    m_changes.erase(m_changes.begin(), m_changes.begin() + std::ptrdiff_t(first));
+  }
+}
+
+bool KX_NavMesh::ChangesSince(const uint64_t stamp,
+                              const std::function<void(const KX_NavChangedPlace &)> &place) const
+{
+  if (m_source != nullptr) {
+    return m_source->ChangesSince(stamp, place);
+  }
+  if (stamp >= m_tileStamp.load(std::memory_order_relaxed)) {
+    return true;
+  }
+  if (stamp < m_forgottenStamp) {
+    return false;
+  }
+  for (auto it = m_changes.rbegin(); it != m_changes.rend() && it->stamp > stamp; ++it) {
+    place(it->place);
+  }
+  return true;
 }
 
 int KX_NavMesh::PolygonCount() const

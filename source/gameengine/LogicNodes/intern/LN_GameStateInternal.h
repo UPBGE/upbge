@@ -25,6 +25,8 @@
 #include "MT_Matrix3x3.h"
 #include "MT_Vector3.h"
 
+struct KX_NavRequest;
+
 namespace upbge::logic_nodes::game_state {
 
 inline constexpr char kFormatName[] = "UPBGE_CXX_LOGIC_NODES_CHECKPOINT";
@@ -351,8 +353,32 @@ struct NavigationOrderState {
   bool avoid = true;
   bool visualize = false;
   bool look_at = false;
+  /** Avoidance Dense, Move (KX_NavRequest::Move), Climb (KX_NavRequest::Climb), 2026-11-19. */
+  bool dense = false;
+  int32_t move = 0;
+  int32_t climb = 0;
   /** Wander's random numbers, as 16 hex digits (a JSON number holds no 64-bit integer). */
   uint64_t seed = 0;
+  /** The Navigate node that gave it (KX_NavRequest::issuer, 2026-11-19; 0: none known, an order
+   * saved before: its arrival pulses every Navigate node of the NPC, as then). */
+  uint32_t issuer = 0;
+};
+
+/** NavigationSettingsState::changed's bits: KX_GameObject.h's KX_NAV_CHANGED_* (checked equal in
+ * LN_GameState.cpp). */
+inline constexpr uint8_t kNavChangedVehicle = 1 << 0;
+inline constexpr uint8_t kNavChangedLinkEnabled = 1 << 1;
+inline constexpr uint8_t kNavChangedLinkEnd = 1 << 2;
+inline constexpr uint8_t kNavChangedArea = 1 << 3;
+
+/** Physics > Navigation settings Set Navigation Attribute changed (2026-11-20): only those
+ * (`changed`: kNavChanged*); Load Game gives the others the file's values again. */
+struct NavigationSettingsState {
+  uint8_t changed = 0;
+  bool vehicle = false;
+  bool link_enabled = true;
+  ObjectReferenceState link_end;
+  std::string area;
 };
 
 struct ObjectState {
@@ -388,6 +414,10 @@ struct ObjectState {
    * and a record without one ends any held order at load). */
   bool has_navigation_order = false;
   NavigationOrderState navigation_order;
+  /** Its navigation settings changed while playing (live Save Object State records only; none
+   * written when nothing changed, and a record without them restores the file's). */
+  bool has_navigation_settings = false;
+  NavigationSettingsState navigation_settings;
 };
 
 struct Checkpoint {
@@ -447,5 +477,10 @@ LN_GameStateResult write_checkpoint_atomic(const std::string &filepath,
 LN_GameStateResult read_checkpoint(const std::string &filepath,
                                    Checkpoint &r_checkpoint,
                                    std::string &r_error);
+
+/** A held navigation order's settings into its saved form and back: every field but the objects
+ * it names (`target`, `navmesh`, `rotating`: the caller names and finds those). */
+void navigation_order_from_request(const KX_NavRequest &request, NavigationOrderState &r_order);
+void navigation_request_from_order(const NavigationOrderState &order, KX_NavRequest &r_request);
 
 }  // namespace upbge::logic_nodes::game_state

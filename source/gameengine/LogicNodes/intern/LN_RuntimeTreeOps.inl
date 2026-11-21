@@ -1584,8 +1584,8 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
        * (a request handed over at the flush's end; the navigation step after the flush moves
        * every NPC at once: paths, avoidance, the hand-over by physics type) and reads the last
        * step's outcome (When Reached, Next Point). Read order: Destination, Lin Speed, Reach
-       * Threshold, Move as Dynamic, Look At, Visualize, Rot Axis, Front, Rot Speed, the Navmesh
-       * Object, the Rotating Object, then the newer inputs (Target Object, Avoid Others,
+       * Threshold, Slide, Look At, Visualize, Rot Axis, Front, Rot Speed, the Navmesh
+       * Object, the Rotating Object, then the newer inputs (Target Object, Avoidance,
        * Priority, Radius, Offset / Weights). */
       if (KX_GameObject *target = ef.ResolveCommandTarget(instruction)) {
         const MT_Vector3 destination = ef.Vector(
@@ -1593,8 +1593,8 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
         const float speed = ef.Float(instruction.float_expr_index, 1.0f);
         const float threshold = ef.Float(
             instruction.secondary_float_expr_index, 1.0f);
-        const bool move_dynamic = ef.Bool(
-            instruction.bool_expr_index, false);
+        /* Slide (2026-11-20, plan item 3): a Dynamic NPC is pushed by its velocity unless. */
+        const bool slide = ef.Bool(instruction.bool_expr_index, false);
         const bool look_at = ef.Bool(
             instruction.secondary_bool_expr_index, true);
         const bool visualize = ef.Bool(
@@ -1619,14 +1619,31 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
           }
         }
         KX_NavRequest request;
-        request.mode = KX_NavRequest::Mode(std::clamp(instruction.int_value, 0, 6));
-        /* Until Arrived (secondary_int_value): one pulse is enough, the order holds. */
-        request.until_arrived = instruction.secondary_int_value != 0;
+        request.mode = KX_NavRequest::Mode(
+            std::clamp(instruction.int_value & LN_NAV_CODE_MASK, 0, 6));
+        /* The node's identity (When Reached per node). */
+        request.issuer = uint32_t(instruction.int_value) >> LN_NAV_ISSUER_SHIFT;
+        /* Navigate's setting bits (secondary_int_value, LN_NAVIGATE_*). Until Arrived: one pulse
+         * is enough, the order holds. Move (Walk, Fly, Swim) and Climb (floors, walls, ceilings
+         * too). */
+        const int settings = instruction.secondary_int_value;
+        request.until_arrived = (settings & LN_NAVIGATE_UNTIL_ARRIVED) != 0;
+        request.move = KX_NavRequest::Move(
+            std::min((settings & LN_NAVIGATE_MOVE_MASK) >> LN_NAVIGATE_MOVE_SHIFT, 2));
+        request.climb = KX_NavRequest::Climb(
+            std::min((settings & LN_NAVIGATE_CLIMB_MASK) >> LN_NAVIGATE_CLIMB_SHIFT, 2));
         if (instruction.quaternary_value_expr_index != LN_INVALID_INDEX) {
           request.target = ResolveObjectValue(
               ef.Value(instruction.quaternary_value_expr_index, MakeNoneValue()));
         }
-        request.avoid = ef.Bool(instruction.quaternary_bool_expr_index, true);
+        /* Avoidance (2026-11-20): 0 Off, 1 Polite, 2 Dense (packed crowds press and push by
+         * weight); a game property may switch it while the game runs. */
+        const int32_t avoidance = std::clamp(
+            ef.Int(instruction.quaternary_int_expr_index, LN_NAVIGATE_AVOIDANCE_POLITE),
+            LN_NAVIGATE_AVOIDANCE_OFF,
+            LN_NAVIGATE_AVOIDANCE_DENSE);
+        request.avoid = avoidance != LN_NAVIGATE_AVOIDANCE_OFF;
+        request.dense = avoidance == LN_NAVIGATE_AVOIDANCE_DENSE;
         request.priority = std::clamp(ef.Int(instruction.tertiary_int_expr_index, 50), 0, 100);
         request.radius = std::max(ef.Float(instruction.quaternary_float_expr_index, 10.0f), 0.0f);
         const MT_Vector3 extra = ef.Vector(instruction.secondary_vector_expr_index,
@@ -1648,7 +1665,7 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
         request.destination = destination;
         request.speed = std::max(speed, 0.0f);
         request.arrive_distance = std::max(threshold, 0.0f);
-        request.move_dynamic = move_dynamic;
+        request.move_dynamic = !slide;
         request.seed = LN_RandomMix(GetRandomStream() * 0x9E3779B97F4A7C15ull ^
                                     uint64_t(instruction.source_ref_index + 1));
         request.visualize = visualize;
@@ -1685,7 +1702,8 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
     case LN_OpCode::NavigationAttribute: {
       /* Set Navigation Attribute (2026-11-18): a request too (in the trees' order with the
        * NPCs' own), applied at the navigation step's start. Read order: the Object, Enabled,
-       * Area, Cost, Center, Size. */
+       * Area, Cost (Jump Limits: Jump Gap), Center, Size, Jump Up, Drop Down, End Object
+       * (2026-11-20). */
       KX_GameObject *target = ef.ResolveCommandTarget(instruction);
       const bool enabled = ef.Bool(instruction.bool_expr_index, true);
       const std::string area = ef.String(instruction.string_expr_index, std::string());
@@ -1694,6 +1712,13 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
                                           MT_Vector3(0.0f, 0.0f, 0.0f));
       const MT_Vector3 size = ef.Vector(instruction.secondary_vector_expr_index,
                                         MT_Vector3(10.0f, 10.0f, 10.0f));
+      const float jump_up = ef.Float(instruction.secondary_float_expr_index, 1.5f);
+      const float drop_down = ef.Float(instruction.tertiary_float_expr_index, 4.0f);
+      KX_GameObject *end_object = nullptr;
+      if (instruction.secondary_value_expr_index != LN_INVALID_INDEX) {
+        end_object = ResolveObjectValue(
+            ef.Value(instruction.secondary_value_expr_index, MakeNoneValue()));
+      }
       KX_NavRequest request;
       request.object = target;
       request.sort_key = ef.SortKey();
@@ -1720,6 +1745,27 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
         case LN_NavigationAttribute::Stop:
           request.command = KX_NavRequest::Command::Stop;
           break;
+        case LN_NavigationAttribute::JumpLimits:
+          request.command = KX_NavRequest::Command::SetJumpLimits;
+          request.enabled = enabled;
+          request.offset = MT_Vector3(cost, jump_up, drop_down);
+          break;
+        case LN_NavigationAttribute::Vehicle:
+          request.command = KX_NavRequest::Command::SetVehicle;
+          request.enabled = enabled;
+          break;
+        case LN_NavigationAttribute::LinkEnabled:
+          request.command = KX_NavRequest::Command::SetLinkEnabled;
+          request.enabled = enabled;
+          break;
+        case LN_NavigationAttribute::LinkEnd:
+          request.command = KX_NavRequest::Command::SetLinkEnd;
+          request.target = end_object;
+          break;
+        case LN_NavigationAttribute::Area:
+          request.command = KX_NavRequest::Command::SetArea;
+          request.area = area;
+          break;
       }
       if (target != nullptr) {
         command_buffer.AppendNavigationRequest(request);
@@ -1729,19 +1775,19 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
     }
     case LN_OpCode::FollowPath: {
       /* Follow Path (on the scene's navigation, 2026-11-18): the first point not reached yet is
-       * asked for (Navigate's way); with Loop the first again after the last. It walks the
-       * Optional Navmesh only (no navmesh: straight, as moving platforms do) and avoids others
-       * only on a navmesh (NPCs; a platform must not swerve). */
+       * asked for (Navigate's way); with Loop the first again after the last. Its Way (int_value
+       * bits 0-7, 2026-11-19): Straight walks the Optional Navmesh only (no navmesh: straight, as
+       * moving platforms do) and avoids others only on it (a platform must not swerve), as every
+       * older node; Navmesh walks the Optional Navmesh, else the scene's, avoiding others as
+       * Navigate. Points are places or objects (2026-11-19: objects were left out without a
+       * word), an object's point where it is at the navigation step (Go To after it). */
       if (KX_GameObject *target = ef.ResolveCommandTarget(instruction)) {
         const LN_Value path_value = ef.Value(
             instruction.secondary_value_expr_index, MakeNoneValue());
-        std::vector<MT_Vector3> path_points;
-        if (!CollectPathPoints(path_value, path_points)) {
-          return;
-        }
         const bool loop = ef.Bool(instruction.bool_expr_index, false);
-        const bool move_dynamic = ef.Bool(
-            instruction.tertiary_bool_expr_index, false);
+        const bool keep_place = ef.Bool(instruction.secondary_bool_expr_index, false);
+        /* Slide (2026-11-20, plan item 3). */
+        const bool slide = ef.Bool(instruction.tertiary_bool_expr_index, false);
         const bool look_at = ef.Bool(
             instruction.quaternary_bool_expr_index, true);
         const float speed = ef.Float(instruction.float_expr_index, 1.0f);
@@ -1765,35 +1811,111 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
             rotating_object = input_object;
           }
         }
+        const int32_t way = instruction.int_value & LN_NAV_CODE_MASK;
+        const uint32_t issuer = uint32_t(instruction.int_value) >> LN_NAV_ISSUER_SHIFT;
+
+        /* The points: places, or objects (removed or missing ones left out); anything else is
+         * left out with a warning once. */
+        struct PathPoint {
+          MT_Vector3 place = MT_Vector3(0.0f, 0.0f, 0.0f);
+          KX_GameObject *object = nullptr;
+        };
+        thread_local std::vector<PathPoint> points;
+        points.clear();
+        bool left_out = false;
+        if (path_value.type == LN_ValueType::List && path_value.exists) {
+          for (const LN_Value &item : path_value.list_value) {
+            PathPoint point;
+            if (ValueAsWorldVector(item, point.place)) {
+              points.push_back(point);
+            }
+            else if (item.type == LN_ValueType::ObjectRef) {
+              point.object = ResolveObjectValue(item);
+              if (point.object != nullptr) {
+                points.push_back(point);
+              }
+            }
+            else if (item.type != LN_ValueType::None) {
+              /* (None: an object removed or not found, as a removed object's ref: no point.) */
+              left_out = true;
+            }
+          }
+        }
+        if (left_out) {
+          LN_CommandBuffer::Command diagnostic;
+          diagnostic.object = m_gameObject;
+          diagnostic.runtime_tree = this;
+          diagnostic.sort_key = ef.SortKey();
+          diagnostic.source_ref_index = instruction.source_ref_index;
+          LN_WarnOnce("Logic Nodes: Follow Path leaves out Path Points items that are neither a "
+                      "position nor an object (" +
+                      LN_DescribeCommandForDiagnostics(diagnostic) + ")");
+        }
+        if (points.empty()) {
+          return;
+        }
 
         const uint32_t state_index = InstructionStateIndex(event, instruction_id);
         if (state_index >= m_instructionStamps.size()) {
           return;
         }
         InstructionMotionState &state = MotionState(state_index);
-        /* Past the end (a shorter list): from the start. At the end it stays there without Loop
-         * (2026-11-18: it walked the path again, as with Loop), with Loop it starts again. */
-        if (state.list_point_index < 0 || state.list_point_index > int(path_points.size()) ||
-            (state.list_point_index == int(path_points.size()) && loop))
+        const float arrive = std::max(threshold, 0.0f);
+        const int count = int(points.size());
+        /* Started again after a pause (it did not run in the step before, Every N Steps
+         * counted): from the first point, unless Continue (where it was). */
+        const uint64_t now = context.phase_tick_index;
+        const uint64_t stride = std::max<uint64_t>(context.phase_tick_stride, 1u);
+        if (state.follow_last_phase_tick != UINT64_MAX && now > state.follow_last_phase_tick &&
+            now - state.follow_last_phase_tick > stride && !keep_place)
         {
           state.list_point_index = 0;
         }
-        const float arrive = std::max(threshold, 0.0f);
-        /* The point the navigation says it reached in the last step is passed (it pulses When
-         * Reached's state); with Loop the first comes again after the last. */
+        /* A list of another length (another path): on to the point it walked to where that is
+         * in it, else from its first (a list of moving places keeps its length: it goes on). */
+        else if (state.follow_count >= 0 && state.follow_count != count) {
+          int found = -1;
+          for (int i = 0; i < count && found < 0; i++) {
+            const PathPoint &point = points[size_t(i)];
+            if (state.follow_object != nullptr ?
+                    point.object == state.follow_object :
+                    (point.object == nullptr &&
+                     float((point.place - state.follow_point).length()) <=
+                         std::max(arrive, 1e-3f)))
+            {
+              found = i;
+            }
+          }
+          state.list_point_index = std::max(found, 0);
+        }
+        state.follow_last_phase_tick = now;
+        state.follow_count = count;
+        /* Past the end (a shorter list): from the start. At the end it stays there without Loop
+         * (2026-11-18: it walked the path again, as with Loop), with Loop it starts again. */
+        if (state.list_point_index < 0 || state.list_point_index > count ||
+            (state.list_point_index == count && loop))
+        {
+          state.list_point_index = 0;
+        }
+        /* Each point's order is tagged with its place + 1 (the last of a path without Loop
+         * marked): the navigation's arrival of this node's order for this point passes it. */
+        auto tag_of = [&](const int index) {
+          return uint32_t(index + 1) |
+                 (index == count - 1 && !loop ? LN_FOLLOW_PATH_LAST_POINT : 0u);
+        };
         KX_Navigation *navigation = LN_QueryNavigation(target);
         KX_NavAgentInfo info;
         const bool known = navigation != nullptr && navigation->GetAgentInfo(target, info) &&
                            info.active;
-        bool any_left = state.list_point_index < int(path_points.size());
-        if (known && info.arrived && any_left &&
-            (info.goal - path_points[size_t(state.list_point_index)]).length2() < 1e-8f)
+        bool any_left = state.list_point_index < count;
+        if (known && info.arrived && any_left && info.reached_issuer == issuer &&
+            info.reached_tag == tag_of(state.list_point_index))
         {
           state.last_reached_tick = context.tick_index;
           state.last_reached_scope_serial = m_activeExecutionScopeSerial;
           state.list_point_index++;
-          if (state.list_point_index >= int(path_points.size())) {
-            if (loop && !path_points.empty()) {
+          if (state.list_point_index >= count) {
+            if (loop) {
               state.list_point_index = 0;
             }
             else {
@@ -1802,16 +1924,27 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
           }
         }
         if (any_left) {
-          const MT_Vector3 &point = path_points[size_t(state.list_point_index)];
+          const PathPoint &point = points[size_t(state.list_point_index)];
+          state.follow_object = point.object;
+          state.follow_point = point.place;
           KX_NavRequest request;
           request.object = target;
+          request.issuer = issuer;
+          request.tag = tag_of(state.list_point_index);
           request.navmesh = navmesh;
-          request.destination = point;
+          request.target = point.object;
+          request.destination = point.place;
           request.speed = std::max(speed, 0.0f);
           request.arrive_distance = arrive;
-          request.move_dynamic = move_dynamic;
-          request.avoid = navmesh != nullptr;
-          request.use_scene_navmesh = false;
+          request.move_dynamic = !slide;
+          if (way == LN_FOLLOW_PATH_WAY_NAVMESH) {
+            request.avoid = true;
+            request.use_scene_navmesh = true;
+          }
+          else {
+            request.avoid = navmesh != nullptr;
+            request.use_scene_navmesh = false;
+          }
           request.sort_key = ef.SortKey();
           request.hold_steps = std::max<uint32_t>(context.phase_tick_stride, 1u);
           request.look_at = look_at && rotating_object != nullptr;
@@ -1820,7 +1953,7 @@ void LN_RuntimeTree::OpNavigationInstruction(Frame &ef,
           request.front_axis = front_axis;
           request.rot_speed = rot_speed;
           command_buffer.AppendNavigationRequest(request);
-          state.next_path_point = known ? info.next_corner : point;
+          state.next_path_point = known ? info.next_corner : point.place;
         }
       }
       MarkInstructionExecuted(event, instruction_id, context.tick_index);

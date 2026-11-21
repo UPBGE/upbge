@@ -7112,6 +7112,25 @@ static int32_t RandomNodeIdentity(const CompilerContext &context, const bool sam
   return int32_t(identity);
 }
 
+/** A Navigate or Follow Path node's identity (2026-11-19, LN_NAV_ISSUER_SHIFT): 24 bits of its
+ * random identity, mixed, never 0 (renaming the node or its tree gives a new one, as for random
+ * numbers: a saved held order then pulses no node). */
+static uint32_t NavigationIssuer(const CompilerContext &context)
+{
+  /* (Mixed first, MurmurHash3's finalizer, 2026-11-20: names differing in their last letter,
+   * "Navigate.001" and "Navigate.002", give FNV-1a identities differing in their low bits only,
+   * which the shift dropped and `| 1` erased: two Navigate nodes of a tree shared one, and each
+   * pulsed at the other's arrival or failure.) */
+  uint32_t x = uint32_t(RandomNodeIdentity(context, false));
+  x ^= x >> 16;
+  x *= 0x85ebca6bu;
+  x ^= x >> 13;
+  x *= 0xc2b2ae35u;
+  x ^= x >> 16;
+  const uint32_t issuer = x >> LN_NAV_ISSUER_SHIFT;
+  return issuer != 0 ? issuer : 1u;
+}
+
 /** Random Value (2026-11-07): custom1 the type (0 Float, 1 Integer, 2 Vector, 3 Boolean), custom2
  * the variation (0 Per Object, 1 Same for All), an optional Seed. Each type has its own sockets
  * (identifiers Min/Max/Value for Float, as the node had before; Min_Int ... Value_Bool). */
@@ -10089,7 +10108,9 @@ void CompileNavigateNode(CompilerContext &context)
       "Rotating Object");
   const std::optional<uint32_t> navmesh_expr = context.BuildOptionalObject("Navmesh Object");
   const std::optional<uint32_t> destination_expr = context.BuildVector("Destination");
-  const std::optional<uint32_t> dynamic_expr = context.BuildBool("Move as Dynamic");
+  /* Slide (2026-11-20, plan item 3; Move as Dynamic before): the instruction's bool, read as
+   * "slide" (a Dynamic NPC is pushed by its velocity unless it slides). */
+  const std::optional<uint32_t> dynamic_expr = context.BuildBool("Slide");
   const std::optional<uint32_t> speed_expr = context.BuildFloat("Lin Speed");
   const std::optional<uint32_t> threshold_expr = context.BuildFloat("Reach Threshold");
   const std::optional<uint32_t> look_at_expr = context.BuildBool("Look At");
@@ -10108,7 +10129,9 @@ void CompileNavigateNode(CompilerContext &context)
    * Weights (Flock) share the instruction's second vector. */
   const int32_t mode = std::clamp(int32_t(context.node.custom1), 0, 6);
   const std::optional<uint32_t> target_expr = context.BuildOptionalObject("Target Object");
-  const std::optional<uint32_t> avoid_expr = context.BuildBool("Avoid Others");
+  /* Avoidance (2026-11-20, plan item 7): a number (0 Off, 1 Polite, 2 Dense; it replaced Avoid
+   * Others and the Dense dropdown bit), the instruction's quaternary_int_expr_index. */
+  const std::optional<uint32_t> avoidance_expr = context.BuildInt("Avoidance");
   const std::optional<uint32_t> priority_expr = context.BuildInt("Priority");
   const std::optional<uint32_t> radius_expr = context.BuildFloat("Radius");
   std::optional<uint32_t> extra_expr;
@@ -10136,12 +10159,15 @@ void CompileNavigateNode(CompilerContext &context)
   /* When Reached (2026-11-18): the arrival itself (LN_NAV_STATE_REACHED of the moving object:
    * once an arrival, read in the step after it), a route of its own checked every Logic +
    * Physics step, whether or not Navigate ran then (with Until Arrived nothing runs it while
-   * the NPC walks). */
+   * the NPC walks). Only of this node's order (2026-11-19, the node's identity: two Navigate
+   * nodes on one NPC both pulsed at any arrival). */
+  const uint32_t issuer = NavigationIssuer(context);
   {
     LN_BoolExpression reached;
     reached.kind = LN_BoolExpressionKind::NavigationState;
     reached.input0 = object_expr ? *object_expr : LN_INVALID_INDEX;
     reached.int_value = LN_NAV_STATE_REACHED;
+    reached.secondary_int_value = int32_t(issuer);
     const uint32_t reached_expr = context.program.AddBoolExpression(reached);
     if (context.OutputFeedsActiveNode("When Reached")) {
       FlowPath step;
@@ -10153,6 +10179,27 @@ void CompileNavigateNode(CompilerContext &context)
     }
     else {
       context.CacheBoolOutputPin("When Reached", reached_expr);
+    }
+  }
+  /* When Failed (plan item 8, 2026-11-20): as When Reached, the failure of this node's order
+   * (LN_NAV_STATE_FAILED: once an order and reason). */
+  {
+    LN_BoolExpression failed;
+    failed.kind = LN_BoolExpressionKind::NavigationState;
+    failed.input0 = object_expr ? *object_expr : LN_INVALID_INDEX;
+    failed.int_value = LN_NAV_STATE_FAILED;
+    failed.secondary_int_value = int32_t(issuer);
+    const uint32_t failed_expr = context.program.AddBoolExpression(failed);
+    if (context.OutputFeedsActiveNode("When Failed")) {
+      FlowPath step;
+      step.event = LN_Event::OnFixedUpdate;
+      CachePrecompiledRoutes(
+          context,
+          "When Failed",
+          {AppendPrecompiledRoute(context, step, failed_expr, "When Failed")});
+    }
+    else {
+      context.CacheBoolOutputPin("When Failed", failed_expr);
     }
   }
   if (!InputSocketIdentifierIsLinked(context.node, "Flow", context.input_links) &&
@@ -10190,14 +10237,16 @@ void CompileNavigateNode(CompilerContext &context)
     instruction.float_expr_index = *speed_expr;
     instruction.secondary_float_expr_index = *threshold_expr;
     instruction.tertiary_float_expr_index = *rot_speed_expr;
-    instruction.int_value = mode;
-    /* Until Arrived (custom2 LN_NAVIGATE_UNTIL_ARRIVED): one pulse is enough. */
-    instruction.secondary_int_value = (context.node.custom2 & LN_NAVIGATE_UNTIL_ARRIVED) ? 1 : 0;
+    /* The Mode, and the node's identity above it (LN_NAV_ISSUER_SHIFT). */
+    instruction.int_value = int32_t(uint32_t(mode) | (issuer << LN_NAV_ISSUER_SHIFT));
+    /* custom2's setting bits as they are (LN_NAVIGATE_*): Until Arrived (one pulse is enough),
+     * Move, Climb. */
+    instruction.secondary_int_value = context.node.custom2 & LN_NAVIGATE_SETTINGS_MASK;
     if (target_expr) {
       instruction.quaternary_value_expr_index = *target_expr;
     }
-    if (avoid_expr) {
-      instruction.quaternary_bool_expr_index = *avoid_expr;
+    if (avoidance_expr) {
+      instruction.quaternary_int_expr_index = *avoidance_expr;
     }
     if (priority_expr) {
       instruction.tertiary_int_expr_index = *priority_expr;
@@ -10230,11 +10279,17 @@ void CompileNavigateNode(CompilerContext &context)
     }
     context.CacheVectorOutputPin("Next Point", next_point_vector);
 
+    /* The socket is a List: a list of the one corner (2026-11-19: it gave the vector itself,
+     * which no list node reads: List Length 0, Get List Item None; found by the examples). */
     LN_ValueExpression next_point_value;
     next_point_value.kind = LN_ValueExpressionKind::FromVector;
     next_point_value.input0 = next_point_vector;
+    LN_ValueExpression next_point_list;
+    next_point_list.kind = LN_ValueExpressionKind::ListFromItems;
+    next_point_list.input_indices.push_back(
+        context.program.AddValueExpression(next_point_value));
     context.CacheValueOutputPin("Next Point",
-                                context.program.AddValueExpression(next_point_value));
+                                context.program.AddValueExpression(next_point_list));
   }
 }
 
@@ -10247,7 +10302,9 @@ void CompileFollowPathNode(CompilerContext &context)
   const std::optional<uint32_t> loop_expr = context.BuildBool("Loop");
   const std::optional<uint32_t> continue_expr = context.BuildBool("Continue");
   const std::optional<uint32_t> navmesh_expr = context.BuildOptionalObject("Optional Navmesh");
-  const std::optional<uint32_t> dynamic_expr = context.BuildBool("Move as Dynamic");
+  /* Slide (2026-11-20, plan item 3; Move as Dynamic before): the instruction's bool, read as
+   * "slide" (a Dynamic NPC is pushed by its velocity unless it slides). */
+  const std::optional<uint32_t> dynamic_expr = context.BuildBool("Slide");
   const std::optional<uint32_t> speed_expr = context.BuildFloat("Lin Speed");
   const std::optional<uint32_t> threshold_expr = context.BuildFloat("Reach Threshold");
   const std::optional<uint32_t> look_at_expr = context.BuildBool("Look At");
@@ -10261,6 +10318,45 @@ void CompileFollowPathNode(CompilerContext &context)
                      "Follow Path requires path points, speed, and threshold inputs");
     return;
   }
+  /* Its arrivals (2026-11-19), as Navigate's When Reached, of this node's orders only (the
+   * node's identity; each point's order is tagged with its place + 1, the last one of a path
+   * without Loop with LN_FOLLOW_PATH_LAST_POINT): Point Reached at each point, Finished at the
+   * last, routes of their own checked every step; Point Index the point it reached last. */
+  const uint32_t issuer = NavigationIssuer(context);
+  for (const auto &[output, state] : {std::pair<const char *, int32_t>{"Point Reached",
+                                                                       LN_NAV_STATE_REACHED},
+                                      {"Finished", LN_NAV_STATE_REACHED_LAST}})
+  {
+    LN_BoolExpression reached;
+    reached.kind = LN_BoolExpressionKind::NavigationState;
+    reached.input0 = object_expr ? *object_expr : LN_INVALID_INDEX;
+    reached.int_value = state;
+    reached.secondary_int_value = int32_t(issuer);
+    const uint32_t reached_expr = context.program.AddBoolExpression(reached);
+    if (context.OutputFeedsActiveNode(output)) {
+      FlowPath step;
+      step.event = LN_Event::OnFixedUpdate;
+      CachePrecompiledRoutes(
+          context, output, {AppendPrecompiledRoute(context, step, reached_expr, output)});
+    }
+    else {
+      context.CacheBoolOutputPin(output, reached_expr);
+    }
+  }
+  {
+    LN_FloatExpression point;
+    point.kind = LN_FloatExpressionKind::NavigationState;
+    point.input0 = object_expr ? *object_expr : LN_INVALID_INDEX;
+    point.int_value = int32_t(uint32_t(LN_NAV_FLOAT_POINT) | (issuer << LN_NAV_ISSUER_SHIFT));
+    LN_IntExpression index;
+    index.kind = LN_IntExpressionKind::FromFloat;
+    index.input0 = context.program.AddFloatExpression(point);
+    index.float_to_int_mode = LN_FloatToIntMode::Truncate;
+    context.CacheIntOutputPin("Point Index", context.program.AddIntExpression(index));
+  }
+  const int32_t way = std::clamp(int32_t(context.node.custom1),
+                                 int32_t(LN_FOLLOW_PATH_WAY_STRAIGHT),
+                                 int32_t(LN_FOLLOW_PATH_WAY_NAVMESH));
   const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
       "Follow Path flow must be driven by an event or branch");
   if (!flow_events) {
@@ -10270,6 +10366,8 @@ void CompileFollowPathNode(CompilerContext &context)
   for (const FlowPath &path : flow_events->paths) {
     LN_Instruction instruction;
     instruction.opcode = LN_OpCode::FollowPath;
+    /* The Way, and the node's identity above it (LN_NAV_ISSUER_SHIFT). */
+    instruction.int_value = int32_t(uint32_t(way) | (issuer << LN_NAV_ISSUER_SHIFT));
     instruction.source_ref_index = context.MakeSourceRef("Path Points");
     if (object_expr) {
       instruction.value_expr_index = *object_expr;
@@ -14504,10 +14602,16 @@ void CompileSetNavigationAttributeNode(CompilerContext &context)
 {
   /* Set Navigation Attribute (2026-11-18): custom1 the LN_NavigationAttribute; a request handed
    * to the navigation at the flush's end (Op::NavigationAttribute). */
-  const LN_NavigationAttribute attribute = LN_NavigationAttribute(
-      std::clamp(int(context.node.custom1), 0, 3));
+  const int option = int(context.node.custom1);
+  /* (4 is Navigate's Stop, in no dropdown.) */
+  const LN_NavigationAttribute attribute =
+      option >= int(LN_NavigationAttribute::JumpLimits) &&
+              option <= int(LN_NavigationAttribute::Area) ?
+          LN_NavigationAttribute(option) :
+          LN_NavigationAttribute(std::clamp(option, 0, 3));
   const std::optional<uint32_t> object_expr = context.BuildOptionalObject("Object");
-  std::optional<uint32_t> enabled_expr, area_expr, cost_expr, center_expr, size_expr;
+  std::optional<uint32_t> enabled_expr, area_expr, cost_expr, center_expr, size_expr, up_expr,
+      down_expr, end_expr;
   switch (attribute) {
     case LN_NavigationAttribute::Obstacle:
       enabled_expr = context.BuildBool("Enabled");
@@ -14523,6 +14627,27 @@ void CompileSetNavigationAttributeNode(CompilerContext &context)
     case LN_NavigationAttribute::RebuildArea:
       center_expr = context.BuildVector("Center");
       size_expr = context.BuildVector("Size");
+      break;
+    case LN_NavigationAttribute::JumpLimits:
+      /* Read as the handler reads them: Enabled, then Jump Gap (in Cost's field), Jump Up,
+       * Drop Down. */
+      enabled_expr = context.BuildBool("Enabled");
+      cost_expr = context.BuildFloat("Jump Gap");
+      up_expr = context.BuildFloat("Jump Up");
+      down_expr = context.BuildFloat("Drop Down");
+      break;
+    case LN_NavigationAttribute::Vehicle:
+    case LN_NavigationAttribute::LinkEnabled:
+      enabled_expr = context.BuildBool("Enabled");
+      break;
+    case LN_NavigationAttribute::LinkEnd:
+      /* (Read last by the handler; empty: no link.) */
+      end_expr = context.BuildOptionalObject("End Object");
+      break;
+    case LN_NavigationAttribute::Area:
+      area_expr = context.BuildString("Area");
+      break;
+    case LN_NavigationAttribute::Stop:
       break;
   }
   const std::optional<FlowEventsResult> flow_events = context.ResolveRequiredPrimaryFlow(
@@ -14552,6 +14677,15 @@ void CompileSetNavigationAttributeNode(CompilerContext &context)
     }
     if (size_expr) {
       instruction.secondary_vector_expr_index = *size_expr;
+    }
+    if (up_expr) {
+      instruction.secondary_float_expr_index = *up_expr;
+    }
+    if (down_expr) {
+      instruction.tertiary_float_expr_index = *down_expr;
+    }
+    if (end_expr) {
+      instruction.secondary_value_expr_index = *end_expr;
     }
     AppendFlowInstruction(context.program, path, instruction);
   }

@@ -6622,6 +6622,8 @@ void LN_Program::ValidateInstructionPayloadCollection(
     }
     check_index(payload.secondary_int_expr_index, m_intExpressions.size(), index, "secondary int");
     check_index(payload.tertiary_int_expr_index, m_intExpressions.size(), index, "tertiary int");
+    check_index(
+        payload.quaternary_int_expr_index, m_intExpressions.size(), index, "quaternary int");
     check_index(payload.float_expr_index, m_floatExpressions.size(), index, "float");
     check_index(
         payload.secondary_float_expr_index, m_floatExpressions.size(), index, "secondary float");

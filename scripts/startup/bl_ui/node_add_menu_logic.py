@@ -70,6 +70,8 @@ LOGIC_NODE_SEARCHABLE_MODES = {
     "LogicNativeTweenValue": "value_type",
     "LogicNativeSmoothValue": "mode",
     "LogicNativeFindObjects": "pick",
+    # (2026-11-20: Find Spot's Visibility is a second dropdown.)
+    "LogicNativeNavmeshQuery": "query",
     "LogicNativeCompare": "data_type",
     "LogicNativeTypecast": "to_type",
     "LogicNativeMatrixToXYZ": "output",
@@ -139,7 +141,7 @@ LOGIC_NODE_SEARCH_ALIASES = {
     # (2026-11-17) What people type for the text operations.
     "LogicNativeStringOperation": ("Text", "Clock Text", "Timer Text"),
     # (2026-11-18) Other engines' words for NPC movement and navmesh questions.
-    "LogicNativeNavigate": ("Pathfinding", "Steering", "Crowd", "AI Move"),
+    "LogicNativeNavigate": ("Pathfinding", "Steering", "Crowd", "AI Move", "Fly", "Swim"),
     "LogicNativeNavmeshQuery": ("Pathfinding", "Reachable"),
     "LogicNativeSetNavigationAttribute": ("Navmesh Obstacle", "Rebuild Navmesh"),
 }

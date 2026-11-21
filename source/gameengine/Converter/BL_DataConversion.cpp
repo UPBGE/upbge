@@ -1769,6 +1769,9 @@ static void bl_ConvertBlenderObject_Single(BL_SceneConverter *converter,
   gameobj->SetName(blenderobject->id.name + 2);
   /* How it is drawn between fixed steps (the scene notes an object that chose it). */
   gameobj->SetSmoothMotion(blenderobject->smooth_motion);
+  /* What NPCs make of it (Physics > Navigation; its link's end found below, once every object
+   * is converted). */
+  gameobj->ConvertNavSettings(blenderobject);
 
   // Update children/parent hierarchy
   if (blenderobject->parent != 0) {
@@ -2993,6 +2996,7 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
       continue;
     }
     BL_ResolvePropertyObjects(blenderobj, gameobj, *converter);
+    gameobj->ResolveNavLinkEnd(*converter);
   }
   // apply the initial state to controllers, only on the active objects as this registers the
   // sensors

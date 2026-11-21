@@ -990,6 +990,38 @@ static float rna_RecastData_remove_radius_get(PointerRNA *ptr)
   return rd->remove_radius > 0.0f ? std::max(rd->remove_radius, build) : build * 1.6f;
 }
 
+/* UPBGE (2026-11-19): Avoid Physics Objects' size; 0 (a file from before) reads as 0.5 m. */
+static float rna_RecastData_physics_min_size_get(PointerRNA *ptr)
+{
+  const RecastData *rd = static_cast<RecastData *>(ptr->data);
+  return rd->physics_min_size > 0.0f ? rd->physics_min_size : 0.5f;
+}
+
+/* UPBGE (2026-11-19): Jump Links' limits; 0 (a file from before) reads as the default. */
+static float rna_RecastData_jump_gap_get(PointerRNA *ptr)
+{
+  const RecastData *rd = static_cast<RecastData *>(ptr->data);
+  return rd->jump_gap > 0.0f ? rd->jump_gap : 3.0f;
+}
+
+static float rna_RecastData_jump_up_get(PointerRNA *ptr)
+{
+  const RecastData *rd = static_cast<RecastData *>(ptr->data);
+  return rd->jump_up > 0.0f ? rd->jump_up : 1.5f;
+}
+
+static float rna_RecastData_jump_drop_get(PointerRNA *ptr)
+{
+  const RecastData *rd = static_cast<RecastData *>(ptr->data);
+  return rd->jump_drop > 0.0f ? rd->jump_drop : 4.0f;
+}
+
+static float rna_RecastData_jump_spacing_get(PointerRNA *ptr)
+{
+  const RecastData *rd = static_cast<RecastData *>(ptr->data);
+  return rd->jump_spacing > 0.0f ? rd->jump_spacing : 2.0f;
+}
+
 static int rna_GameSettings_jolt_physics_auto_cores_get(PointerRNA * /*ptr*/)
 {
   return BKE_game_physics_cores(-1, BKE_game_physics_computer_cores());
@@ -6904,6 +6936,18 @@ static void rna_def_scene_game_recast_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Cell Height", "Rasterized cell height");
   RNA_def_property_update(prop, NC_SCENE, NULL);
 
+  /* UPBGE (2026-11-20): the cells worked out from the NPCs' size. */
+  prop = RNA_def_property(srna, "use_auto_cells", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "auto_cells", 1);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(prop,
+                           "Auto Cells",
+                           "The game's navigation mesh takes its cell size from the smallest "
+                           "NPC (half its radius, 0.1 to 0.3 m; the cell height half of that), "
+                           "so doors an NPC fits through stay open. Off: Cell Size and Cell "
+                           "Height as set");
+  RNA_def_property_update(prop, NC_SCENE, NULL);
+
   prop = RNA_def_property(srna, "agent_height", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "agentheight");
   RNA_def_property_ui_range(prop, 0.1, 5, 1, 2);
@@ -6982,11 +7026,21 @@ static void rna_def_scene_game_recast_data(BlenderRNA *brna)
 
   /* UPBGE (2026-11-18): the navmesh built while the game runs. */
   static const EnumPropertyItem build_mode_items[] = {
+      /* UPBGE (2026-11-20): Auto, the default of new scenes. */
+      {NAVMESH_BUILD_AUTO,
+       "AUTO",
+       0,
+       "Auto",
+       "The game builds a navigation mesh of the whole level the first time a node needs it "
+       "(Navigate, Follow Path or Navmesh Query without a Navmesh Object), from the static "
+       "objects' collision shapes, and keeps it up to date. Nothing is built in a game that "
+       "does not navigate"},
       {NAVMESH_BUILD_OFF,
        "OFF",
        0,
        "Off",
-       "Only navigation mesh objects (built with Build Navigation Mesh) guide NPCs"},
+       "No navigation mesh is built: NPCs walk straight, or on a navigation mesh object their "
+       "node names (Build Navigation Mesh, in Advanced)"},
       {NAVMESH_BUILD_LEVEL,
        "LEVEL",
        0,
@@ -7005,12 +7059,12 @@ static void rna_def_scene_game_recast_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "build_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "build_mode");
   RNA_def_property_enum_items(prop, build_mode_items);
-  RNA_def_property_enum_default(prop, NAVMESH_BUILD_OFF);
+  RNA_def_property_enum_default(prop, NAVMESH_BUILD_AUTO);
   RNA_def_property_ui_text(prop,
-                           "Build at Game Start",
-                           "Whether the game builds its own navigation mesh for NPCs (Navigate "
-                           "and Navmesh Query with no Navmesh Object use it), with the settings "
-                           "above");
+                           "Build",
+                           "Whether and how the game builds its own navigation mesh for NPCs "
+                           "(Navigate, Follow Path and Navmesh Query with no Navmesh Object use "
+                           "it)");
   RNA_def_property_update(prop, NC_SCENE, nullptr);
 
   prop = RNA_def_property(srna, "build_radius", PROP_FLOAT, PROP_DISTANCE);
@@ -7047,6 +7101,195 @@ static void rna_def_scene_game_recast_data(BlenderRNA *brna)
                            "Crowd Detail Distance",
                            "NPCs farther than this from the active camera avoid each other only "
                            "every 4th step (big crowds cost less). 0: every NPC every step");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  /* UPBGE (2026-11-19): physics objects as obstacles. */
+  prop = RNA_def_property(srna, "use_avoid_physics_objects", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "avoid_physics_objects", 1);
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_ui_text(prop,
+                           "Avoid Physics Objects",
+                           "NPCs avoid Dynamic and Rigid Body objects and Characters that are no "
+                           "NPC, as obstacles nobody marked (Physics > Navigation > Obstacle): "
+                           "while they move, and cut out of the game's navigation mesh once they "
+                           "come to rest (a navigation link's objects never are)");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "physics_min_size", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "physics_min_size");
+  RNA_def_property_float_funcs(prop, "rna_RecastData_physics_min_size_get", nullptr, nullptr);
+  RNA_def_property_range(prop, 0.01f, 1000.0f);
+  RNA_def_property_ui_range(prop, 0.05f, 20.0f, 10, 2);
+  RNA_def_property_float_default(prop, 0.5f);
+  RNA_def_property_ui_text(prop,
+                           "Minimum Size",
+                           "Avoid Physics Objects: smaller objects (by their widest side) are "
+                           "walked through or pushed by the physics, never avoided");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "use_crowd_push_characters", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "crowd_push_characters", 1);
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_ui_text(prop,
+                           "Crowds Push Characters",
+                           "A packed crowd (Navigate's Avoidance Dense) pressing a Character that "
+                           "is no NPC, the player, pushes it back by the crowd's weight (a "
+                           "knock-back); the crowd always parts round it (it is an obstacle with "
+                           "Avoid Physics Objects)");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  /* UPBGE (2026-11-19): jump links found by the build, and how NPCs cross them. */
+  static const EnumPropertyItem jump_links_items[] = {
+      {NAVMESH_JUMP_LINKS_OFF,
+       "OFF",
+       0,
+       "Off",
+       "Only the links placed by hand (objects with a nav_link game property)"},
+      {NAVMESH_JUMP_LINKS_AUTO,
+       "AUTO",
+       0,
+       "Automatic",
+       "The build finds gaps to jump across, ledges to drop from and ledges to jump up to, "
+       "within the limits below, where jumping saves real walking; each NPC takes only the "
+       "jumps it can make"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "jump_links", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "jump_links");
+  RNA_def_property_enum_items(prop, jump_links_items);
+  RNA_def_property_enum_default(prop, NAVMESH_JUMP_LINKS_OFF);
+  RNA_def_property_ui_text(prop, "Jump Links", "Whether the build finds jump links by itself");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "jump_gap", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "jump_gap");
+  RNA_def_property_float_funcs(prop, "rna_RecastData_jump_gap_get", nullptr, nullptr);
+  RNA_def_property_range(prop, 0.1f, 18.0f);
+  RNA_def_property_ui_range(prop, 0.5f, 10.0f, 10, 2);
+  RNA_def_property_float_default(prop, 3.0f);
+  RNA_def_property_ui_text(prop,
+                           "Jump Gap",
+                           "The widest gap any NPC jumps across (the edges' distance on the "
+                           "ground plan); each NPC's own limit may be less");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "jump_up", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "jump_up");
+  RNA_def_property_float_funcs(prop, "rna_RecastData_jump_up_get", nullptr, nullptr);
+  RNA_def_property_range(prop, 0.0f, 50.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 5.0f, 10, 2);
+  RNA_def_property_float_default(prop, 1.5f);
+  RNA_def_property_ui_text(prop,
+                           "Jump Up",
+                           "The highest ledge any NPC jumps up to (above what it climbs by "
+                           "walking)");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "jump_drop", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "jump_drop");
+  RNA_def_property_float_funcs(prop, "rna_RecastData_jump_drop_get", nullptr, nullptr);
+  RNA_def_property_range(prop, 0.0f, 100.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 20.0f, 10, 2);
+  RNA_def_property_float_default(prop, 4.0f);
+  RNA_def_property_ui_text(prop, "Drop Down", "The deepest drop any NPC jumps down");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "jump_spacing", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "jump_spacing");
+  RNA_def_property_float_funcs(prop, "rna_RecastData_jump_spacing_get", nullptr, nullptr);
+  RNA_def_property_range(prop, 0.5f, 100.0f);
+  RNA_def_property_ui_range(prop, 0.5f, 10.0f, 10, 2);
+  RNA_def_property_float_default(prop, 2.0f);
+  RNA_def_property_ui_text(prop,
+                           "Spacing",
+                           "One link for every this much of a ledge (fewer links: faster path "
+                           "searches)");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  /* UPBGE (2026-11-20): what Obstacle Simulation's Visualization draws of the navigation. */
+  prop = RNA_def_property(srna, "vis_range", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "vis_range");
+  RNA_def_property_range(prop, 0.0f, 100000.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 500.0f, 100, 1);
+  RNA_def_property_float_default(prop, 60.0f);
+  RNA_def_property_ui_text(prop,
+                           "Range",
+                           "The navigation mesh and links are drawn within this distance of the "
+                           "active camera (0: everywhere)");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "vis_max_lines", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "vis_max_lines");
+  RNA_def_property_range(prop, 1000, 1000000);
+  RNA_def_property_int_default(prop, 20000);
+  RNA_def_property_ui_text(prop,
+                           "Max Lines",
+                           "At most this many lines a frame (a huge level stays playable while "
+                           "drawn: the navigation mesh is cut first, the NPCs never)");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  static const struct {
+    const char *identifier, *name, *description;
+    int bit;
+  } vis_items[] = {
+      {"show_vis_navmesh",
+       "Navigation Mesh",
+       "Draw the navigation mesh: its walkable surfaces coloured by area, its walls",
+       NAVMESH_VIS_HIDE_NAVMESH},
+      {"show_vis_links",
+       "Links",
+       "Draw the links: found jumps and drops, hand-placed ones by their kind (closed ones grey or, "
+       "NPCs wait at them, red), links to vehicles (green open, red closed)",
+       NAVMESH_VIS_HIDE_LINKS},
+      {"show_vis_agents",
+       "NPCs",
+       "Draw the NPCs: their circles (a flyer's sphere) and their velocity",
+       NAVMESH_VIS_HIDE_AGENTS},
+      {"show_vis_paths",
+       "Ways",
+       "Draw each NPC's way: its next corner and its goal",
+       NAVMESH_VIS_HIDE_PATHS},
+      {"show_vis_obstacles",
+       "Obstacles",
+       "Draw the obstacles NPCs avoid, and the boxes cut out of the navigation mesh",
+       NAVMESH_VIS_HIDE_OBSTACLES},
+      {"show_vis_vehicles",
+       "Vehicles",
+       "Draw the vehicles' own navigation meshes on them",
+       NAVMESH_VIS_HIDE_VEHICLES},
+  };
+  for (const auto &item : vis_items) {
+    prop = RNA_def_property(srna, item.identifier, PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_negative_sdna(prop, nullptr, "vis_hide", item.bit);
+    RNA_def_property_boolean_default(prop, true);
+    RNA_def_property_ui_text(prop, item.name, item.description);
+    RNA_def_property_update(prop, NC_SCENE, nullptr);
+  }
+
+  static const EnumPropertyItem link_crossing_items[] = {
+      {NAVMESH_LINK_CARRIED,
+       "CARRIED",
+       0,
+       "Carried",
+       "NPCs are carried along a fixed arc over Duration: exact, never fails, passes through "
+       "what is in the way"},
+      {NAVMESH_LINK_PHYSICS,
+       "PHYSICS",
+       0,
+       "Physics",
+       "Characters and Dynamic bodies really jump (their jump speed and gravity), collide in "
+       "the air, can be knocked off and find a new way from where they land; other NPCs are "
+       "carried"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "link_crossing", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "link_crossing");
+  RNA_def_property_enum_items(prop, link_crossing_items);
+  RNA_def_property_enum_default(prop, NAVMESH_LINK_PHYSICS);
+  RNA_def_property_ui_text(prop,
+                           "Jumps",
+                           "How NPCs cross jump and drop links (other kinds, ladders, doors, "
+                           "teleports, are always carried)");
   RNA_def_property_update(prop, NC_SCENE, nullptr);
 }
 
@@ -8682,8 +8925,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_obstacle_simulation", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_OBSTACLE_SIMULATION);
-  RNA_def_property_ui_text(
-      prop, "Visualization", "Enable debug visualization for obstacle simulation");
+  /* UPBGE (2026-11-20): the navigation's Visualization switch (Scene > Navigation Mesh > Show). */
+  RNA_def_property_ui_text(prop,
+                           "Visualization",
+                           "Draw the navigation while playing: the navigation meshes, the NPCs' "
+                           "ways, links, obstacles and vehicles (what Navigation Mesh > Advanced > "
+                           "Visualization chooses)");
 
   /* Recast Settings */
   prop = RNA_def_property(srna, "recast_data", PROP_POINTER, PROP_NONE);

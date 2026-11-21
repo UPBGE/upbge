@@ -2778,45 +2778,52 @@ inline constexpr PinMetadata translate_outputs[] = {
 inline constexpr PinMetadata navigate_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", false},
   {"Stop", "Stop", PinType::Execution, "false", false},
-  {"Moving Object", "Moving Object", PinType::Object, "", false},
-  {"Rotating Object", "Rotating Object", PinType::Object, "", false},
-  {"Navmesh Object", "Navmesh Object", PinType::Object, "", false},
   {"Destination", "Destination", PinType::Vector, "0.0, 0.0, 0.0", false},
-  {"Move as Dynamic", "Move as Dynamic", PinType::Bool, "false", false},
+  {"Target Object", "Target Object", PinType::Object, "", false},
   {"Lin Speed", "Lin Speed", PinType::Float, "1.0", false},
   {"Reach Threshold", "Reach Threshold", PinType::Float, "1.0", false},
-  {"Look At", "Look At", PinType::Bool, "true", false},
-  {"Rot Axis", "Rot Axis", PinType::Int, "2", false},
-  {"Front", "Front", PinType::Int, "1", false},
-  {"Rot Speed", "Rot Speed", PinType::Float, "1.0", false},
   {"Visualize", "Visualize", PinType::Bool, "false", false},
-  {"Target Object", "Target Object", PinType::Object, "", false},
-  {"Avoid Others", "Avoid Others", PinType::Bool, "true", false},
-  {"Priority", "Priority", PinType::Int, "50", false},
   {"Radius", "Radius", PinType::Float, "10.0", false},
   {"Offset", "Offset", PinType::Vector, "-2.0, -2.0, 0.0", false},
   {"Weights", "Weights", PinType::Vector, "1.0, 1.0, 1.0", false},
+  {"Look At", "Look At", PinType::Bool, "true", false},
+  {"Rot Speed", "Rot Speed", PinType::Float, "1.0", false},
+  {"Rot Axis", "Rot Axis", PinType::Int, "2", false},
+  {"Front", "Front", PinType::Int, "1", false},
+  {"Avoidance", "Avoidance", PinType::Int, "1", false},
+  {"Priority", "Priority", PinType::Int, "50", false},
+  {"Moving Object", "Moving Object", PinType::Object, "", false},
+  {"Rotating Object", "Rotating Object", PinType::Object, "", false},
+  {"Navmesh Object", "Navmesh Object", PinType::Object, "", false},
+  {"Slide", "Slide", PinType::Bool, "false", false},
 };
 inline constexpr PinMetadata navigate_outputs[] = {
   {"Done", "Done", PinType::Execution, "false", false},
   {"When Reached", "When Reached", PinType::Execution, "false", false},
+  {"When Failed", "When Failed", PinType::Execution, "false", false},
   {"Next Point", "Next Point", PinType::List, "0", false},
 };
 inline constexpr PinMetadata follow_path_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", false},
-  {"Moving Object", "Moving Object", PinType::Object, "", false},
-  {"Rotating Object", "Rotating Object", PinType::Object, "", false},
   {"Path Points", "Path Points", PinType::List, "", false},
   {"Loop", "Loop", PinType::Bool, "false", false},
   {"Continue", "Continue", PinType::Bool, "false", false},
-  {"Optional Navmesh", "Optional Navmesh", PinType::Object, "", false},
-  {"Move as Dynamic", "Move as Dynamic", PinType::Bool, "false", false},
   {"Lin Speed", "Lin Speed", PinType::Float, "1.0", false},
   {"Reach Threshold", "Reach Threshold", PinType::Float, "0.2", false},
   {"Look At", "Look At", PinType::Bool, "true", false},
   {"Rot Speed", "Rot Speed", PinType::Float, "1.0", false},
   {"Rot Axis", "Rot Axis", PinType::Int, "2", false},
   {"Front", "Front", PinType::Int, "1", false},
+  {"Moving Object", "Moving Object", PinType::Object, "", false},
+  {"Rotating Object", "Rotating Object", PinType::Object, "", false},
+  {"Optional Navmesh", "Optional Navmesh", PinType::Object, "", false},
+  {"Slide", "Slide", PinType::Bool, "false", false},
+};
+inline constexpr PinMetadata follow_path_outputs[] = {
+  {"Done", "Done", PinType::Execution, "false", false},
+  {"Point Reached", "Point Reached", PinType::Execution, "false", false},
+  {"Point Index", "Point Index", PinType::Int, "-1", false},
+  {"Finished", "Finished", PinType::Execution, "false", false},
 };
 inline constexpr PinMetadata navmesh_query_inputs[] = {
   {"Navmesh Object", "Navmesh Object", PinType::Object, "", false},
@@ -2824,6 +2831,16 @@ inline constexpr PinMetadata navmesh_query_inputs[] = {
   {"To", "To", PinType::Vector, "0.0, 0.0, 0.0", false},
   {"Position", "Position", PinType::Vector, "0.0, 0.0, 0.0", false},
   {"Radius", "Radius", PinType::Float, "10.0", false},
+  {"Look From", "Look From", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Look Object", "Look Object", PinType::Object, "", false},
+  {"Samples", "Samples", PinType::Int, "24", false},
+  {"Cover", "Cover", PinType::Bool, "false", false},
+  {"Cover Distance", "Cover Distance", PinType::Float, "1.5", false},
+  {"Walk Weight", "Walk Weight", PinType::Float, "1.0", false},
+  {"Look Weight", "Look Weight", PinType::Float, "0.0", false},
+  {"Not Taken", "Not Taken", PinType::Bool, "true", false},
+  {"Spacing", "Spacing", PinType::Float, "1.0", false},
+  {"Area", "Area", PinType::String, "", false},
 };
 inline constexpr PinMetadata navmesh_query_outputs[] = {
   {"Found", "Found", PinType::Bool, "false", false},
@@ -2831,6 +2848,7 @@ inline constexpr PinMetadata navmesh_query_outputs[] = {
   {"Points", "Points", PinType::List, "", false},
   {"Length", "Length", PinType::Float, "0.0", false},
   {"Normal", "Normal", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Score", "Score", PinType::Float, "0.0", false},
 };
 inline constexpr PinMetadata get_navigation_info_inputs[] = {
   {"Object", "Object", PinType::Object, "", false},
@@ -2845,16 +2863,22 @@ inline constexpr PinMetadata get_navigation_info_outputs[] = {
   {"Next Corner", "Next Corner", PinType::Vector, "0.0, 0.0, 0.0", false},
   {"Velocity", "Velocity", PinType::Vector, "0.0, 0.0, 0.0", false},
   {"Goal", "Goal", PinType::Vector, "0.0, 0.0, 0.0", false},
+  {"Surface Normal", "Surface Normal", PinType::Vector, "0.0, 0.0, 0.0", false},
   {"Remaining Distance", "Remaining Distance", PinType::Float, "0.0", false},
   {"Speed", "Speed", PinType::Float, "0.0", false},
   {"Link Object", "Link Object", PinType::Object, "", false},
   {"Link Kind", "Link Kind", PinType::String, "", false},
+  {"Waiting", "Waiting", PinType::Bool, "false", false},
+  {"Waiting At", "Waiting At", PinType::Object, "", false},
+  {"Vehicle", "Vehicle", PinType::Object, "", false},
+  {"Reason", "Reason", PinType::String, "", false},
 };
 inline constexpr PinMetadata on_navigation_link_inputs[] = {
   {"Object", "Object", PinType::Object, "", false},
 };
 inline constexpr PinMetadata on_navigation_link_outputs[] = {
   {"On Link Start", "On Link Start", PinType::Execution, "false", false},
+  {"On Link End", "On Link End", PinType::Execution, "false", false},
   {"Link Object", "Link Object", PinType::Object, "", false},
   {"Link Kind", "Link Kind", PinType::String, "", false},
 };
@@ -2867,6 +2891,10 @@ inline constexpr PinMetadata set_navigation_attribute_inputs[] = {
   {"Closed", "Closed", PinType::Bool, "true", false},
   {"Center", "Center", PinType::Vector, "0.0, 0.0, 0.0", false},
   {"Size", "Size", PinType::Vector, "10.0, 10.0, 10.0", false},
+  {"Jump Gap", "Jump Gap", PinType::Float, "3.0", false},
+  {"Jump Up", "Jump Up", PinType::Float, "1.5", false},
+  {"Drop Down", "Drop Down", PinType::Float, "4.0", false},
+  {"End Object", "End Object", PinType::Object, "", false},
 };
 inline constexpr PinMetadata slow_follow_inputs[] = {
   {"Flow", "Flow", PinType::Execution, "false", true},
@@ -6773,7 +6801,7 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    "Follow Path",
    "Move in world units per second and optionally rotate in radians per second along path points",
    pin_span(follow_path_inputs),
-   pin_span(done_output),
+   pin_span(follow_path_outputs),
    true,
    RequiredPhase::FixedUpdate,
    false,
@@ -6818,7 +6846,8 @@ inline constexpr NodeMetadata all_node_metadata[] = {
    "Objects/Navigation",
    "Set Navigation Attribute",
    "Changes the navigation while playing: an object an obstacle or not, an area's cost or "
-   "closed for an NPC, the navigation mesh made again in a box",
+   "closed for an NPC, the navigation mesh made again in a box, an NPC's jump limits, an "
+   "object's Physics > Navigation settings (vehicle, link open, link end, area)",
    pin_span(set_navigation_attribute_inputs),
    pin_span(done_output),
    true,

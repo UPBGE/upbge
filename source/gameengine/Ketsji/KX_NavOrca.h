@@ -222,6 +222,12 @@ struct Neighbour {
 
 struct Wall {
   Vec2 a, b;
+  /** The way in (unit; zero: none known), for an agent standing on the wall's line (from the
+   * navmesh's own winding: such an agent got no wall at all). */
+  Vec2 inward;
+  /** Whether the walkable side wraps round its end `a` / `b` (a corner the way may turn round;
+   * false: another wall goes on there, or none known). */
+  bool a_convex = false, b_convex = false;
 };
 
 struct Params {
@@ -234,6 +240,12 @@ struct Params {
   /** How near a wall's line the agent's centre may come. A navmesh's walls are already the
    * agent's radius in from the real walls: 0 (else they would count it twice). */
   float wall_radius = 0.0f;
+  /** How near (m, along the wall) a corner a wall no longer holds the agent: the corner is the
+   * end of a way's leg, and a wall's line held as far as the corner stopped an agent within a
+   * hair of it whose way on clipped the corner by that hair (2026-11-19). 0: walls hold to their
+   * ends. The navmesh is the agent's radius in from the real wall: a few cm cut off a corner
+   * touch nothing. */
+  float wall_corner_release = 0.0f;
 };
 
 /** The ORCA lines of one agent (at the origin of `position`'s space), walls first. */
@@ -263,13 +275,37 @@ inline void build_lines(const Vec2 &position,
     if (t <= 0.0f || t >= 1.0f) {
       continue;
     }
+    if (params.wall_corner_release > 0.0f) {
+      const float len = std::sqrt(len_sq);
+      if ((walls[i].a_convex && t * len < params.wall_corner_release) ||
+          (walls[i].b_convex && (1.0f - t) * len < params.wall_corner_release))
+      {
+        continue;
+      }
+    }
     const Vec2 closest = walls[i].a + t * ab;
     const Vec2 away = position - closest;
-    const float dist = length(away);
-    if (dist <= 1e-3f) {
+    float dist = length(away);
+    Vec2 n;
+    if (abs_sq(walls[i].inward) > 0.5f) {
+      /* Its way in known (the navmesh's winding): beside the wall but behind its line, the agent
+       * stands round a corner of it, never in it (the navmesh holds it): the line would hold it
+       * back from the corner it walks round (DetourCrowd leaves such walls out: 2026-11-19, a
+       * guard crawled 1.5 s at each corner so). On the line (where the slide along the navmesh
+       * leaves one pressing into it): held in. */
+      const float side = dot(away, walls[i].inward);
+      if (side < -1e-3f) {
+        continue;
+      }
+      n = walls[i].inward;
+      dist = std::max(side, 0.0f);
+    }
+    else if (dist > 1e-3f) {
+      n = away / dist;
+    }
+    else {
       continue;
     }
-    const Vec2 n = away / dist;
     /* n . v >= -(dist - wall_radius) / horizon. */
     const float k = -(dist - params.wall_radius) * inv_wall_horizon;
     Line line;

@@ -584,7 +584,8 @@ const char *query_refusal(const LN_Program &program, const LN_QueryExpression &e
     case LN_QueryExpressionKind::FindObjects:
       return nullptr;
     /* (2026-11-18) Navmesh Query reads the navmesh (changed only by the navigation step, after
-     * the flush) with the thread's own query object. */
+     * the flush) with the thread's own query object; Find Spot (2026-11-20) also casts lines
+     * through the physics and reads the NPCs' poses, neither written while trees record. */
     case LN_QueryExpressionKind::NavmeshQuery:
       return nullptr;
     default:

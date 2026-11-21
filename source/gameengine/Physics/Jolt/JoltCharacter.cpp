@@ -52,6 +52,32 @@ JPH_SUPPRESS_WARNINGS
 
 namespace {
 
+/** What a character's move meets (Simulate): never its own body; while it is an NPC navigating
+ * (Navigate or Follow Path moves it in this step), not the bodies of the other navigating NPCs
+ * physics cannot push either (Characters, Kinematic and Static NPCs: the navigation keeps them
+ * apart, as NPCs without bodies). Two such NPCs face to face in a narrow door stood for up to a
+ * minute, and two jumping side by side knocked each other into the gap (2026-11-20, plan
+ * item 12). Walls, physics objects, the player and NPCs standing still are met as before. */
+class JoltCharacterBodyFilter final : public JPH::BodyFilter {
+ public:
+  JoltCharacterBodyFilter(const JoltPhysicsEnvironment &env, const JPH::BodyID own)
+      : m_env(env), m_own(own), m_navigating(env.IsNavigatingBody(own))
+  {
+  }
+  bool ShouldCollide(const JPH::BodyID &inBodyID) const override
+  {
+    if (inBodyID == m_own) {
+      return false;
+    }
+    return !(m_navigating && m_env.IsNavigatingBody(inBodyID));
+  }
+
+ private:
+  const JoltPhysicsEnvironment &m_env;
+  const JPH::BodyID m_own;
+  const bool m_navigating;
+};
+
 /** Simulate pushes nothing: ApplyStep works the pushes out afterwards, in character order, so
  * characters moving at once (or in any order) read the same world and leave the same one. */
 class JoltCharacterNoImpulseListener final : public JPH::CharacterContactListener {
@@ -167,6 +193,8 @@ JoltCharacter::JoltCharacter(JoltPhysicsController *ctrl,
       m_maxJumps(1),
       m_jumpCount(0),
       m_wantJump(false),
+      m_wantLaunch(false),
+      m_launchSpeed(0.0f),
       m_overrideVelocity(JPH::Vec3::sZero()),
       m_overrideTime(0.0f),
       m_overridePending(false),
@@ -251,6 +279,15 @@ void JoltCharacter::Jump()
 {
   /* Whether it may jump is decided at the step (its ground state then). */
   m_wantJump = true;
+}
+
+void JoltCharacter::Launch(const float upSpeed)
+{
+  if (!std::isfinite(upSpeed)) {
+    return;
+  }
+  m_wantLaunch = true;
+  m_launchSpeed = std::max(upSpeed, 0.0f);
 }
 
 bool JoltCharacter::OnGround()
@@ -373,6 +410,7 @@ void JoltCharacter::Reset()
 {
   m_jumpCount = 0;
   m_wantJump = false;
+  m_wantLaunch = false;
   m_walkDirection = MT_Vector3(0.0f, 0.0f, 0.0f);
   m_overrideVelocity = JPH::Vec3::sZero();
   m_overrideTime = 0.0f;
@@ -396,6 +434,39 @@ void JoltCharacter::SetStepHeight(const float stepHeight)
   if (std::isfinite(stepHeight)) {
     m_stepHeight = std::max(stepHeight, 0.0f);
   }
+}
+
+float JoltCharacter::GetClimbHeight() const
+{
+  /* The shape it has now (crouched too), unwrapped: a uniform scale (a capsule's and a sphere's
+   * rule) and a turn or offset (a fitted capsule) keep a round bottom round. */
+  const JPH::Shape *shape = m_character ? m_character->GetShape() : m_shape.GetPtr();
+  float scale = 1.0f;
+  for (int depth = 0; shape != nullptr && depth < 4; depth++) {
+    if (shape->GetSubType() == JPH::EShapeSubType::Scaled) {
+      const JPH::ScaledShape *scaled = static_cast<const JPH::ScaledShape *>(shape);
+      scale *= std::abs(scaled->GetScale().GetX());
+      shape = scaled->GetInnerShape();
+    }
+    else if (shape->GetSubType() == JPH::EShapeSubType::RotatedTranslated) {
+      shape = static_cast<const JPH::RotatedTranslatedShape *>(shape)->GetInnerShape();
+    }
+    else {
+      break;
+    }
+  }
+  float radius = 0.0f;
+  if (shape != nullptr && shape->GetSubType() == JPH::EShapeSubType::Capsule) {
+    radius = static_cast<const JPH::CapsuleShape *>(shape)->GetRadius() * scale;
+  }
+  else if (shape != nullptr && shape->GetSubType() == JPH::EShapeSubType::Sphere) {
+    radius = static_cast<const JPH::SphereShape *>(shape)->GetRadius() * scale;
+  }
+  /* Max Slope 0 is Jolt's "no limit". */
+  const float slope = m_maxSlope > 0.0f ? std::min(m_maxSlope, 1.5707963f) : 1.5707963f;
+  const float angle = std::min(slope, 1.3962634f); /* 80 degrees */
+  const float ride = radius * (1.0f - std::cos(angle));
+  return std::max(m_stepHeight, ride);
 }
 
 void JoltCharacter::SetCrouch(const bool crouch, const float height)
@@ -582,10 +653,11 @@ bool JoltCharacter::PrepareStep(const float timeStep)
     m_character->SetPosition(JoltMath::ToJolt(position));
     m_character->SetLinearVelocity(JPH::Vec3::sZero());
     m_achievedVelocity = JPH::Vec3::sZero();
-    /* (Pushes meet nothing that moves: none waits for a later step.) */
+    /* (Pushes meet nothing that moves: none waits for a later step; nor does a launch.) */
     m_knockback = JPH::Vec3::sZero();
     m_pendingVelocityChange = JPH::Vec3::sZero();
     m_pendingForce = JPH::Vec3::sZero();
+    m_wantLaunch = false;
     m_hasWritten = false;
     /* It touches nothing it knows of; its stance still follows (a character seated in a car
      * crouches). */
@@ -646,6 +718,12 @@ bool JoltCharacter::PrepareStep(const float timeStep)
       m_jumpCount++;
     }
   }
+  /* A navigation launch (2026-11-19): a jump of its own speed, not counted. */
+  if (m_wantLaunch) {
+    m_wantLaunch = false;
+    const float base = grounded ? ground.Dot(up) : 0.0f;
+    velocity += up * (base + m_launchSpeed - velocity.Dot(up));
+  }
   /* Pushes since the last step (2026-11-17): along up as a jump's (off the ground, then gravity
    * acts), sideways the knock-back (kept, fading, in ApplyStep). */
   const JPH::Vec3 pushed = m_pendingVelocityChange + m_pendingForce * (timeStep / kMass);
@@ -700,8 +778,9 @@ void JoltCharacter::Simulate(const float timeStep, JPH::TempAllocator &allocator
   const JPH::DefaultBroadPhaseLayerFilter broadPhaseFilter = system->GetDefaultBroadPhaseLayerFilter(
       layer);
   const JPH::DefaultObjectLayerFilter objectLayerFilter = system->GetDefaultLayerFilter(layer);
-  /* Its own body is the character in the world for everything else: never in its way. */
-  const JPH::IgnoreSingleBodyFilter bodyFilter(m_ctrl->GetBodyID());
+  /* Its own body is the character in the world for everything else: never in its way; nor,
+   * while it navigates, other navigating NPCs physics cannot push (item 12). */
+  const JoltCharacterBodyFilter bodyFilter(*m_env, m_ctrl->GetBodyID());
   const JPH::ShapeFilter shapeFilter;
   const JPH::Vec3 up = character.GetUp();
   const JPH::Vec3 gravity = JoltMath::ToJolt(m_gravity);

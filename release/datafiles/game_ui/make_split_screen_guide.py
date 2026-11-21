@@ -515,8 +515,9 @@ class Demo(G.Example):
     def scene_settings(self):
         """The scene's settings that are not as in a new file, with where they are."""
         rna = bpy.types.SceneGameData.bl_rna
-        game = G.differs(R._settings(self.scene.game_settings, skip=R.SCENE_GAME_SKIP),
-                         self.start["game"])
+        game = G.drop_unused_navigation(
+            G.differs(R._settings(self.scene.game_settings, skip=R.SCENE_GAME_SKIP),
+                      self.start["game"]), self.scene)
         game.pop("input_actions", None)
         game.pop("inventory_rules", None)
         rows = []

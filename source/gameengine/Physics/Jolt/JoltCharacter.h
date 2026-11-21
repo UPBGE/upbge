@@ -121,6 +121,19 @@ class JoltCharacter : public PHY_ICharacter {
 
   virtual float GetStepHeight() const override;
   virtual void SetStepHeight(float stepHeight) override;
+  /** Its Step Height, or with a round bottom (a capsule or a sphere, the shape it has now) the
+   * edge it rides up: r (1 - cos(angle)), the angle its Max Slope counted to 80 degrees (measured
+   * 2026-11-19: a 0.3 m capsule with 90 degrees rides 0.28 m, an 86 degree contact; upright it
+   * stalls). A box or cylinder's flat bottom rides nothing. */
+  virtual float GetClimbHeight() const override;
+
+  /** Navigation's physics jumps (2026-11-19): taken at its next step as a jump of \a upSpeed
+   * that its Max Jumps does not limit and its jump count does not count. */
+  virtual bool CanLaunch() const override
+  {
+    return true;
+  }
+  virtual void Launch(float upSpeed) override;
 
   /** Crouching (2026-11-17): the shape changes at its next step. Down at once; up only where the
    * standing shape has room (Jolt's CharacterVirtual::SetShape with a penetration check, as
@@ -286,6 +299,9 @@ class JoltCharacter : public PHY_ICharacter {
   unsigned char m_maxJumps;
   unsigned char m_jumpCount;
   bool m_wantJump;
+  /** A navigation launch waiting for its step (Launch), its upward speed. */
+  bool m_wantLaunch;
+  float m_launchSpeed;
 
   /** Set Character Velocity: the horizontal velocity in place of walking, and for how long. */
   JPH::Vec3 m_overrideVelocity;

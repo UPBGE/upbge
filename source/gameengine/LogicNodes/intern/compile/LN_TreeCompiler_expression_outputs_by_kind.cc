@@ -22,6 +22,21 @@
 
 namespace ln_compiler {
 
+/** The output its node's compile handler made (CompileGamePropertyReadNode: another object's
+ * property when the Object input names one). The Get Game Property cases below are only the
+ * owner's read for a node no handler compiled: a generic input (On Value Change's Value) asks
+ * this dispatcher before the typed caches, and Get Game Property Int of another object read the
+ * owner's property there and never changed (2026-11-19). */
+static std::optional<uint32_t> HandlerCompiledPin(const ValueExpressionCache *cache,
+                                                  const blender::bNodeSocket &output_socket)
+{
+  if (cache == nullptr) {
+    return std::nullopt;
+  }
+  const auto iter = cache->find(&output_socket);
+  return iter != cache->end() ? iter->second : std::nullopt;
+}
+
 static const char *GetObjectAttributeName(const int attribute_type)
 {
   switch (attribute_type) {
@@ -392,6 +407,12 @@ case LN_NodeKind::GetGamePropertyBool:
       r_handled = true;
       {
       r_handled = true;
+      if (const std::optional<uint32_t> pin = HandlerCompiledPin(g_compiled_output_caches.bools,
+                                                                 output_socket))
+      {
+        result = pin;
+        break;
+      }
       std::optional<LN_Value> name = ReadInputValue(node,
                                                     "Property",
                                                     LN_ValueType::String,
@@ -2037,6 +2058,12 @@ case LN_NodeKind::GetGamePropertyInt:
       r_handled = true;
       {
       r_handled = true;
+      if (const std::optional<uint32_t> pin = HandlerCompiledPin(g_compiled_output_caches.ints,
+                                                                 output_socket))
+      {
+        result = pin;
+        break;
+      }
       std::optional<LN_Value> name = ReadInputValue(node,
                                                     "Property",
                                                     LN_ValueType::String,
@@ -2615,6 +2642,12 @@ case LN_NodeKind::ValueSwitch:
       r_handled = true;
       {
       r_handled = true;
+      if (const std::optional<uint32_t> pin = HandlerCompiledPin(g_compiled_output_caches.floats,
+                                                                 output_socket))
+      {
+        result = pin;
+        break;
+      }
       const std::optional<LN_Value> name = ReadInputValue(node,
                                                           "Property",
                                                           LN_ValueType::String,
@@ -3163,6 +3196,12 @@ case LN_NodeKind::GetGamePropertyString:
       r_handled = true;
       {
       r_handled = true;
+      if (const std::optional<uint32_t> pin = HandlerCompiledPin(g_compiled_output_caches.strings,
+                                                                 output_socket))
+      {
+        result = pin;
+        break;
+      }
       const std::optional<LN_Value> name = ReadInputValue(node,
                                                           "Property",
                                                           LN_ValueType::String,

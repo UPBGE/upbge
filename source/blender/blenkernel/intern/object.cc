@@ -634,6 +634,8 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   /* UPBGE: UI Element tooltip and refused-drop objects. */
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->game_ui.tooltip, IDWALK_CB_NOP);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->game_ui.refused, IDWALK_CB_NOP);
+  /* UPBGE: the object at the other end of its navigation link. */
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->game_navigation.link_end, IDWALK_CB_NOP);
   /****************/
 
   if (object->soft) {

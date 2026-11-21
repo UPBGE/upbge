@@ -1060,7 +1060,9 @@ def fingerprint(scene):
         "materials": materials,
         "trees": trees,
         "scene": {
-            "game": settings(game, skip=R.SCENE_GAME_SKIP),
+            # (Navigation settings of a scene that does not navigate do nothing; the guide leaves
+            # them out: G.drop_unused_navigation.)
+            "game": G.drop_unused_navigation(settings(game, skip=R.SCENE_GAME_SKIP), scene),
             "camera": scene.camera.name if scene.camera else None,
             "actions": [(settings(action, skip={"active_binding_index"}),
                          [settings(binding) for binding in action.bindings])

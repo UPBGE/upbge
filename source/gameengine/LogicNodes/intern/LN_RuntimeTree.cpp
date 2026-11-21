@@ -1501,22 +1501,6 @@ static bool ValueAsWorldVector(const LN_Value &value, MT_Vector3 &r_vector)
   return false;
 }
 
-static bool CollectPathPoints(const LN_Value &path_value, std::vector<MT_Vector3> &r_points)
-{
-  r_points.clear();
-  if (path_value.type != LN_ValueType::List || !path_value.exists) {
-    return false;
-  }
-
-  for (const LN_Value &item : path_value.list_value) {
-    MT_Vector3 point(0.0f, 0.0f, 0.0f);
-    if (ValueAsWorldVector(item, point)) {
-      r_points.push_back(point);
-    }
-  }
-  return !r_points.empty();
-}
-
 static bool StringStartsWith(const std::string &value, const std::string &prefix)
 {
   return prefix.size() <= value.size() && value.compare(0, prefix.size(), prefix) == 0;

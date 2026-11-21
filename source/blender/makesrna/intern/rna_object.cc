@@ -2399,6 +2399,51 @@ static std::optional<std::string> rna_GameObjectUISettings_path(const PointerRNA
   return "game.ui";
 }
 
+/** UPBGE (2026-11-20): Navigation > Area's list: the areas the file names (objects' areas, the
+ * Area inputs of logic nodes), each once. */
+static void rna_GameObjectSettings_nav_area_visit_for_search(
+    const bContext *C,
+    PointerRNA * /*ptr*/,
+    PropertyRNA * /*prop*/,
+    const char * /*edit_text*/,
+    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
+{
+  Main *bmain = CTX_data_main(C);
+  if (bmain == nullptr) {
+    return;
+  }
+  Set<std::string> seen;
+  auto visit = [&](const char *name, const char *info) {
+    if (name[0] != '\0' && seen.add(name)) {
+      StringPropertySearchVisitParams visit_params{};
+      visit_params.text = name;
+      visit_params.info = info;
+      visit_fn(visit_params);
+    }
+  };
+  for (const Object &ob : bmain->objects) {
+    visit(ob.game_navigation.area, ob.id.name + 2);
+  }
+  for (const bNodeTree &tree : bmain->nodetrees) {
+    if (tree.type != NTREE_LOGIC) {
+      continue;
+    }
+    for (const bNode &node : tree.nodes) {
+      for (const bNodeSocket *socket = static_cast<const bNodeSocket *>(node.inputs.first);
+           socket != nullptr;
+           socket = socket->next)
+      {
+        if (socket->type == SOCK_STRING && socket->default_value != nullptr &&
+            STREQ(socket->identifier, "Area"))
+        {
+          visit(static_cast<const bNodeSocketValueString *>(socket->default_value)->value,
+                node.name);
+        }
+      }
+    }
+  }
+}
+
 /* A part the element hides and shows: not the element or one of its parents (both would hide the
  * element with it). */
 static bool rna_GameObjectUISettings_part_poll(PointerRNA *ptr, PointerRNA value)
@@ -5121,14 +5166,178 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_obstacle_create", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "gameflag", OB_HASOBSTACLE);
-  RNA_def_property_ui_text(
-      prop, "Create obstacle", "Create representation for obstacle simulation");
+  RNA_def_property_ui_text(prop,
+                           "Obstacle",
+                           "NPCs walk round it: avoided while it moves, cut out of the game's "
+                           "navigation mesh while it stands still (and Obstacle Simulation "
+                           "avoids it)");
 
   prop = RNA_def_property(srna, "obstacle_radius", PROP_FLOAT, PROP_NONE | PROP_UNIT_LENGTH);
   RNA_def_property_float_sdna(prop, nullptr, "obstacleRad");
   RNA_def_property_range(prop, 0.0, 1000.0);
   RNA_def_property_ui_text(
       prop, "Obstacle Radius", "Radius of object representation in obstacle simulation");
+
+  /* UPBGE (2026-11-20): Navigation: what NPCs make of the object (Physics tab > Navigation). Set
+   * Navigation Attribute changes them while playing. */
+  static const EnumPropertyItem nav_link_kind_items[] = {
+      {OB_NAV_LINK_KIND_JUMP,
+       "JUMP",
+       0,
+       "Jump",
+       "NPCs jump it (Jumps: Physics: Characters and Dynamic bodies really jump; it is closed "
+       "to an NPC whose jump limits it exceeds)"},
+      {OB_NAV_LINK_KIND_DROP, "DROP", 0, "Drop", "NPCs jump down it (a jump's rules)"},
+      {OB_NAV_LINK_KIND_LADDER, "LADDER", 0, "Ladder", "NPCs climb it, carried at their speed"},
+      {OB_NAV_LINK_KIND_DOOR, "DOOR", 0, "Door", "NPCs go through it, carried at their speed"},
+      {OB_NAV_LINK_KIND_TELEPORT,
+       "TELEPORT",
+       0,
+       "Teleport",
+       "NPCs arrive at its other end at once"},
+      {OB_NAV_LINK_KIND_GANGWAY,
+       "GANGWAY",
+       0,
+       "Gangway",
+       "NPCs walk it, carried at their speed (a plank to a ship, a lift's door)"},
+      {OB_NAV_LINK_KIND_CUSTOM,
+       "CUSTOM",
+       0,
+       "Custom",
+       "A kind of the game's own (its name is what On Navigation Link and Get Navigation Info "
+       "give); carried at the NPC's speed"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem nav_link_when_closed_items[] = {
+      {OB_NAV_LINK_CLOSED_GO_ROUND,
+       "GO_ROUND",
+       0,
+       "Go Round",
+       "While the link is closed NPCs search a way without it (or get as near as they can)"},
+      {OB_NAV_LINK_CLOSED_WAIT,
+       "WAIT",
+       0,
+       "Wait",
+       "NPCs whose way takes the link walk to its start and wait there while it is closed, then "
+       "cross (a door they wait at: Get Navigation Info's Waiting tells the game)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "use_nav_vehicle", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "game_navigation.flag", OB_NAV_VEHICLE);
+  RNA_def_property_ui_text(prop,
+                           "Vehicle",
+                           "NPCs walk on it and ride along while it moves (a ship, a train car, "
+                           "a lift's cab): its shape gets a navigation mesh of its own, shared by "
+                           "its copies");
+
+  prop = RNA_def_property(srna, "nav_area", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "game_navigation.area");
+  RNA_def_property_string_search_func(prop,
+                                      "rna_GameObjectSettings_nav_area_visit_for_search",
+                                      eStringPropertySearchFlag(PROP_STRING_SEARCH_SORT |
+                                                                PROP_STRING_SEARCH_SUGGESTION));
+  RNA_def_property_ui_text(prop,
+                           "Area",
+                           "The area the object's surfaces are in the navigation mesh (water, "
+                           "mud, road): Set Navigation Attribute's Area Cost and Area Closed "
+                           "name it per NPC. Empty: ordinary ground");
+
+  prop = RNA_def_property(srna, "nav_link_end", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "game_navigation.link_end");
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
+  RNA_def_property_ui_text(prop,
+                           "To",
+                           "A navigation link from this object to this one: NPCs cross from "
+                           "one to the other (a ladder's foot and top, a door's two sides, a "
+                           "teleporter and its destination). Empty: no link");
+
+  prop = RNA_def_property(srna, "nav_link_kind", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "game_navigation.link_kind");
+  RNA_def_property_enum_items(prop, nav_link_kind_items);
+  RNA_def_property_ui_text(
+      prop, "Kind", "What the link is (On Navigation Link and Get Navigation Info give it)");
+
+  prop = RNA_def_property(srna, "nav_link_kind_name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "game_navigation.link_kind_name");
+  RNA_def_property_ui_text(prop, "Kind Name", "The name of the link's own kind");
+
+  prop = RNA_def_property(srna, "use_nav_link_both_ways", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "game_navigation.flag", OB_NAV_LINK_BOTH_WAYS);
+  RNA_def_property_ui_text(
+      prop, "Both Ways", "NPCs take the link both ways (off: only from this object)");
+
+  prop = RNA_def_property(srna, "use_nav_link_open", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "game_navigation.flag", OB_NAV_LINK_ENABLED);
+  RNA_def_property_ui_text(prop,
+                           "Open at Start",
+                           "The link is open when the game starts (Set Navigation Attribute's "
+                           "Link Enabled opens and closes it while playing)");
+
+  prop = RNA_def_property(srna, "nav_link_when_closed", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "game_navigation.link_when_closed");
+  RNA_def_property_enum_items(prop, nav_link_when_closed_items);
+  RNA_def_property_ui_text(prop, "When Closed", "What NPCs do while the link is closed");
+
+  prop = RNA_def_property(srna, "nav_link_wait_time", PROP_FLOAT, PROP_TIME_ABSOLUTE);
+  RNA_def_property_float_sdna(prop, nullptr, "game_navigation.link_wait_time");
+  RNA_def_property_range(prop, 0.0, 3600.0);
+  RNA_def_property_ui_range(prop, 0.0, 120.0, 100, 1);
+  RNA_def_property_ui_text(prop,
+                           "Give Up After",
+                           "Seconds an NPC waits at the closed link before it searches another "
+                           "way (0: it waits for ever)");
+
+  /* UPBGE (2026-11-20): the room it needs as an NPC (plan item 2). */
+  prop = RNA_def_property(srna, "nav_npc_radius", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "game_navigation.npc_radius");
+  RNA_def_property_range(prop, 0.0, 100.0);
+  RNA_def_property_ui_range(prop, 0.0, 10.0, 10, 2);
+  RNA_def_property_float_default(prop, 0.0f);
+  RNA_def_property_ui_text(prop,
+                           "NPC Radius",
+                           "As an NPC, how much room it keeps from walls and how wide a gap it "
+                           "fits through (0: its collision shape's, else its mesh's). Set it when "
+                           "it needs more room than its body (a horse with a small capsule)");
+
+  prop = RNA_def_property(srna, "nav_keep_away", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "game_navigation.keep_away");
+  RNA_def_property_range(prop, 0.0, 100.0);
+  RNA_def_property_ui_range(prop, 0.0, 10.0, 10, 2);
+  RNA_def_property_float_default(prop, 0.0f);
+  RNA_def_property_ui_text(prop,
+                           "Keep Away",
+                           "As an obstacle, the extra room NPCs keep from it (m): added round its "
+                           "collision shape (else its mesh) where it is cut out of the "
+                           "navigation mesh and where NPCs steer round it. An object with no "
+                           "shape (an Empty) is a zone this wide NPCs keep out of");
+
+  prop = RNA_def_property(srna, "nav_link_radius", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "game_navigation.link_radius");
+  RNA_def_property_range(prop, 0.05, 100.0);
+  RNA_def_property_ui_range(prop, 0.05, 10.0, 10, 2);
+  RNA_def_property_ui_text(
+      prop, "Radius", "How near its ends the navigation mesh must be for the link to join it");
+
+  prop = RNA_def_property(srna, "nav_link_duration", PROP_FLOAT, PROP_TIME_ABSOLUTE);
+  RNA_def_property_float_sdna(prop, nullptr, "game_navigation.link_duration");
+  RNA_def_property_range(prop, 0.0, 600.0);
+  RNA_def_property_ui_range(prop, 0.0, 30.0, 10, 2);
+  RNA_def_property_ui_text(prop,
+                           "Duration",
+                           "Seconds an NPC takes to cross (0: from the kind: a teleport at once, "
+                           "a jump as long as its arc, the rest at the NPC's speed)");
+
+  prop = RNA_def_property(srna, "nav_link_reach", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "game_navigation.link_reach");
+  RNA_def_property_range(prop, 0.0, 100.0);
+  RNA_def_property_ui_range(prop, 0.0, 10.0, 10, 2);
+  RNA_def_property_ui_text(prop,
+                           "Reach",
+                           "Only for a link to or from a vehicle: it is open while its two ends "
+                           "are at most this far apart (a ship at the dock, a lift's cab at the "
+                           "floor)");
 
   prop = RNA_def_property(srna, "friction", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "friction");

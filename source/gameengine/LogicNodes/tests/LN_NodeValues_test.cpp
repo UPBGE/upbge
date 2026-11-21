@@ -1224,6 +1224,62 @@ TEST(LN_NodeValues, ValueChangedPulsesWhenTheValueDiffersFromTheLastOneItSaw)
   }
 }
 
+/* Value Changed of ANOTHER object's typed game property (2026-11-19: Get Game Property Int of
+ * another object into On Value Change never pulsed, while Float and Any did; the navigation
+ * example 15's units never took orders). Every type, the own object's too, in every rig mode. */
+TEST(LN_NodeValues, ValueChangedSeesAnotherObjectsTypedPropertyChange)
+{
+  const char *readers[] = {"LogicNativeGetGamePropertyInt",
+                           "LogicNativeGetGamePropertyFloat",
+                           "LogicNativeGetGamePropertyBool",
+                           "LogicNativeGetGameProperty"};
+  for (const char *reader : readers) {
+    for (const bool other : {true, false}) {
+      SCOPED_TRACE(std::string(reader) + (other ? " of Target" : " of the owner"));
+      for (const SemMode &mode : AllModes()) {
+        SCOPED_TRACE(mode.name);
+        TreeBuilder b;
+        GenNode &v = b.Add(reader);
+        b.String(v, "Property", "n");
+        if (other) {
+          b.ObjectNamed(v, "Object", &diff::TargetBlenderObject());
+        }
+        GenNode &changed = b.Add("LogicNativeValueChanged");
+        b.Link(v, "Value", changed, "Value");
+        GenNode &mark = b.Add("LogicNativeSetGamePropertyFloat");
+        b.String(mark, "Property", "mark");
+        b.Float(mark, "Value", 1.0f);
+        b.Link(changed, "If Changed", mark, "Flow");
+        const std::shared_ptr<LN_Program> program = CompileOrFail(b);
+        ASSERT_NE(program, nullptr);
+        SemRig rig(program, mode);
+        KX_GameObject &holder = other ? rig.AddObject("Target", MT_Vector3()) : rig.Object(0);
+        const bool boolean = std::string(reader) == "LogicNativeGetGamePropertyBool";
+        const struct {
+          int n;
+          float mark;
+        } steps[] = {{1, 0}, {1, 0}, {2, 1}, {2, 0}, {0, 1}, {0, 0}, {5, 1}};
+        int step_number = 0;
+        for (const auto &step : steps) {
+          SCOPED_TRACE("step " + std::to_string(step_number++));
+          if (boolean) {
+            rig.SetBool(holder, "n", step.n != 0);
+          }
+          else {
+            rig.SetInt(holder, "n", step.n);
+          }
+          rig.SetFloat(rig.Object(0), "mark", 0.0f);
+          rig.Step();
+          const bool bool_same = boolean && step_number > 1 &&
+                                 (steps[step_number - 2].n != 0) == (step.n != 0);
+          EXPECT_EQ(rig.Float(rig.Object(0), "mark"), bool_same ? 0.0f : step.mark)
+              << LN_DumpProgramText(*program);
+        }
+      }
+    }
+  }
+}
+
 /* Boolean Edge: Rising on false -> true, Falling on true -> false, nothing on the first sample. */
 TEST(LN_NodeValues, BooleanEdgePulsesOnTheChangeOfAConditionAndNotOnTheFirstSample)
 {

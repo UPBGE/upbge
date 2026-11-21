@@ -1043,6 +1043,29 @@ def differs(values, start):
             if name not in start or not R._equal(value, start[name])}
 
 
+NAVIGATION_NODES = {"LogicNativeNavigate", "LogicNativeFollowPath", "LogicNativeNavmeshQuery",
+                    "LogicNativeGetNavigationInfo", "LogicNativeOnNavigationLink",
+                    "LogicNativeSetNavigationAttribute"}
+
+
+def drop_unused_navigation(game, scene):
+    """Leaves the scene's navigation settings (Scene tab › Navigation Mesh, `recast_data.*`) out
+    of `game` when the example does not navigate: no navmesh built at the start, no navmesh
+    object, no navigation node. They do nothing there, and an older file differs from a new one
+    by itself (Jumps: an older file's open as Carried, a new file's are Physics). An example
+    that navigates keeps them: its guide must say where they are. (Build Auto, a new file's,
+    builds nothing without a navigation node, as Off.)"""
+    if scene.game_settings.recast_data.build_mode not in {'OFF', 'AUTO'}:
+        return game
+    if any(ob.game.physics_type == 'NAVMESH' for ob in scene.objects):
+        return game
+    for tree in bpy.data.node_groups:
+        if tree.bl_idname == "LogicNodeTree" and any(
+                node.bl_idname in NAVIGATION_NODES for node in tree.nodes):
+            return game
+    return {key: value for key, value in game.items() if not key.startswith("recast_data.")}
+
+
 def guide_view(recipe, start):
     """The example as the guide shows it: each object's settings that are not as the Add menu
     makes them, without settings that do nothing where they are."""
@@ -1976,8 +1999,9 @@ class Example:
     def scene_settings(self):
         """The scene's settings that are not as in a new file, with where they are."""
         rna = bpy.types.SceneGameData.bl_rna
-        game = differs(R._settings(self.scene.game_settings, skip=R.SCENE_GAME_SKIP),
-                       self.start["game"])
+        game = drop_unused_navigation(
+            differs(R._settings(self.scene.game_settings, skip=R.SCENE_GAME_SKIP),
+                    self.start["game"]), self.scene)
         rows = []
         # A new file's camera is deleted with its collection: the scene's is always set.
         if self.scene.camera is not None:

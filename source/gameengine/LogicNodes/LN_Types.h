@@ -631,17 +631,78 @@ inline constexpr int32_t LN_NAV_STATE_LINK_STARTED = 6;
 inline constexpr int32_t LN_NAV_STATE_ACTIVE = 7;
 /** Navigate's When Reached (2026-11-18): it arrived in the last step (KX_NavAgentInfo::reached). */
 inline constexpr int32_t LN_NAV_STATE_REACHED = 8;
+/** Follow Path's Finished (2026-11-19): it reached the last point of a path without Loop. */
+inline constexpr int32_t LN_NAV_STATE_REACHED_LAST = 9;
+/** On Navigation Link's On Link End (2026-11-19): its crossing ended in the last step. */
+inline constexpr int32_t LN_NAV_STATE_LINK_ENDED = 10;
+/** Get Navigation Info's Waiting (2026-11-19): at a closed link to or from a vehicle. */
+inline constexpr int32_t LN_NAV_STATE_WAITING = 11;
+/** Navigate's When Failed (2026-11-20, plan item 8): its order failed in the last step
+ * (KX_NavAgentInfo::failed, of the node's own order: secondary_int_value its identity). */
+inline constexpr int32_t LN_NAV_STATE_FAILED = 12;
+/** Value::NavigationLinkObject's object (its value's int_value): the link it crosses, the link
+ * it waits at, the vehicle it stands on (2026-11-19). */
+inline constexpr int32_t LN_NAV_OBJECT_LINK = 0;
+inline constexpr int32_t LN_NAV_OBJECT_WAITING_AT = 1;
+inline constexpr int32_t LN_NAV_OBJECT_VEHICLE = 2;
 /** Vector::NavigationState (int_value). */
 inline constexpr int32_t LN_NAV_VECTOR_NEXT_CORNER = 0;
 inline constexpr int32_t LN_NAV_VECTOR_VELOCITY = 1;
 inline constexpr int32_t LN_NAV_VECTOR_GOAL = 2;
+/** The surface it walks or climbs on (2026-11-19, KX_NavAgentInfo::surface_normal). */
+inline constexpr int32_t LN_NAV_VECTOR_SURFACE_NORMAL = 3;
 /** Float::NavigationState (int_value). */
 inline constexpr int32_t LN_NAV_FLOAT_REMAINING = 0;
 inline constexpr int32_t LN_NAV_FLOAT_SPEED = 1;
+/** Follow Path's Point Index (2026-11-19): the place in its list of the point it reached last
+ * (-1 none yet). */
+inline constexpr int32_t LN_NAV_FLOAT_POINT = 2;
 
-/** Navigate's custom2 bits (2026-11-18). Until Arrived: one pulse is enough, the order holds until
- * the NPC arrives, a new order replaces it or Stop ends it. */
+/** A Navigate or Follow Path node's identity (2026-11-19, KX_NavRequest::issuer: When Reached
+ * pulses on the node whose order arrived): 24 bits of a hash of its tree's and its own name,
+ * never 0. Carried in the instruction's int_value bits 8-31 (Navigate's Mode, Follow Path's Way
+ * in bits 0-7), in Bool::NavigationState's secondary_int_value and in Float::NavigationState's
+ * int_value bits 8-31 (its LN_NAV_FLOAT_* in bits 0-7). */
+inline constexpr int32_t LN_NAV_ISSUER_SHIFT = 8;
+inline constexpr int32_t LN_NAV_CODE_MASK = 0xFF;
+/** Follow Path's request tag (the point's place + 1) of the last point of a path without Loop. */
+inline constexpr uint32_t LN_FOLLOW_PATH_LAST_POINT = 1u << 31;
+/** Follow Path's Way (custom1, 2026-11-19): Straight from point to point (0, every older node;
+ * on the Optional Navmesh when one is given, as before), or Navmesh (the Optional Navmesh, else
+ * the scene's, avoiding others as Navigate). */
+inline constexpr int16_t LN_FOLLOW_PATH_WAY_STRAIGHT = 0;
+inline constexpr int16_t LN_FOLLOW_PATH_WAY_NAVMESH = 1;
+
+/** Navigate's custom2 bits (2026-11-18), handed to its instruction's secondary_int_value as they
+ * are. Until Arrived: one pulse is enough, the order holds until the NPC arrives, a new order
+ * replaces it or Stop ends it. */
 inline constexpr int16_t LN_NAVIGATE_UNTIL_ARRIVED = 1 << 0;
+/** Avoidance (2026-11-19): Dense (packed crowds: NPCs press and push by weight, Priority) instead
+ * of Polite (ORCA, 0). Since 2026-11-20 the Avoidance input (LN_NAVIGATE_AVOIDANCE_*, the
+ * instruction's quaternary_int_expr_index): this bit only in nodes saved before (the editor moves
+ * it into the input), never in the instruction. */
+inline constexpr int16_t LN_NAVIGATE_DENSE = 1 << 1;
+/** Navigate's Avoidance input (2026-11-20): 0 Off (straight through everyone), 1 Polite (ORCA),
+ * 2 Dense; below 0 counts as 0, above 2 as 2. */
+inline constexpr int32_t LN_NAVIGATE_AVOIDANCE_OFF = 0;
+inline constexpr int32_t LN_NAVIGATE_AVOIDANCE_POLITE = 1;
+inline constexpr int32_t LN_NAVIGATE_AVOIDANCE_DENSE = 2;
+/** Move (2026-11-19): bits 2-3, LN_NAVIGATE_MOVE_WALK / _FLY / _SWIM. */
+inline constexpr int16_t LN_NAVIGATE_MOVE_SHIFT = 2;
+inline constexpr int16_t LN_NAVIGATE_MOVE_MASK = 3 << 2;
+inline constexpr int16_t LN_NAVIGATE_MOVE_WALK = 0;
+inline constexpr int16_t LN_NAVIGATE_MOVE_FLY = 1;
+inline constexpr int16_t LN_NAVIGATE_MOVE_SWIM = 2;
+/** Climb (2026-11-19): bits 4-5, LN_NAVIGATE_CLIMB_FLOORS (0) / _WALLS / _CEILINGS. */
+inline constexpr int16_t LN_NAVIGATE_CLIMB_SHIFT = 4;
+inline constexpr int16_t LN_NAVIGATE_CLIMB_MASK = 3 << 4;
+inline constexpr int16_t LN_NAVIGATE_CLIMB_FLOORS = 0;
+inline constexpr int16_t LN_NAVIGATE_CLIMB_WALLS = 1;
+inline constexpr int16_t LN_NAVIGATE_CLIMB_CEILINGS = 2;
+/** Every setting bit above (what the instruction carries). */
+inline constexpr int16_t LN_NAVIGATE_SETTINGS_MASK = LN_NAVIGATE_UNTIL_ARRIVED |
+                                                     LN_NAVIGATE_MOVE_MASK |
+                                                     LN_NAVIGATE_CLIMB_MASK;
 
 /** Navmesh Query's mode (custom1). */
 enum class LN_NavmeshQueryMode : uint8_t {
@@ -650,7 +711,23 @@ enum class LN_NavmeshQueryMode : uint8_t {
   RandomPoint = 2,
   IsReachable = 3,
   WalkableLine = 4,
+  /** The air (phase 8, 2026-11-19), for a flyer the size of the object running the tree. */
+  AirNearestPoint = 5,
+  AirClearLine = 6,
+  AirFindPath = 7,
+  /** (2026-11-20, plan E8) A good place to go round Position (KX_NavSpotQuery): From the walk's
+   * start, Look From / Look Object the one it is judged against, Samples, Cover, Cover Distance,
+   * Walk Weight, Look Weight, Not Taken, Spacing, Area; Visibility in the int_value's bits
+   * 9-10 (LN_NAVMESH_QUERY_SPOT_*). Found, Point (the best), Points (best first), Length (its
+   * walk), Score. */
+  FindSpot = 8,
 };
+/** Navmesh Query's In Water (node custom2 bit 0): in the query's int_value above the mode. */
+inline constexpr int32_t LN_NAVMESH_QUERY_WATER = 1 << 8;
+/** Find Spot's Visibility (node custom2 bits 1-2): Any, Hidden From the look, Seen By it. */
+inline constexpr int32_t LN_NAVMESH_QUERY_SPOT_SHIFT = 9;
+inline constexpr int32_t LN_NAVMESH_QUERY_SPOT_HIDDEN = 1;
+inline constexpr int32_t LN_NAVMESH_QUERY_SPOT_SEEN = 2;
 
 /** Set Navigation Attribute's attribute (custom1). */
 enum class LN_NavigationAttribute : uint8_t {
@@ -660,6 +737,17 @@ enum class LN_NavigationAttribute : uint8_t {
   RebuildArea = 3,
   /** Navigate's Stop input (2026-11-18; not in the node's dropdown): the object's order ends. */
   Stop = 4,
+  /** (2026-11-19) The NPC's jump limits on jump links: Jump Gap (float_expr_index), Jump Up
+   * (secondary_float_expr_index), Drop Down (tertiary_float_expr_index); Enabled off: its own
+   * again (a Character's jump, else none). */
+  JumpLimits = 5,
+  /** (2026-11-20) Physics > Navigation's settings while playing, on the Object: Vehicle on or
+   * off (Enabled), its link open or closed (Link Enabled: Enabled), its link to End Object
+   * (secondary_value_expr_index, read last; empty: no link), its surfaces' Area. */
+  Vehicle = 6,
+  LinkEnabled = 7,
+  LinkEnd = 8,
+  Area = 9,
 };
 
 /** Get Character Info's Vector::SnapshotCharacterSurface (int_value). */
@@ -2478,6 +2566,8 @@ struct LN_Instruction {
   uint32_t int_expr_index = LN_INVALID_INDEX;
   uint32_t secondary_int_expr_index = LN_INVALID_INDEX;
   uint32_t tertiary_int_expr_index = LN_INVALID_INDEX;
+  /** (2026-11-20, Navigate's Avoidance.) */
+  uint32_t quaternary_int_expr_index = LN_INVALID_INDEX;
   uint32_t float_expr_index = LN_INVALID_INDEX;
   uint32_t secondary_float_expr_index = LN_INVALID_INDEX;
   uint32_t tertiary_float_expr_index = LN_INVALID_INDEX;

@@ -1785,6 +1785,54 @@ if(WITH_GAMEENGINE_LOGICNODES)
     --python "${CMAKE_CURRENT_LIST_DIR}/game_physics_damping_defaults.py"
   )
 
+  # Physics > Navigation: every navigation setting of an object, its defaults the engine's.
+  add_blender_test_impl(
+    "game_physics_navigation_panel"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/game_physics_navigation_panel.py"
+  )
+
+  # Scene > Navigation Mesh: four things in sight, the rest in Advanced, each setting once.
+  add_blender_test_impl(
+    "game_navigation_scene_panel"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/game_navigation_scene_panel.py"
+  )
+
+  # Add > Game Navigation Examples: every template built, its tree and objects as its recipe says.
+  add_blender_test_impl(
+    "navigation_templates"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/navigation_templates.py"
+  )
+
+  # Logic Nodes sidebar > Dashboard > Navigation, drawn from a play report.
+  add_blender_test_impl(
+    "logic_nodes_dashboard_navigation"
+    ""
+    "${TEST_BLENDER_EXE}"
+    --background
+    --factory-startup
+    --python-exit-code 1
+    "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
+    --python "${CMAKE_CURRENT_LIST_DIR}/logic_nodes_dashboard_navigation.py"
+  )
+
   # The Physics panel warns when a moving body's locks leave it no free axis (Jolt).
   add_blender_test_impl(
     "game_physics_no_free_axis_warning"

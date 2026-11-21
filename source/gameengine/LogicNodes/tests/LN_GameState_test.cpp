@@ -16,6 +16,7 @@
 #include "EXP_FloatValue.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
+#include "KX_Navigation.h"
 #include "LN_GameState.h"
 #include "LN_GameStateInternal.h"
 #include "LN_PersistenceCapability.h"
@@ -565,7 +566,11 @@ TEST(LN_GameState, CurrentCheckpointRoundTripsNavigationOrders)
   order.avoid = false;
   order.visualize = true;
   order.look_at = true;
+  order.dense = true;
+  order.move = 1;
+  order.climb = 2;
   order.seed = 0xfedcba9876543210ull;
+  order.issuer = 0xabcdefu;
   ObjectState leader = StructuralObject("22222222-2222-4222-8222-222222222222", "Leader");
   /* Not a live Save Object State record (a removed object's): no order is written. */
   ObjectState keeper;
@@ -628,15 +633,113 @@ TEST(LN_GameState, CurrentCheckpointRoundTripsNavigationOrders)
   EXPECT_FALSE(read.avoid);
   EXPECT_TRUE(read.visualize);
   EXPECT_TRUE(read.look_at);
+  EXPECT_TRUE(read.dense);
+  EXPECT_EQ(read.move, 1);
+  EXPECT_EQ(read.climb, 2);
   EXPECT_EQ(read.seed, 0xfedcba9876543210ull);
+  EXPECT_EQ(read.issuer, 0xabcdefu);
   ASSERT_EQ(decoded.spawned_instances.size(), 1u);
   ASSERT_TRUE(decoded.spawned_instances[0].has_navigation_order);
   EXPECT_EQ(decoded.spawned_instances[0].navigation_order.mode, 1);
   EXPECT_EQ(decoded.spawned_instances[0].navigation_order.seed, 7u);
+  EXPECT_FALSE(decoded.spawned_instances[0].navigation_order.dense);
+  EXPECT_EQ(decoded.spawned_instances[0].navigation_order.move, 0);
+  EXPECT_EQ(decoded.spawned_instances[0].navigation_order.issuer, 0u);
 
   std::string rewritten;
   ASSERT_EQ(encode_checkpoint(decoded, rewritten, error), LN_GameStateResult::Success) << error;
   EXPECT_EQ(rewritten, contents);
+
+  /* Dense, Move and Climb at their defaults (the spawned copy's order) are not written: a save
+   * from before them encodes the same, its checksum holds, it loads Polite, walking floors. */
+  const size_t copy_at = contents.find("Courier Copy");
+  ASSERT_NE(copy_at, std::string::npos);
+  const std::string copy_part = contents.substr(copy_at);
+  EXPECT_EQ(copy_part.find("\"dense\""), std::string::npos);
+  EXPECT_EQ(copy_part.find("\"move\""), std::string::npos);
+  EXPECT_EQ(copy_part.find("\"climb\""), std::string::npos);
+  EXPECT_NE(contents.find("\"dense\":true"), std::string::npos);
+  /* The node that gave the order (2026-11-19), likewise only when known. */
+  EXPECT_EQ(copy_part.find("\"issuer\""), std::string::npos);
+  EXPECT_NE(contents.find("\"issuer\""), std::string::npos);
+}
+
+/** A held order's settings into the save and back: every field the save keeps, none dropped on
+ * either way (the objects it names apart: Save and Load name and find those themselves). */
+TEST(LN_GameState, NavigationOrderSettingsSurviveTheSave)
+{
+  using namespace upbge::logic_nodes::game_state;
+
+  KX_NavRequest request;
+  request.mode = KX_NavRequest::Mode::Formation;
+  request.destination = MT_Vector3(1.5f, -2.25f, 0.125f);
+  request.offset = MT_Vector3(-2.0f, -1.0f, 0.5f);
+  request.speed = 3.5f;
+  request.arrive_distance = 0.75f;
+  request.radius = 12.0f;
+  request.separation = 0.25f;
+  request.alignment = 1.5f;
+  request.cohesion = 2.0f;
+  request.rot_speed = 8.0f;
+  request.group = 3;
+  request.priority = 80;
+  request.rot_axis = 1;
+  request.front_axis = 4;
+  request.goal = true;
+  request.use_scene_navmesh = false;
+  request.move_dynamic = true;
+  request.avoid = false;
+  request.visualize = true;
+  request.look_at = true;
+  request.dense = true;
+  request.move = KX_NavRequest::Move::Swim;
+  request.climb = KX_NavRequest::Climb::Walls;
+  request.seed = 0xfedcba9876543210ull;
+  request.issuer = 0x123457u;
+  NavigationOrderState order;
+  navigation_order_from_request(request, order);
+  KX_NavRequest back;
+  navigation_request_from_order(order, back);
+  EXPECT_EQ(back.mode, request.mode);
+  EXPECT_EQ(back.destination, request.destination);
+  EXPECT_EQ(back.offset, request.offset);
+  EXPECT_EQ(back.speed, request.speed);
+  EXPECT_EQ(back.arrive_distance, request.arrive_distance);
+  EXPECT_EQ(back.radius, request.radius);
+  EXPECT_EQ(back.separation, request.separation);
+  EXPECT_EQ(back.alignment, request.alignment);
+  EXPECT_EQ(back.cohesion, request.cohesion);
+  EXPECT_EQ(back.rot_speed, request.rot_speed);
+  EXPECT_EQ(back.group, request.group);
+  EXPECT_EQ(back.priority, request.priority);
+  EXPECT_EQ(back.rot_axis, request.rot_axis);
+  EXPECT_EQ(back.front_axis, request.front_axis);
+  EXPECT_EQ(back.goal, request.goal);
+  EXPECT_EQ(back.use_scene_navmesh, request.use_scene_navmesh);
+  EXPECT_EQ(back.move_dynamic, request.move_dynamic);
+  EXPECT_EQ(back.avoid, request.avoid);
+  EXPECT_EQ(back.visualize, request.visualize);
+  EXPECT_EQ(back.look_at, request.look_at);
+  EXPECT_EQ(back.dense, request.dense);
+  EXPECT_EQ(back.move, request.move);
+  EXPECT_EQ(back.climb, request.climb);
+  EXPECT_EQ(back.seed, request.seed);
+  EXPECT_EQ(back.issuer, request.issuer);
+  /* The other Move and Climb values too; out-of-range saved ones are clamped. */
+  for (const int value : {0, 1, 2}) {
+    order.move = value;
+    order.climb = value;
+    navigation_request_from_order(order, back);
+    EXPECT_EQ(int(back.move), value);
+    EXPECT_EQ(int(back.climb), value);
+  }
+  order.mode = 200;
+  order.move = 9;
+  order.climb = -3;
+  navigation_request_from_order(order, back);
+  EXPECT_EQ(back.mode, KX_NavRequest::Mode::Flock);
+  EXPECT_EQ(back.move, KX_NavRequest::Move::Swim);
+  EXPECT_EQ(back.climb, KX_NavRequest::Climb::Floors);
 }
 
 TEST(LN_GameState, CurrentCheckpointRejectsInvalidNavigationOrders)
@@ -669,6 +772,12 @@ TEST(LN_GameState, CurrentCheckpointRejectsInvalidNavigationOrders)
             LN_GameStateResult::CorruptData);
   EXPECT_EQ(decode_with([](ObjectState &o) { o.navigation_order.front_axis = 6; }, error),
             LN_GameStateResult::CorruptData);
+  /* A node's identity has 24 bits. */
+  EXPECT_EQ(decode_with([](ObjectState &o) { o.navigation_order.issuer = 0x1000000u; }, error),
+            LN_GameStateResult::CorruptData);
+  EXPECT_EQ(decode_with([](ObjectState &o) { o.navigation_order.issuer = 0xffffffu; }, error),
+            LN_GameStateResult::Success)
+      << error;
   /* A name must be text, an identity a canonical UUID. */
   EXPECT_EQ(decode_with([](ObjectState &o) { o.navigation_order.target = {"Leader", false}; },
                         error),
@@ -679,6 +788,125 @@ TEST(LN_GameState, CurrentCheckpointRejectsInvalidNavigationOrders)
                         error),
             LN_GameStateResult::Success)
       << error;
+}
+
+/* Navigation settings changed while playing (2026-11-20): only the changed ones are written,
+ * the link's end by identity or by name; a record without changes writes none. */
+TEST(LN_GameState, CurrentCheckpointRoundTripsNavigationSettings)
+{
+  using namespace upbge::logic_nodes::game_state;
+
+  Checkpoint checkpoint;
+  checkpoint.scene_uuid = kSceneUuid;
+  ObjectState door = StructuralObject("11111111-1111-4111-8111-111111111111", "Door");
+  door.has_navigation_settings = true;
+  door.navigation_settings.changed = kNavChangedVehicle | kNavChangedLinkEnabled |
+                                     kNavChangedLinkEnd | kNavChangedArea;
+  door.navigation_settings.vehicle = true;
+  door.navigation_settings.link_enabled = false;
+  door.navigation_settings.link_end = {"22222222-2222-4222-8222-222222222222", false};
+  door.navigation_settings.area = "lava";
+  ObjectState floor = StructuralObject("22222222-2222-4222-8222-222222222222", "Floor");
+  floor.has_navigation_settings = true;
+  floor.navigation_settings.changed = kNavChangedLinkEnd;
+  floor.navigation_settings.link_end = {"Ladder Top", true};
+  ObjectState plain = StructuralObject("33333333-3333-4333-8333-333333333333", "Plain");
+  checkpoint.authored_objects.push_back(std::move(door));
+  checkpoint.authored_objects.push_back(std::move(floor));
+  checkpoint.authored_objects.push_back(std::move(plain));
+
+  std::string contents;
+  std::string error;
+  ASSERT_EQ(encode_checkpoint(checkpoint, contents, error), LN_GameStateResult::Success) << error;
+  size_t fields = 0;
+  for (size_t at = contents.find("\"navigation_settings\""); at != std::string::npos;
+       at = contents.find("\"navigation_settings\"", at + 1))
+  {
+    fields++;
+  }
+  EXPECT_EQ(fields, 2u);
+  Checkpoint decoded;
+  ASSERT_EQ(decode_checkpoint(contents, decoded, error), LN_GameStateResult::Success) << error;
+  ASSERT_EQ(decoded.authored_objects.size(), 3u);
+  ASSERT_TRUE(decoded.authored_objects[0].has_navigation_settings);
+  const NavigationSettingsState &read = decoded.authored_objects[0].navigation_settings;
+  EXPECT_EQ(read.changed, 15);
+  EXPECT_TRUE(read.vehicle);
+  EXPECT_FALSE(read.link_enabled);
+  EXPECT_EQ(read.link_end.text, "22222222-2222-4222-8222-222222222222");
+  EXPECT_FALSE(read.link_end.by_name);
+  EXPECT_EQ(read.area, "lava");
+  ASSERT_TRUE(decoded.authored_objects[1].has_navigation_settings);
+  const NavigationSettingsState &end_only = decoded.authored_objects[1].navigation_settings;
+  EXPECT_EQ(end_only.changed, kNavChangedLinkEnd);
+  EXPECT_EQ(end_only.link_end.text, "Ladder Top");
+  EXPECT_TRUE(end_only.link_end.by_name);
+  /* (The others keep their defaults: not written.) */
+  EXPECT_FALSE(end_only.vehicle);
+  EXPECT_TRUE(end_only.link_enabled);
+  EXPECT_FALSE(decoded.authored_objects[2].has_navigation_settings);
+  std::string rewritten;
+  ASSERT_EQ(encode_checkpoint(decoded, rewritten, error), LN_GameStateResult::Success) << error;
+  EXPECT_EQ(rewritten, contents);
+  /* Only the changed ones: the floor's record names no area, no vehicle. */
+  const size_t floor_at = contents.find("\"Floor\"");
+  ASSERT_NE(floor_at, std::string::npos);
+  const std::string floor_part = contents.substr(floor_at, contents.find("\"Plain\"") - floor_at);
+  EXPECT_EQ(floor_part.find("\"area\""), std::string::npos);
+  EXPECT_EQ(floor_part.find("\"vehicle\""), std::string::npos);
+}
+
+TEST(LN_GameState, CurrentCheckpointRejectsInvalidNavigationSettings)
+{
+  using namespace upbge::logic_nodes::game_state;
+
+  const auto decode_with = [](const std::function<void(ObjectState &)> &edit,
+                              std::string &r_error) {
+    Checkpoint checkpoint;
+    checkpoint.scene_uuid = kSceneUuid;
+    ObjectState object = StructuralObject("11111111-1111-4111-8111-111111111111", "Door");
+    object.has_navigation_settings = true;
+    object.navigation_settings.changed = kNavChangedLinkEnabled;
+    edit(object);
+    checkpoint.authored_objects.push_back(std::move(object));
+    std::string contents;
+    if (encode_checkpoint(checkpoint, contents, r_error) != LN_GameStateResult::Success) {
+      return LN_GameStateResult::InternalError;
+    }
+    Checkpoint decoded;
+    return decode_checkpoint(std::move(contents), decoded, r_error);
+  };
+  std::string error;
+  EXPECT_EQ(decode_with([](ObjectState &) {}, error), LN_GameStateResult::Success) << error;
+  /* Nothing changed, or a bit no setting has. */
+  EXPECT_EQ(decode_with([](ObjectState &o) { o.navigation_settings.changed = 0; }, error),
+            LN_GameStateResult::CorruptData);
+  EXPECT_EQ(decode_with([](ObjectState &o) { o.navigation_settings.changed = 16; }, error),
+            LN_GameStateResult::CorruptData);
+  /* A link end's name must be text, an identity a canonical UUID. */
+  EXPECT_EQ(decode_with(
+                [](ObjectState &o) {
+                  o.navigation_settings.changed = kNavChangedLinkEnd;
+                  o.navigation_settings.link_end = {"Top", false};
+                },
+                error),
+            LN_GameStateResult::CorruptData);
+  EXPECT_EQ(decode_with(
+                [](ObjectState &o) {
+                  o.navigation_settings.changed = kNavChangedLinkEnd;
+                  o.navigation_settings.link_end = {"", false};
+                },
+                error),
+            LN_GameStateResult::Success)
+      << error;
+  /* Only a live Save Object State record keeps them. */
+  EXPECT_EQ(decode_with(
+                [](ObjectState &o) {
+                  o.has_existence = true;
+                  o.exists = false;
+                },
+                error),
+            LN_GameStateResult::CorruptData);
 }
 
 TEST(LN_GameState, CurrentCheckpointRejectsInvalidCollectionMemberships)

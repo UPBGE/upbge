@@ -11196,7 +11196,7 @@ def build_navigate_visualize_tree(name, target_position, target_obj=None):
     set_position = new_set_object_attribute(tree, "WORLD_POSITION")
 
     navigate.inputs["Destination"].default_value = target_position
-    navigate.inputs["Move as Dynamic"].default_value = False
+    navigate.inputs["Slide"].default_value = True
     navigate.inputs["Lin Speed"].default_value = 0.25
     navigate.inputs["Reach Threshold"].default_value = 0.05
     navigate.inputs["Look At"].default_value = False

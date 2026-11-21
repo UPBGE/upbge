@@ -456,20 +456,43 @@ static std::optional<uint32_t> BuildNavmeshQueryExpression(LN_Program &program,
 {
   InputReader in(
       program, node, node_definitions, input_links, value_cache, float_cache, bool_cache);
-  const LN_NavmeshQueryMode mode = LN_NavmeshQueryMode(std::clamp(int(node.custom1), 0, 4));
+  const LN_NavmeshQueryMode mode = LN_NavmeshQueryMode(std::clamp(int(node.custom1), 0, 8));
   const bool point_mode = mode == LN_NavmeshQueryMode::NearestPoint ||
-                          mode == LN_NavmeshQueryMode::RandomPoint;
+                          mode == LN_NavmeshQueryMode::RandomPoint ||
+                          mode == LN_NavmeshQueryMode::AirNearestPoint;
+  const bool air = mode == LN_NavmeshQueryMode::AirNearestPoint ||
+                   mode == LN_NavmeshQueryMode::AirClearLine ||
+                   mode == LN_NavmeshQueryMode::AirFindPath;
   LN_QueryExpression query;
   query.kind = LN_QueryExpressionKind::NavmeshQuery;
-  query.int_value = int32_t(mode);
+  query.int_value = int32_t(mode) | (air && (node.custom2 & 1) ? LN_NAVMESH_QUERY_WATER : 0);
   /* The navmesh object: an object of no navmesh reads as the scene's own (the kind's cast). */
   query.input0 = in.OptionalObject("Navmesh Object");
-  query.input1 = in.Vector(point_mode ? "Position" : "From");
+  query.input1 = in.Vector(point_mode || mode == LN_NavmeshQueryMode::FindSpot ? "Position" :
+                                                                                  "From");
   if (!point_mode) {
     query.input2 = in.Vector("To");
   }
-  if (mode == LN_NavmeshQueryMode::RandomPoint) {
+  if (mode == LN_NavmeshQueryMode::RandomPoint || mode == LN_NavmeshQueryMode::AirNearestPoint) {
     query.float_expr_index = in.Float("Radius");
+  }
+  if (mode == LN_NavmeshQueryMode::FindSpot) {
+    /* (2026-11-20) Position the centre (input1), From the walk's start (input2), Radius; then,
+     * read in this order by the kind: Look From, Look Object, Samples, Cover Distance, Walk
+     * Weight, Look Weight, Spacing, Cover, Not Taken, Area. */
+    query.input2 = in.Vector("From");
+    query.float_expr_index = in.Float("Radius");
+    query.input3 = in.Vector("Look From");
+    query.input4 = in.OptionalObject("Look Object");
+    query.int_expr_index = in.Int("Samples");
+    query.secondary_float_expr_index = in.Float("Cover Distance");
+    query.tertiary_float_expr_index = in.Float("Walk Weight");
+    query.input5 = in.Float("Look Weight");
+    query.input6 = in.Float("Spacing");
+    query.bool_expr_index = in.Bool("Cover");
+    query.secondary_bool_expr_index = in.Bool("Not Taken");
+    query.string_expr_index = in.String("Area");
+    query.int_value |= int32_t(((node.custom2 >> 1) & 3) << LN_NAVMESH_QUERY_SPOT_SHIFT);
   }
   if (in.failed()) {
     return std::nullopt;
@@ -530,6 +553,9 @@ std::optional<uint32_t> BuildNavigationInfoOutput(LN_Program &program,
   if (is("On Link Start")) {
     return state_bool(LN_NAV_STATE_LINK_STARTED);
   }
+  if (is("On Link End")) {
+    return state_bool(LN_NAV_STATE_LINK_ENDED);
+  }
   if (is("Moving")) {
     return state_bool(LN_NAV_STATE_MOVING);
   }
@@ -557,22 +583,47 @@ std::optional<uint32_t> BuildNavigationInfoOutput(LN_Program &program,
   if (is("Goal")) {
     return state_vector(LN_NAV_VECTOR_GOAL);
   }
+  if (is("Surface Normal")) {
+    return state_vector(LN_NAV_VECTOR_SURFACE_NORMAL);
+  }
   if (is("Remaining Distance")) {
     return state_float(LN_NAV_FLOAT_REMAINING);
   }
   if (is("Speed")) {
     return state_float(LN_NAV_FLOAT_SPEED);
   }
-  if (is("Link Object")) {
+  const auto state_object = [&](const int32_t which) {
     LN_ValueExpression expression;
     expression.kind = LN_ValueExpressionKind::NavigationLinkObject;
     expression.input0 = object;
+    expression.value.int_value = which;
     return program.AddValueExpression(expression);
+  };
+  if (is("Link Object")) {
+    return state_object(LN_NAV_OBJECT_LINK);
+  }
+  /* Vehicles (2026-11-19). */
+  if (is("Waiting")) {
+    return state_bool(LN_NAV_STATE_WAITING);
+  }
+  if (is("Waiting At")) {
+    return state_object(LN_NAV_OBJECT_WAITING_AT);
+  }
+  if (is("Vehicle")) {
+    return state_object(LN_NAV_OBJECT_VEHICLE);
   }
   if (is("Link Kind")) {
     LN_StringExpression expression;
     expression.kind = LN_StringExpressionKind::NavigationLinkKind;
     expression.input0 = object;
+    return program.AddStringExpression(expression);
+  }
+  /* Reason (plan item 8, 2026-11-20): Link Kind's kind with string_value "reason". */
+  if (is("Reason")) {
+    LN_StringExpression expression;
+    expression.kind = LN_StringExpressionKind::NavigationLinkKind;
+    expression.input0 = object;
+    expression.string_value = "reason";
     return program.AddStringExpression(expression);
   }
   return std::nullopt;
@@ -938,6 +989,13 @@ bool TryCompileRayFamilyOutput(LN_Program &program,
       else if (is("Length")) {
         LN_FloatExpression expression;
         expression.kind = LN_FloatExpressionKind::PhysicsQueryDistance;
+        expression.input0 = *query;
+        result = program.AddFloatExpression(expression);
+      }
+      else if (is("Score")) {
+        /* Find Spot's best score (2026-11-20): kept in the result's fraction. */
+        LN_FloatExpression expression;
+        expression.kind = LN_FloatExpressionKind::PhysicsQueryFraction;
         expression.input0 = *query;
         result = program.AddFloatExpression(expression);
       }

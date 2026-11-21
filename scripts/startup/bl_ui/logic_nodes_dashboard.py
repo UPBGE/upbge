@@ -307,11 +307,112 @@ class NODE_PT_logic_nodes_performance(Panel):
                 box.label(text="... and {:d} more".format(len(chosen) - 12))
 
 
+_NAV_BUILD_TEXT = {
+    "auto": "Auto",
+    "whole_level": "Whole Level",
+    "around_npcs": "Around NPCs",
+    "off": "Off",
+}
+
+
+def _metres(value):
+    return "{:.2f} m".format(value)
+
+
+class NODE_PT_logic_nodes_navigation(Panel):
+    """What the navigation did in the last play (the play report's "navigation", written by the
+    engine): its problems first, then the navigation mesh built, the NPC sizes, the NPCs by state
+    and the cost a step. One place to read what is wrong with NPCs (UPBGE, 2026-11-20)."""
+    bl_label = "Navigation"
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Dashboard"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        return logic_nodes_is_logic_editor_space(context.space_data)
+
+    def draw(self, context):
+        layout = self.layout
+        report = logic_nodes_report(context.scene)
+        nav = report.get("navigation") if report is not None else None
+        if nav is None:
+            _wrapped(layout, context, "Play the game once: this panel then shows what the NPCs' "
+                     "navigation did (nothing navigated in the last play).", 'INFO')
+            return
+        problems = nav.get("problems", [])
+        setup = [p for p in problems if p.get("setup")]
+        notes = [p for p in problems if not p.get("setup")]
+        if not setup:
+            _wrapped(layout, context, "No setup problem found in the last play.", 'CHECKMARK')
+        for title, chosen, icon in (("Problems", setup, 'ERROR'), ("Notes", notes, 'INFO')):
+            if not chosen:
+                continue
+            box = layout.box()
+            box.label(text=title)
+            for problem in chosen[:20]:
+                row = box.row()
+                col = row.column()
+                text = problem.get("text", "")
+                if problem.get("count", 1) > 1:
+                    text += " ({:d} times)".format(problem["count"])
+                _wrapped(col, context, text, icon)
+                name = problem.get("object", "")
+                if name and name in bpy.data.objects:
+                    row.operator("object.logic_nodes_select_owner", text="",
+                                 icon='RESTRICT_SELECT_OFF').applied_object = name
+            if len(chosen) > 20:
+                box.label(text="... and {:d} more".format(len(chosen) - 20))
+
+        box = layout.box()
+        build = _NAV_BUILD_TEXT.get(nav.get("build", ""), nav.get("build", ""))
+        if nav.get("build") == "auto":
+            build += " (built)" if nav.get("built") else " (nothing asked for it)"
+        box.label(text="Navigation mesh: " + build)
+        if nav.get("built"):
+            cell = "Cells: {:s}".format(_metres(nav.get("cell_size", 0.0)))
+            if nav.get("auto_cells") and nav.get("cell_reason"):
+                cell = "Auto Cells: " + nav["cell_reason"]
+            _wrapped(box, context, cell)
+        sizes = nav.get("sizes", [])
+        if sizes:
+            box = layout.box()
+            box.label(text="NPC sizes built (radius on the navigation mesh):")
+            for size in sizes:
+                text = "{:s}: {:d} NPC{:s}".format(_metres(size.get("radius", 0.0)),
+                                                   size.get("npcs", 0),
+                                                   "" if size.get("npcs", 0) == 1 else "s")
+                smallest, largest = size.get("smallest", 0.0), size.get("largest", 0.0)
+                if abs(largest - smallest) > 1e-3:
+                    text += " ({:s} to {:s})".format(_metres(smallest), _metres(largest))
+                else:
+                    text += " ({:s})".format(_metres(smallest))
+                if not size.get("own", True):
+                    text += ", sharing another size's navigation mesh (six sizes at most)"
+                _wrapped(box, context, text)
+        box = layout.box()
+        box.label(text="NPCs at the end: {:d}".format(nav.get("npcs", 0)))
+        states = []
+        for key, word in (("walking", "walking"), ("waiting", "waiting"), ("arrived", "arrived"),
+                          ("failed", "failing"), ("flying", "flying or swimming"),
+                          ("climbing", "climbing walls"),
+                          ("other_navmesh", "on navmesh objects")):
+            if nav.get(key, 0):
+                states.append("{:d} {:s}".format(nav[key], word))
+        if states:
+            _wrapped(box, context, ", ".join(states))
+        if nav.get("steps", 0):
+            _wrapped(box, context, "Cost: {:.3f} ms a step ({:d} steps)".format(
+                nav.get("step_ms", 0.0), nav["steps"]), 'TIME')
+
+
 classes = (
     NODE_PT_logic_nodes_administration,
     NODE_PT_logic_nodes_object_trees,
     NODE_PT_logic_nodes_tree_applied_to,
     NODE_PT_logic_nodes_performance,
+    NODE_PT_logic_nodes_navigation,
 )
 
 if __name__ == "__main__":

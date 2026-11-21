@@ -19,6 +19,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "MT_Vector3.h"
@@ -30,6 +31,12 @@ class KX_GameObject;
 
 /** Detour's polygon reference (64 bits: the library's build option). */
 using KX_NavPolyRef = uint64_t;
+
+/** A part of a navmesh that changed (2026-11-19): a box on the game's plane (x, y). */
+struct KX_NavChangedPlace {
+  float min[2] = {0.0f, 0.0f};
+  float max[2] = {0.0f, 0.0f};
+};
 
 /** A navmesh object's polygons, in Recast's space (Y up), as the editor's bake stored them. */
 struct KX_NavMeshPolygons {
@@ -74,6 +81,11 @@ class KX_NavMesh {
                                                   std::string &r_error);
   /** Takes a dtNavMesh made elsewhere (built while playing): it is freed with this. */
   static std::unique_ptr<KX_NavMesh> FromDetour(dtNavMesh *mesh);
+  /** A view of `source` (2026-11-19, vehicles: every copy of a vehicle walks one navmesh built
+   * once in the vehicle's own space): the same Detour mesh, query objects and tile stamp, in
+   * the space of `owner`. `source` must outlive it. */
+  static std::unique_ptr<KX_NavMesh> ViewOf(const KX_NavMesh &source,
+                                            const KX_GameObject *owner);
 
   /** The object whose space the navmesh is in (its world position, turn and scale at every
    * query), or null: the world. */
@@ -139,6 +151,21 @@ class KX_NavMesh {
                    uint64_t seed,
                    MT_Vector3 &r_point,
                    const dtQueryFilter *filter = nullptr) const;
+  /** Walking costs (2026-11-20, Navmesh Query's Find Spot): from `from` (snapped) to every
+   * polygon its way reaches within `radius` of it (Detour's search round a circle: the cost of
+   * the way to each polygon, in metres). False: `from` is off the navmesh. */
+  struct WalkCost {
+    /** The way's cost to where it enters the polygon (Detour's, through edges' middles). */
+    float cost = 0.0f;
+    /** Where it enters it (the shared edge's middle; `from` for its own polygon). */
+    MT_Vector3 entry = MT_Vector3(0.0f, 0.0f, 0.0f);
+  };
+  bool WalkCosts(const MT_Vector3 &from,
+                 float radius,
+                 const dtQueryFilter *filter,
+                 std::unordered_map<KX_NavPolyRef, WalkCost> &r_costs) const;
+  /** A polygon's area (the game's id, ground 0); -1 for no such polygon. */
+  int PolygonArea(KX_NavPolyRef ref) const;
   /** The navmesh surface's normal under `world`. */
   bool SurfaceNormal(const MT_Vector3 &world, MT_Vector3 &r_normal) const;
 
@@ -153,16 +180,35 @@ class KX_NavMesh {
             const MT_Vector3 &center = MT_Vector3(0.0f, 0.0f, 0.0f),
             float range = 0.0f) const;
 
+  /** Each walkable polygon's edges within `range` of `center` (0: all) in the world, with the
+   * polygon's area (the game's id: ground 0) and whether the edge is a wall (Visualization,
+   * 2026-11-20). `edge` returns false to stop. */
+  void DrawAreas(const std::function<bool(const MT_Vector3 &a,
+                                          const MT_Vector3 &b,
+                                          int area,
+                                          bool wall)> &edge,
+                 const MT_Vector3 &center,
+                 float range) const;
+
   int PolygonCount() const;
   /** Raised whenever tiles change: paths across the old ones must be checked. */
   uint64_t GetTileStamp() const
   {
-    return m_tileStamp.load(std::memory_order_relaxed);
+    return m_source ? m_source->GetTileStamp() : m_tileStamp.load(std::memory_order_relaxed);
   }
-  void NoteTilesChanged()
+  /** The navmesh a view shows (itself for a navmesh that is no view). */
+  const KX_NavMesh *Source() const
   {
-    m_tileStamp.fetch_add(1, std::memory_order_relaxed);
+    return m_source ? m_source : this;
   }
+  /** Tiles changed (main thread, while nobody reads): the stamp goes up, and `places` are
+   * remembered as where (null: anywhere). */
+  void NoteTilesChanged(const std::vector<KX_NavChangedPlace> *places = nullptr);
+  /** Each place changed after `stamp` (any thread, while nothing changes). False when the
+   * changes since are not all remembered (too many, or one changed anywhere): then anything may
+   * have changed. */
+  bool ChangesSince(uint64_t stamp,
+                    const std::function<void(const KX_NavChangedPlace &place)> &place) const;
 
   /** Tests and tools: the tile's polygon data in Recast's space. */
   void CollectPolygonsForTests(std::vector<std::vector<MT_Vector3>> &r_polygons) const;
@@ -172,10 +218,23 @@ class KX_NavMesh {
 
   dtNavMesh *m_mesh = nullptr;
   const KX_GameObject *m_owner = nullptr;
+  /** A view's navmesh (its mesh and queries are that one's, never freed here). */
+  const KX_NavMesh *m_source = nullptr;
+  /** The owner's scale is part of the mesh's space (a navmesh object's polygons); a vehicle's
+   * view is built at the vehicle's size: its turn and place only. */
+  bool m_ownerScaled = true;
   /** One query object for each thread slot (KX_NavThreadSlot), made by that thread. */
   mutable std::vector<std::atomic<dtNavMeshQuery *>> m_queries;
   std::unique_ptr<dtQueryFilter> m_defaultFilter;
   std::atomic<uint64_t> m_tileStamp{0};
+  /** The last changes' places, each with the stamp it raised (oldest first); changes up to
+   * `m_forgottenStamp` are not remembered. */
+  struct StampedPlace {
+    uint64_t stamp = 0;
+    KX_NavChangedPlace place;
+  };
+  std::vector<StampedPlace> m_changes;
+  uint64_t m_forgottenStamp = 0;
 };
 
 /** The calling thread's small index for per-thread navigation data (reused after the thread

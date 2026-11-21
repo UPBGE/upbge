@@ -65,6 +65,18 @@ struct bRigidBodyJointConstraint;
 struct RigidBodyCon;
 }  // namespace blender
 
+/** Navigation (2026-11-19): a static body that may have changed since the notes were last taken
+ * (PHY_IPhysicsEnvironment::TakeStaticBodyChanges). */
+struct PHY_StaticBodyChange {
+  /** Its object; null when it went since (only `before` counts then). */
+  KX_GameObject *object = nullptr;
+  /** Where it was before its first change (the navmesh may hold it there): false when it was no
+   * static solid body in the world then. */
+  bool had_bounds = false;
+  MT_Vector3 before_min = MT_Vector3(0.0f, 0.0f, 0.0f);
+  MT_Vector3 before_max = MT_Vector3(0.0f, 0.0f, 0.0f);
+};
+
 struct PHY_CachedCollisionContact {
   PHY_IPhysicsController *ctrl0 = nullptr;
   PHY_IPhysicsController *ctrl1 = nullptr;
@@ -534,12 +546,29 @@ class PHY_IPhysicsEnvironment {
   /**
    * Navigation (2026-11-18): every triangle of the static, solid bodies (no sensors) meeting the
    * box, in the world, with its body's object, bodies in the order they were made. The scene's
-   * navmesh is built of them. The default (Bullet): none.
+   * navmesh is built of them. `solid_piece` numbers the closed convex pieces (a box, a convex
+   * hull, a sphere...: the navmesh fills their insides, 2026-11-19), -1 for a triangle of any
+   * other shape (a mesh may be open). The default (Bullet): none.
    */
   virtual void CollectStaticTriangles(
       const MT_Vector3 & /*aabb_min*/,
       const MT_Vector3 & /*aabb_max*/,
       const std::function<void(class KX_GameObject *object,
+                               int solid_piece,
+                               const MT_Vector3 &a,
+                               const MT_Vector3 &b,
+                               const MT_Vector3 &c)> & /*triangle*/)
+  {
+  }
+
+  /**
+   * Navigation (2026-11-19, vehicles): the triangles of `controller`'s own body (any motion
+   * type, its compound's parts included), in the world as it stands, each convex leaf a closed
+   * solid piece numbered from 0, -1 for any other shape. The default (Bullet): none.
+   */
+  virtual void CollectBodyTriangles(
+      PHY_IPhysicsController * /*controller*/,
+      const std::function<void(int solid_piece,
                                const MT_Vector3 &a,
                                const MT_Vector3 &b,
                                const MT_Vector3 &c)> & /*triangle*/)
@@ -556,6 +585,29 @@ class PHY_IPhysicsEnvironment {
                                    MT_Vector3 & /*r_max*/)
   {
     return false;
+  }
+
+  /**
+   * Navigation (2026-11-19): while on, every static body about to move, turn, scale, take a new
+   * shape or physics type, or enter or leave the world is noted once (where it was then) until
+   * TakeStaticBodyChanges hands the notes over. Off (the default, and with no navmesh to build):
+   * nothing is noted. The default (Bullet): never.
+   */
+  /**
+   * Navigation (2026-11-20, Navigation_Ease_Of_Use_Plan.md item 12): the bodies of the NPCs moved
+   * by Navigate or Follow Path in the coming physics step that physics cannot push (Characters,
+   * Kinematic and Static bodies; never Dynamic ones). A Character among them passes through the
+   * others (the navigation keeps them apart); everything else collides as before. Set before each
+   * physics step on the main thread (empty: none). The default (Bullet): ignored.
+   */
+  virtual void SetNavigatingBodies(const std::vector<PHY_IPhysicsController *> & /*controllers*/)
+  {
+  }
+
+  virtual void SetStaticChangeTracking(bool /*enabled*/) {}
+  virtual void TakeStaticBodyChanges(std::vector<PHY_StaticBodyChange> &r_changes)
+  {
+    r_changes.clear();
   }
 
   /**

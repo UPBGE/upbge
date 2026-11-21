@@ -24,7 +24,7 @@
 #include "LN_Types.h"
 
 #if defined(__GLIBCXX__) && defined(__x86_64__)
-static_assert(sizeof(LN_Instruction) == 188, "LN_Instruction changed: update LN_ProgramDump.cpp");
+static_assert(sizeof(LN_Instruction) == 192, "LN_Instruction changed: update LN_ProgramDump.cpp");
 static_assert(sizeof(LN_BoolExpression) == 96, "LN_BoolExpression changed: update LN_ProgramDump.cpp");
 static_assert(sizeof(LN_IntExpression) == 32, "LN_IntExpression changed: update LN_ProgramDump.cpp");
 static_assert(sizeof(LN_FloatExpression) == 72, "LN_FloatExpression changed: update LN_ProgramDump.cpp");
@@ -138,6 +138,7 @@ std::string instruction_text(const LN_Instruction &e, LN_DumpNames &names)
   IDX(int_expr_index);
   IDX(secondary_int_expr_index);
   IDX(tertiary_int_expr_index);
+  IDX(quaternary_int_expr_index);
   IDX(float_expr_index);
   IDX(secondary_float_expr_index);
   IDX(tertiary_float_expr_index);

@@ -1077,6 +1077,12 @@ constexpr KindInputRow kKindInputRows[] = {
  * instruction, a stick number) or is never read (the second input a one-input math node gets). A
  * set field neither the table nor this list names makes the walk answer "unknown". */
 constexpr KindInputRow kKindInputSupplement[] = {
+    /* (2026-11-20) Navmesh Query's Find Spot reads these after its navmesh is found (the rig has
+     * none, and records the default mode). */
+    {"Query::NavmeshQuery",
+     "input3:V input4:A int_expr_index:I secondary_float_expr_index:F "
+     "tertiary_float_expr_index:F input5:F input6:F bool_expr_index:B secondary_bool_expr_index:B "
+     "string_expr_index:S"},
     /* (2026-11-16) Transform Vector's turns: the scale (the rig records a rotation operation,
      * which reads input0 and input1 only). */
     {"Vector::RotationFunction", "input2:V"},
@@ -5973,7 +5979,10 @@ const ColumnCompiler::QueryReach &ColumnCompiler::ReachOf(const char family, con
         refusal = nullptr;
       }
       /* Navmesh Query (2026-11-18): the navmesh, changed only by the navigation step (after the
-       * flush): the same on any thread, no object's pose read. */
+       * flush): the same on any thread. Find Spot (2026-11-20) also casts lines through the
+       * physics (read-only, as Line of Sight's kernel) and reads the NPCs' poses and last step,
+       * never applying a pending move (as Projectile Ray): nothing writes them while trees
+       * record. */
       if (query == LN_QueryExpressionKind::NavmeshQuery) {
         refusal = nullptr;
       }
@@ -6152,8 +6161,10 @@ ColumnCompiler::QueryReach ColumnCompiler::OpReach(const LN_Instruction &instruc
   {
     add('B', index);
   }
-  for (const uint32_t index :
-       {i.int_expr_index, i.secondary_int_expr_index, i.tertiary_int_expr_index})
+  for (const uint32_t index : {i.int_expr_index,
+                               i.secondary_int_expr_index,
+                               i.tertiary_int_expr_index,
+                               i.quaternary_int_expr_index})
   {
     add('I', index);
   }
@@ -6262,7 +6273,7 @@ std::string ColumnCompiler::ReachUnsafeHere(const QueryReach &reach)
       continue; /* the tick's start poses: no pending move read */
     }
     if (query.kind == LN_QueryExpressionKind::NavmeshQuery) {
-      continue; /* the navmesh: no object's pose read */
+      continue; /* the navmesh; Find Spot's lines and NPCs as they are (no pending move applied) */
     }
     /* A ray, a shape cast, a sweep or a line of sight: cast again at every op that reads it,
      * after its objects' pending moves are applied. A named object has none (the run starts only
@@ -7105,8 +7116,9 @@ bool ColumnCompiler::Compile(std::string &r_refusal)
            * op of a run. */
           break;
         case LN_QueryExpressionKind::NavmeshQuery:
-          /* Navmesh Query (2026-11-18): the navmesh only (the navigation changes it after the
-           * flush), with this thread's query object. */
+          /* Navmesh Query (2026-11-18): the navmesh (the navigation changes it after the
+           * flush), with this thread's query object; Find Spot's lines through the physics and
+           * the NPCs' poses as they are (2026-11-20). */
           break;
         default:
           m_bridge_ok = false;

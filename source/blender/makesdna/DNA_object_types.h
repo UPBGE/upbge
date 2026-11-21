@@ -638,6 +638,70 @@ typedef struct ObjectGameUI {
   char tooltip_text[256] = "";
 } ObjectGameUI;
 
+/** UPBGE: #ObjectGameNavigation.flag */
+enum {
+  /** NPCs walk on it and ride along while it moves (a ship, a train car, a lift's cab). */
+  OB_NAV_VEHICLE = 1 << 0,
+  /** Its link is taken both ways. */
+  OB_NAV_LINK_BOTH_WAYS = 1 << 1,
+  /** Its link is open when the game starts. */
+  OB_NAV_LINK_ENABLED = 1 << 2,
+};
+
+/** UPBGE: #ObjectGameNavigation.link_kind */
+enum {
+  OB_NAV_LINK_KIND_JUMP = 0,
+  OB_NAV_LINK_KIND_DROP = 1,
+  OB_NAV_LINK_KIND_LADDER = 2,
+  OB_NAV_LINK_KIND_DOOR = 3,
+  OB_NAV_LINK_KIND_TELEPORT = 4,
+  OB_NAV_LINK_KIND_GANGWAY = 5,
+  /** #ObjectGameNavigation.link_kind_name. */
+  OB_NAV_LINK_KIND_CUSTOM = 6,
+};
+
+/** UPBGE: #ObjectGameNavigation.link_when_closed */
+enum {
+  /** NPCs search a way without it. */
+  OB_NAV_LINK_CLOSED_GO_ROUND = 0,
+  /** NPCs whose way takes it wait at its start until it opens (a door). */
+  OB_NAV_LINK_CLOSED_WAIT = 1,
+};
+
+/** UPBGE (2026-11-20): what NPCs make of an object (Physics tab > Navigation): a vehicle they
+ * ride, the area its surfaces are, a link from it to another object. Set Navigation Attribute
+ * changes them while playing. */
+typedef struct ObjectGameNavigation {
+  /** The object at the other end of its navigation link (empty: no link). Not a user, as a
+   * parent: deleting that object clears it. */
+  struct Object *link_end = nullptr;
+  /** OB_NAV_VEHICLE, OB_NAV_LINK_*. */
+  int flag = OB_NAV_LINK_BOTH_WAYS | OB_NAV_LINK_ENABLED;
+  /** OB_NAV_LINK_KIND_*. */
+  char link_kind = OB_NAV_LINK_KIND_JUMP;
+  /** OB_NAV_LINK_CLOSED_*. */
+  char link_when_closed = OB_NAV_LINK_CLOSED_GO_ROUND;
+  char _pad[2] = {};
+  /** How near its ends an NPC takes it (m). */
+  float link_radius = 0.5f;
+  /** Seconds to cross it (0: from its kind: a teleport at once, the rest at the NPC's speed). */
+  float link_duration = 0.0f;
+  /** A link to or from a vehicle: open while its ends are at most this far apart (m). */
+  float link_reach = 1.5f;
+  /** When Closed Wait: seconds an NPC waits before it goes another way (0: for ever). */
+  float link_wait_time = 0.0f;
+  /** UPBGE (2026-11-20): as an NPC, its radius on the navigation mesh (m; 0: its collision
+   * shape's, else its mesh's). */
+  float npc_radius = 0.0f;
+  /** UPBGE (2026-11-20): as an obstacle (Navigation > Obstacle), the extra room NPCs keep from its
+   * shape (m), or the radius of the zone they keep out of when it has no shape (an Empty). */
+  float keep_away = 0.0f;
+  /** The area its surfaces are (empty: ordinary ground). */
+  char area[64] = "";
+  /** A Custom link's kind. */
+  char link_kind_name[64] = "";
+} ObjectGameNavigation;
+
 /* Deprecated: kept only for versioning migration from old wheel-list format. */
 typedef struct GameVehicleWheel {
   struct GameVehicleWheel *next = nullptr, *prev = nullptr;
@@ -1233,6 +1297,9 @@ struct Object {
   struct ObjectActivityCulling activityCulling = {0};
 
   struct ObjectGameUI game_ui;
+
+  /** UPBGE: what NPCs make of it (Physics tab > Navigation). */
+  struct ObjectGameNavigation game_navigation;
 
   struct GameVehicleSettings *vehicle = nullptr;
 

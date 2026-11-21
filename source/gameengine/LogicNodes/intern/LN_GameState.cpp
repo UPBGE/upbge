@@ -72,6 +72,68 @@
 #include "SCA_TimeEventManager.h"
 #include "SG_Node.h"
 
+namespace upbge::logic_nodes::game_state {
+
+void navigation_order_from_request(const KX_NavRequest &request, NavigationOrderState &r_order)
+{
+  r_order.mode = uint8_t(request.mode);
+  r_order.destination = request.destination;
+  r_order.offset = request.offset;
+  r_order.speed = request.speed;
+  r_order.arrive_distance = request.arrive_distance;
+  r_order.radius = request.radius;
+  r_order.separation = request.separation;
+  r_order.alignment = request.alignment;
+  r_order.cohesion = request.cohesion;
+  r_order.rot_speed = request.rot_speed;
+  r_order.group = request.group;
+  r_order.priority = request.priority;
+  r_order.rot_axis = request.rot_axis;
+  r_order.front_axis = request.front_axis;
+  r_order.goal = request.goal;
+  r_order.use_scene_navmesh = request.use_scene_navmesh;
+  r_order.move_dynamic = request.move_dynamic;
+  r_order.avoid = request.avoid;
+  r_order.visualize = request.visualize;
+  r_order.look_at = request.look_at;
+  r_order.dense = request.dense;
+  r_order.move = int32_t(request.move);
+  r_order.climb = int32_t(request.climb);
+  r_order.seed = request.seed;
+  r_order.issuer = request.issuer;
+}
+
+void navigation_request_from_order(const NavigationOrderState &order, KX_NavRequest &r_request)
+{
+  r_request.mode = KX_NavRequest::Mode(std::min<int>(order.mode, 6));
+  r_request.destination = order.destination;
+  r_request.offset = order.offset;
+  r_request.speed = order.speed;
+  r_request.arrive_distance = order.arrive_distance;
+  r_request.radius = order.radius;
+  r_request.separation = order.separation;
+  r_request.alignment = order.alignment;
+  r_request.cohesion = order.cohesion;
+  r_request.rot_speed = order.rot_speed;
+  r_request.group = order.group;
+  r_request.priority = order.priority;
+  r_request.rot_axis = order.rot_axis;
+  r_request.front_axis = order.front_axis;
+  r_request.goal = order.goal;
+  r_request.use_scene_navmesh = order.use_scene_navmesh;
+  r_request.move_dynamic = order.move_dynamic;
+  r_request.avoid = order.avoid;
+  r_request.visualize = order.visualize;
+  r_request.look_at = order.look_at;
+  r_request.dense = order.dense;
+  r_request.move = KX_NavRequest::Move(std::clamp(order.move, 0, 2));
+  r_request.climb = KX_NavRequest::Climb(std::clamp(order.climb, 0, 2));
+  r_request.seed = order.seed;
+  r_request.issuer = order.issuer;
+}
+
+}  // namespace upbge::logic_nodes::game_state
+
 namespace {
 
 using namespace upbge::logic_nodes::game_state;
@@ -1260,27 +1322,7 @@ LN_GameStateResult capture_checkpoint(KX_Scene &scene,
               reference(static_cast<KX_GameObject *>(order.navmesh), saved.navmesh) &&
               reference(order.rotating_object, saved.rotating))
           {
-            saved.mode = uint8_t(order.mode);
-            saved.destination = order.destination;
-            saved.offset = order.offset;
-            saved.speed = order.speed;
-            saved.arrive_distance = order.arrive_distance;
-            saved.radius = order.radius;
-            saved.separation = order.separation;
-            saved.alignment = order.alignment;
-            saved.cohesion = order.cohesion;
-            saved.rot_speed = order.rot_speed;
-            saved.group = order.group;
-            saved.priority = order.priority;
-            saved.rot_axis = order.rot_axis;
-            saved.front_axis = order.front_axis;
-            saved.goal = order.goal;
-            saved.use_scene_navmesh = order.use_scene_navmesh;
-            saved.move_dynamic = order.move_dynamic;
-            saved.avoid = order.avoid;
-            saved.visualize = order.visualize;
-            saved.look_at = order.look_at;
-            saved.seed = order.seed;
+            navigation_order_from_request(order, saved);
             state.has_navigation_order = true;
           }
           else {
@@ -1289,6 +1331,45 @@ LN_GameStateResult capture_checkpoint(KX_Scene &scene,
                        << "' names an object that is not saved (a copy): it is not kept");
           }
         }
+      }
+
+      /* Its navigation settings Set Navigation Attribute changed (2026-11-20): the link's end
+       * named as an order's objects are. */
+      if (const uint8_t changed = object->GetNavChanged()) {
+        static_assert(kNavChangedVehicle == KX_NAV_CHANGED_VEHICLE &&
+                      kNavChangedLinkEnabled == KX_NAV_CHANGED_LINK_ENABLED &&
+                      kNavChangedLinkEnd == KX_NAV_CHANGED_LINK_END &&
+                      kNavChangedArea == KX_NAV_CHANGED_AREA);
+        NavigationSettingsState &saved = state.navigation_settings;
+        const KX_NavObjectSettings &settings = object->GetNavSettings();
+        saved.changed = changed;
+        saved.vehicle = settings.vehicle;
+        saved.link_enabled = settings.link_enabled;
+        saved.area = settings.area;
+        if (changed & kNavChangedLinkEnd) {
+          KX_GameObject *end = object->GetNavLinkEnd();
+          if (end != nullptr) {
+            if (const auto known = saved_identities.find(end); known != saved_identities.end()) {
+              saved.link_end.text = known->second;
+            }
+            else if (!end->IsReplica() && !end->GetName().empty() &&
+                     is_valid_checkpoint_text(end->GetName(), kMaxNameBytes))
+            {
+              saved.link_end.text = end->GetName();
+              saved.link_end.by_name = true;
+            }
+            else {
+              CM_Warning("Save Game: the navigation link of '"
+                         << state.name
+                         << "' goes to an object that is not saved (a copy): it is not kept");
+              saved.changed &= uint8_t(~kNavChangedLinkEnd);
+            }
+          }
+        }
+        if (!is_valid_checkpoint_text(saved.area, kMaxNameBytes)) {
+          saved.changed &= uint8_t(~kNavChangedArea);
+        }
+        state.has_navigation_settings = saved.changed != 0;
       }
 
       /* Set Collection Member's changes, in their order, each by collection name and library. */
@@ -2152,6 +2233,37 @@ LN_GameStateResult apply_object_states(KX_Scene &scene,
         if (!saved.has_hierarchy_state) {
           continue;
         }
+        /* Its navigation settings (2026-11-20): the saved changes, the file's values for the
+         * rest; the navigation reads them again at its next step. */
+        {
+          KX_GameObject *object = resolved.object;
+          const KX_NavObjectSettings &converted = object->GetConvertedNavSettings();
+          const NavigationSettingsState *changes = saved.has_navigation_settings ?
+                                                       &saved.navigation_settings :
+                                                       nullptr;
+          const uint8_t changed = changes != nullptr ? changes->changed : 0;
+          object->SetNavVehicle((changed & kNavChangedVehicle) ? changes->vehicle :
+                                                                 converted.vehicle);
+          object->SetNavLinkEnabled((changed & kNavChangedLinkEnabled) ?
+                                        changes->link_enabled :
+                                        converted.link_enabled);
+          KX_GameObject *end = object->GetConvertedNavLinkEnd();
+          if (changed & kNavChangedLinkEnd) {
+            bool found = true;
+            end = changes->link_end.text.empty() ? nullptr : object_of(changes->link_end, found);
+            if (!found) {
+              CM_Warning("Load Game: the navigation link of '" << object->GetName()
+                                                               << "' went to an object that "
+                                                                  "is gone: it has none");
+            }
+          }
+          object->SetNavLinkEnd(end);
+          const std::string &area = (changed & kNavChangedArea) ? changes->area : converted.area;
+          if (object->GetNavSettings().area != area) {
+            object->SetNavArea(area);
+            navigation->NoteAreaChanged(object);
+          }
+        }
         if (!saved.has_navigation_order) {
           navigation->RestoreHeldOrder(resolved.object, nullptr);
           continue;
@@ -2159,30 +2271,10 @@ LN_GameStateResult apply_object_states(KX_Scene &scene,
         const NavigationOrderState &order = saved.navigation_order;
         bool ok = true;
         KX_NavRequest request;
-        request.mode = KX_NavRequest::Mode(std::min<int>(order.mode, 6));
-        request.destination = order.destination;
-        request.offset = order.offset;
+        navigation_request_from_order(order, request);
         request.target = object_of(order.target, ok);
         request.navmesh = dynamic_cast<KX_NavMeshObject *>(object_of(order.navmesh, ok));
         request.rotating_object = object_of(order.rotating, ok);
-        request.speed = order.speed;
-        request.arrive_distance = order.arrive_distance;
-        request.radius = order.radius;
-        request.separation = order.separation;
-        request.alignment = order.alignment;
-        request.cohesion = order.cohesion;
-        request.rot_speed = order.rot_speed;
-        request.group = order.group;
-        request.priority = order.priority;
-        request.rot_axis = order.rot_axis;
-        request.front_axis = order.front_axis;
-        request.goal = order.goal;
-        request.use_scene_navmesh = order.use_scene_navmesh;
-        request.move_dynamic = order.move_dynamic;
-        request.avoid = order.avoid;
-        request.visualize = order.visualize;
-        request.look_at = order.look_at;
-        request.seed = order.seed;
         navigation->RestoreHeldOrder(resolved.object, ok ? &request : nullptr);
       }
     }

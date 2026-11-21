@@ -900,7 +900,17 @@ std::string LN_Manager::WriteGameReport(std::string *r_json)
     }
     json += "]}";
   }
-  json += "\n  ]\n}\n";
+  json += "\n  ]";
+  /* The navigation (2026-11-20, plan item 9: Dashboard > Navigation): its problems, the NPC
+   * sizes built, the cell used, the NPCs by state, the cost a step. */
+  if (const KX_Navigation *navigation = m_scene.GetNavigation()) {
+    const std::string navigation_json = navigation->ReportJson();
+    /* (Its setup problems were printed once each while playing.) */
+    if (!navigation_json.empty()) {
+      json += ",\n  \"navigation\": " + navigation_json;
+    }
+  }
+  json += "\n}\n";
   if (r_json != nullptr) {
     *r_json = json;
     return std::string();

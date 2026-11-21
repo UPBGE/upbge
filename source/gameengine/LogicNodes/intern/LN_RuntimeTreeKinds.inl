@@ -268,10 +268,31 @@ bool LN_RuntimeTree::BoolKind(In &in,
           return info.on_link;
         case LN_NAV_STATE_LINK_STARTED:
           return info.link_started;
+        case LN_NAV_STATE_LINK_ENDED:
+          return info.link_ended;
+        case LN_NAV_STATE_WAITING:
+          return info.waiting;
         case LN_NAV_STATE_ACTIVE:
           return info.active;
+        case LN_NAV_STATE_FAILED: {
+          /* Navigate's When Failed (plan item 8): of the node's own order. */
+          const uint32_t issuer = uint32_t(expression.secondary_int_value);
+          return info.failed &&
+                 (issuer == 0 || info.failed_issuer == 0 || info.failed_issuer == issuer);
+        }
         case LN_NAV_STATE_REACHED:
-          return info.reached;
+        case LN_NAV_STATE_REACHED_LAST: {
+          /* Navigate's When Reached, Follow Path's Point Reached and Finished: of the node's own
+           * order (secondary_int_value its identity; an order or a read without one: any). */
+          const uint32_t issuer = uint32_t(expression.secondary_int_value);
+          if (!info.reached ||
+              (issuer != 0 && info.reached_issuer != 0 && info.reached_issuer != issuer))
+          {
+            return false;
+          }
+          return expression.int_value == LN_NAV_STATE_REACHED ||
+                 (info.reached_tag & LN_FOLLOW_PATH_LAST_POINT) != 0;
+        }
         default:
           return false;
       }
@@ -2075,8 +2096,19 @@ float LN_RuntimeTree::FloatKind(In &in,
       if (!ReadNavigationInfo(in, expression.input0, info)) {
         return 0.0f;
       }
-      if (expression.int_value == LN_NAV_FLOAT_SPEED) {
-        return float(MT_Vector3(info.velocity[0], info.velocity[1], 0.0f).length());
+      const int32_t code = expression.int_value & LN_NAV_CODE_MASK;
+      if (code == LN_NAV_FLOAT_SPEED) {
+        /* (2026-11-19) How fast it really walks, smoothed, 0 while it stands: what animations
+         * want in a jam (the velocity it was told jitters there). */
+        return info.speed;
+      }
+      if (code == LN_NAV_FLOAT_POINT) {
+        /* Follow Path's Point Index: the point of its own order it reached last. */
+        const uint32_t issuer = uint32_t(expression.int_value) >> LN_NAV_ISSUER_SHIFT;
+        if (info.reached_tag == 0 || info.reached_issuer != issuer) {
+          return -1.0f;
+        }
+        return float(int64_t(info.reached_tag & ~LN_FOLLOW_PATH_LAST_POINT) - 1);
       }
       return info.remaining_distance;
     }
@@ -2279,7 +2311,18 @@ std::string LN_RuntimeTree::StringKind(In &in,
     }
     case LN_StringExpressionKind::NavigationLinkKind: {
       KX_NavAgentInfo info;
-      if (!ReadNavigationInfo(in, expression.input0, info) || !info.on_link) {
+      /* Get Navigation Info's Reason (plan item 8, 2026-11-20: string_value "reason"): why its
+       * order cannot be done ("" while all is well). */
+      if (expression.string_value == "reason") {
+        if (!ReadNavigationInfo(in, expression.input0, info)) {
+          return std::string();
+        }
+        return KX_NavFailureText(info.failure);
+      }
+      /* (Also in the step its crossing ended: On Link End's.) */
+      if (!ReadNavigationInfo(in, expression.input0, info) ||
+          (!info.on_link && !info.link_ended))
+      {
         return std::string();
       }
       return info.link_kind;
@@ -2489,6 +2532,8 @@ MT_Vector3 LN_RuntimeTree::VectorKind(In &in,
           return info.velocity;
         case LN_NAV_VECTOR_GOAL:
           return info.goal;
+        case LN_NAV_VECTOR_SURFACE_NORMAL:
+          return info.surface_normal;
         default:
           return info.next_corner;
       }
@@ -3628,19 +3673,34 @@ LN_Value LN_RuntimeTree::ValueKind(In &in,
       return value;
     }
     case LN_ValueExpressionKind::NavigationLinkObject: {
+      /* The link it crosses (also in the step its crossing ended), the link it waits at, the
+       * vehicle it stands on (expression.value.int_value: LN_NAV_OBJECT_*). */
       KX_NavAgentInfo info;
-      if (!ReadNavigationInfo(in, expression.input0, info) || !info.on_link ||
-          info.link_object == nullptr ||
-          (m_logicManager != nullptr &&
-           m_logicManager->IsGameObjectQueuedForRemoval(info.link_object)))
+      if (!ReadNavigationInfo(in, expression.input0, info)) {
+        return MakeNoneValue();
+      }
+      KX_GameObject *object = nullptr;
+      switch (expression.value.int_value) {
+        case LN_NAV_OBJECT_WAITING_AT:
+          object = info.waiting ? info.waiting_at : nullptr;
+          break;
+        case LN_NAV_OBJECT_VEHICLE:
+          object = info.vehicle;
+          break;
+        default:
+          object = info.on_link || info.link_ended ? info.link_object : nullptr;
+          break;
+      }
+      if (object == nullptr ||
+          (m_logicManager != nullptr && m_logicManager->IsGameObjectQueuedForRemoval(object)))
       {
         return MakeNoneValue();
       }
       LN_Value value;
       value.type = LN_ValueType::ObjectRef;
       value.exists = true;
-      value.reference_name = info.link_object->GetName();
-      value.runtime_ref = MakeObjectRef(info.link_object, info.link_object->GetName());
+      value.reference_name = object->GetName();
+      value.runtime_ref = MakeObjectRef(object, object->GetName());
       return value;
     }
     case LN_ValueExpressionKind::SnapshotCharacterGroundObject: {
@@ -6841,23 +6901,35 @@ void LN_RuntimeTree::QueryKind(In &in,
       const MT_Vector3 from = in.Vector(expression.input1, MT_Vector3(0.0f, 0.0f, 0.0f));
       const MT_Vector3 to = in.Vector(expression.input2, MT_Vector3(0.0f, 0.0f, 0.0f));
       const float radius = in.Float(expression.float_expr_index, 10.0f);
-      const KX_NavMesh *navmesh = nullptr;
-      if (navmesh_object != nullptr) {
-        navmesh = navmesh_object->GetNavMesh();
-      }
-      else if (KX_Navigation *navigation = LN_QueryNavigation(m_gameObject)) {
-        navmesh = navigation->FindSceneNavMesh();
-      }
-      if (navmesh == nullptr) {
-        break;
-      }
       LN_PhysicsQueryResult &out = result.physics_query;
-      switch (LN_NavmeshQueryMode(expression.int_value)) {
-        case LN_NavmeshQueryMode::FindPath:
-        case LN_NavmeshQueryMode::IsReachable: {
+      const LN_NavmeshQueryMode mode = LN_NavmeshQueryMode(expression.int_value & 0xff);
+      if (mode == LN_NavmeshQueryMode::AirNearestPoint ||
+          mode == LN_NavmeshQueryMode::AirClearLine || mode == LN_NavmeshQueryMode::AirFindPath)
+      {
+        /* The air (phase 8): the air map of a flyer the size of the object running the tree
+         * (only maps already made answer: a map of a new size is made at the next step). */
+        KX_Navigation *navigation = LN_QueryNavigation(m_gameObject);
+        if (navigation == nullptr) {
+          break;
+        }
+        const bool water = (expression.int_value & LN_NAVMESH_QUERY_WATER) != 0;
+        const float size = navigation->AgentRadiusOf(m_gameObject);
+        if (mode == LN_NavmeshQueryMode::AirNearestPoint) {
+          MT_Vector3 point;
+          out.hit = navigation->AirNearestPoint(from, size, water, point) &&
+                    float((point - from).length()) <= std::max(radius, 0.0f);
+          out.hit_position = out.hit ? point : from;
+        }
+        else if (mode == LN_NavmeshQueryMode::AirClearLine) {
+          out.hit = navigation->AirLineClear(from, to, size, water);
+          out.hit_position = to;
+          out.hit_distance = float((to - from).length());
+        }
+        else {
           std::vector<MT_Vector3> corners;
           bool complete = false;
-          if (navmesh->FindPath(from, to, corners, &complete)) {
+          if (navigation->AirFindPath(from, to, size, water, corners, &complete)) {
+            corners.insert(corners.begin(), from);
             float length = 0.0f;
             for (size_t i = 1; i < corners.size(); i++) {
               length += float((corners[i] - corners[i - 1]).length());
@@ -6865,7 +6937,49 @@ void LN_RuntimeTree::QueryKind(In &in,
             out.hit = complete;
             out.hit_position = corners.back();
             out.hit_distance = length;
-            if (LN_NavmeshQueryMode(expression.int_value) == LN_NavmeshQueryMode::FindPath) {
+            for (const MT_Vector3 &corner : corners) {
+              LN_PhysicsQueryResult point;
+              point.hit = true;
+              point.hit_position = corner;
+              result.physics_query_results.push_back(point);
+            }
+          }
+        }
+        out.end_position = out.hit_position;
+        out.ray_direction = out.hit_normal;
+        out.diagnostic_status = out.hit ? LN_QueryDiagnosticStatus::Hit :
+                                          LN_QueryDiagnosticStatus::NoHit;
+        break;
+      }
+      const KX_NavMesh *navmesh = nullptr;
+      /* (Ways without the closed links, 2026-11-20.) */
+      const dtQueryFilter *filter = nullptr;
+      if (KX_Navigation *navigation = LN_QueryNavigation(m_gameObject)) {
+        filter = navigation->QueryFilter();
+        if (navmesh_object == nullptr) {
+          navmesh = navigation->FindSceneNavMesh();
+        }
+      }
+      if (navmesh_object != nullptr) {
+        navmesh = navmesh_object->GetNavMesh();
+      }
+      if (navmesh == nullptr) {
+        break;
+      }
+      switch (mode) {
+        case LN_NavmeshQueryMode::FindPath:
+        case LN_NavmeshQueryMode::IsReachable: {
+          std::vector<MT_Vector3> corners;
+          bool complete = false;
+          if (navmesh->FindPath(from, to, corners, &complete, filter)) {
+            float length = 0.0f;
+            for (size_t i = 1; i < corners.size(); i++) {
+              length += float((corners[i] - corners[i - 1]).length());
+            }
+            out.hit = complete;
+            out.hit_position = corners.back();
+            out.hit_distance = length;
+            if (mode == LN_NavmeshQueryMode::FindPath) {
               for (const MT_Vector3 &corner : corners) {
                 LN_PhysicsQueryResult point;
                 point.hit = true;
@@ -6885,7 +6999,8 @@ void LN_RuntimeTree::QueryKind(In &in,
           const uint64_t node = LN_RandomNodePart(
               LN_GetRandomGameSeed(), uint32_t(expression.secondary_int_value), RandomTick(context));
           const uint64_t seed = LN_RandomBits(node, 0, m_randomStream, 0);
-          out.hit = navmesh->RandomPoint(from, std::max(radius, 0.0f), seed, out.hit_position);
+          out.hit = navmesh->RandomPoint(
+              from, std::max(radius, 0.0f), seed, out.hit_position, filter);
           break;
         }
         case LN_NavmeshQueryMode::WalkableLine: {
@@ -6902,6 +7017,84 @@ void LN_RuntimeTree::QueryKind(In &in,
           out.hit_normal = normal;
           out.hit_distance = float((to - from).length()) * (wall ? fraction : 1.0f);
           out.hit_fraction = wall ? fraction : 1.0f;
+          break;
+        }
+        case LN_NavmeshQueryMode::AirNearestPoint:
+        case LN_NavmeshQueryMode::AirClearLine:
+        case LN_NavmeshQueryMode::AirFindPath:
+          /* (Answered above.) */
+          break;
+        case LN_NavmeshQueryMode::FindSpot: {
+          /* Find Spot (2026-11-20, plan E8): KX_Navigation::FindSpots on this navmesh, its
+           * lines through Line of Sight's test (the look's body and the tree's own object's
+           * passed; the poses as they are, no pending move applied: as Projectile Ray). Read
+           * after From (`to`) and Radius: Look From, Look Object, Samples, Cover Distance, Walk
+           * Weight, Look Weight, Spacing, Cover, Not Taken, Area. */
+          KX_Navigation *navigation = LN_QueryNavigation(m_gameObject);
+          const MT_Vector3 look_from = in.Vector(expression.input3, MT_Vector3(0.0f, 0.0f, 0.0f));
+          KX_GameObject *look_object = expression.input4 != LN_INVALID_INDEX ?
+                                           ReadObjectInput(in, expression.input4) :
+                                           nullptr;
+          KX_NavSpotQuery spot;
+          spot.center = from;
+          spot.from = to;
+          spot.radius = radius;
+          spot.look_from = look_from;
+          spot.has_look = expression.input3 != LN_INVALID_INDEX || look_object != nullptr;
+          spot.samples = in.Int(expression.int_expr_index, 24);
+          spot.cover_distance = in.Float(expression.secondary_float_expr_index, 1.5f);
+          spot.walk_weight = in.Float(expression.tertiary_float_expr_index, 1.0f);
+          spot.look_weight = in.Float(expression.input5, 0.0f);
+          spot.spacing = std::max(in.Float(expression.input6, 1.0f), 0.0f);
+          spot.cover = in.Bool(expression.bool_expr_index, false);
+          spot.not_taken = in.Bool(expression.secondary_bool_expr_index, true);
+          spot.area = in.String(expression.string_expr_index, std::string());
+          spot.visibility = (expression.int_value >> LN_NAVMESH_QUERY_SPOT_SHIFT) & 3;
+          spot.asker = m_gameObject;
+          if (navigation == nullptr) {
+            break;
+          }
+          /* (Kept per thread: a bridged query runs on the helpers.) */
+          thread_local std::vector<LN_RuntimeRef> ignore;
+          thread_local std::vector<KX_NavSpot> spots;
+          ignore.clear();
+          if (m_gameObject != nullptr && m_gameObject != look_object) {
+            ignore.push_back(MakeObjectRef(m_gameObject, m_gameObject->GetName()));
+          }
+          const auto clear_line = [&](const MT_Vector3 &a, const MT_Vector3 &b) {
+            LN_PhysicsQueryResult sight;
+            const LineOfSightShape shape = LineOfSightTest(look_object,
+                                                           a,
+                                                           MT_Vector3(0.0f, 0.0f, 0.0f),
+                                                           nullptr,
+                                                           b,
+                                                           0.0f,
+                                                           float(2.0 * M_PI),
+                                                           uint32_t(LN_RAYCAST_MAX_COLLISION_MASK),
+                                                           ignore,
+                                                           false,
+                                                           false,
+                                                           sight);
+            return !shape.valid || sight.hit;
+          };
+          navigation->FindSpots(*navmesh, spot, clear_line, spots);
+          if (!spots.empty()) {
+            out.hit = true;
+            out.hit_position = spots.front().point;
+            out.hit_distance = spots.front().walk;
+            out.hit_fraction = spots.front().score;
+            for (const KX_NavSpot &place : spots) {
+              LN_PhysicsQueryResult point;
+              point.hit = true;
+              point.hit_position = place.point;
+              point.hit_distance = place.walk;
+              point.hit_fraction = place.score;
+              result.physics_query_results.push_back(point);
+            }
+          }
+          else {
+            out.hit_position = from;
+          }
           break;
         }
       }

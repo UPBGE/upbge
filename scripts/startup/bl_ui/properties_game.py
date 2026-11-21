@@ -93,6 +93,45 @@ def game_collision_bounds(ob, is_jolt):
     return 'TRIANGLE_MESH'
 
 
+def nav_npc_auto_radius(ob, scene):
+    """The radius `ob` gets as an NPC when its NPC Radius is 0, and where it comes from
+    (KX_Navigation's GetOrCreateAgent, 2026-11-20): its collision shape's half width on the
+    ground plane (the converters' shapes from the mesh's bounds, the object's scale), else its
+    mesh's bounds (no body), else the scene's fallback NPC size."""
+    game = ob.game
+    rd = scene.game_settings.recast_data
+    fallback = rd.agent_radius if rd.agent_radius > 0.0 else 0.5
+    scale = [abs(value) for value in ob.matrix_world.to_scale()]
+    has_geometry = ob.type in {'MESH', 'CURVE', 'SURFACE', 'FONT', 'META'}
+    if has_geometry:
+        corners = [tuple(corner) for corner in ob.bound_box]
+        half = [0.5 * (max(c[axis] for c in corners) - min(c[axis] for c in corners))
+                for axis in range(3)]
+    else:
+        # (The converters' extents of an object without geometry.)
+        half = [1.0, 1.0, 1.0]
+    # (Bullet's bodies give no shape bounds: the mesh's, as before.)
+    is_jolt = scene.game_settings.physics_engine == 'JOLT'
+    if is_jolt and game.physics_type != 'NO_COLLISION':
+        bounds = game_collision_bounds(ob, is_jolt)
+        if bounds == 'SPHERE':
+            radius = max(half) * max(scale[0], scale[1])
+        elif bounds in {'CYLINDER', 'CONE', 'CAPSULE'}:
+            radius = max(half[0], half[1]) * max(scale[0], scale[1])
+        elif bounds in {'Empty', ''} or (bounds in {'CONVEX_HULL', 'TRIANGLE_MESH'} and
+                                         not has_geometry):
+            radius = 0.0
+        else:
+            radius = max(half[0] * scale[0], half[1] * scale[1])
+        if radius > 1e-3:
+            return radius, "its collision shape"
+    if has_geometry:
+        radius = max(half[0] * scale[0], half[1] * scale[1])
+        if radius > 1e-3:
+            return radius, "its mesh"
+    return fallback, "the scene's fallback NPC size"
+
+
 def collision_origin_offset(ob):
     """How far (m, the object's scale included) the middle of `ob`'s mesh is from its origin, and
     the mesh's largest size; None for an object without a mesh."""
@@ -1489,8 +1528,11 @@ class PHYSICS_PT_game_collision_filtering(PhysicsButtonsPanel, Panel):
         layout.prop(game, "collision_layers")
 
 
-class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
-    bl_label = "Create Obstacle"
+# UPBGE (2026-11-20): every navigation setting of an object in one place (Create Obstacle was a
+# panel of its own): what NPCs make of it. Set Navigation Attribute changes them while playing.
+class PHYSICS_PT_game_navigation(PhysicsButtonsPanel, Panel):
+    bl_label = "Navigation"
+    bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
@@ -1498,30 +1540,73 @@ class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        game = context.object.game
-        if not (context.scene.render.engine in cls.COMPAT_ENGINES):
+        ob = context.object
+        if ob is None or context.scene.render.engine not in cls.COMPAT_ENGINES:
             return False
-        if game.physics_type == 'VEHICLE':
-            return False
-        if game.physics_type not in {'SENSOR', 'STATIC', 'KINEMATIC', 'DYNAMIC', 'RIGID_BODY', 'SOFT_BODY', 'CHARACTER', 'NO_COLLISION'}:
-            return False
-        return True
-
-    def draw_header(self, context):
-        game = context.active_object.game
-
-        self.layout.prop(game, "use_obstacle_create", text="")
+        return ob.game.physics_type in {
+            'SENSOR', 'STATIC', 'KINEMATIC', 'DYNAMIC', 'RIGID_BODY', 'SOFT_BODY', 'CHARACTER',
+            'NO_COLLISION', 'VEHICLE'}
 
     def draw(self, context):
         layout = self.layout
+        game = context.object.game
 
-        game = context.active_object.game
+        # An obstacle NPCs steer round and the navigation mesh is cut round (a vehicle chassis is
+        # none). UPBGE (2026-11-20, plan item 5): its shape is its collision shape's (else its
+        # mesh's); Keep Away adds room (the old Radius is the logic bricks' and no longer read).
+        if game.physics_type != 'VEHICLE':
+            row = layout.row()
+            row.prop(game, "use_obstacle_create", text="Obstacle")
+            sub = row.row()
+            sub.active = game.use_obstacle_create
+            sub.prop(game, "nav_keep_away")
 
-        layout.active = game.use_obstacle_create
+        layout.prop(game, "use_nav_vehicle")
+        if game.use_nav_vehicle and game.physics_type == 'STATIC':
+            col = layout.column(align=True)
+            col.label(text="Characters ride only Kinematic or Dynamic vehicles", icon='ERROR')
+            col.label(text="(a Static one carries only NPCs that slide)", icon='BLANK1')
+        layout.prop(game, "nav_area")
+        # UPBGE (2026-11-20, plan item 2): as an NPC, its size on the navigation mesh is its
+        # collision shape's; one override, showing the automatic value it replaces.
+        col = layout.column(align=True)
+        col.prop(game, "nav_npc_radius")
+        if game.nav_npc_radius <= 0.0:
+            radius, source = nav_npc_auto_radius(context.object, context.scene)
+            col.label(text="Auto: %.2f m (%s)" % (radius, source), icon='BLANK1')
 
-        row = layout.row()
-        row.prop(game, "obstacle_radius", text="Radius")
-        row.label()
+
+class PHYSICS_PT_game_navigation_link(PhysicsButtonsPanel, Panel):
+    bl_label = "Link"
+    bl_parent_id = "PHYSICS_PT_game_navigation"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = PHYSICS_PT_game_navigation.COMPAT_ENGINES
+
+    @classmethod
+    def poll(cls, context):
+        return PHYSICS_PT_game_navigation.poll(context)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        game = context.object.game
+
+        layout.prop(game, "nav_link_end")
+        col = layout.column()
+        # Greyed while the link goes nowhere.
+        col.active = game.nav_link_end is not None
+        col.prop(game, "nav_link_kind")
+        if game.nav_link_kind == 'CUSTOM':
+            col.prop(game, "nav_link_kind_name", text="Name")
+        col.prop(game, "use_nav_link_both_ways")
+        col.prop(game, "use_nav_link_open")
+        col.prop(game, "nav_link_when_closed")
+        if game.nav_link_when_closed == 'WAIT':
+            col.prop(game, "nav_link_wait_time")
+        col.prop(game, "nav_link_radius")
+        col.prop(game, "nav_link_duration")
+        col.prop(game, "nav_link_reach")
 
 
 class RenderButtonsPanel:
@@ -1742,29 +1827,66 @@ class SCENE_PT_game_navmesh(SceneButtonsPanel, Panel):
         return (scene and scene.render.engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
+        # UPBGE (2026-11-20, plan item 6): what most games set, in sight; everything else in
+        # Advanced (closed). NPCs' sizes come from their bodies (Physics > Navigation).
         layout = self.layout
-
-        rd = context.scene.game_settings.recast_data
-
-        layout.operator("mesh.navmesh_make", text="Build Navigation Mesh")
+        gs = context.scene.game_settings
+        rd = gs.recast_data
 
         col = layout.column()
-        col.label(text="Rasterization:")
+        col.prop(rd, "build_mode")
+        if rd.build_mode == 'AROUND_NPCS':
+            row = col.row()
+            row.prop(rd, "build_radius")
+            row.prop(rd, "remove_radius")
+        # The navigation's Visualization switch (the Obstacle Simulation flag it always was).
+        col.prop(gs, "show_obstacle_simulation", text="Show")
+        col.prop(rd, "jump_links")
         row = col.row()
+        row.prop(rd, "use_avoid_physics_objects")
+
+
+class SCENE_PT_game_navmesh_advanced(SceneButtonsPanel, Panel):
+    bl_label = "Advanced"
+    bl_parent_id = "SCENE_PT_game_navmesh"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = SCENE_PT_game_navmesh.COMPAT_ENGINES
+
+    @classmethod
+    def poll(cls, context):
+        return SCENE_PT_game_navmesh.poll(context)
+
+    def draw(self, context):
+        layout = self.layout
+        gs = context.scene.game_settings
+        rd = gs.recast_data
+
+        # The level's limits (a Character's own Step Height and Max Slope apply too: the lower).
+        col = layout.column()
+        col.label(text="Walkable:")
+        row = col.row()
+        row.prop(rd, "slope_max")
+        row.prop(rd, "climb_max")
+
+        # For NPCs whose size nothing else gives (no collision shape, no mesh).
+        col = layout.column()
+        col.label(text="Fallback NPC Size:")
+        row = col.row()
+        row.prop(rd, "agent_radius", text="Radius")
+        row.prop(rd, "agent_height", text="Height")
+
+        col = layout.column()
+        col.label(text="Resolution:")
+        col.prop(rd, "use_auto_cells")
+        if rd.use_auto_cells:
+            # The cell the last play used, and for whom (the play report, Dashboard > Navigation).
+            used = _last_auto_cell(context.scene)
+            if used:
+                col.label(text="Last play: " + used, icon='INFO')
+        row = col.row()
+        row.active = not rd.use_auto_cells
         row.prop(rd, "cell_size")
         row.prop(rd, "cell_height")
-
-        col = layout.column()
-        col.label(text="Agent:")
-        split = col.split()
-
-        col = split.column()
-        col.prop(rd, "agent_height", text="Height")
-        col.prop(rd, "agent_radius", text="Radius")
-
-        col = split.column()
-        col.prop(rd, "slope_max")
-        col.prop(rd, "climb_max")
 
         col = layout.column()
         col.label(text="Region:")
@@ -1772,18 +1894,14 @@ class SCENE_PT_game_navmesh(SceneButtonsPanel, Panel):
         row.prop(rd, "region_min_size")
         if rd.partitioning != 'LAYERS':
             row.prop(rd, "region_merge_size")
-
-        col = layout.column()
         col.prop(rd, "partitioning")
 
         col = layout.column()
         col.label(text="Polygonization:")
         split = col.split()
-
-        col = split.column()
-        col.prop(rd, "edge_max_len")
-        col.prop(rd, "edge_max_error")
-
+        sub = split.column()
+        sub.prop(rd, "edge_max_len")
+        sub.prop(rd, "edge_max_error")
         split.prop(rd, "verts_per_poly")
 
         col = layout.column()
@@ -1792,15 +1910,55 @@ class SCENE_PT_game_navmesh(SceneButtonsPanel, Panel):
         row.prop(rd, "sample_dist")
         row.prop(rd, "sample_max_error")
 
-        # UPBGE (2026-11-18): the navigation mesh the game builds itself, and the crowd's cost.
+        col = layout.column()
+        col.label(text="Jumps:")
+        sub = col.column()
+        sub.active = rd.jump_links == 'AUTO'
+        row = sub.row()
+        row.prop(rd, "jump_gap", text="Gap")
+        row.prop(rd, "jump_up", text="Up")
+        row = sub.row()
+        row.prop(rd, "jump_drop", text="Drop")
+        row.prop(rd, "jump_spacing")
+        col.prop(rd, "link_crossing")
+
         col = layout.column()
         col.label(text="While Playing:")
-        col.prop(rd, "build_mode")
-        if rd.build_mode == 'AROUND_NPCS':
-            row = col.row()
-            row.prop(rd, "build_radius")
-            row.prop(rd, "remove_radius")
         col.prop(rd, "detail_distance")
+        row = col.row()
+        row.active = rd.use_avoid_physics_objects
+        row.prop(rd, "physics_min_size")
+        col.prop(rd, "use_crowd_push_characters")
+
+        col = layout.column()
+        col.label(text="Visualization:")
+        col.active = gs.show_obstacle_simulation
+        row = col.row()
+        row.prop(rd, "vis_range")
+        row.prop(rd, "vis_max_lines")
+        flow = col.grid_flow(columns=3, even_columns=True)
+        for name in ("show_vis_navmesh", "show_vis_links", "show_vis_vehicles",
+                     "show_vis_agents", "show_vis_paths", "show_vis_obstacles"):
+            flow.prop(rd, name)
+
+        # Navigation mesh objects baked in the editor (Navigate's Navmesh Object): special cases.
+        col = layout.column()
+        col.label(text="Navigation Mesh Object:")
+        col.operator("mesh.navmesh_make", text="Build Navigation Mesh")
+
+
+def _last_auto_cell(scene):
+    """The cell Auto Cells chose in the last play of this scene, and for whom (the play report);
+    empty when unknown."""
+    try:
+        from bl_ui.logic_nodes_dashboard import logic_nodes_report
+    except ImportError:
+        return ""
+    report = logic_nodes_report(scene)
+    nav = report.get("navigation") if report else None
+    if not nav or not nav.get("built") or not nav.get("auto_cells"):
+        return ""
+    return nav.get("cell_reason", "")
 
 
 class SCENE_PT_game_hysteresis(SceneButtonsPanel, Panel):
@@ -2222,11 +2380,13 @@ classes = (
     PHYSICS_PT_game_buoyancy,
     PHYSICS_PT_game_collision_bounds,
     PHYSICS_PT_game_collision_filtering,
-    PHYSICS_PT_game_obstacles,
+    PHYSICS_PT_game_navigation,
+    PHYSICS_PT_game_navigation_link,
     SCENE_PT_game_physics,
     SCENE_PT_game_blender_physics,
     SCENE_PT_game_physics_obstacles,
     SCENE_PT_game_navmesh,
+    SCENE_PT_game_navmesh_advanced,
     SCENE_PT_game_hysteresis,
     SCENE_PT_game_split_screen_quality,
     SCENE_PT_game_console,
