@@ -32,7 +32,6 @@
 #pragma once
 
 #include <list>
-#include <map>
 #include <set>
 #include <vector>
 
@@ -138,6 +137,10 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
    */
   std::vector<std::pair<blender::ID *, blender::IDRecalcFlag>> m_idsToUpdateInAllRenderPasses;
   std::vector<std::pair<blender::ID *, blender::IDRecalcFlag>> m_idsToUpdateInOverlayPass;
+
+  std::map<blender::Object *, std::vector<KX_GameObject *>> m_upbgeDupliByBase;
+  std::map<blender::Object *, int> m_upbgeDupliNextId;
+  bool m_taaResetRequested = false;
   /*************************************************/
 
   RAS_BucketManager *m_bucketmanager;
@@ -162,8 +165,6 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   EXP_ListValue<KX_Camera> *m_cameralist;
   /// The set of fonts for this scene
   EXP_ListValue<KX_FontObject> *m_fontlist;
-  std::map<blender::Object *, std::vector<KX_GameObject *>> m_upbgeDupliByBase;
-  std::map<blender::Object *, int> m_upbgeDupliNextId;
 
   SG_QList m_sghead;  // list of nodes that needs scenegraph update
                       // the Dlist is not object that must be updated
@@ -371,6 +372,7 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   void UnregisterUpbgeDupliInstance(blender::Object *base_orig, KX_GameObject *instance);
   void UpdateUpbgeDupliTransforms(blender::Depsgraph *depsgraph, bool is_last_render_pass);
   const std::vector<KX_GameObject *> *GetUpbgeDupliInstances(blender::Object *base_orig) const;
+  void RequestTaaReset();
 
   void ApplyLifespan(KX_GameObject *replica, float lifespan);
   void ApplyReferenceTransform(KX_GameObject *replica, KX_GameObject *reference);

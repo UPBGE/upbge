@@ -566,6 +566,11 @@ void KX_Scene::UpdateUpbgeDupliTransforms(blender::Depsgraph *depsgraph, bool is
   }
 }
 
+void KX_Scene::RequestTaaReset()
+{
+  m_taaResetRequested = true;
+}
+
 const std::vector<KX_GameObject *> *KX_Scene::GetUpbgeDupliInstances(
     blender::Object *base_orig) const
 {
@@ -868,6 +873,11 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   UpdateUpbgeDupliTransforms(depsgraph, is_last_render_pass);
+
+  if (m_taaResetRequested) {
+    DEG_bump_update_count(depsgraph);
+    m_taaResetRequested = false;
+  }
 
   /* Update evaluated object object_to_world according to SceneGraph. */
   for (KX_GameObject *gameobj : GetObjectList()) {
