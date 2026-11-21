@@ -430,7 +430,6 @@ void KX_Scene::RegisterUpbgeDupliInstance(blender::Object *base_orig,
   if (!base_orig || !instance) {
     return;
   }
-  base_orig = DEG_get_original(base_orig);
 
   blender::DupliObject *dob = instance->GetUpbgeDupliObject();
   if (!dob) {
