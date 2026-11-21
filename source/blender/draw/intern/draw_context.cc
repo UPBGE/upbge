@@ -1168,6 +1168,7 @@ static void foreach_obref_in_scene(
       draw_object_cb(ob_ref);
     }
 
+    /* upbge runtime duplis*/
     if (process_upbge_duplis) {
       VectorList<DupliObject *> upbge_duplis;
       bge_get_upbge_duplis(depsgraph, ob, upbge_duplis);
@@ -1256,6 +1257,7 @@ static void foreach_obref_in_scene(
       }
       continue;
     }
+    /* End of upbge runtime duplis*/
 
     if (!process_duplis) {
       continue;
