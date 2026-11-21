@@ -550,12 +550,10 @@ void KX_Scene::UpdateUpbgeDupliTransforms(blender::Depsgraph *depsgraph, bool is
       }
       if (is_last_render_pass) {
         if (instance->GetSGNode()->IsDirty(SG_Node::DIRTY_RENDER)) {
-          float mat[4][4];
-          instance->NodeGetWorldTransform().getValue(&mat[0][0]);
           /* Draw/EEVEE tracks transform updates through the prototype object's runtime. */
           DEG_bump_update_count(depsgraph);
           base_eval->runtime->last_update_transform = DEG_get_update_count(depsgraph);
-          copy_m4_m4(dob->mat, mat);
+          instance->NodeGetWorldTransform().getValue(&dob->mat[0][0]);
           instance->GetSGNode()->ClearDirty(SG_Node::DIRTY_RENDER);
         }
       }
