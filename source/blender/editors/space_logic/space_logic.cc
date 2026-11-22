@@ -325,9 +325,9 @@ static void logic_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 //  BLO_read_id_address(reader, parent_id, &slogic->gpd);
 //}
 
-static void logic_blend_write(BlendWriter *writer, SpaceLink *sl)
+static void logic_blend_write(ScreenBlendWriteData &logic_writer, SpaceLink *sl)
 {
-  writer->write_struct_cast<SpaceLogic>(sl);
+  logic_writer.writer->write_struct_cast<SpaceLogic>(sl);
 }
 
 /* only called once, from space/spacetypes.c */
