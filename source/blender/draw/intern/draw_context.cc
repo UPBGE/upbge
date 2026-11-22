@@ -1143,8 +1143,7 @@ static void foreach_obref_in_scene(
 
     const int visibility = BKE_object_visibility(ob, eval_mode);
     const bool is_upbge_dupli_base = (ob->gameflag & OB_DUPLI_UPBGE) != 0;
-    const bool ob_visible = (visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES)) &&
-                            !is_upbge_dupli_base;
+    const bool ob_visible = (visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES));
     const bool instances_visible = (visibility & OB_VISIBLE_INSTANCES) && is_object_instancer(*ob);
     /* Don't create duplis from temporary preview objects, object_duplilist_preview already takes
      * care of everything. (See #146194, #146211) */
