@@ -601,13 +601,13 @@ void bge_get_upbge_duplis(Depsgraph *depsgraph,
       continue;
     }
     const std::vector<KX_GameObject *> *instances =
-        kx_scene->GetUpbgeDupliInstances(DEG_get_original(ob));
+        kx_scene->GetUpbgeDupliInstances(ob);
     if (!instances) {
       continue;
     }
 
     for (KX_GameObject *instance : *instances) {
-      if (instance && instance->IsUpbgeDupliInstance() && instance->GetVisible()) {
+      if (instance && instance->GetVisible()) {
         blender::DupliObject *dob = instance->GetUpbgeDupliObject();
         if (dob) {
           r_out.append(dob);
