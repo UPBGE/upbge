@@ -225,8 +225,11 @@ def WriteRuntime(player_path, output_path, new_icon_path, copy_python, overwrite
         runtime_config_folder = os.path.join(version_string, "config")
         runtime_config_folder_path = os.path.join(runtime_dir, runtime_config_folder)
         os.makedirs(runtime_config_folder_path)
-        shutil.copy2(user_config_userpref_path, runtime_config_folder_path)
-        print("done")
+        if os.path.isfile(user_config_userpref_path):
+            shutil.copy2(user_config_userpref_path, runtime_config_folder_path)
+            print("done")
+        else:
+            print("skipped (no user preferences saved yet, the player will use factory defaults)")
 
     # Copy logic nodes game folder
     if copy_logic_nodes:
