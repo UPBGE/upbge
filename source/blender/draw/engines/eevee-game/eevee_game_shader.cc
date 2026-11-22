@@ -178,6 +178,27 @@ const char *ShaderModule::static_shader_name_get(eShaderType type)
     case SH_FILM_PRESENT:
       return "eevee_game_film_present";
 
+    case SH_FSR3_PREPARE_INPUTS:
+      return "eevee_game_fsr3_prepare_inputs";
+    case SH_FSR3_LUMA_PYRAMID:
+      return "eevee_game_fsr3_luma_pyramid";
+    case SH_FSR3_SHADING_CHANGE_PYRAMID:
+      return "eevee_game_fsr3_shading_change_pyramid";
+    case SH_FSR3_SHADING_CHANGE:
+      return "eevee_game_fsr3_shading_change";
+    case SH_FSR3_PREPARE_REACTIVITY:
+      return "eevee_game_fsr3_prepare_reactivity";
+    case SH_FSR3_LUMA_INSTABILITY:
+      return "eevee_game_fsr3_luma_instability";
+    case SH_FSR3_ACCUMULATE:
+      return "eevee_game_fsr3_accumulate";
+    case SH_FSR3_ACCUMULATE_SHARPEN:
+      return "eevee_game_fsr3_accumulate_sharpen";
+    case SH_FSR3_RCAS:
+      return "eevee_game_fsr3_rcas";
+    case SH_FSR3_AUTOGEN_REACTIVE:
+      return "eevee_game_fsr3_autogen_reactive";
+
     default:
       BLI_assert_unreachable();
       return nullptr;
@@ -224,6 +245,16 @@ void ShaderModule::static_shaders_load(ShaderGroups groups)
       {SH_SMAA_EDGE, SG_AA},
       {SH_SMAA_WEIGHT, SG_AA},
       {SH_SMAA_BLEND, SG_AA},
+      {SH_FSR3_PREPARE_INPUTS, SG_AA},
+      {SH_FSR3_LUMA_PYRAMID, SG_AA},
+      {SH_FSR3_SHADING_CHANGE_PYRAMID, SG_AA},
+      {SH_FSR3_SHADING_CHANGE, SG_AA},
+      {SH_FSR3_PREPARE_REACTIVITY, SG_AA},
+      {SH_FSR3_LUMA_INSTABILITY, SG_AA},
+      {SH_FSR3_ACCUMULATE, SG_AA},
+      {SH_FSR3_ACCUMULATE_SHARPEN, SG_AA},
+      {SH_FSR3_RCAS, SG_AA},
+      {SH_FSR3_AUTOGEN_REACTIVE, SG_AA},
 
       /* Screen space effects */
       {SH_SSR_TRACE, SG_REFLECT},

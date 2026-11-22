@@ -267,6 +267,7 @@ set(SRC
   engines/eevee-game/eevee_game_depth_of_field.hh
   engines/eevee-game/eevee_game_engine.h
   engines/eevee-game/eevee_game_film.hh
+  engines/eevee-game/eevee_game_fsr3_shared.hh
   engines/eevee-game/eevee_game_gtao.hh
   engines/eevee-game/eevee_game_instance.hh
   engines/eevee-game/eevee_game_material.hh
@@ -420,6 +421,7 @@ set(GLSL_SRC
   engines/eevee/shaders/infos/eevee_volume_infos.hh
   engines/eevee/shaders/infos/eevee_volume_resolved_infos.hh
 
+  engines/eevee-game/shaders/infos/eevee_game_fsr3_infos.hh
   engines/eevee-game/shaders/infos/eevee_game_infos.hh
 
   engines/image/shaders/infos/engine_image_infos.hh
@@ -658,7 +660,16 @@ set(GLSL_SRC
   engines/eevee-game/shaders/eevee_game_deferred_light_frag.glsl
   engines/eevee-game/shaders/eevee_game_dof_fast_comp.glsl
   engines/eevee-game/shaders/eevee_game_film_present_frag.glsl
-  engines/eevee-game/shaders/eevee_game_fsr3_mask_gen_comp.glsl
+  engines/eevee-game/shaders/eevee_game_fsr3_accumulate_comp.glsl
+  engines/eevee-game/shaders/eevee_game_fsr3_autogen_reactive_comp.glsl
+  engines/eevee-game/shaders/eevee_game_fsr3_callbacks_lib.glsl
+  engines/eevee-game/shaders/eevee_game_fsr3_luma_instability_comp.glsl
+  engines/eevee-game/shaders/eevee_game_fsr3_luma_pyramid_comp.glsl
+  engines/eevee-game/shaders/eevee_game_fsr3_prepare_inputs_comp.glsl
+  engines/eevee-game/shaders/eevee_game_fsr3_prepare_reactivity_comp.glsl
+  engines/eevee-game/shaders/eevee_game_fsr3_rcas_comp.glsl
+  engines/eevee-game/shaders/eevee_game_fsr3_shading_change_comp.glsl
+  engines/eevee-game/shaders/eevee_game_fsr3_shading_change_pyramid_comp.glsl
   engines/eevee-game/shaders/eevee_game_fxaa_frag.glsl
   engines/eevee-game/shaders/eevee_game_gtao_main_comp.glsl
   engines/eevee-game/shaders/eevee_game_gtao_upsample_comp.glsl
@@ -678,7 +689,22 @@ set(GLSL_SRC
   engines/eevee-game/shaders/eevee_game_world_lib.glsl
   engines/eevee-game/shaders/eevee_game_world_prefilter_comp.glsl
   engines/eevee-game/shaders/eevee_game_world_sh_comp.glsl
+  # FSR 3.1, vendored from FidelityFX by shaders/fsr3/vendor/vendor_fsr3.py.
+  engines/eevee-game/shaders/fsr3/ffx_core_lib.glsl
+  engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_accumulate_lib.glsl
+  engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_common_lib.glsl
+  engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_luma_instability_lib.glsl
+  engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_luma_pyramid_lib.glsl
+  engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_prepare_inputs_lib.glsl
+  engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_prepare_reactivity_lib.glsl
+  engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_rcas_lib.glsl
+  engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_reproject_lib.glsl
+  engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_sample_lib.glsl
+  engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_shading_change_lib.glsl
+  engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_shading_change_pyramid_lib.glsl
+  engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_upsample_lib.glsl
 
+  engines/eevee-game/eevee_game_fsr3_shared.hh
   engines/eevee-game/eevee_game_shader_shared.hh
 
   engines/workbench/shaders/workbench_cavity.bsl.hh
@@ -959,6 +985,7 @@ set(GLSL_INC
   engines/eevee-game
   engines/eevee-game/shaders
   engines/eevee-game/shaders/infos
+  engines/eevee-game/shaders/fsr3
   engines/overlay
   engines/overlay/shaders
   engines/overlay/shaders/infos

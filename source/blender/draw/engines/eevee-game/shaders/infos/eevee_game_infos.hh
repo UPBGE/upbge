@@ -558,30 +558,6 @@ GPU_SHADER_CREATE_END()
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name FSR reactive mask
- *
- * Fallback mask generator. Not referenced from C++ while the FSR3 SDK pass
- * (UpscaleModule::generate_masks) is used.
- * \{ */
-
-GPU_SHADER_CREATE_INFO(eevee_game_fsr3_mask_gen)
-DO_STATIC_COMPILATION()
-LOCAL_GROUP_SIZE(8, 8)
-SAMPLER(0, sampler2D, color_tx)
-SAMPLER(1, sampler2D, vector_tx)
-SAMPLER(2, sampler2D, color_history_tx)
-SAMPLER(3, sampler2D, stencil_tx)
-IMAGE(0, UNORM_8, write, image2D, reactive_mask_img)
-IMAGE(1, UNORM_8, write, image2D, transp_mask_img)
-PUSH_CONSTANT(float, reactive_motion_threshold)
-PUSH_CONSTANT(float, reactive_luma_threshold)
-PUSH_CONSTANT(float, reactive_base)
-COMPUTE_SOURCE("eevee_game_fsr3_mask_gen_comp.glsl")
-GPU_SHADER_CREATE_END()
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Film
  * \{ */
 

@@ -89,9 +89,8 @@ void GameInstance::init(const int2 &output_res, const rcti *output_rect)
     modules_initialized_ = true;
   }
 
-  /* Upscaling: create the FSR3 context, and recreate it only when the mode or
-   * a resolution changes. init() destroys and rebuilds the whole SDK context,
-   * which must not happen on every redraw. */
+  /* Upscaling: create the FSR3 resources, and recreate them only when the mode
+   * or a resolution changes, not on every redraw. */
   const int4 upscale_key = int4(film.render_extent_get(), film.display_extent_get());
   if (upscale_settings.mode != UpscaleMode::OFF &&
       (!upscale.is_initialized() || upscale_key != upscale_key_))
@@ -177,7 +176,7 @@ void GameInstance::begin_sync()
   }
 
   uniform_data.camera_pos = camera.position();
-  /* FSR3: advance the SDK jitter counter NOW so the offset is known before
+  /* FSR3: advance the jitter sequence NOW so the offset is known before
    * the prepass and G-Buffer are rendered. apply_fsr3() reads the value back
    * later. Non-FSR path: no jitter. */
   uniform_data.jitter = upscale.is_initialized() ? upscale.advance_jitter() : float2(0.0f);

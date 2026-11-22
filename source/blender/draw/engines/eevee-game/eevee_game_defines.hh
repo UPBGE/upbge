@@ -153,6 +153,8 @@ enum ClosureBits {
 /* Settings for the FSR upscaling module, stored on GameInstance */
 struct UpscaleSettings {
   UpscaleMode mode = UpscaleMode::OFF;
+  /* RCAS sharpening after the upscale, FidelityFX's [0, 1]. 0 skips the pass. */
+  float sharpness = 0.0f;
 };
 
 } // namespace blender::eevee_game

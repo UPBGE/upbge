@@ -1,411 +1,446 @@
 /* SPDX-FileCopyrightText: 2023 Blender Authors
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "eevee_game_upscaling.hh"
-#include "eevee_game_instance.hh"
+/** \file
+ * FSR 3.1 host: port of FidelityFX's ffx_fsr3upscaler.cpp (SDK v1.1.4, MIT), fsr3upscalerCreate()
+ * and fsr3upscalerDispatch(). Same resources, constants and pass order; the passes are recorded
+ * once per resolution and only their inputs change from frame to frame.
+ */
 
-#include "GPU_context.hh"
+#include <cfloat>
+#include <cmath>
 
-/* DNA_scene_types.h for UnitSettings::scale_length */
+#include "BLI_math_base.hh"
+#include "BLI_math_bits.h"
+#include "BLI_math_half.hh"
+#include "BLI_vector.hh"
+
+#include "GPU_texture.hh"
+
 #include "DNA_scene_types.h"
+
+#include "eevee_game_instance.hh"
+#include "eevee_game_upscaling.hh"
 
 namespace blender::eevee_game {
 
-#ifdef WITH_AMD_FSR3
+static float halton(int index, int base)
+{
+  float f = 1.0f, result = 0.0f;
+  for (int i = index; i > 0; i /= base) {
+    f /= float(base);
+    result += f * float(i % base);
+  }
+  return result;
+}
 
-/* ================================================================
- * to_ffx_quality()
- *
- * Maps eevee_game UpscaleMode to the FSR3 SDK FfxFsr3QualityMode enum.
- * OFF is never passed here — the caller guards against it.
- *
- * FSR3 quality modes control the render-resolution ratio:
- *   ULTRA_QUALITY : ~77% of display res  (sharpest, most expensive)
- *   QUALITY       : ~67%
- *   BALANCED      : ~59%
- *   PERFORMANCE   : ~50%  (fastest, most visible upscaling artefacts)
- * ================================================================ */
+/* ffxFsr3UpscalerGetJitterPhaseCount(): 8 samples per output pixel area. */
+static int jitter_phase_count_get(int render_width, int display_width)
+{
+  return int(8.0f * std::pow(float(display_width) / float(render_width), 2.0f));
+}
 
-/* static */
-FfxFsr3QualityMode UpscaleModule::to_ffx_quality(UpscaleMode mode)
+/* ffxFsr3UpscalerGetUpscaleRatioFromQualityMode(). */
+static float upscale_ratio_get(UpscaleMode mode)
 {
   switch (mode) {
-    case UpscaleMode::FSR3_ULTRA_QUALITY: return FFX_FSR3_QUALITY_MODE_ULTRA_QUALITY;
-    case UpscaleMode::FSR3_QUALITY:       return FFX_FSR3_QUALITY_MODE_QUALITY;
-    case UpscaleMode::FSR3_BALANCED:      return FFX_FSR3_QUALITY_MODE_BALANCED;
-    case UpscaleMode::FSR3_PERFORMANCE:   return FFX_FSR3_QUALITY_MODE_PERFORMANCE;
-    default:
-      BLI_assert_unreachable();
-      return FFX_FSR3_QUALITY_MODE_QUALITY;
+    case UpscaleMode::FSR3_ULTRA_QUALITY:
+      return 1.3f;
+    case UpscaleMode::FSR3_QUALITY:
+      return 1.5f;
+    case UpscaleMode::FSR3_BALANCED:
+      return 1.7f;
+    case UpscaleMode::FSR3_PERFORMANCE:
+      return 2.0f;
+    case UpscaleMode::OFF:
+      break;
   }
+  return 1.0f;
 }
-
-/* ================================================================
- * get_command_list()
- *
- * Returns the currently active Vulkan command buffer wrapped as an
- * FfxCommandList so the FSR3 SDK can record its compute dispatches
- * into the same command stream as the rest of the frame.
- *
- * The Vulkan backend currently records work through an asynchronous render
- * graph, so it does not expose a command buffer here yet. */
-FfxCommandList UpscaleModule::get_command_list()
-{
-  const GPUVKDeviceHandles handles = GPU_vk_device_handles_get();
-  VkCommandBuffer cmd = reinterpret_cast<VkCommandBuffer>(
-      static_cast<uintptr_t>(handles.vk_command_buffer));
-  return ffxGetCommandListVK(cmd);
-}
-
-/* ================================================================
- * bridge_texture()
- *
- * Wraps a gpu::Texture* into an FfxResource so FSR3 can read or write
- * it within its Vulkan dispatch passes.
- *
- * The public GPU_texture_vk_handles_get() gives us the VkImage,
- * VkImageView, and format without requiring access to Blender's
- * internal VKTexture class.  ffxGetTextureResourceVK() then wraps
- * these into an FfxResource with the correct state and debug label.
- *
- * FfxResourceDescription is filled from the gpu::Texture dimensions
- * and format so FSR3 can reason about mip counts and array layers
- * without deriving them from Vulkan itself. */
-FfxResource UpscaleModule::bridge_texture(gpu::Texture *tx,
-                                           const wchar_t *debug_name,
-                                           FfxResourceStates initial_state)
-{
-  BLI_assert(tx != nullptr);
-
-  const GPUTextureVKHandles vk = GPU_texture_vk_handles_get(tx->get());
-  const int3 size = tx->size();
-
-  FfxResourceDescription desc = {};
-  desc.type   = FFX_RESOURCE_TYPE_TEXTURE2D;
-  desc.format = ffxGetSurfaceFormatVK(static_cast<VkFormat>(vk.vk_format));
-  desc.width  = uint32_t(size.x);
-  desc.height = uint32_t(size.y);
-  desc.depth  = 1;
-  desc.mipCount = uint32_t(tx->mip_count());
-  desc.flags  = FFX_RESOURCE_FLAGS_NONE;
-  desc.usage  = (initial_state == FFX_RESOURCE_STATE_UNORDERED_ACCESS) ?
-                    FFX_RESOURCE_USAGE_UAV :
-                    FFX_RESOURCE_USAGE_READ_ONLY;
-
-  return ffxGetTextureResourceVK(
-      &fsr3_context_,
-      reinterpret_cast<VkImage>(static_cast<uintptr_t>(vk.vk_image)),
-      reinterpret_cast<VkImageView>(static_cast<uintptr_t>(vk.vk_image_view)),
-      uint32_t(size.x),
-      uint32_t(size.y),
-      static_cast<VkFormat>(vk.vk_format),
-      debug_name,
-      initial_state);
-}
-
-#endif /* WITH_AMD_FSR3 */
-
-/* ================================================================
- * Destructor
- * ================================================================ */
-
-UpscaleModule::~UpscaleModule()
-{
-#ifdef WITH_AMD_FSR3
-  if (is_initialized_) {
-    /* GPU must be idle before destroying FSR resources. */
-    ffxFsr3ContextDestroy(&fsr3_context_);
-    is_initialized_ = false;
-  }
-#endif
-}
-
-/* ================================================================
- * init()
- * ================================================================ */
-
-void UpscaleModule::init(int2 render_res, int2 display_res)
-{
-#ifdef WITH_AMD_FSR3
-  /* FSR3 is Vulkan-only. If the active GPU backend is OpenGL or Metal,
-   * GPU_vk_device_handles_get() returns zeroed handles and the subsequent
-   * ffxGetScratchMemorySizeVK() call will crash or produce nonsense.
-   * Mark as uninitialised and return cleanly; ShadingView::render() will
-   * fall back to SMAA/FXAA automatically because is_initialized_ == false. */
-  if (GPU_backend_get_type() != GPU_BACKEND_VULKAN) {
-    is_initialized_ = false;
-    return;
-  }
-
-  if (is_initialized_) {
-    ffxFsr3ContextDestroy(&fsr3_context_);
-    is_initialized_ = false;
-  }
-
-  render_res_  = render_res;
-  display_res_ = display_res;
-
-  /* Retrieve Vulkan device handles via the public GPU API. */
-  const GPUVKDeviceHandles dev_handles = GPU_vk_device_handles_get();
-
-  const VkPhysicalDevice vk_phys_dev = reinterpret_cast<VkPhysicalDevice>(
-      static_cast<uintptr_t>(dev_handles.vk_physical_device));
-  const VkDevice vk_device = reinterpret_cast<VkDevice>(
-      static_cast<uintptr_t>(dev_handles.vk_device));
-
-  const size_t sz_shared  = ffxGetScratchMemorySizeVK(vk_phys_dev, FFX_FSR3_CONTEXT_COUNT);
-  const size_t sz_upscale = ffxGetScratchMemorySizeVK(vk_phys_dev, FFX_FSR3UPSCALER_CONTEXT_COUNT);
-  const size_t sz_fi      = ffxGetScratchMemorySizeVK(vk_phys_dev, FFX_FRAMEINTERPOLATION_CONTEXT_COUNT);
-
-  scratch_shared_.resize(sz_shared,   0);
-  scratch_upscale_.resize(sz_upscale, 0);
-  scratch_fi_.resize(sz_fi,           0);
-
-  const FfxDevice ffx_device = ffxGetDeviceVK(vk_device);
-  FfxErrorCode err;
-
-  err = ffxGetInterfaceVK(&context_desc_.backendInterfaceSharedResources,
-                           ffx_device,
-                           scratch_shared_.data(),  scratch_shared_.size(),
-                           FFX_FSR3_CONTEXT_COUNT);
-  BLI_assert_msg(err == FFX_OK, "FSR3: failed to init shared resources backend");
-
-  err = ffxGetInterfaceVK(&context_desc_.backendInterfaceUpscaling,
-                           ffx_device,
-                           scratch_upscale_.data(), scratch_upscale_.size(),
-                           FFX_FSR3UPSCALER_CONTEXT_COUNT);
-  BLI_assert_msg(err == FFX_OK, "FSR3: failed to init upscaling backend");
-
-  err = ffxGetInterfaceVK(&context_desc_.backendInterfaceFrameInterpolation,
-                           ffx_device,
-                           scratch_fi_.data(),      scratch_fi_.size(),
-                           FFX_FRAMEINTERPOLATION_CONTEXT_COUNT);
-  BLI_assert_msg(err == FFX_OK, "FSR3: failed to init frame interpolation backend");
-
-  /* depth_tx is reversed (1 = near, see RenderBuffers). */
-  context_desc_.flags = FFX_FSR3_ENABLE_HIGH_DYNAMIC_RANGE |
-                        FFX_FSR3_ENABLE_DEPTH_INVERTED |
-                        FFX_FSR3_ENABLE_UPSCALING_ONLY;
-
-  context_desc_.maxRenderSize  = {uint32_t(render_res.x),  uint32_t(render_res.y)};
-  context_desc_.maxUpscaleSize = {uint32_t(display_res.x), uint32_t(display_res.y)};
-  context_desc_.displaySize    = {uint32_t(display_res.x), uint32_t(display_res.y)};
-  context_desc_.backBufferFormat = FFX_SURFACE_FORMAT_R16G16B16A16_FLOAT;
-
-#ifndef NDEBUG
-  context_desc_.fpMessage = [](FfxMsgType type, const wchar_t *msg) {
-    if (type == FFX_MESSAGE_TYPE_ERROR) {
-      fprintf(stderr, "[FSR3 ERROR] %ls\n", msg);
-    }
-  };
-#endif
-
-  err = ffxFsr3ContextCreate(&fsr3_context_, &context_desc_);
-  BLI_assert_msg(err == FFX_OK, "FSR3: ffxFsr3ContextCreate failed");
-  is_initialized_ = (err == FFX_OK);
-
-  if (!is_initialized_) {
-    return;
-  }
-
-  jitter_phase_count_ = ffxFsr3GetJitterPhaseCount(render_res.x, display_res.x);
-  jitter_frame_index_ = 0;
-
-#else
-  (void)render_res;
-  (void)display_res;
-#endif /* WITH_AMD_FSR3 */
-}
-
-/* ================================================================
- * apply_fsr3()
- * ================================================================ */
-
-float2 UpscaleModule::advance_jitter()
-{
-#ifdef WITH_AMD_FSR3
-  if (!is_initialized_) {
-    return float2(0.0f);
-  }
-  float jitter_x = 0.0f, jitter_y = 0.0f;
-  ffxFsr3GetJitterOffset(&jitter_x, &jitter_y, jitter_frame_index_, jitter_phase_count_);
-  jitter_frame_index_ = (jitter_frame_index_ + 1) % jitter_phase_count_;
-  /* Pixel offset to NDC offset of the projection. FSR shifts the image by
-   * +jitter texels, rows counted in memory order. Here row 0 is NDC y = -1
-   * (no viewport flip, GL and Vulkan alike), so y keeps its sign; AMD's
-   * samples negate it because their row 0 is NDC y = +1. */
-  const int2 render_res = inst_->film.render_extent_get();
-  return float2(2.0f * jitter_x / float(render_res.x),
-                2.0f * jitter_y / float(render_res.y));
-#else
-  return float2(0.0f);
-#endif
-}
-
-void UpscaleModule::apply_fsr3(gpu::Texture *src, gpu::Texture *dst, gpu::Texture *ui_tx)
-{
-#ifdef WITH_AMD_FSR3
-  if (!is_initialized_) {
-    return;
-  }
-
-  /* Jitter was already advanced in begin_sync() via advance_jitter().
-   * inst_->uniform_data.jitter is already set; read it back for the SDK. */
-  const int2 render_res = inst_->film.render_extent_get();
-  const float jitter_x = inst_->uniform_data.jitter.x * float(render_res.x) / 2.0f;
-  const float jitter_y = inst_->uniform_data.jitter.y * float(render_res.y) / 2.0f;
-
-  FfxFsr3DispatchUpscaleDescription dispatch = {};
-  dispatch.commandList = get_command_list();
-
-  dispatch.color = bridge_texture(src,
-      L"FSR3_Color",        FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-  dispatch.depth = bridge_texture(&inst_->render_buffers.depth_tx,
-      L"FSR3_Depth",        FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-  dispatch.motionVectors = bridge_texture(inst_->render_buffers.vector_tx.get(),
-      L"FSR3_MotionVectors", FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-  dispatch.reactive = bridge_texture(inst_->render_buffers.reactive_mask_tx.get(),
-      L"FSR3_Reactive",     FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-  dispatch.transparencyAndComposition = bridge_texture(
-      inst_->render_buffers.transp_mask_tx.get(),
-      L"FSR3_TransComp",    FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-  dispatch.upscaleOutput = bridge_texture(dst,
-      L"FSR3_Output",       FFX_RESOURCE_STATE_UNORDERED_ACCESS);
-
-  dispatch.jitterOffset      = {jitter_x, jitter_y};
-  /* The prepass writes EEVEE's packed velocity: UV motion times 0.01
-   * (velocity_pack), previous minus current. */
-  dispatch.motionVectorScale = {100.0f * float(render_res.x), 100.0f * float(render_res.y)};
-  dispatch.renderSize        = {uint32_t(render_res.x),   uint32_t(render_res.y)};
-  dispatch.upscaleSize       = {uint32_t(display_res_.x),  uint32_t(display_res_.y)};
-  dispatch.frameTimeDelta    = inst_->delta_time_ms;
-  dispatch.preExposure       = 1.0f;
-
-  const CameraData &cam = inst_->camera.data_get();
-  const float2 render_res_f = float2(render_res);
-  /* Same guard as in begin_sync(): during window resize render_res.y can
-   * transiently be 0. A NaN cameraFovAngleVertical causes FSR3 to assert
-   * or produce garbage temporal accumulation for the entire subsequent
-   * sequence until the context is recreated. */
-  const float  aspect       = (render_res_f.y > 0.0f) ?
-                               render_res_f.x / render_res_f.y : 1.0f;
-
-  const float sensor_height = cam.sensor_width / aspect;
-  dispatch.cameraFovAngleVertical = 2.0f * atanf(sensor_height / (2.0f * cam.focal_length));
-
-  dispatch.cameraNear = cam.clip_near;
-  dispatch.cameraFar  = cam.clip_far;
-
-  /* FIX: was hardcoded to 1.0f ("Blender scene unit = 1 metre").
-   * That assumption breaks when the user has changed the scene unit scale (e.g. cm, mm scale).
-   * scene->unit.scale_length is the metres-per-Blender-unit factor set in the scene properties.
-   * Passing the correct value prevents FSR3 from computing wrong motion vector magnitudes,
-   * which would cause ghosting / smearing artefacts on fast-moving objects. */
-  dispatch.viewSpaceToMetersFactor = (inst_->scene != nullptr) ?
-      inst_->scene->unit.scale_length :
-      1.0f; /* Fallback to 1 m/unit if scene is unavailable (should never happen in game mode). */
-
-  dispatch.reset            = camera_cut_pending_;
-  camera_cut_pending_       = false;
-  dispatch.enableSharpening = false;
-  dispatch.sharpness        = 0.0f;
-
-  const FfxErrorCode err = ffxFsr3ContextDispatchUpscale(&fsr3_context_, &dispatch);
-  BLI_assert_msg(err == FFX_OK, "FSR3: ffxFsr3ContextDispatchUpscale failed");
-
-  if (ui_tx != nullptr) {
-    GPU_texture_copy(dst, ui_tx);
-  }
-
-#else
-  (void)src;
-  (void)dst;
-  (void)ui_tx;
-#endif /* WITH_AMD_FSR3 */
-}
-
-/* ================================================================
- * generate_masks()
- * ================================================================ */
-
-void UpscaleModule::generate_masks(gpu::Texture *opaque_tx,
-                                   gpu::Texture *combined_tx,
-                                   gpu::Texture *reactive_tx,
-                                   gpu::Texture *transp_tx)
-{
-#ifdef WITH_AMD_FSR3
-  if (!is_initialized_) {
-    return;
-  }
-
-  const int2 render_res = inst_->film.render_extent_get();
-  const FfxDimensions2D ffx_res = {uint32_t(render_res.x), uint32_t(render_res.y)};
-
-  {
-    FfxFsr3GenerateReactiveDescription desc = {};
-    desc.commandList     = get_command_list();
-    desc.colorOpaqueOnly = bridge_texture(opaque_tx,
-        L"FSR3_OpaqueOnly",  FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-    desc.colorPreUpscale = bridge_texture(combined_tx,
-        L"FSR3_Combined",    FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-    desc.outReactive     = bridge_texture(reactive_tx,
-        L"FSR3_Reactive",    FFX_RESOURCE_STATE_UNORDERED_ACCESS);
-    desc.renderSize      = ffx_res;
-    desc.scale           = 1.0f;
-    desc.cutoffThreshold = 0.1f;
-    desc.binaryValue     = 1.0f;
-    desc.flags           = 0;
-    const FfxErrorCode err = ffxFsr3ContextGenerateReactiveMask(&fsr3_context_, &desc);
-    BLI_assert_msg(err == FFX_OK, "FSR3: GenerateReactiveMask failed");
-  }
-
-  {
-    FfxFsr3GenerateReactiveDescription desc = {};
-    desc.commandList     = get_command_list();
-    desc.colorOpaqueOnly = bridge_texture(opaque_tx,
-        L"FSR3_OpaqueOnly2", FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-    desc.colorPreUpscale = bridge_texture(combined_tx,
-        L"FSR3_Combined2",   FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-    desc.outReactive     = bridge_texture(transp_tx,
-        L"FSR3_TransComp",   FFX_RESOURCE_STATE_UNORDERED_ACCESS);
-    desc.renderSize      = ffx_res;
-    desc.scale           = 0.5f;
-    desc.cutoffThreshold = 0.05f;
-    desc.binaryValue     = 0.5f;
-    desc.flags           = 0;
-    const FfxErrorCode err = ffxFsr3ContextGenerateReactiveMask(&fsr3_context_, &desc);
-    BLI_assert_msg(err == FFX_OK, "FSR3: GenerateReactiveMask (transp) failed");
-  }
-
-#else
-  (void)opaque_tx;
-  (void)combined_tx;
-  (void)reactive_tx;
-  (void)transp_tx;
-#endif /* WITH_AMD_FSR3 */
-}
-
-/* ================================================================
- * calculate_render_res() — static
- * ================================================================ */
 
 /* static */
 int2 UpscaleModule::calculate_render_res(int2 display_res, UpscaleMode mode)
 {
-#ifdef WITH_AMD_FSR3
-  if (mode == UpscaleMode::OFF) {
-    return display_res;
-  }
-  uint32_t rw, rh;
-  ffxFsr3GetRenderResolutionFromQualityMode(
-      &rw, &rh,
-      uint32_t(display_res.x), uint32_t(display_res.y),
-      to_ffx_quality(mode));
-  return int2(int(rw), int(rh));
-#else
-  (void)mode;
-  return display_res;
-#endif
+  const float ratio = upscale_ratio_get(mode);
+  return int2(int(float(display_res.x) / ratio), int(float(display_res.y) / ratio));
 }
 
-} // namespace blender::eevee_game
+void UpscaleModule::init(int2 render_res, int2 display_res)
+{
+  render_res_ = render_res;
+  display_res_ = display_res;
+  const int2 half_res = render_res / 2;
+
+  constexpr eGPUTextureUsage rw = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE;
+  /* GPU_texture_clear() goes through a frame-buffer on OpenGL. */
+  constexpr eGPUTextureUsage rw_clear = rw | GPU_TEXTURE_USAGE_ATTACHMENT;
+  using TF = gpu::TextureFormat;
+
+  for (int i = 0; i < 2; i++) {
+    accumulation_tx_[i].ensure_2d(TF::UNORM_8, render_res, rw_clear);
+    luma_tx_[i].ensure_2d(TF::SFLOAT_16, render_res, rw_clear);
+    luma_history_tx_[i].ensure_2d(TF::SFLOAT_16_16_16_16, render_res, rw_clear);
+    upscaled_tx_[i].ensure_2d(TF::SFLOAT_16_16_16_16, display_res, rw_clear);
+  }
+  new_locks_tx_.ensure_2d(TF::UNORM_8, display_res, rw_clear);
+  intermediate_tx_.ensure_2d(TF::SFLOAT_16, render_res, rw);
+  shading_change_tx_.ensure_2d(TF::UNORM_8, half_res, rw);
+  /* The pyramids write mips 0 to 5 (FidelityFX allocates the whole chain, never bound past 5),
+   * the shading change samples the first ones. */
+  const int spd_mip_len = math::min(6, int(std::log2(float(math::max(half_res.x, half_res.y)))) + 1);
+  spd_mips_tx_.ensure_2d(
+      TF::SFLOAT_16_16, half_res, rw, nullptr, spd_mip_len);
+  spd_mips_tx_.ensure_mip_views();
+  /* FidelityFX clears the pyramid every frame so that texels it never writes read 0. The
+   * written set only depends on the render size, fixed until the next init(): clear once. */
+  {
+    Vector<float2> zeros(half_res.x * half_res.y, float2(0.0f));
+    for (int i = 0; i < 6; i++) {
+      /* Missing levels (tiny resolutions) alias the last one: never read past it. */
+      const int mip = math::min(i, spd_mip_len - 1);
+      spd_mip_[i] = spd_mips_tx_.mip_view(mip);
+      if (i == mip) {
+        GPU_texture_update_mipmap(spd_mips_tx_, mip, GPU_DATA_FLOAT, zeros.data());
+      }
+    }
+  }
+  farthest_depth_mip1_tx_.ensure_2d(TF::SFLOAT_16, half_res, rw);
+  dilated_reactive_tx_.ensure_2d(TF::UNORM_8_8_8_8, render_res, rw);
+  dilated_motion_tx_.ensure_2d(TF::SFLOAT_16_16, render_res, rw);
+  dilated_depth_tx_.ensure_2d(TF::SFLOAT_32, render_res, rw);
+  reconstructed_depth_tx_.ensure_2d(
+      TF::UINT_32, render_res, rw_clear | GPU_TEXTURE_USAGE_ATOMIC);
+  const float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  empty_mask_tx_.ensure_2d(TF::UNORM_8, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, zero);
+
+  /* FidelityFX leaves the histories uninitialized: the first frame resets them, but freshly
+   * allocated memory can hold NaN that a bilinear tap at the border would pick up. */
+  for (int i = 0; i < 2; i++) {
+    luma_history_tx_[i].clear(float4(0.0f));
+    upscaled_tx_[i].clear(float4(0.0f));
+  }
+  new_locks_tx_.clear(float4(0.0f));
+  spd_atomic_buf_.clear_to_zero();
+
+  /* ffxSpdSetup() over the render resolution. */
+  spd_group_count_ = int2((render_res.x - 1) / 64 + 1, (render_res.y - 1) / 64 + 1);
+
+  jitter_phase_count_ = jitter_phase_count_get(render_res.x, display_res.x);
+  jitter_index_ = 0;
+  frame_ = 0;
+  first_execution_ = true;
+  data_.previous_frame_jitter = float2(0.0f);
+  data_.jitter = float2(0.0f);
+  data_.render_size = int2(0);
+  data_.upscale_size = int2(0);
+
+  passes_sync();
+  is_initialized_ = true;
+}
+
+float2 UpscaleModule::advance_jitter()
+{
+  if (!is_initialized_) {
+    return float2(0.0f);
+  }
+  /* ffxFsr3UpscalerGetJitterOffset(). */
+  const int index = (jitter_index_ % jitter_phase_count_) + 1;
+  jitter_index_ = (jitter_index_ + 1) % jitter_phase_count_;
+  jitter_px_ = float2(halton(index, 2), halton(index, 3)) - 0.5f;
+  return 2.0f * jitter_px_ / float2(render_res_);
+}
+
+void UpscaleModule::passes_sync()
+{
+  ShaderModule &shaders = inst_->shaders;
+  /* FidelityFX samples with linear filtering and clamp. texelFetch ignores the sampler, except
+   * that integer textures with linear filtering are incomplete on OpenGL. */
+  const GPUSamplerState linear = {GPU_SAMPLER_FILTERING_LINEAR};
+  const GPUSamplerState linear_mip = {GPU_SAMPLER_FILTERING_LINEAR | GPU_SAMPLER_FILTERING_MIPMAP};
+  const GPUSamplerState nearest = GPUSamplerState::default_sampler();
+  /* Every pass reads what the previous ones wrote, as textures, images or buffers. */
+  const GPUBarrier barrier = GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_IMAGE_ACCESS |
+                             GPU_BARRIER_SHADER_STORAGE;
+  const int3 render_groups = int3(math::divide_ceil(render_res_, int2(FSR3_GROUP_SIZE)), 1);
+  const int3 display_groups = int3(math::divide_ceil(display_res_, int2(FSR3_GROUP_SIZE)), 1);
+  const int3 half_groups = int3(math::divide_ceil(render_res_ / 2, int2(FSR3_GROUP_SIZE)), 1);
+  const int3 spd_groups = int3(spd_group_count_, 1);
+  const int3 rcas_groups = int3(math::divide_ceil(display_res_, int2(FSR3_RCAS_TILE_SIZE)), 1);
+
+  {
+    PassSimple &ps = prepare_ps_;
+    ps.init();
+    ps.bind_ubo("fsr3_buf", data_);
+    {
+      PassSimple::Sub &sub = ps.sub("PrepareInputs");
+      sub.shader_set(shaders.static_shader_get(SH_FSR3_PREPARE_INPUTS));
+      sub.bind_texture("r_input_motion_vectors", &motion_tx_, linear);
+      sub.bind_texture("r_input_depth", &depth_tx_, linear);
+      sub.bind_texture("r_input_color_jittered", &color_tx_, linear);
+      sub.bind_image("rw_dilated_motion_vectors", &dilated_motion_tx_);
+      sub.bind_image("rw_dilated_depth", &dilated_depth_tx_);
+      sub.bind_image("rw_reconstructed_previous_nearest_depth", &reconstructed_depth_tx_);
+      sub.bind_image("rw_farthest_depth", &intermediate_tx_);
+      sub.bind_image("rw_current_luma", &luma_current_);
+      sub.dispatch(render_groups);
+      sub.barrier(barrier);
+    }
+    {
+      PassSimple::Sub &sub = ps.sub("LumaPyramid");
+      sub.shader_set(shaders.static_shader_get(SH_FSR3_LUMA_PYRAMID));
+      sub.bind_texture("r_current_luma", &luma_current_, linear);
+      sub.bind_texture("r_farthest_depth", &intermediate_tx_, linear);
+      sub.bind_ssbo("rw_spd_global_atomic", spd_atomic_buf_);
+      sub.bind_ssbo("rw_frame_info", frame_info_buf_);
+      /* Image slots 0 to 5: rw_spd_mip0 to rw_spd_mip5. */
+      for (int i = 0; i < 6; i++) {
+        sub.bind_image(i, &spd_mip_[i]);
+      }
+      sub.bind_image("rw_farthest_depth_mip1", &farthest_depth_mip1_tx_);
+      sub.dispatch(spd_groups);
+      sub.barrier(barrier);
+    }
+    {
+      PassSimple::Sub &sub = ps.sub("ShadingChangePyramid");
+      sub.shader_set(shaders.static_shader_get(SH_FSR3_SHADING_CHANGE_PYRAMID));
+      sub.bind_texture("r_current_luma", &luma_current_, linear);
+      sub.bind_texture("r_previous_luma", &luma_previous_, linear);
+      sub.bind_texture("r_dilated_motion_vectors", &dilated_motion_tx_, linear);
+      sub.bind_ssbo("rw_spd_global_atomic", spd_atomic_buf_);
+      /* Image slots 0 to 5: rw_spd_mip0 to rw_spd_mip5. */
+      for (int i = 0; i < 6; i++) {
+        sub.bind_image(i, &spd_mip_[i]);
+      }
+      sub.dispatch(spd_groups);
+      sub.barrier(barrier);
+    }
+    {
+      PassSimple::Sub &sub = ps.sub("ShadingChange");
+      sub.shader_set(shaders.static_shader_get(SH_FSR3_SHADING_CHANGE));
+      sub.bind_texture("r_spd_mips", &spd_mips_tx_, linear_mip);
+      sub.bind_image("rw_shading_change", &shading_change_tx_);
+      sub.dispatch(half_groups);
+      sub.barrier(barrier);
+    }
+    {
+      PassSimple::Sub &sub = ps.sub("PrepareReactivity");
+      sub.shader_set(shaders.static_shader_get(SH_FSR3_PREPARE_REACTIVITY));
+      sub.bind_texture(
+          "r_reconstructed_previous_nearest_depth", &reconstructed_depth_tx_, nearest);
+      sub.bind_texture("r_dilated_motion_vectors", &dilated_motion_tx_, linear);
+      sub.bind_texture("r_dilated_depth", &dilated_depth_tx_, linear);
+      sub.bind_texture("r_reactive_mask", &reactive_tx_, linear);
+      sub.bind_texture("r_transparency_and_composition_mask", &empty_mask_tx_, linear);
+      sub.bind_texture("r_accumulation", &accumulation_srv_, linear);
+      sub.bind_texture("r_shading_change", &shading_change_tx_, linear);
+      sub.bind_texture("r_current_luma", &luma_current_, linear);
+      sub.bind_image("rw_dilated_reactive_masks", &dilated_reactive_tx_);
+      sub.bind_image("rw_new_locks", &new_locks_tx_);
+      sub.bind_image("rw_accumulation", &accumulation_uav_);
+      sub.dispatch(render_groups);
+      sub.barrier(barrier);
+    }
+    {
+      PassSimple::Sub &sub = ps.sub("LumaInstability");
+      sub.shader_set(shaders.static_shader_get(SH_FSR3_LUMA_INSTABILITY));
+      sub.bind_texture("r_dilated_reactive_masks", &dilated_reactive_tx_, linear);
+      sub.bind_texture("r_dilated_motion_vectors", &dilated_motion_tx_, linear);
+      sub.bind_texture("r_luma_history", &luma_history_srv_, linear);
+      sub.bind_texture("r_farthest_depth_mip1", &farthest_depth_mip1_tx_, linear);
+      sub.bind_texture("r_current_luma", &luma_current_, linear);
+      sub.bind_ssbo("r_frame_info", frame_info_buf_);
+      sub.bind_image("rw_luma_history", &luma_history_uav_);
+      sub.bind_image("rw_luma_instability", &intermediate_tx_);
+      sub.dispatch(render_groups);
+      sub.barrier(barrier);
+    }
+  }
+
+  for (const bool sharpen : {false, true}) {
+    PassSimple &ps = sharpen ? accumulate_sharpen_ps_ : accumulate_ps_;
+    ps.init();
+    ps.bind_ubo("fsr3_buf", data_);
+    {
+      PassSimple::Sub &sub = ps.sub("Accumulate");
+      sub.shader_set(shaders.static_shader_get(sharpen ? SH_FSR3_ACCUMULATE_SHARPEN :
+                                                         SH_FSR3_ACCUMULATE));
+      sub.bind_texture("r_dilated_reactive_masks", &dilated_reactive_tx_, linear);
+      sub.bind_texture("r_dilated_motion_vectors", &dilated_motion_tx_, linear);
+      sub.bind_texture("r_internal_upscaled_color", &upscaled_srv_, linear);
+      sub.bind_texture("r_farthest_depth_mip1", &farthest_depth_mip1_tx_, linear);
+      sub.bind_texture("r_current_luma", &luma_current_, linear);
+      sub.bind_texture("r_luma_instability", &intermediate_tx_, linear);
+      sub.bind_texture("r_input_color_jittered", &color_tx_, linear);
+      sub.bind_image("rw_internal_upscaled_color", &upscaled_uav_);
+      sub.bind_image("rw_upscaled_output", &output_tx_);
+      sub.bind_image("rw_new_locks", &new_locks_tx_);
+      sub.dispatch(display_groups);
+      sub.barrier(barrier);
+    }
+    if (sharpen) {
+      PassSimple::Sub &sub = ps.sub("RCAS");
+      sub.shader_set(shaders.static_shader_get(SH_FSR3_RCAS));
+      sub.bind_texture("r_rcas_input", &upscaled_uav_, linear);
+      sub.bind_image("rw_upscaled_output", &output_tx_);
+      sub.dispatch(rcas_groups);
+      sub.barrier(barrier);
+    }
+  }
+
+  {
+    PassSimple &ps = autogen_reactive_ps_;
+    ps.init();
+    ps.shader_set(shaders.static_shader_get(SH_FSR3_AUTOGEN_REACTIVE));
+    ps.bind_ubo("fsr3_buf", data_);
+    ps.bind_texture("r_input_opaque_only", &opaque_tx_, linear);
+    ps.bind_texture("r_input_color_jittered", &autogen_color_tx_, linear);
+    ps.bind_image("rw_output_autoreactive", &autoreactive_tx_);
+    ps.dispatch(render_groups);
+    ps.barrier(GPU_BARRIER_TEXTURE_FETCH);
+  }
+}
+
+void UpscaleModule::constants_update(bool reset)
+{
+  FSR3UpscalerData &d = data_;
+  const CameraData &cam = inst_->camera.data_get();
+
+  d.previous_frame_jitter = d.jitter;
+  d.jitter = jitter_px_;
+  d.previous_frame_render_size = d.render_size;
+  d.render_size = render_res_;
+  d.max_render_size = render_res_;
+  d.previous_frame_upscale_size = d.upscale_size;
+  d.upscale_size = display_res_;
+  d.max_upscale_size = display_res_;
+  d.downscale_factor = float2(render_res_) / float2(display_res_);
+
+  /* Field of view from the unjittered projection: winmat[0][0] and winmat[1][1] are the
+   * cotangents of the half angles. FidelityFX derives them from the vertical angle and the
+   * aspect ratio, the same for square pixels. It has no orthographic support: its depth
+   * reconstruction assumes a perspective camera. */
+  const float4x4 &winmat = inst_->uniform_data.projectionmat;
+  d.tan_half_fov = 1.0f / winmat[0][0];
+
+  /* setupDeviceDepthToViewSpaceDepthParams(), reversed and finite. Blender's reversed depth is
+   * the D3D one, d = q * far / z - q with q = near / (far - near): z = q * far / (d + q). */
+  const float near = math::min(cam.clip_near, cam.clip_far);
+  const float far = math::max(cam.clip_near, cam.clip_far);
+  const float q = near / (far - near);
+  d.device_to_view_depth = float4(-q, q * far, 1.0f / winmat[0][0], 1.0f / winmat[1][1]);
+
+  d.view_space_to_meters_factor = (inst_->scene != nullptr && inst_->scene->unit.scale_length > 0.0f) ?
+                                      inst_->scene->unit.scale_length :
+                                      1.0f;
+  /* No pre-exposure: the color is scene linear. 0 means 1 (FidelityFX's default texture). */
+  d.delta_pre_exposure = 1.0f;
+  d.exposure = 0.0f;
+
+  /* EEVEE's motion vectors: previous minus current UV, packed * 0.01 (velocity_pack). */
+  d.motion_vector_scale = float2(100.0f);
+  d.motion_vector_jitter_cancellation = float2(0.0f);
+
+  d.jitter_sequence_length = float(jitter_phase_count_);
+  d.delta_time = math::clamp(inst_->delta_time_ms / 1000.0f, 0.0f, 1.0f);
+  d.frame_index = reset ? 0.0f : d.frame_index + 1.0f;
+
+  d.velocity_factor = 1.0f;
+  d.reactiveness_scale = 1.0f;
+  d.shading_change_scale = 1.0f;
+  d.accumulation_added_per_frame = 1.0f / 3.0f;
+  d.min_disocclusion_accumulation = -1.0f / 3.0f;
+
+  /* ffxSpdSetup(): mips from the largest side, at most 12. */
+  d.spd_mips = uint(math::min(std::floor(std::log2(float(math::max(render_res_.x, render_res_.y)))),
+                              12.0f));
+  d.spd_num_work_groups = uint(spd_group_count_.x * spd_group_count_.y);
+  d.spd_work_group_offset = uint2(0);
+  d.spd_render_size = uint2(render_res_);
+
+  /* FsrRcasCon(): sharpness in stops, from FidelityFX's [0, 1] sharpness. */
+  const float sharpness = std::exp2(-(-2.0f * inst_->upscale_settings.sharpness + 2.0f));
+  const uint half = math::float_to_half(sharpness);
+  d.rcas_config = uint4(float_as_uint(sharpness), half | (half << 16u), 0u, 0u);
+
+  d.gen_reactive_scale = reactive_scale;
+  d.gen_reactive_threshold = reactive_threshold;
+  d.gen_reactive_binary_value = reactive_binary_value;
+  d.gen_reactive_flags = reactive_flags;
+  data_.push_update();
+}
+
+void UpscaleModule::generate_masks(gpu::Texture *opaque_tx,
+                                   gpu::Texture *combined_tx,
+                                   gpu::Texture *reactive_tx,
+                                   gpu::Texture * /*transp_tx*/)
+{
+  if (!is_initialized_) {
+    return;
+  }
+  /* The pass reads render_size, Tonemap() and the cbGenerateReactive values. */
+  data_.render_size = render_res_;
+  data_.gen_reactive_scale = reactive_scale;
+  data_.gen_reactive_threshold = reactive_threshold;
+  data_.gen_reactive_binary_value = reactive_binary_value;
+  data_.gen_reactive_flags = reactive_flags;
+  data_.push_update();
+  opaque_tx_ = opaque_tx;
+  autogen_color_tx_ = combined_tx;
+  autoreactive_tx_ = reactive_tx;
+  inst_->manager->submit(autogen_reactive_ps_);
+}
+
+void UpscaleModule::apply_fsr3(gpu::Texture *src, gpu::Texture *dst, gpu::Texture * /*ui_tx*/)
+{
+  if (!is_initialized_) {
+    return;
+  }
+  GPU_debug_group_begin("FSR3");
+
+  const bool reset = camera_cut_pending_ || first_execution_;
+  camera_cut_pending_ = false;
+  if (first_execution_) {
+    for (int i = 0; i < 2; i++) {
+      accumulation_tx_[i].clear(float4(0.0f));
+      luma_tx_[i].clear(float4(0.0f));
+    }
+    first_execution_ = false;
+  }
+
+  /* Halves of the ping-pong resources: odd frames swap them. */
+  const int cur = frame_ & 1;
+  const int prev = cur ^ 1;
+  accumulation_srv_ = accumulation_tx_[cur];
+  accumulation_uav_ = accumulation_tx_[prev];
+  upscaled_srv_ = upscaled_tx_[cur];
+  upscaled_uav_ = upscaled_tx_[prev];
+  luma_history_srv_ = luma_history_tx_[cur];
+  luma_history_uav_ = luma_history_tx_[prev];
+  luma_current_ = luma_tx_[cur];
+  luma_previous_ = luma_tx_[prev];
+
+  color_tx_ = src;
+  depth_tx_ = inst_->render_buffers.depth_tx;
+  motion_tx_ = inst_->render_buffers.vector_tx;
+  reactive_tx_ = inst_->render_buffers.reactive_mask_tx;
+  output_tx_ = dst;
+
+  constants_update(reset);
+
+  if (reset) {
+    accumulation_tx_[cur].clear(float4(0.0f));
+    frame_info_buf_[0] = float4(-1.0f, 1.0f, 0.0f, 0.0f);
+    frame_info_buf_.push_update();
+  }
+  /* Max of the reprojected reversed depths: 0 is the far plane. */
+  reconstructed_depth_tx_.clear(uint4(0u));
+  spd_atomic_buf_.clear_to_zero();
+  inst_->manager->submit(prepare_ps_);
+  const bool sharpen = inst_->upscale_settings.sharpness > 0.0f;
+  inst_->manager->submit(sharpen ? accumulate_sharpen_ps_ : accumulate_ps_);
+
+  frame_++;
+  GPU_debug_group_end();
+}
+
+}  // namespace blender::eevee_game

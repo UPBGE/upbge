@@ -6,7 +6,6 @@
 #include "eevee_game_upscaling.hh"
 
 #include "DRW_render.hh"
-#include "GPU_context.hh" /* GPU_backend_get_type() */
 #include "draw_view_data.hh" /* DefaultFramebufferList */
 
 namespace blender::eevee_game {
@@ -17,13 +16,9 @@ void Film::init(const int2 &display_extent)
   display_extent_ = math::max(display_extent, int2(1));
 
   /* Render resolution is either full display resolution (FSR OFF)
-   * or a downscaled resolution computed by the SDK (FSR ON).
-   * FSR3 is Vulkan only: on other backends nothing would upscale a reduced
-   * render target, so the mode is ignored there. */
-  const UpscaleMode mode = (GPU_backend_get_type() == GPU_BACKEND_VULKAN) ?
-                               inst_.upscale_settings.mode :
-                               UpscaleMode::OFF;
-  render_extent_ = math::max(UpscaleModule::calculate_render_res(display_extent_, mode), int2(1));
+   * or the reduced resolution of the FSR mode. */
+  render_extent_ = math::max(
+      UpscaleModule::calculate_render_res(display_extent_, inst_.upscale_settings.mode), int2(1));
 }
 
 void Film::sync()

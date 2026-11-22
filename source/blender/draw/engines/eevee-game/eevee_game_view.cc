@@ -236,8 +236,6 @@ void ShadingView::render()
 
   /* ================================================================
    * Step 5: Upscaling / Anti-Aliasing */
-  /* is_initialized() and not the requested mode: FSR3 is Vulkan only, and on
-   * any other backend the context is never created. */
   if (inst_.upscale.is_initialized()) {
     /* FSR3: render resolution in, display resolution out. */
     inst_.upscale.apply_fsr3(color_tx, display_res_tx_, nullptr);
