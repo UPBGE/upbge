@@ -26,7 +26,7 @@ using eevee::VelocityIndex;
 
 /* GPU buffer types - same layout as EEVEE velocity buffers */
 using VelocityObjectBuf   = draw::StorageArrayBuffer<float4x4, 16, false>;
-using VelocityGeometryBuf = draw::StorageArrayBuffer<float4, 16, false>;
+using VelocityGeometryBuf = draw::StorageArrayBuffer<float4, 16, true>;
 using VelocityIndexBuf    = draw::StorageArrayBuffer<VelocityIndex, 16>;
 
 /**

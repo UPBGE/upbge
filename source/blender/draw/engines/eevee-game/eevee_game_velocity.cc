@@ -198,7 +198,8 @@ void VelocityModule::end_sync()
   /* Upload all GPU buffers. */
   object_steps[eevee::STEP_PREVIOUS]->push_update();
   object_steps[eevee::STEP_CURRENT]->push_update();
-  geometry_steps[eevee::STEP_PREVIOUS]->push_update();
+  /* Not the geometry steps: they are written on the GPU only (geometry_steps_fill()), an
+   * upload would overwrite the previous positions with the never written host copy. */
   indirection_buf.push_update();
 
   /* Swap current -> previous for the next frame (viewport mode only swap). */
