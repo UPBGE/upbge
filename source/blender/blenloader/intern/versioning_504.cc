@@ -11,13 +11,18 @@
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_screen_types.h"
 
 #include "BLI_listbase.hh"
 #include "BLI_sys_types.hh"
 
+#include "BKE_brush.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_paint.hh"
+#include "BKE_screen.hh"
 
 #include "readfile.hh"
 
@@ -152,6 +157,56 @@ void blo_do_versions_504(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 504, 7)) {
     version_float_socket_precision(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 504, 8)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &sl : area.spacedata) {
+          if (sl.spacetype != SPACE_SEQ) {
+            continue;
+          }
+          ListBaseT<ARegion> *regionbase = (area.spacedata.first() == &sl) ? &area.regionbase :
+                                                                             &sl.regionbase;
+          if (ARegion *timeline_region = BKE_region_find_in_listbase_by_type(regionbase,
+                                                                             RGN_TYPE_WINDOW))
+          {
+            timeline_region->v2d.align &= ~V2D_ALIGN_NO_NEG_Y;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 504, 9)) {
+    for (Brush &brush : bmain->brushes) {
+      if ((brush.ob_mode & OB_MODE_TEXTURE_PAINT) != 0) {
+        BKE_brush_init_mesh_automasking_settings(&brush);
+      }
+    }
+    for (Scene &scene : bmain->scenes) {
+      BKE_paint_mesh_automasking_settings_ensure(scene.toolsettings->imapaint.paint);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 504, 10)) {
+    for (Object &object : bmain->objects) {
+      for (ModifierData &md : object.modifiers) {
+        if (md.type == eModifierType_DataTransfer) {
+          auto &dtmd = reinterpret_cast<DataTransferModifierData &>(md);
+          /* Update when DT_TYPE_VCOL was saved (prior to eae36be372a6).
+           * Nowadays, (1 << 16) is DT_TYPE_MPROPCOL_VERT so that can be checked for (but in
+           * _isolation_, if this is set together with DT_TYPE_MLOOPCOL_VERT it could mean a user
+           * chose to transfer "Colors" in the modifier "Vertex Data" and that should not
+           * be overridden). */
+          if (((dtmd.data_types & DT_TYPE_MPROPCOL_VERT) != 0) &&
+              ((dtmd.data_types & DT_TYPE_MLOOPCOL_VERT) == 0))
+          {
+            dtmd.data_types |= DT_TYPE_MPROPCOL_LOOP | DT_TYPE_MLOOPCOL_LOOP;
+          }
+        }
+      }
+    }
   }
 
   /**

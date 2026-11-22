@@ -711,7 +711,12 @@ Brush *BKE_brush_add(Main *bmain, const char *name, const eObjectMode ob_mode)
   {
     BKE_brush_init_gpencil_settings(brush);
   }
-  else if (ELEM(ob_mode, OB_MODE_SCULPT, OB_MODE_WEIGHT_PAINT, OB_MODE_VERTEX_PAINT)) {
+  else if (ELEM(ob_mode,
+                OB_MODE_SCULPT,
+                OB_MODE_WEIGHT_PAINT,
+                OB_MODE_VERTEX_PAINT,
+                OB_MODE_TEXTURE_PAINT))
+  {
     BKE_brush_init_mesh_automasking_settings(brush);
   }
 
@@ -1100,8 +1105,12 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
   return intensity;
 }
 
-float BKE_brush_sample_masktex(
-    const Paint *paint, Brush *br, const float2 &point, const int thread, ImagePool *pool)
+float BKE_brush_sample_masktex(const Paint *paint,
+                               Brush *br,
+                               const float2 &point,
+                               const float pressure,
+                               const int thread,
+                               ImagePool *pool)
 {
   const bke::PaintRuntime *paint_runtime = paint->runtime;
   MTex *mtex = &br->mask_mtex;
@@ -1202,11 +1211,10 @@ float BKE_brush_sample_masktex(
 
   switch (br->mask_pressure) {
     case BRUSH_MASK_PRESSURE_CUTOFF:
-      intensity = ((1.0f - intensity) < paint_runtime->size_pressure_value) ? 1.0f : 0.0f;
+      intensity = ((1.0f - intensity) < pressure) ? 1.0f : 0.0f;
       break;
     case BRUSH_MASK_PRESSURE_RAMP:
-      intensity = paint_runtime->size_pressure_value +
-                  intensity * (1.0f - paint_runtime->size_pressure_value);
+      intensity = pressure + intensity * (1.0f - pressure);
       break;
     default:
       break;

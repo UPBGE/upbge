@@ -567,10 +567,14 @@ bool ExperimentalTexturePaintStroke::test_start(wmOperator *op, float2 mouse)
 
   mode_data_ = std::move(texture_paint_data);
 
-  if (brush_type_is_paint(this->brush->sculpt_brush_type)) {
+  if (this->brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) {
     BKE_curvemapping_init(this->brush->curve_rand_hue);
     BKE_curvemapping_init(this->brush->curve_rand_saturation);
     BKE_curvemapping_init(this->brush->curve_rand_value);
+
+    if (BKE_brush_color_jitter_get_settings(this->paint, this->brush)) {
+      cache.initial_hsv_jitter = BKE_paint_seed_hsv_jitter();
+    }
   }
 
   cursor_geometry_info_update(*this->depsgraph, *paint, nullptr, this->vc, base_, mouse, false);
@@ -667,15 +671,13 @@ static void do_brush_action(const Depsgraph &depsgraph,
     return;
   }
 
-/* TODO: Automasking support */
-#if 0
   if (auto_mask::is_enabled(image_paint_settings.paint, ob, &brush)) {
-    auto_mask::Cache &cache = auto_mask::stroke_cache_ensure(depsgraph, image_paint_settings.paint,
-  &brush, ob); if (cache.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
-      cache.calc_cavity_factor(depsgraph, ob, node_mask);
+    auto_mask::Cache &automasking = auto_mask::stroke_cache_ensure(
+        depsgraph, image_paint_settings.paint, &brush, ob);
+    if (automasking.settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
+      automasking.calc_cavity_factor(depsgraph, ob, node_mask);
     }
   }
-#endif
 
   /* TODO: Sculpt normal */
   /* TODO: Brush local mat */
