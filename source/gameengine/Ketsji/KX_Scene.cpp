@@ -401,6 +401,7 @@ KX_Scene::~KX_Scene()
   }
 
   RestoreVisibilityFlag();
+  RestoreUpbgeDupliBaseFlags();
 
   BKE_scene_view_layers_synced_ensure(*bmain, scene);
   // Flush depsgraph updates a last time at ge exit
@@ -1381,6 +1382,20 @@ void KX_Scene::RestoreVisibilityFlag()
   m_obVisibilityFlag.clear();
 }
 
+void KX_Scene::BackupUpbgeDupliBaseFlag(blender::Object *ob)
+{
+  m_upbgeDupliBaseFlagsToRestore.insert(ob);
+}
+
+void KX_Scene::RestoreUpbgeDupliBaseFlags()
+{
+  for (blender::Object *ob : m_upbgeDupliBaseFlagsToRestore) {
+    ob->gameflag &= ~OB_DUPLI_UPBGE;
+    DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
+  }
+  m_upbgeDupliBaseFlagsToRestore.clear();
+}
+
 void KX_Scene::TagForCollectionRemap()
 {
   m_collectionRemap = true;
@@ -2051,6 +2066,9 @@ void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
     }
 
     gameobj->SetBlenderGroupObject(blgroupobj);
+    if (m_objectlist->SearchValue(gameobj)) {
+      gameobj->SetIsUpbgeDupliBase();
+    }
     m_groupGameObjects.insert(gameobj);
   }
   FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
