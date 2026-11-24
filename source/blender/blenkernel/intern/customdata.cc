@@ -2730,9 +2730,13 @@ void CustomData_set_layer_flag(CustomData *data,
 
 static void customData_resize(CustomData *data, const int grow_amount)
 {
-  data->layers = static_cast<CustomDataLayer *>(MEM_realloc_uninitialized(
-      data->layers, (data->maxlayer + grow_amount) * sizeof(CustomDataLayer)));
-  data->maxlayer += grow_amount;
+  const int new_maxlayer = data->maxlayer + grow_amount;
+  BLI_assert(data->totlayer <= new_maxlayer);
+  CustomDataLayer *new_layers = MEM_new_array<CustomDataLayer>(new_maxlayer, __func__);
+  std::copy_n(data->layers, data->totlayer, new_layers);
+  MEM_delete(data->layers);
+  data->layers = new_layers;
+  data->maxlayer = new_maxlayer;
 }
 
 static CustomDataLayer *customData_add_layer__internal(
@@ -4640,16 +4644,12 @@ void CustomData_data_transfer(const MeshPairRemap *me_remap, CustomDataTransferL
 
   cd_datatransfer_interp interp = nullptr;
 
-  size_t tmp_buff_size = 32;
-  const void **tmp_data_src = nullptr;
+  /* Pointers to the source elements of the current destination element. */
+  Vector<const void *, 32> tmp_data_src;
 
   /* NOTE: null data_src may happen and be valid (see vgroups...). */
   if (!data_dst) {
     return;
-  }
-
-  if (data_src) {
-    tmp_data_src = MEM_new_array_uninitialized<const void *>(tmp_buff_size, __func__);
   }
 
   if (int(data_type) & CD_FAKE) {
@@ -4678,13 +4678,8 @@ void CustomData_data_transfer(const MeshPairRemap *me_remap, CustomDataTransferL
       continue;
     }
 
-    if (tmp_data_src) {
-      if (sources_num > tmp_buff_size) [[unlikely]] {
-        tmp_buff_size = size_t(sources_num);
-        tmp_data_src = static_cast<const void **>(MEM_realloc_uninitialized(
-            (void *)tmp_data_src, sizeof(*tmp_data_src) * tmp_buff_size));
-      }
-
+    if (data_src) {
+      tmp_data_src.resize(sources_num);
       for (int j = 0; j < sources_num; j++) {
         const size_t src_idx = size_t(mapit->indices_src[j]);
         tmp_data_src[j] = POINTER_OFFSET(data_src, (data_step * src_idx) + data_offset);
@@ -4693,7 +4688,7 @@ void CustomData_data_transfer(const MeshPairRemap *me_remap, CustomDataTransferL
 
     interp(laymap,
            POINTER_OFFSET(data_dst, data_offset),
-           tmp_data_src,
+           data_src ? tmp_data_src.data() : nullptr,
            mapit->weights_src,
            sources_num,
            mix_factor);
@@ -4705,8 +4700,6 @@ void CustomData_data_transfer(const MeshPairRemap *me_remap, CustomDataTransferL
   if (std::holds_alternative<GMutableVArraySpan>(laymap->data_dst)) {
     std::get<GMutableVArraySpan>(laymap->data_dst).save();
   }
-
-  MEM_SAFE_DELETE(tmp_data_src);
 }
 
 /** \} */

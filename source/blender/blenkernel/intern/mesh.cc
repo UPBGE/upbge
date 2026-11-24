@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <optional>
 
 #include "MEM_guardedalloc.h"
@@ -541,6 +542,7 @@ IDTypeInfo IDType_ID_ME = {
     .foreach_working_space_color = mesh_foreach_working_space_color,
     .foreach_asset_weak_reference = nullptr,
     .owner_pointer_get = nullptr,
+    .foreach_embedded_id = nullptr,
 
     .blend_write = mesh_blend_write,
     .blend_read_data = mesh_blend_read_data,
@@ -2175,8 +2177,10 @@ void BKE_mesh_mselect_validate(Mesh *mesh)
     mselect_dst = nullptr;
   }
   else if (i_dst != mesh->totselect) {
-    mselect_dst = static_cast<MSelect *>(
-        MEM_realloc_uninitialized(mselect_dst, sizeof(MSelect) * i_dst));
+    MSelect *new_mselect = MEM_new_array_uninitialized<MSelect>(i_dst, __func__);
+    std::copy_n(mselect_dst, i_dst, new_mselect);
+    MEM_delete(mselect_dst);
+    mselect_dst = new_mselect;
   }
 
   mesh->totselect = i_dst;
@@ -2214,8 +2218,10 @@ void BKE_mesh_mselect_active_set(Mesh *mesh, int index, eMSelect_Type type)
 
   if (msel_index == -1) {
     /* add to the end */
-    mesh->mselect = static_cast<MSelect *>(
-        MEM_realloc_uninitialized(mesh->mselect, sizeof(MSelect) * (mesh->totselect + 1)));
+    MSelect *new_mselect = MEM_new_array_uninitialized<MSelect>(mesh->totselect + 1, __func__);
+    std::copy_n(mesh->mselect, mesh->totselect, new_mselect);
+    MEM_delete(mesh->mselect);
+    mesh->mselect = new_mselect;
     mesh->mselect[mesh->totselect].index = index;
     mesh->mselect[mesh->totselect].type = eMSelect_Type(type);
     mesh->totselect++;

@@ -317,6 +317,7 @@ IDTypeInfo IDType_ID_MA = {
     .foreach_working_space_color = material_foreach_working_space_color,
     .foreach_asset_weak_reference = nullptr,
     .owner_pointer_get = nullptr,
+    .foreach_embedded_id = bke::node_tree_foreach_embedded_id,
 
     .blend_write = material_blend_write,
     .blend_read_data = material_blend_read_data,
@@ -650,7 +651,10 @@ void BKE_id_material_resize(Main *bmain, ID *id, short totcol, bool do_id_user)
     }
   }
   else {
-    *matar = static_cast<Material **>(MEM_realloc_zeroed(*matar, sizeof(void *) * totcol));
+    Material **new_matar = MEM_new_array_zeroed<Material *>(totcol, __func__);
+    std::copy_n(*matar, std::min(int(totcol), int(*totcolp)), new_matar);
+    MEM_delete(*matar);
+    *matar = new_matar;
   }
   *totcolp = totcol;
 
@@ -699,15 +703,12 @@ Material *BKE_id_material_pop(Main *bmain, ID *id, int index_i)
         *matar = nullptr;
       }
       else {
-        if (index + 1 != (*totcol)) {
-          memmove((*matar) + index,
-                  (*matar) + (index + 1),
-                  sizeof(void *) * ((*totcol) - (index + 1)));
-        }
-
+        Material **new_matar = MEM_new_array_uninitialized<Material *>(*totcol - 1, __func__);
+        std::copy_n(*matar, index, new_matar);
+        std::copy(*matar + index + 1, *matar + *totcol, new_matar + index);
+        MEM_delete(*matar);
+        *matar = new_matar;
         (*totcol)--;
-        *matar = static_cast<Material **>(
-            MEM_realloc_uninitialized(*matar, sizeof(void *) * (*totcol)));
         BKE_objects_materials_sync_length_all(bmain, id);
       }
 
@@ -945,12 +946,11 @@ void BKE_id_material_eval_assign(ID *id, int slot, Material *material)
   if (slot_index >= old_length) {
     /* Need to grow slots array. */
     const int new_length = slot_index + 1;
-    *materials_ptr = static_cast<Material **>(
-        MEM_realloc_uninitialized(*materials_ptr, sizeof(void *) * new_length));
+    Material **new_materials = MEM_new_array_zeroed<Material *>(new_length, __func__);
+    std::copy_n(*materials_ptr, old_length, new_materials);
+    MEM_delete(*materials_ptr);
+    *materials_ptr = new_materials;
     *len_ptr = new_length;
-    for (int i = old_length; i < new_length; i++) {
-      (*materials_ptr)[i] = nullptr;
-    }
   }
 
   (*materials_ptr)[slot_index] = material;
@@ -1215,10 +1215,16 @@ static void object_material_assign(
 
   if (act > ob->totcol) {
     /* Need more space in the material arrays */
-    ob->mat = static_cast<Material **>(
-        MEM_realloc_zeroed_id(ob->mat, sizeof(void *) * act, "matarray2"));
-    ob->matbits = static_cast<char *>(
-        MEM_realloc_zeroed_id(ob->matbits, sizeof(char) * act, "matbits1"));
+    Material **new_mat = MEM_new_array_zeroed<Material *>(act, "matarray2");
+    std::copy_n(ob->mat, ob->totcol, new_mat);
+    MEM_delete(ob->mat);
+    ob->mat = new_mat;
+
+    char *new_matbits = MEM_new_array_zeroed<char>(act, "matbits1");
+    std::copy_n(ob->matbits, ob->totcol, new_matbits);
+    MEM_delete(ob->matbits);
+    ob->matbits = new_matbits;
+
     ob->totcol = act;
   }
 

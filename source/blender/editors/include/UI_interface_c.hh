@@ -860,13 +860,12 @@ struct BlockInteraction_Params {
    * When true, this interaction is not modal
    * (user clicking on a number button arrows or pasting a value for example).
    */
-  bool is_click;
+  bool is_click = false;
   /**
    * Array of unique event ID's (values from #Button.retval).
    * There may be more than one for multi-button editing (see #BUT_DRAG_MULTI).
    */
-  int *unique_retval_ids;
-  uint unique_retval_ids_len;
+  Span<int> unique_retval_ids;
 };
 
 /** Returns 'user_data', freed by #uiBlockInteractionEndFn. */
@@ -3002,6 +3001,7 @@ struct DragColorHandle {
 };
 
 void operatortypes_ui();
+void menutypes_ui();
 /**
  * \brief User Interface Keymap
  */

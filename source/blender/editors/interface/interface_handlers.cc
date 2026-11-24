@@ -27,12 +27,10 @@
 #include "DNA_sensor_types.h"
 
 #include "BLI_array.hh"
-#include "BLI_array_utils_c.hh"
 #include "BLI_linklist.hh"
 #include "BLI_listbase.hh"
 #include "BLI_math_geom_c.hh"
 #include "BLI_rect.hh"
-#include "BLI_sort_utils.hh"
 #include "BLI_string.hh"
 #include "BLI_string_cursor_utf8.hh"
 #include "BLI_string_utf8.hh"
@@ -264,7 +262,9 @@ enum MenuScrollType {
 
 struct BlockInteraction_Handle {
   BlockInteraction_Params params;
-  void *user_data;
+  /** Owns the data referenced by #BlockInteraction_Params::unique_retval_ids. */
+  Vector<int> unique_retval_ids;
+  void *user_data = nullptr;
   /**
    * This is shared between #HandleButtonData and #uiAfterFunc,
    * the last user runs the end callback and frees the data.
@@ -272,7 +272,7 @@ struct BlockInteraction_Handle {
    * This is needed as the order of freeing changes depending on
    * accepting/canceling the operation.
    */
-  int user_count;
+  int user_count = 0;
 };
 
 #ifdef USE_ALLSELECT
@@ -3504,8 +3504,10 @@ static void textedit_string_ensure_max_length(Button *but, TextEdit &text_edit, 
   BLI_assert(text_edit.edit_string == but->editstr);
 
   if (str_maxncpy > text_edit.max_string_size) {
-    text_edit.edit_string = but->editstr = static_cast<char *>(
-        MEM_realloc_uninitialized(text_edit.edit_string, sizeof(char) * str_maxncpy));
+    char *new_string = MEM_new_array_uninitialized<char>(str_maxncpy, __func__);
+    std::copy_n(text_edit.edit_string, text_edit.max_string_size, new_string);
+    MEM_delete(text_edit.edit_string);
+    text_edit.edit_string = but->editstr = new_string;
     text_edit.max_string_size = str_maxncpy;
   }
 }
@@ -13993,34 +13995,20 @@ static BlockInteraction_Handle *block_interaction_begin(bContext *C,
                                                         const bool is_click)
 {
   BLI_assert(block->custom_interaction_callbacks.begin_fn != nullptr);
-  BlockInteraction_Handle *interaction = MEM_new_zeroed<BlockInteraction_Handle>(__func__);
+  BlockInteraction_Handle *interaction = MEM_new<BlockInteraction_Handle>(__func__);
 
-  int unique_retval_ids_len = 0;
+  Vector<int> &unique_retval_ids = interaction->unique_retval_ids;
   for (const Button &but : block->buttons()) {
     if (but.active || (but.flag & BUT_DRAG_MULTI)) {
-      unique_retval_ids_len++;
+      unique_retval_ids.append(but.retval);
     }
   }
-
-  int *unique_retval_ids = MEM_new_array_uninitialized<int>(unique_retval_ids_len, __func__);
-  unique_retval_ids_len = 0;
-  for (const Button &but : block->buttons()) {
-    if (but.active || (but.flag & BUT_DRAG_MULTI)) {
-      unique_retval_ids[unique_retval_ids_len++] = but.retval;
-    }
-  }
-
-  if (unique_retval_ids_len > 1) {
-    qsort(unique_retval_ids, unique_retval_ids_len, sizeof(int), BLI_sortutil_cmp_int);
-    unique_retval_ids_len = BLI_array_deduplicate_ordered(unique_retval_ids,
-                                                          unique_retval_ids_len);
-    unique_retval_ids = static_cast<int *>(MEM_realloc_uninitialized(
-        unique_retval_ids, sizeof(*unique_retval_ids) * unique_retval_ids_len));
-  }
+  std::sort(unique_retval_ids.begin(), unique_retval_ids.end());
+  unique_retval_ids.resize(std::unique(unique_retval_ids.begin(), unique_retval_ids.end()) -
+                           unique_retval_ids.begin());
 
   interaction->params.is_click = is_click;
   interaction->params.unique_retval_ids = unique_retval_ids;
-  interaction->params.unique_retval_ids_len = unique_retval_ids_len;
 
   interaction->user_data = block->custom_interaction_callbacks.begin_fn(
       C, &interaction->params, block->custom_interaction_callbacks.arg1);
@@ -14033,7 +14021,6 @@ static void block_interaction_end(bContext *C,
 {
   BLI_assert(callbacks->end_fn != nullptr);
   callbacks->end_fn(C, &interaction->params, callbacks->arg1, interaction->user_data);
-  MEM_delete(interaction->params.unique_retval_ids);
   MEM_delete(interaction);
 }
 

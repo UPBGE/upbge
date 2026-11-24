@@ -56,7 +56,6 @@ class GLVertBuf : public VertBuf {
 
  protected:
   void acquire_data() override;
-  void resize_data() override;
   void release_data() override;
   void upload_data() override;
   void bind_as_ssbo(uint binding) override;

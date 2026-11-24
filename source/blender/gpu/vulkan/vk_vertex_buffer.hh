@@ -86,7 +86,6 @@ class VKVertexBuffer : public VertBuf {
 
  protected:
   void acquire_data() override;
-  void resize_data() override;
   void release_data() override;
   void upload_data() override;
 

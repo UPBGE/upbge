@@ -15,6 +15,8 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_index_mask.hh"
+#include "BLI_math_matrix_types.hh"
+#include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 
 #include "ED_grease_pencil.hh"
@@ -168,6 +170,9 @@ void transform_convert_mesh_customdatacorrect_init(TransInfo *t);
 /* `transform_convert_sequencer.cc` */
 
 bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2]);
+int transform_convert_sequencer_time_extend_flag(const Scene *scene,
+                                                 const Strip *strip,
+                                                 char frame_side);
 
 /********************* intern **********************/
 
@@ -309,10 +314,12 @@ extern TransConvertTypeInfo TransConvertType_MBall;
 extern TransConvertTypeInfo TransConvertType_Mesh;
 
 struct TransIslandData {
-  float (*center)[3];
-  float (*axismtx)[3][3];
-  int island_tot;
-  int *island_vert_map;
+  /** Optional, empty when not calculated. */
+  Vector<float3> center;
+  /** Optional, empty when not calculated. */
+  Vector<float3x3> axismtx;
+  int island_tot = 0;
+  int *island_vert_map = nullptr;
 };
 
 struct MirrorDataVert {

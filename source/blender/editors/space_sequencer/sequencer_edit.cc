@@ -994,7 +994,7 @@ static SlipData *slip_data_init(bContext *C, const wmOperator *op, const wmEvent
     }
     /* If any strips do not have enough underlying content to
      * fill their bounds, show a warning. */
-    if (strip->content_length() < strip->right_handle(scene) - strip->left_handle()) {
+    if (strip->source_duration() < strip->right_handle(scene) - strip->left_handle()) {
       data->clamp_warning = true;
     }
     /* Strip exists with enough content, we can clamp. */
@@ -1123,7 +1123,7 @@ static float slip_apply_clamp(const Scene *scene, const SlipData *data, float *r
 
       /* Clamp hold offsets if the option is currently enabled
        * and if there are enough frames to fill the strip. */
-      if (data->clamp && strip->content_length() >= right_handle - left_handle) {
+      if (data->clamp && strip->source_duration() >= right_handle - left_handle) {
         if (unclamped_start > left_handle) {
           diff = left_handle - unclamped_start;
         }
@@ -3240,7 +3240,7 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
   VectorSet<Strip *> new_strips;
   while (strip) {
     if ((strip->flag & SEQ_SELECT) && (strip->type == STRIP_TYPE_IMAGE) &&
-        (strip->content_length() > 1))
+        (strip->source_duration() > 1))
     {
       Strip *strip_next;
 
@@ -3259,7 +3259,7 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
 
         strip_new->start = start_ofs;
         strip_new->type = STRIP_TYPE_IMAGE;
-        strip_new->content_length_set(1);
+        strip_new->source_duration_set(1);
         strip_new->flag |= SEQ_SINGLE_FRAME_CONTENT;
         strip_new->end_offset_set(1 - step);
         /* This strip represents a single already-selected image, not a trimmed view into
@@ -3273,9 +3273,10 @@ static wmOperatorStatus sequencer_separate_images_exec(bContext *C, wmOperator *
         /* New stripdata, only one element now. */
         /* Note this assume all elements (images) have the same dimension,
          * since we only copy the name here. */
-        se_new = static_cast<StripElem *>(
-            MEM_realloc_uninitialized(data_new->stripdata, sizeof(*se_new)));
+        se_new = MEM_new_array<StripElem>(1, __func__);
+        *se_new = data_new->stripdata[0];
         STRNCPY(se_new->filename, se->filename);
+        MEM_delete(data_new->stripdata);
         data_new->stripdata = se_new;
         data_new->stripdata_num = 1;
 
@@ -3448,7 +3449,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
   STRNCPY_UTF8(MutableCStr(strip_meta->name).drop_front(2), DATA_("MetaStrip"));
   seq::strip_unique_name_set(scene, &ed->seqbase, strip_meta);
   strip_meta->start = meta_start_frame;
-  strip_meta->content_length_set(meta_end_frame - meta_start_frame);
+  strip_meta->source_duration_set(meta_end_frame - meta_start_frame);
   seq::select_active_set(scene, strip_meta);
   VectorSet<Strip *> meta_strips;
   meta_strips.add(strip_meta);
@@ -4278,10 +4279,10 @@ static wmOperatorStatus sequencer_change_scene_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
-  Scene *scene_seq = static_cast<Scene *>(
+  Scene *new_strip_scene = static_cast<Scene *>(
       BLI_findlink(&bmain->scenes, RNA_enum_get(op->ptr, "scene")));
 
-  if (scene_seq == nullptr) {
+  if (new_strip_scene == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "Scene not found");
     return OPERATOR_CANCELLED;
   }
@@ -4289,7 +4290,12 @@ static wmOperatorStatus sequencer_change_scene_exec(bContext *C, wmOperator *op)
   /* Assign new scene. */
   Strip *strip = seq::select_active_get(scene);
   if (strip) {
-    strip->scene = scene_seq;
+    if (strip->scene != new_strip_scene) {
+      strip->scene = new_strip_scene;
+      MEM_SAFE_DELETE(strip->scene_view_layer_name);
+      const ViewLayer *view_layer = BKE_view_layer_default_render(new_strip_scene);
+      strip->scene_view_layer_name = BLI_strdup(view_layer->name);
+    }
     /* Do a refresh of the sequencer data. */
     seq::relations_invalidate_cache_raw(scene, strip);
     DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO | ID_RECALC_SEQUENCER_STRIPS);

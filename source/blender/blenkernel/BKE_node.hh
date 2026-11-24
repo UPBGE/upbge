@@ -11,6 +11,7 @@
 #include <optional>
 
 #include "BLI_compiler_compat.hh"
+#include "BLI_function_ref.hh"
 #include "BLI_span.hh"
 
 #include "BKE_node_socket_value_fwd.hh"
@@ -661,6 +662,13 @@ bNodeTree **node_tree_ptr_from_id(ID *id);
 bNodeTree *node_tree_from_id(ID *id);
 
 /**
+ * #IDTypeInfo.foreach_embedded_id for data-blocks that only embed a node tree.
+ */
+void node_tree_foreach_embedded_id(
+    ID *id,
+    FunctionRef<void(ID **embedded_id_p, ID_Type id_type, StringRefNull rna_identifier)> fn);
+
+/**
  * Check recursively if a node tree contains another.
  */
 bool node_tree_contains_tree(const bNodeTree &tree_to_search_in,
@@ -1008,7 +1016,7 @@ void node_tree_node_flag_set(bNodeTree &ntree, eNode_Flag flag, bool enable);
 /**
  * \note `ntree` itself has been read!
  */
-void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree *ntree);
+void node_tree_blend_read_data(BlendDataReader *reader, bNodeTree *ntree);
 
 bool node_is_static_socket_type(const bNodeSocketType &stype);
 

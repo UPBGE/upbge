@@ -18,6 +18,7 @@
 #include "BLI_astar.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_index_mask.hh"
+#include "BLI_math_geom.hh"
 #include "BLI_math_geom_c.hh"
 #include "BLI_math_matrix_c.hh"
 #include "BLI_math_solvers.hh"
@@ -28,6 +29,7 @@
 #include "BLI_polyfill_2d.hh"
 #include "BLI_rand_c.hh"
 #include "BLI_utildefines.hh"
+#include "BLI_vector.hh"
 
 #include "DNA_modifier_enums.h"
 
@@ -363,48 +365,38 @@ static int mesh_remap_interp_face_data_get(const IndexRange face,
                                            const Span<int> corner_verts,
                                            const Span<float3> positions_src,
                                            const float point[3],
-                                           size_t *buff_size,
-                                           float (**vcos)[3],
+                                           Vector<float3> &vcos,
                                            const bool use_loops,
-                                           int **indices,
-                                           float **weights,
+                                           Vector<int> &indices,
+                                           Vector<float> &weights,
                                            const bool do_weights,
                                            int *r_closest_index)
 {
-  float (*vco)[3];
   float ref_dist_sq = FLT_MAX;
-  int *index;
   const int sources_num = int(face.size());
-  int i;
 
-  if (size_t(sources_num) > *buff_size) {
-    *buff_size = size_t(sources_num);
-    *vcos = static_cast<float (*)[3]>(
-        MEM_realloc_uninitialized(*vcos, sizeof(**vcos) * *buff_size));
-    *indices = static_cast<int *>(
-        MEM_realloc_uninitialized(*indices, sizeof(**indices) * *buff_size));
-    if (do_weights) {
-      *weights = static_cast<float *>(
-          MEM_realloc_uninitialized(*weights, sizeof(**weights) * *buff_size));
-    }
+  vcos.resize(sources_num);
+  indices.resize(sources_num);
+  if (do_weights) {
+    weights.resize(sources_num);
   }
 
-  for (i = 0, vco = *vcos, index = *indices; i < sources_num; i++, vco++, index++) {
+  for (const int64_t i : face.index_range()) {
     const int vert = corner_verts[face[i]];
-    *index = use_loops ? int(face[i]) : vert;
-    copy_v3_v3(*vco, positions_src[vert]);
+    indices[i] = use_loops ? int(face[i]) : vert;
+    vcos[i] = positions_src[vert];
     if (r_closest_index) {
       /* Find closest vert/loop in this case. */
-      const float dist_sq = len_squared_v3v3(point, *vco);
+      const float dist_sq = len_squared_v3v3(point, vcos[i]);
       if (dist_sq < ref_dist_sq) {
         ref_dist_sq = dist_sq;
-        *r_closest_index = *index;
+        *r_closest_index = indices[i];
       }
     }
   }
 
   if (do_weights) {
-    interp_weights_poly_v3(*weights, *vcos, sources_num, point);
+    math::interp_weights_poly(weights, vcos, float3(point));
   }
 
   return sources_num;
@@ -559,10 +551,9 @@ void BKE_mesh_remap_calc_verts_from_mesh(const int mode,
       const Span<float3> vert_normals_dst = me_dst->vert_normals();
       const Span<int> tri_faces = me_src->corner_tri_faces();
 
-      size_t tmp_buff_size = MREMAP_DEFAULT_BUFSIZE;
-      float (*vcos)[3] = MEM_new_array_uninitialized<float[3]>(tmp_buff_size, __func__);
-      int *indices = MEM_new_array_uninitialized<int>(tmp_buff_size, __func__);
-      float *weights = MEM_new_array_uninitialized<float>(tmp_buff_size, __func__);
+      Vector<float3> vcos;
+      Vector<int> indices;
+      Vector<float> weights;
 
       treedata = me_src->bvh_corner_tris();
 
@@ -585,15 +576,15 @@ void BKE_mesh_remap_calc_verts_from_mesh(const int mode,
                                                                     corner_verts_src,
                                                                     positions_src,
                                                                     rayhit.co,
-                                                                    &tmp_buff_size,
-                                                                    &vcos,
+                                                                    vcos,
                                                                     false,
-                                                                    &indices,
-                                                                    &weights,
+                                                                    indices,
+                                                                    weights,
                                                                     true,
                                                                     nullptr);
 
-            mesh_remap_item_define(r_map, i, hit_dist, 0, sources_num, indices, weights);
+            mesh_remap_item_define(
+                r_map, i, hit_dist, 0, sources_num, indices.data(), weights.data());
           }
           else {
             /* No source for this dest vertex! */
@@ -623,11 +614,10 @@ void BKE_mesh_remap_calc_verts_from_mesh(const int mode,
                                               corner_verts_src,
                                               positions_src,
                                               nearest.co,
-                                              &tmp_buff_size,
-                                              &vcos,
+                                              vcos,
                                               false,
-                                              &indices,
-                                              &weights,
+                                              indices,
+                                              weights,
                                               false,
                                               &index);
 
@@ -638,15 +628,15 @@ void BKE_mesh_remap_calc_verts_from_mesh(const int mode,
                                                                       corner_verts_src,
                                                                       positions_src,
                                                                       nearest.co,
-                                                                      &tmp_buff_size,
-                                                                      &vcos,
+                                                                      vcos,
                                                                       false,
-                                                                      &indices,
-                                                                      &weights,
+                                                                      indices,
+                                                                      weights,
                                                                       true,
                                                                       nullptr);
 
-              mesh_remap_item_define(r_map, i, hit_dist, 0, sources_num, indices, weights);
+              mesh_remap_item_define(
+                  r_map, i, hit_dist, 0, sources_num, indices.data(), weights.data());
             }
           }
           else {
@@ -655,10 +645,6 @@ void BKE_mesh_remap_calc_verts_from_mesh(const int mode,
           }
         }
       }
-
-      MEM_delete(vcos);
-      MEM_delete(indices);
-      MEM_delete(weights);
     }
     else {
       CLOG_WARN(&LOG, "Unsupported mesh-to-mesh vertex mapping mode (%d)!", mode);
@@ -1273,21 +1259,14 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
     Span<int3> corner_tris_src;
     Span<int> tri_faces_src;
 
-    size_t buff_size_interp = MREMAP_DEFAULT_BUFSIZE;
-    float (*vcos_interp)[3] = nullptr;
-    int *indices_interp = nullptr;
-    float *weights_interp = nullptr;
+    Vector<float3> vcos_interp;
+    Vector<int> indices_interp;
+    Vector<float> weights_interp;
 
     int tindex, pidx_dst, lidx_dst, plidx_dst, pidx_src, lidx_src, plidx_src;
 
-    IslandResult **islands_res;
-    size_t islands_res_buff_size = MREMAP_DEFAULT_BUFSIZE;
-
-    if (!use_from_vert) {
-      vcos_interp = MEM_new_array_uninitialized<float[3]>(buff_size_interp, __func__);
-      indices_interp = MEM_new_array_uninitialized<int>(buff_size_interp, __func__);
-      weights_interp = MEM_new_array_uninitialized<float>(buff_size_interp, __func__);
-    }
+    /* Results for each corner of the current destination face, for each island tree. */
+    Array<Vector<IslandResult>> islands_res;
 
     {
       const bool need_lnors_src = (mode & MREMAP_USE_LOOP) && (mode & MREMAP_USE_NORMAL);
@@ -1448,11 +1427,7 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
     }
 
     /* And check each dest face! */
-    islands_res = MEM_new_array_uninitialized<IslandResult *>(size_t(num_trees), __func__);
-    for (tindex = 0; tindex < num_trees; tindex++) {
-      islands_res[tindex] = MEM_new_array_uninitialized<IslandResult>(islands_res_buff_size,
-                                                                      __func__);
-    }
+    islands_res.reinitialize(num_trees);
     const Span<int> tri_faces = me_src->corner_tri_faces();
 
     for (pidx_dst = 0; pidx_dst < faces_dst.size(); pidx_dst++) {
@@ -1471,12 +1446,8 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
         }
       }
 
-      if (size_t(face_dst.size()) > islands_res_buff_size) {
-        islands_res_buff_size = size_t(face_dst.size()) + MREMAP_DEFAULT_BUFSIZE;
-        for (tindex = 0; tindex < num_trees; tindex++) {
-          islands_res[tindex] = static_cast<IslandResult *>(MEM_realloc_uninitialized(
-              islands_res[tindex], sizeof(**islands_res) * islands_res_buff_size));
-        }
+      for (Vector<IslandResult> &island_res : islands_res) {
+        island_res.resize(face_dst.size());
       }
 
       for (tindex = 0; tindex < num_trees; tindex++) {
@@ -1916,11 +1887,10 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
                                                 corner_verts_src,
                                                 positions_src,
                                                 hit_co,
-                                                &buff_size_interp,
-                                                &vcos_interp,
+                                                vcos_interp,
                                                 true,
-                                                &indices_interp,
-                                                &weights_interp,
+                                                indices_interp,
+                                                weights_interp,
                                                 false,
                                                 &best_loop_index_src);
 
@@ -1937,11 +1907,10 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
                                                                         corner_verts_src,
                                                                         positions_src,
                                                                         hit_co,
-                                                                        &buff_size_interp,
-                                                                        &vcos_interp,
+                                                                        vcos_interp,
                                                                         true,
-                                                                        &indices_interp,
-                                                                        &weights_interp,
+                                                                        indices_interp,
+                                                                        weights_interp,
                                                                         true,
                                                                         nullptr);
 
@@ -1950,8 +1919,8 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
                                        isld_res->hit_dist,
                                        best_island_index,
                                        sources_num,
-                                       indices_interp,
-                                       weights_interp);
+                                       indices_interp.data(),
+                                       weights_interp.data());
               }
 
               pidx_src_prev = pidx_src;
@@ -1971,12 +1940,10 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
     }
 
     for (tindex = 0; tindex < num_trees; tindex++) {
-      MEM_delete(islands_res[tindex]);
       if (isld_steps_src) {
         BLI_astar_graph_free(&as_graphdata[tindex]);
       }
     }
-    MEM_delete(islands_res);
     BKE_mesh_loop_islands_free(&island_store);
     if (isld_steps_src) {
       MEM_delete(as_graphdata);
@@ -1988,15 +1955,6 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
     }
     if (face_to_corner_tri_map_src_buff) {
       MEM_delete(face_to_corner_tri_map_src_buff);
-    }
-    if (vcos_interp) {
-      MEM_delete(vcos_interp);
-    }
-    if (indices_interp) {
-      MEM_delete(indices_interp);
-    }
-    if (weights_interp) {
-      MEM_delete(weights_interp);
     }
   }
 }
@@ -2100,10 +2058,9 @@ void BKE_mesh_remap_calc_faces_from_mesh(const int mode,
       int *indices = MEM_new_array_uninitialized<int>(numfaces_src, __func__);
       float *weights = MEM_new_array_uninitialized<float>(numfaces_src, __func__);
 
-      size_t tmp_face_size = MREMAP_DEFAULT_BUFSIZE;
-      float (*face_vcos_2d)[2] = MEM_new_array_uninitialized<float[2]>(tmp_face_size, __func__);
+      Vector<float2, MREMAP_DEFAULT_BUFSIZE> face_vcos_2d;
       /* Tessellated 2D face, always (num_loops - 2) triangles. */
-      int (*tri_vidx_2d)[3] = MEM_new_array_uninitialized<int[3]>(tmp_face_size - 2, __func__);
+      Vector<uint3, MREMAP_DEFAULT_BUFSIZE> tri_vidx_2d;
 
       for (const int64_t i : faces_dst.index_range()) {
         /* For each dst face, we sample some rays from it (2D grid in pnor space)
@@ -2137,13 +2094,8 @@ void BKE_mesh_remap_calc_faces_from_mesh(const int mode,
 
         std::fill_n(weights, int(numfaces_src), 0.0f);
 
-        if (size_t(face.size()) > tmp_face_size) [[unlikely]] {
-          tmp_face_size = size_t(face.size());
-          face_vcos_2d = static_cast<float (*)[2]>(
-              MEM_realloc_uninitialized(face_vcos_2d, sizeof(*face_vcos_2d) * tmp_face_size));
-          tri_vidx_2d = static_cast<int (*)[3]>(
-              MEM_realloc_uninitialized(tri_vidx_2d, sizeof(*tri_vidx_2d) * (tmp_face_size - 2)));
-        }
+        face_vcos_2d.resize(face.size());
+        tri_vidx_2d.resize(tris_num);
 
         axis_dominant_v3_to_m3(to_pnor_2d_mat, tmp_no);
         invert_m3_m3(from_pnor_2d_mat, to_pnor_2d_mat);
@@ -2178,33 +2130,26 @@ void BKE_mesh_remap_calc_faces_from_mesh(const int mode,
         }
         tot_rays *= tot_rays;
 
-        face_area_2d_inv = area_poly_v2(face_vcos_2d, uint(face.size()));
+        face_area_2d_inv = math::area_poly(face_vcos_2d);
         /* In case we have a null-area degenerated face... */
         face_area_2d_inv = 1.0f / max_ff(face_area_2d_inv, 1e-9f);
 
         /* Tessellate our face. */
         if (face.size() == 3) {
-          tri_vidx_2d[0][0] = 0;
-          tri_vidx_2d[0][1] = 1;
-          tri_vidx_2d[0][2] = 2;
+          tri_vidx_2d[0] = uint3(0, 1, 2);
         }
         if (face.size() == 4) {
-          tri_vidx_2d[0][0] = 0;
-          tri_vidx_2d[0][1] = 1;
-          tri_vidx_2d[0][2] = 2;
-          tri_vidx_2d[1][0] = 0;
-          tri_vidx_2d[1][1] = 2;
-          tri_vidx_2d[1][2] = 3;
+          tri_vidx_2d[0] = uint3(0, 1, 2);
+          tri_vidx_2d[1] = uint3(0, 2, 3);
         }
         else {
-          BLI_polyfill_calc(
-              face_vcos_2d, uint(face.size()), -1, reinterpret_cast<uint(*)[3]>(tri_vidx_2d));
+          BLI_polyfill_calc(face_vcos_2d, -1, tri_vidx_2d);
         }
 
         for (j = 0; j < tris_num; j++) {
-          float *v1 = face_vcos_2d[tri_vidx_2d[j][0]];
-          float *v2 = face_vcos_2d[tri_vidx_2d[j][1]];
-          float *v3 = face_vcos_2d[tri_vidx_2d[j][2]];
+          const float2 &v1 = face_vcos_2d[tri_vidx_2d[j][0]];
+          const float2 &v2 = face_vcos_2d[tri_vidx_2d[j][1]];
+          const float2 &v3 = face_vcos_2d[tri_vidx_2d[j][2]];
           int rays_num;
 
           /* All this allows us to get 'absolute' number of rays for each tri,
@@ -2259,8 +2204,6 @@ void BKE_mesh_remap_calc_faces_from_mesh(const int mode,
         }
       }
 
-      MEM_delete(tri_vidx_2d);
-      MEM_delete(face_vcos_2d);
       MEM_delete(indices);
       MEM_delete(weights);
       BLI_rng_free(rng);

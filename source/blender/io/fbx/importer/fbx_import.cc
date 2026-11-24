@@ -24,7 +24,6 @@
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_light_types.h"
-#include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 
 #include "IO_fbx.hh"
@@ -81,7 +80,6 @@ struct FbxImportContext {
   }
 
   void import_globals(Scene *scene) const;
-  void import_materials();
   void import_meshes();
   void import_cameras();
   void import_lights();
@@ -98,25 +96,6 @@ void FbxImportContext::import_globals(Scene *scene) const
   double fps = this->fbx.settings.frames_per_second;
   scene->r.frs_sec = roundf(fps);
   scene->r.frs_sec_base = scene->r.frs_sec / fps;
-}
-
-void FbxImportContext::import_materials()
-{
-  for (const ufbx_material *fmat : this->fbx.materials) {
-    Material *mat = nullptr;
-    /* Check if a material with this name already exists in the main database */
-    if (this->params.mtl_name_collision_mode == eFBXMtlNameCollisionMode::ReferenceExisting) {
-      mat = (Material *)BKE_libblock_find_name(this->bmain, ID_MA, fmat->name.data);
-    }
-
-    if (mat == nullptr) {
-      mat = io::fbx::import_material(this->bmain, this->base_dir, *fmat);
-      if (this->params.use_custom_props) {
-        read_custom_properties(fmat->props, mat->id, this->params.props_enum_as_string);
-      }
-    }
-    this->mapping.mat_to_material.add(fmat, mat);
-  }
 }
 
 void FbxImportContext::import_meshes()
@@ -347,6 +326,10 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   opts.load_external_files = false;
   opts.clean_skin_weights = true;
   opts.use_blender_pbr_material = true;
+  if (params.use_custom_normals) {
+    /* Preserve invalid normal indices so the importer can discard the affected layer. */
+    opts.index_error_handling = UFBX_INDEX_ERROR_HANDLING_NO_INDEX;
+  }
 
   opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY;
   opts.pivot_handling = UFBX_PIVOT_HANDLING_ADJUST_TO_ROTATION_PIVOT;
@@ -433,14 +416,15 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   }
 #endif
 
-  ctx.import_materials();
+  import_materials(*bmain, ctx.fbx, ctx.mapping, params, ctx.base_dir);
   ctx.import_armatures();
   ctx.import_meshes();
   ctx.import_cameras();
   ctx.import_lights();
   ctx.import_empties();
-  ctx.import_animation(fps);
   ctx.setup_hierarchy();
+  setup_skinned_mesh_parenting(ctx.mapping);
+  ctx.import_animation(fps);
 
   ufbx_free_scene(fbx);
 

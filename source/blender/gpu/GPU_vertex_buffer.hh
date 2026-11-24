@@ -251,7 +251,6 @@ class VertBuf {
 
  protected:
   virtual void acquire_data() = 0;
-  virtual void resize_data() = 0;
   virtual void release_data() = 0;
   virtual void upload_data() = 0;
 };
