@@ -45,6 +45,7 @@
 #include "BLI_string.hh"
 #include "BLO_readfile.hh"
 #include "ED_screen.hh"
+#include "ED_undo.hh"
 #include "WM_api.hh"
 #include "WM_keymap.hh"
 #include "wm_window.hh"
@@ -216,17 +217,10 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
   gs.glslflag = startscene->gm.flag;
 
   if (startscene->gm.flag & GAME_USE_UNDO) {
-    BKE_undosys_step_push(
-        CTX_wm_manager(C)->runtime->undo_stack, C, "bge_start", UndoEncodeHints::None);
-    /* Temp hack to fix issue with undo https://github.com/UPBGE/upbge/issues/1516 */
-    /* https://github.com/UPBGE/upbge/commit/1b4d5c7a35597a70411515f721a405416244b540 */
-    BKE_undosys_step_push(CTX_wm_manager(C)->runtime->undo_stack, C, "pre", UndoEncodeHints::None);
+    ED_undo_push_old(C, "bge_start");
+    // Needs an extra step to decode "bge_start" at exit.
+    ED_undo_push(C, "pre");
   }
-
-  /* Make sure we'll use old undo at bge exit to properly restore scene
-   * See memfile_undo.c and search for keyword UPBGE
-   */
-  G.is_undo_at_exit = true;
 
   blender::wmWindowManager *wm_backup = CTX_wm_manager(C);
   blender::wmWindow *win_backup = CTX_wm_window(C);
@@ -432,9 +426,6 @@ extern "C" void StartKetsjiShell(blender::bContext *C,
       BKE_undosys_step_undo(CTX_wm_manager(C)->runtime->undo_stack, C);
     }
   }
-
-  /* Make sure we'll use new undo in viewport because faster */
-  G.is_undo_at_exit = false;
 
 #ifdef WITH_PYTHON
 

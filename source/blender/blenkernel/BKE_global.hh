@@ -172,8 +172,6 @@ struct Global {
   /**
    * UPBGE global variables
    */
-
-  bool is_undo_at_exit;
   bool is_blenderplayer;
 
   /**

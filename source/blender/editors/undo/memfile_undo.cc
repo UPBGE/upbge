@@ -159,11 +159,6 @@ static void memfile_undosys_step_decode(
       use_old_bmain_data = false;
     }
   }
-  /* UPBGE (we force undo legacy at bge exit only (while we try to fix new fast undo for) UPBGE */
-  else if (G.is_undo_at_exit == true) {
-    use_old_bmain_data = false;
-  }
-  /* End UPBGE */
   else if (undo_direction == STEP_UNDO) {
     /* Here we do not care whether current step is an undo barrier, since we are coming from
      * 'the future' we can still re-use old data. However, if *next* undo step
