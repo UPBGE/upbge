@@ -530,6 +530,12 @@ void PipelineModule::render(View &view, Framebuffer &combined_fb)
   /* The world where no opaque surface is. */
   inst_->world.render_background(view);
 
+  /* Next frame's SSGI radiance: the opaque surfaces and the world, without the volumes, the
+   * transparent surfaces and the bloom drawn over them from here on. */
+  if (inst_->ssgi.enabled()) {
+    GPU_texture_copy(rbufs.combined_prev_tx, rbufs.combined_tx);
+  }
+
   /* ================================================================
    * Pass 6: Volumetric fog over the opaque result (no-op when disabled). */
   GPU_debug_group_begin("Volumetrics");

@@ -38,6 +38,8 @@ public:
 private:
     GameInstance *inst_;
     SSGISettings settings_;
+    /* Camera of the frame whose radiance is traced. */
+    float4x4 viewproj_prev_ = float4x4::identity();
     
     // Low-res buffer for the diffuse bounce (SFLOAT_16 for color)
     Texture ssgi_lowres_tx_ = {"ssgi_lowres_tx_"};

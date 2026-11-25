@@ -13,10 +13,6 @@ bool RenderBuffers::acquire(int2 extent)
   const eGPUTextureUsage usage_depth = GPU_TEXTURE_USAGE_SHADER_READ |
                                        GPU_TEXTURE_USAGE_ATTACHMENT;
 
-  /* Called once per frame before anything references the targets: what was
-   * combined_tx last frame becomes this frame's history. */
-  Texture::swap(combined_tx, combined_prev_tx);
-
   depth_tx.ensure_2d(gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8, extent, usage_depth);
   const bool reallocated = combined_tx.ensure_2d(
       gpu::TextureFormat::SFLOAT_16_16_16_16, extent, usage_rw);

@@ -40,7 +40,8 @@ void main()
   float3 V = drw_world_incident_vector(P);
 
   float ao = (use_ao != 0) ? texelFetch(ao_tx, texel, 0).r : 1.0f;
-  float3 bounce = (use_ssgi != 0) ? texelFetch(ssgi_tx, texel, 0).rgb : float3(0.0f);
+  /* rgb: bounce radiance, a: fraction of the world it hides. */
+  float4 bounce = (use_ssgi != 0) ? texelFetch(ssgi_tx, texel, 0) : float4(0.0f);
   float sun_shadow = texelFetch(shadow_mask_tx, texel, 0).r;
 
 
@@ -105,14 +106,15 @@ void main()
     }
   }
 
-  /* Indirect light: the world, plus one screen-space bounce on the diffuse
-   * lobes, attenuated by AO (also standing in for specular occlusion). */
+  /* Indirect light: the world, of which the screen-space bounce replaces the part its rays
+   * found occluded, on the diffuse lobes; attenuated by AO (also standing in for specular
+   * occlusion). */
   float3 radiance = float3(0.0f);
   for (int i = 0; i < closure_count; i++) {
     switch (cl[i].type) {
       case CLOSURE_BSSRDF_BURLEY_ID:
       case CLOSURE_BSDF_DIFFUSE_ID:
-        light_sum[i] += (bounce + world_diffuse(cl[i].N)) * ao;
+        light_sum[i] += (bounce.rgb + world_diffuse(cl[i].N) * (1.0f - bounce.a)) * ao;
         break;
       case CLOSURE_BSDF_TRANSLUCENT_ID:
         light_sum[i] += world_diffuse(-cl[i].N) * ao;

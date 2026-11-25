@@ -3,232 +3,143 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * Screen-Space Global Illumination — Main Trace (half-resolution)
+ * Screen-Space Global Illumination: trace (half resolution).
  *
- * Computes one diffuse indirect bounce from the current frame's scene color.
+ * One diffuse bounce of the previous frame's opaque radiance. Each pixel marches a few cosine
+ * distributed rays in world space against the depth buffer. A ray that hits takes the radiance
+ * of the hit point, reprojected into the previous frame; a ray that misses sees the world, which
+ * the lighting pass already has. The output is therefore:
+ *   rgb: sum of the hit radiance / ray count,
+ *   a:   fraction of the rays that hit,
+ * and the lighting pass replaces that fraction of the world diffuse light with the bounce.
+ * Replacing instead of adding keeps the energy right: the bounce is what the occluder sends in
+ * place of the world it hides.
  *
- * Algorithm:
- *   For each half-res pixel, cast N rays in the hemisphere oriented by the
- *   surface normal.  March each ray through the Hi-Z pyramid to find the
- *   first screen-space intersection, then sample the scene color at that
- *   hit point.  Accumulate the radiance contributions.
+ * The noise is spatial only and fixed in time: without temporal accumulation a per-frame
+ * rotation would only flicker. The bilateral pass after this one smooths it.
  *
- * Hi-Z accelerated tracing (same as SSR):
- *   Start at the coarsest mip that fits the step size, descend through mips
- *   as the intersection becomes plausible.  This is the standard "Hi-Z ray march"
- *   from Morgan McGuire / Morgan & Luebke 2014.
- *
- * Limitations vs. EEVEE full SSGI:
- *   - One bounce only (no multi-bounce accumulation per frame)
- *   - Half-resolution to reduce cost by 4×
- *   - No temporal accumulation in this pass (TAA/FSR provides it)
- *   - Screen-space only: geometry outside the view frustum contributes nothing
- *
- * Cost: ~0.5ms at 1440p on a mid-range GPU with quality_steps=8.
- *
- * Local group 8×8.
+ * Local group 8x8.
  */
 
 #include "infos/eevee_game_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_game_ssgi_main)
 
-#include "eevee_reverse_z_lib.glsl"
 #include "eevee_gbuffer_read_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 
-/* ------------------------------------------------------------------ */
-/* Utilities                                                           */
-/* ------------------------------------------------------------------ */
+#define SSGI_HIT_LUMA_MAX 2.0f
 
-float linear_depth(float ndc_d, float z_near, float z_far)
+float linear_depth(float depth)
 {
-  return (z_near * z_far) / (z_far - ndc_d * (z_far - z_near));
+  return (z_planes.x * z_planes.y) / (z_planes.y - depth * (z_planes.y - z_planes.x));
 }
 
-vec3 reconstruct_world_pos(vec2 uv, float ndc_depth)
+float3 reconstruct_world_pos(float2 uv, float depth)
 {
-  vec4 ndc = vec4(uv * 2.0 - 1.0, ndc_depth * 2.0 - 1.0, 1.0);
-  vec4 ws  = viewprojinv * ndc;
+  float4 ws = viewprojinv * float4(uv * 2.0f - 1.0f, depth * 2.0f - 1.0f, 1.0f);
   return ws.xyz / ws.w;
 }
 
-/* Project a world-space position to screen UV + NDC depth. */
-vec3 world_to_screen(vec3 ws)
+/* Screen UV and window depth of a world position. */
+float3 world_to_screen(float4x4 vp, float3 ws)
 {
-  vec4 clip = viewproj * vec4(ws, 1.0);
-  vec3 ndc  = clip.xyz / clip.w;
-  return vec3(ndc.xy * 0.5 + 0.5, ndc.z * 0.5 + 0.5);
+  float4 clip = vp * float4(ws, 1.0f);
+  return (clip.xyz / clip.w) * 0.5f + 0.5f;
 }
 
-/* Per-pixel cosine-weighted hemisphere sample.
- * Uses a fixed-radius Halton sequence rotated by per-pixel + per-frame noise
- * to give uncorrelated samples across pixels and frames. */
-vec3 hemisphere_sample(int sample_idx, vec3 world_normal, ivec2 px)
+/* Interleaved gradient noise (Jimenez 2014). */
+float ign(float2 px)
 {
-  /* Halton(2,3) for sample position. */
-  float u1 = 0.0, u2 = 0.0;
-  int n = sample_idx + 1;
-  float base = 0.5;
-  while (n > 0) {
-    u1 += float(n & 1) * base;
-    n >>= 1;
-    base *= 0.5;
-  }
-  n = sample_idx + 1; base = 1.0 / 3.0;
-  while (n > 0) {
-    u2 += float(n % 3) * base;
-    n /= 3;
-    base /= 3.0;
-  }
-
-  /* Per-pixel + per-frame rotation to break temporal correlation. */
-  float rot = fract(dot(vec2(px), vec2(0.06711056, 0.00583715)) +
-                    float(frame_count) * 0.61803399);
-  u1 = fract(u1 + rot);
-  u2 = fract(u2 + rot * 1.3);
-
-  /* Cosine-weighted sample on hemisphere. */
-  float sin_theta = sqrt(u1);
-  float cos_theta = sqrt(1.0 - u1);
-  float phi       = u2 * 6.283185;
-
-  vec3 local_dir = vec3(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
-
-  /* Build TBN frame: tangent/bitangent from normal using a stable basis. */
-  vec3 up = abs(world_normal.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
-  vec3 T  = normalize(cross(up, world_normal));
-  vec3 B  = cross(world_normal, T);
-
-  return normalize(T * local_dir.x + B * local_dir.y + world_normal * local_dir.z);
+  return fract(52.9829189f * fract(dot(px, float2(0.06711056f, 0.00583715f))));
 }
 
-/* ------------------------------------------------------------------ */
-/* Hi-Z ray march
- *
- * Traces a ray from screen_pos (UV+depth) in world-space direction `dir_ws`.
- * Returns the scene color at the first hit, or vec4(0) on miss.
- *
- * Steps through the Hi-Z mip chain starting from mip 0.  The coarser mips
- * allow large steps in empty space; the fine mip 0 is only sampled near hits.
- *
- * This is the "linear Z" variant — simpler and cache-friendlier than the
- * exact Hi-Z traversal, sufficient for diffuse GI (which is low-frequency). */
-vec4 hiz_ray_march(vec3 origin_uv3, vec3 dir_ws, vec3 origin_ws,
-                   sampler2D depth, sampler2D color, int steps,
-                   float max_ray_uv, float z_near, float z_far)
+float3 cosine_direction(float2 u, float3 N)
 {
-  vec3 hit_ws    = origin_ws;
-  float step_len = max_ray_uv / float(steps);
-
-  for (int i = 1; i <= steps; i++) {
-    hit_ws += dir_ws * (step_len * float(i));
-
-    vec3 screen = world_to_screen(hit_ws);
-
-    /* Ray left the screen — no hit. */
-    if (any(lessThan(screen.xy, vec2(0.02))) ||
-        any(greaterThan(screen.xy, vec2(0.98))))
-    {
-      return vec4(0.0);
-    }
-
-    /* The pyramid is padded to a multiple of 64 px: screen UV -> pyramid UV. */
-    float scene_ndc = textureLod(depth, screen.xy * hiz_uv_scale, float(i) * 0.25).r;
-
-    /* Behind the scene surface = intersection. */
-    float ray_lin  = linear_depth(screen.z, z_near, z_far);
-    float scene_lin = linear_depth(scene_ndc, z_near, z_far);
-
-    float thickness = 0.3; /* World units; prevents "bleeding through" thin walls */
-
-    if (ray_lin > scene_lin && (ray_lin - scene_lin) < thickness) {
-      /* Fade near screen edges to hide missing out-of-screen data. */
-      vec2 edge_fade = smoothstep(vec2(0.0), vec2(0.1), screen.xy) *
-                       smoothstep(vec2(1.0), vec2(0.9), screen.xy);
-      float fade = edge_fade.x * edge_fade.y;
-
-      return vec4(texture(color, screen.xy).rgb * fade, fade);
-    }
-  }
-
-  return vec4(0.0); /* Miss */
+  float sin_theta = sqrt(u.x);
+  float cos_theta = sqrt(1.0f - u.x);
+  float phi = u.y * 6.2831853f;
+  float3 up = abs(N.z) < 0.999f ? float3(0.0f, 0.0f, 1.0f) : float3(1.0f, 0.0f, 0.0f);
+  float3 T = normalize(cross(up, N));
+  float3 B = cross(N, T);
+  return T * (sin_theta * cos(phi)) + B * (sin_theta * sin(phi)) + N * cos_theta;
 }
-
-/* ================================================================== */
-/* Main                                                                */
-/* ================================================================== */
 
 void main()
 {
-  const ivec2 out_px  = ivec2(gl_GlobalInvocationID.xy);
-  const ivec2 out_res = imageSize(out_ssgi_img);
-
+  const int2 out_px = int2(gl_GlobalInvocationID.xy);
+  const int2 out_res = imageSize(out_ssgi_img);
   if (any(greaterThanEqual(out_px, out_res))) {
     return;
   }
 
-  /* Full-res UV corresponding to this half-res pixel. */
-  const vec2 uv = (vec2(out_px) * 2.0 + 1.0) / screen_res;
+  /* Top left texel of the 2x2 block: the G-Buffer and the depth are read at the same texel. */
+  const int2 texel = min(out_px * 2, int2(screen_res) - 1);
+  const float2 uv = (float2(texel) + 0.5f) / screen_res;
 
-  float ndc_depth = reverse_z::read(texture(depth_tx, uv).r);
-
-  if (ndc_depth >= 0.9999) {
-    imageStore(out_ssgi_img, out_px, vec4(0.0)); /* Sky: no indirect */
+  float depth = reverse_z::read(texelFetch(depth_tx, texel, 0).r);
+  /* Sky, or a surface without closure (emission only): nothing to light. A pixel without
+   * closure never had its normal layer written. */
+  if (depth >= 1.0f || gbuffer::read_header(texel).is_empty()) {
+    imageStore(out_ssgi_img, out_px, float4(0.0f));
     return;
   }
 
-  const float z_near = z_planes.x;
-  const float z_far  = z_planes.y;
+  const float3 P = reconstruct_world_pos(uv, depth);
+  const float3 N = gbuffer::read_normal(texel);
+  const float view_dist = linear_depth(depth);
+  /* Away from the surface, against self intersection on the depth quantization. */
+  const float3 origin = P + N * (0.002f * view_dist + 0.01f);
 
-  vec3 world_pos    = reconstruct_world_pos(uv, ndc_depth);
-  /* Shading normal of the first closure, decoded from EEVEE's G-Buffer.
-   * A pixel can have depth and still no closure (emission only surface): its
-   * normal layer was never written, and decoding garbage would spread NaNs
-   * through the filters downstream. */
-  ivec2 gbuf_texel = ivec2(uv * screen_res);
-  if (gbuffer::read_header(gbuf_texel).is_empty()) {
-    imageStore(out_ssgi_img, out_px, vec4(0.0));
-    return;
-  }
-  vec3 world_normal = gbuffer::read_normal(gbuf_texel);
+  const int RAY_COUNT = 4;
+  const float2 noise = float2(ign(float2(out_px)), ign(float2(out_px) + float2(17.0f, 59.0f)));
 
-  /* Max step size in world units, capped at ssgi_radius. */
-  float step_ws = ssgi_radius / float(ssgi_quality_steps);
+  float3 radiance = float3(0.0f);
+  float hits = 0.0f;
+  for (int r = 0; r < RAY_COUNT; r++) {
+    /* Stratified on the first dimension, rotated per pixel. */
+    float2 u = fract(float2((float(r) + noise.x) / float(RAY_COUNT),
+                            noise.y + float(r) * 0.618034f));
+    float3 dir = cosine_direction(u, N);
 
-  /* Accumulate N samples on the hemisphere. */
-  const int NUM_SAMPLES = 4; /* 4 directions at half-res ≈ 1 full-res direction */
-
-  vec3 indirect_sum = vec3(0.0);
-  float hit_count   = 0.0;
-
-  for (int s = 0; s < NUM_SAMPLES; s++) {
-    vec3 ray_dir = hemisphere_sample(s, world_normal, out_px);
-
-    /* March in world space using world step size. */
-    vec3 screen_origin = world_to_screen(world_pos);
-
-    vec4 hit_result = hiz_ray_march(
-        screen_origin, ray_dir * step_ws, world_pos,
-        hiz_tx, scene_color_tx,
-        ssgi_quality_steps, ssgi_radius,
-        z_near, z_far);
-
-    if (hit_result.a > 0.0) {
-      /* Apply color saturation: lerp between grey and full color.
-       * ssgi_color_saturation = 1.0 → full color bleed; 0.0 → grey light. */
-      vec3 hit_color = hit_result.rgb;
-      float luma     = dot(hit_color, vec3(0.2126, 0.7152, 0.0722));
-      hit_color      = mix(vec3(luma), hit_color, ssgi_color_saturation);
-
-      indirect_sum += hit_color * hit_result.a;
-      hit_count    += hit_result.a;
+    for (int i = 0; i < ssgi_quality_steps; i++) {
+      /* Quadratic distribution: dense near the surface, where contact matters. */
+      float s = (float(i) + noise.x) / float(ssgi_quality_steps);
+      float t = ssgi_radius * max(s * s, 0.02f);
+      float3 ray_ws = origin + dir * t;
+      float3 screen = world_to_screen(viewproj, ray_ws);
+      if (any(lessThan(screen.xy, float2(0.0f))) || any(greaterThan(screen.xy, float2(1.0f))) ||
+          screen.z >= 1.0f)
+      {
+        break; /* Off screen: the world is seen. */
+      }
+      /* Mip 0 of the pyramid is the opaque depth, conventional range. */
+      float scene_depth = textureLod(hiz_tx, screen.xy * hiz_uv_scale, 0.0f).r;
+      if (scene_depth >= 1.0f) {
+        continue;
+      }
+      float delta = linear_depth(screen.z) - linear_depth(scene_depth);
+      if (delta > 0.0f) {
+        /* Behind the depth buffer. A thin layer counts as a hit, more is a ray passing behind
+         * an object, which the depth buffer cannot tell from a solid. */
+        if (delta < 0.25f + t * 0.5f) {
+          float3 prev = world_to_screen(viewproj_prev, ray_ws);
+          if (all(greaterThan(prev.xy, float2(0.0f))) && all(lessThan(prev.xy, float2(1.0f)))) {
+            float3 hit = textureLod(scene_color_tx, prev.xy, 0.0f).rgb;
+            float luma = dot(hit, float3(0.2126f, 0.7152f, 0.0722f));
+            /* Firefly clamp: a small bright emitter is found by one ray in many, and four rays
+             * per pixel cannot average that out. Losing some of its bounce is the lesser evil. */
+            hit *= min(1.0f, SSGI_HIT_LUMA_MAX / max(luma, 1e-6f));
+            luma = min(luma, SSGI_HIT_LUMA_MAX);
+            radiance += mix(float3(luma), hit, ssgi_color_saturation);
+            hits += 1.0f;
+          }
+        }
+        break;
+      }
     }
   }
 
-  /* Average over samples; apply intensity. */
-  vec3 indirect = (hit_count > 0.0) ?
-      (indirect_sum / float(NUM_SAMPLES)) * ssgi_intensity :
-      vec3(0.0);
-
-  imageStore(out_ssgi_img, out_px, vec4(indirect, 1.0));
+  const float inv = 1.0f / float(RAY_COUNT);
+  imageStore(out_ssgi_img, out_px, float4(radiance * (inv * ssgi_intensity), hits * inv));
 }

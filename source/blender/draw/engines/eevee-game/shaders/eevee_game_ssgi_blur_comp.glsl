@@ -80,7 +80,8 @@ void main()
 
   /* 3×3 bilateral Gaussian over the half-res SSGI radiance.
    * Each tap is weighted by its Gaussian spatial weight × depth similarity. */
-  vec3  radiance_sum = vec3(0.0);
+  /* rgb: bounce radiance, a: fraction of the rays that hit. Both are filtered. */
+  vec4  radiance_sum = vec4(0.0);
   float weight_sum   = 0.0;
   int   tap          = 0;
 
@@ -91,7 +92,7 @@ void main()
       /* Clamp to avoid out-of-bounds texture reads at screen edges. */
       sample_uv = clamp(sample_uv, half_texel * 0.5, vec2(1.0) - half_texel * 0.5);
 
-      vec3  radiance   = texture(ssgi_lowres_tx, sample_uv).rgb;
+      vec4  radiance   = texture(ssgi_lowres_tx, sample_uv);
 
       /* Bilateral depth weight: use full-res depth at the corresponding sample position.
        * This guides the filter to respect depth edges at full resolution. */
@@ -111,9 +112,9 @@ void main()
     }
   }
 
-  vec3 result = (weight_sum > 1e-5) ?
+  vec4 result = (weight_sum > 1e-5) ?
       radiance_sum / weight_sum :
-      texture(ssgi_lowres_tx, full_uv).rgb;  /* Fallback: no bilateral */
+      texture(ssgi_lowres_tx, full_uv);  /* Fallback: no bilateral */
 
-  imageStore(out_ssgi_final_img, out_px, vec4(result, 1.0));
+  imageStore(out_ssgi_final_img, out_px, result);
 }

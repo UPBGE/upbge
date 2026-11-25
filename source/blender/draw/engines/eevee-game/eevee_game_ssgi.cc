@@ -34,6 +34,7 @@ void SSGIModule::render(View & /*view*/, gpu::Texture *scene_color_tx, gpu::Text
      * indirect bounce rather than accumulate ghost radiance. The next frame
      * history_valid will be true and SSGI resumes normally. */
     if (!inst_->frame_state.history_valid) {
+        viewproj_prev_ = inst_->uniform_data.projectionmat * inst_->uniform_data.viewmat;
         /* Clear the output to black so the lighting pass reads zero indirect
          * radiance rather than stale data from the previous frame or uninitialised
          * VRAM. A single compute clear is cheaper than a full render pass. */
@@ -62,12 +63,14 @@ void SSGIModule::render(View & /*view*/, gpu::Texture *scene_color_tx, gpu::Text
     const float4x4 vp_inv = math::invert(
         inst_->uniform_data.projectionmat * inst_->uniform_data.viewmat);
     ssgi_main_ps_.push_constant("viewprojinv",  vp_inv);
-    ssgi_main_ps_.push_constant("viewproj",
-        inst_->uniform_data.projectionmat * inst_->uniform_data.viewmat);
+    const float4x4 viewproj = inst_->uniform_data.projectionmat * inst_->uniform_data.viewmat;
+    ssgi_main_ps_.push_constant("viewproj", viewproj);
+    /* scene_color_tx is last frame's: its hits are looked up where they were then. */
+    ssgi_main_ps_.push_constant("viewproj_prev", viewproj_prev_);
+    viewproj_prev_ = viewproj;
     ssgi_main_ps_.push_constant("z_planes",
         float2(inst_->uniform_data.z_near, inst_->uniform_data.z_far));
     ssgi_main_ps_.push_constant("screen_res",   inst_->uniform_data.screen_res);
-    ssgi_main_ps_.push_constant("frame_count",  int(inst_->uniform_data.frame_count));
     /* The Hi-Z texture is padded; screen UVs must be scaled before sampling it. */
     ssgi_main_ps_.push_constant("hiz_uv_scale", inst_->hiz_buffer.uv_scale);
     

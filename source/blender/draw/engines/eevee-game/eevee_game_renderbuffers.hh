@@ -34,11 +34,10 @@ class RenderBuffers {
   /* HDR color, RGBA16F. Alpha follows EEVEE's convention because EEVEE's
    * material shaders write it: transmittance, 1 = nothing drawn, 0 = opaque. */
   Texture combined_tx = {"combined_tx"};
-  /* Last frame's combined_tx, the radiance source of SSGI. The two are
-   * swapped at the start of each frame: the G-Buffer pass writes emission
-   * into combined_tx before SSGI runs, so the previous frame cannot be read
-   * from the same texture, and swapping costs nothing where a copy would
-   * move a full RGBA16F target every frame. */
+  /* Last frame's opaque radiance, the radiance source of SSGI: a copy of
+   * combined_tx made right after the deferred lighting and the background.
+   * A swap would be free but would also feed the bloom, the volumes and the
+   * transparent surfaces back into the bounce, which brightens every frame. */
   Texture combined_prev_tx = {"combined_prev_tx"};
   Texture vector_tx = {"vector_tx"}; /* RG16F motion vectors, UV units, previous - current */
 
