@@ -245,7 +245,7 @@ struct SymbolParser : NodeErrorHandler {
   void parse_function_return_type(SymbolScope &scope, ast::IdType return_type)
   {
     SymbolFunction &fn = *scope.as_function();
-    fn.return_type = &fn.lookup_class(table, return_type.identifier()).unwrap(this);
+    fn.return_type = &parse_id_type(scope, return_type);
 
     if (fn.is_entry_point() && fn.return_type != table.void_cls) {
       error(return_type, Diag::EntryPointVoidReturn);
@@ -445,7 +445,7 @@ struct SymbolParser : NodeErrorHandler {
   void parse_loop_arguments(SymbolScope &scope, ForLoop loop)
   {
     for (VarDecl var : loop.condition().descendants_of_type<VarDecl>()) {
-      const SymbolClass &type = scope.lookup_class(table, var.type().identifier()).unwrap(this);
+      const SymbolClass &type = parse_id_type(scope, var.type());
       for (Declarator decl : var.children_of_type<Declarator>()) {
         SymbolVariable &sym = table.var_arena.alloc(scope, type, decl, table);
         if (scope.variable_emplace(&sym)) {
@@ -573,7 +573,7 @@ struct SymbolParser : NodeErrorHandler {
       scope.classes.emplace(identifier, &type, name.front());
       return;
     }
-    error(aliased, Diag::UnknownTypeName);
+    error(aliased_id, Diag::UnknownTypeName);
   }
 
   void parse_enum_value(SymbolScope &scope,
@@ -707,6 +707,11 @@ struct SymbolParser : NodeErrorHandler {
           error(var.loc.tok, Diag::Redefinition, cls.original);
         }
         var.set_offset(parent_class.is_union(), offset);
+
+        SymbolClass *parent_cls = scope.as_class();
+        if (parent_cls && !parent_cls->is_union) {
+          parent_cls->is_default_initialized |= cls.is_default_initialized;
+        }
       }
     }
     return cls;
@@ -776,6 +781,7 @@ struct SymbolParser : NodeErrorHandler {
       else {
         cls.base_classes.emplace_back(parent_id, parent_cls);
         inherit_members(cls, *parent_cls);
+        cls.is_default_initialized |= parent_cls->is_default_initialized;
       }
       parent_id = parent_id.next();
     }
@@ -1456,7 +1462,9 @@ struct SymbolParser : NodeErrorHandler {
       SymbolVariable &sym = table.var_arena.alloc(scope, type, decl, table);
       sym.res_type = attr.res_type;
       sym.is_static |= attr.res_type != ResourceType::NONE;
-      sym.default_value = decl.initial_value().expr();
+      if (!sym.is_static) {
+        sym.default_value = decl.initial_value().expr();
+      }
       if (scope.variable_emplace(&sym)) {
         /* Check if redefinition is simply hiding a base class member. */
         SymbolVariable *other = scope.variables.find(sym.identifier)->second.second;
@@ -1474,6 +1482,23 @@ struct SymbolParser : NodeErrorHandler {
 
       if (cls && sym.default_value.is_valid()) {
         cls->is_default_initialized = true;
+      }
+      else if (cls && !cls->is_union && !sym.is_static && type.is_default_initialized) {
+        /* Member type is default initialized, so the class also becomes default initialized.
+         * Unions only zero initialize their storage. */
+        cls->is_default_initialized = true;
+      }
+
+      if (cls && !sym.is_static) {
+        /* Non-empty initializer lists are not supported by the default constructor. Empty ones
+         * are equivalent to the default zero initialization. */
+        InitializerList list = decl.initial_value().initializer_list();
+        if (list.is_valid() && !list.is_empty()) {
+          error(decl.initial_value(), Diag::UnsupportedDefaultMemberInitializerNotExpression);
+        }
+        else if (list.is_valid()) {
+          cls->is_default_initialized = true;
+        }
       }
 
       if (sym.is_ptr) {

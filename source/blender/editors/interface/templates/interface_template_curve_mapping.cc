@@ -337,14 +337,30 @@ static void add_preset_button(Block *block,
   });
 }
 
+static int curvemap_curves_num(const CurveMappingLabels labels)
+{
+  switch (labels) {
+    case CurveMappingLabels::None:
+      return 1;
+    case CurveMappingLabels::XYZ:
+      return 3;
+    case CurveMappingLabels::CRGB:
+      return 4;
+    case CurveMappingLabels::HSV:
+      return 3;
+  }
+  BLI_assert_unreachable();
+  return 1;
+}
+
 /**
  * \note Still unsure how this call evolves.
  *
- * \param labeltype: Used for defining which curve-channels to show.
+ * \param labels: Used for defining which curve-channels to show.
  */
 static void curvemap_buttons_layout(Layout *layout,
                                     PointerRNA *ptr,
-                                    char labeltype,
+                                    const CurveMappingLabels labels,
                                     bool levels,
                                     bool brush,
                                     bool neg_slope,
@@ -353,6 +369,13 @@ static void curvemap_buttons_layout(Layout *layout,
                                     const RNAUpdateCb &cb)
 {
   CurveMapping *cumap = static_cast<CurveMapping *>(ptr->data);
+
+  /* Validate active curve. This can be important when the same CurveMapping e.g. starts out as a
+   * color mapping and later becomes a float mapping. In this case the active curve index points to
+   * a curve that is not used anymore. */
+  const int curves_num = curvemap_curves_num(labels);
+  cumap->cur = std::clamp(cumap->cur, 0, curves_num - 1);
+
   CurveMap *cm = &cumap->cm[cumap->cur];
   Button *bt;
   const float dx = UI_UNIT_X;
@@ -370,7 +393,7 @@ static void curvemap_buttons_layout(Layout *layout,
   /* curve chooser */
   Layout *row = &layout->row(false);
 
-  if (labeltype == 'v') {
+  if (labels == CurveMappingLabels::XYZ) {
     /* vector */
     Layout &sub = row->row(true);
     sub.alignment_set(LayoutAlign::Left);
@@ -388,7 +411,7 @@ static void curvemap_buttons_layout(Layout *layout,
       button_func_set(bt, curvemap_buttons_redraw);
     }
   }
-  else if (labeltype == 'c' && cumap->tone != CURVE_TONE_FILMLIKE) {
+  else if (labels == CurveMappingLabels::CRGB && cumap->tone != CURVE_TONE_FILMLIKE) {
     /* color */
     Layout &sub = row->row(true);
     sub.alignment_set(LayoutAlign::Left);
@@ -450,7 +473,7 @@ static void curvemap_buttons_layout(Layout *layout,
       button_func_set(bt, curvemap_buttons_redraw);
     }
   }
-  else if (labeltype == 'h') {
+  else if (labels == CurveMappingLabels::HSV) {
     /* HSV */
     Layout &sub = row->row(true);
     sub.alignment_set(LayoutAlign::Left);
@@ -502,7 +525,7 @@ static void curvemap_buttons_layout(Layout *layout,
     row->alignment_set(LayoutAlign::Right);
   }
 
-  if (labeltype == 'h') {
+  if (labels == CurveMappingLabels::HSV) {
     bg = GRAD_H;
   }
 
@@ -852,7 +875,7 @@ static void curvemap_buttons_layout(Layout *layout,
 void template_curve_mapping(Layout *layout,
                             PointerRNA *ptr,
                             const StringRefNull propname,
-                            int type,
+                            const CurveMappingLabels labels,
                             bool levels,
                             bool brush,
                             bool neg_slope,
@@ -883,7 +906,7 @@ void template_curve_mapping(Layout *layout,
   block_lock_set(block, (id && !ID_IS_EDITABLE(id)), ERROR_LIBDATA_MESSAGE);
 
   curvemap_buttons_layout(
-      layout, &cptr, type, levels, brush, neg_slope, tone, presets, RNAUpdateCb{*ptr, prop});
+      layout, &cptr, labels, levels, brush, neg_slope, tone, presets, RNAUpdateCb{*ptr, prop});
 
   block_lock_clear(block);
 }

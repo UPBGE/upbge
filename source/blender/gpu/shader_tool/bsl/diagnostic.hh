@@ -106,6 +106,7 @@ enum class Diag {
   ArrayNeedsSizeOrInitializer,
   ArraySizeMustBeGreaterThanZero,
   ArraySizeNotConstantExpression,
+  ArraySizeNotConstantForDefaultInitialization,
   ArrayTypeOperand,
 
   AttributeOnlyEntryPointsCanUseIn,
@@ -318,7 +319,9 @@ enum class Diag {
   UnsupportedSymbolInExpr,
   UnsupportedDecltypeInExpr,
   UnsupportedDefaultedBody,
+  UnsupportedDefaultMemberInitializerNotExpression,
   UnsupportedDeletedBody,
+  UnsupportedDoubleLiteral,
   UnsupportedPureVirtualFunctionBody,
 
   UsingNamespaceNotSupported,
@@ -339,6 +342,8 @@ static inline std::string_view diagnostic_message_get(Diag diag)
       return "Array size must be greater than zero";
     case Diag::ArraySizeNotConstantExpression:
       return "Array size is not a constant expression";
+    case Diag::ArraySizeNotConstantForDefaultInitialization:
+      return "Array of type '{}' with default member initializers needs a constant size";
     case Diag::ArrayTypeOperand:
       return "Invalid operand of array type";
     case Diag::AttributeNotAllowedInComp:
@@ -697,8 +702,12 @@ static inline std::string_view diagnostic_message_get(Diag diag)
       return "Unsupported symbol '{}' inside {}";
     case Diag::UnsupportedDefaultedBody:
       return "Defaulted body are not supported";
+    case Diag::UnsupportedDefaultMemberInitializerNotExpression:
+      return "Default member initializer must be an expression, not an initializer list";
     case Diag::UnsupportedDeletedBody:
       return "Deleted functions are not supported";
+    case Diag::UnsupportedDoubleLiteral:
+      return "Double literals are not supported, add 'f' suffix";
     case Diag::UnsupportedPureVirtualFunctionBody:
       return "Pure virtual function with body are not supported";
     case Diag::UsingNamespaceNotSupported:
