@@ -204,11 +204,11 @@ void ShadingView::render()
    * Step 3: Main Rendering Pipeline
    * G-Buffer -> GTAO -> SSGI -> Tiled Deferred Lighting -> Transparent Forward.
    * FIX: was called as pipelines.render(render_view_) — missing combined_fb_ argument. */
-  /* Start the frame's color from EEVEE's "nothing here" value: black with
-   * full transmittance. The G-Buffer pass then writes emission with alpha 0
-   * for every covered pixel, and the lighting pass adds on top. */
+  /* Start the frame's color from the background with full transmittance: the world color, or
+   * black when the world shader draws it after the lighting. The G-Buffer pass then writes
+   * emission with alpha 0 for every covered pixel, and the lighting pass adds on top. */
   combined_fb_.bind();
-  GPU_framebuffer_clear_color(combined_fb_, double4(0.0, 0.0, 0.0, 1.0));
+  GPU_framebuffer_clear_color(combined_fb_, double4(inst_.world.background_clear_color()));
 
   inst_.pipelines.render(render_view_, combined_fb_);
 

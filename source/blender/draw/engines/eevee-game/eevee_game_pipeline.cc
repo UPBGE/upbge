@@ -527,6 +527,9 @@ void PipelineModule::render(View &view, Framebuffer &combined_fb)
   inst_->manager->submit(opaque_layer_.lighting_ps_, view);
   GPU_debug_group_end();
 
+  /* The world where no opaque surface is. */
+  inst_->world.render_background(view);
+
   /* ================================================================
    * Pass 6: Volumetric fog over the opaque result (no-op when disabled). */
   GPU_debug_group_begin("Volumetrics");

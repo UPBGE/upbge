@@ -38,6 +38,14 @@ class WorldModule {
   void sync();
   /* Re-captures and filters them when sync() found them stale. */
   void render();
+  /* Draws the world behind the opaque surfaces of the bound framebuffer, whose depth is the
+   * prepass depth. No-op for a world without a shader: the color clear is the background. */
+  void render_background(View &view);
+  /* Color the frame is cleared to: the background of a world without a shader. */
+  float4 background_clear_color() const
+  {
+    return float4((gpumat_ != nullptr) ? float3(0.0f) : constant_color_, 1.0f);
+  }
 
   /* World lighting inputs of the deferred lighting and forward shaders. */
   template<typename PassT> void bind_resources(PassT &pass)
@@ -61,6 +69,7 @@ class WorldModule {
   StorageArrayBuffer<float4, 4> sh_buf_ = {"World.SH"};
 
   PassSimple capture_ps_ = {"World.Capture"};
+  PassSimple background_ps_ = {"World.Background"};
   PassSimple sh_ps_ = {"World.SH"};
   PassSimple prefilter_ps_ = {"World.Prefilter"};
   View capture_view_ = {"World.Capture"};

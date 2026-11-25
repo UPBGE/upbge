@@ -40,6 +40,19 @@ void WorldModule::sync()
   captured_gpumat_ = gpumat_;
   captured_color_ = constant_color_;
 
+  if (gpumat_ != nullptr) {
+    /* Background: the world shader per pixel, where the prepass left the clear depth. The
+     * full-screen triangle is at the far plane, 0 in reversed depth like the clear. */
+    PassSimple &pass = background_ps_;
+    pass.init();
+    pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL |
+                   DRW_STATE_CLIP_CONTROL_UNIT_RANGE);
+    inst_.pipelines.eevee_globals_bind(pass);
+    inst_.pipelines.render_pass_outputs_bind(pass);
+    pass.material_set(*inst_.manager, gpumat_);
+    pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
+  }
+
   if (!needs_update_) {
     return;
   }
@@ -99,6 +112,16 @@ void WorldModule::sync()
     }
     pass.barrier(GPU_BARRIER_TEXTURE_FETCH);
   }
+}
+
+void WorldModule::render_background(View &view)
+{
+  if (gpumat_ == nullptr) {
+    return;
+  }
+  GPU_debug_group_begin("World.Background");
+  inst_.manager->submit(background_ps_, view);
+  GPU_debug_group_end();
 }
 
 void WorldModule::render()
