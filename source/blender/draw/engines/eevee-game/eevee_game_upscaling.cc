@@ -170,7 +170,8 @@ void UpscaleModule::passes_sync()
   {
     PassSimple &ps = prepare_ps_;
     ps.init();
-    ps.bind_ubo("fsr3_buf", data_);
+    /* By slot (eevee_game_fsr3_common): a name needs the shader, which the sub-passes set. */
+    ps.bind_ubo(0, data_);
     {
       PassSimple::Sub &sub = ps.sub("PrepareInputs");
       sub.shader_set(shaders.static_shader_get(SH_FSR3_PREPARE_INPUTS));
@@ -259,7 +260,8 @@ void UpscaleModule::passes_sync()
   for (const bool sharpen : {false, true}) {
     PassSimple &ps = sharpen ? accumulate_sharpen_ps_ : accumulate_ps_;
     ps.init();
-    ps.bind_ubo("fsr3_buf", data_);
+    /* By slot (eevee_game_fsr3_common): a name needs the shader, which the sub-passes set. */
+    ps.bind_ubo(0, data_);
     {
       PassSimple::Sub &sub = ps.sub("Accumulate");
       sub.shader_set(shaders.static_shader_get(sharpen ? SH_FSR3_ACCUMULATE_SHARPEN :
@@ -303,7 +305,6 @@ void UpscaleModule::passes_sync()
 void UpscaleModule::constants_update(bool reset)
 {
   FSR3UpscalerData &d = data_;
-  const CameraData &cam = inst_->camera.data_get();
 
   d.previous_frame_jitter = d.jitter;
   d.jitter = jitter_px_;
@@ -324,8 +325,9 @@ void UpscaleModule::constants_update(bool reset)
 
   /* setupDeviceDepthToViewSpaceDepthParams(), reversed and finite. Blender's reversed depth is
    * the D3D one, d = q * far / z - q with q = near / (far - near): z = q * far / (d + q). */
-  const float near = math::min(cam.clip_near, cam.clip_far);
-  const float far = math::max(cam.clip_near, cam.clip_far);
+  /* The clip distances of the frame's projection: the scene camera's are only synced for F12. */
+  const float near = inst_->uniform_data.z_near;
+  const float far = inst_->uniform_data.z_far;
   const float q = near / (far - near);
   d.device_to_view_depth = float4(-q, q * far, 1.0f / winmat[0][0], 1.0f / winmat[1][1]);
 
