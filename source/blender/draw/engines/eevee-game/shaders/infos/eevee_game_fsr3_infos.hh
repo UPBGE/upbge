@@ -15,7 +15,7 @@
 #  include "eevee_game_fsr3_shared.hh"
 #endif
 
-#include "eevee_game_fsr3_shared.hh"
+#include "eevee_game_fsr3_defines.hh"
 #include "gpu_shader_create_info.hh"
 
 GPU_SHADER_CREATE_INFO(eevee_game_fsr3_common)

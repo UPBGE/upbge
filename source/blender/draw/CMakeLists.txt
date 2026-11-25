@@ -267,6 +267,7 @@ set(SRC
   engines/eevee-game/eevee_game_depth_of_field.hh
   engines/eevee-game/eevee_game_engine.h
   engines/eevee-game/eevee_game_film.hh
+  engines/eevee-game/eevee_game_fsr3_defines.hh
   engines/eevee-game/eevee_game_fsr3_shared.hh
   engines/eevee-game/eevee_game_gtao.hh
   engines/eevee-game/eevee_game_instance.hh
@@ -704,6 +705,7 @@ set(GLSL_SRC
   engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_shading_change_pyramid_lib.glsl
   engines/eevee-game/shaders/fsr3/ffx_fsr3upscaler_upsample_lib.glsl
 
+  engines/eevee-game/eevee_game_fsr3_defines.hh
   engines/eevee-game/eevee_game_fsr3_shared.hh
   engines/eevee-game/eevee_game_shader_shared.hh
 

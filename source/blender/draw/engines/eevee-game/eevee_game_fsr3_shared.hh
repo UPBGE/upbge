@@ -11,13 +11,7 @@
 
 #include "GPU_shader_shared_utils.hh"
 
-/* Work-group side of every pass but RCAS and the two SPD pyramids. */
-#define FSR3_GROUP_SIZE 8
-/* RCAS: 64 threads per group, 4 pixels per thread over a 16x16 tile. */
-#define FSR3_RCAS_GROUP_SIZE 64
-#define FSR3_RCAS_TILE_SIZE 16
-/* SPD: 256 threads per group, 64x64 source texels per group. */
-#define FSR3_SPD_GROUP_SIZE 256
+#include "eevee_game_fsr3_defines.hh"
 
 /* Permutation, fixed for EEVEE: scene linear color, reversed depth (1 at the near plane),
  * render resolution motion vectors without jitter (VelocityModule). */
