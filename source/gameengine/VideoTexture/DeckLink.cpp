@@ -20,8 +20,6 @@
 #    define __STDC_LIMIT_MACROS
 #  endif
 
-#  include "atomic_ops.h"
-
 #  include "DeckLink.h"
 #  include "EXP_PyObjectPlus.h"
 #  include "KX_Globals.h"

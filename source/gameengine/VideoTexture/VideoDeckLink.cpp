@@ -27,8 +27,6 @@
 #    include <sys/time.h>
 #  endif
 
-#  include "atomic_ops.h"
-
 #  include "DeckLink.h"
 #  include "Exception.h"
 #  include "KX_KetsjiEngine.h"
@@ -545,12 +543,12 @@ HRESULT STDMETHODCALLTYPE PinnedMemoryAllocator::QueryInterface(REFIID /*iid*/, 
 
 ULONG STDMETHODCALLTYPE PinnedMemoryAllocator::AddRef(void)
 {
-  return atomic_add_and_fetch_uint32(&mRefCount, 1U);
+  return std::atomic_ref(mRefCount).fetch_add(1);
 }
 
 ULONG STDMETHODCALLTYPE PinnedMemoryAllocator::Release(void)
 {
-  uint32_t newCount = atomic_sub_and_fetch_uint32(&mRefCount, 1U);
+  uint32_t newCount = std::atomic_ref(mRefCount).fetch_sub(1);
   if (newCount == 0)
     delete this;
   return (ULONG)newCount;
