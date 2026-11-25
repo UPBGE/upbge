@@ -105,6 +105,10 @@ struct LightEntry {
    * LIGHT_FLAG_* bits. */
   float spot_angle = 0.0f;
   uint32_t flags = 0;
+  /* CPU only, sun: distance the cascades cover and the blend from linear (0) to logarithmic
+   * (1) split distribution, the light's EEVEE settings. */
+  float cascade_max_dist = 200.0f;
+  float cascade_exponent = 0.8f;
 };
 
 /* ---- LightModule ---- */

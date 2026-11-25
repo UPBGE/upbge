@@ -451,6 +451,8 @@ void SyncModule::sync_light(Object *ob, ObjectHandle &handle)
 
   /* Shadow: -1 means no shadow; ShadowModule::end_sync() will assign atlas slots. */
   entry.data.shadow_index = (la->mode & LA_SHADOW) ? 0 : -1;
+  entry.cascade_max_dist = la->cascade_max_dist;
+  entry.cascade_exponent = la->cascade_exponent;
 
   inst_.lights.add(entry);
 }

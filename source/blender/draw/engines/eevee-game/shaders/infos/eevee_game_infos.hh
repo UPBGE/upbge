@@ -184,6 +184,8 @@ PUSH_CONSTANT(float4x4, cascade_viewproj_1)
 PUSH_CONSTANT(float4x4, cascade_viewproj_2)
 PUSH_CONSTANT(float4x4, cascade_viewproj_3)
 PUSH_CONSTANT(float4, cascade_splits)
+/* World size of a shadow map texel, per cascade. */
+PUSH_CONSTANT(float4, cascade_texel_size)
 PUSH_CONSTANT(float, shadow_bias)
 PUSH_CONSTANT(float, pcf_offset_scale)
 PUSH_CONSTANT(int, shadow_map_res)

@@ -108,13 +108,25 @@ void ShadowModule::begin_sync()
 
 void ShadowModule::update_cascades(Camera & /*camera*/, LightEntry &light)
 {
-  /* Logarithmic split distribution: more resolution near the camera where
-   * angular density is highest.
-   *   split_i = near * (far / near)^(i / N) */
+  /* Split distribution between linear and logarithmic, as EEVEE Legacy: the logarithmic one
+   * puts the resolution near the camera where the angular density is highest.
+   *   split_i = mix(near + (far - near) * i / N, near * (far / near)^(i / N), exponent)
+   * The cascades end at the light's maximum distance, not at the camera far plane, which can
+   * be kilometers away. */
   cascades_.resize(MAX_SHADOW_CASCADES);
 
   const float near_clip = inst_->uniform_data.z_near;
-  const float far_clip = inst_->uniform_data.z_far;
+  const float far_clip = math::clamp(
+      light.cascade_max_dist, near_clip * 2.0f, inst_->uniform_data.z_far);
+  /* The frustum corners below are on the camera clip planes. */
+  const float camera_far = inst_->uniform_data.z_far;
+  const float exponent = math::clamp(light.cascade_exponent, 0.0f, 1.0f);
+  auto split_get = [&](float i) {
+    const float x = i / float(MAX_SHADOW_CASCADES);
+    return math::interpolate(near_clip + (far_clip - near_clip) * x,
+                             near_clip * powf(far_clip / near_clip, x),
+                             exponent);
+  };
 
   /* Light space from the rotation and position of the sun only: a scaled sun
    * object would scale it, and the texel snapping below works in world
@@ -155,12 +167,8 @@ void ShadowModule::update_cascades(Camera & /*camera*/, LightEntry &light)
     /* Each cascade also covers the band where the previous one fades into
      * it. */
     const float slice_near = (i == 0) ? near_clip :
-                                        near_clip *
-                                            powf(far_clip / near_clip,
-                                                 float(i) / float(MAX_SHADOW_CASCADES)) *
-                                            (1.0f - SHADOW_CASCADE_BLEND);
-    const float slice_far = near_clip *
-                            powf(far_clip / near_clip, float(i + 1) / float(MAX_SHADOW_CASCADES));
+                                        split_get(float(i)) * (1.0f - SHADOW_CASCADE_BLEND);
+    const float slice_far = split_get(float(i + 1));
 
     cascades_[i].split_depth = slice_far;
 
@@ -169,8 +177,8 @@ void ShadowModule::update_cascades(Camera & /*camera*/, LightEntry &light)
      * the camera turns or moves. A light space box fitted to the slice
      * changes size with every rotation, and the shadow edges crawl. */
     float3 corners[8];
-    const float t_near = (slice_near - near_clip) / (far_clip - near_clip);
-    const float t_far = (slice_far - near_clip) / (far_clip - near_clip);
+    const float t_near = (slice_near - near_clip) / (camera_far - near_clip);
+    const float t_far = (slice_far - near_clip) / (camera_far - near_clip);
     float2 axis(0.0f);
     for (int c = 0; c < 4; c++) {
       corners[c] = math::interpolate(corner_near[c], corner_far[c], t_near);
@@ -759,13 +767,17 @@ void ShadowModule::dispatch_pcf(int2 extent)
   const char *cascade_names[MAX_SHADOW_CASCADES] = {
       "cascade_viewproj_0", "cascade_viewproj_1", "cascade_viewproj_2", "cascade_viewproj_3"};
   float4 splits = float4(0.0f);
+  float4 texel_size = float4(0.0f);
   for (int i = 0; i < MAX_SHADOW_CASCADES; ++i) {
     const bool used = i < int(cascades_.size());
     pcf_ps_.push_constant(cascade_names[i],
                           used ? cascades_[i].view_proj : float4x4::identity());
     splits[i] = used ? cascades_[i].split_depth : 0.0f;
+    /* Orthographic: the cascade width over the tile resolution. */
+    texel_size[i] = used ? 2.0f / (cascades_[i].proj[0][0] * float(STATIC_TILE_SIZE)) : 0.0f;
   }
   pcf_ps_.push_constant("cascade_splits", splits);
+  pcf_ps_.push_constant("cascade_texel_size", texel_size);
   pcf_ps_.push_constant("shadow_bias", 0.005f);
   pcf_ps_.push_constant("pcf_offset_scale", data_.pcf_offset_scale);
   pcf_ps_.push_constant("shadow_map_res", int(STATIC_ATLAS_RES));

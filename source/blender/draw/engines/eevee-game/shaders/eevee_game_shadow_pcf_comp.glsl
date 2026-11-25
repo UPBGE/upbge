@@ -94,22 +94,18 @@ int select_cascade(float view_depth)
 }
 
 /* ------------------------------------------------------------------ */
-/* Slope-scaled normal bias
- *
- * Move the sample point along the surface normal before projecting to
- * light space. The amount scales with (1 - N·L) so steep surfaces get
- * more bias and front-facing surfaces get almost none.
- *
- * This is preferable to a constant depth bias because it adapts to surface
- * angle without over-darkening flat geometry lit from above.
- *
- * bias_scale is shadow_bias (world units) * (1 - N·L), clamped to [0, 4x]. */
-vec3 apply_normal_bias(vec3 world_pos, vec3 world_normal, vec3 light_dir)
+/* Slope-scaled normal bias: receiver offset in world units, scaled by the texel size of the cascade: one texel covers a
+ * depth range that grows with the slope of the receiver as seen from the light, and the filter
+ * reads pcf_radius texels away, so a fixed offset is either acne on the far cascades or
+ * peter-panning on the near ones. Along the normal mostly, toward the light a little. */
+vec3 apply_normal_bias(vec3 world_pos, vec3 world_normal, vec3 light_dir, float texel,
+                       float pcf_radius)
 {
-  float n_dot_l     = max(dot(world_normal, light_dir), 0.0);
-  float slope_scale = 1.0 - n_dot_l;               /* 0 when perpendicular, 1 when parallel */
-  float bias        = shadow_bias * (0.5 + slope_scale * 3.5); /* [0.5x, 4x] range */
-  return world_pos + world_normal * bias;
+  float n_dot_l = clamp(dot(world_normal, light_dir), 0.0, 1.0);
+  float slope = 1.0 - n_dot_l; /* 0 facing the light, 1 at grazing angles. */
+  float footprint = texel * (1.0 + pcf_radius);
+  return world_pos + world_normal * (footprint * (0.5 + 1.5 * slope)) +
+         light_dir * (texel * 0.5 + shadow_bias);
 }
 
 /* ------------------------------------------------------------------ */
@@ -168,8 +164,10 @@ float cascade_shadow(int cascade_idx, vec3 world_pos, vec3 world_normal)
    * scale, which is negative, hence the sign flip. */
   vec3 light_dir = normalize(vec3(-lvp[0][2], -lvp[1][2], -lvp[2][2]));
 
-  /* Apply normal bias to the world position before projecting to light space. */
-  vec3 biased_pos = apply_normal_bias(world_pos, world_normal, light_dir);
+  /* Filter radius driven by pcf_offset_scale (1.0 = 2 texels). */
+  float pcf_radius = clamp(pcf_offset_scale * 2.0, 1.0, MAX_PCF_RADIUS);
+  vec3 biased_pos = apply_normal_bias(
+      world_pos, world_normal, light_dir, cascade_texel_size[cascade_idx], pcf_radius);
 
   /* Project biased world position into shadow-atlas UV space. */
   vec4 light_clip  = lvp * vec4(biased_pos, 1.0);
@@ -192,9 +190,6 @@ float cascade_shadow(int cascade_idx, vec3 world_pos, vec3 world_normal)
   /* The atlas stores reversed depth (1 = near the light): reverse the
    * reference to compare in the same space. */
   atlas_coord.z = 1.0 - shadow_coord.z;
-
-  /* Fixed filter radius driven by pcf_offset_scale (1.0 = 2 texels). */
-  float pcf_radius = clamp(pcf_offset_scale * 2.0, 1.0, MAX_PCF_RADIUS);
 
   return pcf_3x3(shadow_atlas,
                  atlas_coord,

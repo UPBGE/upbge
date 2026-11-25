@@ -152,8 +152,9 @@ void GameInstance::begin_sync()
     uniform_data.viewmat = default_view.viewmat();
     uniform_data.viewinv = default_view.viewinv();
     uniform_data.projectionmat = default_view.winmat();
-    uniform_data.z_near = default_view.near_clip();
-    uniform_data.z_far = default_view.far_clip();
+    /* View space depths of the clip planes, negative in front of the camera: distances here. */
+    uniform_data.z_near = -default_view.near_clip();
+    uniform_data.z_far = -default_view.far_clip();
     camera.object_to_world = uniform_data.viewinv;
   }
   else {
