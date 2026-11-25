@@ -164,10 +164,11 @@ void main()
   }
   vec3 world_normal = gbuffer::read_normal(gbuf_texel);
 
-  /* Step size in UV: covers gtao_radius in screen space.
-   * We limit to 1/8 of the screen to avoid over-large steps that miss geometry. */
-  float step_size_uv = clamp(gtao_radius / (float(gtao_quality_steps) * screen_res.x),
-                             1.0 / screen_res.x, 0.125);
+  /* Step size: the radius projected at the pixel depth, split in steps, at least one full
+   * resolution pixel and at most an eighth of the screen per step. The search directions are
+   * in pixels, so the steps are in pixels too. */
+  float radius_px = gtao_radius * pixel_scale / linear_depth(ndc_depth, z_near, z_far);
+  float step_size_px = clamp(radius_px / float(gtao_quality_steps), 1.0, screen_res.y * 0.125);
 
   /* 4 evenly-spaced directions with per-pixel noise rotation. */
   const int NUM_DIRS = 4;
@@ -182,11 +183,12 @@ void main()
     /* Horizon search in both ±directions along this axis. */
     /* Pass the half-res UV (== full-res UV of the 2x2 block centre) so
      * horizon_search marches in correct screen space from the right origin. */
-    float h_pos = horizon_search(world_pos, world_normal, uv,  dir,
-                                 step_size_uv, gtao_quality_steps,
+    vec2 dir_uv = dir / screen_res;
+    float h_pos = horizon_search(world_pos, world_normal, uv,  dir_uv,
+                                 step_size_px, gtao_quality_steps,
                                  hiz_tx, z_near, z_far);
-    float h_neg = horizon_search(world_pos, world_normal, uv, -dir,
-                                 step_size_uv, gtao_quality_steps,
+    float h_neg = horizon_search(world_pos, world_normal, uv, -dir_uv,
+                                 step_size_px, gtao_quality_steps,
                                  hiz_tx, z_near, z_far);
 
     /* Cosine-weighted hemisphere integral approximation:

@@ -214,6 +214,8 @@ PUSH_CONSTANT(float4x4, viewprojinv)
 PUSH_CONSTANT(float2, z_planes)
 PUSH_CONSTANT(float2, screen_res)
 PUSH_CONSTANT(float2, hiz_uv_scale)
+/* Pixels covered by one world unit at a view distance of 1. */
+PUSH_CONSTANT(float, pixel_scale)
 COMPUTE_SOURCE("eevee_game_gtao_main_comp.glsl")
 GPU_SHADER_CREATE_END()
 

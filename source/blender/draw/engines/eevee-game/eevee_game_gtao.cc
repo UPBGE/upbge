@@ -56,6 +56,9 @@ void GTAOModule::render(View & /*view*/, gpu::Texture *depth_tx) {
     gtao_main_ps_.push_constant("screen_res", inst_->uniform_data.screen_res);
     /* The Hi-Z texture is padded; screen UVs must be scaled before sampling it. */
     gtao_main_ps_.push_constant("hiz_uv_scale", inst_->hiz_buffer.uv_scale);
+    /* Perspective: a world unit at view distance d covers pixel_scale / d pixels. */
+    gtao_main_ps_.push_constant("pixel_scale",
+        0.5f * inst_->uniform_data.projectionmat[1][1] * inst_->uniform_data.screen_res.y);
     
     int2 half_res = gtao_lowres_tx_.size().xy();
     gtao_main_ps_.dispatch(math::divide_ceil(half_res, int2(8)));
