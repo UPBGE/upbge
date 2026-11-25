@@ -43,6 +43,10 @@ void main()
   /* rgb: bounce radiance, a: fraction of the world it hides. */
   float4 bounce = (use_ssgi != 0) ? texelFetch(ssgi_tx, texel, 0) : float4(0.0f);
   float sun_shadow = texelFetch(shadow_mask_tx, texel, 0).r;
+  /* rgb: reflected radiance weighted by a, a: how much of the world reflection it replaces. */
+  float4 reflection = (use_ssr != 0) ? texelFetch(ssr_tx, texel, 0) : float4(0.0f);
+  /* The trace is for the first reflection closure only. */
+  bool reflection_used = false;
 
 
   int closure_count = min(int(gbuf.header.closure_len()), GBUFFER_LAYER_MAX);
@@ -119,11 +123,16 @@ void main()
       case CLOSURE_BSDF_TRANSLUCENT_ID:
         light_sum[i] += world_diffuse(-cl[i].N) * ao;
         break;
-      case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
-        light_sum[i] += world_specular(reflect(-V, cl[i].N),
-                                       to_closure_reflection(cl[i]).roughness) *
-                        ao;
+      case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID: {
+        float3 specular = world_specular(reflect(-V, cl[i].N),
+                                         to_closure_reflection(cl[i]).roughness);
+        if (!reflection_used) {
+          specular = specular * (1.0f - reflection.a) + reflection.rgb;
+          reflection_used = true;
+        }
+        light_sum[i] += specular * ao;
         break;
+      }
       case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID: {
         /* The world seen through the surface, as EEVEE without ray tracing
          * (bxdf_ggx_lightprobe_transmission): an object with thickness

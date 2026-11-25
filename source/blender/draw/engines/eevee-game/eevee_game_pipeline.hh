@@ -156,6 +156,7 @@ class PipelineModule {
   /* Pass constants referenced by address from the lighting pass. */
   int use_ao_ = 0;
   int use_ssgi_ = 0;
+  int use_ssr_ = 0;
 
   /* Forward surfaces, shaded by `eevee_game_surf_forward` after the
    * deferred lighting. Opaque ones get their depth from the opaque prepass

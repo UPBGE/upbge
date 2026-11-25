@@ -11,38 +11,49 @@ namespace blender::eevee_game {
 class GameInstance;
 
 struct SSRSettings {
-    float max_roughness = 0.5f;     // Only reflect surfaces smoother than this
-    int max_steps = 64;             // Max iterations for the ray march
-    float thickness = 0.1f;         // Thickness of objects to prevent "leaking"
-    float edge_fade = 0.1f;         // Fade reflections at screen edges
-    /* Off until a game SSR trace shader exists (see RayTraceModule::sync). */
-    bool enabled = false;
+  /* Reflection closures rougher than this keep the world reflection only. */
+  float max_roughness = 0.5f;
+  /* Upper bound of the screen-space march steps, one step every 4 pixels below it. */
+  int max_steps = 48;
+  /* Depth a hit may be behind the depth buffer, relative to the view distance. */
+  float thickness = 0.05f;
+  bool enabled = true;
 };
 
+/**
+ * Screen-space reflections, half resolution: one mirror ray per pixel for the first GGX
+ * reflection closure, against the opaque depth, reading the previous frame's opaque radiance.
+ * The result (radiance, confidence) is blended over the world reflection by the lighting pass.
+ */
 class RayTraceModule {
-public:
-    RayTraceModule(GameInstance *inst);
-    ~RayTraceModule();
+ public:
+  RayTraceModule(GameInstance *inst);
 
-    void init();
-    void sync();
-    
-    /**
-     * Performs the Screen Space Reflection pass.
-     * @param radiance_tx The current combined color buffer to sample from.
-     * @param out_radiance The target buffer for the reflection results.
-     */
-    void render(gpu::Texture *radiance_tx, gpu::Texture *out_radiance);
+  void init();
+  void sync();
+  void render(gpu::Texture *scene_color_tx, gpu::Texture *depth_tx);
 
-private:
-    GameInstance *inst_;
-    SSRSettings settings_;
-    
-    // Internal buffers
-    PassSimple ssr_ps_{"SSR.Trace"};
-    
-    // We reuse the HIZ buffer from the instance for accelerated tracing
-    gpu::Texture *hiz_tx_ = nullptr;
+  /* When false the result texture holds nothing meaningful. */
+  bool enabled() const
+  {
+    return settings_.enabled;
+  }
+  gpu::Texture *get_result()
+  {
+    return ssr_final_tx_;
+  }
+
+ private:
+  GameInstance *inst_;
+  SSRSettings settings_;
+  /* Camera of the frame whose radiance is traced. */
+  float4x4 viewproj_prev_ = float4x4::identity();
+
+  Texture ssr_lowres_tx_ = {"ssr_lowres_tx"};
+  Texture ssr_final_tx_ = {"ssr_final_tx"};
+
+  PassSimple ssr_trace_ps_ = {"SSR.Trace"};
+  PassSimple ssr_upsample_ps_ = {"SSR.Upsample"};
 };
 
-} // namespace blender::eevee_game
+}  // namespace blender::eevee_game

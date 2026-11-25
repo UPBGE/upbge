@@ -109,12 +109,8 @@ const char *ShaderModule::static_shader_name_get(eShaderType type)
     case SH_DEFERRED_LIGHT:
       return "eevee_game_deferred_light";
 
-    /* No create info and no GLSL yet. The old table aliased it to EEVEE's
-     * `eevee_ray_trace_screen`, whose resource interface (ray tile lists,
-     * closure bins, sampling data) cannot be satisfied by what this engine
-     * binds. */
     case SH_SSR_TRACE:
-      return nullptr;
+      return "eevee_game_ssr_trace";
 
     case SH_SHADOW_PCF_FILTER:
       return "eevee_game_shadow_pcf_compute";

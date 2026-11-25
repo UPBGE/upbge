@@ -437,6 +437,7 @@ void PipelineModule::sync()
    * already wrote into combined_tx, hence the additive blend. */
   use_ao_ = inst_->gtao.enabled() ? 1 : 0;
   use_ssgi_ = (inst_->ssgi.enabled() && inst_->frame_state.history_valid) ? 1 : 0;
+  use_ssr_ = (inst_->raytrace.enabled() && inst_->frame_state.history_valid) ? 1 : 0;
 
   PassSimple &light_ps = opaque_layer_.lighting_ps_;
   light_ps.init();
@@ -447,6 +448,7 @@ void PipelineModule::sync()
   light_ps.bind_texture("hiz_tx", &inst_->hiz_buffer.front.ref_tx_);
   light_ps.bind_texture("ao_tx", inst_->gtao.get_result());
   light_ps.bind_texture("ssgi_tx", inst_->ssgi.get_result());
+  light_ps.bind_texture("ssr_tx", inst_->raytrace.get_result());
   /* Pre-filtered sun shadow: one [0,1] float per pixel from the PCF compute. */
   light_ps.bind_texture("shadow_mask_tx", &rbufs.shadow_mask_tx);
   inst_->lights.bind_resources(light_ps);
@@ -457,6 +459,7 @@ void PipelineModule::sync()
   light_ps.bind_ssbo("light_tile_mask_buf", &light_tile_mask_buf_);
   light_ps.push_constant("use_ao", &use_ao_);
   light_ps.push_constant("use_ssgi", &use_ssgi_);
+  light_ps.push_constant("use_ssr", &use_ssr_);
   light_ps.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
   /* Forward surfaces: same lights as the deferred pass. */
@@ -520,6 +523,12 @@ void PipelineModule::render(View &view, Framebuffer &combined_fb)
   GPU_debug_group_end();
 
   /* ================================================================
+   * Pass 4b: Screen-Space Reflections, from the same radiance. */
+  GPU_debug_group_begin("SSR");
+  inst_->raytrace.render(rbufs.combined_prev_tx, rbufs.depth_tx);
+  GPU_debug_group_end();
+
+  /* ================================================================
    * Pass 5: Deferred Lighting
    * Adds the lit radiance of all opaque surfaces to combined_tx. */
   GPU_debug_group_begin("DeferredLighting");
@@ -530,9 +539,9 @@ void PipelineModule::render(View &view, Framebuffer &combined_fb)
   /* The world where no opaque surface is. */
   inst_->world.render_background(view);
 
-  /* Next frame's SSGI radiance: the opaque surfaces and the world, without the volumes, the
-   * transparent surfaces and the bloom drawn over them from here on. */
-  if (inst_->ssgi.enabled()) {
+  /* Next frame's SSGI and SSR radiance: the opaque surfaces and the world, without the volumes,
+   * the transparent surfaces and the bloom drawn over them from here on. */
+  if (inst_->ssgi.enabled() || inst_->raytrace.enabled()) {
     GPU_texture_copy(rbufs.combined_prev_tx, rbufs.combined_tx);
   }
 

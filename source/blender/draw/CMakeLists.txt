@@ -681,6 +681,7 @@ set(GLSL_SRC
   engines/eevee-game/shaders/eevee_game_smaa_vert.glsl
   engines/eevee-game/shaders/eevee_game_ssgi_blur_comp.glsl
   engines/eevee-game/shaders/eevee_game_ssgi_main_comp.glsl
+  engines/eevee-game/shaders/eevee_game_ssr_trace_comp.glsl
   engines/eevee-game/shaders/eevee_game_surf_forward_frag.glsl
   engines/eevee-game/shaders/eevee_game_surf_world_frag.glsl
   engines/eevee-game/shaders/eevee_game_velocity_resolve_comp.glsl
