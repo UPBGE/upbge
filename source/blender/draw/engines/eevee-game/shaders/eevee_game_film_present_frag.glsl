@@ -34,6 +34,8 @@
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_game_film_present)
 
+#include "eevee_reverse_z_lib.glsl"
+
 /* ------------------------------------------------------------------ */
 /* AgX tone mapping (Blender's implementation)
  *
@@ -148,4 +150,8 @@ void main()
   color.a = 1.0 - color.a;
 
   out_color = color;
+  /* The viewport depth, in the standard convention (0 = near), for what reads it after the
+   * engine: the culling gate occlusion, 2D filters, debug drawing. Nearest sample, the
+   * render resolution can be lower than the viewport one. */
+  gl_FragDepth = reverse_z::read(texture(depth_tx, uv).r);
 }

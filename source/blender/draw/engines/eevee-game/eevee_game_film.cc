@@ -29,9 +29,10 @@ void Film::sync()
 
   PassSimple &pass = present_ps_;
   pass.init();
-  pass.state_set(DRW_STATE_WRITE_COLOR);
+  pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS);
   pass.shader_set(inst_.shaders.static_shader_get(SH_FILM_PRESENT));
   pass.bind_texture("color_tx", &present_tx_);
+  pass.bind_texture("depth_tx", &inst_.render_buffers.depth_tx);
   pass.push_constant("exposure", &inst_.uniform_data.exposure);
   /* The viewport color buffer is scene linear: Blender applies the view
    * transform when it composites the viewport, so doing it here as well
