@@ -858,8 +858,12 @@ void KX_CullingGate::ClassifyView(KX_Camera *cam,
 
     /* A caster occludes a visible receiver from the light only if it lies on
      * the segment between them (for a sun: on the ray toward the sun), so
-     * casters are inside the hull of the frustum and the light. Local lights
-     * also bound it by their influence sphere. */
+     * the sun casters are inside the hull of the frustum and the sun.
+     * Local lights keep their whole influence sphere: their shadow maps are
+     * cached until the casters inside it change, and a set clipped by the
+     * frustum changes with every camera move, which redrew them all every
+     * frame. The sun cascades follow the camera and are redrawn when it
+     * moves anyway. */
     Volume vol;
     vol.sphere[3] = -1.0f;
     if (rec.is_sun) {
@@ -869,7 +873,7 @@ void KX_CullingGate::ClassifyView(KX_Camera *cam,
       caster_hull(frustum, hull, to_sun, true, vol.planes, vol.plane_count);
     }
     else {
-      caster_hull(frustum, hull, rec.pos, false, vol.planes, vol.plane_count);
+      vol.plane_count = 0;
       copy_v3_v3(vol.sphere, rec.bound);
       vol.sphere[3] = rec.bound[3] * rec.bound[3];
     }

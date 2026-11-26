@@ -17,8 +17,8 @@
  * An object is relevant to a view when its world AABB touches
  *   - the camera frustum, or
  *   - the caster volume of a shadowed sun (frustum swept toward the light), or
- *   - the influence sphere of a visible shadowed local light, clipped by the
- *     frustum planes that have the light on their inner side.
+ *   - the influence sphere of a visible shadowed local light (not clipped by
+ *     the frustum: its cached shadow map depends on every caster inside).
  * Local lights are culled by their EEVEE influence radius, suns never.
  *
  * Objects that are not relevant keep their SG_Node::DIRTY_RENDER flag and
