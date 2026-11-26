@@ -2729,7 +2729,8 @@ enum {
   // SCE_EEVEE_GTAO_BENT_NORMALS = (1 << 5), /* Unused. */
   // SCE_EEVEE_GTAO_BOUNCE = (1 << 6), /* Unused. */
   // SCE_EEVEE_DOF_ENABLED = (1 << 7), /* Moved to camera->dof.flag */
-  // SCE_EEVEE_BLOOM_ENABLED = (1 << 8), /* Unused */
+  /* Legacy EEVEE bloom, used again by EEVEE-Game. */
+  SCE_EEVEE_BLOOM_ENABLED = (1 << 8),
   SCE_EEVEE_MOTION_BLUR_ENABLED_DEPRECATED = (1 << 9), /* Moved to scene->r.mode */
   // SCE_EEVEE_SHADOW_HIGH_BITDEPTH = (1 << 10), /* Unused. */
   SCE_EEVEE_TAA_REPROJECTION = (1 << 11),
@@ -2755,6 +2756,23 @@ enum {
 enum FastGI_Method {
   FAST_GI_FULL = 0,
   FAST_GI_AO_ONLY = 1,
+};
+
+/** #SceneEEVEE.game_aa_method */
+enum eEEVEEGameAAMethod {
+  SCE_EEVEE_GAME_AA_NONE = 0,
+  SCE_EEVEE_GAME_AA_FXAA = 1,
+  SCE_EEVEE_GAME_AA_SMAA = 2,
+  SCE_EEVEE_GAME_AA_FSR3 = 3,
+};
+
+/** #SceneEEVEE.game_upscale_quality: render resolution of the temporal methods. */
+enum eEEVEEGameUpscaleQuality {
+  SCE_EEVEE_GAME_UPSCALE_NATIVE = 0,
+  SCE_EEVEE_GAME_UPSCALE_ULTRA_QUALITY = 1,
+  SCE_EEVEE_GAME_UPSCALE_QUALITY = 2,
+  SCE_EEVEE_GAME_UPSCALE_BALANCED = 3,
+  SCE_EEVEE_GAME_UPSCALE_PERFORMANCE = 4,
 };
 
 struct SceneEEVEE {
@@ -2834,6 +2852,21 @@ struct SceneEEVEE {
 
   float overscan = 3.0f;
   float light_threshold = 0.01f;
+
+  /* EEVEE-Game (upbge only). The bloom members keep the names of legacy EEVEE, so files saved
+   * before EEVEE Next read their values back. */
+  float bloom_color[3] = {1.0f, 1.0f, 1.0f};
+  float bloom_threshold = 0.8f;
+  float bloom_knee = 0.5f;
+  float bloom_intensity = 0.05f;
+  float bloom_clamp = 0.0f;
+  float bloom_radius = 6.5f;
+  /** #eEEVEEGameAAMethod. */
+  char game_aa_method = SCE_EEVEE_GAME_AA_FXAA;
+  /** #eEEVEEGameUpscaleQuality. */
+  char game_upscale_quality = SCE_EEVEE_GAME_UPSCALE_QUALITY;
+  char _pad3[2] = {};
+  float game_upscale_sharpness = 0.0f;
 };
 
 struct SceneGpencil {

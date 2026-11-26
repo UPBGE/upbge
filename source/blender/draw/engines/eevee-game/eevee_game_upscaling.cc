@@ -52,6 +52,7 @@ static float upscale_ratio_get(UpscaleMode mode)
       return 1.7f;
     case UpscaleMode::FSR3_PERFORMANCE:
       return 2.0f;
+    case UpscaleMode::FSR3_NATIVE_AA:
     case UpscaleMode::OFF:
       break;
   }

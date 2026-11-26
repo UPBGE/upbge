@@ -56,6 +56,7 @@ void GameInstance::init()
 void GameInstance::init(const int2 &output_res, const rcti *output_rect)
 {
   update_eval_members();
+  settings_sync();
 
   film.init(output_res);
 
@@ -103,6 +104,47 @@ void GameInstance::init(const int2 &output_res, const rcti *output_rect)
   main_view_.sync();
 
   (void)output_rect; /* Border render not yet implemented. */
+}
+
+/* Anti-aliasing and upscaling from the scene settings. */
+void GameInstance::settings_sync()
+{
+  const SceneEEVEE &eevee = scene->eevee;
+  AASettings &aa = pipelines.aa_settings;
+  aa.enabled = true;
+  upscale_settings.mode = UpscaleMode::OFF;
+  upscale_settings.sharpness = math::clamp(eevee.game_upscale_sharpness, 0.0f, 1.0f);
+  switch (eevee.game_aa_method) {
+    case SCE_EEVEE_GAME_AA_NONE:
+      aa.enabled = false;
+      break;
+    case SCE_EEVEE_GAME_AA_SMAA:
+      aa.mode = AAMode::SMAA;
+      break;
+    case SCE_EEVEE_GAME_AA_FSR3:
+      switch (eevee.game_upscale_quality) {
+        case SCE_EEVEE_GAME_UPSCALE_NATIVE:
+          upscale_settings.mode = UpscaleMode::FSR3_NATIVE_AA;
+          break;
+        case SCE_EEVEE_GAME_UPSCALE_ULTRA_QUALITY:
+          upscale_settings.mode = UpscaleMode::FSR3_ULTRA_QUALITY;
+          break;
+        case SCE_EEVEE_GAME_UPSCALE_BALANCED:
+          upscale_settings.mode = UpscaleMode::FSR3_BALANCED;
+          break;
+        case SCE_EEVEE_GAME_UPSCALE_PERFORMANCE:
+          upscale_settings.mode = UpscaleMode::FSR3_PERFORMANCE;
+          break;
+        default:
+          upscale_settings.mode = UpscaleMode::FSR3_QUALITY;
+          break;
+      }
+      break;
+    case SCE_EEVEE_GAME_AA_FXAA:
+    default:
+      aa.mode = AAMode::FXAA;
+      break;
+  }
 }
 
 /* ================================================================

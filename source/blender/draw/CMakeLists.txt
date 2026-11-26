@@ -656,6 +656,7 @@ set(GLSL_SRC
 
   engines/eevee-game/shaders/eevee_game_bloom_composite_comp.glsl
   engines/eevee-game/shaders/eevee_game_bloom_downsample_comp.glsl
+  engines/eevee-game/shaders/eevee_game_bloom_lib.glsl
   engines/eevee-game/shaders/eevee_game_bloom_upsample_comp.glsl
   engines/eevee-game/shaders/eevee_game_culling_comp.glsl
   engines/eevee-game/shaders/eevee_game_deferred_light_frag.glsl

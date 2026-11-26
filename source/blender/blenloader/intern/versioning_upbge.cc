@@ -61,6 +61,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
+#include "BLI_math_vector.h"
 
 #include "BLO_readfile.hh"
 
@@ -448,6 +449,27 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
     for (Scene &scene : bmain->scenes) {
       scene.eevee.shadow_pcf_offset = 1.0f;
       scene.eevee.shadow_pcf_grain = 1.0f;
+    }
+  }
+  /* EEVEE-Game settings. Files from before EEVEE Next already hold the bloom members, read
+   * back under their legacy names; newer files get the defaults. */
+  if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "bloom_threshold")) {
+    const SceneEEVEE default_eevee;
+    for (Scene &scene : bmain->scenes) {
+      copy_v3_v3(scene.eevee.bloom_color, default_eevee.bloom_color);
+      scene.eevee.bloom_threshold = default_eevee.bloom_threshold;
+      scene.eevee.bloom_knee = default_eevee.bloom_knee;
+      scene.eevee.bloom_intensity = default_eevee.bloom_intensity;
+      scene.eevee.bloom_clamp = default_eevee.bloom_clamp;
+      scene.eevee.bloom_radius = default_eevee.bloom_radius;
+    }
+  }
+  if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "char", "game_aa_method")) {
+    const SceneEEVEE default_eevee;
+    for (Scene &scene : bmain->scenes) {
+      scene.eevee.game_aa_method = default_eevee.game_aa_method;
+      scene.eevee.game_upscale_quality = default_eevee.game_upscale_quality;
+      scene.eevee.game_upscale_sharpness = default_eevee.game_upscale_sharpness;
     }
   }
 }

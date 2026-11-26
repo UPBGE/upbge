@@ -1,66 +1,30 @@
-/* SPDX-FileCopyrightText: 2024 Blender Authors
+/* SPDX-FileCopyrightText: 2026 UPBGE Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * Bloom Composite Compute Shader
+ * Bloom resolve, as legacy EEVEE: the finest accumulated level, tent filtered, times the bloom
+ * color (color times intensity) is added to the scene color in place.
  *
- * Additively blends the bloom pyramid base level (bloom_tx) onto the HDR
- * combined scene buffer (combined_img) in a single pass.
- *
- * For each output pixel:
- *   combined_img[p] = combined_img[p] + texture(bloom_tx, uv) * bloom_intensity
- *
- * bloom_tx is at render_res / 2 (the base of the pyramid after upsample).
- * We sample it with bilinear filtering to produce the full-resolution contribution.
- * This is equivalent to what UE4 and Frostbite do in their "Bloom Composite" pass.
- *
- * Using imageLoad/imageStore on combined_img (READ_WRITE) avoids allocating
- * a separate temporary texture and saves one full-resolution RGBA16F roundtrip
- * (~4 MB at 1080p, ~8 MB at 1440p) compared to a ping-pong approach.
- *
- * Local group size 8×8 = 64 threads: fits in one NVIDIA warp-pair and one AMD
- * wavefront, maximising occupancy with minimal shared-memory pressure.
+ * Local group 8x8.
  */
 
 #include "infos/eevee_game_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_game_bloom_composite)
 
-/* bloom_tx: the base of the bloom pyramid (render_res / 2, RGBA16F).
- * Sampled with bilinear interpolation to produce full-resolution contribution. */
-
-/* combined_img: the HDR scene color buffer (render_res, RGBA16F).
- * READ_WRITE: we read the existing value and add bloom to it in-place. */
-
-/* Bloom blend weight in [0, 1].  Applied uniformly to all pixels that survive
- * the threshold in the downsample pass.  Typical AAA values: 0.03 – 0.08. */
+#include "eevee_game_bloom_lib.glsl"
 
 void main()
 {
-  const int2 out_px  = int2(gl_GlobalInvocationID.xy);
+  const int2 out_px = int2(gl_GlobalInvocationID.xy);
   const int2 out_res = imageSize(combined_img);
-
-  /* Guard against threads launched beyond the image boundary (happens when
-   * resolution is not a multiple of the group size). */
   if (any(greaterThanEqual(out_px, out_res))) {
     return;
   }
-
-  /* Convert pixel coordinates to [0, 1] UVs for the bilinear bloom sample.
-   * Offset by 0.5 to sample at the pixel centre. */
-  const float2 uv = (float2(out_px) + 0.5) / float2(out_res);
-
-  /* Bilinear sample: bloom_tx is at half resolution, so a single tap here
-   * already averages a 2×2 block of bloom texels — effectively a free tent filter. */
-  const float4 bloom_sample = texture(bloom_tx, uv);
-
-  /* Read the existing HDR radiance for this pixel. */
+  const float2 uv = (float2(out_px) + 0.5f) / float2(out_res);
+  const float2 texel = 1.0f / float2(textureSize(bloom_tx, 0));
+  const float3 blur = bloom_upsample(bloom_tx, uv, texel, sample_scale);
   const float4 combined = imageLoad(combined_img, out_px);
-
-  /* Additive blend: RGB only.  Alpha is kept from the scene buffer. */
-  const float4 result = float4(combined.rgb + bloom_sample.rgb * bloom_intensity,
-                           combined.a);
-
-  imageStore(combined_img, out_px, result);
+  imageStore(combined_img, out_px, float4(combined.rgb + blur * bloom_color, combined.a));
 }

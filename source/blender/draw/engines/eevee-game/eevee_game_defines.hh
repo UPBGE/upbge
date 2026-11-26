@@ -79,7 +79,8 @@ enum class UpscaleMode : uint32_t {
   FSR3_ULTRA_QUALITY = 1,
   FSR3_QUALITY       = 2,
   FSR3_BALANCED      = 3,
-  FSR3_PERFORMANCE   = 4
+  FSR3_PERFORMANCE   = 4,
+  FSR3_NATIVE_AA     = 5
 };
 
 /* Stencil bits for Deferred Hybrid material classification */

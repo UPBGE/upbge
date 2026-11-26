@@ -232,6 +232,7 @@ class GameInstance : public DrawEngine {
 
  private:
   void update_eval_members();
+  void settings_sync();
 
   /**
    * F12 path only: there the engine has to drive the whole sync itself,

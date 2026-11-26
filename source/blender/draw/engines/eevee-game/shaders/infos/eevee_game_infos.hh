@@ -310,34 +310,37 @@ GPU_SHADER_CREATE_END()
 /** \name Bloom
  * \{ */
 
-/* Level 0 applies the soft-knee threshold (params.xy), every level does a
- * 13 tap downsample. params.x < 0 bypasses the threshold. */
+/* Legacy EEVEE bloom. The first dispatch (is_blit) filters the scene color to half resolution
+ * and applies the brightness curve and clamp, the others are 4 tap box downsamples. */
 GPU_SHADER_CREATE_INFO(eevee_game_bloom_downsample)
 DO_STATIC_COMPILATION()
 LOCAL_GROUP_SIZE(8, 8)
 SAMPLER(0, sampler2D, in_color_tx)
 IMAGE(0, SFLOAT_16_16_16_16, write, image2D, out_color_img)
-PUSH_CONSTANT(float4, params)
+PUSH_CONSTANT(float4, curve_threshold)
+PUSH_CONSTANT(float, clamp_intensity)
+PUSH_CONSTANT(bool, is_blit)
 COMPUTE_SOURCE("eevee_game_bloom_downsample_comp.glsl")
 GPU_SHADER_CREATE_END()
 
-/* Tent filter upsample, accumulated into the next finer level. */
+/* 9 tap tent upsample of the coarser level, added to the finer one in place. */
 GPU_SHADER_CREATE_INFO(eevee_game_bloom_upsample)
 DO_STATIC_COMPILATION()
 LOCAL_GROUP_SIZE(8, 8)
 SAMPLER(0, sampler2D, in_blur_tx)
 IMAGE(0, SFLOAT_16_16_16_16, read_write, image2D, out_color_img)
-PUSH_CONSTANT(float, radius)
+PUSH_CONSTANT(float, sample_scale)
 COMPUTE_SOURCE("eevee_game_bloom_upsample_comp.glsl")
 GPU_SHADER_CREATE_END()
 
-/* combined_img += bloom_tx * bloom_intensity, in place. */
+/* combined_img += tent(bloom_tx) * bloom_color, in place. */
 GPU_SHADER_CREATE_INFO(eevee_game_bloom_composite)
 DO_STATIC_COMPILATION()
 LOCAL_GROUP_SIZE(8, 8)
 SAMPLER(0, sampler2D, bloom_tx)
 IMAGE(0, SFLOAT_16_16_16_16, read_write, image2D, combined_img)
-PUSH_CONSTANT(float, bloom_intensity)
+PUSH_CONSTANT(float3, bloom_color)
+PUSH_CONSTANT(float, sample_scale)
 COMPUTE_SOURCE("eevee_game_bloom_composite_comp.glsl")
 GPU_SHADER_CREATE_END()
 

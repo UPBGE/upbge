@@ -9443,6 +9443,120 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
                            "the filter wider, softening shadows)");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  /* EEVEE-Game (upbge only). */
+  static const EnumPropertyItem eevee_game_aa_method_items[] = {
+      {SCE_EEVEE_GAME_AA_NONE, "NONE", 0, "None", "No anti-aliasing"},
+      {SCE_EEVEE_GAME_AA_FXAA, "FXAA", 0, "FXAA", "Fast approximate anti-aliasing, one pass"},
+      {SCE_EEVEE_GAME_AA_SMAA,
+       "SMAA",
+       0,
+       "SMAA",
+       "Subpixel morphological anti-aliasing, three passes"},
+      {SCE_EEVEE_GAME_AA_FSR3,
+       "FSR3",
+       0,
+       "FSR 3.1",
+       "AMD FidelityFX Super Resolution 3.1 temporal upscaling and anti-aliasing"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem eevee_game_upscale_quality_items[] = {
+      {SCE_EEVEE_GAME_UPSCALE_NATIVE,
+       "NATIVE",
+       0,
+       "Native",
+       "Render at the output resolution, temporal anti-aliasing only"},
+      {SCE_EEVEE_GAME_UPSCALE_ULTRA_QUALITY,
+       "ULTRA_QUALITY",
+       0,
+       "Ultra Quality",
+       "Render at 1/1.3 of the output resolution"},
+      {SCE_EEVEE_GAME_UPSCALE_QUALITY,
+       "QUALITY",
+       0,
+       "Quality",
+       "Render at 1/1.5 of the output resolution"},
+      {SCE_EEVEE_GAME_UPSCALE_BALANCED,
+       "BALANCED",
+       0,
+       "Balanced",
+       "Render at 1/1.7 of the output resolution"},
+      {SCE_EEVEE_GAME_UPSCALE_PERFORMANCE,
+       "PERFORMANCE",
+       0,
+       "Performance",
+       "Render at half the output resolution"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "game_aa_method", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, eevee_game_aa_method_items);
+  RNA_def_property_ui_text(
+      prop, "Anti-Aliasing", "Anti-aliasing and upscaling method of the EEVEE-Game renderer");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "game_upscale_quality", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, eevee_game_upscale_quality_items);
+  RNA_def_property_ui_text(
+      prop, "Upscale Quality", "Render resolution of the temporal anti-aliasing methods");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "game_upscale_sharpness", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(
+      prop, "Sharpness", "Strength of the sharpening pass after temporal upscaling, 0 disables it");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "use_bloom", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SCE_EEVEE_BLOOM_ENABLED);
+  RNA_def_property_ui_text(prop, "Bloom", "High brightness pixels generate a glowing effect");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "bloom_threshold", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_range(prop, 0.0f, 100000.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 10.0f, 1, 3);
+  RNA_def_property_ui_text(prop, "Threshold", "Filters out pixels under this level of brightness");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "bloom_color", PROP_FLOAT, PROP_COLOR);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Color", "Color applied to the bloom effect");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "bloom_knee", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Knee", "Makes transition between under/over-threshold gradual");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "bloom_radius", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_range(prop, 0.0f, 100.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 10.0f, 1, 3);
+  RNA_def_property_ui_text(prop, "Radius", "Bloom spread distance");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "bloom_clamp", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_range(prop, 0.0f, 100000.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 10.0f, 1, 3);
+  RNA_def_property_ui_text(
+      prop, "Clamp", "Maximum intensity a bloom pixel can have (0 to disable)");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "bloom_intensity", PROP_FLOAT, PROP_UNSIGNED);
+  RNA_def_property_range(prop, 0.0f, 10000.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 0.1f, 1, 3);
+  RNA_def_property_ui_text(prop, "Intensity", "Blend factor");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 }
 
 static void rna_def_scene_gpencil(BlenderRNA *brna)
