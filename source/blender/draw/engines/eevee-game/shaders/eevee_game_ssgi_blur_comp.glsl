@@ -3,118 +3,61 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * SSGI Bilateral Blur and Upsample
+ * SSGI denoise: bilateral 3x3 Gaussian at half resolution.
  *
- * Upsamples the half-resolution SSGI radiance to full resolution and applies
- * a separable bilateral blur to suppress the structured noise from the Halton
- * sampling in the main trace pass.
+ * Smooths the structured noise of the few rays per pixel of the trace, weighted by depth
+ * similarity so it does not bleed across depth edges. It stays at half resolution: the lighting
+ * pass upsamples with a 2x2 depth aware filter as it reads, which saves writing and reading
+ * back a full resolution RGBA16F target.
  *
- * Design: joint bilateral upsample using depth similarity as the cross-guide.
- * This is the same filter as the GTAO upsample but operating on RGBA16F
- * radiance rather than R8 AO.
+ * The depth of a half resolution texel is mip 1 of the Hi-Z pyramid, which is aligned with the
+ * half resolution grid.
  *
- * The blur kernel is a 3×3 Gaussian (σ=1) weighted by depth similarity.
- * A separable 2-pass implementation (H then V) would be 50% cheaper but
- * requires an intermediate RGBA16F buffer.  The non-separable 3×3 version
- * costs ~9 texture fetches and is compute-bound rather than bandwidth-bound
- * at half resolution, so the single-pass version is chosen for simplicity.
- *
- * Local group 8×8.
+ * Local group 8x8.
  */
 
 #include "infos/eevee_game_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_game_ssgi_blur)
 
-#include "eevee_reverse_z_lib.glsl"
-
-/* Depth threshold for the bilateral filter.
- * Neighbours with depth difference > DEPTH_SIGMA are suppressed.
- * 0.15 m prevents GI from bleeding across walls and floors. */
+/* Depth difference (world units) at which a neighbour's weight drops to 1/e. 0.15 m keeps the
+ * result from bleeding across walls and floors. */
 #define DEPTH_SIGMA 0.15
 
-/* Gaussian kernel weights for a 3×3 (σ=1) filter.
- * Pre-normalised: 9 weights, sum = 1.0. */
-const float GAUSS_3x3[9] = float[9](
-  0.0625, 0.125, 0.0625,
-  0.125,  0.25,  0.125,
-  0.0625, 0.125, 0.0625
-);
-
-/* ------------------------------------------------------------------ */
-
-float linear_depth(float ndc_d, float z_near, float z_far)
+float linear_depth(float depth)
 {
-  return (z_near * z_far) / (z_far - ndc_d * (z_far - z_near));
+  return (z_planes.x * z_planes.y) / (z_planes.y - depth * (z_planes.y - z_planes.x));
 }
-
-/* ================================================================== */
-/* Main                                                                */
-/* ================================================================== */
 
 void main()
 {
-  const ivec2 out_px  = ivec2(gl_GlobalInvocationID.xy);
-  const ivec2 out_res = imageSize(out_ssgi_final_img);
-
+  const int2 out_px = int2(gl_GlobalInvocationID.xy);
+  const int2 out_res = imageSize(out_ssgi_img);
   if (any(greaterThanEqual(out_px, out_res))) {
     return;
   }
 
-  const float z_near = z_planes.x;
-  const float z_far  = z_planes.y;
-
-  const vec2 full_uv   = (vec2(out_px) + 0.5) / screen_res;
-  const vec2 half_size = vec2(textureSize(ssgi_lowres_tx, 0));
-  const vec2 half_texel = 1.0 / half_size;
-
-  /* Reference depth for this output pixel. */
-  float ref_ndc = reverse_z::read(texture(depth_tx, full_uv).r);
-  float ref_lin = linear_depth(ref_ndc, z_near, z_far);
-
-  /* Sky: no indirect light. */
-  if (ref_ndc >= 0.9999) {
-    imageStore(out_ssgi_final_img, out_px, vec4(0.0));
+  /* Mip 1 of the pyramid: the half resolution opaque depth, conventional range. */
+  float ref_depth = texelFetch(hiz_tx, out_px, 1).r;
+  if (ref_depth >= 1.0f) {
+    imageStore(out_ssgi_img, out_px, float4(0.0f));
     return;
   }
+  float ref_lin = linear_depth(ref_depth);
 
-  /* 3×3 bilateral Gaussian over the half-res SSGI radiance.
-   * Each tap is weighted by its Gaussian spatial weight × depth similarity. */
-  /* rgb: bounce radiance, a: fraction of the rays that hit. Both are filtered. */
-  vec4  radiance_sum = vec4(0.0);
-  float weight_sum   = 0.0;
-  int   tap          = 0;
-
-  for (int dy = -1; dy <= 1; dy++) {
-    for (int dx = -1; dx <= 1; dx++) {
-      vec2 sample_uv = full_uv + vec2(float(dx), float(dy)) * half_texel;
-
-      /* Clamp to avoid out-of-bounds texture reads at screen edges. */
-      sample_uv = clamp(sample_uv, half_texel * 0.5, vec2(1.0) - half_texel * 0.5);
-
-      vec4  radiance   = texture(ssgi_lowres_tx, sample_uv);
-
-      /* Bilateral depth weight: use full-res depth at the corresponding sample position.
-       * This guides the filter to respect depth edges at full resolution. */
-      float sample_ndc = reverse_z::read(texture(depth_tx, sample_uv).r);
-      float sample_lin = linear_depth(sample_ndc, z_near, z_far);
-
-      float depth_diff = ref_lin - sample_lin;
-      float depth_w    = exp(-(depth_diff * depth_diff) /
-                              (DEPTH_SIGMA * DEPTH_SIGMA));
-
-      float w = GAUSS_3x3[tap] * depth_w;
-
-      radiance_sum += radiance * w;
-      weight_sum   += w;
-
-      tap++;
+  float4 sum = float4(0.0f);
+  float weight_sum = 0.0f;
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      int2 texel = clamp(out_px + int2(x, y), int2(0), out_res - 1);
+      /* Gaussian sigma 1: 1/4, 1/8, 1/16 from the center out. */
+      float spatial = ((x == 0) ? 2.0f : 1.0f) * ((y == 0) ? 2.0f : 1.0f) * 0.0625f;
+      float delta = ref_lin - linear_depth(texelFetch(hiz_tx, texel, 1).r);
+      float w = spatial * exp(-(delta * delta) * (1.0f / (DEPTH_SIGMA * DEPTH_SIGMA)));
+      sum += texelFetch(ssgi_lowres_tx, texel, 0) * w;
+      weight_sum += w;
     }
   }
-
-  vec4 result = (weight_sum > 1e-5) ?
-      radiance_sum / weight_sum :
-      texture(ssgi_lowres_tx, full_uv);  /* Fallback: no bilateral */
-
-  imageStore(out_ssgi_final_img, out_px, result);
+  /* The center weighs 1/4 at least: weight_sum is never zero. */
+  imageStore(out_ssgi_img, out_px, sum / weight_sum);
 }

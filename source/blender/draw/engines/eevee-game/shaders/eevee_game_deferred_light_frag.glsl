@@ -23,6 +23,52 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_game_deferred_light)
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_constants_lib.glsl"
 
+/* View space z of a conventional depth buffer value, without a matrix inverse. */
+float view_z_from_depth(float depth)
+{
+  const float4x4 winmat = drw_view().winmat;
+  float ndc_z = depth * 2.0f - 1.0f;
+  return drw_view_is_perspective() ? -winmat[3][2] / (ndc_z + winmat[2][2]) :
+                                     (ndc_z - winmat[3][2]) / winmat[2][2];
+}
+
+/* The half resolution (radiance, weight) results of SSGI and SSR at a full resolution texel:
+ * bilinear between the half resolution texels around it, weighted down where their depth
+ * differs from the pixel's, so they do not bleed across depth edges. Half resolution texel q
+ * was computed at full resolution texel 2q, its depth is mip 1 of the Hi-Z pyramid. The
+ * weights are shared by both results. */
+void half_res_upsample(int2 texel, float view_z, out float4 ssgi, out float4 ssr)
+{
+  const int2 half_max = textureSize(ssgi_tx, 0) - 1;
+  const int2 base = texel >> 1;
+  /* 0 on even pixels, which sit on a half resolution sample, 0.5 on odd ones. */
+  const float2 f = float2(texel & 1) * 0.5f;
+  /* Depth tolerance grows with the distance, like the depth quantization. */
+  const float inv_sigma = 1.0f / (0.1f + 0.02f * abs(view_z));
+  ssgi = float4(0.0f);
+  ssr = float4(0.0f);
+  float weight_sum = 0.0f;
+  for (int i = 0; i < 4; i++) {
+    int2 offset = int2(i & 1, i >> 1);
+    float bilinear = ((offset.x != 0) ? f.x : 1.0f - f.x) * ((offset.y != 0) ? f.y : 1.0f - f.y);
+    if (bilinear == 0.0f) {
+      continue;
+    }
+    int2 q = min(base + offset, half_max);
+    float delta = (view_z_from_depth(texelFetch(hiz_tx, q, 1).r) - view_z) * inv_sigma;
+    float w = bilinear * (exp(-delta * delta) + 1e-4f);
+    if (use_ssgi != 0) {
+      ssgi += texelFetch(ssgi_tx, q, 0) * w;
+    }
+    if (use_ssr != 0) {
+      ssr += texelFetch(ssr_tx, q, 0) * w;
+    }
+    weight_sum += w;
+  }
+  ssgi /= weight_sum;
+  ssr /= weight_sum;
+}
+
 void main()
 {
   int2 texel = int2(gl_FragCoord.xy);
@@ -41,10 +87,15 @@ void main()
 
   float ao = (use_ao != 0) ? texelFetch(ao_tx, texel, 0).r : 1.0f;
   /* rgb: bounce radiance, a: fraction of the world it hides. */
-  float4 bounce = (use_ssgi != 0) ? texelFetch(ssgi_tx, texel, 0) : float4(0.0f);
+  float4 bounce, reflection;
+  if (use_ssgi != 0 || use_ssr != 0) {
+    half_res_upsample(texel, view_z_from_depth(depth), bounce, reflection);
+  }
+  else {
+    bounce = reflection = float4(0.0f);
+  }
   float sun_shadow = texelFetch(shadow_mask_tx, texel, 0).r;
   /* rgb: reflected radiance weighted by a, a: how much of the world reflection it replaces. */
-  float4 reflection = (use_ssr != 0) ? texelFetch(ssr_tx, texel, 0) : float4(0.0f);
   /* The trace is for the first reflection closure only. */
   bool reflection_used = false;
 

@@ -23,7 +23,8 @@ struct SSRSettings {
 /**
  * Screen-space reflections, half resolution: one mirror ray per pixel for the first GGX
  * reflection closure, against the opaque depth, reading the previous frame's opaque radiance.
- * The result (radiance, confidence) is blended over the world reflection by the lighting pass.
+ * The result (radiance, confidence) is smoothed by the SSGI bilateral filter and stays at half
+ * resolution: the lighting pass upsamples it as it blends it over the world reflection.
  */
 class RayTraceModule {
  public:
@@ -40,7 +41,7 @@ class RayTraceModule {
   }
   gpu::Texture *get_result()
   {
-    return ssr_final_tx_;
+    return ssr_filtered_tx_;
   }
 
  private:
@@ -49,11 +50,11 @@ class RayTraceModule {
   /* Camera of the frame whose radiance is traced. */
   float4x4 viewproj_prev_ = float4x4::identity();
 
-  Texture ssr_lowres_tx_ = {"ssr_lowres_tx"};
-  Texture ssr_final_tx_ = {"ssr_final_tx"};
+  Texture ssr_tx_ = {"ssr_tx"};
+  Texture ssr_filtered_tx_ = {"ssr_filtered_tx"};
 
   PassSimple ssr_trace_ps_ = {"SSR.Trace"};
-  PassSimple ssr_upsample_ps_ = {"SSR.Upsample"};
+  PassSimple ssr_filter_ps_ = {"SSR.Filter"};
 };
 
 }  // namespace blender::eevee_game

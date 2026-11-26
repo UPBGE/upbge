@@ -21,8 +21,8 @@ void SSGIModule::sync() {
     // Allocate Half-Res buffer for the bounce color (RGB16F)
     ssgi_lowres_tx_.ensure_2d(gpu::TextureFormat::SFLOAT_16_16_16_16, half_res, GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
 
-    // Allocate Full-Res buffer for the final result
-    ssgi_final_tx_.ensure_2d(gpu::TextureFormat::SFLOAT_16_16_16_16, display_res, GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
+    // Denoised result, half resolution too: the lighting pass upsamples it.
+    ssgi_final_tx_.ensure_2d(gpu::TextureFormat::SFLOAT_16_16_16_16, half_res, GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ);
 
 }
 
@@ -80,20 +80,15 @@ void SSGIModule::render(View & /*view*/, gpu::Texture *scene_color_tx, gpu::Text
     ssgi_main_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
     inst_->manager->submit(ssgi_main_ps_);
 
-    // Pass 2: Bilateral Blur & Upsample
-    // Merges the noisy low-res bounce into the full-res scene
+    // Pass 2: Bilateral blur at half resolution.
     ssgi_blur_ps_.init();
     ssgi_blur_ps_.shader_set(inst_->shaders.static_shader_get(SH_SSGI_BLUR));
     ssgi_blur_ps_.bind_texture("ssgi_lowres_tx", ssgi_lowres_tx_);
-    ssgi_blur_ps_.bind_texture("depth_tx", depth_tx);
-    ssgi_blur_ps_.bind_image("out_ssgi_final_img", ssgi_final_tx_);
-    
+    ssgi_blur_ps_.bind_texture("hiz_tx", &inst_->hiz_buffer.front.ref_tx_);
+    ssgi_blur_ps_.bind_image("out_ssgi_img", ssgi_final_tx_);
     ssgi_blur_ps_.push_constant("z_planes",
         float2(inst_->uniform_data.z_near, inst_->uniform_data.z_far));
-    ssgi_blur_ps_.push_constant("screen_res", inst_->uniform_data.screen_res);
-
-    int2 full_res = ssgi_final_tx_.size().xy();
-    ssgi_blur_ps_.dispatch(math::divide_ceil(full_res, int2(8)));
+    ssgi_blur_ps_.dispatch(math::divide_ceil(half_res, int2(8)));
     /* The lighting pass samples the result right after. */
     ssgi_blur_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS | GPU_BARRIER_TEXTURE_FETCH);
     inst_->manager->submit(ssgi_blur_ps_);

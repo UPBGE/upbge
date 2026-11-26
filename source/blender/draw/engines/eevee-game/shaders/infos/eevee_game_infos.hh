@@ -150,6 +150,7 @@ TYPEDEF_SOURCE("eevee_game_shader_shared.hh")
 /* Mip 0 = opaque depth, conventional range. */
 SAMPLER(0, sampler2D, hiz_tx)
 SAMPLER(1, sampler2D, ao_tx)
+/* SSGI and SSR are half resolution, upsampled here with the depth of mip 1 of hiz_tx. */
 SAMPLER(2, sampler2D, ssgi_tx)
 SAMPLER(3, sampler2D, shadow_mask_tx)
 /* Above the light data slots (4, 5, 7). */
@@ -264,7 +265,7 @@ COMPUTE_SOURCE("eevee_game_ssgi_main_comp.glsl")
 GPU_SHADER_CREATE_END()
 
 /* Screen-space reflection of the first GGX reflection closure, half resolution. Upsampled by
- * eevee_game_ssgi_blur. */
+ * the lighting pass. */
 GPU_SHADER_CREATE_INFO(eevee_game_ssr_trace)
 DO_STATIC_COMPILATION()
 LOCAL_GROUP_SIZE(8, 8)
@@ -287,15 +288,15 @@ PUSH_CONSTANT(float2, hiz_uv_scale)
 COMPUTE_SOURCE("eevee_game_ssr_trace_comp.glsl")
 GPU_SHADER_CREATE_END()
 
-/* Joint bilateral 3x3 blur + upsample. */
+/* Joint bilateral 3x3 blur at half resolution. */
 GPU_SHADER_CREATE_INFO(eevee_game_ssgi_blur)
 DO_STATIC_COMPILATION()
 LOCAL_GROUP_SIZE(8, 8)
 SAMPLER(0, sampler2D, ssgi_lowres_tx)
-SAMPLER(1, sampler2DDepth, depth_tx)
-IMAGE(0, SFLOAT_16_16_16_16, write, image2D, out_ssgi_final_img)
+/* Mip 1: depth of the half resolution texels. */
+SAMPLER(1, sampler2D, hiz_tx)
+IMAGE(0, SFLOAT_16_16_16_16, write, image2D, out_ssgi_img)
 PUSH_CONSTANT(float2, z_planes)
-PUSH_CONSTANT(float2, screen_res)
 COMPUTE_SOURCE("eevee_game_ssgi_blur_comp.glsl")
 GPU_SHADER_CREATE_END()
 
