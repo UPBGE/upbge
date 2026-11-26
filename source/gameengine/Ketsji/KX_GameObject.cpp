@@ -339,14 +339,15 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass, bool is_last_ren
   m_forceIgnoreParentTx = false;
 }
 
-void KX_GameObject::TagForTransformUpdateEvaluated(bool force)
+void KX_GameObject::TagForTransformUpdateEvaluated(bool force, blender::Depsgraph *depsgraph)
 {
   if (m_is_dupli_instance) {
     return;
   }
 
-  blender::bContext *C = KX_GetActiveEngine()->GetContext();
-  blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+  if (!depsgraph) {
+    depsgraph = CTX_data_depsgraph_on_load(KX_GetActiveEngine()->GetContext());
+  }
 
   blender::Object *ob_orig = GetBlenderObject();
 

@@ -777,7 +777,7 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
       m_cullingGate.Register(gameobj, depsgraph, scene);
     }
     if (m_cullingGate.ShouldEvaluate(gameobj->GetCullingSlot(), gameobj->GetCullingTable())) {
-      gameobj->TagForTransformUpdateEvaluated();
+      gameobj->TagForTransformUpdateEvaluated(false, depsgraph);
     }
   }
 

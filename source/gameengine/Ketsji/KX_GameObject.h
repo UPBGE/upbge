@@ -158,7 +158,10 @@ class KX_GameObject : public SCA_IObject {
   void TagForTransformUpdate(bool is_overlay_pass, bool is_last_render_pass);
   /* Writes the SG transform on the evaluated object when the SG moved or the
    * depsgraph re-evaluated its transform this pass, always when force. */
-  void TagForTransformUpdateEvaluated(bool force = false);
+  /* depsgraph: the active one, looked up when null. A per object frame loop passes it: the
+   * lookup goes through the context and the scene depsgraph map. */
+  void TagForTransformUpdateEvaluated(bool force = false,
+                                      blender::Depsgraph *depsgraph = nullptr);
   void ReplicateBlenderObject();
   void DiscardRenderedObject();
   void SuspendPhysics(bool freeConstraints, bool childrenRecursive);
