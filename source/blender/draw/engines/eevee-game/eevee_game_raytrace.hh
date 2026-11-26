@@ -11,12 +11,13 @@ namespace blender::eevee_game {
 class GameInstance;
 
 struct SSRSettings {
-  /* Reflection closures rougher than this keep the world reflection only. */
+  /* Reflection closures rougher than this keep the world reflection only; the traced one
+   * fades out over the last fifth below it. */
   float max_roughness = 0.5f;
   /* Upper bound of the screen-space march steps, one step every 4 pixels below it. */
   int max_steps = 48;
-  /* Depth a hit may be behind the depth buffer, relative to the view distance. */
-  float thickness = 0.05f;
+  /* Depth a hit may be behind the depth buffer, in world units. */
+  float thickness = 0.2f;
   bool enabled = true;
 };
 

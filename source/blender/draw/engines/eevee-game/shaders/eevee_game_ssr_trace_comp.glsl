@@ -131,7 +131,7 @@ void main()
     float scene = textureLod(hiz_tx, s.xy * hiz_uv_scale, 0.0f).r;
     float delta = ray_lin - linear_depth(scene);
     if (delta > 0.0f) {
-      if (delta < ssr_thickness * ray_lin) {
+      if (delta < ssr_thickness) {
         t_hit = t;
       }
       break;
@@ -171,7 +171,7 @@ void main()
    * back toward the camera (they hit back faces the depth buffer does not have). */
   float2 border = min(s_hit.xy, 1.0f - s_hit.xy);
   float fade = smoothstep(0.0f, 0.08f, min(border.x, border.y));
-  fade *= 1.0f - smoothstep(ssr_max_roughness * 0.5f, ssr_max_roughness, roughness);
+  fade *= 1.0f - smoothstep(ssr_max_roughness * 0.8f, ssr_max_roughness, roughness);
   fade *= smoothstep(-0.1f, 0.1f, dot(R, normalize(P - camera_pos)));
 
   float3 radiance = textureLod(scene_color_tx, prev_uv, 0.0f).rgb;

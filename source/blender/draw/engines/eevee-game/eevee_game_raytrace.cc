@@ -4,6 +4,8 @@
 #include "eevee_game_raytrace.hh"
 #include "eevee_game_instance.hh"
 
+#include "DNA_scene_types.h"
+
 namespace blender::eevee_game {
 
 RayTraceModule::RayTraceModule(GameInstance *inst) : inst_(inst) {}
@@ -12,6 +14,13 @@ void RayTraceModule::init() {}
 
 void RayTraceModule::sync()
 {
+  /* The scene's ray tracing settings, as EEVEE Legacy's screen space reflections. */
+  const Scene *scene = inst_->scene;
+  settings_.enabled = (scene->eevee.flag & SCE_EEVEE_SSR_ENABLED) != 0;
+  settings_.max_roughness = math::clamp(scene->eevee.ray_tracing_options.trace_max_roughness,
+                                        0.0f, 1.0f);
+  settings_.thickness = math::max(scene->eevee.ray_tracing_options.screen_trace_thickness, 1e-3f);
+
   const int2 extent = inst_->film.render_extent_get();
   const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ;
   const int2 half_res = math::divide_ceil(extent, int2(2));
