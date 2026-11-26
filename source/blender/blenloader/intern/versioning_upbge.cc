@@ -464,6 +464,11 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       scene.eevee.bloom_radius = default_eevee.bloom_radius;
     }
   }
+  if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "bias")) {
+    for (Light &light : bmain->lights) {
+      light.bias = 1.0f;
+    }
+  }
   if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "char", "game_aa_method")) {
     const SceneEEVEE default_eevee;
     for (Scene &scene : bmain->scenes) {

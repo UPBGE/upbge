@@ -112,6 +112,8 @@ struct LightEntry {
   /* CPU only, local lights: near plane of the shadow faces (the light's clip start), what is
    * closer to the light casts no shadow, such as the fixture around a lamp. */
   float shadow_clip_start = 0.05f;
+  /* CPU only, local lights: the light's shadow bias (legacy EEVEE units). */
+  float shadow_bias = 1.0f;
 };
 
 /* ---- LightModule ---- */

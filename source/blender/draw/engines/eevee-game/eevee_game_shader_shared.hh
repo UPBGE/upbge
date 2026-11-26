@@ -76,7 +76,8 @@ struct [[host_shared]] GameShadowTileData {
   float texel_scale;
   /** Cascades: view depth up to which this cascade is used. */
   float split_depth;
-  float _pad0;
+  /** Local lights: the receiver moves this far toward the light (legacy EEVEE bias). */
+  float bias;
 };
 
 /* Screen tiles of the light culling, in pixels of the render extent. Equal

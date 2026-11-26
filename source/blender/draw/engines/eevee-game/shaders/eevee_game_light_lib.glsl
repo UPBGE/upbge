@@ -224,7 +224,13 @@ float game_light_shadow(GameLightData light, float3 P, float3 N, float view_dept
     return 1.0f;
   }
   if (light.type != LIGHT_TYPE_SUN) {
-    return shadow_tile_sample(tile_index, P, N, length(P - light.position));
+    /* Bias: the receiver moves toward the light, which removes the self shadowing of surfaces
+     * at a grazing angle or with layers closer than the normal offset. */
+    float3 to_light = light.position - P;
+    float dist = length(to_light);
+    float bias = shadow_tile_buf[tile_index].bias;
+    return shadow_tile_sample(
+        tile_index, P + to_light * (min(bias, dist * 0.5f) / max(dist, 1e-6f)), N, dist);
   }
   float shadow = shadow_tile_sample(tile_index, P, N, 0.0f);
   /* Over the end of its range a cascade fades into the next one, the last

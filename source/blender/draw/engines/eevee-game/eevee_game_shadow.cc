@@ -317,6 +317,8 @@ void ShadowModule::punctual_faces_build(ShadowPunctual &slot,
   slot.face_mask = (1u << slot.face_count) - 1u;
   slot.position = light.object_to_world.location();
   slot.radius = math::max(light.data.attenuation, 0.02f);
+  /* Legacy EEVEE: 0.05 world units per unit of bias, subtracted from the receiver distance. */
+  slot.bias = 0.05f * light.shadow_bias;
 
   const float face_res = float(face_size_get(tile_size, slot.face_count));
   const float guard = 2.0f * SHADOW_FACE_GUARD_TEXELS / face_res;
@@ -357,7 +359,7 @@ void ShadowModule::punctual_faces_build(ShadowPunctual &slot,
       }
     }
   }
-  else {
+  else if (!is_cube) {
     slot.face_view[0] = light_view_get(light.object_to_world);
   }
 }
@@ -380,7 +382,7 @@ void ShadowModule::punctual_tiles_write(
     tile.atlas = atlas;
     tile.texel_scale = texel_scale;
     tile.split_depth = 0.0f;
-    tile._pad0 = 0.0f;
+    tile.bias = slot.bias;
   }
 }
 
@@ -450,7 +452,7 @@ void ShadowModule::end_sync()
           /* Orthographic: one texel is the cascade width over the tile. */
           tile.texel_scale = 2.0f / (cascades_[i].proj[0][0] * float(STATIC_TILE_SIZE));
           tile.split_depth = cascades_[i].split_depth;
-          tile._pad0 = 0.0f;
+          tile.bias = 0.0f;
         }
       }
       continue;

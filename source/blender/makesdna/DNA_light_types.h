@@ -167,7 +167,9 @@ struct Light {
 
   /* Deprecated. */
   DNA_DEPRECATED float energy_deprecated = 10.0f;
-  float _pad2 = 0.0f;
+  /** Legacy EEVEE shadow bias, used again by EEVEE-Game (upbge only). Same name, so files from
+   * before EEVEE Next read it back. */
+  float bias = 1.0f;
 };
 
 }  // namespace blender

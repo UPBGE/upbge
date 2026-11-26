@@ -460,6 +460,7 @@ void SyncModule::sync_light(Object *ob, ObjectHandle &handle)
   entry.data.shadow_index = (la->mode & LA_SHADOW) ? 0 : -1;
   entry.cascade_max_dist = la->cascade_max_dist;
   entry.shadow_clip_start = la->clipsta;
+  entry.shadow_bias = la->bias;
   entry.cascade_exponent = la->cascade_exponent;
 
   inst_.lights.add(entry);

@@ -69,10 +69,32 @@ class RENDER_PT_eevee_game_bloom(EEVEEGameButtonsPanel, Panel):
         col.prop(props, "bloom_clamp")
 
 
+class DATA_PT_eevee_game_light_shadow(Panel):
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "data"
+    bl_label = "EEVEE-Game Shadow"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        light = context.light
+        return light and light.type != 'SUN' and (context.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        light = context.light
+        layout.active = light.use_shadow
+        layout.prop(light, "shadow_buffer_bias", text="Bias")
+
+
 classes = (
     RENDER_PT_eevee_game,
     RENDER_PT_eevee_game_antialiasing,
     RENDER_PT_eevee_game_bloom,
+    DATA_PT_eevee_game_light_shadow,
 )
 
 

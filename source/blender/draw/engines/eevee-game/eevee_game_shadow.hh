@@ -96,6 +96,7 @@ struct ShadowPunctual {
   float4x4 proj;
   float3   position;
   float    radius;        /* Influence radius: caster search and far plane */
+  float    bias;          /* Receiver offset toward the light, world units */
   uint64_t uid;
   int      light_index;   /* Entry in LightModule::entries_ */
   int      face_count;    /* 1 spot, 6 point and area */
