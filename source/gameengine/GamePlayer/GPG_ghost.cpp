@@ -92,6 +92,7 @@
 #include "BPY_extern_python.hh"
 #include "BPY_extern_run.hh"
 #include "CLG_log.h"
+#include "FN_init.hh"
 #include "DEG_depsgraph.hh"
 #include "DNA_genfile.h"
 #include "DRW_engine.hh"
@@ -860,6 +861,8 @@ int main(int argc,
   MEM_CacheLimiter_set_disabled(true);
 
   BKE_cpp_types_init();
+  /* Shader node trees are inlined with the multi-functions of their math nodes. */
+  fn::multi_function::register_common_functions();
   BKE_idtype_init();
   BKE_modifier_init();
   BKE_shaderfx_init();
