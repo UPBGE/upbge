@@ -9496,6 +9496,23 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem eevee_game_renderer_items[] = {
+      {SCE_EEVEE_GAME_RENDERER_EEVEE_GAME,
+       "EEVEE_GAME",
+       0,
+       "EEVEE-Game",
+       "Deferred renderer of the game engine"},
+      {SCE_EEVEE_GAME_RENDERER_EEVEE, "EEVEE", 0, "EEVEE", "EEVEE, as in the viewport"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "game_renderer", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, eevee_game_renderer_items);
+  RNA_def_property_ui_text(
+      prop, "Game Renderer", "Renderer the game engine draws with, to compare them");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
   prop = RNA_def_property(srna, "game_aa_method", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, eevee_game_aa_method_items);
   RNA_def_property_ui_text(

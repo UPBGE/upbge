@@ -24,7 +24,10 @@ class RENDER_PT_eevee_game(EEVEEGameButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
-        pass
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        layout.prop(context.scene.eevee, "game_renderer", text="Renderer")
 
 
 class RENDER_PT_eevee_game_antialiasing(EEVEEGameButtonsPanel, Panel):

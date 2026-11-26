@@ -2758,6 +2758,12 @@ enum FastGI_Method {
   FAST_GI_AO_ONLY = 1,
 };
 
+/** #SceneEEVEE.game_renderer: the renderer the game engine draws with. */
+enum eEEVEEGameRenderer {
+  SCE_EEVEE_GAME_RENDERER_EEVEE_GAME = 0,
+  SCE_EEVEE_GAME_RENDERER_EEVEE = 1,
+};
+
 /** #SceneEEVEE.game_aa_method */
 enum eEEVEEGameAAMethod {
   SCE_EEVEE_GAME_AA_NONE = 0,
@@ -2866,7 +2872,9 @@ struct SceneEEVEE {
   char game_aa_method = SCE_EEVEE_GAME_AA_FXAA;
   /** #eEEVEEGameUpscaleQuality. */
   char game_upscale_quality = SCE_EEVEE_GAME_UPSCALE_QUALITY;
-  char _pad3[2] = {};
+  /** #eEEVEEGameRenderer. */
+  char game_renderer = SCE_EEVEE_GAME_RENDERER_EEVEE_GAME;
+  char _pad3[1] = {};
   float game_upscale_sharpness = 0.0f;
 };
 

@@ -2946,8 +2946,8 @@ void DRW_game_render_loop(bContext *C,
 
   DRWViewData &view_data = *draw_ctx.view_data_active;
 
-  /* Bring-up switch for the eevee_game renderer: debug value 5000. */
-  if (1) {
+  /* The game renderer, chosen in the scene: EEVEE-Game, or EEVEE to compare. */
+  if (scene->eevee.game_renderer != SCE_EEVEE_GAME_RENDERER_EEVEE) {
     view_data.eevee_game.set_used(true);
   }
   else {
