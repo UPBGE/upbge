@@ -13,6 +13,7 @@ struct SSGISettings {
     float radius = 2.0f;          // Max distance for screen-space bounces
     float color_saturation = 1.0f; // Boosts or reduces the "bleed" effect
     int quality_steps = 8;        // Ray-marching steps per direction
+    int ray_count = 4;            // Rays per half resolution pixel
     bool enabled = true;
 };
 

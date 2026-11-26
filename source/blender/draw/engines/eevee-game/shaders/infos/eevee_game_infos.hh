@@ -257,6 +257,7 @@ PUSH_CONSTANT(float, ssgi_intensity)
 PUSH_CONSTANT(float, ssgi_radius)
 PUSH_CONSTANT(float, ssgi_color_saturation)
 PUSH_CONSTANT(int, ssgi_quality_steps)
+PUSH_CONSTANT(int, ssgi_ray_count)
 PUSH_CONSTANT(float4x4, viewprojinv)
 PUSH_CONSTANT(float4x4, viewproj)
 /* Of the frame scene_color_tx was rendered with. */

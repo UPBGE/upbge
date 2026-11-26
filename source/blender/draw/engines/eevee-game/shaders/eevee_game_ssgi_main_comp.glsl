@@ -91,14 +91,13 @@ void main()
   /* Away from the surface, against self intersection on the depth quantization. */
   const float3 origin = P + N * (0.002f * view_dist + 0.01f);
 
-  const int RAY_COUNT = 4;
   const float2 noise = float2(ign(float2(out_px)), ign(float2(out_px) + float2(17.0f, 59.0f)));
 
   float3 radiance = float3(0.0f);
   float hits = 0.0f;
-  for (int r = 0; r < RAY_COUNT; r++) {
+  for (int r = 0; r < ssgi_ray_count; r++) {
     /* Stratified on the first dimension, rotated per pixel. */
-    float2 u = fract(float2((float(r) + noise.x) / float(RAY_COUNT),
+    float2 u = fract(float2((float(r) + noise.x) / float(ssgi_ray_count),
                             noise.y + float(r) * 0.618034f));
     float3 dir = cosine_direction(u, N);
 
@@ -144,6 +143,6 @@ void main()
     }
   }
 
-  const float inv = 1.0f / float(RAY_COUNT);
+  const float inv = 1.0f / float(ssgi_ray_count);
   imageStore(out_ssgi_img, out_px, float4(radiance * (inv * ssgi_intensity), hits * inv));
 }

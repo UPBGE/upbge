@@ -4,6 +4,8 @@
 #include "eevee_game_ssgi.hh"
 #include "eevee_game_instance.hh"
 
+#include "DNA_scene_types.h"
+
 namespace blender::eevee_game {
 
 SSGIModule::SSGIModule(GameInstance &inst) : inst_(&inst) {}
@@ -15,6 +17,13 @@ void SSGIModule::init() {
 }
 
 void SSGIModule::sync() {
+    /* Quality from EEVEE's Fast GI settings, the closest equivalent: twice its rays per half
+     * resolution pixel (its default of 2 gives 4) and its steps. More rays remove the sparkles
+     * of small bright emitters, at a cost proportional to the ray count. */
+    const SceneEEVEE &eevee = inst_->scene->eevee;
+    settings_.ray_count = clamp_i(eevee.fast_gi_ray_count * 2, 2, 16);
+    settings_.quality_steps = clamp_i(eevee.fast_gi_step_count, 4, 32);
+
     int2 display_res = inst_->film.render_extent_get();
     int2 half_res = math::divide_ceil(display_res, int2(2));
 
@@ -58,6 +67,7 @@ void SSGIModule::render(View & /*view*/, gpu::Texture *scene_color_tx, gpu::Text
     ssgi_main_ps_.push_constant("ssgi_radius",            settings_.radius);
     ssgi_main_ps_.push_constant("ssgi_color_saturation",  settings_.color_saturation);
     ssgi_main_ps_.push_constant("ssgi_quality_steps",     settings_.quality_steps);
+    ssgi_main_ps_.push_constant("ssgi_ray_count",         settings_.ray_count);
 
     /* Camera data for world-pos reconstruction and reprojection. */
     const float4x4 vp_inv = math::invert(
