@@ -24,6 +24,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_game_surf_forward)
 #include "draw_curves_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "eevee_game_light_lib.glsl"
+#include "eevee_game_ssr_lib.glsl"
 #include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_surf_lib.glsl"
@@ -95,6 +96,9 @@ float3 game_forward_radiance()
     }
   }
 
+  /* The screen-space reflection is traced for the first reflection closure only, as in the
+   * deferred pass. */
+  bool reflection_used = false;
   for (int i = 0; i < LIGHT_CLOSURE_EVAL_COUNT; i++) {
     if (cl[i].weight <= CLOSURE_WEIGHT_CUTOFF) {
       continue;
@@ -108,10 +112,37 @@ float3 game_forward_radiance()
       case CLOSURE_BSDF_TRANSLUCENT_ID:
         light_sum[i] += world_diffuse(-cl[i].N);
         break;
-      case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
-        light_sum[i] += world_specular(reflect(-V, cl[i].N),
-                                       to_closure_reflection(cl[i]).roughness);
+      case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID: {
+        float roughness = to_closure_reflection(cl[i]).roughness;
+        float3 specular = world_specular(reflect(-V, cl[i].N), roughness);
+        if (game_lighting_buf.use_ssr && !reflection_used) {
+          reflection_used = true;
+          /* The opaque radiance was copied after the opaque lighting of this frame, with
+           * this camera: no reprojection. */
+          const float4x4 viewproj = drw_view().winmat * drw_view().viewmat;
+          const float4x4 viewprojinv = drw_view().viewinv * drw_view().wininv;
+          float noise = fract(52.9829189f * fract(dot(gl_FragCoord.xy,
+                                                      float2(0.06711056f, 0.00583715f))));
+          float4 reflection = ssr_trace(P,
+                                        cl[i].N,
+                                        roughness,
+                                        noise,
+                                        drw_view_position(),
+                                        viewproj,
+                                        viewprojinv,
+                                        viewproj,
+                                        float2(game_lighting_buf.volume_z_near,
+                                               game_lighting_buf.z_far),
+                                        float2(game_lighting_buf.render_extent),
+                                        uniform_buf.hiz.uv_scale,
+                                        game_lighting_buf.ssr_max_steps,
+                                        game_lighting_buf.ssr_thickness,
+                                        game_lighting_buf.ssr_max_roughness);
+          specular = specular * (1.0f - reflection.a) + reflection.rgb;
+        }
+        light_sum[i] += specular;
         break;
+      }
       default:
         /* Refraction: what is behind comes through the transmittance. */
         break;

@@ -257,6 +257,7 @@ template<typename PassT> void PipelineModule::forward_resources_bind(PassT &pass
   pass.bind_texture(PREPASS_NORMAL_TEX_SLOT, dummy_normal_tx_);
   pass.bind_texture(VOLUME_SCATTERING_TEX_SLOT, &volume_tx_);
   pass.bind_texture(VOLUME_TRANSMITTANCE_TEX_SLOT, &volume_transmittance_tx_);
+  pass.bind_texture(PLANAR_PROBE_RADIANCE_TEX_SLOT, &inst_->render_buffers.combined_prev_tx);
 }
 
 void PipelineModule::eevee_resources_update(int normal_layer_count)
@@ -409,6 +410,13 @@ void PipelineModule::sync()
                                             dummy_transmittance_tx_;
     lighting_buf_.use_volume = use_volume;
     lighting_buf_.volume_z_near = ud.z_near;
+    lighting_buf_.z_far = ud.z_far;
+    /* The forward surfaces trace their reflections in the opaque radiance copied after the
+     * deferred lighting (see render()). */
+    lighting_buf_.use_ssr = inst_->raytrace.enabled();
+    lighting_buf_.ssr_max_steps = inst_->raytrace.settings_get().max_steps;
+    lighting_buf_.ssr_max_roughness = inst_->raytrace.settings_get().max_roughness;
+    lighting_buf_.ssr_thickness = inst_->raytrace.settings_get().thickness;
     lighting_buf_.volume_log_inv = 1.0f / logf(ud.z_far / ud.z_near);
 
     /* Sized for the most lights, so the buffer only grows with the extent. */

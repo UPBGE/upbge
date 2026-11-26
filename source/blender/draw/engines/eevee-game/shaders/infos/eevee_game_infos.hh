@@ -129,6 +129,9 @@ FRAGMENT_SOURCE("eevee_game_surf_forward_frag.glsl")
  * The slots of EEVEE's own forward volume inputs. */
 SAMPLER(VOLUME_SCATTERING_TEX_SLOT, sampler3D, volume_tx)
 SAMPLER(VOLUME_TRANSMITTANCE_TEX_SLOT, sampler3D, volume_transmittance_tx)
+/* Opaque radiance of this frame, for the screen-space reflections. A slot EEVEE only uses for
+ * ray tracing, never by the generated forward shaders. */
+SAMPLER(PLANAR_PROBE_RADIANCE_TEX_SLOT, sampler2D, scene_color_tx)
 ADDITIONAL_INFO(eevee_game_light_data)
 ADDITIONAL_INFO(eevee_global_ubo)
 ADDITIONAL_INFO(eevee_utility_texture)

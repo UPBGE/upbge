@@ -40,6 +40,10 @@ class RayTraceModule {
   {
     return settings_.enabled;
   }
+  const SSRSettings &settings_get() const
+  {
+    return settings_;
+  }
   gpu::Texture *get_result()
   {
     return ssr_filtered_tx_;

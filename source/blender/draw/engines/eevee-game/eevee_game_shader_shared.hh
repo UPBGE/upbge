@@ -96,9 +96,15 @@ struct [[host_shared]] GameLightingData {
   bool32_t use_volume;
   float volume_z_near;
   float volume_log_inv;
+  /** Screen-space reflections of the forward surfaces (see RayTraceModule). */
+  bool32_t use_ssr;
+  int ssr_max_steps;
+  float ssr_max_roughness;
+  float ssr_thickness;
+  /** Camera far clip distance, with volume_z_near the depth linearization of the trace. */
+  float z_far;
   int _pad0;
   int _pad1;
-  int _pad2;
 };
 
 /* Participating medium that is constant inside a box, evaluated
