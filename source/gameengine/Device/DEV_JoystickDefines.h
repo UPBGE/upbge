@@ -39,6 +39,9 @@
 #define JOYAXIS_MAX 6
 #define JOYBUT_MAX 22  /* SDL_GAMEPAD_BUTTON_COUNT since SDL 2.0.14 (added MISC1, PADDLE1-4, TOUCHPAD) */
 
+/* Maximum number of raw devices (DEV_RawJoystick) handled at the same time. */
+#define RAWJOYINDEX_MAX 16
+
 #define JOYAXIS_RIGHT 0
 #define JOYAXIS_UP 1
 #define JOYAXIS_DOWN 3

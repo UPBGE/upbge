@@ -94,6 +94,7 @@
 #  include "SCA_ParentActuator.h"
 #  include "SCA_PropertySensor.h"
 #  include "SCA_PythonController.h"
+#  include "SCA_PythonInputDevice.h"
 #  include "SCA_PythonJoystick.h"
 #  include "SCA_PythonKeyboard.h"
 #  include "SCA_PythonMouse.h"
@@ -295,6 +296,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
     PyType_Ready_Attr(dict, SCA_XNORController, init_getset);
     PyType_Ready_Attr(dict, SCA_XORController, init_getset);
     PyType_Ready_Attr(dict, SCA_IController, init_getset);
+    PyType_Ready_Attr(dict, SCA_PythonInputDevice, init_getset);
     PyType_Ready_Attr(dict, SCA_PythonJoystick, init_getset);
     PyType_Ready_Attr(dict, SCA_PythonKeyboard, init_getset);
     PyType_Ready_Attr(dict, SCA_PythonMouse, init_getset);

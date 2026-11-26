@@ -233,7 +233,8 @@ bool DEV_Joystick::CreateJoystickDevice(void)
           << "or SDL2 Gamepad Tool (http://www.generalarcade.com/gamepadtool) or Steam big mode "
              "applications\n"
           << "and after, set the SDL controller variable before you launch the executable, i.e:\n"
-          << "export SDL_GAMECONTROLLERCONFIG=\"[the string you received from controllermap]\"");
+          << "export SDL_GAMECONTROLLERCONFIG=\"[the string you received from controllermap]\"\n"
+          << "The device remains available with its raw values through bge.logic.inputDevices.");
       /* Need this so python args can return empty lists */
       joy_error = true;
     }

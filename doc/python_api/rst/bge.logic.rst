@@ -138,7 +138,23 @@ Variables
    The list size is the maximum number of supported joysticks.
    If no joystick is available for a given slot, the slot is set to None.
 
+   .. note::
+
+      Only devices recognized as gamepads are listed, with their inputs mapped to an Xbox
+      controller layout. Use :data:`inputDevices` for other devices (flight sticks, wheels,
+      pedals...) or to read inputs that the gamepad layout does not include.
+
    :type: list of :class:`~bge.types.SCA_PythonJoystick`
+
+.. data:: inputDevices
+
+   A list of attached :class:`~bge.types.SCA_PythonInputDevice`, giving raw access to every
+   joystick-class device: flight sticks, throttles, steering wheels, pedals, yokes, button boxes
+   and gamepads. Keyboards and mice are not included.
+   The list size is the maximum number of supported devices (16).
+   If no device is available for a given slot, the slot is set to None.
+
+   :type: list of :class:`~bge.types.SCA_PythonInputDevice`
 
 *****************
 General functions

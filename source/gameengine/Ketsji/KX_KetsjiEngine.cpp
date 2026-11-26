@@ -490,11 +490,18 @@ bool KX_KetsjiEngine::NextFrame()
 #ifdef WITH_SDL
     // Handle all SDL Joystick events here to share them for all scenes properly.
     short addrem[JOYINDEX_MAX] = {0};
-    if (DEV_Joystick::HandleEvents(addrem)) {
+    short rawaddrem[RAWJOYINDEX_MAX] = {0};
+    bool rawremap = false;
+    if (DEV_Joystick::HandleEvents(addrem, rawaddrem, rawremap)) {
 #  ifdef WITH_PYTHON
       updatePythonJoysticks(addrem);
 #  endif  // WITH_PYTHON
     }
+#  ifdef WITH_PYTHON
+    if (rawremap) {
+      updatePythonInputDevices(rawaddrem);
+    }
+#  endif  // WITH_PYTHON
 
     // Process Joystick force feedback duration
     for (unsigned short j = 0; j < JOYINDEX_MAX; ++j) {
