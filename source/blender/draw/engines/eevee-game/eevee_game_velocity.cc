@@ -54,13 +54,15 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
   vel.obj.resource_id              = resource_handle.index();
   vel.id = uint64_t(ob->data);
 
-  (*object_steps[eevee::STEP_CURRENT])[vel.obj.ofs[eevee::STEP_CURRENT]] = ob->object_to_world();
+  /* Grown on demand: the buffers start at 16 matrices. */
+  object_steps[eevee::STEP_CURRENT]->get_or_resize(vel.obj.ofs[eevee::STEP_CURRENT]) =
+      ob->object_to_world();
 
   /* If object has no previous-step slot yet (first frame), copy current as previous
    * so the velocity vector is zero and FSR doesn't ghost on first frame. */
   if (vel.obj.ofs[eevee::STEP_PREVIOUS] == -1) {
     vel.obj.ofs[eevee::STEP_PREVIOUS] = object_steps_usage[eevee::STEP_PREVIOUS]++;
-    (*object_steps[eevee::STEP_PREVIOUS])[vel.obj.ofs[eevee::STEP_PREVIOUS]] =
+    object_steps[eevee::STEP_PREVIOUS]->get_or_resize(vel.obj.ofs[eevee::STEP_PREVIOUS]) =
         ob->object_to_world();
   }
 
