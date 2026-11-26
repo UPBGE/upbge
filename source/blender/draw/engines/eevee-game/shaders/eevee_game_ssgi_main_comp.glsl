@@ -113,8 +113,12 @@ void main()
       {
         break; /* Off screen: the world is seen. */
       }
-      /* Mip 0 of the pyramid is the opaque depth, conventional range. */
-      float scene_depth = textureLod(hiz_tx, screen.xy * hiz_uv_scale, 0.0f).r;
+      /* The opaque depth, conventional range, at a mip whose texel covers about an eighth of
+       * the screen distance marched: neighbouring threads share texels instead of thrashing
+       * the cache. The coarser mips hold the farthest depth, which only loses thin hits. */
+      float march_px = length((screen.xy - uv) * screen_res);
+      float mip = clamp(log2(max(march_px, 1.0f)) - 3.0f, 0.0f, 5.0f);
+      float scene_depth = textureLod(hiz_tx, screen.xy * hiz_uv_scale, mip).r;
       if (scene_depth >= 1.0f) {
         continue;
       }
