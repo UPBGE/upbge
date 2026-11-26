@@ -53,9 +53,10 @@ class VolumeModule {
   void sync();
 
   /**
-   * Medium of a box-shaped mesh whose volume material is constant (see
-   * volume_constant_medium()). Evaluated analytically by the scatter pass:
-   * no voxelization, no material shader. Returns false when it cannot be
+   * Medium of a mesh whose volume material is constant (see
+   * volume_constant_medium()), filling the bounding box of the mesh as in
+   * EEVEE Legacy. Evaluated analytically by the scatter pass: no
+   * voxelization, no material shader. Returns false when it cannot be
    * handled that way, the object then needs the general path.
    */
   bool box_add(const Object *ob, const Mesh &mesh, bNodeTree *ntree);

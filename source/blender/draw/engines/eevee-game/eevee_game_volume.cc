@@ -185,36 +185,18 @@ static bool volume_constant_medium(bNodeTree *ntree,
   return true;
 }
 
-/* Bounds of a mesh that is exactly its bounding box: 8 vertices, one on each
- * corner. Its inside is then the box, whatever its faces. */
-static std::optional<Bounds<float3>> mesh_box_bounds(const Mesh &mesh)
+/* Box a constant medium fills: the bounding box of the mesh, as in EEVEE Legacy (UPBGE 0.36),
+ * whatever its faces. Exact for a box-shaped mesh; for any other shape the medium also fills
+ * the space between the mesh and its box, which is what game scenes made for 0.36 expect (a
+ * fog block is often a scaled cube, but also any closed or open shell). The voxelized path
+ * follows the faces instead, and a mesh that is not watertight leaks there. */
+static std::optional<Bounds<float3>> mesh_volume_bounds(const Mesh &mesh)
 {
-  if (mesh.verts_num != 8) {
-    return std::nullopt;
-  }
   const std::optional<Bounds<float3>> bounds = mesh.bounds_min_max();
-  if (!bounds) {
+  if (!bounds || math::reduce_min(bounds->max - bounds->min) <= 0.0f) {
     return std::nullopt;
   }
-  const float3 size = bounds->max - bounds->min;
-  if (math::reduce_min(size) <= 0.0f) {
-    return std::nullopt;
-  }
-  const float eps = 1e-5f * math::reduce_max(size);
-  uint32_t corners = 0;
-  for (const float3 &p : mesh.vert_positions()) {
-    int code = 0;
-    for (int a = 0; a < 3; a++) {
-      if (fabsf(p[a] - bounds->max[a]) <= eps) {
-        code |= 1 << a;
-      }
-      else if (fabsf(p[a] - bounds->min[a]) > eps) {
-        return std::nullopt;
-      }
-    }
-    corners |= 1u << code;
-  }
-  return (corners == 0xFFu) ? bounds : std::nullopt;
+  return bounds;
 }
 
 bool VolumeModule::box_add(const Object *ob, const Mesh &mesh, bNodeTree *ntree)
@@ -227,7 +209,7 @@ bool VolumeModule::box_add(const Object *ob, const Mesh &mesh, bNodeTree *ntree)
   if (BKE_modifiers_findby_type(ob, eModifierType_Fluid) != nullptr) {
     return false;
   }
-  const std::optional<Bounds<float3>> bounds = mesh_box_bounds(mesh);
+  const std::optional<Bounds<float3>> bounds = mesh_volume_bounds(mesh);
   if (!bounds) {
     return false;
   }

@@ -167,8 +167,9 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &handle, const ObjectRef &ob
     Material &mat           = mat_array.materials[i];
     GPUMaterial *gpu_mat    = mat_array.gpu_materials[i];
 
-    /* Constant medium filling a box-shaped mesh: evaluated analytically by
-     * the volume scatter pass, no voxelization. The cached Material is shared
+    /* Constant medium, filling the bounding box of the mesh as in EEVEE
+     * Legacy: evaluated analytically by the volume scatter pass, no
+     * voxelization. The cached Material is shared
      * by other objects, so the choice stays local. */
     bool use_volume_passes = mat.has_volume;
     if (mat.has_volume && ob->type == OB_MESH && !(ob->visibility_flag & OB_HIDE_CAMERA)) {
