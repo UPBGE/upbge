@@ -20,6 +20,10 @@ void RayTraceModule::sync()
   settings_.max_roughness = math::clamp(scene->eevee.ray_tracing_options.trace_max_roughness,
                                         0.0f, 1.0f);
   settings_.thickness = math::max(scene->eevee.ray_tracing_options.screen_trace_thickness, 1e-3f);
+  /* Precision: the step cap of the march. The stride is 4 pixels until the cap; beyond it long
+   * rays step over thin geometry, which on a mirror at a grazing angle shows as bands. 0.25, the
+   * default, gives 176 steps. */
+  settings_.max_steps = int(64.0f + 448.0f * math::clamp(scene->eevee.ray_tracing_options.screen_trace_quality, 0.0f, 1.0f));
 
   const int2 extent = inst_->film.render_extent_get();
   const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ;
