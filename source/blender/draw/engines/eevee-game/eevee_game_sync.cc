@@ -394,14 +394,15 @@ void SyncModule::sync_light(Object *ob, ObjectHandle &handle)
   const float3 color = BKE_light_color(*la);
   const float power = BKE_light_power(*la);
   /* Folded into the color once here instead of per pixel and light. Sun
-   * strength is already an irradiance. Blender's Watt is not radiometric: a
-   * point light of power P has a radiant intensity of P / (4 pi^2), not
-   * P / (4 pi). An area light is a one sided Lambertian panel, I(theta) =
-   * I0 cos(theta): the same power means flux pi I0 = 4 pi I, four times the
-   * point intensity on its axis. */
+   * strength is already an irradiance. A point light of power P has the
+   * radiant intensity P / (4 pi), as in EEVEE (Light::point_radiance_get(),
+   * and the sphere radiance P / (4 pi^2 r^2) of Light::shape_radiance_get()
+   * gives the same irradiance P / (4 pi d^2)). An area light is a one sided
+   * Lambertian panel, I(theta) = I0 cos(theta): the same power means flux
+   * pi I0 = 4 pi I, four times the point intensity on its axis. */
   float intensity = power;
   if (la->type != LA_SUN) {
-    intensity *= 0.25f * float(M_1_PI * M_1_PI) * ((la->type == LA_AREA) ? 4.0f : 1.0f);
+    intensity *= 0.25f * float(M_1_PI) * ((la->type == LA_AREA) ? 4.0f : 1.0f);
   }
   entry.data.color = color * intensity;
   entry.data.diffuse_specular = uint32_t(math::float_to_half_make_finite(la->diff_fac)) |
