@@ -71,7 +71,7 @@ float noise_angle(ivec2 px)
  *
  * Returns the horizon angle (radians) in [0, π/2]. */
 float horizon_search(vec3 world_pos, vec3 world_normal, vec2 base_uv, vec2 ray_uv_dir,
-                     float step_size_uv, int steps, sampler2D depth,
+                     float step_px, int steps, sampler2D depth,
                      float z_near, float z_far)
 {
   float max_horizon = -1.0;  /* sin(angle) */
@@ -84,7 +84,7 @@ float horizon_search(vec3 world_pos, vec3 world_normal, vec2 base_uv, vec2 ray_u
 
   for (int i = 1; i <= steps; i++) {
     /* March along the direction in screen UV space. */
-    vec2 sample_uv = uv + ray_uv_dir * (float(i) * step_size_uv);
+    vec2 sample_uv = uv + ray_uv_dir * (float(i) * step_px);
 
     /* Clamp to [0,1] — don't wrap around screen edges. */
     if (any(lessThan(sample_uv, vec2(0.0))) ||
@@ -95,7 +95,9 @@ float horizon_search(vec3 world_pos, vec3 world_normal, vec2 base_uv, vec2 ray_u
 
     /* Sample Hi-Z mip corresponding to step distance (coarser mip = cheaper = same quality
      * because near steps are oversampled relative to the solid angle they subtend). */
-    float mip        = log2(float(i)) * 0.5;
+    /* One texel of the mip covers about a quarter of the distance marched: neighbouring
+     * threads then read the same texels, the full resolution depth thrashed the cache. */
+    float mip        = clamp(log2(float(i) * step_px) - 2.0, 0.0, 5.0);
     /* The pyramid is padded to a multiple of 64 px: screen UV -> pyramid UV. */
     float ndc_depth  = textureLod(depth, sample_uv * hiz_uv_scale, mip).r;
 
