@@ -40,9 +40,9 @@ COMPUTE_SHADER_CREATE_INFO(eevee_game_bloom_downsample)
  *
  * The knee prevents the hard "flickering edge" that a sharp threshold
  * produces on pixels near the cutoff value between frames. */
-vec3 apply_threshold(vec3 color, float threshold, float knee)
+float3 apply_threshold(float3 color, float threshold, float knee)
 {
-  float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  float luma = dot(color, float3(0.2126, 0.7152, 0.0722));
 
   /* Remap so the knee is symmetric around the threshold. */
   float knee_half = knee * 0.5;
@@ -88,22 +88,22 @@ vec3 apply_threshold(vec3 color, float threshold, float knee)
  *
  * Reference: "Next Generation Post Processing in Call of Duty: Advanced Warfare"
  *             Jimenez 2014, GDC.  The same kernel is used in UE4 BloomSetup.usf. */
-vec3 kawase_downsample_13tap(sampler2D tex, vec2 uv, vec2 texel)
+float3 kawase_downsample_13tap(sampler2D tex, float2 uv, float2 texel)
 {
   /* Centre tap. */
-  vec3 c = texture(tex, uv).rgb;
+  float3 c = texture(tex, uv).rgb;
 
   /* Four bilinear taps at half-texel offsets (naturally 2×2 average each). */
-  vec3 b0 = texture(tex, uv + vec2(-texel.x, -texel.y) * 0.5).rgb;
-  vec3 b1 = texture(tex, uv + vec2( texel.x, -texel.y) * 0.5).rgb;
-  vec3 b2 = texture(tex, uv + vec2(-texel.x,  texel.y) * 0.5).rgb;
-  vec3 b3 = texture(tex, uv + vec2( texel.x,  texel.y) * 0.5).rgb;
+  float3 b0 = texture(tex, uv + float2(-texel.x, -texel.y) * 0.5).rgb;
+  float3 b1 = texture(tex, uv + float2( texel.x, -texel.y) * 0.5).rgb;
+  float3 b2 = texture(tex, uv + float2(-texel.x,  texel.y) * 0.5).rgb;
+  float3 b3 = texture(tex, uv + float2( texel.x,  texel.y) * 0.5).rgb;
 
   /* Four single taps at full-texel diagonal offsets. */
-  vec3 a0 = texture(tex, uv + vec2(-texel.x, -texel.y)).rgb;
-  vec3 a1 = texture(tex, uv + vec2( texel.x, -texel.y)).rgb;
-  vec3 a2 = texture(tex, uv + vec2(-texel.x,  texel.y)).rgb;
-  vec3 a3 = texture(tex, uv + vec2( texel.x,  texel.y)).rgb;
+  float3 a0 = texture(tex, uv + float2(-texel.x, -texel.y)).rgb;
+  float3 a1 = texture(tex, uv + float2( texel.x, -texel.y)).rgb;
+  float3 a2 = texture(tex, uv + float2(-texel.x,  texel.y)).rgb;
+  float3 a3 = texture(tex, uv + float2( texel.x,  texel.y)).rgb;
 
   /* Weighted sum: centre 0.125, bilinear 0.125 each, corner 0.03125 each.
    * Grouped as: 0.5*(b0+b1+b2+b3) + 0.25*c + 0.125*(a0+a1+a2+a3). */
@@ -114,18 +114,18 @@ vec3 kawase_downsample_13tap(sampler2D tex, vec2 uv, vec2 texel)
 
 void main()
 {
-  const ivec2 out_px  = ivec2(gl_GlobalInvocationID.xy);
-  const ivec2 out_res = imageSize(out_color_img);
+  const int2 out_px  = int2(gl_GlobalInvocationID.xy);
+  const int2 out_res = imageSize(out_color_img);
 
   if (any(greaterThanEqual(out_px, out_res))) {
     return;
   }
 
   /* Centre of the output texel in UV space of the input (which is 2× larger). */
-  const vec2 uv     = (vec2(out_px) + 0.5) / vec2(out_res);
-  const vec2 texel  = 1.0 / vec2(textureSize(in_color_tx, 0));
+  const float2 uv     = (float2(out_px) + 0.5) / float2(out_res);
+  const float2 texel  = 1.0 / float2(textureSize(in_color_tx, 0));
 
-  vec3 color;
+  float3 color;
   const bool is_level0 = (params.x >= 0.0);
 
   if (is_level0) {
@@ -145,7 +145,7 @@ void main()
    * Values > 64 are almost always GPU NaN propagation or degenerate geometry
    * normals.  The clamp prevents a single bright texel from washing out the
    * entire pyramid level, which manifests as a full-screen white flash. */
-  color = min(color, vec3(64.0));
+  color = min(color, float3(64.0));
 
-  imageStore(out_color_img, out_px, vec4(color, 1.0));
+  imageStore(out_color_img, out_px, float4(color, 1.0));
 }

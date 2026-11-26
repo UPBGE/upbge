@@ -54,13 +54,13 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_game_film_present)
 #define AGX_MAX_EV  4.026069
 
 /* Rec.709 to AgX inset matrix (column-major, matches GLSL mat3 ctor order). */
-#define AGX_MAT mat3( \
+#define AGX_MAT float3x3( \
   0.842479062253094,  0.0423282422610123, 0.0423756549057051, \
   0.0784335999999992, 0.878468636469772,  0.0784336, \
   0.0792237451477643, 0.0791661274605434, 0.879142973793104)
 
 /* AgX inset → Rec.709 inverse. */
-#define AGX_MAT_INV mat3( \
+#define AGX_MAT_INV float3x3( \
   1.19687900512017,   -0.0528968517574562, -0.0529716355144438, \
  -0.0980208811401368,  1.15190312990417,   -0.0980434501171241, \
  -0.0990297440797205, -0.0989611768448433,  1.15107526360940)
@@ -68,7 +68,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_game_film_present)
 /* Per-channel sigmoid approximation ("look" curve).
  * Maps [0,1] → [0,1] with an S-shape: lifts shadows, compresses highlights.
  * Polynomial approximation of the exact sigmoid from AgX spec. */
-vec3 agx_sigmoid(vec3 x)
+float3 agx_sigmoid(float3 x)
 {
   /* Clamp to valid range to avoid NaN from pow of negative. */
   x = clamp(x, 0.0, 1.0);
@@ -76,10 +76,10 @@ vec3 agx_sigmoid(vec3 x)
   return x * x * (3.0 - 2.0 * x); /* Hermite as fast baseline */
 }
 
-vec3 agx_tonemap(vec3 color_linear)
+float3 agx_tonemap(float3 color_linear)
 {
   /* 1. Transform to AgX log space. */
-  vec3 agx = AGX_MAT * color_linear;
+  float3 agx = AGX_MAT * color_linear;
 
   /* 2. Log2 encode, clamped to AgX EV range. */
   agx = clamp(log2(max(agx, 1e-10)), AGX_MIN_EV, AGX_MAX_EV);
@@ -100,12 +100,12 @@ vec3 agx_tonemap(vec3 color_linear)
  * IEC 61966-2-1 piecewise approximation:
  *   linear ≤ 0.0031308 → 12.92 × linear
  *   linear >  0.0031308 → 1.055 × linear^(1/2.4) - 0.055 */
-vec3 linear_to_srgb(vec3 c)
+float3 linear_to_srgb(float3 c)
 {
-  bvec3 cutoff = lessThan(c, vec3(0.0031308));
-  vec3  lo     = 12.92 * c;
-  vec3  hi     = 1.055 * pow(max(c, vec3(0.0031308)), vec3(1.0 / 2.4)) - 0.055;
-  return mix(hi, lo, vec3(cutoff));
+  bool3 cutoff = lessThan(c, float3(0.0031308));
+  float3  lo     = 12.92 * c;
+  float3  hi     = 1.055 * pow(max(c, float3(0.0031308)), float3(1.0 / 2.4)) - 0.055;
+  return mix(hi, lo, float3(cutoff));
 }
 
 /* ================================================================== */
@@ -120,9 +120,9 @@ void main()
    * happens during split-viewport in the Blender editor and during window
    * resize transitions where the viewport rect lags the texture allocation.
    * The varying comes from the `gpu_fullscreen` vertex stage. */
-  vec2 uv = screen_uv;
+  float2 uv = screen_uv;
 
-  vec4 color = texture(color_tx, uv);
+  float4 color = texture(color_tx, uv);
 
   /* 1. Exposure: linear multiply in scene-linear HDR space.
    * Must happen before tonemapping — applying it after would shift the

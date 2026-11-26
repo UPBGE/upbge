@@ -67,32 +67,32 @@ float slice_thickness(int z)
 
 void main()
 {
-  const ivec2 froxel_xy = ivec2(gl_GlobalInvocationID.xy);
-  const ivec3 grid_size = imageSize(out_integrated_img);
+  const int2 froxel_xy = int2(gl_GlobalInvocationID.xy);
+  const int3 grid_size = imageSize(out_integrated_img);
 
   if (any(greaterThanEqual(froxel_xy, grid_size.xy))) {
     return;
   }
 
   /* Accumulation state: starts at z=0 (near plane). */
-  vec3  L_accum = vec3(0.0);  /* Accumulated radiance L(z) */
-  vec3  T_accum = vec3(1.0);  /* Accumulated transmittance T(z) per channel, starts at 1 */
+  float3  L_accum = float3(0.0);  /* Accumulated radiance L(z) */
+  float3  T_accum = float3(1.0);  /* Accumulated transmittance T(z) per channel, starts at 1 */
 
-  const vec3 grid_size_f = vec3(grid_size);
+  const float3 grid_size_f = float3(grid_size);
 
   for (int z = 0; z < grid_size.z; z++) {
-    ivec3 froxel = ivec3(froxel_xy, z);
+    int3 froxel = int3(froxel_xy, z);
 
     /* Read the scatter + extinction for this slice. */
-    vec3  uvw      = (vec3(froxel) + 0.5) / grid_size_f;
-    vec3  in_L     = texture(in_grid_tx, uvw).rgb;  /* sigma_s L_i + emission */
-    vec3  sigma_t  = texture(in_extinction_tx, uvw).rgb;
+    float3  uvw      = (float3(froxel) + 0.5) / grid_size_f;
+    float3  in_L     = texture(in_grid_tx, uvw).rgb;  /* sigma_s L_i + emission */
+    float3  sigma_t  = texture(in_extinction_tx, uvw).rgb;
 
     /* Slice thickness in world units (exponential Z spacing). */
     float dz = slice_thickness(z);
 
     /* Beer-Lambert transmittance step, per channel: T' = T × exp(-σ_t × dz). */
-    vec3 T_step = exp(-sigma_t * dz);
+    float3 T_step = exp(-sigma_t * dz);
 
     /* Single-scatter radiance integral for this slice:
      *   ΔL = T_before × ∫₀^dz L_in(z') × σ_s × exp(-σ_t × z') dz'
@@ -102,18 +102,18 @@ void main()
      *
      * Guard: when σ_t × dz < 1e-4 (very thin or empty slice), the above
      * is numerically unstable (0/0 form).  L'Hopital limit: → in_L × dz. */
-    vec3 optical = sigma_t * dz;
-    vec3 segment = mix((1.0 - T_step) / max(sigma_t, vec3(1e-30)),
-                       vec3(dz),
-                       lessThan(optical, vec3(1e-4)));
-    vec3 delta_L = T_accum * in_L * segment;
+    float3 optical = sigma_t * dz;
+    float3 segment = mix((1.0 - T_step) / max(sigma_t, float3(1e-30)),
+                       float3(dz),
+                       lessThan(optical, float3(1e-4)));
+    float3 delta_L = T_accum * in_L * segment;
 
     L_accum += delta_L;
     T_accum *= T_step;
 
     /* Write accumulated state at this slice depth.
      * The resolve pass samples these to get L + T at any pixel's depth. */
-    imageStore(out_integrated_img, froxel, vec4(L_accum, 0.0));
-    imageStore(out_transmittance_img, froxel, vec4(T_accum, 0.0));
+    imageStore(out_integrated_img, froxel, float4(L_accum, 0.0));
+    imageStore(out_transmittance_img, froxel, float4(T_accum, 0.0));
   }
 }

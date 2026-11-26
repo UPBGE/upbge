@@ -57,7 +57,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_game_smaa_weight)
 void main()
 {
   /* Varyings cannot be arrays. */
-  vec4 offset[3];
+  float4 offset[3];
   offset[0] = offset0;
   offset[1] = offset1;
   offset[2] = offset2;
@@ -70,7 +70,7 @@ void main()
    * gpu_discard_fragment() is used rather than `discard` for compatibility
    * with the Blender GPU backend (Metal, Vulkan do not support bare `discard`
    * in a well-defined way without early fragment tests). */
-  if (dot(out_edges, vec2(1.0)) == 0.0) {
+  if (dot(out_edges, float2(1.0)) == 0.0) {
     gpu_discard_fragment();
     return;
   }
@@ -80,7 +80,7 @@ void main()
   out_weights = SMAABlendingWeightCalculationPS(
       uvs, pixcoord, offset,
       edges_tx, area_tx, search_tx,
-      /* subsample_indices */ vec4(0.0));
+      /* subsample_indices */ float4(0.0));
 
 #elif SMAA_STAGE == 2
   /* ---- Neighbourhood Blending ---- */
@@ -91,7 +91,7 @@ void main()
 
   /* Clamp negative values that can arise from the bilinear weight blending
    * in HDR content (theoretically impossible in LDR but guard anyway). */
-  out_color.rgb = max(out_color.rgb, vec3(0.0));
+  out_color.rgb = max(out_color.rgb, float3(0.0));
 
   /* Normalise alpha: game overlays expect either 0 (transparent) or 1 (opaque).
    * SMAA blending can produce fractional alpha near geometry edges; force it. */

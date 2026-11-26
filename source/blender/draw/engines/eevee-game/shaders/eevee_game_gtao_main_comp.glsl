@@ -46,20 +46,20 @@ float linear_depth(float ndc_d, float z_near, float z_far)
 }
 
 /* Reconstruct world-space position from UV and NDC depth. */
-vec3 reconstruct_world_pos(vec2 uv, float ndc_depth)
+float3 reconstruct_world_pos(float2 uv, float ndc_depth)
 {
-  vec4 ndc = vec4(uv * 2.0 - 1.0, ndc_depth * 2.0 - 1.0, 1.0);
-  vec4 ws  = viewprojinv * ndc;
+  float4 ndc = float4(uv * 2.0 - 1.0, ndc_depth * 2.0 - 1.0, 1.0);
+  float4 ws  = viewprojinv * ndc;
   return ws.xyz / ws.w;
 }
 
 /* Low-discrepancy per-pixel noise angle to avoid directional banding.
  * Uses a spatial hash so we get different directions per pixel without
  * storing a texture or using a PRNG (both are slower for half-res compute). */
-float noise_angle(ivec2 px)
+float noise_angle(int2 px)
 {
   /* Interleaved gradient noise (Jimenez 2014): fast, good spatial distribution. */
-  float magic = dot(vec2(px), vec2(0.06711056, 0.00583715));
+  float magic = dot(float2(px), float2(0.06711056, 0.00583715));
   return fract(52.9829189 * fract(magic)) * 6.283185; /* [0, 2π) */
 }
 
@@ -70,7 +70,7 @@ float noise_angle(ivec2 px)
  * maximum angle above the tangent plane of the surface normal.
  *
  * Returns the horizon angle (radians) in [0, π/2]. */
-float horizon_search(vec3 world_pos, vec3 world_normal, vec2 base_uv, vec2 ray_uv_dir,
+float horizon_search(float3 world_pos, float3 world_normal, float2 base_uv, float2 ray_uv_dir,
                      float step_px, int steps, sampler2D depth,
                      float z_near, float z_far)
 {
@@ -80,15 +80,15 @@ float horizon_search(vec3 world_pos, vec3 world_normal, vec2 base_uv, vec2 ray_u
    * main() from the half-res pixel coordinate and screen_res. Marching from
    * this UV in screen space is correct; the old approach divided world-space
    * metres by pixel dimensions, producing UV values that scale with scene size. */
-  vec2 uv = base_uv;
+  float2 uv = base_uv;
 
   for (int i = 1; i <= steps; i++) {
     /* March along the direction in screen UV space. */
-    vec2 sample_uv = uv + ray_uv_dir * (float(i) * step_px);
+    float2 sample_uv = uv + ray_uv_dir * (float(i) * step_px);
 
     /* Clamp to [0,1] — don't wrap around screen edges. */
-    if (any(lessThan(sample_uv, vec2(0.0))) ||
-        any(greaterThan(sample_uv, vec2(1.0))))
+    if (any(lessThan(sample_uv, float2(0.0))) ||
+        any(greaterThan(sample_uv, float2(1.0))))
     {
       break;
     }
@@ -106,8 +106,8 @@ float horizon_search(vec3 world_pos, vec3 world_normal, vec2 base_uv, vec2 ray_u
     }
 
     float lin_depth  = linear_depth(ndc_depth, z_near, z_far);
-    vec3  sample_pos = reconstruct_world_pos(sample_uv, ndc_depth);
-    vec3  horizon_v  = sample_pos - world_pos;
+    float3  sample_pos = reconstruct_world_pos(sample_uv, ndc_depth);
+    float3  horizon_v  = sample_pos - world_pos;
     float len        = length(horizon_v);
 
     if (len > gtao_radius) {
@@ -133,38 +133,38 @@ float horizon_search(vec3 world_pos, vec3 world_normal, vec2 base_uv, vec2 ray_u
 void main()
 {
   /* This pass runs at half resolution; output px is in the half-res domain. */
-  const ivec2 out_px  = ivec2(gl_GlobalInvocationID.xy);
-  const ivec2 out_res = imageSize(out_ao_img);
+  const int2 out_px  = int2(gl_GlobalInvocationID.xy);
+  const int2 out_res = imageSize(out_ao_img);
 
   if (any(greaterThanEqual(out_px, out_res))) {
     return;
   }
 
   /* Sample the full-res depth at the centre of the 2×2 block this pixel covers. */
-  const vec2 uv = (vec2(out_px) * 2.0 + 1.0) / screen_res;
+  const float2 uv = (float2(out_px) * 2.0 + 1.0) / screen_res;
 
   float ndc_depth = reverse_z::read(texture(depth_tx, uv).r);
 
   /* Sky: no occlusion, write 1.0 (fully lit) immediately. */
   if (ndc_depth >= 0.9999) {
-    imageStore(out_ao_img, out_px, vec4(1.0));
+    imageStore(out_ao_img, out_px, float4(1.0));
     return;
   }
 
   const float z_near = z_planes.x;
   const float z_far  = z_planes.y;
 
-  vec3 world_pos    = reconstruct_world_pos(uv, ndc_depth);
+  float3 world_pos    = reconstruct_world_pos(uv, ndc_depth);
   /* Shading normal of the first closure, decoded from EEVEE's G-Buffer.
    * A pixel can have depth and still no closure (emission only surface): its
    * normal layer was never written, and decoding garbage would spread NaNs
    * through the filters downstream. */
-  ivec2 gbuf_texel = ivec2(uv * screen_res);
+  int2 gbuf_texel = int2(uv * screen_res);
   if (gbuffer::read_header(gbuf_texel).is_empty()) {
-    imageStore(out_ao_img, out_px, vec4(1.0));
+    imageStore(out_ao_img, out_px, float4(1.0));
     return;
   }
-  vec3 world_normal = gbuffer::read_normal(gbuf_texel);
+  float3 world_normal = gbuffer::read_normal(gbuf_texel);
 
   /* Step size: the radius projected at the pixel depth, split in steps, at least one full
    * resolution pixel and at most an eighth of the screen per step. The search directions are
@@ -180,12 +180,12 @@ void main()
 
   for (int d = 0; d < NUM_DIRS; d++) {
     float angle = noise_rot + float(d) * (3.14159265 / float(NUM_DIRS));
-    vec2  dir   = vec2(cos(angle), sin(angle));
+    float2  dir   = float2(cos(angle), sin(angle));
 
     /* Horizon search in both ±directions along this axis. */
     /* Pass the half-res UV (== full-res UV of the 2x2 block centre) so
      * horizon_search marches in correct screen space from the right origin. */
-    vec2 dir_uv = dir / screen_res;
+    float2 dir_uv = dir / screen_res;
     float h_pos = horizon_search(world_pos, world_normal, uv,  dir_uv,
                                  step_size_px, gtao_quality_steps,
                                  hiz_tx, z_near, z_far);
@@ -204,5 +204,5 @@ void main()
   /* Intensity multiplier: clamp to avoid negative values from noisy normals. */
   ao = clamp(ao * gtao_intensity, 0.0, 1.0);
 
-  imageStore(out_ao_img, out_px, vec4(ao, 0.0, 0.0, 0.0));
+  imageStore(out_ao_img, out_px, float4(ao, 0.0, 0.0, 0.0));
 }

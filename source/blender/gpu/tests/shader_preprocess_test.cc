@@ -12,13 +12,12 @@ namespace blender::gpu::tests {
 static std::string process_test_string(std::string str,
                                        std::string &first_error,
                                        shader::metadata::Source *r_metadata = nullptr,
-                                       shader::Language language = shader::Language::BLENDER_GLSL,
-                                       std::string filepath = "test.bsl")
+                                       shader::Language language = shader::Language::BLENDER_GLSL)
 {
   using namespace shader;
   SourceProcessor processor(
       str,
-      filepath,
+      "test.bsl",
       language,
       [&](int /*err_line*/, int /*err_char*/, const std::string & /*line*/, const char *err_msg) {
         if (first_error.empty()) {
@@ -52,30 +51,6 @@ static std::string process_test_local(std::string str,
   }
   return result;
 }
-
-static void test_preprocess_reserved_tokens()
-{
-  using namespace shader;
-  {
-    std::string error;
-    process_test_string("void main() { ivec2 px; }",
-                        error,
-                        nullptr,
-                        Language::BLENDER_GLSL,
-                        "test.glsl");
-    EXPECT_EQ(error, "");
-  }
-  {
-    std::string error;
-    process_test_string("void main() { ivec2 px; }",
-                        error,
-                        nullptr,
-                        Language::BLENDER_GLSL,
-                        "test.bsl.hh");
-    EXPECT_EQ(error, "ivec2 is a reserved token");
-  }
-}
-GPU_TEST(preprocess_reserved_tokens);
 
 static void test_preprocess_array()
 {

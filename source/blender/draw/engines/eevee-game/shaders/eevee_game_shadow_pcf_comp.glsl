@@ -98,7 +98,7 @@ int select_cascade(float view_depth)
  * depth range that grows with the slope of the receiver as seen from the light, and the filter
  * reads pcf_radius texels away, so a fixed offset is either acne on the far cascades or
  * peter-panning on the near ones. Along the normal mostly, toward the light a little. */
-vec3 apply_normal_bias(vec3 world_pos, vec3 world_normal, vec3 light_dir, float texel,
+float3 apply_normal_bias(float3 world_pos, float3 world_normal, float3 light_dir, float texel,
                        float pcf_radius)
 {
   float n_dot_l = clamp(dot(world_normal, light_dir), 0.0, 1.0);
@@ -126,18 +126,18 @@ vec3 apply_normal_bias(vec3 world_pos, vec3 world_normal, vec3 light_dir, float 
  *
  *   penumbra ≈ light_size * (d_receiver - d_blocker) / d_blocker
  *   We use a fixed light_size of 1.0 (normalised) and scale by pcf_offset_scale. */
-float pcf_3x3(sampler2DShadow atlas, vec3 shadow_coord, vec2 tile_min, vec2 tile_max,
+float pcf_3x3(sampler2DShadow atlas, float3 shadow_coord, float2 tile_min, float2 tile_max,
               float pcf_radius)
 {
-  vec2 texel_size = 1.0 / vec2(shadow_map_res);
-  vec2 offset     = texel_size * pcf_radius;
+  float2 texel_size = 1.0 / float2(shadow_map_res);
+  float2 offset     = texel_size * pcf_radius;
 
   float sum = 0.0;
   for (int y = -1; y <= 1; y++) {
     for (int x = -1; x <= 1; x++) {
       /* Offset only XY; Z (depth) is the same for all taps — the comparison
        * value does not change with filter position, only the occluder sample. */
-      vec2 tap_uv  = shadow_coord.xy + vec2(float(x), float(y)) * offset;
+      float2 tap_uv  = shadow_coord.xy + float2(float(x), float(y)) * offset;
       /* Taps must not leak into the neighbouring cascade tile. */
       tap_uv = clamp(tap_uv, tile_min, tile_max);
       /* The compare is `ref <= stored` (LEQUAL, fixed by the GPU module).
@@ -145,7 +145,7 @@ float pcf_3x3(sampler2DShadow atlas, vec3 shadow_coord, vec2 tile_min, vec2 tile
        * light, so the compare is true when something at least as near as the
        * receiver is there: that is the occluded case. The normal bias moves
        * the receiver toward the light, past its own stored depth. */
-      sum += 1.0 - texture(atlas, vec3(tap_uv, shadow_coord.z));
+      sum += 1.0 - texture(atlas, float3(tap_uv, shadow_coord.z));
     }
   }
   return sum / 9.0;
@@ -153,39 +153,39 @@ float pcf_3x3(sampler2DShadow atlas, vec3 shadow_coord, vec2 tile_min, vec2 tile
 
 /* ------------------------------------------------------------------ */
 /* Lit fraction of a world position in one cascade: 1 outside its tile. */
-float cascade_shadow(int cascade_idx, vec3 world_pos, vec3 world_normal)
+float cascade_shadow(int cascade_idx, float3 world_pos, float3 world_normal)
 {
-  mat4 lvp = (cascade_idx == 0) ? cascade_viewproj_0 :
+  float4x4 lvp = (cascade_idx == 0) ? cascade_viewproj_0 :
              (cascade_idx == 1) ? cascade_viewproj_1 :
              (cascade_idx == 2) ? cascade_viewproj_2 : cascade_viewproj_3;
 
   /* Direction toward the light, for N.L: the light's +Z axis in world space.
    * It is the third row of the cascade matrix up to the orthographic depth
    * scale, which is negative, hence the sign flip. */
-  vec3 light_dir = normalize(vec3(-lvp[0][2], -lvp[1][2], -lvp[2][2]));
+  float3 light_dir = normalize(float3(-lvp[0][2], -lvp[1][2], -lvp[2][2]));
 
   /* Filter radius driven by pcf_offset_scale (1.0 = 2 texels). */
   float pcf_radius = clamp(pcf_offset_scale * 2.0, 1.0, MAX_PCF_RADIUS);
-  vec3 biased_pos = apply_normal_bias(
+  float3 biased_pos = apply_normal_bias(
       world_pos, world_normal, light_dir, cascade_texel_size[cascade_idx], pcf_radius);
 
   /* Project biased world position into shadow-atlas UV space. */
-  vec4 light_clip  = lvp * vec4(biased_pos, 1.0);
-  vec3 shadow_coord = light_clip.xyz / light_clip.w;
+  float4 light_clip  = lvp * float4(biased_pos, 1.0);
+  float3 shadow_coord = light_clip.xyz / light_clip.w;
   shadow_coord      = shadow_coord * 0.5 + 0.5; /* NDC [-1,1] → UV [0,1] */
 
   /* Reject samples outside the cascade tile boundary. */
-  if (any(lessThan(shadow_coord.xy, vec2(0.0))) ||
-      any(greaterThan(shadow_coord.xy, vec2(1.0))))
+  if (any(lessThan(shadow_coord.xy, float2(0.0))) ||
+      any(greaterThan(shadow_coord.xy, float2(1.0))))
   {
     return 1.0;
   }
 
   /* Tile-local [0,1] to atlas UV: the cascades are the bottom row of the
    * 4x4 tile grid, cascade i in column i. */
-  vec2 tile_min = vec2(float(cascade_idx), 0.0) * 0.25;
-  vec2 half_texel = vec2(0.5) / vec2(shadow_map_res);
-  vec3 atlas_coord;
+  float2 tile_min = float2(float(cascade_idx), 0.0) * 0.25;
+  float2 half_texel = float2(0.5) / float2(shadow_map_res);
+  float3 atlas_coord;
   atlas_coord.xy = tile_min + shadow_coord.xy * 0.25;
   /* The atlas stores reversed depth (1 = near the light): reverse the
    * reference to compare in the same space. */
@@ -194,7 +194,7 @@ float cascade_shadow(int cascade_idx, vec3 world_pos, vec3 world_normal)
   return pcf_3x3(shadow_atlas,
                  atlas_coord,
                  tile_min + half_texel,
-                 tile_min + vec2(0.25) - half_texel,
+                 tile_min + float2(0.25) - half_texel,
                  pcf_radius);
 }
 
@@ -204,20 +204,20 @@ float cascade_shadow(int cascade_idx, vec3 world_pos, vec3 world_normal)
 
 void main()
 {
-  const ivec2 px     = ivec2(gl_GlobalInvocationID.xy);
-  const ivec2 res    = imageSize(shadow_mask_img);
+  const int2 px     = int2(gl_GlobalInvocationID.xy);
+  const int2 res    = imageSize(shadow_mask_img);
 
   if (any(greaterThanEqual(px, res))) {
     return;
   }
 
-  const vec2 uv = (vec2(px) + 0.5) / vec2(res);
+  const float2 uv = (float2(px) + 0.5) / float2(res);
 
   /* Early-out: sky pixels carry depth = 1.0 (far plane).
    * They receive no shadow; write 1.0 (fully lit) and exit. */
   float depth = reverse_z::read(texture(depth_tx, uv).r);
   if (depth >= 0.9999) {
-    imageStore(shadow_mask_img, px, vec4(1.0));
+    imageStore(shadow_mask_img, px, float4(1.0));
     return;
   }
 
@@ -226,24 +226,24 @@ void main()
    * and for a perspective camera clip.w is the view-space depth. The split
    * distances are view-space depths too, so cascade selection costs nothing
    * beyond the unprojection that is needed anyway. */
-  vec4 world_h = viewprojinv * vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-  vec3 world_pos = world_h.xyz / world_h.w;
+  float4 world_h = viewprojinv * float4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+  float3 world_pos = world_h.xyz / world_h.w;
   float view_depth = 1.0 / world_h.w;
 
   /* Shading normal of the first closure, decoded from EEVEE's G-Buffer.
    * A pixel can have depth and still no closure (emission only surface): its
    * normal layer was never written, and decoding garbage would spread NaNs
    * through the filters downstream. */
-  ivec2 gbuf_texel = px;
+  int2 gbuf_texel = px;
   if (gbuffer::read_header(gbuf_texel).is_empty()) {
-    imageStore(shadow_mask_img, px, vec4(1.0));
+    imageStore(shadow_mask_img, px, float4(1.0));
     return;
   }
-  vec3 world_normal = gbuffer::read_normal(gbuf_texel);
+  float3 world_normal = gbuffer::read_normal(gbuf_texel);
 
   int cascade_idx = select_cascade(view_depth);
   if (cascade_idx < 0) {
-    imageStore(shadow_mask_img, px, vec4(1.0)); /* Beyond shadow range. */
+    imageStore(shadow_mask_img, px, float4(1.0)); /* Beyond shadow range. */
     return;
   }
 
@@ -263,5 +263,5 @@ void main()
     shadow_factor = mix(shadow_factor, next, blend);
   }
 
-  imageStore(shadow_mask_img, px, vec4(shadow_factor));
+  imageStore(shadow_mask_img, px, float4(shadow_factor));
 }

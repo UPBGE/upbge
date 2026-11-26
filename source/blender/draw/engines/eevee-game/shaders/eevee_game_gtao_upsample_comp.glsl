@@ -51,8 +51,8 @@ float linear_depth(float ndc_d, float z_near, float z_far)
 
 void main()
 {
-  const ivec2 out_px  = ivec2(gl_GlobalInvocationID.xy);
-  const ivec2 out_res = imageSize(out_ao_final_img);
+  const int2 out_px  = int2(gl_GlobalInvocationID.xy);
+  const int2 out_res = imageSize(out_ao_final_img);
 
   if (any(greaterThanEqual(out_px, out_res))) {
     return;
@@ -62,7 +62,7 @@ void main()
   const float z_far  = z_planes.y;
 
   /* Full-res UV for this pixel. */
-  const vec2 full_uv = (vec2(out_px) + 0.5) / screen_res;
+  const float2 full_uv = (float2(out_px) + 0.5) / screen_res;
 
   /* Current pixel's linear depth (reference for bilateral weighting). */
   float ref_ndc   = reverse_z::read(texture(depth_tx, full_uv).r);
@@ -70,35 +70,35 @@ void main()
 
   /* Sky: no AO needed. */
   if (ref_ndc >= 0.9999) {
-    imageStore(out_ao_final_img, out_px, vec4(1.0));
+    imageStore(out_ao_final_img, out_px, float4(1.0));
     return;
   }
 
   /* Half-res texel size in UV space. */
-  const vec2 half_res  = vec2(textureSize(ao_lowres_tx, 0));
-  const vec2 half_texel = 1.0 / half_res;
+  const float2 half_res  = float2(textureSize(ao_lowres_tx, 0));
+  const float2 half_texel = 1.0 / half_res;
 
   /* Map full-res UV to the corresponding position in the half-res grid.
    * The four surrounding half-res texels share the same 2×2 full-res block. */
-  vec2 half_uv     = full_uv;  /* Same UV, AO tex is at half the resolution. */
-  vec2 half_offset = half_texel * 0.5;
+  float2 half_uv     = full_uv;  /* Same UV, AO tex is at half the resolution. */
+  float2 half_offset = half_texel * 0.5;
 
   /* 2×2 neighbourhood offsets in half-res UV space. */
-  vec2 offsets[4];
-  offsets[0] = vec2(-half_offset.x, -half_offset.y);
-  offsets[1] = vec2( half_offset.x, -half_offset.y);
-  offsets[2] = vec2(-half_offset.x,  half_offset.y);
-  offsets[3] = vec2( half_offset.x,  half_offset.y);
+  float2 offsets[4];
+  offsets[0] = float2(-half_offset.x, -half_offset.y);
+  offsets[1] = float2( half_offset.x, -half_offset.y);
+  offsets[2] = float2(-half_offset.x,  half_offset.y);
+  offsets[3] = float2( half_offset.x,  half_offset.y);
 
   float ao_sum     = 0.0;
   float weight_sum = 0.0;
 
   for (int i = 0; i < 4; i++) {
-    vec2  sample_uv  = half_uv + offsets[i];
+    float2  sample_uv  = half_uv + offsets[i];
     float sample_ao  = texture(ao_lowres_tx, sample_uv).r;
 
     /* Depth of this half-res sample (sample at the corresponding full-res position). */
-    vec2  full_sample_uv  = half_uv + offsets[i];  /* Same UV domain — half tex bilinear */
+    float2  full_sample_uv  = half_uv + offsets[i];  /* Same UV domain — half tex bilinear */
     float sample_ndc      = reverse_z::read(texture(depth_tx, full_sample_uv).r);
     float sample_lin      = linear_depth(sample_ndc, z_near, z_far);
 
@@ -122,5 +122,5 @@ void main()
     ao = ao_sum / weight_sum;
   }
 
-  imageStore(out_ao_final_img, out_px, vec4(ao, 0.0, 0.0, 0.0));
+  imageStore(out_ao_final_img, out_px, float4(ao, 0.0, 0.0, 0.0));
 }

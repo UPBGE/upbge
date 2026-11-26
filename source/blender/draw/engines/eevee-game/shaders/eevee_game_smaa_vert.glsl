@@ -34,12 +34,12 @@ void main()
   int v = gl_VertexID % 3;
   float x = float((v & 1) << 2) - 1.0;
   float y = float((v & 2) << 1) - 1.0;
-  gl_Position = vec4(x, y, 1.0, 1.0);
+  gl_Position = float4(x, y, 1.0, 1.0);
 
   /* UV [0,1] derived from NDC [−1,1]. */
   uvs = (gl_Position.xy + 1.0) * 0.5;
 
-  vec4 offset[3];
+  float4 offset[3];
 #if SMAA_STAGE == 0
   SMAAEdgeDetectionVS(uvs, offset);
 #elif SMAA_STAGE == 1

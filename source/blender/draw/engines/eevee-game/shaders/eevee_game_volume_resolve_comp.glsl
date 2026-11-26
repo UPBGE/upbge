@@ -67,14 +67,14 @@ float depth_to_froxel_w(float z_lin)
 
 void main()
 {
-  const ivec2 px  = ivec2(gl_GlobalInvocationID.xy);
-  const ivec2 res = imageSize(out_color_img);
+  const int2 px  = int2(gl_GlobalInvocationID.xy);
+  const int2 res = imageSize(out_color_img);
 
   if (any(greaterThanEqual(px, res))) {
     return;
   }
 
-  const vec2 uv = (vec2(px) + 0.5) / screen_res;
+  const float2 uv = (float2(px) + 0.5) / screen_res;
 
   /* Read NDC depth, convert to linear. */
   float ndc_depth = reverse_z::read(texture(depth_tx, uv).r);
@@ -89,21 +89,21 @@ void main()
    * UV = screen UV (froxel XY tiles cover the full screen).
    * W  = log-remapped depth slice [0, 1]. */
   float froxel_w = depth_to_froxel_w(z_lin);
-  vec3  uvw      = vec3(uv, froxel_w);
+  float3  uvw      = float3(uv, froxel_w);
 
   /* Sample the integrated volume.  Trilinear interpolation (default) gives
    * smooth depth transitions between froxel slices at no extra ALU cost. */
-  vec3 L_scatter     = texture(volume_integrated_tx, uvw).rgb;
-  vec3 transmittance = texture(volume_transmittance_tx, uvw).rgb;  /* [0,1] per channel */
+  float3 L_scatter     = texture(volume_integrated_tx, uvw).rgb;
+  float3 transmittance = texture(volume_transmittance_tx, uvw).rgb;  /* [0,1] per channel */
 
   /* Read current scene color for this pixel. */
-  vec4 scene = imageLoad(out_color_img, px);
+  float4 scene = imageLoad(out_color_img, px);
 
   /* Beer-Lambert composite:
    *   out = scene × T + L_scatter
    * T = 1 → clear air, scene unchanged.
    * T = 0 → full fog, only in-scattered light visible. */
-  vec3 composited = scene.rgb * transmittance + L_scatter;
+  float3 composited = scene.rgb * transmittance + L_scatter;
 
-  imageStore(out_color_img, px, vec4(composited, scene.a));
+  imageStore(out_color_img, px, float4(composited, scene.a));
 }

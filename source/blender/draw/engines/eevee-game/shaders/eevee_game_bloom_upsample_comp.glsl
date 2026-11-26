@@ -54,14 +54,14 @@ COMPUTE_SHADER_CREATE_INFO(eevee_game_bloom_upsample)
  * We implement the "9-tap bilinear trick" from Jorge Jimenez 2014:
  * sample at integer offsets, let the hardware bilinear do sub-texel
  * interpolation.  Each integer tap covers a 2×2 footprint. */
-vec3 tent_upsample(sampler2D tex, vec2 uv, vec2 texel)
+float3 tent_upsample(sampler2D tex, float2 uv, float2 texel)
 {
   /* 3×3 ring at ±texel offsets, 9 samples total. */
-  vec3 sum = vec3(0.0);
+  float3 sum = float3(0.0);
 
   for (int y = -1; y <= 1; y++) {
     for (int x = -1; x <= 1; x++) {
-      sum += texture(tex, uv + vec2(float(x), float(y)) * texel * radius).rgb;
+      sum += texture(tex, uv + float2(float(x), float(y)) * texel * radius).rgb;
     }
   }
 
@@ -71,8 +71,8 @@ vec3 tent_upsample(sampler2D tex, vec2 uv, vec2 texel)
 
 void main()
 {
-  const ivec2 out_px  = ivec2(gl_GlobalInvocationID.xy);
-  const ivec2 out_res = imageSize(out_color_img);
+  const int2 out_px  = int2(gl_GlobalInvocationID.xy);
+  const int2 out_res = imageSize(out_color_img);
 
   if (any(greaterThanEqual(out_px, out_res))) {
     return;
@@ -80,15 +80,15 @@ void main()
 
   /* UV in the output image. The source (in_blur_tx) is at half this resolution,
    * so the same UV directly samples the coarser level — no UV scaling needed. */
-  const vec2 uv    = (vec2(out_px) + 0.5) / vec2(out_res);
-  const vec2 texel = 1.0 / vec2(textureSize(in_blur_tx, 0));
+  const float2 uv    = (float2(out_px) + 0.5) / float2(out_res);
+  const float2 texel = 1.0 / float2(textureSize(in_blur_tx, 0));
 
-  vec3 upsampled = tent_upsample(in_blur_tx, uv, texel);
+  float3 upsampled = tent_upsample(in_blur_tx, uv, texel);
 
   /* Read the existing finer-level content and add the coarser upsampled bloom.
    * This is the "ping-pong-less" additive accumulation that avoids an extra
    * full-resolution RGBA16F allocation per pyramid level. */
-  const vec4 existing = imageLoad(out_color_img, out_px);
+  const float4 existing = imageLoad(out_color_img, out_px);
 
-  imageStore(out_color_img, out_px, vec4(existing.rgb + upsampled, existing.a));
+  imageStore(out_color_img, out_px, float4(existing.rgb + upsampled, existing.a));
 }

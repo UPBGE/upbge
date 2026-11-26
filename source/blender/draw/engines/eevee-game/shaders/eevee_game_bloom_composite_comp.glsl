@@ -38,8 +38,8 @@ COMPUTE_SHADER_CREATE_INFO(eevee_game_bloom_composite)
 
 void main()
 {
-  const ivec2 out_px  = ivec2(gl_GlobalInvocationID.xy);
-  const ivec2 out_res = imageSize(combined_img);
+  const int2 out_px  = int2(gl_GlobalInvocationID.xy);
+  const int2 out_res = imageSize(combined_img);
 
   /* Guard against threads launched beyond the image boundary (happens when
    * resolution is not a multiple of the group size). */
@@ -49,17 +49,17 @@ void main()
 
   /* Convert pixel coordinates to [0, 1] UVs for the bilinear bloom sample.
    * Offset by 0.5 to sample at the pixel centre. */
-  const vec2 uv = (vec2(out_px) + 0.5) / vec2(out_res);
+  const float2 uv = (float2(out_px) + 0.5) / float2(out_res);
 
   /* Bilinear sample: bloom_tx is at half resolution, so a single tap here
    * already averages a 2×2 block of bloom texels — effectively a free tent filter. */
-  const vec4 bloom_sample = texture(bloom_tx, uv);
+  const float4 bloom_sample = texture(bloom_tx, uv);
 
   /* Read the existing HDR radiance for this pixel. */
-  const vec4 combined = imageLoad(combined_img, out_px);
+  const float4 combined = imageLoad(combined_img, out_px);
 
   /* Additive blend: RGB only.  Alpha is kept from the scene buffer. */
-  const vec4 result = vec4(combined.rgb + bloom_sample.rgb * bloom_intensity,
+  const float4 result = float4(combined.rgb + bloom_sample.rgb * bloom_intensity,
                            combined.a);
 
   imageStore(combined_img, out_px, result);

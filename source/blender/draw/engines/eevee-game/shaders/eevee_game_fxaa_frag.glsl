@@ -40,14 +40,14 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_game_fxaa)
  * In HDR linear space, luma must use the correct Rec.709 coefficients.
  * The sqrt approximation used in SDR FXAA (luma = sqrt(dot(c, luma_coef)))
  * is wrong here because it assumes gamma-2.0 encoding. */
-float rgb_to_luma(vec3 c)
+float rgb_to_luma(float3 c)
 {
-  return dot(c, vec3(0.2126, 0.7152, 0.0722));
+  return dot(c, float3(0.2126, 0.7152, 0.0722));
 }
 
 /* Luminance-safe sample: returns luma directly from the texture fetch.
  * Inlining this avoids re-computing luma for the 4 neighbour taps. */
-float luma_at(sampler2D tex, vec2 uv)
+float luma_at(sampler2D tex, float2 uv)
 {
   return rgb_to_luma(texture(tex, uv).rgb);
 }
@@ -58,15 +58,15 @@ float luma_at(sampler2D tex, vec2 uv)
 
 void main()
 {
-  vec2 inv_res = 1.0 / vec2(textureSize(color_tx, 0));
-  vec2 uv      = gl_FragCoord.xy * inv_res;
+  float2 inv_res = 1.0 / float2(textureSize(color_tx, 0));
+  float2 uv      = gl_FragCoord.xy * inv_res;
 
   /* ---- Luma at the current pixel and its 4 cardinal neighbours ---- */
   float luma_m  = luma_at(color_tx, uv);
-  float luma_n  = luma_at(color_tx, uv + vec2( 0.0,  inv_res.y));
-  float luma_s  = luma_at(color_tx, uv + vec2( 0.0, -inv_res.y));
-  float luma_e  = luma_at(color_tx, uv + vec2( inv_res.x, 0.0));
-  float luma_w  = luma_at(color_tx, uv + vec2(-inv_res.x, 0.0));
+  float luma_n  = luma_at(color_tx, uv + float2( 0.0,  inv_res.y));
+  float luma_s  = luma_at(color_tx, uv + float2( 0.0, -inv_res.y));
+  float luma_e  = luma_at(color_tx, uv + float2( inv_res.x, 0.0));
+  float luma_w  = luma_at(color_tx, uv + float2(-inv_res.x, 0.0));
 
   float range_max = max(max(luma_n, luma_s), max(luma_e, max(luma_w, luma_m)));
   float range_min = min(min(luma_n, luma_s), min(luma_e, min(luma_w, luma_m)));
@@ -80,10 +80,10 @@ void main()
   }
 
   /* ---- Diagonal neighbours for edge direction ---- */
-  float luma_nw = luma_at(color_tx, uv + vec2(-inv_res.x,  inv_res.y));
-  float luma_ne = luma_at(color_tx, uv + vec2( inv_res.x,  inv_res.y));
-  float luma_sw = luma_at(color_tx, uv + vec2(-inv_res.x, -inv_res.y));
-  float luma_se = luma_at(color_tx, uv + vec2( inv_res.x, -inv_res.y));
+  float luma_nw = luma_at(color_tx, uv + float2(-inv_res.x,  inv_res.y));
+  float luma_ne = luma_at(color_tx, uv + float2( inv_res.x,  inv_res.y));
+  float luma_sw = luma_at(color_tx, uv + float2(-inv_res.x, -inv_res.y));
+  float luma_se = luma_at(color_tx, uv + float2( inv_res.x, -inv_res.y));
 
   /* ---- Sub-pixel blend factor ----
    * Computes a 3×3 weighted luma average and measures how much the centre
@@ -118,17 +118,17 @@ void main()
   bool step_positive = (gradient_pos >= gradient_neg);
   float step_sign    = step_positive ? 1.0 : -1.0;
 
-  vec2 step_uv = is_horizontal ? vec2(0.0, step_sign * step_len) :
-                                  vec2(step_sign * step_len, 0.0);
+  float2 step_uv = is_horizontal ? float2(0.0, step_sign * step_len) :
+                                  float2(step_sign * step_len, 0.0);
 
   /* Average luma across the edge. */
   float luma_local_avg = 0.5 * (luma_m + (step_positive ? luma_pos : luma_neg));
   float gradient_scaled = 0.25 * max(gradient_pos, gradient_neg);
 
   /* ---- Iterative end-of-edge search (quality preset 25: 12 iterations) ---- */
-  vec2  uv_p        = uv + step_uv * 0.5;
-  vec2  uv_n        = uv - step_uv * 0.5;
-  vec2  edge_step   = is_horizontal ? vec2(inv_res.x, 0.0) : vec2(0.0, inv_res.y);
+  float2  uv_p        = uv + step_uv * 0.5;
+  float2  uv_n        = uv - step_uv * 0.5;
+  float2  edge_step   = is_horizontal ? float2(inv_res.x, 0.0) : float2(0.0, inv_res.y);
 
   bool done_p = false, done_n = false;
   float luma_end_p = 0.0, luma_end_n = 0.0;
@@ -170,7 +170,7 @@ void main()
   float final_offset = max(correct_variation ? pixel_offset : 0.0, sub_pixel_offset);
 
   /* ---- Apply blend ---- */
-  vec2 final_uv = uv;
+  float2 final_uv = uv;
   if (is_horizontal) {
     final_uv.y += final_offset * step_sign * step_len;
   }

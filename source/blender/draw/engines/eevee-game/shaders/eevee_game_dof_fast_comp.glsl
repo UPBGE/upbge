@@ -83,23 +83,23 @@ float linear_depth(float ndc_depth, float z_near, float z_far)
  *
  * Golden-angle Fibonacci disk: no structured banding, uniform radial density.
  * Pre-baked rather than computed per-thread: saves ~16 sin/cos calls. */
-const vec2 POISSON_16[16] = vec2[16](
-  vec2( 0.000000,  0.000000),
-  vec2( 0.382683,  0.923880),
-  vec2(-0.707107,  0.707107),
-  vec2(-0.923880, -0.382683),
-  vec2( 0.000000, -1.000000),
-  vec2( 0.923880, -0.382683),
-  vec2( 0.707107,  0.707107),
-  vec2(-0.382683,  0.923880),
-  vec2(-0.500000,  0.000000),
-  vec2( 0.250000,  0.433013),
-  vec2( 0.000000, -0.500000),
-  vec2(-0.250000, -0.433013),
-  vec2( 0.750000,  0.000000),
-  vec2(-0.125000,  0.649519),
-  vec2(-0.625000, -0.216506),
-  vec2( 0.433013, -0.500000)
+const float2 POISSON_16[16] = float2[16](
+  float2( 0.000000,  0.000000),
+  float2( 0.382683,  0.923880),
+  float2(-0.707107,  0.707107),
+  float2(-0.923880, -0.382683),
+  float2( 0.000000, -1.000000),
+  float2( 0.923880, -0.382683),
+  float2( 0.707107,  0.707107),
+  float2(-0.382683,  0.923880),
+  float2(-0.500000,  0.000000),
+  float2( 0.250000,  0.433013),
+  float2( 0.000000, -0.500000),
+  float2(-0.250000, -0.433013),
+  float2( 0.750000,  0.000000),
+  float2(-0.125000,  0.649519),
+  float2(-0.625000, -0.216506),
+  float2( 0.433013, -0.500000)
 );
 
 /* ================================================================== */
@@ -109,20 +109,20 @@ const vec2 POISSON_16[16] = vec2[16](
 
 void main()
 {
-  const ivec2 px  = ivec2(gl_GlobalInvocationID.xy);
-  const ivec2 res = imageSize(out_coc_img);
+  const int2 px  = int2(gl_GlobalInvocationID.xy);
+  const int2 res = imageSize(out_coc_img);
 
   if (any(greaterThanEqual(px, res))) {
     return;
   }
 
-  const vec2 uv = (vec2(px) + 0.5) / vec2(res);
+  const float2 uv = (float2(px) + 0.5) / float2(res);
 
   float ndc_depth = reverse_z::read(texture(depth_tx, uv).r);
 
   /* Sky pixels (depth == 1.0 far plane) have zero blur — they are infinitely far. */
   if (ndc_depth >= 0.9999) {
-    imageStore(out_coc_img, px, vec4(0.0));
+    imageStore(out_coc_img, px, float4(0.0));
     return;
   }
 
@@ -139,7 +139,7 @@ void main()
    * Clamped to max_bokeh_radius to prevent runaway blur. */
   float coc = clamp((lin_z - focus_dist) / focus_dist, -1.0, 1.0) * max_bokeh_r;
 
-  imageStore(out_coc_img, px, vec4(coc, 0.0, 0.0, 0.0));
+  imageStore(out_coc_img, px, float4(coc, 0.0, 0.0, 0.0));
 }
 
 /* ================================================================== */
@@ -149,35 +149,35 @@ void main()
 
 void main()
 {
-  const ivec2 px  = ivec2(gl_GlobalInvocationID.xy);
-  const ivec2 res = imageSize(out_bokeh_img);
+  const int2 px  = int2(gl_GlobalInvocationID.xy);
+  const int2 res = imageSize(out_bokeh_img);
 
   if (any(greaterThanEqual(px, res))) {
     return;
   }
 
   /* Half-res UV: multiply by 2 to get full-res UV for CoC lookup. */
-  const vec2 uv         = (vec2(px) + 0.5) / vec2(res);
-  const vec2 full_uv    = uv;   /* color and coc are both full-res, bilinear OK */
-  const vec2 texel      = 1.0 / vec2(textureSize(in_color_tx, 0));
+  const float2 uv         = (float2(px) + 0.5) / float2(res);
+  const float2 full_uv    = uv;   /* color and coc are both full-res, bilinear OK */
+  const float2 texel      = 1.0 / float2(textureSize(in_color_tx, 0));
 
   float centre_coc = texture(coc_tx, full_uv).r;
 
   /* Bokeh radius in UV space.  Foreground (negative CoC) and background blur
    * both use |CoC| for the sample spread. */
   float bokeh_r_px = abs(centre_coc);
-  vec2  bokeh_r_uv = vec2(bokeh_r_px) * texel;
+  float2  bokeh_r_uv = float2(bokeh_r_px) * texel;
 
   /* Minimum 0.5 px spread so the shader always produces a slightly softened
    * image even at focus distance (avoids aliasing on very sharp edges near focus). */
   bokeh_r_uv = max(bokeh_r_uv, texel * 0.5);
 
-  vec4  color_sum   = vec4(0.0);
+  float4  color_sum   = float4(0.0);
   float weight_sum  = 0.0;
 
   for (int i = 0; i < 16; i++) {
-    vec2 sample_uv  = full_uv + POISSON_16[i] * bokeh_r_uv;
-    vec4 sample_col = texture(in_color_tx, sample_uv);
+    float2 sample_uv  = full_uv + POISSON_16[i] * bokeh_r_uv;
+    float4 sample_col = texture(in_color_tx, sample_uv);
     float sample_coc = abs(texture(coc_tx, sample_uv).r);
 
     /* Weight by CoC magnitude: samples with large blur contribute more to the
@@ -199,14 +199,14 @@ void main()
 
 void main()
 {
-  const ivec2 px  = ivec2(gl_GlobalInvocationID.xy);
-  const ivec2 res = imageSize(out_final_img);
+  const int2 px  = int2(gl_GlobalInvocationID.xy);
+  const int2 res = imageSize(out_final_img);
 
   if (any(greaterThanEqual(px, res))) {
     return;
   }
 
-  const vec2 uv = (vec2(px) + 0.5) / vec2(res);
+  const float2 uv = (float2(px) + 0.5) / float2(res);
 
   float coc        = texture(coc_tx, uv).r;
   float max_r      = focus_params.z;
@@ -222,12 +222,12 @@ void main()
     blur_weight = clamp(blur_weight * 1.5, 0.0, 1.0);
   }
 
-  vec4 sharp  = texture(in_sharp_tx,  uv);
-  vec4 blurred = texture(in_bokeh_tx,  uv);
+  float4 sharp  = texture(in_sharp_tx,  uv);
+  float4 blurred = texture(in_bokeh_tx,  uv);
 
   /* Bilateral: the bokeh_tx is at half resolution, so the bilinear fetch here
    * gives a "free" 2× spatial filter over the blurred result — intentional. */
-  vec4 result = mix(sharp, blurred, blur_weight);
+  float4 result = mix(sharp, blurred, blur_weight);
 
   imageStore(out_final_img, px, result);
 }
