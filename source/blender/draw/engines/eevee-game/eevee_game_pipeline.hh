@@ -116,6 +116,16 @@ class PipelineModule {
    * passes (world capture, volume properties): globals, sampling and the
    * utility texture. */
   template<typename PassT> void eevee_globals_bind(PassT &pass);
+  /* Ray type the Light Path node of the generated shaders reports (camera for the frame).
+   * Uploads the uniform buffer when it changes. */
+  void ray_type_set(eevee::RayPipelineType ray_type)
+  {
+    eevee::UniformData &data = eevee_uniform_buf_;
+    if (data.pipeline.ray_type != ray_type) {
+      data.pipeline.ray_type = ray_type;
+      eevee_uniform_buf_.push_update();
+    }
+  }
   /* `eevee_game_light_data`: lights, their tile masks, shadows and world
    * lighting, by slot. */
   template<typename PassT> void light_data_bind(PassT &pass);

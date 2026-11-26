@@ -133,6 +133,10 @@ void WorldModule::render()
 
   GPU_debug_group_begin("World.Lighting");
   if (gpumat_ != nullptr) {
+    /* The capture lights the scene: a Light Path node sees a reflection ray, as in EEVEE's
+     * world probe, not a camera ray. A world that shows a backdrop to the camera and lights
+     * the scene with something else otherwise lit it with the backdrop. */
+    inst_.pipelines.ray_type_set(eevee::RAY_TYPE_GLOSSY);
     /* The world shader only uses the view rotation. The projection is the 90
      * degree frustum of a cube face; its depth range is irrelevant. */
     const float4x4 winmat = math::projection::perspective(-0.1f, 0.1f, -0.1f, 0.1f, 0.1f, 1.0f);
@@ -143,6 +147,7 @@ void WorldModule::render()
       capture_fb_.bind();
       inst_.manager->submit(capture_ps_, capture_view_);
     }
+    inst_.pipelines.ray_type_set(eevee::RAY_TYPE_CAMERA);
   }
   else {
     const float4 color = float4(constant_color_, 1.0f);
