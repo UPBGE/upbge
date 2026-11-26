@@ -111,6 +111,13 @@ if(WITH_GAMEENGINE_BPPLAYER)
   add_definitions(-DWITH_GAMEENGINE_BPPLAYER)
 endif()
 
+if(WITH_GAMEENGINE_BINARYCRYPT)
+  list(APPEND LIB
+    PRIVATE bf::intern::binarycrypt
+  )
+  add_definitions(-DWITH_GAMEENGINE_BINARYCRYPT)
+endif()
+
 blender_add_lib(bf_blenloader "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::blenloader ALIAS bf_blenloader)
 

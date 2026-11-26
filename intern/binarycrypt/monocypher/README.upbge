@@ -1,0 +1,4 @@
+Monocypher 4.0.3 (https://monocypher.org), unmodified.
+Upstream: https://github.com/LoupVaillant/Monocypher tag 4.0.3, files src/monocypher.c,
+src/monocypher.h and LICENCE.md. Dual licensed: BSD-2-Clause or CC0-1.0.
+Only the AEAD (XChaCha20-Poly1305), BLAKE2b and crypto_wipe primitives are used.

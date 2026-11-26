@@ -23,5 +23,12 @@ set(LIB
   PRIVATE bf::blenlib
 )
 
+if(WITH_GAMEENGINE_BINARYCRYPT)
+  list(APPEND LIB
+    PRIVATE bf::intern::binarycrypt
+  )
+  add_definitions(-DWITH_GAMEENGINE_BINARYCRYPT)
+endif()
+
 blender_add_lib(bf_blenloader_core "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::blenloader_core ALIAS bf_blenloader_core)
