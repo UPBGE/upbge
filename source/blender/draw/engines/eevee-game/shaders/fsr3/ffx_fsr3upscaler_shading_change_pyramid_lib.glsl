@@ -67,6 +67,15 @@ void SortSet(SampleSet &fSet)
     CompareSwap(2, 3);
 }
 
+// Element i of a sample set through selects: an index known only at run time makes the
+// compiler keep the arrays in local memory, which made this pass cost ten times the luma
+// pyramid on NVIDIA. Bit-exact: i is in [0, 4] wherever the value is used.
+float SampleSetAt(SampleSet fSet, int i)
+{
+    return (i == 0) ? fSet.fSamples[0] : (i == 1) ? fSet.fSamples[1] : (i == 2) ? fSet.fSamples[2] :
+           (i == 3) ? fSet.fSamples[3] : fSet.fSamples[4];
+}
+
 float ComputeMinimumDifference(int2 iPxPos, SampleSet fSet0, SampleSet fSet1)
 {
     float fMinDiff = FSR3UPSCALER_FP16_MAX - 1;
@@ -83,16 +92,16 @@ float ComputeMinimumDifference(int2 iPxPos, SampleSet fSet0, SampleSet fSet1)
 
         for (int i = 0; i < SHADING_CHANGE_SET_SIZE && (fMinDiff < FSR3UPSCALER_FP16_MAX); i++) {
 
-            float fDiff = fSet0.fSamples[a] - fSet1.fSamples[b];
+            float fDiff = SampleSetAt(fSet0, a) - SampleSetAt(fSet1, b);
 
             if (abs(fDiff) > FSR3UPSCALER_FP16_MIN) {
 
-                fDiff = sign(fDiff) * (1.0f - MinDividedByMax(fSet0.fSamples[a], fSet1.fSamples[b]));
+                fDiff = sign(fDiff) * (1.0f - MinDividedByMax(SampleSetAt(fSet0, a), SampleSetAt(fSet1, b)));
 
                 fMinDiff = (abs(fDiff) < abs(fMinDiff)) ? fDiff : fMinDiff;
 
-                a += int(fSet0.fSamples[a] < fSet1.fSamples[b]);
-                b += int(fSet0.fSamples[a] >= fSet1.fSamples[b]);
+                a += int(SampleSetAt(fSet0, a) < SampleSetAt(fSet1, b));
+                b += int(SampleSetAt(fSet0, a) >= SampleSetAt(fSet1, b));
             }
             else
             {

@@ -349,6 +349,28 @@ METAL_PATCHES = [
     ("ffx_fsr3upscaler_*pyramid_lib.glsl", r"SpdReduceLoad4\(tex, slice\)",
      r"SpdReduceLoad4(uint2(tex), slice)", 4),
 ]
+# Performance: the shading change pyramid indexes its sample sets with indices known only at
+# run time, which keeps them in local memory (10x the cost of the luma pyramid on NVIDIA).
+# Selects instead, bit-exact. (file, pattern, replacement, expected matches)
+_SAMPLE_SET_AT = """\
+// Element i of a sample set through selects: an index known only at run time makes the
+// compiler keep the arrays in local memory, which made this pass cost ten times the luma
+// pyramid on NVIDIA. Bit-exact: i is in [0, 4] wherever the value is used.
+float SampleSetAt(SampleSet fSet, int i)
+{
+    return (i == 0) ? fSet.fSamples[0] : (i == 1) ? fSet.fSamples[1] : (i == 2) ? fSet.fSamples[2] :
+           (i == 3) ? fSet.fSamples[3] : fSet.fSamples[4];
+}
+
+float ComputeMinimumDifference("""
+PERF_PATCHES = [
+    ("ffx_fsr3upscaler_shading_change_pyramid_lib.glsl", r"float ComputeMinimumDifference\(",
+     _SAMPLE_SET_AT, 1),
+    ("ffx_fsr3upscaler_shading_change_pyramid_lib.glsl", r"fSet0\.fSamples\[a\]",
+     "SampleSetAt(fSet0, a)", 4),
+    ("ffx_fsr3upscaler_shading_change_pyramid_lib.glsl", r"fSet1\.fSamples\[b\]",
+     "SampleSetAt(fSet1, b)", 4),
+]
 # ffx_core: FidelityFX's HLSL implementation of the bit field helpers (Blender's MSL has no
 # bitfieldInsert).
 CORE_PATCHES = [
@@ -438,6 +460,7 @@ def main():
     outputs = []
     for out_name, source in FILES:
         body = apply_patches(out_name, vendor_file(gpu_dir, source, macros), METAL_PATCHES)
+        body = apply_patches(out_name, body, PERF_PATCHES)
         outputs.append((out_name, source, body))
     # The core keeps what the vendored headers and our callbacks use.
     roots = set()
