@@ -405,6 +405,16 @@ void ShadowModule::end_sync()
   bool has_sun = false;
   tile_count_ = 0;
 
+  /* Objects whose material was still compiling were drawn with a fallback (an opaque
+   * default surface, also for a volume only material), and a cached map keeps that until
+   * its casters move. Redraw everything once their shaders are ready. */
+  if (inst_->materials.shaders_compiled_since_last_sync()) {
+    for (StaticTileCache &cache : static_cache_) {
+      cache.valid = false;
+    }
+    cascade_cache_.valid = false;
+  }
+
   for (StaticTileCache &cache : static_cache_) {
     cache.used = false;
   }

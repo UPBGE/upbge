@@ -101,6 +101,13 @@ class MaterialModule {
 
   /* Async compilation counters (read by the UI overlay). */
   int64_t queued_shaders_count          = 0;
+
+  /* A shader finished compiling since the previous sync: what was drawn with a fallback
+   * material while it compiled is out of date (cached shadow maps). */
+  bool shaders_compiled_since_last_sync() const
+  {
+    return gpu_pass_next_update_ != gpu_pass_last_update_;
+  }
   int64_t queued_textures_count         = 0;
   int64_t queued_optimize_shaders_count = 0;
 
