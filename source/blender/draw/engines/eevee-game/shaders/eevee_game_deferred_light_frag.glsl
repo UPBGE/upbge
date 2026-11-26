@@ -49,10 +49,13 @@ void main()
   bool reflection_used = false;
 
 
-  int closure_count = min(int(gbuf.header.closure_len()), GBUFFER_LAYER_MAX);
+  /* The closure loops run to the constant GBUFFER_LAYER_MAX and skip the unused slots: with a
+   * bound only known at run time the compiler cannot unroll them, and both arrays, indexed by
+   * the loop counter, are spilled to local memory. That made this pass cost more than all the
+   * lights it evaluates. */
   ClosureUndetermined cl[GBUFFER_LAYER_MAX];
   float3 light_sum[GBUFFER_LAYER_MAX];
-  for (int i = 0; i < closure_count; i++) {
+  for (int i = 0; i < GBUFFER_LAYER_MAX; i++) {
     cl[i] = gbuf.layer_get(uchar(i));
     light_sum[i] = float3(0.0f);
   }
@@ -85,7 +88,7 @@ void main()
                                                      game_light_shadow(light, P, cl[0].N, 0.0f);
       }
 
-      for (int i = 0; i < closure_count; i++) {
+      for (int i = 0; i < GBUFFER_LAYER_MAX; i++) {
         float lobe = 0.0f;
         switch (cl[i].type) {
           case CLOSURE_BSSRDF_BURLEY_ID:
@@ -114,7 +117,7 @@ void main()
    * found occluded, on the diffuse lobes; attenuated by AO (also standing in for specular
    * occlusion). */
   float3 radiance = float3(0.0f);
-  for (int i = 0; i < closure_count; i++) {
+  for (int i = 0; i < GBUFFER_LAYER_MAX; i++) {
     switch (cl[i].type) {
       case CLOSURE_BSSRDF_BURLEY_ID:
       case CLOSURE_BSDF_DIFFUSE_ID:
