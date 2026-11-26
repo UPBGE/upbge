@@ -18,6 +18,7 @@
 #include "eevee_game_ssgi.hh"
 #include "eevee_game_sync.hh"
 #include "eevee_game_upscaling.hh"
+#include "eevee_game_temporal.hh"
 #include "eevee_game_velocity.hh"
 #include "eevee_game_volume.hh"
 #include "eevee_game_world.hh"
@@ -189,6 +190,7 @@ class GameInstance : public DrawEngine {
   WorldModule    world;
   PipelineModule pipelines;
   UpscaleModule  upscale;
+  TemporalModule temporal;    /* HWTAA */
   LightModule    lights;
 
   /* ---- Shared state ---- */

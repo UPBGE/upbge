@@ -162,7 +162,9 @@ void ShadingView::sync()
    * 0 = normal, 1 = object id (both unused here), 2 = velocity. */
   prepass_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
                      GPU_ATTACHMENT_NONE,
-                     GPU_ATTACHMENT_NONE,
+                     inst_.temporal.enabled() ?
+                         GPU_ATTACHMENT_TEXTURE(inst_.temporal.object_id_tx()) :
+                         GPU_ATTACHMENT_NONE,
                      GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx));
 
   /* Combined: HDR color for deferred lighting and forward transparency.
@@ -236,7 +238,11 @@ void ShadingView::render()
 
   /* ================================================================
    * Step 5: Upscaling / Anti-Aliasing */
-  if (inst_.upscale.is_initialized()) {
+  if (inst_.temporal.enabled()) {
+    /* HWTAA: render resolution in, display resolution out. */
+    final_tx_ = inst_.temporal.resolve(color_tx);
+  }
+  else if (inst_.upscale.is_initialized()) {
     /* FSR3: render resolution in, display resolution out. */
     inst_.upscale.apply_fsr3(color_tx, display_res_tx_, nullptr);
     final_tx_ = display_res_tx_;

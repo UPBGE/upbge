@@ -38,6 +38,7 @@ GameInstance::GameInstance()
       world(*this),
       pipelines(&shaders, this),
       upscale(*this),
+      temporal(*this),
       main_view_(*this)
 {
 }
@@ -100,6 +101,8 @@ void GameInstance::init(const int2 &output_res, const rcti *output_rect)
     upscale_key_ = upscale_key;
   }
 
+  temporal.init(film.render_extent_get(), film.display_extent_get());
+
   /* Post-processing targets, Hi-Z pyramid and their passes. */
   main_view_.sync();
 
@@ -140,11 +143,16 @@ void GameInstance::settings_sync()
           break;
       }
       break;
+    case SCE_EEVEE_GAME_AA_HWTAA:
+      /* Spatial anti-aliasing would only blur what the resolve reconstructed. */
+      aa.enabled = false;
+      break;
     case SCE_EEVEE_GAME_AA_FXAA:
     default:
       aa.mode = AAMode::FXAA;
       break;
   }
+  temporal.configure(eevee.game_aa_method == SCE_EEVEE_GAME_AA_HWTAA, eevee.game_upscale_quality);
 }
 
 /* ================================================================
@@ -178,6 +186,7 @@ void GameInstance::begin_sync()
   velocity.begin_sync();
   volume.begin_sync();
   sync.begin_sync();
+  temporal.begin_sync();
 
   /* Camera matrices.
    *
@@ -222,7 +231,9 @@ void GameInstance::begin_sync()
   /* FSR3: advance the jitter sequence NOW so the offset is known before
    * the prepass and G-Buffer are rendered. apply_fsr3() reads the value back
    * later. Non-FSR path: no jitter. */
-  uniform_data.jitter = upscale.is_initialized() ? upscale.advance_jitter() : float2(0.0f);
+  uniform_data.jitter = temporal.enabled()        ? temporal.advance_jitter() :
+                        upscale.is_initialized() ? upscale.advance_jitter() :
+                                                   float2(0.0f);
   uniform_data.delta_time = delta_time_ms * 0.001f;
   uniform_data.frame_count = frame_state.frame_index;
   /* The scene exposure is part of the view transform Blender applies when it
@@ -260,6 +271,7 @@ void GameInstance::end_sync()
   velocity.geometry_steps_fill();
   velocity.end_sync();
   sync.end_sync();
+  temporal.end_sync();
   materials.end_sync();
 
   bloom.sync();

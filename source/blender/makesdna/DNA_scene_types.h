@@ -2764,6 +2764,7 @@ enum eEEVEEGameAAMethod {
   SCE_EEVEE_GAME_AA_FXAA = 1,
   SCE_EEVEE_GAME_AA_SMAA = 2,
   SCE_EEVEE_GAME_AA_FSR3 = 3,
+  SCE_EEVEE_GAME_AA_HWTAA = 4,
 };
 
 /** #SceneEEVEE.game_upscale_quality: render resolution of the temporal methods. */

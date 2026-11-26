@@ -578,7 +578,10 @@ void PipelineModule::render(View &view, Framebuffer &combined_fb)
     combined_fb.bind();
   }
 
+  inst_->temporal.transparency_begin(rbufs.combined_tx);
+  combined_fb.bind();
   inst_->manager->submit(forward_layer_.transparent_ps, view);
+  inst_->temporal.transparency_end(rbufs.combined_tx);
 
   if (use_fsr) {
     inst_->upscale.generate_masks(

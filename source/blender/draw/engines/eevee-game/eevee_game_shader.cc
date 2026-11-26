@@ -194,6 +194,12 @@ const char *ShaderModule::static_shader_name_get(eShaderType type)
       return "eevee_game_fsr3_rcas";
     case SH_FSR3_AUTOGEN_REACTIVE:
       return "eevee_game_fsr3_autogen_reactive";
+    case SH_TEMPORAL_REACTIVE:
+      return "eevee_game_temporal_reactive";
+    case SH_TEMPORAL_STORE:
+      return "eevee_game_temporal_store";
+    case SH_TEMPORAL_RESOLVE:
+      return "eevee_game_temporal_resolve";
 
     default:
       BLI_assert_unreachable();
@@ -251,6 +257,9 @@ void ShaderModule::static_shaders_load(ShaderGroups groups)
       {SH_FSR3_ACCUMULATE_SHARPEN, SG_AA},
       {SH_FSR3_RCAS, SG_AA},
       {SH_FSR3_AUTOGEN_REACTIVE, SG_AA},
+      {SH_TEMPORAL_REACTIVE, SG_AA},
+      {SH_TEMPORAL_STORE, SG_AA},
+      {SH_TEMPORAL_RESOLVE, SG_AA},
 
       /* Screen space effects */
       {SH_SSR_TRACE, SG_REFLECT},

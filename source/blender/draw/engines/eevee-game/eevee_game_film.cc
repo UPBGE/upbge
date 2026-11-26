@@ -18,7 +18,10 @@ void Film::init(const int2 &display_extent)
   /* Render resolution is either full display resolution (FSR OFF)
    * or the reduced resolution of the FSR mode. */
   render_extent_ = math::max(
-      UpscaleModule::calculate_render_res(display_extent_, inst_.upscale_settings.mode), int2(1));
+      inst_.temporal.enabled() ?
+          inst_.temporal.render_res_get(display_extent_) :
+          UpscaleModule::calculate_render_res(display_extent_, inst_.upscale_settings.mode),
+      int2(1));
 }
 
 void Film::sync()

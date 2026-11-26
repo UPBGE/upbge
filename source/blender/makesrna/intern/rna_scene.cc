@@ -9458,6 +9458,12 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
        0,
        "FSR 3.1",
        "AMD FidelityFX Super Resolution 3.1 temporal upscaling and anti-aliasing"},
+      {SCE_EEVEE_GAME_AA_HWTAA,
+       "HWTAA",
+       0,
+       "HWTAA",
+       "Temporal anti-aliasing and upscaling over a window of exact past samples "
+       "(experimental)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

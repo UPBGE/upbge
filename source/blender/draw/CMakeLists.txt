@@ -151,6 +151,7 @@ set(SRC
   engines/eevee-game/eevee_game_ssgi.cc
   engines/eevee-game/eevee_game_sync.cc
   engines/eevee-game/eevee_game_upscaling.cc
+  engines/eevee-game/eevee_game_temporal.cc
   engines/eevee-game/eevee_game_velocity.cc
   engines/eevee-game/eevee_game_view.cc
   engines/eevee-game/eevee_game_volume.cc
@@ -280,6 +281,8 @@ set(SRC
   engines/eevee-game/eevee_game_ssgi.hh
   engines/eevee-game/eevee_game_sync.hh
   engines/eevee-game/eevee_game_upscaling.hh
+  engines/eevee-game/eevee_game_temporal.hh
+  engines/eevee-game/eevee_game_temporal_shared.hh
   engines/eevee-game/eevee_game_velocity.hh
   engines/eevee-game/eevee_game_view.hh
   engines/eevee-game/eevee_game_volume.hh
@@ -424,6 +427,7 @@ set(GLSL_SRC
 
   engines/eevee-game/shaders/infos/eevee_game_fsr3_infos.hh
   engines/eevee-game/shaders/infos/eevee_game_infos.hh
+  engines/eevee-game/shaders/infos/eevee_game_temporal_infos.hh
 
   engines/image/shaders/infos/engine_image_infos.hh
 
@@ -686,6 +690,10 @@ set(GLSL_SRC
   engines/eevee-game/shaders/eevee_game_ssr_trace_comp.glsl
   engines/eevee-game/shaders/eevee_game_surf_forward_frag.glsl
   engines/eevee-game/shaders/eevee_game_surf_world_frag.glsl
+  engines/eevee-game/shaders/eevee_game_temporal_lib.glsl
+  engines/eevee-game/shaders/eevee_game_temporal_reactive_comp.glsl
+  engines/eevee-game/shaders/eevee_game_temporal_resolve_comp.glsl
+  engines/eevee-game/shaders/eevee_game_temporal_store_comp.glsl
   engines/eevee-game/shaders/eevee_game_velocity_resolve_comp.glsl
   engines/eevee-game/shaders/eevee_game_volume_integrate_comp.glsl
   engines/eevee-game/shaders/eevee_game_volume_resolve_comp.glsl
@@ -711,6 +719,7 @@ set(GLSL_SRC
   engines/eevee-game/eevee_game_fsr3_defines.hh
   engines/eevee-game/eevee_game_fsr3_shared.hh
   engines/eevee-game/eevee_game_shader_shared.hh
+  engines/eevee-game/eevee_game_temporal_shared.hh
 
   engines/workbench/shaders/workbench_cavity.bsl.hh
   engines/workbench/shaders/workbench_common.bsl.hh

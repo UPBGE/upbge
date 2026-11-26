@@ -94,6 +94,11 @@ enum eShaderType {
   SH_FSR3_RCAS,
   SH_FSR3_AUTOGEN_REACTIVE,
 
+  /* HWTAA (eevee_game_temporal) */
+  SH_TEMPORAL_REACTIVE,
+  SH_TEMPORAL_STORE,
+  SH_TEMPORAL_RESOLVE,
+
   MAX_SHADER_TYPE,
 };
 

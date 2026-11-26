@@ -138,7 +138,13 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &handle, const ObjectRef &ob
    * compare, no vertex copy of deformed meshes, no velocity variant of the
    * depth shader. The velocity map then empties itself in end_sync(), so
    * enabling FSR starts from zero motion. */
-  const bool has_motion = inst_.upscale.is_initialized() &&
+  if (inst_.temporal.enabled()) {
+    inst_.temporal.object_sync(ob,
+                               handle.object_key,
+                               res_handle,
+                               BKE_object_is_deform_modified(inst_.scene, ob));
+  }
+  const bool has_motion = (inst_.upscale.is_initialized() || inst_.temporal.enabled()) &&
                           inst_.velocity.step_object_sync(
                               handle.object_key, ob_ref, handle.recalc, res_handle);
 
