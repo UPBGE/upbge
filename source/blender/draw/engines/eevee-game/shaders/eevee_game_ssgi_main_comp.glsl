@@ -28,7 +28,7 @@ COMPUTE_SHADER_CREATE_INFO(eevee_game_ssgi_main)
 #include "eevee_gbuffer_read_lib.glsl"
 #include "eevee_reverse_z_lib.glsl"
 
-#define SSGI_HIT_LUMA_MAX 2.0f
+#define SSGI_HIT_LUMA_MAX 1.0f
 
 float linear_depth(float depth)
 {
