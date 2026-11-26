@@ -109,6 +109,9 @@ struct LightEntry {
    * (1) split distribution, the light's EEVEE settings. */
   float cascade_max_dist = 200.0f;
   float cascade_exponent = 0.8f;
+  /* CPU only, local lights: near plane of the shadow faces (the light's clip start), what is
+   * closer to the light casts no shadow, such as the fixture around a lamp. */
+  float shadow_clip_start = 0.05f;
 };
 
 /* ---- LightModule ---- */

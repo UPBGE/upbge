@@ -327,7 +327,12 @@ void ShadowModule::punctual_faces_build(ShadowPunctual &slot,
   const float tan_half = base_tan * (1.0f + guard);
   const float half_angle = atanf(tan_half);
   slot.proj = math::projection::perspective_fov(
-      -half_angle, half_angle, -half_angle, half_angle, 0.01f, slot.radius);
+      -half_angle,
+      half_angle,
+      -half_angle,
+      half_angle,
+      math::clamp(light.shadow_clip_start, 0.01f, slot.radius * 0.5f),
+      slot.radius);
 
   if (is_cube) {
     for (int f = 0; f < 6; f++) {
