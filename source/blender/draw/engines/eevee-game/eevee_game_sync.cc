@@ -169,13 +169,18 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &handle, const ObjectRef &ob
 
     /* Constant medium, filling the bounding box of the mesh as in EEVEE
      * Legacy: evaluated analytically by the volume scatter pass, no
-     * voxelization. The cached Material is shared
-     * by other objects, so the choice stays local. */
+     * voxelization. Also as in EEVEE Legacy, only the first material slot
+     * gives the object a medium of this kind: scenes made for UPBGE 0.36
+     * have volume nodes in materials of other slots that never showed. The
+     * cached Material is shared by other objects, so the choice stays
+     * local. */
     bool use_volume_passes = mat.has_volume;
     if (mat.has_volume && ob->type == OB_MESH && !(ob->visibility_flag & OB_HIDE_CAMERA)) {
       const blender::Material *bmat = GPU_material_get_material(gpu_mat);
       const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
-      if (bmat != nullptr && inst_.volume.box_add(ob, mesh, bmat->nodetree)) {
+      const bool is_constant = bmat != nullptr &&
+                               VolumeModule::is_constant_medium(mesh, bmat->nodetree);
+      if (is_constant && (i != 0 || inst_.volume.box_add(ob, mesh, bmat->nodetree))) {
         if (!mat.has_surface) {
           continue;
         }

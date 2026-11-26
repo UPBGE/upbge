@@ -199,6 +199,13 @@ static std::optional<Bounds<float3>> mesh_volume_bounds(const Mesh &mesh)
   return bounds;
 }
 
+bool VolumeModule::is_constant_medium(const Mesh &mesh, bNodeTree *ntree)
+{
+  VolumeBoxData box;
+  auto has_attribute = [&](const char *name) { return mesh.attributes().contains(name); };
+  return volume_constant_medium(ntree, has_attribute, box);
+}
+
 bool VolumeModule::box_add(const Object *ob, const Mesh &mesh, bNodeTree *ntree)
 {
   if (box_count_ >= VOLUME_BOX_MAX) {

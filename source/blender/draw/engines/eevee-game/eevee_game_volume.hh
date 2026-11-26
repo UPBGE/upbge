@@ -60,6 +60,8 @@ class VolumeModule {
    * handled that way, the object then needs the general path.
    */
   bool box_add(const Object *ob, const Mesh &mesh, bNodeTree *ntree);
+  /* Whether box_add() would take the medium of this node tree (constant over the mesh). */
+  static bool is_constant_medium(const Mesh &mesh, bNodeTree *ntree);
 
   /**
    * General path, as EEVEE: the object is rasterized at froxel resolution,
