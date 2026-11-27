@@ -197,6 +197,7 @@ class KX_CullingGate {
     float planes[18][4];
     int plane_count;
     float sphere[4]; /* xyz center, w radius squared, < 0 when unused. */
+    bool is_sun;
   };
 
   struct LightRec {
@@ -240,9 +241,14 @@ class KX_CullingGate {
     float margin; /* World margin the boxes were expanded by. */
     int count;    /* Object slots tested. */
     bool valid;
+    /* The boxes of the shadow casters were swept along the shadowed sun: a hidden box hides the
+     * object and every receiver of its sun shadow, so sun casters may be culled too. */
+    bool sun_swept;
   };
 
-  enum Mask : uint8_t { MASK_CAMERA = 1 << 0, MASK_CASTER = 1 << 1 };
+  /* MASK_LOCAL_CASTER: in the influence of a shadowed local light, whose shadow can reach what
+   * the occlusion test cannot bound: never occluded. */
+  enum Mask : uint8_t { MASK_CAMERA = 1 << 0, MASK_CASTER = 1 << 1, MASK_LOCAL_CASTER = 1 << 2 };
 
   bool OcclusionUsable(KX_Camera *cam) const;
   void ConsumeOcclusion(const uint32_t *results);
@@ -311,6 +317,11 @@ class KX_CullingGate {
 
   /* Scratch, reused every pass. */
   std::vector<Volume> m_volumes;
+  /* Shadowed sun of the main view, for the swept occlusion boxes: travel direction (unit) and
+   * shadow distance (its cascades end there). */
+  bool m_sunShadow = false;
+  float m_sunDir[3] = {0.0f, 0.0f, -1.0f};
+  float m_sunShadowDist = 0.0f;
   std::vector<uint8_t> m_obMaskMain, m_obMaskAux;
   std::vector<uint8_t> m_lightMaskMain, m_lightMaskAux;
 

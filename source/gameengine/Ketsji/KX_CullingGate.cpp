@@ -842,6 +842,9 @@ void KX_CullingGate::ClassifyView(KX_Camera *cam,
   /* Lights, and the caster volumes of the visible shadowed ones. */
   const FrustumHull hull = frustum_hull(frustum);
   m_volumes.clear();
+  if (!accumulate) {
+    m_sunShadow = false;
+  }
   for (size_t l = 0; l < m_lights.size(); l++) {
     const LightRec &rec = m_lights[l];
     bool relevant;
@@ -866,6 +869,12 @@ void KX_CullingGate::ClassifyView(KX_Camera *cam,
      * moves anyway. */
     Volume vol;
     vol.sphere[3] = -1.0f;
+    vol.is_sun = rec.is_sun;
+    if (rec.is_sun && !accumulate && !m_sunShadow) {
+      m_sunShadow = true;
+      copy_v3_v3(m_sunDir, rec.dir);
+      m_sunShadowDist = id_cast<const Light *>(rec.ob_orig->data)->cascade_max_dist;
+    }
     if (rec.is_sun) {
       /* -d points to the sun: sweep against the travel direction. */
       float to_sun[3];
@@ -884,7 +893,7 @@ void KX_CullingGate::ClassifyView(KX_Camera *cam,
    * only applies to the first, an object hidden from the camera can still
    * shadow what the camera sees. */
   const int n = int(m_obOwner.size());
-  float cam_rel[BLOCK], cast_rel[BLOCK], tmp[BLOCK];
+  float cam_rel[BLOCK], cast_rel[BLOCK], local_rel[BLOCK], tmp[BLOCK];
   for (int b0 = 0; b0 < n; b0 += BLOCK) {
     const int bn = std::min(BLOCK, n - b0);
     const float *cx = m_cx.data() + b0, *cy = m_cy.data() + b0, *cz = m_cz.data() + b0;
@@ -897,6 +906,7 @@ void KX_CullingGate::ClassifyView(KX_Camera *cam,
     }
 
     std::fill(cast_rel, cast_rel + bn, NOT_A_CASTER);
+    std::fill(local_rel, local_rel + bn, NOT_A_CASTER);
     for (const Volume &vol : m_volumes) {
       std::fill(tmp, tmp + bn, BIG);
       for (int p = 0; p < vol.plane_count; p++) {
@@ -908,6 +918,11 @@ void KX_CullingGate::ClassifyView(KX_Camera *cam,
       for (int i = 0; i < bn; i++) {
         cast_rel[i] = std::max(cast_rel[i], tmp[i] + bias[i]);
       }
+      if (!vol.is_sun) {
+        for (int i = 0; i < bn; i++) {
+          local_rel[i] = std::max(local_rel[i], tmp[i] + bias[i]);
+        }
+      }
     }
 
     uint8_t *mask = ob_mask + b0;
@@ -916,7 +931,8 @@ void KX_CullingGate::ClassifyView(KX_Camera *cam,
     }
     for (int i = 0; i < bn; i++) {
       mask[i] |= uint8_t((cam_rel[i] >= 0.0f ? MASK_CAMERA : 0) |
-                         (cast_rel[i] >= 0.0f ? MASK_CASTER : 0));
+                         (cast_rel[i] >= 0.0f ? MASK_CASTER : 0) |
+                         (local_rel[i] >= 0.0f ? MASK_LOCAL_CASTER : 0));
     }
   }
 }
@@ -964,16 +980,20 @@ void KX_CullingGate::BeginPass(KX_Camera *cam,
   }
 
   /* Occluded from the camera in the last two results, and only relevant to
-   * the camera. The streak is only meaningful for the camera that rendered
-   * the tested depth. */
+   * the camera, or a caster of the sun only whose swept box (object and sun
+   * shadow) was the one tested. The streak is only meaningful for the camera
+   * that rendered the tested depth. */
   const bool occlusion = enabled && use_occlusion && OcclusionUsable(cam);
+  const bool sun_casters_occludable = occlusion && m_occLatest.sun_swept;
 
   /* State bytes. Hidden by the user: neither drawn nor worth evaluating. */
   uint8_t *ob_state = m_state[TABLE_OBJECT].data();
   int occluded = 0;
   for (size_t i = 0; i < n; i++) {
     const uint8_t m = m_obMaskMain[i];
-    const bool occ = occlusion && (m == MASK_CAMERA) && m_obOccStreak[i] >= 2;
+    const bool occludable = (m == MASK_CAMERA) ||
+                            (sun_casters_occludable && !(m & MASK_LOCAL_CASTER));
+    const bool occ = occlusion && occludable && m_obOccStreak[i] >= 2;
     occluded += occ;
     const uint8_t s = uint8_t(((m && !occ) ? (STATE_DRAW | STATE_EVAL) : 0) |
                               (m_obMaskAux[i] ? STATE_EVAL : 0));

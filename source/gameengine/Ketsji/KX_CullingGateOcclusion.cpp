@@ -27,6 +27,7 @@
 #include "KX_CullingGate.h"
 
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 
@@ -398,6 +399,38 @@ void KX_CullingGate::SubmitOcclusion(KX_Camera *cam, gpu::Texture *depth_tx)
   for (int k = 0; k < 6; k++) {
     memcpy(m_occStaging.data() + k * stride, soa[k]->data(), sizeof(float) * n);
   }
+  /* Shadow casters of a shadowed sun: the box swept along the light, from the object to where
+   * its shadow can land, the lowest point of the scene or the end of the sun shadow distance.
+   * Hidden, it hides the object and every receiver of its shadow. The AABB of the box and the
+   * box moved by d L bounds the sweep. */
+  const bool sun_swept = m_sunShadow;
+  if (sun_swept) {
+    float scene_min_z = FLT_MAX;
+    for (int i = 0; i < n; i++) {
+      if (m_ez[i] < 1e20f) {
+        scene_min_z = std::min(scene_min_z, m_cz[i] - m_ez[i]);
+      }
+    }
+    const float max_dist = std::max(m_sunShadowDist, 0.0f);
+    float *cx = m_occStaging.data(), *cy = cx + stride, *cz = cy + stride;
+    float *ex = cz + stride, *ey = ex + stride, *ez = ey + stride;
+    for (int i = 0; i < n; i++) {
+      if (m_casterBias[i] < -1e30f || m_ez[i] >= 1e20f) { /* Not a caster, or unbounded. */
+        continue;
+      }
+      float len = max_dist;
+      if (m_sunDir[2] < -1e-3f) {
+        len = std::min(len, std::max((m_cz[i] + m_ez[i] - scene_min_z) / -m_sunDir[2], 0.0f));
+      }
+      const float h[3] = {m_sunDir[0] * len * 0.5f, m_sunDir[1] * len * 0.5f, m_sunDir[2] * len * 0.5f};
+      cx[i] += h[0];
+      cy[i] += h[1];
+      cz[i] += h[2];
+      ex[i] += fabsf(h[0]);
+      ey[i] += fabsf(h[1]);
+      ez[i] += fabsf(h[2]);
+    }
+  }
   GPU_storagebuf_update(m_occBoundsBuf, m_occStaging.data());
 
   OcclusionView view;
@@ -413,6 +446,7 @@ void KX_CullingGate::SubmitOcclusion(KX_Camera *cam, gpu::Texture *depth_tx)
   view.frame = m_frame;
   view.count = n;
   view.valid = true;
+  view.sun_swept = sun_swept;
 
   /* Hi-Z pyramid. */
   GPU_shader_bind(m_occHizShader);
