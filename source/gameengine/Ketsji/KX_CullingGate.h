@@ -146,6 +146,13 @@ class KX_CullingGate {
     return slot < 0 || (m_state[table][slot] & STATE_EVAL);
   }
 
+  /* Drawn in the main view of this frame. Objects the gate does not handle (negative slots) are
+   * always candidates: the draw loop still applies their own visibility. */
+  bool ShouldDraw(int slot, uint8_t table) const
+  {
+    return slot < 0 || (m_state[table][slot] & STATE_DRAW);
+  }
+
   /* Absorb a depsgraph tag for an ID whose object is currently not
    * evaluated. Returns true when the tag was deferred. */
   bool DeferIdTag(blender::ID *id, int recalc);

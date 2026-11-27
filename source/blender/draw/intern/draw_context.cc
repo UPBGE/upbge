@@ -1023,6 +1023,131 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
   DEG_OBJECT_ITER_END;
 }
 
+/* UPBGE */
+/**
+ * Game engine version of #foreach_obref_in_scene: syncs the given evaluated objects (the ones the
+ * culling gate keeps) instead of iterating all the objects of the depsgraph, which costs about
+ * 0.3 us per object, culled or not. Same visibility and instance handling. The objects come from
+ * the scene, not from the depsgraph iterator, so none of them is a preview dupli.
+ * Kept apart from #foreach_obref_in_scene so the Blender code path stays as it is: changes of the
+ * instance handling there have to be ported here.
+ */
+static void foreach_obref_in_game_objects(DRWContext &draw_ctx,
+                                          Span<Object *> objects,
+                                          FunctionRef<bool(Object &)> should_draw_object_cb,
+                                          FunctionRef<void(ObjectRef &)> draw_object_cb)
+{
+  DupliList duplilist;
+  Map<InstancesKey, VectorList<DupliObject *>> dupli_map;
+
+  Object tmp_object;
+  bke::ObjectRuntime tmp_runtime;
+
+  Depsgraph *depsgraph = draw_ctx.depsgraph;
+  eEvaluationMode eval_mode = DEG_get_mode(depsgraph);
+  View3D *v3d = draw_ctx.v3d;
+
+  /* EEVEE is not supported for now. */
+  const bool engines_support_handle_ranges = (v3d && v3d->shading.type <= OB_SOLID) ||
+                                             BKE_scene_uses_blender_workbench(draw_ctx.scene);
+
+  for (Object *ob : objects) {
+    if (!DEG_iterator_object_is_visible(eval_mode, ob)) {
+      continue;
+    }
+
+    int visibility = BKE_object_visibility(ob, eval_mode);
+    bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
+
+    if (ob_visible && should_draw_object_cb(*ob)) {
+      ObjectRef ob_ref(ob, nullptr, nullptr);
+      draw_object_cb(ob_ref);
+    }
+
+    bool instances_visible = (visibility & OB_VISIBLE_INSTANCES) &&
+                             ((ob->transflag & OB_DUPLI) ||
+                              ob->runtime->geometry_set_eval != nullptr);
+
+    if (!instances_visible) {
+      continue;
+    }
+
+    duplilist.clear();
+    object_duplilist(draw_ctx.depsgraph, ob, nullptr, duplilist);
+
+    if (duplilist.is_empty()) {
+      continue;
+    }
+
+    dupli_map.clear();
+    for (DupliObject &dupli : duplilist) {
+
+      if (!DEG_iterator_dupli_is_visible(&dupli, eval_mode)) {
+        continue;
+      }
+
+      if (!engines_support_handle_ranges || !supports_handle_ranges(&dupli, ob, draw_ctx)) {
+        /* Sync the dupli as a single object. */
+        if (!evil::DEG_iterator_temp_object_from_dupli(
+                ob, &dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
+            !should_draw_object_cb(tmp_object))
+        {
+          evil::DEG_iterator_temp_object_free_properties(&dupli, &tmp_object);
+          continue;
+        }
+
+        tmp_object.light_linking = ob->light_linking;
+        SET_FLAG_FROM_TEST(tmp_object.transflag, is_negative_m4(dupli.mat), OB_NEG_SCALE);
+        tmp_object.runtime->object_to_world = float4x4(dupli.mat);
+        tmp_object.runtime->world_to_object = invert(tmp_object.runtime->object_to_world);
+
+        draw::ObjectRef ob_ref(&tmp_object, ob, &dupli);
+        draw_object_cb(ob_ref);
+
+        evil::DEG_iterator_temp_object_free_properties(&dupli, &tmp_object);
+        continue;
+      }
+
+      InstancesFlags flags = InstancesFlags(0);
+      {
+        SET_FLAG_FROM_TEST(flags, is_negative_m4(dupli.mat), InstancesFlags::IsNegativeScale);
+      }
+      InstancesKey key(dupli.ob,
+                       dupli.ob_data,
+                       flags,
+                       dupli.preview_base_geometry,
+                       dupli.preview_instance_index);
+
+      dupli_map.lookup_or_add_default(key).append(&dupli);
+    }
+
+    for (const auto &[key, instances] : dupli_map.items()) {
+      DupliObject *first_dupli = instances.first();
+      if (!evil::DEG_iterator_temp_object_from_dupli(
+              ob, first_dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
+          !should_draw_object_cb(tmp_object))
+      {
+        evil::DEG_iterator_temp_object_free_properties(first_dupli, &tmp_object);
+        continue;
+      }
+
+      tmp_object.light_linking = ob->light_linking;
+      SET_FLAG_FROM_TEST(tmp_object.transflag,
+                         flag_is_set(key.flags, InstancesFlags::IsNegativeScale),
+                         OB_NEG_SCALE);
+      /* Should use DrawInstances data instead. */
+      tmp_object.runtime->object_to_world = float4x4();
+      tmp_object.runtime->world_to_object = float4x4();
+
+      draw::ObjectRef ob_ref(tmp_object, ob, instances);
+      draw_object_cb(ob_ref);
+
+      evil::DEG_iterator_temp_object_free_properties(first_dupli, &tmp_object);
+    }
+  }
+}
+/* End of UPBGE */
+
 }  // namespace draw
 
 /** \} */
@@ -2922,7 +3047,8 @@ void DRW_game_render_loop(bContext *C,
                           GPUViewport *viewport,
                           Depsgraph *depsgraph,
                           const rcti *window,
-                          bool is_overlay_pass)
+                          bool is_overlay_pass,
+                          blender::Span<Object *> objects)
 {
   using namespace blender::draw;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
@@ -2973,13 +3099,21 @@ void DRW_game_render_loop(bContext *C,
       });
     }
     else {
-      foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
+      auto draw_main_pass_object = [&](ObjectRef &ob_ref) {
         Object *orig_ob = DEG_get_original(ob_ref.object);
         /* Don't render objects in overlay collections in main pass */
         if ((orig_ob->gameflag & OB_OVERLAY_COLLECTION) == 0) {
           drw_engines_cache_populate(ob_ref, duplis, extraction);
         }
-      });
+      };
+      if (!objects.is_empty()) {
+        /* The objects the culling gate keeps. */
+        foreach_obref_in_game_objects(
+            draw_ctx, objects, should_draw_object, draw_main_pass_object);
+      }
+      else {
+        foreach_obref_in_scene(draw_ctx, should_draw_object, draw_main_pass_object);
+      }
     }
   });
 

@@ -118,6 +118,10 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
   blender::Object *m_gameDefaultCamera;
   /** Static batch objects created at conversion (BL_StaticBatch), freed with the scene. */
   std::vector<blender::Object *> m_staticBatches;
+  /** Evaluated objects the main pass draws, from the culling gate: the draw loop syncs these
+   * instead of iterating every object of the depsgraph. Valid when m_useDrawList. */
+  std::vector<blender::Object *> m_drawList;
+  bool m_useDrawList = false;
   std::vector<blender::Collection *> m_overlay_collections;
   blender::GPUViewport *m_currentGPUViewport;
   KX_Camera *m_overlayCamera;

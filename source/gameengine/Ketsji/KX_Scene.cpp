@@ -777,13 +777,27 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   /* Update evaluated object object_to_world according to SceneGraph. New
-   * objects enter the culling gate here, once their evaluated copy exists. */
+   * objects enter the culling gate here, once their evaluated copy exists.
+   * The same loop lists the objects the main pass draws: what the gate culled is not even
+   * iterated by the draw loop. */
+  m_useDrawList = !is_overlay_pass && m_useCullingGate &&
+                  !KX_GetActiveEngine()->UseViewportRender();
+  m_drawList.clear();
   for (KX_GameObject *gameobj : GetObjectList()) {
     if (gameobj->GetCullingSlot() == KX_CullingGate::SLOT_UNREGISTERED) {
       m_cullingGate.Register(gameobj, depsgraph, scene);
     }
-    if (m_cullingGate.ShouldEvaluate(gameobj->GetCullingSlot(), gameobj->GetCullingTable())) {
+    const int slot = gameobj->GetCullingSlot();
+    const uint8_t table = gameobj->GetCullingTable();
+    if (m_cullingGate.ShouldEvaluate(slot, table)) {
       gameobj->TagForTransformUpdateEvaluated(false, depsgraph);
+    }
+    if (m_useDrawList && m_cullingGate.ShouldDraw(slot, table)) {
+      blender::Object *ob_orig = gameobj->GetBlenderObject();
+      blender::Object *ob_eval = ob_orig ? DEG_get_evaluated(depsgraph, ob_orig) : nullptr;
+      if (ob_eval && ob_eval != ob_orig) {
+        m_drawList.push_back(ob_eval);
+      }
     }
   }
 
@@ -940,7 +954,13 @@ void KX_Scene::RenderAfterCameraSetup(KX_Camera *cam,
       GPU_framebuffer_restore();
     }
     /* Draw custom viewport render loop into its own blender::GPUViewport */
-    DRW_game_render_loop(C, m_currentGPUViewport, depsgraph, &window, is_overlay_pass);
+    DRW_game_render_loop(C,
+                         m_currentGPUViewport,
+                         depsgraph,
+                         &window,
+                         is_overlay_pass,
+                         m_useDrawList ? blender::Span<blender::Object *>(m_drawList) :
+                                         blender::Span<blender::Object *>());
   }
 
   /* Occlusion test of the culling gate against the depth just rendered. */

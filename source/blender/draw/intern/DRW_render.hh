@@ -15,6 +15,7 @@
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_subdiv_modifier.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_span.hh"
 #include "DNA_object_enums.h"
 #include "DNA_object_types.h"
 
@@ -452,11 +453,17 @@ struct DRWContext {
 const DRWContext *DRW_context_get();
 
 /*****************************UPBGE***********************************/
+/**
+ * \param objects: evaluated objects to draw instead of all the objects of the depsgraph, or empty.
+ * The game engine passes the ones its culling gate keeps: iterating the depsgraph costs about
+ * 0.3 us per object, culled or not.
+ */
 void DRW_game_render_loop(struct bContext *C,
                           struct GPUViewport *viewport,
                           struct Depsgraph *depsgraph,
                           const struct rcti *window,
-                          bool is_overlay_pass);
+                          bool is_overlay_pass,
+                          blender::Span<struct Object *> objects = {});
 
 void DRW_game_python_loop_end(struct ViewLayer *view_layer);
 void DRW_game_viewport_render_loop_end();
