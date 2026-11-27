@@ -1,6 +1,8 @@
 /* SPDX-FileCopyrightText: 2023 Blender Authors
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_camera.h"
+
 #include "eevee_game_depth_of_field.hh"
 #include "eevee_game_instance.hh"
 
@@ -16,19 +18,35 @@ void DepthOfField::sync()
    * read every frame and not once at startup. */
   settings_.enabled = false;
   const Object *cam_ob = inst_->camera_eval_object;
-  if (cam_ob && cam_ob->type == OB_CAMERA) {
-    const blender::Camera &cam = DRW_object_get_data_for_drawing<const blender::Camera>(*cam_ob);
-    settings_.focus_distance = cam.dof.focus_distance;
-    settings_.f_stop = cam.dof.aperture_fstop;
-    settings_.focal_length = cam.lens;
-    settings_.sensor_size = cam.sensor_x;
-    settings_.enabled = (cam.dof.flag & CAM_DOF_ENABLED) != 0;
+  if (cam_ob == nullptr || cam_ob->type != OB_CAMERA) {
+    return;
   }
+  const blender::Camera &cam = DRW_object_get_data_for_drawing<const blender::Camera>(*cam_ob);
+  /* Perspective cameras only: the fast path has no orthographic CoC model. */
+  if ((cam.dof.flag & CAM_DOF_ENABLED) == 0 || cam.type != CAM_PERSP) {
+    return;
+  }
+  const int2 render_res = inst_->film.render_extent_get();
+
+  /* Thin lens, as EEVEE: aperture radius = focal length / (2 * f-stop) in scene units, and the
+   * CoC radius in pixels at view distance z is coc_scale * (1 / focus - 1 / z), positive behind
+   * the focus plane. The focus object, when set, gives the focus distance. */
+  settings_.focus_distance = max_ff(BKE_camera_object_dof_distance(cam_ob), 1e-4f);
+  const float aperture = cam.lens * 1e-3f / (2.0f * max_ff(cam.dof.aperture_fstop, 1e-5f));
+  const float px_per_unit = inst_->uniform_data.projectionmat[0][0] * 0.5f * render_res.x;
+  settings_.coc_scale = aperture * px_per_unit;
+  settings_.max_bokeh_radius = min_ff(inst_->scene->eevee.bokeh_max_size, DOF_FAST_MAX_RADIUS);
+  /* The largest CoC on screen is the background one, at infinity, or the one at the near clip
+   * plane. Below half a pixel the effect is invisible: skip the passes. */
+  const float inv_focus = 1.0f / settings_.focus_distance;
+  const float max_coc = settings_.coc_scale *
+                        max_ff(inv_focus,
+                               fabsf(inv_focus - 1.0f / max_ff(inst_->uniform_data.z_near, 1e-4f)));
+  settings_.enabled = min_ff(max_coc, settings_.max_bokeh_radius) > 0.5f;
   if (!settings_.enabled) {
     return;
   }
 
-  const int2 render_res = inst_->film.render_extent_get();
   const int2 half_res = math::divide_ceil(render_res, int2(2));
   const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_SHADER_READ;
 
@@ -42,7 +60,7 @@ void DepthOfField::render_fast(gpu::Texture *input_color_tx, gpu::Texture *outpu
   if (!settings_.enabled) return;
 
   const float4 focus_params = float4(
-      settings_.focus_distance, settings_.f_stop, settings_.max_bokeh_radius, 0.0f);
+      1.0f / settings_.focus_distance, settings_.coc_scale, settings_.max_bokeh_radius, 0.0f);
   const float2 z_planes = float2(inst_->uniform_data.z_near, inst_->uniform_data.z_far);
 
   // 1. COC SETUP

@@ -47,22 +47,16 @@ COMPUTE_SHADER_CREATE_INFO(eevee_game_dof_coc_setup)
 /* ------------------------------------------------------------------ */
 /* Focus parameters
  *
- *   focus_params.x = focus_distance (world units from camera)
- *   focus_params.y = f_stop
- *   focus_params.z = max_bokeh_radius (pixels at output resolution)
+ *   focus_params.x = 1 / focus_distance (scene units)
+ *   focus_params.y = coc_scale: aperture radius times pixels per scene unit at unit distance
+ *   focus_params.z = max_bokeh_radius (pixels at render resolution)
  *   focus_params.w = unused
  *
- * Lens equation for CoC in pixels:
+ * Thin lens CoC radius in pixels, as EEVEE:
  *
- *   CoC_mm = |focal_length²  / (f_stop * (focus_dist - focal_length))
- *              * (depth - focus_dist) / depth|
+ *   CoC_px = coc_scale * (1 / focus_distance - 1 / depth)
  *
- * Simplified for game use (focal_length << focus_dist, sensor known):
- *   CoC_px = K * |depth - focus_dist| / depth
- *   where K = focal_length² / (f_stop * focus_dist * sensor_mm_per_px)
- *
- * We bake K into focus_params.z as the maximum bokeh radius so the shader
- * only needs a lerp from 0 (in-focus) to max_bokeh_radius (fully blurred). */
+ * clamped to max_bokeh_radius. */
 
 /* z_planes = (z_near, z_far), for linear depth reconstruction:
  *   linear_z = (z_near * z_far) / (z_far - depth * (z_far - z_near)) */
@@ -120,24 +114,20 @@ void main()
 
   float ndc_depth = reverse_z::read(texture(depth_tx, uv).r);
 
-  /* Sky pixels (depth == 1.0 far plane) have zero blur — they are infinitely far. */
-  if (ndc_depth >= 0.9999) {
-    imageStore(out_coc_img, px, float4(0.0));
-    return;
+  float inv_focus   = focus_params.x;
+  float coc_scale   = focus_params.y;
+  float max_bokeh_r = focus_params.z;
+
+  /* Sky pixels (far plane) are at infinity: 1 / depth = 0. */
+  float inv_z = 0.0;
+  if (ndc_depth < 0.9999) {
+    inv_z = 1.0 / linear_depth(ndc_depth, z_planes.x, z_planes.y);
   }
 
-  float z_near = z_planes.x;
-  float z_far  = z_planes.y;
-  float lin_z  = linear_depth(ndc_depth, z_near, z_far);
-
-  float focus_dist      = focus_params.x;
-  float max_bokeh_r     = focus_params.z;
-
   /* Signed CoC:
-   *   positive → background (depth > focus_dist)
-   *   negative → foreground (depth < focus_dist)
-   * Clamped to max_bokeh_radius to prevent runaway blur. */
-  float coc = clamp((lin_z - focus_dist) / focus_dist, -1.0, 1.0) * max_bokeh_r;
+   *   positive → background (depth > focus distance)
+   *   negative → foreground (depth < focus distance) */
+  float coc = clamp(coc_scale * (inv_focus - inv_z), -max_bokeh_r, max_bokeh_r);
 
   imageStore(out_coc_img, px, float4(coc, 0.0, 0.0, 0.0));
 }
@@ -213,7 +203,7 @@ void main()
 
   /* Blend weight: 0 = fully sharp, 1 = fully bokeh-blurred.
    * The smoothstep provides a soft transition through the depth of field zone. */
-  float blur_weight = smoothstep(0.0, max_r * 0.5, abs(coc));
+  float blur_weight = smoothstep(0.5, min(2.0, max_r), abs(coc));
 
   /* Foreground pixels (negative CoC) receive a stronger blur weight because
    * they must occlude in-focus geometry behind them.  Without the boost,

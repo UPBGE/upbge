@@ -8,13 +8,17 @@
 
 namespace blender::eevee_game {
 
+/* Largest CoC radius in pixels the 16 sample gather covers without visible gaps. */
+#define DOF_FAST_MAX_RADIUS 16.0f
+
 struct DOFSettings {
+  /* Scene units, from the camera focus distance or focus object. */
   float focus_distance = 10.0f;
-  float focal_length = 50.0f;
-  float f_stop = 2.8f;
-  float sensor_size = 36.0f; // mm
-  float max_bokeh_radius = 8.0f; // Screen space pixels
-  bool enabled = true;
+  /* CoC radius in pixels = coc_scale * (1 / focus_distance - 1 / view_distance). */
+  float coc_scale = 0.0f;
+  /* Pixels: scene bokeh max size, capped by DOF_FAST_MAX_RADIUS. */
+  float max_bokeh_radius = 8.0f;
+  bool enabled = false;
 };
 
 /**
