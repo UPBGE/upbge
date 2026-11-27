@@ -59,8 +59,8 @@ static wmOperatorStatus logic_properties_toggle_exec(bContext *C, wmOperator * /
   ScrArea *sa = CTX_wm_area(C);
   ARegion *region = logic_has_buttons_region(sa);
 
-  if (region)
-    ED_region_toggle_hidden(C, region);
+  if (region && sa)
+    ED_region_toggle_hidden(C, sa, region);
 
   return OPERATOR_FINISHED;
 }

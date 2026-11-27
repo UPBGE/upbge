@@ -506,7 +506,7 @@ bool WM_init_game(bContext *C)
     for (arhide = sa->regionbase.first(); arhide; arhide = arhide->next) {
       if (arhide->regiontype != RGN_TYPE_WINDOW) {
         if (!(arhide->flag & RGN_FLAG_HIDDEN)) {
-          ED_region_toggle_hidden(C, arhide);
+          ED_region_toggle_hidden(C, sa, arhide);
         }
       }
     }

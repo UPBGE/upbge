@@ -822,19 +822,21 @@ static wmOperatorStatus logic_region_flip_exec(bContext *C, wmOperator */*op*/)
   if (region == nullptr)
     return OPERATOR_CANCELLED;
 
-  if (region->alignment == RGN_ALIGN_RIGHT) {
-    ED_region_toggle_hidden(C, region);
+  if (region->alignment == RGN_ALIGN_RIGHT && sa) {
+    ED_region_toggle_hidden(C, sa, region);
     region->alignment = RGN_ALIGN_LEFT;
   }
-  else if (region->alignment == RGN_ALIGN_LEFT) {
-    ED_region_toggle_hidden(C, region);
+  else if (region->alignment == RGN_ALIGN_LEFT && sa) {
+    ED_region_toggle_hidden(C, sa, region);
     region->alignment = RGN_ALIGN_RIGHT;
   }
 
   ED_area_tag_redraw(CTX_wm_area(C));
   WM_event_add_mousemove(CTX_wm_window(C));
   WM_event_add_notifier(C, NC_LOGIC, nullptr);
-  ED_region_toggle_hidden(C, region);
+  if (sa) {
+    ED_region_toggle_hidden(C, sa, region);
+  }
 
   return OPERATOR_FINISHED;
 }
