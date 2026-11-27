@@ -293,6 +293,12 @@ void DEG_debug_print_eval_time(Depsgraph *depsgraph,
 
 /* UPBGE */
 void DEG_bump_update_count(Depsgraph *depsgraph);
+/**
+ * Incremental flush and evaluation for the game engine: a flush resets and the evaluation walks
+ * only the nodes of the update, instead of the whole graph. Off by default, the Blender code
+ * paths are unchanged then. See deg_eval_flush_game.hh.
+ */
+void DEG_game_set_incremental_flush(Depsgraph *depsgraph, bool enable);
 
 /** \} */
 

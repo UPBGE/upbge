@@ -38,6 +38,7 @@
 #include "intern/depsgraph_tag.hh"
 #include "intern/eval/deg_eval_copy_on_write.h"
 #include "intern/eval/deg_eval_flush.h"
+#include "intern/eval/deg_eval_flush_game.hh" /* UPBGE */
 #include "intern/eval/deg_eval_stats.h"
 #include "intern/eval/deg_eval_visibility.h"
 #include "intern/node/deg_node.hh"
@@ -179,7 +180,7 @@ void calculate_pending_parents_if_needed(DepsgraphEvalState *state)
     return;
   }
 
-  for (OperationNode *node : state->graph->operations) {
+  for (OperationNode *node : game_eval_operations_to_walk(state->graph)) { /* UPBGE */
     calculate_pending_parents_for_node(state, node);
   }
 
@@ -324,7 +325,7 @@ void schedule_node(DepsgraphEvalState *state,
 void schedule_graph(DepsgraphEvalState *state,
                     const FunctionRef<void(OperationNode *node)> schedule_fn)
 {
-  for (OperationNode *node : state->graph->operations) {
+  for (OperationNode *node : game_eval_operations_to_walk(state->graph)) { /* UPBGE */
     schedule_node(state, node, false, schedule_fn);
   }
 }

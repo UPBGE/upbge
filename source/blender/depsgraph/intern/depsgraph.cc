@@ -27,6 +27,7 @@
 #include "intern/depsgraph_relation.hh"
 
 #include "intern/eval/deg_eval_copy_on_write.h"
+#include "intern/eval/deg_eval_flush_game.hh" /* UPBGE */
 
 #include "intern/node/deg_node.hh"
 #include "intern/node/deg_node_component.hh"
@@ -153,6 +154,9 @@ static void clear_id_nodes_conditional(Depsgraph::IDDepsNodes *id_nodes, const F
 
 void Depsgraph::clear_id_nodes()
 {
+  /* UPBGE: the game flush lists point into the nodes freed here. */
+  game_flush_lists_invalidate(this);
+
   /* Free memory used by ID nodes. */
 
   /* Stupid workaround to ensure we free IDs in a proper order. */

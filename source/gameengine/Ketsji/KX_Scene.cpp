@@ -50,6 +50,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_task.h"
+#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
@@ -349,6 +350,12 @@ KX_Scene::~KX_Scene()
   blender::bContext *C = KX_GetActiveEngine()->GetContext();
   blender::Main *bmain = CTX_data_main(C);
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+
+  /* Back to the flush of Blender: the depsgraph is the one of the editor in the embedded
+   * player. */
+  if (depsgraph) {
+    DEG_game_set_incremental_flush(depsgraph, false);
+  }
 
   /* Push what the culling gate held back and unhide the evaluated objects,
    * before the undo restore so it has the last word on transforms. */
@@ -774,6 +781,10 @@ void KX_Scene::UpdateDepsgraph(blender::Main *bmain,
   BKE_scene_view_layers_synced_ensure(*bmain, scene);
   /* We need the changes to be flushed before each draw loop! */
   blender::Depsgraph *depsgraph = CTX_data_depsgraph_pointer(KX_GetActiveEngine()->GetContext());
+  /* The flush resets and the evaluation walks the nodes of the update only, not the whole graph:
+   * moving the camera in a large scene no longer costs every operation (off again at scene exit).
+   */
+  DEG_game_set_incremental_flush(depsgraph, true);
   BKE_scene_graph_update_tagged(depsgraph, bmain);
 
   /* Update evaluated object object_to_world according to SceneGraph. New

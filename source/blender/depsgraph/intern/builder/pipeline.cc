@@ -18,6 +18,8 @@
 #include "deg_builder_relations.h"
 #include "deg_builder_transitive.h"
 
+#include "intern/eval/deg_eval_flush_game.hh" /* UPBGE */
+
 namespace blender {
 
 static CLG_LogRef LOG = {"depsgraph"};
@@ -93,6 +95,8 @@ void AbstractBuilderPipeline::build()
   }
 
   build_step_sanity_check();
+  /* UPBGE: nodes are (re)built and tagged by the builders, the next game flush resets them all. */
+  game_flush_lists_invalidate(deg_graph_);
   build_step_nodes();
   build_step_relations();
   build_step_finalize();

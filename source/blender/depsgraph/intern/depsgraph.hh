@@ -128,6 +128,15 @@ struct Depsgraph {
   /* Nodes which have been tagged as "directly modified". */
   Set<OperationNode *> entry_tags;
 
+  /* UPBGE: incremental flush and evaluation of the game engine (deg_eval_flush_game.hh): the
+   * operations the last flush tagged and the ID nodes it reached, valid once a flush did a full
+   * reset after the nodes were (re)built. */
+  bool use_game_incremental_flush = false;
+  bool game_flushed_lists_valid = false;
+  Vector<OperationNode *> game_flushed_operations;
+  Vector<IDNode *> game_flushed_id_nodes;
+  /* End of UPBGE */
+
   /* Convenience Data ................... */
 
   /* XXX: should be collected after building (if actually needed?) */

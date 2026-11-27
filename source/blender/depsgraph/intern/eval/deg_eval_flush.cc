@@ -39,6 +39,7 @@
 #include "intern/node/deg_node_time.hh"
 
 #include "intern/eval/deg_eval_copy_on_write.h"
+#include "intern/eval/deg_eval_flush_game.hh" /* UPBGE */
 
 /* Invalidate data-block data when update is flushed on it.
  *
@@ -82,6 +83,11 @@ void flush_init_id_node_func(void *__restrict data_v,
 
 inline void flush_prepare(Depsgraph *graph)
 {
+  /* UPBGE: the game engine resets the nodes of the previous update only. */
+  if (game_flush_prepare_partial(graph, ID_STATE_NONE, COMPONENT_STATE_NONE)) {
+    return;
+  }
+
   for (OperationNode *node : graph->operations) {
     node->scheduled = false;
   }
@@ -93,6 +99,7 @@ inline void flush_prepare(Depsgraph *graph)
     settings.min_iter_per_thread = 1024;
     BLI_task_parallel_range(0, num_id_nodes, graph, flush_init_id_node_func, &settings);
   }
+  game_flush_prepare_after_full_reset(graph); /* UPBGE */
 }
 
 inline void flush_schedule_entrypoints(Depsgraph *graph, FlushQueue *queue)
@@ -202,7 +209,7 @@ inline OperationNode *flush_schedule_children(OperationNode *op_node, FlushQueue
 /* NOTE: It will also accumulate flags from changed components. */
 void flush_editors_id_update(Depsgraph *graph, const DEGEditorUpdateContext *update_ctx)
 {
-  for (IDNode *id_node : graph->id_nodes) {
+  for (IDNode *id_node : game_flush_id_nodes_to_walk(graph)) { /* UPBGE */
     if (id_node->custom_flags != ID_STATE_MODIFIED) {
       continue;
     }
@@ -337,8 +344,11 @@ void deg_graph_flush_updates(Depsgraph *graph)
       /* Inform corresponding ID and component nodes about the change. */
       ComponentNode *comp_node = op_node->owner;
       IDNode *id_node = comp_node->owner;
+      const int id_state = id_node->custom_flags;     /* UPBGE */
+      const int comp_state = comp_node->custom_flags; /* UPBGE */
       flush_handle_id_node(id_node);
       flush_handle_component_node(id_node, comp_node, &queue);
+      game_flush_list_nodes(graph, op_node, id_node, id_state, comp_node, comp_state); /* UPBGE */
       /* Flush to nodes along links. */
       op_node = flush_schedule_children(op_node, &queue);
     }
