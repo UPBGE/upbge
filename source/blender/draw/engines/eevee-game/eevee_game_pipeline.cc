@@ -201,15 +201,24 @@ void PipelineModule::begin_sync()
 
   {
     /* Forward surfaces. */
-    if (!dummy_object_id_tx_.is_valid()) {
-      const uint zero_u = 0u;
+    /* Object ids of the Raycast node: none are written, but the screen trace takes the size
+     * of the screen from this texture, so it has the render size. Zero everywhere: the
+     * "only local" mode never hits. */
+    if (dummy_object_id_tx_.ensure_2d(gpu::TextureFormat::UINT_8,
+                                      math::max(inst_->film.render_extent_get(), int2(1)),
+                                      GPU_TEXTURE_USAGE_SHADER_READ))
+    {
+      const uint zero_id = 0u;
+      GPU_texture_clear(dummy_object_id_tx_, GPU_DATA_UINT, &zero_id);
+    }
+    if (!dummy_normal_tx_.is_valid()) {
       const float zero_f[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-      dummy_object_id_tx_.ensure_2d(
-          gpu::TextureFormat::UINT_32, int2(1), GPU_TEXTURE_USAGE_SHADER_READ);
-      GPU_texture_clear(dummy_object_id_tx_, GPU_DATA_UINT, &zero_u);
+      /* Hit normal of the Raycast node, encoded N * 0.5 + 0.5. There is no prepass normal
+       * buffer: every hit reads world up, the usual ground under a ray cast downward. */
+      const float up_f[4] = {0.5f, 0.5f, 1.0f, 0.0f};
       dummy_normal_tx_.ensure_2d(
-          gpu::TextureFormat::SFLOAT_16_16, int2(1), GPU_TEXTURE_USAGE_SHADER_READ);
-      GPU_texture_clear(dummy_normal_tx_, GPU_DATA_FLOAT, zero_f);
+          gpu::TextureFormat::SFLOAT_16_16_16_16, int2(1), GPU_TEXTURE_USAGE_SHADER_READ);
+      GPU_texture_clear(dummy_normal_tx_, GPU_DATA_FLOAT, up_f);
       /* Clear air: nothing scattered in, everything transmitted. */
       dummy_volume_tx_.ensure_3d(
           gpu::TextureFormat::SFLOAT_16_16_16_16, int3(1), GPU_TEXTURE_USAGE_SHADER_READ);
@@ -303,8 +312,30 @@ void PipelineModule::eevee_resources_update(int normal_layer_count)
   data.film.render_extent = render_extent;
   data.film.extent_inv = 1.0f / float2(data.film.extent);
   data.film.background_opacity = 1.0f;
+  /* Divides the screen derivatives of the Bump node and the displacement: zero left them
+   * infinite, and every bump map flat. EEVEE's integer downscale, from the upscaling here. */
+  data.film.scaling_factor = max_ii(
+      1, int(roundf(float(data.film.extent.x) / float(max_ii(render_extent.x, 1)))));
 
   data.hiz.uv_scale = inst_->hiz_buffer.uv_scale;
+
+  /* Read by the Ambient Occlusion and Raycast nodes of the forward materials: the same values
+   * EEVEE gives them. Left zero, the AO node finds no occluder and the ray cast no hit. */
+  {
+    const SceneEEVEE &sce_eevee = inst_->scene->eevee;
+    eevee::AOData &ao = data.ao;
+    ao.distance = inst_->view_layer ? inst_->view_layer->eevee.ambient_occlusion_distance : 0.2f;
+    ao.gi_distance = (sce_eevee.fast_gi_distance > 0.0f) ? sce_eevee.fast_gi_distance : 1e16f;
+    ao.lod_factor_ao = 1.0f / (1.0f + sce_eevee.fast_gi_quality * 4.0f);
+    ao.lod_factor = (4.0f / max_ii(sce_eevee.fast_gi_step_count, 1)) /
+                    (1.0f + sce_eevee.fast_gi_quality * 4.0f);
+    ao.angle_bias = 1.0f / max_ff(1e-8f, 1.0f - sce_eevee.fast_gi_bias);
+    ao.thickness_near = sce_eevee.fast_gi_thickness_near;
+    ao.thickness_far = sce_eevee.fast_gi_thickness_far;
+    /* NDC [-1..1] range: twice the pixel size. */
+    ao.pixel_size = float2(2.0f) / float2(render_extent);
+    data.raytrace.thickness = sce_eevee.ray_tracing_options.screen_trace_thickness;
+  }
 
   /* No render passes and no AOVs: -1 makes the shader skip the image write. */
   eevee::RenderBuffersInfoData &rp = data.render_pass;
