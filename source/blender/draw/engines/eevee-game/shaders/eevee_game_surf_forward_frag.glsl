@@ -23,11 +23,15 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_game_surf_forward)
 
 #include "draw_curves_lib.glsl"
 #include "draw_view_lib.glsl"
+#include "eevee_closure_lib.glsl"
 #include "eevee_game_light_lib.glsl"
 #include "eevee_game_ssr_lib.glsl"
 #include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_surf_lib.glsl"
+
+/* Thickness of the material at this fragment, for the refraction direction. */
+Thickness g_game_thickness;
 
 /* Radiance leaving the surface toward the viewer: game lights and world on
  * the closures of the node tree, emission. */
@@ -143,8 +147,18 @@ float3 game_forward_radiance()
         light_sum[i] += specular;
         break;
       }
+      case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID: {
+        /* As EEVEE without ray traced refraction: the world seen through the surface, along the
+         * refracted direction (through the thickness sphere or slab when there is one). */
+        LightProbeRay ray = bxdf_lightprobe_ray(cl[i], P, V, g_game_thickness);
+        light_sum[i] += world_specular(ray.dominant_direction, ray.perceptual_roughness);
+        if (g_game_thickness.value() != 0.0f) {
+          /* Two transmission events: the surface color applies twice. */
+          cl[i].color *= cl[i].color;
+        }
+        break;
+      }
       default:
-        /* Refraction: what is behind comes through the transmittance. */
         break;
     }
     radiance += light_sum[i] * cl[i].color;
@@ -175,6 +189,8 @@ void main()
   float closure_rand = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
 
   fragment_displacement();
+
+  g_game_thickness = Thickness::from(nodetree_thickness(), thickness_mode);
 
   nodetree_surface(closure_rand);
 
