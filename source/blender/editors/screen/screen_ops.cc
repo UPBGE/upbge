@@ -2762,7 +2762,7 @@ static void area_split_draw_cb(const wmWindow * /*win*/, void *userdata)
   const wmOperator *op = static_cast<const wmOperator *>(userdata);
 
   sAreaSplitData *sd = static_cast<sAreaSplitData *>(op->customdata);
-  const eScreenAxis dir_axis = eScreenAxis(RNA_enum_get(op->ptr, "direction"));
+  const eScreenAxis dir_axis = RNA_enum_get<eScreenAxis>(op->ptr, "direction");
 
   if (area_split_allowed(sd->sarea, dir_axis)) {
     float fac = RNA_float_get(op->ptr, "factor");
@@ -2793,7 +2793,7 @@ static bool area_split_init(bContext *C, wmOperator *op)
   }
 
   /* required properties */
-  const eScreenAxis dir_axis = eScreenAxis(RNA_enum_get(op->ptr, "direction"));
+  const eScreenAxis dir_axis = RNA_enum_get<eScreenAxis>(op->ptr, "direction");
 
   /* custom data */
   sAreaSplitData *sd = MEM_new_zeroed<sAreaSplitData>("op_area_split");
@@ -2849,7 +2849,7 @@ static bool area_split_apply(bContext *C, wmOperator *op)
   sAreaSplitData *sd = static_cast<sAreaSplitData *>(op->customdata);
 
   float fac = RNA_float_get(op->ptr, "factor");
-  const eScreenAxis dir_axis = eScreenAxis(RNA_enum_get(op->ptr, "direction"));
+  const eScreenAxis dir_axis = RNA_enum_get<eScreenAxis>(op->ptr, "direction");
 
   if (!area_split_allowed(sd->sarea, dir_axis)) {
     return false;
@@ -2923,7 +2923,7 @@ static void area_split_exit(bContext *C, wmOperator *op)
 static void area_split_preview_update_cursor(bContext *C, wmOperator *op)
 {
   sAreaSplitData *sd = static_cast<sAreaSplitData *>(op->customdata);
-  const eScreenAxis dir_axis = eScreenAxis(RNA_enum_get(op->ptr, "direction"));
+  const eScreenAxis dir_axis = RNA_enum_get<eScreenAxis>(op->ptr, "direction");
   if (area_split_allowed(sd->sarea, dir_axis)) {
     WM_cursor_set(CTX_wm_window(C),
                   (dir_axis == SCREEN_AXIS_H) ? WM_CURSOR_H_SPLIT : WM_CURSOR_V_SPLIT);
@@ -3001,7 +3001,7 @@ static wmOperatorStatus area_split_invoke(bContext *C, wmOperator *op, const wmE
     if (area == nullptr) {
       return OPERATOR_CANCELLED;
     }
-    dir_axis = eScreenAxis(RNA_property_enum_get(op->ptr, prop_dir));
+    dir_axis = RNA_property_enum_get<eScreenAxis>(op->ptr, prop_dir);
     if (dir_axis == SCREEN_AXIS_H) {
       RNA_property_float_set(
           op->ptr, prop_factor, float(event->xy[0] - area->v1->vec.x) / float(area->winx));
@@ -3172,7 +3172,7 @@ static wmOperatorStatus area_split_modal(bContext *C, wmOperator *op, const wmEv
     case EVT_TABKEY:
       if (event->val == KM_PRESS) {
         if (sd->sarea) {
-          const eScreenAxis dir_axis = eScreenAxis(RNA_property_enum_get(op->ptr, prop_dir));
+          const eScreenAxis dir_axis = RNA_property_enum_get<eScreenAxis>(op->ptr, prop_dir);
           RNA_property_enum_set(
               op->ptr, prop_dir, (dir_axis == SCREEN_AXIS_V) ? SCREEN_AXIS_H : SCREEN_AXIS_V);
           area_split_preview_update_cursor(C, op);
@@ -3197,7 +3197,7 @@ static wmOperatorStatus area_split_modal(bContext *C, wmOperator *op, const wmEv
   }
 
   if (update_factor) {
-    const eScreenAxis dir_axis = eScreenAxis(RNA_property_enum_get(op->ptr, prop_dir));
+    const eScreenAxis dir_axis = RNA_property_enum_get<eScreenAxis>(op->ptr, prop_dir);
 
     sd->delta = (dir_axis == SCREEN_AXIS_V) ? event->xy[0] - sd->origval :
                                               event->xy[1] - sd->origval;
@@ -3429,7 +3429,7 @@ static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd, bool do
     ui::view2d_curRect_validate(&rmd->region->v2d);
   }
 
-  region_toggle_hidden(C, rmd->region, do_fade);
+  region_toggle_hidden(C, rmd->area, rmd->region, do_fade);
   region_scale_validate_size(rmd);
 
   if ((rmd->region->flag & RGN_FLAG_HIDDEN) == 0) {
@@ -3439,7 +3439,7 @@ static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd, bool do
         if ((region_tool_header->flag & RGN_FLAG_HIDDEN_BY_USER) == 0 &&
             (region_tool_header->flag & RGN_FLAG_HIDDEN) != 0)
         {
-          region_toggle_hidden(C, region_tool_header, do_fade);
+          region_toggle_hidden(C, rmd->area, region_tool_header, do_fade);
         }
       }
     }
@@ -6053,16 +6053,17 @@ static wmOperatorStatus region_toggle_exec(bContext *C, wmOperator *op)
 {
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "region_type");
 
+  ScrArea *area = CTX_wm_area(C);
   ARegion *region;
   if (RNA_property_is_set(op->ptr, prop)) {
-    region = BKE_area_find_region_type(CTX_wm_area(C), RNA_property_enum_get(op->ptr, prop));
+    region = BKE_area_find_region_type(area, RNA_property_enum_get(op->ptr, prop));
   }
   else {
     region = CTX_wm_region(C);
   }
 
-  if (region && (region->alignment != RGN_ALIGN_NONE)) {
-    ED_region_toggle_hidden(C, region);
+  if (region && (region->alignment != RGN_ALIGN_NONE) && area != nullptr) {
+    ED_region_toggle_hidden(C, area, region);
   }
   ED_region_tag_redraw(region);
 
@@ -7997,7 +7998,7 @@ static wmOperatorStatus space_context_cycle_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent * /*event*/)
 {
-  const eScreenCycle direction = eScreenCycle(RNA_enum_get(op->ptr, "direction"));
+  const eScreenCycle direction = RNA_enum_get<eScreenCycle>(op->ptr, "direction");
 
   PointerRNA ptr;
   PropertyRNA *prop;
@@ -8048,7 +8049,7 @@ static wmOperatorStatus space_workspace_cycle_invoke(bContext *C,
   }
 
   Main *bmain = CTX_data_main(C);
-  const eScreenCycle direction = eScreenCycle(RNA_enum_get(op->ptr, "direction"));
+  const eScreenCycle direction = RNA_enum_get<eScreenCycle>(op->ptr, "direction");
   WorkSpace *workspace_src = WM_window_get_active_workspace(win);
 
   Vector<ID *> ordered = BKE_id_ordered_list(&bmain->workspaces.cast<ID>());

@@ -393,8 +393,7 @@ static void add_attribute_search_or_value_buttons(
     PointerRNA *socket_props_ptr,
     const std::optional<StringRefNull> use_name = std::nullopt)
 {
-  const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
-  const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+  const eNodeSocketDatatype type = socket.socket_typeinfo().type;
 
   const bool show_attribute_input = RNA_enum_get(socket_props_ptr, "type") ==
                                     int(nodes::GeometryNodesInputType::Attribute);
@@ -461,8 +460,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
   /* Use #ui::Layout::prop_search to draw pointer properties because #ui::Layout::prop would not
    * have enough information about what type of ID to select for editing the values. This is
    * because pointer IDProperties contain no information about their type. */
-  const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
-  const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+  const eNodeSocketDatatype type = socket.socket_typeinfo().type;
 
   if (ELEM(type, SOCK_GEOMETRY, SOCK_MATRIX, SOCK_BUNDLE, SOCK_CLOSURE)) {
     return;
@@ -565,7 +563,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     case SOCK_MENU: {
       if (socket.flag & NODE_INTERFACE_SOCKET_MENU_EXPANDED) {
         /* Use a single space when the name is empty to work around a bug with expanded enums. Also
-         * see #ui_item_enum_expand_exec. */
+         * see #item_enum_expand_exec. */
         row.prop(socket_props_ptr,
                  "value",
                  ui::ITEM_R_EXPAND,
@@ -703,8 +701,7 @@ static bool has_output_attribute(const DrawGroupInputsContext &ctx, const bNodeT
     if (!ctx.output_usages[i].is_visible) {
       continue;
     }
-    const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
-    const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+    const eNodeSocketDatatype type = socket.socket_typeinfo().type;
     if (nodes::socket_type_has_attribute_toggle(type)) {
       return true;
     }
@@ -737,8 +734,7 @@ static void draw_output_attributes_panel(DrawGroupInputsContext &ctx, ui::Layout
   const Span<const bNodeTreeInterfaceSocket *> interface_outputs = ctx.tree->interface_outputs();
   for (const int i : interface_outputs.index_range()) {
     const bNodeTreeInterfaceSocket &socket = *interface_outputs[i];
-    const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
-    const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+    const eNodeSocketDatatype type = socket.socket_typeinfo().type;
     if (!ctx.output_usages[i].is_visible) {
       continue;
     }

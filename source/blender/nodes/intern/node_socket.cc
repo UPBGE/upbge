@@ -1017,7 +1017,7 @@ static nodes::GeometryNodesInputType get_geometry_nodes_input_type(
   if (!nodes::input_has_attribute_toggle(tree, input_index)) {
     return nodes::GeometryNodesInputType::Value;
   }
-  if (nodes::GeometryNodesInputType(RNA_property_enum_get(&props, prop)) ==
+  if (RNA_property_enum_get<nodes::GeometryNodesInputType>(&props, prop) ==
       nodes::GeometryNodesInputType::Attribute)
   {
     return nodes::GeometryNodesInputType::Attribute;
@@ -2632,6 +2632,7 @@ void register_standard_node_socket_types()
   bke::node_register_socket_type(*make_socket_type_float(PROP_COLOR_TEMPERATURE));
   bke::node_register_socket_type(*make_socket_type_float(PROP_FREQUENCY));
   bke::node_register_socket_type(*make_socket_type_float(PROP_PIXEL));
+  bke::node_register_socket_type(*make_socket_type_float(PROP_WAVELENGTH_UM));
 
   bke::node_register_socket_type(*make_socket_type_int(PROP_NONE));
   bke::node_register_socket_type(*make_socket_type_int(PROP_UNSIGNED));

@@ -290,8 +290,12 @@ ccl_device void osl_closure_coat_bsdf_setup(KernelGlobals kg,
   coat.ior = closure->ior;
   coat.N = maybe_ensure_valid_specular_reflection(sd, safe_normalize_fallback(closure->N, sd->N));
   coat.roughness = closure->roughness;
-  coat.weight = rgb_to_spectrum(weight);
-  const Spectrum albedo = bsdf_coat_setup(kg, sd, path_visibility, coat);
+  coat.weight = 1.0f;
+  coat.darkening = closure->darkening;
+  coat.T = closure->T;
+  coat.anisotropy = closure->anisotropy;
+
+  const Spectrum albedo = bsdf_coat_setup(kg, sd, path_visibility, coat, rgb_to_spectrum(weight));
 
   if (layer_albedo) {
     *layer_albedo = spectrum_to_rgb(albedo);
@@ -326,24 +330,31 @@ ccl_device void osl_closure_dielectric_bsdf_setup(KernelGlobals kg,
     return;
   }
 
+  const bool reflective_caustics = (kernel_data.integrator.caustics_reflective ||
+                                    (path_visibility & PATH_RAY_VISIBILITY_DIFFUSE) == 0);
+  const bool refractive_caustics = (kernel_data.integrator.caustics_refractive ||
+                                    (path_visibility & PATH_RAY_VISIBILITY_DIFFUSE) == 0);
+
   const bool backfacing = (sd->runtime_flag & SR_BACKFACING);
 
   bsdf->N = maybe_ensure_valid_specular_reflection(sd, safe_normalize_fallback(closure->N, sd->N));
   bsdf->alpha_x = closure->alpha_x;
   bsdf->alpha_y = closure->alpha_y;
   bsdf->ior = backfacing ? 1.0f / closure->ior : closure->ior;
+  bsdf->ior = bsdf_glass_ior(sd, bsdf->ior, closure->inv_abbe);
   bsdf->T = closure->T;
 
   const bool beckmann = closure->distribution == make_string("beckmann", 14712237670914973463ull);
   const bool multiggx = closure->distribution == make_string("multi_ggx", 16842698693386468366ull);
 
-  fresnel->thin_film = {closure->thinfilm_thickness, closure->thinfilm_ior};
+  fresnel->thin_film = {closure->thinfilm_thickness, closure->thinfilm_ior, 1.0f};
   fresnel->tint = {rgb_to_spectrum(closure->reflection_tint),
                    rgb_to_spectrum(closure->transmission_tint)};
   if (backfacing) {
     adjust_thin_film_ior_at_backface(fresnel->thin_film.ior, bsdf->ior);
   }
-  bsdf_dielectric_tint_setup(kg, bsdf, sd, fresnel, beckmann, multiggx);
+  bsdf_dielectric_tint_setup(
+      kg, bsdf, sd, fresnel, reflective_caustics, refractive_caustics, beckmann, multiggx);
 
   if (layer_albedo != nullptr) {
     if (!(sd->runtime_flag & SR_BSDF_HAS_TRANSMISSION)) {
@@ -399,6 +410,7 @@ ccl_device void osl_closure_conductor_bsdf_setup(KernelGlobals kg,
 
   fresnel->thin_film.thickness = closure->thinfilm_thickness;
   fresnel->thin_film.ior = closure->thinfilm_ior;
+  fresnel->thin_film.weight = 1.0f;
 
   fresnel->ior = {rgb_to_spectrum(closure->ior), rgb_to_spectrum(closure->extinction)};
   bsdf_microfacet_setup_fresnel_conductor(kg, bsdf, sd->wi, fresnel, preserve_energy);
@@ -502,6 +514,8 @@ ccl_device void osl_closure_generalized_schlick_bsdf_setup(
   fresnel->exponent = closure->exponent;
   fresnel->thin_film.thickness = closure->thinfilm_thickness;
   fresnel->thin_film.ior = closure->thinfilm_ior;
+  fresnel->thin_film.weight = 1.0f;
+
   if (backfacing) {
     adjust_thin_film_ior_at_backface(fresnel->thin_film.ior, bsdf->ior);
   }
@@ -550,13 +564,15 @@ ccl_device void osl_closure_thin_glass_setup(KernelGlobals kg,
 
   const float3 valid_reflection_N = maybe_ensure_valid_specular_reflection(
       sd, safe_normalize_fallback(closure->N, sd->N));
-  const FresnelThinFilm thinfilm = {closure->thinfilm_thickness, closure->thinfilm_ior};
+  const FresnelThinFilm thinfilm = {closure->thinfilm_thickness, closure->thinfilm_ior, 1.0f};
   const FresnelCoeff tint = {rgb_to_spectrum(closure->reflection_tint),
                              rgb_to_spectrum(closure->transmission_tint)};
+  const MicrofacetFresnel type = closure->dielectric_tint ? DIELECTRIC_TINT : GENERALIZED_SCHLICK;
   const FresnelCoeff fresnel = bsdf_thin_glass_setup(kg,
                                                      sd,
                                                      reflective_caustics,
                                                      refractive_caustics,
+                                                     type,
                                                      tint,
                                                      rgb_to_spectrum(weight),
                                                      valid_reflection_N,
@@ -714,6 +730,7 @@ ccl_device void osl_closure_microfacet_f82_tint_setup(
   fresnel->f0 = rgb_to_spectrum(closure->f0);
   fresnel->thin_film.thickness = closure->thinfilm_thickness;
   fresnel->thin_film.ior = closure->thinfilm_ior;
+  fresnel->thin_film.weight = 1.0f;
 
   bsdf_microfacet_setup_fresnel_f82_tint(
       kg, bsdf, sd->wi, fresnel, rgb_to_spectrum(closure->f82), preserve_energy);

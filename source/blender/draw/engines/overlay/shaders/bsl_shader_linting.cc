@@ -10,11 +10,13 @@
 #include "overlay_armature.bsl.hh"            /* IWYU pragma: export */
 #include "overlay_common.bsl.hh"              /* IWYU pragma: export */
 #include "overlay_depth_only.bsl.hh"          /* IWYU pragma: export */
+#include "overlay_edit_curve.bsl.hh"          /* IWYU pragma: export */
 #include "overlay_edit_gpencil_canvas.bsl.hh" /* IWYU pragma: export */
 #include "overlay_edit_lattice.bsl.hh"        /* IWYU pragma: export */
 #include "overlay_edit_mesh.bsl.hh"           /* IWYU pragma: export */
 #include "overlay_edit_mesh_normal.bsl.hh"    /* IWYU pragma: export */
 #include "overlay_extra.bsl.hh"               /* IWYU pragma: export */
+#include "overlay_facing.bsl.hh"              /* IWYU pragma: export */
 #include "overlay_gsplat.bsl.hh"              /* IWYU pragma: export */
 #include "overlay_lightprobe_grid.bsl.hh"     /* IWYU pragma: export */
 #include "overlay_outline_prepass.bsl.hh"     /* IWYU pragma: export */

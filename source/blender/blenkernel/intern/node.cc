@@ -554,15 +554,13 @@ static void node_foreach_working_space_color(ID *id, const IDTypeForeachColorFun
   }
 
   for (bNodeTreeInterfaceSocket *socket : ntree->interface_inputs()) {
-    const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
-    if (typeinfo && typeinfo->type == SOCK_RGBA && socket->socket_data) {
+    if (socket->socket_typeinfo().type == SOCK_RGBA && socket->socket_data) {
       bNodeSocketValueRGBA *rgba = static_cast<bNodeSocketValueRGBA *>(socket->socket_data);
       fn.single(rgba->value);
     }
   }
   for (bNodeTreeInterfaceSocket *socket : ntree->interface_outputs()) {
-    const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
-    if (typeinfo && typeinfo->type == SOCK_RGBA && socket->socket_data) {
+    if (socket->socket_typeinfo().type == SOCK_RGBA && socket->socket_data) {
       bNodeSocketValueRGBA *rgba = static_cast<bNodeSocketValueRGBA *>(socket->socket_data);
       fn.single(rgba->value);
     }
@@ -1644,6 +1642,12 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
     return;
   }
 
+  if (!is_node_socket_supported(sock)) {
+    /* Avoid keeping this dangling pointer for unknown socket types. */
+    sock->default_value = nullptr;
+    return;
+  }
+
   if (BLO_read_fileversion_get(reader) >=
       versioning_internal::MIN_BLENDFILE_VERSION_FOR_MODERN_NODE_SOCKET_DEFAULT_VALUE_READING)
   {
@@ -1715,7 +1719,9 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
       case SOCK_BUNDLE:
       case SOCK_CLOSURE:
       case SOCK_DYNAMIC:
-        BLI_assert_unreachable();
+        /* These types may have values in the future which the current Blender version does not
+         * know about. */
+        sock->default_value = nullptr;
         break;
     }
   }
@@ -1890,6 +1896,9 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
       case SOCK_INT_VECTOR:
       case SOCK_DYNAMIC:
         BLI_assert_unreachable();
+        /* This should never happen in non-tampered-with .blend files but still handle it
+         * gracefully. */
+        sock->default_value = nullptr;
         break;
     }
   }
@@ -3503,6 +3512,8 @@ std::optional<UString> node_static_socket_type(const int type,
           return "NodeSocketFloatFrequency"_ustr;
         case PROP_PIXEL:
           return "NodeSocketFloatPixel"_ustr;
+        case PROP_WAVELENGTH_UM:
+          return "NodeSocketFloatWavelengthUm"_ustr;
         case PROP_NONE:
         default:
           return "NodeSocketFloat"_ustr;
@@ -3719,6 +3730,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
           return "NodeTreeInterfaceSocketFloatFrequency";
         case PROP_PIXEL:
           return "NodeTreeInterfaceSocketFloatPixel";
+        case PROP_WAVELENGTH_UM:
+          return "NodeTreeInterfaceSocketFloatWavelengthUm";
         case PROP_NONE:
         default:
           return "NodeTreeInterfaceSocketFloat";

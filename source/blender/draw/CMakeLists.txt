@@ -566,7 +566,6 @@ set(SHADER_SRC_OVERLAY
   engines/overlay/shaders/infos/overlay_common_infos.hh
   engines/overlay/shaders/infos/overlay_edit_mode_infos.hh
   engines/overlay/shaders/infos/overlay_extra_infos.hh
-  engines/overlay/shaders/infos/overlay_facing_infos.hh
   engines/overlay/shaders/infos/overlay_fullscreen_infos.hh
   engines/overlay/shaders/infos/overlay_grid_infos.hh
   engines/overlay/shaders/infos/overlay_outline_infos.hh
@@ -584,10 +583,7 @@ set(SHADER_SRC_OVERLAY
   engines/overlay/shaders/overlay_common.bsl.hh
   engines/overlay/shaders/overlay_depth_only_vert.glsl
   engines/overlay/shaders/overlay_depth_only.bsl.hh
-  engines/overlay/shaders/overlay_edit_curve_handle_vert.glsl
-  engines/overlay/shaders/overlay_edit_curve_normals_vert.glsl
-  engines/overlay/shaders/overlay_edit_curve_point_vert.glsl
-  engines/overlay/shaders/overlay_edit_curve_wire_vert.glsl
+  engines/overlay/shaders/overlay_edit_curve.bsl.hh
   engines/overlay/shaders/overlay_edit_curves_handle_vert.glsl
   engines/overlay/shaders/overlay_edit_gpencil_canvas.bsl.hh
   engines/overlay/shaders/overlay_edit_lattice.bsl.hh
@@ -609,8 +605,7 @@ set(SHADER_SRC_OVERLAY
   engines/overlay/shaders/overlay_edit_uv_verts_vert.glsl
   engines/overlay/shaders/overlay_extra_frag.glsl
   engines/overlay/shaders/overlay_extra.bsl.hh
-  engines/overlay/shaders/overlay_facing_frag.glsl
-  engines/overlay/shaders/overlay_facing_vert.glsl
+  engines/overlay/shaders/overlay_facing.bsl.hh
   engines/overlay/shaders/overlay_fullscreen_vert.glsl
   engines/overlay/shaders/overlay_grid_frag.glsl
   engines/overlay/shaders/overlay_grid_vert.glsl

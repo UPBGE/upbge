@@ -297,17 +297,44 @@ static OldNewMap *oldnewmap_new()
 }
 
 /**
+ * Old addresses come from the file and can be any value, including the keys the map reserves
+ * for empty and removed slots.
+ */
+static bool oldnewmap_key_is_valid(const void *oldaddr)
+{
+  return oldaddr != nullptr && PointerKeyInfo<const void *>::is_not_empty_or_removed(oldaddr);
+}
+
+static NewAddress *oldnewmap_lookup_entry(OldNewMap *onm, const void *oldaddr)
+{
+  if (!oldnewmap_key_is_valid(oldaddr)) {
+    return nullptr;
+  }
+  return onm->map.lookup_ptr(oldaddr);
+}
+
+/**
  * \return `true` if the \a oldaddr key has been successfully added to the \a onm, and no existing
  * entry was overwritten.
  */
 static bool oldnewmap_insert(
     OldNewMap *onm, const void *oldaddr, void *newaddr, const int nr, const int64_t alloc_len = 0)
 {
-  if (oldaddr == nullptr || newaddr == nullptr) {
+  if (!oldnewmap_key_is_valid(oldaddr) || newaddr == nullptr) {
     return false;
   }
 
   return onm->map.add_overwrite(oldaddr, NewAddress{newaddr, alloc_len, nr});
+}
+/** Same as above, but never overwrites a key already present in the oldnew map. */
+static bool oldnewmap_insert_no_overwrite(
+    OldNewMap *onm, const void *oldaddr, void *newaddr, const int nr, const int64_t alloc_len = 0)
+{
+  if (!oldnewmap_key_is_valid(oldaddr) || newaddr == nullptr) {
+    return false;
+  }
+
+  return onm->map.add(oldaddr, NewAddress{newaddr, alloc_len, nr});
 }
 
 static void oldnewmap_lib_insert(FileData *fd, const void *oldaddr, ID *newaddr, const int id_code)
@@ -328,7 +355,7 @@ static void *oldnewmap_lookup_and_inc(OldNewMap *onm,
                                       const bool increase_users,
                                       int64_t *r_alloc_len = nullptr)
 {
-  NewAddress *entry = onm->map.lookup_ptr(addr);
+  NewAddress *entry = oldnewmap_lookup_entry(onm, addr);
   if (entry == nullptr) {
     return nullptr;
   }
@@ -1552,7 +1579,7 @@ static void *newdataadr_no_us(FileData *fd, const void *adr, int64_t *r_alloc_le
  */
 static NewAddress *newdataadr_entry(FileData *fd, const void *adr)
 {
-  return fd->datamap->map.lookup_ptr(adr);
+  return oldnewmap_lookup_entry(fd->datamap, adr);
 }
 
 void *blo_read_get_new_globaldata_address(FileData *fd, const void *adr)
@@ -2084,6 +2111,8 @@ static void link_glob_list(FileData *fd, ListBase *lb) /* for glob data */
   void *poin;
 
   if (BLI_listbase_is_empty(lb)) {
+    /* Corrupt file may have a non-null last pointer. */
+    lb->last_ = nullptr;
     return;
   }
   poin = newdataadr(fd, lb->first_);
@@ -2999,12 +3028,16 @@ static BHead *read_data_into_datamap(FileData *fd,
     int64_t alloc_len = 0;
     void *data = read_struct(fd, bhead, allocname, id_type_index, &alloc_len);
     if (data) {
-      const bool is_new = oldnewmap_insert(fd->datamap, bhead->old, data, 0, alloc_len);
+      const bool is_new = oldnewmap_insert_no_overwrite(
+          fd->datamap, bhead->old, data, 0, alloc_len);
       if (!is_new) {
         CLOG_ERROR(&LOG,
                    "Blendfile corruption: Invalid, or multiple `bhead` with same old address "
                    "value (%p) for a given ID.",
                    bhead->old);
+        /* If insertion in datamap fails, that bhead's data will not be usable/accessible from
+         * anywhere in readfile code. Prevent memleaks by freeing it immediately. */
+        MEM_delete_void(data);
       }
     }
 
@@ -3702,6 +3735,12 @@ static BHead *read_libblock(FileData *fd,
     return blo_bhead_next(fd, bhead);
   }
 
+  if ((bhead->code == ID_LINK_PLACEHOLDER) && !(fd->flags & FD_FLAGS_IS_MEMFILE)) {
+    /* Always clear placeholder data regardless of file version: older versions could write
+     * placeholders with invalid pointers, and newer files could still be corrupted or forged. */
+    BKE_libblock_link_placeholder_clear_data(*id, false);
+  }
+
   /* Determine ID type and add to main database list. */
   const short idcode = id->id_type();
   ListBaseT<ID> *lb = which_libbase(main, idcode);
@@ -3766,7 +3805,7 @@ static BHead *read_libblock(FileData *fd,
   if (!success) {
     /* Only happens with corrupt files. Remove the ID from the library mapping,
      * so pointers to it resolve to null instead of the freed ID. */
-    const NewAddress *entry = fd->libmap->map.lookup_ptr(id_address_old);
+    const NewAddress *entry = oldnewmap_lookup_entry(fd->libmap, id_address_old);
     if (entry && entry->newp == id) {
       fd->libmap->map.remove(id_address_old);
     }
@@ -4147,7 +4186,11 @@ static int lib_link_cb(LibraryIDLinkCallbackData *cb_data)
   ID **id_ptr = cb_data->id_pointer;
   ID *owner_id = cb_data->owner_id;
 
-  *id_ptr = BLO_read_get_new_id_address(reader, owner_id, ID_IS_LINKED(owner_id), *id_ptr);
+  *id_ptr = BLO_read_get_new_id_address(
+      reader,
+      owner_id,
+      reader->fd->allow_linked_to_local_references ? false : ID_IS_LINKED(owner_id),
+      *id_ptr);
 
   return IDWALK_RET_NOP;
 }
@@ -4872,7 +4915,8 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
                                             bfd->cur_view_layer->name :
                                             "";
 
-      BKE_lib_override_library_main_validate(bfd->main, fd->reports->reports);
+      BKE_lib_override_library_main_validate(
+          bfd->main, fd->allow_linked_to_local_references, fd->reports->reports);
       BKE_lib_override_library_main_update(bfd->main);
 
       /* In case the current scene is a liboverride, while the ID pointer itself remains valid,
@@ -5329,6 +5373,9 @@ static void read_id_in_lib(FileData *fd,
 {
   ID *id = existing_id;
 
+  BLI_assert(!id_read_tags.is_local_id ||
+             (fd->allow_linked_to_local_references && libmain->curlib == nullptr));
+
   if (id == nullptr) {
     BLI_assert(libmain);
     id = library_id_is_yet_read(fd, libmain, bhead);
@@ -5337,6 +5384,22 @@ static void read_id_in_lib(FileData *fd,
     /* ID has not been read yet, add placeholder to the main of the
      * library it belongs to, so that it will be read later. */
     BLI_assert((fd->id_tag_extra & ID_TAG_EXTERN) == 0);
+    if (id_read_tags.is_local_id) {
+      /* Never create a placeholder when the read ID is expected to be in the current local Main.
+       *
+       * In practice, such an ID should always have 'yet been read' by definition, otherwise it's a
+       * stale data reference that does not exist anymore in current version of the
+       * library-now-local Main.
+       */
+      const char *id_name = blo_bhead_id_name(fd, bhead);
+      BLO_reportf_wrap(fd->reports,
+                       RPT_WARNING,
+                       RPT_("LIB: Data referring to main .blend file was not found in current "
+                            "Main: '%s' from %s"),
+                       id_name ? id_name : "<InvalidIDName>",
+                       libmain->filepath);
+      return;
+    }
     read_libblock(
         fd, libmain, bhead, fd->id_tag_extra | ID_TAG_INDIRECT, id_read_tags, false, &id);
     /* A corrupt block may fail to read, leaving `id` null.
@@ -5514,18 +5577,23 @@ static void expand_doit_library(void *fdhandle,
         fd, bheadlib, lib->filepath, fd->relabase, nullptr, nullptr, false, is_external_lib);
     MEM_delete(lib);
 
+    ID_Readfile_Data::Tags id_read_tags{};
     if (libmain->curlib == nullptr) {
-      BLO_reportf_wrap(fd->reports,
-                       RPT_WARNING,
-                       RPT_("LIB: Data refers to main .blend file: '%s' from %s"),
-                       id_name ? id_name : "<InvalidIDName>",
-                       mainvar->curlib->runtime->filepath_abs);
-      return;
+      if (!fd->allow_linked_to_local_references) {
+        BLO_reportf_wrap(fd->reports,
+                         RPT_WARNING,
+                         RPT_("LIB: Data refers to main .blend file: '%s' from %s"),
+                         id_name ? id_name : "<InvalidIDName>",
+                         mainvar->curlib->runtime->filepath_abs);
+        return;
+      }
+
+      id_read_tags.is_local_id = true;
     }
 
     /* Placeholders never need expanding, as they are a mere reference to ID from another
      * library/blendfile. */
-    read_id_in_lib(fd, ids_to_expand, libmain, mainvar->curlib, bhead, nullptr, {});
+    read_id_in_lib(fd, ids_to_expand, libmain, mainvar->curlib, bhead, nullptr, id_read_tags);
   }
   else if (is_packed_id) {
     /* Packed data-block from another library. */
@@ -5833,6 +5901,8 @@ Main *BLO_library_link_begin(BlendHandle **bh,
                              const LibraryLink_Params *params)
 {
   FileData *fd = reinterpret_cast<FileData *>(*bh);
+  fd->allow_linked_to_local_references = ((params->flag & BLO_LIBLINK_ALLOW_LOCAL_ID_REFERENCES) !=
+                                          0);
   return library_link_begin(params->bmain, fd, filepath, eID_Tag(params->id_tag_extra));
 }
 
@@ -5958,7 +6028,8 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag, ReportL
    * avoid re-applying their own overrides. */
   BLI_assert(BKE_main_is_empty(main_newid));
   split_main_newid(mainvar, main_newid);
-  BKE_lib_override_library_main_validate(main_newid, (*fd)->reports->reports);
+  BKE_lib_override_library_main_validate(
+      main_newid, (*fd)->allow_linked_to_local_references, (*fd)->reports->reports);
   BKE_lib_override_library_main_update(main_newid);
   add_main_to_main(mainvar, main_newid);
   BKE_main_free(main_newid);
@@ -6066,14 +6137,17 @@ static void read_library_linked_id(
                      library_parent_filepath(mainvar->curlib));
   }
 
-  BLO_readfile_id_runtime_tags_for_write(*id).is_link_placeholder = false;
   id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
 
   if (bhead) {
-    BLO_readfile_id_runtime_tags_for_write(*id).needs_expanding = true;
+    /* It is important to forward the placeholder ID read tags to the real read ID, but the
+     * placeholder ID itself should not be marked as 'not a placeholder anymore', so a local copy
+     * of its read tags needs to be made here. */
+    ID_Readfile_Data::Tags id_read_tags = BLO_readfile_id_runtime_tags(*id);
+    id_read_tags.is_link_placeholder = false;
+    id_read_tags.needs_expanding = true;
     // printf("read lib block %s\n", id->name);
-    read_libblock(
-        fd, mainvar, bhead, eID_Tag(id->tag), BLO_readfile_id_runtime_tags(*id), false, r_id);
+    read_libblock(fd, mainvar, bhead, eID_Tag(id->tag), id_read_tags, false, r_id);
   }
   else {
     CLOG_DEBUG(&LOG,
@@ -6135,22 +6209,12 @@ static void read_library_linked_ids(FileData *basefd, FileData *fd, Main *mainva
          * libraries since multiple might be referencing this ID. */
         change_link_placeholder_to_real_ID_pointer(basefd, id, realid);
 
-        /* Transfer the readfile data from the placeholder to the real ID, but
-         * only if the real ID has no readfile data yet. The same realid may be
-         * referred to by multiple placeholders. */
-        if (realid && !realid->runtime->readfile_data) {
-          realid->runtime->readfile_data = id->runtime->readfile_data;
-          id->runtime->readfile_data = nullptr;
-        }
-
         /* Ensure that the runtime pointer, and its 'readfile' sub-data, are properly freed, as
          * this ID placeholder does not go through versioning (the usual place where this data is
-         * freed). Since `id` is not a real ID, this shouldn't follow any pointers to embedded IDs.
-         *
-         * WARNING! This placeholder ID is only an ID struct, with a very small subset of regular
-         * ID common data actually valid and needing to be freed. Therefore, calling
-         * #BKE_libblock_free_data on it would not work. */
-        BKE_libblock_free_runtime_data(id);
+         * freed). The placeholder must still be tagged as such here, since it is only an ID
+         * struct (see e.g. #id_can_have_animdata). */
+        BLI_assert(BLO_readfile_id_runtime_tags(*id).is_link_placeholder);
+        BKE_libblock_free_data(id, false);
         MEM_delete(id);
 
         /* A failed on-demand block read only clears `FD_FLAGS_FILE_OK` on `fd` (as for the
@@ -6250,6 +6314,8 @@ static FileData *read_library_file_data(FileData *basefd, Main *bmain, Main *lib
 
     fd->reports = basefd->reports;
 
+    fd->allow_linked_to_local_references = basefd->allow_linked_to_local_references;
+
     if (fd->libmap) {
       oldnewmap_free(fd->libmap);
     }
@@ -6304,7 +6370,7 @@ static void read_libraries_free_placeholders(FileData *basefd)
         if (libmain->id_map != nullptr) {
           BKE_main_idmap_remove_id(libmain->id_map, &id);
         }
-        BKE_libblock_free_runtime_data(&id);
+        BKE_libblock_free_data(&id, false);
         MEM_delete(&id);
       }
     }
@@ -6611,6 +6677,8 @@ void BLO_read_struct_list_with_size(BlendDataReader *reader,
                                     ListBase *list)
 {
   if (BLI_listbase_is_empty(list)) {
+    /* Corrupt file may have a non-null last pointer. */
+    list->last_ = nullptr;
     return;
   }
 

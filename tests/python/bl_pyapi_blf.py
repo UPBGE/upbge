@@ -483,8 +483,10 @@ class CaseVFont(NamedTuple):
     space_word: float = 1.0
     space_line: float = 1.0
     space_character: float = 1.0
+    small_caps_scale: float = 0.75
     geometry_offset: float = 0.0
     geometry_extrude: float = 0.0
+    shear: float = 0.0
     materials: list[tuple[float, float, float]] | None = None
     # Optional context-manager factory invoked after the text Object has been created
     # and before the depsgraph evaluates it. Receives the Object as its only argument
@@ -803,8 +805,10 @@ def vfont_create_text_object_from_case(
     curve.space_word = case.space_word
     curve.space_line = case.space_line
     curve.space_character = case.space_character
+    curve.small_caps_scale = case.small_caps_scale
     curve.offset = case.geometry_offset
     curve.extrude = case.geometry_extrude
+    curve.shear = case.shear
 
     materials_rgb = case.materials if case.materials is not None else (
         [default_material] if default_material is not None else []
@@ -2934,6 +2938,22 @@ class TestMaterials(TestImageComparison_MixIn, unittest.TestCase):
                 (0.4, 0.4, 0.4),  # K - Key (dark gray)
             ],
         ),
+        # Combining marks using different materials from their base.
+        CaseVFont(
+            name="combining_mark",
+            text=(
+                TextFormatCompose()
+                .style(material=0).text("x")
+                .style(material=1).text("\u0301")
+                .style(material=0).text(" q")
+                .style(material=1).text("\u0301")
+                .style(material=2).text("\u0323")
+            ),
+            materials=[(1.0, 0.2, 0.2), (0.2, 1.0, 0.2), (0.2, 0.4, 1.0)],
+            size=(85, 81),
+            expected_dimensions=(0.893544, 0.843578),
+            position_offset=(9.1, 31.6),
+        ),
     ]
 
 
@@ -3075,6 +3095,99 @@ class TestStyles(TestImageComparison_MixIn, unittest.TestCase):
             expected_dimensions=(1.875172, 0.528846),
             position_offset=(5.2, 10.5),
         ),
+        # Kerning on a base character with combining marks.
+        CaseVFont(
+            name="kern_combining",
+            text=(
+                TextFormatCompose()
+                .style(kerning=10.0).text("x")
+                .style(kerning=0.0).text("\u0301o x")
+                .style(kerning=10.0).text("\u0301")
+                .style(kerning=0.0).text("o ")
+                .style(kerning=10.0).text("x\u0301")
+                .style(kerning=0.0).text("o")
+            ),
+            size=(224, 60),
+            expected_dimensions=(2.825893, 0.543355),
+            position_offset=(9.1, 10.5),
+        ),
+        # Bold changes between a base character and its combining mark:
+        # NOTE: marks currently use their own style, not the style of their base.
+        CaseVFont(
+            name="bold_split_cluster",
+            text=(
+                TextFormatCompose()
+                .style(bold=True).text("x")
+                .style(bold=False).text("\u0301 x")
+                .style(bold=True).text("\u0301")
+            ),
+            size=(87, 60),
+            expected_dimensions=(0.922537, 0.542841),
+            position_offset=(9.8, 10.0),
+        ),
+        # Italic changes between a base character and its combining mark:
+        # NOTE: marks currently use their own style, not the style of their base.
+        CaseVFont(
+            name="italic_split_cluster",
+            text=(
+                TextFormatCompose()
+                .style(italic=True).text("x")
+                .style(italic=False).text("\u0301 x")
+                .style(italic=True).text("\u0301")
+            ),
+            size=(84, 59),
+            expected_dimensions=(0.882554, 0.535219),
+            position_offset=(11.8, 10.0),
+        ),
+    ]
+
+
+class TestSmallCaps(TestImageComparison_MixIn, unittest.TestCase):
+    """Test small caps: scale and styles which split shaping runs."""
+
+    name_prefix = "small_caps."
+
+    cases_vfont = [
+        # Half scale: small caps must be shorter than lowercase letters.
+        CaseVFont(
+            name="scale_half",
+            text=(
+                TextFormatCompose()
+                .text("Juliet ")
+                .style(smallcaps=True).text("Kilo")
+                .style(smallcaps=False).text(" Lima")
+            ),
+            small_caps_scale=0.5,
+            size=(345, 67),
+            expected_dimensions=(4.510989, 0.652473),
+            position_offset=(13.9, 19.4),
+        ),
+        # Full scale: small caps must match regular capitals.
+        CaseVFont(
+            name="scale_one",
+            text=(
+                TextFormatCompose()
+                .text("KILO ")
+                .style(smallcaps=True).text("Kilo")
+            ),
+            small_caps_scale=1.0,
+            size=(249, 57),
+            expected_dimensions=(3.178571, 0.504808),
+            position_offset=(5.2, 10.5),
+        ),
+        # Toggle small caps within a word.
+        CaseVFont(
+            name="split_word",
+            text=(
+                TextFormatCompose()
+                .text("No")
+                .style(smallcaps=True).text("vem")
+                .style(smallcaps=False).text("ber")
+            ),
+            size=(238, 59),
+            expected_dimensions=(3.016655, 0.528846),
+            position_offset=(5.2, 10.5),
+        ),
     ]
 
 
@@ -3155,6 +3268,16 @@ class TestSpacing(TestImageComparison_MixIn, unittest.TestCase):
             position_offset=(10.0, 21.9),
             space_character=1.5,
         ),
+        # Character spacing with combining marks.
+        # NOTE: marks are currently centered over the widened advance, away from their base.
+        CaseVFont(
+            name="character_wide_combining",
+            text="x\u0301q\u0323x\u0303",
+            space_character=2.0,
+            size=(188, 81),
+            expected_dimensions=(2.331044, 0.836710),
+            position_offset=(9.1, 31.6),
+        ),
     ]
 
 
@@ -3180,6 +3303,40 @@ class TestGeometry(TestImageComparison_MixIn, unittest.TestCase):
             expected_dimensions=(7.793791, 0.646813),
             position_offset=(8.0, 15.5),
             geometry_offset=-0.02,
+        ),
+    ]
+
+
+class TestShear(TestImageComparison_MixIn, unittest.TestCase):
+    """Test shear (the italic angle applied to all characters)."""
+
+    name_prefix = "shear."
+    cases_vfont = [
+        CaseVFont(
+            name="positive",
+            text="Juliet Kilo",
+            shear=0.5,
+            size=(249, 67),
+            expected_dimensions=(3.172921, 0.652473),
+            position_offset=(18.2, 19.4),
+        ),
+        CaseVFont(
+            name="negative",
+            text="Juliet Kilo",
+            shear=-0.5,
+            size=(241, 67),
+            expected_dimensions=(3.056523, 0.652473),
+            position_offset=(23.1, 19.4),
+        ),
+        # Combining marks above & below sheared base characters.
+        # NOTE: shear currently doesn't account for the vertical offset of marks.
+        CaseVFont(
+            name="combining",
+            text="X\u0301q\u0323 E\u0301c\u0327",
+            shear=0.5,
+            size=(155, 90),
+            expected_dimensions=(1.867102, 0.958963),
+            position_offset=(9.8, 31.6),
         ),
     ]
 

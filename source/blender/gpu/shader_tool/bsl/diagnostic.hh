@@ -191,8 +191,13 @@ enum class Diag {
   ImplicitPaddingAtEndOfStruct,
   ImplicitPaddingBeforeMember,
 
-  InitializerListRequiresExplicitType,
+  InitializerListAnonymous,
+  InitializerListArray,
+  InitializerListBitfield,
+  InitializerListEmptyBaseClass,
   InitializerListNoSelfReference,
+  InitializerListRequiresExplicitType,
+  InitializerListUnion,
 
   InliningNoDefinition,
 
@@ -323,6 +328,7 @@ enum class Diag {
   UnsupportedDeletedBody,
   UnsupportedDoubleLiteral,
   UnsupportedPureVirtualFunctionBody,
+  UnsupportedDefaultMemberInitializerInUnion,
 
   UsingNamespaceNotSupported,
 };
@@ -473,6 +479,20 @@ static inline std::string_view diagnostic_message_get(Diag diag)
       return "Implicit {} bytes padding before '{}', add manual padding";
     case Diag::InitializerListRequiresExplicitType:
       return "Initializer list requires explicit type";
+    case Diag::InitializerListAnonymous:
+      return "Initializer list is not supported on '{}' because it contains an anonymous member, "
+             "use designated initializer list instead";
+    case Diag::InitializerListArray:
+      return "Initializer list is not supported on '{}' because it contains the array member "
+             "'{}', use designated initializer list instead";
+    case Diag::InitializerListBitfield:
+      return "Initializer list is not supported on '{}' because it contains bitfield '{}', "
+             "use designated initializer list instead";
+    case Diag::InitializerListUnion:
+      return "Initializer list is not supported on union '{}'";
+    case Diag::InitializerListEmptyBaseClass:
+      return "Initializer list is not supported on '{}' because it inherit empty base class '{}', "
+             "use designated initializer list instead";
     case Diag::InitializerListNoSelfReference:
       return "Initializer list cannot call methods or access members";
     case Diag::InliningNoDefinition:
@@ -710,6 +730,8 @@ static inline std::string_view diagnostic_message_get(Diag diag)
       return "Double literals are not supported, add 'f' suffix";
     case Diag::UnsupportedPureVirtualFunctionBody:
       return "Pure virtual function with body are not supported";
+    case Diag::UnsupportedDefaultMemberInitializerInUnion:
+      return "Default member initializers are not supported in unions";
     case Diag::UsingNamespaceNotSupported:
       return "Using namespace statements are not supported";
   }

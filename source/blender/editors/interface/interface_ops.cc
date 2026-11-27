@@ -1085,11 +1085,11 @@ static bool tree_interface_item_can_set_prop(const bNodeTreeInterfaceItem &item,
         return sock.flag & NODE_INTERFACE_SOCKET_INPUT;
       }
       if (STREQ(prop_id, "attribute_domain") && sock.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-        return nodes::socket_type_supports_attributes(sock.socket_typeinfo()->type);
+        return nodes::socket_type_supports_attributes(sock.socket_typeinfo().type);
       }
       /* Other properties only support batch setting for selected items of the same type. */
       const auto &active_sock = reinterpret_cast<const bNodeTreeInterfaceSocket &>(active_item);
-      return sock.socket_typeinfo()->type == active_sock.socket_typeinfo()->type;
+      return sock.socket_typeinfo().type == active_sock.socket_typeinfo().type;
     }
     case NodeTreeInterfaceItemType::Panel: {
       const auto &panel = reinterpret_cast<const bNodeTreeInterfacePanel &>(item);
@@ -3069,7 +3069,7 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
                                                      const wmEvent * /*event*/)
 {
   ARegion &region = *CTX_wm_region(C);
-  const Direction direction = Direction(RNA_enum_get(op->ptr, "direction"));
+  const Direction direction = RNA_enum_get<Direction>(op->ptr, "direction");
   AbstractView *view = get_view_focused(C);
 
   AbstractViewItem *from = view->find_active_or_visible_item();
@@ -3184,8 +3184,8 @@ static wmOperatorStatus ui_view_item_scroll_page_invoke(bContext *C,
 {
   ARegion &region = *CTX_wm_region(C);
   AbstractView *view = get_view_focused(C);
-  const PageScrollDirection direction = PageScrollDirection(
-      RNA_enum_get(op->ptr, "scroll_direction"));
+  const PageScrollDirection direction = RNA_enum_get<PageScrollDirection>(op->ptr,
+                                                                          "scroll_direction");
 
   view->page_scroll(C, direction);
 
