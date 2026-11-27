@@ -17,6 +17,8 @@ public:
 
   /* Draw the finished frame into the viewport color buffer. */
   void present(gpu::Texture *final_color_tx);
+  /* Passes the viewport compositor reads, as EEVEE gives them: the mist only. */
+  void write_viewport_compositor_passes();
 
   // Getters for internal logic
   int2 render_extent_get() const { return render_extent_; }
@@ -33,6 +35,9 @@ private:
   /* Bound by reference: the source changes with the upscale / AA mode. */
   gpu::Texture *present_tx_ = nullptr;
   PassSimple present_ps_{"Film.Present"};
+  PassSimple mist_ps_{"Film.Mist"};
+  /* The viewport compositor of this frame reads the mist pass. */
+  bool use_mist_pass_ = false;
 };
 
 } // namespace blender::eevee_game

@@ -665,6 +665,7 @@ set(GLSL_SRC
   engines/eevee-game/shaders/eevee_game_culling_comp.glsl
   engines/eevee-game/shaders/eevee_game_deferred_light_frag.glsl
   engines/eevee-game/shaders/eevee_game_dof_fast_comp.glsl
+  engines/eevee-game/shaders/eevee_game_film_mist_comp.glsl
   engines/eevee-game/shaders/eevee_game_film_present_frag.glsl
   engines/eevee-game/shaders/eevee_game_fsr3_accumulate_comp.glsl
   engines/eevee-game/shaders/eevee_game_fsr3_autogen_reactive_comp.glsl

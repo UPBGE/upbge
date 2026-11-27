@@ -255,6 +255,7 @@ void ShadingView::render()
   /* ================================================================
    * Step 6: Present */
   inst_.film.present(final_tx_);
+  inst_.film.write_viewport_compositor_passes();
 }
 
 } // namespace blender::eevee_game

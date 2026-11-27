@@ -173,6 +173,8 @@ const char *ShaderModule::static_shader_name_get(eShaderType type)
       return "eevee_game_world_prefilter";
     case SH_FILM_PRESENT:
       return "eevee_game_film_present";
+    case SH_FILM_MIST:
+      return "eevee_game_film_mist";
 
     case SH_FSR3_PREPARE_INPUTS:
       return "eevee_game_fsr3_prepare_inputs";
@@ -237,6 +239,7 @@ void ShaderModule::static_shaders_load(ShaderGroups groups)
       {SH_VOLUME_INTEGRATE, SG_POST_FX},
       {SH_VOLUME_RESOLVE, SG_POST_FX},
       {SH_FILM_PRESENT, SG_POST_FX},
+      {SH_FILM_MIST, SG_POST_FX},
       {SH_VELOCITY_RESOLVE, SG_POST_FX},
       {SH_VOLUME_OCCUPANCY_CONVERT, SG_LIGHTING},
       {SH_WORLD_SH, SG_LIGHTING},

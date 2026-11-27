@@ -602,6 +602,19 @@ GPU_SHADER_CREATE_END()
  * \{ */
 
 /* Final draw into the viewport: exposure, optional AgX, optional sRGB encode. */
+/* Mist pass of the viewport compositor, display resolution. */
+GPU_SHADER_CREATE_INFO(eevee_game_film_mist)
+DO_STATIC_COMPILATION()
+LOCAL_GROUP_SIZE(8, 8)
+/* Opaque scene depth, reversed (1 = near), render resolution. */
+SAMPLER(0, sampler2DDepth, depth_tx)
+IMAGE(0, SFLOAT_16, write, image2D, out_mist_img)
+PUSH_CONSTANT(float4, mist_params)
+PUSH_CONSTANT(float2, ray_scale)
+PUSH_CONSTANT(float2, z_planes)
+COMPUTE_SOURCE("eevee_game_film_mist_comp.glsl")
+GPU_SHADER_CREATE_END()
+
 GPU_SHADER_CREATE_INFO(eevee_game_film_present)
 DO_STATIC_COMPILATION()
 SAMPLER(0, sampler2D, color_tx)
