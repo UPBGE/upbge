@@ -469,6 +469,11 @@ void blo_do_versions_upbge(FileData *fd, Library * /*lib*/, Main *bmain)
       light.bias = 1.0f;
     }
   }
+  if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "game_batch_cell_size")) {
+    for (Scene &scene : bmain->scenes) {
+      scene.eevee.game_batch_cell_size = 32.0f;
+    }
+  }
   if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "char", "game_aa_method")) {
     const SceneEEVEE default_eevee;
     for (Scene &scene : bmain->scenes) {

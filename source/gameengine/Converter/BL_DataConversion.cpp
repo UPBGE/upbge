@@ -50,6 +50,7 @@
 #define THREADED_DAG_WORKAROUND
 
 #include "BL_DataConversion.h"
+#include "BL_StaticBatch.h"
 
 #include <fmt/format.h>
 
@@ -1312,6 +1313,16 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   /* Ensure objects base flags are up to date each time we call BL_ConvertObjects */
   BKE_scene_base_flag_to_objects(*maggie, blenderscene, BKE_view_layer_default_view(blenderscene));
 
+  /* Static batching: the merged objects are built before the conversion, which converts them
+   * like any other object; the flagged ones are hidden once converted. */
+  BL_StaticBatchResult static_batches;
+  if (!single_object && !libloading) {
+    static_batches = BL_BuildStaticBatches(maggie, blenderscene, depsgraph);
+    kxscene->AddStaticBatches(static_batches.batches);
+    BKE_scene_base_flag_to_objects(
+        *maggie, blenderscene, BKE_view_layer_default_view(blenderscene));
+  }
+
   std::vector<blender::Object *> lod_objects = lod_level_object_list(
       BKE_view_layer_default_view(blenderscene));
 
@@ -1787,6 +1798,12 @@ void BL_ConvertBlenderObjects(blender::Main *maggie,
   // instantiate dupli group, we will loop trough the object
   // that are in active layers. Note that duplicating group
   // has the effect of adding objects at the end of objectlist.
+  for (blender::Object *ob : static_batches.merged) {
+    if (KX_GameObject *gameobj = converter->FindGameObject(ob)) {
+      gameobj->SetVisible(false, false);
+    }
+  }
+
   // Only loop through the first part of the list.
   if (!converting_instance_col_at_runtime) {
     int objcount = objectlist->GetCount();

@@ -2876,6 +2876,9 @@ struct SceneEEVEE {
   char game_renderer = SCE_EEVEE_GAME_RENDERER_EEVEE_GAME;
   char _pad3[1] = {};
   float game_upscale_sharpness = 0.0f;
+  /** Static batching: world grid cell size, 0 for one batch per material set. */
+  float game_batch_cell_size = 32.0f;
+  char _pad4[4] = {};
 };
 
 struct SceneGpencil {

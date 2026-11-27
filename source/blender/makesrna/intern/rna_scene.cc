@@ -9506,6 +9506,15 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  prop = RNA_def_property(srna, "game_batch_cell_size", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 1000.0f, 100, 1);
+  RNA_def_property_ui_text(prop,
+                           "Batch Cell Size",
+                           "Static batches are split by a world grid of this size so they can "
+                           "still be culled, 0 for one batch per material set");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+
   prop = RNA_def_property(srna, "game_renderer", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, eevee_game_renderer_items);
   RNA_def_property_ui_text(

@@ -3076,6 +3076,14 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Lock Z Rotation Axis", "Disable simulation of angular motion along the Z axis");
 
+  prop = RNA_def_property(srna, "use_static_batch", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gameflag2", OB_STATIC_BATCH);
+  RNA_def_property_ui_text(prop,
+                           "Static Batch",
+                           "Merge with the other static batch objects of the same materials at "
+                           "game start: drawn as one object, transform and visibility no longer "
+                           "followed");
+
   /* is this used anywhere ? */
   prop = RNA_def_property(srna, "use_activity_culling", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "gameflag2", OB_NEVER_DO_ACTIVITY_CULLING);

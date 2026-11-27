@@ -68,6 +68,7 @@ set(SRC
   BL_DataConversion.cpp
   BL_ScalarInterpolator.cpp
   BL_SceneConverter.cpp
+  BL_StaticBatch.cpp
   #BL_IpoConvert.cpp (everything inside BL_IpoConvert.h)
 
   BL_ArmatureActuator.h
@@ -80,6 +81,7 @@ set(SRC
   BL_ConvertProperties.h
   BL_ConvertSensors.h
   BL_DataConversion.h
+  BL_StaticBatch.h
   BL_IpoConvert.h
   BL_ScalarInterpolator.h
   BL_SceneConverter.h
@@ -93,6 +95,7 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::draw
+  PRIVATE bf::geometry
   PRIVATE bf::dna
   PRIVATE bf::gpu
   PRIVATE bf::imbuf

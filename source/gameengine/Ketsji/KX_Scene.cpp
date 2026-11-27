@@ -36,6 +36,8 @@
 
 #include "KX_Scene.h"
 
+#include "BL_StaticBatch.h"
+
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -391,6 +393,10 @@ KX_Scene::~KX_Scene()
 
   if (m_objectlist)
     m_objectlist->Release();
+
+  if (!m_staticBatches.empty()) {
+    BL_FreeStaticBatches(bmain, scene, m_staticBatches);
+  }
 
   if (m_gameDefaultCamera) {
     BKE_collection_object_remove(bmain, scene->master_collection, m_gameDefaultCamera, false);

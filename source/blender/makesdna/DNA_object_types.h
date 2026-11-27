@@ -296,6 +296,8 @@ enum {
   OB_LOCK_RIGID_BODY_Y_ROT_AXIS = 1 << 6,
   OB_LOCK_RIGID_BODY_Z_ROT_AXIS = 1 << 7,
   OB_CCD_RIGID_BODY = 1 << 8,
+  /** Merged with the other flagged objects at scene start (BL_StaticBatch). */
+  OB_STATIC_BATCH = 1 << 9,
 
   /*	OB_LIFE     = OB_PROP | OB_DYNAMIC | OB_ACTOR | OB_MAINACTOR | OB_CHILD, */
 };

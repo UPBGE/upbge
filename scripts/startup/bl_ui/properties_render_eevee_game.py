@@ -28,6 +28,7 @@ class RENDER_PT_eevee_game(EEVEEGameButtonsPanel, Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
         layout.prop(context.scene.eevee, "game_renderer", text="Renderer")
+        layout.prop(context.scene.eevee, "game_batch_cell_size")
 
 
 class RENDER_PT_eevee_game_antialiasing(EEVEEGameButtonsPanel, Panel):
@@ -93,11 +94,30 @@ class DATA_PT_eevee_game_light_shadow(Panel):
         layout.prop(light, "shadow_buffer_bias", text="Bias")
 
 
+class OBJECT_PT_eevee_game_static_batch(Panel):
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+    bl_label = "EEVEE-Game"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return ob and ob.type == 'MESH'
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.prop(context.object.game, "use_static_batch")
+
+
 classes = (
     RENDER_PT_eevee_game,
     RENDER_PT_eevee_game_antialiasing,
     RENDER_PT_eevee_game_bloom,
     DATA_PT_eevee_game_light_shadow,
+    OBJECT_PT_eevee_game_static_batch,
 )
 
 

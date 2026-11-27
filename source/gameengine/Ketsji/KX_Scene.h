@@ -116,6 +116,8 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
  protected:
   /***************EEVEE INTEGRATION*****************/
   blender::Object *m_gameDefaultCamera;
+  /** Static batch objects created at conversion (BL_StaticBatch), freed with the scene. */
+  std::vector<blender::Object *> m_staticBatches;
   std::vector<blender::Collection *> m_overlay_collections;
   blender::GPUViewport *m_currentGPUViewport;
   KX_Camera *m_overlayCamera;
@@ -451,6 +453,11 @@ class KX_Scene : public KX_PythonProxy, public SCA_IScene {
     return m_cullingGate;
   }
   bool UseCullingOcclusion(KX_Camera *cam);
+
+  void AddStaticBatches(const std::vector<blender::Object *> &batches)
+  {
+    m_staticBatches.insert(m_staticBatches.end(), batches.begin(), batches.end());
+  }
 
   KX_Camera *GetOverrideCullingCamera() const;
   void SetOverrideCullingCamera(KX_Camera *cam);
