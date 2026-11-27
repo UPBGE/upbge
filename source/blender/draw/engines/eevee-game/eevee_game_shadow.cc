@@ -628,6 +628,7 @@ void ShadowModule::render_tile(Framebuffer &fb, View &view, int2 tile_origin, in
    * Consequence: the atlas stores what those shaders write, reversed depth
    * (1 = near the light, 0 = far), tested with GREATER_EQUAL. */
   inst_->manager->submit(inst_->pipelines.prepass_opaque_get(), view);
+  inst_->manager->submit(inst_->pipelines.prepass_opaque_velocity_get(), view);
   /* Blended surfaces, which have no opaque prepass. */
   PassMain &casters = inst_->pipelines.shadow_casters_get();
   if (!casters.is_empty()) {

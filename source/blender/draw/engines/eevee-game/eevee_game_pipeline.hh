@@ -102,10 +102,16 @@ class PipelineModule {
    * materials add their sub-passes to these passes during object sync. */
   void begin_sync();
 
-  /* Geometry passes other modules submit with their own views. */
+  /* Geometry passes other modules submit with their own views. The depth prepass is split by
+   * the outputs of its shaders: the velocity variant of the moving objects also writes the
+   * motion vector, the others only the object id. */
   PassMain &prepass_opaque_get()
   {
     return opaque_layer_.prepass_ps;
+  }
+  PassMain &prepass_opaque_velocity_get()
+  {
+    return opaque_layer_.prepass_velocity_ps;
   }
   /* Casters drawn from the lights only, after the opaque prepass. */
   PassMain &shadow_casters_get()
@@ -156,6 +162,7 @@ class PipelineModule {
    * the lit radiance. */
   struct DeferredLayer {
     PassMain  prepass_ps{"Deferred.Prepass"};
+    PassMain  prepass_velocity_ps{"Deferred.PrepassVelocity"};
     PassMain  gbuffer_ps{"Deferred.GBuffer"};
     PassSimple lighting_ps_{"Deferred.Lighting"};
   } opaque_layer_;

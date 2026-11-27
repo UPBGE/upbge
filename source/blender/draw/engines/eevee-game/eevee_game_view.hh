@@ -61,6 +61,9 @@ class ShadingView {
   Framebuffer combined_fb_{"Combined"};
   Framebuffer gbuffer_fb_{"GBuffer"};
   Framebuffer prepass_fb_{"Prepass"};
+  /* Prepass of the objects without the velocity variant: their shader has no motion vector
+   * output, so the motion buffer is not attached (its content would be undefined). */
+  Framebuffer prepass_static_fb_{"Prepass.Static"};
 
   /* Post-processing textures — allocated in sync(), never accessed before it.
    *

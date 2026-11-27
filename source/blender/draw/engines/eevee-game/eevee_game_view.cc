@@ -52,8 +52,9 @@ void ShadingView::update_view()
  * Depth + velocity prepass. Runs before the G-Buffer fill so the
  * G-Buffer shaders can use DEPTH_EQUAL (no depth write, free early-Z).
  *
- * Two sub-passes share the same framebuffer:
- *   - opaque_layer_.prepass_ps  : writes depth and optional velocity
+ * Two passes, by the outputs of their shaders:
+ *   - opaque_layer_.prepass_ps          : depth and object id (prepass_static_fb_)
+ *   - opaque_layer_.prepass_velocity_ps : depth, object id and velocity (prepass_fb_)
  *   Forward opaque surfaces write their depth here too; transparent ones
  *   never do (their overlap masks are drawn in the sorted forward pass).
  *
@@ -74,12 +75,20 @@ void ShadingView::render_prepass()
    * get the camera motion after the prepass. */
   const double clear_velocity = inst_.pipelines.use_velocity_resolve() ? VELOCITY_INVALID : 0.0;
   GPU_framebuffer_clear_color(prepass_fb_, double4(clear_velocity));
+  if (inst_.temporal.enabled()) {
+    /* Integer texture: not with the float clear above. 0 is a resource no pixel uses. */
+    const uint zero_id = 0;
+    GPU_texture_clear(inst_.temporal.object_id_tx(), GPU_DATA_UINT, &zero_id);
+  }
 
-  /* Opaque depth + velocity — all materials submit here in sync_mesh().
-   * DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_GREATER_EQUAL set per sub-pass
-   * in PipelineModule::material_add(). */
+  /* Opaque depth, object id and velocity: all materials submit here in sync_mesh().
+   * DRW_STATE_WRITE_DEPTH | DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_GREATER_EQUAL set per
+   * sub-pass in PipelineModule::material_add(). */
   GPU_debug_group_begin("Prepass.Opaque");
+  prepass_static_fb_.bind();
   inst_.manager->submit(inst_.pipelines.prepass_opaque_get(), render_view_);
+  prepass_fb_.bind();
+  inst_.manager->submit(inst_.pipelines.prepass_opaque_velocity_get(), render_view_);
   GPU_debug_group_end();
 
   /* Hi-Z from opaque depth only, so it has to run before the transparent
@@ -157,15 +166,20 @@ void ShadingView::sync()
     pass.barrier(GPU_BARRIER_TEXTURE_FETCH);
   }
 
-  /* Prepass: depth write + motion vectors (RG16F, read by FSR3). */
-  /* Attachment indices are the fragment outputs of `eevee_surf_depth`:
-   * 0 = normal, 1 = object id (both unused here), 2 = velocity. */
+  /* Prepass: depth, object id (HWTAA) and motion vectors (RG16F, read by FSR3 and HWTAA).
+   * Attachment indices are the fragment outputs of `eevee_surf_depth`:
+   * 0 = normal (unused here), 1 = object id, 2 = velocity. */
   prepass_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
                      GPU_ATTACHMENT_NONE,
                      inst_.temporal.enabled() ?
                          GPU_ATTACHMENT_TEXTURE(inst_.temporal.object_id_tx()) :
                          GPU_ATTACHMENT_NONE,
                      GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx));
+  prepass_static_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
+                            GPU_ATTACHMENT_NONE,
+                            inst_.temporal.enabled() ?
+                                GPU_ATTACHMENT_TEXTURE(inst_.temporal.object_id_tx()) :
+                                GPU_ATTACHMENT_NONE);
 
   /* Combined: HDR color for deferred lighting and forward transparency.
    * Depth is attached because the transparent pass depth tests against the

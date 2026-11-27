@@ -160,18 +160,17 @@ void PipelineModule::begin_sync()
    * gbuffer_pass_sync(): it is the fixed part of the interface of EEVEE's
    * generated surface shaders. Everything is bound by reference, the
    * contents are filled in sync(). */
-  {
-    /* `eevee_surf_depth` (+ `eevee_velocity_geom` for moving objects). */
-    PassMain &pass = opaque_layer_.prepass_ps;
-    pass.init();
-    pass.bind_texture(RBUFS_UTILITY_TEX_SLOT, eevee_utility_tx_);
-    pass.bind_ubo(UNIFORM_BUF_SLOT, &eevee_uniform_buf_);
-    pass.bind_ssbo(SAMPLING_BUF_SLOT, &eevee_sampling_buf_);
-    inst_->velocity.bind_resources(pass);
-    pass.bind_ubo(VELOCITY_CAMERA_PREV_BUF, &camera_prev_buf_);
-    pass.bind_ubo(VELOCITY_CAMERA_CURR_BUF, &camera_curr_buf_);
+  /* `eevee_surf_depth`, and with `eevee_velocity_geom` for the moving objects. */
+  for (PassMain *pass : {&opaque_layer_.prepass_ps, &opaque_layer_.prepass_velocity_ps}) {
+    pass->init();
+    pass->bind_texture(RBUFS_UTILITY_TEX_SLOT, eevee_utility_tx_);
+    pass->bind_ubo(UNIFORM_BUF_SLOT, &eevee_uniform_buf_);
+    pass->bind_ssbo(SAMPLING_BUF_SLOT, &eevee_sampling_buf_);
+    inst_->velocity.bind_resources(*pass);
+    pass->bind_ubo(VELOCITY_CAMERA_PREV_BUF, &camera_prev_buf_);
+    pass->bind_ubo(VELOCITY_CAMERA_CURR_BUF, &camera_curr_buf_);
     /* No "next" step without motion blur. */
-    pass.bind_ubo(VELOCITY_CAMERA_NEXT_BUF, &camera_curr_buf_);
+    pass->bind_ubo(VELOCITY_CAMERA_NEXT_BUF, &camera_curr_buf_);
   }
   {
     /* `eevee_surf_depth` of the blended surfaces, from the lights only. */
@@ -651,6 +650,13 @@ PassMain::Sub *PipelineModule::material_add(Object * /*ob*/,
   const bool deferred_unsupported = GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA) ||
                                     GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
 
+  /* Depth prepass of a prepass pipeline: the velocity variants write one more output. */
+  PassMain &prepass = ELEM(pipeline_type,
+                           MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
+                           MAT_PIPE_PREPASS_FORWARD_VELOCITY) ?
+                          opaque_layer_.prepass_velocity_ps :
+                          opaque_layer_.prepass_ps;
+
   switch (pipeline_type) {
     /* Depth + optional velocity prepass, deferred opaque. */
     case MAT_PIPE_PREPASS_DEFERRED:
@@ -658,11 +664,13 @@ PassMain::Sub *PipelineModule::material_add(Object * /*ob*/,
       if (deferred_unsupported) {
         return nullptr;
       }
-      PassMain::Sub &sub = opaque_layer_.prepass_ps.sub(GPU_material_get_name(gpumat));
+      PassMain::Sub &sub = prepass.sub(GPU_material_get_name(gpumat));
       /* Reversed depth (1 = near): the nearest fragment has the greatest value.
-       * Unit range clip control is what EEVEE's vertex stage is written for. */
-      sub.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_GREATER_EQUAL |
-                    DRW_STATE_CLIP_CONTROL_UNIT_RANGE | cull_state);
+       * Unit range clip control is what EEVEE's vertex stage is written for.
+       * Color: the object id (HWTAA) and the motion vector of the velocity variant. */
+      sub.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_WRITE_COLOR |
+                    DRW_STATE_DEPTH_GREATER_EQUAL | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
+                    cull_state);
       sub.shader_set(GPU_material_get_shader(gpumat));
       return &sub;
     }
@@ -683,9 +691,10 @@ PassMain::Sub *PipelineModule::material_add(Object * /*ob*/,
      * they enter the Hi-Z, the AO and the shadow maps. */
     case MAT_PIPE_PREPASS_FORWARD:
     case MAT_PIPE_PREPASS_FORWARD_VELOCITY: {
-      PassMain::Sub &sub = opaque_layer_.prepass_ps.sub(GPU_material_get_name(gpumat));
-      sub.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_GREATER_EQUAL |
-                    DRW_STATE_CLIP_CONTROL_UNIT_RANGE | cull_state);
+      PassMain::Sub &sub = prepass.sub(GPU_material_get_name(gpumat));
+      sub.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_WRITE_COLOR |
+                    DRW_STATE_DEPTH_GREATER_EQUAL | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
+                    cull_state);
       sub.shader_set(GPU_material_get_shader(gpumat));
       return &sub;
     }
