@@ -315,6 +315,9 @@ void KX_GameObject::TagForTransformUpdate(bool is_overlay_pass)
 void KX_GameObject::TagForTransformUpdateEvaluated(bool is_last_render_pass)
 {
   /* UPBGE dupli instance transforms are synchronized through their DupliObject. */
+  if (m_isUpbgeDupliInstance) {
+    return;
+  }
   
   /* 1. Apply BGE SceneGraph gameobj WorldTransform to the evaluated object. (Priority to
    * SceneGraph transform by default). Exception: The transform is overridden by Depsgraph (override_game_priority).*/
