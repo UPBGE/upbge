@@ -374,9 +374,9 @@ void KX_GameObject::ReplicateBlenderObject()
 {
   blender::Object *ob = GetBlenderObject();
 
-  if (ob && ob->gameflag & OB_DUPLI_UPBGE) {
-    /* Don't do a new copy of the blender::Object if the gameobj is a dupli Base or a dupli instances
-     * All dupli instances will point to the same blender::Object (m_pBlenderObject) */
+  if (ob && ((ob->gameflag & OB_DUPLI_UPBGE) || m_pBlenderGroupObject)) {
+    /* Don't copy the blender::Object for UPBGE duplis or instance-collection members.
+     * Their DupliObject instances share m_pBlenderObject. */
     return;
   }
 
@@ -461,7 +461,9 @@ void KX_GameObject::DiscardRenderedObject()
 
 void KX_GameObject::CreateUpbgeDupliInstanceFromExisting()
 {
-  if (m_pBlenderObject && (m_pBlenderObject->gameflag & OB_DUPLI_UPBGE) == 0) {
+  if (m_pBlenderObject && (m_pBlenderObject->gameflag & OB_DUPLI_UPBGE) == 0 &&
+      !m_pBlenderGroupObject)
+  {
     return;
   }
   m_isUpbgeDupliInstance = true;
@@ -656,6 +658,11 @@ void KX_GameObject::SetIsReplicaObject()
 
 void KX_GameObject::SetIsUpbgeDupliBase()
 {
+  if (m_pBlenderObject && (m_pBlenderObject->gameflag & OB_DUPLI_UPBGE) == 0) {
+    GetScene()->BackupUpbgeDupliBaseFlag(m_pBlenderObject);
+    m_pBlenderObject->gameflag |= OB_DUPLI_UPBGE;
+    DEG_id_tag_update(&m_pBlenderObject->id, ID_RECALC_SYNC_TO_EVAL);
+  }
   m_isUpbgeDupliBase = true;
 }
 
